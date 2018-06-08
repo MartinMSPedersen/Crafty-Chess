@@ -57,7 +57,7 @@ void Edit(void) {
     if (!strcmp(args[0],"white")) wtm=1;
     else if (!strcmp(args[0],"black")) wtm=0;
     if (!strcmp(args[0],"#"))
-      for (i=0;i<64;i++) PieceOnSquare(i)=0;
+      for (i=0;i<64;i++) PcOnSq(i)=0;
     else if (!strcmp(args[0],"c")) wtm=ChangeSide(wtm);
     else if (!strcmp(args[0],"end") || (!strcmp(args[0],"."))) break;
     else if (!strcmp(args[0],"d")) DisplayChessBoard(stdout,tree->pos);
@@ -69,8 +69,8 @@ void Edit(void) {
         square=(trank<<3)+tfile;
         if ((square < 0) || (square > 63))
           printf("unrecognized square %s\n",args[0]);
-        if (wtm) PieceOnSquare(square)=piece;
-        else PieceOnSquare(square)=-piece;
+        if (wtm) PcOnSq(square)=piece;
+        else PcOnSq(square)=-piece;
       }
     }
     else if(strlen(args[0]) == 2) {
@@ -80,8 +80,8 @@ void Edit(void) {
       square=(trank<<3)+tfile;
       if ((square < 0) || (square > 63))
         printf("unrecognized square %s\n",args[0]);
-      if (wtm) PieceOnSquare(square)=piece;
-      else PieceOnSquare(square)=-piece;
+      if (wtm) PcOnSq(square)=piece;
+      else PcOnSq(square)=-piece;
     }
     else printf("unrecognized piece %s\n",args[0]);
   }
@@ -101,23 +101,23 @@ void Edit(void) {
   BlackCastle(0)=0;
   EnPassant(0)=0;
   for (i=0;i<16;i++)
-    if (PieceOnSquare(i)==0 || PieceOnSquare(i+48)==0) athome=0;
+    if (PcOnSq(i)==0 || PcOnSq(i+48)==0) athome=0;
   if (!athome ||
-      (PieceOnSquare(A1)==rook    && PieceOnSquare(B1)==knight &&
-       PieceOnSquare(C1)==bishop  && PieceOnSquare(D1)==queen &&
-       PieceOnSquare(E1)==king    && PieceOnSquare(F1)==bishop &&
-       PieceOnSquare(G1)==knight  && PieceOnSquare(H1)==rook &&
-       PieceOnSquare(A8)==-rook   && PieceOnSquare(B8)==-knight &&
-       PieceOnSquare(C8)==-bishop && PieceOnSquare(D8)==-queen &&
-       PieceOnSquare(E8)==-king   && PieceOnSquare(F8)==-bishop &&
-       PieceOnSquare(G8)==-knight && PieceOnSquare(H8)==-rook)) {
-    if (PieceOnSquare(E1) == king) {
-      if (PieceOnSquare(A1) == rook) WhiteCastle(0)=WhiteCastle(0)|2;
-      if (PieceOnSquare(H1) == rook) WhiteCastle(0)=WhiteCastle(0)|1;
+      (PcOnSq(A1)==rook    && PcOnSq(B1)==knight &&
+       PcOnSq(C1)==bishop  && PcOnSq(D1)==queen &&
+       PcOnSq(E1)==king    && PcOnSq(F1)==bishop &&
+       PcOnSq(G1)==knight  && PcOnSq(H1)==rook &&
+       PcOnSq(A8)==-rook   && PcOnSq(B8)==-knight &&
+       PcOnSq(C8)==-bishop && PcOnSq(D8)==-queen &&
+       PcOnSq(E8)==-king   && PcOnSq(F8)==-bishop &&
+       PcOnSq(G8)==-knight && PcOnSq(H8)==-rook)) {
+    if (PcOnSq(E1) == king) {
+      if (PcOnSq(A1) == rook) WhiteCastle(0)=WhiteCastle(0)|2;
+      if (PcOnSq(H1) == rook) WhiteCastle(0)=WhiteCastle(0)|1;
     }
-    if (PieceOnSquare(E8) == -king) {
-      if (PieceOnSquare(A8) == -rook) BlackCastle(0)=BlackCastle(0)|2;
-      if (PieceOnSquare(H8) == -rook) BlackCastle(0)=BlackCastle(0)|1;
+    if (PcOnSq(E8) == -king) {
+      if (PcOnSq(A8) == -rook) BlackCastle(0)=BlackCastle(0)|2;
+      if (PcOnSq(H8) == -rook) BlackCastle(0)=BlackCastle(0)|1;
     }
   }
 /*

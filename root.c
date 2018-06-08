@@ -92,7 +92,7 @@ void RootMoveList(int wtm) {
 */
       side=(wtm) ? 1 : -1;
       for (square=0;square<64;square++) 
-        if (PieceOnSquare(square)*side > 0)
+        if (PcOnSq(square)*side > 0)
           value-=Max(EnPrise(square,ChangeSide(wtm)),0);
 /*
  ----------------------------------------------------------

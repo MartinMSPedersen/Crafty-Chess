@@ -52,8 +52,8 @@ int AnnotatePositionHTML(TREE *tree, char *text, int wtm, FILE *annotate_out) {
       (void)strcpy(filename,"bitmaps/");
       if ((rank+file) % 2) (void)strcat(filename,"w");
       else (void)strcat(filename,"b");
-      if (PieceOnSquare((rank<<3)+file)) {
-        html_piece=xlate[PieceOnSquare((rank<<3)+file)+7];
+      if (PcOnSq((rank<<3)+file)) {
+        html_piece=xlate[PcOnSq((rank<<3)+file)+7];
         switch(html_piece) {
         case 'p':
           (void)strcat(filename,"bp");

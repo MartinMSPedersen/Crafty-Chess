@@ -918,9 +918,9 @@ int Option(TREE *tree) {
     if (thinking || pondering) return(2);
     for (rank=0;rank<4;rank++) {
       for (file=0;file<8;file++) {
-        piece=-PieceOnSquare((rank<<3)+file);
-        PieceOnSquare((rank<<3)+file)=-PieceOnSquare(((7-rank)<<3)+file);
-        PieceOnSquare(((7-rank)<<3)+file)=piece;
+        piece=-PcOnSq((rank<<3)+file);
+        PcOnSq((rank<<3)+file)=-PcOnSq(((7-rank)<<3)+file);
+        PcOnSq(((7-rank)<<3)+file)=piece;
       }
     }
     SetChessBitBoards(&tree->position[0]);
@@ -939,9 +939,9 @@ int Option(TREE *tree) {
     if (thinking || pondering) return(2);
     for (rank=0;rank<8;rank++) {
       for (file=0;file<4;file++) {
-        piece=PieceOnSquare((rank<<3)+file);
-        PieceOnSquare((rank<<3)+file)=PieceOnSquare((rank<<3)+7-file);
-        PieceOnSquare((rank<<3)+7-file)=piece;
+        piece=PcOnSq((rank<<3)+file);
+        PcOnSq((rank<<3)+file)=PcOnSq((rank<<3)+7-file);
+        PcOnSq((rank<<3)+7-file)=piece;
       }
     }
     SetChessBitBoards(&tree->position[0]);
@@ -3105,7 +3105,7 @@ int Option(TREE *tree) {
     for (rank=RANK8;rank>=RANK1;rank--) {
       nempty=0;
       for (file=FILEA;file<=FILEH;file++) {
-        if (PieceOnSquare((rank<<3)+file)) {
+        if (PcOnSq((rank<<3)+file)) {
           if (nempty) {
             if (output_file)
               fprintf(output_file,"%c",empty[nempty]);
@@ -3115,10 +3115,10 @@ int Option(TREE *tree) {
             nempty=0;
           }
           if (output_file)
-            fprintf(output_file,"%c",xlate[PieceOnSquare((rank<<3)+file)+7]);
+            fprintf(output_file,"%c",xlate[PcOnSq((rank<<3)+file)+7]);
             else
               sprintf(initial_position+strlen(initial_position),"%c",
-                      xlate[PieceOnSquare((rank<<3)+file)+7]);
+                      xlate[PcOnSq((rank<<3)+file)+7]);
         }
         else nempty++;
       }

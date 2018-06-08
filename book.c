@@ -247,8 +247,7 @@ int Book(TREE *tree, int wtm, int root_list_done) {
           !(book_status[i] & 030)) book_status[i]|=BAD_MOVE;
       if (!wtm && !(book_status[i]&040) && !bs_percent[i] &&
           !(book_status[i] & 030)) book_status[i]|=BAD_MOVE;
-      if (computer_opponent &&
-          bs_played[i] < maxp/10 && !bs_percent[i] && book_random &&
+      if (bs_played[i] < maxp/10 && !bs_percent[i] && book_random &&
           !(book_status[i] & 030)) book_status[i]|=BAD_MOVE;
       if (bs_learn[i] >= LEARN_COUNTER_GOOD &&
           !(book_status[i] & 003)) book_status[i]|=GOOD_MOVE;
@@ -573,12 +572,18 @@ int Book(TREE *tree, int wtm, int root_list_done) {
       if (!puzzling && (!book_random ||
                        (mode==tournament_mode && np<book_search_trigger))) {
         if (!forced) {
-          for (i=0;i<nmoves;i++) root_moves[i].move=book_moves[i];
+          n_root_moves=nmoves;
+          for (i=0;i<n_root_moves;i++) {
+            root_moves[i].move=book_moves[i];
+            root_moves[i].nodes=0;
+            root_moves[i].status=0;
+          }
           last_pv.pathd=0;
           booking=1;
           value=Iterate(wtm,booking,1);
           booking=0;
-          if (value <- 50) {
+          abort_search=0;
+          if (value < -50) {
             last_pv.pathd=0;
             return(0);
           }

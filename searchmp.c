@@ -127,19 +127,11 @@ int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
 /*
  ----------------------------------------------------------
 |                                                          |
-|   now we toss in the "razoring" trick, which simply says |
-|   if we are doing fairly badly, we can reduce the depth  |
-|   an additional ply, if there was nothing at the current |
-|   ply that caused an extension.                          |
+|   now it is time to call Search()/Quiesce to find out if |
+|   this move is reasonable or not.                        |
 |                                                          |
  ----------------------------------------------------------
 */
-      if (depth<3*INCPLY && depth>=2*INCPLY &&
-          !tree->in_check[ply] && extensions == -60) {
-        register int value=-Evaluate(tree,ply+1,ChangeSide(wtm),
-                                     -(beta+51),-(alpha-51));
-        if (value+50 < alpha) extensions-=60;
-      }
       begin_root_nodes=tree->nodes_searched;
       extensions=Min(extensions,0);
       if (depth+extensions >= INCPLY)

@@ -10,7 +10,7 @@
 #endif
 #include <signal.h>
 
-/* last modified 02/02/99 */
+/* last modified 09/09/99 */
 /*
 *******************************************************************************
 *                                                                             *
@@ -2461,6 +2461,35 @@
 *           Evaluate() procedure, which could produce bizarre effects.  a few *
 *           minor eval glitches that caused asymmetric scores unintentionally *
 *           were removed.                                                     *
+*                                                                             *
+*   16.17   minor "hole" in SMP code fixed.  it was possible that a move      *
+*           displayed as the best in SearchOutput() would not get played.     *
+*           very subtle timing issue dealing with the search timing out and   *
+*           forgetting to copy the best move back to the right data area.     *
+*           minor fixes to the modified -USE_ATTACK_FUNCTIONS option that     *
+*           was broken when the And()/Or()/ShiftX() macros were replaced by   *
+*           their direct bitwise operator replacements.                       *
+*                                                                             *
+*   16.18   adjustments to king tropism scoring terms (these attract pieces   *
+*           toward the opponent king in a coordinated way).  the scoring term *
+*           that kept the queen from going to the opposite side of the board  *
+*           was not working well which would also cause attacking problems.   *
+*           razoring code has been disabled, as it neither helps or hurts on  *
+*           tactical tests, and it creates a few hashing problems that are    *
+*           annoying.  bug in HashStorePV() that would store the PV into the  *
+*           hash table, but possibly in the wrong table entry, which could    *
+*           stuff a bad move in a hash entry, or overwrite a key entry that   *
+*           could have been useful later.  book random 0 was slightly wrong   *
+*           as it could not ignore book moves if the search said that the     *
+*           score was bad.  also the search would not time-out properly on a  *
+*           forced move, it would use the entire time alotted which was a big *
+*           waste of time when there was only one legal move to make. a very  *
+*           interesting bug was found in storing mate bounds in the hash      *
+*           table, one I had not heard of before.  I now store two MATE       *
+*           bounds, either > MATE-300, or < -MATE+300, which is conservative  *
+*           but safe.  Another change to Iterate() to make it avoid exiting   *
+*           as soon as a mate is found, so that it can find the shortest mate *
+*           possible.                                                         *
 *                                                                             *
 *******************************************************************************
 */

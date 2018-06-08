@@ -3,7 +3,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 06/26/99 */
+/* last modified 08/23/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -58,7 +58,7 @@ MakePieceMove:
   SetRL45(to,OccupiedRL45);
   SetRR45(to,OccupiedRR45);
   bit_move=SetMask(from) | SetMask(to);
-  PieceOnSquare(from)=0;
+  PcOnSq(from)=0;
   switch (piece) {
 /*
 ********************************************************************************
@@ -80,7 +80,7 @@ MakePieceMove:
       HashPW(to,HashKey);
       HashPW32(to,PawnHashKey);
       if (captured == 1) {
-        if(!PieceOnSquare(to)) {
+        if(!PcOnSq(to)) {
           ClearRL90(to-8,OccupiedRL90);
           ClearRL45(to-8,OccupiedRL45);
           ClearRR45(to-8,OccupiedRR45);
@@ -88,14 +88,14 @@ MakePieceMove:
           Clear(to-8,BlackPieces);
           HashPB(to-8,HashKey);
           HashPB32(to-8,PawnHashKey);
-          PieceOnSquare(to-8)=0;
+          PcOnSq(to-8)=0;
           Material+=PAWN_VALUE;
           TotalBlackPawns--;
           TotalPieces--;
           captured=0;
         }
       }
-      PieceOnSquare(to)=pawn;
+      PcOnSq(to)=pawn;
 /*
  --------------------------------------------------------------------
 |                                                                    |
@@ -115,7 +115,7 @@ MakePieceMove:
         case knight:
           Set(to,WhiteKnights);
           HashNW(to,HashKey);
-          PieceOnSquare(to)=knight;
+          PcOnSq(to)=knight;
           TotalWhitePieces+=knight_v;
           WhiteMinors++;
           Material+=KNIGHT_VALUE;
@@ -124,7 +124,7 @@ MakePieceMove:
           Set(to,WhiteBishops);
           Set(to,BishopsQueens);
           HashBW(to,HashKey);
-          PieceOnSquare(to)=bishop;
+          PcOnSq(to)=bishop;
           TotalWhitePieces+=bishop_v;
           WhiteMinors++;
           Material+=BISHOP_VALUE;
@@ -133,7 +133,7 @@ MakePieceMove:
           Set(to,WhiteRooks);
           Set(to,RooksQueens);
           HashRW(to,HashKey);
-          PieceOnSquare(to)=rook;
+          PcOnSq(to)=rook;
           TotalWhitePieces+=rook_v;
           WhiteMajors++;
           Material+=ROOK_VALUE;
@@ -143,7 +143,7 @@ MakePieceMove:
           Set(to,BishopsQueens);
           Set(to,RooksQueens);
           HashQW(to,HashKey);
-          PieceOnSquare(to)=queen;
+          PcOnSq(to)=queen;
           TotalWhitePieces+=queen_v;
           WhiteMajors+=2;
           Material+=QUEEN_VALUE;
@@ -164,7 +164,7 @@ MakePieceMove:
       HashPB(to,HashKey);
       HashPB32(to,PawnHashKey);
       if (captured == 1) {
-        if(!PieceOnSquare(to)) {
+        if(!PcOnSq(to)) {
           ClearRL90(to+8,OccupiedRL90);
           ClearRL45(to+8,OccupiedRL45);
           ClearRR45(to+8,OccupiedRR45);
@@ -172,14 +172,14 @@ MakePieceMove:
           Clear(to+8,WhitePieces);
           HashPW(to+8,HashKey);
           HashPW32(to+8,PawnHashKey);
-          PieceOnSquare(to+8)=0;
+          PcOnSq(to+8)=0;
           Material-=PAWN_VALUE;
           TotalWhitePawns--;
           TotalPieces--;
           captured=0;
         }
       }
-      PieceOnSquare(to)=-pawn;
+      PcOnSq(to)=-pawn;
 /*
  --------------------------------------------------------------------
 |                                                                    |
@@ -199,7 +199,7 @@ MakePieceMove:
         case knight:
           Set(to,BlackKnights);
           HashNB(to,HashKey);
-          PieceOnSquare(to)=-knight;
+          PcOnSq(to)=-knight;
           TotalBlackPieces+=knight_v;
           BlackMinors++;
           Material-=KNIGHT_VALUE;
@@ -208,7 +208,7 @@ MakePieceMove:
           Set(to,BlackBishops);
           Set(to,BishopsQueens);
           HashBB(to,HashKey);
-          PieceOnSquare(to)=-bishop;
+          PcOnSq(to)=-bishop;
           TotalBlackPieces+=bishop_v;
           BlackMinors++;
           Material-=BISHOP_VALUE;
@@ -217,7 +217,7 @@ MakePieceMove:
           Set(to,BlackRooks);
           Set(to,RooksQueens);
           HashRB(to,HashKey);
-          PieceOnSquare(to)=-rook;
+          PcOnSq(to)=-rook;
           TotalBlackPieces+=rook_v;
           BlackMajors++;
           Material-=ROOK_VALUE;
@@ -227,7 +227,7 @@ MakePieceMove:
           Set(to,BishopsQueens);
           Set(to,RooksQueens);
           HashQB(to,HashKey);
-          PieceOnSquare(to)=-queen;
+          PcOnSq(to)=-queen;
           TotalBlackPieces+=queen_v;
           BlackMajors+=2;
           Material-=QUEEN_VALUE;
@@ -255,14 +255,14 @@ MakePieceMove:
       ClearSet(bit_move,WhitePieces);
       HashNW(from,HashKey);
       HashNW(to,HashKey);
-      PieceOnSquare(to)=knight;
+      PcOnSq(to)=knight;
     }
     else {
       ClearSet(bit_move,BlackKnights);
       ClearSet(bit_move,BlackPieces);
       HashNB(from,HashKey);
       HashNB(to,HashKey);
-      PieceOnSquare(to)=-knight;
+      PcOnSq(to)=-knight;
     }
     break;
 /*
@@ -273,20 +273,21 @@ MakePieceMove:
 ********************************************************************************
 */
   case bishop:
-    ClearSet(bit_move,BishopsQueens);
+    Clear(from,BishopsQueens);
+    Set(to,BishopsQueens);
     if (wtm) {
       ClearSet(bit_move,WhiteBishops);
       ClearSet(bit_move,WhitePieces);
       HashBW(from,HashKey);
       HashBW(to,HashKey);
-      PieceOnSquare(to)=bishop;
+      PcOnSq(to)=bishop;
     }
     else {
       ClearSet(bit_move,BlackBishops);
       ClearSet(bit_move,BlackPieces);
       HashBB(from,HashKey);
       HashBB(to,HashKey);
-      PieceOnSquare(to)=-bishop;
+      PcOnSq(to)=-bishop;
     }
     break;
 /*
@@ -300,13 +301,14 @@ MakePieceMove:
 ********************************************************************************
 */
   case rook:
-    ClearSet(bit_move,RooksQueens);
+    Clear(from,RooksQueens);
+    Set(to,RooksQueens);
     if (wtm) {
       ClearSet(bit_move,WhiteRooks);
       ClearSet(bit_move,WhitePieces);
       HashRW(from,HashKey);
       HashRW(to,HashKey);
-      PieceOnSquare(to)=rook;
+      PcOnSq(to)=rook;
       if (WhiteCastle(ply+1) > 0) {
         if ((from == A1) && (WhiteCastle(ply+1)&2)) {
           WhiteCastle(ply+1)&=1;
@@ -323,7 +325,7 @@ MakePieceMove:
       ClearSet(bit_move,BlackPieces);
       HashRB(from,HashKey);
       HashRB(to,HashKey);
-      PieceOnSquare(to)=-rook;
+      PcOnSq(to)=-rook;
       if (BlackCastle(ply+1) > 0) {
         if ((from == A8) && (BlackCastle(ply+1)&2)) {
           BlackCastle(ply+1)&=1;
@@ -344,21 +346,23 @@ MakePieceMove:
 ********************************************************************************
 */
   case queen:
-    ClearSet(bit_move,BishopsQueens);
-    ClearSet(bit_move,RooksQueens);
+    Clear(from,BishopsQueens);
+    Set(to,BishopsQueens);
+    Clear(from,RooksQueens);
+    Set(to,RooksQueens);
     if (wtm) {
       ClearSet(bit_move,WhiteQueens);
       ClearSet(bit_move,WhitePieces);
       HashQW(from,HashKey);
       HashQW(to,HashKey);
-      PieceOnSquare(to)=queen;
+      PcOnSq(to)=queen;
     }
     else {
       ClearSet(bit_move,BlackQueens);
       ClearSet(bit_move,BlackPieces);
       HashQB(from,HashKey);
       HashQB(to,HashKey);
-      PieceOnSquare(to)=-queen;
+      PcOnSq(to)=-queen;
     }
     break;
 /*
@@ -378,7 +382,7 @@ MakePieceMove:
       ClearSet(bit_move,WhitePieces);
       HashKW(from,HashKey);
       HashKW(to,HashKey);
-      PieceOnSquare(to)=king;
+      PcOnSq(to)=king;
       WhiteKingSQ=to;
       if (WhiteCastle(ply) > 0) {
         if (WhiteCastle(ply+1)&2) HashCastleW(1,HashKey);
@@ -386,16 +390,15 @@ MakePieceMove:
         if (abs(to-from) == 2) WhiteCastle(ply+1)=-4;
         else WhiteCastle(ply+1)=0;
         if (abs(to-from) == 2) {
+          piece=rook;
           if (to == G1) {
             from=H1;
             to=F1;
-            piece=rook;
             goto MakePieceMove;
           }
           else {
             from=A1;
             to=D1;
-            piece=rook;
             goto MakePieceMove;
           }
         }
@@ -405,7 +408,7 @@ MakePieceMove:
       ClearSet(bit_move,BlackPieces);
       HashKB(from,HashKey);
       HashKB(to,HashKey);
-      PieceOnSquare(to)=-king;
+      PcOnSq(to)=-king;
       BlackKingSQ=to;
       if (BlackCastle(ply+1) > 0) {
         if (BlackCastle(ply+1)&2) HashCastleB(1,HashKey);
@@ -413,16 +416,15 @@ MakePieceMove:
         if (abs(to-from) == 2) BlackCastle(ply+1)=-4;
         else BlackCastle(ply+1)=0;
         if (abs(to-from) == 2) {
+          piece=rook;
           if (to == G8) {
             from=H8;
             to=F8;
-            piece=rook;
             goto MakePieceMove;
           }
           else {
             from=A8;
             to=D8;
-            piece=rook;
             goto MakePieceMove;
           }
         }
@@ -501,8 +503,7 @@ MakePieceMove:
  ----------------------------------------------------------
 */
     case bishop: 
-      if (SlidingDiag(piece)) Set(to,BishopsQueens);
-      else Clear(to,BishopsQueens);
+      if (!SlidingDiag(piece)) Clear(to,BishopsQueens);
       if (wtm) {
         Clear(to,BlackBishops);
         Clear(to,BlackPieces);
@@ -528,8 +529,7 @@ MakePieceMove:
  ----------------------------------------------------------
 */
     case rook: 
-      if (SlidingRow(piece)) Set(to,RooksQueens);
-      else Clear(to,RooksQueens);
+      if (!SlidingRow(piece)) Clear(to,RooksQueens);
       if (wtm) {
         Clear(to,BlackRooks);
         Clear(to,BlackPieces);
@@ -575,10 +575,8 @@ MakePieceMove:
  ----------------------------------------------------------
 */
     case queen: 
-      if (SlidingDiag(piece)) Set(to,BishopsQueens);
-      else Clear(to,BishopsQueens);
-      if (SlidingRow(piece)) Set(to,RooksQueens);
-      else Clear(to,RooksQueens);
+      if (!SlidingDiag(piece)) Clear(to,BishopsQueens);
+      if (!SlidingRow(piece)) Clear(to,RooksQueens);
       if (wtm) {
         Clear(to,BlackQueens);
         Clear(to,BlackPieces);

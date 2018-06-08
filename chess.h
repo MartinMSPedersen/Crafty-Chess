@@ -751,10 +751,11 @@ void           Whisper(int, int, int, int, unsigned int, int, int, char*);
   in a temporary variable would simplify it significantly, although
   hopefully the compiler recognizes the common subexpression.
 */
-#  define AttacksRankInt(a,boardp)                                \
-     (at.rank_attack_bitboards[File(a)][ at.which_attack[File(a)] \
-     [(((boardp)->w_occupied|(boardp)->b_occupied)>>              \
-     (Rank(~(a))<<3)+1)&0x3f]]<<Rank(~(a))<<3)
+#  define AttacksRankInt(a,boardp)                          \
+     ((BITBOARD)(at.rank_attack_bitboards[File(a)]          \
+     [at.which_attack[File(a)]                              \
+     [((((boardp)->w_occupied|(boardp)->b_occupied)>>       \
+     ((Rank(~(a))<<3)+1))&0x3f)]])<<(Rank(~(a))<<3))
 
 /* 
   The final left shift in this is optimizable, but the optimization is
@@ -762,10 +763,11 @@ void           Whisper(int, int, int, int, unsigned int, int, int, char*);
   word boundary in the shift so it can be implemented as two separate
   word shifts that are joined together in a long long.
 */
-#  define AttacksFileInt(a,boardp)                                \
-     (at.file_attack_bitboards[Rank(a)] [                         \
-     at.which_attack[Rank(a)] [                                   \
-     ((boardp)->occupied_rl90>>(File(~(a))<<3)+1)&0x3f]]<<File(~(a)))
+#  define AttacksFileInt(a,boardp)                          \
+     ((BITBOARD)(at.file_attack_bitboards[Rank(a)]          \
+     [at.which_attack[Rank(a)]                              \
+     [(((boardp)->occupied_rl90>>                           \
+     ((File(~(a))<<3)+1))&0x3f)]])<<(File(~(a))))
 
 #  if defined(USE_ATTACK_FUNCTIONS)
     extern BITBOARD CDECL AttacksRankFunc(int, POSITION *);
@@ -824,12 +826,12 @@ void           Whisper(int, int, int, int, unsigned int, int, int, char*);
 #  define MobilityRankInt(a,boardp)                                         \
      at.length8_mobility[File(a)][                                          \
      at.which_attack[File(a)][                                              \
-     ((boardp)->w_occupied|(boardp)->b_occupied>>(Rank(~(a))<<3)+1)&0x3f]]
+     ((boardp)->w_occupied|(boardp)->b_occupied>>((Rank(~(a))<<3)+1))&0x3f]]
 
 #  define MobilityFileInt(a,boardp)                                         \
      at.length8_mobility[Rank(a)][                                          \
      at.which_attack[Rank(a)] [                                             \
-     ((boardp)->occupied_rl90>>(File(~(a))<<3)+1)&0x3f]]
+     ((boardp)->occupied_rl90>>((File(~(a))<<3)+1))&0x3f]]
 
 #  if defined(USE_ATTACK_FUNCTIONS)
     extern unsigned CDECL MobilityRankFunc(int, POSITION *);
@@ -927,7 +929,7 @@ void           Whisper(int, int, int, int, unsigned int, int, int, char*);
 #define PawnHashKey           (tree->pos.pawn_hash_key)
 #define EnPassant(ply)        (tree->position[ply].enpassant_target)
 #define EnPassantTarget(ply)  (EnPassant(ply) ? SetMask(EnPassant(ply)) : 0)
-#define PieceOnSquare(sq)     (tree->pos.board[sq])
+#define PcOnSq(sq)     (tree->pos.board[sq])
 #define BishopsQueens         (tree->pos.bishops_queens)
 #define RooksQueens           (tree->pos.rooks_queens)
 #define Occupied              (tree->pos.w_occupied|tree->pos.b_occupied)

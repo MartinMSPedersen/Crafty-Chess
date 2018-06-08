@@ -97,14 +97,14 @@ void PreEvaluate(TREE *tree, int wtm) {
 */
   for (i=1;i<7;i++)
     for (j=0;j<8;j++)
-      pval_w[i*8+j]=pawn_base[j]+pawn_advance[j]*(i-3);
+      pval_w[i*8+j]=pawn_base[j]+pawn_advance[j]*(i-1);
   for (j=A6;j<A8;j++)
     pval_w[j]+=PAWN_JAM;
   pval_w[D2]-=CENTER_PAWN_UNMOVED;
   pval_w[E2]-=CENTER_PAWN_UNMOVED;
   for (i=6;i>0;i--)
     for (j=0;j<8;j++)
-      pval_b[i*8+j]=pawn_base[j]+pawn_advance[j]*(4-i);
+      pval_b[i*8+j]=pawn_base[j]+pawn_advance[j]*(6-i);
   for (j=A2;j<A4;j++)
     pval_b[j]+=PAWN_JAM;
   pval_b[D7]-=CENTER_PAWN_UNMOVED;

@@ -246,7 +246,7 @@
   unsigned int   max_split_blocks;
   volatile unsigned int   splitting;
 
-# define    VERSION                            "16.16"
+# define    VERSION                            "16.18"
   char      version[6] =                    {VERSION};
   PLAYING_MODE mode =                     normal_mode;
 
@@ -280,20 +280,25 @@
   char      blocker_list[512][20] = {
                                       {"kingway"}};
 
-  int       number_of_specials =                    3;
+  int       number_of_specials =                    7;
 
   char      special_list[512][20] = {
                                       {"bughousemansion"},
+                                      {"chixdiggit"},
+                                      {"crissaegrim"},
+                                      {"guarapuava"},
                                       {"mercilous"},
-                                      {"crissaegrim"}};
+                                      {"nudnick"},
+                                      {"sabalero"}};
 
-  int       number_auto_kibitzers =                 7;
+  int       number_auto_kibitzers =                 8;
 
   char      auto_kibitz_list[64][20] = {
                                       {"diepx"},
                                       {"ferret"},
                                       {"hossa"},
                                       {"judgeturpin"},
+                                      {"moron"},
                                       {"rajah"},
                                       {"tcb"},
                                       {"zarkovx"}};
@@ -462,27 +467,27 @@
 
   const int king_tropism_n[8]      = {3,3,3,2,1,0,0,0};
   const int king_tropism_b[8]      = {3,3,3,2,1,0,0,0};
-  const int king_tropism_r[8]      = {2,2,2,1,1,0,0,0};
-  const int king_tropism_at_r[8]   = {4,4,2,0,0,0,0,0};
+  const int king_tropism_r[8]      = {3,3,3,2,1,0,0,0};
+  const int king_tropism_at_r[8]   = {4,3,1,0,0,0,0,0};
   const int king_tropism_q[8]      = {4,4,4,2,1,0,0,0};
   const int king_tropism_at_q[8]   = {5,5,3,0,0,0,0,0};
-  const int king_tropism_file_q[8] = {8,8,8,8,6,4,2,0};
-  const int king_tropism[128] = {-40,-35,-30,-25,-20,-15,-10, -5,
-                                   0,  1,  3,  5,  7,  9, 11, 13,
-                                  16, 24, 32, 40, 44, 48, 52, 56,
-                                  60, 62, 65, 67, 70, 72, 75, 77,
-                                  80, 82, 85, 85, 85, 85, 85, 85,
-                                  85, 85, 85, 85, 85, 85, 85, 85,
-                                  85, 85, 85, 85, 85, 85, 85, 85,
-                                  85, 85, 85, 85, 85, 85, 85, 85,
-                                  85, 85, 85, 85, 85, 85, 85, 85,
-                                  85, 85, 85, 85, 85, 85, 85, 85,
-                                  85, 85, 85, 85, 85, 85, 85, 85,
-                                  85, 85, 85, 85, 85, 85, 85, 85,
-                                  85, 85, 85, 85, 85, 85, 85, 85,
-                                  85, 85, 85, 85, 85, 85, 85, 85,
-                                  85, 85, 85, 85, 85, 85, 85, 85,
-                                  85, 85, 85, 85, 85, 85, 85, 85};
+  const int king_tropism_file_q[8] = {0,0,0,0,0,6,6,8};
+  const int king_tropism[128] = { -40, -35, -30, -25, -20, -15, -10,  -5,
+                                    0,   2,   5,  10,  12,  16,  20,  25,
+                                   30,  35,  40,  45,  50,  55,  60,  65,
+                                   70,  75,  80,  85,  90,  95, 100, 105,
+                                  110, 115, 120, 125, 130, 135, 140, 145,
+                                  150, 150, 150, 150, 150, 150, 150, 150,
+                                  150, 150, 150, 150, 150, 150, 150, 150,
+                                  150, 150, 150, 150, 150, 150, 150, 150,
+                                  150, 150, 150, 150, 150, 150, 150, 150,
+                                  150, 150, 150, 150, 150, 150, 150, 150,
+                                  150, 150, 150, 150, 150, 150, 150, 150,
+                                  150, 150, 150, 150, 150, 150, 150, 150,
+                                  150, 150, 150, 150, 150, 150, 150, 150,
+                                  150, 150, 150, 150, 150, 150, 150, 150,
+                                  150, 150, 150, 150, 150, 150, 150, 150,
+                                  150, 150, 150, 150, 150, 150, 150, 150};
 
   const int connected_passed_pawn_value[8] = { 0, 0, 0,
                                      PAWN_CONNECTED_PASSED,
@@ -494,7 +499,7 @@
   const int passed_pawn_value[8] = { 0,
                                      PAWN_PASSED, PAWN_PASSED*2,
                                      PAWN_PASSED*3, PAWN_PASSED*4,
-                                     PAWN_PASSED*6,PAWN_PASSED*9,
+                                     PAWN_PASSED*8,PAWN_PASSED*13,
                                      0};
 
   const int isolated_pawn_value[9] =  {0, 14, 30, 50, 65, 80, 100, 120, 150};

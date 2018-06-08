@@ -40,7 +40,7 @@ int Swap(TREE *tree, int source, int target, int wtm) {
  ----------------------------------------------------------
 */
   attacks=AttacksTo(tree,target);
-  attacked_piece=p_values[PieceOnSquare(target)+7];
+  attacked_piece=p_values[PcOnSq(target)+7];
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -52,7 +52,7 @@ int Swap(TREE *tree, int source, int target, int wtm) {
   color=ChangeSide(wtm);
   swap_list[0]=attacked_piece;
   sign=-1;
-  attacked_piece=p_values[PieceOnSquare(source)+7];
+  attacked_piece=p_values[PcOnSq(source)+7];
   Clear(source,attacks);
   direction=directions[target][source];
   if (direction) attacks=SwapXray(tree,attacks,source,direction);
@@ -108,7 +108,7 @@ int Swap(TREE *tree, int source, int target, int wtm) {
  ------------------------------------------------
 */
     swap_list[next_capture]=swap_list[next_capture-1]+sign*attacked_piece;
-    attacked_piece=p_values[PieceOnSquare(square)+7];
+    attacked_piece=p_values[PcOnSq(square)+7];
     Clear(square,attacks);
     direction=directions[target][square];
     if (direction) attacks=SwapXray(tree,attacks,square,direction);

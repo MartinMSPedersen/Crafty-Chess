@@ -71,7 +71,7 @@ void EVTest(char *filename) {
       Print(4095,"======================================================================\n");
     }
     else if (!strcmp(args[0],"setboard")) {
-      int s1,s2,s3,s4;
+      int s;
       SetBoard(nargs-1,args+1,0);
       WhiteCastle(0)=0;
       BlackCastle(0)=0;
@@ -79,29 +79,8 @@ void EVTest(char *filename) {
       PreEvaluate(tree,wtm);
       tree->pawn_score.key=0;
       DisplayChessBoard(stdout,tree->pos);
-      s1=Evaluate(tree,0,wtm,-999999,999999);
-      strcpy(buffer,"flop");
-      Option(tree);
-      root_wtm=wtm;
-      PreEvaluate(tree,wtm);
-      tree->pawn_score.key=0;
-      s2=Evaluate(tree,0,wtm,-999999,999999);
-      strcpy(buffer,"flip");
-      Option(tree);
-      root_wtm=wtm;
-      PreEvaluate(tree,ChangeSide(wtm));
-      tree->pawn_score.key=0;
-      s3=Evaluate(tree,0,ChangeSide(wtm),-999999,999999);
-      strcpy(buffer,"flop");
-      Option(tree);
-      root_wtm=wtm;
-      PreEvaluate(tree,ChangeSide(wtm));
-      tree->pawn_score.key=0;
-      s4=Evaluate(tree,0,ChangeSide(wtm),-999999,999999);
-      if (s1 != s2) Print(4095,"test 1 failed, s1=%d s2=%d\n",s1,s2);
-      if (s2 != s3) Print(4095,"test 2 failed, s2=%d s3=%d\n",s2,s3);
-      if (s3 != s4) Print(4095,"test 3 failed, s3=%d s4=%d\n",s3,s4);
-      if (s4 != s1) Print(4095,"test 4 failed, s4=%d s1=%d\n",s4,s1);
+      s=Evaluate(tree,0,wtm,-999999,999999);
+      Print(4095,"score=%d\n",s);
     }
   }
   input_stream=stdin;

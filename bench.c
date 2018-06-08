@@ -46,7 +46,7 @@ void Bench(void) {
   strcpy(args[0],"3r1k2/4npp1/1ppr3p/p6P/P2PPPP1/1NR5/5K2/2R5");
   strcpy(args[1],"w");
   SetBoard(2,args,0);
-  search_depth=13;
+  search_depth=11;
 
   InitializeHashTables();
   last_pv.pathd=0;
@@ -64,7 +64,7 @@ void Bench(void) {
   strcpy(args[1],"w");
   strcpy(args[2],"KQkq");
   SetBoard(3,args,0);
-  search_depth=13;
+  search_depth=11;
 
   InitializeHashTables();
   last_pv.pathd=0;
@@ -81,7 +81,7 @@ void Bench(void) {
   strcpy(args[0],"4b3/p3kp2/6p1/3pP2p/2pP1P2/4K1P1/P3N2P/8");
   strcpy(args[1],"w");
   SetBoard(2,args,0);
-  search_depth=16;
+  search_depth=14;
 
   InitializeHashTables();
   last_pv.pathd=0;
@@ -98,7 +98,7 @@ void Bench(void) {
   strcpy(args[0],"r3r1k1/ppqb1ppp/8/4p1NQ/8/2P5/PP3PPP/R3R1K1");
   strcpy(args[1],"b");
   SetBoard(2,args,0);
-  search_depth=13;
+  search_depth=11;
 
   InitializeHashTables();
   last_pv.pathd=0;
@@ -115,7 +115,7 @@ void Bench(void) {
   strcpy(args[0],"2r2rk1/1bqnbpp1/1p1ppn1p/pP6/N1P1P3/P2B1N1P/1B2QPP1/R2R2K1");
   strcpy(args[1],"b");
   SetBoard(2,args,0);
-  search_depth=14;
+  search_depth=12;
 
   InitializeHashTables();
   last_pv.pathd=0;
@@ -133,7 +133,7 @@ void Bench(void) {
   strcpy(args[1],"b");
   strcpy(args[2],"kq");
   SetBoard(3,args,0);
-  search_depth=13;
+  search_depth=11;
 
   InitializeHashTables();
   last_pv.pathd=0;

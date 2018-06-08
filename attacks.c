@@ -15,7 +15,7 @@
 */
 BITBOARD AttacksFrom(TREE *tree, int square, int wtm) {
 
-  switch (abs(PieceOnSquare(square))) {
+  switch (abs(PcOnSq(square))) {
   case pawn:
     if (wtm) return(w_pawn_attacks[square]);
     else return(b_pawn_attacks[square]);

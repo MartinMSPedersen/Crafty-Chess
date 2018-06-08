@@ -152,7 +152,7 @@ int HashProbe(TREE *tree, int ply, int depth, int wtm, int *alpha,
   return(avoid_null);
 }
 
-/* last modified 06/01/99 */
+/* last modified 09/09/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -206,6 +206,10 @@ void HashStore(TREE *tree, int ply, int depth, int wtm, int type,
   }
   else if (type == LOWER) {
     word1l|=tree->current_move[ply];
+    value=Min(value,MATE-300);
+  }
+  else {
+    value=Max(value,-MATE+300);
   }
   word1r=(depth<<17)+value+65536;
   word1=word1r+((BITBOARD)word1l<<32);
@@ -279,17 +283,17 @@ void HashStorePV(TREE *tree, int ply, int wtm) {
 |                                                          |
  ----------------------------------------------------------
 */
-  if (htablea->word2 == HashKey) {
+  if (htablea->word2 == temp_hashkey) {
     htablea->word1&=~((BITBOARD) 07777777<<32);
     htablea->word1|=(BITBOARD) tree->pv[ply].path[ply]<<32;
   }
-  else if (htableb->word2 == HashKey) {
+  else if (htableb->word2 == temp_hashkey) {
     htableb->word1&=~((BITBOARD) 07777777<<32);
     htableb->word1|=(BITBOARD) tree->pv[ply].path[ply]<<32;
   }
   else {
     htableb->word1=(BITBOARD) 65536;
-    htableb->word1|=(BITBOARD) ((transposition_id<<2)+WORTHLESS)<<59;
+    htableb->word1|=((BITBOARD) ((transposition_id<<2)+WORTHLESS))<<59;
     htableb->word1|=(BITBOARD) tree->pv[ply].path[ply]<<32;
     htableb->word2=HashKey;
   }

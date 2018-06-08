@@ -1627,9 +1627,9 @@ BITBOARD AttacksRankFunc(int square, POSITION *boardp) {
   unsigned char tmp2 = 
     at.rank_attack_bitboards[File(square)]
       [at.which_attack[File(square)]
-        [(tmp>>(Rank(~(square))<<3)+1) & 0x3f]];
+        [(tmp>>((Rank(~(square))<<3)+1)) & 0x3f]];
 
-  return (tmp2<<Rank(~(square))<<3);
+  return ((BITBOARD)tmp2<<(Rank(~(square))<<3));
 }
 
 BITBOARD AttacksBishopFunc(DIAG_INFO *diag, POSITION *boardp) {
@@ -1641,10 +1641,10 @@ BITBOARD AttacksRookFunc(int square, POSITION *boardp) {
 
   unsigned char tmp2 = 
     at.rank_attack_bitboards[File(square)][at.which_attack[File(square)]
-        [(tmp>>(Rank(~(square))<<3)+1) & 0x3f]];
+        [(tmp>>((Rank(~(square))<<3)+1)) & 0x3f]];
 
-  return ((tmp2 << Rank(~(square))<<3) |
-      AttacksFileInt(square,boardp));
+  return (((BITBOARD) tmp2 << (Rank(~(square))<<3)) |
+          AttacksFileInt(square,boardp));
 }
 
 unsigned MobilityDiaga1Func(DIAG_INFO *diag, POSITION *boardp) {

@@ -5,7 +5,7 @@
 #include "data.h"
 #include "epdglue.h"
 
-/* modified 06/05/98 */
+/* modified 08/26/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -200,11 +200,7 @@ int SearchRoot(TREE *tree, int alpha, int beta, int wtm, int depth) {
     return(value);
   }
   else {
-    if (alpha != initial_alpha) {
-      memcpy(&tree->pv[0].path[1],&tree->pv[1].path[1],(tree->pv[1].pathl)*4);
-      memcpy(&tree->pv[0].pathh,&tree->pv[1].pathh,3);
-      History(tree,1,depth,wtm,tree->pv[1].path[1]);
-    }
+    History(tree,1,depth,wtm,tree->pv[1].path[1]);
     return(alpha);
   }
 }
@@ -241,7 +237,8 @@ void SearchOutput(TREE *tree, int value, int bound) {
   if (!abort_search) {
     whisper_value=(analyze_mode && !root_wtm) ? -value : value;
     whisper_depth=iteration_depth;
-    for (i=0;i<n_root_moves;i++) if (tree->current_move[1] == root_moves[i].move) break;
+    for (i=0;i<n_root_moves;i++)
+      if (tree->current_move[1] == root_moves[i].move) break;
     if (i < n_root_moves) {
       temp_rm=root_moves[i];
       for (;i>0;i--) root_moves[i]=root_moves[i-1];
@@ -290,6 +287,7 @@ void SearchOutput(TREE *tree, int value, int bound) {
       }
     }
     tree->pv[0]=tree->pv[1];
+    local[0]->pv[0]=tree->pv[1];
   }
 }
 
@@ -307,7 +305,8 @@ void SearchTrace(TREE *tree, int ply, int depth, int wtm,
   int i;
   Lock(lock_io);
   for (i=1;i<ply;i++) printf("  ");
-  printf("%d  %s d:%5.2f [%s,",ply,OutputMove(tree,tree->current_move[ply],ply,wtm),
+  printf("%d  %s d:%5.2f [%s,",
+         ply,OutputMove(tree,tree->current_move[ply],ply,wtm),
          (float) depth/ (float) INCPLY,DisplayEvaluation(alpha));
   printf("%s] n:%d %s(%d)", DisplayEvaluation(beta),
          (tree->nodes_searched),name,phase);

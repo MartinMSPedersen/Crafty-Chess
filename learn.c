@@ -801,12 +801,12 @@ void LearnImportPosition(TREE *tree, int nargs, char **args) {
     for (rank=RANK8;rank>=RANK1;rank--) {
       nempty=0;
       for (file=FILEA;file<=FILEH;file++) {
-        if (PieceOnSquare((rank<<3)+file)) {
+        if (PcOnSq((rank<<3)+file)) {
           if (nempty) {
             fprintf(position_lrn_file,"%c",empty[nempty]);
             nempty=0;
           }
-          fprintf(position_lrn_file,"%c",xlate[PieceOnSquare((rank<<3)+file)+7]);
+          fprintf(position_lrn_file,"%c",xlate[PcOnSq((rank<<3)+file)+7]);
         }
         else nempty++;
       }
@@ -926,12 +926,12 @@ void LearnPosition(TREE *tree, int wtm, int last_value, int value) {
   for (rank=RANK8;rank>=RANK1;rank--) {
     nempty=0;
     for (file=FILEA;file<=FILEH;file++) {
-      if (PieceOnSquare((rank<<3)+file)) {
+      if (PcOnSq((rank<<3)+file)) {
         if (nempty) {
           fprintf(position_lrn_file,"%c",empty[nempty]);
           nempty=0;
         }
-        fprintf(position_lrn_file,"%c",xlate[PieceOnSquare((rank<<3)+file)+7]);
+        fprintf(position_lrn_file,"%c",xlate[PcOnSq((rank<<3)+file)+7]);
       }
       else nempty++;
     }

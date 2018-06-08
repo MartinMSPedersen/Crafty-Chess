@@ -46,7 +46,7 @@ UnMakePieceMove:
   ClearRL45(to,OccupiedRL45);
   ClearRR45(to,OccupiedRR45);
   bit_move=SetMask(from) | SetMask(to);
-  PieceOnSquare(to)=0;
+  PcOnSq(to)=0;
   switch (piece) {
 
 /*
@@ -60,7 +60,7 @@ UnMakePieceMove:
     if (wtm) {
       ClearSet(bit_move,WhitePawns);
       ClearSet(bit_move,WhitePieces);
-      PieceOnSquare(from)=pawn;
+      PcOnSq(from)=pawn;
       if (captured == 1) {
         if(EnPassant(ply) == to) {
           TotalPieces++;
@@ -69,7 +69,7 @@ UnMakePieceMove:
           SetRR45(to-8,OccupiedRR45);
           Set(to-8,BlackPawns);
           Set(to-8,BlackPieces);
-          PieceOnSquare(to-8)=-pawn;
+          PcOnSq(to-8)=-pawn;
           Material-=PAWN_VALUE;
           TotalBlackPawns++;
           captured=0;
@@ -124,7 +124,7 @@ UnMakePieceMove:
     else {
       ClearSet(bit_move,BlackPawns);
       ClearSet(bit_move,BlackPieces);
-      PieceOnSquare(from)=-pawn;
+      PcOnSq(from)=-pawn;
       if (captured == 1) {
         if(EnPassant(ply) == to) {
           TotalPieces++;
@@ -133,7 +133,7 @@ UnMakePieceMove:
           SetRR45(to+8,OccupiedRR45);
           Set(to+8,WhitePawns);
           Set(to+8,WhitePieces);
-          PieceOnSquare(to+8)=pawn;
+          PcOnSq(to+8)=pawn;
           Material+=PAWN_VALUE;
           TotalWhitePawns++;
           captured=0;
@@ -198,12 +198,12 @@ UnMakePieceMove:
     if (wtm) {
       ClearSet(bit_move,WhiteKnights);
       ClearSet(bit_move,WhitePieces);
-      PieceOnSquare(from)=knight;
+      PcOnSq(from)=knight;
     }
     else {
       ClearSet(bit_move,BlackKnights);
       ClearSet(bit_move,BlackPieces);
-      PieceOnSquare(from)=-knight;
+      PcOnSq(from)=-knight;
     }
     break;
 
@@ -219,12 +219,12 @@ UnMakePieceMove:
     if (wtm) {
       ClearSet(bit_move,WhiteBishops);
       ClearSet(bit_move,WhitePieces);
-      PieceOnSquare(from)=bishop;
+      PcOnSq(from)=bishop;
     }
     else {
       ClearSet(bit_move,BlackBishops);
       ClearSet(bit_move,BlackPieces);
-      PieceOnSquare(from)=-bishop;
+      PcOnSq(from)=-bishop;
     }
     break;
 /*
@@ -239,12 +239,12 @@ UnMakePieceMove:
     if (wtm) {
       ClearSet(bit_move,WhiteRooks);
       ClearSet(bit_move,WhitePieces);
-      PieceOnSquare(from)=rook;
+      PcOnSq(from)=rook;
     }
     else {
       ClearSet(bit_move,BlackRooks);
       ClearSet(bit_move,BlackPieces);
-      PieceOnSquare(from)=-rook;
+      PcOnSq(from)=-rook;
     }
     break;
 /*
@@ -260,12 +260,12 @@ UnMakePieceMove:
     if (wtm) {
       ClearSet(bit_move,WhiteQueens);
       ClearSet(bit_move,WhitePieces);
-      PieceOnSquare(from)=queen;
+      PcOnSq(from)=queen;
     }
     else {
       ClearSet(bit_move,BlackQueens);
       ClearSet(bit_move,BlackPieces);
-      PieceOnSquare(from)=-queen;
+      PcOnSq(from)=-queen;
     }
     break;
 /*
@@ -278,7 +278,7 @@ UnMakePieceMove:
   case king:
     if (wtm) {
       ClearSet(bit_move,WhitePieces);
-      PieceOnSquare(from)=king;
+      PcOnSq(from)=king;
       WhiteKingSQ=from;
       if (abs(to-from) == 2) {
         if (to == G1) {
@@ -297,7 +297,7 @@ UnMakePieceMove:
     }
     else {
       ClearSet(bit_move,BlackPieces);
-      PieceOnSquare(from)=-king;
+      PcOnSq(from)=-king;
       BlackKingSQ=from;
       if (abs(to-from) == 2) {
         if (to == G8) {
@@ -340,14 +340,14 @@ UnMakePieceMove:
       if (wtm) {
         Set(to,BlackPawns);
         Set(to,BlackPieces);
-        PieceOnSquare(to)=-pawn;
+        PcOnSq(to)=-pawn;
         Material-=PAWN_VALUE;
         TotalBlackPawns++;
       }
       else {
         Set(to,WhitePawns);
         Set(to,WhitePieces);
-        PieceOnSquare(to)=pawn;
+        PcOnSq(to)=pawn;
         Material+=PAWN_VALUE;
         TotalWhitePawns++;
       }
@@ -363,7 +363,7 @@ UnMakePieceMove:
       if (wtm) {
         Set(to,BlackKnights);
         Set(to,BlackPieces);
-        PieceOnSquare(to)=-knight;
+        PcOnSq(to)=-knight;
         TotalBlackPieces+=knight_v;
         BlackMinors++;
         Material-=KNIGHT_VALUE;
@@ -371,7 +371,7 @@ UnMakePieceMove:
       else {
         Set(to,WhiteKnights);
         Set(to,WhitePieces);
-        PieceOnSquare(to)=knight;
+        PcOnSq(to)=knight;
         TotalWhitePieces+=knight_v;
         WhiteMinors++;
         Material+=KNIGHT_VALUE;
@@ -389,7 +389,7 @@ UnMakePieceMove:
       if (wtm) {
         Set(to,BlackBishops);
         Set(to,BlackPieces);
-        PieceOnSquare(to)=-bishop;
+        PcOnSq(to)=-bishop;
         TotalBlackPieces+=bishop_v;
         BlackMinors++;
         Material-=BISHOP_VALUE;
@@ -397,7 +397,7 @@ UnMakePieceMove:
       else {
         Set(to,WhiteBishops);
         Set(to,WhitePieces);
-        PieceOnSquare(to)=bishop;
+        PcOnSq(to)=bishop;
         TotalWhitePieces+=bishop_v;
         WhiteMinors++;
         Material+=BISHOP_VALUE;
@@ -415,7 +415,7 @@ UnMakePieceMove:
       if (wtm) {
         Set(to,BlackRooks);
         Set(to,BlackPieces);
-        PieceOnSquare(to)=-rook;
+        PcOnSq(to)=-rook;
         TotalBlackPieces+=rook_v;
         BlackMajors++;
         Material-=ROOK_VALUE;
@@ -423,7 +423,7 @@ UnMakePieceMove:
       else {
         Set(to,WhiteRooks);
         Set(to,WhitePieces);
-        PieceOnSquare(to)=rook;
+        PcOnSq(to)=rook;
         TotalWhitePieces+=rook_v;
         WhiteMajors++;
         Material+=ROOK_VALUE;
@@ -442,7 +442,7 @@ UnMakePieceMove:
       if (wtm) {
         Set(to,BlackQueens);
         Set(to,BlackPieces);
-        PieceOnSquare(to)=-queen;
+        PcOnSq(to)=-queen;
         TotalBlackPieces+=queen_v;
         BlackMajors+=2;
         Material-=QUEEN_VALUE;
@@ -450,7 +450,7 @@ UnMakePieceMove:
       else {
         Set(to,WhiteQueens);
         Set(to,WhitePieces);
-        PieceOnSquare(to)=queen;
+        PcOnSq(to)=queen;
         TotalWhitePieces+=queen_v;
         WhiteMajors+=2;
         Material+=QUEEN_VALUE;

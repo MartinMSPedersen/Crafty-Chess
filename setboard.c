@@ -160,15 +160,15 @@ void SetBoard(int nargs, char *args[], int special) {
       else if (args[3][0]!='-') printf("enpassant status is bad.\n");
     }
   }
-  for (i=0;i<64;i++) PieceOnSquare(i)=tboard[i];
+  for (i=0;i<64;i++) PcOnSq(i)=tboard[i];
   WhiteCastle(0)=wcastle;
   BlackCastle(0)=bcastle;
   if (ep) {
     if (Rank(ep) == RANK6) {
-      if (PieceOnSquare(ep-8) != -pawn) ep=0;
+      if (PcOnSq(ep-8) != -pawn) ep=0;
     }
     else if (Rank(ep) == RANK3) {
-      if (PieceOnSquare(ep+8) != pawn) ep=0;
+      if (PcOnSq(ep+8) != pawn) ep=0;
     }
     else ep=0;
     if (!ep) {
@@ -187,19 +187,19 @@ void SetBoard(int nargs, char *args[], int special) {
 |                                                          |
  ----------------------------------------------------------
 */
-  if (((WhiteCastle(0) & 2) && (PieceOnSquare(A1) != rook)) ||
-      ((WhiteCastle(0) & 1) && (PieceOnSquare(H1) != rook)) ||
-      ((BlackCastle(0) & 2) && (PieceOnSquare(A8) != -rook)) ||
-      ((BlackCastle(0) & 1) && (PieceOnSquare(H8) != -rook))) {
+  if (((WhiteCastle(0) & 2) && (PcOnSq(A1) != rook)) ||
+      ((WhiteCastle(0) & 1) && (PcOnSq(H1) != rook)) ||
+      ((BlackCastle(0) & 2) && (PcOnSq(A8) != -rook)) ||
+      ((BlackCastle(0) & 1) && (PcOnSq(H8) != -rook))) {
     printf("ERROR-- castling status does not match board position\n");
     InitializeChessBoard(&tree->position[0]);
   }
-  if ((twtm && EnPassant(0) && (PieceOnSquare(EnPassant(0)+8) != -pawn) &&
-       (PieceOnSquare(EnPassant(0)-7) != pawn) &&
-       (PieceOnSquare(EnPassant(0)-9) != pawn)) ||
-      (ChangeSide(twtm) && EnPassant(0) && (PieceOnSquare(EnPassant(0)-8) != pawn) &&
-       (PieceOnSquare(EnPassant(0)+7) != -pawn) &&
-       (PieceOnSquare(EnPassant(0)+9) != -pawn))) {
+  if ((twtm && EnPassant(0) && (PcOnSq(EnPassant(0)+8) != -pawn) &&
+       (PcOnSq(EnPassant(0)-7) != pawn) &&
+       (PcOnSq(EnPassant(0)-9) != pawn)) ||
+      (ChangeSide(twtm) && EnPassant(0) && (PcOnSq(EnPassant(0)-8) != pawn) &&
+       (PcOnSq(EnPassant(0)+7) != -pawn) &&
+       (PcOnSq(EnPassant(0)+9) != -pawn))) {
     EnPassant(0)=0;
   }
   SetChessBitBoards(&tree->position[0]);

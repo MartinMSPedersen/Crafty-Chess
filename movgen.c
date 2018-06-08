@@ -3,7 +3,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* modified 03/11/97 */
+/* modified 03/23/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -21,7 +21,6 @@ int* GenerateCaptures(TREE *tree, int ply, int wtm, int *move) {
   register BITBOARD  promotions, pcapturesl, pcapturesr;
   register int from, to, temp;
 
-  if (wtm) {
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -32,6 +31,7 @@ int* GenerateCaptures(TREE *tree, int ply, int wtm, int *move) {
 |                                                          |
  ----------------------------------------------------------
 */
+  if (wtm) {
     piecebd=WhiteKnights;
     while (piecebd) {
       from=LastOne(piecebd);
@@ -39,7 +39,7 @@ int* GenerateCaptures(TREE *tree, int ply, int wtm, int *move) {
       temp=from+(knight<<12);
       while (moves) {
         to=LastOne(moves);
-        *move++=temp|(to<<6)|((-PieceOnSquare(to))<<15);
+        *move++=temp|(to<<6)|((-PcOnSq(to))<<15);
         Clear(to,moves);
       }
       Clear(from,piecebd);
@@ -61,7 +61,7 @@ int* GenerateCaptures(TREE *tree, int ply, int wtm, int *move) {
       temp=from+(bishop<<12);
       while (moves) {
         to=LastOne(moves);
-        *move++=temp|(to<<6)|((-PieceOnSquare(to))<<15);
+        *move++=temp|(to<<6)|((-PcOnSq(to))<<15);
         Clear(to,moves);
       }
       Clear(from,piecebd);
@@ -83,7 +83,7 @@ int* GenerateCaptures(TREE *tree, int ply, int wtm, int *move) {
       temp=from+(rook<<12);
       while (moves) {
         to=LastOne(moves);
-        *move++=temp|(to<<6)|((-PieceOnSquare(to))<<15);
+        *move++=temp|(to<<6)|((-PcOnSq(to))<<15);
         Clear(to,moves);
       }
       Clear(from,piecebd);
@@ -105,7 +105,7 @@ int* GenerateCaptures(TREE *tree, int ply, int wtm, int *move) {
       temp=from+(queen<<12);
       while (moves) {
         to=LastOne(moves);
-        *move++=temp|(to<<6)|((-PieceOnSquare(to))<<15);
+        *move++=temp|(to<<6)|((-PcOnSq(to))<<15);
         Clear(to,moves);
       }
       Clear(from,piecebd);
@@ -125,7 +125,7 @@ int* GenerateCaptures(TREE *tree, int ply, int wtm, int *move) {
     temp=from+(king<<12);
     while (moves) {
       to=LastOne(moves);
-      *move++=temp|(to<<6)|((-PieceOnSquare(to))<<15);
+      *move++=temp|(to<<6)|((-PcOnSq(to))<<15);
       Clear(to,moves);
     }
 /*
@@ -154,13 +154,11 @@ int* GenerateCaptures(TREE *tree, int ply, int wtm, int *move) {
     while (pcapturesl) {
       to=LastOne(pcapturesl);
       if (to < 56) {
-        if(PieceOnSquare(to)) 
-          *move++=(to-7)|(to<<6)|(pawn<<12)|((-PieceOnSquare(to))<<15);
-        else
-          *move++=(to-7)|(to<<6)|(pawn<<12)|(pawn<<15);
+        register int cap=(PcOnSq(to)) ? -PcOnSq(to) : pawn;
+        *move++=(to-7)|(to<<6)|(pawn<<12)|(cap<<15);
       }
       else 
-        *move++=(to-7)|(to<<6)|(pawn<<12)|((-PieceOnSquare(to))<<15)|(queen<<18);
+        *move++=(to-7)|(to<<6)|(pawn<<12)|((-PcOnSq(to))<<15)|(queen<<18);
       Clear(to,pcapturesl);
     }
 
@@ -168,13 +166,11 @@ int* GenerateCaptures(TREE *tree, int ply, int wtm, int *move) {
     while (pcapturesr) {
       to=LastOne(pcapturesr);
       if (to < 56) {
-        if(PieceOnSquare(to)) 
-          *move++=(to-9)|(to<<6)|(pawn<<12)|(-PieceOnSquare(to)<<15);
-        else
-          *move++=(to-9)|(to<<6)|(pawn<<12)|(pawn<<15);
+        register int cap=(PcOnSq(to)) ? -PcOnSq(to) : pawn;
+        *move++=(to-9)|(to<<6)|(pawn<<12)|(cap<<15);
       }
       else 
-        *move++=(to-9)|(to<<6)|(pawn<<12)|((-PieceOnSquare(to))<<15)|(queen<<18);
+        *move++=(to-9)|(to<<6)|(pawn<<12)|((-PcOnSq(to))<<15)|(queen<<18);
       Clear(to,pcapturesr);
     }
   }
@@ -196,7 +192,7 @@ int* GenerateCaptures(TREE *tree, int ply, int wtm, int *move) {
       temp=from+(knight<<12);
       while (moves) {
         to=FirstOne(moves);
-        *move++=temp|(to<<6)|(PieceOnSquare(to)<<15);
+        *move++=temp|(to<<6)|(PcOnSq(to)<<15);
         Clear(to,moves);
       }
       Clear(from,piecebd);
@@ -218,7 +214,7 @@ int* GenerateCaptures(TREE *tree, int ply, int wtm, int *move) {
       temp=from+(bishop<<12);
       while (moves) {
         to=FirstOne(moves);
-        *move++=temp|(to<<6)|(PieceOnSquare(to)<<15);
+        *move++=temp|(to<<6)|(PcOnSq(to)<<15);
         Clear(to,moves);
       }
       Clear(from,piecebd);
@@ -240,7 +236,7 @@ int* GenerateCaptures(TREE *tree, int ply, int wtm, int *move) {
       temp=from+(rook<<12);
       while (moves) {
         to=FirstOne(moves);
-        *move++=temp|(to<<6)|(PieceOnSquare(to)<<15);
+        *move++=temp|(to<<6)|(PcOnSq(to)<<15);
         Clear(to,moves);
       }
       Clear(from,piecebd);
@@ -262,7 +258,7 @@ int* GenerateCaptures(TREE *tree, int ply, int wtm, int *move) {
       temp=from+(queen<<12);
       while (moves) {
         to=FirstOne(moves);
-        *move++=temp|(to<<6)|(PieceOnSquare(to)<<15);
+        *move++=temp|(to<<6)|(PcOnSq(to)<<15);
         Clear(to,moves);
       }
       Clear(from,piecebd);
@@ -282,7 +278,7 @@ int* GenerateCaptures(TREE *tree, int ply, int wtm, int *move) {
     temp=from+(king<<12);
     while (moves) {
       to=FirstOne(moves);
-      *move++=temp|(to<<6)|(PieceOnSquare(to)<<15);
+      *move++=temp|(to<<6)|(PcOnSq(to)<<15);
       Clear(to,moves);
     }
 /*
@@ -311,13 +307,11 @@ int* GenerateCaptures(TREE *tree, int ply, int wtm, int *move) {
     while (pcapturesl) {
       to=FirstOne(pcapturesl);
       if (to > 7) {
-        if(PieceOnSquare(to)) 
-          *move++=(to+9)|(to<<6)|(pawn<<12)|(PieceOnSquare(to)<<15);
-        else
-          *move++=(to+9)|(to<<6)|(pawn<<12)|(pawn<<15);
+        register int cap=(PcOnSq(to)) ? PcOnSq(to) : pawn;
+        *move++=(to+9)|(to<<6)|(pawn<<12)|(cap<<15);
       }
       else
-        *move++=(to+9)|(to<<6)|(pawn<<12)|(PieceOnSquare(to)<<15)|(queen<<18);
+        *move++=(to+9)|(to<<6)|(pawn<<12)|(PcOnSq(to)<<15)|(queen<<18);
       Clear(to,pcapturesl);
     }
 
@@ -325,20 +319,18 @@ int* GenerateCaptures(TREE *tree, int ply, int wtm, int *move) {
     while (pcapturesr) {
       to=FirstOne(pcapturesr);
       if (to > 7) {
-        if(PieceOnSquare(to)) 
-          *move++=(to+7)|(to<<6)|(pawn<<12)|(PieceOnSquare(to)<<15);
-        else
-          *move++=(to+7)|(to<<6)|(pawn<<12)|(pawn<<15);
+        register int cap=(PcOnSq(to)) ? PcOnSq(to) : pawn;
+        *move++=(to+7)|(to<<6)|(pawn<<12)|(cap<<15);
       }
       else
-        *move++=(to+7)|(to<<6)|(pawn<<12)|(PieceOnSquare(to)<<15)|(queen<<18);
+        *move++=(to+7)|(to<<6)|(pawn<<12)|(PcOnSq(to)<<15)|(queen<<18);
       Clear(to,pcapturesr);
     }
   }
   return(move);
 }
 
-/* modified 01/11/96 */
+/* modified 08/23/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -385,7 +377,7 @@ int* GenerateCheckEvasions(TREE *tree, int ply, int wtm, int *move) {
     checkers=PopCnt(checksqs);
     if (checkers == 1) {
       checking_square=FirstOne(AttacksTo(tree,king_square) & BlackPieces);
-      if (PieceOnSquare(checking_square) != -pawn)
+      if (PcOnSq(checking_square) != -pawn)
         check_direction1=directions[checking_square][king_square];
       target=InterposeSquares(check_direction1,king_square,checking_square);
       target=target | (AttacksTo(tree,king_square) & BlackPieces);
@@ -394,11 +386,11 @@ int* GenerateCheckEvasions(TREE *tree, int ply, int wtm, int *move) {
     else {
       target=BlackKing;
       checking_square=FirstOne(checksqs);
-      if (PieceOnSquare(checking_square) != -pawn)
+      if (PcOnSq(checking_square) != -pawn)
         check_direction1=directions[checking_square][king_square];
       Clear(checking_square,checksqs);
       checking_square=FirstOne(checksqs);
-      if (PieceOnSquare(checking_square) != -pawn)
+      if (PcOnSq(checking_square) != -pawn)
         check_direction2=directions[checking_square][king_square];
     }
 /*
@@ -428,7 +420,7 @@ int* GenerateCheckEvasions(TREE *tree, int ply, int wtm, int *move) {
       to=LastOne(moves);
       if (!Attacked(tree,to,0) && (directions[from][to] != check_direction1) &&
                                  (directions[from][to] != check_direction2))
-        *move++=temp|(to<<6)|((-PieceOnSquare(to))<<15);
+        *move++=temp|(to<<6)|((-PcOnSq(to))<<15);
       Clear(to,moves);
     }
 /*
@@ -450,7 +442,7 @@ int* GenerateCheckEvasions(TREE *tree, int ply, int wtm, int *move) {
           temp=from+(knight<<12);
           while (moves) {
             to=LastOne(moves);
-            *move++=temp|(to<<6)|((-PieceOnSquare(to))<<15);
+            *move++=temp|(to<<6)|((-PcOnSq(to))<<15);
             Clear(to,moves);
           }
         }
@@ -474,7 +466,7 @@ int* GenerateCheckEvasions(TREE *tree, int ply, int wtm, int *move) {
           temp=from+(bishop<<12);
           while (moves) {
             to=LastOne(moves);
-            *move++=temp|(to<<6)|((-PieceOnSquare(to))<<15);
+            *move++=temp|(to<<6)|((-PcOnSq(to))<<15);
             Clear(to,moves);
           }
         }
@@ -498,7 +490,7 @@ int* GenerateCheckEvasions(TREE *tree, int ply, int wtm, int *move) {
           temp=from+(rook<<12);
           while (moves) {
             to=LastOne(moves);
-            *move++=temp|(to<<6)|((-PieceOnSquare(to))<<15);
+            *move++=temp|(to<<6)|((-PcOnSq(to))<<15);
             Clear(to,moves);
           }
         }
@@ -522,7 +514,7 @@ int* GenerateCheckEvasions(TREE *tree, int ply, int wtm, int *move) {
           temp=from+(queen<<12);
           while (moves) {
             to=LastOne(moves);
-            *move++=temp|(to<<6)|((-PieceOnSquare(to))<<15);
+            *move++=temp|(to<<6)|((-PcOnSq(to))<<15);
             Clear(to,moves);
           }
         }
@@ -585,16 +577,14 @@ int* GenerateCheckEvasions(TREE *tree, int ply, int wtm, int *move) {
         to=LastOne(pcapturesl);
         if (!PinnedOnKing(tree,wtm,to-7)) {
           if (to < 56) {
-            if(PieceOnSquare(to)) 
-              *move++=(to-7)|(to<<6)|(pawn<<12)|((-PieceOnSquare(to))<<15);
-            else
-              *move++=(to-7)|(to<<6)|(pawn<<12)|(pawn<<15);
+            register int cap=(PcOnSq(to)) ? -PcOnSq(to) : pawn;
+            *move++=(to-7)|(to<<6)|(pawn<<12)|(cap<<15);
           }
           else {
-            *move++=(to-7)|(to<<6)|(pawn<<12)|((-PieceOnSquare(to))<<15)|(queen<<18);
-            *move++=(to-7)|(to<<6)|(pawn<<12)|((-PieceOnSquare(to))<<15)|(rook<<18);
-            *move++=(to-7)|(to<<6)|(pawn<<12)|((-PieceOnSquare(to))<<15)|(bishop<<18);
-            *move++=(to-7)|(to<<6)|(pawn<<12)|((-PieceOnSquare(to))<<15)|(knight<<18);
+            *move++=(to-7)|(to<<6)|(pawn<<12)|((-PcOnSq(to))<<15)|(queen<<18);
+            *move++=(to-7)|(to<<6)|(pawn<<12)|((-PcOnSq(to))<<15)|(rook<<18);
+            *move++=(to-7)|(to<<6)|(pawn<<12)|((-PcOnSq(to))<<15)|(bishop<<18);
+            *move++=(to-7)|(to<<6)|(pawn<<12)|((-PcOnSq(to))<<15)|(knight<<18);
           }
         }
         Clear(to,pcapturesl);
@@ -603,16 +593,14 @@ int* GenerateCheckEvasions(TREE *tree, int ply, int wtm, int *move) {
         to=LastOne(pcapturesr);
         if (!PinnedOnKing(tree,wtm,to-9)) {
           if (to < 56) {
-            if(PieceOnSquare(to)) 
-              *move++=(to-9)|(to<<6)|(pawn<<12)|((-PieceOnSquare(to))<<15);
-            else
-              *move++=(to-9)|(to<<6)|(pawn<<12)|(pawn<<15);
+            register int cap=(PcOnSq(to)) ? -PcOnSq(to) : pawn;
+            *move++=(to-9)|(to<<6)|(pawn<<12)|(cap<<15);
           }
           else {
-            *move++=(to-9)|(to<<6)|(pawn<<12)|((-PieceOnSquare(to))<<15)|(queen<<18);
-            *move++=(to-9)|(to<<6)|(pawn<<12)|((-PieceOnSquare(to))<<15)|(rook<<18);
-            *move++=(to-9)|(to<<6)|(pawn<<12)|((-PieceOnSquare(to))<<15)|(bishop<<18);
-            *move++=(to-9)|(to<<6)|(pawn<<12)|((-PieceOnSquare(to))<<15)|(knight<<18);
+            *move++=(to-9)|(to<<6)|(pawn<<12)|((-PcOnSq(to))<<15)|(queen<<18);
+            *move++=(to-9)|(to<<6)|(pawn<<12)|((-PcOnSq(to))<<15)|(rook<<18);
+            *move++=(to-9)|(to<<6)|(pawn<<12)|((-PcOnSq(to))<<15)|(bishop<<18);
+            *move++=(to-9)|(to<<6)|(pawn<<12)|((-PcOnSq(to))<<15)|(knight<<18);
           }
         }
         Clear(to,pcapturesr);
@@ -634,7 +622,7 @@ int* GenerateCheckEvasions(TREE *tree, int ply, int wtm, int *move) {
     checkers=PopCnt(checksqs);
     if (checkers == 1) {
       checking_square=FirstOne(AttacksTo(tree,king_square) & WhitePieces);
-      if (PieceOnSquare(checking_square) != pawn)
+      if (PcOnSq(checking_square) != pawn)
         check_direction1=directions[checking_square][king_square];
       target=InterposeSquares(check_direction1,king_square,checking_square);
       target=target | (AttacksTo(tree,king_square) & WhitePieces);
@@ -643,11 +631,11 @@ int* GenerateCheckEvasions(TREE *tree, int ply, int wtm, int *move) {
     else {
       target=WhiteKing;
       checking_square=FirstOne(checksqs);
-      if (PieceOnSquare(checking_square) != pawn)
+      if (PcOnSq(checking_square) != pawn)
         check_direction1=directions[checking_square][king_square];
       Clear(checking_square,checksqs);
       checking_square=FirstOne(checksqs);
-      if (PieceOnSquare(checking_square) != pawn)
+      if (PcOnSq(checking_square) != pawn)
         check_direction2=directions[checking_square][king_square];
     }
 /*
@@ -677,7 +665,7 @@ int* GenerateCheckEvasions(TREE *tree, int ply, int wtm, int *move) {
       to=FirstOne(moves);
       if (!Attacked(tree,to,1) && (directions[from][to] != check_direction1) &&
                                  (directions[from][to] != check_direction2))
-        *move++=temp|(to<<6)|(PieceOnSquare(to)<<15);
+        *move++=temp|(to<<6)|(PcOnSq(to)<<15);
       Clear(to,moves);
     }
 /*
@@ -699,7 +687,7 @@ int* GenerateCheckEvasions(TREE *tree, int ply, int wtm, int *move) {
           temp=from+(knight<<12);
           while (moves) {
             to=FirstOne(moves);
-            *move++=temp|(to<<6)|(PieceOnSquare(to)<<15);
+            *move++=temp|(to<<6)|(PcOnSq(to)<<15);
             Clear(to,moves);
           }
         }
@@ -723,7 +711,7 @@ int* GenerateCheckEvasions(TREE *tree, int ply, int wtm, int *move) {
           temp=from+(bishop<<12);
           while (moves) {
             to=FirstOne(moves);
-            *move++=temp|(to<<6)|(PieceOnSquare(to)<<15);
+            *move++=temp|(to<<6)|(PcOnSq(to)<<15);
             Clear(to,moves);
           }
         }
@@ -747,7 +735,7 @@ int* GenerateCheckEvasions(TREE *tree, int ply, int wtm, int *move) {
           temp=from+(rook<<12);
           while (moves) {
             to=FirstOne(moves);
-            *move++=temp|(to<<6)|(PieceOnSquare(to)<<15);
+            *move++=temp|(to<<6)|(PcOnSq(to)<<15);
             Clear(to,moves);
           }
         }
@@ -769,7 +757,7 @@ int* GenerateCheckEvasions(TREE *tree, int ply, int wtm, int *move) {
           temp=from+(queen<<12);
           while (moves) {
             to=FirstOne(moves);
-            *move++=temp|(to<<6)|(PieceOnSquare(to)<<15);
+            *move++=temp|(to<<6)|(PcOnSq(to)<<15);
             Clear(to,moves);
           }
         }
@@ -838,16 +826,14 @@ int* GenerateCheckEvasions(TREE *tree, int ply, int wtm, int *move) {
         to=FirstOne(pcapturesl);
         if (!PinnedOnKing(tree,wtm,to+9)) {
           if (to > 7) {
-            if(PieceOnSquare(to)) 
-              *move++=(to+9)|(to<<6)|(pawn<<12)|(PieceOnSquare(to)<<15);
-            else
-              *move++=(to+9)|(to<<6)|(pawn<<12)|(pawn<<15);
+            register int cap=(PcOnSq(to)) ? PcOnSq(to) : pawn;
+            *move++=(to+9)|(to<<6)|(pawn<<12)|(cap<<15);
           }
           else {
-            *move++=(to+9)|(to<<6)|(pawn<<12)|(PieceOnSquare(to)<<15)|(queen<<18);
-            *move++=(to+9)|(to<<6)|(pawn<<12)|(PieceOnSquare(to)<<15)|(rook<<18);
-            *move++=(to+9)|(to<<6)|(pawn<<12)|(PieceOnSquare(to)<<15)|(bishop<<18);
-            *move++=(to+9)|(to<<6)|(pawn<<12)|(PieceOnSquare(to)<<15)|(knight<<18);
+            *move++=(to+9)|(to<<6)|(pawn<<12)|(PcOnSq(to)<<15)|(queen<<18);
+            *move++=(to+9)|(to<<6)|(pawn<<12)|(PcOnSq(to)<<15)|(rook<<18);
+            *move++=(to+9)|(to<<6)|(pawn<<12)|(PcOnSq(to)<<15)|(bishop<<18);
+            *move++=(to+9)|(to<<6)|(pawn<<12)|(PcOnSq(to)<<15)|(knight<<18);
           }
         }
         Clear(to,pcapturesl);
@@ -856,16 +842,14 @@ int* GenerateCheckEvasions(TREE *tree, int ply, int wtm, int *move) {
         to=FirstOne(pcapturesr);
         if (!PinnedOnKing(tree,wtm,to+7)) {
           if (to > 7) {
-            if(PieceOnSquare(to)) 
-              *move++=(to+7)|(to<<6)|(pawn<<12)|(PieceOnSquare(to)<<15);
-            else
-              *move++=(to+7)|(to<<6)|(pawn<<12)|(pawn<<15);
+            register int cap=(PcOnSq(to)) ? PcOnSq(to) : pawn;
+            *move++=(to+7)|(to<<6)|(pawn<<12)|(cap<<15);
           }
           else {
-            *move++=(to+7)|(to<<6)|(pawn<<12)|(PieceOnSquare(to)<<15)|(queen<<18);
-            *move++=(to+7)|(to<<6)|(pawn<<12)|(PieceOnSquare(to)<<15)|(rook<<18);
-            *move++=(to+7)|(to<<6)|(pawn<<12)|(PieceOnSquare(to)<<15)|(bishop<<18);
-            *move++=(to+7)|(to<<6)|(pawn<<12)|(PieceOnSquare(to)<<15)|(knight<<18);
+            *move++=(to+7)|(to<<6)|(pawn<<12)|(PcOnSq(to)<<15)|(queen<<18);
+            *move++=(to+7)|(to<<6)|(pawn<<12)|(PcOnSq(to)<<15)|(rook<<18);
+            *move++=(to+7)|(to<<6)|(pawn<<12)|(PcOnSq(to)<<15)|(bishop<<18);
+            *move++=(to+7)|(to<<6)|(pawn<<12)|(PcOnSq(to)<<15)|(knight<<18);
           }
         }
         Clear(to,pcapturesr);
@@ -1080,16 +1064,16 @@ int* GenerateNonCaptures(TREE *tree, int ply, int wtm, int *move) {
     pcapturesr=(WhitePawns & mask_right_edge)>>9 & target;
     while (pcapturesl) {
       to=LastOne(pcapturesl);
-      *move++=(to-7)|(to<<6)|(pawn<<12)|((-PieceOnSquare(to))<<15)|(rook<<18);
-      *move++=(to-7)|(to<<6)|(pawn<<12)|((-PieceOnSquare(to))<<15)|(bishop<<18);
-      *move++=(to-7)|(to<<6)|(pawn<<12)|((-PieceOnSquare(to))<<15)|(knight<<18);
+      *move++=(to-7)|(to<<6)|(pawn<<12)|((-PcOnSq(to))<<15)|(rook<<18);
+      *move++=(to-7)|(to<<6)|(pawn<<12)|((-PcOnSq(to))<<15)|(bishop<<18);
+      *move++=(to-7)|(to<<6)|(pawn<<12)|((-PcOnSq(to))<<15)|(knight<<18);
       Clear(to,pcapturesl);
     }
     while (pcapturesr) {
       to=LastOne(pcapturesr);
-      *move++=(to-9)|(to<<6)|(pawn<<12)|((-PieceOnSquare(to))<<15)|(rook<<18);
-      *move++=(to-9)|(to<<6)|(pawn<<12)|((-PieceOnSquare(to))<<15)|(bishop<<18);
-      *move++=(to-9)|(to<<6)|(pawn<<12)|((-PieceOnSquare(to))<<15)|(knight<<18);
+      *move++=(to-9)|(to<<6)|(pawn<<12)|((-PcOnSq(to))<<15)|(rook<<18);
+      *move++=(to-9)|(to<<6)|(pawn<<12)|((-PcOnSq(to))<<15)|(bishop<<18);
+      *move++=(to-9)|(to<<6)|(pawn<<12)|((-PcOnSq(to))<<15)|(knight<<18);
       Clear(to,pcapturesr);
     }
   }
@@ -1268,16 +1252,16 @@ int* GenerateNonCaptures(TREE *tree, int ply, int wtm, int *move) {
     pcapturesr=(BlackPawns & mask_right_edge)<<7 & target;
     while (pcapturesl) {
       to=FirstOne(pcapturesl);
-      *move++=(to+9)|(to<<6)|(pawn<<12)|(PieceOnSquare(to)<<15)|(rook<<18);
-      *move++=(to+9)|(to<<6)|(pawn<<12)|(PieceOnSquare(to)<<15)|(bishop<<18);
-      *move++=(to+9)|(to<<6)|(pawn<<12)|(PieceOnSquare(to)<<15)|(knight<<18);
+      *move++=(to+9)|(to<<6)|(pawn<<12)|(PcOnSq(to)<<15)|(rook<<18);
+      *move++=(to+9)|(to<<6)|(pawn<<12)|(PcOnSq(to)<<15)|(bishop<<18);
+      *move++=(to+9)|(to<<6)|(pawn<<12)|(PcOnSq(to)<<15)|(knight<<18);
       Clear(to,pcapturesl);
     }
     while (pcapturesr) {
       to=FirstOne(pcapturesr);
-      *move++=(to+7)|(to<<6)|(pawn<<12)|(PieceOnSquare(to)<<15)|(rook<<18);
-      *move++=(to+7)|(to<<6)|(pawn<<12)|(PieceOnSquare(to)<<15)|(bishop<<18);
-      *move++=(to+7)|(to<<6)|(pawn<<12)|(PieceOnSquare(to)<<15)|(knight<<18);
+      *move++=(to+7)|(to<<6)|(pawn<<12)|(PcOnSq(to)<<15)|(rook<<18);
+      *move++=(to+7)|(to<<6)|(pawn<<12)|(PcOnSq(to)<<15)|(bishop<<18);
+      *move++=(to+7)|(to<<6)|(pawn<<12)|(PcOnSq(to)<<15)|(knight<<18);
       Clear(to,pcapturesr);
     }
   }

@@ -5,7 +5,7 @@
 #include "data.h"
 #include "epdglue.h"
 
-/* last modified 04/01/99 */
+/* last modified 09/03/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -112,11 +112,11 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
  ----------------------------------------------------------
 |                                                          |
 |   now it's time to try a probe into the endgame table-   |
-|   base files.  this is done if (a) the previous move was |
-|   a capture or promotion, unless we are at very shallow  |
-|   plies (<4) in the search; (b) there are less than 5    |
-|   pieces left (currently all 4 piece endings and all     |
-|   interesting 5 piece endings are available.)            |
+|   base files.  this is done if we notice that there are  |
+|   5 or fewer pieces left on the board.  EGTB_use tells   |
+|   us how many pieces to probe on.  note that this can be |
+|   zero when trying to swindle the opponent, so that no   |
+|   probes are done since we know it is a draw.            |
 |                                                          |
  ----------------------------------------------------------
 */
@@ -362,22 +362,6 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
 /*
  ----------------------------------------------------------
 |                                                          |
-|   now we toss in the "razoring" trick, which simply says |
-|   if we are doing fairly badly, we can reduce the depth  |
-|   an additional ply, if there was nothing at the current |
-|   ply that caused an extension.                          |
-|                                                          |
- ----------------------------------------------------------
-*/
-      if (depth<3*INCPLY && depth>=2*INCPLY &&
-          !tree->in_check[ply] && extensions == -60) {
-        register const int value=-Evaluate(tree,ply+1,ChangeSide(wtm),
-                                           -(beta+51),-(alpha-51));
-        if (value+50 < alpha) extensions-=60;
-      }
-/*
- ----------------------------------------------------------
-|                                                          |
 |   if there's only one legal move, extend the search one  |
 |   additional ply since this node is very easy to search. |
 |                                                          |
@@ -389,6 +373,14 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
           tree->one_reply_extensions_done++;
           extensions+=(full_extension) ? onerep_depth : onerep_depth>>1;
         }
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   now it is time to call Search()/Quiesce to find out if |
+|   this move is reasonable or not.                        |
+|                                                          |
+ ----------------------------------------------------------
+*/
         extensions=Min(extensions,0);
         if (depth+extensions >= INCPLY)
           value=-Search(tree,-beta,-alpha,ChangeSide(wtm),

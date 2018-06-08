@@ -68,7 +68,7 @@ int EnPrise(int target, int wtm) {
  ----------------------------------------------------------
 */
   swap_list[0]=0;
-  attacked_piece=p_values[PieceOnSquare(target)+7];
+  attacked_piece=p_values[PcOnSq(target)+7];
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -132,7 +132,7 @@ int EnPrise(int target, int wtm) {
                               swap_sign*attacked_piece;
     else
       swap_list[next_capture]=attacked_piece;
-    attacked_piece=p_values[PieceOnSquare(square)+7];
+    attacked_piece=p_values[PcOnSq(square)+7];
     Clear(square,attacks);
     direction=directions[target][square];
     if (direction) attacks=SwapXray(tree,attacks,square,direction);

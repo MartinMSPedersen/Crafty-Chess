@@ -34,7 +34,7 @@ void ValidatePosition(TREE *tree, int ply, int move, char *caller) {
   temp_occ_rl45=0;
   temp_occ_rr45=0;
   for (i=0;i<64;i++) {
-    if (PieceOnSquare(i)) {
+    if (PcOnSq(i)) {
       temp_occ_rl90=temp_occ_rl90 | SetMaskRL90(i);
       temp_occ_rl45=temp_occ_rl45 | SetMaskRL45(i);
       temp_occ_rr45=temp_occ_rr45 | SetMaskRR45(i);
@@ -171,9 +171,9 @@ void ValidatePosition(TREE *tree, int ply, int move, char *caller) {
   temp=WhitePawns;
   while(temp) {
     square=FirstOne(temp);
-    if (PieceOnSquare(square) != pawn) {
+    if (PcOnSq(square) != pawn) {
       Print(128,"ERROR!  board[%d]=%d, should be 1\n",square,
-            PieceOnSquare(square));
+            PcOnSq(square));
       error=1;
     }
     Clear(square,temp);
@@ -181,9 +181,9 @@ void ValidatePosition(TREE *tree, int ply, int move, char *caller) {
   temp=BlackPawns;
   while(temp) {
     square=FirstOne(temp);
-    if (PieceOnSquare(square) != -pawn) {
+    if (PcOnSq(square) != -pawn) {
       Print(128,"ERROR!  board[%d]=%d, should be -1\n",square,
-            PieceOnSquare(square));
+            PcOnSq(square));
       error=1;
     }
     Clear(square,temp);
@@ -194,9 +194,9 @@ void ValidatePosition(TREE *tree, int ply, int move, char *caller) {
   temp=WhiteKnights;
   while(temp) {
     square=FirstOne(temp);
-    if (PieceOnSquare(square) != knight) {
+    if (PcOnSq(square) != knight) {
       Print(128,"ERROR!  board[%d]=%d, should be 2\n",square,
-            PieceOnSquare(square));
+            PcOnSq(square));
       error=1;
     }
     Clear(square,temp);
@@ -204,9 +204,9 @@ void ValidatePosition(TREE *tree, int ply, int move, char *caller) {
   temp=BlackKnights;
   while(temp) {
     square=FirstOne(temp);
-    if (PieceOnSquare(square) != -knight) {
+    if (PcOnSq(square) != -knight) {
       Print(128,"ERROR!  board[%d]=%d, should be -2\n",square,
-            PieceOnSquare(square));
+            PcOnSq(square));
       error=1;
     }
     Clear(square,temp);
@@ -217,9 +217,9 @@ void ValidatePosition(TREE *tree, int ply, int move, char *caller) {
   temp=WhiteBishops;
   while(temp) {
     square=FirstOne(temp);
-    if (PieceOnSquare(square) != bishop) {
+    if (PcOnSq(square) != bishop) {
       Print(128,"ERROR!  board[%d]=%d, should be 3\n",square,
-            PieceOnSquare(square));
+            PcOnSq(square));
       error=1;
     }
     Clear(square,temp);
@@ -227,9 +227,9 @@ void ValidatePosition(TREE *tree, int ply, int move, char *caller) {
   temp=BlackBishops;
   while(temp) {
     square=FirstOne(temp);
-    if (PieceOnSquare(square) != -bishop) {
+    if (PcOnSq(square) != -bishop) {
       Print(128,"ERROR!  board[%d]=%d, should be -3\n",square,
-            PieceOnSquare(square));
+            PcOnSq(square));
       error=1;
     }
     Clear(square,temp);
@@ -240,9 +240,9 @@ void ValidatePosition(TREE *tree, int ply, int move, char *caller) {
   temp=WhiteRooks;
   while(temp) {
     square=FirstOne(temp);
-    if (PieceOnSquare(square) != rook) {
+    if (PcOnSq(square) != rook) {
       Print(128,"ERROR!  board[%d]=%d, should be 4\n",square,
-            PieceOnSquare(square));
+            PcOnSq(square));
       error=1;
     }
     Clear(square,temp);
@@ -250,9 +250,9 @@ void ValidatePosition(TREE *tree, int ply, int move, char *caller) {
   temp=BlackRooks;
   while(temp) {
     square=FirstOne(temp);
-    if (PieceOnSquare(square) != -rook) {
+    if (PcOnSq(square) != -rook) {
       Print(128,"ERROR!  board[%d]=%d, should be -4\n",square,
-            PieceOnSquare(square));
+            PcOnSq(square));
       error=1;
     }
     Clear(square,temp);
@@ -263,9 +263,9 @@ void ValidatePosition(TREE *tree, int ply, int move, char *caller) {
   temp=WhiteQueens;
   while(temp) {
     square=FirstOne(temp);
-    if (PieceOnSquare(square) != queen) {
+    if (PcOnSq(square) != queen) {
       Print(128,"ERROR!  board[%d]=%d, should be 5\n",square,
-            PieceOnSquare(square));
+            PcOnSq(square));
       error=1;
     }
     Clear(square,temp);
@@ -273,9 +273,9 @@ void ValidatePosition(TREE *tree, int ply, int move, char *caller) {
   temp=BlackQueens;
   while(temp) {
     square=FirstOne(temp);
-    if (PieceOnSquare(square) != -queen) {
+    if (PcOnSq(square) != -queen) {
       Print(128,"ERROR!  board[%d]=%d, should be -5\n",square,
-            PieceOnSquare(square));
+            PcOnSq(square));
       error=1;
     }
     Clear(square,temp);
@@ -286,9 +286,9 @@ void ValidatePosition(TREE *tree, int ply, int move, char *caller) {
   temp=WhiteKing;
   while(temp) {
     square=FirstOne(temp);
-    if (PieceOnSquare(square) != king) {
+    if (PcOnSq(square) != king) {
       Print(128,"ERROR!  board[%d]=%d, should be 6\n",square,
-            PieceOnSquare(square));
+            PcOnSq(square));
       error=1;
     }
     if (WhiteKingSQ != square) {
@@ -301,9 +301,9 @@ void ValidatePosition(TREE *tree, int ply, int move, char *caller) {
   temp=BlackKing;
   while(temp) {
     square=FirstOne(temp);
-    if (PieceOnSquare(square) != -king) {
+    if (PcOnSq(square) != -king) {
       Print(128,"ERROR!  board[%d]=%d, should be -6\n",square,
-            PieceOnSquare(square));
+            PcOnSq(square));
       error=1;
     }
     if (BlackKingSQ != square) {
@@ -317,7 +317,7 @@ void ValidatePosition(TREE *tree, int ply, int move, char *caller) {
    test board[i] fully now.
 */
   for (i=0;i<64;i++)
-  switch (PieceOnSquare(i)) {
+  switch (PcOnSq(i)) {
     case -king:
       if (!(BlackKing & SetMask(i))) {
         Print(128,"ERROR!  b_king/board[%d] don't agree!\n",i);
@@ -397,9 +397,9 @@ void ValidatePosition(TREE *tree, int ply, int move, char *caller) {
   temp=~(temp_occ | temp_occx);
   while(temp) {
     square=FirstOne(temp);
-    if (PieceOnSquare(square)) {
+    if (PcOnSq(square)) {
       Print(128,"ERROR!  board[%d]=%d, should be 0\n",square,
-            PieceOnSquare(square));
+            PcOnSq(square));
       error=1;
     }
     Clear(square,temp);
@@ -419,7 +419,7 @@ void ValidatePosition(TREE *tree, int ply, int move, char *caller) {
   temp=0;
   temp1=0;
   for (i=0;i<64;i++) {
-    switch (PieceOnSquare(i)) {
+    switch (PcOnSq(i)) {
       case king:
         temp=temp ^ w_king_random[i];
         break;

@@ -77,7 +77,7 @@ int TimeCheck(int abort) {
  ----------------------------------------------------------
 */
   if (search_nodes && tree->nodes_searched > search_nodes) return(1);
-  if (tree->last[0]==(tree->last[1]-1) && !booking && !annotate_mode &&
+  if (n_root_moves==1 && !booking && !annotate_mode &&
       !pondering && iteration_depth>4) return(1);
   ndone=0;
   for (i=0;i<n_root_moves;i++)

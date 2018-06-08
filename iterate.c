@@ -5,7 +5,7 @@
 #include "data.h"
 #include "epdglue.h"
 
-/* last modified 04/16/99 */
+/* last modified 08/27/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -42,6 +42,7 @@ int Iterate(int wtm, int search_type, int root_list_done) {
   start_time=ReadClock(time_type);
   cpu_time_used=0;
   elapsed_start=ReadClock(elapsed);
+  root_wtm=wtm;
   PreEvaluate(tree,wtm);
   tree->nodes_searched=0;
   tree->fail_high=0;
@@ -138,7 +139,7 @@ int Iterate(int wtm, int search_type, int root_list_done) {
     iteration_depth=1;
     if (last_pv.pathd > 1)
       iteration_depth=last_pv.pathd+1;
-    Print(6,"          s   depth   time  score   variation (%d)\n",
+    Print(6,"         nss  depth   time  score   variation (%d)\n",
           iteration_depth);
     time_abort=0;
     abort_search=0;
@@ -363,7 +364,8 @@ int Iterate(int wtm, int search_type, int root_list_done) {
       root_alpha=value-40;
       root_value=root_alpha;
       root_beta=value+40;
-      if (iteration_depth>3 && value>MATE-300 && value>last_mate_score) break;
+      if (iteration_depth>3 && value>MATE-300 &&
+          value>=(MATE-iteration_depth-1) && value>last_mate_score) break;
       if ((iteration_depth >= search_depth) && search_depth) break;
       if (time_abort || abort_search) break;
       end_time=ReadClock(time_type)-start_time;
