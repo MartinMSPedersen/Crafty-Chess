@@ -110,7 +110,7 @@ void RootMoveList(int wtm) {
       if (Promote(*mvp) && (Promote(*mvp) != queen)) value-=50;
     } while(0);
     sort_value[mvp-rmoves]=value;
-    UnMakeMove(tree, 1, *mvp, wtm);
+    UnmakeMove(tree, 1, *mvp, wtm);
   }
 /*
  ----------------------------------------------------------
@@ -184,7 +184,7 @@ void RootMoveList(int wtm) {
         temp=(EGTBProbe(tree, 2, ChangeSide(wtm), &tb_value) != DrawScore(ChangeSide(wtm)));
       else
         temp=0;
-      UnMakeMove(tree, 1, rmoves[i], wtm);
+      UnmakeMove(tree, 1, rmoves[i], wtm);
       if (temp) break;
     }
     EGTB_search=(i==n_root_moves);

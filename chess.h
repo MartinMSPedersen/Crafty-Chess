@@ -50,7 +50,6 @@
 #    endif
 #    if defined(CLONE)
 #      include <sched.h>
-       int __clone(int*(void*), void*, int, void*);
 #    endif
 #  endif
 #endif
@@ -558,7 +557,6 @@ void           AnnotateFooterHTML(FILE*);
 void           AnnotatePositionHTML(TREE*, int, FILE*);
 char           *AnnotateValueToNAG(int, int, int);
 int            Attacked(TREE*, int, int);
-BITBOARD       AttacksFrom(TREE*, int, int);
 BITBOARD       AttacksTo(TREE*, int);
 void           Bench(void);
 int            Book(TREE*,int,int);
@@ -611,6 +609,7 @@ int            EvaluateMaterial(TREE*);
 int            EvaluatePassedPawns(TREE*);
 int            EvaluatePassedPawnRaces(TREE*, int);
 int            EvaluatePawns(TREE*);
+int            EvaluateStalemate(TREE*,int);
 int            EvaluateWinner(TREE*);
 void           EVTest(char *);
 int            FindBlockID(TREE*);
@@ -705,14 +704,18 @@ BITBOARD       SwapXray(TREE*, BITBOARD, int, int);
 void           Test(char *);
 void           TestEPD(char *);
 int            Thread(TREE*);
+#if defined(CLONE)
+int            ThreadInit(void*);
+#else
 void* STDCALL  ThreadInit(void*);
+#endif
 void           ThreadStop(TREE*);
 int            ThreadWait(int, TREE*);
 int            Threat(TREE*, int, int, int, int, int, int);
 void           TimeAdjust(int,PLAYER);
 int            TimeCheck(TREE*,int);
 void           TimeSet(int);
-void           UnMakeMove(TREE*, int, int, int);
+void           UnmakeMove(TREE*, int, int, int);
 int            ValidMove(TREE*, int, int, int);
 void           ValidatePosition(TREE*, int, int, char*);
 void           Whisper(int, int, int, int, int, BITBOARD , int, int, char*);

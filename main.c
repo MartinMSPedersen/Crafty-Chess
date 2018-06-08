@@ -2852,6 +2852,24 @@
 *           offer draws due to the +0.01/-0.01 draw scores returned by the    *
 *           EGTB probe code.                                                  *
 *                                                                             *
+*   18.15   change in endgame draw recognition to handle the case where one   *
+*           side appears to be in a lost ending but is stalemated.  the code  *
+*           now evaluates such positions as "DrawScore()" instead.  the code  *
+*           to accept/decline draws has been modified.  when a draw offer is  *
+*           received, a global variable "draw_offer_pending" is set to 1.     *
+*           when the search for a move for crafty terminates, crafty then     *
+*           uses this value to decide whether to accept or decline the draw.  *
+*           this means that the accept/decline won't happen until _after_ the *
+*           search has a chance to see if something good is happening that    *
+*           should cause the draw to be declined, closing a timing hole that  *
+*           used to exist that let a few "suspects" get away with draws that  *
+*           should not have happened (ie crafty has - scores for a long time, *
+*           the opponent suddenly fails low and sees he is losing and offers  *
+*           a draw quickly.  Crafty would accept before doing a search and    *
+*           noticing that it was suddenly winning.)  minor evaluation change  *
+*           to notice that K+B+right RP vs K+B is not necessarily won if the  *
+*           weaker side has a bishop of the right color.                      *
+*                                                                             *
 *******************************************************************************
 */
 void SigInt(int type) {
@@ -3154,6 +3172,33 @@ int main(int argc, char **argv) {
       last_pv.pathl=0;
       display=tree->pos;
       value=Iterate(wtm,think,0);
+    }
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   we've now completed a search and need to handle a      |
+|   pending draw offer based on what the search found.     |
+|                                                          |
+ ----------------------------------------------------------
+*/
+    if (draw_offer_pending) {
+      int drawsc=abs_draw_score;
+      draw_offer_pending=0;
+      if (move_number<40 || !accept_draws) drawsc=-300;
+      if (last_search_value<=drawsc && (tc_increment!=0 ||
+          tc_time_remaining_opponent>=1000)) {
+        if (xboard) Print(4095,"tellics draw\n");
+        else Print(4095,"Draw accepted.\n");
+        Print(4095,"1/2-1/2 {Draw agreed}\n");
+        strcpy(pgn_result,"1/2-1/2");
+      }
+      else {
+        if (xboard) {
+          Print(4095,"tellics decline\n");
+          Print(4095,"Decline\n");
+        }
+        else Print(4095,"Draw declined.\n");
+      }
     }
 /*
  ----------------------------------------------------------

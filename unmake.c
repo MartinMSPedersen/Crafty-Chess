@@ -7,12 +7,12 @@
 /*
 ********************************************************************************
 *                                                                              *
-*   UnMakeMove() is responsible for updating the position database whenever a  *
+*   UnmakeMove() is responsible for updating the position database whenever a  *
 *   move is retracted.  it is the exact inverse of MakeMove().                 *
 *                                                                              *
 ********************************************************************************
 */
-void UnMakeMove(TREE *tree, int ply, int move, int wtm) {
+void UnmakeMove(TREE *tree, int ply, int move, int wtm) {
   register int piece, from, to, captured, promote;
   BITBOARD bit_move;
 /*
@@ -38,7 +38,7 @@ void UnMakeMove(TREE *tree, int ply, int move, int wtm) {
   to=To(move);
   captured=Captured(move);
   promote=Promote(move);
-UnMakePieceMove:
+UnmakePieceMove:
   SetRL90(from,OccupiedRL90);
   SetRL45(from,OccupiedRL45);
   SetRR45(from,OccupiedRR45);
@@ -285,13 +285,13 @@ UnMakePieceMove:
           from=H1;
           to=F1;
           piece=rook;
-          goto UnMakePieceMove;
+          goto UnmakePieceMove;
         }
         else {
           from=A1;
           to=D1;
           piece=rook;
-          goto UnMakePieceMove;
+          goto UnmakePieceMove;
         }
       }
     }
@@ -304,13 +304,13 @@ UnMakePieceMove:
           from=H8;
           to=F8;
           piece=rook;
-          goto UnMakePieceMove;
+          goto UnmakePieceMove;
         }
         else {
           from=A8;
           to=D8;
           piece=rook;
-          goto UnMakePieceMove;
+          goto UnmakePieceMove;
         }
       }
     }
@@ -472,7 +472,7 @@ UnMakePieceMove:
     }
   }
 #if defined(DEBUG)
-  ValidatePosition(tree,ply,move,"UnMakeMove(2)");
+  ValidatePosition(tree,ply,move,"UnmakeMove(2)");
 #endif
   return;
 }

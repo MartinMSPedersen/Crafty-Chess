@@ -25,7 +25,8 @@ char* OutputMove(TREE *tree, int move, int ply, int wtm) {
 
   text=text_move;
 /*
-   check for null_move first
+   special case for null-move, used only in tracing the search
+   by dumping the tree of everything searched.
 */
   if (move == 0) {
     strcpy(text,"null");
@@ -157,7 +158,7 @@ char* OutputMove(TREE *tree, int move, int ply, int wtm) {
     else
       *text++='+';
   }
-  UnMakeMove(tree, MAXPLY, move, wtm);
+  UnmakeMove(tree, MAXPLY, move, wtm);
   *text=0;
   return (text_move);
 }

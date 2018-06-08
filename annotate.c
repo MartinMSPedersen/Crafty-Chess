@@ -393,7 +393,7 @@ void Annotate() {
             }
             for (i=path_len;i>0;i--) {
               twtm=ChangeSide(twtm);
-              UnMakeMove(tree,i,tree->pv[0].path[i],twtm);
+              UnmakeMove(tree,i,tree->pv[0].path[i],twtm);
             }
             fprintf(annotate_out," %s)%s\n",
                     AnnotateValueToNAG(annotate_score[0],wtm,html_mode), html_br);

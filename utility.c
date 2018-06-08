@@ -453,7 +453,7 @@ void DisplayPV(TREE *tree, int level, int wtm, int time, int value, PATH *pv) {
   }
   for (i=pv->pathl;i>0;i--) {
     wtm=ChangeSide(wtm);
-    UnMakeMove(tree,i,pv->path[i],wtm);
+    UnmakeMove(tree,i,pv->path[i],wtm);
   }
 }
 
@@ -621,7 +621,7 @@ void EGTBPV(TREE *tree, int wtm) {
           else if (value == best) optimal_mv=0;
         }
       }
-      UnMakeMove(tree,1,current[i],wtm);
+      UnmakeMove(tree,1,current[i],wtm);
     }
     if (best > -MATE-1) {
       moves[ply]=bestmv;
@@ -651,7 +651,7 @@ void EGTBPV(TREE *tree, int wtm) {
     wtm=ChangeSide(wtm);
       tree->save_hash_key[1]=hk[ply];
       tree->save_pawn_hash_key[1]=phk[ply];
-    UnMakeMove(tree,1,moves[ply],wtm);
+    UnmakeMove(tree,1,moves[ply],wtm);
     tree->position[2]=tree->position[1];
   }
   next=buffer;
@@ -710,7 +710,7 @@ char *FormatPV(TREE *tree, int wtm, PATH pv) {
   }
   for (i=pv.pathl;i>0;i--) {
     wtm=ChangeSide(wtm);
-    UnMakeMove(tree,i,pv.path[i],wtm);
+    UnmakeMove(tree,i,pv.path[i],wtm);
   }
   return (buffer);
 }
@@ -726,6 +726,18 @@ unsigned int ReadClock(TIME_TYPE type) {
   struct timeval timeval;
   struct timezone timezone;
   BITBOARD cputime=0;
+#endif
+#if defined(NT_i386) || defined(NT_AXP)
+  HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE,
+GetCurrentProcessId());
+  FILETIME ftCreate, ftExit, ftKernel, ftUser;
+  unsigned int cputime=0;
+  BITBOARD tUser64=0;
+  if (GetProcessTimes(hProcess, &ftCreate, &ftExit, &ftKernel, &ftUser)) {
+    tUser64 = *(BITBOARD *)&ftUser;
+    cputime=(unsigned int)(tUser64/100000);
+  }
+  CloseHandle(hProcess);
 #endif
 
   switch (type) {
@@ -750,7 +762,7 @@ unsigned int ReadClock(TIME_TYPE type) {
 #endif
 #if defined(NT_i386) || defined(NT_AXP)
     case cpu:
-      return(clock()/(CLOCKS_PER_SEC/100));
+      return(cputime);
     case elapsed:
       return( (unsigned int) GetTickCount()/10);
     default:
@@ -2299,10 +2311,10 @@ int LegalMove(TREE *tree, int ply, int wtm, int move) {
   for (mv=&moves[0];mv<mvp;mv++) {
     MakeMove(tree,MAXPLY, *mv, wtm);
     if (!Check(wtm) && move==*mv) {
-      UnMakeMove(tree,MAXPLY, *mv, wtm);
+      UnmakeMove(tree,MAXPLY, *mv, wtm);
       return(1);
     }
-    UnMakeMove(tree,MAXPLY, *mv, wtm);
+    UnmakeMove(tree,MAXPLY, *mv, wtm);
   }
   return(0);
 }

@@ -4,7 +4,7 @@
 #include "evaluate.h"
 #include "data.h"
 
-/* last modified 11/20/01 */
+/* last modified 05/09/02 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -31,18 +31,17 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
 **********************************************************************
 *                                                                    *
 *   check for draws due to insufficient material and adjust the      *
-*   score as necessary.                                              *
+*   score as necessary.  this code also handles a special endgame    *
+*   case where one side has only a lone king, and the king has no    *
+*   legal moves.  this has been shown to break a few evaluation      *
+*   terms such as bishop + wrong color rook pawn.  if this case is   *
+*   detected, a drawscore is returned.                               *
 *                                                                    *
 **********************************************************************
 */
   if (TotalWhitePieces<9 && TotalBlackPieces<9) {
     can_win=EvaluateWinner(tree);
-/*
-    if (can_win & 1) {
-      printf("\n\n-----------------white can win this:\n");
-      DisplayChessBoard(stdout,tree->pos);
-    }
-*/
+    if (EvaluateStalemate(tree,wtm)) can_win=0;
   }
   if (can_win == 0) return(DrawScore(wtm));
   score=EvaluateMaterial(tree);
@@ -3229,6 +3228,73 @@ int EvaluatePawns(TREE *tree) {
   return(score);
 }
 
+/* last modified 04/17/02 */
+/*
+********************************************************************************
+*                                                                              *
+*   EvaluateStaleMate() is used to determine if one side has only a king and   *
+*   the king has no legal moves.  this is used to correct a codition that can  *
+*   confuse the "bishop + wrong rook pawn = draw" code (as well as others that *
+*   are similar.  if the side with the lone king is on move and has no legal   *
+*   moves, then a draw score is returned.                                      *
+*                                                                              *
+********************************************************************************
+*/
+int EvaluateStalemate(TREE *tree, int wtm) {
+  int stalemate=0;
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   if white has only a king and it can't legally move,    |
+|   and white is on move, then this is a stalemate.        |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  if (wtm) {
+    if (TotalWhitePieces+TotalWhitePawns == 0) {
+      BITBOARD sm_possible=stalemate_sqs[WhiteKingSQ]&BlackKing;
+      if (sm_possible) {
+        BITBOARD moves=edge_moves[WhiteKingSQ];
+        stalemate=1;
+        while (moves) {
+          int square=FirstOne(moves);
+          if (!Attacked(tree,square,0)) {
+            stalemate=0;
+            break;
+          }
+          moves^=SetMask(square);
+        }
+      }
+    }
+  }
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   if black has only a king and it can't legally move,    |
+|   and white is on move, then this is a stalemate.        |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  else {
+    if (TotalBlackPieces+TotalBlackPawns == 0) {
+      BITBOARD sm_possible=stalemate_sqs[BlackKingSQ]&WhiteKing;
+      if (sm_possible) {
+        BITBOARD moves=edge_moves[BlackKingSQ];
+        stalemate=1;
+        while (moves) {
+          int square=FirstOne(moves);
+          if (!Attacked(tree,square,1)) {
+            stalemate=0;
+            break;
+          }
+          moves^=SetMask(square);
+        }
+      }
+    }
+  }
+  return (stalemate);
+}
+
 /* last modified 10/17/01 */
 /*
 ********************************************************************************
@@ -3276,6 +3342,9 @@ int EvaluateWinner(TREE *tree) {
 |   not winnable if the black king can get to the queening |
 |   square first.                                          |
 |                                                          |
+|   special case:  if both sides have the right colored    |
+|   bishop, it is still most likely drawn.                 |
+|                                                          |
  ----------------------------------------------------------
 */
   if (TotalWhitePawns) do {
@@ -3287,12 +3356,21 @@ int EvaluateWinner(TREE *tree) {
     }
     if (!(WhitePawns&not_rook_pawns)) {
       if (WhiteBishops) {
-        if (WhiteBishops&dark_squares) {
-          if (file_mask[FILEH]&WhitePawns) continue;
+        if (!BlackBishops) {
+          if (WhiteBishops&dark_squares) {
+            if (file_mask[FILEH]&WhitePawns) continue;
+          }
+          else if (file_mask[FILEA]&WhitePawns) continue;
         }
-        else if (file_mask[FILEA]&WhitePawns) continue;
+        else {
+          if (WhiteBishops&dark_squares && !(BlackBishops&dark_squares)) {
+            if (file_mask[FILEH]&WhitePawns) continue;
+          }
+          else if (WhiteBishops&light_squares && !(BlackBishops&light_squares)) {
+            if (file_mask[FILEA]&WhitePawns) continue;
+          }
+        }
       }
-  
       if (!(WhitePawns&file_mask[FILEA]) ||
           !(WhitePawns&file_mask[FILEH])) {
         if (WhitePawns&file_mask[FILEA]) {
@@ -3329,6 +3407,9 @@ int EvaluateWinner(TREE *tree) {
 |   not winnable if the white king can get to the queening |
 |   square first.                                          |
 |                                                          |
+|   special case:  if both sides have the right colored    |
+|   bishop, it is still most likely drawn.                 |
+|                                                          |
  ----------------------------------------------------------
 */
   if (TotalBlackPawns) do {
@@ -3340,12 +3421,21 @@ int EvaluateWinner(TREE *tree) {
     }
     if (!(BlackPawns&not_rook_pawns)) {
       if (BlackBishops) {
-        if (BlackBishops&dark_squares) {
-          if (file_mask[FILEA]&BlackPawns) continue;
+        if (!WhiteBishops) {
+          if (BlackBishops&dark_squares) {
+            if (file_mask[FILEA]&BlackPawns) continue;
+          }
+          else if (file_mask[FILEH]&BlackPawns) continue;
         }
-        else if (file_mask[FILEH]&BlackPawns) continue;
+        else {
+          if (BlackBishops&dark_squares && !(WhiteBishops&dark_squares)) {
+            if (file_mask[FILEA]&BlackPawns) continue;
+          }
+          else if (BlackBishops&dark_squares && !(WhiteBishops&dark_squares)) {
+            if (file_mask[FILEH]&BlackPawns) continue;
+          }
+        }
       }
-  
       if (!(BlackPawns&file_mask[FILEA]) ||
           !(BlackPawns&file_mask[FILEH])) {
         if (BlackPawns&file_mask[FILEA]) {

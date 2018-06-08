@@ -3,37 +3,6 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 05/12/99 */
-/*
-********************************************************************************
-*                                                                              *
-*   AttacksFrom() is used to produce a BITBOARD which is a map of all squares  *
-*   attacked from this <square>.  this procedure uses the rotated bitboard     *
-*   technique to compute the attack maps for sliding pieces.                   *
-*                                                                              *
-********************************************************************************
-*/
-BITBOARD AttacksFrom(TREE *tree, int square, int wtm) {
-
-  switch (abs(PcOnSq(square))) {
-  case pawn:
-    if (wtm) return(w_pawn_attacks[square]);
-    else return(b_pawn_attacks[square]);
-  case knight:
-    return(knight_attacks[square]);
-  case bishop:
-    return(AttacksBishop(square));
-  case rook:
-    return(AttacksRook(square));
-  case queen:
-    return(AttacksQueen(square));
-  case king:
-    return(king_attacks[square]);
-  default:
-    return(0);
-  }
-}
-
 /* last modified 06/26/99 */
 /*
 ********************************************************************************

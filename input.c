@@ -200,10 +200,10 @@ int InputMove(TREE *tree, char *text, int ply, int wtm, int silent,
     if (!ponder_list && *mv) {
       MakeMove(tree,MAXPLY, *mv, wtm);
       if (Check(wtm) || (give_check && !Check(ChangeSide(wtm)))) {
-        UnMakeMove(tree,MAXPLY, *mv, wtm);
+        UnmakeMove(tree,MAXPLY, *mv, wtm);
         *mv=0;
       }
-      else UnMakeMove(tree,MAXPLY, *mv, wtm);
+      else UnmakeMove(tree,MAXPLY, *mv, wtm);
     }
   }
   nleft=0;
@@ -321,10 +321,10 @@ int InputMoveICS(TREE *tree, char *text, int ply, int wtm, int silent,
     if (!ponder_list && *mv) {
       MakeMove(tree,MAXPLY, *mv, wtm);
       if(Check(wtm)) {
-        UnMakeMove(tree,MAXPLY, *mv, wtm);
+        UnmakeMove(tree,MAXPLY, *mv, wtm);
         *mv=0;
       }
-      else UnMakeMove(tree,MAXPLY, *mv, wtm);
+      else UnmakeMove(tree,MAXPLY, *mv, wtm);
     }
   }
   nleft=0;

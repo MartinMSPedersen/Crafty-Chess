@@ -45,7 +45,7 @@
 #   options above.
 
 default:
-	$(MAKE) -j linux-i686-elf
+	$(MAKE) -j linux-icc-elf
 help:
 	@echo "You must specify the system which you want to compile for:"
 	@echo ""
@@ -80,7 +80,8 @@ help:
 aix:
 	$(MAKE) target=AIX \
 		CC=cc CXX='$$(CC)' \
-		CFLAGS='$(CFLAGS} -O2' \
+		CFLAGS='$(CFLAGS) -O2' \
+		CXFLAGS='$(CFLAGS)' \
 		LDFLAGS='$(LDFLAGS)' \
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS' \
 		crafty-make
@@ -98,6 +99,7 @@ alpha:
 	$(MAKE) target=ALPHA \
 		CC=cc CXX=cxx \
 		CFLAGS='$(CFLAGS) -std -fast -O4 -pthread -newc' \
+		CXFLAGS='$(CFLAGS)' \
 		LDFLAGS='$(LDFLAGS) $(CFLAGS)' \
 		LIBS='-lpthread -lexc' \
 		opt='$(opt) -DSMP -DCPUS=8 -DFAST -DPOSIX' \
@@ -107,6 +109,7 @@ alpha-host:
 	$(MAKE) target=ALPHA \
 		CC=cc CXX=cxx \
 		CFLAGS='$(CFLAGS) -std -fast -O4 -pthread -newc -arch host' \
+		CXFLAGS='$(CFLAGS)' \
 		LDFLAGS='$(LDFLAGS) $(CFLAGS)' \
 		LIBS='-lpthread -lexc' \
 		opt='$(opt) -DSMP -DCPUS=8 -DFAST -DPOSIX' \
@@ -116,6 +119,7 @@ alpha-host-nocix:
 	$(MAKE) target=ALPHA \
 		CC=cc CXX=cxx \
 		CFLAGS='$(CFLAGS) -std -fast -O4 -pthread -newc \
+		CXFLAGS='$(CFLAGS)' \
 			-arch ev56 -tune host' \
 		LDFLAGS='$(LDFLAGS) $(CFLAGS)' \
 		LIBS='-lpthread -lexc' \
@@ -126,6 +130,7 @@ cygwin:
 	$(MAKE) target=LINUX \
 		CC=gcc CXX='$$(CC)' \
 		CFLAGS='$(CFLAGS) -pipe -D_REENTRANT -mpentium -O2 -Wall' \
+		CXFLAGS='$(CFLAGS)' \
 		LDFLAGS='$(LDFLAGS)' \
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
 		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST' \
@@ -136,6 +141,7 @@ dos:
 	$(MAKE) target=DOS \
 		CC=gcc CXX='$$(CC)' \
 		CFLAGS='$(CFLAGS) -fomit-frame-pointer -m486 -O3' \
+		CXFLAGS='$(CFLAGS)' \
 		LDFLAGS='$(LDFLAGS)' \
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
 		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B' \
@@ -146,6 +152,7 @@ freebsd:
 	$(MAKE) target=FreeBSD \
 		CC=gcc CXX='$$(CC)' \
 		CFLAGS='$(CFLAGS) -fomit-frame-pointer -m486 -O3 -Wall' \
+		CXFLAGS='$(CFLAGS)' \
 		LDFLAGS='$(LDFLAGS)' \
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
 		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST' \
@@ -156,6 +163,7 @@ freebsd-pgcc:
 	$(MAKE) target=FreeBSD \
 		CC=gcc CXX='$$(CC)' \
 		CFLAGS='$(CFLAGS) -pipe -D_REENTRANT -mpentium -O -Wall' \
+		CXFLAGS='$(CFLAGS)' \
 		LDFLAGS='$(LDFLAGS)' \
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
 		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST' \
@@ -166,6 +174,7 @@ hpux:
 	$(MAKE) target=HP \
 		CC=cc CXX='$$(CC)' \
 		CFLAGS='$(CFLAGS) +ESlit -Ae +w1' \
+		CXFLAGS='$(CFLAGS)' \
 		LDFLAGS='$(LDFLAGS) +O3 +Onolimit $(CFLAGS)' \
 		crafty-make
 
@@ -173,6 +182,7 @@ linux:
 	$(MAKE) target=LINUX \
 		CC=gcc CXX=g++ \
 		CFLAGS='$(CFLAGS) -Wall -pipe -D_REENTRANT -O3 \
+		CXFLAGS='$(CFLAGS)' \
 			-fforce-mem -fomit-frame-pointer' \
 		LDFLAGS='$(LDFLAGS) -lpthread' \
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
@@ -185,6 +195,7 @@ linux-elf:
 		CC=gcc CXX=g++ \
 		CFLAGS='$(CFLAGS) -Wall -pipe -D_REENTRANT -O3 \
 			-fforce-mem -fomit-frame-pointer' \
+		CXFLAGS='$(CFLAGS)' \
 		LDFLAGS='$(LDFLAGS) -lpthread' \
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
 		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST' \
@@ -197,6 +208,7 @@ linux-i686:
 		CFLAGS='$(CFLAGS) -Wall -pipe -D_REENTRANT -march=i686 -O \
 			-fforce-mem -fomit-frame-pointer \
 			-mpreferred-stack-boundary=2' \
+		CXFLAGS='$(CFLAGS)' \
 		LDFLAGS='$(LDFLAGS) -lpthread' \
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
 		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST \
@@ -208,6 +220,37 @@ linux-i686-elf:
 	$(MAKE) target=LINUX \
 		CC=gcc CXX=g++ \
 		CFLAGS='$(CFLAGS) -Wall -pipe -D_REENTRANT -march=i686 -O \
+			-fforce-mem -fomit-frame-pointer \
+			-fno-gcse -mpreferred-stack-boundary=2' \
+		CXFLAGS='$(CFLAGS)' \
+		LDFLAGS='$(LDFLAGS)' \
+		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
+		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST \
+		     -DSMP -DCPUS=4 -DCLONE -DDGT' \
+		asm=X86-elf.o \
+		crafty-make
+
+linux-icc-elf-profile:
+	$(MAKE) target=LINUX \
+		CC=icc CXX=gcc \
+		CFLAGS='$(CFLAGS) -D_REENTRANT -O2 \
+			-prof_gen -prof_dir ./profile -fno-alias -tpp6' \
+		CXFLAGS='$(CXFLAGS) -Wall -pipe -D_REENTRANT -march=i686 -O \
+			-fforce-mem -fomit-frame-pointer \
+			-fno-gcse -mpreferred-stack-boundary=2' \
+		LDFLAGS='$(LDFLAGS)' \
+		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
+		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST \
+		     -DSMP -DCPUS=4 -DCLONE -DDGT' \
+		asm=X86-elf.o \
+		crafty-make
+
+linux-icc-elf:
+	$(MAKE) target=LINUX \
+		CC=icc CXX=gcc \
+		CFLAGS='$(CFLAGS) -D_REENTRANT -O2 \
+			-fno-alias -tpp6' \
+		CXFLAGS='$(CXFLAGS) -Wall -pipe -D_REENTRANT -march=i686 -O \
 			-fforce-mem -fomit-frame-pointer \
 			-fno-gcse -mpreferred-stack-boundary=2' \
 		LDFLAGS='$(LDFLAGS)' \
@@ -235,6 +278,7 @@ linux-alpha:
 	$(MAKE) target=ALPHA \
 		CC=gcc CXX=g++ \
 		CFLAGS='$(CFLAGS) -O4 -ffast-math -funroll-loops' \
+		CXFLAGS='$(CFLAGS)' \
 		LDFLAGS='$(LDFLAGS) $(CFLAGS)' \
 		LIBS='-lpthread' \
 		opt='$(opt) -DSMP -DCPUS=8 -DFAST -DPOSIX -DNOBUILTINS' \
@@ -246,6 +290,7 @@ netbsd:
 		CFLAGS='$(CFLAGS) -D_REENTRANT -O3 -Wall \
 			-fomit-frame-pointer -funroll-all-loops \
 			-finline-functions -ffast-math' \
+		CXFLAGS='$(CFLAGS)' \
 		LDFLAGS='$(LDFLAGS)' \
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS -DFAST' \
 		crafty-make
@@ -256,6 +301,7 @@ netbsd-i386:
 		CFLAGS='$(CFLAGS) -D_REENTRANT -O3 -Wall -m486 \
 			-fomit-frame-pointer -funroll-all-loops \
 			-finline-functions -ffast-math' \
+		CXFLAGS='$(CFLAGS)' \
 		LDFLAGS='$(LDFLAGS)' \
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS -DFAST \
 		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B' \
@@ -268,6 +314,7 @@ netbsd-i386-elf:
 		CFLAGS='$(CFLAGS) -D_REENTRANT -O3 -Wall -m486 \
 			-fomit-frame-pointer -funroll-all-loops \
 			-finline-functions -ffast-math' \
+		CXFLAGS='$(CFLAGS)' \
 		LDFLAGS='$(LDFLAGS)' \
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS -DFAST \
 		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B' \
@@ -280,6 +327,7 @@ netbsd-sparc:
 		CFLAGS='$(CFLAGS) -D_REENTRANT -O3 -Wall \
 			-fomit-frame-pointer -funroll-all-loops \
 			-finline-functions -ffast-math' \
+		CXFLAGS='$(CFLAGS)' \
 		LDFLAGS='$(LDFLAGS)' \
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS -DFAST \
 		     -DUSE_ASSEMBLY_A' \
@@ -290,6 +338,7 @@ next:
 	$(MAKE) target=NEXT \
 		CC=/bin/cc CXX='$$(CC)' \
 		CFLAGS='$(CFLAGS) -O2' \
+		CXFLAGS='$(CFLAGS)' \
 		LDFLAGS='$(LDFLAGS) $(CFLAGS)'
 		opt='$(opt) -DCOMPACT_ATTACKS' \
 		crafty-make
@@ -298,6 +347,7 @@ os2:
 	$(MAKE) target=OS2 \
 		CC=gcc CXX='$$(CC)' \
 		CFLAGS='$(CFLAGS) -fomit-frame-pointer -m486 -O3 -Wall' \
+		CXFLAGS='$(CFLAGS)' \
 		LDFLAGS='$(LDFLAGS) -Zexe -Zcrtdll -s' \
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
 		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST' \
@@ -309,6 +359,7 @@ sgi:
 		AS=/bin/as CC=cc CXX='$$(CC)' \
 		AFLAGS='-P' \
 		CFLAGS='$(CFLAGS) -g -32 -mips2 -cckr' \
+		CXFLAGS='$(CFLAGS)' \
 		LDFLAGS='$(LDFLAGS)' \
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS' \
 		crafty-make
@@ -318,6 +369,7 @@ solaris:
 		AS=/usr/ccs/bin/as CC=cc CXX='$$(CC)' \
 		AFLAGS='-P' \
 		CFLAGS='$(CFLAGS) -fast -xO5 -xunroll=20' \
+		CXFLAGS='$(CFLAGS)' \
 		LDFLAGS='$(LDFLAGS) -lpthread' \
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
 		     -DUSE_ASSEMBLY_A -DSMP -DCPUS=4 -DMUTEX -DPOSIX' \
@@ -330,6 +382,7 @@ solaris-gcc:
 		AFLAGS='-P' \
 		CFLAGS='$(CFLAGS) -Wall -pipe -D_REENTRANT -O2 \
 			-fforce-mem -fomit-frame-pointer' \
+		CXFLAGS='$(CFLAGS)' \
 		LDFLAGS='$(LDFLAGS)' \
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
 		     -DUSE_ASSEMBLY_A' \
@@ -339,6 +392,7 @@ solaris-gcc:
 generic:
 	$(MAKE) CC=gcc CXX=g++ \
 		CFLAGS='$(CFLAGS)' \
+		CXFLAGS='$(CFLAGS)' \
 		LDFLAGS='$(LDFLAGS)' \
 		crafty-make
 
@@ -368,7 +422,7 @@ crafty-make:
 		crafty
 
 crafty:	$(objects) 
-	$(CC) $(LDFLAGS) -o crafty $(objects) -lm  $(LIBS)
+	$(CC) $(LDFLAGS) -o crafty $(objects) -lm  $(LIBS) -lstdc++
 	@rm -f X86-elf.S
 	@rm -f X86-aout.S
 
@@ -376,7 +430,7 @@ dgt:    dgtdrv.o
 	@cc -O -o dgt dgtdrv.c
 
 egtb.o: egtb.cpp
-	$(CXX) -c $(CFLAGS) $(opts) egtb.cpp
+	$(CXX) -c $(CXFLAGS) $(opts) egtb.cpp
 clean:
 	-rm -f *.o crafty X86-elf.X X86-aout.S
 

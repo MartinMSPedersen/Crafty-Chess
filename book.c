@@ -100,7 +100,7 @@ int Book(TREE *tree, int wtm, int root_list_done) {
         common=HashKey & mask_16;
         MakeMove(tree,1,root_moves[im].move,wtm);
         if (RepetitionCheckBook(tree,2,ChangeSide(wtm))) {
-          UnMakeMove(tree,1,root_moves[im].move,wtm);
+          UnmakeMove(tree,1,root_moves[im].move,wtm);
           return(0);
         }
         temp_hash_key=HashKey ^ wtm_random[wtm];
@@ -110,7 +110,7 @@ int Book(TREE *tree, int wtm, int root_list_done) {
             start_moves[smoves++]=books_buffer[i];
             break;
           }
-        UnMakeMove(tree,1,root_moves[im].move,wtm);
+        UnmakeMove(tree,1,root_moves[im].move,wtm);
       }
     }
   }
@@ -171,7 +171,7 @@ int Book(TREE *tree, int wtm, int root_list_done) {
       common=HashKey & mask_16;
       MakeMove(tree,1,root_moves[im].move,wtm);
       if (RepetitionCheckBook(tree,2,ChangeSide(wtm))) {
-        UnMakeMove(tree,1,root_moves[im].move,wtm);
+        UnmakeMove(tree,1,root_moves[im].move,wtm);
         return(0);
       }
       temp_hash_key=HashKey ^ wtm_random[wtm];
@@ -206,7 +206,7 @@ int Book(TREE *tree, int wtm, int root_list_done) {
           break;
         }
       }
-      UnMakeMove(tree,1,root_moves[im].move,wtm);
+      UnmakeMove(tree,1,root_moves[im].move,wtm);
     }
     if (!nmoves) return(0);
 /*
@@ -699,7 +699,7 @@ int Book(TREE *tree, int wtm, int root_list_done) {
         tree->pv[1].path[2]=book_ponder_move;
         tree->pv[1].pathl=2;
       }
-      UnMakeMove(tree,1,book_moves[which],wtm);
+      UnmakeMove(tree,1,book_moves[which],wtm);
     }
     Print(128,"               book   0.0s    %3d%%   ", percent_played);
     Print(128," %s",OutputMove(tree,tree->pv[1].path[1],1,wtm));
@@ -714,7 +714,7 @@ int Book(TREE *tree, int wtm, int root_list_done) {
     MakeMove(tree,1,tree->pv[1].path[1],wtm);
     if (tree->pv[1].pathl>1)
       Print(128," %s",OutputMove(tree,tree->pv[1].path[2],2,ChangeSide(wtm)));
-    UnMakeMove(tree,1,tree->pv[1].path[1],wtm);
+    UnmakeMove(tree,1,tree->pv[1].path[1],wtm);
     Print(128,"\n");
     return(1);
   }
@@ -788,7 +788,7 @@ int BookPonderMove(TREE *tree, int wtm) {
           break;
         }
       }
-      UnMakeMove(tree,2,book_moves[im],wtm);
+      UnmakeMove(tree,2,book_moves[im],wtm);
     }
   }
   return(book_ponder_move);

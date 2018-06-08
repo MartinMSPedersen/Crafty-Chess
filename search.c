@@ -400,7 +400,7 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
         else
           value=-Quiesce(tree,-beta,-alpha,ChangeSide(wtm),ply+1);
         if (abort_search || tree->stop) {
-          UnMakeMove(tree,ply,tree->current_move[ply],wtm);
+          UnmakeMove(tree,ply,tree->current_move[ply],wtm);
           return(0);
         }
       }
@@ -416,7 +416,7 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
         else
           value=-Quiesce(tree,-alpha-1,-alpha,ChangeSide(wtm),ply+1);
         if (abort_search || tree->stop) {
-          UnMakeMove(tree,ply,tree->current_move[ply],wtm);
+          UnmakeMove(tree,ply,tree->current_move[ply],wtm);
           return(0);
         }
         if (value>alpha && value<beta) {
@@ -426,7 +426,7 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
           else
             value=-Quiesce(tree,-beta,-alpha,ChangeSide(wtm),ply+1);
           if (abort_search || tree->stop) {
-            UnMakeMove(tree,ply,tree->current_move[ply],wtm);
+            UnmakeMove(tree,ply,tree->current_move[ply],wtm);
             return(0);
           }
         }
@@ -434,7 +434,7 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
       if (value > alpha) {
         if(value >= beta) {
           History(tree,ply,depth,wtm,tree->current_move[ply]);
-          UnMakeMove(tree,ply,tree->current_move[ply],wtm);
+          UnmakeMove(tree,ply,tree->current_move[ply],wtm);
           HashStore(tree,ply,depth,wtm,LOWER,value,mate_threat);
           tree->fail_high++;
           if (!moves_searched) tree->fail_high_first++;
@@ -444,7 +444,7 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
       }
       moves_searched++;
     } else tree->nodes_searched++;
-    UnMakeMove(tree,ply,tree->current_move[ply],wtm);
+    UnmakeMove(tree,ply,tree->current_move[ply],wtm);
 #if defined(SMP)
     if (smp_idle && moves_searched && min_thread_depth<=depth) {
       tree->alpha=alpha;

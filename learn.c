@@ -228,7 +228,7 @@ void LearnBook(TREE *tree, int wtm, int search_value, int search_depth, int lv,
                 n_book_moves[i]++;
                 last_book_move=i;
             }
-          UnMakeMove(tree, 1,*mv,wtm);
+          UnmakeMove(tree, 1,*mv,wtm);
         }
         if (move) MakeMoveRoot(tree, move,wtm);
       }
@@ -374,7 +374,7 @@ void LearnBookUpdate(TREE *tree, int wtm, int move, float learn_value) {
       temp_hash_key=(temp_hash_key & ~mask_16) | common;
       for (move_index=0;move_index<cluster;move_index++)
         if (!(temp_hash_key ^ book_buffer[move_index].position)) break;
-      UnMakeMove(tree, 1,move,wtm);
+      UnmakeMove(tree, 1,move,wtm);
       if (move_index >= cluster) return;
       if (book_buffer[move_index].learn == 0.0)
         book_buffer[move_index].learn=learn_value;
@@ -780,7 +780,7 @@ void LearnImportCAP(TREE *tree, int nargs, char **args) {
 	  break;
 	}
       }
-      UnMakeMove(tree,0,move,wtm);
+      UnmakeMove(tree,0,move,wtm);
     }
 /*
  ----------------------------------------------------------

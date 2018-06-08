@@ -232,7 +232,7 @@ int Iterate(int wtm, int search_type, int root_list_done) {
       }
       for (i--;i>0;i--) {
         twtm=ChangeSide(twtm);
-        UnMakeMove(tree, i,tree->pv[0].path[i],twtm);
+        UnmakeMove(tree, i,tree->pv[0].path[i],twtm);
       }
       if (trace_level) {
         printf("==================================\n");
@@ -449,7 +449,7 @@ int Iterate(int wtm, int search_type, int root_list_done) {
       material=Material/PAWN_VALUE;
       Print(8,"              time=%s  cpu=%d%%  mat=%d",
             DisplayTimeWhisper(end_time-start_time), cpu_percent, material); 
-      Print(8,"  n=" BMF "\n", tree->nodes_searched);
+      Print(8,"  n=" BMF, tree->nodes_searched);
       Print(8,"  fh=%u%%", (int) ((BITBOARD) tree->fail_high_first*100/(BITBOARD) tree->fail_high));
       Print(8,"  nps=%dk\n", nodes_per_second/1000);
       Print(16,"              ext-> chk=%d cap=%d pp=%d 1rep=%d mate=%d\n",

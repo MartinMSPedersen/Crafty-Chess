@@ -139,6 +139,7 @@
   extern signed char    resign_count;
   extern signed char    draw_counter;
   extern signed char    draw_count;
+  extern signed char    draw_offer_pending;
   extern char           audible_alarm;
   extern char           hint[512];
   extern char           book_hint[512];
@@ -352,6 +353,8 @@
   extern BITBOARD       b_queen_random[64];
   extern BITBOARD       w_king_random[64];
   extern BITBOARD       b_king_random[64];
+  extern BITBOARD       stalemate_sqs[64];
+  extern BITBOARD       edge_moves[64];
   extern BITBOARD       enpassant_random[65];
   extern BITBOARD       castle_random_w[2];
   extern BITBOARD       castle_random_b[2];

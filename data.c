@@ -125,6 +125,8 @@
   BITBOARD       b_queen_random[64];
   BITBOARD       w_king_random[64];
   BITBOARD       b_king_random[64];
+  BITBOARD       stalemate_sqs[64];
+  BITBOARD       edge_moves[64];
   BITBOARD       enpassant_random[65];
   BITBOARD       castle_random_w[2];
   BITBOARD       castle_random_b[2];
@@ -248,7 +250,7 @@
   unsigned int   max_split_blocks;
   volatile unsigned int   splitting;
 
-# define    VERSION                            "18.14"
+# define    VERSION                            "18.15"
   char      version[6] =                    {VERSION};
   PLAYING_MODE mode =                     normal_mode;
 
@@ -386,6 +388,7 @@
   signed char resign_count =                        5;
   signed char draw_counter =                        0;
   signed char draw_count =                         10;
+  signed char draw_offer_pending =                  0;
   int       tc_moves =                             60;
   int       tc_time =                          180000;
   int       tc_time_remaining =                180000;

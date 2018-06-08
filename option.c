@@ -597,22 +597,7 @@ int Option(TREE *tree) {
 */
   else if (OptionMatch("draw",*args)) {
     if (nargs == 1) {
-      int drawsc=abs_draw_score;
-      if (move_number<40 || !accept_draws) drawsc=-300;
-      if (last_search_value<=drawsc && (tc_increment!=0 ||
-          tc_time_remaining_opponent>=1000)) {
-        if (xboard) Print(4095,"tellics draw\n");
-        else Print(4095,"Draw accepted.\n");
-        Print(4095,"1/2-1/2 {Draw agreed}\n");
-        strcpy(pgn_result,"1/2-1/2");
-      }
-      else {
-        if (xboard) {
-          Print(4095,"tellics decline\n");
-          Print(4095,"Decline\n");
-        }
-        else Print(4095,"Draw declined.\n");
-      }
+      draw_offer_pending=1;
     }
     else {
       if (!strcmp(args[1],"accept")) {
@@ -2649,7 +2634,7 @@ int Option(TREE *tree) {
       tree->last[1]=GenerateNonCaptures(tree, 0, wtm, tree->last[1]);
       for (mv=tree->last[0];mv<tree->last[1];mv++) {
         MakeMove(tree,0,*mv,wtm);
-        UnMakeMove(tree,0,*mv,wtm);
+        UnmakeMove(tree,0,*mv,wtm);
       }
     }
     clock_after=clock();
@@ -4071,6 +4056,6 @@ void OptionPerft(TREE *tree, int ply,int depth,int wtm) {
 #endif
     if (depth-1) OptionPerft(tree,ply+1,depth-1,ChangeSide(wtm));
     else if (!Check(wtm)) total_moves++;
-    UnMakeMove(tree,ply,*mv,wtm);
+    UnmakeMove(tree,ply,*mv,wtm);
   }
 }

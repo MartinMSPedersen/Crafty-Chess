@@ -130,10 +130,10 @@ int Ponder(int wtm) {
   for (mv=ponder_moves;mv<ponder_moves+num_ponder_moves;mv++) {
     MakeMove(tree,0, *mv, wtm);
     if (Check(wtm)) {
-      UnMakeMove(tree,0, *mv, wtm);
+      UnmakeMove(tree,0, *mv, wtm);
       *mv=0;
       }
-    else UnMakeMove(tree,0, *mv, wtm);
+    else UnmakeMove(tree,0, *mv, wtm);
   }
 /*
  ----------------------------------------------------------
@@ -166,7 +166,7 @@ int Ponder(int wtm) {
   else
     tree->rephead_b--;
   last_opponent_move=tlom;
-  UnMakeMove(tree,0,ponder_move,wtm);
+  UnmakeMove(tree,0,ponder_move,wtm);
 /*
  ----------------------------------------------------------
 |                                                          |

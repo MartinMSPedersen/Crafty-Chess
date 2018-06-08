@@ -155,7 +155,7 @@ int Quiesce(TREE *tree, int alpha, int beta, int wtm, int ply) {
 #endif
     MakeMove(tree,ply,tree->current_move[ply],wtm);
     value=-Quiesce(tree,-beta,-alpha,ChangeSide(wtm),ply+1);
-    UnMakeMove(tree,ply,tree->current_move[ply],wtm);
+    UnmakeMove(tree,ply,tree->current_move[ply],wtm);
     if (value > alpha) {
       if(value >= beta) return(value);
       alpha=value;

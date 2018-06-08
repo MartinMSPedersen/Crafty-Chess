@@ -149,7 +149,7 @@ int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
       else
         value=-Quiesce(tree,-alpha-1,-alpha,ChangeSide(wtm),ply+1);
       if (abort_search || tree->stop) {
-        UnMakeMove(tree,ply,tree->current_move[ply],wtm);
+        UnmakeMove(tree,ply,tree->current_move[ply],wtm);
         break;
       }
       if (value>alpha && value<beta) {
@@ -159,7 +159,7 @@ int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
         else
           value=-Quiesce(tree,-beta,-alpha,ChangeSide(wtm),ply+1);
         if (abort_search || tree->stop) {
-          UnMakeMove(tree,ply,tree->current_move[ply],wtm);
+          UnmakeMove(tree,ply,tree->current_move[ply],wtm);
           break;
         }
       }
@@ -187,7 +187,7 @@ int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
         if(value >= beta) {
           register int proc;
           parallel_stops++;
-          UnMakeMove(tree,ply,tree->current_move[ply],wtm);
+          UnmakeMove(tree,ply,tree->current_move[ply],wtm);
           tree->search_value=value;
           Lock(lock_smp);
           Lock(tree->parent->lock);
@@ -203,7 +203,7 @@ int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
         alpha=value;
       }
     }
-    UnMakeMove(tree,ply,tree->current_move[ply],wtm);
+    UnmakeMove(tree,ply,tree->current_move[ply],wtm);
     tree->search_value=alpha;
   }
   tree->parent->done=1;

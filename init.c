@@ -1225,6 +1225,41 @@ void InitializeMasks(void) {
   mask_white_OOO=SetMask(B1) | SetMask(C1) | SetMask(D1);
   mask_black_OO=SetMask(F8) | SetMask(G8);
   mask_black_OOO=SetMask(B8) | SetMask(C8) | SetMask(D8);
+
+  for (i=0;i<64;i++) {
+    stalemate_sqs[i]=0;
+    edge_moves[i]=0;
+  }
+  for (i=0;i<8;i++) {
+    stalemate_sqs[i]|=SetMask(i+16);
+    if (File(i) == 0) stalemate_sqs[i]|=SetMask(i+17);
+    if (File(i) == 7) stalemate_sqs[i]|=SetMask(i+15);
+    stalemate_sqs[i+56]|=SetMask(i+40);
+    if (File(i) == 0) stalemate_sqs[i+56]|=SetMask(i+41);
+    if (File(i) == 7) stalemate_sqs[i+56]|=SetMask(i+39);
+  }
+  for (i=0;i<64;i+=8) {
+    stalemate_sqs[i]|=SetMask(i+2);
+    if (Rank(i) == 0) stalemate_sqs[i]|=SetMask(i+10);
+    if (Rank(i) == 7) stalemate_sqs[i]|=SetMask(i-6);
+    stalemate_sqs[i+7]|=SetMask(i+5);
+    if (Rank(i) == 0) stalemate_sqs[i+7]|=SetMask(i+13);
+    if (Rank(i) == 7) stalemate_sqs[i+7]|=SetMask(i-3);
+  }
+  for (i=0;i<63;i++) {
+    for (j=0;j<63;j++) {
+      if (stalemate_sqs[i]&SetMask(j)) {
+        if (Rank(i)==0 || Rank(i)==7) {
+          if (File(i) > 0) edge_moves[i]|=SetMask(i-1);
+          if (File(i) < 7) edge_moves[i]|=SetMask(i+1);
+        }
+        if (File(i)==0 || File(i)==7) {
+          if (Rank(i) > 0) edge_moves[i]|=SetMask(i-8);
+          if (Rank(i) < 7) edge_moves[i]|=SetMask(i+8);
+        }
+      }
+    }
+  }
 }
 
 void InitializePawnMasks(void) {

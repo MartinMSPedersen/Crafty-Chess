@@ -105,7 +105,7 @@ int SearchRoot(TREE *tree, int alpha, int beta, int wtm, int depth) {
       else
         value=-Quiesce(tree,-beta,-alpha,ChangeSide(wtm),2);
       if (abort_search) {
-        UnMakeMove(tree,1,tree->current_move[1],wtm);
+        UnmakeMove(tree,1,tree->current_move[1],wtm);
         return(alpha);
       }
       first_move=0;
@@ -117,7 +117,7 @@ int SearchRoot(TREE *tree, int alpha, int beta, int wtm, int depth) {
       else
         value=-Quiesce(tree,-alpha-1,-alpha,ChangeSide(wtm),2);
       if (abort_search) {
-        UnMakeMove(tree,1,tree->current_move[1],wtm);
+        UnmakeMove(tree,1,tree->current_move[1],wtm);
         return(alpha);
       }
       if ((value > alpha) && (value < beta)) {
@@ -127,7 +127,7 @@ int SearchRoot(TREE *tree, int alpha, int beta, int wtm, int depth) {
       else
         value=-Quiesce(tree,-beta,-alpha,ChangeSide(wtm),2);
         if (abort_search) {
-          UnMakeMove(tree,1,tree->current_move[1],wtm);
+          UnmakeMove(tree,1,tree->current_move[1],wtm);
           return(alpha);
         }
       }
@@ -138,13 +138,13 @@ int SearchRoot(TREE *tree, int alpha, int beta, int wtm, int depth) {
       root_value=alpha;
       if(value >= beta) {
         History(tree,1,depth,wtm,tree->current_move[1]);
-        UnMakeMove(tree,1,tree->current_move[1],wtm);
+        UnmakeMove(tree,1,tree->current_move[1],wtm);
         return(value);
       }
       alpha=value;
     }
     root_value=alpha;
-    UnMakeMove(tree,1,tree->current_move[1],wtm);
+    UnmakeMove(tree,1,tree->current_move[1],wtm);
 #if defined(SMP)
     if (split_at_root && smp_idle && NextRootMoveParallel()) {
       tree->alpha=alpha;
@@ -250,7 +250,7 @@ void SearchOutput(TREE *tree, int value, int bound) {
  ----------------------------------------------------------
 */
     if(value < bound) {
-      UnMakeMove(tree,1,tree->pv[1].path[1],root_wtm);
+      UnmakeMove(tree,1,tree->pv[1].path[1],root_wtm);
       DisplayPV(tree,6, wtm, end_time-start_time, value, &tree->pv[1]);
       MakeMove(tree,1,tree->pv[1].path[1],root_wtm);
     }

@@ -143,7 +143,11 @@ int Thread(TREE *tree) {
 *                                                                              *
 ********************************************************************************
 */
+#if defined(CLONE)
+int ThreadInit(void *tid) {
+#else
 void * STDCALL ThreadInit(void *tid) {
+#endif
   ThreadWait((int) tid, (TREE*) 0);
   return(0);
 }
