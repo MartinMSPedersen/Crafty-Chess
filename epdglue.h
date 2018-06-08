@@ -1,4 +1,5 @@
 #if !defined(EPDGLUE_INCLUDED)
+/* *INDENT-OFF* */
 #  define EPDGLUE_INCLUDED
 /*>>> epdglue.h: subprogram prototypes for epdglue.c */
 /* Revised: 1995.12.11 */
@@ -26,5 +27,6 @@ int EGCommandCheck(char *s);
 int EGCommand(char *s);
 void EGInit(void);
 void EGTerm(void);
+/* *INDENT-ON* */
 #endif
 /*<<< epdglue.h: EOF */

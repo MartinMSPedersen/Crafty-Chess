@@ -4,7 +4,7 @@
      X86-64 instructions.
 */
 /* *INDENT-OFF* */
-int static __inline__ MSB(long word)
+static __inline__ int MSB(long word)
 {
   long dummy, dummy2;
 
@@ -17,7 +17,7 @@ asm("          bsrq    %1, %0     " "\n\t"
 :   "cc");
   return (dummy);
 }
-int static __inline__ LSB(long word)
+static __inline__ int LSB(long word)
 {
   long dummy, dummy2;
 
@@ -31,7 +31,7 @@ asm("          bsfq    %1, %0     " "\n\t"
   return (dummy);
 }
 #if defined(POPCNT)
-int static __inline__ PopCnt(long word)
+static __inline__ int PopCnt(long word)
 {
   long dummy, dummy2;
 
@@ -42,7 +42,7 @@ asm("          popcnt  %1, %0     " "\n\t"
   return (dummy);
 }
 #else
-int static __inline__ PopCnt(long word)
+static __inline__ int PopCnt(long word)
 {
   long dummy, dummy2, dummy3;
 

@@ -1,6 +1,6 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 01/17/09 */
+/* last modified 08/20/10 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -13,7 +13,7 @@
  *******************************************************************************
  */
 int NextEvasion(TREE * RESTRICT tree, int ply, int wtm) {
-  register int *movep, *sortv, moves = 0;
+  int *movep, *sortv;
 
   switch (tree->next_status[ply].phase) {
 /*
@@ -41,17 +41,19 @@ int NextEvasion(TREE * RESTRICT tree, int ply, int wtm) {
  ************************************************************
  *                                                          *
  *   Now generate all legal moves by using the special      *
- *   GenerateCheckEvasions() function, so we can determine  *
- *   if this is a one-legal-reply-to-check position.        *
+ *   GenerateCheckEvasions() procedure.  Then sort the      *
+ *   moves based on the expected gain or loss.  this is     *
+ *   deferred until now to see if the hash move is good     *
+ *   enough to produce a cutoff and avoid this effort.      *
  *                                                          *
- *   Then sort the moves based on the expected gain or loss.*
- *   this is deferred until now to see if the hash move is  *
- *   good enough to produce a cutoff and avoid this effort. *
- *                                                          *
- *   Once we confirm that the capture is not losing any     *
- *   material, we sort these non-losing captures into       *
- *   MVV/LVA order which appears to be a slightly faster    *
- *   move ordering idea.                                    *
+ *   Once we confirm that the move does not lose any        *
+ *   material, we sort these non-losing moves into MVV/LVA  *
+ *   order which appears to be a slightly faster move       *
+ *   ordering idea.  Unsafe evasion moves are sorted using  *
+ *   the original Swap() score to keep them last in the     *
+ *   move list.  Note that this move list contains both     *
+ *   captures and non-captures.  We try the safe captures   *
+ *   first due to the way the sort score is computed.       *
  *                                                          *
  ************************************************************
  */
@@ -60,7 +62,7 @@ int NextEvasion(TREE * RESTRICT tree, int ply, int wtm) {
           GenerateCheckEvasions(tree, ply, wtm, tree->last[ply - 1]);
       tree->next_status[ply].phase = REMAINING_MOVES;
       for (movep = tree->last[ply - 1], sortv = tree->sort_value;
-          movep < tree->last[ply]; moves++, movep++, sortv++)
+          movep < tree->last[ply]; movep++, sortv++)
         if (tree->hash_move[ply] && *movep == tree->hash_move[ply]) {
           *sortv = -999999;
           *movep = 0;
@@ -79,37 +81,38 @@ int NextEvasion(TREE * RESTRICT tree, int ply, int wtm) {
 /*
  ************************************************************
  *                                                          *
- *   Don't disdain the lowly bubble sort here.  The list of *
- *   captures is always short, and experiments with other   *
- *   algorithms are always slightly slower.  This is very   *
- *   cache-friendly and runs quickly.                       *
+ *   This is a simple insertion sort algorithm.  It seems   *
+ *   be no faster than a normal bubble sort, but using this *
+ *   eliminated a lot of explaining about "why?". :)        *
  *                                                          *
  ************************************************************
  */
       if (tree->last[ply] > tree->last[ply - 1] + 1) {
-        register int done, temp;
-        register int *end = tree->last[ply - 1] + moves - 1;
+        int temp1, temp2, *tmovep, *tsortv;
+        int *end;
 
-        do {
-          done = 1;
-          sortv = tree->sort_value;
-          for (movep = tree->last[ply - 1]; movep < end; movep++, sortv++)
-            if (*sortv < *(sortv + 1)) {
-              temp = *sortv;
-              *sortv = *(sortv + 1);
-              *(sortv + 1) = temp;
-              temp = *movep;
-              *movep = *(movep + 1);
-              *(movep + 1) = temp;
-              done = 0;
-            }
-        } while (!done);
+        sortv = tree->sort_value + 1;
+        end = tree->last[ply];
+        for (movep = tree->last[ply - 1] + 1; movep < end; movep++, sortv++) {
+          temp1 = *movep;
+          temp2 = *sortv;
+          tmovep = movep - 1;
+          tsortv = sortv - 1;
+          while (tmovep >= tree->last[ply - 1] && *tsortv < temp2) {
+            *(tsortv + 1) = *tsortv;
+            *(tmovep + 1) = *tmovep;
+            tmovep--;
+            tsortv--;
+          }
+          *(tmovep + 1) = temp1;
+          *(tsortv + 1) = temp2;
+        }
       }
       tree->next_status[ply].last = tree->last[ply - 1];
 /*
  ************************************************************
  *                                                          *
- *   now try the rest of the set of moves.                  *
+ *   Now try the moves in sorted order.                     *
  *                                                          *
  ************************************************************
  */
@@ -137,7 +140,7 @@ int NextEvasion(TREE * RESTRICT tree, int ply, int wtm) {
  *******************************************************************************
  */
 int NextMove(TREE * RESTRICT tree, int ply, int wtm) {
-  register int *movep, *sortv;
+  int *movep, *sortv;
 
   switch (tree->next_status[ply].phase) {
 /*
@@ -178,10 +181,9 @@ int NextMove(TREE * RESTRICT tree, int ply, int wtm) {
       tree->next_status[ply].remaining = 0;
       for (movep = tree->last[ply - 1], sortv = tree->sort_value;
           movep < tree->last[ply]; movep++, sortv++)
-        if (tree->hash_move[ply] && *movep == tree->hash_move[ply]) {
+        if (*movep == tree->hash_move[ply]) {
           *sortv = -999999;
           *movep = 0;
-          tree->hash_move[ply] = 0;
         } else {
           *sortv =
               128 * pc_values[Captured(*movep)] - pc_values[Piece(*movep)];
@@ -302,7 +304,7 @@ int NextMove(TREE * RESTRICT tree, int ply, int wtm) {
   return (NONE);
 }
 
-/* last modified 01/17/09 */
+/* last modified 08/24/10 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -311,7 +313,7 @@ int NextMove(TREE * RESTRICT tree, int ply, int wtm) {
  *******************************************************************************
  */
 int NextRootMove(TREE * RESTRICT tree, TREE * RESTRICT mytree, int wtm) {
-  register int done, which, i;
+  int done, which, i;
   BITBOARD total_nodes;
 
 /*
@@ -328,8 +330,8 @@ int NextRootMove(TREE * RESTRICT tree, TREE * RESTRICT mytree, int wtm) {
  *                                                          *
  ************************************************************
  */
-  time_abort += TimeCheck(tree, 1);
-  if (time_abort)
+  abort_after_ply1 += TimeCheck(tree, 1);
+  if (abort_after_ply1)
     return (NONE);
   if (!annotate_mode && !pondering && !booking && n_root_moves == 1 &&
       iteration_depth > 4) {
@@ -418,10 +420,10 @@ int NextRootMove(TREE * RESTRICT tree, TREE * RESTRICT mytree, int wtm) {
  *                                                          *
  *   Bit of a tricky exit.  If the move is flagged as "do   *
  *   not reduce" or "do not search in parallel" then we     *
- *   return "HASH_MOVE" which will prevent SearchRoot()     *
- *   from reducing the move (LMR).  Otherwise we return the *
- *   more common "REMAINING_MOVES" value which allows LMR   *
- *   to be used on those root moves.                        *
+ *   return "HASH_MOVE" which will prevent Search() from    *
+ *   reducing the move (LMR).  Otherwise we return the more *
+ *   common "REMAINING_MOVES" value which allows LMR to be  *
+ *   used on those root moves.                              *
  *                                                          *
  ************************************************************
  */
@@ -455,7 +457,7 @@ int NextRootMove(TREE * RESTRICT tree, TREE * RESTRICT mytree, int wtm) {
  *******************************************************************************
  */
 int NextRootMoveParallel(void) {
-  register int which;
+  int which;
 
 /*
  ************************************************************

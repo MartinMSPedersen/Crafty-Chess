@@ -250,8 +250,8 @@ void SetBoard(TREE * tree, int nargs, char *args[], int special) {
   if (!error) {
     if (log_file)
       DisplayChessBoard(log_file, tree->pos);
-    tree->rep_index[white] = 0;
-    tree->rep_index[black] = 0;
+    Repetition(black) = 0;
+    Repetition(white) = 0;
     Rule50Moves(0) = 0;
     if (!special) {
       last_mate_score = 0;

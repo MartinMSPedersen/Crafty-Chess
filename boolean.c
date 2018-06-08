@@ -49,7 +49,7 @@ int PopCnt(register BITBOARD a) {
 #  else
 #    if !defined(INLINE32) && !defined(VC_INLINE32)
 int PopCnt(register BITBOARD a) {
-  register int c = 0;
+  int c = 0;
 
   while (a) {
     c++;

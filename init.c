@@ -21,7 +21,7 @@
  *******************************************************************************
  */
 void Initialize() {
-  int i, major, minor, id;
+  int i, major, id;
   TREE *tree;
   int j;
 
@@ -71,7 +71,6 @@ void Initialize() {
     fseek(book_file, -sizeof(int), SEEK_END);
     fread(&maj_min, 4, 1, book_file);
     major = BookIn32((unsigned char *) &maj_min);
-    minor = major & 65535;
     major = major >> 16;
     if (major < 23) {
       Print(4095, "\nERROR!  book.bin not made by version 23.0 or later\n");
@@ -92,6 +91,8 @@ void Initialize() {
   }
   AlignedMalloc((void **) &trans_ref, 64,
       sizeof(HASH_ENTRY) * hash_table_size);
+  AlignedMalloc((void **) &hash_path, 64,
+      sizeof(HPATH_ENTRY) * hash_path_size);
   AlignedMalloc((void **) &pawn_hash_table, 32,
       sizeof(PAWN_HASH_ENTRY) * pawn_hash_table_size);
   if (!trans_ref) {
@@ -166,7 +167,7 @@ void InitializeAttackBoards(void) {
     if (i < 56)
       for (j = 2; j < 4; j++) {
         sq = i + bishopsq[j];
-        if ((abs(Rank(sq) - Rank(i)) == 1) && (abs(File(sq) - File(i)) == 1)
+        if ((Abs(Rank(sq) - Rank(i)) == 1) && (Abs(File(sq) - File(i)) == 1)
             && (sq < 64) && (sq > -1))
           pawn_attacks[white][i] =
               pawn_attacks[white][i] | (BITBOARD) 1 << sq;
@@ -175,7 +176,7 @@ void InitializeAttackBoards(void) {
     if (i > 7)
       for (j = 0; j < 2; j++) {
         sq = i + bishopsq[j];
-        if ((abs(Rank(sq) - Rank(i)) == 1) && (abs(File(sq) - File(i)) == 1)
+        if ((Abs(Rank(sq) - Rank(i)) == 1) && (Abs(File(sq) - File(i)) == 1)
             && (sq < 64) && (sq > -1))
           pawn_attacks[black][i] =
               pawn_attacks[black][i] | (BITBOARD) 1 << sq;
@@ -194,7 +195,7 @@ void InitializeAttackBoards(void) {
         continue;
       trank = Rank(sq);
       tfile = File(sq);
-      if ((abs(frank - trank) > 2) || (abs(ffile - tfile) > 2))
+      if ((Abs(frank - trank) > 2) || (Abs(ffile - tfile) > 2))
         continue;
       knight_attacks[i] = knight_attacks[i] | (BITBOARD) 1 << sq;
     }
@@ -207,8 +208,8 @@ void InitializeAttackBoards(void) {
       sq = i;
       lastsq = sq;
       sq = sq + bishopsq[j];
-      while ((abs(Rank(sq) - Rank(lastsq)) == 1) &&
-          (abs(File(sq) - File(lastsq)) == 1) && (sq < 64) && (sq > -1)) {
+      while ((Abs(Rank(sq) - Rank(lastsq)) == 1) &&
+          (Abs(File(sq) - File(lastsq)) == 1) && (sq < 64) && (sq > -1)) {
         if (bishopsq[j] == 7)
           plus7dir[i] = plus7dir[i] | (BITBOARD) 1 << sq;
         else if (bishopsq[j] == 9)
@@ -238,10 +239,10 @@ void InitializeAttackBoards(void) {
       sq = i;
       lastsq = sq;
       sq = sq + rooksq[j];
-      while ((((abs(Rank(sq) - Rank(lastsq)) == 1) &&
-                  (abs(File(sq) - File(lastsq)) == 0)) ||
-              ((abs(Rank(sq) - Rank(lastsq)) == 0) &&
-                  (abs(File(sq) - File(lastsq)) == 1))) && (sq < 64) &&
+      while ((((Abs(Rank(sq) - Rank(lastsq)) == 1) &&
+                  (Abs(File(sq) - File(lastsq)) == 0)) ||
+              ((Abs(Rank(sq) - Rank(lastsq)) == 0) &&
+                  (Abs(File(sq) - File(lastsq)) == 1))) && (sq < 64) &&
           (sq > -1)) {
         if (rooksq[j] == 1)
           plus1dir[i] = plus1dir[i] | (BITBOARD) 1 << sq;
@@ -385,7 +386,7 @@ void InitializeMagic(void) {
 
       squares[numsquares++] =
           initmagicmoves_bitpos64_database[(abit *
-              0x07EDD5E59A4E28C2ULL) >> 58];
+              0x07EDD5E59A4E28C2ull) >> 58];
       temp ^= abit;
     }
     for (temp = 0; temp < (((BITBOARD) (1)) << numsquares); temp++) {
@@ -400,6 +401,8 @@ void InitializeMagic(void) {
       moves |= SetMask(i);
       for (j = 0; j < 4; j++)
         t += PopCnt(moves & mobility_mask_b[j]) * mobility_score_b[j];
+      if (t < 0)
+        t *= 2;
       *(magic_bishop_mobility_indices[i] +
           (((tempoccupied) * magic_bishop[i]) >> magic_bishop_shift[i])) = t;
     }
@@ -418,7 +421,7 @@ void InitializeMagic(void) {
 
       squares[numsquares++] =
           initmagicmoves_bitpos64_database[(abit *
-              0x07EDD5E59A4E28C2ULL) >> 58];
+              0x07EDD5E59A4E28C2ull) >> 58];
       temp ^= abit;
     }
     for (temp = 0; temp < (((BITBOARD) (1)) << numsquares); temp++) {
@@ -641,7 +644,7 @@ void InitializeChessBoard(TREE * tree) {
  clear the caches.
  */
   for (i = 0; i < 64; i++)
-    tree->cache_n[i] = ~0ULL;
+    tree->cache_n[i] = ~0ull;
 }
 
 /*
@@ -747,12 +750,11 @@ int InitializeGetLogID(void) {
     {
       char tfn[128];
       FILE *tlog;
-      int i;
 
       sprintf(tfn, "%s/log.%03d", log_path, log_id - 1);
       tlog = fopen(tfn, "r+");
       if (tlog) {
-        i = fstat(fileno(tlog), fileinfo);
+        fstat(fileno(tlog), fileinfo);
         if (fileinfo->st_size < 1300)
           log_id--;
       }
@@ -775,13 +777,15 @@ int InitializeGetLogID(void) {
 void InitializeHashTables(void) {
   int i, side;
 
-  transposition_id = 0;
+  transposition_age = 0;
   if (!trans_ref)
     return;
   for (i = 0; i < hash_table_size; i++) {
     (trans_ref + i)->word1 = 0;
     (trans_ref + i)->word2 = 0;
   }
+  for (i = 0; i < hash_path_size; i++)
+    (hash_path + i)->hash_path_age = -1;
   if (!pawn_hash_table)
     return;
   for (i = 0; i < pawn_hash_table_size; i++) {
@@ -866,7 +870,6 @@ void InitializeKingSafety() {
 void InitializeMasks(void) {
   int i, j;
 
-  mask_clear_entry = (BITBOARD) 0xe7fffffffffe0000ull;
 /*
  masks to set/clear a bit on a specific square
  */
@@ -892,29 +895,17 @@ void InitializeMasks(void) {
  also masks to detect "duos" (pawns side-by-side only).
  */
   for (i = 8; i < 56; i++) {
-    if (File(i) > 0 && File(i) < 7) {
-      mask_pawn_duo[i] = SetMask(i - 1) | SetMask(i + 1);
+    if (File(i) > 0 && File(i) < 7)
       mask_pawn_connected[i] =
           SetMask(i - 1) | SetMask(i + 1) | SetMask(i - 9) | SetMask(i -
           7) | SetMask(i + 7) | SetMask(i + 9);
-    } else if (File(i) == 0) {
-      mask_pawn_duo[i] = SetMask(i + 1);
+    else if (File(i) == 0)
       mask_pawn_connected[i] =
           SetMask(i + 1) | SetMask(i - 7) | SetMask(i + 9);
-    } else if (File(i) == 7) {
-      mask_pawn_duo[i] = SetMask(i - 1);
+    else if (File(i) == 7)
       mask_pawn_connected[i] =
           SetMask(i - 1) | SetMask(i - 9) | SetMask(i + 7);
-    }
   }
-  mask_fgh = file_mask[FILEF] | file_mask[FILEG] | file_mask[FILEH];
-  mask_efgh =
-      file_mask[FILEE] | file_mask[FILEF] | file_mask[FILEG] |
-      file_mask[FILEH];
-  mask_abc = file_mask[FILEA] | file_mask[FILEB] | file_mask[FILEC];
-  mask_abcd =
-      file_mask[FILEA] | file_mask[FILEB] | file_mask[FILEC] |
-      file_mask[FILED];
   mask_kr_trapped[black][0] = SetMask(H7);
   mask_kr_trapped[black][1] = SetMask(H8) | SetMask(H7);
   mask_kr_trapped[black][2] = SetMask(H8) | SetMask(G8) | SetMask(H7);
@@ -969,7 +960,6 @@ void InitializeMasks(void) {
  */
 void InitializePawnMasks(void) {
   int i, j;
-  BITBOARD m1, m2;
 
 /*
  initialize isolated pawn masks, which are nothing more than 1's on
@@ -1060,47 +1050,6 @@ void InitializePawnMasks(void) {
   mask_eptest[H4] = SetMask(G4);
   mask_eptest[A5] = SetMask(B5);
   mask_eptest[H5] = SetMask(G5);
-/*
-   these two masks have 1's on dark squares and light squares
-   to test to see if pawns/bishops are on them.
- */
-  m1 = (BITBOARD) 1 << 63;
-  m2 = m1 >> 1;
-  for (i = 1; i < 4; i++) {
-    m1 = m1 | m1 >> 2;
-    m2 = m2 | m2 >> 2;
-  }
-  for (i = 0; i < 64; i += 8)
-    if ((Rank(i)) & 1) {
-      dark_squares = dark_squares | m2 >> i;
-    } else {
-      dark_squares = dark_squares | m1 >> i;
-    }
-/*
-   these masks are used to detect that one side has pawns, but all
-   are rook pawns, or all are now rook pawns.
- */
-  not_rook_pawns =
-      file_mask[FILEB] | file_mask[FILEC] | file_mask[FILED] |
-      file_mask[FILEE]
-      | file_mask[FILEF] | file_mask[FILEG];
-  rook_pawns = ~not_rook_pawns;
-/*
-   these two masks have 1's on everywhere but the left or right
-   files, used to prevent pawns from capturing off the edge of
-   the board and wrapping around.rom capturing off the edge of
- */
-  mask_left_edge = ~file_mask[FILEA];
-  mask_right_edge = ~file_mask[FILEH];
-  mask_advance_2_w = rank_mask[RANK3];
-  mask_advance_2_b = rank_mask[RANK6];
-/*
-   this mask has 1's everywhere except the a/h file and
-   the first/last rank.
- */
-  mask_not_edge =
-      ~(rank_mask[RANK1] | rank_mask[RANK8] | file_mask[FILEA] |
-      file_mask[FILEH]);
 /*
  initialize masks used to evaluate pawn races.  these masks are
  used to determine if the opposing king is in a position to stop a

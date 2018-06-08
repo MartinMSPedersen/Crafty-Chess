@@ -1,6 +1,6 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 08/13/09 */
+/* last modified 10/05/10 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -10,26 +10,26 @@
  *   the following data packed into 128 bits with each item taking the number  *
  *   of bits given in the table below:                                         *
  *                                                                             *
- *     off  bits     name description                                          *
- *       0   3       age  search id to identify old trans/ref entries.         *
- *       3   2      type  0->value is worthless; 1-> value represents a        *
+ *     shr  bits     name description                                          *
+ *      55   9       age  search id to identify old trans/ref entries.         *
+ *      53   2      type  0->value is worthless; 1-> value represents a        *
  *                        fail-low bound; 2-> value represents a fail-high     *
  *                        bound; 3-> value is an exact score.                  *
- *       5   6    unused  unused at present time.                              *
- *      11  21      move  best move from the current position, according to    *
+ *      32  21      move  best move from the current position, according to    *
  *                        the search at the time this position was stored.     *
- *      32  15     draft  the depth of the search below this position, which   *
+ *      17  15     draft  the depth of the search below this position, which   *
  *                        is used to see if we can use this entry at the       *
  *                        current position.                                    *
- *      47  17     value  unsigned integer value of this position + 65536.     *
+ *       0  17     value  unsigned integer value of this position + 65536.     *
  *                        this might be a good score or search bound.          *
- *      64  64       key  64 bit hash signature, used to verify that this      *
+ *       0  64       key  64 bit hash signature, used to verify that this      *
  *                        entry goes with the current board position.          *
  *                                                                             *
- *   The underlying scheme here is that we use a "bucket" of 4 entries.  In    *
+ *   The underlying scheme here is that we use a "bucket" of N entries.  In    *
  *   HashProbe() we simply compare against each of the four entries for a      *
  *   match.  Each "bucket" is carefully aligned to a 64-byte boundary so that  *
- *   the bucket fits into a single cache line for efficiency.                  *
+ *   the bucket fits into a single cache line for efficiency.  The bucket size *
+ *   (N) is currently set to 4.                                                *
  *                                                                             *
  *   Crafty uses the lockless hashing approach to avoid lock overhead in the   *
  *   hash table accessing (reading or writing).  What we do is store the key   *
@@ -56,12 +56,12 @@
  *                                                                             *
  *******************************************************************************
  */
-int HashProbe(TREE * RESTRICT tree, int ply, int depth, int wtm, int *alpha,
-    int beta) {
-  register BITBOARD word1, word2;
-  register int type, draft, avoid_null = 0, val, entry;
-  BITBOARD temp_hashkey;
+int HashProbe(TREE * RESTRICT tree, int ply, int depth, int wtm, int alpha,
+    int beta, int *value) {
   HASH_ENTRY *htable;
+  HPATH_ENTRY *pv_index;
+  BITBOARD word1, word2, temp_hashkey;
+  int type, draft, avoid_null = 0, val, entry, i;
 
 /*
  ************************************************************
@@ -76,12 +76,11 @@ int HashProbe(TREE * RESTRICT tree, int ply, int depth, int wtm, int *alpha,
   tree->hash_move[ply] = 0;
   temp_hashkey = (wtm) ? HashKey : ~HashKey;
   htable = trans_ref + 4 * (temp_hashkey & hash_mask);
-  for (entry = 0; entry < 4; entry++) {
+  for (entry = 0; entry < 4; entry++, htable++) {
     word1 = htable->word1;
     word2 = htable->word2 ^ word1;
     if (word2 == temp_hashkey)
       break;
-    htable++;
   }
 /*
  ************************************************************
@@ -98,17 +97,29 @@ int HashProbe(TREE * RESTRICT tree, int ply, int depth, int wtm, int *alpha,
  *   avoids the null-move search overhead in positions      *
  *   where it is simply a waste of time to try it.          *
  *                                                          *
+ *   If this is an EXACT entry, we are going to store the   *
+ *   PV in a safe place so that if we get a hit on this     *
+ *   entry, we can recover the PV and see the complete path *
+ *   rather than one that is incomplete.                    *
+ *                                                          *
+ *   One other issue is to update the age field if we get a *
+ *   hit on an old position, so that it won't be replaced   *
+ *   just because it came from a previous search.           *
+ *                                                          *
  ************************************************************
  */
   if (entry < 4) {
-    word1 =
-        (word1 & 0x1fffffffffffffffULL) | ((BITBOARD) transposition_id << 61);
-    htable->word1 = word1;
-    htable->word2 = word1 ^ word2;
+    if (word1 >> 55 != transposition_age) {
+      word1 =
+          (word1 & 0x007fffffffffffffull) | ((BITBOARD) transposition_age <<
+          55);
+      htable->word1 = word1;
+      htable->word2 = word1 ^ word2;
+    }
     val = (word1 & 0x1ffff) - 65536;
     draft = (word1 >> 17) & 0x7fff;
     tree->hash_move[ply] = (word1 >> 32) & 0x1fffff;
-    type = (word1 >> 59) & 3;
+    type = (word1 >> 53) & 3;
     if ((type & UPPER) && depth - null_depth - 1 <= draft && val < beta)
       avoid_null = AVOID_NULL_MOVE;
     if (depth <= draft) {
@@ -116,29 +127,58 @@ int HashProbe(TREE * RESTRICT tree, int ply, int depth, int wtm, int *alpha,
         val -= ply - 1;
       else if (val < -MATE + 300)
         val += ply - 1;
+      *value = val;
+/*
+ ************************************************************
+ *                                                          *
+ *   We have three types of results.  An EXACT entry was    *
+ *   stored when val > alpha and val < beta, and represents *
+ *   an exact score.  An UPPER entry was stored when val <  *
+ *   alpha, which represents an upper bound with the score  *
+ *   likely being even lower.  A LOWER entry was stored     *
+ *   when val > beta, which represents alower bound with    *
+ *   the score likely being even higher.                    *
+ *                                                          *
+ *   For EXACT entries, we save the path from the position  *
+ *   to the terminal node that produced the backed-up score *
+ *   so that we can complete the PV if we get a hash hit on *
+ *   this entry.                                            *
+ *                                                          *
+ ************************************************************
+ */
       switch (type) {
         case EXACT:
-          *alpha = val;
-          if (draft != MAX_DRAFT)
-            return (EXACT);
-          else
-            return (EXACTEGTB);
+          if (val > alpha && val < beta) {
+            SavePV(tree, ply, 1 + (draft == MAX_DRAFT));
+            pv_index = hash_path + 16 * (word2 & hash_path_mask);
+            for (i = 0; i < 16; i++, pv_index++)
+              if (pv_index->path_sig == word2) {
+                for (i = ply; i < Min(64, pv_index->hash_pathl + ply); i++)
+                  tree->pv[ply - 1].path[i] = pv_index->hash_path[i - ply];
+                if (draft != MAX_DRAFT && pv_index->hash_pathl + ply < 64)
+                  tree->pv[ply - 1].pathh = 0;
+                tree->pv[ply - 1].pathl = Min(64, ply + pv_index->hash_pathl);
+                pv_index->hash_path_age = transposition_age;
+                break;
+              }
+          }
+          return (HASH_HIT);
         case UPPER:
-          if (val <= *alpha)
-            return (UPPER);
+          if (val <= alpha)
+            return (HASH_HIT);
           break;
         case LOWER:
           if (val >= beta)
-            return (LOWER);
+            return (HASH_HIT);
           break;
       }
     }
     return (avoid_null);
   }
-  return (0);
+  return (HASH_MISS);
 }
 
-/* last modified 09/15/09 */
+/* last modified 10/05/10 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -177,9 +217,10 @@ int HashProbe(TREE * RESTRICT tree, int ply, int depth, int wtm, int *alpha,
  */
 void HashStore(TREE * RESTRICT tree, int ply, int depth, int wtm, int type,
     int value, int bestmove) {
-  register BITBOARD word1, word2;
-  register HASH_ENTRY *htable, *replace = 0;
-  register int entry, draft, age, replace_draft;
+  HASH_ENTRY *htable, *replace = 0;
+  HPATH_ENTRY *pv_index;
+  BITBOARD word1, word2;
+  int entry, draft, age, replace_draft, i;
 
 /*
  ************************************************************
@@ -189,13 +230,13 @@ void HashStore(TREE * RESTRICT tree, int ply, int depth, int wtm, int type,
  *                                                          *
  ************************************************************
  */
-  word1 = transposition_id;
+  word1 = transposition_age;
   word1 = (word1 << 2) | type;
   if (value > MATE - 300)
     value += ply - 1;
   else if (value < -MATE + 300)
     value -= ply - 1;
-  word1 = (word1 << 27) | bestmove;
+  word1 = (word1 << 21) | bestmove;
   word1 = (word1 << 15) | depth;
   word1 = (word1 << 17) | (value + 65536);
   word2 = (wtm) ? HashKey : ~HashKey;
@@ -229,34 +270,31 @@ void HashStore(TREE * RESTRICT tree, int ply, int depth, int wtm, int type,
  ************************************************************
  */
   htable = trans_ref + 4 * (word2 & hash_mask);
-  for (entry = 0; entry < 4; entry++) {
+  for (entry = 0; entry < 4; entry++, htable++) {
     if (word2 == (htable->word1 ^ htable->word2)) {
       replace = htable;
       break;
     }
-    htable++;
   }
   if (!replace) {
     replace_draft = 99999;
     htable = trans_ref + 4 * (word2 & hash_mask);
-    for (entry = 0; entry < 4; entry++) {
-      age = htable->word1 >> 61;
+    for (entry = 0; entry < 4; entry++, htable++) {
+      age = htable->word1 >> 55;
       draft = (htable->word1 >> 17) & 0x7fff;
-      if (age != transposition_id && replace_draft > draft) {
+      if (age != transposition_age && replace_draft > draft) {
         replace = htable;
         replace_draft = draft;
       }
-      htable++;
     }
     if (!replace) {
       htable = trans_ref + 4 * (word2 & hash_mask);
-      for (entry = 0; entry < 4; entry++) {
+      for (entry = 0; entry < 4; entry++, htable++) {
         draft = (htable->word1 >> 17) & 0x7fff;
         if (replace_draft > draft) {
           replace = htable;
           replace_draft = draft;
         }
-        htable++;
       }
     }
   }
@@ -272,9 +310,32 @@ void HashStore(TREE * RESTRICT tree, int ply, int depth, int wtm, int type,
  */
   replace->word1 = word1;
   replace->word2 = word2 ^ word1;
+/*
+ ************************************************************
+ *                                                          *
+ *   If this is an EXACT entry, we are going to store the   *
+ *   PV in a safe place so that if we get a hit on this     *
+ *   entry, we can recover the PV and see the complete path *
+ *   rather than one that is incomplete.                    *
+ *                                                          *
+ ************************************************************
+ */
+  if (type == EXACT && bestmove) {
+    pv_index = hash_path + 16 * (word2 & hash_path_mask);
+    for (i = 0; i < 16; i++, pv_index++)
+      if (pv_index->path_sig == word2 ||
+          pv_index->hash_path_age != transposition_age) {
+        for (i = ply; i < tree->pv[ply - 1].pathl; i++)
+          pv_index->hash_path[i - ply] = tree->pv[ply - 1].path[i];
+        pv_index->hash_pathl = tree->pv[ply - 1].pathl - ply;
+        pv_index->path_sig = word2;
+        pv_index->hash_path_age = transposition_age;
+        break;
+      }
+  }
 }
 
-/* last modified 08/13/09 */
+/* last modified 10/05/10 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -287,9 +348,9 @@ void HashStore(TREE * RESTRICT tree, int ply, int depth, int wtm, int type,
  *******************************************************************************
  */
 void HashStorePV(TREE * RESTRICT tree, int wtm, int bestmove) {
-  register int entry, draft, replace_draft, age;
-  register HASH_ENTRY *htable, *replace;
-  register BITBOARD temp_hashkey, word1, word2;
+  HASH_ENTRY *htable, *replace;
+  BITBOARD temp_hashkey, word1, word2;
+  int entry, draft, replace_draft, age;
 
 /*
  ************************************************************
@@ -301,9 +362,9 @@ void HashStorePV(TREE * RESTRICT tree, int wtm, int bestmove) {
  ************************************************************
  */
   temp_hashkey = (wtm) ? HashKey : ~HashKey;
-  word1 = transposition_id;
-  word1 = (word1 << 2) | WORTHLESS;
-  word1 = (word1 << 27) | bestmove;
+  word1 = transposition_age;
+  word1 = (word1 << 9) | WORTHLESS;
+  word1 = (word1 << 23) | bestmove;
   word1 = (word1 << 32) | 65536;
   word2 = temp_hashkey ^ word1;
 /*
@@ -336,37 +397,34 @@ void HashStorePV(TREE * RESTRICT tree, int wtm, int bestmove) {
  ************************************************************
  */
   htable = trans_ref + 4 * (temp_hashkey & hash_mask);
-  for (entry = 0; entry < 4; entry++) {
+  for (entry = 0; entry < 4; entry++, htable++) {
     if ((htable->word2 ^ htable->word1) == temp_hashkey) {
       htable->word1 &= ~((BITBOARD) 0x1fffff << 32);
       htable->word1 |= (BITBOARD) bestmove << 32;
       htable->word2 = temp_hashkey ^ htable->word1;
       break;
     }
-    htable++;
   }
   if (entry == 4) {
     htable = trans_ref + 4 * (word2 & hash_mask);
     replace = 0;
     replace_draft = 99999;
-    for (entry = 0; entry < 4; entry++) {
-      age = htable->word1 >> 61;
+    for (entry = 0; entry < 4; entry++, htable++) {
+      age = htable->word1 >> 55;
       draft = (htable->word1 >> 17) & 0x7fff;
-      if (age != transposition_id && replace_draft > draft) {
+      if (age != transposition_age && replace_draft > draft) {
         replace = htable;
         replace_draft = draft;
       }
-      htable++;
     }
     if (!replace) {
       htable = trans_ref + 4 * (word2 & hash_mask);
-      for (entry = 0; entry < 4; entry++) {
+      for (entry = 0; entry < 4; entry++, htable++) {
         draft = (htable->word1 >> 17) & 0x7fff;
         if (replace_draft > draft) {
           replace = htable;
           replace_draft = draft;
         }
-        htable++;
       }
     }
     replace->word1 = word1;

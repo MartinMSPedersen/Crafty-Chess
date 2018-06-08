@@ -9,7 +9,7 @@
 #  include <numa.h>
 #endif
 #include <signal.h>
-/* last modified 02/26/09 */
+/* last modified 11/05/10 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -3847,13 +3847,59 @@
  *           2 plies once we have searched at least 4 moves at any ply.  I     *
  *           tried going to 3 on very late moves, but could not find any case  *
  *           where this was better, even limiting it to near the root or other *
- *           ideas.  But reducing by 2 plies after the at least 4 moves are    *
- *           searched was an improvement.                                      *
+ *           ideas.  But reducing by 2 plies after the at least 2 moves are    *
+ *           searched was an improvement.  Minor change is that the first move *
+ *           is never reduced.  It is possible that there is no hash move, no  *
+ *           non-losing capture, and no killer move.  That drops us into the   *
+ *           REMAINING_MOVES phase which could reduce the first move searched, *
+ *           which was not intended.  Very minor tweak, but a tweak all the    *
+ *           same.                                                             *
+ *                                                                             *
+ *    23.4   Bug in hash implementation fixed.  It was possible to get a hash  *
+ *           hit at ply=2, and alter the ply=1 PV when it should be left with  *
+ *           no change.  This could cause Crafty to display one move as best   *
+ *           and play another move entirely.  Usually this move was OK, but it *
+ *           could, on occasion, be an outright blunder.  This has been fixed. *
+ *           The search.c code has been re-written to eliminate SearchRoot()   *
+ *           entirely, which simplifies the code.  The only duplication is in  *
+ *           SearchParallel() which would be messier to eliminate.  Ditto for  *
+ *           quiesce.c, which now only has Quiesce() and QuiesceEvasions().    *
+ *           The old QuiesceChecks() has been combined with Quiesce, again to  *
+ *           eliminate duplication and simplify the code.  Stupid bug in code  *
+ *           that handles time-out.  One place checked the wrong variable and  *
+ *           could cause a thread to attempt to output a PV after the search   *
+ *           was in the process of timing out.  That thread could back up an   *
+ *           incomplete/bogus search result to the root in rare occasions,     *
+ *           which would / could result in Crafty kibitzing one move but       *
+ *           playing a different move.  On occasion, the move played could be  *
+ *           a horrible blunder.  Minor bug caused HashStore() to lose a best  *
+ *           move when overwriting an old position with a null-move search     *
+ *           result.  Minor change by Tracy to lazy evaluation cutoff to speed *
+ *           up evaluation somewhat.  Old "Trojan Horse" attack detection was  *
+ *           removed.  At today's depths, it was no longer needed.  New hash   *
+ *           idea stores the PV for an EXACT hash entry in a separate hash     *
+ *           table.  When an EXACT hit happens, this PV can be added to the    *
+ *           incomplete PV we have so far so that we have the exact path that  *
+ *           leads to the backed up score.  New "phash" (path hash) command to *
+ *           set the number of entries in this path hash table.  For longer    *
+ *           searches, a larger table avoids path table collisions which will  *
+ *           produce those short paths that end in <HT>.  If <HT> appears in   *
+ *           too many PVs, phash should be increased.  The "Trojan Horse" code *
+ *           has been completely removed, which also resulted in the removal   *
+ *           of the last bit of "pre-processing code" in preeval.c, so it has  *
+ *           been completely removed as well.  Current search depths are such  *
+ *           that the Trojan Horse code is simply not needed any longer.  A    *
+ *           minor bug in TimeSet() fixed where on rare occasions, near the    *
+ *           end of a time control, time_limit could be larger than the max    *
+ *           time allowed (absolute_time_limit).  We never check against this  *
+ *           limit until we exceed the nominal time limit.  Cleanup on the     *
+ *           draw by repetition code to greatly simplify the code as well as   *
+ *           speed it up.                                                      *
  *                                                                             *
  *******************************************************************************
  */
 int main(int argc, char **argv) {
-  int move, presult, readstat;
+  int move, readstat;
   int value = 0, i, result;
   int draw_type;
   TREE *tree;
@@ -4214,7 +4260,7 @@ int main(int argc, char **argv) {
  *                                                          *
  ************************************************************
  */
-        if ((draw_type = RepetitionDraw(tree, 0, wtm)) == 1) {
+        if ((draw_type = RepetitionDraw(tree, wtm)) == 1) {
           Print(128, "I claim a draw by 3-fold repetition.\n");
           value = DrawScore(wtm);
           if (xboard)
@@ -4321,7 +4367,7 @@ int main(int argc, char **argv) {
  */
     last_pv = tree->pv[0];
     last_value = value;
-    if (abs(last_value) > (MATE - 300))
+    if (Abs(last_value) > (MATE - 300))
       last_mate_score = last_value;
     thinking = 0;
 /*
@@ -4437,21 +4483,25 @@ int main(int argc, char **argv) {
           Kibitz(4, wtm, 0, 0, 0, 0, 0, kibitz_text);
       }
       MakeMoveRoot(tree, last_pv.path[1], wtm);
+/*
+ ************************************************************
+ *                                                          *
+ *   From this point forward, we are in a state where it is *
+ *                                                          *
+ *           O P P O N E N T ' S turn to move.              *
+ *                                                          *
+ *   We have made the indicated move, we need to determine  *
+ *   if the present position is a draw by rule.  If so, we  *
+ *   need to send the appropriate game result to xboard     *
+ *   and/or inform the operator/opponent.                   *
+ *                                                          *
+ ************************************************************
+ */
       wtm = Flip(wtm);
       if (wtm)
         move_number++;
       move_actually_played = 1;
-/*
- ************************************************************
- *                                                          *
- *   We have made the indicated move, before we do a search *
- *   we need to determine if the present position is a draw *
- *   by rule.  If so, we need to send the appropriate game  *
- *   result to xboard and/or inform the operator/opponent.  *
- *                                                          *
- ************************************************************
- */
-      if ((draw_type = RepetitionDraw(tree, 0, wtm)) == 1) {
+      if ((draw_type = RepetitionDraw(tree, wtm)) == 1) {
         Print(128, "I claim a draw by 3-fold repetition after my move.\n");
         if (xboard)
           Print(4095, "1/2-1/2 {Drawn by 3-fold repetition}\n");
@@ -4484,9 +4534,9 @@ int main(int argc, char **argv) {
  *                                                          *
  ************************************************************
  */
-      if (last_pv.pathl > 1 && VerifyMove(tree, 0, wtm, last_pv.path[2])) {
+      if (last_pv.pathl > 2 && VerifyMove(tree, 0, wtm, last_pv.path[2])) {
         ponder_move = last_pv.path[2];
-        for (i = 1; i <= (int) last_pv.pathl - 2; i++)
+        for (i = 1; i < (int) last_pv.pathl - 2; i++)
           last_pv.path[i] = last_pv.path[i + 2];
         last_pv.pathl = (last_pv.pathl > 2) ? last_pv.pathl - 2 : 0;
         last_pv.pathd -= 2;

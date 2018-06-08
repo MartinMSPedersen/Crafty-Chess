@@ -417,9 +417,9 @@ void CraftyExit(int exit_type) {
 void DisplayArray(int *array, int size) {
   int i, j, len = 16;
 
-  if (abs(size) % 10 == 0)
+  if (Abs(size) % 10 == 0)
     len = 10;
-  else if (abs(size) % 8 == 0)
+  else if (Abs(size) % 8 == 0)
     len = 8;
   if (size > 0 && size % 16 == 0 && len == 8)
     len = 16;
@@ -636,9 +636,9 @@ char *DisplayEvaluation(int value, int wtm) {
   int tvalue;
 
   tvalue = (wtm) ? value : -value;
-  if (abs(value) < MATE - 300)
+  if (Abs(value) < MATE - 300)
     sprintf(out, "%7.2f", ((float) tvalue) / 100.0);
-  else if (abs(value) > MATE) {
+  else if (Abs(value) > MATE) {
     if (tvalue < 0)
       sprintf(out, " -infnty");
     else
@@ -656,9 +656,9 @@ char *DisplayEvaluation(int value, int wtm) {
   else if (value > 0 && !wtm)
     sprintf(out, " -Mat%.2d", (MATE - value) / 2);
   else if (wtm)
-    sprintf(out, " -Mat%.2d", (MATE - abs(value)) / 2);
+    sprintf(out, " -Mat%.2d", (MATE - Abs(value)) / 2);
   else
-    sprintf(out, "  Mat%.2d", (MATE - abs(value)) / 2);
+    sprintf(out, "  Mat%.2d", (MATE - Abs(value)) / 2);
   return (out);
 }
 
@@ -676,9 +676,9 @@ char *DisplayEvaluationKibitz(int value, int wtm) {
   int tvalue;
 
   tvalue = (wtm) ? value : -value;
-  if (abs(value) < MATE - 300)
+  if (Abs(value) < MATE - 300)
     sprintf(out, "%+.2f", ((float) tvalue) / 100.0);
-  else if (abs(value) > MATE) {
+  else if (Abs(value) > MATE) {
     if (tvalue < 0)
       sprintf(out, "-infnty");
     else
@@ -696,18 +696,16 @@ char *DisplayEvaluationKibitz(int value, int wtm) {
   else if (value > 0 && !wtm)
     sprintf(out, "-Mat%.2d", (MATE - value) / 2);
   else if (wtm)
-    sprintf(out, "-Mat%.2d", (MATE - abs(value)) / 2);
+    sprintf(out, "-Mat%.2d", (MATE - Abs(value)) / 2);
   else
-    sprintf(out, "Mat%.2d", (MATE - abs(value)) / 2);
+    sprintf(out, "Mat%.2d", (MATE - Abs(value)) / 2);
   return (out);
 }
 
 /*
  *******************************************************************************
  *                                                                             *
- *   DisplayPV() is used to display a PV during the search.  It will also note *
- *   when the PV was terminated by a hash table hit and will check the hash    *
- *   entries to see if the PV can be extended by using moves from hits.        *
+ *   DisplayPV() is used to display a PV during the search.                    *
  *                                                                             *
  *******************************************************************************
  */
@@ -739,7 +737,7 @@ void DisplayPV(TREE * RESTRICT tree, int level, int wtm, int time, int value,
     buffer[0] = 0;
   if ((display_options & 64) && !wtm)
     sprintf(buffer + strlen(buffer), " ...");
-  for (i = 1; i <= (int) pv->pathl; i++) {
+  for (i = 1; i < (int) pv->pathl; i++) {
     if ((display_options & 64) && i > 1 && wtm)
       sprintf(buffer + strlen(buffer), " %d.", t_move_number);
     sprintf(buffer + strlen(buffer), " %s", OutputMove(tree, pv->path[i], i,
@@ -749,40 +747,9 @@ void DisplayPV(TREE * RESTRICT tree, int level, int wtm, int time, int value,
     if (wtm)
       t_move_number++;
   }
-/*
- ************************************************************
- *                                                          *
- *   If the pv was terminated prematurely by a trans/ref    *
- *   hit, see if any more moves are in the trans/ref table  *
- *   and if so, add 'em to the end of the PV so we will     *
- *   have better move ordering next iteration.              *
- *                                                          *
- ************************************************************
- */
-  if (pv->pathh == 1) {
-    for (i = pv->pathl + 1; i < MAXPLY; i++) {
-      HashProbe(tree, i, 0, wtm, &dummy, dummy);
-      if (tree->hash_move[i] && ValidMove(tree, i, wtm, tree->hash_move[i])) {
-        pv->path[i] = tree->hash_move[i];
-        for (j = 1; j < i; j++)
-          if (pv->path[i] == pv->path[j])
-            break;
-        if (j < i)
-          break;
-        pv->pathl++;
-        if ((display_options & 64) && wtm)
-          sprintf(buffer + strlen(buffer), " %d.", t_move_number);
-        sprintf(buffer + strlen(buffer), " %s", OutputMove(tree, pv->path[i],
-                i, wtm));
-        MakeMove(tree, i, pv->path[i], wtm);
-      } else
-        break;
-      wtm = Flip(wtm);
-      if (wtm)
-        t_move_number++;
-    }
-    sprintf(buffer + strlen(buffer), " <HT>");
-  } else if (pv->pathh == 2)
+  if (pv->pathh == 1)
+    sprintf(buffer + strlen(buffer), " <HT>           ");
+  else if (pv->pathh == 2)
     sprintf(buffer + strlen(buffer), " <EGTB>         ");
   strcpy(kibitz_text, buffer);
   if (nskip > 1 && smp_max_threads > 1)
@@ -813,7 +780,7 @@ void DisplayPV(TREE * RESTRICT tree, int level, int wtm, int time, int value,
         tree->nodes_searched, tree->egtb_probes_successful, kibitz_text);
     Unlock(lock_io);
   }
-  for (i = pv->pathl; i > 0; i--) {
+  for (i = pv->pathl - 1; i > 0; i--) {
     wtm = Flip(wtm);
     UnmakeMove(tree, i, pv->path[i], wtm);
   }
@@ -1164,9 +1131,9 @@ void EGTBPV(TREE * RESTRICT tree, int wtm) {
   char buffer[16384], *next;
   BITBOARD pos[1024];
   int value;
-  register int ply, i, j, nmoves, *last, t_move_number;
-  register int best = 0, bestmv = 0, optimal_mv = 0;
-  register int legal;
+  int ply, i, j, nmoves, *last, t_move_number;
+  int best = 0, bestmv = 0, optimal_mv = 0;
+  int legal;
 
 /*
  ************************************************************
@@ -1321,7 +1288,7 @@ char *FormatPV(TREE * RESTRICT tree, int wtm, PATH pv) {
     buffer[0] = 0;
   if ((display_options & 64) && !wtm)
     sprintf(buffer + strlen(buffer), " ...");
-  for (i = 1; i <= (int) pv.pathl; i++) {
+  for (i = 1; i < (int) pv.pathl; i++) {
     if ((display_options & 64) && i > 1 && wtm)
       sprintf(buffer + strlen(buffer), " %d.", t_move_number);
     sprintf(buffer + strlen(buffer), " %s", OutputMove(tree, pv.path[i], i,
@@ -1331,7 +1298,7 @@ char *FormatPV(TREE * RESTRICT tree, int wtm, PATH pv) {
     if (wtm)
       t_move_number++;
   }
-  for (i = pv.pathl; i > 0; i--) {
+  for (i = pv.pathl - 1; i > 0; i--) {
     wtm = Flip(wtm);
     UnmakeMove(tree, i, pv.path[i], wtm);
   }
@@ -1488,7 +1455,7 @@ int InvalidPosition(TREE * RESTRICT tree) {
     Print(4095, "illegal position, too many white queens\n");
     error = 1;
   }
-  if (KingSQ(white) < 0) {
+  if (KingSQ(white) > 63) {
     Print(4095, "illegal position, no white king\n");
     error = 1;
   }
@@ -1520,7 +1487,7 @@ int InvalidPosition(TREE * RESTRICT tree) {
     Print(4095, "illegal position, too many black queens\n");
     error = 1;
   }
-  if (KingSQ(black) < 0) {
+  if (KingSQ(black) > 63) {
     Print(4095, "illegal position, no black king\n");
     error = 1;
   }
@@ -1549,9 +1516,9 @@ int InvalidPosition(TREE * RESTRICT tree) {
  *******************************************************************************
  */
 int KingPawnSquare(int pawn, int king, int queen, int ptm) {
-  register int pdist, kdist;
+  int pdist, kdist;
 
-  pdist = abs(Rank(pawn) - Rank(queen)) + !ptm;
+  pdist = Abs(Rank(pawn) - Rank(queen)) + !ptm;
   kdist = Distance(king, queen);
   return (pdist >= kdist);
 }
@@ -1606,7 +1573,6 @@ void NewGame(int save) {
     InitializeChessBoard(tree);
     InitializeHashTables();
     force = 0;
-    trojan_check = 0;
     computer_opponent = 0;
     books_file = normal_bs_file;
     draw_score[0] = 0;
@@ -1784,19 +1750,19 @@ char *PrintKM(size_t val, int realK) {
 
   if (realK) {
     if (val >= 1 << 20 && !(val & ((1 << 20) - 1)))
-      sprintf(buf, "%4dM", (int) (val / (1 << 20)));
+      sprintf(buf, "%dM", (int) (val / (1 << 20)));
     else if (val >= 1 << 10)
-      sprintf(buf, "%4dK", (int) (val / (1 << 10)));
+      sprintf(buf, "%dK", (int) (val / (1 << 10)));
     else
-      sprintf(buf, "%5d", (int) val);
+      sprintf(buf, "%d", (int) val);
     return (buf);
   } else {
     if (val >= 1000000 && !(val % 1000000))
-      sprintf(buf, "%4dM", (int) (val / 1000000));
+      sprintf(buf, "%dM", (int) (val / 1000000));
     else if (val >= 1000)
-      sprintf(buf, "%4dK", (int) (val / 1000));
+      sprintf(buf, "%dK", (int) (val / 1000));
     else
-      sprintf(buf, "%5d", (int) val);
+      sprintf(buf, "%d", (int) val);
     return (buf);
   }
 }
@@ -2445,7 +2411,7 @@ void Kibitz(int level, int wtm, int depth, int time, int value,
  *******************************************************************************
  */
 void Output(TREE * RESTRICT tree, int value, int bound) {
-  register int wtm;
+  int wtm;
   int i;
   ROOT_MOVE temp_rm;
 
@@ -2488,7 +2454,7 @@ void Output(TREE * RESTRICT tree, int value, int bound) {
     } else {
       if (tree->curmv[1] != tree->pv[1].path[1]) {
         tree->pv[1].path[1] = tree->curmv[1];
-        tree->pv[1].pathl = 1;
+        tree->pv[1].pathl = 2;
         tree->pv[1].pathh = 0;
         tree->pv[1].pathd = iteration_depth;
       }
@@ -2507,7 +2473,7 @@ void Output(TREE * RESTRICT tree, int value, int bound) {
  *******************************************************************************
  */
 void Trace(TREE * RESTRICT tree, int ply, int depth, int wtm, int alpha,
-    int beta, char *name, int phase) {
+    int beta, const char *name, int phase) {
   int i;
 
   Lock(lock_io);
@@ -2598,7 +2564,7 @@ int ValidMove(TREE * RESTRICT tree, int ply, int wtm, int move) {
  ************************************************************
  */
     case king:
-      if (abs(From(move) - To(move)) == 2) {
+      if (Abs(From(move) - To(move)) == 2) {
         if (Castle(ply, wtm) > 0) {
           if (To(move) == csq[wtm]) {
             if ((!(Castle(ply, wtm) & 2)) || (OccupiedSquares & OOO[wtm]) ||
@@ -2628,12 +2594,12 @@ int ValidMove(TREE * RESTRICT tree, int ply, int wtm, int move) {
     case pawn:
       if (((wtm) ? To(move) - From(move) : From(move) - To(move)) < 0)
         return (0);
-      if (abs(From(move) - To(move)) == 8) {
+      if (Abs(From(move) - To(move)) == 8) {
         if (!PcOnSq(To(move)))
           return (1);
         return (0);
       }
-      if (abs(From(move) - To(move)) == 16) {
+      if (Abs(From(move) - To(move)) == 16) {
         if (!PcOnSq(To(move)) && !PcOnSq(To(move) + epdir[wtm]))
           return (1);
         return (0);

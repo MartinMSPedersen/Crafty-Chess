@@ -1,6 +1,6 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 09/23/09 */
+/* last modified 08/11/10 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -21,17 +21,14 @@
  *******************************************************************************
  */
 int Swap(TREE * RESTRICT tree, int move, int wtm) {
-  register BITBOARD attacks, temp = 0, toccupied = OccupiedSquares;
-  register BITBOARD bsliders =
+  BITBOARD attacks, temp = 0, toccupied = OccupiedSquares;
+  BITBOARD bsliders =
       Bishops(white) | Bishops(black) | Queens(white) | Queens(black);
-  register BITBOARD rsliders =
+  BITBOARD rsliders =
       Rooks(white) | Rooks(black) | Queens(white) | Queens(black);
-  register int attacked_piece;
-  register int piece;
-  register int color, nc = 1;
-  register int source = From(move);
-  register int target = To(move);
-  int swap_list[32];
+  int attacked_piece, piece, color, nc = 1, swap_list[32];
+  int source = From(move);
+  int target = To(move);
 
 /*
  ************************************************************
@@ -111,7 +108,7 @@ int Swap(TREE * RESTRICT tree, int move, int wtm) {
   return (swap_list[0]);
 }
 
-/* last modified 06/08/10 */
+/* last modified 08/11/10 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -123,17 +120,13 @@ int Swap(TREE * RESTRICT tree, int move, int wtm) {
  *******************************************************************************
  */
 int SwapO(TREE * RESTRICT tree, int move, int wtm) {
-  register BITBOARD attacks, temp = 0, toccupied = OccupiedSquares;
-  register BITBOARD bsliders =
+  BITBOARD attacks, temp = 0, toccupied = OccupiedSquares;
+  BITBOARD bsliders =
       Bishops(white) | Bishops(black) | Queens(white) | Queens(black);
-  register BITBOARD rsliders =
+  BITBOARD rsliders =
       Rooks(white) | Rooks(black) | Queens(white) | Queens(black);
-  register int attacked_piece;
-  register int piece;
-  register int color, nc = 1;
-  register int source = From(move);
-  register int target = To(move);
-  int swap_list[32];
+  int attacked_piece, piece, color, nc = 1, swap_list[32];
+  int target = To(move);
 
 /*
  ************************************************************

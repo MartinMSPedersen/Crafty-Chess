@@ -307,7 +307,7 @@ void Annotate() {
           search_depth = temp_search_depth;
           player_score = -999999;
           search_player = 1;
-          for (searches_done = 0; searches_done < abs(best_moves);
+          for (searches_done = 0; searches_done < Abs(best_moves);
               searches_done++) {
             if (searches_done > 0) {
               search_time_limit = 3 * annotate_search_time_limit;

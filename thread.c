@@ -128,7 +128,7 @@ int Thread(TREE * RESTRICT tree) {
   return (1);
 }
 
-/* modified 06/07/09 */
+/* modified 11/05/10 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -141,7 +141,8 @@ int Thread(TREE * RESTRICT tree) {
 void CopyFromChild(TREE * RESTRICT p, TREE * RESTRICT c, int value) {
   int i;
 
-  if (c->nodes_searched && !c->stop && value > p->search_value) {
+  if (c->nodes_searched && !c->stop && value > p->search_value &&
+      !abort_search) {
     p->pv[p->ply] = c->pv[p->ply];
     p->search_value = value;
     for (i = 1; i < MAXPLY; i++)
@@ -161,7 +162,7 @@ void CopyFromChild(TREE * RESTRICT p, TREE * RESTRICT c, int value) {
   c->used = 0;
 }
 
-/* modified 06/07/09 */
+/* modified 11/05/10 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -202,20 +203,21 @@ TREE *CopyToChild(TREE * RESTRICT p, int thread) {
   c->stop = 0;
   for (i = 0; i < smp_max_threads; i++)
     c->siblings[i] = 0;
+  c->ply = p->ply;
   c->pos = p->pos;
-  c->pv[p->ply - 1] = p->pv[p->ply - 1];
-  c->pv[p->ply] = p->pv[p->ply];
-  c->next_status[p->ply] = p->next_status[p->ply];
-  c->save_hash_key[p->ply] = p->save_hash_key[p->ply];
-  c->save_pawn_hash_key[p->ply] = p->save_pawn_hash_key[p->ply];
+  c->pv[c->ply - 1] = p->pv[c->ply - 1];
+  c->pv[c->ply] = p->pv[c->ply];
+  c->next_status[c->ply] = p->next_status[c->ply];
+  c->save_hash_key[c->ply] = p->save_hash_key[c->ply];
+  c->save_pawn_hash_key[c->ply] = p->save_pawn_hash_key[c->ply];
   for (i = 0; i < 2; i++)
     c->rep_index[i] = p->rep_index[i];
   for (i = 0; i < 2; i++)
-    for (j = 0; j < c->rep_index[i]; j++)
+    for (j = 0; j < c->rep_index[i] + (c->ply - 1) / 2; j++)
       c->rep_list[i][j] = p->rep_list[i][j];
-  c->last[p->ply] = c->move_list;
-  c->hash_move[p->ply] = p->hash_move[p->ply];
-  for (i = 1; i <= p->ply + 1; i++) {
+  c->last[c->ply] = c->move_list;
+  c->hash_move[c->ply] = p->hash_move[c->ply];
+  for (i = 1; i <= c->ply + 1; i++) {
     c->position[i] = p->position[i];
     c->curmv[i] = p->curmv[i];
     c->inchk[i] = p->inchk[i];
@@ -237,7 +239,6 @@ TREE *CopyToChild(TREE * RESTRICT p, int thread) {
   c->beta = p->beta;
   c->value = p->value;
   c->wtm = p->wtm;
-  c->ply = p->ply;
   c->depth = p->depth;
   c->search_value = 0;
   strcpy(c->root_move_text, p->root_move_text);
@@ -285,7 +286,7 @@ void *STDCALL ThreadInit(void *tid) {
     block[(long) tid * MAX_BLOCKS_PER_CPU + i + 1]->parent = NULL;
     LockInit(block[(long) tid * MAX_BLOCKS_PER_CPU + i + 1]->lock);
     for (j = 0; j < 64; j++)
-      block[(long) tid * MAX_BLOCKS_PER_CPU + i + 1]->cache_n[j] = ~0ULL;
+      block[(long) tid * MAX_BLOCKS_PER_CPU + i + 1]->cache_n[j] = ~0ull;
   }
   Lock(lock_smp);
   initialized_threads++;

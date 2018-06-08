@@ -1,4 +1,5 @@
 #if !defined(EPDH_INCLUDED)
+/* *INDENT-OFF* */
 #  define EPDH_INCLUDED
 /*>>> epd.h: subprogram prototypes for epd.c */
 /* Revised: 1996.06.23 */
@@ -141,5 +142,6 @@ refreqT EPDExtractRefreqIndex(epdptrT epdptr);
 siT EPDComm(refintptrT refintptr, charptrT pipebase);
 void EPDInit(void);
 void EPDTerm(void);
+/* *INDENT-ON* */
 #endif
 /*<<< epd.h: EOF */

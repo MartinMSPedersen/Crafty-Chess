@@ -1,6 +1,6 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 01/17/09 */
+/* last modified 09/20/10 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -40,7 +40,7 @@ char *OutputMove(TREE * RESTRICT tree, int move, int ply, int wtm) {
  *                                                          *
  ************************************************************
  */
-    if ((Piece(move) == king) && (abs(From(move) - To(move)) == 2)) {
+    if ((Piece(move) == king) && (Abs(From(move) - To(move)) == 2)) {
       if (wtm) {
         if (To(move) == 2)
           strcpy(text_move, "O-O-O");
@@ -92,7 +92,7 @@ char *OutputMove(TREE * RESTRICT tree, int move, int ply, int wtm) {
     if (Piece(move) == pawn) {
       if (!Captured(move)) {
         strcpy(text_move, new_text + 2);
-        if (OutputGood(tree, text_move, ply, wtm))
+        if (InputMove(tree, text_move, ply, wtm, 1, 0))
           break;
       }
 /*
@@ -105,7 +105,7 @@ char *OutputMove(TREE * RESTRICT tree, int move, int ply, int wtm) {
  */
       text_move[0] = new_text[0];
       strcpy(text_move + 1, new_text + 2);
-      if (OutputGood(tree, text_move, ply, wtm))
+      if (InputMove(tree, text_move, ply, wtm, 1, 0))
         break;
 /*
  ************************************************************
@@ -131,7 +131,7 @@ char *OutputMove(TREE * RESTRICT tree, int move, int ply, int wtm) {
     if (!Captured(move)) {
       text_move[0] = new_text[0];
       strcpy(text_move + 1, new_text + 3);
-      if (OutputGood(tree, text_move, ply, wtm))
+      if (InputMove(tree, text_move, ply, wtm, 1, 0))
         break;
 /*
  ************************************************************
@@ -145,11 +145,11 @@ char *OutputMove(TREE * RESTRICT tree, int move, int ply, int wtm) {
       text_move[0] = new_text[0];
       text_move[1] = new_text[1];
       strcpy(text_move + 2, new_text + 3);
-      if (OutputGood(tree, text_move, ply, wtm))
+      if (InputMove(tree, text_move, ply, wtm, 1, 0))
         break;
       text_move[0] = new_text[0];
       strcpy(text_move + 1, new_text + 2);
-      if (OutputGood(tree, text_move, ply, wtm))
+      if (InputMove(tree, text_move, ply, wtm, 1, 0))
         break;
 /*
  ************************************************************
@@ -172,7 +172,7 @@ char *OutputMove(TREE * RESTRICT tree, int move, int ply, int wtm) {
  */
       text_move[0] = new_text[0];
       strcpy(text_move + 1, new_text + 3);
-      if (OutputGood(tree, text_move, ply, wtm))
+      if (InputMove(tree, text_move, ply, wtm, 1, 0))
         break;
 /*
  ************************************************************
@@ -185,11 +185,11 @@ char *OutputMove(TREE * RESTRICT tree, int move, int ply, int wtm) {
       text_move[0] = new_text[0];
       text_move[1] = new_text[1];
       strcpy(text_move + 2, new_text + 3);
-      if (OutputGood(tree, text_move, ply, wtm))
+      if (InputMove(tree, text_move, ply, wtm, 1, 0))
         break;
       text_move[0] = new_text[0];
       strcpy(text_move + 1, new_text + 2);
-      if (OutputGood(tree, text_move, ply, wtm))
+      if (InputMove(tree, text_move, ply, wtm, 1, 0))
         break;
 /*
  ************************************************************
@@ -210,67 +210,21 @@ char *OutputMove(TREE * RESTRICT tree, int move, int ply, int wtm) {
  *                                                          *
  ************************************************************
  */
-  text = text_move + strlen(text_move);
-  tree->position[MAXPLY] = tree->position[ply];
-  MakeMove(tree, MAXPLY, move, wtm);
-  if (Check(Flip(wtm))) {
-    mvp =
-        GenerateCheckEvasions(tree, MAXPLY + 1, Flip(wtm),
-        tree->move_list + 4800);
-    if (mvp == (tree->move_list + 4800))
-      *text++ = '#';
-    else
-      *text++ = '+';
+  if (output_format == 0) {
+    text = text_move + strlen(text_move);
+    tree->position[MAXPLY] = tree->position[ply];
+    MakeMove(tree, MAXPLY, move, wtm);
+    if (Check(Flip(wtm))) {
+      mvp =
+          GenerateCheckEvasions(tree, MAXPLY + 1, Flip(wtm),
+          tree->move_list + 4800);
+      if (mvp == (tree->move_list + 4800))
+        *text++ = '#';
+      else
+        *text++ = '+';
+    }
+    UnmakeMove(tree, MAXPLY, move, wtm);
+    *text = 0;
   }
-  UnmakeMove(tree, MAXPLY, move, wtm);
-  *text = 0;
   return (text_move);
-}
-
-/* last modified 01/17/09 */
-/*
- *******************************************************************************
- *                                                                             *
- *   OutputMoveICS() is responsible for producing the rather primitive move    *
- *   format that the ics interface wants, namely [from][to][promote].          *
- *                                                                             *
- *******************************************************************************
- */
-char *OutputMoveICS(int move) {
-  static char text_move[10];
-  char *text;
-  static const char piece_names[7] = { ' ', 'P', 'N', 'B', 'R', 'Q', 'K' };
-/*
- ************************************************************
- *                                                          *
- *   Chess server software likes a simple 5-character move  *
- *   format, source square, destination square, and a       *
- *   promotion piece if needed.                             *
- *                                                          *
- ************************************************************
- */
-  text = text_move;
-  *text++ = File(From(move)) + 'a';
-  *text++ = Rank(From(move)) + '1';
-  *text++ = File(To(move)) + 'a';
-  *text++ = Rank(To(move)) + '1';
-  if (Promote(move))
-    *text++ = piece_names[Promote(move)];
-  *text = '\0';
-  return (text_move);
-}
-
-/*
- *******************************************************************************
- *                                                                             *
- *   OutputGood() is used to test a move for legality when trying to convert   *
- *   from long algebraic to SAN (Short Algebraic Notation).                    *
- *                                                                             *
- *******************************************************************************
- */
-int OutputGood(TREE * RESTRICT tree, char *text, int ply, int wtm) {
-  int new_move;
-
-  new_move = InputMove(tree, text, ply, wtm, 1, 0);
-  return (Piece(new_move));
 }

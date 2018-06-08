@@ -1,6 +1,6 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 01/17/09 */
+/* last modified 11/05/10 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -26,7 +26,7 @@
  *******************************************************************************
  */
 int RepetitionCheck(TREE * RESTRICT tree, int ply, int wtm) {
-  register int where;
+  int where;
 
 /*
  ************************************************************
@@ -48,20 +48,17 @@ int RepetitionCheck(TREE * RESTRICT tree, int ply, int wtm) {
  *                                                          *
  *   Now we scan the right part of the repetition list, and *
  *   stop when we reach the current repetition index value  *
- *   since positions beyond that index are not valid.  We   *
- *   only need to search backward thru the list using the   *
- *   50-move rule counter as a limit since repetitions can  *
- *   not occur across an irreversible move.                 *
+ *   since positions beyond that index are not valid.       *
  *                                                          *
  ************************************************************
  */
-  for (where = tree->rep_index[wtm] - 2; where >= 0; where--)
+  for (where = Repetition(wtm) - 2 + (ply - 1) / 2; where >= 0; where--)
     if (HashKey == tree->rep_list[wtm][where])
       return (1);
   return (0);
 }
 
-/* last modified 01/17/09 */
+/* last modified 11/05/10 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -72,7 +69,7 @@ int RepetitionCheck(TREE * RESTRICT tree, int ply, int wtm) {
  *******************************************************************************
  */
 int RepetitionCheckBook(TREE * RESTRICT tree, int ply, int wtm) {
-  register int where;
+  int where;
 
 /*
  ************************************************************
@@ -92,13 +89,13 @@ int RepetitionCheckBook(TREE * RESTRICT tree, int ply, int wtm) {
  *                                                          *
  ************************************************************
  */
-  for (where = 0; where < tree->rep_index[wtm]; where++)
+  for (where = 0; where < Repetition(wtm); where++)
     if (HashKey == tree->rep_list[wtm][where])
       return (1);
   return (0);
 }
 
-/* last modified 01/17/09 */
+/* last modified 11/05/10 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -110,8 +107,8 @@ int RepetitionCheckBook(TREE * RESTRICT tree, int ply, int wtm) {
  *                                                                             *
  *******************************************************************************
  */
-int RepetitionDraw(TREE * RESTRICT tree, int ply, int wtm) {
-  register int reps;
+int RepetitionDraw(TREE * RESTRICT tree, int wtm) {
+  int reps;
   int where;
 
 /*
@@ -122,7 +119,7 @@ int RepetitionDraw(TREE * RESTRICT tree, int ply, int wtm) {
  *                                                          *
  ************************************************************
  */
-  if (Rule50Moves(ply) > 99)
+  if (Rule50Moves(0) > 99)
     return (2);
 /*
  ************************************************************
@@ -133,7 +130,7 @@ int RepetitionDraw(TREE * RESTRICT tree, int ply, int wtm) {
  ************************************************************
  */
   reps = 0;
-  for (where = 0; where < tree->rep_index[wtm]; where++)
+  for (where = 0; where < Repetition(wtm); where++)
     if (HashKey == tree->rep_list[wtm][where])
       reps++;
   return (reps == 2);

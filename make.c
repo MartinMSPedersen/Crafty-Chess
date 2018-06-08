@@ -1,6 +1,6 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 09/23/09 */
+/* last modified 11/05/10 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -21,13 +21,12 @@
  *******************************************************************************
  */
 void MakeMove(TREE * RESTRICT tree, int ply, int move, int wtm) {
-  register int piece, from, to, captured, promote, btm = Flip(wtm);
-  register int cpiece;
-
-#if defined(DEBUG)
-  register int i;
-#endif
   BITBOARD bit_move;
+  int piece, from, to, captured, promote, btm = Flip(wtm);
+  int cpiece;
+#if defined(DEBUG)
+  int i;
+#endif
 
 /*
  ************************************************************
@@ -54,7 +53,6 @@ void MakeMove(TREE * RESTRICT tree, int ply, int move, int wtm) {
 #if defined(DEBUG)
   ValidatePosition(tree, ply, move, "MakeMove(1)");
 #endif
-  tree->rep_list[wtm][Repetition(wtm)++] = HashKey;
   tree->position[ply + 1] = tree->position[ply];
   tree->save_hash_key[ply] = HashKey;
   tree->save_pawn_hash_key[ply] = PawnHashKey;
@@ -163,7 +161,7 @@ void MakeMove(TREE * RESTRICT tree, int ply, int move, int wtm) {
           HashCastle(1, wtm);
         if (Castle(ply + 1, wtm) & 1)
           HashCastle(0, wtm);
-        if (abs(to - from) == 2) {
+        if (Abs(to - from) == 2) {
           Castle(ply + 1, wtm) = -ply;
           piece = rook;
           if (to == rook_G[wtm]) {
@@ -252,6 +250,7 @@ void MakeMove(TREE * RESTRICT tree, int ply, int move, int wtm) {
   return;
 }
 
+/* last modified 11/05/10 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -275,6 +274,7 @@ void MakeMoveRoot(TREE * RESTRICT tree, int move, int wtm) {
  *                                                          *
  ************************************************************
  */
+  tree->rep_list[wtm][Repetition(wtm)++] = HashKey;
   MakeMove(tree, 0, move, wtm);
 /*
  ************************************************************
@@ -292,7 +292,7 @@ void MakeMoveRoot(TREE * RESTRICT tree, int move, int wtm) {
   for (side = black; side <= white; side++) {
     Castle(1, side) = Max(0, Castle(1, side));
     if (Rule50Moves(1) == 0)
-      tree->rep_index[side] = 0;
+      Repetition(side) = 0;
   }
   tree->position[0] = tree->position[1];
 }

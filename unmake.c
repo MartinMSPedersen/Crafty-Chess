@@ -12,8 +12,8 @@
  *******************************************************************************
  */
 void UnmakeMove(TREE * RESTRICT tree, int ply, int move, int wtm) {
-  register int piece, from, to, captured, promote, btm = Flip(wtm);
   BITBOARD bit_move;
+  int piece, from, to, captured, promote, btm = Flip(wtm);
 
 /*
  ************************************************************
@@ -26,7 +26,6 @@ void UnmakeMove(TREE * RESTRICT tree, int ply, int move, int wtm) {
  */
   HashKey = tree->save_hash_key[ply];
   PawnHashKey = tree->save_pawn_hash_key[ply];
-  Repetition(wtm)--;
 /*
  ************************************************************
  *                                                          *
@@ -101,7 +100,7 @@ void UnmakeMove(TREE * RESTRICT tree, int ply, int move, int wtm) {
       break;
     case king:
       KingSQ(wtm) = from;
-      if (abs(to - from) == 2) {
+      if (Abs(to - from) == 2) {
         if (to == rook_G[wtm]) {
           from = rook_H[wtm];
           to = rook_F[wtm];

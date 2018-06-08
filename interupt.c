@@ -111,7 +111,7 @@ void Interrupt(int ply) {
  */
       else if (!strcmp(args[0], "?")) {
         if (thinking) {
-          time_abort = 1;
+          abort_after_ply1 = 1;
           abort_search = 1;
         }
       }

@@ -153,8 +153,8 @@ void Edit(void) {
       DisplayChessBoard(log_file, tree->pos);
     wtm = 1;
     move_number = 1;
-    tree->rep_index[white] = 0;
-    tree->rep_index[black] = 0;
+    Repetition(black) = 0;
+    Repetition(white) = 0;
     tree->position[0].rule_50_moves = 0;
     moves_out_of_book = 0;
   } else {

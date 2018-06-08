@@ -129,7 +129,8 @@ linux-amd64:
 linux:
 	$(MAKE) target=LINUX \
 		CC=gcc CXX=g++ \
-		CFLAGS='-pg -Wall -pipe' \
+		CFLAGS='-pg -Wwrite-strings -Wcast-qual -Wshadow \
+		-Wconversion -W -Wall -ansi -pedantic -pipe' \
 		CXFLAGS='' \
 		LDFLAGS='$(LDFLAGS) -pg -lstdc++ -lpthread' \
 		opt='$(opt) -DTRACE -DINLINE64 -DCPUS=2' \
@@ -142,6 +143,15 @@ linux-profile:
 		CXFLAGS='' \
 		LDFLAGS='$(LDFLAGS) -fprofile-arcs -lstdc++ ' \
 		opt='$(opt) -DINLINE32 -DCPUS=2' \
+		crafty-make
+
+debug:
+	$(MAKE) target=LINUX \
+		CC=gcc CXX=gcc \
+		CFLAGS='-O2 -w -g' \
+		CXFLAGS='-O2 -w -g' \
+		LDFLAGS='$(LDFLAGS) -g -lpthread -lstdc++' \
+		opt='$(opt) -DINLINE64 -DCPUS=2' \
 		crafty-make
 
 linux-64:
@@ -308,9 +318,9 @@ profile:
 #objects = search.o thread.o repeat.o next.o killer.o quiesce.o evaluate.o    \
        movgen.o make.o unmake.o hash.o  attacks.o swap.o boolean.o utility.o  \
        probe.o book.o data.o drawn.o edit.o epd.o epdglue.o init.o input.o    \
-       interupt.o iterate.o main.o option.o output.o ponder.o preeval.o       \
-       resign.o root.o learn.o setboard.o test.o time.o validate.o annotate.o \
-       analyze.o evtest.o bench.o
+       interupt.o iterate.o main.o option.o output.o ponder.o resign.o root.o \
+       learn.o setboard.o test.o time.o validate.o annotate.o analyze.o       \
+       evtest.o bench.o
 objects = crafty.o
 
 # Do not change anything below this line!

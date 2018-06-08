@@ -91,22 +91,18 @@ void EVTest(char *filename) {
       Castle(0, black) = 0;
       Castle(1, black) = 0;
       root_wtm = wtm;
-      PreEvaluate(tree);
       tree->pawn_score.key = 0;
       s1 = Evaluate(tree, 0, wtm, -99999, 99999);
       strcpy(buffer, "flop");
       (void) Option(tree);
-      PreEvaluate(tree);
       tree->pawn_score.key = 0;
       s2 = Evaluate(tree, 0, wtm, -99999, 99999);
       strcpy(buffer, "flip");
       (void) Option(tree);
-      PreEvaluate(tree);
       tree->pawn_score.key = 0;
       s3 = Evaluate(tree, 0, wtm, -99999, 99999);
       strcpy(buffer, "flop");
       (void) Option(tree);
-      PreEvaluate(tree);
       tree->pawn_score.key = 0;
       s4 = Evaluate(tree, 0, wtm, -99999, 99999);
 /*

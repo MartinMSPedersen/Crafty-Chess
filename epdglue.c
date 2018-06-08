@@ -594,8 +594,8 @@ void EGPutHostPosition(void) {
   move_number = fmvn;
 /* set secondary host data items */
   SetChessBitBoards(tree);
-  tree->rep_index[white] = 0;
-  tree->rep_index[black] = 0;
+  Repetition(black) = 0;
+  Repetition(white) = 0;
   moves_out_of_book = 0;
   last_mate_score = 0;
 /* clear the host killer information */
@@ -1844,7 +1844,7 @@ static siT EGProcessPFGA(void) {
 /* extract/insert predicted variation */
           EPDDropIfLocEOPCode(epdptr, epdso_pv);
           eopptr = EPDCreateEOPCode(epdso_pv);
-          for (index = 1; index <= (int) tree->pv[0].pathl; index++) {
+          for (index = 1; index < (int) tree->pv[0].pathl; index++) {
 /* generate moves for the current position */
             EPDGenMoves();
 /* fetch the predicted move at this ply */

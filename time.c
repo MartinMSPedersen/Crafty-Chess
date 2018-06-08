@@ -37,7 +37,7 @@ void TimeAdjust(int time_used, int side) {
     tc_time_remaining[side] += tc_increment;
 }
 
-/* last modified 02/19/10 */
+/* last modified 08/27/10 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -77,12 +77,12 @@ void TimeAdjust(int time_used, int side) {
  *   end the search when all current root moves are completed and              *
  *   NextRootMove() is called to obtain another root move to search.           *
  *                                                                             *
- *   The global variable "time_abort" is initially set to zero, and so long    *
- *   as it is zero, NextRootMove() will continue to return moves to search     *
- *   until the iteration ends.  Whenever the time_abort flag becomes non-zero, *
- *   NextRootMove() refuses to search any new moves, but the current searches  *
- *   are allowed to continue until they all complete or the hard time limit    *
- *   (absolute_time_limit) is reached where the search is terminated           *
+ *   The global variable "abort_after_ply1" is initially set to zero, and so   *
+ *   long as it is zero, NextRootMove() will continue to return moves to       *
+ *   search until the iteration ends.  Whenever the time_abort flag becomes    *
+ *   non-zero, NextRootMove() refuses to search any new moves, but the current *
+ *   searches are allowed to continue until they all complete or the hard time *
+ *   limit (absolute_time_limit) is reached where the search is terminated     *
  *   immediately to avoid overstepping the time control limits.                *
  *                                                                             *
  *******************************************************************************
@@ -91,39 +91,6 @@ int TimeCheck(TREE * RESTRICT tree, int abort) {
   int time_used;
   int i, ndone;
 
-/*
- ************************************************************
- *                                                          *
- *   First, check to see if we are are supposed to stop     *
- *   after a fixed number of nodes.  If not, check to see   *
- *   if there is just one legal move which lets us stop     *
- *   quickly since there is no choice to be made.           *
- *                                                          *
- ************************************************************
- */
-  if (search_nodes && tree->nodes_searched >= search_nodes)
-    return (1);
-  if (n_root_moves == 1 && !booking && !annotate_mode && !pondering &&
-      iteration_depth > 4)
-    return (1);
-/*
- ************************************************************
- *                                                          *
- *   Now, check to see if we are searching the first move   *
- *   at this depth.  If so, and we run out of time, we can  *
- *   abort the search rather than waiting to complete this  *
- *   ply=1 move to see if it's better.                      *
- *                                                          *
- ************************************************************
- */
-  ndone = 0;
-  for (i = 0; i < n_root_moves; i++)
-    if (root_moves[i].status & 256)
-      ndone++;
-  if (ndone == 1)
-    abort = 1;
-  if (iteration_depth <= 2)
-    return (0);
 /*
  ************************************************************
  *                                                          *
@@ -156,6 +123,38 @@ int TimeCheck(TREE * RESTRICT tree, int abort) {
 /*
  ************************************************************
  *                                                          *
+ *   First, check to see if there is only one root move.    *
+ *   If so, and we are not pondering, searching a book move *
+ *   or annotating a game, we can return and make this move *
+ *   instantly.  We do need to finish iteration 1 so that   *
+ *   we actually back up a move to play.                    *
+ *                                                          *
+ ************************************************************
+ */
+  if (n_root_moves == 1 && !booking && !annotate_mode && !pondering &&
+      iteration_depth > 1)
+    return (1);
+/*
+ ************************************************************
+ *                                                          *
+ *   Now, check to see if we are searching the first move   *
+ *   at this depth.  If so, and we run out of time, we can  *
+ *   abort the search rather than waiting to complete this  *
+ *   ply=1 move to see if it's better.                      *
+ *                                                          *
+ ************************************************************
+ */
+  ndone = 0;
+  for (i = 0; i < n_root_moves; i++)
+    if (root_moves[i].status & 256)
+      ndone++;
+  if (ndone == 1)
+    abort = 1;
+  if (iteration_depth <= 2)
+    return (0);
+/*
+ ************************************************************
+ *                                                          *
  *   If we are pondering or in analyze mode, we do not      *
  *   terminate on time since there is no time limit placed  *
  *   on these searches.  If we have reached the absolute    *
@@ -178,7 +177,7 @@ int TimeCheck(TREE * RESTRICT tree, int abort) {
   if (time_used > absolute_time_limit)
     return (1);
   if (easy_move && !search_time_limit) {
-    if (time_used >= (36 * time_limit) / 100)   //TLR if (time_limit > 100 && time_used >= time_limit / 3)
+    if (time_used >= (36 * time_limit) / 100)
       return (1);
   }
   if (time_used < time_limit)
@@ -188,27 +187,19 @@ int TimeCheck(TREE * RESTRICT tree, int abort) {
 /*
  ************************************************************
  *                                                          *
- *   Ok.  We have used "time_limit" at this point.  Now the *
+ *   Ok.  We have used "time_limit" at this point, and we   *
+ *   have not gone over "absolute_time_limit".  Now the     *
  *   question is, can we stop the search?                   *
  *                                                          *
- *   First, make sure that we have actually found a score   *
- *   at the root of the tree.  If not, we can safely stop   *
- *   searching without wasting any more time.               *
- *                                                          *
- ************************************************************
- */
-  if (root_value == root_alpha && !(root_moves[0].status & 7) && ndone == 1)
-    return (1);
-/*
- ************************************************************
- *                                                          *
- *   We have a score at the root of the tree, if the        *
+ *   If we have a score at the root of the tree and if the  *
  *   evaluation is not worse than the last evaluation       *
  *   (from the previous iteration...) then we safely stop   *
  *   the search.                                            *
  *                                                          *
  ************************************************************
  */
+  if (root_value == root_alpha && !(root_moves[0].status & 7) && ndone == 1)
+    return (1);
   if ((root_value >= last_root_value && !(root_moves[0].status & 7)))
     return (abort);
 /*
@@ -220,6 +211,20 @@ int TimeCheck(TREE * RESTRICT tree, int abort) {
  *   previous iteration.  We will continue to search until  *
  *   we use 6x the normal target time in an effort to avoid *
  *   playing a move that might end up losing the game.      *
+ *                                                          *
+ *   One note for clarification.  After the first root move *
+ *   has been searched, the rest "fly by" thanks to the     *
+ *   reductions and forward-pruning stuff.  It is not very  *
+ *   likely that we are going to go 6x before every root    *
+ *   move has been searched, unless one of them actually    *
+ *   has the potential to become a new best move.  Most of  *
+ *   the time, we are going to end the current iteration    *
+ *   quickly and we won't start another since we are past   *
+ *   the time limit.  It sounds risky to extend 6x for just *
+ *   a 0.01 score drop, but using that much time is not so  *
+ *   common as to cause an unnecessary loss of time.  We do *
+ *   prefer to spend some additional time to stop any score *
+ *   drop, if we can, as any drop is a bad thing overall.   *
  *                                                          *
  ************************************************************
  */
@@ -444,6 +449,7 @@ void TimeSet(TREE * RESTRICT tree, int search_type) {
   if (!tc_sudden_death && !search_time_limit &&
       time_limit > 3 * tc_time / tc_moves)
     time_limit = 3 * tc_time / tc_moves;
+  time_limit = Min(time_limit, absolute_time_limit);
   if (search_type != puzzle) {
     if (!tc_sudden_death)
       Print(128, "              time surplus %s  ", DisplayTime(surplus));

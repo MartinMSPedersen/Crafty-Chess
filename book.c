@@ -4,7 +4,7 @@
 #if defined(UNIX)
 #  include <unistd.h>
 #endif
-/* last modified 08/07/05 */
+/* last modified 11/05/10 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -101,7 +101,7 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done) {
       for (im = 0; im < n_root_moves; im++) {
         common = HashKey & ((BITBOARD) 65535 << 48);
         MakeMove(tree, 1, root_moves[im].move, wtm);
-        if (RepetitionCheckBook(tree, 2, wtm)) {
+        if (RepetitionCheckBook(tree, 2, Flip(wtm))) {
           UnmakeMove(tree, 1, root_moves[im].move, wtm);
           return (0);
         }
@@ -178,7 +178,7 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done) {
     for (im = 0; im < n_root_moves; im++) {
       common = HashKey & ((BITBOARD) 65535 << 48);
       MakeMove(tree, 1, root_moves[im].move, wtm);
-      if (RepetitionCheckBook(tree, 2, wtm)) {
+      if (RepetitionCheckBook(tree, 2, Flip(wtm))) {
         UnmakeMove(tree, 1, root_moves[im].move, wtm);
         return (0);
       }
@@ -666,7 +666,7 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done) {
           }
         } else {
           tree->pv[1].path[1] = book_moves[0];
-          tree->pv[1].pathl = 1;
+          tree->pv[1].pathl = 2;
           tree->pv[1].pathd = 0;
         }
         return (1);
@@ -702,7 +702,7 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done) {
         booking = 0;
       } else {
         tree->pv[1].path[1] = book_moves[0];
-        tree->pv[1].pathl = 1;
+        tree->pv[1].pathl = 2;
         tree->pv[1].pathd = 0;
       }
       return (1);
@@ -728,7 +728,7 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done) {
       else
         total_moves += bs_value[i] * bs_value[i];
     }
-    distribution = abs(which) % Max(total_moves, 1);
+    distribution = Abs(which) % Max(total_moves, 1);
     for (which = 0; which < last_move; which++) {
       if (bs_percent[0])
         distribution -= bs_value[which];
@@ -742,13 +742,13 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done) {
     percent_played = 100 * bs_played[which] / Max(total_played, 1);
     total_played = bs_played[which];
     m1_status = book_status[which];
-    tree->pv[1].pathl = 1;
+    tree->pv[1].pathl = 2;
     tree->pv[1].pathd = 0;
     if (mode != tournament_mode) {
       MakeMove(tree, 1, book_moves[which], wtm);
       if ((book_ponder_move = BookPonderMove(tree, Flip(wtm)))) {
         tree->pv[1].path[2] = book_ponder_move;
-        tree->pv[1].pathl = 2;
+        tree->pv[1].pathl = 3;
       }
       UnmakeMove(tree, 1, book_moves[which], wtm);
     }
@@ -769,7 +769,7 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done) {
         Print(128, "!!");
     }
     MakeMove(tree, 1, tree->pv[1].path[1], wtm);
-    if (tree->pv[1].pathl > 1)
+    if (tree->pv[1].pathl > 2)
       Print(128, " %s", OutputMove(tree, tree->pv[1].path[2], 2, Flip(wtm)));
     UnmakeMove(tree, 1, tree->pv[1].path[1], wtm);
     Print(128, "\n");
@@ -1117,8 +1117,8 @@ void BookUp(TREE * RESTRICT tree, int nargs, char **args) {
                 common = HashKey & ((BITBOARD) 65535 << 48);
                 MakeMove(tree, 2, move, wtm);
                 if (Rule50Moves(3) == 0) {
-                  tree->rep_index[black] = 0;
-                  tree->rep_index[white] = 0;
+                  Repetition(black) = 0;
+                  Repetition(white) = 0;
                 }
                 tree->position[2] = tree->position[3];
                 if (ply <= max_ply) {

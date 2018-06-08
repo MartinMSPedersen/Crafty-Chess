@@ -22,7 +22,7 @@
  */
 int Ponder(int wtm) {
   int dalpha = -999999, dbeta = 999999, i, *n_ponder_moves, *mv;
-  int save_move_number, tlom;
+  int save_move_number, tlom, value;
   TREE *const tree = block[0];
 
 /*
@@ -60,7 +60,7 @@ int Ponder(int wtm) {
     }
   }
   if (!ponder_move) {
-    (void) HashProbe(tree, 0, 0, wtm, &dalpha, dbeta);
+    (void) HashProbe(tree, 0, 0, wtm, dalpha, dbeta, &value);
     if (tree->hash_move[0])
       ponder_move = tree->hash_move[0];
     if (ponder_move) {

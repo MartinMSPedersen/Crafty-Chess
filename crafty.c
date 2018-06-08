@@ -45,7 +45,6 @@
 #include "option.c"
 #include "output.c"
 #include "ponder.c"
-#include "preeval.c"
 #include "resign.c"
 #include "root.c"
 #include "setboard.c"

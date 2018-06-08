@@ -94,7 +94,7 @@ void RootMoveList(int wtm) {
             break;
         }
 #endif
-        value = -Quiesce(tree, -MATE, MATE, Flip(wtm), 2);
+        value = -Quiesce(tree, -MATE, MATE, Flip(wtm), 2, 0);
 /*
  ************************************************************
  *                                                          *
