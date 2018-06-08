@@ -528,7 +528,7 @@ void Display2BitBoards(BITBOARD board1, BITBOARD board2) {
   }
 }
 
-/* last modified 11/20/99 */
+/* last modified 12/27/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -583,8 +583,9 @@ void EGTBPV(TREE *tree, int wtm) {
     for (i=0;i<nmoves;i++) {
       MakeMove(tree,1,current[i],wtm);
       if (!Check(wtm)) {
-        if(EGTBProbe(tree, 2, ChangeSide(wtm), &value)) {
-          value=-value;
+        if(TotalPieces==2 || EGTBProbe(tree, 2, ChangeSide(wtm), &value)) {
+          if (TotalPieces > 2) value=-value;
+          else value=DrawScore(root_wtm==wtm);
           if (value > best) {
             best=value;
             bestmv=current[i];

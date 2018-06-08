@@ -45,8 +45,10 @@ int Drawn(TREE *tree, int value) {
  ----------------------------------------------------------
 */
   if (TotalWhitePieces<5 && TotalBlackPieces<5) return(2);
-  if ((TotalWhitePieces==6 && !WhiteBishops) ||
-      (TotalBlackPieces==6 && !BlackBishops)) return(2);
+  if (TotalWhitePieces==5 || TotalWhitePieces>6) return(0);
+  if (TotalBlackPieces==5 || TotalBlackPieces>6) return(0);
+  if ((TotalWhitePieces==6 && !WhiteBishops && Material>0) ||
+      (TotalBlackPieces==6 && !BlackBishops && Material<0)) return(2);
 /*
  ----------------------------------------------------------
 |                                                          |

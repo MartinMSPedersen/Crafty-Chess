@@ -2603,6 +2603,12 @@
 *           much faster by using pre-computed bitmaps to recognize the right  *
 *           patterns.                                                         *
 *                                                                             *
+*   17.6    minor fix in interupt.c, which screwed up handling some commands  *
+*           while pondering.  minor fix to score for weak back rank.  score   *
+*           was in units of 'defects' but should have been in units of        *
+*           "centipawns".   minor bug in "drawn.c" could mis-classify some    *
+*           positions as drawn when they were not.                            *
+*                                                                             *
 *******************************************************************************
 */
 int main(int argc, char **argv) {
@@ -2843,7 +2849,7 @@ int main(int argc, char **argv) {
           value=DrawScore(1);
           if (xboard) Print(4095,"1/2-1/2 {Drawn by 50-move rule}\n");
         }
-        if (Drawn(tree,DrawScore(1)) == 2) {
+        if (Drawn(tree,last_search_value) == 2) {
           Print(4095,"%sgame is a draw due to insufficient material.%s\n",
                 Reverse(),Normal());
           if (xboard) Print(4095,"1/2-1/2 {Insufficient material}\n");
@@ -3022,7 +3028,7 @@ int main(int argc, char **argv) {
         if (xboard) Print(4095,"1/2-1/2 {Drawn by 50-move rule}\n");
         value=DrawScore(1);
       }
-      if (Drawn(tree,DrawScore(1)) == 2) {
+      if (Drawn(tree,last_search_value) == 2) {
         Print(4095,"%sgame is a draw due to insufficient material.%s\n",
               Reverse(),Normal());
         if (xboard) Print(4095,"1/2-1/2 {Insufficient material}\n");

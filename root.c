@@ -200,7 +200,7 @@ void RootMoveList(int wtm) {
       tree->current_move[1]=rmoves[i];
       MakeMove(tree, 1, rmoves[i], wtm);
       if (mating_via_tb && TotalPieces <= EGTBlimit)
-        temp=EGTBProbe(tree, 2, ChangeSide(wtm), &tb_value);
+        temp=(EGTBProbe(tree, 2, ChangeSide(wtm), &tb_value) != DrawScore(0));
       else
         temp=0;
       UnMakeMove(tree, 1, rmoves[i], wtm);

@@ -154,13 +154,13 @@ void Interrupt(int ply) {
           Print(4095,"command not legal now.\n");
         else {
           abort_search=1;
-          input_status=3;
+          input_status=2;
           break;
         }
       }
       else if ((result != 1) && analyze_mode) {
         abort_search=1;
-        input_status=3;
+        input_status=2;
         break;
       }
 /*

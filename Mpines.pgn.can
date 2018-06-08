@@ -7,7 +7,7 @@
 [Black "Mpines"]
 [BlackElo "2910"]
 [Result "White resigns"]
-[Annotator "Crafty v17.5"]
+[Annotator "Crafty v17.6"]
 {annotating only black moves.}
 {using a scoring margin of +1.00 pawns.}
 {search time limit is 5.00}
@@ -36,4 +36,5 @@
                 ({6:-0.92}  21. ... Qh5 22. gxf4 Bh3+ 23. Ke2 exf4+ 24. Kd2 Qc5 25. Bd4 $16)
                 ({6:+1.26}  21. ... Bh3+ 22. Kg1 f6 23. Ba5 Ne6 24. Bc3 Qf5 25. Qe2 $17)
  22.    gxf4     Bg4
- 23.     Re3
+ 23.     Re3    exf4
+ 24.   Rxe8+

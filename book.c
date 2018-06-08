@@ -1092,6 +1092,10 @@ void BookUp(TREE *tree, char *output_filename, int nargs, char **args) {
     if (buffered) BookSort(bbuffer,buffered,++files);
     free(bbuffer);
     printf("S  <done>\n");
+    if (total_moves == 0) {
+      Print(4095, "ERROR - empty input PGN file\n");
+      return;
+    }
 /*
  ----------------------------------------------------------
 |                                                          |
