@@ -247,7 +247,7 @@
   unsigned int   max_split_blocks;
   volatile unsigned int   splitting;
 
-# define    VERSION                             "18.8"
+# define    VERSION                             "18.9"
   char      version[6] =                    {VERSION};
   PLAYING_MODE mode =                     normal_mode;
 

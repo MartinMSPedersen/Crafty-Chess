@@ -8,7 +8,7 @@
 #  include <unistd.h>
 #endif
 
-/* last modified 01/13/01 */
+/* last modified 03/27/01 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -212,44 +212,6 @@ int Book(TREE *tree, int wtm, int root_list_done) {
 /*
  ----------------------------------------------------------
 |                                                          |
-|   we have the book moves, now it's time to decide how    |
-|   they are supposed to be sorted and compute the sort    |
-|   key.                                                   |
-|                                                          |
- ----------------------------------------------------------
-*/
-    for (i=0;i<nmoves;i++) {
-      minlv=Min(minlv,bs_learn[i]);
-      maxlv=Max(maxlv,bs_learn[i]);
-      if (bs_CAP[i] != -2*MATE) mincap=Min(mincap,bs_CAP[i]);
-      if (bs_CAP[i] != -2*MATE) maxcap=Max(maxcap,bs_CAP[i]);
-      minev=Min(minev,evaluations[i]);
-      maxev=Max(maxev,evaluations[i]);
-      maxp=Max(maxp,bs_played[i]);
-    }
-    if (mincap == -2*MATE) mincap=0;
-    if (maxcap < 0) maxcap=0;
-    maxp++;
-    for (i=0;i<nmoves;i++) {
-      cap=0;
-      bs_value[i]=1;
-      bs_value[i]+=bs_played[i]/(float) maxp*1000.0*book_weight_freq;
-      if (minlv < maxlv)
-        bs_value[i]+=(bs_learn[i]-minlv)/
-                     (float) (Max(maxlv-minlv,50))*1000.0*book_weight_learn;
-      if (bs_CAP[i]!=-2*MATE) {
-        cap=bs_CAP[i];
-        bs_value[i]+=(cap-mincap)/
-                     (float) (Max(maxcap-mincap,50))*1000.0*book_weight_CAP;
-      }
-      if (minev < maxev)
-        bs_value[i]+=(evaluations[i]-minev)/(float)(Max(maxev-minev,50))*
-                     1000.0*book_weight_eval;
-    }
-    total_played=total_moves;
-/*
- ----------------------------------------------------------
-|                                                          |
 |   if any moves have a very bad or a very good learn      |
 |   value, set the appropriate ? or ! flag so the move     |
 |   be played or avoided as appropriate.                   |
@@ -274,6 +236,46 @@ int Book(TREE *tree, int wtm, int root_list_done) {
           !(book_status[i]&003)) book_status[i]|=BAD_MOVE;
       if (bs_percent[i]) book_status[i]|=GOOD_MOVE;
     }
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   we have the book moves, now it's time to decide how    |
+|   they are supposed to be sorted and compute the sort    |
+|   index.                                                 |
+|                                                          |
+ ----------------------------------------------------------
+*/
+    for (i=0;i<nmoves;i++) {
+      if (!(book_status[i]&BAD_MOVE)) {
+        minlv=Min(minlv,bs_learn[i]);
+        maxlv=Max(maxlv,bs_learn[i]);
+        if (bs_CAP[i] != -2*MATE) mincap=Min(mincap,bs_CAP[i]);
+        if (bs_CAP[i] != -2*MATE) maxcap=Max(maxcap,bs_CAP[i]);
+        minev=Min(minev,evaluations[i]);
+        maxev=Max(maxev,evaluations[i]);
+        maxp=Max(maxp,bs_played[i]);
+      }
+    }
+    if (mincap == -2*MATE) mincap=0;
+    if (maxcap < 0) maxcap=0;
+    maxp++;
+    for (i=0;i<nmoves;i++) {
+      cap=0;
+      bs_value[i]=1;
+      bs_value[i]+=bs_played[i]/(float) maxp*1000.0*book_weight_freq;
+      if (minlv < maxlv)
+        bs_value[i]+=(bs_learn[i]-minlv)/
+                     (float) (maxlv-minlv)*1000.0*book_weight_learn;
+      if (bs_CAP[i]!=-2*MATE) {
+        cap=bs_CAP[i];
+        bs_value[i]+=(cap-mincap)/
+                     (float) (Max(maxcap-mincap,50))*1000.0*book_weight_CAP;
+      }
+      if (minev < maxev)
+        bs_value[i]+=(evaluations[i]-minev)/(float)(Max(maxev-minev,50))*
+                     1000.0*book_weight_eval;
+    }
+    total_played=total_moves;
 /*
  ----------------------------------------------------------
 |                                                          |

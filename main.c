@@ -2787,6 +2787,11 @@
 *           to be penalized for being isolated, weak, and blocked, which made *
 *           little sense.                                                     *
 *                                                                             *
+*   18.9    Book() modified to increase the responsiveness of book learning.  *
+*           the new code, plus the default weights for the book parameters    *
+*           now make Crafty learn very aggressively and repeat good opening   *
+*           lines and avoid bad ones.                                         *
+*                                                                             *
 *******************************************************************************
 */
 int main(int argc, char **argv) {
