@@ -1,3 +1,4 @@
+#if !defined(NOEGTB)
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -6735,3 +6736,4 @@ extern "C" int IInitializeTb
 		return 3;
 	return 0;
 	}
+#endif

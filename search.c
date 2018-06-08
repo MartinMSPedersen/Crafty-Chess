@@ -141,6 +141,7 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
  *                                                          *
  ************************************************************
  */
+#if !defined(NOEGTB)
   if (ply <= iteration_depth && TotalPieces <= EGTB_use &&
       WhiteCastle(ply) + BlackCastle(ply) == 0 &&
       (CaptureOrPromote(tree->current_move[ply - 1]) || ply < 3)) {
@@ -166,6 +167,7 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
       return (alpha);
     }
   }
+#endif
 /*
  ************************************************************
  *                                                          *

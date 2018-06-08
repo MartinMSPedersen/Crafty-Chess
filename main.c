@@ -3094,6 +3094,20 @@
  *           middlegame and endgame phases as they were no longer referenced   *
  *           anywhere in the code.                                             *
  *                                                                             *
+ *   19.16   fix to "Trojan code" to eliminate the time limit exclusion since  *
+ *           many users still have old and slow hardware, and the time limit   *
+ *           was not set correctly when PreEvaluate() was called anyway.  the  *
+ *           code to display fail-high/fail-low information was cleaned up so  *
+ *           that the +1 or +3 now makes sense from the black side where the   *
+ *           score is really going down (good for black) rather than showing   *
+ *           a +3 fail high (when Crafty is black) and the score is really     *
+ *           going to drop (get better for black).  Now the fail-high-fail-low *
+ *           +/- sign is also relative to +=good for white like the scores     *
+ *           have been for years.  adjustments to pawn evaluation terms to     *
+ *           improve the scoring balance.  "new" now terminates parallel       *
+ *           threads (they will be re-started when needed) so that we don't    *
+ *           burn CPU time when not actually playing a game.                   *
+ *                                                                             *
  *******************************************************************************
  */
 int main(int argc, char **argv)

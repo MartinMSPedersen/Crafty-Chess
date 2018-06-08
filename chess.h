@@ -147,7 +147,9 @@
 #if !defined(RCDIR)
 #  define       RCDIR        "."
 #endif
+#if !defined(NOEGTB)
 #define     EGTB_CACHE_DEFAULT               1024*1024
+#endif
 #define     MAXPLY                                  65
 #define     MAX_BLOCKS_PER_CPU                      32
 #define     MAX_BLOCKS         MAX_BLOCKS_PER_CPU*CPUS
@@ -488,8 +490,10 @@ void      Display2BitBoards(BITBOARD, BITBOARD);
 void      DisplayChessMove(char *, int);
 int       Drawn(TREE * RESTRICT, int);
 void      Edit(void);
+#if !defined(NOEGTB)
 int       EGTBProbe(TREE * RESTRICT, int, int, int *);
 void      EGTBPV(TREE * RESTRICT, int);
+#endif
 int       EnPrise(int, int);
 int       Evaluate(TREE * RESTRICT, int, int, int, int);
 int       EvaluateDevelopmentB(TREE * RESTRICT, int);

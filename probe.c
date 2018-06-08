@@ -1,3 +1,4 @@
+#if !defined(NOEGTB)
 #include <stdio.h>
 #include "chess.h"
 #include "data.h"
@@ -165,3 +166,4 @@ int EGTBProbe(TREE * RESTRICT tree, int ply, int wtm, int *score)
     *score = DrawScore(wtm);
   return (1);
 }
+#endif

@@ -78,8 +78,6 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta)
     do {
       int ms = EvaluateMate(tree);
 
-      if (ms == 99999)
-        break;
       score += ms;
 #ifdef DEBUGEV
       printf("score[mater]=                     %4d (%+d)\n", score,

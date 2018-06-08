@@ -702,6 +702,7 @@ void Display2BitBoards(BITBOARD board1, BITBOARD board2)
   }
 }
 
+#if !defined(NOEGTB)
 /* last modified 12/27/99 */
 /*
  *******************************************************************************
@@ -833,6 +834,7 @@ void EGTBPV(TREE * RESTRICT tree, int wtm)
     }
   }
 }
+#endif
 
 void DisplayChessMove(char *title, int move)
 {
@@ -2210,9 +2212,14 @@ void Kibitz(int level, int wtm, int depth, int time, int value, BITBOARD nodes,
           printf("%s d%d+ %s/s %s %s %s\n", prefix, depth, snps,
               DisplayTimeKibitz(time), DisplayEvaluationKibitz(value, wtm), pv);
         else
-          printf("%s d%d+ %s/s %s >(%s) %s <re-searching>\n", prefix, depth,
-              snps, DisplayTimeKibitz(time), DisplayEvaluationKibitz(value,
-                  wtm), pv);
+          if (wtm)
+            printf("%s d%d+ %s/s %s >(%s) %s <re-searching>\n", prefix, depth,
+                snps, DisplayTimeKibitz(time), DisplayEvaluationKibitz(value,
+                    wtm), pv);
+          else
+            printf("%s d%d+ %s/s %s <(%s) %s <re-searching>\n", prefix, depth,
+                snps, DisplayTimeKibitz(time), DisplayEvaluationKibitz(value,
+                    wtm), pv);
       }
       break;
     }

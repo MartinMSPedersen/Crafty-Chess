@@ -411,6 +411,7 @@ int Option(TREE * RESTRICT tree)
  *                                                          *
  ************************************************************
  */
+#if !defined(NOEGTB)
   else if (OptionMatch("cache", *args)) {
     EGTB_cache_size = atoi(args[1]);
     if (strchr(args[1], 'K') || strchr(args[1], 'k'))
@@ -428,6 +429,7 @@ int Option(TREE * RESTRICT tree)
     Print(128, "EGTB cache memory = %s bytes.\n", PrintKM(EGTB_cache_size, 1));
     FTbSetCacheSize(EGTB_cache, EGTB_cache_size);
   }
+#endif
 /*
  ************************************************************
  *                                                          *
@@ -717,6 +719,7 @@ int Option(TREE * RESTRICT tree)
  *                                                          *
  ************************************************************
  */
+#if !defined(NOEGTB)
   else if (OptionMatch("egtb", *args)) {
     if (!EGTB_setup) {
       Print(128, "EGTB access enabled\n");
@@ -743,6 +746,7 @@ int Option(TREE * RESTRICT tree)
         EGTBlimit = Min(atoi(args[1]), 5);
     }
   }
+#endif
 /*
  ************************************************************
  *                                                          *
@@ -1346,7 +1350,7 @@ int Option(TREE * RESTRICT tree)
         (pawn_hash_table + i)->white_defects_k = 0;
         (pawn_hash_table + i)->white_defects_q = 0;
         (pawn_hash_table + i)->passed_w = 0;
-        (pawn_hash_table + i)->passed_w = 0;
+        (pawn_hash_table + i)->passed_b = 0;
         (pawn_hash_table + i)->outside = 0;
         (pawn_hash_table + i)->candidates_w = 0;
         (pawn_hash_table + i)->candidates_b = 0;
@@ -1487,8 +1491,10 @@ int Option(TREE * RESTRICT tree)
         PrintKM(hash_table_size * sizeof(HASH_ENTRY), 1));
     Print(128, "pawn hash table memory = %s bytes.\n",
         PrintKM(pawn_hash_table_size * sizeof(PAWN_HASH_ENTRY), 1));
+#if !defined(NOEGTB)
     Print(128, "EGTB cache memory =      %s bytes.\n", PrintKM(EGTB_cache_size,
             1));
+#endif
     if (!tc_sudden_death) {
       Print(128, "%d moves/%d minutes %d seconds primary time control\n",
           tc_moves, tc_time / 6000, (tc_time / 100) % 60);
@@ -1732,6 +1738,7 @@ int Option(TREE * RESTRICT tree)
     }
     if (list > 5) {
       printf("usage:  list AK|B|C|GM|IM|P|SP +name1 -name2 etc\n");
+      return (1);
     }
     nargs -= 2;
     targs += 2;
@@ -1764,7 +1771,7 @@ int Option(TREE * RESTRICT tree)
             Print(128, "ERROR!  %s list is full at 128 entries\n",
                 listname[list]);
           else {
-            listaddr[list][i] = malloc(sizeof(targs[0] + 1) + 1);
+            listaddr[list][i] = malloc(strlen(targs[0]));
             strcpy(listaddr[list][i], targs[0] + 1);
             Print(128, "%s added to %s list.\n", targs[0] + 1, listname[list]);
             if (list == 5)
@@ -1790,7 +1797,7 @@ int Option(TREE * RESTRICT tree)
             break;
           }
           fclose(file);
-          SP_opening_filename[lastent] = malloc(sizeof(filename) + 1);
+          SP_opening_filename[lastent] = malloc(strlen(filename) + 1);
           strcpy(SP_opening_filename[lastent], filename);
           nargs--;
           targs++;
@@ -1810,7 +1817,7 @@ int Option(TREE * RESTRICT tree)
             break;
           }
           fclose(file);
-          SP_personality_filename[lastent] = malloc(sizeof(filename) + 1);
+          SP_personality_filename[lastent] = malloc(strlen(filename) + 1);
           strcpy(SP_personality_filename[lastent], filename);
           nargs--;
           targs++;
@@ -2248,6 +2255,15 @@ int Option(TREE * RESTRICT tree)
     new_game = 1;
     if (thinking || pondering)
       return (3);
+#if defined(SMP)
+    if (max_threads) {
+      int proc;
+      Print(128, "parallel threads terminated.\n");
+      for (proc = 1; proc < CPUS; proc++)
+        thread[proc] = (TREE *) - 1;
+      smp_threads=0;
+    }
+#endif
     NewGame(0);
     return (3);
   }
@@ -2365,6 +2381,7 @@ int Option(TREE * RESTRICT tree)
         strcpy(personality_path, args[1]);
       else if (strstr(args[0], "logpath"))
         strcpy(log_path, args[1]);
+#if !defined(NOEGTB)
       else if (strstr(args[0], "tbpath")) {
         strcpy(tb_path, args[1]);
         EGTBlimit = IInitializeTb(tb_path);
@@ -2384,6 +2401,7 @@ int Option(TREE * RESTRICT tree)
           EGTB_setup = 1;
         }
       }
+#endif
     } else {
       if (strchr(args[1], ')')) {
         *strchr(args[1], ')') = 0;
@@ -2391,6 +2409,7 @@ int Option(TREE * RESTRICT tree)
           strcpy(book_path, args[1] + 1);
         else if (strstr(args[0], "logpath"))
           strcpy(log_path, args[1] + 1);
+#if !defined(NOEGTB)
         else if (strstr(args[0], "tbpath")) {
           strcpy(tb_path, args[1] + 1);
           EGTBlimit = IInitializeTb(tb_path);
@@ -2410,6 +2429,7 @@ int Option(TREE * RESTRICT tree)
             EGTB_setup = 1;
           }
         }
+#endif
       } else
         Print(4095, "ERROR multiple paths must be enclosed in ( and )\n");
     }
@@ -3058,7 +3078,8 @@ int Option(TREE * RESTRICT tree)
  */
   else if (OptionMatch("savegame", *args)) {
     struct tm *timestruct;
-    int i, secs, more, swtm;
+    int i, more, swtm;
+    time_t secs;
     FILE *output_file;
     char input[128], text[128], *next;
 
@@ -3331,7 +3352,9 @@ int Option(TREE * RESTRICT tree)
     over = 0;
     strcpy(buffer, "savepos *");
     (void) Option(tree);
+#if !defined(NOEGTB)
     EGTBPV(tree, wtm);
+#endif
   } else if (StrCnt(*args, '/') > 3) {
     if (thinking || pondering)
       return (2);
@@ -3348,7 +3371,9 @@ int Option(TREE * RESTRICT tree)
     over = 0;
     strcpy(buffer, "savepos *");
     (void) Option(tree);
+#if !defined(NOEGTB)
     EGTBPV(tree, wtm);
+#endif
   }
 /*
  ************************************************************

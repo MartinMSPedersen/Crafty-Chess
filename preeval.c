@@ -71,33 +71,31 @@ void PreEvaluate(TREE * RESTRICT tree, int crafty_is_white)
  ************************************************************
  */
   trojan_check = 0;
-  if (time_limit < 3000) {
-    if (BlackQueens && BlackRooks) {
-      if (WhiteKingSQ == G1 || WhiteKingSQ == H1) {
-        if (SetMask(G4) & BlackKnights || SetMask(G4) & BlackBishops) {
-          if (SetMask(H3) & WhitePawns && SetMask(H5) & BlackPawns)
-            trojan_check = 1;
-        }
-      }
-      if (WhiteKingSQ == B1 || WhiteKingSQ == A1) {
-        if (SetMask(B4) & BlackKnights || SetMask(B4) & BlackBishops) {
-          if (SetMask(A3) & WhitePawns && SetMask(A5) & BlackPawns)
-            trojan_check = 1;
-        }
+  if (BlackQueens && BlackRooks) {
+    if (WhiteKingSQ == G1 || WhiteKingSQ == H1) {
+      if (SetMask(G4) & BlackKnights || SetMask(G4) & BlackBishops) {
+        if (SetMask(H3) & WhitePawns && SetMask(H5) & BlackPawns)
+          trojan_check = 1;
       }
     }
-    if (WhiteQueens && WhiteRooks) {
-      if (BlackKingSQ == G8 || BlackKingSQ == H8) {
-        if (SetMask(G5) & WhiteKnights || SetMask(G5) & WhiteBishops) {
-          if (SetMask(H6) & BlackPawns && SetMask(H4) & WhitePawns)
-            trojan_check = 1;
-        }
+    if (WhiteKingSQ == B1 || WhiteKingSQ == A1) {
+      if (SetMask(B4) & BlackKnights || SetMask(B4) & BlackBishops) {
+        if (SetMask(A3) & WhitePawns && SetMask(A5) & BlackPawns)
+          trojan_check = 1;
       }
-      if (BlackKingSQ == B8 || BlackKingSQ == A8) {
-        if (SetMask(B5) & WhiteKnights || SetMask(B5) & WhiteBishops) {
-          if (SetMask(A6) & BlackPawns && SetMask(A4) & BlackPawns)
-            trojan_check = 1;
-        }
+    }
+  }
+  if (WhiteQueens && WhiteRooks) {
+    if (BlackKingSQ == G8 || BlackKingSQ == H8) {
+      if (SetMask(G5) & WhiteKnights || SetMask(G5) & WhiteBishops) {
+        if (SetMask(H6) & BlackPawns && SetMask(H4) & WhitePawns)
+          trojan_check = 1;
+      }
+    }
+    if (BlackKingSQ == B8 || BlackKingSQ == A8) {
+      if (SetMask(B5) & WhiteKnights || SetMask(B5) & WhiteBishops) {
+        if (SetMask(A6) & BlackPawns && SetMask(A4) & BlackPawns)
+          trojan_check = 1;
       }
     }
   }

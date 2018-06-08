@@ -145,11 +145,9 @@ int Thread(TREE * RESTRICT tree)
  *******************************************************************************
  */
 
-static volatile int InitializedThreads = 0;
-
 void WaitForAllThreadsInitialized(void)
 {
-  while (InitializedThreads < max_threads);     /* Do nothing */
+  while (initialized_threads < max_threads);     /* Do nothing */
 }
 
 /* modified 10/21/03 */
@@ -206,7 +204,7 @@ void ThreadMalloc(int tid)
     LockInit(local[i]->lock);
   }
   Lock(lock_thread_init);
-  InitializedThreads++;
+  initialized_threads++;
   Unlock(lock_thread_init);
 }
 

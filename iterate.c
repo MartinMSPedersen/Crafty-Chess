@@ -23,6 +23,7 @@ int Iterate(int wtm, int search_type, int root_list_done)
   int twtm, used;
   int correct, correct_count, material = 0, sorted;
   TREE *const tree = local[0];
+  char *fh_indicator, *fl_indicator;
 
 /*
  ************************************************************
@@ -78,12 +79,14 @@ int Iterate(int wtm, int search_type, int root_list_done)
         break;
       if (!root_list_done)
         RootMoveList(wtm);
+#if !defined(NOEGTB)
       if (EGTB_draw && !puzzling && swindle_mode)
         EGTB_use = 0;
       else
         EGTB_use = EGTBlimit;
       if (EGTBlimit && !EGTB_use)
         Print(128, "Drawn at root, trying for swindle.\n");
+#endif
       correct_count = 0;
       burp = 15 * 100;
       transposition_id = (transposition_id + 1) & 7;
@@ -125,7 +128,7 @@ int Iterate(int wtm, int search_type, int root_list_done)
       if (n_root_moves == 0) {
         program_end_time = ReadClock(time_type);
         tree->pv[0].pathl = 0;
-        tree->pv[0].pathd = 10;
+        tree->pv[0].pathd = 0;
         if (Check(wtm)) {
           root_value = -(MATE - 1);
         } else {
@@ -286,9 +289,16 @@ int Iterate(int wtm, int search_type, int root_list_done)
             root_moves[0].status &= 255 - 128;
             root_moves[0].nodes = 0;
             if (root_print_ok) {
-              char *fh_indicator = "+1";
-              if (root_moves[0].status & 16) fh_indicator = "+3";
-              if (root_moves[0].status & 32) fh_indicator = "+M";
+              if (wtm) {
+                fh_indicator = "+1";
+                if (root_moves[0].status & 16) fh_indicator = "+3";
+                if (root_moves[0].status & 32) fh_indicator = "+M";
+              }
+              else {
+                fh_indicator = "-1";
+                if (root_moves[0].status & 16) fh_indicator = "-3";
+                if (root_moves[0].status & 32) fh_indicator = "-M";
+              }
               Print(2, "               %2i   %s     %2s   ", iteration_depth,
                   DisplayTime(end_time - start_time), fh_indicator);
               if (display_options & 64)
@@ -329,9 +339,16 @@ int Iterate(int wtm, int search_type, int root_list_done)
               root_value = root_alpha;
               easy_move = 0;
               if (root_print_ok && !time_abort && !abort_search) {
-                char *fl_indicator = "-1";
-                if (root_moves[0].status & 16) fl_indicator = "-3";
-                if (root_moves[0].status & 32) fl_indicator = "-M";
+                if (wtm) {
+                  fl_indicator = "-1";
+                  if (root_moves[0].status & 16) fl_indicator = "-3";
+                  if (root_moves[0].status & 32) fl_indicator = "-M";
+                }
+                else {
+                  fl_indicator = "+1";
+                  if (root_moves[0].status & 16) fl_indicator = "+3";
+                  if (root_moves[0].status & 32) fl_indicator = "+M";
+                }
                 Print(4, "               %2i   %s     %2s   ", iteration_depth,
                     DisplayTime(ReadClock(time_type) - start_time),
                     fl_indicator);
@@ -458,9 +475,11 @@ int Iterate(int wtm, int search_type, int root_list_done)
           break;
         if (correct_count >= early_exit)
           break;
+#if !defined(NOEGTB)
         if (iteration_depth > 3 && TotalPieces <= EGTBlimit && TB_use_ok &&
             EGTB_use && !EGTB_search && EGTBProbe(tree, 1, wtm, &i))
           break;
+#endif
         if (search_nodes && tree->nodes_searched > search_nodes)
           break;
       }

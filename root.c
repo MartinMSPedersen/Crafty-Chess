@@ -35,6 +35,7 @@ void RootMoveList(int wtm)
  *                                                          *
  ************************************************************
  */
+#if !defined(NOEGTB)
   EGTB_draw = 0;
   if (EGTBlimit && TotalPieces <= EGTBlimit &&
       WhiteCastle(1) + BlackCastle(1) == 0 &&
@@ -45,6 +46,7 @@ void RootMoveList(int wtm)
     if (tb_value > MATE - 300)
       mating_via_tb = -tb_value - 1;
   }
+#endif
 /*
  ************************************************************
  *                                                          *
@@ -78,6 +80,7 @@ void RootMoveList(int wtm)
     if (!Check(wtm))
       do {
         tree->current_move[1] = *mvp;
+#if !defined(NOEGTB)
         if (TotalPieces <= EGTBlimit && EGTB_draw &&
             WhiteCastle(1) + BlackCastle(1) == 0) {
           i = EGTBProbe(tree, 2, Flip(wtm), &tb_value);
@@ -93,6 +96,7 @@ void RootMoveList(int wtm)
                       tb_value > mating_via_tb)))
             break;
         }
+#endif
         value = -Quiesce(tree, -MATE, MATE, Flip(wtm), 2);
 /*
  ************************************************************
@@ -192,6 +196,7 @@ void RootMoveList(int wtm)
  *                                                          *
  ************************************************************
  */
+#if !defined(NOEGTB)
   if (mating_via_tb) {
     for (i = 0; i < n_root_moves; i++) {
       tree->current_move[1] = rmoves[i];
@@ -209,6 +214,7 @@ void RootMoveList(int wtm)
     EGTB_search = (i == n_root_moves);
   } else
     EGTB_search = 0;
+#endif
 /*
  ************************************************************
  *                                                          *

@@ -256,7 +256,7 @@ void LearnBook(TREE * RESTRICT tree, int wtm, int search_value,
  *   were alternatives 100% of the learned score.  We give  *
  *   the book move played at that point 100% of the learned *
  *   score as well.  then we divide the learned score by    *
- *   the number of alternatives, and propogate this score   *
+ *   the number of alternatives, and propagate this score   *
  *   back until there was another alternative, where we do  *
  *   this again and again until we reach the top of the     *
  *   book tree.                                             *

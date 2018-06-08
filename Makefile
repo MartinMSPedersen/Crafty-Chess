@@ -66,12 +66,14 @@
 #                     are found.  default = "./TB"
 #   -DTRACE           This enables the "trace" command so that the search tree
 #                     can be dumped while running.
-#   -INLINE_AMD       Compiles with the Intel assembly code for FirstOne(),
+#   -DINLINE_AMD      Compiles with the Intel assembly code for FirstOne(),
 #                     LastOne() and PopCnt() for the AMD opteron, only tested
 #                     with the 64-bit opteron GCC compiler.
-#   -INLINE_ASM       Compiles with the Intel assembly code for FirstOne(),
+#   -DINLINE_ASM      Compiles with the Intel assembly code for FirstOne(),
 #                     LastOne() and PopCnt().  This is for gcc-style inlining
 #                     and now works with the Intel C/C++ compiler as well.
+#   -DNOEGTB          eliminates the egtb code for compilers that can't deal
+#                     with the large egtb.cpp code/templates.
 #   
 
 default:
@@ -87,7 +89,7 @@ help:
 	@echo "make hpux             HP/UX 9/10, /7xx"
 	@echo "make linux            Linux optimized for i386, ELF format"
 	@echo "make linux-alpha      Linux optimized for alpha"
-	@echo "make linux-AMD64      Linux optimized for AMD opteron
+	@echo "make linux-AMD64      Linux optimized for AMD opteron"
 	@echo "make freebsd          FreeBSD"
 	@echo "make netbsd           NetBSD"
 	@echo "make netbsd-sparc     NetBSD optimized for sparc"

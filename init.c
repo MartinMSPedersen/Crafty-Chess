@@ -586,7 +586,7 @@ void InitializeAttackBoards(void)
       }
       for (pcs = 0; pcs < 64; pcs++) {
         bishop_mobility_rl45[square][pcs] =
-            PopCnt(bishop_attacks_rl45[square][pcs]);
+            PopCnt(bishop_attacks_rl45[square][pcs])-3;
       }
     }
 /*
@@ -616,7 +616,7 @@ void InitializeAttackBoards(void)
       }
       for (pcs = 0; pcs < 64; pcs++) {
         bishop_mobility_rr45[square][pcs] =
-            PopCnt(bishop_attacks_rr45[square][pcs]);
+            PopCnt(bishop_attacks_rr45[square][pcs])-3;
       }
     }
   }

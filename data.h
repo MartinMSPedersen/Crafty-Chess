@@ -35,6 +35,7 @@ extern FILE *position_file;
 extern FILE *position_lrn_file;
 extern int log_id;
 extern int output_format;
+#if !defined(NOEGTB)
 extern int EGTBlimit;
 extern int EGTB_draw;
 extern int EGTB_search;
@@ -42,6 +43,7 @@ extern int EGTB_use;
 extern void *EGTB_cache;
 extern size_t EGTB_cache_size;
 extern int EGTB_setup;
+#endif
 extern int DGT_active;
 extern int to_dgt;
 extern int from_dgt;
@@ -421,6 +423,7 @@ extern TREE *volatile thread[CPUS];
 extern lock_t lock_smp, lock_io, lock_root;
 extern volatile int smp_idle;
 extern volatile int smp_threads;
+extern volatile int initialized_threads;
 # if defined(POSIX)
 extern pthread_attr_t pthread_attr;
 # endif
@@ -431,7 +434,9 @@ extern unsigned int parallel_splits;
 extern unsigned int parallel_stops;
 extern unsigned int max_split_blocks;
 extern volatile unsigned int splitting;
+#if !defined(NOEGTB)
 extern int cbEGTBCompBytes;
+#endif
 #endif
 extern int pawn_value;
 extern int knight_value;
