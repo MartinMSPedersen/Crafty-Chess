@@ -303,7 +303,7 @@ char* DisplayEvaluation(int value, int wtm) {
   return(out);
 }
 
-char* DisplayEvaluationWhisper(int value, int wtm) {
+char* DisplayEvaluationKibitz(int value, int wtm) {
   static char out[10];
   int tvalue;
 
@@ -374,7 +374,7 @@ void DisplayPV(TREE *tree, int level, int wtm, int time, int value, PATH *pv) {
       sprintf(buffer+strlen(buffer)," %d.",t_move_number);
     sprintf(buffer+strlen(buffer)," %s",OutputMove(tree,pv->path[i],i,wtm));
     MakeMove(tree,i,pv->path[i],wtm);
-    wtm=ChangeSide(wtm);
+    wtm=Flip(wtm);
     if (wtm) t_move_number++;
   }
 /*
@@ -402,14 +402,14 @@ void DisplayPV(TREE *tree, int level, int wtm, int time, int value, PATH *pv) {
         MakeMove(tree,i,pv->path[i],wtm);
       }
       else break;
-      wtm=ChangeSide(wtm);
+      wtm=Flip(wtm);
       if (wtm) t_move_number++;
     }
     sprintf(buffer+strlen(buffer)," <HT>");
   }
   else if(pv->pathh == 2) 
     sprintf(buffer+strlen(buffer)," <EGTB>");
-  strcpy(whisper_text,buffer);
+  strcpy(kibitz_text,buffer);
   if (nskip>1 && max_threads>1) sprintf(buffer+strlen(buffer)," (s=%d)",nskip);
   if (root_print_ok) {
 #if defined(SMP)
@@ -433,15 +433,15 @@ void DisplayPV(TREE *tree, int level, int wtm, int time, int value, PATH *pv) {
       buffp=bufftemp+1;
       if (bufftemp) Print(type,"                                    ");
     } while(bufftemp);
-    Whisper(level,twtm,iteration_depth,end_time-start_time,value,
+    Kibitz(level,twtm,iteration_depth,end_time-start_time,value,
             tree->nodes_searched,0,tree->egtb_probes_successful,
-            whisper_text);
+            kibitz_text);
 #if defined(SMP)
     Unlock(lock_io);
 #endif
   }
   for (i=pv->pathl;i>0;i--) {
-    wtm=ChangeSide(wtm);
+    wtm=Flip(wtm);
     UnmakeMove(tree,i,pv->path[i],wtm);
   }
 }
@@ -473,7 +473,7 @@ char* DisplayTime(unsigned int time) {
   return(out);
 }
 
-char* DisplayTimeWhisper(unsigned int time) {
+char* DisplayTimeKibitz(unsigned int time) {
   static char out[10];
 
   if (time < 6000) sprintf(out,"%.2f",(float) time/100.0);
@@ -597,7 +597,7 @@ void EGTBPV(TREE *tree, int wtm) {
       MakeMove(tree,1,current[i],wtm);
       if (!Check(wtm)) {
         legal++;
-        if(TotalPieces==2 || EGTBProbe(tree, 2, ChangeSide(wtm), &value)) {
+        if(TotalPieces==2 || EGTBProbe(tree, 2, Flip(wtm), &value)) {
           if (TotalPieces > 2) value=-value;
           else value=DrawScore(wtm);
           if (value > best) {
@@ -621,7 +621,7 @@ void EGTBPV(TREE *tree, int wtm) {
       phk[ply]=PawnHashKey;
       MakeMove(tree,1,bestmv,wtm);
       tree->position[1]=tree->position[2];
-      wtm=ChangeSide(wtm);
+      wtm=Flip(wtm);
       for (j=2-(ply&1);j<ply;j+=2)
         if (pos[ply] == pos[j]) break;
       if (j < ply) break;
@@ -635,7 +635,7 @@ void EGTBPV(TREE *tree, int wtm) {
   }
   nmoves=ply;
   for (;ply>0;ply--) {
-    wtm=ChangeSide(wtm);
+    wtm=Flip(wtm);
       tree->save_hash_key[1]=hk[ply];
       tree->save_pawn_hash_key[1]=phk[ply];
     UnmakeMove(tree,1,moves[ply],wtm);
@@ -692,11 +692,11 @@ char *FormatPV(TREE *tree, int wtm, PATH pv) {
       sprintf(buffer+strlen(buffer)," %d.",t_move_number);
     sprintf(buffer+strlen(buffer)," %s",OutputMove(tree,pv.path[i],i,wtm));
     MakeMove(tree,i,pv.path[i],wtm);
-    wtm=ChangeSide(wtm);
+    wtm=Flip(wtm);
     if (wtm) t_move_number++;
   }
   for (i=pv.pathl;i>0;i--) {
-    wtm=ChangeSide(wtm);
+    wtm=Flip(wtm);
     UnmakeMove(tree,i,pv.path[i],wtm);
   }
   return (buffer);
@@ -888,7 +888,7 @@ int KingPawnSquare(int pawn, int king, int queen, int ptm) {
 void NewGame(int save) {
   char filename[64];
   static int save_book_selection_width=5;
-  static int save_whisper=0, save_kibitz=0, save_channel=0;
+  static int save_kibitz=0, save_channel=0;
   static int save_resign=0, save_resign_count=0, save_draw_count=0;
   static int save_learning=0;
   static int save_accept_draws=0;
@@ -897,7 +897,6 @@ void NewGame(int save) {
   new_game=0;
   if (save) {
     save_book_selection_width=book_selection_width;
-    save_whisper=whisper;
     save_kibitz=kibitz;
     save_channel=channel;
     save_resign=resign;
@@ -957,7 +956,6 @@ void NewGame(int save) {
     }
     move_actually_played=0;
     book_selection_width=save_book_selection_width;
-    whisper=save_whisper;
     kibitz=save_kibitz;
     channel=save_channel;
     resign=save_resign;
@@ -971,12 +969,12 @@ void NewGame(int save) {
     lazy_eval_cutoff=200;
     largest_positional_score=300;
     predicted=0;
-    whisper_depth=0;
+    kibitz_depth=0;
     tree->nodes_searched=0;
     tree->fail_high=0;
     tree->fail_high_first=0;
     cpu_percent=0;
-    whisper_text[0]=0;
+    kibitz_text[0]=0;
   }
 }
 
@@ -1046,7 +1044,7 @@ void Pass(void) {
     fprintf(history_file,"%9s\n","pass");
     if (!wtm) move_number++;
   }
-  wtm=ChangeSide(wtm);
+  wtm=Flip(wtm);
 }
 
 
@@ -1155,6 +1153,17 @@ void Print(int vb, char *fmt, ...) {
     if (log_file) fflush(log_file);
   }
   va_end(ap);
+}
+
+char *PrintKM(int val) {
+  static char buf[16];
+  if (val >= 1<<20)
+    sprintf(buf,"%4dM", val/(1<<20));
+  else if (val >= 1<<10)
+    sprintf(buf,"%4dK", val/(1<<10));
+  else
+    sprintf(buf,"%5d", val);
+  return (buf);
 }
 
 /*
@@ -1672,7 +1681,7 @@ void RestoreGame(void) {
       if (move) MakeMoveRoot(local[0],move,wtm);
       else break;
     }
-    wtm=ChangeSide(wtm);
+    wtm=Flip(wtm);
   } 
   Phase();
 }
@@ -2047,121 +2056,6 @@ void ComputeAttacksAndMobility () {
 }
 #endif
 
-/*
-********************************************************************************
-*                                                                              *
-*   Whisper() is used to whisper/kibitz information to a chess server.  it has *
-*   to handle the xboard whisper/kibitz interface as well as the custom ics    *
-*   interface for Crafty.  there are two main issues:  (a) presenting only the *
-*   information specified by the current value of whisper or kibitz variables; *
-*   (a) if using the custom ICS interface, preceeding the commands with a "*"  *
-*   so the interface will direct them to the server rather than the operator.  *
-*                                                                              *
-********************************************************************************
-*/
-void Whisper(int level,int wtm, int depth,int time,int value,
-             BITBOARD nodes, int cpu, int tb_hits, char *pv) {
-  if (!puzzling) {
-    char prefix[128];
-
-    if (strlen(channel_title) && channel)
-      sprintf(prefix,"tell %d (%s) ",channel, channel_title);
-    else if (channel) sprintf(prefix,"tell %d",channel);
-    else sprintf(prefix,"whisper");
-    switch (level) {
-    case 1:
-      if (kibitz && (value > 0)) {
-        if (ics) printf("*");
-        printf("kibitz mate in %d moves.\n\n",value);
-      }
-      else if (whisper && (value > 0)) {
-        if (ics) printf("*");
-        printf("%s mate in %d moves.\n\n",prefix,value);
-      }
-      if (kibitz && (value < 0)) {
-        if (ics) printf("*");
-        printf("%s mated in %d moves.\n\n",prefix,-value);
-      }
-      break;
-    case 2:
-      if (kibitz >= 2) {
-        if (ics) printf("*");
-        printf("kibitz ply=%d; eval=%s; nps=%dk; time=%s; cpu=%d%%; egtb=%d\n",
-               depth,DisplayEvaluationWhisper(value,wtm),
-               (int) ((time)?100*(BITBOARD)nodes/(BITBOARD)time:nodes)/1000,
-               DisplayTimeWhisper(time),cpu,tb_hits);
-      }
-      else if (whisper >= 2) {
-        if (ics) printf("*");
-        printf("%s ply=%d; eval=%s; nps=%dk; time=%s; cpu=%d%%; egtb=%d\n",
-               prefix,depth,DisplayEvaluationWhisper(value,wtm),
-               (int) ((time)?100*(BITBOARD)nodes/(BITBOARD)time:nodes)/1000,
-               DisplayTimeWhisper(time),cpu,tb_hits);
-      }
-    case 3:
-      if ((kibitz >= 3) && (nodes>5000 || level==2)) {
-        if (ics) printf("*");
-        printf("kibitz %s\n",pv);
-      }
-      else if ((whisper >= 3) && (nodes>5000 || level==2)) {
-        if (ics) printf("*");
-        printf("%s %s\n",prefix,pv);
-      }
-      break;
-    case 4:
-      if (kibitz >= 4) {
-        if (ics) printf("*");
-        printf("kibitz %s\n",pv);
-      }
-      else if (whisper >= 4) {
-        if (ics) printf("*");
-        printf("%s %s\n",prefix,pv);
-      }
-      break;
-    case 5:
-      if (kibitz>=5 && nodes>5000) {
-        if (ics) printf("*");
-        printf("kibitz d%d-> %s %s %s\n",depth, DisplayTimeWhisper(time),
-                                       DisplayEvaluationWhisper(value,wtm),pv);
-      }
-      else if (whisper>=5 && nodes>5000) {
-        if (ics) printf("*");
-        printf("%s d%d-> %s %s %s\n",prefix,depth, DisplayTimeWhisper(time),
-                                       DisplayEvaluationWhisper(value,wtm),pv);
-      }
-      break;
-    case 6:
-      if (kibitz>=6 && nodes>5000) {
-        if (ics) printf("*");
-        if (cpu == 0)
-          printf("kibitz d%d+ %s %s %s\n",depth, DisplayTimeWhisper(time),
-                                           DisplayEvaluationWhisper(value,wtm),pv);
-        else
-          printf("kibitz d%d+ %s >(%s) %s <re-searching>\n",depth,
-                 DisplayTimeWhisper(time),DisplayEvaluationWhisper(value,wtm),pv);
-      }
-      else if (whisper>=6 && nodes>5000) {
-        if (ics) printf("*");
-        if (cpu == 0)
-          printf("%s d%d+ %s %s %s\n",prefix,depth, DisplayTimeWhisper(time),
-                                            DisplayEvaluationWhisper(value,wtm),pv);
-        else
-          printf("%s d%d+ %s >(%s) %s <re-searching>\n",prefix,depth,
-                 DisplayTimeWhisper(time),DisplayEvaluationWhisper(value,wtm),pv);
-      }
-      break;
-    }
-    value=(wtm)?value:-value;
-    if (post && level>1) {
-      if (strstr(pv,"book"))
-        printf("	%2d  %5d %7d " BMF6 " %s\n",depth,value,time,nodes,pv+10);
-      else
-        printf("	%2d  %5d %7d " BMF6 " %s\n",depth,value,time,nodes,pv);
-    }
-    fflush(stdout);
-  }
-}
-
 #if defined(SMP)
 
 /*
@@ -2231,12 +2125,9 @@ TREE* CopyToSMP(TREE *p) {
   c->next_status[p->ply]=p->next_status[p->ply];
   c->save_hash_key[p->ply]=p->save_hash_key[p->ply];
   c->save_pawn_hash_key[p->ply]=p->save_pawn_hash_key[p->ply];
-  c->rephead_w=c->replist_w+(p->rephead_w-p->replist_w);
-  c->rephead_b=c->replist_b+(p->rephead_b-p->replist_b);
-  for (i=0;i<128;i++) 
-    c->replist_w[i]=p->replist_w[i];
-  for (i=0;i<128;i++) 
-    c->replist_b[i]=p->replist_b[i];
+  c->rep_game=p->rep_game;
+  for (i=0;i<256;i++) 
+    c->rep_list[i]=p->rep_list[i];
   c->last[p->ply]=c->move_list;
   c->hash_move[p->ply]=p->hash_move[p->ply];
   for (i=1;i<=p->ply+1;i++) {
@@ -2279,6 +2170,94 @@ TREE* CopyToSMP(TREE *p) {
 }
 
 #endif
+
+/*
+********************************************************************************
+*                                                                              *
+*   Kibitz() is used to whisper/kibitz information to a chess server.  it has  *
+*   to handle the xboard whisper/kibitz interface as well as the custom ics    *
+*   interface for Crafty.  there are two main issues:  (a) presenting only the *
+*   information specified by the current value of whisper or kibitz variables; *
+*   (a) if using the custom ICS interface, preceeding the commands with a "*"  *
+*   so the interface will direct them to the server rather than the operator.  *
+*                                                                              *
+********************************************************************************
+*/
+void Kibitz(int level, int wtm, int depth, int time, int value,
+             BITBOARD nodes, int cpu, int tb_hits, char *pv) {
+  if (!puzzling) {
+    char prefix[128];
+
+    if (strlen(channel_title) && channel)
+      sprintf(prefix,"tell %d (%s) ",channel, channel_title);
+    else if (channel) sprintf(prefix,"tell %d",channel);
+    else if (!(kibitz&16)) sprintf(prefix,"kibitz");
+    else sprintf(prefix,"whisper");
+    switch (level) {
+    case 1:
+      if (value > 0) {
+        if (ics) printf("*");
+        printf("%s mate in %d moves.\n\n",prefix,value);
+      }
+      if (value < 0) {
+        if (ics) printf("*");
+        printf("%s mated in %d moves.\n\n",prefix,-value);
+      }
+      break;
+    case 2:
+      if ((kibitz&15) >= 2) {
+        if (ics) printf("*");
+        printf("%s ply=%d; eval=%s; %dKn/s; time=%s; cpu=%d%%; egtb=%d\n",
+               prefix,depth,DisplayEvaluationKibitz(value,wtm),
+               (int) ((time)?100*nodes/(BITBOARD)time:nodes)/1000,
+               DisplayTimeKibitz(time),cpu,tb_hits);
+      }
+    case 3:
+      if ((kibitz&15)>=3 && (nodes>5000 || level==2)) {
+        if (ics) printf("*");
+        printf("%s %s\n",prefix,pv);
+      }
+      break;
+    case 4:
+      if ((kibitz&15) >= 4) {
+        if (ics) printf("*");
+        printf("%s %s\n",prefix,pv);
+      }
+      break;
+    case 5:
+      if ((kibitz&15)>=5 && nodes>5000) {
+        if (ics) printf("*");
+        printf("%s d%d-> %dKn/s %s %s %s\n",prefix,depth,
+               (int) ((time)?100*nodes/(BITBOARD)time:nodes)/1000,
+               DisplayTimeKibitz(time),
+               DisplayEvaluationKibitz(value,wtm),pv);
+      }
+      break;
+    case 6:
+      if ((kibitz&15) >= 6 && nodes>5000) {
+        if (ics) printf("*");
+        if (cpu == 0)
+          printf("%s d%d+ %dKn/s %s %s %s\n",prefix,depth,
+                 (int) ((time)?100*nodes/(BITBOARD)time:nodes)/1000,
+                 DisplayTimeKibitz(time),
+                 DisplayEvaluationKibitz(value,wtm),pv);
+        else
+          printf("%s d%d+ %dKn/s %s >(%s) %s <re-searching>\n",prefix,depth,
+                 (int) ((time)?100*nodes/(BITBOARD)time:nodes)/1000,
+                 DisplayTimeKibitz(time),DisplayEvaluationKibitz(value,wtm),pv);
+      }
+      break;
+    }
+    value=(wtm)?value:-value;
+    if (post && level>1) {
+      if (strstr(pv,"book"))
+        printf("	%2d  %5d %7d " BMF6 " %s\n",depth,value,time,nodes,pv+10);
+      else
+        printf("	%2d  %5d %7d " BMF6 " %s\n",depth,value,time,nodes,pv);
+    }
+    fflush(stdout);
+  }
+}
 
 /* last modified 07/07/98 */
 /*

@@ -87,6 +87,52 @@ int Option(TREE *tree) {
 /*
  ----------------------------------------------------------
 |                                                          |
+|   "adaptive" sets the new adaptive hash algorithm        |
+|    parameters.  it requires five parameters.  the first  |
+|    is an estimated NPS, the second is the minimum hash   |
+|    size, and the third is the maximum hash size.  the    |
+|    adaptive algorithm will look at the time control, and |
+|    try to adjust the hash sizes to an optimal value      |
+|    without dropping below the minimum or exceeding the   |
+|    maximum memory size given.  the min/max sizes can be  |
+|    given using the same syntax as the hash= command, ie  |
+|    xxx, xxxK or xxxM will all work. the fourth and fifth | 
+|    parameters are used to limit hashp in the same way.   |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  else if (OptionMatch("adaptive",*args)) {
+    if (nargs != 6) {
+      printf("usage:  adaptive NPS min max\n");
+      return(1);
+    }
+    if (nargs > 1) {
+      float ah=atof(args[1]);
+      if (strchr(args[1],'K') || strchr(args[1],'k')) ah*=1000;
+      if (strchr(args[1],'M') || strchr(args[1],'m')) ah*=1000000;
+      adaptive_hash=(int) ah;
+      adaptive_hash_min=atoi(args[2]);
+      if (strchr(args[2],'K') || strchr(args[2],'k')) adaptive_hash_min*=1<<10;
+      if (strchr(args[2],'M') || strchr(args[2],'m')) adaptive_hash_min*=1<<20;
+      adaptive_hash_max=atoi(args[3]);
+      if (strchr(args[3],'K') || strchr(args[3],'k')) adaptive_hash_max*=1<<10;
+      if (strchr(args[3],'M') || strchr(args[3],'m')) adaptive_hash_max*=1<<20;
+      adaptive_hashp_min=atoi(args[4]);
+      if (strchr(args[4],'K') || strchr(args[4],'k')) adaptive_hashp_min*=1<<10;
+      if (strchr(args[4],'M') || strchr(args[4],'m')) adaptive_hashp_min*=1<<20;
+      adaptive_hashp_max=atoi(args[5]);
+      if (strchr(args[5],'K') || strchr(args[5],'k')) adaptive_hashp_max*=1<<10;
+      if (strchr(args[5],'M') || strchr(args[5],'m')) adaptive_hashp_max*=1<<20;
+    }
+    Print(128,"adaptive hash estimated NPS = %d\n",adaptive_hash);
+    Print(128,"adaptive hash minimum size =  %s\n",PrintKM(adaptive_hash_min));
+    Print(128,"adaptive hash maximum size =  %s\n",PrintKM(adaptive_hash_max));
+    Print(128,"adaptive hashp minimum size =  %s\n",PrintKM(adaptive_hashp_min));
+    Print(128,"adaptive hashp minimum maxe =  %s\n",PrintKM(adaptive_hashp_max));
+  }
+/*
+ ----------------------------------------------------------
+|                                                          |
 |   "alarm" command turns audible move warning on/off.     |
 |                                                          |
  ----------------------------------------------------------
@@ -210,7 +256,7 @@ int Option(TREE *tree) {
 /*
  ----------------------------------------------------------
 |                                                          |
-|   "black" command sets black to move (ChangeSide(wtm)).             |
+|   "black" command sets black to move (Flip(wtm)).        |
 |                                                          |
  ----------------------------------------------------------
 */
@@ -332,10 +378,7 @@ int Option(TREE *tree) {
       Print(2095,"ERROR:  unable to malloc specified cache size, using default\n");
       EGTB_cache=malloc(EGTB_CACHE_DEFAULT);
     }
-    if (EGTB_cache_size < 1<<20)
-      Print(128,"EGTB cache memory = %dK bytes.\n", EGTB_cache_size/(1<<10));
-    else
-      Print(128,"EGTB cache memory = %dM bytes.\n", EGTB_cache_size/(1<<20));
+    Print(128,"EGTB cache memory = %s bytes.\n", PrintKM(EGTB_cache_size));
     FTbSetCacheSize(EGTB_cache,EGTB_cache_size);
   }
 /*
@@ -530,7 +573,7 @@ int Option(TREE *tree) {
     if (nargs > 1) {
       if (thinking || pondering) return (2);
       tree->position[1]=tree->position[0];
-      root_wtm=ChangeSide(wtm);
+      root_wtm=Flip(wtm);
       PreEvaluate(tree,root_wtm);
       if (OptionMatch("pawn",args[1]))
         DisplayPieceBoards(pval_w,pval_b);
@@ -606,7 +649,7 @@ int Option(TREE *tree) {
         accept_draws=0;
         Print(128,"decline draw offers\n");
       }
-      if (!strcmp(args[1],"offer")) {
+      else if (!strcmp(args[1],"offer")) {
         offer_draws=1;
         Print(128,"offer draws\n");
       }
@@ -719,9 +762,6 @@ int Option(TREE *tree) {
     int i;
     abort_search=1;
     quit=1;  
-#if !defined (_WIN32) && !defined (_WIN64)
-    sleep(2);
-#endif
 #if defined(CLONE)
     for (i=0;i<smp_threads;i++) {
       if (pids[i]) kill(pids[i],15);
@@ -785,7 +825,7 @@ int Option(TREE *tree) {
       king_safety_tropism=atoi(args[2]);
     }
     else printf("unknown option %s\n",args[1]);
-    root_wtm=ChangeSide(wtm);
+    root_wtm=Flip(wtm);
     PreEvaluate(tree,root_wtm);
     if (OptionMatch("kscale",args[1]) || OptionMatch("asymmetry",args[1])) {
       Print(128,"modified king-safety values:\n");
@@ -1005,7 +1045,7 @@ int Option(TREE *tree) {
     if (wtm) movenum--;
     strcpy(text,args[1]);
     sprintf(buffer,"reset %d",movenum);
-    wtm=ChangeSide(wtm);
+    wtm=Flip(wtm);
     (void) Option(tree);
     move=InputMove(tree,text,0,wtm,0,0);
     if (move) {
@@ -1017,7 +1057,7 @@ int Option(TREE *tree) {
       last_pv.pathl=0;
     }
     else if (input_stream == stdin) printf("illegal move.\n");
-    wtm=ChangeSide(wtm);
+    wtm=Flip(wtm);
     move_number=save_move_number;
   }
 /*
@@ -1067,7 +1107,7 @@ int Option(TREE *tree) {
       printf("  %-10s",buffer);
       if (i%2 == 1) printf("\n");
     }
-    if (ChangeSide(wtm))printf("  ...\n");
+    if (Flip(wtm))printf("  ...\n");
   }
 /*
  ----------------------------------------------------------
@@ -1144,17 +1184,8 @@ int Option(TREE *tree) {
       }
       else Print(4095,"ERROR:  hash table size must be > 0\n");
     }
-    if (hash_table_size*sizeof(HASH_ENTRY) < 1<<20)
-      Print(128,"hash table memory = %dK bytes.\n",
-            hash_table_size*sizeof(HASH_ENTRY)/(1<<10));
-    else {
-      if (hash_table_size*sizeof(HASH_ENTRY)%(1<<20))
-        Print(128,"hash table memory = %.1fM bytes.\n",
-              (float) hash_table_size*sizeof(HASH_ENTRY)/(1<<20));
-      else
-        Print(128,"hash table memory = %dM bytes.\n",
-              hash_table_size*sizeof(HASH_ENTRY)/(1<<20));
-    }
+    Print(128,"hash table memory = %s bytes.\n",
+          PrintKM(hash_table_size*sizeof(HASH_ENTRY)));
   }
 /*
  ----------------------------------------------------------
@@ -1212,17 +1243,8 @@ int Option(TREE *tree) {
         (pawn_hash_table+i)->candidates_b=0;
       }
     }
-    if (pawn_hash_table_size*sizeof(PAWN_HASH_ENTRY) < 1<<20)
-      Print(128,"pawn hash table memory = %dK bytes.\n",
-            pawn_hash_table_size*sizeof(PAWN_HASH_ENTRY)/(1<<10));
-    else {
-      if (pawn_hash_table_size*sizeof(PAWN_HASH_ENTRY)%(1<<20))
-        Print(128,"pawn hash table memory = %.1fM bytes.\n",
-              (float) pawn_hash_table_size*sizeof(PAWN_HASH_ENTRY)/(1<<20));
-      else
-        Print(128,"pawn hash table memory = %dM bytes.\n",
-              pawn_hash_table_size*sizeof(PAWN_HASH_ENTRY)/(1<<20));
-    }
+    Print(128,"pawn hash table memory = %s bytes.\n",
+          PrintKM(pawn_hash_table_size*sizeof(PAWN_HASH_ENTRY)));
   }
 /*
  ----------------------------------------------------------
@@ -1543,6 +1565,7 @@ int Option(TREE *tree) {
     }
     else {
       printf("!command..................passes command to a shell.\n");
+      printf("adaptive NPS a b c d......enables adaptive hash mode.\n");
       printf("alarm on|off..............turns audible alarm on/off.\n");
       printf("analyze...................analyze a game in progress.\n");
       printf("annotate..................annotate game [help].\n");
@@ -1706,33 +1729,12 @@ int Option(TREE *tree) {
 */
   else if (OptionMatch("info",*args)) {
     Print(128,"Crafty version %s\n",version);
-    if (hash_table_size*6*sizeof(HASH_ENTRY) < 1<<20)
-      Print(128,"hash table memory =      %4dK bytes.\n",
-            hash_table_size*sizeof(HASH_ENTRY)/(1<<10));
-    else if (hash_table_size*6*sizeof(HASH_ENTRY)%(1<<20))
-      Print(128,"hash table memory =      %4.1fM bytes.\n",
-            (float) hash_table_size*sizeof(HASH_ENTRY)/(1<<20));
-    else
-      Print(128,"hash table memory =      %4dM bytes.\n",
-            hash_table_size*sizeof(HASH_ENTRY)/(1<<20));
-    if (pawn_hash_table_size*sizeof(PAWN_HASH_ENTRY) < 1<<20)
-      Print(128,"pawn hash table memory = %4dK bytes.\n",
-            pawn_hash_table_size*sizeof(PAWN_HASH_ENTRY)/(1<<10));
-    else if (pawn_hash_table_size*6*sizeof(PAWN_HASH_ENTRY)%(1<<20))
-      Print(128,"pawn hash table memory = %4.1fM bytes.\n",
-            (float) pawn_hash_table_size*sizeof(PAWN_HASH_ENTRY)/(1<<20));
-    else
-      Print(128,"pawn hash table memory = %4dM bytes.\n",
-            pawn_hash_table_size*sizeof(PAWN_HASH_ENTRY)/(1<<20));
-    if (EGTB_cache_size < 1<<20)
-      Print(128,"EGTB cache memory =      %4dK bytes.\n",
-            EGTB_cache_size/(1<<10));
-    else if (EGTB_cache_size%(1<<20))
-      Print(128,"EGTB cache memory =      %4.1fM bytes.\n",
-            (float) EGTB_cache_size/(1<<20));
-    else
-      Print(128,"EGTB cache memory =      %4dM bytes.\n",
-            EGTB_cache_size/(1<<20));
+    Print(128,"hash table memory =      %s bytes.\n",
+          PrintKM(hash_table_size*sizeof(HASH_ENTRY)));
+    Print(128,"pawn hash table memory = %s bytes.\n",
+          PrintKM(pawn_hash_table_size*sizeof(PAWN_HASH_ENTRY)));
+    Print(128,"EGTB cache memory =      %s bytes.\n",
+          PrintKM(EGTB_cache_size));
     if (!tc_sudden_death) {
       Print(128,"%d moves/%d minutes %d seconds primary time control\n",
             tc_moves, tc_time/6000, (tc_time/100)%60);
@@ -1853,6 +1855,25 @@ int Option(TREE *tree) {
     tc_time*=60;
     tc_time_remaining=tc_time;
     tc_secondary_time*=60;
+    if (adaptive_hash) {
+      float percent;
+      int optimal_hash_size;
+      BITBOARD positions_per_move;
+      TimeSet(think);
+      time_limit/=100;
+      positions_per_move=time_limit*adaptive_hash/16;
+      optimal_hash_size=positions_per_move*16*2;
+      optimal_hash_size=Max(optimal_hash_size,adaptive_hash_min);
+      optimal_hash_size=Min(optimal_hash_size,adaptive_hash_max);
+      sprintf(buffer,"hash=%d\n",optimal_hash_size);
+      (void) Option(tree);
+      percent=(float) (hash_table_size*sizeof(HASH_ENTRY)-adaptive_hash_min)/
+              (float) (adaptive_hash_max-adaptive_hash_min);
+      optimal_hash_size=adaptive_hashp_min+percent*(adaptive_hashp_max-adaptive_hashp_min);
+      optimal_hash_size=Max(optimal_hash_size,adaptive_hashp_min);
+      sprintf(buffer,"hashp=%d\n",optimal_hash_size);
+      (void) Option(tree);
+    }
   }
 /*
  ----------------------------------------------------------
@@ -2985,7 +3006,7 @@ int Option(TREE *tree) {
       return(1);
     }
     nmoves=(move_number-1)*2+1-wtm;
-    root_wtm=ChangeSide(wtm);
+    root_wtm=Flip(wtm);
     InitializeChessBoard(&tree->position[0]);
     wtm=1;
     move_number=1;
@@ -2998,7 +3019,7 @@ int Option(TREE *tree) {
     position; then white's first move is recorded as a pass.
 */
       if(strcmp(buffer,"pass")==0) {
-        wtm=ChangeSide(wtm);
+        wtm=Flip(wtm);
         if (wtm) move_number++;
         continue;
       }
@@ -3010,7 +3031,7 @@ int Option(TREE *tree) {
         printf("ERROR!  move %s is illegal\n",buffer);
         break;
       }
-      wtm=ChangeSide(wtm);
+      wtm=Flip(wtm);
       if (wtm) move_number++;
       Phase();
     }
@@ -3083,7 +3104,7 @@ int Option(TREE *tree) {
       if (move) {
         if (read_input != stdin) {
           printf("%s ",OutputMove(tree,move,0,wtm));
-          if (!(move_number % 8) && ChangeSide(wtm)) printf("\n");
+          if (!(move_number % 8) && Flip(wtm)) printf("\n");
         }
         fseek(history_file,((move_number-1)*2+1-wtm)*10,SEEK_SET);
         fprintf(history_file,"%9s\n",OutputMove(tree,move,0,wtm));
@@ -3094,7 +3115,7 @@ int Option(TREE *tree) {
       }
       else if (!read_input) printf("illegal move.\n");
       if (move) {
-        wtm=ChangeSide(wtm);
+        wtm=Flip(wtm);
         Phase();
         if (wtm) move_number++;
       }
@@ -3376,7 +3397,7 @@ int Option(TREE *tree) {
       return(1);
     }
     search_move=InputMove(tree,args[1],0,wtm,0,0);
-    if (!search_move) search_move=InputMove(tree,args[1],0,ChangeSide(wtm),0,0);
+    if (!search_move) search_move=InputMove(tree,args[1],0,Flip(wtm),0,0);
     if (!search_move) printf("illegal move.\n");
   }
 /*
@@ -3476,7 +3497,7 @@ int Option(TREE *tree) {
     int s1, s2=0, s3=0, s4=0, s5=0, s6=0, s7;
 
     if (thinking || pondering) return(2);
-    root_wtm=ChangeSide(wtm);
+    root_wtm=Flip(wtm);
     tree->position[1]=tree->position[0];
     PreEvaluate(tree,root_wtm);
     s7=Evaluate(tree,1,1,-99999,99999);
@@ -3901,8 +3922,8 @@ int Option(TREE *tree) {
   else if (!strcmp("undo",*args)) {
     if (thinking || pondering) return(2);
     if (!wtm || move_number!=1) {
-      wtm=ChangeSide(wtm);
-      if (ChangeSide(wtm)) move_number--;
+      wtm=Flip(wtm);
+      if (Flip(wtm)) move_number--;
       sprintf(buffer,"reset %d",move_number);
       (void) Option(tree);
     }
@@ -3960,7 +3981,7 @@ int Option(TREE *tree) {
       printf("usage:  whisper <level>\n");
       return(1);
     }
-    whisper=atoi(args[1]);
+    kibitz=16+atoi(args[1]);
   }
 /*
  ----------------------------------------------------------
@@ -4126,7 +4147,7 @@ void OptionPerft(TREE *tree, int ply, int depth, int wtm) {
       if (ply == trace_level) printf("%s\n",line);
     }
 #endif
-    if (depth-1) OptionPerft(tree,ply+1,depth-1,ChangeSide(wtm));
+    if (depth-1) OptionPerft(tree,ply+1,depth-1,Flip(wtm));
     else if (!Check(wtm)) total_moves++;
     UnmakeMove(tree,ply,*mv,wtm);
   }

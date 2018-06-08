@@ -198,9 +198,9 @@ void Annotate() {
     }
     else fprintf(annotate_out,"{annotating for player %s}%s\n",pname,html_br);
     fprintf(annotate_out,"{using a scoring margin of %s pawns.}%s\n",
-            DisplayEvaluationWhisper(annotate_margin,wtm),html_br);
+            DisplayEvaluationKibitz(annotate_margin,wtm),html_br);
     fprintf(annotate_out,"{search time limit is %s}%s\n%s\n",
-            DisplayTimeWhisper(annotate_search_time_limit),html_br,html_br);
+            DisplayTimeKibitz(annotate_search_time_limit),html_br,html_br);
     if (strlen(colors)) {
       if (!strcmp(colors,"w")) annotate_wtm=1;
       else if (!strcmp(colors,"b")) annotate_wtm=0;
@@ -328,7 +328,7 @@ void Annotate() {
             if (strlen(html_br)) AnnotatePositionHTML(tree,wtm,annotate_out);
             fprintf(annotate_out,"                ({%d:%s}",
                     player_pv.pathd,
-                    DisplayEvaluationWhisper(player_score,wtm)); 
+                    DisplayEvaluationKibitz(player_score,wtm)); 
             path_len=player_pv.pathl;
             fprintf(annotate_out," %s", FormatPV(tree,wtm, player_pv));
             fprintf(annotate_out," %s)%s\n",
@@ -337,7 +337,7 @@ void Annotate() {
               if (move != temp[move_num].path[1]) {
                 fprintf(annotate_out,"                ({%d:%s}",
                         temp[move_num].pathd,
-                        DisplayEvaluationWhisper(annotate_score[move_num],wtm)); 
+                        DisplayEvaluationKibitz(annotate_score[move_num],wtm)); 
                 path_len=temp[move_num].pathl;
                 fprintf(annotate_out," %s", FormatPV(tree,wtm, temp[move_num]));
                 fprintf(annotate_out," %s)%s\n", 
@@ -385,14 +385,14 @@ void Annotate() {
             }
             fprintf(annotate_out,"                ({suggested %d:%s}",
                     tree->pv[0].pathd,
-                    DisplayEvaluationWhisper(annotate_score[0],wtm)); 
+                    DisplayEvaluationKibitz(annotate_score[0],wtm)); 
             for (i=1;i<=path_len;i++) {
               fprintf(annotate_out," %s",OutputMove(tree,tree->pv[0].path[i],i,twtm)); 
               MakeMove(tree,i,tree->pv[0].path[i],twtm);
-              twtm=ChangeSide(twtm);
+              twtm=Flip(twtm);
             }
             for (i=path_len;i>0;i--) {
-              twtm=ChangeSide(twtm);
+              twtm=Flip(twtm);
               UnmakeMove(tree,i,tree->pv[0].path[i],twtm);
             }
             fprintf(annotate_out," %s)%s\n",
@@ -404,7 +404,7 @@ void Annotate() {
       }
       if (analysis_printed) fprintf(annotate_out,"%s\n",html_br);
       MakeMoveRoot(tree,move,wtm);
-      wtm=ChangeSide(wtm);
+      wtm=Flip(wtm);
       if (wtm) move_number++;
       if (read_status != 0) break;
       if (line2 < -1) break;

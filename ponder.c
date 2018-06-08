@@ -148,23 +148,17 @@ int Ponder(int wtm) {
   MakeMove(tree,0,ponder_move,wtm);
   tlom=last_opponent_move;
   last_opponent_move=ponder_move;
-  if (ChangeSide(wtm))
-    *tree->rephead_w++=HashKey;
-  else
-    *tree->rephead_b++=HashKey;
-  if (RepetitionDraw(tree,wtm)) Print(128,"game is a draw by repetition\n");
-  if (whisper) strcpy(whisper_text,"n/a");
+  tree->rep_list[++tree->rep_game]=HashKey;
+  if (RepetitionDraw(tree)) Print(128,"game is a draw by repetition\n");
+  if (kibitz) strcpy(kibitz_text,"n/a");
   thinking=0;
   pondering=1;
   if (!wtm) move_number++;
-  ponder_value=Iterate(ChangeSide(wtm),think,0);
+  ponder_value=Iterate(Flip(wtm),think,0);
   move_number=save_move_number;
   pondering=0;
   thinking=0;
-  if (ChangeSide(wtm))
-    tree->rephead_w--;
-  else
-    tree->rephead_b--;
+  tree->rep_game--;
   last_opponent_move=tlom;
   UnmakeMove(tree,0,ponder_move,wtm);
 /*

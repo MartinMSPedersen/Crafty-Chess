@@ -135,7 +135,7 @@ int EnPrise(int target, int wtm) {
     direction=directions[target][square];
     if (direction) attacks=SwapXray(tree,attacks,square,direction);
     nc++;
-    color=ChangeSide(color);
+    color=Flip(color);
   }
 /*
  ----------------------------------------------------------

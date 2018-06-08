@@ -151,8 +151,8 @@ char* OutputMove(TREE *tree, int move, int ply, int wtm) {
   text=text_move+strlen(text_move);
   tree->position[MAXPLY]=tree->position[ply];
   MakeMove(tree, MAXPLY, move, wtm);
-  if (Check(ChangeSide(wtm))) {
-    mvp=GenerateCheckEvasions(tree,MAXPLY+1, ChangeSide(wtm), tree->move_list+4800);
+  if (Check(Flip(wtm))) {
+    mvp=GenerateCheckEvasions(tree,MAXPLY+1, Flip(wtm), tree->move_list+4800);
     if (mvp == (tree->move_list+4800))
       *text++='#';
     else

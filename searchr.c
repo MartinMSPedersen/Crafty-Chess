@@ -68,7 +68,7 @@ int SearchRoot(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth) {
  ----------------------------------------------------------
 */
     extended=0;
-    if (Check(ChangeSide(wtm))) {
+    if (Check(Flip(wtm))) {
       tree->in_check[2]=1;
       tree->check_extensions_done++;
       extended+=incheck_depth;
@@ -99,10 +99,10 @@ int SearchRoot(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth) {
     extensions=extended-INCPLY;
     if (first_move) {
       if (depth+extensions >= INCPLY)
-        value=-Search(tree,-beta,-alpha,ChangeSide(wtm),
+        value=-Search(tree,-beta,-alpha,Flip(wtm),
                       depth+extensions,2,DO_NULL,0);
       else
-        value=-Quiesce(tree,-beta,-alpha,ChangeSide(wtm),2);
+        value=-Quiesce(tree,-beta,-alpha,Flip(wtm),2);
       if (abort_search) {
         UnmakeMove(tree,1,tree->current_move[1],wtm);
         return(alpha);
@@ -111,20 +111,20 @@ int SearchRoot(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth) {
     }
     else {
       if (depth+extensions >= INCPLY)
-        value=-Search(tree,-alpha-1,-alpha,ChangeSide(wtm),
+        value=-Search(tree,-alpha-1,-alpha,Flip(wtm),
                       depth+extensions,2,DO_NULL,0);
       else
-        value=-Quiesce(tree,-alpha-1,-alpha,ChangeSide(wtm),2);
+        value=-Quiesce(tree,-alpha-1,-alpha,Flip(wtm),2);
       if (abort_search) {
         UnmakeMove(tree,1,tree->current_move[1],wtm);
         return(alpha);
       }
       if ((value > alpha) && (value < beta)) {
       if (depth+extensions >= INCPLY)
-        value=-Search(tree,-beta,-alpha,ChangeSide(wtm),
+        value=-Search(tree,-beta,-alpha,Flip(wtm),
                       depth+extensions,2,DO_NULL,0);
       else
-        value=-Quiesce(tree,-beta,-alpha,ChangeSide(wtm),2);
+        value=-Quiesce(tree,-beta,-alpha,Flip(wtm),2);
         if (abort_search) {
           UnmakeMove(tree,1,tree->current_move[1],wtm);
           return(alpha);
@@ -230,7 +230,7 @@ void SearchOutput(TREE *tree, int value, int bound) {
                 abs(value)>MATE-300;
   wtm=root_wtm;
   if (!abort_search) {
-    whisper_depth=iteration_depth;
+    kibitz_depth=iteration_depth;
     for (i=0;i<n_root_moves;i++)
       if (tree->current_move[1] == root_moves[i].move) break;
     if (i && i<n_root_moves) {

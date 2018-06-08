@@ -199,7 +199,7 @@ int InputMove(TREE *tree, char *text, int ply, int wtm, int silent,
     if ((trank >= 0)  && (Rank(To(*mv)) != trank)) *mv=0;
     if (!ponder_list && *mv) {
       MakeMove(tree,MAXPLY, *mv, wtm);
-      if (Check(wtm) || (give_check && !Check(ChangeSide(wtm)))) {
+      if (Check(wtm) || (give_check && !Check(Flip(wtm)))) {
         UnmakeMove(tree,MAXPLY, *mv, wtm);
         *mv=0;
       }

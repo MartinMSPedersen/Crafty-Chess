@@ -49,7 +49,7 @@ int Swap(TREE * RESTRICT tree, int source, int target, int wtm) {
 |                                                          |
  ----------------------------------------------------------
 */
-  color=ChangeSide(wtm);
+  color=Flip(wtm);
   swap_list[0]=attacked_piece;
   attacked_piece=p_values[PcOnSq(source)+7];
   Clear(source,attacks);
@@ -112,7 +112,7 @@ int Swap(TREE * RESTRICT tree, int source, int target, int wtm) {
     direction=directions[target][square];
     if (direction) attacks=SwapXray(tree,attacks,square,direction);
     nc++;
-    color=ChangeSide(color);
+    color=Flip(color);
   }
 /*
  ----------------------------------------------------------

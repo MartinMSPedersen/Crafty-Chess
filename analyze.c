@@ -96,8 +96,8 @@ void Analyze() {
         if (nargs > 1) back_number=atoi(args[1]);
         else back_number=1;
         for (i=0;i<back_number;i++) {
-          wtm=ChangeSide(wtm);
-          if (ChangeSide(wtm)) move_number--;
+          wtm=Flip(wtm);
+          if (Flip(wtm)) move_number--;
         }
         if (move_number == 0) {
           move_number=1;
@@ -146,8 +146,8 @@ void Analyze() {
           pondering=1;
         }
         else {
-          wtm=ChangeSide(wtm);
-          if (ChangeSide(wtm)) move_number--;
+          wtm=Flip(wtm);
+          if (Flip(wtm)) move_number--;
           if (move_number == 0) {
             move_number=1;
             wtm=1;
@@ -159,7 +159,7 @@ void Analyze() {
       }
     } while (!move);
     if (readstat < 0 || !strcmp(args[0],"exit")) break;
-    wtm=ChangeSide(wtm);
+    wtm=Flip(wtm);
     if (wtm) move_number++;
   } while (1);
   analyze_mode=0;

@@ -31,7 +31,7 @@
 */
 #if !defined(TYPES_INCLUDED)
 
-#if defined (_MSC_VER) && (MSC_VER >= 1300)
+#if defined (_MSC_VER) && (_MSC_VER >= 1300)
 #  define RESTRICT __restrict
 #else
 #  define RESTRICT
@@ -422,10 +422,8 @@ struct tree {
   PAWN_HASH_ENTRY pawn_score;
   NEXT_MOVE       next_status[MAXPLY];
   BITBOARD        save_hash_key[MAXPLY+2];
-  BITBOARD        replist_w[128];
-  BITBOARD        replist_b[128];
-  BITBOARD        *rephead_w;
-  BITBOARD        *rephead_b;
+  BITBOARD        rep_list[256];
+  int             rep_game;
   BITBOARD        all_pawns;
   BITBOARD        nodes_searched;
   SEARCH_POSITION position[MAXPLY+2];
@@ -589,14 +587,14 @@ void           DisplayBitBoard(BITBOARD);
 void           Display64BitWord(BITBOARD);
 void           DisplayChessBoard(FILE*, POSITION);
 char*          DisplayEvaluation(int,int);
-char*          DisplayEvaluationWhisper(int,int);
+char*          DisplayEvaluationKibitz(int,int);
 void           DisplayFT(int, int, int);
 char*          DisplayHHMM(unsigned int);
 void           DisplayPieceBoards(signed char*, signed char*);
 void           DisplayPV(TREE*, int, int, int, int, PATH*);
 char*          DisplaySQ(unsigned int);
 char*          DisplayTime(unsigned int);
-char*          DisplayTimeWhisper(unsigned int);
+char*          DisplayTimeKibitz(unsigned int);
 void           DisplayTreeState(TREE*, int, int, int);
 void           Display2BitBoards(BITBOARD, BITBOARD);
 void           DisplayChessMove(char*, int);
@@ -679,6 +677,7 @@ int            PinnedOnKing(TREE*RESTRICT, int, int);
 int            Ponder(int);
 void           PreEvaluate(TREE*RESTRICT,int);
 void           Print(int, char*, ...);
+char*          PrintKM(int);
 int            Quiesce(TREE*RESTRICT, int, int, int, int);
 unsigned int   Random32(void);
 BITBOARD       Random64(void);
@@ -690,9 +689,9 @@ int            ReadPGN(FILE*,int);
 int            ReadNextMove(TREE*, char*, int, int);
 int            ReadParse(char*, char *args[], char*);
 int            ReadInput(void);
-int            RepetitionCheck(TREE*RESTRICT, int, int);
-int            RepetitionCheckBook(TREE*RESTRICT, int, int);
-int            RepetitionDraw(TREE*RESTRICT, int);
+int            RepetitionCheck(TREE*RESTRICT, int);
+int            RepetitionCheckBook(TREE*RESTRICT, int);
+int            RepetitionDraw(TREE*RESTRICT);
 void           ResignOrDraw(TREE*, int);
 void           RestoreGame(void);
 char*          Reverse(void);
@@ -724,7 +723,7 @@ void           TimeSet(int);
 void           UnmakeMove(TREE*RESTRICT, int, int, int);
 int            ValidMove(TREE*, int, int, int);
 void           ValidatePosition(TREE*, int, int, char*);
-void           Whisper(int, int, int, int, int, BITBOARD , int, int, char*);
+void           Kibitz(int, int, int, int, int, BITBOARD , int, int, char*);
   
 #if defined(HAS_64BITS) || defined(HAS_LONGLONG)
 #  if defined(CRAY1)
@@ -922,7 +921,7 @@ void           Whisper(int, int, int, int, int, BITBOARD , int, int, char*);
     simply returns the result of Attacked().
 */
 #define Check(wtm)                                                     \
-  Attacked(tree, (wtm)?WhiteKingSQ:BlackKingSQ,ChangeSide(wtm))
+  Attacked(tree, (wtm)?WhiteKingSQ:BlackKingSQ,Flip(wtm))
 /*  
     Attack() is used to determine if a sliding piece on 'from' can reach
     'to'.  the only requirement is that there be no pieces along the pathway
@@ -948,7 +947,7 @@ void           Whisper(int, int, int, int, int, BITBOARD , int, int, char*);
 #define AttacksQueen(a)   (AttacksBishop(a)|AttacksRook(a))
 #define Rank(x)       ((x)>>3)
 #define File(x)       ((x)&7)
-#define ChangeSide(x) ((x)^1)
+#define Flip(x)       ((x)^1)
 
 #if defined(COMPACT_ATTACKS)
 #  define AttacksDiaga1Int(diagp,boardp)                                  \

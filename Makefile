@@ -172,9 +172,11 @@ linux:
 	$(MAKE) target=LINUX \
 		CC=gcc CXX=g++ \
 		CFLAGS='$(CFLAGS) -Wall -pipe -D_REENTRANT -O3' \
-		CXFLAGS='$(CFLAGS) -fomit-frame-pointer' \
+		CXFLAGS='$(CFLAGS) \
+			-fforce-mem -fomit-frame-pointer' \
 		LDFLAGS='$(LDFLAGS) -lpthread' \
-		opt='$(opt) -DFAST' \
+		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
+		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST' \
 		asm=X86-aout.o \
 		crafty-make
 
@@ -186,7 +188,8 @@ linux-elf:
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS='$(LDFLAGS) -lpthread' \
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
-		     -DFAST' \
+		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST' \
+		asm=X86-elf.o \
 		crafty-make
 
 linux-i686:
@@ -221,10 +224,10 @@ linux-i686-elf-profile:
 	$(MAKE) target=LINUX \
 		CC=gcc CXX=g++ \
 		CFLAGS='$(CFLAGS) -Wall -pipe -D_REENTRANT -march=i686 -O3 \
-			-g -fprofile-arcs -fforce-mem \
+			-fprofile-arcs -fforce-mem \
 			-fno-gcse -mpreferred-stack-boundary=2' \
 		CXFLAGS=$(CFLAGS) \
-		LDFLAGS='$(LDFLAGS) -g -fprofile-arcs -lstdc++' \
+		LDFLAGS='$(LDFLAGS) -fprofile-arcs -lstdc++' \
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
 		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST \
 		     -DSMP -DCPUS=4 -DCLONE -DDGT' \
@@ -235,11 +238,11 @@ linux-icc-elf-profile:
 	$(MAKE) target=LINUX \
 		CC=icc CXX=icc \
 		CFLAGS='$(CFLAGS) -D_REENTRANT -O2 -march=pentium4 \
-                        -prof_gen -prof_dir ./profdir \
+                        -mcpu=pentium4 -prof_gen -prof_dir ./profdir \
                         -fno-alias -tpp7' \
 		CXFLAGS='$(CFLAGS) -D_REENTRANT -O2 -march=pentium4 \
                         -mcpu=pentium4 -prof_gen -prof_dir ./profdir \
-                        -fno-alias -tpp7' \
+                        -tpp7' \
 		LDFLAGS=$(LDFLAGS) \
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
 		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST \
@@ -250,14 +253,16 @@ linux-icc-elf-profile:
 linux-icc-elf:
 	$(MAKE) target=LINUX \
 		CC=icc CXX=icc \
-		CFLAGS='$(CFLAGS) -D_REENTRANT -O2 \
-                        -fno-alias ' \
-		CXFLAGS='$(CFLAGS) -D_REENTRANT -O2 \
-                        -fno-alias' \
+		CFLAGS='$(CFLAGS) -D_REENTRANT -O2 -march=pentium4 \
+                        -mcpu=pentium4 -prof_use -prof_dir ./profdir \
+                        -g -fno-alias -tpp7' \
+		CXFLAGS='$(CFLAGS) -D_REENTRANT -O2 -march=pentium4 \
+                        -mcpu=pentium4 -prof_use -prof_dir ./profdir \
+                        -tpp7' \
 		LDFLAGS=$(LDFLAGS) \
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
 		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST \
-		     -DSMP -DCPUS=4 -DCLONE' \
+		     -DSMP -DCPUS=4 -DCLONE -DDGT' \
 		asm=X86-elf.o \
 		crafty-make
 
@@ -265,11 +270,9 @@ icc-elf:
 	$(MAKE) target=LINUX \
 		CC=icc CXX=icc \
 		CFLAGS='$(CFLAGS) -D_REENTRANT -O2 -march=pentium4 \
-                        -mcpu=pentium4 \
-                        -fno-alias -tpp7' \
+                        -mcpu=pentium4 -fno-alias -tpp7' \
 		CXFLAGS='$(CFLAGS) -D_REENTRANT -O2 -march=pentium4 \
-                        -mcpu=pentium4 ./profdir \
-                        -fno-alias -tpp7' \
+                        -mcpu=pentium4 -tpp7' \
 		LDFLAGS=$(LDFLAGS) \
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
 		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST \
@@ -375,7 +378,7 @@ sgi:
 	$(MAKE) target=SGI \
 		AS=/bin/as CC=cc CXX='$$(CC)' \
 		AFLAGS='-P' \
-		CFLAGS='$(CFLAGS) -g -32 -mips2 -cckr' \
+		CFLAGS='$(CFLAGS) -32 -mips2 -cckr' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS=$(LDFLAGS) \
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS' \
@@ -413,8 +416,10 @@ generic:
 		crafty-make
 
 profile:
+
 	touch *.c
 	@rm -rf profdir
+	@rm -rf position.bin
 	@mkdir profdir
 	$(MAKE) linux-icc-elf-profile
 	@echo "#!/bin/csh" > runprof
@@ -507,7 +512,7 @@ objects = searchr.o search.o thread.o searchmp.o repeat.o next.o nexte.o      \
        drawn.o edit.o epd.o epdglue.o init.o input.o interupt.o iterate.o     \
        main.o option.o output.o phase.o ponder.o preeval.o resign.o root.o    \
        learn.o setboard.o test.o testepd.o time.o validate.o annotate.o       \
-       analyze.o evtest.o bench.o egtb.o dgt.o
+       analyze.o evtest.o bench.o egtb.o dgt.o $(asm)
 
 includes = data.h chess.h
 

@@ -67,7 +67,7 @@ int Book(TREE *tree, int wtm, int root_list_done) {
   int percent_played, total_played, total_moves, smoves;
   int distribution;
   int initial_development;
-  char *whisper_p;
+  char *kibitz_p;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -99,7 +99,7 @@ int Book(TREE *tree, int wtm, int root_list_done) {
       for (im=0;im<n_root_moves;im++) {
         common=HashKey & mask_16;
         MakeMove(tree,1,root_moves[im].move,wtm);
-        if (RepetitionCheckBook(tree,2,ChangeSide(wtm))) {
+        if (RepetitionCheckBook(tree,2)) {
           UnmakeMove(tree,1,root_moves[im].move,wtm);
           return(0);
         }
@@ -170,7 +170,7 @@ int Book(TREE *tree, int wtm, int root_list_done) {
     for (im=0;im<n_root_moves;im++) {
       common=HashKey & mask_16;
       MakeMove(tree,1,root_moves[im].move,wtm);
-      if (RepetitionCheckBook(tree,2,ChangeSide(wtm))) {
+      if (RepetitionCheckBook(tree,2)) {
         UnmakeMove(tree,1,root_moves[im].move,wtm);
         return(0);
       }
@@ -415,20 +415,20 @@ int Book(TREE *tree, int wtm, int root_list_done) {
  ----------------------------------------------------------
 */
     if (!puzzling) do {
-      whisper_text[0]='\0';
+      kibitz_text[0]='\0';
       if (!nmoves) break;
-      sprintf(whisper_text,"book moves (");
-      whisper_p=whisper_text+strlen(whisper_text);
+      sprintf(kibitz_text,"book moves (");
+      kibitz_p=kibitz_text+strlen(kibitz_text);
       for (i=0;i<nmoves;i++) {
-        sprintf(whisper_p,"%s %d%%",OutputMove(tree,book_moves[i],1,wtm),
+        sprintf(kibitz_p,"%s %d%%",OutputMove(tree,book_moves[i],1,wtm),
                                     100*bs_played[i]/Max(total_played,1));
-        whisper_p=whisper_text+strlen(whisper_text);
+        kibitz_p=kibitz_text+strlen(kibitz_text);
         if (i < nmoves-1) {
-          sprintf(whisper_p,", ");
-          whisper_p=whisper_text+strlen(whisper_text);
+          sprintf(kibitz_p,", ");
+          kibitz_p=kibitz_text+strlen(kibitz_text);
         }
       }
-      sprintf(whisper_p,")\n");
+      sprintf(kibitz_p,")\n");
     } while(0);
 /*
  ----------------------------------------------------------
@@ -697,7 +697,7 @@ int Book(TREE *tree, int wtm, int root_list_done) {
     tree->pv[1].pathd=0;
     if (mode != tournament_mode) {
       MakeMove(tree,1,book_moves[which],wtm);
-      if ((book_ponder_move=BookPonderMove(tree,ChangeSide(wtm)))) {
+      if ((book_ponder_move=BookPonderMove(tree,Flip(wtm)))) {
         tree->pv[1].path[2]=book_ponder_move;
         tree->pv[1].pathl=2;
       }
@@ -715,7 +715,7 @@ int Book(TREE *tree, int wtm, int root_list_done) {
     }
     MakeMove(tree,1,tree->pv[1].path[1],wtm);
     if (tree->pv[1].pathl>1)
-      Print(128," %s",OutputMove(tree,tree->pv[1].path[2],2,ChangeSide(wtm)));
+      Print(128," %s",OutputMove(tree,tree->pv[1].path[2],2,Flip(wtm)));
     UnmakeMove(tree,1,tree->pv[1].path[1],wtm);
     Print(128,"\n");
     return(1);
@@ -1077,7 +1077,7 @@ void BookUp(TREE *tree, int nargs, char **args) {
                 if (!(total_moves % 6000000)) printf(" (%dk)\n",total_moves/1000);
                 fflush(stdout);
               }
-              wtm=ChangeSide(wtm);
+              wtm=Flip(wtm);
               if (wtm) move_num++;
             }
             else if (strspn(buffer,"0123456789/-.*") != strlen(buffer) &&

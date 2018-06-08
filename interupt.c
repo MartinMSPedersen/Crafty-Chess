@@ -22,28 +22,6 @@ void Interrupt(int ply) {
   int temp, i, left=0, readstat, result, time_used;
   int save_move_number;
   TREE * const tree=local[0];
-  static int busy=0;
-/*
- ----------------------------------------------------------
-|                                                          |
-|   if another thread is already reading the input, this   |
-|   thread can exit now.                                   |
-|                                                          |
- ----------------------------------------------------------
-*/
-#if defined(SMP)
-  Lock(lock_io);
-  if (busy==1) {
-    Unlock(lock_io);
-    return;
-  }
-  busy=1;
-  Unlock(lock_io);
-#endif
-  if (abort_search) {
-    busy=0;
-    return;
-  }
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -177,7 +155,7 @@ void Interrupt(int ply) {
       else if (!result) {
         if (pondering) {
           nargs=ReadParse(buffer,args," 	;");
-          temp=InputMove(tree,args[0],0,ChangeSide(root_wtm),1,1);
+          temp=InputMove(tree,args[0],0,Flip(root_wtm),1,1);
           if (temp) {
             if (auto232) {
               const char *mv=OutputMoveICS(temp);
@@ -220,5 +198,4 @@ void Interrupt(int ply) {
     }
   } while (1);
   if (log_file) fflush(log_file);
-  busy=0;
 }

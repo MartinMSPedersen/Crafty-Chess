@@ -97,7 +97,7 @@ int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
 |                                                          |
  ----------------------------------------------------------
 */
-      if (Check(ChangeSide(wtm))) {
+      if (Check(Flip(wtm))) {
         tree->in_check[ply+1]=1;
         tree->check_extensions_done++;
         extended+=incheck_depth;
@@ -174,20 +174,20 @@ int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
 #else
       if (depth+extensions>=INCPLY)
 #endif
-        value=-Search(tree,-alpha-1,-alpha,ChangeSide(wtm),
+        value=-Search(tree,-alpha-1,-alpha,Flip(wtm),
                       depth+extensions,ply+1,DO_NULL,recapture);
       else
-        value=-Quiesce(tree,-alpha-1,-alpha,ChangeSide(wtm),ply+1);
+        value=-Quiesce(tree,-alpha-1,-alpha,Flip(wtm),ply+1);
       if (abort_search || tree->stop) {
         UnmakeMove(tree,ply,tree->current_move[ply],wtm);
         break;
       }
       if (value>alpha && value<beta) {
         if (depth+extensions >= INCPLY)
-          value=-Search(tree,-beta,-alpha,ChangeSide(wtm),
+          value=-Search(tree,-beta,-alpha,Flip(wtm),
                         depth+extensions,ply+1,DO_NULL,recapture);
         else
-          value=-Quiesce(tree,-beta,-alpha,ChangeSide(wtm),ply+1);
+          value=-Quiesce(tree,-beta,-alpha,Flip(wtm),ply+1);
         if (abort_search || tree->stop) {
           UnmakeMove(tree,ply,tree->current_move[ply],wtm);
           break;

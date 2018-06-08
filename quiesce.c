@@ -154,7 +154,7 @@ int Quiesce(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply) {
       SearchTrace(tree,ply,0,wtm,alpha,beta,"quiesce",CAPTURE_MOVES);
 #endif
     MakeMove(tree,ply,tree->current_move[ply],wtm);
-    value=-Quiesce(tree,-beta,-alpha,ChangeSide(wtm),ply+1);
+    value=-Quiesce(tree,-beta,-alpha,Flip(wtm),ply+1);
     UnmakeMove(tree,ply,tree->current_move[ply],wtm);
     if (value > alpha) {
       if(value >= beta) return(value);

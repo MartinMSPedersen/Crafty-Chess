@@ -14,8 +14,8 @@
   FILE           *book_lrn_file;
   FILE           *position_file;
   FILE           *position_lrn_file;
-  char           whisper_text[512];
-  int            whisper_depth;
+  char           kibitz_text[512];
+  int            kibitz_depth;
   int            done=0;
   BITBOARD       total_moves;
   int            last_mate_score;
@@ -249,7 +249,7 @@
   unsigned int   max_split_blocks;
   volatile unsigned int   splitting;
 
-# define    VERSION                             "19.2"
+# define    VERSION                             "19.3"
   char      version[6] =                    {VERSION};
   PLAYING_MODE mode =                     normal_mode;
 
@@ -336,7 +336,6 @@
   int       EGTB_setup =                            0;
   int       xboard =                                0;
   int       pong =                                  0;
-  int       whisper =                               0;
   int       channel =                               0;
   int       early_exit =                           99;
   int       new_game =                              0;
@@ -394,6 +393,11 @@
   signed char draw_count =                         10;
   signed char draw_offer_pending =                  0;
   int       offer_draws =                           1;
+  int       adaptive_hash =                         0;
+  int       adaptive_hash_min =                     0;
+  int       adaptive_hash_max =                     0;
+  int       adaptive_hashp_min =                    0;
+  int       adaptive_hashp_max =                    0;
   int       tc_moves =                             60;
   int       tc_time =                          180000;
   int       tc_time_remaining =                180000;
@@ -697,10 +701,10 @@
   signed char     white_outpost[64] = { 0, 0, 0, 0, 0, 0, 0, 0,
                                         0, 0, 0, 0, 0, 0, 0, 0,
                                         0, 0, 0, 0, 0, 0, 0, 0,
-                                        0, 0, 0, 4, 4, 0, 0, 0,
-                                        0, 0, 8,10,10, 8, 0, 0,
-                                        0, 0, 8,12,12, 8, 0, 0,
-                                        0, 0, 4, 8, 8, 4, 0, 0,
+                                        0, 0, 0, 6, 6, 0, 0, 0,
+                                        0, 0,12,15,15,12, 0, 0,
+                                        0, 0,12,18,18,12, 0, 0,
+                                        0, 0, 6,12,12, 6, 0, 0,
                                         0, 0, 0, 0, 0, 0, 0, 0 };
 
   const char     push_extensions[64] = { 0, 0, 0, 0, 0, 0, 0, 0,

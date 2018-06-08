@@ -3,7 +3,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 03/09/00 */
+/* last modified 01/23/03 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -25,8 +25,8 @@
 *                                                                              *
 ********************************************************************************
 */
-int RepetitionCheck(TREE * RESTRICT tree, int ply, int wtm) {
-  register BITBOARD *replist, *thispos, *lastpos;
+int RepetitionCheck(TREE * RESTRICT tree, int ply) {
+  register int where, thispos;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -47,29 +47,23 @@ int RepetitionCheck(TREE * RESTRICT tree, int ply, int wtm) {
 |                                                          |
  ----------------------------------------------------------
 */
-  if (wtm) {
-    thispos=tree->rephead_w+((ply-2)>>1);
-    lastpos=tree->replist_w;
-  }
-  else {
-    thispos=tree->rephead_b+((ply-2)>>1);
-    lastpos=tree->replist_b;
-  }
-  *thispos=HashKey;
+  thispos=tree->rep_game+ply-1;
+  tree->rep_list[thispos]=HashKey;
   if (ply > 3) {
-    for (replist=thispos-1;replist>=lastpos;replist--)
-      if(HashKey == *replist) return(1);
+    int limit=thispos-Rule50Moves(ply);
+    for (where=thispos-2;where>=limit;where-=2)
+      if(HashKey == tree->rep_list[where]) return(1);
   }
   else {
     int count=0;
-    for (replist=thispos-1;replist>=lastpos;replist--)
-      if(HashKey == *replist) count++;
+    for (where=thispos-2;where>=0;where-=2)
+      if(HashKey == tree->rep_list[where]) count++;
     if (count > 1) return(1);
   }
   return(0);
 }
 
-/* last modified 03/28/00 */
+/* last modified 01/23/03 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -79,9 +73,8 @@ int RepetitionCheck(TREE * RESTRICT tree, int ply, int wtm) {
 *                                                                              *
 ********************************************************************************
 */
-int RepetitionCheckBook(TREE * RESTRICT tree, int ply, int wtm) {
-  register int entries;
-  register BITBOARD *replist, *thispos;
+int RepetitionCheckBook(TREE * RESTRICT tree, int ply) {
+  register int where, thispos;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -99,14 +92,13 @@ int RepetitionCheckBook(TREE * RESTRICT tree, int ply, int wtm) {
 |                                                          |
  ----------------------------------------------------------
 */
-  entries=Rule50Moves(ply)>>1;
-  thispos=(wtm)?tree->rephead_w:tree->rephead_b;
-  for (replist=thispos-1;entries;replist--,entries--)
-    if(HashKey == *replist) return(1);
+  thispos=tree->rep_game+ply-1;
+  for (where=thispos-2;where>=0;where-=2)
+    if(HashKey == tree->rep_list[where]) return(1);
   return(0);
 }
 
-/* last modified 03/11/98 */
+/* last modified 01/23/03 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -117,9 +109,9 @@ int RepetitionCheckBook(TREE * RESTRICT tree, int ply, int wtm) {
 *                                                                              *
 ********************************************************************************
 */
-int RepetitionDraw(TREE * RESTRICT tree, int wtm) {
+int RepetitionDraw(TREE * RESTRICT tree) {
   register int reps;
-  BITBOARD *thispos;
+  int where;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -138,13 +130,7 @@ int RepetitionDraw(TREE * RESTRICT tree, int wtm) {
  ----------------------------------------------------------
 */
   reps=0;
-  if (wtm) {
-    for (thispos=tree->replist_w;thispos<tree->rephead_w;thispos++)
-      if(HashKey == *thispos) reps++;
-  }
-  else {
-    for (thispos=tree->replist_b;thispos<tree->rephead_b;thispos++)
-      if(HashKey == *thispos) reps++;
-  }
+  for (where=tree->rep_game;where>=0;where-=2)
+    if(HashKey == tree->rep_list[where]) reps++;
   return(reps == 3);
 }

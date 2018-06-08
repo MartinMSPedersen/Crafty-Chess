@@ -232,7 +232,7 @@ void LearnBook(TREE *tree, int wtm, int search_value, int search_depth, int lv,
         }
         if (move) MakeMoveRoot(tree, move,wtm);
       }
-      wtm=ChangeSide(wtm);
+      wtm=Flip(wtm);
     } 
 /*
  ----------------------------------------------------------
@@ -287,7 +287,7 @@ void LearnBook(TREE *tree, int wtm, int search_value, int search_depth, int lv,
         LearnBookUpdate(tree, wtm, move, temp_value);
         MakeMoveRoot(tree, move,wtm);
       }
-      wtm=ChangeSide(wtm);
+      wtm=Flip(wtm);
     } 
 /*
  ----------------------------------------------------------
@@ -584,7 +584,7 @@ void LearnImportBook(TREE *tree, int nargs, char **args) {
     }
     if (eof == 0) break;
     do {
-      wtm=ChangeSide(wtm);
+      wtm=Flip(wtm);
       if (wtm) move_number++;
       do {
         nextc=fgetc(learn_in);

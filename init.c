@@ -997,10 +997,7 @@ void SetChessBitBoards(SEARCH_POSITION *new_pos) {
     }
   }
   TotalPieces=PopCnt(Occupied);
-  if (new_pos == &tree->position[0]) {
-    tree->rephead_b=tree->replist_b;
-    tree->rephead_w=tree->replist_w;
-  }
+  if (new_pos == &tree->position[0]) tree->rep_game=-1;
 }
 
 /*
@@ -1413,7 +1410,7 @@ void InitializePieceMasks(void) {
         if (KingPawnSquare(j,i,File(j)+56,1)) 
           white_pawn_race_wtm[j]=white_pawn_race_wtm[j] | SetMask(i);
       }
-/* white pawn, ChangeSide(wtm) */
+/* white pawn, Flip(wtm) */
       if (j < 16) {
         if (KingPawnSquare(j+8,i,File(j)+56,0)) 
           white_pawn_race_btm[j]=white_pawn_race_btm[j] | SetMask(i);
@@ -1431,7 +1428,7 @@ void InitializePieceMasks(void) {
         if (KingPawnSquare(j,i,File(j),0)) 
           black_pawn_race_wtm[j]=black_pawn_race_wtm[j] | SetMask(i);
       }
-/* black pawn, ChangeSide(wtm) */
+/* black pawn, Flip(wtm) */
       if (j > 47) {
         if (KingPawnSquare(j-8,i,File(j),1)) 
           black_pawn_race_btm[j]=black_pawn_race_btm[j] | SetMask(i);

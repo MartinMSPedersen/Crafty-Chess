@@ -58,7 +58,7 @@ void Edit(void) {
     else if (!strcmp(args[0],"black")) wtm=0;
     if (!strcmp(args[0],"#"))
       for (i=0;i<64;i++) PcOnSq(i)=0;
-    else if (!strcmp(args[0],"c")) wtm=ChangeSide(wtm);
+    else if (!strcmp(args[0],"c")) wtm=Flip(wtm);
     else if (!strcmp(args[0],"end") || (!strcmp(args[0],"."))) break;
     else if (!strcmp(args[0],"d")) DisplayChessBoard(stdout,tree->pos);
     else if (strlen(args[0]) == 3) {
@@ -132,9 +132,8 @@ void Edit(void) {
   if (log_file) DisplayChessBoard(log_file,tree->pos);
   wtm=1;
   move_number=1;
-  tree->rephead_b=tree->replist_b;
-  tree->rephead_w=tree->replist_w;
-  *tree->rephead_w++=HashKey;
+  tree->rep_game=0;
+  tree->rep_list[tree->rep_game]=HashKey;
   tree->position[0].rule_50_moves=0;
   moves_out_of_book=0;
   lazy_eval_cutoff=200;

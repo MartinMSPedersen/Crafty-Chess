@@ -69,18 +69,18 @@ void RootMoveList(int wtm) {
       tree->current_move[1]=*mvp;
       if (TotalPieces<=EGTBlimit && EGTB_draw &&
           WhiteCastle(1)+BlackCastle(1)==0) {
-        i=EGTBProbe(tree, 2, ChangeSide(wtm), &tb_value);
-        if (i && tb_value != DrawScore(ChangeSide(wtm))) break;
+        i=EGTBProbe(tree, 2, Flip(wtm), &tb_value);
+        if (i && tb_value != DrawScore(Flip(wtm))) break;
       }
       if (mating_via_tb && TotalPieces<=EGTBlimit &&
           WhiteCastle(1)+BlackCastle(1)==0) {
-        i=EGTBProbe(tree, 2, ChangeSide(wtm), &tb_value);
-        if (i && ((mating_via_tb > DrawScore(ChangeSide(wtm)) &&
+        i=EGTBProbe(tree, 2, Flip(wtm), &tb_value);
+        if (i && ((mating_via_tb > DrawScore(Flip(wtm)) &&
             tb_value < mating_via_tb) ||
-                  (mating_via_tb < DrawScore(ChangeSide(wtm)) &&
+                  (mating_via_tb < DrawScore(Flip(wtm)) &&
             tb_value > mating_via_tb))) break;
       }
-      value=-Quiesce(tree,-MATE,MATE,ChangeSide(wtm),2);
+      value=-Quiesce(tree,-MATE,MATE,Flip(wtm),2);
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -181,7 +181,7 @@ void RootMoveList(int wtm) {
       MakeMove(tree, 1, rmoves[i], wtm);
       if (mating_via_tb && TotalPieces <= EGTBlimit &&
           WhiteCastle(1)+BlackCastle(1)==0)
-        temp=(EGTBProbe(tree, 2, ChangeSide(wtm), &tb_value) != DrawScore(ChangeSide(wtm)));
+        temp=(EGTBProbe(tree, 2, Flip(wtm), &tb_value) != DrawScore(Flip(wtm)));
       else
         temp=0;
       UnmakeMove(tree, 1, rmoves[i], wtm);

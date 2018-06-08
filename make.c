@@ -648,14 +648,10 @@ void MakeMoveRoot(TREE * RESTRICT tree, int move, int wtm) {
  ----------------------------------------------------------
 */
   if (Rule50Moves(1) == 0) {
-    tree->rephead_b=tree->replist_b;
-    tree->rephead_w=tree->replist_w;
+    tree->rep_game=-1;
   }
   WhiteCastle(1)=Max(0,WhiteCastle(1));
   BlackCastle(1)=Max(0,BlackCastle(1));
   tree->position[0]=tree->position[1];
-  if (ChangeSide(wtm))
-    *tree->rephead_w++=HashKey;
-  else
-    *tree->rephead_b++=HashKey;
+  tree->rep_list[++tree->rep_game]=HashKey;
 }

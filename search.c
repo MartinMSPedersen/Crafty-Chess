@@ -64,7 +64,7 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
 |                                                          |
  ----------------------------------------------------------
 */
-  if (RepetitionCheck(tree,ply,wtm)) {
+  if (RepetitionCheck(tree,ply)) {
     value=DrawScore(wtm);
     if (value < beta) SavePV(tree,ply,value,0);
 #if defined(TRACE)
@@ -225,10 +225,10 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
     null_depth=(depth>6*INCPLY && pieces>8) ? null_max : null_min;
     if (null_depth) {
       if (depth-null_depth >= INCPLY)
-        value=-Search(tree,-beta,1-beta,ChangeSide(wtm),
+        value=-Search(tree,-beta,1-beta,Flip(wtm),
                       depth-null_depth,ply+1,NO_NULL,0);
       else
-        value=-Quiesce(tree,-beta,1-beta,ChangeSide(wtm),ply+1);
+        value=-Quiesce(tree,-beta,1-beta,Flip(wtm),ply+1);
       HashKey=save_hash_key;
       if (abort_search || tree->stop) return(0);
       if (value >= beta) {
@@ -341,7 +341,7 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
 |                                                          |
  ----------------------------------------------------------
 */
-      if (Check(ChangeSide(wtm))) {
+      if (Check(Flip(wtm))) {
         tree->in_check[ply+1]=1;
         tree->check_extensions_done++;
         extended+=incheck_depth;
@@ -410,10 +410,10 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
         }
         extensions=extended-INCPLY;
         if (depth+extensions >= INCPLY)
-          value=-Search(tree,-beta,-alpha,ChangeSide(wtm),
+          value=-Search(tree,-beta,-alpha,Flip(wtm),
                         depth+extensions,ply+1,DO_NULL,recapture);
         else
-          value=-Quiesce(tree,-beta,-alpha,ChangeSide(wtm),ply+1);
+          value=-Quiesce(tree,-beta,-alpha,Flip(wtm),ply+1);
         if (abort_search || tree->stop) {
           UnmakeMove(tree,ply,tree->current_move[ply],wtm);
           return(0);
@@ -445,20 +445,20 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
 #else
         if (depth+extensions>=INCPLY)
 #endif
-          value=-Search(tree,-alpha-1,-alpha,ChangeSide(wtm),
+          value=-Search(tree,-alpha-1,-alpha,Flip(wtm),
                         depth+extensions,ply+1,DO_NULL,recapture);
         else
-          value=-Quiesce(tree,-alpha-1,-alpha,ChangeSide(wtm),ply+1);
+          value=-Quiesce(tree,-alpha-1,-alpha,Flip(wtm),ply+1);
         if (abort_search || tree->stop) {
           UnmakeMove(tree,ply,tree->current_move[ply],wtm);
           return(0);
         }
         if (value>alpha && value<beta) {
           if (depth+extensions >= INCPLY)
-            value=-Search(tree,-beta,-alpha,ChangeSide(wtm),
+            value=-Search(tree,-beta,-alpha,Flip(wtm),
                           depth+extensions,ply+1,DO_NULL,recapture);
           else
-            value=-Quiesce(tree,-beta,-alpha,ChangeSide(wtm),ply+1);
+            value=-Quiesce(tree,-beta,-alpha,Flip(wtm),ply+1);
           if (abort_search || tree->stop) {
             UnmakeMove(tree,ply,tree->current_move[ply],wtm);
             return(0);

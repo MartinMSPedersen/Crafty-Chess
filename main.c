@@ -1068,7 +1068,7 @@
 *           toward your opponent before moving them away.  a severe oversight *
 *           regarding the use of "!" (as in wtm=!wtm) was found and corrected *
 *           to speed things up some.  !wtm was replaced by wtm^1 (actually,   *
-*           a macro ChangeSide(wtm) is used to make it more readable) which   *
+*           a macro Flip(wtm) is used to make it more readable) which         *
 *           resulted in significant speedup on the sparc, but a more modest   *
 *           improvement on the pentium.                                       *
 *                                                                             *
@@ -2927,6 +2927,15 @@
 *           with two entries from always-store, so that they often end up in  *
 *           the same cache-line.                                              *
 *                                                                             *
+*   19.3    change to EvaluateMaterial to realize that a rook for five pawns  *
+*           is also likely a "bad trade."  adaptive hash table size code was  *
+*           added so that the hash size is set automatically based on the     *
+*           estimated NPS and time per move values for a specific "level"     *
+*           command setting.   RepetitionCheck() rewritten.  the old code had *
+*           an unexplained bug that would overlook repetitions in a parallel  *
+*           search in rare cases.  the old cold was complex enough that it    *
+*           was time to rewrite it and simplify it significantly.             *
+*                                                                             *
 *******************************************************************************
 */
 int main(int argc, char **argv) {
@@ -3179,12 +3188,12 @@ int main(int argc, char **argv) {
         MakeMoveRoot(tree,move,wtm);
         move_actually_played=1;
         last_opponent_move=move;
-        if (RepetitionDraw(tree,ChangeSide(wtm))==1) {
+        if (RepetitionDraw(tree)==1) {
           Print(128,"%sgame is a draw by repetition.%s\n",Reverse(),Normal());
           value=DrawScore(wtm);
           if (xboard) Print(4095,"1/2-1/2 {Drawn by 3-fold repetition}\n");
         }
-        if (RepetitionDraw(tree,ChangeSide(wtm))==2) {
+        if (RepetitionDraw(tree)==2) {
           Print(128,"%sgame is a draw by the 50 move rule.%s\n",Reverse(),Normal());
           value=DrawScore(wtm);
           if (xboard) Print(4095,"1/2-1/2 {Drawn by 50-move rule}\n");
@@ -3194,7 +3203,7 @@ int main(int argc, char **argv) {
                 Reverse(),Normal());
           if (xboard) Print(4095,"1/2-1/2 {Insufficient material}\n");
         }
-        wtm=ChangeSide(wtm);
+        wtm=Flip(wtm);
         if (wtm) move_number++;
         time_used_opponent=opponent_end_time-opponent_start_time;
         if (!force)
@@ -3232,7 +3241,7 @@ int main(int argc, char **argv) {
     ponder_move=0;
     thinking=1;
     if (presult != 1) {
-      strcpy(whisper_text,"n/a");
+      strcpy(kibitz_text,"n/a");
       last_pv.pathd=0;
       last_pv.pathl=0;
       display=tree->pos;
@@ -3302,11 +3311,11 @@ int main(int argc, char **argv) {
     else {
       if ((value > MATE-300) && (value < MATE-2)) {
         Print(128,"\nmate in %d moves.\n\n",(MATE-value)/2);
-        Whisper(1,wtm,0,0,(MATE-value)/2,tree->nodes_searched,0,0," ");
+        Kibitz(1,wtm,0,0,(MATE-value)/2,tree->nodes_searched,0,0," ");
       }
       else if ((-value > MATE-300) && (-value < MATE-1)) {
         Print(128,"\nmated in %d moves.\n\n",(MATE+value)/2);
-        Whisper(1,wtm,0,0,-(MATE+value)/2,tree->nodes_searched,0,0," ");
+        Kibitz(1,wtm,0,0,-(MATE+value)/2,tree->nodes_searched,0,0," ");
       }
       if (wtm) {
         if (!xboard && !ics) {
@@ -3385,12 +3394,12 @@ int main(int argc, char **argv) {
       last_search_value=value;
       MakeMoveRoot(tree,last_pv.path[1],wtm);
       move_actually_played=1;
-      if (RepetitionDraw(tree,ChangeSide(wtm))==1) {
+      if (RepetitionDraw(tree)==1) {
         Print(128,"%sgame is a draw by repetition.%s\n",Reverse(),Normal());
         if (xboard) Print(4095,"1/2-1/2 {Drawn by 3-fold repetition}\n");
         value=DrawScore(wtm);
       }
-      if (RepetitionDraw(tree,ChangeSide(wtm))==2) {
+      if (RepetitionDraw(tree)==2) {
         Print(128,"%sgame is a draw by the 50 move rule.%s\n",Reverse(),Normal());
         if (xboard) Print(4095,"1/2-1/2 {Drawn by 50-move rule}\n");
         value=DrawScore(wtm);
@@ -3412,7 +3421,7 @@ int main(int argc, char **argv) {
  ----------------------------------------------------------
 */
       if (last_pv.pathl>1 &&
-          LegalMove(tree,0,ChangeSide(wtm),last_pv.path[2])) {
+          LegalMove(tree,0,Flip(wtm),last_pv.path[2])) {
         ponder_move=last_pv.path[2];
         for (i=1;i<=(int) last_pv.pathl-2;i++)
           last_pv.path[i]=last_pv.path[i+2];
@@ -3428,7 +3437,7 @@ int main(int argc, char **argv) {
         ponder_move=0;
       }
     }
-    wtm=ChangeSide(wtm);
+    wtm=Flip(wtm);
     if (book_move) {
       moves_out_of_book=0;
       predicted++;
@@ -3438,13 +3447,13 @@ int main(int argc, char **argv) {
     else moves_out_of_book++;
     if (wtm) move_number++;
     ValidatePosition(tree,0,last_pv.path[1],"Main(2)");
-    if (kibitz || whisper) {
-      if (whisper_depth)
-        Whisper(2,!wtm,whisper_depth,end_time-start_time,value,
+    if (kibitz) {
+      if (kibitz_depth)
+        Kibitz(2,!wtm,kibitz_depth,end_time-start_time,value,
                 tree->nodes_searched,cpu_percent,
-                tree->egtb_probes_successful,whisper_text);
+                tree->egtb_probes_successful,kibitz_text);
       else
-        Whisper(4,!wtm,0,0,0,0,0,0,whisper_text);
+        Kibitz(4,!wtm,0,0,0,0,0,0,kibitz_text);
     }
 /*
  ----------------------------------------------------------

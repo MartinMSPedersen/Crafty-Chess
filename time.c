@@ -113,7 +113,7 @@ int TimeCheck(TREE *tree, int abort) {
              DisplayTime(time_used),tree->remaining_moves_text);
     if (display_options&32 && display_options&64)
     printf("%d. ",move_number);
-    if ((display_options&32) && (display_options&64) && ChangeSide(root_wtm))
+    if ((display_options&32) && (display_options&64) && Flip(root_wtm))
       printf("... ");
     printf("%s      \r",tree->root_move_text);
 #endif
@@ -328,8 +328,8 @@ void TimeSet(int search_type) {
       Print(128,"              time surplus %s  ",DisplayTime(surplus));
     else
       Print(128,"              ");
-    Print(128,"time limit %s", DisplayTimeWhisper(time_limit));
-    Print(128," (%s)", DisplayTimeWhisper(absolute_time_limit));
+    Print(128,"time limit %s", DisplayTimeKibitz(time_limit));
+    Print(128," (%s)", DisplayTimeKibitz(absolute_time_limit));
     if (usage_level != 0.0) {
       Print(128,"/");
       Print(128,"(%d)",usage_level);

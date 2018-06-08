@@ -3,23 +3,23 @@
 #include <string.h>
 #include <ctype.h>
 #if defined(SMP) && defined(MUTEX)
-#  include <pthread.h>
+#include <pthread.h>
 #endif
 #if defined(_WIN32)
-#  include <windows.h>
+#include <windows.h>
 #endif
 
 #define SANITY_CHECK 1
 
 #define T41_INCLUDE
-#undef T42_INCLUDE
+#define T42_INCLUDE
 #define T33_INCLUDE
 #define T_INDEX64
 #define  NEW
 #define  XX  127
 
 #if !defined(SMP) && !defined(SUN)
-#  define  lock_t int
+#define  lock_t int
 #endif
 
 #if defined (T_INDEX64) && defined (_MSC_VER)
@@ -1280,24 +1280,24 @@ static void VInitEnumerations (void)
 	if (fPrint)
 		{
 		for (pi1 = x_pieceNone; pi1 <= x_pieceQueen; pi1 = (piece) (pi1 + 1))
-			printf ("%c - %ld enumerated positions\n", "pPNBRQ"[pi1], rgcSinglePawnPresent[pi1]);
+			printf ("%c - %d enumerated positions\n", "pPNBRQ"[pi1], rgcSinglePawnPresent[pi1]);
 		for (pi1 = x_pieceNone; pi1 <= x_pieceQueen; pi1 = (piece) (pi1 + 1))
 			{
 			if (0 != rgcSinglePawnless[pi1])
-				printf ("pawnless %c - %ld enumerated positions\n", "pPNBRQ"[pi1], rgcSinglePawnless[pi1]);
+				printf ("pawnless %c - %d enumerated positions\n", "pPNBRQ"[pi1], rgcSinglePawnless[pi1]);
 			}
 		for (pi1 = x_pieceNone; pi1 <= x_pieceQueen; pi1 = (piece) (pi1 + 1))
 			for (pi2 = x_pieceNone; pi2 <= pi1; pi2 = (piece) (pi2 + 1))
 				{
 				if (0 != rgcPairPawnPresent[pi1][pi2])
-					printf ("%c%c - %ld enumerated positions\n", "pPNBRQ"[pi1], "pPNBRQ"[pi2],
+					printf ("%c%c - %d enumerated positions\n", "pPNBRQ"[pi1], "pPNBRQ"[pi2],
 							rgcPairPawnPresent[pi1][pi2]);
 				}
 		for (pi1 = x_pieceNone; pi1 <= x_pieceQueen; pi1 = (piece) (pi1 + 1))
 			for (pi2 = x_pieceNone; pi2 <= pi1; pi2 = (piece) (pi2 + 1))
 				{
 				if (0 != rgcPairPawnless[pi1][pi2])
-					printf ("pawnless %c%c - %ld enumerated positions\n", "pPNBRQ"[pi1], "pPNBRQ"[pi2],
+					printf ("pawnless %c%c - %d enumerated positions\n", "pPNBRQ"[pi1], "pPNBRQ"[pi2],
 							rgcPairPawnless[pi1][pi2]);
 				}
 #if defined (T41_INCLUDE) || defined (T42_INCLUDE)
@@ -1306,7 +1306,7 @@ static void VInitEnumerations (void)
 				for (pi3 = x_pieceNone; pi3 <= pi2; pi3 = (piece) (pi3 + 1))
 					{
 					if (0 != rgcTriplePawnPresent[pi1][pi2][pi3])
-						printf ("%c%c%c - %ld enumerated positions\n",
+						printf ("%c%c%c - %d enumerated positions\n",
 								"pPNBRQ"[pi1], "pPNBRQ"[pi2], "pPNBRQ"[pi3],
 								rgcTriplePawnPresent[pi1][pi2][pi3]);
 					}
@@ -1315,7 +1315,7 @@ static void VInitEnumerations (void)
 				for (pi3 = x_pieceNone; pi3 <= pi2; pi3 = (piece) (pi3 + 1))
 					{
 					if (0 != rgcTriplePawnless[pi1][pi2][pi3])
-						printf ("pawnless %c%c%c - %ld enumerated positions\n",
+						printf ("pawnless %c%c%c - %d enumerated positions\n",
 								"pPNBRQ"[pi1], "pPNBRQ"[pi2], "pPNBRQ"[pi3],
 								rgcTriplePawnless[pi1][pi2][pi3]);
 					}
@@ -4307,7 +4307,7 @@ static decode_block *rgpdbDecodeBlocks[CPUS];
 
 // Information about tablebases
 
-#define MAX_EXTENTS                 6   /* Maximum # of 2Gb file extents */
+#define MAX_EXTENTS                 9   /* Maximum # of 2Gb file extents */
 
 #if defined (T33_INCLUDE) || defined (T42_INCLUDE)
 #  define	MAX_TOTAL_PIECES		6	/* Maximum # of pieces on the board */
@@ -4677,100 +4677,100 @@ CTbDesc	rgtbdDesc[cTb] =
 	TB (kqrbkq, false, false, false, (T42<Q, R, B, Q>::IndCalcW), (T42<Q, R, B, Q>::IndCalcB), 5224919581, 5535621900)
 
 	TB (kpppkp, false, false, false, (T42<P, P, P, P>::IndCalcW), (T42<P, P, P, P>::IndCalcB),  1196632735,  1349124426)
-	TB (knppkp, false, false, false, (T42<N, P, P, P>::IndCalcW), (T42<N, P, P, P>::IndCalcB),  4796630713,  5271860528)
-	TB (knnpkp, false, false, false, (T42<N, N, P, P>::IndCalcW), (T42<N, N, P, P>::IndCalcB),  6156616111,  6835422612)
+	TB (knppkp, false, false, true,  (T42<N, P, P, P>::IndCalcW), (T42<N, P, P, P>::IndCalcB),  4796630713,  5271860528)
+	TB (knnpkp, false, false, true,  (T42<N, N, P, P>::IndCalcW), (T42<N, N, P, P>::IndCalcB),  6156616111,  6835422612)
 	TB (knnnkp, false, false, false, (T42<N, N, N, P>::IndCalcW), (T42<N, N, N, P>::IndCalcB),  2531022144,  2939087360)
-	TB (kbppkp, false, false, false, (T42<B, P, P, P>::IndCalcW), (T42<B, P, P, P>::IndCalcB),  4969303175,  5271860528)
-	TB (kbnpkp, false, false, false, (T42<B, N, P, P>::IndCalcW), (T42<B, N, P, P>::IndCalcB), 12979462304, 13670845224)
-	TB (kbnnkp, false, false, false, (T42<B, N, N, P>::IndCalcW), (T42<B, N, N, P>::IndCalcB),  8146120416,  8817262080)
-	TB (kbbpkp, false, false, false, (T42<B, B, P, P>::IndCalcW), (T42<B, B, P, P>::IndCalcB),  6609838740,  6835422612)
-	TB (kbbnkp, false, false, false, (T42<B, B, N, P>::IndCalcW), (T42<B, B, N, P>::IndCalcB),  8441899104,  8817262080)
+	TB (kbppkp, false, false, true,  (T42<B, P, P, P>::IndCalcW), (T42<B, P, P, P>::IndCalcB),  4969303175,  5271860528)
+	TB (kbnpkp, false, false, true,  (T42<B, N, P, P>::IndCalcW), (T42<B, N, P, P>::IndCalcB), 12979462304, 13670845224)
+	TB (kbnnkp, false, false, true,  (T42<B, N, N, P>::IndCalcW), (T42<B, N, N, P>::IndCalcB),  8146120416,  8817262080)
+	TB (kbbpkp, false, false, true,  (T42<B, B, P, P>::IndCalcW), (T42<B, B, P, P>::IndCalcB),  6609838740,  6835422612)
+	TB (kbbnkp, false, false, true,  (T42<B, B, N, P>::IndCalcW), (T42<B, B, N, P>::IndCalcB),  8441899104,  8817262080)
 	TB (kbbbkp, false, false, false, (T42<B, B, B, P>::IndCalcW), (T42<B, B, B, P>::IndCalcB),  2816801280,  2939087360)
-	TB (krppkp, false, false, false, (T42<R, P, P, P>::IndCalcW), (T42<R, P, P, P>::IndCalcB),  4929998839,  5271860528)
-	TB (krnpkp, false, false, false, (T42<R, N, P, P>::IndCalcW), (T42<R, N, P, P>::IndCalcB), 12875424829, 13670845224)
-	TB (krnnkp, false, false, false, (T42<R, N, N, P>::IndCalcW), (T42<R, N, N, P>::IndCalcB),  8079921360,  8817262080)
-	TB (krbpkp, false, false, false, (T42<R, B, P, P>::IndCalcW), (T42<R, B, P, P>::IndCalcB), 13340861520, 13670845224)
-	TB (krbnkp, false, false, false, (T42<R, B, N, P>::IndCalcW), (T42<R, B, N, P>::IndCalcB), 17036639904, 17634524160)
-	TB (krbbkp, false, false, false, (T42<R, B, B, P>::IndCalcW), (T42<R, B, B, P>::IndCalcB),  8677177872,  8817262080)
-	TB (krrpkp, false, false, false, (T42<R, R, P, P>::IndCalcW), (T42<R, R, P, P>::IndCalcB),  6504899238,  6835422612)
-	TB (krrnkp, false, false, false, (T42<R, R, N, P>::IndCalcW), (T42<R, R, N, P>::IndCalcB),  8306047872,  8817262080)
-	TB (krrbkp, false, false, false, (T42<R, R, B, P>::IndCalcW), (T42<R, R, B, P>::IndCalcB),  8607504960,  8817262080)
+	TB (krppkp, false, false, true,  (T42<R, P, P, P>::IndCalcW), (T42<R, P, P, P>::IndCalcB),  4929998839,  5271860528)
+	TB (krnpkp, false, false, true,  (T42<R, N, P, P>::IndCalcW), (T42<R, N, P, P>::IndCalcB), 12875424829, 13670845224)
+	TB (krnnkp, false, false, true,  (T42<R, N, N, P>::IndCalcW), (T42<R, N, N, P>::IndCalcB),  8079921360,  8817262080)
+	TB (krbpkp, false, false, true,  (T42<R, B, P, P>::IndCalcW), (T42<R, B, P, P>::IndCalcB), 13340861520, 13670845224)
+	TB (krbnkp, false, false, true,  (T42<R, B, N, P>::IndCalcW), (T42<R, B, N, P>::IndCalcB), 17036639904, 17634524160)
+	TB (krbbkp, false, false, true,  (T42<R, B, B, P>::IndCalcW), (T42<R, B, B, P>::IndCalcB),  8677177872,  8817262080)
+	TB (krrpkp, false, false, true,  (T42<R, R, P, P>::IndCalcW), (T42<R, R, P, P>::IndCalcB),  6504899238,  6835422612)
+	TB (krrnkp, false, false, true,  (T42<R, R, N, P>::IndCalcW), (T42<R, R, N, P>::IndCalcB),  8306047872,  8817262080)
+	TB (krrbkp, false, false, true,  (T42<R, R, B, P>::IndCalcW), (T42<R, R, B, P>::IndCalcB),  8607504960,  8817262080)
 	TB (krrrkp, false, false, false, (T42<R, R, R, P>::IndCalcW), (T42<R, R, R, P>::IndCalcB),  2749283520,  2939087360)
-	TB (kqppkp, false, false, false, (T42<Q, P, P, P>::IndCalcW), (T42<Q, P, P, P>::IndCalcB),  4677701571,  5271860528)
-	TB (kqnpkp, false, false, false, (T42<Q, N, P, P>::IndCalcW), (T42<Q, N, P, P>::IndCalcB), 12219736849, 13670845224)
-	TB (kqnnkp, false, false, false, (T42<Q, N, N, P>::IndCalcW), (T42<Q, N, N, P>::IndCalcB),  7670559696,  8817262080)
-	TB (kqbpkp, false, false, false, (T42<Q, B, P, P>::IndCalcW), (T42<Q, B, P, P>::IndCalcB), 12658882024, 13670845224)
-	TB (kqbnkp, false, false, false, (T42<Q, B, N, P>::IndCalcW), (T42<Q, B, N, P>::IndCalcB), 16170070752, 17634524160)
-	TB (kqbbkp, false, false, false, (T42<Q, B, B, P>::IndCalcW), (T42<Q, B, B, P>::IndCalcB),  8234170512,  8817262080)
-	TB (kqrpkp, false, false, false, (T42<Q, R, P, P>::IndCalcW), (T42<Q, R, P, P>::IndCalcB), 12557225406, 13670845224)
-	TB (kqrnkp, false, false, false, (T42<Q, R, N, P>::IndCalcW), (T42<Q, R, N, P>::IndCalcB), 16038464256, 17634524160)
-	TB (kqrbkp, false, false, false, (T42<Q, R, B, P>::IndCalcW), (T42<Q, R, B, P>::IndCalcB), 16617170832, 17634524160)
-	TB (kqrrkp, false, false, false, (T42<Q, R, R, P>::IndCalcW), (T42<Q, R, R, P>::IndCalcB),  8101097520,  8817262080)
-	TB (kqqpkp, false, false, false, (T42<Q, Q, P, P>::IndCalcW), (T42<Q, Q, P, P>::IndCalcB),  5851888362,  6835422612)
-	TB (kqqnkp, false, false, false, (T42<Q, Q, N, P>::IndCalcW), (T42<Q, Q, N, P>::IndCalcB),  7476276864,  8817262080)
-	TB (kqqbkp, false, false, false, (T42<Q, Q, B, P>::IndCalcW), (T42<Q, Q, B, P>::IndCalcB),  7744392000,  8817262080)
-	TB (kqqrkp, false, false, false, (T42<Q, Q, R, P>::IndCalcW), (T42<Q, Q, R, P>::IndCalcB),  7680886080,  8817262080)
+	TB (kqppkp, false, false, true,  (T42<Q, P, P, P>::IndCalcW), (T42<Q, P, P, P>::IndCalcB),  4677701571,  5271860528)
+	TB (kqnpkp, false, false, true,  (T42<Q, N, P, P>::IndCalcW), (T42<Q, N, P, P>::IndCalcB), 12219736849, 13670845224)
+	TB (kqnnkp, false, false, true,  (T42<Q, N, N, P>::IndCalcW), (T42<Q, N, N, P>::IndCalcB),  7670559696,  8817262080)
+	TB (kqbpkp, false, false, true,  (T42<Q, B, P, P>::IndCalcW), (T42<Q, B, P, P>::IndCalcB), 12658882024, 13670845224)
+	TB (kqbnkp, false, false, true,  (T42<Q, B, N, P>::IndCalcW), (T42<Q, B, N, P>::IndCalcB), 16170070752, 17634524160)
+	TB (kqbbkp, false, false, true,  (T42<Q, B, B, P>::IndCalcW), (T42<Q, B, B, P>::IndCalcB),  8234170512,  8817262080)
+	TB (kqrpkp, false, false, true,  (T42<Q, R, P, P>::IndCalcW), (T42<Q, R, P, P>::IndCalcB), 12557225406, 13670845224)
+	TB (kqrnkp, false, false, true,  (T42<Q, R, N, P>::IndCalcW), (T42<Q, R, N, P>::IndCalcB), 16038464256, 17634524160)
+	TB (kqrbkp, false, false, true,  (T42<Q, R, B, P>::IndCalcW), (T42<Q, R, B, P>::IndCalcB), 16617170832, 17634524160)
+	TB (kqrrkp, false, false, true,  (T42<Q, R, R, P>::IndCalcW), (T42<Q, R, R, P>::IndCalcB),  8101097520,  8817262080)
+	TB (kqqpkp, false, false, true,  (T42<Q, Q, P, P>::IndCalcW), (T42<Q, Q, P, P>::IndCalcB),  5851888362,  6835422612)
+	TB (kqqnkp, false, false, true,  (T42<Q, Q, N, P>::IndCalcW), (T42<Q, Q, N, P>::IndCalcB),  7476276864,  8817262080)
+	TB (kqqbkp, false, false, true,  (T42<Q, Q, B, P>::IndCalcW), (T42<Q, Q, B, P>::IndCalcB),  7744392000,  8817262080)
+	TB (kqqrkp, false, false, true,  (T42<Q, Q, R, P>::IndCalcW), (T42<Q, Q, R, P>::IndCalcB),  7680886080,  8817262080)
 	TB (kqqqkp, false, false, false, (T42<Q, Q, Q, P>::IndCalcW), (T42<Q, Q, Q, P>::IndCalcB),  2343300048,  2939087360)
 	TB (kpppkn, false, false, false, (T42<P, P, P, N>::IndCalcW), (T42<P, P, P, N>::IndCalcB),  1537640536,  1777129408)
-	TB (knppkn, false, false, false, (T42<N, P, P, N>::IndCalcW), (T42<N, P, P, N>::IndCalcB),  6071020409,  6838084896)
-	TB (knnpkn, false, false, false, (T42<N, N, P, N>::IndCalcW), (T42<N, N, P, N>::IndCalcB),  7677994559,  8729470080)
-	TB (kbppkn, false, false, false, (T42<B, P, P, N>::IndCalcW), (T42<B, P, P, N>::IndCalcB),  6289527204,  6838084896)
-	TB (kbnpkn, false, false, false, (T42<B, N, P, N>::IndCalcW), (T42<B, N, P, N>::IndCalcB), 16186823401, 17458940160)
-	TB (kbbpkn, false, false, false, (T42<B, B, P, N>::IndCalcW), (T42<B, B, P, N>::IndCalcB),  8243187360,  8729470080)
-	TB (krppkn, false, false, false, (T42<R, P, P, N>::IndCalcW), (T42<R, P, P, N>::IndCalcB),  6239761412,  6838084896)
-	TB (krnpkn, false, false, false, (T42<R, N, P, N>::IndCalcW), (T42<R, N, P, N>::IndCalcB), 16057066825, 17458940160)
-	TB (krbpkn, false, false, false, (T42<R, B, P, N>::IndCalcW), (T42<R, B, P, N>::IndCalcB), 16637490240, 17458940160)
-	TB (krrpkn, false, false, false, (T42<R, R, P, N>::IndCalcW), (T42<R, R, P, N>::IndCalcB),  8112305064,  8729470080)
-	TB (kqppkn, false, false, false, (T42<Q, P, P, N>::IndCalcW), (T42<Q, P, P, N>::IndCalcB),  5920486098,  6838084896)
-	TB (kqnpkn, false, false, false, (T42<Q, N, P, N>::IndCalcW), (T42<Q, N, P, N>::IndCalcB), 15239383701, 17458940160)
-	TB (kqbpkn, false, false, false, (T42<Q, B, P, N>::IndCalcW), (T42<Q, B, P, N>::IndCalcB), 15787021288, 17458940160)
-	TB (kqrpkn, false, false, false, (T42<Q, R, P, N>::IndCalcW), (T42<Q, R, P, N>::IndCalcB), 15660230819, 17458940160)
-	TB (kqqpkn, false, false, false, (T42<Q, Q, P, N>::IndCalcW), (T42<Q, Q, P, N>::IndCalcB),  7297961576,  8729470080)
+	TB (knppkn, false, false, true,  (T42<N, P, P, N>::IndCalcW), (T42<N, P, P, N>::IndCalcB),  6071020409,  6838084896)
+	TB (knnpkn, false, false, true,  (T42<N, N, P, N>::IndCalcW), (T42<N, N, P, N>::IndCalcB),  7677994559,  8729470080)
+	TB (kbppkn, false, false, true,  (T42<B, P, P, N>::IndCalcW), (T42<B, P, P, N>::IndCalcB),  6289527204,  6838084896)
+	TB (kbnpkn, false, false, true,  (T42<B, N, P, N>::IndCalcW), (T42<B, N, P, N>::IndCalcB), 16186823401, 17458940160)
+	TB (kbbpkn, false, false, true,  (T42<B, B, P, N>::IndCalcW), (T42<B, B, P, N>::IndCalcB),  8243187360,  8729470080)
+	TB (krppkn, false, false, true,  (T42<R, P, P, N>::IndCalcW), (T42<R, P, P, N>::IndCalcB),  6239761412,  6838084896)
+	TB (krnpkn, false, false, true,  (T42<R, N, P, N>::IndCalcW), (T42<R, N, P, N>::IndCalcB), 16057066825, 17458940160)
+	TB (krbpkn, false, false, true,  (T42<R, B, P, N>::IndCalcW), (T42<R, B, P, N>::IndCalcB), 16637490240, 17458940160)
+	TB (krrpkn, false, false, true,  (T42<R, R, P, N>::IndCalcW), (T42<R, R, P, N>::IndCalcB),  8112305064,  8729470080)
+	TB (kqppkn, false, false, true,  (T42<Q, P, P, N>::IndCalcW), (T42<Q, P, P, N>::IndCalcB),  5920486098,  6838084896)
+	TB (kqnpkn, false, false, true,  (T42<Q, N, P, N>::IndCalcW), (T42<Q, N, P, N>::IndCalcB), 15239383701, 17458940160)
+	TB (kqbpkn, false, false, true,  (T42<Q, B, P, N>::IndCalcW), (T42<Q, B, P, N>::IndCalcB), 15787021288, 17458940160)
+	TB (kqrpkn, false, false, true,  (T42<Q, R, P, N>::IndCalcW), (T42<Q, R, P, N>::IndCalcB), 15660230819, 17458940160)
+	TB (kqqpkn, false, false, true,  (T42<Q, Q, P, N>::IndCalcW), (T42<Q, Q, P, N>::IndCalcB),  7297961576,  8729470080)
 	TB (kpppkb, false, false, false, (T42<P, P, P, B>::IndCalcW), (T42<P, P, P, B>::IndCalcB),  1537640536,  1842024000)
-	TB (knppkb, false, false, false, (T42<N, P, P, B>::IndCalcW), (T42<N, P, P, B>::IndCalcB),  6071020409,  7087788000)
-	TB (knnpkb, false, false, false, (T42<N, N, P, B>::IndCalcW), (T42<N, N, P, B>::IndCalcB),  7677994559,  9048240000)
-	TB (kbppkb, false, false, false, (T42<B, P, P, B>::IndCalcW), (T42<B, P, P, B>::IndCalcB),  6289527204,  7087788000)
-	TB (kbnpkb, false, false, false, (T42<B, N, P, B>::IndCalcW), (T42<B, N, P, B>::IndCalcB), 16186823401, 18096480000)
-	TB (kbbpkb, false, false, false, (T42<B, B, P, B>::IndCalcW), (T42<B, B, P, B>::IndCalcB),  8243187360,  9048240000)
-	TB (krppkb, false, false, false, (T42<R, P, P, B>::IndCalcW), (T42<R, P, P, B>::IndCalcB),  6239761412,  7087788000)
-	TB (krnpkb, false, false, false, (T42<R, N, P, B>::IndCalcW), (T42<R, N, P, B>::IndCalcB), 16057066825, 18096480000)
-	TB (krbpkb, false, false, false, (T42<R, B, P, B>::IndCalcW), (T42<R, B, P, B>::IndCalcB), 16637490240, 18096480000)
-	TB (krrpkb, false, false, false, (T42<R, R, P, B>::IndCalcW), (T42<R, R, P, B>::IndCalcB),  8112305064,  9048240000)
-	TB (kqppkb, false, false, false, (T42<Q, P, P, B>::IndCalcW), (T42<Q, P, P, B>::IndCalcB),  5920486098,  7087788000)
-	TB (kqnpkb, false, false, false, (T42<Q, N, P, B>::IndCalcW), (T42<Q, N, P, B>::IndCalcB), 15239383701, 18096480000)
-	TB (kqbpkb, false, false, false, (T42<Q, B, P, B>::IndCalcW), (T42<Q, B, P, B>::IndCalcB), 15787021288, 18096480000)
-	TB (kqrpkb, false, false, false, (T42<Q, R, P, B>::IndCalcW), (T42<Q, R, P, B>::IndCalcB), 15660230819, 18096480000)
-	TB (kqqpkb, false, false, false, (T42<Q, Q, P, B>::IndCalcW), (T42<Q, Q, P, B>::IndCalcB),  7297961576,  9048240000)
+	TB (knppkb, false, false, true,  (T42<N, P, P, B>::IndCalcW), (T42<N, P, P, B>::IndCalcB),  6071020409,  7087788000)
+	TB (knnpkb, false, false, true,  (T42<N, N, P, B>::IndCalcW), (T42<N, N, P, B>::IndCalcB),  7677994559,  9048240000)
+	TB (kbppkb, false, false, true,  (T42<B, P, P, B>::IndCalcW), (T42<B, P, P, B>::IndCalcB),  6289527204,  7087788000)
+	TB (kbnpkb, false, false, true,  (T42<B, N, P, B>::IndCalcW), (T42<B, N, P, B>::IndCalcB), 16186823401, 18096480000)
+	TB (kbbpkb, false, false, true,  (T42<B, B, P, B>::IndCalcW), (T42<B, B, P, B>::IndCalcB),  8243187360,  9048240000)
+	TB (krppkb, false, false, true,  (T42<R, P, P, B>::IndCalcW), (T42<R, P, P, B>::IndCalcB),  6239761412,  7087788000)
+	TB (krnpkb, false, false, true,  (T42<R, N, P, B>::IndCalcW), (T42<R, N, P, B>::IndCalcB), 16057066825, 18096480000)
+	TB (krbpkb, false, false, true,  (T42<R, B, P, B>::IndCalcW), (T42<R, B, P, B>::IndCalcB), 16637490240, 18096480000)
+	TB (krrpkb, false, false, true,  (T42<R, R, P, B>::IndCalcW), (T42<R, R, P, B>::IndCalcB),  8112305064,  9048240000)
+	TB (kqppkb, false, false, true,  (T42<Q, P, P, B>::IndCalcW), (T42<Q, P, P, B>::IndCalcB),  5920486098,  7087788000)
+	TB (kqnpkb, false, false, true,  (T42<Q, N, P, B>::IndCalcW), (T42<Q, N, P, B>::IndCalcB), 15239383701, 18096480000)
+	TB (kqbpkb, false, false, true,  (T42<Q, B, P, B>::IndCalcW), (T42<Q, B, P, B>::IndCalcB), 15787021288, 18096480000)
+	TB (kqrpkb, false, false, true,  (T42<Q, R, P, B>::IndCalcW), (T42<Q, R, P, B>::IndCalcB), 15660230819, 18096480000)
+	TB (kqqpkb, false, false, true,  (T42<Q, Q, P, B>::IndCalcW), (T42<Q, Q, P, B>::IndCalcB),  7297961576,  9048240000)
 	TB (kpppkr, false, false, false, (T42<P, P, P, R>::IndCalcW), (T42<P, P, P, R>::IndCalcB),  1537640536,  1827875872)
-	TB (knppkr, false, false, false, (T42<N, P, P, R>::IndCalcW), (T42<N, P, P, R>::IndCalcB),  6071020409,  7033481568)
-	TB (knnpkr, false, false, false, (T42<N, N, P, R>::IndCalcW), (T42<N, N, P, R>::IndCalcB),  7677994559,  8978912640)
-	TB (kbppkr, false, false, false, (T42<B, P, P, R>::IndCalcW), (T42<B, P, P, R>::IndCalcB),  6289527204,  7033481568)
-	TB (kbnpkr, false, false, false, (T42<B, N, P, R>::IndCalcW), (T42<B, N, P, R>::IndCalcB), 16186823401, 17957825280)
-	TB (kbbpkr, false, false, false, (T42<B, B, P, R>::IndCalcW), (T42<B, B, P, R>::IndCalcB),  8243187360,  8978912640)
-	TB (krppkr, false, false, false, (T42<R, P, P, R>::IndCalcW), (T42<R, P, P, R>::IndCalcB),  6239761412,  7033481568)
-	TB (krnpkr, false, false, false, (T42<R, N, P, R>::IndCalcW), (T42<R, N, P, R>::IndCalcB), 16057066825, 17957825280)
-	TB (krbpkr, false, false, false, (T42<R, B, P, R>::IndCalcW), (T42<R, B, P, R>::IndCalcB), 16637490240, 17957825280)
-	TB (krrpkr, false, false, false, (T42<R, R, P, R>::IndCalcW), (T42<R, R, P, R>::IndCalcB),  8112305064,  8978912640)
-	TB (kqppkr, false, false, false, (T42<Q, P, P, R>::IndCalcW), (T42<Q, P, P, R>::IndCalcB),  5920486098,  7033481568)
-	TB (kqnpkr, false, false, false, (T42<Q, N, P, R>::IndCalcW), (T42<Q, N, P, R>::IndCalcB), 15239383701, 17957825280)
-	TB (kqbpkr, false, false, false, (T42<Q, B, P, R>::IndCalcW), (T42<Q, B, P, R>::IndCalcB), 15787021288, 17957825280)
-	TB (kqrpkr, false, false, false, (T42<Q, R, P, R>::IndCalcW), (T42<Q, R, P, R>::IndCalcB), 15660230819, 17957825280)
-	TB (kqqpkr, false, false, false, (T42<Q, Q, P, R>::IndCalcW), (T42<Q, Q, P, R>::IndCalcB),  7297961576,  8978912640)
+	TB (knppkr, false, false, true,  (T42<N, P, P, R>::IndCalcW), (T42<N, P, P, R>::IndCalcB),  6071020409,  7033481568)
+	TB (knnpkr, false, false, true,  (T42<N, N, P, R>::IndCalcW), (T42<N, N, P, R>::IndCalcB),  7677994559,  8978912640)
+	TB (kbppkr, false, true,  true,  (T42<B, P, P, R>::IndCalcW), (T42<B, P, P, R>::IndCalcB),  6289527204,  7033481568)
+	TB (kbnpkr, false, true,  true,  (T42<B, N, P, R>::IndCalcW), (T42<B, N, P, R>::IndCalcB), 16186823401, 17957825280)
+	TB (kbbpkr, false, true,  true,  (T42<B, B, P, R>::IndCalcW), (T42<B, B, P, R>::IndCalcB),  8243187360,  8978912640)
+	TB (krppkr, false, false, true,  (T42<R, P, P, R>::IndCalcW), (T42<R, P, P, R>::IndCalcB),  6239761412,  7033481568)
+	TB (krnpkr, false, false, true,  (T42<R, N, P, R>::IndCalcW), (T42<R, N, P, R>::IndCalcB), 16057066825, 17957825280)
+	TB (krbpkr, false, false, true,  (T42<R, B, P, R>::IndCalcW), (T42<R, B, P, R>::IndCalcB), 16637490240, 17957825280)
+	TB (krrpkr, false, false, true,  (T42<R, R, P, R>::IndCalcW), (T42<R, R, P, R>::IndCalcB),  8112305064,  8978912640)
+	TB (kqppkr, false, false, true,  (T42<Q, P, P, R>::IndCalcW), (T42<Q, P, P, R>::IndCalcB),  5920486098,  7033481568)
+	TB (kqnpkr, false, false, true,  (T42<Q, N, P, R>::IndCalcW), (T42<Q, N, P, R>::IndCalcB), 15239383701, 17957825280)
+	TB (kqbpkr, false, false, true,  (T42<Q, B, P, R>::IndCalcW), (T42<Q, B, P, R>::IndCalcB), 15787021288, 17957825280)
+	TB (kqrpkr, false, false, true,  (T42<Q, R, P, R>::IndCalcW), (T42<Q, R, P, R>::IndCalcB), 15660230819, 17957825280)
+	TB (kqqpkr, false, false, true,  (T42<Q, Q, P, R>::IndCalcW), (T42<Q, Q, P, R>::IndCalcB),  7297961576,  8978912640)
 	TB (kpppkq, false, false, false, (T42<P, P, P, Q>::IndCalcW), (T42<P, P, P, Q>::IndCalcB),  1537640536,  1733232160)
-	TB (knppkq, false, false, false, (T42<N, P, P, Q>::IndCalcW), (T42<N, P, P, Q>::IndCalcB),  6071020409,  6669309024)
-	TB (knnpkq, false, false, false, (T42<N, N, P, Q>::IndCalcW), (T42<N, N, P, Q>::IndCalcB),  7677994559,  8514011520)
-	TB (kbppkq, false, false, false, (T42<B, P, P, Q>::IndCalcW), (T42<B, P, P, Q>::IndCalcB),  6289527204,  6669309024)
-	TB (kbnpkq, false, false, false, (T42<B, N, P, Q>::IndCalcW), (T42<B, N, P, Q>::IndCalcB), 16186823401, 17028023040)
-	TB (kbbpkq, false, false, false, (T42<B, B, P, Q>::IndCalcW), (T42<B, B, P, Q>::IndCalcB),  8243187360,  8514011520)
-	TB (krppkq, false, false, false, (T42<R, P, P, Q>::IndCalcW), (T42<R, P, P, Q>::IndCalcB),  6239761412,  6669309024)
-	TB (krnpkq, false, false, false, (T42<R, N, P, Q>::IndCalcW), (T42<R, N, P, Q>::IndCalcB), 16057066825, 17028023040)
-	TB (krbpkq, false, false, false, (T42<R, B, P, Q>::IndCalcW), (T42<R, B, P, Q>::IndCalcB), 16637490240, 17028023040)
-	TB (krrpkq, false, false, false, (T42<R, R, P, Q>::IndCalcW), (T42<R, R, P, Q>::IndCalcB),  8112305064,  8514011520)
-	TB (kqppkq, false, false, false, (T42<Q, P, P, Q>::IndCalcW), (T42<Q, P, P, Q>::IndCalcB),  5920486098,  6669309024)
-	TB (kqnpkq, false, false, false, (T42<Q, N, P, Q>::IndCalcW), (T42<Q, N, P, Q>::IndCalcB), 15239383701, 17028023040)
-	TB (kqbpkq, false, false, false, (T42<Q, B, P, Q>::IndCalcW), (T42<Q, B, P, Q>::IndCalcB), 15787021288, 17028023040)
-	TB (kqrpkq, false, false, false, (T42<Q, R, P, Q>::IndCalcW), (T42<Q, R, P, Q>::IndCalcB), 15660230819, 17028023040)
-	TB (kqqpkq, false, false, false, (T42<Q, Q, P, Q>::IndCalcW), (T42<Q, Q, P, Q>::IndCalcB),  7297961576,  8514011520)
+	TB (knppkq, false, false, true,  (T42<N, P, P, Q>::IndCalcW), (T42<N, P, P, Q>::IndCalcB),  6071020409,  6669309024)
+	TB (knnpkq, false, false, true,  (T42<N, N, P, Q>::IndCalcW), (T42<N, N, P, Q>::IndCalcB),  7677994559,  8514011520)
+	TB (kbppkq, false, false, true,  (T42<B, P, P, Q>::IndCalcW), (T42<B, P, P, Q>::IndCalcB),  6289527204,  6669309024)
+	TB (kbnpkq, false, false, true,  (T42<B, N, P, Q>::IndCalcW), (T42<B, N, P, Q>::IndCalcB), 16186823401, 17028023040)
+	TB (kbbpkq, false, false, true,  (T42<B, B, P, Q>::IndCalcW), (T42<B, B, P, Q>::IndCalcB),  8243187360,  8514011520)
+	TB (krppkq, false, false, true,  (T42<R, P, P, Q>::IndCalcW), (T42<R, P, P, Q>::IndCalcB),  6239761412,  6669309024)
+	TB (krnpkq, false, false, true,  (T42<R, N, P, Q>::IndCalcW), (T42<R, N, P, Q>::IndCalcB), 16057066825, 17028023040)
+	TB (krbpkq, false, false, true,  (T42<R, B, P, Q>::IndCalcW), (T42<R, B, P, Q>::IndCalcB), 16637490240, 17028023040)
+	TB (krrpkq, false, true,  true,  (T42<R, R, P, Q>::IndCalcW), (T42<R, R, P, Q>::IndCalcB),  8112305064,  8514011520)
+	TB (kqppkq, false, false, true,  (T42<Q, P, P, Q>::IndCalcW), (T42<Q, P, P, Q>::IndCalcB),  5920486098,  6669309024)
+	TB (kqnpkq, false, false, true,  (T42<Q, N, P, Q>::IndCalcW), (T42<Q, N, P, Q>::IndCalcB), 15239383701, 17028023040)
+	TB (kqbpkq, false, false, true,  (T42<Q, B, P, Q>::IndCalcW), (T42<Q, B, P, Q>::IndCalcB), 15787021288, 17028023040)
+	TB (kqrpkq, false, false, true,  (T42<Q, R, P, Q>::IndCalcW), (T42<Q, R, P, Q>::IndCalcB), 15660230819, 17028023040)
+	TB (kqqpkq, false, false, true,  (T42<Q, Q, P, Q>::IndCalcW), (T42<Q, Q, P, Q>::IndCalcB),  7297961576,  8514011520)
 
 #endif
 #endif
@@ -5330,7 +5330,7 @@ extern "C" int FReadTableToMemory
 			exit (1);
 			}
 		cb = ftell (fp);
-		if (0xffffffff == cb)
+		if (-1 == (int) cb)
 			{
 			printf ("*** Cannot find length of %s\n", pszName);
 			exit (1);
@@ -5724,7 +5724,7 @@ static int TB_FASTCALL TbtProbeTable
 		if (cb != TB_CB_CACHE_CHUNK)
 			{
 			// Could not read TB_CB_CACHE_CHUNK - check for error
-			if (ferror (fp) || ((ULONG) -1 == cb))
+			if (ferror (fp) || ((size_t) -1 == cb))
                 {
 #if defined (STOP_ON_ERROR)
                 printf ("*** Read error, file %s\n", pszFileName);

@@ -199,7 +199,7 @@ void SetBoard(SEARCH_POSITION *position, int nargs, char *args[], int special) {
        (PcOnSq(position->enpassant_target+8) != -pawn) &&
        (PcOnSq(position->enpassant_target-7) != pawn) &&
        (PcOnSq(position->enpassant_target-9) != pawn)) ||
-      (ChangeSide(twtm) && position->enpassant_target &&
+      (Flip(twtm) && position->enpassant_target &&
        (PcOnSq(position->enpassant_target-8) != pawn) &&
        (PcOnSq(position->enpassant_target+7) != -pawn) &&
        (PcOnSq(position->enpassant_target+9) != -pawn))) {
@@ -207,10 +207,8 @@ void SetBoard(SEARCH_POSITION *position, int nargs, char *args[], int special) {
   }
   SetChessBitBoards(position);
   if (log_file) DisplayChessBoard(log_file,tree->pos);
-  tree->rephead_b=tree->replist_b;
-  tree->rephead_w=tree->replist_w;
-  if (twtm) *tree->rephead_w++=HashKey;
-  else *tree->rephead_b++=HashKey;
+  tree->rep_game=0;
+  tree->rep_list[tree->rep_game]=HashKey;
   position->rule_50_moves=0;
   if (!special) {
     last_mate_score=0;

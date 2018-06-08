@@ -806,8 +806,7 @@ move_number = fmvn;
 
 SetChessBitBoards(&tree->position[0]);
 
-tree->rephead_w=tree->replist_w;
-tree->rephead_b=tree->replist_b;
+tree->rep_game=0;
 moves_out_of_book = 0;
 last_mate_score = 0;
 
@@ -1122,7 +1121,7 @@ switch (EPDExtractRefcomIndex(epdptr0))
 			((((move_number - 1) * 2) + 1 - wtm) * 10), SEEK_SET);
 		fprintf(history_file, "%9s\n", eopptr->eop_headeov->eov_str);
 		MakeMoveRoot(tree,move, wtm);
-		wtm = ChangeSide(wtm);
+		wtm = Flip(wtm);
 		if (wtm)
 			move_number++;
 
@@ -1182,7 +1181,7 @@ switch (EPDExtractRefcomIndex(epdptr0))
 				((((move_number - 1) * 2) + 1 - wtm) * 10), SEEK_SET);
 			fprintf(history_file, "%9s\n", eopptr->eop_headeov->eov_str);
 			MakeMoveRoot(tree,move, wtm);
-			wtm = ChangeSide(wtm);
+			wtm = Flip(wtm);
 			if (wtm)
 				move_number++;
 
@@ -1233,7 +1232,7 @@ switch (EPDExtractRefcomIndex(epdptr0))
 			/* update host position */
 
 			MakeMoveRoot(tree,move, wtm);
-			wtm = ChangeSide(wtm);
+			wtm = Flip(wtm);
 			if (wtm)
 				move_number++;
 

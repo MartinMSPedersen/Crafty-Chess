@@ -53,7 +53,7 @@ int Iterate(int wtm, int search_type, int root_list_done) {
   elapsed_start=ReadClock(elapsed);
   root_wtm=wtm;
   PreEvaluate(tree,wtm);
-  whisper_depth=0;
+  kibitz_depth=0;
   tree->nodes_searched=0;
   tree->fail_high=0;
   tree->fail_high_first=0;
@@ -232,10 +232,10 @@ int Iterate(int wtm, int search_type, int root_list_done) {
         }
         HashStorePV(tree, i, twtm);
         MakeMove(tree, i,tree->pv[0].path[i],twtm);
-        twtm=ChangeSide(twtm);
+        twtm=Flip(twtm);
       }
       for (i--;i>0;i--) {
-        twtm=ChangeSide(twtm);
+        twtm=Flip(twtm);
         UnmakeMove(tree, i,tree->pv[0].path[i],twtm);
       }
       if (trace_level) {
@@ -279,16 +279,16 @@ int Iterate(int wtm, int search_type, int root_list_done) {
             if ((display_options&64) && !wtm) Print(2,"... ");
             Print(2,"%s!!\n",
                   OutputMove(tree,tree->pv[1].path[1],1,wtm));
-            whisper_text[0]=0;
+            kibitz_text[0]=0;
             if (display_options&64)
-              sprintf(whisper_text," %d.",move_number);
+              sprintf(kibitz_text," %d.",move_number);
             if ((display_options&64) && !wtm)
-              sprintf(whisper_text+strlen(whisper_text)," ...");
-            sprintf(whisper_text+strlen(whisper_text)," %s!!",
+              sprintf(kibitz_text+strlen(kibitz_text)," ...");
+            sprintf(kibitz_text+strlen(kibitz_text)," %s!!",
                     OutputMove(tree,tree->pv[1].path[1],1,wtm));
-            Whisper(6,wtm,iteration_depth,end_time-start_time,value,
+            Kibitz(6,wtm,iteration_depth,end_time-start_time,value,
                     tree->nodes_searched,-1, tree->egtb_probes_successful,
-                    whisper_text);
+                    kibitz_text);
           }
         }
         else if (value <= root_alpha) {
@@ -451,7 +451,7 @@ int Iterate(int wtm, int search_type, int root_list_done) {
       tree->fail_high_first++;
       material=Material/PAWN_VALUE;
       Print(8,"              time=%s  cpu=%d%%  mat=%d",
-            DisplayTimeWhisper(end_time-start_time), cpu_percent, material); 
+            DisplayTimeKibitz(end_time-start_time), cpu_percent, material); 
       Print(8,"  n=" BMF, tree->nodes_searched);
       Print(8,"  fh=%u%%", (int) ((BITBOARD) tree->fail_high_first*100/(BITBOARD) tree->fail_high));
       Print(8,"  nps=%dk\n", nodes_per_second/1000);
@@ -477,8 +477,8 @@ int Iterate(int wtm, int search_type, int root_list_done) {
 #if defined(SMP)
       Print(16,"              SMP->  split=%d  stop=%d  data=%d/%d  ",
             parallel_splits, parallel_stops,max_split_blocks,MAX_BLOCKS);
-      Print(16,"cpu=%s  ", DisplayTimeWhisper(cpu_time_used));
-      Print(16,"elap=%s\n", DisplayTimeWhisper(elapsed_end));
+      Print(16,"cpu=%s  ", DisplayTimeKibitz(cpu_time_used));
+      Print(16,"elap=%s\n", DisplayTimeKibitz(elapsed_end));
 #endif
     }
   } while(0);
@@ -487,7 +487,7 @@ int Iterate(int wtm, int search_type, int root_list_done) {
     root_value=0;
     book_move=1;
     tree->pv[0]=tree->pv[1];
-    if (analyze_mode) Whisper(4,wtm,0,0,0,0,0,0,whisper_text);
+    if (analyze_mode) Kibitz(4,wtm,0,0,0,0,0,0,kibitz_text);
   }
   program_end_time=ReadClock(time_type);
   search_move=0;
