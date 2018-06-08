@@ -49,11 +49,7 @@
   int            ponder_move;
   int            ponder_moves[220];
   int            num_ponder_moves;
-  struct {
-                 char pad1[128];
-                 volatile int   quit;
-                 char pad2[128];
-  } quit;
+  volatile int   quit;
   unsigned int   opponent_start_time, opponent_end_time;
   unsigned int   program_start_time, program_end_time;
   unsigned int   start_time, end_time;
@@ -252,7 +248,7 @@
   unsigned int   max_split_blocks;
   volatile unsigned int   splitting;
 
-# define    VERSION                             "19.5"
+# define    VERSION                             "19.6"
   char      version[6] =                    {VERSION};
   PLAYING_MODE mode =                     normal_mode;
 

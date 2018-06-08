@@ -727,7 +727,7 @@ int            ValidMove(TREE*, int, int, int);
 void           ValidatePosition(TREE*, int, int, char*);
 void           Kibitz(int, int, int, int, int, BITBOARD , int, int, char*);
 
-#if defined(_WIN32) || defined(_WIN64)
+#if (defined(_WIN32) || defined(_WIN64)) && defined(SMP)
 
 extern void *WinMallocInterleaved(size_t, int);
 extern void WinFreeInterleaved(void *, size_t);

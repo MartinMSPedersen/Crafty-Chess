@@ -1129,6 +1129,7 @@ void Print(int vb, char *fmt, ...) {
   if (vb&display_options) vprintf(fmt, ap);
   fflush(stdout);
   if (time_limit>99 || tc_time_remaining>6000 || vb==4095) {
+    va_start(ap,fmt);
     if (log_file) vfprintf(log_file, fmt, ap);
     if (log_file) fflush(log_file);
   }
@@ -2230,10 +2231,12 @@ void Kibitz(int level, int wtm, int depth, int time, int value,
     case 5:
       if ((kibitz&15)>=5 && nodes>5000) {
         if (ics) printf("*");
-        printf("%s d%d-> %dK/s %s %s %s\n",prefix,depth,
+        printf("%s d%d-> %dK/s %s %s %s ",prefix,depth,
                (int) ((time)?100*nodes/(BITBOARD)time:nodes)/1000,
                DisplayTimeKibitz(time),
                DisplayEvaluationKibitz(value,wtm),pv);
+        if (tb_hits) printf("egtb=%d",tb_hits);
+        printf("\n");
       }
       break;
     case 6:
@@ -2315,12 +2318,13 @@ int StrCnt(char *string, char testchar) {
 ********************************************************************************
 */
 
-#if defined(_WIN32) || defined(_WIN64)
+#if (defined(_WIN32) || defined(_WIN64)) && defined(SMP)
 
 lock_t ThreadsLock;
 
-static BOOL (WINAPI *pGetNumaHighestNodeNumber) (PULONG);
-static BOOL (WINAPI *pGetNumaNodeProcessorMask) (UCHAR, PULONGLONG);
+static BOOL  (WINAPI *pGetNumaHighestNodeNumber) (PULONG);
+static BOOL  (WINAPI *pGetNumaNodeProcessorMask) (UCHAR, PULONGLONG);
+static DWORD (WINAPI *pSetThreadIdealProcessor)  (HANDLE, DWORD);
 
 static volatile BOOL fThreadsInitialized = FALSE;
 static BOOL fSystemIsNUMA = FALSE;
@@ -2345,6 +2349,7 @@ static void WinNumaInit (void) {
       hModule = GetModuleHandle("kernel32");
       pGetNumaHighestNodeNumber = (void*) GetProcAddress(hModule, "GetNumaHighestNodeNumber");
       pGetNumaNodeProcessorMask = (void*) GetProcAddress(hModule, "GetNumaNodeProcessorMask");
+      pSetThreadIdealProcessor  = (void*) GetProcAddress(hModule, "SetThreadIdealProcessor");
       if (pGetNumaHighestNodeNumber && pGetNumaNodeProcessorMask &&
           pGetNumaHighestNodeNumber(&ulNumaNodes) && (ulNumaNodes > 0)) {
         fSystemIsNUMA = TRUE;
@@ -2368,13 +2373,12 @@ static void WinNumaInit (void) {
         // Thread 0 was already started on some CPU. To simplify things further,
         // exchange ullProcessorMask[0] and ullProcessorMask[node for that CPU],
         // so ullProcessorMask[0] would always be node for thread 0
-        dwCPU = SetThreadIdealProcessor(GetCurrentThread(), MAXIMUM_PROCESSORS);
+        dwCPU = pSetThreadIdealProcessor(GetCurrentThread(), MAXIMUM_PROCESSORS);
         printf ("Current ideal CPU is %u\n", dwCPU);
-        SetThreadIdealProcessor(GetCurrentThread(), dwCPU);
+        pSetThreadIdealProcessor(GetCurrentThread(), dwCPU);
         if ((((DWORD) -1) != dwCPU) &&
             (MAXIMUM_PROCESSORS != dwCPU) &&
-            !(ullProcessorMask[0] & (1ui64 << dwCPU)))
-        {
+            !(ullProcessorMask[0] & (1ui64 << dwCPU))) {
           for (ulNode = 1; ulNode <= ulNumaNodes; ulNode ++) {
             if (ullProcessorMask[ulNode] & (1ui64 << dwCPU)) {
               printf ("Exchanging nodes 0 and %d\n", ulNode);
@@ -2471,8 +2475,7 @@ void * WinMallocInterleaved(size_t cbBytes, int cThreads) {
       dwAffinityMask = SetThreadAffinityMask(hThread, ullProcessorMask[ulNode]);
       for (pch = pBase + iThread * dwPageSize;
            pch < pEnd;
-           pch += dwStep)
-      {
+           pch += dwStep) {
         lpvResult = VirtualAlloc(pch,             // next page to commit
                                  dwPageSize,      // page size, in bytes
                                  MEM_COMMIT,      // allocate a committed page
@@ -2495,8 +2498,7 @@ void * WinMallocInterleaved(size_t cbBytes, int cThreads) {
 
 // Free interleaved memory
 
-void WinFreeInterleaved(void *pMemory, size_t cBytes)
-{
+void WinFreeInterleaved(void *pMemory, size_t cBytes) {
   VirtualFree(pMemory,                      // base address of block
               cBytes,                       // bytes of committed pages
               MEM_DECOMMIT|MEM_RELEASE);    // decommit the pages

@@ -2954,6 +2954,10 @@
 *           the split block will be in that thread's local memory.  a few     *
 *           other NUMA-related changes to help scaling on NUMA machines.      *
 *                                                                             *
+*   19.6    new egtb.cpp module that cuts decompression indices memory by 50% *
+*           with no harmful side-effects.  fixes to NUMA code to make SMP and *
+*           non-SMP windows compiles go cleanly.                              *
+*                                                                             *
 *******************************************************************************
 */
 int main(int argc, char **argv) {
@@ -2976,7 +2980,7 @@ int main(int argc, char **argv) {
   /* Collect environmental variables */
   char *directory_spec=getenv("CRAFTY_BOOK_PATH");
 
-  quit.quit=0;
+  quit=0;
   if (directory_spec)
     strncpy (book_path, directory_spec, sizeof book_path);
   directory_spec=getenv("CRAFTY_LOG_PATH");

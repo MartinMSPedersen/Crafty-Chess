@@ -1,9 +1,7 @@
-alignment = ALIGN
-
         .text
-        .align  alignment, 0x90
-.globl _PopCnt
-_PopCnt:
+        .align  16, 0x90
+.globl PopCnt
+PopCnt:
         movl    4(%esp), %ecx
         xorl    %eax, %eax
         testl   %ecx, %ecx
@@ -27,9 +25,9 @@ l3:
 
 /*----------------------------------------------------------------------------*/
 
-        .align  alignment, 0x90
-        .globl  _FirstOne
-_FirstOne:
+        .align  16, 0x90
+        .globl  FirstOne
+FirstOne:
         cmpl    $1, 8(%esp)
         sbbl    %eax, %eax
         movl    8(%esp,%eax,4), %edx
@@ -42,9 +40,9 @@ _FirstOne:
 l4:     movl    $64, %eax
         ret
 
-        .align  alignment, 0x90
-        .globl  _LastOne
-_LastOne:
+        .align  16, 0x90
+        .globl  LastOne
+LastOne:
         bsf     4(%esp),%edx
         jz      l5
         movl    $63, %eax
@@ -60,12 +58,12 @@ l6:     mov     $64, %eax
 
 /*----------------------------------------------------------------------------*/
 
-        .align  alignment, 0x90
+        .align  16, 0x90
 
 /*----------------------------------------------------------------------------*/
 
-        .comm   _first_ones_8bit, 256
-        .comm   _last_ones_8bit, 256
+        .comm   first_ones_8bit, 256
+        .comm   last_ones_8bit, 256
 
 /*----------------------------------------------------------------------------*/
 
@@ -119,9 +117,9 @@ SHRT_MOBILITY    = 1472
              (diagp)->ad_shift),        \
          (diagp)->ad_mask) ] ]
 */
-        .align  alignment, 0x90
-        .globl  _AttacksDiaga1Func
-_AttacksDiaga1Func:
+        .align  16, 0x90
+        .globl  AttacksDiaga1Func
+AttacksDiaga1Func:
         pushl   %esi
         movl    8(%esp), %esi                   /* diag_info     */
         movl    12(%esp), %eax                  /* boardp        */
@@ -151,9 +149,9 @@ _AttacksDiaga1Func:
              (diagp)->d_shift),     \
          (diagp)->d_mask) ] ]
 */
-        .align  alignment, 0x90
-        .globl  _AttacksDiagh1Func
-_AttacksDiagh1Func:
+        .align  16, 0x90
+        .globl  AttacksDiagh1Func
+AttacksDiagh1Func:
         pushl   %esi
         movl    8(%esp), %esi                   /* diag_info     */
         movl    12(%esp), %eax                  /* boardp        */
@@ -179,9 +177,9 @@ _AttacksDiagh1Func:
 /*
   return Or(AttacksDiaga1Int(diag,board), AttacksDiagh1Int(diag,board));
 */
-        .align  alignment, 0x90
-        .globl  _AttacksBishopFunc
-_AttacksBishopFunc:
+        .align  16, 0x90
+        .globl  AttacksBishopFunc
+AttacksBishopFunc:
         pushl   %ebx
         pushl   %esi
         pushl   %edi
@@ -231,9 +229,9 @@ _AttacksBishopFunc:
              (diagp)->ad_mask) ] ]
 */
 
-        .align  alignment, 0x90
-        .globl  _MobilityDiaga1Func
-_MobilityDiaga1Func:
+        .align  16, 0x90
+        .globl  MobilityDiaga1Func
+MobilityDiaga1Func:
         pushl   %esi
         movl    8(%esp), %esi                   /* diag_info     */
         movl    12(%esp), %eax                  /* boardp        */
@@ -263,9 +261,9 @@ _MobilityDiaga1Func:
          (diagp)->d_mask) ] ]
 */
 
-        .align  alignment, 0x90
-        .globl  _MobilityDiagh1Func
-_MobilityDiagh1Func:
+        .align  16, 0x90
+        .globl  MobilityDiagh1Func
+MobilityDiagh1Func:
         pushl   %esi
         movl    8(%esp), %esi                   /* diag_info     */
         movl    12(%esp), %eax                  /* boardp        */
@@ -298,9 +296,9 @@ _MobilityDiagh1Func:
           0x3f) ] ],            \
       Rank(~(a))<<3)
 */
-        .align  alignment, 0x90
-        .globl  _AttacksRankFunc
-_AttacksRankFunc:
+        .align  16, 0x90
+        .globl  AttacksRankFunc
+AttacksRankFunc:
         movl    4(%esp), %ecx                   /* square               */
         movl    8(%esp), %edx                   /* boardp               */
         pushl   %esi
@@ -319,9 +317,9 @@ _AttacksRankFunc:
         orl     B_OCCUPIED+4(%edx,%ebp,4), %eax
         shrl    %cl, %eax
         andl    $0x3f, %eax
-        movzbl  _at+WHICH_ATTACK(%eax,%esi), %edx
+        movzbl  at+WHICH_ATTACK(%eax,%esi), %edx
         decl    %ecx
-        movzbl  _at+RANK_ATTACKS(%edx,%edi,4), %eax
+        movzbl  at+RANK_ATTACKS(%edx,%edi,4), %eax
         shll    %cl, %eax
         popl    %edi
         movl    %eax, %edx
@@ -344,9 +342,9 @@ _AttacksRankFunc:
            0x3f) ] ],               \
        File(~(a)) )
 */
-        .align  alignment, 0x90
-        .globl  _AttacksFileFunc
-_AttacksFileFunc:
+        .align  16, 0x90
+        .globl  AttacksFileFunc
+AttacksFileFunc:
         movl    4(%esp), %ecx                   /* square               */
         movl    8(%esp), %edx                   /* boardp               */
         pushl   %esi
@@ -364,11 +362,11 @@ _AttacksFileFunc:
         movl    RL90+4(%edx,%eax,4), %eax
         shrl    %cl, %eax
         andl    $0x3f, %eax
-        movzbl  _at+WHICH_ATTACK(%eax,%esi), %edx
+        movzbl  at+WHICH_ATTACK(%eax,%esi), %edx
         decl    %ecx
-        movl    _at+FILE_ATTACKS(%edi,%edx,8), %eax
+        movl    at+FILE_ATTACKS(%edi,%edx,8), %eax
         shrl    $3, %ecx
-        movl    _at+FILE_ATTACKS+4(%edi,%edx,8), %edx
+        movl    at+FILE_ATTACKS+4(%edi,%edx,8), %edx
         popl    %edi
         shll    %cl, %eax
         popl    %esi
@@ -381,9 +379,9 @@ _AttacksFileFunc:
 /*
   return Or(AttacksRankInt(square, board), AttacksFileInt(square, board));
 */
-        .align  alignment, 0x90
-        .globl  _AttacksRookFunc
-_AttacksRookFunc:
+        .align  16, 0x90
+        .globl  AttacksRookFunc
+AttacksRookFunc:
         movl    4(%esp), %ecx                   /* square               */
         movl    8(%esp), %edx                   /* boardp               */
         pushl   %ebp
@@ -403,10 +401,10 @@ _AttacksRookFunc:
         orl     B_OCCUPIED+4(%edx,%eax,4), %ebp
         shrl    %cl, %ebp
         andl    $0x3f, %ebp
-        movzbl  _at+WHICH_ATTACK(%esi,%ebp,1), %ebx
+        movzbl  at+WHICH_ATTACK(%esi,%ebp,1), %ebx
         decl    %ecx
         movl    20(%esp), %esi                  /* square               */
-        movzbl  _at+RANK_ATTACKS(%ebx,%edi,4), %ebp
+        movzbl  at+RANK_ATTACKS(%ebx,%edi,4), %ebp
         shll    %cl, %ebp
         movl    %esi, %ecx
         movl    %ebp, %ebx
@@ -426,12 +424,12 @@ _AttacksRookFunc:
         movl    RL90+4(%edx,%eax,4), %eax
         shrl    %cl, %eax
         andl    $0x3f, %eax
-        movzbl  _at+WHICH_ATTACK(%eax,%esi), %edx
+        movzbl  at+WHICH_ATTACK(%eax,%esi), %edx
         decl    %ecx
-        movl    _at+FILE_ATTACKS(%edi,%edx,8), %eax
+        movl    at+FILE_ATTACKS(%edi,%edx,8), %eax
         shrl    $3, %ecx
         shll    %cl, %eax
-        movl    _at+FILE_ATTACKS+4(%edi,%edx,8), %edx
+        movl    at+FILE_ATTACKS+4(%edi,%edx,8), %edx
         shll    %cl, %edx
         popl    %edi
         orl     %ebx, %edx
@@ -453,9 +451,9 @@ _AttacksRookFunc:
             (Rank(~(a))<<3)+1),     \
         0x3f) ] ]
 */
-        .align  alignment, 0x90
-        .globl  _MobilityRankFunc
-_MobilityRankFunc:
+        .align  16, 0x90
+        .globl  MobilityRankFunc
+MobilityRankFunc:
         movl    4(%esp), %ecx                   /* square               */
         pushl   %esi
         movl    %ecx, %esi
@@ -473,9 +471,9 @@ _MobilityRankFunc:
         leal    (%esi,%esi,2), %ecx             /* file * 3             */
         shll    $6, %esi                        /* file * 64            */
         andl    $0x3f, %eax
-        movzbl  _at+WHICH_ATTACK(%eax,%esi), %edx
+        movzbl  at+WHICH_ATTACK(%eax,%esi), %edx
         popl    %esi
-        movzbl  _at+LEN8_MOBILITY(%edx,%ecx,4), %eax
+        movzbl  at+LEN8_MOBILITY(%edx,%ecx,4), %eax
         ret
 
 /*
@@ -489,9 +487,9 @@ _MobilityRankFunc:
             (File(~(a))<<3)+1 ),        \
         0x3f) ] ]
 */
-        .align  alignment, 0x90
-        .globl  _MobilityFileFunc
-_MobilityFileFunc:
+        .align  16, 0x90
+        .globl  MobilityFileFunc
+MobilityFileFunc:
         movl    4(%esp), %ecx                   /* square               */
         pushl   %esi
         movl    %ecx, %esi
@@ -508,10 +506,10 @@ _MobilityFileFunc:
         leal    (%esi,%esi,2), %ecx             /* rank * 3             */
         shll    $6, %esi                        /* rank * 64            */
         andl    $0x3f, %eax
-        movzbl  _at+WHICH_ATTACK(%eax,%esi), %edx
+        movzbl  at+WHICH_ATTACK(%eax,%esi), %edx
         popl    %esi
-        movzbl  _at+LEN8_MOBILITY(%edx,%ecx,4), %eax
+        movzbl  at+LEN8_MOBILITY(%edx,%ecx,4), %eax
         ret
 
-        .align  alignment, 0x90
+        .align  16, 0x90
         .end

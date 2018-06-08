@@ -15,15 +15,12 @@
 #     LINUX      {80X86 architecture running LINUX (Unix)}
 #     NT_i386    {80X86 architecture running Windows 95 or NT}
 #     NT_AXP     {DEC Alpha running Windows NT}
-#     DOS        {PC running dos/windows, using DJGPP port of gcc to compile}
 #     NEXT       {NextStep}
 #     OS/2       {IBM OS/2 warp}
 #     SGI        {SGI Workstation running Irix (SYSV/R4) Unix}
 #     SUN        {Sun SparcStation running Solaris (SYSV/R4) Unix}
 #     SUN_GCC    {Sun SparcStation running Solaris but using gcc
 #     FreeBSD    {80X86 architecture running FreeBSD (Unix)}
-#     NetBSD     {multi-architecture running NetBSD (Unix)}
-#     Cygwin     {80X86 running Cygwin under Win32 (Unix)}
 #   
 #   The next options are optimizations inside Crafty that you will have
 #   test to see if they help.  on some machines, these will slow things
@@ -45,7 +42,7 @@
 #   options above.
 
 default:
-	$(MAKE) -j4  linux-icc-elf
+	$(MAKE) -j4  linux-icc
 help:
 	@echo "You must specify the system which you want to compile for:"
 	@echo ""
@@ -56,16 +53,13 @@ help:
 	@echo "make cygwin           Cygwin under Win32"
 	@echo "make dos              DOS on i386 with DJGPP"
 	@echo "make hpux             HP/UX 9/10, /7xx"
-	@echo "make linux            Linux optimized for i386"
-	@echo "make linux-elf        Linux optimized for i386, ELF format"
-	@echo "make linux-i686       Linux optimized for i686"
-	@echo "make linux-i686-elf   Linux optimized for i686, ELF format"
+	@echo "make linux            Linux optimized for i386, ELF format"
+	@echo "make linux-i686       Linux optimized for i686, ELF format"
 	@echo "make linux-alpha      Linux optimized for alpha"
 	@echo "make freebsd          FreeBSD"
 	@echo "make freebsd-pgcc     FreeBSD using Pentium GNU cc"
 	@echo "make netbsd           NetBSD"
-	@echo "make netbsd-i386      NetBSD optimized for i386"
-	@echo "make netbsd-i386-elf  NetBSD optimized for i386, ELF format"
+	@echo "make netbsd-i386      NetBSD optimized for i386, ELF format"
 	@echo "make netbsd-sparc     NetBSD optimized for sparc"
 	@echo "make next             NeXTSTEP"
 	@echo "make os2              IBM OS/2 Warp"
@@ -116,28 +110,6 @@ alpha-host-nocix:
 		opt='$(opt) -DSMP -DCPUS=8 -DFAST -DPOSIX' \
 		crafty-make
 
-cygwin:
-	$(MAKE) target=LINUX \
-		CC=gcc CXX='$$(CC)' \
-		CFLAGS='$(CFLAGS) -pipe -D_REENTRANT -mpentium -O2 -Wall' \
-		CXFLAGS=$(CFLAGS) \
-		LDFLAGS=$(LDFLAGS) \
-		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
-		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST' \
-		asm=X86-aout.o \
-		crafty-make
-
-dos:
-	$(MAKE) target=DOS \
-		CC=gcc CXX='$$(CC)' \
-		CFLAGS='$(CFLAGS) -fomit-frame-pointer -m486 -O3' \
-		CXFLAGS=$(CFLAGS) \
-		LDFLAGS=$(LDFLAGS) \
-		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
-		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B' \
-		asm='X86.o' \
-		crafty-make
-
 freebsd:
 	$(MAKE) target=FreeBSD \
 		CC=gcc CXX='$$(CC)' \
@@ -146,7 +118,7 @@ freebsd:
 		LDFLAGS=$(LDFLAGS) \
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
 		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST' \
-		asm=X86-elf.o \
+		asm=X86.o \
 		crafty-make
 
 freebsd-pgcc:
@@ -157,7 +129,7 @@ freebsd-pgcc:
 		LDFLAGS=$(LDFLAGS) \
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
 		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST' \
-		asm=X86-elf.o \
+		asm=X86.o \
 		crafty-make
 
 hpux:
@@ -171,42 +143,16 @@ hpux:
 linux:
 	$(MAKE) target=LINUX \
 		CC=gcc CXX=g++ \
-		CFLAGS='$(CFLAGS) -Wall -pipe -D_REENTRANT -O3' \
-		CXFLAGS='$(CFLAGS) \
-			-fforce-mem -fomit-frame-pointer' \
-		LDFLAGS='$(LDFLAGS) -lpthread' \
-		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
-		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST' \
-		asm=X86-aout.o \
-		crafty-make
-
-linux-elf:
-	$(MAKE) target=LINUX \
-		CC=gcc CXX=g++ \
 		CFLAGS='$(CFLAGS) -Wall -pipe -D_REENTRANT -O3 \
 			-fforce-mem -fomit-frame-pointer' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS='$(LDFLAGS) -lpthread' \
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
 		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST' \
-		asm=X86-elf.o \
+		asm=X86.o \
 		crafty-make
 
 linux-i686:
-	$(MAKE) target=LINUX \
-		CC=gcc CXX=g++ \
-		CFLAGS='$(CFLAGS) -Wall -pipe -D_REENTRANT -march=i686 -O \
-			-fforce-mem -fomit-frame-pointer \
-			-mpreferred-stack-boundary=2' \
-		CXFLAGS=$(CFLAGS) \
-		LDFLAGS='$(LDFLAGS) -lpthread' \
-		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
-		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST \
-		     -DSMP -DCPUS=4 -DDGT' \
-		asm=X86-aout.o \
-		crafty-make
-
-linux-i686-elf:
 	$(MAKE) target=LINUX \
 		CC=gcc CXX=g++ \
 		CFLAGS='$(CFLAGS) -Wall -pipe -D_REENTRANT -march=i686 -O3 \
@@ -217,10 +163,10 @@ linux-i686-elf:
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
 		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST \
 		     -DSMP -DCPUS=4 -DDGT -DTRACE' \
-		asm=X86-elf.o \
+		asm=X86.o \
 		crafty-make
 
-linux-i686-elf-profile:
+linux-i686-profile:
 	$(MAKE) target=LINUX \
 		CC=gcc CXX=g++ \
 		CFLAGS='$(CFLAGS) -Wall -pipe -D_REENTRANT -march=i686 -O3 \
@@ -231,42 +177,42 @@ linux-i686-elf-profile:
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
 		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST \
 		     -DSMP -DCPUS=4 -DDGT' \
-		asm=X86-elf.o \
+		asm=X86.o \
 		crafty-make
 
-linux-icc-elf-profile:
+linux-icc-profile:
 	$(MAKE) target=LINUX \
 		CC=icc CXX=icc \
 		CFLAGS='$(CFLAGS) -D_REENTRANT -O2 -march=pentiumiii \
-                        -mcpu=pentiumpro \
+                        -mcpu=pentiumpro -prof_gen -prof_dir ./profdir \
                         -fno-alias -tpp6' \
 		CXFLAGS='$(CFLAGS) -D_REENTRANT -O2 -march=pentiumiii \
-                        -mcpu=pentiumpro \
+                        -mcpu=pentiumpro -prof_gen -prof_dir ./profdir \
                         -tpp6' \
 		LDFLAGS='$(LDFLAGS) -lpthread' \
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
 		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST \
-		     -DSMP -DCPUS=4 -DDGT' \
-		asm=X86-elf.o \
+		     -DPOSIX -DSMP -DCPUS=4 -DDGT' \
+		asm=X86.o \
 		crafty-make
 
-linux-icc-elf:
+linux-icc:
 	$(MAKE) target=LINUX \
 		CC=icc CXX=icc \
 		CFLAGS='$(CFLAGS) -D_REENTRANT -O2 -march=pentiumiii \
-                        -mcpu=pentiumpro \
+                        -mcpu=pentiumpro -prof_use -prof_dir ./profdir \
                         -fno-alias -tpp6' \
 		CXFLAGS='$(CFLAGS) -D_REENTRANT -O2 -march=pentiumiii \
-                        -mcpu=pentiumpro \
+                        -mcpu=pentiumpro -prof_use -prof_dir ./profdir \
                         -tpp6' \
 		LDFLAGS='$(LDFLAGS) -lpthread' \
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
 		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST \
-		     -DSMP -DCPUS=4 -DDGT' \
-		asm=X86-elf.o \
+		     -DPOSIX -DSMP -DCPUS=4 -DDGT' \
+		asm=X86.o \
 		crafty-make
 
-icc-elf:
+icc:
 	$(MAKE) target=LINUX \
 		CC=icc CXX=icc \
 		CFLAGS='$(CFLAGS) -D_REENTRANT -O2 -march=pentium4 \
@@ -277,7 +223,7 @@ icc-elf:
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
 		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST \
 		     -DSMP -DCPUS=4 -DDGT' \
-		asm=X86-elf.o \
+		asm=X86.o \
 		crafty-make
 
 # You may wish to add additional targets called linux-alpha-<your_cpu>
@@ -325,20 +271,7 @@ netbsd-i386:
 		LDFLAGS=$(LDFLAGS) \
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS -DFAST \
 		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B' \
-		asm=X86-aout.o \
-		crafty-make
-
-netbsd-i386-elf:
-	$(MAKE) target=NetBSD \
-		CC=gcc CXX=g++ \
-		CFLAGS='$(CFLAGS) -D_REENTRANT -O3 -Wall -m486 \
-			-fomit-frame-pointer -funroll-all-loops \
-			-finline-functions -ffast-math' \
-		CXFLAGS=$(CFLAGS) \
-		LDFLAGS=$(LDFLAGS) \
-		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS -DFAST \
-		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B' \
-		asm=X86-elf.o \
+		asm=X86.o \
 		crafty-make
 
 netbsd-sparc:
@@ -421,7 +354,7 @@ profile:
 	@rm -rf position.bin
 	@mkdir profdir
 	@touch *.c *.cpp *.h
-	$(MAKE) linux-icc-elf-profile
+	$(MAKE) linux-icc-profile
 	@echo "#!/bin/csh" > runprof
 	@echo "crafty <<EOF" >>runprof
 	@echo "st=10" >>runprof
@@ -502,7 +435,7 @@ profile:
 	@./runprof
 	@rm runprof
 	@touch *.c *.cpp *.h
-	$(MAKE) linux-icc-elf
+	$(MAKE) linux-icc
 
 # Do not change anything below this line!
 
@@ -529,8 +462,6 @@ crafty-make:
 
 crafty:	$(objects) 
 	$(CC) $(LDFLAGS) -o crafty $(objects) -lm  $(LIBS)
-	@rm -f X86-elf.S
-	@rm -f X86-aout.S
 
 dgt:    dgtdrv.o
 	@cc -O -o dgt dgtdrv.c
@@ -538,7 +469,7 @@ dgt:    dgtdrv.o
 egtb.o: egtb.cpp
 	$(CXX) -c $(CXFLAGS) $(opts) egtb.cpp
 clean:
-	-rm -f *.o crafty X86-elf.X X86-aout.S
+	-rm -f *.o crafty
 
 $(objects): $(includes)
 
@@ -551,13 +482,3 @@ epd.o epdglue.o option.o init.o : $(epdincludes)
 
 .s.o:
 	$(AS) $(AFLAGS) -o $*.o $*.s
-
-X86-aout.o:
-	sed -e 's/ALIGN/4/' X86.s > X86-aout.S
-	$(CC) -c X86-aout.S
-	@rm X86-aout.S
-
-X86-elf.o:
-	sed -e '/ _/s// /' -e '/^_/s///' -e 's/ALIGN/16/' X86.s > X86-elf.S
-	$(CC) -c X86-elf.S
-	@rm X86-elf.S

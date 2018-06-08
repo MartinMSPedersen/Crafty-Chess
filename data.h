@@ -227,11 +227,7 @@
   extern int            hash_table_size;
   extern int            pawn_hash_table_size;
   extern int            hash_mask;
-  extern struct {
-                 char pad1[128];
-                 volatile int quit;
-                 char pad2[128];
-  } quit;
+  volatile int          quit;
   extern unsigned int   pawn_hash_mask;
   extern HASH_ENTRY      *trans_ref;
   extern PAWN_HASH_ENTRY *pawn_hash_table;
@@ -483,7 +479,7 @@
   extern lock_t         lock_smp, lock_io, lock_root;
   extern volatile int   smp_idle;
   extern volatile int   smp_threads;
-# if !defined(POSIX)
+# if defined(POSIX)
   extern pthread_attr_t pthread_attr;
 # endif
 # else

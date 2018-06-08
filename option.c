@@ -724,7 +724,7 @@ int Option(TREE *tree) {
     int i;
 #endif
     abort_search=1;
-    quit.quit=1;  
+    quit=1;  
 #if defined(CLONE)
     for (i=0;i<smp_threads;i++) {
       if (pids[i]) kill(pids[i],15);

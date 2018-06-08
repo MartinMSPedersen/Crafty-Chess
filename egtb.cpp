@@ -96,10 +96,6 @@ typedef  int  piece;
 
 #if defined (SMP)
 static	lock_t	lockLRU;
-#else
-#  define LockInit(x)
-#  define Lock(x)
-#  define Unlock(x)
 #endif
 
 // Declarations

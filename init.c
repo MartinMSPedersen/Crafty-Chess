@@ -1488,14 +1488,13 @@ void InitializeRandomHash(void) {
 ********************************************************************************
 */
 void InitializeSMP(void) {
-#if defined(POSIX)
-  pthread_attr_init(&pthread_attr);
-  pthread_attr_setdetachstate(&pthread_attr, PTHREAD_CREATE_DETACHED);
-  pthread_attr_setscope(&pthread_attr, PTHREAD_SCOPE_SYSTEM);
-#endif
   LockInit(lock_smp);
   LockInit(lock_io);
   LockInit(lock_root);
+#if defined(POSIX)
+  pthread_attr_init(&pthread_attr);
+  pthread_attr_setscope(&pthread_attr, PTHREAD_SCOPE_SYSTEM);
+#endif
 }
 #endif
 

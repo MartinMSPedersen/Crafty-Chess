@@ -285,8 +285,8 @@ int ThreadWait(int tid, TREE *waiting) {
 |                                                          |
  ----------------------------------------------------------
 */
-    while (!thread[tid] && !quit.quit && (!waiting || waiting->nprocs)) Pause();
-    if (quit.quit) return(0);
+    while (!thread[tid] && !quit && (!waiting || waiting->nprocs)) Pause();
+    if (quit) return(0);
     Lock(lock_smp);
     if (!thread[tid]) thread[tid]=waiting;
 /*
@@ -316,7 +316,7 @@ int ThreadWait(int tid, TREE *waiting) {
     thread_start_time[tid]=ReadClock(cpu);
     Unlock(lock_smp);
     if (thread[tid] == waiting) return(0);
-    if (quit.quit || thread[tid] == (TREE*) -1) {
+    if (quit || thread[tid] == (TREE*) -1) {
       Lock(lock_io);
       Print(128,"thread %d exiting\n",tid);
       Unlock(lock_io);

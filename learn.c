@@ -63,7 +63,8 @@ void LearnBook(TREE *tree, int wtm, int search_value, int search_depth, int lv,
 */
   else if (moves_out_of_book == LEARN_INTERVAL+1 || force) {
     int move, i, j, learn_value, read;
-    int secs, interval, last_book_move=-1;
+    time_t secs;
+    int interval, last_book_move=-1;
     float temp_value;
     char cmd[32], buff[80], *nextc;
     int best_eval=-999999, best_eval_p=0;
@@ -807,7 +808,8 @@ void LearnImportCAP(TREE *tree, int nargs, char **args) {
 */
 void LearnImportPosition(TREE *tree, int nargs, char **args) {
   BITBOARD word1, word2;
-  int positions, nextp, secs;
+  time_t secs;
+  int positions, nextp;
   struct tm *timestruct;
   int i, rank, file, nempty, value, move, depth, added_positions=0;
   char *eof, text[80];
@@ -1046,7 +1048,8 @@ void LearnImportPosition(TREE *tree, int nargs, char **args) {
 */
 void LearnPosition(TREE *tree, int wtm, int last_value, int value) {
   BITBOARD word1, word2;
-  int positions, nextp, secs;
+  time_t secs;
+  int positions, nextp;
   struct tm *timestruct;
   int rank, file, nempty;
 /*
