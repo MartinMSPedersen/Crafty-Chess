@@ -240,7 +240,7 @@ linux-icc:
 			-w -xN -prof_use -prof_dir ./profdir' \
 		LDFLAGS='$(LDFLAGS) -lstdc++' \
 		opt='$(opt) -DFAST -DINLINE32 \
-			-DSMP -DCPUS=2' \
+			-DTRACE -DSMP -DCPUS=2' \
 		crafty-make
 
 linux-alpha:

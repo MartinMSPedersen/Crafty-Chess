@@ -3293,6 +3293,31 @@
  *           a "tall pawn" since movement in the critical direction is not     *
  *           possible.                                                         *
  *                                                                             *
+ *   20.7    manually tuned kinf_safety[][] array values.  modified the new    *
+ *           bishop code to only consider the "long diagonal" if the bishop    *
+ *           is in either 9-square corner on its own side of the board, so     *
+ *           that the short diagonal being open won't offset the long          *
+ *           diagonal that is blocked.  bishop-pair bonus is now adjusted by   *
+ *           how open or closed the center is.  If 3 of the four center pawns  *
+ *           are gone, the center is open and the bishop pair bonus is set to  *
+ *           the max.  If the four center pawns are locked (e4/e5/d5/d6 for    *
+ *           example) then the bishop pair bonus is eliminated.  if the center *
+ *           is somewhere in the middle of those extremes, then the bishop     *
+ *           pair bonus is present but reduced.  castling now is a bit more    *
+ *           intelligent.  if a side has not castled, then moving either rook  *
+ *           receives a penalty, where moving the king or the last unmoved     *
+ *           rook receives a larger penalty.  if the king has not castled, its *
+ *           'safety' score is based on the most safe position of the possible *
+ *           options.  if neither rook has moved, then the score is based on   *
+ *           the safest of the three locations, either in the center where it  *
+ *           is, or on the safest wing.  If uncastled, this safaty is always   *
+ *           reduced a bit to encourage castling before it becomes too late to *
+ *           do so.  this was done to avoid a problem where the queen rook had *
+ *           been moved, Crafty had not castled, and it pushed the kingside    *
+ *           pawns making it unsafe to castle there, leaving the center as the *
+ *           best place, yet had it not pushed the kingside pawns, castling    *
+ *           would have been a better alternative.                             *
+ *                                                                             *
  *******************************************************************************
  */
 int main(int argc, char **argv)

@@ -1078,28 +1078,26 @@ void InitializeHistoryKillers(void)
  */
 void InitializeKingSafety()
 {
-  int max_value = 300;
-  int bias = 2;
   int safety, tropism;
 
-  for (safety = 0; safety < 32; safety++)
-    king_safety[safety][0] =
-        Min(max_value, (safety + bias) * (safety + bias) + safety + bias);
-  for (tropism = 0; tropism < 32; tropism++)
-    king_safety[0][tropism] =
-        Min(max_value, (tropism + bias) * (tropism + bias) + tropism + bias);
-  for (safety = 1; safety < 32; safety++) {
-    for (tropism = 1; tropism < 32; tropism++) {
-      int x = Min(31, sqrtf(safety*safety + tropism*tropism) + .5);
-      king_safety[safety][tropism] = king_safety[0][x];
+  for (safety = 0; safety < 16; safety++) {
+    for (tropism = 0; tropism < 16; tropism++) {
+      int x = Min(15, sqrtf(safety*safety + tropism*tropism) + .5);
+      king_safety[safety][tropism] = (safety_vector[x] + tropism_vector[x]) / 2;
     }
   }
 /*
-  for (safety = 0; safety < 32; safety++) {
-    for (tropism = 0; tropism < 32; tropism++) {
+  printf("    ");
+  for (tropism = 0; tropism < 16; tropism++)
+    printf("%4d", tropism);
+  printf("\n");
+  for (safety = 0; safety < 16; safety++) {
+    printf("%2d  ", safety);
+    for (tropism = 0; tropism < 16; tropism++) {
       printf("%4d", king_safety[safety][tropism]);
+      if ((tropism + 1) % 16 == 0)
+        printf("\n");
     }
-    printf("\n");
   }
 */
 }
@@ -1203,6 +1201,21 @@ void InitializeMasks(void)
   mask_white_OOO = SetMask(B1) | SetMask(C1) | SetMask(D1);
   mask_black_OO = SetMask(F8) | SetMask(G8);
   mask_black_OOO = SetMask(B8) | SetMask(C8) | SetMask(D8);
+  mask_corner_a1 =
+      SetMask(A1) | SetMask(A2) | SetMask(A3) | SetMask(B1) | SetMask(B2) |
+      SetMask(B3) | SetMask(C1) | SetMask(C2) | SetMask(C3);
+  mask_corner_h1 =
+      SetMask(F1) | SetMask(F2) | SetMask(F3) | SetMask(G1) | SetMask(G2) |
+      SetMask(G3) | SetMask(H1) | SetMask(H2) | SetMask(H3);
+  mask_corner_a8 =
+      SetMask(A8) | SetMask(A7) | SetMask(A6) | SetMask(B8) | SetMask(B7) |
+      SetMask(B6) | SetMask(C8) | SetMask(C7) | SetMask(C6);
+  mask_corner_h8 =
+      SetMask(F8) | SetMask(F7) | SetMask(F6) | SetMask(G8) | SetMask(G7) |
+      SetMask(G6) | SetMask(H8) | SetMask(H7) | SetMask(H6);
+  mask_center_files = file_mask[FILED] | file_mask[FILEE];
+  mask_d3d4d5d6 = SetMask(D3) | SetMask(D4) | SetMask(D5) | SetMask(D6);
+  mask_e3e4e5e6 = SetMask(E3) | SetMask(E4) | SetMask(E5) | SetMask(E6);
 
   for (i = 0; i < 64; i++) {
     stalemate_sqs[i] = 0;

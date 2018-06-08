@@ -297,6 +297,7 @@ typedef struct {
   unsigned char protected;
   unsigned char outside;
   unsigned char open_files;
+  unsigned char center;
 } PAWN_HASH_ENTRY;
 typedef struct {
   int       path[MAXPLY];

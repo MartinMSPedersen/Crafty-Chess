@@ -47,7 +47,7 @@ int pval_b[64];
 int kval_bn[64];
 int kval_bk[64];
 int kval_bq[64];
-int king_safety[32][32];
+int king_safety[16][16];
 int black_outpost[64];
 signed char directions[64][64];
 BITBOARD w_pawn_attacks[64];
@@ -117,6 +117,11 @@ BITBOARD mask_kr_trapped_w[3];
 BITBOARD mask_qr_trapped_w[3];
 BITBOARD mask_kr_trapped_b[3];
 BITBOARD mask_qr_trapped_b[3];
+BITBOARD mask_corner_a1, mask_corner_h1;
+BITBOARD mask_corner_a8, mask_corner_h8;
+BITBOARD mask_center_files;
+BITBOARD mask_d3d4d5d6;
+BITBOARD mask_e3e4e5e6;
 BITBOARD light_squares;
 BITBOARD dark_squares;
 BITBOARD not_rook_pawns;
@@ -157,7 +162,7 @@ BITBOARD black_pawn_race_btm[64];
 BOOK_POSITION book_buffer[BOOK_CLUSTER_SIZE];
 BOOK_POSITION book_buffer_char[BOOK_CLUSTER_SIZE];
 
-#define    VERSION                             "20.6"
+#define    VERSION                             "20.7"
 char version[6] = { VERSION };
 PLAYING_MODE mode = normal_mode;
 int batch_mode = 0;             /* no asynch reads */
@@ -313,6 +318,7 @@ int blockading_passed_pawn_value[8] = { 0, 6, 10, 24, 36, 60, 75, 0 };
 int isolated_pawn_value[9] = { 0, 8, 20, 40, 60, 70, 80, 80, 80 };
 int isolated_pawn_of_value[9] = { 0, 4, 10, 16, 24, 24, 24, 24, 24 };
 int doubled_pawn_value[9] = { 0, 0, 4, 7, 10, 10, 10, 10, 10 };
+int doubled_isolated_pawn_value[9] = { 0, 10, 20, 30, 30, 30, 30, 30, 30 };
 int supported_passer[8] = { 0, 0, 0, 20, 40, 60, 100, 0 };
 int outside_passed[128] = {
  160, 100, 100, 100,  80,  80,  80,  70,
@@ -332,7 +338,6 @@ int outside_passed[128] = {
    0,   0,   0,   0,   0,   0,   0,   0,
    0,   0,   0,   0,   0,   0,   0,   0
 };
-
 const char square_color[64] = {
   1, 0, 1, 0, 1, 0, 1, 0,
   0, 1, 0, 1, 0, 1, 0, 1,
@@ -392,16 +397,6 @@ int pval_w[64] = {
   10, 10, 10,  20,  20, 10, 10, 10,
   40, 40, 40,  40,  40, 40, 40, 40,
    0,  0,  0,   0,   0,  0,  0,  0
-};
-int nfork[64] = {
-   8,   8,   8,   8,   8,   8,   8,   8,
-   8,   8,   8,   8,   8,   8,   8,   8,
-   8,   8,   6,   6,   6,   6,   8,   8,
-   8,   8,   6,   8,   8,   6,   8,   8,
-   8,   8,   6,   8,   8,   6,   8,   8,
-   8,   8,   6,   6,   6,   6,   8,   8,
-   8,   8,   8,   8,   8,   8,   8,   8,
-   8,   8,   8,   8,   8,   8,   8,   8,
 };
 int nval[64] = {
   -60, -30, -30, -30, -30, -30, -30, -60,
@@ -473,6 +468,12 @@ int kval_wq[64] = {
    40,  40,  40,  40,  20, -20, -40, -60,
   -20, -20, -20, -20, -20, -20, -40, -60
 };
+int safety_vector[16] = {
+   6,  12,  20,  30,  42,  56,  72,  90,
+ 110, 132, 156, 182, 210, 240, 272, 300};
+int tropism_vector[16] = {
+   6,  12,  20,  30,  42,  56,  72,  90,
+ 110, 132, 156, 182, 210, 240, 272, 300};
 
 /* note that black piece/square values are copied from white, but
    reflected */
@@ -502,11 +503,12 @@ int king_king_tropism = 15;
 int bishop_trapped = 174;
 int bishop_over_knight_endgame = 36;
 /*
-    this is indexed by the number of friendly pawns on the board,
+    this is indexed by the center status (open, ..., blocked)
     as a bishop pair is more important when the board has opened
-    up so that mobility is high.
+    up so that mobility is high.  0 is blocked, 60 is open, middle
+    value is in-between.
 */
-int bishop_pair[9] = { 40, 40, 40, 40, 36, 32, 28, 24, 24 };
+int bishop_pair[3] = { 0, 30, 60 };
 int bishop_bad = 12;
 int rook_on_7th = 24;
 int rook_connected_7th_rank = 10;
@@ -542,8 +544,8 @@ int king_safety_mate_threat = 600;
 int development_thematic = 12;
 int development_unmoved = 7;
 int blocked_center_pawn = 12;
-int development_losing_castle = 30;
-int development_not_castled = 35;
+int development_losing_castle = 20;
+int development_not_castled = 20;
 
 /*
    First term is a character string explaining what the eval
@@ -595,9 +597,9 @@ struct eval_term eval_packet[256] = {
   {"isolated pawn [n]               ", 9, isolated_pawn_value},
   {"isolated pawn on open file [n]  ", 9, isolated_pawn_of_value},
   {"doubled pawn [n]                ", 9, doubled_pawn_value},
+  {"doubled isolated pawn [n]       ", 9, doubled_isolated_pawn_value},
   {"supported passed pawn [rank]    ", 8, supported_passer},
   {"outside passed pawn [matrl]     ", 128, outside_passed},
-  {NULL, 0, NULL},
   {NULL, 0, NULL},
   {NULL, 0, NULL},
   {NULL, 0, NULL},
@@ -611,7 +613,7 @@ struct eval_term eval_packet[256] = {
   {"king tropism [distance]         ", 8, king_tropism_n},
   {"knight piece/square table       ", -64, nval},
   {"outpost [square]                ", -64, white_outpost},
-  {"knight fork bonus table         ", -64, nfork},
+  {NULL, 0, NULL},
   {NULL, 0, NULL},
   {NULL, 0, NULL},
   {NULL, 0, NULL},
@@ -621,7 +623,7 @@ struct eval_term eval_packet[256] = {
   {"bishop over knight endgame      ", 0, &bishop_over_knight_endgame},
   {"bishop trapped                  ", 0, &bishop_trapped},
   {"bishop bad                      ", 0, &bishop_bad},
-  {"bishop pair                     ", 9, bishop_pair},
+  {"bishop pair                     ", 3, bishop_pair},
   {"king tropism [distance]         ", 8, king_tropism_b},
   {"bishop piece/square table       ", -64, bval},
   {NULL, 0, NULL},
@@ -665,8 +667,8 @@ struct eval_term eval_packet[256] = {
   {"king piece/square qside pawns   ", -64, kval_wq},
   {"king safety open file defects   ", 0, &open_file},
   {"king safety half-open file def  ", 0, &half_open_file},
-  {NULL, 0, NULL},
-  {NULL, 0, NULL},
+  {"king safety pawn-shield vector  ", 16, safety_vector},
+  {"king safety tropism vector      ", 16, tropism_vector},
   {NULL, 0, NULL},
   {NULL, 0, NULL},
   {NULL, 0, NULL},
