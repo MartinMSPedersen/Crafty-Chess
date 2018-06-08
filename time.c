@@ -49,7 +49,7 @@ void TimeAdjust(int time_used, PLAYER player)
   }
 }
 
-/* last modified 01/26/00 */
+/* last modified 03/10/04 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -145,7 +145,7 @@ int TimeCheck(TREE * RESTRICT tree, int abort)
  *                                                          *
  ************************************************************
  */
-  if (root_value == root_alpha && !(root_moves[0].status & 1) && ndone == 1)
+  if (root_value == root_alpha && !(root_moves[0].status & 7) && ndone == 1)
     return (1);
 /*
  ************************************************************
@@ -161,7 +161,7 @@ int TimeCheck(TREE * RESTRICT tree, int abort)
  */
   value = root_value;
   last_value = last_root_value;
-  if ((value >= last_value - 24 && !(root_moves[0].status & 1)) || (value > 350
+  if ((value >= last_value - 24 && !(root_moves[0].status & 7)) || (value > 350
           && value >= last_value - 50)) {
     if (time_used > time_limit * 2)
       return (1);
@@ -181,7 +181,7 @@ int TimeCheck(TREE * RESTRICT tree, int abort)
  */
   if (time_used < time_limit * 2.5 && time_used + 500 < tc_time_remaining)
     return (0);
-  if ((value >= last_value - 67 && !(root_moves[0].status & 1)) || value > 550)
+  if ((value >= last_value - 67 && !(root_moves[0].status & 7)) || value > 550)
     return (abort);
 /*
  ************************************************************

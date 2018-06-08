@@ -2148,8 +2148,8 @@ int EvaluatePassedPawnRaces(TREE * RESTRICT tree, int wtm)
  *                                                          *
  ************************************************************
  */
+  realb=0;
   if (!TotalWhitePieces && tree->pawn_score.passed_b) {
-    realb=0;
     passed = tree->pawn_score.passed_b;
     while ((file = FirstOne8Bit(passed)) != 8) {
       passed &= ~(128 >> file);
@@ -2216,8 +2216,8 @@ int EvaluatePassedPawnRaces(TREE * RESTRICT tree, int wtm)
  *                                                          *
  ************************************************************
  */
+  realw=0;
   if (!TotalBlackPieces && tree->pawn_score.passed_w) {
-    realw=0;
     passed = tree->pawn_score.passed_w;
     while ((file = FirstOne8Bit(passed)) != 8) {
       passed &= ~(128 >> file);

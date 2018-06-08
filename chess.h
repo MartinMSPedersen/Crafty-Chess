@@ -143,10 +143,11 @@
 #if !defined(RCDIR)
 #  define       RCDIR        "."
 #endif
-#define     EGTB_CACHE_DEFAULT 1024*1024
-#define     MAXPLY             65
-#define     MAX_BLOCKS         8*CPUS*CPUS
-#define     MAX_TC_NODES       30000
+#define     EGTB_CACHE_DEFAULT               1024*1024
+#define     MAXPLY                                  65
+#define     MAX_BLOCKS_PER_CPU                      32
+#define     MAX_BLOCKS         MAX_BLOCKS_PER_CPU*CPUS
+#define     MAX_TC_NODES                         30000
 #if !defined(SMP) && !defined(SUN)
 #  define lock_t volatile int
 #endif
@@ -304,10 +305,14 @@ typedef struct {
   BITBOARD  nodes;
   int       move;
  /* 
-    xxxx xxx1 = failed low
-    xxxx xx1x = failed high
-    1xxx xxxx = done (searched)
+    xxxx xxx1 = failed low once
+    xxxx xx1x = failed low twice
+    xxxx x1xx = failed low three times
+    xxxx 1xxx = failed high once
+    xxx1 xxxx = failed high twice
+    xx1x xxxx = failed high three times
     x1xx xxxx = don't search in parallel
+    1xxx xxxx = move has been searched
   */
   unsigned char status;
 } ROOT_MOVE;
@@ -582,6 +587,8 @@ int       SearchSMP(TREE * RESTRICT, int, int, int, int, int, int, int, int);
 void      SearchTrace(TREE *, int, int, int, int, int, char *, int);
 void      SetBoard(SEARCH_POSITION *, int, char **, int);
 void      SetChessBitBoards(SEARCH_POSITION *);
+int       SetRootAlpha(unsigned char, int);
+int       SetRootBeta(unsigned char, int);
 #if defined(SINGULAR)
 int       Singular(TREE*, int, int, int, int);
 #endif

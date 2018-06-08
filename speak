@@ -43,7 +43,11 @@ else {
   for (my $i=0; $i<length($move); $i++) {
     my $char = substr $move, $i, 1;
     if ($char =~ /[^=]/) {
-      if ($char =~ /#/) {
+      if ($char =~ /x/) {
+        system("$playprg $soundpath/x.wav");
+        system("usleep 400000");
+      }
+      elsif ($char =~ /#/) {
         system("$playprg $soundpath/Checkmate.wav");
       }
       elsif ($char =~ /\+/) {

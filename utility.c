@@ -942,8 +942,6 @@ int HasOpposition(int on_move, int white_king, int black_king)
   }
   if (!(file_distance & 1) && !(rank_distance & 1))
     return (1);
-  if (!(file_distance & 1) && !(rank_distance & 1))
-    return (1);
   return (0);
 }
 
@@ -2001,9 +1999,9 @@ TREE *CopyToSMP(TREE * RESTRICT p, int thread)
 {
   int i, j, max;
   TREE *c;
-  int first = thread * (MAX_BLOCKS / CPUS) + 1;
-  int last = first + 16;
-  int maxb = 16 * max_threads + 1;
+  int first = thread * MAX_BLOCKS_PER_CPU + 1;
+  int last = first + MAX_BLOCKS_PER_CPU;
+  int maxb = MAX_BLOCKS + 1;
 
   for (i = first; i < last && local[i]->used; i++);
   if (i >= last) {

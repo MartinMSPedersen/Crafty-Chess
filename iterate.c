@@ -271,18 +271,26 @@ int Iterate(int wtm, int search_type, int root_list_done)
           if (abort_search || time_abort)
             break;
           if (value >= root_beta) {
-            root_moves[0].status |= 2;
-            root_moves[0].status &= 255 - 128;
-            if (root_moves[0].status & 1)
-              root_alpha = -MATE - 1;
-            else
-              root_alpha = root_beta - 1;
+            if (!(root_moves[0].status & 8)) {
+              root_moves[0].status |= 8;
+            }
+            else if (!(root_moves[0].status & 16)) {
+              root_moves[0].status |= 16;
+            }
+            else {
+              root_moves[0].status |= 32;
+            }
+            root_alpha=SetRootAlpha(root_moves[0].status, root_alpha);
             root_value = root_alpha;
-            root_beta = MATE + 1;
+            root_beta=SetRootBeta(root_moves[0].status, root_beta);
+            root_moves[0].status &= 255 - 128;
             root_moves[0].nodes = 0;
             if (root_print_ok) {
-              Print(2, "               %2i   %s     ++   ", iteration_depth,
-                  DisplayTime(end_time - start_time));
+              char *fh_indicator = "+1";
+              if (root_moves[0].status & 16) fh_indicator = "+3";
+              if (root_moves[0].status & 32) fh_indicator = "+M";
+              Print(2, "               %2i   %s     %2s   ", iteration_depth,
+                  DisplayTime(end_time - start_time), fh_indicator);
               if (display_options & 64)
                 Print(2, "%d. ", move_number);
               if ((display_options & 64) && !wtm)
@@ -300,18 +308,33 @@ int Iterate(int wtm, int search_type, int root_list_done)
                   kibitz_text);
             }
           } else if (value <= root_alpha) {
-            if (!(root_moves[0].status & 2)) {
+            if (!(root_moves[0].status & 0x38)) {
+              if (!(root_moves[0].status & 1)) {
+                root_moves[0].status |= 1;
+              }
+              else if (!(root_moves[0].status & 2)) {
+                root_moves[0].status |= 2;
+              }
+              else {
+                root_moves[0].status |= 4;
+              }
+              root_alpha=SetRootAlpha(root_moves[0].status, root_alpha);
+              root_value = root_alpha;
+              root_beta=SetRootBeta(root_moves[0].status, root_beta);
               root_moves[0].status &= 255 - 128;
               root_moves[0].nodes = 0;
-              root_moves[0].status |= 1;
-              if (root_moves[0].status & 2)
+              if (root_moves[0].status & 0x38)
                 root_beta = MATE + 1;
               root_alpha = -MATE - 1;
               root_value = root_alpha;
               easy_move = 0;
               if (root_print_ok && !time_abort && !abort_search) {
-                Print(4, "               %2i   %s     --   ", iteration_depth,
-                    DisplayTime(ReadClock(time_type) - start_time));
+                char *fl_indicator = "-1";
+                if (root_moves[0].status & 16) fl_indicator = "-3";
+                if (root_moves[0].status & 32) fl_indicator = "-M";
+                Print(4, "               %2i   %s     %2s   ", iteration_depth,
+                    DisplayTime(ReadClock(time_type) - start_time),
+                    fl_indicator);
                 if (display_options & 64)
                   Print(4, "%d. ", move_number);
                 if ((display_options & 64) && !wtm)
@@ -402,7 +425,7 @@ int Iterate(int wtm, int search_type, int root_list_done)
             total_nodes += root_moves[i].nodes;
             Print(128, " %10s  " BMF10 "       %d   %d\n", OutputMove(tree,
                     root_moves[i].move, 1, wtm), root_moves[i].nodes,
-                (root_moves[i].status & 2) > 0, (root_moves[i].status & 1) > 0);
+                (root_moves[i].status & 0x38) > 0, (root_moves[i].status & 7) > 0);
           }
           Print(256, "      total  " BMF10 "\n", total_nodes);
         }
@@ -538,4 +561,40 @@ int Iterate(int wtm, int search_type, int root_list_done)
   program_end_time = ReadClock(time_type);
   search_move = 0;
   return (last_root_value);
+}
+
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   SetRootAlpha() is used to set the root alpha value by looking at the move *
+ *   status to see how many times this move has failed low.  The first fail    *
+ *   drops alpha by -1.0.  The second fail low drops it by another -2.0, and   *
+ *   the third fail low drops it to -infinity.                                 *
+ *                                                                             *
+ *******************************************************************************
+ */
+int SetRootAlpha(unsigned char status, int old_root_alpha)
+{
+  if (status & 4) return (-MATE-1);
+  if (status & 2) return (old_root_alpha - 200);
+  if (status & 1) return (old_root_alpha - 100);
+  return (old_root_alpha);
+}
+
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   SetRootBeta() is used to set the root beta value by looking at the move   *
+ *   status to see how many times this move has failed high.  The first fail   *
+ *   raises alpha by 1.0.  The second fail raises it by another 2.0, and       *
+ *   the third fail raises it to +infinity.                                    *
+ *                                                                             *
+ *******************************************************************************
+ */
+int SetRootBeta(unsigned char status, int old_root_beta)
+{
+  if (status & 32) return (MATE+1);
+  if (status & 16) return (old_root_beta + 200);
+  if (status & 8) return (old_root_beta + 100);
+  return (old_root_beta);
 }

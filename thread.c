@@ -193,11 +193,11 @@ lock_t lock_thread_init;
 
 void ThreadMalloc(int tid)
 {
-  int i, n = MAX_BLOCKS / CPUS;
+  int i, n = MAX_BLOCKS_PER_CPU;
 
   if (0 == tid)
     LockInit(lock_thread_init);
-  for (i = MAX_BLOCKS / CPUS * ((int) tid) + 1; n; i++, n--) {
+  for (i = MAX_BLOCKS_PER_CPU * ((int) tid) + 1; n; i++, n--) {
     local[i] =
         (TREE *) ((~(size_t) 127) & (127 + (size_t) MALLOC(sizeof(TREE) + 127,
                 tid)));

@@ -4,7 +4,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 10/18/99 */
+/* last modified 03/10/04 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -39,7 +39,7 @@ int NextRootMove(TREE * RESTRICT tree, TREE * RESTRICT mytree, int wtm)
     if (root_moves[i].status & 128)
       done++;
   if (done == 1 && (root_moves[0].status & 128) && root_value == root_alpha &&
-      !(root_moves[0].status & 2))
+      !(root_moves[0].status & 0x38))
     return (NONE);
   for (i = 0; i < n_root_moves; i++)
     if (!(root_moves[i].status & 128)) {

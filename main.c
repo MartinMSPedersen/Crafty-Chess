@@ -3023,7 +3023,20 @@
  *   19.11   a fix to the Annotate() code that could, in certain cases, fail   *
  *           to display N moves when asked.  this happened when there were     *
  *           fewer than N moves total, and on occasion it would not display    *
- *           all the moves that were possible, omitting the last one.          *
+ *           all the moves that were possible, omitting the last one.  fix to  *
+ *           egtb.cpp to correctly set 16 bit index mode for a few of the      *
+ *           recent 6-piece tables.                                            *
+ *                                                                             *
+ *   19.12   fix to allocating split blocks that did not let all blocks get    *
+ *           used, which would produce slow-downs on large parallel boxes      *
+ *           (cpus > 8-16).  change to fail-high/fail-low window adjustment.   *
+ *           I now use the old Cray Blitz approach ("Using time wisely -       *
+ *           revisited", JICCA) where a fail-high (or low) now adjusts the     *
+ *           root alpha or beta bound by 1 pawn on the first fail, another two *
+ *           pawns on the second failure, and finally relaxes the bound to     *
+ *           +/- infinity on the third fail for the same move.  this speeds up *
+ *           searching many fail-high/fail-low conditions, although it will    *
+ *           occasionally cause the search to take a bit longer.               *
  *                                                                             *
  *******************************************************************************
  */

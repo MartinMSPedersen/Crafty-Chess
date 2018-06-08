@@ -20,7 +20,7 @@ int *GenerateCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
 {
   register BITBOARD target, piecebd, moves;
   register BITBOARD promotions, pcapturesl, pcapturesr;
-  register int from, to, temp, common;
+  register int from, to, temp;
 
 /*
  ************************************************************

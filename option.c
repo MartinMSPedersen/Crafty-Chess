@@ -1196,7 +1196,7 @@ int Option(TREE * RESTRICT tree)
  ************************************************************
  */
   else if (OptionMatch("hash", *args)) {
-    int new_hash_size;
+    size_t new_hash_size;
 
     if (thinking || pondering)
       return (2);
@@ -1253,7 +1253,8 @@ int Option(TREE * RESTRICT tree)
  ************************************************************
  */
   else if (OptionMatch("hashp", *args)) {
-    int i, new_hash_size;
+    int i;
+    size_t new_hash_size;
 
     if (thinking || pondering)
       return (2);

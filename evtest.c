@@ -62,33 +62,23 @@ void EVTest(char *filename)
     nargs = ReadParse(buffer, args, " ;");
     if (!strcmp(args[0], "end"))
       break;
-/*
- else if (!strcmp(args[0],"title")) {
- Print(4095,"======================================================================\n");
- Print(4095,"! ");
- len=0;
- for (i=1;i<nargs;i++) {
- Print(4095,"%s ",args[i]);
- len+=strlen(args[i])+1;
- if (len > 65) break;
- }
- for (i=len;i<67;i++) printf(" ");
- Print(4095,"!\n");
- Print(4095,"======================================================================\n");
- }
- else if (!strcmp(args[0],"setboard")) {
- */
     else {
-      int s;
+      int s, id;
 
+      for (id=2;id < nargs; id++)
+        if (!strcmp(args[id],"id")) break;
+      if (id >= nargs) id=0;
       SetBoard(&tree->position[0], nargs, args, 0);
       WhiteCastle(0) = 0;
       BlackCastle(0) = 0;
       root_wtm = wtm;
       PreEvaluate(tree, wtm);
       tree->pawn_score.key = 0;
+/*
       DisplayChessBoard(stdout, tree->pos);
-      s = Evaluate(tree, 0, wtm, -999999, 999999);
+*/
+      s = Evaluate(tree, 0, 1, -999999, 999999);
+      if (id) Print(4095, "id=%s  ",args[id+1]);
       Print(4095, "score=%d\n", s);
     }
   }
