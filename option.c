@@ -838,7 +838,7 @@ int Option(TREE *tree) {
 |                                                          |
  ----------------------------------------------------------
 */
-  else if (OptionMatch("ext",*args)) {
+  else if (OptionMatch("extensions",*args)) {
     if (nargs < 3) {
       printf("usage:  ext/name=n\n");
       return(1);

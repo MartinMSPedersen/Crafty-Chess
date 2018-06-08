@@ -120,9 +120,7 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
 |                                                          |
  ----------------------------------------------------------
 */
-  if (ply<=iteration_depth && TotalPieces<=EGTB_use &&
-      (TotalPieces<5 || ((TotalWhitePawns+TotalWhitePieces) &&
-                        (TotalBlackPawns+TotalBlackPieces)))) {
+  if (ply<=iteration_depth && TotalPieces<=EGTB_use) {
     int egtb_value;
     tree->egtb_probes++;
     if (EGTBProbe(tree, ply, wtm, &egtb_value)) {

@@ -186,8 +186,8 @@ int Iterate(int wtm, int search_type, int root_list_done) {
     if (max_threads>smp_idle+1) {
       pthread_t pt;
       int proc;
-      if (!EGTB_use || !(TotalPieces<=5 && TB_use_ok &&
-          EGTBlimit && EGTBProbe(tree, 1, wtm, &i) && !EGTB_search)) {
+      if (!EGTB_use || !(TotalPieces<=EGTBlimit && TB_use_ok && 
+          !EGTB_search && EGTBProbe(tree, 1, wtm, &i))) {
         for (proc=smp_threads+1;proc<max_threads;proc++) {
           Print(128,"starting thread %d\n",proc);
           thread[proc]=0;
@@ -369,8 +369,8 @@ int Iterate(int wtm, int search_type, int root_list_done) {
       end_time=ReadClock(time_type)-start_time;
       if (thinking && (int)end_time>=time_limit) break;
       if (correct_count >= early_exit) break;
-      if (iteration_depth>3 && TotalPieces<=5 && TB_use_ok && EGTB_use &&
-          EGTBlimit && EGTBProbe(tree, 1, wtm, &i) && !EGTB_search) break;
+      if (iteration_depth>3 && TotalPieces<=EGTBlimit && TB_use_ok &&
+          EGTB_use && !EGTB_search && EGTBProbe(tree, 1, wtm, &i)) break;
       if (search_nodes && tree->nodes_searched>search_nodes) break;
     }
 /*
@@ -445,8 +445,8 @@ int Iterate(int wtm, int search_type, int root_list_done) {
   }
   program_end_time=ReadClock(time_type);
 #if defined(SMP)
-  if (EGTBlimit && TB_use_ok && EGTB_use && TotalPieces<= 5 &&
-      EGTBProbe(tree, 1, wtm, &i) && !EGTB_search) {
+  if (TB_use_ok && EGTB_use && TotalPieces<=EGTBlimit &&
+      !EGTB_search && EGTBProbe(tree, 1, wtm, &i)) {
     int proc;
     for (proc=1;proc<CPUS;proc++) thread[proc]=(TREE*)-1;
     smp_threads=0;
