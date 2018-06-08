@@ -28,6 +28,8 @@ void Initialize()
   void *mem;
   int j;
 
+  for (j=1; j< MAX_BLOCKS; j++)
+    block[j] = NULL;
   tree = block[0];
   InitializeMagic();
   InitializeSMP();

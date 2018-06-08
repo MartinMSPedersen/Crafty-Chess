@@ -312,7 +312,8 @@ void ThreadMalloc(int tid)
   int i, n = MAX_BLOCKS_PER_CPU;
 
   for (i = MAX_BLOCKS_PER_CPU * ((int) tid) + 1; n; i++, n--) {
-    block[i] =
+    if (block[i] == NULL)
+      block[i] =
         (TREE *) ((~(size_t) 127) & (127 + (size_t) WinMalloc(sizeof(TREE) +
                 127, tid)));
     block[i]->used = 0;

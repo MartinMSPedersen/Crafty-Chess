@@ -274,7 +274,7 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta)
   return ((wtm) ? score : -score);
 }
 
-/* last modified 09/27/08 */
+/* last modified 11/25/08 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -287,7 +287,7 @@ void EvaluateBishops(TREE * RESTRICT tree, int side)
   register BITBOARD temp, moves;
   register int square, trop;
   register int i;
-  register int score_eg = 0, score_mg = 0, enemy = Flip(side);
+  register int tscore, score_eg = 0, score_mg = 0, enemy = Flip(side);
   int pair = (Bishops(side) & (Bishops(side) - 1)) != 0;
 
 /*
@@ -368,14 +368,11 @@ void EvaluateBishops(TREE * RESTRICT tree, int side)
  */
     moves = AttacksBishop(square, OccupiedSquares) & ~Occupied(side);
     moves |= SetMask(square);
-    score_mg -= lower_b;
-    score_eg -= lower_b;
-    for (i = 0; i < 4; i++) {
-      score_mg +=
-          PopCnt(moves & mobility_mask_b[i]) * mobility_score_b[pair][i];
-      score_eg +=
-          PopCnt(moves & mobility_mask_b[i]) * mobility_score_b[pair][i];
-    }
+    tscore = -lower_b;
+    for (i = 0; i < 4; i++)
+      tscore += PopCnt(moves & mobility_mask_b[i]) * mobility_score_b[pair][i];
+    score_mg += tscore;
+    score_eg += tscore;
 /*
  ************************************************************
  *                                                          *
@@ -755,7 +752,7 @@ int EvaluateKingsFile(TREE * RESTRICT tree, int whichfile, int side)
   return (defects);
 }
 
-/* last modified 09/27/08 */
+/* last modified 11/25/08 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -766,7 +763,7 @@ int EvaluateKingsFile(TREE * RESTRICT tree, int whichfile, int side)
 void EvaluateKnights(TREE * RESTRICT tree, int side)
 {
   register BITBOARD temp, moves;
-  register int square, i, score_eg = 0, score_mg = 0;
+  register int square, i, tscore, score_eg = 0, score_mg = 0;
   register int enemy = Flip(side);
 
 /*
@@ -820,12 +817,11 @@ void EvaluateKnights(TREE * RESTRICT tree, int side)
  */
     moves = AttacksKnight(square) & ~Occupied(side);
     moves |= SetMask(square);
-    score_mg -= lower_n;
-    score_eg -= lower_n;
-    for (i = 0; i < 4; i++) {
-      score_mg += PopCnt(moves & mobility_mask_n[i]) * mobility_score_n[i];
-      score_eg += PopCnt(moves & mobility_mask_n[i]) * mobility_score_n[i];
-    }
+    tscore = -lower_n;
+    for (i = 0; i < 4; i++)
+      tscore += PopCnt(moves & mobility_mask_n[i]) * mobility_score_n[i];
+    score_mg += tscore;
+    score_eg += tscore;
 /*
  ************************************************************
  *                                                          *
@@ -1746,7 +1742,7 @@ void EvaluateQueens(TREE * RESTRICT tree, int side)
 #endif
 }
 
-/* last modified 09/10/08 */
+/* last modified 11/25/08 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -1757,7 +1753,7 @@ void EvaluateQueens(TREE * RESTRICT tree, int side)
 void EvaluateRooks(TREE * RESTRICT tree, int side)
 {
   register BITBOARD temp, moves;
-  register int square, file, trop, tscore = 0, i;
+  register int square, file, trop, tscore, i;
   register int score_mg = 0, score_eg = 0, pawnsq;
   register int enemy = Flip(side);
 
@@ -1768,9 +1764,6 @@ void EvaluateRooks(TREE * RESTRICT tree, int side)
  *                                                          *
  ************************************************************
  */
-/*
-  open_files = PopCnt8Bit(tree->pawn_score.open_files);
-*/
   temp = Rooks(side);
   while (temp) {
     square = LSB(temp);
@@ -1862,10 +1855,11 @@ void EvaluateRooks(TREE * RESTRICT tree, int side)
  */
     moves = AttacksRook(square, OccupiedSquares) & ~Occupied(side);
     moves |= SetMask(square);
-    for (i = 0; i < 4; i++) {
+    tscore = -lower_r;
+    for (i = 0; i < 4; i++)
       tscore += PopCnt(moves & mobility_mask_r[i]) * mobility_score_r[i];
-    }
-    tscore -= lower_r;
+    score_mg += tscore;
+    score_eg += tscore;
 /*
  ************************************************************
  *                                                          *
@@ -1882,8 +1876,6 @@ void EvaluateRooks(TREE * RESTRICT tree, int side)
     }
     temp &= temp - 1;
   }
-  score_mg += 154 * tscore / 256;
-  score_eg += 154 * tscore / 256;
   tree->score_mg += sign[side] * score_mg;
   tree->score_eg += sign[side] * score_eg;
 #ifdef DEBUGEV

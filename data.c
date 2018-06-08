@@ -106,7 +106,7 @@ int OOOsqs[2][3] = { {E8, D8, C8}, {E1, D1, C1} };
 int OOfrom[2] = { E8, E1 };
 int OOto[2] = { G8, G1 };
 int OOOto[2] = { C8, C1 };
-#define    VERSION                             "22.6"
+#define    VERSION                             "22.7"
 char version[8] = { VERSION };
 PLAYING_MODE mode = normal_mode;
 int batch_mode = 0;             /* no asynch reads */
@@ -882,8 +882,8 @@ int piece_values[2][7] = {
 int pawn_can_promote = 525;
 int bad_trade = 90;
 int wtm_bonus[2] = {5, 8};
-int lower_n = 12;
-int lower_b = 16;
+int lower_n = 16;
+int lower_b = 10;
 int lower_r = 16;
 int mobility_score_b[2][4] = {{1, 2, 3, 4}, {2, 3, 4, 5}};
 int mobility_score_n[4] = {1, 2, 3, 4};

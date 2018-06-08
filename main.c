@@ -3588,13 +3588,23 @@
  *           if one of them turns out to be better than zero.  So far, no, but *
  *           the test has not completed.                                       *
  *                                                                             *
- *                                                                             *
  *   22.5    minor eval tweaks.  pthread_create was called without giving it   *
  *           any attributes for the new thread(s) which makes them default to  *
  *           "joinable".  when smpnice=1 terminates threads, the threads hang  *
  *           around using memory expecting that the parent will join with them *
  *           to check the exit status.  we now set "detached" as the proper    *
  *           attribute so that this memory leak no longer happens.             *
+ *                                                                             *
+ *   22.6    compile issue fixed which would cause the pthread_lib calls to    *
+ *           be used in a windows compile, which was incorrect.  they are now  *
+ *           protected by a #if defined(UNIX) && (CPUS > 1) conditional test.  *
+ *                                                                             *
+ *   22.7    windows NUMA support fix to eliminate a memory leak caused by     *
+ *           re-malloc'ing the split blocks each time a new game is started.   *
+ *           this was not found in the previous memory leak testing as that    *
+ *           problem was related to stopping/re-starting threads when using    *
+ *           smpnice=1.  This is unrelated, but similar, and has been around   *
+ *           a long time.                                                      *
  *                                                                             *
  *******************************************************************************
  */
@@ -3718,7 +3728,9 @@ int main(int argc, char **argv)
 /*
  ************************************************************
  *                                                          *
- *   initialize chess board to starting position.           *
+ *   initialize chess board to starting position and set up *
+ *   all the masks and things required to execute a real    *
+ *   search.                                                *
  *                                                          *
  ************************************************************
  */
