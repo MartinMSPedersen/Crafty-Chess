@@ -432,6 +432,8 @@
   extern unsigned char  last_ones_8bit[256];
   extern unsigned char  connected_passed[256];
   extern unsigned char  file_spread[256];
+  extern signed char    is_outside[256][256];
+  extern signed char    is_outside_c[256][256];
 
   extern BITBOARD       mask_pawn_protected_b[64];
   extern BITBOARD       mask_pawn_protected_w[64];

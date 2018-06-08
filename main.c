@@ -2595,6 +2595,14 @@
 *           ment in how EvaluateKingSafety() is called.  code for "bk"        *
 *           from xboard was somehow lost.  it now provides a book hint.       *
 *                                                                             *
+*   17.4    minor bug with "black" command (extra line from unknown origin)   *
+*           would make "black" command fail to do anything.  minor tweaks to  *
+*           passed pawn scoring again...  and a slight performance improve-   *
+*                                                                             *
+*   17.5    rewrite of outside passed pawn/pawn majority code.  it is now     *
+*           much faster by using pre-computed bitmaps to recognize the right  *
+*           patterns.                                                         *
+*                                                                             *
 *******************************************************************************
 */
 int main(int argc, char **argv) {

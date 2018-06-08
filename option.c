@@ -203,7 +203,7 @@ int Option(TREE *tree) {
 |                                                          |
  ----------------------------------------------------------
 */
-  else if (OptionMatch("white",*args)) {
+  else if (!strcmp("white",*args)) {
     if (thinking || pondering) return(2);
     ponder_move=0;
     last_pv.pathd=0;
@@ -211,7 +211,7 @@ int Option(TREE *tree) {
     if (!wtm) Pass();
     force=0;
   }
-  else if (OptionMatch("black",*args)) {
+  else if (!strcmp("black",*args)) {
     if (thinking || pondering) return (2);
     ponder_move=0;
     last_pv.pathd=0;

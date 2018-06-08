@@ -1440,7 +1440,7 @@ void InitializeSMP(void) {
 #endif
 
 void InitializeZeroMasks(void) {
-  int i,j, dist, maxd;
+  int i, j, dist, maxd;
 #if !defined(CRAY1) && !defined(USE_ASSEMBLY_B)
   int maskl,maskr;
   first_ones[0]=16;
@@ -1498,5 +1498,38 @@ void InitializeZeroMasks(void) {
       else dist++;
     }
     file_spread[i]=maxd;
+  }
+/*
+  is_outside[p][a] /is_outside_c[p][a] values:
+  p=8 bit mask for passed pawns
+  a=8 bit mask for all pawns on board
+  p must have left-most or right-most bit set when compared to
+  mask 'a'.  and this bit must be separated from the next bit
+  by at least one file (ie the outside passed pawn is 2 files
+  from the rest of the pawns, at least.  for is_outside_c[] the
+  candidate passer only has to be outside by 1 file.
+
+  0 -> passed pawn is not 'outside'
+  1 -> passed pawn is 'outside'
+*/
+
+  for (i=0;i<256;i++) {
+    for (j=0;j<256;j++) {
+      int ppsq, psql, psqr;
+      is_outside[i][j]=0;
+      is_outside_c[i][j]=0;
+      ppsq=first_ones_8bit[i];
+      if (ppsq < 8) {
+        psql=first_ones_8bit[j&(255-(128>>ppsq))];
+        if (ppsq < psql-1) is_outside[i][j]=1;
+        if (ppsq < psql) is_outside_c[i][j]=1;
+      }
+      ppsq=last_ones_8bit[i];
+      if (ppsq < 8) {
+        psqr=last_ones_8bit[j&(255-(128>>ppsq))];
+        if (ppsq > psqr+1) is_outside[i][j]=1;
+        if (ppsq > psqr) is_outside_c[i][j]=1;
+      }
+    }
   }
 }

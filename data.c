@@ -212,6 +212,8 @@
   unsigned char  last_ones_8bit[256];
   unsigned char  connected_passed[256];
   unsigned char  file_spread[256];
+  signed char    is_outside[256][256];
+  signed char    is_outside_c[256][256];
   BITBOARD       mask_pawn_protected_b[64];
   BITBOARD       mask_pawn_protected_w[64];
   BITBOARD       mask_pawn_duo[64];
@@ -244,7 +246,7 @@
   unsigned int   max_split_blocks;
   volatile unsigned int   splitting;
 
-# define    VERSION                            "17.4"
+# define    VERSION                            "17.5"
   char      version[6] =                    {VERSION};
   PLAYING_MODE mode =                     normal_mode;
 
@@ -373,7 +375,7 @@
   int       average_nps =                           0;
   int       incheck_depth =                        60;
   int       onerep_depth =                         45;
-  int       recap_depth =                          60;
+  int       recap_depth =                          45;
   int       pushpp_depth =                         60;
   int       threat_depth =                         45;
   int       singular_depth =                       45;
@@ -496,7 +498,7 @@
                                      PAWN_CONNECTED_PASSED*4,
                                      0};
 
-  const int passed_pawn_value[8] ={ 0, 8, 16, 32, 64, 96, 160, 0};
+  const int passed_pawn_value[8] ={ 0, 8, 16, 24, 32, 64, 128, 0};
   const char blockading_passed_pawn_value[8] = { 0, 8, 16, 24, 32, 40, 48, 0};
 
   const char isolated_pawn_value[9] = {0, 10, 17, 36, 48, 56, 68, 84, 100};

@@ -1,0 +1,21 @@
+[Event "ICC 5 0"]
+[Site "Internet Chess Club"]
+[Date "2000.01.15"]
+[Round "-"]
+[White "Feijoada"]
+[Black "Mpines"]
+[Result "0-1"]
+[ICCResult "White resigns"]
+[WhiteElo "2021"]
+[BlackElo "2910"]
+[Opening "Four knights: symmetrical, Metger unpin"]
+[ECO "C49"]
+[NIC "KP.03"]
+[Time "18:56:51"]
+[TimeControl "300+0"]
+
+1. e4 e5 2. Nf3 Nf6 3. Nc3 Nc6 4. Bb5 Bb4 5. O-O O-O 6. d3 d6 7. Bg5 Bxc3 8.
+bxc3 Qe7 9. h3 h6 10. Be3 Bd7 11. Bc4 Na5 12. Bb3 Nxb3 13. axb3 d5 14. exd5
+Nxd5 15. Bd2 Qd6 16. Re1 Rfe8 17. c4 Nf4 18. Bc3 Qg6 19. g3 Nxh3+ 20. Kg2
+Nf4+ 21. Kf1 Qh5 22. gxf4 Bg4 23. Re3 exf4 24. Rxe8+ Rxe8 {White resigns}
+0-1
