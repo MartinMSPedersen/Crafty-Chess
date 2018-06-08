@@ -3,13 +3,14 @@
 #include <string.h>
 #include <ctype.h>
 #include "types.h"
-#include "evaluate.h"
 #include "function.h"
 #include "data.h"
-#if defined(UNIX)
+#if defined(UNIX) || defined(AMIGA)
 #  include <unistd.h>
 #endif
 #include "epdglue.h"
+
+/* last modified 09/27/96 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -19,14 +20,15 @@
 *                                                                              *
 ********************************************************************************
 */
+int weak_w, weak_b;
 int Option(char *tinput)
 {
   FILE *input_file, *output_file;
   int back_number, move, *mv;
-  int i, j, mn, tmn, t1, t2, t3, t4, line1, line2, nmoves;
-  int s1, s2, s3, s4, s5, s6, s7, s8, s9;
+  int i, j, mn, tmn, nmoves;
+  int s1, s2, s3, s4, s5, s6, s7;
   int more, new_hash_size, error;
-  char filename[64], title[64], input[100], text[100], onoff[10], colors[10];
+  char filename[64], title[64], input[100], text[100], onoff[10];
   char log_filename[64], history_filename[64];
   char nextc, *next, *next1;
   char *equal, *slash;
@@ -50,18 +52,17 @@ int Option(char *tinput)
   if (EGCommandCheck(tinput)) {
     if (thinking || pondering) return (2);
     else {
-	    strcpy(eg_commbufv, tinput);
-	    eg_parmcount = EGCommandParmCount(tinput);
-	    for (eg_parmindex = 1; eg_parmindex < eg_parmcount; eg_parmindex++) {
-	      fscanf(input_stream, "%s", eg_parmbufv);
-	      strcat(eg_commbufv, " ");
-	      strcat(eg_commbufv, eg_parmbufv);
-	    };
-	    (void) EGCommand(eg_commbufv);
-	    return (1);
-	  };
-  };
-
+      strcpy(eg_commbufv, tinput);
+      eg_parmcount = EGCommandParmCount(tinput);
+      for (eg_parmindex = 1; eg_parmindex < eg_parmcount; eg_parmindex++) {
+        fscanf(input_stream, "%s", eg_parmbufv);
+        strcat(eg_commbufv, " ");
+        strcat(eg_commbufv, eg_parmbufv);
+      }
+      (void) EGCommand(eg_commbufv);
+      return (1);
+    }
+  }
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -74,7 +75,7 @@ int Option(char *tinput)
  ----------------------------------------------------------
 */
   strcpy(input,tinput);
-  if ((equal=strchr(input,'='))) *strchr(input,'=')='\0';
+  if ((equal=strchr(input,'='))) *equal=0;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -86,7 +87,7 @@ int Option(char *tinput)
 |                                                          |
  ----------------------------------------------------------
 */
-  if ((slash=strchr(input,'/'))) *strchr(input,'/')='\0';
+  if ((slash=strchr(input,'/'))) *slash=0;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -95,7 +96,7 @@ int Option(char *tinput)
  ----------------------------------------------------------
 */
   if (OptionMatch("alarm",input)) {
-    OptionGet(&equal,&slash,input,onoff,&more);
+    OptionGet(&equal,&slash,onoff,&more);
     if (!strcmp(onoff,"on")) audible_alarm=0x07;
     else if (!strcmp(onoff,"off")) audible_alarm=0x00;
     else printf("usage:  alarm on|off\n");
@@ -113,143 +114,87 @@ int Option(char *tinput)
  ----------------------------------------------------------
 */
   else if (OptionMatch("analyze",input)) {
+    int temp_draw_score_is_zero;
     if (thinking || pondering) return(2);
+    temp_draw_score_is_zero=draw_score_is_zero;
+    draw_score_is_zero=1;
     ponder_completed=0;
     ponder_move=0;
     analyze_mode=1;
+    if (!xboard && (verbosity_level < 5)) verbosity_level=5;
     printf("Analyze Mode: type \"exit\" to terminate.\n");
     do {
       do {
-        pv[0].path_iteration_depth=0;
-        pv[0].path_length=0;
+        last_pv.path_iteration_depth=0;
+        last_pv.path_length=0;
         analyze_move_read=0;
         pondering=1;
         position[1]=position[0];
         (void) Iterate(wtm,think);
         pondering=0;
-        if (wtm) printf("analyze.White(%d): ",move_number);
-        else printf("analyze.Black(%d): ",move_number);
-        if (!analyze_move_read) scanf_status=scanf("%s",tinput);
+        if (!xboard) {
+          if (wtm) printf("analyze.White(%d): ",move_number);
+          else printf("analyze.Black(%d): ",move_number);
+        }
+        if (!analyze_move_read) do {
+          scanf_status=scanf("%s",tinput);
+          if (strstr(tinput,"timeleft") && !xboard) {
+            if (wtm) printf("analyze.White(%d): ",move_number);
+            else printf("analyze.Black(%d): ",move_number);
+          }
+        } while (strstr(tinput,"timeleft"));
         else scanf_status=1;
         if (scanf_status <= 0) break;
         move=0;
-        if (((tinput[0]>='a') && (tinput[0]<='z')) ||
-            ((tinput[0]>='A') && (tinput[0]<='Z'))) {
-          if (!strcmp(tinput,"exit")) break;
-          move=InputMove(tinput,0,wtm,1);
-          if (move) {
-            fseek(history_file,((move_number-1)*2+1-wtm)*10,SEEK_SET);
-            fprintf(history_file,"%10s",OutputMove(&move,0,wtm));
-            if (analyze_move_read) printf("%s\n",OutputMove(&move,0,wtm));
-            MakeMoveRoot(move,wtm);
+        if (!strcmp(tinput,"exit")) break;
+        if (xboard) move=InputMoveICS(tinput,0,wtm,0,0);
+        else move=InputMove(tinput,0,wtm,0,0);
+        if (move) {
+          fseek(history_file,((move_number-1)*2+1-wtm)*10,SEEK_SET);
+          fprintf(history_file,"%10s",OutputMove(&move,0,wtm));
+          if (wtm) Print(1,"White(%d): ",move_number);
+            else Print(1,"Black(%d): ",move_number);
+          Print(1,"%s\n",OutputMove(&move,0,wtm));
+          MakeMoveRoot(move,wtm);
+        }
+        else if (OptionMatch("back",tinput)) {
+          nextc=getc(input_stream);
+          if (nextc == ' ') scanf("%d",&back_number);
+          else back_number=1;
+          for (i=0;i<back_number;i++) {
+            wtm=ChangeSide(wtm);
+            if (ChangeSide(wtm)) move_number--;
           }
-          else if (OptionMatch("back",tinput)) {
-            nextc=getc(input_stream);
-            if (nextc == ' ') scanf("%d",&back_number);
-            else back_number=1;
-            for (i=0;i<back_number;i++) {
-              wtm=!wtm;
-              if (!wtm) move_number--;
-            }
-            sprintf(tinput,"reset %d",move_number);
-            Option(tinput);
-          }
-          else
-            if (Option(tinput) != 1) printf("illegal move.\n");
+          sprintf(tinput,"reset=%d",move_number);
+          Option(tinput);
+        }
+        else {
+          pondering=0;
+          if (Option(tinput) == 0) printf("illegal move.\n");
+          pondering=1;
         }
       } while (!move && (scanf_status>0));
       if (!strcmp(tinput,"exit")) break;
       if (scanf_status <= 0) break;
-      wtm=!wtm;
+      wtm=ChangeSide(wtm);
       if (wtm) move_number++;
     } while (scanf_status > 0);
     analyze_mode=0;
     printf("analyze complete.\n");
+    draw_score_is_zero=temp_draw_score_is_zero;
   }
 /*
  ----------------------------------------------------------
 |                                                          |
-|   "annotate" command is used to search through the game  |
-|   in the "history" file (often set by the "read" command |
-|   which reads moves in, skipping non-move information    |
-|   such as move numbers, times, etc.)                     |
-|                                                          |
-|   the format of the command is "annotate b|w|bw [moves]" |
-|   where b/w/bw indicates whether to annotate only the    |
-|   white side (w), the black side (b) or both (bw).       |
-|                                                          |
-|   [moves] is optional.  If omitted, annotate the         |
-|   complete game;  if present, it can be a single number  |
-|   which indicates the move to start annotation on, or    |
-|   else a range [10-25] which says start annotation at    |
-|   move 10 and stop after move 25.                        |
+|   "annotate" command is used to read a series of moves   |
+|   and analyze the resulting game, producing comments as  |
+|   requested by the user.                                 |
 |                                                          |
  ----------------------------------------------------------
 */
   else if (OptionMatch("annotate",input)) {
-    OptionGet(&equal,&slash,input,colors,&more);
-    line1=1;
-    line2=move_number;
-    if (more) {
-      OptionGet(&equal,&slash,input,title,&more);
-      if(strchr(title,'-')) sscanf(title,"%d-%d",&line1,&line2);
-      else {
-        sscanf(title,"%d",&line1);
-        line2=move_number;
-      }
-    }
-    if (!equal) {
-      nextc=getc(input_stream);
-      if (nextc == ' ') {
-        fscanf(input_stream,"%s",title);
-        if(strchr(title,'-')) sscanf(title,"%d-%d",&line1,&line2);
-        else {
-          sscanf(title,"%d",&line1);
-          line2=move_number;
-        }
-      }
-    }
-    else {
-      line1=1;
-      line2=move_number;
-    }
-/*
-   reset the game board and start reading through the
-   history file.  if the current side-to-move matches
-   the "color" then we search, otherwise we just make
-   the move and continue until done.
-*/
-    ponder_completed=0;
-    ponder_move=0;
-    pv[0].path_iteration_depth=0;
-    pv[0].path_length=0;
-    InitializeChessBoard(&position[0]);
-    wtm=1;
-    move_number=1;
-    do {
-      if (feof(history_file)) break;
-      if (move_number >= line1)
-        if ((!wtm && strchr(colors,'b')) | (wtm && strchr(colors,'w'))) {
-          pv[0].path_iteration_depth=0;
-          thinking=1;
-          position[1]=position[0];
-          (void) Iterate(wtm,think);
-          thinking=0;
-        }
-      fseek(history_file,((move_number-1)*2+1-wtm)*10,SEEK_SET);
-      fscanf(history_file,"%s",text);
-      move=InputMove(text,0,wtm,1);
-      if (!move) {
-        printf("illegal move (%s) from history, aborting\n",text);
-        break;
-      }
-      if (wtm) printf("White(%d): %s\n",move_number,text);
-      else printf("Black(%d): %s\n",move_number,text);
-      MakeMoveRoot(move,wtm);
-      wtm=!wtm;
-      if (wtm) move_number++;
-      if (move_number > line2) break;
-    } while (1);
+    if (thinking || pondering) return(2);
+    Annotate();
   }
 /*
  ----------------------------------------------------------
@@ -259,7 +204,7 @@ int Option(char *tinput)
  ----------------------------------------------------------
 */
   else if (OptionMatch("ansi",input)) {
-    OptionGet(&equal,&slash,input,onoff,&more);
+    OptionGet(&equal,&slash,onoff,&more);
     if (!strcmp(onoff,"on")) ansi=1;
     else if (!strcmp(onoff,"off")) ansi=0;
     else printf("usage:  ansi on|off\n");
@@ -267,15 +212,38 @@ int Option(char *tinput)
 /*
  ----------------------------------------------------------
 |                                                          |
-|   "black" command sets black to move (!wtm).             |
+|   "autoplay" enables autoplay mode.  note that there is  |
+|   another alias "DR" that may or may not be necessary.   |
+|   if not needed, it will be "canned".                    |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  else if (OptionMatch("autoplay",input) || OptionMatch("DR",input)) {
+    if (auto_file) {
+      fclose(auto_file);
+      auto_file = NULL;
+      autoplay = 0;
+      printf("autoplay disabled\n");
+    }
+    else {
+      auto_file=fopen("PRN", "w");
+      autoplay=1;
+      printf("autoplay enabled\n");
+    }
+  }
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   "black" command sets black to move (ChangeSide(wtm)).             |
 |                                                          |
  ----------------------------------------------------------
 */
   else if (OptionMatch("black",input)) {
+    if (thinking || pondering) return (2);
     ponder_completed=0;
     ponder_move=0;
-    pv[0].path_iteration_depth=0;
-    pv[0].path_length=0;
+    last_pv.path_iteration_depth=0;
+    last_pv.path_length=0;
     wtm=0;
     force=0;
   }
@@ -296,34 +264,69 @@ int Option(char *tinput)
  ----------------------------------------------------------
 */
   else if (OptionMatch("clock",input)) {
-    printf("time remaining on clock is %s.\n",
-           DisplayTime(tc_time_remaining*10));
+    nextc=getc(input_stream);
+    if (nextc == ' ') {
+      fscanf(input_stream,"%s",text);
+      tc_time_remaining=ParseTime(text)*6000;
+      fscanf(input_stream,"%s",text);
+      tc_time_remaining_opponent=ParseTime(text)*6000;
+    }
+    Print(0,"time remaining %s (Crafty)",
+          DisplayHHMM(tc_time_remaining));
+    Print(0,"  %s (opponent).\n",
+          DisplayHHMM(tc_time_remaining_opponent));
+    Print(0,"%d moves to next time control (Crafty)\n",
+          tc_moves_remaining);
   }
 /*
  ----------------------------------------------------------
 |                                                          |
-|   "display" command displays the chess             |
+|   "display" command displays the chess board.            |
 |                                                          |
  ----------------------------------------------------------
 */
   else if (OptionMatch("display",input)) {
     nextc=getc(input_stream);
     if (nextc == ' ') {
+      if (thinking || pondering) return (2);
       fscanf(input_stream,"%s",text);
       position[1]=position[0];
       PreEvaluate(wtm);
-      if (OptionMatch("pawn",text)) 
+      if (OptionMatch("pawn",text)) {
         DisplayPieceBoards(pawn_value_w,pawn_value_b);
+        s7=Evaluate(1,1,-99999,99999);
+        printf(" -----------------weak-----------------");
+        printf("      -----------------weak-----------------\n");
+        for (i=128;i;i=i>>1) printf("%4d ",(i&weak_w)>0);
+        printf("    ");
+        for (i=128;i;i=i>>1) printf("%4d ",(i&weak_b)>0);
+        printf("\n");
+      }
       if (OptionMatch("knight",text))
         DisplayPieceBoards(knight_value_w,knight_value_b);
       if (OptionMatch("bishop",text))
         DisplayPieceBoards(bishop_value_w,bishop_value_b);
+      if (OptionMatch("rook",text))
+        DisplayPieceBoards(rook_value_w,rook_value_b);
       if (OptionMatch("queen",text))
         DisplayPieceBoards(queen_value_w,queen_value_b);
       if (OptionMatch("king",text))
         DisplayPieceBoards(king_value_w,king_value_b);
     }
-    else DisplayChessBoard(stdout,position[0]);
+    else DisplayChessBoard(stdout,display);
+  }
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   "depth" command sets a specific search depth to        |
+|   control the tree search depth. [xboard compatibility]. |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  else if (!strcmp("depth",input)) {
+    OptionGet(&equal,&slash,text,&more);
+    search_depth=atoi(text);
+    Print(0,"search depth set to %d.\n",search_depth);
   }
 /*
  ----------------------------------------------------------
@@ -334,7 +337,7 @@ int Option(char *tinput)
  ----------------------------------------------------------
 */
   else if (OptionMatch("draw",input)) {
-    OptionGet(&equal,&slash,input,text,&more);
+    OptionGet(&equal,&slash,text,&more);
     default_draw_score=atoi(text);
     printf("draw score set to %7.3f pawns.\n",
            ((float) default_draw_score) / 1000.0);
@@ -358,11 +361,12 @@ int Option(char *tinput)
  ----------------------------------------------------------
 */
   else if (OptionMatch("edit",input) && strcmp(input,"ed")) {
+    if (thinking || pondering) return (2);
     Edit();
     ponder_completed=0;
     ponder_move=0;
-    pv[0].path_iteration_depth=0;
-    pv[0].path_length=0;
+    last_pv.path_iteration_depth=0;
+    last_pv.path_length=0;
   }
 /*
  ----------------------------------------------------------
@@ -372,9 +376,9 @@ int Option(char *tinput)
  ----------------------------------------------------------
 */
   else if (OptionMatch("end",input) || OptionMatch("quit",input)) {
-    if (thinking || pondering) return(2);
-    fclose(book_file);
-    fclose(history_file);
+    if (!xboard && (thinking || pondering)) return (2);
+    if (book_file) fclose(book_file);
+    if (book_file) fclose(history_file);
     EGTerm();
     Print(0,"execution complete.\n");
     fflush(stdout);
@@ -391,36 +395,7 @@ int Option(char *tinput)
     if (analyze_mode) return(0);
     if (input_stream != stdin) fclose(input_stream);
     input_stream=stdin;
-  }
-/*
- ----------------------------------------------------------
-|                                                          |
-|   here we handle a group of commands that are used to    |
-|   control various search extensions.                     |
-|                                                          |
- ----------------------------------------------------------
-*/
-  else if (OptionMatch("extension",input)) {
-    OptionGet(&equal,&slash,input,text,&more);
-    if (OptionMatch("check",text)) {
-      OptionGet(&equal,&slash,input,text,&more);
-      check_extensions=atoi(text);
-      if (check_extensions) Print(0,"check extensions enabled.\n");
-      else Print(0,"check extensions disabled.\n");
-    }
-    else if (OptionMatch("qcheck",text)) {
-      OptionGet(&equal,&slash,input,text,&more);
-      quiescence_checks=atoi(text);
-      if (quiescence_checks) Print(0,"quiescence checks = %d.\n",
-                                   quiescence_checks);
-      else Print(0,"quiescence check extensions disabled.\n");
-    }
-    else if (OptionMatch("recapture",text)) {
-      OptionGet(&equal,&slash,input,text,&more);
-      recapture_extensions=atoi(text);
-      if (recapture_extensions) Print(0,"recapture extensions enabled.\n");
-      else Print(0,"recapture extensions disabled.\n");
-    }
+    Print(0,"\n");
   }
 /*
  ----------------------------------------------------------
@@ -431,37 +406,38 @@ int Option(char *tinput)
  ----------------------------------------------------------
 */
   else if (OptionMatch("force",input)) {
+    if (thinking || pondering) return (2);
     ponder_completed=0;
     ponder_move=0;
-    pv[0].path_iteration_depth=0;
-    pv[0].path_length=0;
-    if (ics) force=1;
+    last_pv.path_iteration_depth=0;
+    last_pv.path_length=0;
+    if (xboard) force=1;
     else {
       tmn=move_number;
       if (thinking || pondering) return(2);
       mn=move_number;
       if (wtm) mn--;
       sprintf(tinput,"reset=%d",mn);
-      wtm=!wtm;
+      wtm=ChangeSide(wtm);
       i=Option(tinput);
       nextc=getc(input_stream);
       if (nextc != ' ')
-        if ((input_stream == stdin) && !ics)
+        if ((input_stream == stdin) && !xboard)
           if (wtm) printf("force.White(%d): ",mn);
           else printf("force.Black(%d): ",mn);
-      OptionGet(&equal,&slash,input,text,&more);
+      OptionGet(&equal,&slash,text,&more);
       move=0;
-      move=InputMove(text,0,wtm,1);
+      move=InputMove(text,0,wtm,0,0);
       if (move) {
         if (input_stream != stdin) printf("%s\n",OutputMove(&move,0,wtm));
         fseek(history_file,((mn-1)*2+1-wtm)*10,SEEK_SET);
         fprintf(history_file,"%10s",OutputMove(&move,0,wtm));
         MakeMoveRoot(move,wtm);
-        pv[0].path_iteration_depth=0;
-        pv[0].path_length=0;
+        last_pv.path_iteration_depth=0;
+        last_pv.path_length=0;
       }
       else if (input_stream == stdin) printf("illegal move.\n");
-      wtm=!wtm;
+      wtm=ChangeSide(wtm);
       move_number=tmn;
     }
   }
@@ -473,7 +449,7 @@ int Option(char *tinput)
  ----------------------------------------------------------
 */
   else if (OptionMatch("history",input)) {
-   printf("    white       black\n");
+    printf("    white       black\n");
     for (i=0;i<(move_number-1)*2-wtm+1;i++) {
       fseek(history_file,i*10,SEEK_SET);
       fscanf(history_file,"%s",text);
@@ -481,87 +457,103 @@ int Option(char *tinput)
       printf("  %-10s",text);
       if (i%2 == 1) printf("\n");
     }
-    if (!wtm)printf("  ...\n");
+    if (ChangeSide(wtm))printf("  ...\n");
   }
 /*
  ----------------------------------------------------------
 |                                                          |
 |   "hash" command controls the transposition table size.  |
+|   the size can be entered in one of three ways:          |
+|                                                          |
+|      hash=nnn  where nnn is in bytes.                    |
+|      hash=nnnK where nnn is in K bytes.                  |
+|      hash=nnnM where nnn is in M bytes.                  |
+|                                                          |
+|   the only restriction is that the hash table is com-    |
+|   puted as follows:  one entry is 16 bytes long.  there  |
+|   are 4 tables, two for black, two for white, with one   |
+|   of each being twice the size of the other for the same |
+|   side.  this means that one entry in one of the small   |
+|   tables corresponds to two in the other, so one entry   |
+|   really translates to six entries.  Therefore, the size |
+|   that is entered is divided by 6*16, and then rounded   |
+|   down to the nearest power of two which is a restric-   |
+|   tion on the size of a single table.                    |
 |                                                          |
  ----------------------------------------------------------
 */
   else if (OptionMatch("hash",input)) {
     if (thinking || pondering) return(2);
-    OptionGet(&equal,&slash,input,text,&more);
+    OptionGet(&equal,&slash,text,&more);
     new_hash_size=atoi(text);
-    if (hash_table_size) {
-      free(trans_ref_w);
-      free(trans_ref_b);
+    if (strchr(text,'K') || strchr(text,'k')) new_hash_size*=1<<10;
+    if (strchr(text,'M') || strchr(text,'m')) new_hash_size*=1<<20;
+    if (new_hash_size < 65536) {
+      printf("ERROR.  Minimum hash table size is 64K bytes.\n");
+      return(1);
     }
-    log_hash_table_size=new_hash_size;
-    if (log_hash_table_size) {
-      hash_table_size=1<<log_hash_table_size;
-      trans_ref_w=malloc(16*(hash_table_size+4096));
-      trans_ref_b=malloc(16*(hash_table_size+4096));
-      if (!trans_ref_w || !trans_ref_b) {
-       printf("malloc() failed, not enough memory.\n");
-        free(trans_ref_w);
-        free(trans_ref_b);
+    if (new_hash_size != 0) {
+      if (hash_table_size) {
+        free(trans_ref_wa);
+        free(trans_ref_wb);
+        free(trans_ref_ba);
+        free(trans_ref_bb);
+      }
+      new_hash_size/=16*6;
+      for (log_hash_table_size=0;log_hash_table_size<8*sizeof(int);log_hash_table_size++)
+        if ((1<<(log_hash_table_size+1)) > new_hash_size) break;
+      if (log_hash_table_size) {
+        hash_table_size=1<<log_hash_table_size;
+        trans_ref_wa=malloc(16*(hash_table_size));
+        trans_ref_wb=malloc(16*2*(hash_table_size));
+        trans_ref_ba=malloc(16*(hash_table_size));
+        trans_ref_bb=malloc(16*2*(hash_table_size));
+        if (!trans_ref_wa || !trans_ref_wb || !trans_ref_ba || !trans_ref_bb) {
+          printf("malloc() failed, not enough memory.\n");
+          free(trans_ref_wa);
+          free(trans_ref_wb);
+          free(trans_ref_ba);
+          free(trans_ref_bb);
+          hash_table_size=0;
+          log_hash_table_size=0;
+          trans_ref_wa=0;
+          trans_ref_wb=0;
+          trans_ref_ba=0;
+          trans_ref_bb=0;
+        }
+        hash_maska=(1<<log_hash_table_size)-1;
+        hash_maskb=(1<<(log_hash_table_size+1))-1;
+        if (hash_table_size*96 < 1<<20)
+          Print(0,"hash table memory = %dK bytes.\n",hash_table_size*96/(1<<10));
+        else {
+          if (hash_table_size*96%(1<<20))
+            Print(0,"hash table memory = %.1fM bytes.\n",(float) hash_table_size*96/(1<<20));
+          else
+            Print(0,"hash table memory = %dM bytes.\n",hash_table_size*96/(1<<20));
+        }
+        for (i=0;i<hash_table_size;i++) {
+          (trans_ref_wa+i)->word1=0;
+          (trans_ref_wa+i)->word2=0;
+          (trans_ref_ba+i)->word1=0;
+          (trans_ref_ba+i)->word2=0;
+        }
+        for (i=0;i<2*hash_table_size;i++) {
+          (trans_ref_wb+i)->word1=0;
+          (trans_ref_wb+i)->word2=0;
+          (trans_ref_bb+i)->word1=0;
+          (trans_ref_bb+i)->word2=0;
+        }
+      }
+      else {
+        trans_ref_wa=0;
+        trans_ref_wb=0;
+        trans_ref_ba=0;
+        trans_ref_bb=0;
         hash_table_size=0;
         log_hash_table_size=0;
-        trans_ref_w=0;
-        trans_ref_b=0;
-      }
-      hash_mask=Mask(128-log_hash_table_size);
-      Print(0,"hash table memory = %d 64-bit words.\n",
-            (hash_table_size+4096)*4);
-      for (i=0;i<hash_table_size;i++) {
-        (trans_ref_w+i)->word1=0;
-        (trans_ref_w+i)->word2=0;
-        (trans_ref_b+i)->word1=0;
-        (trans_ref_b+i)->word2=0;
       }
     }
-    else {
-      trans_ref_w=0;
-      trans_ref_b=0;
-      hash_table_size=0;
-      log_hash_table_size=0;
-    }
-  }
-/*
- ----------------------------------------------------------
-|                                                          |
-|   "hashk" command controls the king hash table size.     |
-|                                                          |
- ----------------------------------------------------------
-*/
-  else if (OptionMatch("hashk",input)) {
-    if (thinking || pondering) return(2);
-    OptionGet(&equal,&slash,input,text,&more);
-    new_hash_size=atoi(text);
-    if (new_hash_size) {
-      log_king_hash_table_size=new_hash_size;
-      king_hash_table_size=1<<new_hash_size;
-      king_hash_table=malloc(8*king_hash_table_size);
-      if (!king_hash_table) {
-       printf("malloc() failed, not enough memory.\n");
-        free(king_hash_table);
-        king_hash_table_size=0;
-        log_king_hash_table_size=0;
-        king_hash_table=0;
-      }
-      king_hash_mask=Mask(128-log_king_hash_table_size);
-      Print(0,"king hash table memory = %d 64-bit words.\n",
-        king_hash_table_size);
-      for (i=0;i<king_hash_table_size;i++) *(king_hash_table+i)=0;
-    }
-    else {
-      free(king_hash_table);
-      king_hash_table_size=0;
-      log_king_hash_table_size=0;
-      king_hash_table=0;
-    }
+    else Print(0,"ERROR:  hash table size must be > 0\n");
   }
 /*
  ----------------------------------------------------------
@@ -572,36 +564,40 @@ int Option(char *tinput)
 */
   else if (OptionMatch("hashp",input)) {
     if (thinking || pondering) return(2);
-    OptionGet(&equal,&slash,input,text,&more);
+    OptionGet(&equal,&slash,text,&more);
     new_hash_size=atoi(text);
-    if (new_hash_size) {
-      log_pawn_hash_table_size=new_hash_size;
-      pawn_hash_table_size=1<<new_hash_size;
-      pawn_hash_table=malloc(8*pawn_hash_table_size);
-      pawn_hash_table_x=malloc(4*pawn_hash_table_size);
-      if (!pawn_hash_table || !pawn_hash_table_x) {
-        printf("malloc() failed, not enough memory.\n");
+    if (strchr(text,'K') || strchr(text,'k')) new_hash_size*=1<<10;
+    if (strchr(text,'M') || strchr(text,'m')) new_hash_size*=1<<20;
+    if (new_hash_size != 0) {
+      if (pawn_hash_table) {
         free(pawn_hash_table);
-        free(pawn_hash_table_x);
         pawn_hash_table_size=0;
         log_pawn_hash_table_size=0;
         pawn_hash_table=0;
-        pawn_hash_table_x=0;
       }
-      pawn_hash_mask=Mask(128-log_pawn_hash_table_size);
-      Print(0,"pawn hash table memory = %d 64-bit words.\n",
-        (int) (pawn_hash_table_size*1.5));
-      for (i=0;i<pawn_hash_table_size;i++) *(pawn_hash_table+i)=0;
-      for (i=0;i<pawn_hash_table_size/2;i++) *(pawn_hash_table_x+i)=0;
+      new_hash_size/=16;
+      for (log_pawn_hash_table_size=0;log_pawn_hash_table_size<8*sizeof(int);log_pawn_hash_table_size++)
+        if ((1<<(log_pawn_hash_table_size+1)) > new_hash_size) break;
+      pawn_hash_table_size=1<<log_pawn_hash_table_size;
+      pawn_hash_table=malloc(16*pawn_hash_table_size);
+      if (!pawn_hash_table) {
+        printf("malloc() failed, not enough memory.\n");
+        free(pawn_hash_table);
+        pawn_hash_table_size=0;
+        log_pawn_hash_table_size=0;
+        pawn_hash_table=0;
+      }
+      pawn_hash_mask=((unsigned int) 037777777777)>>(32-log_pawn_hash_table_size);
+      if (pawn_hash_table_size*16 < 1<<20)
+        Print(0,"hash table memory = %dK bytes.\n",pawn_hash_table_size*16/(1<<10));
+      else
+        Print(0,"hash table memory = %dM bytes.\n",pawn_hash_table_size*16/(1<<20));
+      for (i=0;i<pawn_hash_table_size;i++) {
+        (pawn_hash_table+i)->word1=0;
+        (pawn_hash_table+i)->word2=0;
+      }
     }
-    else {
-      free(pawn_hash_table);
-      free(pawn_hash_table_x);
-      pawn_hash_table_size=0;
-      log_pawn_hash_table_size=0;
-      pawn_hash_table=0;
-      pawn_hash_table_x=0;
-    }
+    else Print(0,"ERROR:  pawn hash table size must be > 0\n");
   }
 /*
  ----------------------------------------------------------
@@ -626,14 +622,21 @@ int Option(char *tinput)
         printf("the number of moves, counting each player's move as one.\n");
       }
       else if (!strcmp("annotate",title)) {
-        printf("annotate b|w|bw [moves]\n");
-        printf("where b/w/bw indicates whether to annotate only the white\n");
-        printf("side (w), the black side (b) or both (bw).  [moves] is\n");
-        printf("optional.  If [moves] is omitted, annotate the complete\n");
-        printf("game;  if present, it can be a single number which\n");
-        printf("indicates the move to start annotation on, or else a\n");
-        printf("range [10-25] which says start annotation at move 10 and\n");
-        printf("stop after move 25.\n");
+        printf("annotate filename b|w|bw moves margin time\n");
+        printf("where filename is the input file with game moves, while the\n");
+        printf("output will be written to filename.can.  the input file is\n");
+        printf("PGN-compatible with one addition, the ability to request that\n");
+        printf("alternative moves also be analyzed at any point.  to do this\n");
+        printf("at the point where you have alternative moves, simply include\n");
+        printf("them in braces {move1, move2}, and Crafty will then search\n");
+        printf("them also. b/w/bw indicates whether to annotate only the white\n");
+        printf("side (w), the black side (b) or both (bw).  moves indicates\n");
+        printf("which moves to annotate.  a single value says start at the\n");
+        printf("indicated move and go through the entire game.  a range (20-30)\n");
+        printf("annoates the given range only. margin is the difference between\n");
+        printf("the search value for the move played in the game, and the best move\n");
+        printf("crafty found, before a comment is generated (pawn=1.0).  time is\n");
+        printf("the time limit per move in seconds.\n");
       }
       else if (!strcmp("book",title)) {
         printf("you can use the following commands to customize how the\n");
@@ -647,13 +650,16 @@ int Option(char *tinput)
         printf("   chooses its opening moves.  <0> will play the least\n");
         printf("   randomly and follow book lines that are well-suited to\n");
         printf("   Crafty's style of play.  this mode also uses an alpha/beta\n");
-        printf("   search to select from the set of book moves.  <1> plays\n");
-        printf("   from the set of most popular moves, but culls rarely\n");
-        printf("   played moves.  <2> simply emulates the frequence of moves\n");
-        printf("   played in the opening database.  <3> plays even more\n");
-        printf("   randomly by compressing the frequency distribution using\n");
-        printf("   the sqrt() function.  <4> simply chooses moves completely\n");
-        printf("   at random from the set of book moves.\n");
+        printf("   search to select from the set of book moves.  <1> chooses\n");
+        printf("   from the book moves with the best winning percentage.\n");
+        printf("   <2> chooses from the book moves that were played the\n");
+        printf("   most frequently in the GM database. <3> chooses from the\n");
+        printf("   set of book moves that produce the best static evaluation.\n");
+        printf("   <4> chooses completely randomly from the known book moves.\n");
+        printf("book width n...............specifies how many moves from the\n");
+        printf("   sorted set of book moves are to be considered.  1 produces\n");
+        printf("   the best move from the set, but provides little randomness.\n");
+        printf("   99 includes all moves in the book move set.\n");
         printf("book mask accept <chars>...sets the accept mask to the\n");
         printf("   flag characters in <chars> (see flags below.)  any flags\n");
         printf("   set in this mask will include either (a) moves with the \n");
@@ -662,9 +668,6 @@ int Option(char *tinput)
         printf("   flag characters in <chars> (see flags below.)  any flags\n");
         printf("   set in this mask will reject any moves with the flag\n");
         printf("   set (in the opening book.)\n");
-        printf("book played................requirest than an opening move\n");
-        printf("   be played at least this percent of the time to be     \n");
-        printf("   considered.\n");
         printf("book off...................turns the book completely off.\n");
         printf("more...");
         i=getchar();
@@ -697,28 +700,6 @@ int Option(char *tinput)
         printf("end (required)\n");
         printf("\n");
       }
-      else if (OptionMatch("command",title)) {
-        printf("[command]  commands are free-form.  for example, disable\n");
-        printf(" check extensions, you can type:\n");
-        printf("\n");
-        printf("   extension check 0\n");
-        printf("\n");
-        printf(" an alternative format for commands that expect values (as\n");
-        printf(" the keyword check above does) is to use the following\n");
-        printf(" syntax:\n");
-        printf("\n");
-        printf("   extension check=0\n");
-        printf("\n");
-        printf(" since commands can also be entered by using the usual UNIX\n");
-        printf(" command-line interface (sh, csh, ksh, etc.) this long\n");
-        printf(" command can be entered as:\n");
-        printf("\n");
-        printf("   extension/check=0\n");
-        printf("\n");
-        printf(" so that it will be treated as one command (as it is\n");
-        printf(" intended to be.)                                          \n");
-        printf("\n");
-      }
       else if (OptionMatch("edit",title)) {
         printf("edit is used to set up or modify a board position.  it \n");
         printf("recognizes 4 \"commands\" that it uses to alter/set up the\n");
@@ -738,20 +719,16 @@ int Option(char *tinput)
         printf("on square e8\n");
         printf("\n");
       }
-      else if (OptionMatch("extension",title)) {
-        printf("extension is used to enable/disable/control specific search\n");
-        printf("extensions.\n");
-        printf("check =     0/1 disables/enables inclusion of checking\n");
-        printf("                moves in the selective portion of the\n");
-        printf("                search.\n");
-        printf("incheck =   0/1 disables/enables the out-of-check extension\n");
-        printf("                that extends the depth one ply when in\n");
-        printf("                check.\n");
-        printf("pawn =      0/1 disables/enables the passed pawn pushes in\n");
-        printf("                the selective portion of the search.\n");
-        printf("recapture = 0/1 disables/enables the recapture extension\n");
-        printf("                that extends the depth one ply when\n");
-        printf("                recapturing.\n");
+      else if (OptionMatch("list",title)) {
+        printf("list is used to update the GM/IM/computer lists, which are\n");
+        printf("used internally to control how crafty uses the opening book.\n");
+        printf("Syntax:  list GM|IM|C [+|-name] ...\n");
+        printf("   GM/IM/C selects the appropriate list.  if no name is given,\n");
+        printf("the list is displayed.  if a name is given, it must be preceeded\n");
+        printf("by a + (add to list) or -(remove from list).  note that this\n");
+        printf("list is not saved in a file, so that anything added or removed\n");
+        printf("will be lost when Crafty is re-started.  To solve this, these\n");
+        printf("commands can be added to the .craftyrc file.\n");
       }
       else if (OptionMatch("setboard",title)) {
         printf("sb is used to set up the board in any position desired.  it\n");
@@ -837,9 +814,7 @@ int Option(char *tinput)
         printf("verbose  4 -> display basic search statistics.\n");
         printf("verbose  5 -> display search extension statistics.\n");
         printf("verbose  6 -> display search hashing statistics.\n");
-        printf("verbose  7 -> display null-move search statistics.\n");
         printf("verbose  9 -> display root moves as they are searched.\n");
-        printf("verbose 11 -> display intra-iteration node counts.\n");
       }
       else printf("no help available for that command\n");
     }
@@ -854,21 +829,20 @@ int Option(char *tinput)
       printf("d.........................displays chess \n");
       printf("echo......................echos output to display.\n");
       printf("edit......................edit board position. [help]\n");
+      printf("epdhelp...................info about EPD facility.\n");
       printf("exit......................restores STDIN to key\n");
-      printf("extension.................enables/disables extensions [help].\n");
       printf("end.......................terminates program.\n");
       printf("history...................display game moves.\n");
-      printf("hash......................sets transposition table size (2^n)\n");
-      printf("                          (one table for white, one for black\n");
-      printf("hashk.....................sets king hash table size (2^n)\n");
-      printf("hashp.....................sets pawn hash table size (2^n)\n");
+      printf("hash n....................sets transposition table size\n");
+      printf("                          (n bytes, nK bytes or nM bytes)\n");
+      printf("hashp n...................sets pawn hash table size\n");
       printf("input <filename> [title]..sets STDIN to <filename>.\n");
       printf("                          (and positions to [title] record.)\n");
-      printf("log on|off|<n>............turn logging on/off (at log.n).\n");
+      printf("list                      update/display GM/IM/computer lists.\n");
+      printf("log on|off................turn logging on/off.\n");
       printf("move......................initiates search (same as go).\n");
       printf("new.......................initialize and start new game.\n");
       printf("noise n...................no status until n nodes searched.\n");
-      printf("null n....................null move reduces depth by n.\n");
       printf("more...");
       i=getchar();
       printf("ponder on|off.............toggle pondering off/on.\n");
@@ -893,14 +867,24 @@ int Option(char *tinput)
 /*
  ----------------------------------------------------------
 |                                                          |
+|   "hint" displays the expected move based on the last    |
+|   search done. [xboard compatibility]                    |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  else if (!strcmp("hint",input)) {
+    printf("Hint: %s\n",hint);
+  }
+/*
+ ----------------------------------------------------------
+|                                                          |
 |  "ics" command is normally invoked from main() via the   |
 |  ics command-line option.  it sets proper defaults for   |
-|  ics/Xboard interface requirements.                      |
+|  defaults for the custom crafty/ics interface program.   |
 |                                                          |
  ----------------------------------------------------------
 */
   else if (OptionMatch("ics",input)) {
-    printf("Chess\n");
     ics=1;
     verbosity_level=0;
     show_book=0;
@@ -923,7 +907,7 @@ int Option(char *tinput)
   else if (OptionMatch("input",input)) {
     if (thinking || pondering) return(2);
     title[0]='\0';
-    OptionGet(&equal,&slash,input,filename,&more);
+    OptionGet(&equal,&slash,filename,&more);
     if (!equal) {
       nextc=getc(input_stream);
       if (nextc == ' ')
@@ -956,29 +940,27 @@ int Option(char *tinput)
   else if (OptionMatch("info",input)) {
     Print(0,"Crafty version %s\n",version);
     Print(0,"hash table memory = %d 64-bit words.\n",
-      (hash_table_size+4096)*4);
-    Print(0,"king hash table memory = %d 64-bit words.\n",
-      king_hash_table_size);
+      12*hash_table_size);
     Print(0,"pawn hash table memory = %d 64-bit words.\n",
-      (int) (pawn_hash_table_size*1.5));
+      (int) (2*pawn_hash_table_size));
     if (!tc_sudden_death) {
-      Print(0,"%d moves/%d minutes primary time control\n",
-            tc_moves, tc_time);
-      Print(0,"%d moves/%d minutes secondary time control\n",
-            tc_secondary_moves, tc_secondary_time);
-      if (tc_increment) Print(0,"increment %d seconds.\n",tc_increment);
+      Print(0,"%d moves/%d minutes %d seconds primary time control\n",
+            tc_moves, tc_time/6000, (tc_time/100)%60);
+      Print(0,"%d moves/%d minutes %d seconds secondary time control\n",
+            tc_secondary_moves, tc_secondary_time/6000,
+            (tc_secondary_time/100)%60);
+      if (tc_increment) Print(0,"increment %d seconds.\n",tc_increment/100);
     }
     else if (tc_sudden_death == 1) {
-      Print(0," game/%d minutes primary time control\n",
-            tc_time);
-      if (tc_increment) Print(0,"increment %d seconds.\n",tc_increment);
+      Print(0," game/%d minutes primary time control\n", tc_time/100);
+      if (tc_increment) Print(0,"increment %d seconds.\n",(tc_increment/100)%60);
     }
     else if (tc_sudden_death == 2) {
       Print(0,"%d moves/%d minutes primary time control\n",
-            tc_moves, tc_time);
+            tc_moves, tc_time/6000);
       Print(0,"game/%d minutes secondary time control\n",
-            tc_secondary_time);
-      if (tc_increment) Print(0,"increment %d seconds.\n",tc_increment);
+            tc_secondary_time/6000);
+      if (tc_increment) Print(0,"increment %d seconds.\n",tc_increment/100);
     }
   }
 /*
@@ -986,57 +968,203 @@ int Option(char *tinput)
 |                                                          |
 |   "kibitz" command sets kibitz mode for ICS.  =1 will    |
 |   kibitz mate announcements, =2 will kibitz scores and   |
-|   other info like whisper=1, and =3 will kibitz scores   |
-|   and PV's just like whisper=2.  =4 adds the list of     |
-|   book moves as in whisper=3.                            |
+|   other info, =3 will kibitz scores and PV, =4 adds the  |
+|   list of book moves, =5 displays the PV after each      |
+|   iteration completes, and =6 displays the PV each time  |
+|   it changes in an iteration.                            |
 |                                                          |
  ----------------------------------------------------------
 */
   else if (OptionMatch("kibitz",input)) {
-    OptionGet(&equal,&slash,input,text,&more);
+    OptionGet(&equal,&slash,text,&more);
     kibitz=atoi(text);
   }
 /*
  ----------------------------------------------------------
 |                                                          |
-|   "level" command sets time controls [ics mode only.]    |
+|   "level" command sets time controls [ics/xboard mode    |
+|   only.]                                                 |
 |                                                          |
  ----------------------------------------------------------
 */
   else if (OptionMatch("level",input)) {
-    fscanf(input_stream,"%d",&tc_moves);
-    fscanf(input_stream,"%d",&tc_time);
-    fscanf(input_stream,"%d",&tc_increment);
+    OptionGet(&equal,&slash,text,&more);
+    tc_moves=atoi(OptionNext(1,text));
+    tc_time=atoi(OptionNext(0,text))*100;
+    tc_increment=atoi(OptionNext(0,text))*100;
+    if (tc_time > 500 || tc_increment > 300) whisper=0;
     if (!tc_moves) {
       tc_sudden_death=1;
       tc_moves=1000;
       tc_moves_remaining=1000;
     }
+    else tc_sudden_death=0;
     if (tc_moves) {
       tc_secondary_moves=tc_moves;
       tc_secondary_time=tc_time;
     }
     if (!tc_sudden_death) {
       Print(0,"%d moves/%d minutes primary time control\n",
-            tc_moves, tc_time);
+            tc_moves, tc_time/100);
       Print(0,"%d moves/%d minutes secondary time control\n",
-            tc_secondary_moves, tc_secondary_time);
-      if (tc_increment) Print(0,"increment %d seconds.\n",tc_increment);
+            tc_secondary_moves, tc_secondary_time/100);
+      if (tc_increment) Print(0,"increment %d seconds.\n",tc_increment/100);
     }
     else if (tc_sudden_death == 1) {
-      Print(0," game/%d minutes primary time control\n",
-            tc_time);
-      if (tc_increment) Print(0,"increment %d seconds.\n",tc_increment);
+      Print(0," game/%d minutes primary time control\n",tc_time/100);
+      if (tc_increment) Print(0,"increment %d seconds.\n",tc_increment/100);
     }
     tc_time*=60;
     tc_time_remaining=tc_time;
     tc_secondary_time*=60;
-    if (!tc_increment)
-      tc_simple_average_time=(tc_time-
-                              tc_operator_time*tc_moves)/
-                             tc_moves;
-    else
-      tc_simple_average_time=tc_increment-tc_operator_time;
+  }
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   "list" command allows the operator to add or remove    |
+|   names from the GM_list, IM_list , computer_list or     |
+|   auto_kibitz_list.                                      |
+|   The  syntax is "list <list> <option> <name>.           |
+|   <list> is one of GM, IM,  C or AK.                     |
+|   The final parameter is a name to add  or remove.       |
+|   if the name is in the list, it is removed,             |
+|   otherwise it is added.  if no name is given, the list  |
+|   is displayed.                                          |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  else if (OptionMatch("list",input)) {
+    char listname[10], name[20]={""};
+    fscanf(input_stream,"%s",listname);
+    nextc=getc(input_stream);
+    while (nextc == ' ') {
+      fscanf(input_stream,"%s",name);
+      if (!strcmp(listname,"GM")) {
+        if (name[0] == '-') {
+          for (i=0;i<number_of_GMs;i++)
+            if (!strcmp(GM_list[i],name+1)) {
+              for (j=i;j<number_of_GMs;j++)
+                strcpy(GM_list[j],GM_list[j+1]);
+              number_of_GMs--;
+              i=0;
+              Print(0,"%s removed from GM list.\n",name+1);
+              break;
+            }
+        }
+        else if (name[0] == '+') {
+          for (i=0;i<number_of_GMs;i++)
+            if (!strcmp(GM_list[i],name+1)) {
+              Print(0, "Warning: %s is already in GM list.\n",name+1);
+              break;
+            }
+          if (i==number_of_GMs) {
+            strcpy(GM_list[number_of_GMs++],name+1);
+            Print(0,"%s added to GM list.\n",name+1);
+          }
+        }
+        else printf("error, name must be preceeded by +/- flag.\n");
+      }
+      if (!strcmp(listname,"IM")) {
+        if (name[0] == '-') {
+          for (i=0;i<number_of_IMs;i++)
+            if (!strcmp(IM_list[i],name+1)) {
+              for (j=i;j<number_of_IMs;j++)
+                strcpy(IM_list[j],IM_list[j+1]);
+              number_of_IMs--;
+              i=0;
+              Print(0,"%s removed from IM list.\n",name+1);
+ 
+              break;
+            }
+        }
+        else if (name[0] == '+') {
+          for (i=0;i<number_of_IMs;i++)
+            if (!strcmp(IM_list[i],name+1)) {
+              Print(0, "Warning: %s is already in IM list.\n",name+1);
+              break;
+            }
+          if (i==number_of_IMs) {
+            strcpy(IM_list[number_of_IMs++],name+1);
+            Print(0,"%s added to IM list.\n",name+1);
+          }
+        }         
+        else Print(0,"error, name must be preceeded by +/- flag.\n");
+      }
+      if (!strcmp(listname,"C")) {
+        if (name[0] == '-') {
+          for (i=0;i<number_of_computers;i++)
+            if (!strcmp(computer_list[i],name+1)) {
+              for (j=i;j<number_of_computers;j++)
+                strcpy(computer_list[j],computer_list[j+1]);
+              number_of_computers--;
+              i=0;
+              Print(0,"%s removed from computer list.\n",name+1);
+              break;
+            }
+        }
+        else if (name[0] == '+') {
+          for (i=0;i<number_of_computers;i++)
+            if (!strcmp(computer_list[i],name+1)) {
+              Print(0, "Warning: %s is already in computer list.\n",name+1);
+              break;
+            }
+          if (i==number_of_computers) {
+            strcpy(computer_list[number_of_computers++],name+1);
+            Print(0,"%s added to computer list.\n",name+1);
+          }
+        }
+        else Print(0,"error, name must be preceeded by +/- flag.\n");
+      }
+      
+      if (!strcmp(listname,"AK")) {
+        if (name[0] == '-') {
+          for (i=0;i<number_auto_kibitzers;i++)
+            if (!strcmp(auto_kibitz_list[i],name+1)) {
+              for (j=i;j<number_auto_kibitzers;j++)
+                strcpy(auto_kibitz_list[j],auto_kibitz_list[j+1]);
+              number_auto_kibitzers--;
+              i=0;
+              Print(0,"%s removed from auto kibitz list.\n",name+1);
+              break;
+            }
+        }
+        else if (name[0] == '+') {
+          for (i=0;i<number_auto_kibitzers;i++)
+            if (!strcmp(auto_kibitz_list[i],name+1)) {
+              Print(0, "Warning: %s is already in auto kibitz list.\n",name+1);
+              break;
+            }
+          if (i==number_auto_kibitzers) {
+            strcpy(auto_kibitz_list[number_auto_kibitzers++],name+1);
+            Print(0,"%s added to auto kibitz list.\n",name+1);
+          }
+        }
+        else Print(0,"error, name must be preceeded by +/- flag.\n");
+      }
+      nextc=getc(input_stream);
+    }
+    if (name[0] == '\0') { /* No name was specified */
+      if (!strcmp(listname,"GM")) {
+        Print(0,"GM List:\n");
+        for (i=0;i<number_of_GMs;i++)
+          Print(0,"%s\n",GM_list[i]);
+      }
+      else if (!strcmp(listname,"IM")) {
+        Print(0,"IM List:\n");
+        for (i=0;i<number_of_IMs;i++)
+          Print(0,"%s\n",IM_list[i]);
+      }
+      else if (!strcmp(listname,"C")) {
+        Print(0, "computer list:\n");
+        for (i=0;i<number_of_computers;i++)
+          Print(0,"%s\n",computer_list[i]);
+      }
+      else if (!strcmp(listname,"AK")) {
+        Print(0, "auto kibitz list:\n");
+        for (i=0;i<number_auto_kibitzers;i++)
+          Print(0,"%s\n",auto_kibitz_list[i]);
+      }
+    }
   }
 /*
  ----------------------------------------------------------
@@ -1046,7 +1174,7 @@ int Option(char *tinput)
  ----------------------------------------------------------
 */
   else if (OptionMatch("log",input)) {
-    OptionGet(&equal,&slash,input,text,&more);
+    OptionGet(&equal,&slash,text,&more);
     if (!strcmp(text,"on")) {
       for (log_id=1;log_id <300;log_id++) {
         sprintf(log_filename,"%s/log.%03d",LOGDIR,log_id);
@@ -1061,13 +1189,58 @@ int Option(char *tinput)
     else if (!strcmp(text,"off")) {
       fclose(log_file);
       log_file=0;
+      sprintf(filename,"%s/log.%03d",LOGDIR,log_id);
+      remove(filename);
+    }
+    else Print(0,"usage:  log on|off\n");
+  }
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   "mode" command sets tournament mode or normal mode.    |
+|   tournament mode is used when crafty is in a "real"     |
+|   tournament.  it forces draw_score to 0, and makes      |
+|   crafty display the chess clock after each move.        |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  else if (OptionMatch("mode",input)) {
+    if (equal) {
+      OptionGet(&equal,&slash,text,&more);
+      if (!strcmp(text,"tournament")) {
+        mode=tournament_mode;
+        draw_score_is_zero=1;
+        book_random=3;
+        printf("use 'settc' command if a game is restarted after crafty\n");
+        printf("has been terminated for any reason.\n");
+      }
+      else if (!strcmp(text,"normal"))
+        mode=normal_mode;
+      else {
+        printf("usage: mode normal|tournament\n");
+        mode=normal_mode;
+      }
     }
     else {
-      log_id=atoi(text);
-      fclose(log_file);
-      sprintf(log_filename,"%s/log.%03d",LOGDIR,log_id);
-      log_file=fopen(log_filename,"w");
+      nextc=getc(input_stream);
+      if (nextc == ' ') {
+        fscanf(input_stream,"%s",text);
+        if (!strcmp(text,"tournament")) {
+          mode=tournament_mode;
+          draw_score_is_zero=1;
+        }
+        else if (!strcmp(text,"normal"))
+          mode=normal_mode;
+        else {
+          printf("usage: mode normal|tournament\n");
+          mode=normal_mode;
+        }
+      }
     }
+    if (mode == tournament_mode)
+      printf("tournament mode.\n");
+    else if (mode == normal_mode)
+      printf("normal mode.\n");
   }
 /*
  ----------------------------------------------------------
@@ -1083,76 +1256,102 @@ int Option(char *tinput)
  ----------------------------------------------------------
 */
   else if (OptionMatch("name",input)) {
-    scanf("%s",opponents_name);
+    fscanf(input_stream,"%s",opponents_name);
     Print(0,"Crafty %s vs %s\n",version,opponents_name);
     next=opponents_name;
     while (*next) {
       *next=tolower(*next);
       next++;
     }
-    for (i=0;i<number_of_computers;i++)
-      if (!strcmp(computer_list[i],opponents_name)) {
-        book_random=2;
-        book_absolute_lower_bound=2;
-        kibitz=4;
-        Print(1,"playing a computer!\n");
-        break;
-      }
-    for (i=0;i<number_of_GMs;i++)
-      if (!strcmp(GM_list[i],opponents_name)) {
-        Print(1,"playing a GM!\n");
-        book_random=2;
-        resign=5;
-        resign_count=6;
-        draw_count=6;
-        kibitz=0;
-        break;
-      }
-    for (i=0;i<number_of_IMs;i++)
-      if (!strcmp(IM_list[i],opponents_name)) {
-        Print(1,"playing a IM!\n");
-        book_random=3;
-        resign=6;
-        resign_count=8;
-        draw_count=8;
-        kibitz=0;
-        break;
+    if (mode != tournament_mode) {
+      for (i=0;i<number_auto_kibitzers;i++)
+/* 
+    decrease  the new aggresive use of time against automated opponents.
+    the multiplier is now 9 for non automated opponents - up from 8, 
+    automated stays @ 8.
+    this is here ( as opposed to in the computer section below) to
+    counterattack the aggressive use of time by manually operated
+    computer opponents.
+*/
+        if (!strcmp(auto_kibitz_list[i],opponents_name)) {
+          kibitz=4;
+          inc_time_multiplier=7.5;
+          zero_inc_factor=6.8;
+          auto_kibitzing=1;
+          break;
+        }
+      for (i=0;i<number_of_computers;i++)
+        if (!strcmp(computer_list[i],opponents_name)) {
+          draw_score_is_zero=1;
+          book_random=2;
+          book_selection_width=2;
+          Print(1,"playing a computer!\n");
+          break;
+        }
+      for (i=0;i<number_of_GMs;i++)
+        if (!strcmp(GM_list[i],opponents_name)) {
+          Print(1,"playing a GM!\n");
+          book_random=1;
+          book_selection_width=3;
+          resign=5;
+          resign_count=6;
+          draw_count=6;
+          kibitz=0;
+          break;
+        }
+      for (i=0;i<number_of_IMs;i++)
+        if (!strcmp(IM_list[i],opponents_name)) {
+          Print(1,"playing an IM!\n");
+          book_random=1;
+          book_selection_width=4;
+          resign=6;
+          resign_count=8;
+          draw_count=8;
+          kibitz=0;
+          break;
+        }
       }
   }
 /*
  ----------------------------------------------------------
 |                                                          |
-|   "new" command initializes for a new game.              |
+|   "new" command initializes for a new game.  note that   |
+|   "AN" is an alias for this command, for autoplay 232    |
+|   compatibility.                                         |
 |                                                          |
  ----------------------------------------------------------
 */
-  else if (OptionMatch("new",input)) {
+  else if (OptionMatch("new",input) || OptionMatch("AN",input)) {
+    if (thinking || pondering) return(2);
     ponder_completed=0;
     ponder_move=0;
-    pv[0].path_iteration_depth=0;
-    pv[0].path_length=0;
+    last_pv.path_iteration_depth=0;
+    last_pv.path_length=0;
     InitializeChessBoard(&position[0]);
     InitializeHashTables();
     wtm=1;
     move_number=1;
+    tc_time_remaining=tc_time;
+    tc_moves_remaining=tc_moves;
     if (log_file) fclose(log_file);
+    if (history_file) fclose(history_file);
     log_id++;
-    strcpy(filename,"log.");
-    sprintf(text,"%d",log_id);
-    strcpy(filename+4,text);
-    log_file=fopen(filename,"w");
+    if (log_file) {
+      sprintf(filename,"%s/log.%03d",LOGDIR,log_id);
+      log_file=fopen(filename,"w+");
+    }
+    sprintf(filename,"%s/game.%03d",LOGDIR,log_id);
+    history_file=fopen(filename,"w+");
   }
 /*
  ----------------------------------------------------------
 |                                                          |
-|   "null" command controls the null-move search.          |
+|  "noop" command is a no-operation that is used to keep   |
+|  Crafty and the ICS interface in sync.                   |
 |                                                          |
  ----------------------------------------------------------
 */
-  else if (OptionMatch("null",input)) {
-    OptionGet(&equal,&slash,input,text,&more);
-    null_depth=atoi(text);
-    Print(0,"null move reduces search by %d ply(s).\n",null_depth);
+  else if (OptionMatch("noop",input)) {
   }
 /*
  ----------------------------------------------------------
@@ -1167,9 +1366,25 @@ int Option(char *tinput)
  ----------------------------------------------------------
 */
   else if (OptionMatch("noise",input)) {
-    OptionGet(&equal,&slash,input,text,&more);
+    OptionGet(&equal,&slash,text,&more);
     noise_level=atoi(text);
     Print(0,"noise level set to %d.\n",noise_level);
+  }
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   "operator" command sets the operator time.  this time  |
+|   is subtracted from the time remaining, so that the     |
+|   operator is allocated some time for normal operation   |
+|   of crafty.                                             |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  else if (OptionMatch("operator",input)) {
+    OptionGet(&equal,&slash,text,&more);
+    tc_operator_time=ParseTime(text)*6000;
+    Print(0,"reserving %s for operator's overhead\n",
+          DisplayHHMM(tc_operator_time));
   }
 /*
  ----------------------------------------------------------
@@ -1182,10 +1397,10 @@ int Option(char *tinput)
  ----------------------------------------------------------
 */
   else if (OptionMatch("otime",input)) {
-    OptionGet(&equal,&slash,input,text,&more);
-    tc_time_remaining_opponent=atoi(text)/100;
+    OptionGet(&equal,&slash,text,&more);
+    tc_time_remaining_opponent=atoi(text);
     if (log_file) fprintf(log_file,"time remaining: %s (opponent).\n",
-                          DisplayTime(tc_time_remaining_opponent*10));
+                          DisplayTime(tc_time_remaining_opponent));
   }
 /*
  ----------------------------------------------------------
@@ -1196,35 +1411,41 @@ int Option(char *tinput)
 */
 #define PERF_CYCLES 100000
   else if (OptionMatch("perf",input)) {
+    if (thinking || pondering) return(2);
     if (wtm)
-      target=Compl(WhitePieces(0));
+      target=Compl(WhitePieces);
     else
-      target=Compl(BlackPieces(0));
-    first[1]=move_list;
+      target=Compl(BlackPieces);
+    clock_before = clock();
+    while (clock() == clock_before);
     clock_before = clock();
     for (i=0;i<PERF_CYCLES;i++)
-      last[1]=GenerateMoves(0, 1, wtm, target, 1, first[1]);
+      last[1]=GenerateMoves(0, 1, wtm, target, 1, last[0]);
     clock_after=clock();
     time_used=((float) clock_after-(float) clock_before) / 
               (float) CLOCKS_PER_SEC;
-    printf("generated %ld moves, time=%d microseconds\n",
-           (last[1]-first[1])*PERF_CYCLES, (clock_after-clock_before));
+    printf("generated %d moves, time=%d microseconds\n",
+           (last[1]-last[0])*PERF_CYCLES, (clock_after-clock_before));
     printf("generated %d moves per second\n",(int) (((float) (PERF_CYCLES*
-           (last[1]-first[1])))/time_used));
+           (last[1]-last[0])))/time_used));
     clock_before=clock();
+    while (clock() == clock_before);
+    clock_before = clock();
     for (i=0;i<PERF_CYCLES;i++) {
-      last[1]=GenerateMoves(0, 1, wtm, target, 1, first[1]);
-      for (mv=first[1];mv<last[1];mv++)
+      last[1]=GenerateMoves(0, 1, wtm, target, 1, last[0]);
+      for (mv=last[0];mv<last[1];mv++) {
         MakeMove(0,*mv,wtm);
+        UnMakeMove(0,*mv,wtm);
+      }
     }
     clock_after=clock();
     time_used=((float) clock_after-(float) clock_before) / 
               (float) CLOCKS_PER_SEC;
-    printf("generated/made %ld moves, time=%d microseconds\n",
-      (last[1]-first[1])*PERF_CYCLES,
+    printf("generated/made/unmade %d moves, time=%d microseconds\n",
+      (last[1]-last[0])*PERF_CYCLES,
     (clock_after-clock_before));
-    printf("generated/made %d moves per second\n",(int) (((float) (PERF_CYCLES*
-           (last[1]-first[1])))/time_used));
+    printf("generated/made/unmade %d moves per second\n",(int) (((float) (PERF_CYCLES*
+           (last[1]-last[0])))/time_used));
   }
 /*
  ----------------------------------------------------------
@@ -1234,9 +1455,10 @@ int Option(char *tinput)
  ----------------------------------------------------------
 */
   else if (OptionMatch("perft",input)) {
+    if (thinking || pondering) return(2);
     position[1]=position[0];
     last[0]=move_list;
-    OptionGet(&equal,&slash,input,text,&more);
+    OptionGet(&equal,&slash,text,&more);
     j=atoi(text);
     total_moves=0;
     OptionPerft(1,j,wtm);
@@ -1251,8 +1473,8 @@ int Option(char *tinput)
  ----------------------------------------------------------
 */
   else if (OptionMatch("ponder",input)) {
-    if (pondering) return(2);
-    OptionGet(&equal,&slash,input,text,&more);
+    if (thinking || pondering) return(2);
+    OptionGet(&equal,&slash,text,&more);
     if (!strcmp(text,"on")) {
       do_ponder=1;
       Print(0,"pondering enabled.\n");
@@ -1262,20 +1484,40 @@ int Option(char *tinput)
       Print(0,"pondering disabled.\n");
     }
     else {
-      ponder_move=InputMove(text,0,wtm,0);
+      ponder_move=InputMove(text,0,wtm,0,0);
+      ponder_completed=0;
     }
   }
 /*
  ----------------------------------------------------------
 |                                                          |
-|   "savegame" command saves the game in a file in PGN     |
-|   format.  command has an optional filename.             |
+|   "post/nopost" command sets/resets "show thinking" mode |
+|   for xboard compatibility.                              |
 |                                                          |
  ----------------------------------------------------------
 */
-  else if (OptionMatch("savegame",input)) {
+  else if (!strcmp("post",input)) {
+    post=1;
+  }
+  else if (!strcmp("nopost",input)) {
+    post=0;
+  }
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   "savegame" command saves the game in a file in PGN     |
+|   format.  command has an optional filename.  note that  |
+|   SR is an autoplay 232 alias that behaves slightly      |
+|   differently.                                           |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  else if (OptionMatch("savegame",input) ||
+           OptionMatch("SR",input)) {
     output_file=stdout;
-    nextc=getc(input_stream);
+    if (OptionMatch("SR",input)) nextc=' ';
+    else nextc=getc(input_stream);
+  
     if (nextc == ' ') {
       fscanf(input_stream,"%s",filename);
       if (!(output_file=fopen(filename,"w"))) {
@@ -1284,9 +1526,11 @@ int Option(char *tinput)
       }
     }
     if (wtm)
-      fprintf(output_file,"[ human vs Crafty ]\n");
+      fprintf(output_file,"[ %s vs Crafty ]\n",
+        *opponents_name ? opponents_name : "human");
     else
-      fprintf(output_file,"[ Crafty vs human ]\n");
+      fprintf(output_file,"[ Crafty vs %s ]\n",
+        *opponents_name ? opponents_name : "human");
     next=text;
     for (i=0;i<(move_number-1)*2-wtm+1;i++) {
       fseek(history_file,i*10,SEEK_SET);
@@ -1307,6 +1551,75 @@ int Option(char *tinput)
     if (more)
       fprintf(output_file,"%s\n",text);
     if (output_file != stdout) fclose(output_file);
+    printf("PGN save complete.\n");
+  }
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   "savepos" command saves the current position in a FEN  |
+|   (Forsythe notation) string that can be later used to   |
+|   recreate this exact position.                          |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  else if (OptionMatch("savepos",input)) {
+    char xlate[15]={'q','r','b',0,'k','n','p',0,'P','N','K',0,'B','R','Q'};
+    char empty[9]={' ','1','2','3','4','5','6','7','8'};
+    int rank, file, nempty;
+    output_file=stdout;
+    nextc=getc(input_stream);
+  
+    if (nextc == ' ') {
+      fscanf(input_stream,"%s",filename);
+      if (!(output_file=fopen(filename,"w"))) {
+        printf("unable to open %s for write.\n",filename);
+        return(1);
+      }
+    }
+    fprintf(output_file,"setboard ");
+    for (rank=RANK8;rank>=RANK1;rank--) {
+      nempty=0;
+      for (file=FILEA;file<=FILEH;file++) {
+        if (PieceOnSquare((rank<<3)+file)) {
+          if (nempty) {
+            fprintf(output_file,"%c",empty[nempty]);
+            nempty=0;
+          }
+          fprintf(output_file,"%c",xlate[PieceOnSquare((rank<<3)+file)+7]);
+        }
+        else nempty++;
+      }
+      fprintf(output_file,"/");
+    }
+    fprintf(output_file," %c ",(wtm)?'w':'b');
+    if (WhiteCastle(0) & 1) fprintf(output_file,"K");
+    if (WhiteCastle(0) & 2) fprintf(output_file,"Q");
+    if (BlackCastle(0) & 1) fprintf(output_file,"k");
+    if (BlackCastle(0) & 2) fprintf(output_file,"q");
+    if (EnPassant(0)) fprintf(output_file,"%c%c",File(EnPassant(0))+'a',
+                              Rank(EnPassant(0))+((wtm)?-1:+1)+'1');
+    fprintf(output_file,"\n");
+ 
+    if (output_file != stdout) {
+      fprintf(output_file,"exit\n");
+      fclose(output_file);
+    }
+    printf("FEN save complete.\n");
+  }
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   "remove" command backs up the game one whole move,     |
+|   leaving the opponent still on move.  it's intended for |
+|   xboard compatibility, but works in any mode.           |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  else if (!strcmp("remove",input)) {
+    if (thinking || pondering) return(2);
+    move_number--;
+    sprintf(tinput,"reset=%d",move_number);
+    Option(tinput);
   }
 /*
  ----------------------------------------------------------
@@ -1318,27 +1631,29 @@ int Option(char *tinput)
  ----------------------------------------------------------
 */
   else if (OptionMatch("reset",input)) {
+    if (thinking || pondering) return(2);
     ponder_completed=0;
     ponder_move=0;
     last_mate_score=0;
-    pv[0].path_iteration_depth=0;
-    pv[0].path_length=0;
+    last_pv.path_iteration_depth=0;
+    last_pv.path_length=0;
     if (thinking || pondering) return(2);
     over=0;
-    OptionGet(&equal,&slash,input,text,&more);
+    OptionGet(&equal,&slash,text,&more);
     move_number=atoi(text);
     if (!move_number) {
       move_number=1;
       return(1);
     }
     nmoves=(move_number-1)*2+1-wtm;
+    root_wtm=ChangeSide(wtm);
     wtm=1;
     move_number=1;
     InitializeChessBoard(&position[0]);
     for (i=0;i<nmoves;i++) {
       fseek(history_file,i*10,SEEK_SET);
       fscanf(history_file,"%s",text);
-      move=InputMove(text,0,wtm,0);
+      move=InputMove(text,0,wtm,0,0);
       if (move) {
         MakeMoveRoot(move,wtm);
       }
@@ -1346,11 +1661,14 @@ int Option(char *tinput)
         printf("ERROR!  move %s is illegal\n",text);
         break;
       }
-      wtm=!wtm;
+      wtm=ChangeSide(wtm);
       if (wtm) move_number++;
+      Phase();
     } 
-    Phase();
     last_move_in_book=move_number;
+    tc_moves_remaining=tc_moves-move_number+1;
+    while (tc_moves_remaining < 0) tc_moves_remaining+=tc_secondary_moves;
+    printf("NOTICE: %d moves to next time control\n",tc_moves_remaining);
   }
 /*
  ----------------------------------------------------------
@@ -1366,17 +1684,18 @@ int Option(char *tinput)
 */
   else if (OptionMatch("read",input) ||
            OptionMatch("reada",input)) {
+    if (thinking || pondering) return(2);
     if (!strcmp("reada",input))
       append=1;
     else
       append=0;
     ponder_completed=0;
     ponder_move=0;
-    pv[0].path_iteration_depth=0;
-    pv[0].path_length=0;
+    last_pv.path_iteration_depth=0;
+    last_pv.path_length=0;
     input_file=input_stream;
     if (equal) {
-      OptionGet(&equal,&slash,input,filename,&more);
+      OptionGet(&equal,&slash,filename,&more);
       if (!(input_file=fopen(filename,"r"))) {
         printf("file %s does not exist.\n",filename);
         return(1);
@@ -1417,18 +1736,18 @@ int Option(char *tinput)
               fclose(input_file);
             break;
           }
-          move=InputMove(text,0,wtm,1);
+          move=InputMove(text,0,wtm,1,0);
           if (move) {
             if (input_file != stdin) {
               printf("%s ",OutputMove(&move,0,wtm));
-              if (!(move_number % 8) && !wtm)
+              if (!(move_number % 8) && ChangeSide(wtm))
                 printf("\n");
             }
             fseek(history_file,((move_number-1)*2+1-wtm)*10,SEEK_SET);
             fprintf(history_file,"%10s",OutputMove(&move,0,wtm));
             MakeMoveRoot(move,wtm);
 #if defined(DEBUG)
-            ValidatePosition(1,move);
+            ValidatePosition(1,move,"Option()");
 #endif
           }
           else {
@@ -1439,9 +1758,11 @@ int Option(char *tinput)
       } while (!move && (scanf_status>0));
       if (!strcmp(text,"exit")) break;
       if (scanf_status <= 0) break;
-      wtm=!wtm;
+      wtm=ChangeSide(wtm);
+      Phase();
       if (wtm) move_number++;
     } while (scanf_status > 0);
+    last_move_in_book=move_number;
     if (input_file != stdin) {
       printf("\n");
       fclose(input_file);
@@ -1457,9 +1778,9 @@ int Option(char *tinput)
  ----------------------------------------------------------
 */
   else if (OptionMatch("resign",input)) {
-    OptionGet(&equal,&slash,input,text,&more);
+    OptionGet(&equal,&slash,text,&more);
     resign=atoi(text);
-    if (!ics) {
+    if (!ics & !xboard) {
       if (resign)
         Print(0,"resignation threshold set to %d pawns.\n",resign);
       else
@@ -1475,11 +1796,34 @@ int Option(char *tinput)
  ----------------------------------------------------------
 */
   else if (OptionMatch("search",input)) {
-    if (pondering) return(2);
-    OptionGet(&equal,&slash,input,text,&more);
-    search_move=InputMove(text,0,wtm,0);
-    if (!search_move) search_move=InputMove(text,0,!wtm,0);
+    if (thinking || pondering) return(2);
+    OptionGet(&equal,&slash,text,&more);
+    search_move=InputMove(text,0,wtm,0,0);
+    if (!search_move) search_move=InputMove(text,0,ChangeSide(wtm),0,0);
     if (!search_move) printf("illegal move\n");
+  }
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   "settc" command is used to reset the time controls     |
+|   after a complete restart.                              |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  else if (OptionMatch("settc",input)) {
+    if (thinking || pondering) return(2);
+    printf("moves to time control? ");
+    scanf("%d",&tc_moves_remaining);
+    printf("How much time left on Crafty's clock? ");
+    scanf("%s",text);
+    tc_time_remaining=ParseTime(text)*6000;
+    printf("How much time left on opponent's clock? ");
+    fscanf(input_stream,"%s",text);
+    tc_time_remaining_opponent=ParseTime(text)*6000;
+    fprintf(log_file,"time remaining: %s (crafty).\n",
+                     DisplayTime(tc_time_remaining));
+    fprintf(log_file,"time remaining: %s (opponent).\n",
+                     DisplayTime(tc_time_remaining_opponent));
   }
 /*
  ----------------------------------------------------------
@@ -1494,8 +1838,8 @@ int Option(char *tinput)
     SetBoard();
     ponder_completed=0;
     ponder_move=0;
-    pv[0].path_iteration_depth=0;
-    pv[0].path_length=0;
+    last_pv.path_iteration_depth=0;
+    last_pv.path_length=0;
     over=0;
   }
 /*
@@ -1507,28 +1851,17 @@ int Option(char *tinput)
  ----------------------------------------------------------
 */
   else if (OptionMatch("score",input)) {
-    static_eval[1]=0;
-    root_wtm=!wtm;
+    if (thinking || pondering) return(2);
+    root_wtm=ChangeSide(wtm);
     position[1]=position[0];
     PreEvaluate(wtm);
-    s1=Material(0);
+    s7=Evaluate(1,1,-99999,99999);
+    s1=Material;
     s2=EvaluateDevelopment(1);
-    s3=EvaluatePawns(1,&t1,&t2,&t3,&t4);
-    s4=EvaluatePassedPawns(1,t1,t2);
-    s5=EvaluatePassedPawnRacess(1,wtm,t1,t2);
-    s6=EvaluateOutsidePassedPawns(1,t1,t2);
-    if((TotalWhitePieces(0) > 16) &&
-       (TotalBlackPieces(0) > 16)) {
-      s7=-(15+(TotalBlackPieces(0)>>1))*
-         EvaluateKingSafetyW(1,WhiteKingSQ(0));
-      s8= (15+(TotalBlackPieces(0)>>1))*
-         EvaluateKingSafetyB(1,BlackKingSQ(0));
-    }
-    else {
-      s7=0;
-      s8=0;
-    }
-    s9=Evaluate(1,1,-99999,99999);
+    s3=EvaluatePawns();
+    s4=EvaluatePassedPawns();
+    s5=EvaluatePassedPawnRaces(wtm);
+    s6=EvaluateOutsidePassedPawns();
     Print(1,"note: scores are for the white side\n");
     Print(1,"material evaluation.................%s\n",
       DisplayEvaluation(s1));
@@ -1542,14 +1875,10 @@ int Option(char *tinput)
       DisplayEvaluation(s5));
     Print(1,"outside passed pawn evaluation......%s\n",
       DisplayEvaluation(s6));
-    Print(1,"white king safety...................%s\n",
-      DisplayEvaluation(s7));
-    Print(1,"black king safety...................%s\n",
-      DisplayEvaluation(s8));
     Print(1,"piece evaluation....................%s\n",
-      DisplayEvaluation(s9-s1-s2-s3-s4-s5-s6-s7-s8));
+      DisplayEvaluation(s7-s1-s2-s3-s4-s5-s6));
     Print(1,"total evaluation....................%s\n",
-      DisplayEvaluation(s9));
+      DisplayEvaluation(s7));
   }
 /*
  ----------------------------------------------------------
@@ -1560,7 +1889,7 @@ int Option(char *tinput)
  ----------------------------------------------------------
 */
   else if (OptionMatch("sd",input)) {
-    OptionGet(&equal,&slash,input,text,&more);
+    OptionGet(&equal,&slash,text,&more);
     search_depth=atoi(text);
     Print(0,"search depth set to %d.\n",search_depth);
   }
@@ -1574,20 +1903,11 @@ int Option(char *tinput)
  ----------------------------------------------------------
 */
   else if (OptionMatch("show",input)) {
-    OptionGet(&equal,&slash,input,text,&more);
+    OptionGet(&equal,&slash,text,&more);
     if (OptionMatch("book",text)) {
       show_book=!show_book;
       if (show_book) Print(0,"show book statistics\n");
       else Print(0,"don't show book statistics\n");
-    }
-    if (OptionMatch("extensions",text)) {
-#if defined(FAST)
-      printf("Sorry, but I can't show extensions when compiled with -DFAST\n");
-#else
-      show_extensions=!show_extensions;
-      if (show_extensions) Print(0,"show search extensions\n");
-      else Print(0,"don't show search extensions\n");
-#endif
     }
   }
 /*
@@ -1599,9 +1919,9 @@ int Option(char *tinput)
  ----------------------------------------------------------
 */
   else if (OptionMatch("st",input)) {
-    OptionGet(&equal,&slash,input,text,&more);
-    search_time_limit=atoi(text);
-    Print(0,"search time set to %d.\n",search_time_limit);
+    OptionGet(&equal,&slash,text,&more);
+    search_time_limit=atoi(text)*100;
+    Print(0,"search time set to %d.\n",search_time_limit/100);
   }
 /*
  ----------------------------------------------------------
@@ -1612,7 +1932,8 @@ int Option(char *tinput)
  ----------------------------------------------------------
 */
   else if (OptionMatch("test",input)) {
-    OptionGet(&equal,&slash,input,filename,&more);
+    if (thinking || pondering) return(2);
+    OptionGet(&equal,&slash,filename,&more);
     if (!(input_stream=fopen(filename,"r"))) {
       printf("file does not exist.\n");
       input_stream=stdin;
@@ -1621,8 +1942,8 @@ int Option(char *tinput)
       Test();
       ponder_completed=0;
       ponder_move=0;
-      pv[0].path_iteration_depth=0;
-      pv[0].path_length=0;
+      last_pv.path_iteration_depth=0;
+      last_pv.path_length=0;
     }
   }
 /*
@@ -1656,7 +1977,7 @@ int Option(char *tinput)
 |   control can be a sudden-death time control, as in the  |
 |   following example:                                     |
 |                                                          |
-|     time 60/30 sd/30                                     |
+|     time 60/30/sd/30                                     |
 |                                                          |
 |   this sets 60 moves in 30 minutes, then game in 30      |
 |   additional minutes.  an increment can be added if      |
@@ -1665,16 +1986,15 @@ int Option(char *tinput)
  ----------------------------------------------------------
 */
   else if (OptionMatch("time",input)) {
-    if (ics) {
-      OptionGet(&equal,&slash,input,text,&more);
+    if (ics || xboard) {
+      OptionGet(&equal,&slash,text,&more);
       tc_time_remaining=atoi(text);
-      tc_time_remaining/=100;
       if (log_file) fprintf(log_file,"time remaining: %s (crafty).\n",
-                            DisplayTime(10*tc_time_remaining));
+                            DisplayTime(tc_time_remaining));
     }
     else {
       if (thinking || pondering) return(2);
-      OptionGet(&equal,&slash,input,text,&more);
+      OptionGet(&equal,&slash,text,&more);
       if (!strcmp("cpu",text)) {
         time_type=cpu;
         Print(0,"using cpu time\n");
@@ -1685,11 +2005,12 @@ int Option(char *tinput)
       }
       else {
         tc_moves=60;
-        tc_time=1800;
+        tc_time=180000;
         tc_moves_remaining=60;
-        tc_time_remaining=1800;
+        tc_time_remaining=180000;
+        tc_time_remaining_opponent=180000;
         tc_secondary_moves=60;
-        tc_secondary_time=1800;
+        tc_secondary_time=180000;
         tc_increment=0;
         tc_sudden_death=0;
         error=0;
@@ -1707,7 +2028,7 @@ int Option(char *tinput)
           else 
             tc_moves=atoi(text);
           next++;
-          tc_time=TtoI(next);
+          tc_time=TtoI(next)*100;
   
           next1=strchr(next,'/');
           if (!next1) {
@@ -1725,22 +2046,23 @@ int Option(char *tinput)
             }
             else tc_secondary_moves=atoi(next1);
             next++;
-            tc_secondary_time=TtoI(next);
+            tc_secondary_time=TtoI(next)*100;
   
             next1=strchr(next,'/');
             if (!next1) break;
             next1++;
-            tc_increment=atoi(next1);
+            tc_increment=atoi(next1)*100;
           }
         } while (0);
         tc_time_remaining=tc_time;
+        tc_time_remaining_opponent=tc_time;
         tc_moves_remaining=tc_moves;
         if (!tc_sudden_death) {
           Print(0,"%d moves/%d minutes primary time control\n",
-                tc_moves, tc_time);
+                tc_moves, tc_time/100);
           Print(0,"%d moves/%d minutes secondary time control\n",
-                tc_secondary_moves, tc_secondary_time);
-          if (tc_increment) Print(0,"increment %d seconds.\n",tc_increment);
+                tc_secondary_moves, tc_secondary_time/100);
+          if (tc_increment) Print(0,"increment %d seconds.\n",tc_increment/100);
         }
         else if (tc_sudden_death == 1) {
           Print(0," game/%d minutes primary time control\n",
@@ -1756,15 +2078,37 @@ int Option(char *tinput)
         }
         tc_time*=60;
         tc_time_remaining*=60;
+        tc_time_remaining_opponent*=60;
         tc_secondary_time*=60;
-        if (!tc_increment)
-          tc_simple_average_time=(tc_time-
-                                  tc_operator_time*tc_moves)/
-                                 tc_moves;
-        else tc_simple_average_time=tc_increment-tc_operator_time;
         if (error)
           printf("usage:  time nmoves/ntime [nmoves/ntime] increment\n");
       }
+    }
+  }
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   "timeleft" command comes from the custom ICS interface |
+|   and indicates how much time is left for white and for  |
+|   black.                                                 |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  else if (OptionMatch("timeleft",input)) {
+    OptionGet(&equal,&slash,text,&more);
+    if (wtm) {
+      tc_time_remaining=atoi(OptionNext(1,text));
+      tc_time_remaining_opponent=atoi(OptionNext(0,text));
+    }
+    else {
+      tc_time_remaining_opponent=atoi(OptionNext(1,text));
+      tc_time_remaining=atoi(OptionNext(0,text));
+    }
+    if (log_file) {
+      fprintf(log_file,"time remaining: %s (crafty).\n",
+                       DisplayTime(tc_time_remaining));
+      fprintf(log_file,"time remaining: %s (opponent).\n",
+                       DisplayTime(tc_time_remaining_opponent));
     }
   }
 /*
@@ -1786,6 +2130,39 @@ int Option(char *tinput)
 /*
  ----------------------------------------------------------
 |                                                          |
+|   "undo" command backs up 1/2 move, which leaves the     |
+|   opposite side on move. [xboard compatibility]          |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  else if (!strcmp("undo",input)) {
+    if (thinking || pondering) return(2);
+    wtm=ChangeSide(wtm);
+    if (ChangeSide(wtm)) move_number--;
+    sprintf(tinput,"reset=%d",move_number);
+    Option(tinput);
+  }
+/*
+ ---------------------------------------------------------------
+|                                                               |
+|   "usage" command controls the time usage multiple factors    |
+|  used in the game  - percntage increase or decrease in time   |
+|  used up front.  Enter a number between 1 to 100 for the      |
+|  % decrease to increase - although other time limitations     !
+| controls may kick in.  negatives work as well, may be used    |
+| in crafty.rc                                                  |
+|                                                               |
+ ---------------------------------------------------------------
+*/
+ else if (OptionMatch("usage",input)) {
+    OptionGet(&equal,&slash,text,&more);
+    usage_level=atof(text);
+    Print(0,"time usage up front set to %5.1f percent increase/(-)decrease.\n",
+          usage_level);
+  }
+/*
+ ----------------------------------------------------------
+|                                                          |
 |   "verbose" command sets specific verbosity level which  |
 |   controls how "chatty" the program is.  "0" is the      |
 |   least "talkative" and anything >9 is maximum.          |
@@ -1801,7 +2178,7 @@ int Option(char *tinput)
  ----------------------------------------------------------
 */
   else if (OptionMatch("verbose",input)) {
-    OptionGet(&equal,&slash,input,text,&more);
+    OptionGet(&equal,&slash,text,&more);
     verbosity_level=atoi(text);
     Print(0,"verbosity set to %d.\n",verbosity_level);
   }
@@ -1809,14 +2186,16 @@ int Option(char *tinput)
  ----------------------------------------------------------
 |                                                          |
 |   "whisper" command sets whisper mode for ICS.  =1 will  |
-|   whisper scores, etc., but no PV.  =2 whispers PV as    |
-|   well. =3 adds the list of known book moves crafty      |
-|   chose from.                                            |
+|   whisper mate announcements, =2 will whisper scores and |
+|   other info, =3 will whisper scores and PV, =4 adds the |
+|   list of book moves, =5 displays the PV after each      |
+|   iteration completes, and =6 displays the PV each time  |
+|   it changes in an iteration.                            |
 |                                                          |
  ----------------------------------------------------------
 */
   else if (OptionMatch("whisper",input)) {
-    OptionGet(&equal,&slash,input,text,&more);
+    OptionGet(&equal,&slash,text,&more);
     whisper=atoi(text);
   }
 /*
@@ -1827,12 +2206,29 @@ int Option(char *tinput)
  ----------------------------------------------------------
 */
   else if (OptionMatch("white",input)) {
+    if (thinking || pondering) return(2);
     ponder_completed=0;
     ponder_move=0;
-    pv[0].path_iteration_depth=0;
-    pv[0].path_length=0;
+    last_pv.path_iteration_depth=0;
+    last_pv.path_length=0;
     wtm=1;
     force=0;
+  }
+/*
+ ----------------------------------------------------------
+|                                                          |
+|  "xboard" command is normally invoked from main() via    |
+|  the xboard command-line option.  it sets proper         |
+|  defaults for ics/Xboard interface requirements.         |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  else if (OptionMatch("xboard",input)) {
+    printf("Chess\n");
+    xboard=1;
+    verbosity_level=0;
+    show_book=0;
+    resign=0;
   }
 /*
  ----------------------------------------------------------
@@ -1860,27 +2256,15 @@ int Option(char *tinput)
 *                                                                              *
 ********************************************************************************
 */
-void OptionGet(char **equal,char **slash,char *input,char *parameter,int *more)
+void OptionGet(char **equal,char **slash,char *parameter,int *more)
 {
-  char *ic;
-
   *more=0;
   if (*slash) {
     strcpy(parameter,*slash+1);
-    if ((ic=strchr(parameter,';'))) {
-      *ic='\0';
-      strcpy(input,ic+1);
-      *more=1;
-    }
     *slash=0;
   }
   else if (*equal) {
     strcpy(parameter,*equal+1);
-    if ((ic=strchr(parameter,';'))) {
-      *ic='\0';
-      strcpy(input,ic+1);
-      *more=1;
-    }
     *equal=0;
   }
   else fscanf(input_stream,"%s",parameter);
@@ -1932,24 +2316,49 @@ int OptionMatch(char *command, char *input)
   }
   return(0);
 }
+
+/*
+********************************************************************************
+*                                                                              *
+*   OptionNext() is used to return the next "token" from the input string and  *
+*   if none is available, read another string from the input stream and        *
+*   continue.                                                                  *
+*                                                                              *
+*                                                                              *
+********************************************************************************
+*/
+char* OptionNext(int first, char *input)
+{
+  char delims[]={" ;/"};
+  char *next;
+
+  if (first) return(strtok(input,delims));
+  else next=strtok(0,delims);
+  if (!next) {
+    fscanf(input_stream,"%s",input);
+    next=strtok(input,delims);
+  }
+  return(next);
+}
+
 void OptionPerft(int ply,int depth,int wtm)
 {
   BITBOARD target;
   int i, *mv;
 
-  if (wtm) target=Compl(WhitePieces(ply));
-  else target=Compl(BlackPieces(ply));
-  first[ply]=last[ply-1];
-  last[ply]=GenerateMoves(ply, 99, wtm, target, 1, first[ply]);
-  for (mv=first[ply];mv<last[ply];mv++) {
+  if (wtm) target=Compl(WhitePieces);
+  else target=Compl(BlackPieces);
+  last[ply]=GenerateMoves(ply, 99, wtm, target, 1, last[ply-1]);
+  for (mv=last[ply-1];mv<last[ply];mv++) {
     MakeMove(ply,*mv,wtm);
-    if (!Check(ply+1,wtm)) {
+    if (!Check(wtm)) {
       if (ply <= trace_level) {
         for (i=1;i<ply;i++) printf("  ");
         printf("%s\n", OutputMove(mv,ply,wtm));
       }
       total_moves++;
-      if (depth-1) OptionPerft(ply+1,depth-1,!wtm);
+      if (depth-1) OptionPerft(ply+1,depth-1,ChangeSide(wtm));
     }
+    UnMakeMove(ply,*mv,wtm);
   }
 }

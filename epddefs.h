@@ -1,29 +1,57 @@
-#if !defined(EPDDEFS_INCLUDED)
-#  define EPDDEFS_INCLUDED
-/*>>> epddefs.h: Extended Postion Description definitions */
+/*>>> epddefs.h: Extended Position Description definitions */
 
-/* Revised: 1995.12.03 */
+/* Revised: 1996.06.23 */
 
 /*
-Copyright (C) 1995 by Steven J. Edwards (sje@mv.mv.com)
+Copyright (C) 1996 by Steven J. Edwards (sje@mv.mv.com)
 All rights reserved.  This code may be freely redistibuted and used by
 both research and commerical applications.  No warranty exists.
+*/
+
+/*
+Everything in this source file is independent of the host program.
+Requests for changes and additions should be communicated to the author
+via the e-mail address given above.
 */
 
 /*
 This file was originally prepared on an Apple Macintosh using the
 Metrowerks CodeWarrior 6 ANSI C compiler.  Tabs are set at every
 four columns.  Further testing and development was performed on a
-generic PC running Linux 1.2.9 and using the gcc 2.6.3 compiler.
+generic PC running Linux 1.3.20 and using the gcc 2.7.0 compiler.
 */
+
+/* inclusion telltale */
+
+#if (!defined(_epddefs))
+#define _epddefs 1
 
 /* subprogram storage class for non-statics (usually empty definition) */
 
 #define nonstatic
 
-/* a single bit */
+/* a bit */
 
 #define bit 0x01
+
+/* bit positions */
+
+#define bit_00 (bit <<  0)
+#define bit_01 (bit <<  1)
+#define bit_02 (bit <<  2)
+#define bit_03 (bit <<  3)
+#define bit_04 (bit <<  4)
+#define bit_05 (bit <<  5)
+#define bit_06 (bit <<  6)
+#define bit_07 (bit <<  7)
+#define bit_08 (bit <<  8)
+#define bit_09 (bit <<  9)
+#define bit_10 (bit << 10)
+#define bit_11 (bit << 11)
+#define bit_12 (bit << 12)
+#define bit_13 (bit << 13)
+#define bit_14 (bit << 14)
+#define bit_15 (bit << 15)
 
 /* bit width constants */
 
@@ -41,6 +69,8 @@ typedef unsigned char byteT, *byteptrT;
 typedef char *charptrT;
 typedef short int siT, *siptrT;
 typedef long int liT, *liptrT;
+typedef float srT, *srptrT;
+typedef double lrT, *lrptrT;
 typedef FILE *fptrT;
 
 /* text I/O buffer length */
@@ -60,7 +90,7 @@ typedef sanT *sanptrT;
 
 /* SAN style attributes, priority ordered (used for encoding) */
 
-typedef siT ssaT; 
+typedef siT ssaT;
 #define ssaL 12
 #define ssa_nil (-1)
 
@@ -90,10 +120,10 @@ typedef siT cT, *cptrT;
 #define rcL (bit << rcQ)
 #define c_nil (-1)
 
-#define c_w 0
-#define c_b 1
-#define c_v 2
-#define c_x 3
+#define c_w 0 /* white */
+#define c_b 1 /* black */
+#define c_v 2 /* vacant */
+#define c_x 3 /* extra */
 
 /* pieces (ordering is critical) */
 
@@ -102,14 +132,14 @@ typedef siT pT, *pptrT;
 #define rpL 6
 #define p_nil (-1)
 
-#define p_p 0
-#define p_n 1
-#define p_b 2
-#define p_r 3
-#define p_q 4
-#define p_k 5
-#define p_v 6
-#define p_x 7
+#define p_p 0 /* pawn */
+#define p_n 1 /* knight */
+#define p_b 2 /* bishop */
+#define p_r 3 /* rook */
+#define p_q 4 /* queen */
+#define p_k 5 /* king */
+#define p_v 6 /* vacant */
+#define p_x 7 /* extra */
 
 /* color piece combinations (ordering is critical) */
 
@@ -118,22 +148,22 @@ typedef siT cpT;
 #define rcpL 12
 #define cp_nil (-1)
 
-#define cp_wp  0
-#define cp_wn  1
-#define cp_wb  2
-#define cp_wr  3
-#define cp_wq  4
-#define cp_wk  5
-#define cp_bp  6
-#define cp_bn  7
-#define cp_bb  8
-#define cp_br  9
-#define cp_bq 10
-#define cp_bk 11
-#define cp_v0 12
-#define cp_x0 13
-#define cp_x1 14
-#define cp_x2 15
+#define cp_wp  0 /* white pawn */
+#define cp_wn  1 /* white knight */
+#define cp_wb  2 /* white bishop */
+#define cp_wr  3 /* white rook */
+#define cp_wq  4 /* white queen */
+#define cp_wk  5 /* white king */
+#define cp_bp  6 /* black pawn */
+#define cp_bn  7 /* black knight */
+#define cp_bb  8 /* black bishop */
+#define cp_br  9 /* black rook */
+#define cp_bq 10 /* black queen */
+#define cp_bk 11 /* black king */
+#define cp_v0 12 /* vacant */
+#define cp_x0 13 /* extra 0 */
+#define cp_x1 14 /* extra 1 */
+#define cp_x2 15 /* extra 2 */
 
 /* ranks */
 
@@ -160,14 +190,14 @@ typedef siT fileT;
 #define fileL (bit << fileQ)
 #define file_nil (-1)
 
-#define file_a 0
-#define file_b 1
-#define file_c 2
-#define file_d 3
-#define file_e 4
-#define file_f 5
-#define file_g 6
-#define file_h 7
+#define file_a 0 /* QR */
+#define file_b 1 /* QN */
+#define file_c 2 /* QB */
+#define file_d 3 /* Q */
+#define file_e 4 /* K */
+#define file_f 5 /* KB */
+#define file_g 6 /* KN */
+#define file_h 7 /* KR */
 
 /* location mappings */
 
@@ -258,8 +288,8 @@ typedef union rbU
 
 /* nybble board vector */
 
-#define nbvL (sqL / (byteW / nybbW))
-typedef byteT nbvT[nbvL];
+#define nbL (sqL / (byteW / nybbW))
+typedef byteT nbvT[nbL];
 
 /* flanks */
 
@@ -407,6 +437,38 @@ typedef castT *castptrT;
 #define cf_bk castim(cai_bk)
 #define cf_bq castim(cai_bq)
 
+/* centipawn evaluation */
+
+typedef siT cpevT, *cpevptrT;
+
+/* some interesting centipawn evaluations */
+
+#define cpev_best ((cpevT) ((((liT) bit) << 15) - 1))
+#define cpev_bust (-cpev_best)
+#define cpev_draw 0
+#define cpev_mate cpev_best
+#define cpev_wrck (cpev_bust - 1)
+
+/* mate and loss synthesis macros (fullmove distance argument) */
+
+#define synth_mate(n) (cpev_mate - ((n) * 2) + 1)
+#define synth_loss(n) (cpev_bust + ((n) * 2))
+
+/* distance to mate/loss macros (mate/loss centipawn argument) */
+
+#define synth_distance_mate(cpev)  ((siT) (((cpev_mate - (cpev)) + 1) / 2))
+#define synth_distance_loss(cpev)  ((siT) (((cpev) - cpev_bust) / 2))
+
+/* maximum distance to mate/loss (fullmove distance count) */
+
+#define max_dist_mateL 1024
+#define max_dist_lossL 1024
+
+/* forced mate/loss detection macros (mate/loss centipawn argument) */
+
+#define forced_mate(cpev) ((cpev) >= ((cpev_mate - (max_dist_mateL * 2)) + 1))
+#define forced_loss(cpev) ((cpev) <= (cpev_bust + (max_dist_lossL * 2)))
+
 /* move flag bits */
 
 typedef siT mfT;
@@ -449,10 +511,33 @@ typedef struct mS
 	scmvT m_scmv; /* special case move indication */
 	} mT, *mptrT;
 
+/* game termination indicator markers */
+
+typedef siT gtimT, *gtimptrT;
+#define gtimL 4
+#define gtim_nil (-1)
+
+#define gtim_w 0 /* White won */
+#define gtim_b 1 /* Black won */
+#define gtim_d 2 /* draw */
+#define gtim_u 3 /* unknown */
+
+/* clockstamp length hh:mm:ss */
+
+#define clockstampL (2 + 1 + 2 + 1 + 2 + 1)
+
+/* datestamp length YYYY.MM.DD */
+
+#define datestampL (4 + 1 + 2 + 1 + 2 + 1)
+
+/* duration length dddd:hh:mm:ss */
+
+#define durationL (4 + 1 + 2 + 1 + 2 + 1 + 2 + 1)
+
 /* EPD operand basetype */
 
 typedef siT eobT;
-
+#define eobL 2
 #define eob_nil (-1)
 
 #define eob_string 0 /* quoted string */
@@ -494,69 +579,117 @@ typedef struct epdS
 /* EPD standard operators */
 
 typedef siT epdsoT, *epdsoptrT;
-#define epdsoL 50
+#define epdsoL 51
 #define epdso_nil (-1)
 
-#define epdso_acn          0 /* analysis count: nodes */
-#define epdso_acs          1 /* analysis count: seconds */
-#define epdso_am           2 /* avoid move(s) */
-#define epdso_bm           3 /* best move(s) */
-#define epdso_c0           4 /* comment slot 0 */
-#define epdso_c1           5 /* comment slot 1 */
-#define epdso_c2           6 /* comment slot 2 */
-#define epdso_c3           7 /* comment slot 3 */
-#define epdso_c4           8 /* comment slot 4 */
-#define epdso_c5           9 /* comment slot 5 */
-#define epdso_c6          10 /* comment slot 6 */
-#define epdso_c7          11 /* comment slot 7 */
-#define epdso_c8          12 /* comment slot 8 */
-#define epdso_c9          13 /* comment slot 9 */
-#define epdso_cc          14 /* chess clock */
-#define epdso_ce          15 /* centipawn evaluation */
-#define epdso_dm          16 /* direct move count */
-#define epdso_draw_accept 17 /* draw accept */
-#define epdso_draw_claim  18 /* draw claim */
-#define epdso_draw_offer  19 /* draw offer */
-#define epdso_draw_reject 20 /* draw reject */
-#define epdso_eco         21 /* ECO code */
-#define epdso_fmvn        22 /* fullmove number */
-#define epdso_hmvc        23 /* halfmove clock */
-#define epdso_id          24 /* position identification */
-#define epdso_nic         25 /* NIC code */
-#define epdso_noop        26 /* no operation */
-#define epdso_pm          27 /* predicted move */
-#define epdso_ptp         28 /* PGN tag pair(s) */
-#define epdso_pv          29 /* predicted variation */
-#define epdso_rc          30 /* repetition count */
-#define epdso_refcom      31 /* referee command */
-#define epdso_refreq      32 /* referee request */
-#define epdso_resign      33 /* resign */
-#define epdso_sm          34 /* supplied move */
-#define epdso_sv          35 /* supplied variation */
-#define epdso_tcgs        36 /* telecommunications: game selector */
-#define epdso_tcri        37 /* telecommunications: receiver identification */
-#define epdso_tcsi        38 /* telecommunications: sender identification */
-#define epdso_ts          39 /* timestamp */
-#define epdso_v0          40 /* variation slot 0 */
-#define epdso_v1          41 /* variation slot 1 */
-#define epdso_v2          42 /* variation slot 2 */
-#define epdso_v3          43 /* variation slot 3 */
-#define epdso_v4          44 /* variation slot 4 */
-#define epdso_v5          45 /* variation slot 5 */
-#define epdso_v6          46 /* variation slot 6 */
-#define epdso_v7          47 /* variation slot 7 */
-#define epdso_v8          48 /* variation slot 8 */
-#define epdso_v9          49 /* variation slot 9 */
+#define epdso_acd          0 /* analysis count: depth */
+#define epdso_acn          1 /* analysis count: nodes */
+#define epdso_acs          2 /* analysis count: seconds */
+#define epdso_am           3 /* avoid move(s) */
+#define epdso_bm           4 /* best move(s) */
+#define epdso_c0           5 /* comment slot 0 */
+#define epdso_c1           6 /* comment slot 1 */
+#define epdso_c2           7 /* comment slot 2 */
+#define epdso_c3           8 /* comment slot 3 */
+#define epdso_c4           9 /* comment slot 4 */
+#define epdso_c5          10 /* comment slot 5 */
+#define epdso_c6          11 /* comment slot 6 */
+#define epdso_c7          12 /* comment slot 7 */
+#define epdso_c8          13 /* comment slot 8 */
+#define epdso_c9          14 /* comment slot 9 */
+#define epdso_cc          15 /* chess clock */
+#define epdso_ce          16 /* centipawn evaluation */
+#define epdso_dm          17 /* direct move count */
+#define epdso_draw_accept 18 /* draw accept */
+#define epdso_draw_claim  19 /* draw claim */
+#define epdso_draw_offer  20 /* draw offer */
+#define epdso_draw_reject 21 /* draw reject */
+#define epdso_eco         22 /* ECO code */
+#define epdso_fmvn        23 /* fullmove number */
+#define epdso_hmvc        24 /* halfmove clock */
+#define epdso_id          25 /* position identification */
+#define epdso_nic         26 /* NIC code */
+#define epdso_noop        27 /* no operation */
+#define epdso_pm          28 /* predicted move */
+#define epdso_ptp         29 /* PGN tag pair(s) */
+#define epdso_pv          30 /* predicted variation */
+#define epdso_rc          31 /* repetition count */
+#define epdso_refcom      32 /* referee command */
+#define epdso_refreq      33 /* referee request */
+#define epdso_resign      34 /* resign */
+#define epdso_sm          35 /* supplied move */
+#define epdso_sv          36 /* supplied variation */
+#define epdso_tcgs        37 /* telecommunications: game selector */
+#define epdso_tcri        38 /* telecommunications: receiver identification */
+#define epdso_tcsi        39 /* telecommunications: sender identification */
+#define epdso_ts          40 /* timestamp */
+#define epdso_v0          41 /* variation slot 0 */
+#define epdso_v1          42 /* variation slot 1 */
+#define epdso_v2          43 /* variation slot 2 */
+#define epdso_v3          44 /* variation slot 3 */
+#define epdso_v4          45 /* variation slot 4 */
+#define epdso_v5          46 /* variation slot 5 */
+#define epdso_v6          47 /* variation slot 6 */
+#define epdso_v7          48 /* variation slot 7 */
+#define epdso_v8          49 /* variation slot 8 */
+#define epdso_v9          50 /* variation slot 9 */
+
+/* referee commands */
+
+typedef siT refcomT, *refcomptrT;
+#define refcomL 7
+#define refcom_nil (-1)
+
+#define refcom_conclude   0
+#define refcom_disconnect 1
+#define refcom_execute    2
+#define refcom_fault      3
+#define refcom_inform     4
+#define refcom_respond    5
+#define refcom_reset      6
+
+/* referee requests */
+
+typedef siT refreqT, *refreqptrT;
+#define refreqL 4
+#define refreq_nil (-1)
+
+#define refreq_fault    0
+#define refreq_reply    1
+#define refreq_sign_on  2
+#define refreq_sign_off 3
+
+/* referee interface procedure type */
+
+typedef epdptrT (*refintptrT)(epdptrT epdptr, siptrT flagptr);
+
+/* PGN Seven Tag Roster names */
+
+typedef siT pgnstrT, *pgnstrptrT;
+#define pgnstrL 7
+#define pgnstr_nil (-1)
+
+#define pgnstr_event  0
+#define pgnstr_site   1
+#define pgnstr_date   2
+#define pgnstr_round  3
+#define pgnstr_white  4
+#define pgnstr_black  5
+#define pgnstr_result 6
 
 /* benchmark score structure */
 
 typedef struct bmsS
 	{
+	siT bms_acdflag;   /* ACD (depth) data valid flag */
 	siT bms_acnflag;   /* ACN (nodes) data valid flag */
 	siT bms_acsflag;   /* ACS (seconds) data valid flag */
 	liT bms_total;     /* total record count */
 	liT bms_solve;     /* solved record count */
 	liT bms_unsol;     /* unsolved record count */
+	liT bms_total_acd; /* ACD used, all records */
+	liT bms_solve_acd; /* ACD used, solved records */
+	liT bms_unsol_acd; /* ACD used, unsolved records */
 	liT bms_total_acn; /* ACN used, all records */
 	liT bms_solve_acn; /* ACN used, solved records */
 	liT bms_unsol_acn; /* ACN used, unsolved records */
@@ -565,5 +698,322 @@ typedef struct bmsS
 	liT bms_unsol_acs; /* ACS used, unsolved records */
 	} bmsT, *bmsptrT;
 
-/*<<< epddefs.h: EOF */
+/* environment stack entry record type */
+
+typedef struct eseS
+	{
+	cT    ese_actc;      /* active color */
+	castT ese_cast;      /* castling availability */
+	sqT   ese_epsq;      /* en passant target square */
+	siT   ese_hmvc;      /* halfmove clock */
+	siT   ese_fmvn;      /* fullmove number */
+	sqT   ese_ksqv[rcL]; /* king square locations */
+	} eseT, *eseptrT;
+
+/* game played move record type (entries are prior to move) */
+
+typedef struct gpmS
+	{
+	mT           gpm_m;    /* the move to be played */
+	eseT         gpm_ese;  /* environment statck entry storage */
+	nbvT         gpm_nbv;  /* nybble board vector */
+	struct gpmS *gpm_prev; /* previous played move record */
+	struct gpmS *gpm_next; /* next played move record */
+	} gpmT, *gpmptrT;
+
+/* game record type */
+
+typedef struct gamS
+	{
+	charptrT     gam_strv[pgnstrL]; /* PGN STR tag values */
+	gtimT        gam_gtim;          /* game termination indicator */
+	gpmptrT      gam_headgpm;       /* head of game played move list */
+	gpmptrT      gam_tailgpm;       /* tail of game played move list */
+	struct gamS *gam_prev;          /* previous game */
+	struct gamS *gam_next;          /* next game */
+	} gamT, *gamptrT;
+
+/* tablebase file storage directory name */
+
+#if (!defined(TBDIR))
+#define TBDIR "TB"
 #endif
+
+/* tablebase byte entry semispan length */
+
+#define tbbe_ssL (((bit << byteW) - 4) / 2)
+
+/* the signed byte evaulation type */
+
+typedef signed char bevT, *bevptrT;
+
+/* tablebase signed byte entry values */
+
+#define bev_broken   (tbbe_ssL + 1)  /* illegal or busted */
+
+#define bev_mi1      tbbe_ssL        /* mate in 1 move */
+#define bev_mimin    1               /* mate in 126 moves */
+
+#define bev_draw     0               /* draw */
+
+#define bev_limax    (-1)            /* mated in 125 moves */
+#define bev_li0      (-tbbe_ssL)     /* mated in 0 moves */
+
+#define bev_reserved (-tbbe_ssL - 1) /* reserved */
+#define bev_unknown  (-tbbe_ssL - 2) /* unknown */
+
+/* signed byte entry range testing macros */
+
+#define tbe_mating(bev) \
+	(((bev) >= bev_mimin) && ((bev) <= bev_mi1))
+
+#define tbe_losing(bev) \
+	(((bev) >= bev_li0) && ((bev) <= bev_limax))
+
+#define tbe_wld(bev) \
+	(((bev) >= bev_li0) && ((bev) <= bev_mi1))
+
+#define tbe_special(bev) \
+	(((bev) < bev_li0) || ((bev) > bev_mi1))
+
+/* tablebase piece limits */
+
+#define tbmecL 4 /* either color by itself */
+#define tbmbcL 5 /* both colors combined */
+
+/* tablebase class identifiers */
+
+typedef siT tbidT, *tbidptrT;
+#define tbidL 146
+#define tbid_nil (-1)
+
+#define tbid_kk      0
+#define tbid_kpk     1
+#define tbid_knk     2
+#define tbid_kbk     3
+#define tbid_krk     4
+#define tbid_kqk     5
+#define tbid_kpkp    6
+#define tbid_knkp    7
+#define tbid_knkn    8
+#define tbid_kbkp    9
+#define tbid_kbkn   10
+#define tbid_kbkb   11
+#define tbid_krkp   12
+#define tbid_krkn   13
+#define tbid_krkb   14
+#define tbid_krkr   15
+#define tbid_kqkp   16
+#define tbid_kqkn   17
+#define tbid_kqkb   18
+#define tbid_kqkr   19
+#define tbid_kqkq   20
+#define tbid_kppk   21
+#define tbid_knpk   22
+#define tbid_knnk   23
+#define tbid_kbpk   24
+#define tbid_kbnk   25
+#define tbid_kbbk   26
+#define tbid_krpk   27
+#define tbid_krnk   28
+#define tbid_krbk   29
+#define tbid_krrk   30
+#define tbid_kqpk   31
+#define tbid_kqnk   32
+#define tbid_kqbk   33
+#define tbid_kqrk   34
+#define tbid_kqqk   35
+#define tbid_kppkp  36
+#define tbid_kppkn  37
+#define tbid_kppkb  38
+#define tbid_kppkr  39
+#define tbid_kppkq  40
+#define tbid_knpkp  41
+#define tbid_knpkn  42
+#define tbid_knpkb  43
+#define tbid_knpkr  44
+#define tbid_knpkq  45
+#define tbid_knnkp  46
+#define tbid_knnkn  47
+#define tbid_knnkb  48
+#define tbid_knnkr  49
+#define tbid_knnkq  50
+#define tbid_kbpkp  51
+#define tbid_kbpkn  52
+#define tbid_kbpkb  53
+#define tbid_kbpkr  54
+#define tbid_kbpkq  55
+#define tbid_kbnkp  56
+#define tbid_kbnkn  57
+#define tbid_kbnkb  58
+#define tbid_kbnkr  59
+#define tbid_kbnkq  60
+#define tbid_kbbkp  61
+#define tbid_kbbkn  62
+#define tbid_kbbkb  63
+#define tbid_kbbkr  64
+#define tbid_kbbkq  65
+#define tbid_krpkp  66
+#define tbid_krpkn  67
+#define tbid_krpkb  68
+#define tbid_krpkr  69
+#define tbid_krpkq  70
+#define tbid_krnkp  71
+#define tbid_krnkn  72
+#define tbid_krnkb  73
+#define tbid_krnkr  74
+#define tbid_krnkq  75
+#define tbid_krbkp  76
+#define tbid_krbkn  77
+#define tbid_krbkb  78
+#define tbid_krbkr  79
+#define tbid_krbkq  80
+#define tbid_krrkp  81
+#define tbid_krrkn  82
+#define tbid_krrkb  83
+#define tbid_krrkr  84
+#define tbid_krrkq  85
+#define tbid_kqpkp  86
+#define tbid_kqpkn  87
+#define tbid_kqpkb  88
+#define tbid_kqpkr  89
+#define tbid_kqpkq  90
+#define tbid_kqnkp  91
+#define tbid_kqnkn  92
+#define tbid_kqnkb  93
+#define tbid_kqnkr  94
+#define tbid_kqnkq  95
+#define tbid_kqbkp  96
+#define tbid_kqbkn  97
+#define tbid_kqbkb  98
+#define tbid_kqbkr  99
+#define tbid_kqbkq 100
+#define tbid_kqrkp 101
+#define tbid_kqrkn 102
+#define tbid_kqrkb 103
+#define tbid_kqrkr 104
+#define tbid_kqrkq 105
+#define tbid_kqqkp 106
+#define tbid_kqqkn 107
+#define tbid_kqqkb 108
+#define tbid_kqqkr 109
+#define tbid_kqqkq 110
+#define tbid_kpppk 111
+#define tbid_knppk 112
+#define tbid_knnpk 113
+#define tbid_knnnk 114
+#define tbid_kbppk 115
+#define tbid_kbnpk 116
+#define tbid_kbnnk 117
+#define tbid_kbbpk 118
+#define tbid_kbbnk 119
+#define tbid_kbbbk 120
+#define tbid_krppk 121
+#define tbid_krnpk 122
+#define tbid_krnnk 123
+#define tbid_krbpk 124
+#define tbid_krbnk 125
+#define tbid_krbbk 126
+#define tbid_krrpk 127
+#define tbid_krrnk 128
+#define tbid_krrbk 129
+#define tbid_krrrk 130
+#define tbid_kqppk 131
+#define tbid_kqnpk 132
+#define tbid_kqnnk 133
+#define tbid_kqbpk 134
+#define tbid_kqbnk 135
+#define tbid_kqbbk 136
+#define tbid_kqrpk 137
+#define tbid_kqrnk 138
+#define tbid_kqrbk 139
+#define tbid_kqrrk 140
+#define tbid_kqqpk 141
+#define tbid_kqqnk 142
+#define tbid_kqqbk 143
+#define tbid_kqqrk 144
+#define tbid_kqqqk 145
+
+/* tablebase fold modes */
+
+typedef siT foldT;
+#define foldL 2
+#define fold_nil (-1)
+
+#define fold_flank    0
+#define fold_triangle 1
+
+#define ff_flankL    (sqL / 2)
+#define ff_triangleL (((rankL * rankL) + (rankL * 2)) / 8)
+
+/* tablebase flags */
+
+#define tbf_has_pawns      bit_00
+#define tbf_has_white_pawn bit_01
+#define tbf_has_black_pawn bit_02
+#define tbf_ep_captures    bit_03
+#define tbf_fold_triangle  bit_04
+#define tbf_fold_flank     bit_05
+
+/* piece distribution type */
+
+typedef siT distvT[rcL][rpL];
+
+/* position vector type */
+
+typedef sqT posvT[rcL][tbmecL];
+
+/* file indexing type */
+
+typedef liT indexT, *indexptrT;
+
+/* the tablebase master vector entry */
+
+typedef struct tbS
+	{
+	charptrT tb_name;                /* class name */
+	siT      tb_flags;               /* flag bits */
+	foldT    tb_fold;                /* fold mode */
+	cT       tb_pivot_c;             /* pivot color */
+	siT      tb_pivot_slot;          /* pivot slot within color */
+	siT      tb_count;               /* man count */
+	indexT   tb_length;              /* length of file */
+	siT      tb_mcv[rcL];            /* man count per color */
+	distvT   tb_distv;               /* piece distribution */
+	liT      tb_sig0;                /* distribution signature */
+	liT      tb_sig1;                /* inverted distribution signature */
+	pT       tb_pv[rcL][tbmecL];     /* pieces */
+	cpT      tb_cpv[rcL][tbmecL];    /* color-pieces */
+	siT      tb_scalev[rcL][tbmecL]; /* scale factors */
+	liT      tb_multv[rcL][tbmecL];  /* multipliers */
+	} tbT, *tbptrT;
+
+/* reflection macros */
+
+#define reflect_x(sq) ((sq) ^ 0x38)
+#define reflect_y(sq) ((sq) ^ 0x07)
+#define reflect_xy(sq) ((((sq) >> 3) & 0x07) | (((sq) << 3) & 0x38))
+
+/* tablebase file pointer cache limit (max simul open files) */
+
+#define tbcL 8
+
+/* tablebase file pointer cache entry type  */
+
+typedef struct tbcS
+	{
+	siT   tbc_inuse; /* entry in use flag */
+	tbidT tbc_tbid;  /* tablebase class ID */
+	cT    tbc_c;     /* color selector for class file pair */
+	fptrT tbc_fptr;  /* pointer to the open file */
+	} tbcT, *tbcptrT;
+
+/* statndard disply output column limit */
+
+#define columnL 80
+
+/* inclusion telltale closure */
+
+#endif
+
+/*<<< epddefs.h: EOF */

@@ -3,28 +3,30 @@
 #include "types.h"
 #include "function.h"
 #include "data.h"
+
+/* last modified 08/27/96 */
 /*
 ********************************************************************************
 *                                                                              *
-*   Lookup() is used to retrieve entries from the transposition table so that  *
+*   LookUp() is used to retrieve entries from the transposition table so that  *
 *   this sub-tree won't have to be searched again if we reach a position that  *
 *   has been searched previously.  a transposition table position contains the *
 *   following data packed into 128 bits with each item taking the number of    *
 *   bits given in the table below:                                             *
 *                                                                              *
 *     bits     name  SL  description                                           *
-*       1       age  63  0->old position, 1-> position is from current search. *
-*       2      type  61  0->value is a backed-up good score, 1->value is a     *
-*                        backed-up search bound, 2->value is a bound and this  *
-*                        table position failed high on it.                     *
-*      20     value  41  unsigned integer value of this position + 131072.     *
+*       2       age  62  search id to identify old trans/ref entried.          *
+*       2      type  60  0->value is worthless; 1-> value represents a fail-   *
+*                        low bound; 2-> value represents a fail-high bound;    *
+*                        3-> value is an exact score.                          *
+*      19     value  40  unsigned integer value of this position + 131072.     *
 *                        this might be a good score or search bound.           *
 *      20    pvalue  21  unsigned integer value the evaluate() procedure       *
 *                        produced for this position (0=none)+131072.           *
 *      21      move   0  best move from the current position, according to the *
 *                        search at the time this position was stored.          *
 *                                                                              *
-*       8    unused  56  currently the final 8 bits are unused.                *
+*       8    unused  56  currently the leftmost 8 bits are unused.             *
 *       8     draft  48  the depth of the search below this position, which is *
 *                        used to see if we can use this entry at the current   *
 *                        position.                                             *
@@ -34,12 +36,11 @@
 *                                                                              *
 ********************************************************************************
 */
-int Lookup(int ply, int depth, int wtm, int *value, int alpha, int beta)
+int LookUp(int ply, int depth, int wtm, int *value, int alpha, int beta)
 {
   register BITBOARD temp_hash_key;
-  register HASH_ENTRY *htable;
-  register int i, found, rehash;
-  register int draft, type, val;
+  register HASH_ENTRY *htablea, *htableb;
+  register int type, draft, avoid_null=WORTHLESS, val;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -48,123 +49,101 @@ int Lookup(int ply, int depth, int wtm, int *value, int alpha, int beta)
 |                                                          |
  ----------------------------------------------------------
 */
-  static_eval[ply]=0;
   hash_move[ply]=0;
-  if (!trans_ref_w) return(worthless);
-  temp_hash_key=HashKey(ply);
-  if (wtm) htable=trans_ref_w+And(temp_hash_key,hash_mask);
-  else htable=trans_ref_b+And(temp_hash_key,hash_mask);
-  rehash=And(Shiftr(temp_hash_key,log_hash_table_size),mask_118)+1;
+  temp_hash_key=HashKey;
+  if (wtm) {
+    htablea=trans_ref_wa+(((int) temp_hash_key) & hash_maska);
+    htableb=trans_ref_wb+(((int) temp_hash_key) & hash_maskb);
+  }
+  else {
+    htablea=trans_ref_ba+(((int) temp_hash_key) & hash_maska);
+    htableb=trans_ref_bb+(((int) temp_hash_key) & hash_maskb);
+  }
   temp_hash_key=temp_hash_key>>16;
 /*
  ----------------------------------------------------------
 |                                                          |
-|   now, search for the current position by selecting a    |
-|   "set" of entries that might contain this position.     |
+|   now, check both "parts" of the hash table to see if    |
+|   this position is in either one.                        |
 |                                                          |
  ----------------------------------------------------------
 */
-  found=0;
-  for (i=0;i<4;i++) {
-    if (!Xor(And(htable->word2,mask_80),temp_hash_key)) {
-      found=1;
-      break;
+  if (!Xor(And(htablea->word2,mask_80),temp_hash_key)) {
+    hash_move[ply]=((int) htablea->word1) & 07777777;
+    type=((int) Shiftr(htablea->word1,60)) & 03;
+    draft=((int) Shiftr(htablea->word2,48)) & 0377;
+    val=(((int) Shiftr(htablea->word1,41)) & 01777777)-131072;
+    if ((type & LOWER_BOUND) && ((depth-NULL_MOVE_DEPTH-1) <= draft) &&
+          (val < beta)) avoid_null=AVOID_NULL_MOVE;
+    if (depth > draft) return(avoid_null);
+    switch (type) {
+      case EXACT_SCORE:
+        if (abs(val) > MATE-100) {
+          if (val > 0) val-=(ply-1);
+          else val+=(ply-1);
+        }
+        *value=val;
+#if !defined(FAST)
+        transposition_hashes++;
+#endif
+        return(EXACT_SCORE);
+      case LOWER_BOUND:
+        if (val <= alpha) {
+#if !defined(FAST)
+          transposition_hashes++;
+#endif
+          return(LOWER_BOUND);
+        }
+        return(avoid_null);
+      case UPPER_BOUND:
+        if (val >= beta) {
+#if !defined(FAST)
+          transposition_hashes++;
+#endif
+          return(UPPER_BOUND);
+        }
+        return(avoid_null);
     }
-    htable+=rehash;
+    return(avoid_null);
   }
-  if (!found) return(worthless);
-  transposition_hashes++;
-/*
- ----------------------------------------------------------
-|                                                          |
-|   if we found the current position, remember the move so |
-|   that we can try it first if we have to search beyond   |
-|   this point.  also save the positional evaluation so    |
-|   we might avoid doing an evaluate() for this node if    |
-|   it is a quiescence search node.                        |
-|                                                          |
- ----------------------------------------------------------
-*/
-  static_eval[ply]=((int) And(Shiftr(htable->word1,21),mask_108))-131072;
-  hash_move[ply]=And(htable->word1,mask_107);
-  if (hash_move[ply]) (void) ValidMove(ply,wtm,hash_move[ply]);
-/*
- ----------------------------------------------------------
-|                                                          |
-|   we've found the current position in the table.  the    |
-|   *big* question is, did the search done from the        |
-|   position before it was stored proceed deep enough to   |
-|   satisfy the current depth requirement?                 |
-|                                                          |
- ----------------------------------------------------------
-*/
-  if (depth < 0) depth=0;
-  draft=((int) Shiftr(htable->word2,48)) & 255;
-  if (depth > draft) return(worthless);
-  type=((int) Shiftr(htable->word1,61)) & 3;
-  val=((int) And(Shiftr(htable->word1,41),mask_108))-131072;
-  switch (type) {
-/*
- ----------------------------------------------------------
-|                                                          |
-|   we found the position, but it now represents a         |
-|   "worthless" value since some scoring component has     |
-|   been modified.                                         |
-|                                                          |
- ----------------------------------------------------------
-*/
-    case worthless:
-      return(worthless);
-/*
- ----------------------------------------------------------
-|                                                          |
-|   we found the position, and it represented a "true"     |
-|   value when it was stored.  We can simply return this   |
-|   value to search.                                       |
-|                                                          |
- ----------------------------------------------------------
-*/
-    case good_score:
-      transposition_hashes_value++;
-      if (abs(val) > MATE-100) {
-        if (val > 0) val-=(ply-1);
-        else val+=(ply-1);
-      }
-      if (val >= beta) *value=beta;
-      else *value=val;
-      return(good_score);
-/*
- ----------------------------------------------------------
-|                                                          |
-|   we found the position, however, it represents a case   |
-|   where every move at this position failed low.  as a    |
-|   result, the lower bound (alpha) was returned which     |
-|   caused a cutoff.  return this alpha value to the       |
-|   search to see if it will either cutoff or at least     |
-|   improve the lower bound somewhat.                      |
-|                                                          |
- ----------------------------------------------------------
-*/
-    case failed_low:
-      transposition_hashes_bound++;
-      if (val <= alpha) return(failed_low);
-      else return(worthless);
-/*
- ----------------------------------------------------------
-|                                                          |
-|   we found the position, however, it represents a case   |
-|   where the first move at this position failed high.  as |
-|   a result, the upper bound (beta) was returned which    |
-|   caused a cutoff.  return this beta value to the search |
-|   to see if it will either cutoff or at least improve    |
-|   the upper bound somewhat.                              |
-|                                                          |
- ----------------------------------------------------------
-*/
-    case failed_high:
-      transposition_hashes_cutoff++;
-      if (val >= beta) return(failed_high);
-      else return(worthless);
+  if (!Xor(And(htableb->word2,mask_80),temp_hash_key)) {
+    if (hash_move[ply]==0)
+      hash_move[ply]=((int) htableb->word1) & 07777777;
+    type=((int) Shiftr(htableb->word1,60)) & 03;
+    draft=((int) Shiftr(htableb->word2,48)) & 0377;
+    val=(((int) Shiftr(htableb->word1,41)) & 01777777)-131072;
+    if ((type & LOWER_BOUND) && ((depth-NULL_MOVE_DEPTH-1) <= draft) &&
+          (val < beta)) avoid_null=AVOID_NULL_MOVE;
+    if (depth > draft) return(avoid_null);
+    switch (type) {
+      case EXACT_SCORE:
+        if (abs(val) > MATE-100) {
+          if (val > 0) val-=(ply-1);
+          else val+=(ply-1);
+        }
+        *value=val;
+#if !defined(FAST)
+        transposition_hashes++;
+#endif
+        return(EXACT_SCORE);
+      case LOWER_BOUND:
+        if (val <= alpha) {
+#if !defined(FAST)
+          transposition_hashes++;
+#endif
+          return(LOWER_BOUND);
+        }
+        return(avoid_null);
+      case UPPER_BOUND:
+        if (val >= beta) {
+#if !defined(FAST)
+          transposition_hashes++;
+#endif
+          return(UPPER_BOUND);
+        }
+        return(avoid_null);
+    }
   }
-  return(worthless);
+
+  return(WORTHLESS);
 }

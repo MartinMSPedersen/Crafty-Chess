@@ -3,6 +3,8 @@
 #include "types.h"
 #include "function.h"
 #include "data.h"
+
+/* last modified 07/14/96 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -20,9 +22,9 @@
 */
 void RootMoveList(int wtm)
 {
-  BITBOARD target, btemp;
+  BITBOARD target;
   int *mvp, tempm;
-  int square, i, done, temp, value;
+  int square, side, i, done, temp, value;
 
 /*
  ----------------------------------------------------------
@@ -33,14 +35,9 @@ void RootMoveList(int wtm)
  ----------------------------------------------------------
 */
   easy_move=0;
-  first[1]=last[0];
-  last[1]=first[1];
-  if (wtm)
-    target=Compl(WhitePieces(1));
-  else
-    target=Compl(BlackPieces(1));
-  last[1]=GenerateMoves(1, 1, wtm, target, 1, last[1]);
-  if (last[1] == first[1]+1) return;
+  target=(wtm) ? Compl(WhitePieces) : Compl(BlackPieces);
+  last[1]=GenerateMoves(1, 1, wtm, target, 1, last[0]);
+  if (last[1] == last[0]+1) return;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -49,13 +46,12 @@ void RootMoveList(int wtm)
 |                                                          |
  ----------------------------------------------------------
 */
-  for (mvp=first[1];mvp<last[1];mvp++) {
+  for (mvp=last[0];mvp<last[1];mvp++) {
     value=-4000000;
     MakeMove(1, *mvp, wtm);
-    static_eval[2]=0;
-    if (!Check(2,wtm)) {
+    if (!Check(wtm)) {
       current_move[1]=*mvp;
-      value=Evaluate(2,wtm,-99999,99999);
+      value=-Evaluate(2,ChangeSide(wtm),-99999,99999);
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -65,101 +61,10 @@ void RootMoveList(int wtm)
 |                                                          |
  ----------------------------------------------------------
 */
-/*
-   now check queens
-*/
-      if (wtm) {
-        btemp=position[2].w_queen;
-        while(btemp) {
-          square=FirstOne(btemp);
-          value-=Max(EnPrise(2,square,!wtm),0);
-          Clear(square,btemp);
-        }
-      }
-      else {
-        btemp=position[2].b_queen;
-        while(btemp) {
-          square=FirstOne(btemp);
-          value-=Max(EnPrise(2,square,!wtm),0);
-          Clear(square,btemp);
-        }
-      }
-/*
-   now check rooks
-*/
-      if (wtm) {
-        btemp=position[2].w_rook;
-        while(btemp) {
-          square=FirstOne(btemp);
-          value-=Max(EnPrise(2,square,!wtm),0);
-          Clear(square,btemp);
-        }
-      }
-      else {
-        btemp=position[2].b_rook;
-        while(btemp) {
-          square=FirstOne(btemp);
-          value-=Max(EnPrise(2,square,!wtm),0);
-          Clear(square,btemp);
-        }
-      }
-/*
-   now check bishops
-*/
-      if (wtm) {
-        btemp=position[2].w_bishop;
-        while(btemp) {
-          square=FirstOne(btemp);
-          value-=Max(EnPrise(2,square,!wtm),0);
-          Clear(square,btemp);
-        }
-      }
-      else {
-        btemp=position[2].b_bishop;
-        while(btemp) {
-          square=FirstOne(btemp);
-          value-=Max(EnPrise(2,square,!wtm),0);
-          Clear(square,btemp);
-        }
-      }
-/*
-   now check knights
-*/
-      if (wtm) {
-        btemp=position[2].w_knight;
-        while(btemp) {
-          square=FirstOne(btemp);
-          value-=Max(EnPrise(2,square,!wtm),0);
-          Clear(square,btemp);
-        }
-      }
-      else {
-        btemp=position[2].b_knight;
-        while(btemp) {
-          square=FirstOne(btemp);
-          value-=Max(EnPrise(2,square,!wtm),0);
-          Clear(square,btemp);
-        }
-      }
-/*
-   now check pawns
-*/
-      if (wtm) {
-        btemp=position[2].w_pawn;
-        while(btemp) {
-          square=FirstOne(btemp);
-          value-=Max(EnPrise(2,square,!wtm),0);
-          Clear(square,btemp);
-        }
-      }
-      else {
-        btemp=position[2].b_pawn;
-        while(btemp) {
-          square=FirstOne(btemp);
-          value-=Max(EnPrise(2,square,!wtm),0);
-          Clear(square,btemp);
-        }
-      }
+      side=(wtm) ? 1 : -1;
+      for (square=0;square<64;square++) 
+        if (PieceOnSquare(square)*side > 0)
+          value-=Max(EnPrise(square,ChangeSide(wtm)),0);
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -170,11 +75,11 @@ void RootMoveList(int wtm)
  ----------------------------------------------------------
 */
 
-      if((Piece(*mvp) == Piece(pv[0].path[1])) &&
-         (From(*mvp) == From(pv[0].path[1])) &&
-         (To(*mvp) == To(pv[0].path[1])) &&
-         (Captured(*mvp) == Captured(pv[0].path[1])) &&
-         (Promote(*mvp) == Promote(pv[0].path[1]))) {
+      if((Piece(*mvp)    == Piece(last_pv.path[1])) &&
+         (From(*mvp)     == From(last_pv.path[1])) &&
+         (To(*mvp)       == To(last_pv.path[1])) &&
+         (Captured(*mvp) == Captured(last_pv.path[1])) &&
+         (Promote(*mvp)  == Promote(last_pv.path[1]))) {
         value+=2000000;
     }
 /*
@@ -187,9 +92,10 @@ void RootMoveList(int wtm)
 |                                                          |
  ----------------------------------------------------------
 */
-      if (Promote(*mvp) && (Promote(*mvp) != 5)) value-=50;
+      if (Promote(*mvp) && (Promote(*mvp) != 5)) value-=500;
     }
-    root_sort_value[mvp-first[1]]=value;
+    root_sort_value[mvp-last[0]]=value;
+    UnMakeMove(1, *mvp, wtm);
   }
 /*
  ----------------------------------------------------------
@@ -202,14 +108,14 @@ void RootMoveList(int wtm)
 */
   do {
     done=1;
-    for (i=0;i<last[1]-first[1]-1;i++) {
+    for (i=0;i<last[1]-last[0]-1;i++) {
       if (root_sort_value[i] < root_sort_value[i+1]) {
         temp=root_sort_value[i];
         root_sort_value[i]=root_sort_value[i+1];
         root_sort_value[i+1]=temp;
-        tempm=*(first[1]+i);
-        *(first[1]+i)=*(first[1]+i+1);
-        *(first[1]+i+1)=tempm;
+        tempm=*(last[0]+i);
+        *(last[0]+i)=*(last[0]+i+1);
+        *(last[0]+i+1)=tempm;
         done=0;
       }
     }
@@ -222,19 +128,23 @@ void RootMoveList(int wtm)
 |                                                          |
  ----------------------------------------------------------
 */
-  for (;last[1]>first[1];last[1]--) 
-    if (root_sort_value[last[1]-first[1]-1] > -3000000) break;
+  for (;last[1]>last[0];last[1]--) 
+    if (root_sort_value[last[1]-last[0]-1] > -3000000) break;
   if (root_sort_value[0] > 1000000) root_sort_value[0]-=2000000;
-  if ((root_sort_value[0] > root_sort_value[1]+800)) easy_move=1;
+  if (root_sort_value[0] > root_sort_value[1]+2000 &&
+      ((To(*last[0]) == To(last_opponent_move) &&
+        Captured(*last[0]) == Piece(last_opponent_move)) || 
+      root_sort_value[0] < PAWN_VALUE)) easy_move=1;
   if (trace_level > 0) {
-    Print(1,"produced %d moves at root\n",last[1]-first[1]);
-    for (mvp=first[1];mvp<last[1];mvp++) {
-      MakeMove(1, *mvp, wtm);
-      static_eval[2]=0;
+    printf("produced %d moves at root\n",last[1]-last[0]);
+    for (mvp=last[0];mvp<last[1];mvp++) {
       current_move[1]=*mvp;
-      Print(1,"%s/%d/%d  ",OutputMove(mvp,1,wtm),root_sort_value[mvp-first[1]],
-             Evaluate(2,wtm,-99999,99999));
-      if (!((mvp-first[1]+1) % 5)) Print(1,"\n");
+      printf("%s",OutputMove(mvp,1,wtm));
+      MakeMove(1, *mvp, wtm);
+      printf("/%d/%d  ",root_sort_value[mvp-last[0]],
+             -Evaluate(2,ChangeSide(wtm),-99999,99999));
+      if (!((mvp-last[0]+1) % 5)) printf("\n");
+      UnMakeMove(1, *mvp, wtm);
     }
   }
   return;

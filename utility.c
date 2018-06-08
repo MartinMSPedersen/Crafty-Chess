@@ -1,25 +1,42 @@
+#if defined(NT_i386) || defined(NT_AXP)
+#  include <windows.h>
+#  include <conio.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
-#include <limits.h>
-#include <sys/times.h>
-#include <sys/time.h>
+#if !defined(AMIGA)
+#  include <limits.h>
+#endif
+#if !defined(NT_i386) && !defined(NT_AXP)
+#  include <sys/times.h>
+#  include <sys/time.h>
+#endif
 #include "types.h"
 #include "function.h"
 #include "data.h"
 #if defined(UNIX)
 #  include <unistd.h>
 #  include <sys/types.h>
-#  if !defined(LINUX) && !defined(ALPHA) && !defined(HP)
-#    include <sys/filio.h>
-#    include <stropts.h>
+#  if !defined(LINUX) && !defined(ALPHA) && !defined(HP) && !defined(AIX) && !defined(CRAY1) && !defined(FreeBSD)
+#    if defined(AIX)
+#      include <sys/termio.h>
+#    else
+#      if defined(NEXT)
+#        include <bsd/termios.h>
+#        include <sys/ioctl.h>
+#      else
+#        include <sys/filio.h>
+#      endif
+#    endif
+#    if !defined(NEXT)
+#      include <stropts.h>
+#    endif
 #    include <sys/conf.h>
 #  else
 #    include <sys/ioctl.h>
 #  endif
-#else
-#  include <bios.h>
 #endif
 #if defined(UNIX)
    struct tms t;
@@ -28,15 +45,101 @@
 #  endif
 #endif
 
+#if defined(AMIGA)
+#  include <proto/dos.h>
+#  define tv_sec tv_secs
+#  define tv_usec tv_micro
+#  include <exec/types.h>
+#  define RAW 1
+#  define CON 0
+#  include <limits.h>
+#endif
+
+#if defined(AMIGA)
+
+typedef int BOOLEAN;
+
+/* Returns FALSE right away if input stream is not a terminal
+** TRUE if user pressed a key
+** FALSE if user didn't press a key
+**
+** Note: Lightly tested
+*/
+
+BOOLEAN _kbhit(void)
+{
+  BPTR  inp;
+  BOOLEAN  ret;
+
+  inp=Input();
+  if(!IsInteractive(inp))   /* Not a terminal? */
+    return FALSE;       /*  Ok, then noone can press any keys...    */
+  Flush(inp);
+  (void) SetMode(inp,RAW);
+  ret=WaitForChar(inp,1);
+/*  ret=WaitForChar(inp,100000);*/  /* You may want to change this 100000. Its */
+  (void) SetMode(inp,CON);          /* time the function will wait.  The time   */
+  return ret;                       /* unit is microseconds. 1000000 is 1 sec   */
+}                                   /* Current 100000 is 0.1 sec            */
+
+/* Note that the character is LEFT in the input stream, which has the effect
+** that subsequent calls will return TRUE right away
+** c=FGetC(inp); to get the char code in c (c should be long)
+** 
+** Note also that A(miga), SHIFT, CTRL,ALT keys wont make the function
+** return TRUE.
+*/
+
+#endif   /* if defined(AMIGA)  */
+
 int CheckInput(void)
 {
   int i;
+#if defined(NT_i386) || defined(NT_AXP)
+   static int init = 0, pipe;
+   static HANDLE inh;
+   DWORD dw;
+#endif
 #if defined(UNIX)
 /*i=ioctl(0,I_NREAD,&arg);*/
   i=0;
   (void) ioctl((int)0,FIONREAD,&i);
+  fflush(stdout);
 #else
-  i=bioskey(1);
+# if defined(NT_i386) || defined(NT_AXP)
+  if (xboard) {
+ #if defined(FILE_CNT)
+    if (stdin->_cnt > 0) return stdin->_cnt;
+ #endif
+    if (!init) {
+      init = 1;
+      inh = GetStdHandle(STD_INPUT_HANDLE);
+      pipe = !GetConsoleMode(inh, &dw);
+      if (!pipe) {
+        SetConsoleMode(inh, dw & ~(ENABLE_MOUSE_INPUT|ENABLE_WINDOW_INPUT));
+        FlushConsoleInputBuffer(inh);
+      }
+    }
+    if (pipe) {
+      if (!PeekNamedPipe(inh, NULL, 0, NULL, &dw, NULL)) {
+        return 1;
+      }
+      return dw;
+    } else {
+      GetNumberOfConsoleInputEvents(inh, &dw);
+      return dw <= 1 ? 0 : dw;
+    }
+  }
+  else {
+    i=_kbhit();
+  }
+# else
+#  if defined(AMIGA)
+    i=_kbhit();
+#  else
+    i=bioskey(1);
+#  endif
+# endif
 #endif
   return(i);
 }
@@ -83,13 +186,13 @@ void DisplayBitBoard(BITBOARD board)
 /*
 ********************************************************************************
 *                                                                              *
-*   display() is used to display the chess   since the board is kept in  *
+*   DisplayChessBoard() is used to display the board since it is kept in       *
 *   both the bit-board and array formats, here we use the array format which   *
 *   is nearly ready for display as is.                                         *
 *                                                                              *
 ********************************************************************************
 */
-void DisplayChessBoard(FILE *display_file, CHESS_POSITION board)
+void DisplayChessBoard(FILE *display_file, CHESS_POSITION pos)
 {
   int display_board[64];
   char display_string[] =
@@ -103,7 +206,7 @@ void DisplayChessBoard(FILE *display_file, CHESS_POSITION board)
 |                                                          |
  ----------------------------------------------------------
 */
-  for(i=0;i<64;i++) display_board[i]=(board.board[i]+7)*3;
+  for(i=0;i<64;i++) display_board[i]=(pos.board[i]+7)*3;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -139,6 +242,22 @@ char* DisplayEvaluation(int value)
   return(out);
 }
 
+char* DisplayEvaluationWhisper(int value)
+{
+  static char out[10];
+
+  if (abs(value) < MATE-100) sprintf(out,"%+.3f",((float) value)/1000.0);
+  else if (abs(value) > MATE) {
+    if (value < 0) sprintf(out,"-infnty");
+    else sprintf(out,"+infnty");
+  }
+  else if (value == MATE-2) sprintf(out,"Mate");
+  else if (value == -(MATE-1)) sprintf(out,"-Mate");
+  else if (value > 0) sprintf(out,"Mat%.2d",(MATE-value)/2);
+  else sprintf(out,"-Mat%.2d",(MATE-abs(value))/2);
+  return(out);
+}
+
 void DisplayPieceBoards(int *white, int *black)
 {
   int i,j;
@@ -152,19 +271,40 @@ void DisplayPieceBoards(int *white, int *black)
   }
 }
 
+char* DisplayHHMM(unsigned int time)
+{
+  static char out[10];
+
+  time=time/6000;
+  sprintf(out,"%3u:%02u", time/60, time%60);
+  return(out);
+}
+
 char* DisplayTime(unsigned int time)
 {
   static char out[10];
 
-  if (time < 600) sprintf(out,"%5.1fs",(float) time/10.0);
+  if (time < 6000) sprintf(out,"%6.2f",(float) time/100.0);
   else {
-    time=time/10;
+    time=time/100;
     sprintf(out,"%3u:%02u", time/60, time%60);
   }
   return(out);
 }
 
-void Display_64bit_Word(BITBOARD word)
+char* DisplayTimeWhisper(unsigned int time)
+{
+  static char out[10];
+
+  if (time < 6000) sprintf(out,"%6.2f",(float) time/100.0);
+  else {
+    time=time/100;
+    sprintf(out,"%u:%02u", time/60, time%60);
+  }
+  return(out);
+}
+
+void Display64bitWord(BITBOARD word)
 {
   union doub {
     unsigned int i[2];
@@ -176,7 +316,7 @@ void Display_64bit_Word(BITBOARD word)
 #if defined(LITTLE_ENDIAN_ARCH)
   printf("%x%x\n",x.i[1],x.i[0]);
 #else
-  printf("%lx\n",word);
+  printf("%llx\n",word);
 #endif
 #endif
 #if !defined(HAS_LONGLONG) && !defined(LITTLE_ENDIAN_ARCH)
@@ -231,14 +371,14 @@ void Display2BitBoards(BITBOARD board1, BITBOARD board2)
 
 void DisplayChessMove(char *title, int move)
 {
-  printf("%s  piece=%d, from=%d, to=%d, captured=%d, promote=%d\n",
+  Print(0,"%s  piece=%d, from=%d, to=%d, captured=%d, promote=%d\n",
          title,Piece(move),From(move), To(move),Captured(move),
          Promote(move));
 }
 
 unsigned int GetTime(TIME_TYPE type)
 {
-#if defined(UNIX)
+#if defined(UNIX) || defined(AMIGA)
   static struct tms t;
   static struct timeval timeval;
   static struct timezone timezone;
@@ -246,23 +386,36 @@ unsigned int GetTime(TIME_TYPE type)
 
   switch (type) {
     case cpu:
-#if defined(UNIX)
+#if defined(UNIX) || defined(AMIGA)
       (void) times(&t);
 #  if defined(CLK_TCK)
-      return((t.tms_utime+t.tms_stime)*10/CLK_TCK);
+      return((t.tms_utime+t.tms_stime)*100/CLK_TCK);
 #  else
       if (!clk_tck) clk_tck = sysconf(_SC_CLK_TCK);
       return((t.tms_utime+t.tms_stime)*10/clk_tck);
 #  endif
-#endif
     case elapsed:
       gettimeofday(&timeval, &timezone);
-      return(timeval.tv_sec*10+(timeval.tv_usec / 100000L));
+      return(timeval.tv_sec*100+(timeval.tv_usec / 10000L));
     default:
-      return(0);
+      gettimeofday(&timeval, &timezone);
+      return(timeval.tv_usec);
+#endif
+#if defined(NT_i386) || defined(NT_AXP)
+    case elapsed:
+      return( (unsigned int) GetTickCount()/10);
+    default:
+      return( (unsigned int) GetTickCount()/10);
+#endif
+#if defined(DOS)
+    case elapsed:
+      return(time(0)*100);
+    default:
+      return(time(0)*100);
+#endif
   }
 }
- 
+
 /*
 ********************************************************************************
 *                                                                              *
@@ -287,6 +440,61 @@ int HasOpposition(int on_move, int white_king, int black_king)
   if ((file_distance == 0) && (rank_distance == 2)) return(1);
   return(0);
 }
+
+/*
+********************************************************************************
+*                                                                              *
+*   InterposeSquares() is used to compute the set of squares that block an     *
+*   attack on the king by a sliding piece, by interposing any piece between    *
+*   the attacking piece and the king on the same ray.                          *
+*                                                                              *
+********************************************************************************
+*/
+BITBOARD InterposeSquares(int check_direction, int king_square, 
+                          int checking_square)
+{
+  register BITBOARD target;
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   if this is a check from a single sliding piece, then   |
+|   we can interpose along the checking rank/file/diagonal |
+|   and block the check.  otherwise, interposing is not a  |
+|   possibility.                                           |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  switch (check_direction) {
+    case +1:
+      target=Xor(mask_plus1dir[king_square-1],mask_plus1dir[checking_square]);
+      break;
+    case +7:
+      target=Xor(mask_plus7dir[king_square-7],mask_plus7dir[checking_square]);
+      break;
+    case +8:
+      target=Xor(mask_plus8dir[king_square-8],mask_plus8dir[checking_square]);
+      break;
+    case +9:
+      target=Xor(mask_plus9dir[king_square-9],mask_plus9dir[checking_square]);
+      break;
+    case -1:
+      target=Xor(mask_minus1dir[king_square+1],mask_minus1dir[checking_square]);
+      break;
+    case -7:
+      target=Xor(mask_minus7dir[king_square+7],mask_minus7dir[checking_square]);
+      break;
+    case -8:
+      target=Xor(mask_minus8dir[king_square+8],mask_minus8dir[checking_square]);
+      break;
+    case -9:
+      target=Xor(mask_minus9dir[king_square+9],mask_minus9dir[checking_square]);
+      break;
+    default:
+      target=0;
+      break;
+  }
+  return(target);
+}
  
 int KingPawnSquare(int pawn, int king, int queen, int ptm)
 {
@@ -302,12 +510,146 @@ int KingPawnSquare(int pawn, int king, int queen, int ptm)
 char* Normal(void)
 {
   if (ansi)
-#if defined(UNIX)
+#if defined(UNIX) || defined(AMIGA)
     return("\033[0m");
 #else
     return("\033[1;44;37m");
 #endif
   else return("");
+}
+
+int ParseTime(char* string)
+{
+  int time=0;
+  int minutes=0;
+  while (*string) {
+    switch (*string) {
+      case '0':
+      case '1':
+      case '2':
+      case '3':
+      case '4':
+      case '5':
+      case '6':
+      case '7':
+      case '8':
+      case '9':
+        minutes=minutes*10+(*string)-'0';
+        break;
+      case ':':
+        time=time*60+minutes;
+        minutes=0;
+        break;
+      default: Print(0,"illegal character in time, please re-enter\n");
+        break;
+    }
+    string++;
+  }
+  return(time*60+minutes);
+}
+
+/*
+********************************************************************************
+*                                                                              *
+*   PinnedOnKing() is used to determine if the piece on <square> is pinned     *
+*   against the king, so that it's illegal to move it.  this is used to screen *
+*   potential moves by GenerateCheckEvasions() so that illegal moves are not   *
+*   produced.                                                                  *
+*                                                                              *
+********************************************************************************
+*/
+int PinnedOnKing(int wtm, int square)
+{
+  register int ray;
+  if (wtm) {
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   first, determine if the piece being moved is on the    |
+|   same diagonal, rank or file as the king.               |
+|                                                          |
+ ----------------------------------------------------------
+*/
+    ray=directions[square][WhiteKingSQ];
+    if (!ray) return(0);
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   if they are on the same ray, then determine if the     |
+|   king blocks a bishop attack in one direction from this |
+|   square and a bishop or queen blocks a bishop attack    |
+|   on the same diagonal in the opposite direction.        |
+|                                                          |
+ ----------------------------------------------------------
+*/
+    switch (abs(ray)) {
+    case 1: 
+      if (And(AttacksRank(square),WhiteKing) != 0)
+        return(And(And(AttacksRank(square),RooksQueens),
+                   BlackPieces) != 0);
+      else return(0);
+    case 7: 
+      if (And(AttacksDiaga1(square),WhiteKing) != 0)
+        return(And(And(AttacksDiaga1(square),BishopsQueens),
+                   BlackPieces) != 0);
+      else return(0);
+    case 8: 
+      if (And(AttacksFile(square),WhiteKing) != 0)
+        return(And(And(AttacksFile(square),RooksQueens),
+                   BlackPieces) != 0);
+      else return(0);
+    case 9: 
+      if (And(AttacksDiagh1(square),WhiteKing) != 0)
+        return(And(And(AttacksDiagh1(square),BishopsQueens),
+                   BlackPieces) != 0);
+      else return(0);
+    }
+  }
+  else {
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   first, determine if the piece being moved is on the    |
+|   same diagonal, rank or file as the king.               |
+|                                                          |
+ ----------------------------------------------------------
+*/
+    ray=directions[BlackKingSQ][square];
+    if (!ray) return(0);
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   if they are on the same ray, then determine if the     |
+|   king blocks a bishop attack in one direction from this |
+|   square and a bishop or queen blocks a bishop attack    |
+|   on the same diagonal in the opposite direction.        |
+|                                                          |
+ ----------------------------------------------------------
+*/
+    switch (abs(ray)) {
+    case 1: 
+      if (And(AttacksRank(square),BlackKing) != 0)
+        return(And(And(AttacksRank(square),RooksQueens),
+                   WhitePieces) != 0);
+      else return(0);
+    case 7: 
+      if (And(AttacksDiaga1(square),BlackKing) != 0)
+        return(And(And(AttacksDiaga1(square),BishopsQueens),
+                   WhitePieces) != 0);
+      else return(0);
+    case 8: 
+      if (And(AttacksFile(square),BlackKing) != 0)
+        return(And(And(AttacksFile(square),RooksQueens),
+                   WhitePieces) != 0);
+      else return(0);
+    case 9: 
+      if (And(AttacksDiagh1(square),BlackKing) != 0)
+        return(And(And(AttacksDiagh1(square),BishopsQueens),
+                   WhitePieces) != 0);
+      else return(0);
+    }
+  }
+  return(0);
 }
 
 void Print(int vb, char *fmt, ...)
@@ -381,10 +723,37 @@ BITBOARD Random64(void)
   return (result);
 }
 
+/* last modified 10/11/96 */
+/*
+********************************************************************************
+*                                                                              *
+*   ReadChessMove() is used to read a move from an input file.  the main issue *
+*   is to skip over "trash" like move numbers, times, comments, and so forth,  *
+*   and find the next actual move.                                             *
+*                                                                              *
+********************************************************************************
+*/
+int ReadChessMove(FILE *input, int wtm) {
+
+  static char text[128];
+  int move=0, status;
+
+  while (move == 0) {
+    status=fscanf(input,"%s",text);
+    if (status <= 0) return(-1);
+    if (((text[0]>='a') && (text[0]<='z')) ||
+          ((text[0]>='A') && (text[0]<='Z'))) {
+      if (!strcmp(text,"exit")) return(-1);
+      move=InputMove(text+strspn(text,"0123456789."),0,wtm,1,0);
+    }
+  }
+  return(move);
+}
+
 char* Reverse(void)
 {
   if (ansi)
-#if defined(UNIX)
+#if defined(UNIX) || defined(AMIGA)
     return("\033[7m");
 #else
     return("\033[7;47;33m");
@@ -414,26 +783,26 @@ int TtoI(char *text)
 
 #if defined(COMPACT_ATTACKS)
 
-#if !defined(ASSEMBLER_ATTACK)
+#if !defined(USE_ASSEMBLY_A)
 
-BITBOARD AttacksDiaga1Func (DIAG_INFO *diag, CHESS_BOARD *board)
+BITBOARD AttacksDiaga1Func (DIAG_INFO *diag, CHESS_POSITION *boardp)
 {
-  return AttacksDiaga1Int(diag, board);
+  return AttacksDiaga1Int(diag,boardp);
 }
 
-BITBOARD AttacksDiagh1Func(DIAG_INFO *diag, CHESS_BOARD *board)
+BITBOARD AttacksDiagh1Func(DIAG_INFO *diag, CHESS_POSITION *boardp)
 {
-  return AttacksDiagh1Int(diag, board);
+  return AttacksDiagh1Int(diag,boardp);
 }
 
-BITBOARD AttacksFileFunc(int square, CHESS_BOARD *board)
+BITBOARD AttacksFileFunc(int square, CHESS_POSITION *boardp)
 {
-  return AttacksFileInt(square, board);
+  return AttacksFileInt(square,boardp);
 }
 
-BITBOARD AttacksRankFunc(int square, CHESS_BOARD *board)
+BITBOARD AttacksRankFunc(int square, CHESS_POSITION *boardp)
 {
-  BITBOARD tmp = Or(board->w_occupied, board->b_occupied);
+  BITBOARD tmp = Or((boardp)->w_occupied, (boardp)->b_occupied);
 
   unsigned char tmp2 = 
     at.rank_attack_bitboards[File(square)]
@@ -443,45 +812,45 @@ BITBOARD AttacksRankFunc(int square, CHESS_BOARD *board)
   return SplitShiftl (tmp2, Rank(~(square))<<3);
 }
 
-BITBOARD AttacksBishopFunc(DIAG_INFO *diag, CHESS_BOARD *board)
+BITBOARD AttacksBishopFunc(DIAG_INFO *diag, CHESS_POSITION *boardp)
 {
-  return Or(AttacksDiaga1Int(diag,board),
-      AttacksDiagh1Int(diag,board));
+  return Or(AttacksDiaga1Int(diag,boardp),
+      AttacksDiagh1Int(diag,boardp));
 }
 
-BITBOARD AttacksRookFunc(int square, CHESS_BOARD *board)
+BITBOARD AttacksRookFunc(int square, CHESS_POSITION *boardp)
 {
-  BITBOARD tmp = Or(board->w_occupied, board->b_occupied);
+  BITBOARD tmp = Or((boardp)->w_occupied, (boardp)->b_occupied);
 
   unsigned char tmp2 = 
     at.rank_attack_bitboards[File(square)][at.which_attack[File(square)]
         [And(SplitShiftr(tmp,(Rank(~(square))<<3)+1),0x3f)]];
 
   return Or(SplitShiftl (tmp2, Rank(~(square))<<3),
-      AttacksFileInt(square,board));
+      AttacksFileInt(square,boardp));
 }
 
-unsigned MobilityDiaga1Func(DIAG_INFO *diag, CHESS_BOARD *board)
+unsigned MobilityDiaga1Func(DIAG_INFO *diag, CHESS_POSITION *boardp)
 {
-  return MobilityDiaga1Int(diag, board);
+  return MobilityDiaga1Int(diag,boardp);
 }
 
-unsigned MobilityDiagh1Func(DIAG_INFO *diag, CHESS_BOARD *board)
+unsigned MobilityDiagh1Func(DIAG_INFO *diag, CHESS_POSITION *boardp)
 {
-  return MobilityDiagh1Int(diag, board);
+  return MobilityDiagh1Int(diag,boardp);
 }
 
-unsigned MobilityFileFunc(int square, CHESS_BOARD *board)
+unsigned MobilityFileFunc(int square, CHESS_POSITION *boardp)
 {
-  return MobilityFileInt (square, board);
+  return MobilityFileInt (square,boardp);
 }
 
-unsigned MobilityRankFunc(int square, CHESS_BOARD *board)
+unsigned MobilityRankFunc(int square, CHESS_POSITION *boardp)
 {
-  return MobilityRankInt (square, board);
+  return MobilityRankInt (square,boardp);
 }
 
-#endif ASSEMBLER_ATTACK
+#endif
 
 unsigned char bishop_shift_rl45[64] = {
           59, 57, 54, 50, 45, 39, 32,  0,
@@ -607,7 +976,6 @@ static void InitializeMaps(BITBOARD *temp_rank_attack_bitboards)
   {
     int i;
     unsigned char *m = at.short_mobility;
-    unsigned attacks;
     for (i = 1; i < 8; i++) {
       mobility_for_length[i] = m;
       m += n_length_attacks[i];
@@ -746,7 +1114,7 @@ void ComputeAttacksAndMobility ()
             int i, p;
             for (p = attacker-1, i = 0; i < lower; i++, p--)
               Set(gfiles[gf].map[p], b);
-            for (p=attacker+1,i=0;(i<upper) && (p<gfiles[gf].length);
+            for (p=attacker+1,i=0;(i<upper) && (p<(unsigned) gfiles[gf].length);
                  i++, p++)
               Set(gfiles[gf].map[p], b);
             if (gfiles[gf].mobility)
@@ -777,6 +1145,111 @@ void ComputeAttacksAndMobility ()
           temp_rank_attack_bitboards[i][a] & 0xff;
   }
 }
+#endif
 
-#endif COMPACT_ATTACKS
-
+/*
+********************************************************************************
+*                                                                              *
+*   Whisper() is used to whisper/kibitz information to a chess server.  it has *
+*   to handle the xboard whisper/kibitz interface as well as the custom ics    *
+*   interface for Crafty.  there are two main issues:  (a) presenting only the *
+*   information specified by the current value of whisper or kibitz variables; *
+*   (a) if using the custom ICS interface, preceeding the commands with a "*"  *
+*   so the interface will direct them to the server rather than the operator.  *
+*                                                                              *
+********************************************************************************
+*/
+void Whisper(int level,int depth,int time,int value,unsigned int nodes,
+             int cpu,char* pv)
+{
+  if (!puzzling) {
+    switch (level) {
+    case 1:
+      if (kibitz && (value > 0)) {
+        if (ics) printf("*");
+        printf("kibitz mate in %d moves.\n\n",value);
+      }
+      else if (whisper && (value > 0)) {
+        if (ics) printf("*");
+        printf("whisper mate in %d moves.\n\n",value);
+      }
+      if (kibitz && (value < 0)) {
+        if (ics) printf("*");
+        printf("whisper mated in %d moves.\n\n",-value);
+      }
+      break;
+    case 2:
+      if (kibitz >= 2) {
+        if (ics) printf("*");
+        printf("kibitz depth %d; score %s; nodes %u; nps %d; cpu %d%%\n",
+               depth,DisplayEvaluationWhisper(value),
+               nodes,(time) ? 100*nodes/time : nodes,cpu);
+      }
+      else if (whisper >= 2) {
+        if (ics) printf("*");
+        printf("whisper depth %d; score %s; nodes %u; nps %d; cpu %d%%\n",
+               depth,DisplayEvaluationWhisper(value),
+               nodes,(time) ? 100*nodes/time : nodes,cpu);
+      }
+    case 3:
+      if ((kibitz >= 3) && nodes) {
+        if (ics) printf("*");
+        printf("kibitz pv:%s\n",pv);
+      }
+      else if ((whisper >= 3) && nodes) {
+        if (ics) printf("*");
+        printf("whisper pv:%s\n",pv);
+      }
+      break;
+    case 4:
+      if (kibitz >= 4) {
+        if (ics) printf("*");
+        printf("kibitz %s\n",pv);
+      }
+      else if (whisper >= 4) {
+        if (ics) printf("*");
+        printf("whisper %s\n",pv);
+      }
+      break;
+    case 5:
+      if (kibitz >= 5) {
+        if (ics) printf("*");
+        printf("kibitz d%d-> %s %s %s\n",depth, DisplayTimeWhisper(time),
+                                       DisplayEvaluationWhisper(value),pv);
+      }
+      else if (whisper >= 5) {
+        if (ics) printf("*");
+        printf("whisper d%d-> %s %s %s\n",depth, DisplayTimeWhisper(time),
+                                       DisplayEvaluationWhisper(value),pv);
+      }
+      break;
+    case 6:
+      if (kibitz >= 6) {
+        if (ics) printf("*");
+        if (cpu == 0)
+          printf("kibitz d%d+ %s %s %s\n",depth, DisplayTimeWhisper(time),
+                                           DisplayEvaluationWhisper(value),pv);
+        else
+          printf("kibitz d%d+ %s >(%s) %s <re-searching>\n",depth,
+                 DisplayTimeWhisper(time),DisplayEvaluationWhisper(value),pv);
+      }
+      else if (whisper >= 6) {
+        if (ics) printf("*");
+        if (cpu == 0)
+          printf("whisper d%d+ %s %s %s\n",depth, DisplayTimeWhisper(time),
+                                            DisplayEvaluationWhisper(value),pv);
+        else
+          printf("whisper d%d+ %s >(%s) %s <re-searching>\n",depth,
+                 DisplayTimeWhisper(time),DisplayEvaluationWhisper(value),pv);
+      }
+      break;
+    }
+    if (post) {
+      if (strstr(pv,"book"))
+        printf("	%2d  %5d %7d %6u %s\n",depth,value/10,time,nodes,pv+10);
+      else
+        printf("	%2d  %5d %7d %6u %s\n",depth,value/10,time,nodes,pv);
+    }
+    fflush(stdout);
+  }
+}

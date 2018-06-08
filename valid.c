@@ -3,6 +3,8 @@
 #include "types.h"
 #include "function.h"
 #include "data.h"
+
+/* last modified 05/30/96 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -23,10 +25,10 @@ int ValidMove(int ply, int wtm, int move)
  ----------------------------------------------------------
 */
   if (wtm) {
-    if (PieceOnSquare(ply,From(move)) != Piece(move)) return(0);
+    if (PieceOnSquare(From(move)) != Piece(move)) return(0);
   }
   else {
-    if (PieceOnSquare(ply,From(move)) != -Piece(move)) return(0);
+    if (PieceOnSquare(From(move)) != -Piece(move)) return(0);
   }
       
   switch (Piece(move)) {
@@ -49,33 +51,33 @@ int ValidMove(int ply, int wtm, int move)
         if (wtm) {
           if (To(move) == 2) {
             if ((!(WhiteCastle(ply)&2)) ||
-                And(Or(WhitePieces(ply),BlackPieces(ply)),Shiftr(mask_3,1)) ||
-                And(AttacksTo(2,ply),BlackPieces(ply)) ||
-                And(AttacksTo(3,ply),BlackPieces(ply)) ||
-                And(AttacksTo(4,ply),BlackPieces(ply))) return(0);
+                And(Occupied,Shiftr(mask_3,1)) ||
+                And(AttacksTo(2),BlackPieces) ||
+                And(AttacksTo(3),BlackPieces) ||
+                And(AttacksTo(4),BlackPieces)) return(0);
           }
           else if (To(move) == 6) {
             if ((!(WhiteCastle(ply)&1)) ||
-                And(Or(WhitePieces(ply),BlackPieces(ply)),Shiftr(mask_2,5)) ||
-                And(AttacksTo(4,ply),BlackPieces(ply)) ||
-                And(AttacksTo(5,ply),BlackPieces(ply)) ||
-                And(AttacksTo(6,ply),BlackPieces(ply))) return(0);
+                And(Occupied,Shiftr(mask_2,5)) ||
+                And(AttacksTo(4),BlackPieces) ||
+                And(AttacksTo(5),BlackPieces) ||
+                And(AttacksTo(6),BlackPieces)) return(0);
           }
         }
         else {
           if (To(move) == 58) {
             if ((!(BlackCastle(ply)&2)) ||
-                And(Or(WhitePieces(ply),BlackPieces(ply)),Shiftr(mask_3,57)) ||
-                And(AttacksTo(58,ply),WhitePieces(ply)) ||
-                And(AttacksTo(59,ply),WhitePieces(ply)) ||
-                And(AttacksTo(60,ply),WhitePieces(ply))) return(0);
+                And(Occupied,Shiftr(mask_3,57)) ||
+                And(AttacksTo(58),WhitePieces) ||
+                And(AttacksTo(59),WhitePieces) ||
+                And(AttacksTo(60),WhitePieces)) return(0);
           }
           if (To(move) == 62) {
             if ((!(BlackCastle(ply)&1)) ||
-                And(Or(WhitePieces(ply),BlackPieces(ply)),Shiftr(mask_2,61)) ||
-                And(AttacksTo(60,ply),WhitePieces(ply)) ||
-                And(AttacksTo(61,ply),WhitePieces(ply)) ||
-                And(AttacksTo(62,ply),WhitePieces(ply))) return(0);
+                And(Occupied,Shiftr(mask_2,61)) ||
+                And(AttacksTo(60),WhitePieces) ||
+                And(AttacksTo(61),WhitePieces) ||
+                And(AttacksTo(62),WhitePieces)) return(0);
           }
         }
         return(1);
@@ -91,23 +93,23 @@ int ValidMove(int ply, int wtm, int move)
     case pawn:
       if (abs(From(move)-To(move)) == 8) {
         if (wtm) {
-          if ((Piece(move) == PieceOnSquare(ply,From(move))) &&
-              (From(move) < To(move)) && !PieceOnSquare(ply,To(move))) return(1);
+          if ((Piece(move) == PieceOnSquare(From(move))) &&
+              (From(move) < To(move)) && !PieceOnSquare(To(move))) return(1);
         }
         else {
-          if ((Piece(move) == -PieceOnSquare(ply,From(move))) &&
-              (From(move) > To(move)) && !PieceOnSquare(ply,To(move))) return(1);
+          if ((Piece(move) == -PieceOnSquare(From(move))) &&
+              (From(move) > To(move)) && !PieceOnSquare(To(move))) return(1);
         }
         return(0);
       }
       else if (abs(From(move)-To(move)) == 16) {
         if (wtm) {
-          if ((Piece(move) == PieceOnSquare(ply,From(move))) &&
-              !PieceOnSquare(ply,To(move)-8) && !PieceOnSquare(ply,To(move))) return(1);
+          if ((Piece(move) == PieceOnSquare(From(move))) &&
+              !PieceOnSquare(To(move)-8) && !PieceOnSquare(To(move))) return(1);
         }
         else {
-          if ((Piece(move) == -PieceOnSquare(ply,From(move))) &&
-              !PieceOnSquare(ply,To(move)+8) && !PieceOnSquare(ply,To(move))) return(1);
+          if ((Piece(move) == -PieceOnSquare(From(move))) &&
+              !PieceOnSquare(To(move)+8) && !PieceOnSquare(To(move))) return(1);
         }
         return(0);
       }
@@ -123,15 +125,15 @@ int ValidMove(int ply, int wtm, int move)
  ----------------------------------------------------------
 */
       if (wtm) {
-        if ((PieceOnSquare(ply,From(move)) == pawn) &&
-            (PieceOnSquare(ply,To(move)) == 0) &&
-            (PieceOnSquare(ply,To(move)-8) == -pawn) &&
+        if ((PieceOnSquare(From(move)) == pawn) &&
+            (PieceOnSquare(To(move)) == 0) &&
+            (PieceOnSquare(To(move)-8) == -pawn) &&
             And(EnPassantTarget(ply),set_mask[To(move)])) return(1);
       }
       else {
-        if ((PieceOnSquare(ply,From(move)) == -pawn) &&
-            (PieceOnSquare(ply,To(move)) == 0) &&
-            (PieceOnSquare(ply,To(move)+8) == pawn) &&
+        if ((PieceOnSquare(From(move)) == -pawn) &&
+            (PieceOnSquare(To(move)) == 0) &&
+            (PieceOnSquare(To(move)+8) == pawn) &&
             And(EnPassantTarget(ply),set_mask[To(move)])) return(1);
       }
 /*
@@ -157,14 +159,14 @@ int ValidMove(int ply, int wtm, int move)
  ----------------------------------------------------------
 */
   if (wtm) {
-    if ((Piece(move) == PieceOnSquare(ply,From(move))) &&
-        (Captured(move) == -PieceOnSquare(ply,To(move))) &&
-        And(AttacksFrom(From(move),ply,wtm),set_mask[To(move)])) return(1);
+    if ((Piece(move) == PieceOnSquare(From(move))) &&
+        (Captured(move) == -PieceOnSquare(To(move))) &&
+        And(AttacksFrom(From(move),wtm),set_mask[To(move)])) return(1);
   }
   else {
-    if ((Piece(move) == -PieceOnSquare(ply,From(move))) &&
-        (Captured(move) == PieceOnSquare(ply,To(move))) &&
-        And(AttacksFrom(From(move),ply,wtm),set_mask[To(move)])) return(1);
+    if ((Piece(move) == -PieceOnSquare(From(move))) &&
+        (Captured(move) == PieceOnSquare(To(move))) &&
+        And(AttacksFrom(From(move),wtm),set_mask[To(move)])) return(1);
   }
   return(0);
 }

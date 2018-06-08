@@ -1,9 +1,9 @@
 /*>>> epd.c: Extended Position Description routines */
 
-/* Revised: 1995.12.03 */
+/* Revised: 1996.06.23 */
 
 /*
-Copyright (C) 1995 by Steven J. Edwards (sje@mv.mv.com)
+Copyright (C) 1996 by Steven J. Edwards (sje@mv.mv.com)
 All rights reserved.  This code may be freely redistibuted and used by
 both research and commerical applications.  No warranty exists.
 */
@@ -19,7 +19,7 @@ address given above.
 This file was originally prepared on an Apple Macintosh using the
 Metrowerks CodeWarrior 6 ANSI C compiler.  Tabs are set at every
 four columns.  Further testing and development was performed on a
-generic PC running Linux 1.2.9 and using the gcc 2.6.3 compiler.
+generic PC running Linux 1.3.20 and using the gcc 2.7.0 compiler.
 */
 
 /* system includes */
@@ -28,6 +28,7 @@ generic PC running Linux 1.2.9 and using the gcc 2.6.3 compiler.
 #include <stdio.h>
 #include <ctype.h>
 #include <string.h>
+#include <time.h>
 
 /* EPD definitions (host independent) */
 
@@ -39,16 +40,24 @@ generic PC running Linux 1.2.9 and using the gcc 2.6.3 compiler.
 
 /* ASCII character constants */
 
-#define ascii_nul '\0'
-#define ascii_sp  ' '
+#define ascii_nul ((char) 0x00)
+#define ascii_sp  ((char) 0x20)
 
-/* tree limit */
+/* tree limit; adjust according to memory availability */
 
-#define treeL 8192
+#define treeL 16384
 
-/* played moves history limit */
+/* tree overrun safety margin */
+
+#define treemarginL 256
+
+/* played moves history limit; adjust according to memory availability */
 
 #define pmhL 512
+
+/* data flows (input and output) */
+
+#define flowL 2
 
 /* character case mapping */
 
@@ -57,11 +66,11 @@ generic PC running Linux 1.2.9 and using the gcc 2.6.3 compiler.
 
 /* identifier character check */
 
-#define IdentChar(ch) (isalpha((ch)) ||isdigit((ch)) || ((ch) == '_'))
+#define IdentChar(ch) (isalpha((ch)) || isdigit((ch)) || ((ch) == '_'))
 
 /* vacancy check */
 
-#define Vacant(sq) (board.rbv[(sq)] == cp_v0)
+#define Vacant(sq) (EPDboard.rbv[(sq)] == cp_v0)
 
 /* token record type (for token chain) */
 
@@ -81,19 +90,38 @@ typedef struct tseS
 	mptrT tse_curr;  /* current move of interest in moveset */
 	} tseT, *tseptrT;
 
-/* environment stack entry record type */
+/* color to move strings */
 
-typedef struct eseS
-	{
-	cT    ese_actc;      /* active color */
-	castT ese_cast;      /* casliting availability */
-	sqT   ese_epsq;      /* en passant target square */
-	sqT   ese_ksqv[rcL]; /* king square locations */
-	} eseT, *eseptrT;
+static charptrT ctmext_strv[rcL];
+
+/* global game chain anchors */
+
+static gamptrT head_gamptr;
+static gamptrT tail_gamptr;
 
 /* EPD standard opcode mnemonics */
 
 static charptrT epdsostrv[epdsoL];
+
+/* EPD refcom operand strings */
+
+static charptrT refcomstrv[refcomL];
+
+/* EPD refreq operand strings */
+
+static charptrT refreqstrv[refreqL];
+
+/* PGN Seven Tag Roster names */
+
+static charptrT pgnstrstrv[pgnstrL];
+
+/* game termination indication marker strings */
+
+static charptrT gtimstrv[gtimL];
+
+/* player name strings */
+
+static charptrT playerstrv[rcL];
 
 /* character conversion vectors (colors and pieces) */
 
@@ -125,25 +153,35 @@ static xdvT xdvv[dxL];
 
 static xbT xb;
 
+/* maps */
+
+static siT flank_mapv[sqL];
+static siT triangle_mapv[sqL];
+
 /* token chain anchors */
 
 static tknptrT head_tknptr;
 static tknptrT tail_tknptr;
 
-/* local copy of san vector and index */
+/* local SAN vector and its index */
 
 static sanT lsan;
 static siT lsani;
 
+/* census vectors */
+
+static siT count_cv[rcL];
+static siT count_cpv[rcL][rpL];
+
 /* the current board */
 
-static rbT board;
+static rbT EPDboard;
 
-/* local copy of the current environment stack entry  */
+/* the current environment stack entry  */
 
 static eseT ese;
 
-/* local copy of the current tree stack entry */
+/* the current tree stack entry */
 
 static tseT tse;
 
@@ -151,34 +189,43 @@ static tseT tse;
 
 static siT ply;
 
-/* base of the move tree */
+/* the base of the move tree and its current pointer */
 
 static mptrT treebaseptr;
+static mptrT treeptr;
 
-/* base of the tree stack entry stack */
+/* the base of the tree stack entry stack and its current pointer */
 
 static tseptrT tsebaseptr;
+static tseptrT tseptr;
 
-/* base of the environment stack */
+/* base of the environment stack and its current pointer */
 
 static eseptrT esebaseptr;
-
-/* current pointers to the stacks */
-
-static mptrT treeptr;
-static tseptrT tseptr;
 static eseptrT eseptr;
+
+/* tablebase information record vector storage base */
+
+static tbptrT tbbaseptr;
+
+/* tablebase file pointer cache vector */
+
+static tbcT tbcv[tbcL];
 
 /* return area for board data */
 
 static rbT ret_rb;
+
+/* return area for move data */
+
+static mT ret_m;
 
 /*--> EPDFatal: emit fatal diagnostic and quit */
 nonstatic
 void
 EPDFatal(charptrT s)
 {
-fprintf(stderr, "Fatal error: %s\n", s);
+fprintf(stderr, "EPD Fatal error: %s.\n", s);
 exit(1);
 }
 
@@ -187,7 +234,7 @@ nonstatic
 void
 EPDSwitchFault(charptrT s)
 {
-fprintf(stderr, "Switch fault detected\n");
+fprintf(stderr, "Switch fault detected.\n");
 EPDFatal(s);
 
 return;
@@ -225,10 +272,20 @@ EPDStringGrab(charptrT s)
 {
 charptrT ptr;
 
-ptr = EPDMemoryGrab(strlen(s) + 1);
+ptr = (charptrT) EPDMemoryGrab(strlen(s) + 1);
 strcpy(ptr, s);
 
 return (ptr);
+}
+
+/*--> EPDStringFree: deallocate a string */
+nonstatic
+void
+EPDStringFree(charptrT s)
+{
+EPDMemoryFree(s);
+
+return;
 }
 
 /*--> EPDStringAppendChar: append a character to a string */
@@ -242,7 +299,7 @@ liT length;
 /* the first argument is deallocated */
 
 length = strlen(s);
-ptr = EPDMemoryGrab(length + 2);
+ptr = (charptrT) EPDMemoryGrab(length + 2);
 strcpy(ptr, s);
 EPDMemoryFree(s);
 *(ptr + length) = c;
@@ -262,12 +319,300 @@ liT length;
 /* the first argument is deallocated */
 
 length = strlen(s0) + strlen(s1);
-ptr = EPDMemoryGrab(length + 1);
+ptr = (charptrT) EPDMemoryGrab(length + 1);
 strcpy(ptr, s0);
 strcat(ptr, s1);
 EPDMemoryFree(s0);
 
 return (ptr);
+}
+
+/*--> EPDMapFromDuration: convert from duration to seconds */
+nonstatic
+liT
+EPDMapFromDuration(charptrT s)
+{
+liT seconds;
+siT scs, mns, hrs, dys;
+
+sscanf(s, "%04hd:%02hd:%02hd:%02hd", &dys, &hrs, &mns, &scs);
+
+seconds = ((liT) dys * 86400) +
+	((liT) hrs * 3600) + ((liT) mns * 60) + (liT) scs;
+
+return (seconds);
+}
+
+/*--> EPDMapToDuration: convert from seconds to duration */
+nonstatic
+charptrT
+EPDMapToDuration(liT seconds)
+{
+charptrT s;
+siT scs, mns, hrs, dys;
+
+s = (charptrT) EPDMemoryGrab(durationL);
+
+scs = seconds % 60;
+mns = (seconds / 60) % 60;
+hrs = (seconds / 3600) % 24;
+dys = (seconds / 86400) % 10000;
+
+sprintf(s, "%04hd:%02hd:%02hd:%02hd", dys, hrs, mns, scs);
+
+return (s);
+}
+
+/*--> EPDNewGPM: allocate and initialize a new GPM record */
+static
+gpmptrT
+EPDNewGPM(mptrT mptr)
+{
+gpmptrT gpmptr;
+cT c;
+sqT sq;
+cpT cp0, cp1;
+
+gpmptr = (gpmptrT) EPDMemoryGrab(sizeof(gpmT));
+
+gpmptr->gpm_m = *mptr;
+
+gpmptr->gpm_ese.ese_actc = ese.ese_actc;
+gpmptr->gpm_ese.ese_cast = ese.ese_cast;
+gpmptr->gpm_ese.ese_epsq = ese.ese_epsq;
+gpmptr->gpm_ese.ese_hmvc = ese.ese_hmvc;
+gpmptr->gpm_ese.ese_fmvn = ese.ese_fmvn;
+
+for (c = c_w; c <= c_b; c++)
+	gpmptr->gpm_ese.ese_ksqv[c] = ese.ese_ksqv[c];
+
+for (sq = sq_a1; sq <= sq_h8; sq += 2)
+	{
+	cp0 = EPDboard.rbv[sq + 0];
+	cp1 = EPDboard.rbv[sq + 1];
+	gpmptr->gpm_nbv[sq >> 1] = ((cp1 << nybbW) | cp0);
+	};
+
+gpmptr->gpm_prev = gpmptr->gpm_next = NULL;
+
+return (gpmptr);
+}
+
+/*--> EPDReleaseGPM: release a GPM record */
+static
+void
+EPDReleaseGPM(gpmptrT gpmptr)
+{
+if (gpmptr != NULL)
+	EPDMemoryFree(gpmptr);
+
+return;
+}
+
+/*--> EPDAppendGPM: append a GPM record to a game  */
+static
+void
+EPDAppendGPM(gamptrT gamptr, gpmptrT gpmptr)
+{
+if (gamptr->gam_tailgpm == NULL)
+	gamptr->gam_headgpm = gpmptr;
+else
+	gamptr->gam_tailgpm->gpm_next = gpmptr;
+
+gpmptr->gpm_prev = gamptr->gam_tailgpm;
+gpmptr->gpm_next = NULL;
+
+gamptr->gam_tailgpm = gpmptr;
+
+return;
+}
+
+/*--> EPDUnthreadGPM: unthread a GPM record from a game */
+static
+void
+EPDUnthreadGPM(gamptrT gamptr, gpmptrT gpmptr)
+{
+if (gpmptr->gpm_prev == NULL)
+	gamptr->gam_headgpm = gpmptr->gpm_next;
+else
+	gpmptr->gpm_prev->gpm_next = gpmptr->gpm_next;
+
+if (gpmptr->gpm_next == NULL)
+	gamptr->gam_tailgpm = gpmptr->gpm_prev;
+else
+	gpmptr->gpm_next->gpm_prev = gpmptr->gpm_prev;
+
+return;
+}
+
+/*--> EPDReleaseGPMoveChain: release the game played moves chain */
+static
+void
+EPDReleaseGPMoveChain(gamptrT gamptr)
+{
+gpmptrT gpmptr;
+
+while (gamptr->gam_headgpm != NULL)
+	{
+	gpmptr = gamptr->gam_tailgpm;
+	EPDUnthreadGPM(gamptr, gpmptr);
+	EPDReleaseGPM(gpmptr);
+	};
+
+return;
+}
+
+/*--> EPDNewGAM: allocate and initialize a new GAM record */
+static
+gamptrT
+EPDNewGAM(void)
+{
+gamptrT gamptr;
+pgnstrT pgnstr;
+
+gamptr = (gamptrT) EPDMemoryGrab(sizeof(gamT));
+
+for (pgnstr = 0; pgnstr < pgnstrL; pgnstr++)
+	gamptr->gam_strv[pgnstr] = EPDStringGrab("");
+
+gamptr->gam_gtim = gtim_u;
+
+gamptr->gam_headgpm = gamptr->gam_tailgpm = NULL;
+gamptr->gam_prev = gamptr->gam_next = NULL;
+
+return (gamptr);
+}
+
+/*--> EPDReleaseGAM: release a GAM record */
+static
+void
+EPDReleaseGAM(gamptrT gamptr)
+{
+pgnstrT pgnstr;
+
+if (gamptr != NULL)
+	{
+	for (pgnstr = 0; pgnstr < pgnstrL; pgnstr++)
+		if (gamptr->gam_strv[pgnstr] != NULL)
+			EPDMemoryFree(gamptr->gam_strv[pgnstr]);
+	EPDReleaseGPMoveChain(gamptr);
+	EPDMemoryFree(gamptr);
+	};
+
+return;
+}
+
+/*--> EPDAppendGAM: append a GAM record to the game chain */
+static
+void
+EPDAppendGAM(gamptrT gamptr)
+{
+if (tail_gamptr == NULL)
+	head_gamptr = gamptr;
+else
+	tail_gamptr->gam_next = gamptr;
+
+gamptr->gam_prev = tail_gamptr;
+gamptr->gam_next = NULL;
+
+tail_gamptr = gamptr;
+
+return;
+}
+
+/*--> EPDUnthreadGAM: unthread a GAM record from the game chain */
+static
+void
+EPDUnthreadGAM(gamptrT gamptr)
+{
+if (gamptr->gam_prev == NULL)
+	head_gamptr = gamptr->gam_next;
+else
+	gamptr->gam_prev->gam_next = gamptr->gam_next;
+
+if (gamptr->gam_next == NULL)
+	tail_gamptr = gamptr->gam_prev;
+else
+	gamptr->gam_next->gam_prev = gamptr->gam_prev;
+
+return;
+}
+
+/*--> EPDReleaseGameChain: release the game chain */
+static
+void
+EPDReleaseGameChain(void)
+{
+gamptrT gamptr;
+
+while (head_gamptr != NULL)
+	{
+	gamptr = tail_gamptr;
+	EPDUnthreadGAM(gamptr);
+	EPDReleaseGAM(gamptr);
+	};
+
+return;
+}
+
+/*--> EPDGamePlyCount: return ply count of a game */
+static
+siT
+EPDGamePlyCount(gamptrT gamptr)
+{
+siT count;
+gpmptrT gpmptr;
+
+count = 0;
+gpmptr = gamptr->gam_headgpm;
+
+while (gpmptr != NULL)
+	{
+	count++;
+	gpmptr = gpmptr->gpm_next;
+	};
+
+return (count);
+}
+
+/*--> EPDGameOpen: create/open a new game structure */
+nonstatic
+gamptrT
+EPDGameOpen(void)
+{
+gamptrT gamptr;
+
+gamptr = EPDNewGAM();
+EPDAppendGAM(gamptr);
+
+return (gamptr);
+}
+
+/*--> EPDGameClose: close/destroy a game structure */
+nonstatic
+void
+EPDGameClose(gamptrT gamptr)
+{
+if (gamptr != NULL)
+	{
+	EPDUnthreadGAM(gamptr);
+	EPDReleaseGAM(gamptr);
+	};
+
+return;
+}
+
+/*--> EPDGameAppendMove: append a move to a game structure */
+nonstatic
+void
+EPDGameAppendMove(gamptrT gamptr, mptrT mptr)
+{
+gpmptrT gpmptr;
+
+gpmptr = EPDNewGPM(mptr);
+EPDAppendGPM(gamptr, gpmptr);
+
+return;
 }
 
 /*--> EPDNewTKN: allocate and initialize a new TKN record */
@@ -374,7 +719,7 @@ c = *(s + i++);
 while (c != ascii_nul)
 	{
 	/* skip leading whitespace */
-	
+
 	while ((c != ascii_nul) && isspace(c))
 		c = *(s + i++);
 
@@ -389,7 +734,7 @@ while (c != ascii_nul)
 			str = EPDStringAppendChar(str, c);
 			c = *(s + i++);
 			};
-		
+
 		tknptr = EPDNewTKN(str);
 		EPDAppendTKN(tknptr);
 		EPDMemoryFree(str);
@@ -893,6 +1238,18 @@ eopptr->eop_opsym = EPDStringGrab(opsym);
 return (eopptr);
 }
 
+/*--> EPDCreateEOPCode: create a new EOP record using opsym index */
+nonstatic
+eopptrT
+EPDCreateEOPCode(epdsoT epdso)
+{
+eopptrT eopptr;
+
+eopptr = EPDCreateEOP(EPDFetchOpsym(epdso));
+
+return (eopptr);
+}
+
 /*--> EPDLocateEOP: attempt to locate EOP record with given opsym */
 nonstatic
 eopptrT
@@ -913,6 +1270,15 @@ if (!flag)
 	eopptr = NULL;
 
 return (eopptr);
+}
+
+/*--> EPDLocateEOPCode: attempt to locate EOP record with given code */
+nonstatic
+eopptrT
+EPDLocateEOPCode(epdptrT epdptr, epdsoT epdso)
+{
+
+return (EPDLocateEOP(epdptr, epdsostrv[epdso]));
 }
 
 /*--> EPDCountEOP: count EOP entries in EPD */
@@ -951,6 +1317,74 @@ if (eopptr != NULL)
 return;
 }
 
+/*--> EPDDropIfLocEOPCode: try to locate/drop EOP record with given code */
+nonstatic
+void
+EPDDropIfLocEOPCode(epdptrT epdptr, epdsoT epdso)
+{
+eopptrT eopptr;
+
+eopptr = EPDLocateEOP(epdptr, epdsostrv[epdso]);
+if (eopptr != NULL)
+	{
+	EPDUnthreadEOP(epdptr, eopptr);
+	EPDReleaseEOP(eopptr);
+	};
+
+return;
+}
+
+/*--> EPDAddOpInt: add a single integer operand operation */
+nonstatic
+void
+EPDAddOpInt(epdptrT epdptr, epdsoT epdso, liT val)
+{
+eopptrT eopptr;
+eovptrT eovptr;
+
+eovptr = EPDCreateEOVInt(val);
+eopptr = EPDCreateEOPCode(epdso);
+EPDAppendEOV(eopptr, eovptr);
+EPDDropIfLocEOPCode(epdptr, epdso);
+EPDAppendEOP(epdptr, eopptr);
+
+return;
+}
+
+/*--> EPDAddOpStr: add a single string operand operation */
+nonstatic
+void
+EPDAddOpStr(epdptrT epdptr, epdsoT epdso, charptrT s)
+{
+eopptrT eopptr;
+eovptrT eovptr;
+
+eovptr = EPDCreateEOVStr(s);
+eopptr = EPDCreateEOPCode(epdso);
+EPDAppendEOV(eopptr, eovptr);
+EPDDropIfLocEOPCode(epdptr, epdso);
+EPDAppendEOP(epdptr, eopptr);
+
+return;
+}
+
+/*--> EPDAddOpSym: add a single symbol operand operation */
+nonstatic
+void
+EPDAddOpSym(epdptrT epdptr, epdsoT epdso, charptrT s)
+{
+eopptrT eopptr;
+eovptrT eovptr;
+
+eovptr = EPDCreateEOVSym(s);
+eopptr = EPDCreateEOPCode(epdso);
+EPDAppendEOV(eopptr, eovptr);
+EPDDropIfLocEOPCode(epdptr, epdso);
+EPDAppendEOP(epdptr, eopptr);
+
+return;
+}
+
 /*--> EPDNewEPD: allocate a new EPD record */
 nonstatic
 epdptrT
@@ -961,7 +1395,7 @@ siT i;
 
 epdptr = (epdptrT) EPDMemoryGrab(sizeof(epdT));
 
-for (i = 0; i < nbvL; i++)
+for (i = 0; i < nbL; i++)
 	epdptr->epd_nbv[i] = ((cp_v0 << nybbW) | cp_v0);
 
 epdptr->epd_actc = c_v;
@@ -1008,6 +1442,14 @@ if (epdptr != NULL)
 	};
 
 return;
+}
+
+/*--> EPDFetchOpsym: return a pointer to the indicated mnemonic */
+nonstatic
+charptrT
+EPDFetchOpsym(epdsoT epdso)
+{
+return (epdsostrv[epdso]);
 }
 
 /*--> EPDCountOperands: count operands */
@@ -1209,7 +1651,7 @@ siT index;
 
 nptr = EPDNewEPD();
 
-for (index = 0; index < nbvL; index++)
+for (index = 0; index < nbL; index++)
 	nptr->epd_nbv[index] = epdptr->epd_nbv[index];
 
 nptr->epd_actc = epdptr->epd_actc;
@@ -1293,7 +1735,7 @@ sqT sq;
 ese.ese_ksqv[c_w] = ese.ese_ksqv[c_b] = sq_nil;
 
 for (sq = sq_a1; sq <= sq_h8; sq++)
-	switch (board.rbv[sq])
+	switch (EPDboard.rbv[sq])
 		{
 		case cp_wk:
 			ese.ese_ksqv[c_w] = sq;
@@ -1338,22 +1780,49 @@ return (epdptr);
 /*--> EPDSetCurrentPosition: set current position */
 nonstatic
 void
-EPDSetCurrentPosition(rbptrT rbptr, cT actc, castT cast, sqT epsq)
+EPDSetCurrentPosition(rbptrT rbptr, cT actc, castT cast, sqT epsq, siT hmvc, siT fmvn)
 {
 sqT sq;
 
 /* this changes the current position */
 
 for (sq = sq_a1; sq <= sq_h8; sq++)
-	board.rbv[sq] = rbptr->rbv[sq];
+	EPDboard.rbv[sq] = rbptr->rbv[sq];
 
 ese.ese_actc = actc;
 ese.ese_cast = cast;
 ese.ese_epsq = epsq;
+ese.ese_hmvc = hmvc;
+ese.ese_fmvn = fmvn;
 
 EPDSetKings();
 
 return;
+}
+
+/*--> EPDGetCurrentPosition: return EPD structure for current position */
+nonstatic
+epdptrT
+EPDGetCurrentPosition(void)
+{
+epdptrT epdptr;
+sqT sq;
+cpT cp0, cp1;
+
+epdptr = EPDNewEPD();
+
+for (sq = sq_a1; sq <= sq_h8; sq += 2)
+	{
+	cp0 = EPDboard.rbv[sq + 0];
+	cp1 = EPDboard.rbv[sq + 1];
+	epdptr->epd_nbv[sq >> 1] = ((cp1 << nybbW) | cp0);
+	};
+
+epdptr->epd_actc = ese.ese_actc;
+epdptr->epd_cast = ese.ese_cast;
+epdptr->epd_epsq = ese.ese_epsq;
+
+return (epdptr);
 }
 
 /*--> EPDFetchACTC: fetch current active color */
@@ -1386,6 +1855,26 @@ EPDFetchEPSQ(void)
 return (ese.ese_epsq);
 }
 
+/*--> EPDFetchHMVC: fetch current halfmove clock */
+nonstatic
+siT
+EPDFetchHMVC(void)
+{
+/* return the value of the current halfmove clock */
+
+return (ese.ese_hmvc);
+}
+
+/*--> EPDFetchFMVN: fetch current fullmove number */
+nonstatic
+siT
+EPDFetchFMVN(void)
+{
+/* return the value of the current fullmove number */
+
+return (ese.ese_fmvn);
+}
+
 /*--> EPDFetchBoard: fetch current board */
 nonstatic
 rbptrT
@@ -1393,7 +1882,7 @@ EPDFetchBoard(void)
 {
 /* copy from the local board into the designated static return area */
 
-ret_rb = board;
+ret_rb = EPDboard;
 
 return (&ret_rb);
 }
@@ -1407,9 +1896,78 @@ cpT cp;
 
 /* fetch from the local board */
 
-cp = board.rbv[sq];
+cp = EPDboard.rbv[sq];
 
 return (cp);
+}
+
+/*--> EPDFetchBoardString: create and return a board diagram */
+nonstatic
+charptrT
+EPDFetchBoardString(void)
+{
+charptrT s;
+charptrT r;
+rankT rank;
+fileT file;
+cpT cp;
+
+/* allocate */
+
+s = (charptrT) EPDMemoryGrab((rankL * ((fileL * 2) + 1)) + 1);
+
+/* fill */
+
+r = s;
+for (rank = rank_8; rank >= rank_1; rank--)
+	{
+	for (file = file_a; file <= file_h; file++)
+		{
+		cp = EPDboard.rbm[rank][file];
+		if (cp == cp_v0)
+			if ((rank % 2) == (file % 2))
+				{
+				*r++ = ':';
+				*r++ = ':';
+				}
+			else
+				{
+				*r++ = ascii_sp;
+				*r++ = ascii_sp;
+				}
+		else
+			{
+			*r++ = asccv[cv_c_cpv[cp]];
+			*r++ = ascpv[cv_p_cpv[cp]];
+			};
+		};
+	*r++ = '\n';
+	};
+
+/* terminating NUL */
+
+*r = ascii_nul;
+
+return (s);
+}
+
+/*--> EPDGetGTIM: get game termination marker indicator */
+nonstatic
+gtimT
+EPDGetGTIM(gamptrT gamptr)
+{
+
+return (gamptr->gam_gtim);
+}
+
+/*--> EPDPutGTIM: put game termination marker indicator */
+nonstatic
+void
+EPDPutGTIM(gamptrT gamptr, gtimT gtim)
+{
+gamptr->gam_gtim = gtim;
+
+return;
 }
 
 /*--> EPDGenBasic: generate basic EPD notation for a given position */
@@ -1439,9 +1997,240 @@ charptrT ptr;
 
 /* this references but does not change the current position */
 
-ptr = EPDGenBasic(&board, ese.ese_actc, ese.ese_cast, ese.ese_epsq);
+ptr = EPDGenBasic(&EPDboard, ese.ese_actc, ese.ese_cast, ese.ese_epsq);
 
 return (ptr);
+}
+
+/*--> EPDDecodeFEN: read a FEN string to make an EPD structure */
+nonstatic
+epdptrT
+EPDDecodeFEN(charptrT s)
+{
+epdptrT epdptr;
+siT flag;
+tknptrT save_head_tknptr, save_tail_tknptr;
+charptrT tptr;
+
+/* this does not reference the current position */
+
+flag = 1;
+epdptr = NULL;
+tptr = NULL;
+
+/* save the initial token chain pointers */
+
+save_head_tknptr = head_tknptr;
+save_tail_tknptr = tail_tknptr;
+
+/* clear the token chain pointers */
+
+head_tknptr = NULL;
+tail_tknptr = NULL;
+
+/* tokenize the input */
+
+EPDTokenize(s);
+
+/* check for six tokens */
+
+if (flag)
+	if (EPDTokenCount() != 6)
+		flag = 0;
+
+/* construct an input string from the tokens */
+
+if (flag)
+	{
+	/* handle the first four common fields */
+
+	tptr = EPDStringGrab("");
+	tptr = EPDStringAppendStr(tptr, EPDTokenFetch(0));
+	tptr = EPDStringAppendChar(tptr, ascii_sp);
+	tptr = EPDStringAppendStr(tptr, EPDTokenFetch(1));
+	tptr = EPDStringAppendChar(tptr, ascii_sp);
+	tptr = EPDStringAppendStr(tptr, EPDTokenFetch(2));
+	tptr = EPDStringAppendChar(tptr, ascii_sp);
+	tptr = EPDStringAppendStr(tptr, EPDTokenFetch(3));
+	tptr = EPDStringAppendChar(tptr, ascii_sp);
+
+	/* append the halfmove clock operation */
+
+	tptr = EPDStringAppendStr(tptr, epdsostrv[epdso_hmvc]);
+	tptr = EPDStringAppendChar(tptr, ascii_sp);
+	tptr = EPDStringAppendStr(tptr, EPDTokenFetch(4));
+	tptr = EPDStringAppendChar(tptr, ';');
+	tptr = EPDStringAppendChar(tptr, ascii_sp);
+
+	/* append the fullmove number operation */
+
+	tptr = EPDStringAppendStr(tptr, epdsostrv[epdso_fmvn]);
+	tptr = EPDStringAppendChar(tptr, ascii_sp);
+	tptr = EPDStringAppendStr(tptr, EPDTokenFetch(5));
+	tptr = EPDStringAppendChar(tptr, ';');
+	};
+
+/* release the temporary token chain */
+
+EPDReleaseTokenChain();
+
+/* restore the initial token chain pointers */
+
+head_tknptr = save_head_tknptr;
+tail_tknptr = save_tail_tknptr;
+
+/* read the resulting EPD input string */
+
+if (flag)
+	{
+	epdptr = EPDDecode(tptr);
+	if (epdptr == NULL)
+		flag = 0;
+	};
+
+/* cancellations if a problem occurred */
+
+if (!flag)
+	{
+	if (tptr != NULL)
+		EPDMemoryFree(tptr);
+
+	if (epdptr != NULL)
+		{
+		EPDReleaseEPD(epdptr);
+		epdptr = NULL;
+		};
+	};
+
+return (epdptr);
+}
+
+/*--> EPDEncodeFEN: make a FEN string from an EPD structure */
+nonstatic
+charptrT
+EPDEncodeFEN(epdptrT epdptr)
+{
+charptrT s;
+char ch;
+siT bi;
+siT ps;
+sqT sq;
+cpT cp;
+rankT rank;
+fileT file;
+eopptrT eopptr;
+char nv[tL];
+char bv[tL];
+
+/* this does not reference the current position */
+
+bi = 0;
+
+/* output board */
+
+for (rank = rank_8; rank >= rank_1; rank--)
+	{
+	ps = 0;
+	for (file = file_a; file <= file_h; file++)
+		{
+		sq = map_sq(rank, file);
+		if ((sq % 2) == 0)
+			cp = (epdptr->epd_nbv[sq >> 1] & nybbM);
+		else
+			cp = ((epdptr->epd_nbv[sq >> 1] >> nybbW) & nybbM);
+
+		if (cp == cp_v0)
+			ps++;
+		else
+			{
+			if (ps != 0)
+				{
+				bv[bi++] = '0' + ps;
+				ps = 0;
+				};
+			ch = ascpv[cv_p_cpv[cp]];
+			if (cv_c_cpv[cp] == c_w)
+				ch = map_upper(ch);
+			else
+				ch = map_lower(ch);
+			bv[bi++] = ch;
+			};
+		};
+	if (ps != 0)
+		{
+		bv[bi++] = '0' + ps;
+		ps = 0;
+		};
+	if (rank != rank_1)
+		bv[bi++] = '/';
+	};
+bv[bi++] = ascii_sp;
+
+/* output active color (lower case) */
+
+bv[bi++] = map_lower(asccv[epdptr->epd_actc]);
+bv[bi++] = ascii_sp;
+
+/* output castling availablility */
+
+if (epdptr->epd_cast == 0)
+	bv[bi++] = '-';
+else
+	{
+	if (epdptr->epd_cast & cf_wk)
+		bv[bi++] = map_upper(ascpv[p_k]);
+	if (epdptr->epd_cast & cf_wq)
+		bv[bi++] = map_upper(ascpv[p_q]);
+	if (epdptr->epd_cast & cf_bk)
+		bv[bi++] = map_lower(ascpv[p_k]);
+	if (epdptr->epd_cast & cf_bq)
+		bv[bi++] = map_lower(ascpv[p_q]);
+	};
+bv[bi++] = ascii_sp;
+
+/* output ep capture square */
+
+if (epdptr->epd_epsq == sq_nil)
+	bv[bi++] = '-';
+else
+	{
+	bv[bi++] = ascfv[map_file(epdptr->epd_epsq)];
+	bv[bi++] = ascrv[map_rank(epdptr->epd_epsq)];
+	};
+bv[bi++] = ascii_sp;
+
+/* output halfmove clock */
+
+eopptr = EPDLocateEOP(epdptr, epdsostrv[epdso_hmvc]);
+if ((eopptr != NULL) && (eopptr->eop_headeov != NULL) &&
+	(eopptr->eop_headeov->eov_str != NULL))
+	sprintf(nv, "%ld", atol(eopptr->eop_headeov->eov_str));
+else
+	sprintf(nv, "0");
+strcpy(&bv[bi], nv);
+bi += strlen(nv);
+bv[bi++] = ascii_sp;
+
+/* output fullmove number */
+
+eopptr = EPDLocateEOP(epdptr, epdsostrv[epdso_fmvn]);
+if ((eopptr != NULL) && (eopptr->eop_headeov != NULL) &&
+	(eopptr->eop_headeov->eov_str != NULL))
+	sprintf(nv, "%ld", atol(eopptr->eop_headeov->eov_str));
+else
+	sprintf(nv, "1");
+strcpy(&bv[bi], nv);
+bi += strlen(nv);
+
+/* NUL termination */
+
+bv[bi++] = ascii_nul;
+
+/* allocate result */
+
+s = EPDStringGrab(bv);
+
+return (s);
 }
 
 /*--> EPDDecode: read an EPD structure from a string */
@@ -1887,8 +2676,7 @@ bi = 0;
 
 /* normalize */
 
-if (epdptr != NULL)
-	EPDNormalize(epdptr);
+EPDNormalize(epdptr);
 
 /* output board */
 
@@ -2045,6 +2833,8 @@ EPDRealize(epdptrT epdptr)
 {
 sqT sq;
 cpT cp;
+eopptrT eopptr;
+eovptrT eovptr;
 
 /* this changes the current position */
 
@@ -2054,12 +2844,24 @@ for (sq = sq_a1; sq <= sq_h8; sq++)
 		cp = (epdptr->epd_nbv[sq >> 1] & nybbM);
 	else
 		cp = ((epdptr->epd_nbv[sq >> 1] >> nybbW) & nybbM);
-	board.rbv[sq] = cp;
+	EPDboard.rbv[sq] = cp;
 	};
 
 ese.ese_actc = epdptr->epd_actc;
 ese.ese_cast = epdptr->epd_cast;
 ese.ese_epsq = epdptr->epd_epsq;
+
+eopptr = EPDLocateEOPCode(epdptr, epdso_hmvc);
+if ((eopptr != NULL) && ((eovptr = eopptr->eop_headeov) != NULL))
+	ese.ese_hmvc = atoi(eovptr->eov_str);
+else
+	ese.ese_hmvc = 0;
+
+eopptr = EPDLocateEOPCode(epdptr, epdso_fmvn);
+if ((eopptr != NULL) && ((eovptr = eopptr->eop_headeov) != NULL))
+	ese.ese_fmvn = atoi(eovptr->eov_str);
+else
+	ese.ese_fmvn = 1;
 
 EPDSetKings();
 
@@ -2076,33 +2878,44 @@ sqT sq;
 /* this changes the current position */
 
 for (sq = sq_a1; sq <= sq_h8; sq++)
-	board.rbv[sq] = cp_v0;
+	EPDboard.rbv[sq] = cp_v0;
 
-board.rbv[sq_a1] = board.rbv[sq_h1] = cp_wr;
-board.rbv[sq_b1] = board.rbv[sq_g1] = cp_wn;
-board.rbv[sq_c1] = board.rbv[sq_f1] = cp_wb;
-board.rbv[sq_d1] = cp_wq;
-board.rbv[sq_e1] = cp_wk;
+EPDboard.rbv[sq_a1] = EPDboard.rbv[sq_h1] = cp_wr;
+EPDboard.rbv[sq_b1] = EPDboard.rbv[sq_g1] = cp_wn;
+EPDboard.rbv[sq_c1] = EPDboard.rbv[sq_f1] = cp_wb;
+EPDboard.rbv[sq_d1] = cp_wq;
+EPDboard.rbv[sq_e1] = cp_wk;
 
 for (sq = sq_a2; sq <= sq_h2; sq++)
-	board.rbv[sq] = cp_wp;
+	EPDboard.rbv[sq] = cp_wp;
 
-board.rbv[sq_a8] = board.rbv[sq_h8] = cp_br;
-board.rbv[sq_b8] = board.rbv[sq_g8] = cp_bn;
-board.rbv[sq_c8] = board.rbv[sq_f8] = cp_bb;
-board.rbv[sq_d8] = cp_bq;
-board.rbv[sq_e8] = cp_bk;
+EPDboard.rbv[sq_a8] = EPDboard.rbv[sq_h8] = cp_br;
+EPDboard.rbv[sq_b8] = EPDboard.rbv[sq_g8] = cp_bn;
+EPDboard.rbv[sq_c8] = EPDboard.rbv[sq_f8] = cp_bb;
+EPDboard.rbv[sq_d8] = cp_bq;
+EPDboard.rbv[sq_e8] = cp_bk;
 
 for (sq = sq_a7; sq <= sq_h7; sq++)
-	board.rbv[sq] = cp_bp;
+	EPDboard.rbv[sq] = cp_bp;
 
 ese.ese_actc = c_w;
 ese.ese_cast = cf_wk | cf_wq | cf_bk | cf_bq;
 ese.ese_epsq = sq_nil;
+ese.ese_hmvc = 0;
+ese.ese_fmvn = 1;
 
 EPDSetKings();
 
 return;
+}
+
+/*--> EPDPlayerString: return a pointer to the player name string */
+nonstatic
+charptrT
+EPDPlayerString(cT c)
+{
+
+return (playerstrv[c]);
 }
 
 /*--> EPDSANEncodeChar: encode SAN character */
@@ -2192,7 +3005,7 @@ switch (index)
 
 return;
 }
-	
+
 /*--> EPDSANEncodeAux: encode SAN format move with variants */
 static
 void
@@ -2554,12 +3367,12 @@ for (i = 0; i < tse.tse_count; i++)
 
 	if (rmptr->m_flag & mf_chmt)
 		bssav[ssa_chmt] = 4;
-	
+
 	/* en passant capturing */
 
 	if (rmptr->m_scmv == scmv_epc)
 		bssav[ssa_epct] = 2;
-	
+
 	/* drawing */
 
 	if (rmptr->m_flag & mf_draw)
@@ -2630,7 +3443,7 @@ while (!flag && (mptr == NULL))
 		};
 
 	/* update the overflow termination flag	*/
-	
+
 	flag = EPDSANDecodeBump(ssav, bssav);
 	};
 
@@ -2706,7 +3519,7 @@ flag = 0;
 
 /* set origin square pointers  */
 
-sqptr0 = &board.rbv[sq];
+sqptr0 = &EPDboard.rbv[sq];
 xsqptr0 = &xb.xbv[map_xsq_sq(sq)];
 
 /* process according to specified color */
@@ -2904,7 +3717,7 @@ if (ese.ese_actc == c_w)
 	flag = EPDBlackAttacks(ese.ese_ksqv[c_w]);
 else
 	flag = EPDWhiteAttacks(ese.ese_ksqv[c_b]);
-	
+
 return (flag);
 }
 
@@ -2919,8 +3732,463 @@ if (ese.ese_actc == c_b)
 	flag = EPDBlackAttacks(ese.ese_ksqv[c_w]);
 else
 	flag = EPDWhiteAttacks(ese.ese_ksqv[c_b]);
-	
+
 return (flag);
+}
+
+/*--> EPDCensus: calculate local census vectors */
+static
+void
+EPDCensus(void)
+{
+cT c;
+pT p;
+sqT sq;
+cpT cp;
+
+/* clear census vectors */
+
+for (c = c_w; c <= c_b; c++)
+	{
+	count_cv[c] = 0;
+	for (p = p_p; p <= p_k; p++)
+		count_cpv[c][p] = 0;
+	};
+
+/* calculate census vectors */
+
+for (sq = sq_a1; sq <= sq_h8; sq++)
+	{
+	cp = EPDboard.rbv[sq];
+	if (cp != cp_v0)
+		{
+		c = cv_c_cpv[cp];
+		count_cv[c]++;
+		count_cpv[c][cv_p_cpv[cp]]++;
+		};
+	};
+
+return;
+}
+
+/*--> EPDIsLegal: determine if current position is legal */
+nonstatic
+siT
+EPDIsLegal(void)
+{
+siT flag;
+cT c;
+fileT file;
+siT apv[rcL];
+
+/* set default return value: legal position */
+
+flag = 1;
+
+/* calculate the local census vectors */
+
+EPDCensus();
+
+/* calculate available promoted pawns */
+
+for (c = c_w; c <= c_b; c++)
+	apv[c] = fileL - count_cpv[c][p_p];
+
+/* check white pawn count */
+
+if (flag && (count_cpv[c_w][p_p] > fileL))
+	flag = 0;
+
+/* check black pawn count */
+
+if (flag && (count_cpv[c_b][p_p] > fileL))
+	flag = 0;
+
+/* check white knight count */
+
+if (flag && (count_cpv[c_w][p_n] > 2))
+	{
+	apv[c_w] -= (count_cpv[c_w][p_n] - 2);
+	if (apv[c_w] < 0)
+		flag = 0;
+	};
+
+/* check black knight count */
+
+if (flag && (count_cpv[c_b][p_n] > 2))
+	{
+	apv[c_b] -= (count_cpv[c_b][p_n] - 2);
+	if (apv[c_b] < 0)
+		flag = 0;
+	};
+
+/* check white bishop count */
+
+if (flag && (count_cpv[c_w][p_b] > 2))
+	{
+	apv[c_w] -= (count_cpv[c_w][p_b] - 2);
+	if (apv[c_w] < 0)
+		flag = 0;
+	};
+
+/* check black bishop count */
+
+if (flag && (count_cpv[c_b][p_b] > 2))
+	{
+	apv[c_b] -= (count_cpv[c_b][p_b] - 2);
+	if (apv[c_b] < 0)
+		flag = 0;
+	};
+
+/* check white rook count */
+
+if (flag && (count_cpv[c_w][p_r] > 2))
+	{
+	apv[c_w] -= (count_cpv[c_w][p_r] - 2);
+	if (apv[c_w] < 0)
+		flag = 0;
+	};
+
+/* check black rook count */
+
+if (flag && (count_cpv[c_b][p_r] > 2))
+	{
+	apv[c_b] -= (count_cpv[c_b][p_r] - 2);
+	if (apv[c_b] < 0)
+		flag = 0;
+	};
+
+/* check white queen count */
+
+if (flag && (count_cpv[c_w][p_q] > 1))
+	{
+	apv[c_w] -= (count_cpv[c_w][p_q] - 1);
+	if (apv[c_w] < 0)
+		flag = 0;
+	};
+
+/* check black queen count */
+
+if (flag && (count_cpv[c_b][p_q] > 1))
+	{
+	apv[c_b] -= (count_cpv[c_b][p_q] - 1);
+	if (apv[c_b] < 0)
+		flag = 0;
+	};
+
+/* check white king count */
+
+if (flag && (count_cpv[c_w][p_k] != 1))
+	flag = 0;
+
+/* check black king count */
+
+if (flag && (count_cpv[c_b][p_k] != 1))
+	flag = 0;
+
+/* check pawn placement */
+
+if (flag)
+	{
+	file = file_a;
+	while (flag && (file <= file_h))
+		if ((EPDboard.rbm[rank_1][file] == cp_wp) ||
+			(EPDboard.rbm[rank_1][file] == cp_bp) ||
+			(EPDboard.rbm[rank_8][file] == cp_wp) ||
+			(EPDboard.rbm[rank_8][file] == cp_bp))
+			flag = 0;
+		else
+			file++;
+	};
+
+/* check white kingside castling availability */
+
+if (flag && (ese.ese_cast & cf_wk))
+	if ((EPDboard.rbv[sq_e1] != cp_wk) || (EPDboard.rbv[sq_h1] != cp_wr))
+		flag = 0;
+
+/* check white queenside castling availability */
+
+if (flag && (ese.ese_cast & cf_wq))
+	if ((EPDboard.rbv[sq_e1] != cp_wk) || (EPDboard.rbv[sq_a1] != cp_wr))
+		flag = 0;
+
+/* check black kingside castling availability */
+
+if (flag && (ese.ese_cast & cf_bk))
+	if ((EPDboard.rbv[sq_e8] != cp_bk) || (EPDboard.rbv[sq_h8] != cp_br))
+		flag = 0;
+
+/* check black queenside castling availability */
+
+if (flag && (ese.ese_cast & cf_bq))
+	if ((EPDboard.rbv[sq_e8] != cp_bk) || (EPDboard.rbv[sq_a8] != cp_br))
+		flag = 0;
+
+/* check en passant target square */
+
+if (flag && (ese.ese_epsq != sq_nil))
+	if (ese.ese_actc == c_w)
+		{
+		if (map_rank(ese.ese_epsq) != rank_6)
+			flag = 0;
+		else
+			if (EPDboard.rbv[ese.ese_epsq + dv_3] != cp_bp)
+				flag = 0;
+			else
+				if (EPDboard.rbv[ese.ese_epsq] != cp_v0)
+					flag = 0;
+				else
+					if (EPDboard.rbv[ese.ese_epsq + dv_1] != cp_v0)
+						flag = 0;
+		}
+	else
+		{
+		if (map_rank(ese.ese_epsq) != rank_3)
+			flag = 0;
+		else
+			if (EPDboard.rbv[ese.ese_epsq + dv_1] != cp_wp)
+				flag = 0;
+			else
+				if (EPDboard.rbv[ese.ese_epsq] != cp_v0)
+					flag = 0;
+				else
+					if (EPDboard.rbv[ese.ese_epsq + dv_3] != cp_v0)
+						flag = 0;
+		};
+
+/* check for passive king in check */
+
+if (flag && EPDTestPKIC())
+	flag = 0;
+
+return (flag);
+}
+
+/*--> EPDIsCheckmate: test for checkmate status */
+nonstatic
+siT
+EPDIsCheckmate(void)
+{
+siT flag;
+
+/* set default return value: no checkmate */
+
+flag = 0;
+
+/* generate legal moves (assume legal position) */
+
+EPDGenMoves();
+
+/* no legal moves and in check? */
+
+if ((tse.tse_count == 0) && EPDTestAKIC())
+	flag = 1;
+
+return (flag);
+}
+
+/*--> EPDIsStalemate: test for stalemate status */
+nonstatic
+siT
+EPDIsStalemate(void)
+{
+siT flag;
+
+/* set default return value: no stalemate */
+
+flag = 0;
+
+/* generate legal moves (assume legal position) */
+
+EPDGenMoves();
+
+/* no legal moves and not in check? */
+
+if ((tse.tse_count == 0) && !EPDTestAKIC())
+	flag = 1;
+
+return (flag);
+}
+
+/*--> EPDIsInsufficientMaterial: test for insufficient material */
+nonstatic
+siT
+EPDIsInsufficientMaterial(void)
+{
+siT flag;
+
+/* set default return value: no draw by insufficient material */
+
+flag = 0;
+
+/* calculate local census (assume legal position) */
+
+EPDCensus();
+
+/* only K vs K, K+N vs K, and K+B vs K are considered draws here */
+
+if ((count_cv[c_w] == 1) && (count_cv[c_b] == 1))
+	flag = 1;
+else
+	if ((count_cv[c_w] == 2) && (count_cv[c_b] == 1) &&
+		((count_cpv[c_w][p_n] == 1) || (count_cpv[c_w][p_b] == 1)))
+		flag = 1;
+	else
+		if ((count_cv[c_b] == 2) && (count_cv[c_w] == 1) &&
+			((count_cpv[c_b][p_n] == 1) || (count_cpv[c_b][p_b] == 1)))
+			flag = 1;
+
+return (flag);
+}
+
+/*--> EPDIsFiftyMoveDraw: test for 50 move draw */
+nonstatic
+siT
+EPDIsFiftyMoveDraw(void)
+{
+siT flag;
+
+if (ese.ese_hmvc >= 100)
+	flag = 1;
+else
+	flag = 0;
+
+return (flag);
+}
+
+/*--> EPDIsThirdRepetition: test for third repetition */
+nonstatic
+siT
+EPDIsThirdRepetition(gamptrT gamptr)
+{
+siT flag;
+gpmptrT gpmptr;
+siT count, limit, index, match;
+sqT sq;
+cpT cp0, cp1;
+nbvT nbv;
+
+/* point to the last game played move record */
+
+gpmptr = gamptr->gam_tailgpm;
+
+/* set the repetion count (current position counts as one) */
+
+count = 1;
+
+/* set the limit on the number of records to check */
+
+limit = ese.ese_hmvc;
+
+/* construct the nybble board for the current position */
+
+for (sq = sq_a1; sq <= sq_h8; sq += 2)
+	{
+	cp0 = EPDboard.rbv[sq + 0];
+	cp1 = EPDboard.rbv[sq + 1];
+	nbv[sq >> 1] = ((cp1 << nybbW) | cp0);
+	};
+
+/* loop backwards */
+
+while ((gpmptr != NULL) && (limit > 0) && (count < 3))
+	{
+	/* check for match against current position */
+
+	if ((ese.ese_actc == gpmptr->gpm_ese.ese_actc) &&
+		(ese.ese_cast == gpmptr->gpm_ese.ese_cast) &&
+		(ese.ese_epsq == gpmptr->gpm_ese.ese_epsq))
+		{
+		/* scalars matched, check for board match */
+
+		match = 1;
+		index = 0;
+		while (match && (index < nbL))
+			{
+			if (nbv[index] == gpmptr->gpm_nbv[index])
+				index++;
+			else
+				match = 0;
+			};
+
+		/* complete match? */
+
+		if (match)
+			count++;
+		};
+
+	/* retreat to previous played move record */
+
+	gpmptr = gpmptr->gpm_prev;
+
+	/* one less to go */
+
+	limit--;
+	};
+
+/* set return value */
+
+if (count == 3)
+	flag = 1;
+else
+	flag = 0;
+
+return (flag);
+}
+
+/*--> EPDIsDraw: determine if the current position is a draw */
+nonstatic
+siT
+EPDIsDraw(gamptrT gamptr)
+{
+siT flag;
+
+if (EPDIsFiftyMoveDraw() ||
+	EPDIsInsufficientMaterial() ||
+	EPDIsStalemate() ||
+	EPDIsThirdRepetition(gamptr))
+	flag = 1;
+else
+	flag = 0;
+
+return (flag);
+}
+
+/*--> EPDMateInOne: return a mating move if one exists */
+nonstatic
+mptrT
+EPDMateInOne(void)
+{
+mptrT mptr;
+mptrT rmptr;
+siT index;
+
+/* set default return value (no mate in one) */
+
+mptr = NULL;
+
+/* generate legal moves (assume legal position) */
+
+EPDGenMoves();
+
+/* try to locate a mating move */
+
+rmptr = tse.tse_base;
+index = 0;
+while ((mptr == NULL) && (index < tse.tse_count))
+	if (rmptr->m_flag & mf_chmt)
+		{
+		ret_m = *rmptr;
+		mptr = &ret_m;
+		}
+	else
+		{
+		rmptr++;
+		index++;
+		};
+
+return (mptr);
 }
 
 /*--> EPDGeneratePL: generate psuedolegal moves */
@@ -2941,7 +4209,13 @@ mT gen_m;
 if (ply == 0)
 	treeptr = tse.tse_base = treebaseptr;
 else
-	treeptr = tse.tse_base = (tseptr - 1)->tse_base + (tseptr - 1)->tse_count;
+	treeptr = tse.tse_base =
+		(tseptr - 1)->tse_base + (tseptr - 1)->tse_count;
+
+/* test against safety margin */
+
+if ((treeptr - treebaseptr) >= (treeL - treemarginL))
+	EPDFatal("EPDGeneratePL: move tree size safety limit exceeded");
 
 /* set up current generation items */
 
@@ -2959,40 +4233,40 @@ for (gen_m.m_frsq = sq_a1; gen_m.m_frsq <= sq_h8; gen_m.m_frsq++)
 	{
 	/* get origin square and moving piece */
 
-	gen_m.m_frcp = board.rbv[gen_m.m_frsq];
+	gen_m.m_frcp = EPDboard.rbv[gen_m.m_frsq];
 
 	/* continue if it is an active piece */
-	
+
 	if (cv_c_cpv[gen_m.m_frcp] == ese.ese_actc)
 		{
 
 		/* generate moves for active color piece */
-	
+
 		xsqptr0 = &xb.xbv[map_xsq_sq(gen_m.m_frsq)];
 		switch (cv_p_cpv[gen_m.m_frcp])
 			{
 			case p_p:
 				/* pawn moves: a bit tricky; colors done separately */
-	
+
 				frfile = map_file(gen_m.m_frsq);
 				frrank = map_rank(gen_m.m_frsq);
 				if (ese.ese_actc == c_w)
 					{
 					/* one square non-capture */
-	
-					gen_m.m_tocp = board.rbv[gen_m.m_tosq = gen_m.m_frsq + dv_1];
+
+					gen_m.m_tocp = EPDboard.rbv[gen_m.m_tosq = gen_m.m_frsq + dv_1];
 					if (gen_m.m_tocp == cp_v0)
 						if (frrank != rank_7)
 							{
 							/* non-promotion */
-	
+
 							*treeptr++ = gen_m;
 							tse.tse_count++;
 							}
 						else
 							{
 							/* promotion */
-	
+
 							for (gen_m.m_scmv = scmv_ppn;
 								gen_m.m_scmv <= scmv_ppq; gen_m.m_scmv++)
 								{
@@ -3001,9 +4275,9 @@ for (gen_m.m_frsq = sq_a1; gen_m.m_frsq <= sq_h8; gen_m.m_frsq++)
 								}
 							gen_m.m_scmv = scmv_reg;
 							};
-	
+
 					/* two squares forward */
-	
+
 					if ((frrank == rank_2) &&
 						Vacant(gen_m.m_frsq + dv_1) &&
 						Vacant(gen_m.m_frsq + (2 * dv_1)))
@@ -3013,25 +4287,25 @@ for (gen_m.m_frsq = sq_a1; gen_m.m_frsq <= sq_h8; gen_m.m_frsq++)
 						*treeptr++ = gen_m;
 						tse.tse_count++;
 						};
-	
+
 					/* capture to left */
-	
+
 					if (frfile != file_a)
 						{
 						gen_m.m_tosq = gen_m.m_frsq + dv_5;
-						gen_m.m_tocp = board.rbv[gen_m.m_tosq];
+						gen_m.m_tocp = EPDboard.rbv[gen_m.m_tosq];
 						if (cv_c_cpv[gen_m.m_tocp] == inv_cv[ese.ese_actc])
 							if (frrank != rank_7)
 								{
 								/* non-promote */
-	
+
 								*treeptr++ = gen_m;
 								tse.tse_count++;
 								}
 							else
 								{
 								/* promote */
-	
+
 								for (gen_m.m_scmv = scmv_ppn;
 									gen_m.m_scmv <= scmv_ppq; gen_m.m_scmv++)
 									{
@@ -3041,25 +4315,25 @@ for (gen_m.m_frsq = sq_a1; gen_m.m_frsq <= sq_h8; gen_m.m_frsq++)
 								gen_m.m_scmv = scmv_reg;
 								};
 						};
-	
+
 					/* capture to right */
-	
+
 					if (frfile != file_h)
 						{
 						gen_m.m_tosq = gen_m.m_frsq + dv_4;
-						gen_m.m_tocp = board.rbv[gen_m.m_tosq];
+						gen_m.m_tocp = EPDboard.rbv[gen_m.m_tosq];
 						if (cv_c_cpv[gen_m.m_tocp] == inv_cv[ese.ese_actc])
 							if (frrank != rank_7)
 								{
 								/* non-promote */
-	
+
 								*treeptr++ = gen_m;
 								tse.tse_count++;
 								}
 							else
 								{
 								/* promote */
-	
+
 								for (gen_m.m_scmv = scmv_ppn;
 									gen_m.m_scmv <= scmv_ppq; gen_m.m_scmv++)
 									{
@@ -3069,13 +4343,13 @@ for (gen_m.m_frsq = sq_a1; gen_m.m_frsq <= sq_h8; gen_m.m_frsq++)
 								gen_m.m_scmv = scmv_reg;
 								};
 						};
-	
+
 					/* en passant */
-	
+
 					if ((frrank == rank_5) && (ese.ese_epsq != sq_nil))
 						{
 						/* capture to left */
-	
+
 						if ((frfile != file_a) &&
 							((gen_m.m_tosq = gen_m.m_frsq + dv_5) ==
 							ese.ese_epsq))
@@ -3086,9 +4360,9 @@ for (gen_m.m_frsq = sq_a1; gen_m.m_frsq <= sq_h8; gen_m.m_frsq++)
 							tse.tse_count++;
 							gen_m.m_scmv = scmv_reg;
 							};
-	
+
 						/* capture to right */
-	
+
 						if ((frfile != file_h) &&
 							((gen_m.m_tosq = gen_m.m_frsq + dv_4) ==
 							ese.ese_epsq))
@@ -3104,20 +4378,20 @@ for (gen_m.m_frsq = sq_a1; gen_m.m_frsq <= sq_h8; gen_m.m_frsq++)
 				else
 					{
 					/* one square non-capture */
-	
-					gen_m.m_tocp = board.rbv[gen_m.m_tosq = gen_m.m_frsq + dv_3];
+
+					gen_m.m_tocp = EPDboard.rbv[gen_m.m_tosq = gen_m.m_frsq + dv_3];
 					if (gen_m.m_tocp == cp_v0)
 						if (frrank != rank_2)
 							{
 							/* non-promotion */
-	
+
 							*treeptr++ = gen_m;
 							tse.tse_count++;
 							}
 						else
 							{
 							/* promotion */
-	
+
 							for (gen_m.m_scmv = scmv_ppn;
 								gen_m.m_scmv <= scmv_ppq; gen_m.m_scmv++)
 								{
@@ -3126,9 +4400,9 @@ for (gen_m.m_frsq = sq_a1; gen_m.m_frsq <= sq_h8; gen_m.m_frsq++)
 								}
 							gen_m.m_scmv = scmv_reg;
 							};
-	
+
 					/* two squares forward */
-	
+
 					if ((frrank == rank_7) &&
 						Vacant(gen_m.m_frsq + dv_3) &&
 						Vacant(gen_m.m_frsq + (2 * dv_3)))
@@ -3138,25 +4412,25 @@ for (gen_m.m_frsq = sq_a1; gen_m.m_frsq <= sq_h8; gen_m.m_frsq++)
 						*treeptr++ = gen_m;
 						tse.tse_count++;
 						};
-	
+
 					/* capture to left */
-	
+
 					if (frfile != file_a)
 						{
 						gen_m.m_tosq = gen_m.m_frsq + dv_6;
-						gen_m.m_tocp = board.rbv[gen_m.m_tosq];
+						gen_m.m_tocp = EPDboard.rbv[gen_m.m_tosq];
 						if (cv_c_cpv[gen_m.m_tocp] == inv_cv[ese.ese_actc])
 							if (frrank != rank_2)
 								{
 								/* non-promote */
-	
+
 								*treeptr++ = gen_m;
 								tse.tse_count++;
 								}
 							else
 								{
 								/* promote */
-	
+
 								for (gen_m.m_scmv = scmv_ppn;
 									gen_m.m_scmv <= scmv_ppq; gen_m.m_scmv++)
 									{
@@ -3166,25 +4440,25 @@ for (gen_m.m_frsq = sq_a1; gen_m.m_frsq <= sq_h8; gen_m.m_frsq++)
 								gen_m.m_scmv = scmv_reg;
 								};
 						};
-	
+
 					/* capture to right */
-	
+
 					if (frfile != file_h)
 						{
 						gen_m.m_tosq = gen_m.m_frsq + dv_7;
-						gen_m.m_tocp = board.rbv[gen_m.m_tosq];
+						gen_m.m_tocp = EPDboard.rbv[gen_m.m_tosq];
 						if (cv_c_cpv[gen_m.m_tocp] == inv_cv[ese.ese_actc])
 							if (frrank != rank_2)
 								{
 								/* non-promote */
-	
+
 								*treeptr++ = gen_m;
 								tse.tse_count++;
 								}
 							else
 								{
 								/* promote */
-	
+
 								for (gen_m.m_scmv = scmv_ppn;
 									gen_m.m_scmv <= scmv_ppq; gen_m.m_scmv++)
 									{
@@ -3194,13 +4468,13 @@ for (gen_m.m_frsq = sq_a1; gen_m.m_frsq <= sq_h8; gen_m.m_frsq++)
 								gen_m.m_scmv = scmv_reg;
 								};
 						};
-	
+
 					/* en passant */
-	
+
 					if ((frrank == rank_4) && (ese.ese_epsq != sq_nil))
 						{
 						/* capture to left */
-	
+
 						if ((frfile != file_a) &&
 							((gen_m.m_tosq = gen_m.m_frsq + dv_6) ==
 							ese.ese_epsq))
@@ -3211,9 +4485,9 @@ for (gen_m.m_frsq = sq_a1; gen_m.m_frsq <= sq_h8; gen_m.m_frsq++)
 							tse.tse_count++;
 							gen_m.m_scmv = scmv_reg;
 							};
-	
+
 						/* capture to right */
-	
+
 						if ((frfile != file_h) &&
 							((gen_m.m_tosq = gen_m.m_frsq + dv_7) ==
 							ese.ese_epsq))
@@ -3227,15 +4501,15 @@ for (gen_m.m_frsq = sq_a1; gen_m.m_frsq <= sq_h8; gen_m.m_frsq++)
 						};
 					};
 				break;
-	
+
 			case p_n:
 				/* knight moves: very simple */
-	
+
 				for (dx = dx_8; dx <= dx_f; dx++)
 					if (*(xsqptr0 + xdvv[dx]) == cp_v0)
 						{
 						gen_m.m_tocp =
-							board.rbv[gen_m.m_tosq = gen_m.m_frsq + dvv[dx]];
+							EPDboard.rbv[gen_m.m_tosq = gen_m.m_frsq + dvv[dx]];
 						if (cv_c_cpv[gen_m.m_tocp] != ese.ese_actc)
 							{
 							*treeptr++ = gen_m;
@@ -3243,10 +4517,10 @@ for (gen_m.m_frsq = sq_a1; gen_m.m_frsq <= sq_h8; gen_m.m_frsq++)
 							};
 						};
 				break;
-	
+
 			case p_b:
 				/* bishop moves: diagonal sweeper */
-	
+
 				for (dx = dx_4; dx <= dx_7; dx++)
 					{
 					dv = dvv[dx];
@@ -3254,7 +4528,7 @@ for (gen_m.m_frsq = sq_a1; gen_m.m_frsq <= sq_h8; gen_m.m_frsq++)
 					gen_m.m_tosq = gen_m.m_frsq;
 					xsqptr1 = xsqptr0;
 					while ((*(xsqptr1 += xdv) == cp_v0) &&
-						((gen_m.m_tocp = board.rbv[gen_m.m_tosq += dv]) ==
+						((gen_m.m_tocp = EPDboard.rbv[gen_m.m_tosq += dv]) ==
 						cp_v0))
 						{
 						*treeptr++ = gen_m;
@@ -3268,10 +4542,10 @@ for (gen_m.m_frsq = sq_a1; gen_m.m_frsq <= sq_h8; gen_m.m_frsq++)
 						};
 					};
 				break;
-	
+
 			case p_r:
 				/* rook moves: orthogonal sweeper */
-	
+
 				for (dx = dx_0; dx <= dx_3; dx++)
 					{
 					dv = dvv[dx];
@@ -3279,7 +4553,7 @@ for (gen_m.m_frsq = sq_a1; gen_m.m_frsq <= sq_h8; gen_m.m_frsq++)
 					gen_m.m_tosq = gen_m.m_frsq;
 					xsqptr1 = xsqptr0;
 					while ((*(xsqptr1 += xdv) == cp_v0) &&
-						((gen_m.m_tocp = board.rbv[gen_m.m_tosq += dv]) ==
+						((gen_m.m_tocp = EPDboard.rbv[gen_m.m_tosq += dv]) ==
 						cp_v0))
 						{
 						*treeptr++ = gen_m;
@@ -3293,10 +4567,10 @@ for (gen_m.m_frsq = sq_a1; gen_m.m_frsq <= sq_h8; gen_m.m_frsq++)
 						};
 					};
 				break;
-	
+
 			case p_q:
 				/* queen moves: orthogonal and diagonal sweeper */
-	
+
 				for (dx = dx_0; dx <= dx_7; dx++)
 					{
 					dv = dvv[dx];
@@ -3304,7 +4578,7 @@ for (gen_m.m_frsq = sq_a1; gen_m.m_frsq <= sq_h8; gen_m.m_frsq++)
 					gen_m.m_tosq = gen_m.m_frsq;
 					xsqptr1 = xsqptr0;
 					while ((*(xsqptr1 += xdv) == cp_v0) &&
-						((gen_m.m_tocp = board.rbv[gen_m.m_tosq += dv]) ==
+						((gen_m.m_tocp = EPDboard.rbv[gen_m.m_tosq += dv]) ==
 						cp_v0))
 						{
 						*treeptr++ = gen_m;
@@ -3318,24 +4592,24 @@ for (gen_m.m_frsq = sq_a1; gen_m.m_frsq <= sq_h8; gen_m.m_frsq++)
 						};
 					};
 				break;
-	
+
 			case p_k:
 				/* king moves: one square adjacent regular */
-	
+
 				for (dx = dx_0; dx <= dx_7; dx++)
 					if (*(xsqptr0 + xdvv[dx]) == cp_v0)
 						{
 						gen_m.m_tocp =
-							board.rbv[gen_m.m_tosq = gen_m.m_frsq + dvv[dx]];
+							EPDboard.rbv[gen_m.m_tosq = gen_m.m_frsq + dvv[dx]];
 						if (cv_c_cpv[gen_m.m_tocp] != ese.ese_actc)
 							{
 							*treeptr++ = gen_m;
 							tse.tse_count++;
 							};
 						};
-	
+
 				/* castling; process according to active color */
-	
+
 				if (ese.ese_actc == c_w)
 					{
 					if ((ese.ese_cast & cf_wk) && !EPDBlackAttacks(sq_e1) &&
@@ -3349,7 +4623,7 @@ for (gen_m.m_frsq = sq_a1; gen_m.m_frsq <= sq_h8; gen_m.m_frsq++)
 						tse.tse_count++;
 						gen_m.m_scmv = scmv_reg;
 						};
-	
+
 					if ((ese.ese_cast & cf_wq) && !EPDBlackAttacks(sq_e1) &&
 						Vacant(sq_d1) && !EPDBlackAttacks(sq_d1) &&
 						Vacant(sq_c1) && !EPDBlackAttacks(sq_c1) &&
@@ -3376,7 +4650,7 @@ for (gen_m.m_frsq = sq_a1; gen_m.m_frsq <= sq_h8; gen_m.m_frsq++)
 						tse.tse_count++;
 						gen_m.m_scmv = scmv_reg;
 						};
-	
+
 					if ((ese.ese_cast & cf_bq) && !EPDWhiteAttacks(sq_e8) &&
 						Vacant(sq_d8) && !EPDWhiteAttacks(sq_d8) &&
 						Vacant(sq_c8) && !EPDWhiteAttacks(sq_c8) &&
@@ -3456,7 +4730,7 @@ cpT ppcp;
 /* test for overflow */
 
 if (ply == (pmhL - 1))
-	EPDFatal("EPDExecute: overflow");
+	EPDFatal("EPDExecute: played move history overflow");
 
 /* save old environment and generation records */
 
@@ -3472,8 +4746,8 @@ mptr->m_flag |= mf_exec;
 switch (mptr->m_scmv)
 	{
 	case scmv_reg:
-		board.rbv[mptr->m_frsq] = cp_v0;
-		board.rbv[mptr->m_tosq] = mptr->m_frcp;
+		EPDboard.rbv[mptr->m_frsq] = cp_v0;
+		EPDboard.rbv[mptr->m_tosq] = mptr->m_frcp;
 		break;
 
 	case scmv_epc:
@@ -3481,42 +4755,42 @@ switch (mptr->m_scmv)
 			pcsq = mptr->m_tosq + dv_3;
 		else
 			pcsq = mptr->m_tosq + dv_1;
-		board.rbv[mptr->m_frsq] = cp_v0;
-		board.rbv[mptr->m_tosq] = mptr->m_frcp;
-		board.rbv[pcsq] = cp_v0;
+		EPDboard.rbv[mptr->m_frsq] = cp_v0;
+		EPDboard.rbv[mptr->m_tosq] = mptr->m_frcp;
+		EPDboard.rbv[pcsq] = cp_v0;
 		break;
 
 	case scmv_cks:
 		if (ese.ese_actc == c_w)
 			{
-			board.rbv[sq_e1] = cp_v0;
-			board.rbv[sq_g1] = cp_wk;
-			board.rbv[sq_h1] = cp_v0;
-			board.rbv[sq_f1] = cp_wr;
+			EPDboard.rbv[sq_e1] = cp_v0;
+			EPDboard.rbv[sq_g1] = cp_wk;
+			EPDboard.rbv[sq_h1] = cp_v0;
+			EPDboard.rbv[sq_f1] = cp_wr;
 			}
 		else
 			{
-			board.rbv[sq_e8] = cp_v0;
-			board.rbv[sq_g8] = cp_bk;
-			board.rbv[sq_h8] = cp_v0;
-			board.rbv[sq_f8] = cp_br;
+			EPDboard.rbv[sq_e8] = cp_v0;
+			EPDboard.rbv[sq_g8] = cp_bk;
+			EPDboard.rbv[sq_h8] = cp_v0;
+			EPDboard.rbv[sq_f8] = cp_br;
 			};
 		break;
 
 	case scmv_cqs:
 		if (ese.ese_actc == c_w)
 			{
-			board.rbv[sq_e1] = cp_v0;
-			board.rbv[sq_c1] = cp_wk;
-			board.rbv[sq_a1] = cp_v0;
-			board.rbv[sq_d1] = cp_wr;
+			EPDboard.rbv[sq_e1] = cp_v0;
+			EPDboard.rbv[sq_c1] = cp_wk;
+			EPDboard.rbv[sq_a1] = cp_v0;
+			EPDboard.rbv[sq_d1] = cp_wr;
 			}
 		else
 			{
-			board.rbv[sq_e8] = cp_v0;
-			board.rbv[sq_c8] = cp_bk;
-			board.rbv[sq_a8] = cp_v0;
-			board.rbv[sq_d8] = cp_br;
+			EPDboard.rbv[sq_e8] = cp_v0;
+			EPDboard.rbv[sq_c8] = cp_bk;
+			EPDboard.rbv[sq_a8] = cp_v0;
+			EPDboard.rbv[sq_d8] = cp_br;
 			};
 		break;
 
@@ -3525,8 +4799,8 @@ switch (mptr->m_scmv)
 			ppcp = cp_wn;
 		else
 			ppcp = cp_bn;
-		board.rbv[mptr->m_frsq] = cp_v0;
-		board.rbv[mptr->m_tosq] = ppcp;
+		EPDboard.rbv[mptr->m_frsq] = cp_v0;
+		EPDboard.rbv[mptr->m_tosq] = ppcp;
 		break;
 
 	case scmv_ppb:
@@ -3534,8 +4808,8 @@ switch (mptr->m_scmv)
 			ppcp = cp_wb;
 		else
 			ppcp = cp_bb;
-		board.rbv[mptr->m_frsq] = cp_v0;
-		board.rbv[mptr->m_tosq] = ppcp;
+		EPDboard.rbv[mptr->m_frsq] = cp_v0;
+		EPDboard.rbv[mptr->m_tosq] = ppcp;
 		break;
 
 	case scmv_ppr:
@@ -3543,8 +4817,8 @@ switch (mptr->m_scmv)
 			ppcp = cp_wr;
 		else
 			ppcp = cp_br;
-		board.rbv[mptr->m_frsq] = cp_v0;
-		board.rbv[mptr->m_tosq] = ppcp;
+		EPDboard.rbv[mptr->m_frsq] = cp_v0;
+		EPDboard.rbv[mptr->m_tosq] = ppcp;
 		break;
 
 	case scmv_ppq:
@@ -3552,8 +4826,8 @@ switch (mptr->m_scmv)
 			ppcp = cp_wq;
 		else
 			ppcp = cp_bq;
-		board.rbv[mptr->m_frsq] = cp_v0;
-		board.rbv[mptr->m_tosq] = ppcp;
+		EPDboard.rbv[mptr->m_frsq] = cp_v0;
+		EPDboard.rbv[mptr->m_tosq] = ppcp;
 		break;
 	};
 
@@ -3602,7 +4876,19 @@ else
 		ese.ese_epsq = mptr->m_frsq + dv_3;
 	else
 		ese.ese_epsq = sq_nil;
-		
+
+/* set values for updated environment record: halfmove clock */
+
+if ((mptr->m_tocp != cp_v0) || (cv_p_cpv[mptr->m_frcp] == p_p))
+	ese.ese_hmvc = 0;
+else
+	ese.ese_hmvc++;
+
+/* set values for updated environment record: fullmove number */
+
+if (ese.ese_actc == c_w)
+	ese.ese_fmvn++;
+
 /* set values for updated environment record: king locations */
 
 switch (mptr->m_frcp)
@@ -3664,50 +4950,50 @@ tse = *--tseptr;
 switch (mptr->m_scmv)
 	{
 	case scmv_reg:
-		board.rbv[mptr->m_tosq] = mptr->m_tocp;
-		board.rbv[mptr->m_frsq] = mptr->m_frcp;
+		EPDboard.rbv[mptr->m_tosq] = mptr->m_tocp;
+		EPDboard.rbv[mptr->m_frsq] = mptr->m_frcp;
 		break;
 
 	case scmv_epc:
-		board.rbv[mptr->m_tosq] = cp_v0;
-		board.rbv[mptr->m_frsq] = mptr->m_frcp;
+		EPDboard.rbv[mptr->m_tosq] = cp_v0;
+		EPDboard.rbv[mptr->m_frsq] = mptr->m_frcp;
 		if (ese.ese_actc == c_w)
-			board.rbv[mptr->m_tosq + dv_3] = cp_bp;
+			EPDboard.rbv[mptr->m_tosq + dv_3] = cp_bp;
 		else
-			board.rbv[mptr->m_tosq + dv_1] = cp_wp;
+			EPDboard.rbv[mptr->m_tosq + dv_1] = cp_wp;
 		break;
 
 	case scmv_cks:
 		if (ese.ese_actc == c_w)
 			{
-			board.rbv[sq_g1] = cp_v0;
-			board.rbv[sq_e1] = cp_wk;
-			board.rbv[sq_f1] = cp_v0;
-			board.rbv[sq_h1] = cp_wr;
+			EPDboard.rbv[sq_g1] = cp_v0;
+			EPDboard.rbv[sq_e1] = cp_wk;
+			EPDboard.rbv[sq_f1] = cp_v0;
+			EPDboard.rbv[sq_h1] = cp_wr;
 			}
 		else
 			{
-			board.rbv[sq_g8] = cp_v0;
-			board.rbv[sq_e8] = cp_bk;
-			board.rbv[sq_f8] = cp_v0;
-			board.rbv[sq_h8] = cp_br;
+			EPDboard.rbv[sq_g8] = cp_v0;
+			EPDboard.rbv[sq_e8] = cp_bk;
+			EPDboard.rbv[sq_f8] = cp_v0;
+			EPDboard.rbv[sq_h8] = cp_br;
 			}
 		break;
 
 	case scmv_cqs:
 		if (ese.ese_actc == c_w)
 			{
-			board.rbv[sq_c1] = cp_v0;
-			board.rbv[sq_e1] = cp_wk;
-			board.rbv[sq_d1] = cp_v0;
-			board.rbv[sq_a1] = cp_wr;
+			EPDboard.rbv[sq_c1] = cp_v0;
+			EPDboard.rbv[sq_e1] = cp_wk;
+			EPDboard.rbv[sq_d1] = cp_v0;
+			EPDboard.rbv[sq_a1] = cp_wr;
 			}
 		else
 			{
-			board.rbv[sq_c8] = cp_v0;
-			board.rbv[sq_e8] = cp_bk;
-			board.rbv[sq_d8] = cp_v0;
-			board.rbv[sq_a8] = cp_br;
+			EPDboard.rbv[sq_c8] = cp_v0;
+			EPDboard.rbv[sq_e8] = cp_bk;
+			EPDboard.rbv[sq_d8] = cp_v0;
+			EPDboard.rbv[sq_a8] = cp_br;
 			};
 		break;
 
@@ -3715,8 +5001,8 @@ switch (mptr->m_scmv)
 	case scmv_ppb:
 	case scmv_ppr:
 	case scmv_ppq:
-		board.rbv[mptr->m_tosq] = mptr->m_tocp;
-		board.rbv[mptr->m_frsq] = mptr->m_frcp;
+		EPDboard.rbv[mptr->m_tosq] = mptr->m_tocp;
+		EPDboard.rbv[mptr->m_frsq] = mptr->m_frcp;
 		break;
 	};
 
@@ -3743,6 +5029,40 @@ EPDRetractAll(void)
 {
 while (ply > 0)
 	EPDRetractUpdate();
+
+return;
+}
+
+/*--> EPDCollapse: collapse the played move stack */
+nonstatic
+void
+EPDCollapse(void)
+{
+/* process for nonzero ply */
+
+if (ply > 0)
+	{
+	/* reset the stack pointers */
+
+	treeptr = treebaseptr;
+	eseptr = esebaseptr;
+	tseptr = tsebaseptr;
+
+	/* reset the ply */
+
+	ply = 0;
+	};
+
+return;
+}
+
+/*--> EPDReset: collapse, then reset starting position */
+nonstatic
+void
+EPDReset(void)
+{
+EPDCollapse();
+EPDInitArray();
 
 return;
 }
@@ -3826,8 +5146,8 @@ for (i = 0; i < tse.tse_count; i++)
 	p = cv_p_cpv[mptr0->m_frcp];
 	if ((p != p_p) && (p != p_k))
 		{
-		rank = map_rank(mptr0->m_frsq);	
-		file = map_file(mptr0->m_frsq);	
+		rank = map_rank(mptr0->m_frsq);
+		file = map_file(mptr0->m_frsq);
 		tmc = rmc = fmc = 0;
 		mptr1 = tse.tse_base;
 		for (j = 0; j < tse.tse_count; j++)
@@ -3872,7 +5192,7 @@ static
 void
 EPDMLScanMate(void)
 {
-siT i, j, mate, draw, move;
+siT i, j, mateflag, drawflag, moveflag;
 mptrT mptr0, mptr1;
 
 /* scan */
@@ -3890,15 +5210,15 @@ for (i = 0; i < tse.tse_count; i++)
 	/* try to find at least one legal move */
 
 	mptr1 = tse.tse_base;
-	move = 0;
+	moveflag = 0;
 	j = 0;
-	while (!move && (j < tse.tse_count))
+	while (!moveflag && (j < tse.tse_count))
 		{
 		tse.tse_curr = mptr1;
 		EPDExecute(mptr1);
 		EPDRetract(mptr1);
 		if (!(mptr1->m_flag & mf_bust))
-			move = 1;
+			moveflag = 1;
 		else
 			{
 			mptr1++;
@@ -3908,25 +5228,25 @@ for (i = 0; i < tse.tse_count; i++)
 
 	/* any second level moves detected? */
 
-	if (move != 0)
+	if (moveflag != 0)
 		{
 		/* not a mate */
 
-		mate = draw = 0;
+		mateflag = drawflag = 0;
 		}
 	else
 		{
 		/* a mating move is detected */
 
-		if (EPDAttack(inv_cv[ese.ese_actc], ese.ese_ksqv[ese.ese_actc]))
+		if (EPDTestAKIC())
 			{
-			mate = 1;
-			draw = 0;
+			mateflag = 1;
+			drawflag = 0;
 			}
 		else
 			{
-			draw = 1;
-			mate = 0;
+			drawflag = 1;
+			mateflag = 0;
 			};
 		};
 
@@ -3936,10 +5256,10 @@ for (i = 0; i < tse.tse_count; i++)
 
 	/* now back at lower ply */
 
-	if (mate)
+	if (mateflag)
 		mptr0->m_flag |= mf_chmt;
 	else
-		if (draw)
+		if (drawflag)
 			mptr0->m_flag |= (mf_draw | mf_stmt);
 
 	/* next move */
@@ -3984,6 +5304,25 @@ EPDMLScanMate();
 return;
 }
 
+/*--> EPDFetchMoveCount: fetch the move count */
+nonstatic
+siT
+EPDFetchMoveCount(void)
+{
+
+return (tse.tse_count);
+}
+
+/*--> EPDFetchMove: fetch the nth move */
+nonstatic
+mptrT
+EPDFetchMove(siT index)
+{
+ret_m = *(tse.tse_base + index);
+
+return (&ret_m);
+}
+
 /*--> EPDSetMoveFlags: set move flags from current generation set */
 nonstatic
 void
@@ -3999,7 +5338,7 @@ return;
 }
 
 /*--> EPDSortSAN: ASCII SAN sort move list */
-static
+nonstatic
 void
 EPDSortSAN(void)
 {
@@ -4113,7 +5452,7 @@ while (eovptr != NULL)
 		if (strcmp(eovptr->eov_str, san) != 0)
 			EPDReplaceEOVStr(eovptr, san);
 		};
-	
+
 	eovptr = eovptr->eov_next;
 	};
 
@@ -4144,11 +5483,11 @@ while (eovptr != NULL)
 		EPDSANEncode(&m, san);
 		if (strcmp(eovptr->eov_str, san) != 0)
 			EPDReplaceEOVStr(eovptr, san);
-		
+
 		tse.tse_curr = EPDFindMove(mptr);
 		if (tse.tse_curr == NULL)
 			EPDFatal("EPDRepairVariation: can't find move");
-		
+
 		EPDExecute(mptr);
 		EPDGenMoves();
 
@@ -4156,7 +5495,7 @@ while (eovptr != NULL)
 		}
 	};
 
-/* retract move sequence */
+/* retract any executed moves */
 
 EPDRetractAll();
 
@@ -4204,13 +5543,13 @@ if (flag)
 /* scan entire file */
 
 while (flag && (fgets(ev, (epdL - 1), fptr0) != NULL))
-	{	
+	{
 	/* decode a record */
-	
+
 	epdptr = EPDDecode(ev);
-	
+
 	/* check record decode validity */
-	
+
 	if (epdptr == NULL)
 		flag = 0;
 	else
@@ -4224,20 +5563,16 @@ while (flag && (fgets(ev, (epdL - 1), fptr0) != NULL))
 			EPDReleaseEOP(eopptr);
 			};
 
-		/* normalize the record */
-		
-		EPDNormalize(epdptr);
-		
-		/* encode the normalized record */
-		
+		/* encode the record (includes normalization) */
+
 		eptr = EPDEncode(epdptr);
-	
+
 		/* release EPD structure */
-		
+
 		EPDReleaseEPD(epdptr);
-		
+
 		/* check result */
-		
+
 		if (eptr == NULL)
 			flag = 0;
 		else
@@ -4261,60 +5596,68 @@ return (flag);
 
 /*--> EPDRepairEPD: repair an EPD structure */
 nonstatic
-void
+siT
 EPDRepairEPD(epdptrT epdptr)
 {
+siT flag;
 eopptrT eopptr;
+
+/* set default return value: repair successful */
+
+flag = 1;
 
 /* set up the position as the current position */
 
 EPDRealize(epdptr);
 
-/* generate moves and notation */
+/* check legality */
 
-EPDGenMoves();
+if (!EPDIsLegal())
+	flag = 0;
+else
+	{
+	/* generate moves and notation */
 
-/* repair moveset "am" */
+	EPDGenMoves();
 
-eopptr = EPDLocateEOP(epdptr, epdsostrv[epdso_am]);
-if (eopptr != NULL)
-	EPDRepairMoveset(eopptr);
+	/* repair moveset "am" */
 
-/* repair moveset "bm" */
+	eopptr = EPDLocateEOP(epdptr, epdsostrv[epdso_am]);
+	if (eopptr != NULL)
+		EPDRepairMoveset(eopptr);
 
-eopptr = EPDLocateEOP(epdptr, epdsostrv[epdso_bm]);
-if (eopptr != NULL)
-	EPDRepairMoveset(eopptr);
+	/* repair moveset "bm" */
 
-/* repair move "pm" */
+	eopptr = EPDLocateEOP(epdptr, epdsostrv[epdso_bm]);
+	if (eopptr != NULL)
+		EPDRepairMoveset(eopptr);
 
-eopptr = EPDLocateEOP(epdptr, epdsostrv[epdso_pm]);
-if (eopptr != NULL)
-	EPDRepairMove(eopptr);
+	/* repair move "pm" */
 
-/* repair variation "pv" */
+	eopptr = EPDLocateEOP(epdptr, epdsostrv[epdso_pm]);
+	if (eopptr != NULL)
+		EPDRepairMove(eopptr);
 
-eopptr = EPDLocateEOP(epdptr, epdsostrv[epdso_pv]);
-if (eopptr != NULL)
-	EPDRepairVariation(eopptr);
+	/* repair variation "pv" */
 
-/* repair move "sm" */
+	eopptr = EPDLocateEOP(epdptr, epdsostrv[epdso_pv]);
+	if (eopptr != NULL)
+		EPDRepairVariation(eopptr);
 
-eopptr = EPDLocateEOP(epdptr, epdsostrv[epdso_sm]);
-if (eopptr != NULL)
-	EPDRepairMove(eopptr);
+	/* repair move "sm" */
 
-/* repair variation "sv" */
+	eopptr = EPDLocateEOP(epdptr, epdsostrv[epdso_sm]);
+	if (eopptr != NULL)
+		EPDRepairMove(eopptr);
 
-eopptr = EPDLocateEOP(epdptr, epdsostrv[epdso_sv]);
-if (eopptr != NULL)
-	EPDRepairVariation(eopptr);
+	/* repair variation "sv" */
 
-/* normalize the record */
+	eopptr = EPDLocateEOP(epdptr, epdsostrv[epdso_sv]);
+	if (eopptr != NULL)
+		EPDRepairVariation(eopptr);
+	};
 
-EPDNormalize(epdptr);
-		
-return;
+return (flag);
 }
 
 /*--> EPDRepairFile: repair input file to output file */
@@ -4357,38 +5700,43 @@ if (flag)
 /* scan entire file */
 
 while (flag && (fgets(ev, (epdL - 1), fptr0) != NULL))
-	{	
+	{
 	/* decode a record */
-	
+
 	epdptr = EPDDecode(ev);
-	
+
 	/* check record decode validity */
-	
+
 	if (epdptr == NULL)
 		flag = 0;
 	else
 		{
 		/* make repairs */
 
-		EPDRepairEPD(epdptr);
-		
-		/* encode the normalized record */
-		
-		eptr = EPDEncode(epdptr);
-	
-		/* release EPD structure */
-		
-		EPDReleaseEPD(epdptr);
-		
-		/* check result */
-		
-		if (eptr == NULL)
-			flag = 0;
-		else
+		flag = EPDRepairEPD(epdptr);
+
+		/* continue if repair okay */
+
+		if (flag)
 			{
-			fprintf(fptr1, "%s\n", eptr);
-			EPDMemoryFree(eptr);
+			/* encode the normalized record */
+
+			eptr = EPDEncode(epdptr);
+
+			/* check result */
+
+			if (eptr == NULL)
+				flag = 0;
+			else
+				{
+				fprintf(fptr1, "%s\n", eptr);
+				EPDMemoryFree(eptr);
+				};
 			};
+
+		/* release EPD structure */
+
+		EPDReleaseEPD(epdptr);
 		};
 	};
 
@@ -4445,29 +5793,25 @@ if (flag)
 while (flag && (fgets(ev, (epdL - 1), fptr0) != NULL))
 	{
 	/* decode a record */
-	
+
 	epdptr = EPDDecode(ev);
-	
+
 	/* check record decode validity */
-	
+
 	if (epdptr == NULL)
 		flag = 0;
 	else
 		{
-		/* normalize the record */
-		
-		EPDNormalize(epdptr);
+		/* encode the record (this includes normalization) */
 
-		/* encode the normalized record */
-		
 		eptr = EPDEncode(epdptr);
-	
+
 		/* release EPD structure */
-		
+
 		EPDReleaseEPD(epdptr);
-		
+
 		/* check result */
-		
+
 		if (eptr == NULL)
 			flag = 0;
 		else
@@ -4500,7 +5844,7 @@ siT am_flag, bm_flag;
 siT solved;
 fptrT fptr;
 epdptrT epdptr;
-eopptrT am_eopptr, bm_eopptr, acn_eopptr, acs_eopptr;
+eopptrT am_eopptr, bm_eopptr, acd_eopptr, acn_eopptr, acs_eopptr;
 eopptrT sm_eopptr, sv_eopptr, pm_eopptr, pv_eopptr;
 charptrT result;
 char ev[epdL];
@@ -4515,8 +5859,9 @@ fptr = NULL;
 
 /* preset the summary structure */
 
-bmsptr->bms_acnflag = bmsptr->bms_acsflag = 1;
+bmsptr->bms_acdflag = bmsptr->bms_acnflag = bmsptr->bms_acsflag = 1;
 bmsptr->bms_total = bmsptr->bms_solve = bmsptr->bms_unsol = 0;
+bmsptr->bms_total_acd = bmsptr->bms_solve_acd = bmsptr->bms_unsol_acd = 0;
 bmsptr->bms_total_acn = bmsptr->bms_solve_acn = bmsptr->bms_unsol_acn = 0;
 bmsptr->bms_total_acs = bmsptr->bms_solve_acs = bmsptr->bms_unsol_acs = 0;
 
@@ -4534,32 +5879,33 @@ if (flag)
 while (flag && (fgets(ev, (epdL - 1), fptr) != NULL))
 	{
 	/* decode a record */
-	
+
 	epdptr = EPDDecode(ev);
-	
+
 	/* check record decode validity */
-	
+
 	if (epdptr == NULL)
 		flag = 0;
 	else
 		{
 		/* clear the move result pointer */
-		
+
 		result = NULL;
 
 		/* initialize various operation pointers */
-		
-		am_eopptr = EPDLocateEOP(epdptr, epdsostrv[epdso_am]);
-		bm_eopptr = EPDLocateEOP(epdptr, epdsostrv[epdso_bm]);
-		acn_eopptr = EPDLocateEOP(epdptr, epdsostrv[epdso_acn]);
-		acs_eopptr = EPDLocateEOP(epdptr, epdsostrv[epdso_acs]);
-		sm_eopptr = EPDLocateEOP(epdptr, epdsostrv[epdso_sm]);
-		sv_eopptr = EPDLocateEOP(epdptr, epdsostrv[epdso_sv]);
-		pm_eopptr = EPDLocateEOP(epdptr, epdsostrv[epdso_pm]);
-		pv_eopptr = EPDLocateEOP(epdptr, epdsostrv[epdso_pv]);
+
+		am_eopptr = EPDLocateEOPCode(epdptr, epdso_am);
+		bm_eopptr = EPDLocateEOPCode(epdptr, epdso_bm);
+		acd_eopptr = EPDLocateEOPCode(epdptr, epdso_acd);
+		acn_eopptr = EPDLocateEOPCode(epdptr, epdso_acn);
+		acs_eopptr = EPDLocateEOPCode(epdptr, epdso_acs);
+		sm_eopptr = EPDLocateEOPCode(epdptr, epdso_sm);
+		sv_eopptr = EPDLocateEOPCode(epdptr, epdso_sv);
+		pm_eopptr = EPDLocateEOPCode(epdptr, epdso_pm);
+		pv_eopptr = EPDLocateEOPCode(epdptr, epdso_pv);
 
 		/* test for am/bm existence */
-		
+
 		if ((am_eopptr == NULL) && (bm_eopptr == NULL))
 			skipflag = 1;
 		else
@@ -4600,7 +5946,7 @@ while (flag && (fgets(ev, (epdL - 1), fptr) != NULL))
 				am_flag = 1;
 			else
 				am_flag = 0;
-				
+
 			/* check for clearance with the bm set */
 
 			if ((bm_eopptr == NULL) ||
@@ -4618,22 +5964,41 @@ while (flag && (fgets(ev, (epdL - 1), fptr) != NULL))
 
 		if (!skipflag)
 			{
+			/* clear acd flag if acd is missing */
+
+			if ((acd_eopptr == NULL) || (acd_eopptr->eop_headeov == NULL))
+				bmsptr->bms_acdflag = 0;
+
 			/* clear acn flag if acn is missing */
-			
+
 			if ((acn_eopptr == NULL) || (acn_eopptr->eop_headeov == NULL))
 				bmsptr->bms_acnflag = 0;
 
 			/* clear acs flag if acs is missing */
-			
+
 			if ((acs_eopptr == NULL) || (acs_eopptr->eop_headeov == NULL))
 				bmsptr->bms_acsflag = 0;
 
 			/* increment record count */
 
 			bmsptr->bms_total++;
-			
-			/* fold in acn and acs values */
-			
+
+			/* fold in acd value */
+
+			if (bmsptr->bms_acdflag)
+				{
+				bmsptr->bms_total_acd +=
+					atoi(acd_eopptr->eop_headeov->eov_str);
+				if (solved)
+					bmsptr->bms_solve_acd +=
+						atoi(acd_eopptr->eop_headeov->eov_str);
+				else
+					bmsptr->bms_unsol_acd +=
+						atoi(acd_eopptr->eop_headeov->eov_str);
+				};
+
+			/* fold in acn value */
+
 			if (bmsptr->bms_acnflag)
 				{
 				bmsptr->bms_total_acn +=
@@ -4645,6 +6010,8 @@ while (flag && (fgets(ev, (epdL - 1), fptr) != NULL))
 					bmsptr->bms_unsol_acn +=
 						atoi(acn_eopptr->eop_headeov->eov_str);
 				};
+
+			/* fold in acs value */
 
 			if (bmsptr->bms_acsflag)
 				{
@@ -4665,9 +6032,9 @@ while (flag && (fgets(ev, (epdL - 1), fptr) != NULL))
 			else
 				bmsptr->bms_unsol++;
 			};
-		
+
 		/* release EPD structure */
-		
+
 		EPDReleaseEPD(epdptr);
 		};
 	};
@@ -4680,8 +6047,8 @@ if (fptr != NULL)
 return (flag);
 }
 
-/*--> EPDEnumerate: enumration of current position */
-nonstatic
+/*--> EPDEnumerate: enumeration of current position */
+static
 liT
 EPDEnumerate(siT depth)
 {
@@ -4689,26 +6056,1697 @@ liT total;
 mptrT mptr;
 siT i;
 
-/* this routine is for testing purposes */
+/* enumerate current position to the indicated depth */
 
 if (depth == 0)
 	total = 1;
 else
 	{
 	total = 0;
-	EPDGenMoves();
+	EPDGeneratePL();
 	mptr = tse.tse_base;
 	for (i = 0; i < tse.tse_count; i++)
 		{
 		tse.tse_curr = mptr;
 		EPDExecute(mptr);
-		total += EPDEnumerate(depth - 1); 
+		if (!(mptr->m_flag & mf_bust))
+			total += EPDEnumerate(depth - 1);
 		EPDRetract(mptr);
 		mptr++;
 		};
 	};
 
 return (total);
+}
+
+/*--> EPDEnumerateFile: enumerate input file to output file */
+nonstatic
+siT
+EPDEnumerateFile(siT depth, charptrT fn0, charptrT fn1, liptrT totalptr)
+{
+siT flag;
+fptrT fptr0, fptr1;
+time_t start_time;
+liT acn, acs;
+epdptrT epdptr;
+charptrT eptr;
+char ev[epdL];
+
+/* set default return value (success) */
+
+flag = 1;
+
+/* clear the grand total */
+
+*totalptr = 0;
+
+/* clear the input and output file pointers */
+
+fptr0 = fptr1 = NULL;
+
+/* open the input file for reading */
+
+if (flag)
+	{
+	fptr0 = fopen(fn0, "r");
+	if (fptr0 == NULL)
+		flag = 0;
+	};
+
+/* open the output file for writing */
+
+if (flag)
+	{
+	fptr1 = fopen(fn1, "w");
+	if (fptr1 == NULL)
+		flag = 0;
+	};
+
+/* scan entire file */
+
+while (flag && (fgets(ev, (epdL - 1), fptr0) != NULL))
+	{
+	/* decode a record */
+
+	epdptr = EPDDecode(ev);
+
+	/* check record decode validity */
+
+	if (epdptr == NULL)
+		flag = 0;
+	else
+		{
+		/* set up the current position */
+
+		EPDRealize(epdptr);
+
+		/* check legality */
+
+		if (!EPDIsLegal())
+			flag = 0;
+		else
+			{
+			/* perform enumeration */
+
+			start_time = time(NULL);
+			acn = EPDEnumerate(depth);
+			acs = time(NULL) - start_time;
+
+			/* update the grand total */
+
+			*totalptr += acn;
+
+			/* record the updated field: acd */
+
+			EPDAddOpInt(epdptr, epdso_acd, depth);
+
+			/* record the updated field: acn */
+
+			EPDAddOpInt(epdptr, epdso_acn, acn);
+
+			/* record the updated field: acs */
+
+			EPDAddOpInt(epdptr, epdso_acs, acs);
+
+			/* encode the record */
+
+			EPDNormalize(epdptr);
+			eptr = EPDEncode(epdptr);
+
+			/* check result */
+
+			if (eptr == NULL)
+				flag = 0;
+			else
+				{
+				fprintf(fptr1, "%s\n", eptr);
+				EPDMemoryFree(eptr);
+				};
+			};
+
+		/* release EPD structure */
+
+		EPDReleaseEPD(epdptr);
+		};
+	};
+
+/* close input and output files */
+
+if (fptr0 != NULL)
+	fclose(fptr0);
+
+if (fptr1 != NULL)
+	fclose(fptr1);
+
+return (flag);
+}
+
+/*--> EPDMoveList: generate a string representation of a move list */
+nonstatic
+charptrT
+EPDMoveList(gamptrT gamptr)
+{
+charptrT s;
+charptrT b;
+siT count;
+gpmptrT gpmptr;
+mT m;
+siT sn;
+cT sc, c;
+siT pi, index, limit, length, n, column;
+sanT san;
+char tv[tL];
+
+/* calculate upper bound on storage requirement */
+
+count = EPDGamePlyCount(gamptr);
+limit = (((count + 1) / 2) * 5) + 4 + (count * 8) + 8 + 1;
+b = (charptrT) EPDMemoryGrab(limit);
+
+/* set the inital played move pointer */
+
+gpmptr = gamptr->gam_headgpm;
+
+/* set up starting color and starting move number */
+
+if (count == 0)
+	sc = c_w;
+else
+	sc = gpmptr->gpm_ese.ese_actc;
+
+if (count == 0)
+	sn = 1;
+else
+	sn = gpmptr->gpm_ese.ese_fmvn;
+
+/* more set up */
+
+pi = 0;
+index = 0;
+c = sc;
+n = sn;
+column = 0;
+
+/* loop through moves */
+
+for (pi = 0; pi < count; pi++)
+	{
+	/* handle move number indication */
+
+	if ((c == c_w) || ((pi == 0) && (sc == c_b)))
+		{
+		sprintf(tv, "%hd.", n);
+		length = strlen(tv);
+
+		if ((column + 1 + length) >= columnL)
+			{
+			strcpy((b + index), "\n");
+			index++;
+			column = 0;
+			};
+
+		if (column != 0)
+			{
+			strcpy((b + index), " ");
+			index++;
+			column++;
+			};
+
+		strcpy((b + index), tv);
+		index += length;
+		column += length;
+
+		n++;
+		};
+
+	/* handle ellipsis */
+
+	if ((pi == 0) && (sc == c_b))
+		{
+		sprintf(tv, "...");
+		length = strlen(tv);
+
+		if ((column + 1 + length) >= columnL)
+			{
+			strcpy((b + index), "\n");
+			index++;
+			column = 0;
+			};
+
+		if (column != 0)
+			{
+			strcpy((b + index), " ");
+			index++;
+			column++;
+			};
+
+		strcpy((b + index), tv);
+		index += length;
+		column += length;
+		};
+
+	/* handle move */
+
+	m = gpmptr->gpm_m;
+	EPDSANEncode(&m, san);
+	length = strlen(san);
+
+	if ((column + 1 + length) >= columnL)
+		{
+		strcpy((b + index), "\n");
+		index++;
+		column = 0;
+		};
+
+	if (column != 0)
+		{
+		strcpy((b + index), " ");
+		index++;
+		column++;
+		};
+
+	strcpy((b + index), san);
+	index += length;
+	column += length;
+
+	gpmptr = gpmptr->gpm_next;
+	c = inv_cv[c];
+	};
+
+/* append game termination marker */
+
+sprintf(tv, "%s", gtimstrv[gamptr->gam_gtim]);
+length = strlen(tv);
+
+if ((column + 1 + length) >= columnL)
+	{
+	strcpy((b + index), "\n");
+	index++;
+	column = 0;
+	};
+
+if (column != 0)
+	{
+	strcpy((b + index), " ");
+	index++;
+	column++;
+	};
+
+strcpy((b + index), tv);
+index += length;
+column += length;
+
+/* closing newline */
+
+if (column != 0)
+	strcpy((b + index), "\n");
+
+/* allocate and copy to result */
+
+s = EPDStringGrab(b);
+EPDMemoryFree(b);
+
+return (s);
+}
+
+/*--> EPDPGNFetchTagIndex: return a PGN Seven Tag Roster tag index */
+nonstatic
+pgnstrT
+EPDPGNFetchTagIndex(charptrT s)
+{
+pgnstrT pgnstr;
+pgnstrT rstr;
+
+pgnstr = pgnstr_nil;
+rstr = 0;
+while ((pgnstr == pgnstr_nil) && (rstr < pgnstrL))
+	if (strcmp(s, EPDPGNFetchTagName(rstr)) == 0)
+		pgnstr = rstr;
+	else
+		rstr++;
+
+return (pgnstr);
+}
+
+/*--> EPDPGNFetchTagName: return a PGN Seven Tag Roster tag name */
+nonstatic
+charptrT
+EPDPGNFetchTagName(pgnstrT pgnstr)
+{
+
+return (pgnstrstrv[pgnstr]);
+}
+
+/*--> EPDPGNGetSTR: return a string from the Seven Tag Roster */
+nonstatic
+charptrT
+EPDPGNGetSTR(gamptrT gamptr, pgnstrT pgnstr)
+{
+
+return (gamptr->gam_strv[pgnstr]);
+}
+
+/*--> EPDPGNPutSTR: enter a string into the Seven Tag Roster */
+nonstatic
+void
+EPDPGNPutSTR(gamptrT gamptr, pgnstrT pgnstr, charptrT s)
+{
+if (gamptr->gam_strv[pgnstr] != NULL)
+	EPDMemoryFree(gamptr->gam_strv[pgnstr]);
+
+gamptr->gam_strv[pgnstr] = EPDStringGrab(s);
+
+return;
+}
+
+/*--> EPDPGNGenSTR: return a string with the entire STR */
+nonstatic
+charptrT
+EPDPGNGenSTR(gamptrT gamptr)
+{
+charptrT s;
+pgnstrT pgnstr;
+char tv[tL];
+
+s = EPDStringGrab("");
+
+for (pgnstr = 0; pgnstr < pgnstrL; pgnstr++)
+	{
+	sprintf(tv, "[%s \"%s\"]\n",
+		pgnstrstrv[pgnstr], gamptr->gam_strv[pgnstr]);
+	s = EPDStringAppendStr(s, tv);
+	};
+
+return (s);
+}
+
+/*--> EPDPGNHistory: generate a string for PGN version of history */
+nonstatic
+charptrT
+EPDPGNHistory(gamptrT gamptr)
+{
+charptrT s;
+charptrT ms;
+
+s = EPDPGNGenSTR(gamptr);
+s = EPDStringAppendChar(s, '\n');
+ms = EPDMoveList(gamptr);
+s = EPDStringAppendStr(s, ms);
+EPDMemoryFree(ms);
+s = EPDStringAppendChar(s, '\n');
+
+return (s);
+}
+
+/*--> EPDCopyInPTP: copy STR into an EDP structure (ptp operation) */
+nonstatic
+void
+EPDCopyInPTP(gamptrT gamptr, epdptrT epdptr)
+{
+eopptrT eopptr;
+pgnstrT pgnstr;
+
+if (epdptr != NULL)
+	{
+	EPDDropIfLocEOPCode(epdptr, epdso_ptp);
+	eopptr = EPDCreateEOPCode(epdso_ptp);
+
+	for (pgnstr = 0; pgnstr < pgnstrL; pgnstr++)
+		{
+		EPDAppendEOV(eopptr,
+			EPDCreateEOVSym(EPDPGNFetchTagName(pgnstr)));
+		EPDAppendEOV(eopptr,
+			EPDCreateEOVStr(EPDPGNGetSTR(gamptr, pgnstr)));
+		};
+
+	EPDAppendEOP(epdptr, eopptr);
+	};
+
+return;
+}
+
+/*--> EPDCopyOutPTP: copy STR from an EDP structure (ptp operation) */
+nonstatic
+void
+EPDCopyOutPTP(gamptrT gamptr, epdptrT epdptr)
+{
+eopptrT eopptr;
+eovptrT eovptr;
+pgnstrT pgnstr;
+
+if (epdptr != NULL)
+	{
+	eopptr = EPDLocateEOPCode(epdptr, epdso_ptp);
+	eovptr = eopptr->eop_headeov;
+	while ((eovptr != NULL) && (eovptr->eov_next != NULL))
+		{
+		pgnstr = EPDPGNFetchTagIndex(eovptr->eov_str);
+		if (pgnstr != pgnstr_nil)
+			EPDPGNPutSTR(gamptr, pgnstr, eovptr->eov_next->eov_str);
+		eovptr = eovptr->eov_next->eov_next;
+		};
+	};
+
+return;
+}
+
+/*--> EPDFetchRefcomStr: return  pointer of indicated refcom string */
+nonstatic
+charptrT
+EPDFetchRefcomStr(refcomT refcom)
+{
+
+return (refcomstrv[refcom]);
+}
+
+/*--> EPDFetchRefreqStr: return  pointer of indicated refreq string */
+nonstatic
+charptrT
+EPDFetchRefreqStr(refreqT refreq)
+{
+
+return (refreqstrv[refreq]);
+}
+
+/*--> EPDFetchRefcomIndex: return a referee command index */
+nonstatic
+refcomT
+EPDFetchRefcomIndex(charptrT s)
+{
+refcomT refcom;
+refcomT rcom;
+
+refcom = refcom_nil;
+rcom = 0;
+while ((refcom == refcom_nil) && (rcom < refcomL))
+	if (strcmp(s, EPDFetchRefcomStr(rcom)) == 0)
+		refcom = rcom;
+	else
+		rcom++;
+
+return (refcom);
+}
+
+/*--> EPDFetchRefreqIndex: return a referee request index */
+nonstatic
+refreqT
+EPDFetchRefreqIndex(charptrT s)
+{
+refreqT refreq;
+refreqT rreq;
+
+refreq = refreq_nil;
+rreq = 0;
+while ((refreq == refreq_nil) && (rreq < refreqL))
+	if (strcmp(s, EPDFetchRefreqStr(rreq)) == 0)
+		refreq = rreq;
+	else
+		rreq++;
+
+return (refreq);
+}
+
+/*--> EPDExtractRefcomIndex: extract a referee command index */
+nonstatic
+refreqT
+EPDExtractRefcomIndex(epdptrT epdptr)
+{
+refcomT refcom;
+eopptrT eopptr;
+eovptrT eovptr;
+
+/* set default return value */
+
+refcom = refreq_nil;
+
+if (epdptr != NULL)
+	if ((eopptr = EPDLocateEOPCode(epdptr, epdso_refcom)) != NULL)
+		if ((eovptr = eopptr->eop_headeov) != NULL)
+			refcom = EPDFetchRefcomIndex(eovptr->eov_str);
+
+return (refcom);
+}
+
+/*--> EPDExtractRefreqIndex: extract a referee request index */
+nonstatic
+refreqT
+EPDExtractRefreqIndex(epdptrT epdptr)
+{
+refreqT refreq;
+eopptrT eopptr;
+eovptrT eovptr;
+
+/* set default return value */
+
+refreq = refreq_nil;
+
+if (epdptr != NULL)
+	if ((eopptr = EPDLocateEOPCode(epdptr, epdso_refreq)) != NULL)
+		if ((eovptr = eopptr->eop_headeov) != NULL)
+			refreq = EPDFetchRefreqIndex(eovptr->eov_str);
+
+return (refreq);
+}
+
+/*--> EPDComm: slave to Duplex autoplay program */
+nonstatic
+siT
+EPDComm(refintptrT refintptr, charptrT pipebase)
+{
+siT flag;
+siT done;
+siT flow;
+refcomT refcom;
+charptrT pfnv[flowL];
+fptrT pfptrv[flowL];
+epdptrT epdptr0, epdptr1;
+charptrT eptr;
+char ev[epdL];
+
+/* set default result: success */
+
+flag = 1;
+
+/* set up the EPD Kit for a new game */
+
+EPDInitArray();
+
+/* generate pipe file names and clear their pointers */
+
+for (flow = 0; flow < flowL; flow++)
+	{
+	pfnv[flow] = EPDStringGrab(pipebase);
+	pfnv[flow] = EPDStringAppendStr(pfnv[flow], ".pc");
+	pfnv[flow] = EPDStringAppendChar(pfnv[flow], (flow + '0'));
+	pfptrv[flow] = NULL;
+	};
+
+/* pipe files already created by Duplex, attempt open */
+
+flow = 0;
+while (flag && (flow < flowL))
+	{
+	pfptrv[flow] = fopen(pfnv[flow], "a+");
+	if (pfptrv[flow] == NULL)
+		flag = 0;
+	else
+		flow++;
+	};
+
+/* sign on to Duplex */
+
+if (flag)
+	{
+	epdptr0 = EPDGetCurrentPosition();
+	EPDAddOpSym(epdptr0, epdso_refreq, refreqstrv[refreq_sign_on]);
+	eptr = EPDEncode(epdptr0);
+	EPDReleaseEPD(epdptr0);
+	fprintf(pfptrv[0], "%s\n", eptr);
+	fflush(pfptrv[0]);
+	EPDMemoryFree(eptr);
+	};
+
+/* run event cycle loop */
+
+done = 0;
+while (flag && !done)
+	{
+	/* read an incoming EPD message */
+
+	if (fgets(ev, (epdL - 1), pfptrv[1]) == NULL)
+		flag = 0;
+	else
+		{
+		/* decode the message */
+
+		epdptr1 = EPDDecode(ev);
+		if ((epdptr1 == NULL) ||
+			((refcom = EPDExtractRefcomIndex(epdptr1)) == refcom_nil))
+			flag = 0;
+		else
+			{
+			/* send the message to the callback routine */
+
+			epdptr0 = (*refintptr)(epdptr1, &flag);
+
+			/* release input storage */
+
+			EPDReleaseEPD(epdptr1);
+
+			/* construct and transmit output string */
+
+			if (flag && (epdptr0 != NULL))
+				{
+				eptr = EPDEncode(epdptr0);
+				fprintf(pfptrv[0], "%s\n", eptr);
+				fflush(pfptrv[0]);
+				EPDMemoryFree(eptr);
+				};
+
+			/* release output storage */
+
+			if (epdptr0 != NULL)
+				EPDReleaseEPD(epdptr0);
+
+			/* set the completion flag on disconnect */
+
+			if (flag && !done && (refcom == refcom_disconnect))
+				done = 1;
+			};
+		};
+	};
+
+/* close pipes and release pipe file names */
+
+for (flow = 0; flow < flowL; flow++)
+	{
+	if (pfptrv[flow] != NULL)
+		fclose(pfptrv[flow]);
+	EPDMemoryFree(pfnv[flow]);
+	};
+
+return (flag);
+}
+
+/*--> EPDTBClassFileName: return an allocated class name */
+static
+charptrT
+EPDTBClassFileName(charptrT dirstr, tbidT tbid, cT c)
+{
+charptrT name;
+
+#if (!defined(__MWERKS__))
+if (dirstr == NULL)
+	name = EPDStringGrab("");
+else
+	{
+	name = EPDStringGrab(dirstr);
+	name = EPDStringAppendChar(name, '/');
+	};
+#else
+if (dirstr == NULL)
+	name = EPDStringGrab("");
+else
+	{
+	name = EPDStringGrab(":");
+	name = EPDStringAppendStr(name, dirstr);
+	name = EPDStringAppendChar(name, ':');
+	};
+#endif
+
+name = EPDStringAppendStr(name, (tbbaseptr + tbid)->tb_name);
+name = EPDStringAppendStr(name, ctmext_strv[c]);
+
+return (name);
+}
+
+/*--> EPDTBGetSignature: get the signature for a distribution */
+static
+liT
+EPDTBGetSignature(distvT distv)
+{
+liT sig;
+cT c;
+pT p;
+
+sig = 0;
+for (c = c_w; c <= c_b; c++)
+	for (p = p_p; p <= p_q; p++)
+		sig = (sig << 3) | distv[c][p];
+
+return (sig);
+}
+
+/*--> EPDTBGetInvertedSignature: get the inverted signature for a distribution */
+static
+liT
+EPDTBGetInvertedSignature(distvT distv)
+{
+liT sig;
+cT c;
+pT p;
+
+sig = 0;
+for (c = c_w; c <= c_b; c++)
+	for (p = p_p; p <= p_q; p++)
+		sig = (sig << 3) | distv[inv_cv[c]][p];
+
+return (sig);
+}
+
+/*--> EPDTBLocateClass: locate a class for a piece distribution */
+static
+tbidT
+EPDTBLocateClass(distvT distv, siptrT invertptr)
+{
+tbidT tbid;
+siT flag;
+tbptrT classptr;
+liT sig;
+
+/* set "not found" */
+
+flag = 0;
+
+/* get the piece distribution signature */
+
+sig = EPDTBGetSignature(distv);
+
+/* search for signature match */
+
+classptr = tbbaseptr;
+tbid = 0;
+while (!flag && (tbid < tbidL))
+	if (sig == classptr->tb_sig0)
+		{
+		flag = 1;
+		*invertptr = 0;
+		}
+	else
+		if (sig == classptr->tb_sig1)
+			{
+			flag = 1;
+			*invertptr = 1;
+			}
+		else
+			{
+			classptr++;
+			tbid++;
+			};
+
+/* if not found, set return to nil */
+
+if (!flag)
+	tbid = tbid_nil;
+
+return (tbid);
+}
+
+/*--> EPDTBCopyPosition: copy a position vector */
+static
+void
+EPDTBCopyPosition(posvT posv0, posvT posv1)
+{
+cT c;
+siT i;
+
+for (c = c_w; c <= c_b; c++)
+	for (i = 0; i < tbmecL; i++)
+		posv1[c][i] = posv0[c][i];
+
+return;
+}
+
+/*--> EPDTBReflectX: reflect a position along the X axis */
+static
+void
+EPDTBReflectX(tbptrT classptr, posvT posv)
+{
+cT c;
+siT i;
+
+for (c = c_w; c <= c_b; c++)
+	for (i = 0; i < classptr->tb_mcv[c]; i++)
+		posv[c][i] ^= 0x38;
+
+return;
+}
+
+/*--> EPDTBReflectY: reflect a position along the Y axis */
+static
+void
+EPDTBReflectY(tbptrT classptr, posvT posv)
+{
+cT c;
+siT i;
+
+for (c = c_w; c <= c_b; c++)
+	for (i = 0; i < classptr->tb_mcv[c]; i++)
+		posv[c][i] ^= 0x07;
+
+return;
+}
+
+/*--> EPDTBReflectXY: reflect a position along the X=Y axis */
+static
+void
+EPDTBReflectXY(tbptrT classptr, posvT posv)
+{
+cT c;
+siT i;
+rankT rank;
+fileT file;
+
+for (c = c_w; c <= c_b; c++)
+	for (i = 0; i < classptr->tb_mcv[c]; i++)
+		{
+		rank = map_rank(posv[c][i]);
+		file = map_file(posv[c][i]);
+		posv[c][i] = map_sq(file, rank);
+		};
+
+return;
+}
+
+/*--> EPDTBNormalize: normalize a position */
+static
+void
+EPDTBNormalize(tbptrT classptr, posvT posv)
+{
+sqT sq;
+cT pivot_c;
+siT pivot_slot;
+
+/* get pivot color and slot */
+
+pivot_c = classptr->tb_pivot_c;
+pivot_slot = classptr->tb_pivot_slot;
+
+/* determine normalization mode */
+
+if (classptr->tb_fold == fold_flank)
+	{
+	/* class has at least one pawn */
+
+	sq = posv[pivot_c][pivot_slot];
+	if (map_file(sq) > file_d)
+		EPDTBReflectY(classptr, posv);
+	}
+else
+	{
+	/* class has no pawns */
+
+	sq = posv[pivot_c][pivot_slot];
+	if (map_rank(sq) > rank_4)
+		EPDTBReflectX(classptr, posv);
+
+	sq = posv[pivot_c][pivot_slot];
+	if (map_file(sq) > file_d)
+		EPDTBReflectY(classptr, posv);
+
+	sq = posv[pivot_c][pivot_slot];
+	if (map_rank(sq) > map_file(sq))
+		EPDTBReflectXY(classptr, posv);
+	};
+
+return;
+}
+
+/*--> EPDTBGenIndex: generate a file index for a class and position */
+static
+indexT
+EPDTBGenIndex(tbptrT classptr, posvT posv)
+{
+indexT index;
+liT factor;
+posvT nposv;
+cT c;
+siT i;
+
+EPDTBCopyPosition(posv, nposv);
+EPDTBNormalize(classptr, nposv);
+
+index = 0;
+for (c = c_w; c <= c_b; c++)
+	for (i = 0; i < classptr->tb_mcv[c]; i++)
+		{
+		switch (classptr->tb_scalev[c][i])
+			{
+			case sqL:
+				factor = nposv[c][i];
+				break;
+			case ff_flankL:
+				factor = flank_mapv[nposv[c][i]];
+				break;
+			case ff_triangleL:
+				factor = triangle_mapv[nposv[c][i]];
+				break;
+			default:
+				EPDSwitchFault("EPDTBGenIndex");
+				break;
+			};
+		index += factor * classptr->tb_multv[c][i];
+		};
+
+return (index);
+}
+
+/*--> EPDTBGenInvertIndex: generate a file index for a class and position (inverted) */
+static
+indexT
+EPDTBGenInvertIndex(tbptrT classptr, posvT posv)
+{
+indexT index;
+liT factor;
+posvT nposv;
+cT c, invc;
+siT i;
+
+for (c = c_w; c <= c_b; c++)
+	{
+	invc = inv_cv[c];
+	for (i = 0; i < classptr->tb_mcv[invc]; i++)
+		nposv[invc][i] = posv[c][i];
+	};
+
+if (classptr->tb_flags & tbf_has_pawns)
+	EPDTBReflectX(classptr, nposv);
+
+EPDTBNormalize(classptr, nposv);
+
+index = 0;
+for (c = c_w; c <= c_b; c++)
+	{
+	for (i = 0; i < classptr->tb_mcv[c]; i++)
+		{
+		switch (classptr->tb_scalev[c][i])
+			{
+			case sqL:
+				factor = nposv[c][i];
+				break;
+			case ff_flankL:
+				factor = flank_mapv[nposv[c][i]];
+				break;
+			case ff_triangleL:
+				factor = triangle_mapv[nposv[c][i]];
+				break;
+			default:
+				EPDSwitchFault("EPDTBGenInvertIndex");
+				break;
+			};
+		index += factor * classptr->tb_multv[c][i];
+		};
+	};
+
+return (index);
+}
+
+/*--> EPDTBMapFromBEV: convert to centipawns from byte evaluation */
+static
+cpevT
+EPDTBMapFromBEV(bevT bev)
+{
+cpevT cpev;
+siT distance;
+
+switch (bev)
+	{
+	case bev_broken:
+	case bev_reserved:
+	case bev_unknown:
+		cpev = cpev_wrck;
+		break;
+
+	case bev_draw:
+		cpev = cpev_draw;
+		break;
+
+	default:
+		if (tbe_mating(bev))
+			{
+			distance = ((bev_mi1 - bev) * 2) + 1;
+			cpev = cpev_best - distance;
+			}
+		else
+			{
+			distance = -((bev_li0 - bev) * 2);
+			cpev = cpev_bust + distance;
+			};
+		break;
+	};
+
+return (cpev);
+}
+
+/*--> EPDTBProbeFile: return a centipawn value from a probe */
+static
+cpevT
+EPDTBProbeFile(tbidT tbid, cT c, liT index)
+{
+cpevT cpev;
+siT i, slot;
+bevT bev;
+tbcT tbc;
+charptrT fnptr;
+
+/* set default return value: no evaluation found */
+
+cpev = cpev_wrck;
+
+/* search cache for a slot with currently open file */
+
+slot = -1;
+i = 0;
+while ((slot == -1) && (i < tbcL))
+	if (tbcv[i].tbc_inuse &&
+		(tbcv[i].tbc_tbid == tbid) && (tbcv[i].tbc_c == c))
+		slot = i;
+	else
+		i++;
+
+/* if no slot was found, try to find an empty one */
+
+if (slot == -1)
+	{
+	/* look for a free slot */
+
+	i = 0;
+	while ((slot == -1) && (i < tbcL))
+		if (!tbcv[i].tbc_inuse)
+			slot = i;
+		else
+			i++;
+
+	/* if no empty slot, drop the bottom (LRU) entry */
+
+	if (slot == -1)
+		{
+		slot = tbcL - 1;
+		if (tbcv[slot].tbc_fptr != NULL)
+			fclose(tbcv[slot].tbc_fptr);
+		};
+
+	/* initialize the slot */
+
+	tbcv[slot].tbc_inuse = 1;
+	tbcv[slot].tbc_tbid = tbid;
+	tbcv[slot].tbc_c = c;
+	fnptr = EPDTBClassFileName(TBDIR, tbid, c);
+	tbcv[slot].tbc_fptr = fopen(fnptr, "rb");
+	EPDStringFree(fnptr);
+	};
+
+/* move slot entry to top */
+
+if (slot != 0)
+	{
+	tbc = tbcv[slot];
+	for (i = slot; i > 0; i--)
+		tbcv[i] = tbcv[i - 1];
+	slot = 0;
+	tbcv[slot] = tbc;
+	};
+
+/* file probe */
+
+if (tbcv[slot].tbc_fptr != NULL)
+	if (fseek(tbcv[slot].tbc_fptr, index, SEEK_SET) == 0)
+		if (fread(&bev, sizeof(bevT), 1, tbcv[slot].tbc_fptr) ==
+			sizeof(bevT))
+			cpev = EPDTBMapFromBEV(bev);
+
+return (cpev);
+}
+
+/*--> EPDTBIsFilePresent: test if the given TB file is readable */
+nonstatic
+siT
+EPDTBIsFilePresent(tbidT tbid, cT c)
+{
+siT flag;
+fptrT fptr;
+charptrT fnptr;
+
+fnptr = EPDTBClassFileName(TBDIR, tbid, c);
+fptr = fopen(fnptr, "rb");
+EPDStringFree(fnptr);
+if (fptr == NULL)
+	flag = 0;
+else
+	{
+	fclose(fptr);
+	flag = 1;
+	};
+
+return (flag);
+}
+
+/*--> EPDTBScore: return tablebase certain score (if possible) */
+nonstatic
+cpevT
+EPDTBScore(void)
+{
+cpevT cpev;
+tbidT tbid;
+siT invert;
+cT probe_c;
+liT index;
+distvT distv;
+cT c;
+pT p;
+sqT sq;
+cpT cp;
+cT invc;
+siT flag;
+siT i;
+tbptrT classptr;
+posvT posv, nposv;
+rbT rb;
+
+/* set default return value: score unfound */
+
+cpev = cpev_wrck;
+
+/* clear the distribution */
+
+for (c = c_w; c <= c_b; c++)
+	for (p = p_p; p <= p_k; p++)
+		distv[c][p] = 0;
+
+/* calculate the distribution */
+
+for (sq = sq_a1; sq <= sq_h8; sq++)
+	if ((cp = EPDboard.rbv[sq]) != cp_v0)
+		distv[cv_c_cpv[cp]][cv_p_cpv[cp]]++;
+
+/* locate the class */
+
+tbid = EPDTBLocateClass(distv, &invert);
+
+/* was a class identified? */
+
+if (tbid != tbid_nil)
+	{
+	/* get the class pointer */
+	
+	classptr = tbbaseptr + tbid;
+	
+	/* calculate probe color */
+
+	if (!invert)
+		probe_c = ese.ese_actc;
+	else
+		probe_c = inv_cv[ese.ese_actc];
+
+	/* set up the position vector */
+	
+	for (sq = sq_a1; sq <= sq_h8; sq++)
+		{
+		cp = EPDboard.rbv[sq];
+		if ((cp != cp_v0) && invert)
+			cp = cv_cp_c_pv[inv_cv[cv_c_cpv[cp]]][cv_p_cpv[cp]];
+		rb.rbv[sq] = cp;
+		};
+
+	for (c = c_w; c <= c_b; c++)
+		for (i = 0; i < classptr->tb_mcv[c]; i++)
+			{
+			/* which color-piece to match? */
+			
+			cp = classptr->tb_cpv[c][i];
+			
+			/* find it */
+			
+			flag = 0;
+			sq = sq_a1;
+			while (!flag)
+				if (rb.rbv[sq] == cp)
+					{
+					posv[c][i] = sq;
+					rb.rbv[sq] = cp_v0;
+					flag = 1;
+					}
+				else
+					sq++;
+			};
+
+	/* calculate index */
+
+	if (!invert)
+		index = EPDTBGenIndex(classptr, posv);
+	else
+		{
+		for (c = c_w; c <= c_b; c++)
+			{
+			invc = inv_cv[c];
+			for (i = 0; i < classptr->tb_mcv[c]; i++)
+				nposv[invc][i] = posv[c][i];
+			};
+
+		index = EPDTBGenInvertIndex(classptr, nposv);
+		};
+
+	/* probe */
+
+	cpev = EPDTBProbeFile(tbid, probe_c, index);
+	};
+
+return (cpev);
+}
+
+/*--> EPDTBInitTBID: initialize an entry in the tablebase vector */
+static
+void
+EPDTBInitTBID(tbidT tbid, charptrT name)
+{
+cT c;
+pT p;
+siT i, slot;
+liT mult;
+char ch;
+tbptrT classptr;
+
+classptr = tbbaseptr + tbid;
+
+/* clear flags and set name items */
+
+classptr->tb_flags = 0;
+classptr->tb_name = EPDStringGrab(name);
+classptr->tb_count = strlen(name);
+
+/* clear various vectors */
+
+for (c = c_w; c <= c_b; c++)
+	{
+	classptr->tb_mcv[c] = 0;
+	for (p = p_p; p <= p_k; p++)
+		classptr->tb_distv[c][p] = 0;
+	};
+
+/* scan through pieces in class names */
+
+c = c_b;
+for (i = 0; i < classptr->tb_count; i++)
+	{
+	/* identify current piece */
+
+	ch = *(name + i);
+	switch (ch)
+		{
+		case 'P':
+			p = p_p;
+			break;
+		case 'N':
+			p = p_n;
+			break;
+		case 'B':
+			p = p_b;
+			break;
+		case 'R':
+			p = p_r;
+			break;
+		case 'Q':
+			p = p_q;
+			break;
+		case 'K':
+			p = p_k;
+			break;
+		default:
+			EPDSwitchFault("EPDTBInitTBID");
+			break;
+		};
+
+	/* swap color if current piece is a king */
+
+	if (p == p_k)
+		c = inv_cv[c];
+
+	/* set various flags if current piece is a pawn */
+
+	if (p == p_p)
+		{
+		classptr->tb_flags |= tbf_has_pawns;
+		if (c == c_w)
+			{
+			classptr->tb_flags |= tbf_has_white_pawn;
+			if (classptr->tb_flags & tbf_has_black_pawn)
+				classptr->tb_flags |= tbf_ep_captures;
+			}
+		else
+			{
+			classptr->tb_flags |= tbf_has_black_pawn;
+			if (classptr->tb_flags & tbf_has_white_pawn)
+				classptr->tb_flags |= tbf_ep_captures;
+			};
+		};
+
+	/* adjust count and distribution for this color */
+
+	classptr->tb_mcv[c]++;
+	classptr->tb_distv[c][p]++;
+
+	/* set piece and color-piece vector for this color */
+
+	if (c == c_w)
+		slot = i;
+	else
+		slot = i - classptr->tb_mcv[c_w];
+	classptr->tb_pv[c][slot] = p;
+	classptr->tb_cpv[c][slot] = cv_cp_c_pv[c][p];
+	};
+
+/* set the distribution signatures */
+
+classptr->tb_sig0 = EPDTBGetSignature(classptr->tb_distv);
+classptr->tb_sig1 = EPDTBGetInvertedSignature(classptr->tb_distv);
+
+/* set fold mode information */
+
+if (classptr->tb_flags & tbf_has_pawns)
+	{
+	classptr->tb_flags |= tbf_fold_flank;
+	classptr->tb_fold = fold_flank;
+	}
+else
+	{
+	classptr->tb_flags |= tbf_fold_triangle;
+	classptr->tb_fold = fold_triangle;
+	};
+
+/* calculate file length */
+
+classptr->tb_length = 1;
+for (i = 1; i < classptr->tb_count; i++)
+	classptr->tb_length *= sqL;
+if (classptr->tb_fold == fold_flank)
+	classptr->tb_length *= ff_flankL;
+else
+	classptr->tb_length *= ff_triangleL;
+
+/* calculate pivot color and slot */
+
+if (classptr->tb_fold == fold_triangle)
+	{
+	classptr->tb_pivot_c = c_b;
+	classptr->tb_pivot_slot = classptr->tb_mcv[c_b] - 1;
+	}
+else
+	{
+	if (classptr->tb_flags & tbf_has_black_pawn)
+		{
+		classptr->tb_pivot_c = c_b;
+		i = classptr->tb_count - 1;
+		while (*(name + i) != ascpv[p_p])
+			i--;
+		classptr->tb_pivot_slot = i - classptr->tb_mcv[c_w];
+		}
+	else
+		{
+		classptr->tb_pivot_c = c_w;
+		i = classptr->tb_mcv[c_w] - 1;
+		while (*(name + i) != ascpv[p_p])
+			i--;
+		classptr->tb_pivot_slot = i;
+		};
+	};
+
+/* calculate scale factors */
+
+for (c = c_w; c <= c_b; c++)
+	for (i = 0; i < classptr->tb_mcv[c]; i++)
+		if ((c != classptr->tb_pivot_c) || (i != classptr->tb_pivot_slot))
+			classptr->tb_scalev[c][i] = sqL;
+		else
+			if (classptr->tb_fold == fold_triangle)
+				classptr->tb_scalev[c][i] = ff_triangleL;
+			else
+				classptr->tb_scalev[c][i] = ff_flankL;
+
+/* calculate multipliers */
+
+mult = 1;
+for (c = c_w; c <= c_b; c++)
+	for (i = 0; i < classptr->tb_mcv[c]; i++)
+		{
+		classptr->tb_multv[c][i] = mult;
+		mult *= classptr->tb_scalev[c][i];
+		};
+
+return;
+}
+
+/*--> EPDTBCacheFlush: flush the tablebase file pointer cache */
+nonstatic
+void
+EPDTBCacheFlush(void)
+{
+siT i;
+
+for (i = 0; i < tbcL; i++)
+	if (tbcv[i].tbc_inuse)
+		{
+		if (tbcv[i].tbc_fptr != NULL)
+			fclose(tbcv[i].tbc_fptr);
+		tbcv[i].tbc_inuse = 0;
+		};
+
+return;
+}
+
+/*--> EPDTBInit: one time initialization for the tablebase subsystem */
+static
+void
+EPDTBInit(void)
+{
+siT i;
+sqT sq;
+
+/* initialize the flank map */
+
+for (sq = sq_a1; sq <= sq_h8; sq++)
+	flank_mapv[sq] = -1;
+
+flank_mapv[sq_a1] =  0;
+flank_mapv[sq_b1] =  1;
+flank_mapv[sq_c1] =  2;
+flank_mapv[sq_d1] =  3;
+flank_mapv[sq_a2] =  4;
+flank_mapv[sq_b2] =  5;
+flank_mapv[sq_c2] =  6;
+flank_mapv[sq_d2] =  7;
+flank_mapv[sq_a3] =  8;
+flank_mapv[sq_b3] =  9;
+flank_mapv[sq_c3] = 10;
+flank_mapv[sq_d3] = 11;
+flank_mapv[sq_a4] = 12;
+flank_mapv[sq_b4] = 13;
+flank_mapv[sq_c4] = 14;
+flank_mapv[sq_d4] = 15;
+flank_mapv[sq_a5] = 16;
+flank_mapv[sq_b5] = 17;
+flank_mapv[sq_c5] = 18;
+flank_mapv[sq_d5] = 19;
+flank_mapv[sq_a6] = 20;
+flank_mapv[sq_b6] = 21;
+flank_mapv[sq_c6] = 22;
+flank_mapv[sq_d6] = 23;
+flank_mapv[sq_a7] = 24;
+flank_mapv[sq_b7] = 25;
+flank_mapv[sq_c7] = 26;
+flank_mapv[sq_d7] = 27;
+flank_mapv[sq_a8] = 28;
+flank_mapv[sq_b8] = 29;
+flank_mapv[sq_c8] = 30;
+flank_mapv[sq_d8] = 31;
+
+/* initialize the triangle map */
+
+for (sq = sq_a1; sq <= sq_h8; sq++)
+	triangle_mapv[sq] = -1;
+
+triangle_mapv[sq_a1] = 0;
+triangle_mapv[sq_b1] = 1;
+triangle_mapv[sq_c1] = 2;
+triangle_mapv[sq_d1] = 3;
+triangle_mapv[sq_b2] = 4;
+triangle_mapv[sq_c2] = 5;
+triangle_mapv[sq_d2] = 6;
+triangle_mapv[sq_c3] = 7;
+triangle_mapv[sq_d3] = 8;
+triangle_mapv[sq_d4] = 9;
+
+/* set the color to move tablebase file name suffixes */
+
+ctmext_strv[c_w] = ".tbw";
+ctmext_strv[c_b] = ".tbb";
+
+/* allocate tablebase information vector */
+
+tbbaseptr = (tbptrT) EPDMemoryGrab(sizeof(tbT) * tbidL);
+
+/* initialize the tablebase vector */
+
+EPDTBInitTBID(tbid_kk,    "KK");
+EPDTBInitTBID(tbid_kpk,   "KPK");
+EPDTBInitTBID(tbid_knk,   "KNK");
+EPDTBInitTBID(tbid_kbk,   "KBK");
+EPDTBInitTBID(tbid_krk,   "KRK");
+EPDTBInitTBID(tbid_kqk,   "KQK");
+EPDTBInitTBID(tbid_kpkp,  "KPKP");
+EPDTBInitTBID(tbid_knkp,  "KNKP");
+EPDTBInitTBID(tbid_knkn,  "KNKN");
+EPDTBInitTBID(tbid_kbkp,  "KBKP");
+EPDTBInitTBID(tbid_kbkn,  "KBKN");
+EPDTBInitTBID(tbid_kbkb,  "KBKB");
+EPDTBInitTBID(tbid_krkp,  "KRKP");
+EPDTBInitTBID(tbid_krkn,  "KRKN");
+EPDTBInitTBID(tbid_krkb,  "KRKB");
+EPDTBInitTBID(tbid_krkr,  "KRKR");
+EPDTBInitTBID(tbid_kqkp,  "KQKP");
+EPDTBInitTBID(tbid_kqkn,  "KQKN");
+EPDTBInitTBID(tbid_kqkb,  "KQKB");
+EPDTBInitTBID(tbid_kqkr,  "KQKR");
+EPDTBInitTBID(tbid_kqkq,  "KQKQ");
+EPDTBInitTBID(tbid_kppk,  "KPPK");
+EPDTBInitTBID(tbid_knpk,  "KNPK");
+EPDTBInitTBID(tbid_knnk,  "KNNK");
+EPDTBInitTBID(tbid_kbpk,  "KBPK");
+EPDTBInitTBID(tbid_kbnk,  "KBNK");
+EPDTBInitTBID(tbid_kbbk,  "KBBK");
+EPDTBInitTBID(tbid_krpk,  "KRPK");
+EPDTBInitTBID(tbid_krnk,  "KRNK");
+EPDTBInitTBID(tbid_krbk,  "KRBK");
+EPDTBInitTBID(tbid_krrk,  "KRRK");
+EPDTBInitTBID(tbid_kqpk,  "KQPK");
+EPDTBInitTBID(tbid_kqnk,  "KQNK");
+EPDTBInitTBID(tbid_kqbk,  "KQBK");
+EPDTBInitTBID(tbid_kqrk,  "KQRK");
+EPDTBInitTBID(tbid_kqqk,  "KQQK");
+EPDTBInitTBID(tbid_kppkp, "KPPKP");
+EPDTBInitTBID(tbid_kppkn, "KPPKN");
+EPDTBInitTBID(tbid_kppkb, "KPPKB");
+EPDTBInitTBID(tbid_kppkr, "KPPKR");
+EPDTBInitTBID(tbid_kppkq, "KPPKQ");
+EPDTBInitTBID(tbid_knpkp, "KNPKP");
+EPDTBInitTBID(tbid_knpkn, "KNPKN");
+EPDTBInitTBID(tbid_knpkb, "KNPKB");
+EPDTBInitTBID(tbid_knpkr, "KNPKR");
+EPDTBInitTBID(tbid_knpkq, "KNPKQ");
+EPDTBInitTBID(tbid_knnkp, "KNNKP");
+EPDTBInitTBID(tbid_knnkn, "KNNKN");
+EPDTBInitTBID(tbid_knnkb, "KNNKB");
+EPDTBInitTBID(tbid_knnkr, "KNNKR");
+EPDTBInitTBID(tbid_knnkq, "KNNKQ");
+EPDTBInitTBID(tbid_kbpkp, "KBPKP");
+EPDTBInitTBID(tbid_kbpkn, "KBPKN");
+EPDTBInitTBID(tbid_kbpkb, "KBPKB");
+EPDTBInitTBID(tbid_kbpkr, "KBPKR");
+EPDTBInitTBID(tbid_kbpkq, "KBPKQ");
+EPDTBInitTBID(tbid_kbnkp, "KBNKP");
+EPDTBInitTBID(tbid_kbnkn, "KBNKN");
+EPDTBInitTBID(tbid_kbnkb, "KBNKB");
+EPDTBInitTBID(tbid_kbnkr, "KBNKR");
+EPDTBInitTBID(tbid_kbnkq, "KBNKQ");
+EPDTBInitTBID(tbid_kbbkp, "KBBKP");
+EPDTBInitTBID(tbid_kbbkn, "KBBKN");
+EPDTBInitTBID(tbid_kbbkb, "KBBKB");
+EPDTBInitTBID(tbid_kbbkr, "KBBKR");
+EPDTBInitTBID(tbid_kbbkq, "KBBKQ");
+EPDTBInitTBID(tbid_krpkp, "KRPKP");
+EPDTBInitTBID(tbid_krpkn, "KRPKN");
+EPDTBInitTBID(tbid_krpkb, "KRPKB");
+EPDTBInitTBID(tbid_krpkr, "KRPKR");
+EPDTBInitTBID(tbid_krpkq, "KRPKQ");
+EPDTBInitTBID(tbid_krnkp, "KRNKP");
+EPDTBInitTBID(tbid_krnkn, "KRNKN");
+EPDTBInitTBID(tbid_krnkb, "KRNKB");
+EPDTBInitTBID(tbid_krnkr, "KRNKR");
+EPDTBInitTBID(tbid_krnkq, "KRNKQ");
+EPDTBInitTBID(tbid_krbkp, "KRBKP");
+EPDTBInitTBID(tbid_krbkn, "KRBKN");
+EPDTBInitTBID(tbid_krbkb, "KRBKB");
+EPDTBInitTBID(tbid_krbkr, "KRBKR");
+EPDTBInitTBID(tbid_krbkq, "KRBKQ");
+EPDTBInitTBID(tbid_krrkp, "KRRKP");
+EPDTBInitTBID(tbid_krrkn, "KRRKN");
+EPDTBInitTBID(tbid_krrkb, "KRRKB");
+EPDTBInitTBID(tbid_krrkr, "KRRKR");
+EPDTBInitTBID(tbid_krrkq, "KRRKQ");
+EPDTBInitTBID(tbid_kqpkp, "KQPKP");
+EPDTBInitTBID(tbid_kqpkn, "KQPKN");
+EPDTBInitTBID(tbid_kqpkb, "KQPKB");
+EPDTBInitTBID(tbid_kqpkr, "KQPKR");
+EPDTBInitTBID(tbid_kqpkq, "KQPKQ");
+EPDTBInitTBID(tbid_kqnkp, "KQNKP");
+EPDTBInitTBID(tbid_kqnkn, "KQNKN");
+EPDTBInitTBID(tbid_kqnkb, "KQNKB");
+EPDTBInitTBID(tbid_kqnkr, "KQNKR");
+EPDTBInitTBID(tbid_kqnkq, "KQNKQ");
+EPDTBInitTBID(tbid_kqbkp, "KQBKP");
+EPDTBInitTBID(tbid_kqbkn, "KQBKN");
+EPDTBInitTBID(tbid_kqbkb, "KQBKB");
+EPDTBInitTBID(tbid_kqbkr, "KQBKR");
+EPDTBInitTBID(tbid_kqbkq, "KQBKQ");
+EPDTBInitTBID(tbid_kqrkp, "KQRKP");
+EPDTBInitTBID(tbid_kqrkn, "KQRKN");
+EPDTBInitTBID(tbid_kqrkb, "KQRKB");
+EPDTBInitTBID(tbid_kqrkr, "KQRKR");
+EPDTBInitTBID(tbid_kqrkq, "KQRKQ");
+EPDTBInitTBID(tbid_kqqkp, "KQQKP");
+EPDTBInitTBID(tbid_kqqkn, "KQQKN");
+EPDTBInitTBID(tbid_kqqkb, "KQQKB");
+EPDTBInitTBID(tbid_kqqkr, "KQQKR");
+EPDTBInitTBID(tbid_kqqkq, "KQQKQ");
+EPDTBInitTBID(tbid_kpppk, "KPPPK");
+EPDTBInitTBID(tbid_knppk, "KNPPK");
+EPDTBInitTBID(tbid_knnpk, "KNNPK");
+EPDTBInitTBID(tbid_knnnk, "KNNNK");
+EPDTBInitTBID(tbid_kbppk, "KBPPK");
+EPDTBInitTBID(tbid_kbnpk, "KBNPK");
+EPDTBInitTBID(tbid_kbnnk, "KBNNK");
+EPDTBInitTBID(tbid_kbbpk, "KBBPK");
+EPDTBInitTBID(tbid_kbbnk, "KBBNK");
+EPDTBInitTBID(tbid_kbbbk, "KBBBK");
+EPDTBInitTBID(tbid_krppk, "KRPPK");
+EPDTBInitTBID(tbid_krnpk, "KRNPK");
+EPDTBInitTBID(tbid_krnnk, "KRNNK");
+EPDTBInitTBID(tbid_krbpk, "KRBPK");
+EPDTBInitTBID(tbid_krbnk, "KRBNK");
+EPDTBInitTBID(tbid_krbbk, "KRBBK");
+EPDTBInitTBID(tbid_krrpk, "KRRPK");
+EPDTBInitTBID(tbid_krrnk, "KRRNK");
+EPDTBInitTBID(tbid_krrbk, "KRRBK");
+EPDTBInitTBID(tbid_krrrk, "KRRRK");
+EPDTBInitTBID(tbid_kqppk, "KQPPK");
+EPDTBInitTBID(tbid_kqnpk, "KQNPK");
+EPDTBInitTBID(tbid_kqnnk, "KQNNK");
+EPDTBInitTBID(tbid_kqbpk, "KQBPK");
+EPDTBInitTBID(tbid_kqbnk, "KQBNK");
+EPDTBInitTBID(tbid_kqbbk, "KQBBK");
+EPDTBInitTBID(tbid_kqrpk, "KQRPK");
+EPDTBInitTBID(tbid_kqrnk, "KQRNK");
+EPDTBInitTBID(tbid_kqrbk, "KQRBK");
+EPDTBInitTBID(tbid_kqrrk, "KQRRK");
+EPDTBInitTBID(tbid_kqqpk, "KQQPK");
+EPDTBInitTBID(tbid_kqqnk, "KQQNK");
+EPDTBInitTBID(tbid_kqqbk, "KQQBK");
+EPDTBInitTBID(tbid_kqqrk, "KQQRK");
+EPDTBInitTBID(tbid_kqqqk, "KQQQK");
+
+/* clear the file pointer cache vector */
+
+for (i = 0; i < tbcL; i++)
+	tbcv[i].tbc_inuse = 0;
+
+return;
+}
+
+/*--> EPDTBTerm: one time termination for the tablebase subsystem */
+static
+void
+EPDTBTerm(void)
+{
+tbidT tbid;
+tbptrT tbptr;
+
+/* flush the file pointer cache vector */
+
+EPDTBCacheFlush();
+
+/* deallocate tablebase information vector entries */
+
+tbptr = tbbaseptr;
+for (tbid = 0; tbid < tbidL; tbid++)
+	{
+	EPDMemoryFree(tbptr->tb_name);
+	tbptr++;
+	};
+
+/* deallocate tablebase information vector */
+
+EPDMemoryFree(tbbaseptr);
+
+return;
 }
 
 /*--> EPDInit: one time initialization for EPD */
@@ -4805,23 +7843,39 @@ inv_cv[c_b] = c_w;
 
 /* initialize directional vectors */
 
-dvv[dx_0] = dv_0;   dvv[dx_1] = dv_1;
-dvv[dx_2] = dv_2;   dvv[dx_3] = dv_3;
-dvv[dx_4] = dv_4;   dvv[dx_5] = dv_5;
-dvv[dx_6] = dv_6;   dvv[dx_7] = dv_7;
-dvv[dx_8] = dv_8;   dvv[dx_9] = dv_9;
-dvv[dx_a] = dv_a;   dvv[dx_b] = dv_b;
-dvv[dx_c] = dv_c;   dvv[dx_d] = dv_d;
-dvv[dx_e] = dv_e;   dvv[dx_f] = dv_f;
+dvv[dx_0] = dv_0;
+dvv[dx_1] = dv_1;
+dvv[dx_2] = dv_2;
+dvv[dx_3] = dv_3;
+dvv[dx_4] = dv_4;
+dvv[dx_5] = dv_5;
+dvv[dx_6] = dv_6;
+dvv[dx_7] = dv_7;
+dvv[dx_8] = dv_8;
+dvv[dx_9] = dv_9;
+dvv[dx_a] = dv_a;
+dvv[dx_b] = dv_b;
+dvv[dx_c] = dv_c;
+dvv[dx_d] = dv_d;
+dvv[dx_e] = dv_e;
+dvv[dx_f] = dv_f;
 
-xdvv[dx_0] = xdv_0;   xdvv[dx_1] = xdv_1;
-xdvv[dx_2] = xdv_2;   xdvv[dx_3] = xdv_3;
-xdvv[dx_4] = xdv_4;   xdvv[dx_5] = xdv_5;
-xdvv[dx_6] = xdv_6;   xdvv[dx_7] = xdv_7;
-xdvv[dx_8] = xdv_8;   xdvv[dx_9] = xdv_9;
-xdvv[dx_a] = xdv_a;   xdvv[dx_b] = xdv_b;
-xdvv[dx_c] = xdv_c;   xdvv[dx_d] = xdv_d;
-xdvv[dx_e] = xdv_e;   xdvv[dx_f] = xdv_f;
+xdvv[dx_0] = xdv_0;
+xdvv[dx_1] = xdv_1;
+xdvv[dx_2] = xdv_2;
+xdvv[dx_3] = xdv_3;
+xdvv[dx_4] = xdv_4;
+xdvv[dx_5] = xdv_5;
+xdvv[dx_6] = xdv_6;
+xdvv[dx_7] = xdv_7;
+xdvv[dx_8] = xdv_8;
+xdvv[dx_9] = xdv_9;
+xdvv[dx_a] = xdv_a;
+xdvv[dx_b] = xdv_b;
+xdvv[dx_c] = xdv_c;
+xdvv[dx_d] = xdv_d;
+xdvv[dx_e] = xdv_e;
+xdvv[dx_f] = xdv_f;
 
 /* initialize the extended board */
 
@@ -4833,61 +7887,105 @@ for (sq = sq_a1; sq <= sq_h8; sq++)
 
 /* initialize the standard opcode string vector */
 
-epdsostrv[epdso_acn] =         "acn";
-epdsostrv[epdso_acs] =         "acs";
-epdsostrv[epdso_am] =          "am";
-epdsostrv[epdso_bm] =          "bm";
-epdsostrv[epdso_c0] =          "c0";
-epdsostrv[epdso_c1] =          "c1";
-epdsostrv[epdso_c2] =          "c2";
-epdsostrv[epdso_c3] =          "c3";
-epdsostrv[epdso_c4] =          "c4";
-epdsostrv[epdso_c5] =          "c5";
-epdsostrv[epdso_c6] =          "c6";
-epdsostrv[epdso_c7] =          "c7";
-epdsostrv[epdso_c8] =          "c8";
-epdsostrv[epdso_c9] =          "c9";
-epdsostrv[epdso_cc] =          "cc";
-epdsostrv[epdso_ce] =          "ce";
-epdsostrv[epdso_dm] =          "dm";
+epdsostrv[epdso_acd        ] = "acd";
+epdsostrv[epdso_acn        ] = "acn";
+epdsostrv[epdso_acs        ] = "acs";
+epdsostrv[epdso_am         ] = "am";
+epdsostrv[epdso_bm         ] = "bm";
+epdsostrv[epdso_c0         ] = "c0";
+epdsostrv[epdso_c1         ] = "c1";
+epdsostrv[epdso_c2         ] = "c2";
+epdsostrv[epdso_c3         ] = "c3";
+epdsostrv[epdso_c4         ] = "c4";
+epdsostrv[epdso_c5         ] = "c5";
+epdsostrv[epdso_c6         ] = "c6";
+epdsostrv[epdso_c7         ] = "c7";
+epdsostrv[epdso_c8         ] = "c8";
+epdsostrv[epdso_c9         ] = "c9";
+epdsostrv[epdso_cc         ] = "cc";
+epdsostrv[epdso_ce         ] = "ce";
+epdsostrv[epdso_dm         ] = "dm";
 epdsostrv[epdso_draw_accept] = "draw_accept";
-epdsostrv[epdso_draw_claim] =  "draw_claim";
-epdsostrv[epdso_draw_offer] =  "draw_offer";
+epdsostrv[epdso_draw_claim ] = "draw_claim";
+epdsostrv[epdso_draw_offer ] = "draw_offer";
 epdsostrv[epdso_draw_reject] = "draw_reject";
-epdsostrv[epdso_eco] =         "eco";
-epdsostrv[epdso_fmvn] =        "fmvn";
-epdsostrv[epdso_hmvc] =        "hmvc";
-epdsostrv[epdso_id] =          "id";
-epdsostrv[epdso_nic] =         "nic";
-epdsostrv[epdso_noop] =        "noop";
-epdsostrv[epdso_pm] =          "pm";
-epdsostrv[epdso_ptp] =         "ptp";
-epdsostrv[epdso_pv] =          "pv";
-epdsostrv[epdso_rc] =          "rc";
-epdsostrv[epdso_refcom] =      "refcom";
-epdsostrv[epdso_refreq] =      "refreq";
-epdsostrv[epdso_resign] =      "resign";
-epdsostrv[epdso_sm] =          "sm";
-epdsostrv[epdso_sv] =          "sv";
-epdsostrv[epdso_tcgs] =        "tcgs";
-epdsostrv[epdso_tcri] =        "tcri";
-epdsostrv[epdso_tcsi] =        "tcsi";
-epdsostrv[epdso_ts] =          "ts";
-epdsostrv[epdso_v0] =          "v0";
-epdsostrv[epdso_v1] =          "v1";
-epdsostrv[epdso_v2] =          "v2";
-epdsostrv[epdso_v3] =          "v3";
-epdsostrv[epdso_v4] =          "v4";
-epdsostrv[epdso_v5] =          "v5";
-epdsostrv[epdso_v6] =          "v6";
-epdsostrv[epdso_v7] =          "v7";
-epdsostrv[epdso_v8] =          "v8";
-epdsostrv[epdso_v9] =          "v9";
+epdsostrv[epdso_eco        ] = "eco";
+epdsostrv[epdso_fmvn       ] = "fmvn";
+epdsostrv[epdso_hmvc       ] = "hmvc";
+epdsostrv[epdso_id         ] = "id";
+epdsostrv[epdso_nic        ] = "nic";
+epdsostrv[epdso_noop       ] = "noop";
+epdsostrv[epdso_pm         ] = "pm";
+epdsostrv[epdso_ptp        ] = "ptp";
+epdsostrv[epdso_pv         ] = "pv";
+epdsostrv[epdso_rc         ] = "rc";
+epdsostrv[epdso_refcom     ] = "refcom";
+epdsostrv[epdso_refreq     ] = "refreq";
+epdsostrv[epdso_resign     ] = "resign";
+epdsostrv[epdso_sm         ] = "sm";
+epdsostrv[epdso_sv         ] = "sv";
+epdsostrv[epdso_tcgs       ] = "tcgs";
+epdsostrv[epdso_tcri       ] = "tcri";
+epdsostrv[epdso_tcsi       ] = "tcsi";
+epdsostrv[epdso_ts         ] = "ts";
+epdsostrv[epdso_v0         ] = "v0";
+epdsostrv[epdso_v1         ] = "v1";
+epdsostrv[epdso_v2         ] = "v2";
+epdsostrv[epdso_v3         ] = "v3";
+epdsostrv[epdso_v4         ] = "v4";
+epdsostrv[epdso_v5         ] = "v5";
+epdsostrv[epdso_v6         ] = "v6";
+epdsostrv[epdso_v7         ] = "v7";
+epdsostrv[epdso_v8         ] = "v8";
+epdsostrv[epdso_v9         ] = "v9";
 
-/* clear the token chain */
+/* set the EPD refcom operand strings */
+
+refcomstrv[refcom_conclude  ] = "conclude";
+refcomstrv[refcom_disconnect] = "disconnect";
+refcomstrv[refcom_execute   ] = "execute";
+refcomstrv[refcom_fault     ] = "fault";
+refcomstrv[refcom_inform    ] = "inform";
+refcomstrv[refcom_respond   ] = "respond";
+refcomstrv[refcom_reset     ] = "reset";
+
+/* set the EPD refreq operand strings */
+
+refreqstrv[refreq_fault   ] = "fault";
+refreqstrv[refreq_reply   ] = "reply";
+refreqstrv[refreq_sign_on ] = "sign_on";
+refreqstrv[refreq_sign_off] = "sign_off";
+
+/* set the PGN Seven Tag Roster names */
+
+pgnstrstrv[pgnstr_event ] = "Event";
+pgnstrstrv[pgnstr_site  ] = "Site";
+pgnstrstrv[pgnstr_date  ] = "Date";
+pgnstrstrv[pgnstr_round ] = "Round";
+pgnstrstrv[pgnstr_white ] = "White";
+pgnstrstrv[pgnstr_black ] = "Black";
+pgnstrstrv[pgnstr_result] = "Result";
+
+/* set the game termination indication marker vector */
+
+gtimstrv[gtim_w] = "1-0";
+gtimstrv[gtim_b] = "0-1";
+gtimstrv[gtim_d] = "1/2-1/2";
+gtimstrv[gtim_u] = "*";
+
+/* set the player name string vector */
+
+playerstrv[c_w] = "White";
+playerstrv[c_b] = "Black";
+
+/* clear the global game chain anchor pointers */
+
+head_gamptr = tail_gamptr = NULL;
+
+/* clear the token chain anchor pointers */
 
 head_tknptr = tail_tknptr = NULL;
-	
+
 /* clear the current ply */
 
 ply = 0;
@@ -4904,13 +8002,17 @@ tseptr = tsebaseptr = (tseptrT) EPDMemoryGrab(sizeof(tseT) * pmhL);
 
 eseptr = esebaseptr = (eseptrT) EPDMemoryGrab(sizeof(eseT) * pmhL);
 
-/* set the current position as the initial array */
+/* set the current position to be the initial array */
 
 EPDInitArray();
 
 /* generation */
 
 EPDGenMoves();
+
+/* initialize the tablebase subsystem */
+
+EPDTBInit();
 
 return;
 }
@@ -4920,6 +8022,14 @@ nonstatic
 void
 EPDTerm(void)
 {
+/* terminate the tablebase subsystem */
+
+EPDTBTerm();
+
+/* release any existing game chain */
+
+EPDReleaseGameChain();
+
 /* release any existing token chain */
 
 EPDReleaseTokenChain();

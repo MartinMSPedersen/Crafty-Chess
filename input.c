@@ -4,6 +4,8 @@
 #include "types.h"
 #include "function.h"
 #include "data.h"
+
+/* last modified 09/20/96 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -18,27 +20,25 @@
 *                                                                              *
 ********************************************************************************
 */
-int InputMove(char *text, int ply, int wtm, int silent)
+int InputMove(char *text, int ply, int wtm, int silent, int ponder_list)
 {
-  int moves[200], *mv, *mvp, *goodmove;
+  int moves[200], *mv, *mvp, *goodmove=0;
   BITBOARD target;
-  int piece, capture, promote, give_check;
+  int piece=-1, capture, promote, give_check;
   int ffile, frank, tfile, trank;
   int current, i, nleft, ambig;
   char *goodchar;
-  char movetext[10];
+  char movetext[128];
   char pieces[17]={' ',' ','P','p','N','n','K','k',' ',' ',
                    'B','b','R','r','Q','q','\0'};
 /*
    check for fully-qualified input (f1e1) and handle if needed.
 */
-  if (!silent && strlen(text) == 4) {
-    if ((text[0] >= 'a') && (text[0] <= 'h') &&
-        (text[1] >= '1') && (text[1] <= '8') &&
-        (text[2] >= 'a') && (text[2] <= 'h') &&
-        (text[3] >= '1') && (text[3] <= '8'))
-    return(InputMoveICS(text,ply,wtm,silent));
-  }
+  if ((text[0] >= 'a') && (text[0] <= 'h') &&
+      (text[1] >= '1') && (text[1] <= '8') &&
+      (text[2] >= 'a') && (text[2] <= 'h') &&
+      (text[3] >= '1') && (text[3] <= '8'))
+    return(InputMoveICS(text,ply,wtm,silent,ponder_list));
 /*
    initialize move structure in case an error is found
 */
@@ -187,31 +187,38 @@ int InputMove(char *text, int ply, int wtm, int silent)
     }
   }
   if (!piece) piece=1;
-  if (wtm)
-    target=Compl(WhitePieces(MAXPLY));
-  else
-    target=Compl(BlackPieces(MAXPLY));
-  mvp=GenerateMoves(MAXPLY, 1, wtm, target, 1, moves);
+  if (!ponder_list) {
+    target=(wtm) ? Compl(WhitePieces) : Compl(BlackPieces);
+    mvp=GenerateMoves(MAXPLY, 1, wtm, target, 1, moves);
+  }
+  else {
+    for (i=0;i<num_ponder_moves;i++)
+    moves[i]=ponder_moves[i];
+    mvp=moves+num_ponder_moves;
+  }
   for (mv=&moves[0];mv<mvp;mv++) {
     if (!ambig) {
       if (piece && (Piece(*mv) != piece)) *mv=0;
-      if ((ffile >= 0) && ((From(*mv) & 7) != ffile)) *mv=0;
+      if ((ffile >= 0) && (File(From(*mv)) != ffile)) *mv=0;
     }
     else {
       if ((Piece(*mv) != bishop) &&
           (Piece(*mv) != pawn)) *mv=0;
       if ((Piece(*mv) != bishop) &&
-          ((From(*mv) & 7) != ffile)) *mv=0;
+          (File(From(*mv)) != ffile)) *mv=0;
     }
     if (capture && (!Captured(*mv))) *mv=0;
     if (promote && (Promote(*mv) != promote)) *mv=0;
-    if ((frank >= 0)  && ((From(*mv) / 8) != frank)) *mv=0;
-    if ((tfile >= 0)  && ((To(*mv) & 7) != tfile)) *mv=0;
-    if ((trank >= 0)  && ((To(*mv) / 8) != trank)) *mv=0;
-    if (*mv) {
+    if ((frank >= 0)  && (Rank(From(*mv)) != frank)) *mv=0;
+    if ((tfile >= 0)  && (File(To(*mv)) != tfile)) *mv=0;
+    if ((trank >= 0)  && (Rank(To(*mv)) != trank)) *mv=0;
+    if (!ponder_list && *mv) {
       MakeMove(MAXPLY, *mv, wtm);
-      if(Check(MAXPLY+1,wtm)) *mv=0;
-      if (give_check && Check(MAXPLY+1,wtm)) *mv=0;
+      if (Check(wtm) || (give_check && !Check(ChangeSide(wtm)))) {
+        UnMakeMove(MAXPLY, *mv, wtm);
+        *mv=0;
+      }
+      else UnMakeMove(MAXPLY, *mv, wtm);
     }
   }
   nleft=0;
@@ -221,8 +228,7 @@ int InputMove(char *text, int ply, int wtm, int silent)
       goodmove=mv;
     }
   }
-  if (nleft == 1)
-    return(*goodmove);
+  if (nleft == 1) return(*goodmove);
   if (ambig) {
     if (nleft > 1) {
       for (mv=&moves[0];mv<mvp;mv++) 
@@ -239,16 +245,14 @@ int InputMove(char *text, int ply, int wtm, int silent)
     }
   }
   if (!silent) {
-    if (!nleft)
-      Print(0,"illegal move.\n");
-    else if (piece < 0)
-      Print(0,"unrecognizable move.\n");
-    else
-      Print(0,"move is ambiguous.\n");
+    if (!nleft) Print(0,"illegal move.\n");
+    else if (piece < 0) Print(0,"unrecognizable move.\n");
+    else Print(0,"move is ambiguous.\n");
   }
-  moves[0]=0;
-  return(moves[0]);
+  return(0);
 }
+
+/* last modified 09/20/96 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -257,14 +261,14 @@ int InputMove(char *text, int ply, int wtm, int silent)
 *                                                                              *
 ********************************************************************************
 */
-int InputMoveICS(char *text, int ply, int wtm, int silent)
+int InputMoveICS(char *text, int ply, int wtm, int silent, int ponder_list)
 {
-  int moves[200], *mv, *mvp, *goodmove;
+  int moves[200], *mv, *mvp, *goodmove=0;
   BITBOARD target;
-  int piece, promote;
+  int piece=-1, promote;
   int ffile, frank, tfile, trank;
-  int nleft;
-  char movetext[10];
+  int i, nleft;
+  char movetext[128];
   char pieces[17]={' ',' ','P','p','N','n','K','k',' ',' ',
                    'B','b','R','r','Q','q','\0'};
 /*
@@ -326,20 +330,28 @@ int InputMoveICS(char *text, int ply, int wtm, int silent)
       promote=(strchr(pieces,movetext[4])-pieces) >> 1;
     }
   }
-  if (wtm)
-    target=Compl(WhitePieces(MAXPLY));
-  else
-    target=Compl(BlackPieces(MAXPLY));
-  mvp=GenerateMoves(MAXPLY, 1, wtm, target, 1, moves);
+  if (!ponder_list) {
+    target=(wtm) ? Compl(WhitePieces) : Compl(BlackPieces);
+    mvp=GenerateMoves(MAXPLY, 1, wtm, target, 1, moves);
+  }
+  else {
+    for (i=0;i<num_ponder_moves;i++) moves[i]=ponder_moves[i];
+    mvp=moves+num_ponder_moves;
+  }
   for (mv=&moves[0];mv<mvp;mv++) {
-    if (promote && (Promote(*mv) != promote)) *mv=0;
-    if ((frank >= 0)  && ((From(*mv) / 8) != frank)) *mv=0;
-    if ((ffile >= 0)  && ((From(*mv) & 7) != ffile)) *mv=0;
-    if ((trank >= 0)  && ((To(*mv) / 8) != trank)) *mv=0;
-    if ((tfile >= 0)  && ((To(*mv) & 7) != tfile)) *mv=0;
-    if (*mv) {
+    if (autoplay && Promote(*mv) && (Promote(*mv) != queen)) *mv = 0;
+    if (!autoplay && Promote(*mv) != promote) *mv=0;
+    if (Rank(From(*mv)) != frank) *mv=0;
+    if (File(From(*mv)) != ffile) *mv=0;
+    if (Rank(To(*mv)) != trank) *mv=0;
+    if (File(To(*mv)) != tfile) *mv=0;
+    if (!ponder_list && *mv) {
       MakeMove(MAXPLY, *mv, wtm);
-      if(Check(MAXPLY+1,wtm)) *mv=0;
+      if(Check(wtm)) {
+        UnMakeMove(MAXPLY, *mv, wtm);
+        *mv=0;
+      }
+      else UnMakeMove(MAXPLY, *mv, wtm);
     }
   }
   nleft=0;
@@ -349,16 +361,11 @@ int InputMoveICS(char *text, int ply, int wtm, int silent)
       goodmove=mv;
     }
   }
-  if (nleft == 1)
-    return(*goodmove);
+  if (nleft == 1) return(*goodmove);
   if (!silent) {
-    if (!nleft)
-      Print(0,"illegal move.\n");
-    else if (piece < 0)
-      Print(0,"unrecognizable move.\n");
-    else
-      Print(0,"move is ambiguous.\n");
+    if (!nleft) Print(0,"illegal move.\n");
+    else if (piece < 0) Print(0,"unrecognizable move.\n");
+    else Print(0,"move is ambiguous.\n");
   }
-  moves[0]=0;
-  return(moves[0]);
+  return(0);
 }

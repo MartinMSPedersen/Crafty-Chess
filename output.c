@@ -4,6 +4,8 @@
 #include "types.h"
 #include "function.h"
 #include "data.h"
+
+/* last modified 06/03/96 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -19,6 +21,7 @@
 char* OutputMove(int *move, int ply, int wtm)
 {
   static char text_move[10];
+  int *mvp;
   char new_text[10];
   char *text;
   char piece_names[8] = { ' ','P','N','K',' ','B','R','Q'};
@@ -62,11 +65,19 @@ char* OutputMove(int *move, int ply, int wtm)
     *text++=piece_names[Promote(*move)];
   }
 /*
-   determine if it's a checking move.  if so, append "+".
+   determine if it's a checking move, or if it's mate.  if so, 
+   append "+" or "#" as appropriate.
 */
   position[MAXPLY]=position[ply];
   MakeMove(MAXPLY, *move, wtm);
-  if (Check(MAXPLY+1,!wtm)) *text++='+';
+  if (Check(ChangeSide(wtm))) {
+    mvp=GenerateCheckEvasions(1, ChangeSide(wtm), move_list+9000);
+    if (mvp == (move_list+9000))
+      *text++='#';
+    else
+      *text++='+';
+  }
+  UnMakeMove(MAXPLY, *move, wtm);
   *text='\0';
 /*
    now, try some short forms.  if the moving piece is a pawn, and
@@ -78,18 +89,6 @@ char* OutputMove(int *move, int ply, int wtm)
       strcpy(text_move,new_text+2);
       if (OutputGood(text_move,ply,wtm)) return (text_move);
     }
-/*
-   if the move is a pawn capturing a pawn, try the short-form for pawn
-   capture moves: (e4xf5->ef)
-*/
-/*
-    if (Captured(*move) == 1) {
-      text_move[0]=new_text[0];
-      text_move[1]=new_text[3];
-      strcpy(text_move+2,new_text+5);
-      if (OutputGood(text_move,ply,wtm)) return (text_move);
-    }
-*/
 /*
    if the move is a pawn capturing a piece, try the short-form for pawn
    capture moves: (e4xf5->exf5)
@@ -158,6 +157,8 @@ char* OutputMove(int *move, int ply, int wtm)
     return (text_move);
   }
 }
+
+/* last modified 06/03/96 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -189,6 +190,6 @@ char* OutputMoveICS(int *move)
 int OutputGood(char* text, int ply, int wtm)
 {
   int new_move;
-  new_move=InputMove(text,ply,wtm,1);
+  new_move=InputMove(text,ply,wtm,1,0);
   return (Piece(new_move));
 }

@@ -3,7 +3,8 @@
 #include "types.h"
 #include "function.h"
 #include "data.h"
-#include "evaluate.h"
+
+/* last modified 08/27/96 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -20,7 +21,7 @@
 *                                                                              *
 ********************************************************************************
 */
-void ResignOrDraw(int value)
+void ResignOrDraw(int value, int wtm)
 {
   int returnv=0;
 /*
@@ -33,7 +34,7 @@ void ResignOrDraw(int value)
 |                                                          |
  ----------------------------------------------------------
 */
-  if (RepetitionDraw() || Drawn(0,value)) returnv=2;
+  if (RepetitionDraw(ChangeSide(wtm)) || Drawn(value)) returnv=2;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -51,7 +52,7 @@ void ResignOrDraw(int value)
 |                                                          |
  ----------------------------------------------------------
 */
-  if ((tc_increment > 0) || (tc_time_remaining_opponent >= 30)) {
+  if ((tc_increment > 2) || (tc_time_remaining_opponent >= 30)) {
     if (resign) {
       if (value < -resign*PAWN_VALUE) {
         if (++resign_counter >= resign_count) returnv=1;
@@ -85,14 +86,16 @@ void ResignOrDraw(int value)
 |                                                          |
 |   now print the draw offer or resignation if appropriate |
 |   but be sure and do it in a form that ICC/FICS will     |
-|   understand if the "ics" flag is set.                   |
+|   understand if the "ics" or "xboard" flag is set.       |
 |                                                          |
  ----------------------------------------------------------
 */
   if (returnv == 1)
-    if (!ics) Print(0,"\nCrafty resigns.\n\n");
-    else Print(0,"\nresign\n");
+    if (!ics && !xboard) Print(0,"\nCrafty resigns.\n\n");
+    else if (xboard) Print(0,"\nresign\n");
+    else Print(0,"\n*resign\n");
   if (returnv == 2)
-    if (!ics) Print(0,"\nCrafty offers a draw.\n\n");
-    else Print(0,"\ndraw\n");
+    if (!ics && !xboard) Print(0,"\nCrafty offers a draw.\n\n");
+    else if (xboard) Print(0,"\ndraw\n");
+    else Print(0,"\n*draw\n");
 }

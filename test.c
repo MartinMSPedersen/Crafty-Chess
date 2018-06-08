@@ -4,6 +4,8 @@
 #include "types.h"
 #include "function.h"
 #include "data.h"
+
+/* last modified 02/27/96 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -38,6 +40,8 @@ void Test(void)
   int i, number_of_solutions, right=0, wrong=0, correct;
   char command[64], nextc;
   int nodes=0;
+  int time=0;
+  int temp_draw_score_is_zero;
   float avg_depth=0.0;
 /*
  ----------------------------------------------------------
@@ -49,11 +53,17 @@ void Test(void)
 |                                                          |
  ----------------------------------------------------------
 */
-  if (book_file) fclose(book_file);
+  temp_draw_score_is_zero=draw_score_is_zero;
+  draw_score_is_zero=1;
+  if (book_file) {
+    fclose(book_file);
+    book_file=0;
+  }
   while (1) {
     InitializeHashTables();
-    pv[0].path_iteration_depth=0;
-    fscanf(input_stream,"%s",command);
+    last_pv.path_iteration_depth=0;
+    largest_positional_score=1000;
+    if (fscanf(input_stream,"%s",command) == EOF) break;
     if (!strcmp(command,"end")) break;
     else if (!strcmp(command,"title")) {
       fgets(command,80,input_stream);
@@ -78,7 +88,7 @@ void Test(void)
           solution_type=0;
           command[strlen(command)-1]='\0';
         }
-        move=InputMove(command,0,wtm,0);
+        move=InputMove(command,0,wtm,0,0);
         if (move)
           solutions[number_of_solutions++]=move;
         nextc=getc(input_stream);
@@ -88,8 +98,9 @@ void Test(void)
       position[1]=position[0];
       (void) Iterate(wtm,think);
       thinking=0;
-      nodes+=nodes_searched;
+      nodes+=(nodes_searched+q_nodes_searched);
       avg_depth+=(float)iteration_depth;
+      time+=(end_time-start_time);
       correct=solution_type;
       for (i=0;i<number_of_solutions;i++) {
         if (!solution_type) {
@@ -124,5 +135,7 @@ void Test(void)
   Print(0,"percentage wrong..................%10d\n",wrong*100/(right+wrong));
   Print(0,"total nodes searched..............%10d\n",nodes);
   Print(0,"average search depth..............%10.1f\n",avg_depth/(right+wrong));
+  Print(0,"nodes per second..................%10d\n",nodes/time*100);
   input_stream=stdin;
+  draw_score_is_zero=temp_draw_score_is_zero;
 }

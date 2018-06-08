@@ -1,13 +1,19 @@
 #if !defined(DATA_INCLUDED)
-#  define DATA_INCLUDED
-#  define MATE          65536
-#  define REHASH_EXTRA   4096
-   char           version[5];
 
+#  define DATA_INCLUDED
+
+   char           version[6];
+
+   PLAYING_MODE   mode;
+   int            number_auto_kibitzers;
    int            number_of_computers;
    int            number_of_GMs;
    int            number_of_IMs;
+   int            time_used;
+   int            time_used_opponent;
+   int            auto_kibitzing;
    int            total_moves;
+   char           auto_kibitz_list[100][20];
    char           GM_list[100][20];
    char           IM_list[100][20];
    char           computer_list[100][20];
@@ -17,16 +23,20 @@
    FILE           *books_file;
    FILE           *history_file;
    FILE           *log_file;
+   FILE           *auto_file;
    int            log_id;
    char           input[200];
    char           whisper_text[500];
    int            whisper_value;
    int            whisper_depth;
    int            last_mate_score;
+   int            last_opponent_move;
 
    int            default_draw_score;
    int            over;
    int            ics;
+   int            autoplay;
+   int            xboard;
    int            whisper;
    int            kibitz;
    int            move_number;
@@ -40,14 +50,13 @@
    int            root_beta;
    int            root_value;
    int            root_wtm;
+   int            root_white_pieces,root_white_pawns;
+   int            root_black_pieces,root_black_pawns;
    int            nodes_per_second;
    int            cpu_percent;
 
-   int            null_depth;
-   int            check_extensions;
-   int            recapture_extensions;
-   int            passed_pawn_extensions;
-   int            quiescence_checks;
+   int            tb_probes;
+   int            tb_probes_successful;
 
    int            opening;
    int            middle_game;
@@ -61,6 +70,8 @@
    int            draw_counter;
    int            draw_count;
    char           audible_alarm;
+   char           hint[16];
+   int            post;
    int            search_depth;
    int            search_move;
    int            easy_move;
@@ -75,7 +86,7 @@
    int            pondering;   /* program is thinking on opponent's time */
    int            thinking;    /* program is searching on its time       */
    int            puzzling;    /* program is puzzling about a move to ponder */
-   int            booking;     /* program is searching, but following book moves */
+   int            booking;     /* program is searching, following book moves */
    int            abort_search;
    int            do_ponder;
    int            ponder_move;
@@ -83,26 +94,23 @@
    int            ponder_completed;
    int            force;
 
+   int            ponder_moves[200];
+   int            num_ponder_moves;
+
    unsigned int   opponent_start_time, opponent_end_time;
    unsigned int   program_start_time, program_end_time;
-   int            start_time, end_time;
-   int            nodes_searched;
-   int            nodes_searched_null_move;
-   int            nodes_searched_null_move_wasted;
-   int            null_moves_tried;
-   int            null_moves_wasted;
-   int            evaluations;
-   int            evaluations_hashed;
-   int            max_search_depth;
+   unsigned int   start_time, end_time;
+   unsigned int   elapsed_start, elapsed_end;
+   unsigned int   nodes_searched;
+   unsigned int   q_nodes_searched;
+   unsigned int   evaluations;
+   int            transposition_id;
    int            transposition_hashes;
-   int            transposition_hashes_value;
-   int            transposition_hashes_bound;
-   int            transposition_hashes_cutoff;
    int            pawn_hashes;
-   int            king_hashes;
    int            check_extensions_done;
    int            recapture_extensions_done;
    int            passed_pawn_extensions_done;
+   int            one_reply_extensions_done;
 
    int            ansi;
    int            trace_level;
@@ -114,14 +122,14 @@
    int            book_accept_mask;
    int            book_reject_mask;
    int            book_random;
-   int            book_lower_bound;
-   int            book_absolute_lower_bound;
-   float          book_min_percent_played;
+   int            book_selection_width;
    int            show_book;
 
+   float          increment_factor;
+   int            time_divisor;
+   int            move_limit;
    int            tc_moves;
    int            tc_time;
-   int            tc_simple_average_time;
    int            tc_time_remaining;
    int            tc_time_remaining_opponent;
    int            tc_moves_remaining;
@@ -132,59 +140,68 @@
    int            tc_clock_start;
    int            tc_operator_time;
    int            tc_safety_margin;
+   float          zero_inc_factor;
+   float          inc_time_multiplier;
+   int            draw_score_is_zero;
+   int            out_of_book;
+   float          usage_level;
+   float          usage_time;
+   float          u_time;
+   float          u_otime;
 
    int            log_hash_table_size;
    int            log_pawn_hash_table_size;
-   int            log_king_hash_table_size;
    int            hash_table_size;
    int            pawn_hash_table_size;
-   int            king_hash_table_size;
 
-   BITBOARD       hash_mask;
-   BITBOARD       pawn_hash_mask;
-   BITBOARD       king_hash_mask;
-   HASH_ENTRY     *trans_ref_w;
-   HASH_ENTRY     *trans_ref_b;
-   BITBOARD       *pawn_hash_table;
-   BITBOARD       *pawn_hash_table_x;
-   BITBOARD       *king_hash_table;
+   int            hash_maska;
+   int            hash_maskb;
+   unsigned int   pawn_hash_mask;
+   HASH_ENTRY     *trans_ref_wa;
+   HASH_ENTRY     *trans_ref_wb;
+   HASH_ENTRY     *trans_ref_ba;
+   HASH_ENTRY     *trans_ref_bb;
+   HASH_ENTRY     *pawn_hash_table;
 
    int            hash_move[MAXPLY];
-   int            static_eval[MAXPLY];
    int            history_w[4096], history_b[4096];
    int            killer_move[MAXPLY][2];
    int            killer_move_count[MAXPLY][2];
-   BITBOARD       repetition_list[100+MAXPLY];
-   int            repetition_head;
+   BITBOARD       repetition_list_w[50+MAXPLY/2];
+   BITBOARD       repetition_list_b[50+MAXPLY/2];
+   BITBOARD       *repetition_head_w;
+   BITBOARD       *repetition_head_b;
 
    int            current_move[MAXPLY];
-   int            *first[MAXPLY];
    int            *last[MAXPLY];
    int            in_check[MAXPLY];
    EXTENSIONS     extended_reason[MAXPLY];
-   int            full[MAXPLY];
    int            current_phase[MAXPLY];
    int            move_list[10000];
    int            sort_value[300];
    int            root_sort_value[300];
    int            searched_this_root_move[300];
    CHESS_PATH     pv[MAXPLY];
-#  if !defined(FAST)
-   CHESS_PATH_EXT pv_extensions[MAXPLY];
-   int            show_extensions;
-#  endif
+   CHESS_PATH     last_pv;
+   int            last_value;
    NEXT_MOVE      next_status[MAXPLY];
-   CHESS_POSITION position[MAXPLY+2];
+   SEARCH_POSITION position[MAXPLY+2];
+   BITBOARD       save_hash_key[MAXPLY+2];
+   BITBOARD       save_pawn_hash_key[MAXPLY+2];
    BITBOARD       open_files;
 
-   int            white_outpost[64];
-   int            black_outpost[64];
+   char           white_outpost[64];
+   char           black_outpost[64];
+   char           square_color[64];
    int            connected_passer[8];
    int            supported_passer[8];
    int            pawn_advance[8];
    int            outside_passed[128];
-   int            pawn_ram[9];
-   int            isolated[9];
+   char           king_safety_x[128];
+   int            pawn_rams[9];
+   int            cramping_pawn_rams[9];
+   int            bad_pawn_rams[9];
+   int            pawns_isolated[9];
    int            piece_values[8];
    int            pawn_value_w[64];
    int            pawn_value_b[64];
@@ -192,16 +209,23 @@
    int            knight_value_b[64];
    int            bishop_value_w[64];
    int            bishop_value_b[64];
+   int            rook_value_w[64];
+   int            rook_value_b[64];
    int            queen_value_w[64];
    int            queen_value_b[64];
    int            king_value_w[64];
    int            king_value_b[64];
+   char           king_defects_w[64];
+   char           king_defects_b[64];
 
    int            b_n_mate_dark_squares[64];
    int            b_n_mate_light_squares[64];
    int            mate[64];
 
-   int            directions[64][64];
+   char           is_corner[64];
+   int            flight_sq[64][2];
+
+   signed char    directions[64][64];
    BITBOARD       w_pawn_attacks[64];
    BITBOARD       b_pawn_attacks[64];
    BITBOARD       knight_attacks[64];
@@ -236,6 +260,9 @@
   int            rook_mobility_r0[64][256];
   int            rook_mobility_rl90[64][256];
 #endif
+
+   CHESS_POSITION search;
+   CHESS_POSITION display;
 
    BITBOARD       queen_attacks[64];
    BITBOARD       king_attacks[64];
@@ -279,25 +306,35 @@
    BITBOARD       right_side_empty_mask[8];
    BITBOARD       left_side_empty_mask[8];
    BITBOARD       right_half_mask, left_half_mask;
+   BITBOARD       mask_black_half, mask_white_half;
    BITBOARD       pawns_cramp_black;
    BITBOARD       pawns_cramp_white;
-   BITBOARD       mask_white_space;
-   BITBOARD       mask_white_pawns_space;
-   BITBOARD       mask_black_space;
-   BITBOARD       mask_black_pawns_space;
    BITBOARD       mask_advance_2_w;
    BITBOARD       mask_advance_2_b;
    BITBOARD       mask_left_edge;
    BITBOARD       mask_right_edge;
    BITBOARD       mask_corner_squares;
+   BITBOARD       promote_mask_w;
+   BITBOARD       promote_mask_b;
+   BITBOARD       mask_g2g3;
+   BITBOARD       mask_b2b3;
+   BITBOARD       mask_g6g7;
+   BITBOARD       mask_b6b7;
+
+   BITBOARD       mask_kr_trapped_w[3];
+   BITBOARD       mask_qr_trapped_w[3];
+   BITBOARD       mask_kr_trapped_b[3];
+   BITBOARD       mask_qr_trapped_b[3];
+
    BITBOARD       good_bishop_kw;
    BITBOARD       good_bishop_qw;
    BITBOARD       good_bishop_kb;
    BITBOARD       good_bishop_qb;
-   int            push_extensions[64];
+   char           push_extensions[64];
 
    BITBOARD       light_squares;
    BITBOARD       dark_squares;
+   BITBOARD       not_rook_pawns;
 
    BITBOARD       mask_plus1dir[65];
    BITBOARD       mask_plus7dir[65];
@@ -309,7 +346,7 @@
    BITBOARD       mask_minus9dir[65];
 
    BITBOARD       mask_enpassant_test[64];
-#  if !defined(HAS_64BITS)
+#  if !defined(CRAY1)
      BITBOARD       mask_1;
      BITBOARD       mask_2;
      BITBOARD       mask_3;
@@ -319,6 +356,7 @@
      BITBOARD       mask_32;
      BITBOARD       mask_72;
      BITBOARD       mask_80;
+     BITBOARD       mask_85;
      BITBOARD       mask_96;
      BITBOARD       mask_107;
      BITBOARD       mask_108;
@@ -330,13 +368,13 @@
 #  endif
    BITBOARD       mask_clear_entry;
 
-#  if !defined(HAS_64BITS)
-     int  first_ones[65536];
-     int  last_ones[65536];
-     int  population_count[65536];
+#  if !defined(CRAY1)
+     unsigned char  first_ones[65536];
+     unsigned char  last_ones[65536];
 #  endif
-   int  first_ones_8bit[256];
-   int  last_ones_8bit[256];
+   unsigned char  first_ones_8bit[256];
+   unsigned char  last_ones_8bit[256];
+   unsigned char  connected_passed[256];
 
    BITBOARD       mask_kingside_attack_w1;
    BITBOARD       mask_kingside_attack_w2;
@@ -348,10 +386,10 @@
    BITBOARD       mask_queenside_attack_b2;
 
    BITBOARD       mask_pawn_isolated[64];
-   BITBOARD       mask_pawn_artificially_isolated_w[64];
-   BITBOARD       mask_pawn_artificially_isolated_b[64];
    BITBOARD       mask_pawn_passed_w[64];
    BITBOARD       mask_pawn_passed_b[64];
+   BITBOARD       mask_promotion_threat_w[64];
+   BITBOARD       mask_promotion_threat_b[64];
    BITBOARD       mask_pawn_backward_w[64];
    BITBOARD       mask_pawn_backward_b[64];
    BITBOARD       mask_pawn_connected[64];
@@ -369,4 +407,7 @@
    BITBOARD       white_pawn_race_btm[64];
    BITBOARD       black_pawn_race_wtm[64];
    BITBOARD       black_pawn_race_btm[64];
+
+   BITBOARD       mask_wk_3rd, mask_wk_4th, mask_wq_3rd, mask_wq_4th;
+   BITBOARD       mask_bk_3rd, mask_bk_4th, mask_bq_3rd, mask_bq_4th;
 #endif

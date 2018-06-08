@@ -3,6 +3,8 @@
 #include "types.h"
 #include "function.h"
 #include "data.h"
+
+/* last modified 06/14/96 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -22,20 +24,10 @@
 *                                                                              *
 ********************************************************************************
 */
-int RepetitionCheck(int ply)
+int RepetitionCheck(int ply, int wtm)
 {
-  register int i, this_position, more, reps, search_list;
-/*
- ----------------------------------------------------------
-|                                                          |
-|   insert the board into the next slot in the repetition  |
-|   list.                                                  |
-|                                                          |
- ----------------------------------------------------------
-*/
-  this_position=repetition_head+ply-1;
-  repetition_list[this_position]=HashKey(ply);
-  if (ply == 1) return(0);
+  register int entries;
+  register BITBOARD *replist, *thispos;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -44,7 +36,8 @@ int RepetitionCheck(int ply)
 |                                                          |
  ----------------------------------------------------------
 */
-  if (position[ply].rule_50_moves > 99) return(2);
+  if (ply == 1) return(0);
+  if (Rule50Moves(ply) > 99) return(2);
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -52,44 +45,52 @@ int RepetitionCheck(int ply)
 |                                                          |
  ----------------------------------------------------------
 */
-  if (!(TotalWhitePawns(ply)+TotalBlackPawns(ply)) &&
-      (TotalWhitePieces(ply) < 5) && (TotalBlackPieces(ply) < 5)) return(1);
+  if (!(TotalWhitePawns+TotalBlackPawns) &&
+      (TotalWhitePieces < 5) && (TotalBlackPieces < 5))
+    return(1);
 /*
  ----------------------------------------------------------
 |                                                          |
-|   scan the repetition list to determine if this position |
-|   has occurred before.                                   |
+|   insert the board into the next slot in the repetition  |
+|   list.  then scan the list.  we look for one of the     |
+|   conditions:  (a) the position has occured two times in |
+|   the actual search tree (not including positions that   |
+|   occurred before ply=1); (b) the position has occurred  |
+|   three times including all positions in the list.       |
 |                                                          |
  ----------------------------------------------------------
 */
-  reps=0;
-  more=position[ply].rule_50_moves>>1;
-  search_list=Min(more,(ply-2)>>1);
-  more-=search_list;
-  for (i=this_position-2;search_list;i-=2,search_list--)
-    if(repetition_list[this_position] == repetition_list[i]) return(1);
-  for (;more>0;i-=2,more--)
-    if(repetition_list[this_position] == repetition_list[i]) reps++;
-  if (reps > 1) return(1);
+  entries=(Rule50Moves(ply)>>1)+1;
+  if (wtm) {
+    thispos=repetition_head_w+((ply-2)>>1);
+    *thispos=HashKey;
+    for (replist=thispos-1;entries;replist--,entries--)
+      if(*thispos == *replist) return(1);
+  }
+  else {
+    thispos=repetition_head_b+((ply-2)>>1);
+    *thispos=HashKey;
+    for (replist=thispos-1;entries;replist--,entries--)
+      if(*thispos == *replist) return(1);
+  }
   return(0);
 }
 
+/* last modified 06/14/96 */
 /*
 ********************************************************************************
 *                                                                              *
-*   RepetitionDraw() is used to detect a draw by repetition.  it saves the     *
-*   current position in the repetition list each time it is called.  the list  *
-*   contains all positions encountered since the last irreversible move        *
-*   (capture or pawn push).                                                    *
-*                                                                              *
-*   RepetitionDraw() then scans the list to determine if this position has     *
-*   been repeated three times (a real draw by repetition, not a "psuedo-draw." *
+*   RepetitionDraw() is used to detect a draw by repetition.  this routine is  *
+*   only called from Main() and simply scans the complete list searching for   *
+*   exactly three repetitions (two additional repetitions of the current       *
+*   position.)                                                                 *
 *                                                                              *
 ********************************************************************************
 */
-int RepetitionDraw(void)
+int RepetitionDraw(int wtm)
 {
-  register int i, more, reps;
+  register int reps;
+  BITBOARD *thispos;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -98,7 +99,7 @@ int RepetitionDraw(void)
 |                                                          |
  ----------------------------------------------------------
 */
-  if (position[0].rule_50_moves > 99) return(2);
+  if (Rule50Moves(0) > 99) return(2);
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -108,8 +109,13 @@ int RepetitionDraw(void)
  ----------------------------------------------------------
 */
   reps=0;
-  more=position[0].rule_50_moves>>1;
-  for (i=repetition_head;more;i-=2,more--)
-    if(HashKey(0) == repetition_list[i]) reps++;
+  if (wtm) {
+    for (thispos=repetition_list_w;thispos<repetition_head_w;thispos++)
+      if(HashKey == *thispos) reps++;
+  }
+  else {
+    for (thispos=repetition_list_b;thispos<repetition_head_b;thispos++)
+      if(HashKey == *thispos) reps++;
+  }
   return(reps == 3);
 }

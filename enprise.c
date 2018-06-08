@@ -3,7 +3,8 @@
 #include "types.h"
 #include "function.h"
 #include "data.h"
-#include "evaluate.h"
+
+/* last modified 03/23/96 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -25,10 +26,10 @@
 *                                                                              *
 ********************************************************************************
 */
-int EnPrise(int ply, int target, int wtm)
+int EnPrise(int target, int wtm)
 {
   BITBOARD white_attackers, black_attackers;
-  BITBOARD piece_squares, temp_attacks;
+  BITBOARD attacks, temp_attacks;
   BITBOARD *pawns[2], *knights[2], *bishops[2], 
            *rooks[2], *queens[2], *kings[2];
   int attacked_piece;
@@ -42,11 +43,9 @@ int EnPrise(int ply, int target, int wtm)
 |                                                          |
  ----------------------------------------------------------
 */
-  temp_attacks=AttacksTo(target,ply);
-  white_attackers=And(temp_attacks,
-                      WhitePieces(ply));
-  black_attackers=And(temp_attacks,
-                      BlackPieces(ply));
+  temp_attacks=AttacksTo(target);
+  white_attackers=And(temp_attacks,WhitePieces);
+  black_attackers=And(temp_attacks,BlackPieces);
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -70,7 +69,7 @@ int EnPrise(int ply, int target, int wtm)
  ----------------------------------------------------------
 */
   swap_list[0]=0;
-  attacked_piece=piece_values[abs(PieceOnSquare(ply,target))];
+  attacked_piece=piece_values[abs(PieceOnSquare(target))];
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -79,44 +78,44 @@ int EnPrise(int ply, int target, int wtm)
 |                                                          |
  ----------------------------------------------------------
 */
-  pawns[0]=&BlackPawns(ply);
-  pawns[1]=&WhitePawns(ply);
-  knights[0]=&BlackKnights(ply);
-  knights[1]=&WhiteKnights(ply);
-  bishops[0]=&BlackBishops(ply);
-  bishops[1]=&WhiteBishops(ply);
-  rooks[0]=&BlackRooks(ply);
-  rooks[1]=&WhiteRooks(ply);
-  queens[0]=&BlackQueens(ply);
-  queens[1]=&WhiteQueens(ply);
-  kings[0]=&BlackKing(ply);
-  kings[1]=&WhiteKing(ply);
+  pawns[0]=&BlackPawns;
+  pawns[1]=&WhitePawns;
+  knights[0]=&BlackKnights;
+  knights[1]=&WhiteKnights;
+  bishops[0]=&BlackBishops;
+  bishops[1]=&WhiteBishops;
+  rooks[0]=&BlackRooks;
+  rooks[1]=&WhiteRooks;
+  queens[0]=&BlackQueens;
+  queens[1]=&WhiteQueens;
+  kings[0]=&BlackKing;
+  kings[1]=&WhiteKing;
   swap_sign=1;
-  piece_squares=AttacksTo(target,ply);
+  attacks=AttacksTo(target);
   color=wtm;
 /*
  ----------------------------------------------------------
 |                                                          |
 |   now pick out the least valuable piece for the correct  |
 |   side that is bearing on <target>.  as we find one, we  |
-|   call SwapXray() to add the piece behind this piece    |
+|   call SwapXray() to add the piece behind this piece     |
 |   that is indirectly bearing on <target> (if any).       |
 |                                                          |
  ----------------------------------------------------------
 */
-  while (piece_squares) {
-    if (And(*pawns[color],piece_squares))
-      square=FirstOne(And(*pawns[color],piece_squares));
-    else if (And(*knights[color],piece_squares))
-      square=FirstOne(And(*knights[color],piece_squares));
-    else if (And(*bishops[color],piece_squares))
-      square=FirstOne(And(*bishops[color],piece_squares));
-    else if (And(*rooks[color],piece_squares))
-      square=FirstOne(And(*rooks[color],piece_squares));
-    else if (And(*queens[color],piece_squares))
-      square=FirstOne(And(*queens[color],piece_squares));
-    else if (And(*kings[color],piece_squares))
-      square=FirstOne(And(*kings[color],piece_squares));
+  while (attacks) {
+    if (And(*pawns[color],attacks))
+      square=FirstOne(And(*pawns[color],attacks));
+    else if (And(*knights[color],attacks))
+      square=FirstOne(And(*knights[color],attacks));
+    else if (And(*bishops[color],attacks))
+      square=FirstOne(And(*bishops[color],attacks));
+    else if (And(*rooks[color],attacks))
+      square=FirstOne(And(*rooks[color],attacks));
+    else if (And(*queens[color],attacks))
+      square=FirstOne(And(*queens[color],attacks));
+    else if (And(*kings[color],attacks))
+      square=FirstOne(And(*kings[color],attacks));
     else 
       square=-1;
 /*
@@ -134,12 +133,12 @@ int EnPrise(int ply, int target, int wtm)
                               swap_sign*attacked_piece;
     else
       swap_list[next_capture]=attacked_piece;
-    attacked_piece=piece_values[abs(PieceOnSquare(ply,square))];
-    Clear(square,piece_squares);
-    piece_squares=SwapXray(ply,piece_squares,square,target);
+    attacked_piece=piece_values[abs(PieceOnSquare(square))];
+    Clear(square,attacks);
+    if (directions[target][square]) attacks=SwapXray(attacks,square,target);
     next_capture++;
     swap_sign=-swap_sign;
-    color=!color;
+    color=ChangeSide(color);
   }
 /*
   for (i=0;i<next_capture;i++)

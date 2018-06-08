@@ -4,6 +4,8 @@
 #include "types.h"
 #include "function.h"
 #include "data.h"
+
+/* last modified 07/12/96 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -44,10 +46,13 @@ void Edit(void)
  ----------------------------------------------------------
 */
   while (1) {
-    if (input_stream == stdin)
-      printf("edit: ");
+    if ((input_stream == stdin) && !xboard)
+      if (wtm)
+        printf("edit(white): ");
+      else
+        printf("edit(black): ");
     fscanf(input_stream,"%s",command);
-    if (ics) Print(1,"edit.command:%s\n",command);
+    if (xboard) Print(1,"edit.command:%s\n",command);
     if (!strcmp(command,"white")) {
       wtm=1;
     }
@@ -56,13 +61,16 @@ void Edit(void)
     }
     if (!strcmp(command,"#")) {
       for (i=0;i<64;i++)
-        PieceOnSquare(0,i)=0;
+        PieceOnSquare(i)=0;
     }
     else if (!strcmp(command,"c")) {
-      wtm=!wtm;
+      wtm=ChangeSide(wtm);
     }
     else if (!strcmp(command,"end") || (!strcmp(command,"."))) {
       break;
+    }
+    else if (!strcmp(command,"d")) {
+      DisplayChessBoard(stdout,search);
     }
     else {
       if (strchr(pieces,command[0])) {
@@ -73,9 +81,9 @@ void Edit(void)
         if ((square < 0) || (square > 63))
           printf("unrecognized square %s\n",command);
         if (wtm)
-          PieceOnSquare(0,square)=piece;
+          PieceOnSquare(square)=piece;
         else
-          PieceOnSquare(0,square)=-piece;
+          PieceOnSquare(square)=-piece;
       }
       else {
         printf("unrecognized piece %s\n",command);
@@ -93,16 +101,16 @@ void Edit(void)
 */
   WhiteCastle(0)=0;
   BlackCastle(0)=0;
-  if (PieceOnSquare(0,4) == king) {
-    if (PieceOnSquare(0,0) == rook)
+  if (PieceOnSquare(4) == king) {
+    if (PieceOnSquare(0) == rook)
       WhiteCastle(0)=WhiteCastle(0)|2;
-    if (PieceOnSquare(0,7) == rook)
+    if (PieceOnSquare(7) == rook)
       WhiteCastle(0)=WhiteCastle(0)|1;
   }
-  if (PieceOnSquare(0,60) == -king) {
-    if (PieceOnSquare(0,56) == -rook)
+  if (PieceOnSquare(60) == -king) {
+    if (PieceOnSquare(56) == -rook)
       BlackCastle(0)=BlackCastle(0)|2;
-    if (PieceOnSquare(0,63) == -rook)
+    if (PieceOnSquare(63) == -rook)
       BlackCastle(0)=BlackCastle(0)|1;
   }
 /*
@@ -114,16 +122,11 @@ void Edit(void)
  ----------------------------------------------------------
 */
   SetChessBitBoards(&position[0]);
-  if (log_file)
-    DisplayChessBoard(log_file,position[0]);
+  if (log_file) DisplayChessBoard(log_file,search);
   wtm=1;
   move_number=1;
-  if (wtm)
-    repetition_head=0;
-  else {
-    repetition_head=1;
-    repetition_list[1]=0;
-  }
+  repetition_head_b=repetition_list_b;
+  repetition_head_w=repetition_list_w;
   position[0].rule_50_moves=0;
-  last_move_in_book=-100;
+  last_move_in_book=move_number;
 }

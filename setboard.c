@@ -4,6 +4,8 @@
 #include "types.h"
 #include "function.h"
 #include "data.h"
+
+/* last modified 06/23/96 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -141,19 +143,43 @@ void SetBoard(void)
     else if (match == 12) continue;
     else printf("position ok, color/castle/enpassant is bad.\n");
   }
-  for (i=0;i<64;i++) PieceOnSquare(0,i)=tboard[i];
+  for (i=0;i<64;i++) PieceOnSquare(i)=tboard[i];
   WhiteCastle(0)=wcastle;
   BlackCastle(0)=bcastle;
-  if (ep >= 0) EnPassantTarget(0)=set_mask[ep];
+  EnPassant(0)=0;
   wtm=twtm;
+  if (wtm & (ep > 0)) EnPassant(0)=ep+8;
+  if (ChangeSide(wtm) & (ep > 0)) EnPassant(0)=ep-8;
   SetChessBitBoards(&position[0]);
-  if (log_file) DisplayChessBoard(log_file,position[0]);
-  if (wtm)
-    repetition_head=0;
-  else {
-    repetition_head=1;
-    repetition_list[1]=0;
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   now check the castling status and enpassant status to  |
+|   make sure that the board is in a state that matches    |
+|   these.                                                 |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  if (((WhiteCastle(0) & 2) && (PieceOnSquare(0) != rook)) ||
+      ((WhiteCastle(0) & 1) && (PieceOnSquare(7) != rook)) ||
+      ((BlackCastle(0) & 2) && (PieceOnSquare(56) != -rook)) ||
+      ((BlackCastle(0) & 1) && (PieceOnSquare(63) != -rook)) ||
+      (wtm && EnPassant(0) && (PieceOnSquare(EnPassant(0)+8) != -pawn) &&
+       (PieceOnSquare(EnPassant(0)-7) != pawn) &&
+       (PieceOnSquare(EnPassant(0)-9) != pawn)) ||
+      (ChangeSide(wtm) && EnPassant(0) && (PieceOnSquare(EnPassant(0)-8) != pawn) &&
+       (PieceOnSquare(EnPassant(0)+7) != -pawn) &&
+       (PieceOnSquare(EnPassant(0)+9) != -pawn))) {
+    printf("ERROR-- enpassant or castling status don't match board position\n");
+    InitializeChessBoard(&position[0]);
   }
+  if (log_file) DisplayChessBoard(log_file,search);
+  repetition_head_b=repetition_list_b;
+  repetition_head_w=repetition_list_w;
+  if (wtm)
+    *repetition_head_w++=HashKey;
+  else
+    *repetition_head_b++=HashKey;
   position[0].rule_50_moves=0;
   last_mate_score=0;
   for (i=0;i<4096;i++) {
@@ -166,5 +192,5 @@ void SetBoard(void)
     killer_move_count[i][0]=0;
     killer_move_count[i][1]=0;
   }
-  last_move_in_book=-100;
+  last_move_in_book=move_number;
 }

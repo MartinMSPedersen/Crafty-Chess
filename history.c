@@ -3,6 +3,8 @@
 #include "types.h"
 #include "function.h"
 #include "data.h"
+
+/* last modified 02/12/96 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -20,17 +22,16 @@
 void HistoryBest(int ply, int depth, int wtm)
 {
   register int index, temp;
-  register int tempm;
 /*
  ----------------------------------------------------------
 |                                                          |
-|   if the best move so far is a capture, return as we     |
-|   try good captures before before using the history      |
-|   heuristic anyway.                                      |
+|   if the best move so far is a capture or a promotion,   |
+|   return, since we try good captures and promotions      |
+|   before searching history heuristic moves anyway.       |
 |                                                          |
  ----------------------------------------------------------
 */
-  if (Captured(pv[ply].path[ply]) || Promote(pv[ply].path[ply])) return;
+  if (CaptureOrPromote(pv[ply].path[ply])) return;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -40,9 +41,8 @@ void HistoryBest(int ply, int depth, int wtm)
  ----------------------------------------------------------
 */
   index=pv[ply].path[ply] & 4095;
-  depth=Max(depth,1);
-  if (wtm) history_w[index]+=7*depth;
-  else history_b[index]+=7*depth;
+  if (wtm) history_w[index]+=depth*depth;
+  else history_b[index]+=depth*depth;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -59,9 +59,9 @@ void HistoryBest(int ply, int depth, int wtm)
       temp=killer_move_count[ply][0];
       killer_move_count[ply][0]=killer_move_count[ply][1];
       killer_move_count[ply][1]=temp;
-      tempm=killer_move[ply][0];
+      temp=killer_move[ply][0];
       killer_move[ply][0]=killer_move[ply][1];
-      killer_move[ply][1]=tempm;
+      killer_move[ply][1]=temp;
     }
   }
   else {
@@ -73,17 +73,16 @@ void HistoryBest(int ply, int depth, int wtm)
 void HistoryRefutation(int ply, int depth, int wtm)
 {
   register int index, temp;
-  register int tempm;
 /*
  ----------------------------------------------------------
 |                                                          |
-|   if the best move so far is a capture, return as we     |
-|   try good captures before before using the history      |
-|   heuristic anyway.                                      |
+|   if the best move so far is a capture or a promotion,   |
+|   return, since we try good captures and promotions      |
+|   before searching history heuristic moves anyway.       |
 |                                                          |
  ----------------------------------------------------------
 */
-  if (Captured(current_move[ply]) || Promote(current_move[ply])) return;
+  if (CaptureOrPromote(current_move[ply])) return;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -93,9 +92,8 @@ void HistoryRefutation(int ply, int depth, int wtm)
  ----------------------------------------------------------
 */
   index=current_move[ply] & 4095;
-  depth=Max(depth,1);
-  if (wtm) history_w[index]+=7*depth;
-  else history_b[index]+=7*depth;
+  if (wtm) history_w[index]+=depth*depth;
+  else history_b[index]+=depth*depth;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -112,9 +110,9 @@ void HistoryRefutation(int ply, int depth, int wtm)
       temp=killer_move_count[ply][0];
       killer_move_count[ply][0]=killer_move_count[ply][1];
       killer_move_count[ply][1]=temp;
-      tempm=killer_move[ply][0];
+      temp=killer_move[ply][0];
       killer_move[ply][0]=killer_move[ply][1];
-      killer_move[ply][1]=tempm;
+      killer_move[ply][1]=temp;
     }
   }
   else {

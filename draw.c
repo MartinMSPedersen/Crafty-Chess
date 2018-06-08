@@ -2,7 +2,8 @@
 #include "types.h"
 #include "function.h"
 #include "data.h"
-#include "evaluate.h"
+
+/* last modified 09/19/96 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -21,16 +22,25 @@ int DrawScore(void)
 /*
  ----------------------------------------------------------
 |                                                          |
-|   first, set the draw score base on the phase of the     |
+|   if playing a computer, return the default draw score   |
+|   regardless of the phase of the game or time left.      |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  if (draw_score_is_zero) return(default_draw_score);
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   first, set the draw score based on the phase of the    |
 |   game, as would be done normally, anyway.               |
 |                                                          |
  ----------------------------------------------------------
 */
   if (opening) 
-    draw_score=default_draw_score-PAWN_VALUE/2;
+    draw_score=default_draw_score-2*PAWN_VALUE/3;
   else if (middle_game)
-    draw_score=default_draw_score-PAWN_VALUE/5;
-  else if (end_game)
+    draw_score=default_draw_score-PAWN_VALUE/3;
+  else
     draw_score=default_draw_score;
 /*
  ----------------------------------------------------------

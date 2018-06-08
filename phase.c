@@ -3,6 +3,8 @@
 #include "types.h"
 #include "function.h"
 #include "data.h"
+
+/* last modified 03/14/96 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -21,6 +23,7 @@
 */
 void Phase(void)
 {
+  int t_opening, t_middle_game, t_end_game;
 
 /*
  ----------------------------------------------------------
@@ -30,11 +33,26 @@ void Phase(void)
 |                                                          |
  ----------------------------------------------------------
 */
-  if (root_wtm) opening=WhiteCastle(1) ||
-          Popcnt(And(Or(WhiteKnights(1),WhiteBishops(1)),white_minor_pieces));
-  else opening=BlackCastle(1) ||
-          Popcnt(And(Or(BlackKnights(1),BlackBishops(1)),black_minor_pieces));
-  if (move_number > 20) opening=0;
+  t_opening=opening;
+  t_middle_game=middle_game;
+  t_end_game=end_game;
+  if (opening) {
+    do {
+      if (root_wtm) {
+        if (WhiteCastle(1)>0) break;
+        if (And(WhiteBishops,white_minor_pieces)) break;
+        if (And(WhiteKnights,white_minor_pieces)) break;
+      }
+      else {
+        if (BlackCastle(1)>0) break;
+        if (And(BlackBishops,black_minor_pieces)) break;
+        if (And(BlackKnights,black_minor_pieces)) break;
+      }
+      opening=0;
+      middle_game=1;
+      end_game=0;
+    } while (0);
+  }
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -43,29 +61,15 @@ void Phase(void)
 |                                                          |
  ----------------------------------------------------------
 */
-  end_game=(TotalWhitePieces(1) < 17) && (TotalBlackPieces(1) < 17);
-/*
- ----------------------------------------------------------
-|                                                          |
-|   if we are are not in an end-game, and not in the       |
-|   opening, then we are in a middle-game position.        |
-|                                                          |
- ----------------------------------------------------------
-*/
-  if (end_game) {
+  if (TotalWhitePieces < 17 && TotalBlackPieces < 17) {
     opening=0;
     middle_game=0;
+    end_game=1;
   }
-  else if (opening) {
-    middle_game=0;
-    end_game=0;
-  }
-  else {
-    opening=0;
-    middle_game=1;
-    end_game=0;
-  }
-  if (opening) Print(6,"opening phase\n");
-  else if (middle_game) Print(6,"middle-game phase\n");
-  else Print(6,"end-game phase\n");
+  if (opening && opening != t_opening)
+    Print(6,"opening phase\n");
+  else if (middle_game && middle_game != t_middle_game)
+    Print(6,"middle-game phase\n");
+  else if (end_game != t_end_game)
+    Print(6,"end-game phase\n");
 }

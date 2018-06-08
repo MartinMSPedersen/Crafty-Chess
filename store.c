@@ -3,6 +3,8 @@
 #include "types.h"
 #include "function.h"
 #include "data.h"
+
+/* last modified 08/27/96 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -13,12 +15,11 @@
 *   in the table below.                                                        *
 *                                                                              *
 *     bits     name  SL  description                                           *
-*       1       age  63  0->old position, 1-> position is from current search. *
-*       2      type  61  0->value is worthless; 1-> value is a good score;     *
-*                        2-> value is a backed up bound; 3-> value is a bound  *
-*                        and the current position faild high.                  *
-*                        table position failed high on it.                     *
-*      20     value  41  unsigned integer value of this position + 131072.     *
+*       2       age  62  search id to identify old trans/ref entried.          *
+*       2      type  60  0->value is worthless; 1-> value represents a fail-   *
+*                        low bound; 2-> value represents a fail-high bound;    *
+*                        3-> value is an exact score.                          *
+*      19     value  41  unsigned integer value of this position + 131072.     *
 *                        this might be a good score or search bound.           *
 *      20    pvalue  21  unsigned integer value the evaluate() procedure       *
 *                        produced for this position (0=none)+131072.           *
@@ -42,102 +43,27 @@
 void StoreBest(int ply, int depth, int wtm, int value, int alpha)
 {
   register BITBOARD temp_hash_key;
-  register HASH_ENTRY *ht, *htable, *best;
-  register int i, found, best_draft, rehash, type;
-  register int eval;
+  register HASH_ENTRY *htablea, *htableb;
+  register BITBOARD word1, word2;
   register int draft, age;
-  register int old_move;
 /*
  ----------------------------------------------------------
 |                                                          |
-|   first, "adjust" the hash key to include both castling  |
-|   status and en passant status.                          |
+|   first, compute the initial hash address and choose     |
+|   which hash table (based on color) to probe.            |
 |                                                          |
  ----------------------------------------------------------
 */
-  if (!trans_ref_w) return;
-  temp_hash_key=HashKey(ply);
-  if (wtm) ht=trans_ref_w+And(temp_hash_key,hash_mask);
-  else ht=trans_ref_b+And(temp_hash_key,hash_mask);
-  rehash=And(Shiftr(temp_hash_key,log_hash_table_size),mask_118)+1;
-/*
- ----------------------------------------------------------
-|                                                          |
-|   now, locate the most "useless entry" which will be     |
-|   replaced by this call to store.best().  the first pass |
-|   searches for an exact match.  if one is found, we must |
-|   store in that entry.                                   |
-|                                                          |
- ----------------------------------------------------------
-*/
-  if (static_eval[ply]) eval=static_eval[ply]+131072;
-  else eval=131072;
-  htable=ht;
-  found=0;
-  old_move=0;
-  if (depth < 0) depth=0;
-  for (i=0;i<4;i++) {
-    if (!Xor(And(htable->word2,mask_80),Shiftr(temp_hash_key,16))) {
-      found=1;
-      if (eval == 131072) eval=And(Shiftr(htable->word1,21),mask_108);
-      draft=((int) Shiftr(htable->word2,48)) & 255;
-      type=Shiftr(htable->word1,61) & 3;
-      if ((draft > depth) && (type == good_score)) return;
-      old_move=And(htable->word1,mask_107);
-      break;
-    }
-    htable+=rehash;
+  temp_hash_key=HashKey;
+  if (wtm) {
+    htablea=trans_ref_wa+(((int) temp_hash_key) & hash_maska);
+    htableb=trans_ref_wb+(((int) temp_hash_key) & hash_maskb);
   }
-/*
- ----------------------------------------------------------
-|                                                          |
-|   if that failed, try to find one that was stored from   |
-|   a previous search or search iteration.  if so, we will |
-|   replace that entry.                                    |
-|                                                          |
- ----------------------------------------------------------
-*/
-  if (!found) {
-    htable=ht;
-    for (i=0;i<4;i++) {
-      age=Shiftr(htable->word1,63);
-      if (age) {
-        found=1;
-        break;
-      }
-      else {
-        type=Shiftr(htable->word1,61) & 3;
-        if (type == worthless) {
-          found=1;
-          break;
-        }
-      }
-      htable+=rehash;
-    }
+  else {
+    htablea=trans_ref_ba+(((int) temp_hash_key) & hash_maska);
+    htableb=trans_ref_bb+(((int) temp_hash_key) & hash_maskb);
   }
-/*
- ----------------------------------------------------------
-|                                                          |
-|   if that also failed, try to find one that was stored   |
-|   from the current search, but which contains less       |
-|   useful information than what we want to store so we    |
-|   will lose as little as possible.                       |
-|                                                          |
- ----------------------------------------------------------
-*/
-  if (!found) {
-    best_draft=999;
-    htable=ht;
-    for (i=0;i<4;i++) {
-      draft=((int) Shiftr(htable->word2,48)) & 255;
-      if (best_draft > draft) {
-        best_draft=draft;
-        best=htable;
-      }
-      htable+=rehash;
-    }
-    htable=best;
-  }
+  temp_hash_key=temp_hash_key>>16;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -146,26 +72,34 @@ void StoreBest(int ply, int depth, int wtm, int value, int alpha)
 |                                                          |
  ----------------------------------------------------------
 */
-  if (abs(value) < MATE-100) htable->word1=Shiftl((BITBOARD) value+131072,41);
-  else if (value > 0) htable->word1=Shiftl((BITBOARD) value+ply-1+131072,41);
-  else htable->word1=Shiftl((BITBOARD) value-ply+1+131072,41);
-  htable->word1=Or(htable->word1,Shiftl((BITBOARD) eval,21));
-  if (value > alpha)
-    htable->word1=Or(htable->word1,Shiftl((BITBOARD) good_score,61));
-  else
-    htable->word1=Or(htable->word1,Shiftl((BITBOARD) failed_low,61));
-  if ((value != alpha) && (pv[ply].path_length >= ply)) {
-    htable->word1=Or(htable->word1,pv[ply].path[ply]);
-#if defined(DEBUG)
-    if (!ValidMove(ply,wtm,pv[ply].path[ply]))
-      printf("StoreBest() storing an illegal move\n");
-#endif
-  }
-  else if (old_move) htable->word1=Or(htable->word1,old_move);
+  word1=0;
 
-  htable->word2=Or(Shiftr(temp_hash_key,16),Shiftl((BITBOARD) depth,48));
+  if (value > alpha) {
+    if (abs(value) < MATE-100) word1=Or(word1,Shiftl((BITBOARD) (value+131072),41));
+    else if (value > 0) word1=Or(word1,Shiftl((BITBOARD) (value+ply-1+131072),41));
+    else word1=Or(word1,Shiftl((BITBOARD) (value-ply+1+131072),41));
+    word1=Or(word1,Shiftl((BITBOARD) ((transposition_id<<2)+EXACT_SCORE),60));
+    if (pv[ply].path_length >= ply) 
+      word1=Or(word1,(BITBOARD) pv[ply].path[ply]);
+  }
+  else {
+    word1=Or(word1,Shiftl((BITBOARD) (value+131072),41));
+    word1=Or(word1,Shiftl((BITBOARD) ((transposition_id<<2)+LOWER_BOUND),60));
+  }
+
+  word2=Or(temp_hash_key,Shiftl((BITBOARD) depth,48));
+
+  draft=((int) Shiftr(htablea->word2,48)) & 0377;
+  age=((unsigned int) Shiftr(htablea->word1,62))!=transposition_id;
+  if (age || (depth >= draft)) {
+    htablea->word1=word1;
+    htablea->word2=word2;
+  }
+  htableb->word1=word1;
+  htableb->word2=word2;
 }
 
+/* last modified 08/27/96 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -177,8 +111,7 @@ void StoreBest(int ply, int depth, int wtm, int value, int alpha)
 void StorePV(int ply, int wtm)
 {
   register BITBOARD temp_hash_key;
-  register HASH_ENTRY *ht, *htable, *best;
-  register int i, found, rehash;
+  register HASH_ENTRY *htable;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -188,43 +121,21 @@ void StorePV(int ply, int wtm)
  ----------------------------------------------------------
 */
   if (!ValidMove(ply,wtm,pv[ply].path[ply])) {
-    fprintf(log_file,"\ninstalling bogus move...ply=%d  len=%d\n",ply,pv[ply].path_length);
-    fprintf(log_file,"installing %s\n",OutputMove(&pv[ply].path[ply],ply,wtm));
+    Print(0,"\ninstalling bogus move...ply=%d\n",ply);
+    Print(0,"installing %s\n",OutputMove(&pv[ply].path[ply],ply,wtm));
     return;
   }
 /*
  ----------------------------------------------------------
 |                                                          |
-|   first, "adjust" the hash key to include both castling  |
-|   status and en passant status.                          |
+|   first, compute the initial hash address and choose     |
+|   which hash table (based on color) to probe.            |
 |                                                          |
  ----------------------------------------------------------
 */
-  if (!trans_ref_w) return;
-  temp_hash_key=HashKey(ply);
-  if (wtm) ht=trans_ref_w+And(temp_hash_key,hash_mask);
-  else ht=trans_ref_b+And(temp_hash_key,hash_mask);
-  rehash=And(Shiftr(temp_hash_key,log_hash_table_size),mask_118)+1;
-/*
- ----------------------------------------------------------
-|                                                          |
-|   now, locate the most "useless entry" which will be     |
-|   replaced by this call to store.best().  the first pass |
-|   searches for an exact match.  if one is found, we must |
-|   store in that entry.                                   |
-|                                                          |
- ----------------------------------------------------------
-*/
-  htable=ht;
-  found=0;
-  for (i=0;i<4;i++) {
-    if (!Xor(And(htable->word2,mask_80),Shiftr(temp_hash_key,16))) {
-      found=1;
-      break;
-    }
-    htable+=rehash;
-  }
-  if (!found) htable=ht;
+  temp_hash_key=HashKey;
+  htable=((wtm) ? trans_ref_wb : trans_ref_bb)+(((int) temp_hash_key)&hash_maskb);
+  temp_hash_key=temp_hash_key>>16;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -233,16 +144,13 @@ void StorePV(int ply, int wtm)
 |                                                          |
  ----------------------------------------------------------
 */
-  if (found)
-    htable->word1=Or(And(htable->word1,Compl(mask_107)),pv[ply].path[ply]);
-  else {
-    htable->word1=Shiftl((BITBOARD) 131072,21);
-    htable->word1=Or(htable->word1,Shiftl((BITBOARD) worthless,61));
-    htable->word1=Or(htable->word1,pv[ply].path[ply]);
-    htable->word2=Shiftr(temp_hash_key,16);
-  }
+  htable->word1=Shiftl((BITBOARD) 131072,21);
+  htable->word1=Or(htable->word1,Shiftl((BITBOARD) ((transposition_id<<2)+WORTHLESS),61));
+  htable->word1=Or(htable->word1,(BITBOARD) pv[ply].path[ply]);
+  htable->word2=temp_hash_key;
 }
 
+/* last modified 08/27/96 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -255,100 +163,27 @@ void StorePV(int ply, int wtm)
 void StoreRefutation(int ply, int depth, int wtm, int bound)
 {
   register BITBOARD temp_hash_key;
-  register HASH_ENTRY *ht, *htable, *best;
-  register int i, found, best_draft, rehash, type;
-  register int eval;
+  register HASH_ENTRY *htablea, *htableb;
+  register BITBOARD word1, word2;
   register int draft, age;
 /*
  ----------------------------------------------------------
 |                                                          |
-|   first, "adjust" the hash key to include both castling  |
-|   status and en passant status.                          |
+|   first, compute the initial hash address and choose     |
+|   which hash table (based on color) to probe.            |
 |                                                          |
  ----------------------------------------------------------
 */
-  if (!trans_ref_w) return;
-  temp_hash_key=HashKey(ply);
-  if (wtm) ht=trans_ref_w+And(temp_hash_key,hash_mask);
-  else ht=trans_ref_b+And(temp_hash_key,hash_mask);
-  rehash=And(Shiftr(temp_hash_key,log_hash_table_size),mask_118)+1;
-/*
- ----------------------------------------------------------
-|                                                          |
-|   now, locate the most "useless entry" which will be     |
-|   replaced by this call to store.best().  the first pass |
-|   searches for an exact match.  if one is found, we must |
-|   store in that entry.                                   |
-|                                                          |
- ----------------------------------------------------------
-*/
-  htable=ht;
-  found=0;
-  if (static_eval[ply]) eval=static_eval[ply]+131072;
-  else eval=131072;
-  if (depth < 0) depth=0;
-  for (i=0;i<4;i++) {
-    if (!Xor(And(htable->word2,mask_80),Shiftr(temp_hash_key,16))) {
-      found=1;
-      if (eval == 131072) eval=And(Shiftr(htable->word1,21),mask_108);
-      draft=((int) Shiftr(htable->word2,48)) & 255;
-      type=Shiftr(htable->word1,61) & 3;
-      if (draft > depth) return;
-      else if ((draft == depth) && (type == good_score)) return;
-      break;
-    }
-    htable+=rehash;
+  temp_hash_key=HashKey;
+  if (wtm) {
+    htablea=trans_ref_wa+(((int) temp_hash_key) & hash_maska);
+    htableb=trans_ref_wb+(((int) temp_hash_key) & hash_maskb);
   }
-/*
- ----------------------------------------------------------
-|                                                          |
-|   if that failed, try to find one that was stored from   |
-|   a previous search or search iteration.  if so, we will |
-|   replace that entry.                                    |
-|                                                          |
- ----------------------------------------------------------
-*/
-  if (!found) {
-    htable=ht;
-    for (i=0;i<4;i++) {
-      age=Shiftr(htable->word1,63);
-      if (age) {
-        found=1;
-        break;
-      }
-      else {
-        type=Shiftr(htable->word1,61) & 3;
-        if (type == worthless) {
-          found=1;
-          break;
-        }
-      }
-      htable+=rehash;
-    }
+  else {
+    htablea=trans_ref_ba+(((int) temp_hash_key) & hash_maska);
+    htableb=trans_ref_bb+(((int) temp_hash_key) & hash_maskb);
   }
-/*
- ----------------------------------------------------------
-|                                                          |
-|   if that also failed, try to find one that was stored   |
-|   from the current search, but which contains less       |
-|   usefull information than what we want to store so we   |
-|   will lose as little as possible.                       |
-|                                                          |
- ----------------------------------------------------------
-*/
-  if (!found) {
-    best_draft=999;
-    htable=ht;
-    for (i=0;i<4;i++) {
-      draft=((int) Shiftr(htable->word2,48)) & 255;
-      if (best_draft > draft) {
-        best_draft=draft;
-        best=htable;
-      }
-      htable+=rehash;
-    }
-    htable=best;
-  }
+  temp_hash_key=temp_hash_key>>16;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -357,16 +192,19 @@ void StoreRefutation(int ply, int depth, int wtm, int bound)
 |                                                          |
  ----------------------------------------------------------
 */
-  htable->word1=Shiftl((BITBOARD) bound+131072,41);
-  htable->word1=Or(htable->word1,Shiftl((BITBOARD) eval,21));
-  htable->word1=Or(htable->word1,Shiftl((BITBOARD) failed_high,61));
-  if (Piece(current_move[ply])) {
-    htable->word1=Or(htable->word1,current_move[ply]);
-#if defined(DEBUG)
-    if (!ValidMove(ply,wtm,current_move[ply]))
-      printf("StoreRefutation() storing an illegal move\n");
-#endif
-  }
+  word1=Shiftl((BITBOARD) (bound+131072),41);
+  word1=Or(word1,Shiftl((BITBOARD) ((transposition_id<<2)+UPPER_BOUND),60));
+  word1=Or(word1,(BITBOARD) current_move[ply]);
 
-  htable->word2=Or(Shiftr(temp_hash_key,16),Shiftl((BITBOARD) depth,48));
+  word2=Or(temp_hash_key,Shiftl((BITBOARD) depth,48));
+
+  draft=((int) Shiftr(htablea->word2,48)) & 0377;
+  age=((unsigned int) Shiftr(htablea->word1,62))!=transposition_id;
+
+  if (age || (depth >= draft)) {
+    htablea->word1=word1;
+    htablea->word2=word2;
+  }
+  htableb->word1=word1;
+  htableb->word2=word2;
 }

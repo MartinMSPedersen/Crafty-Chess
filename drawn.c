@@ -2,8 +2,9 @@
 #include <stdlib.h>
 #include "types.h"
 #include "function.h"
-#include "evaluate.h"
 #include "data.h"
+
+/* last modified 09/05/96 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -16,7 +17,7 @@
 *                                                                              *
 ********************************************************************************
 */
-int Drawn(int ply, int value)
+int Drawn(int value)
 {
 /*
  ----------------------------------------------------------
@@ -26,8 +27,7 @@ int Drawn(int ply, int value)
 |                                                          |
  ----------------------------------------------------------
 */
-  if (WhitePawns(ply) ||
-      BlackPawns(ply)) return(0);
+  if (WhitePawns || BlackPawns) return(0);
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -46,8 +46,7 @@ int Drawn(int ply, int value)
 |                                                          |
  ----------------------------------------------------------
 */
-  if (TotalWhitePieces(ply) ==
-      TotalBlackPieces(ply)) return(1);
+  if (TotalWhitePieces == TotalBlackPieces) return(1);
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -57,16 +56,11 @@ int Drawn(int ply, int value)
 |                                                          |
  ----------------------------------------------------------
 */
-  if ((TotalWhitePieces(ply) != 5) ||
-      (TotalBlackPieces(ply) != 5)) {
-    if ((TotalWhitePieces(ply) == 5) ||
-        (TotalWhitePieces(ply) > 6) ||
-        ((TotalWhitePieces(ply) == 6) &&
-         (WhiteBishops(ply)))) return(0);
-    if ((TotalBlackPieces(ply) == 5) ||
-        (TotalBlackPieces(ply) > 6) ||
-        ((TotalBlackPieces(ply) == 6) &&
-         (BlackBishops(ply)))) return(0);
+  if ((TotalWhitePieces != 5) || (TotalBlackPieces != 5)) {
+    if ((TotalWhitePieces == 5) || (TotalWhitePieces > 6) ||
+        ((TotalWhitePieces == 6) && (WhiteBishops))) return(0);
+    if ((TotalBlackPieces == 5) || (TotalBlackPieces > 6) ||
+        ((TotalBlackPieces == 6) && (BlackBishops))) return(0);
   }
   return(1);
 }

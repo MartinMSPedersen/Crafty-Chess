@@ -3,8 +3,8 @@
 #include "types.h"
 #include "function.h"
 #include "data.h"
-#include "evaluate.h"
-void ValidatePosition(int ply)
+
+void ValidatePosition(int ply, int move, char *caller)
 {
   BITBOARD temp, temp1, temp_occ, temp_occ_rl90, temp_occ_rl45;
   BITBOARD temp_occ_rr45, temp_occx, cattacks, rattacks;
@@ -14,18 +14,18 @@ void ValidatePosition(int ply)
   first, test w_occupied and b_occupied
 */
   error=0;
-  temp_occ=Or(Or(Or(Or(Or(WhitePawns(ply),WhiteKnights(ply)),WhiteBishops(ply)),
-                    WhiteRooks(ply)),WhiteQueens(ply)),WhiteKing(ply));
-  if(Xor(WhitePieces(ply),temp_occ)) {
+  temp_occ=Or(Or(Or(Or(Or(WhitePawns,WhiteKnights),WhiteBishops),
+                    WhiteRooks),WhiteQueens),WhiteKing);
+  if(Xor(WhitePieces,temp_occ)) {
     Print(1,"ERROR white occupied squares is bad!\n");
-    Display2BitBoards(temp_occ,WhitePieces(ply));
+    Display2BitBoards(temp_occ,WhitePieces);
     error=1;
   }
-  temp_occ=Or(Or(Or(Or(Or(BlackPawns(ply),BlackKnights(ply)),BlackBishops(ply)),
-                    BlackRooks(ply)),BlackQueens(ply)),BlackKing(ply));
-  if(Xor(BlackPieces(ply),temp_occ)) {
+  temp_occ=Or(Or(Or(Or(Or(BlackPawns,BlackKnights),BlackBishops),
+                    BlackRooks),BlackQueens),BlackKing);
+  if(Xor(BlackPieces,temp_occ)) {
     Print(1,"ERROR black occupied squares is bad!\n");
-    Display2BitBoards(temp_occ,BlackPieces(ply));
+    Display2BitBoards(temp_occ,BlackPieces);
     error=1;
   }
 /*
@@ -35,57 +35,56 @@ void ValidatePosition(int ply)
   temp_occ_rl45=0;
   temp_occ_rr45=0;
   for (i=0;i<64;i++) {
-    if (PieceOnSquare(ply,i)) {
+    if (PieceOnSquare(i)) {
       temp_occ_rl90=Or(temp_occ_rl90,set_mask_rl90[i]);
       temp_occ_rl45=Or(temp_occ_rl45,set_mask_rl45[i]);
       temp_occ_rr45=Or(temp_occ_rr45,set_mask_rr45[i]);
     }
   }
-  if(Xor(OccupiedRL90(ply),temp_occ_rl90)) {
+  if(Xor(OccupiedRL90,temp_occ_rl90)) {
     Print(1,"ERROR occupied squares (rotated left 90) is bad!\n");
-    Display2BitBoards(temp_occ_rl90,OccupiedRL90(ply));
+    Display2BitBoards(temp_occ_rl90,OccupiedRL90);
     error=1;
   }
-  if(Xor(OccupiedRL45(ply),temp_occ_rl45)) {
+  if(Xor(OccupiedRL45,temp_occ_rl45)) {
     Print(1,"ERROR occupied squares (rotated left 45) is bad!\n");
-    Display2BitBoards(temp_occ_rl45,OccupiedRL45(ply));
+    Display2BitBoards(temp_occ_rl45,OccupiedRL45);
     error=1;
   }
-  if(Xor(OccupiedRR45(ply),temp_occ_rr45)) {
+  if(Xor(OccupiedRR45,temp_occ_rr45)) {
     Print(1,"ERROR occupied squares (rotated right 45) is bad!\n");
-    Display2BitBoards(temp_occ_rr45,OccupiedRR45(ply));
+    Display2BitBoards(temp_occ_rr45,OccupiedRR45);
     error=1;
   }
 /*
   now test bishops_queens and rooks_queens
 */
-  temp_occ=Or(Or(Or(WhiteBishops(ply),WhiteQueens(ply)),BlackBishops(ply)),
-              BlackQueens(ply));
-  if(Xor(BishopsQueens(ply),temp_occ)) {
+  temp_occ=Or(Or(Or(WhiteBishops,WhiteQueens),BlackBishops),
+              BlackQueens);
+  if(Xor(BishopsQueens,temp_occ)) {
     Print(1,"ERROR bishops_queens is bad!\n");
-    Display2BitBoards(temp_occ,BishopsQueens(ply));
+    Display2BitBoards(temp_occ,BishopsQueens);
     error=1;
   }
-    temp_occ=Or(Or(Or(WhiteRooks(ply),WhiteQueens(ply)),BlackRooks(ply)),
-                BlackQueens(ply));
-  if(Xor(RooksQueens(ply),temp_occ)) {
+    temp_occ=Or(Or(Or(WhiteRooks,WhiteQueens),BlackRooks),
+                BlackQueens);
+  if(Xor(RooksQueens,temp_occ)) {
     Print(1,"ERROR rooks_queens is bad!\n");
-    Display2BitBoards(temp_occ,RooksQueens(ply));
+    Display2BitBoards(temp_occ,RooksQueens);
     error=1;
-    DisplayBitBoard(Xor(RooksQueens(ply),temp_occ));
   }
 /*
   check individual piece bit-boards to make sure two pieces
   don't occupy the same square (bit)
 */
     temp_occ=Xor(Xor(Xor(Xor(Xor(Xor(Xor(Xor(Xor(Xor(Xor(
-       WhitePawns(ply),WhiteKnights(ply)),WhiteBishops(ply)),WhiteRooks(ply)),
-       WhiteQueens(ply)),BlackPawns(ply)),BlackKnights(ply)),BlackBishops(ply)),
-       BlackRooks(ply)),BlackQueens(ply)),WhiteKing(ply)),BlackKing(ply));
+       WhitePawns,WhiteKnights),WhiteBishops),WhiteRooks),
+       WhiteQueens),BlackPawns),BlackKnights),BlackBishops),
+       BlackRooks),BlackQueens),WhiteKing),BlackKing);
     temp_occx=Or(Or(Or(Or(Or(Or(Or(Or(Or(Or(Or(
-       WhitePawns(ply),WhiteKnights(ply)),WhiteBishops(ply)),WhiteRooks(ply)),
-       WhiteQueens(ply)),BlackPawns(ply)),BlackKnights(ply)),BlackBishops(ply)),
-       BlackRooks(ply)),BlackQueens(ply)),WhiteKing(ply)),BlackKing(ply));
+       WhitePawns,WhiteKnights),WhiteBishops),WhiteRooks),
+       WhiteQueens),BlackPawns),BlackKnights),BlackBishops),
+       BlackRooks),BlackQueens),WhiteKing),BlackKing);
     if(Xor(temp_occ,temp_occx)) {
       Print(1,"ERROR two pieces on same square\n");
       error=1;
@@ -93,49 +92,49 @@ void ValidatePosition(int ply)
 /*
   test material_evaluation
 */
-  temp_score=Popcnt(WhitePawns(ply))*PAWN_VALUE;
-  temp_score-=Popcnt(BlackPawns(ply))*PAWN_VALUE;
-  temp_score+=Popcnt(WhiteKnights(ply))*KNIGHT_VALUE;
-  temp_score-=Popcnt(BlackKnights(ply))*KNIGHT_VALUE;
-  temp_score+=Popcnt(WhiteBishops(ply))*BISHOP_VALUE;
-  temp_score-=Popcnt(BlackBishops(ply))*BISHOP_VALUE;
-  temp_score+=Popcnt(WhiteRooks(ply))*ROOK_VALUE;
-  temp_score-=Popcnt(BlackRooks(ply))*ROOK_VALUE;
-  temp_score+=Popcnt(WhiteQueens(ply))*QUEEN_VALUE;
-  temp_score-=Popcnt(BlackQueens(ply))*QUEEN_VALUE;
-  if(temp_score != Material(ply)) {
+  temp_score=PopCnt(WhitePawns)*PAWN_VALUE;
+  temp_score-=PopCnt(BlackPawns)*PAWN_VALUE;
+  temp_score+=PopCnt(WhiteKnights)*KNIGHT_VALUE;
+  temp_score-=PopCnt(BlackKnights)*KNIGHT_VALUE;
+  temp_score+=PopCnt(WhiteBishops)*BISHOP_VALUE;
+  temp_score-=PopCnt(BlackBishops)*BISHOP_VALUE;
+  temp_score+=PopCnt(WhiteRooks)*ROOK_VALUE;
+  temp_score-=PopCnt(BlackRooks)*ROOK_VALUE;
+  temp_score+=PopCnt(WhiteQueens)*QUEEN_VALUE;
+  temp_score-=PopCnt(BlackQueens)*QUEEN_VALUE;
+  if(temp_score != Material) {
     Print(1,"ERROR  material_evaluation is wrong, good=%d, bad=%d\n",
-           temp_score,Material(ply));
+           temp_score,Material);
     error=1;
   }
-  temp_score=Popcnt(WhiteKnights(ply))*knight_v;
-  temp_score+=Popcnt(WhiteBishops(ply))*bishop_v;
-  temp_score+=Popcnt(WhiteRooks(ply))*rook_v;
-  temp_score+=Popcnt(WhiteQueens(ply))*queen_v;
-  if(temp_score != TotalWhitePieces(ply)) {
+  temp_score=PopCnt(WhiteKnights)*knight_v;
+  temp_score+=PopCnt(WhiteBishops)*bishop_v;
+  temp_score+=PopCnt(WhiteRooks)*rook_v;
+  temp_score+=PopCnt(WhiteQueens)*queen_v;
+  if(temp_score != TotalWhitePieces) {
     Print(1,"ERROR  white_pieces is wrong, good=%d, bad=%d\n",
-           temp_score,TotalWhitePieces(ply));
+           temp_score,TotalWhitePieces);
     error=1;
   }
-  temp_score=Popcnt(WhitePawns(ply));
-  if(temp_score != TotalWhitePawns(ply)) {
+  temp_score=PopCnt(WhitePawns);
+  if(temp_score != TotalWhitePawns) {
     Print(1,"ERROR  white_pawns is wrong, good=%d, bad=%d\n",
-           temp_score,TotalWhitePawns(ply));
+           temp_score,TotalWhitePawns);
     error=1;
   }
-  temp_score=Popcnt(BlackKnights(ply))*knight_v;
-  temp_score+=Popcnt(BlackBishops(ply))*bishop_v;
-  temp_score+=Popcnt(BlackRooks(ply))*rook_v;
-  temp_score+=Popcnt(BlackQueens(ply))*queen_v;
-  if(temp_score != TotalBlackPieces(ply)) {
+  temp_score=PopCnt(BlackKnights)*knight_v;
+  temp_score+=PopCnt(BlackBishops)*bishop_v;
+  temp_score+=PopCnt(BlackRooks)*rook_v;
+  temp_score+=PopCnt(BlackQueens)*queen_v;
+  if(temp_score != TotalBlackPieces) {
     Print(1,"ERROR  black_pieces is wrong, good=%d, bad=%d\n",
-           temp_score,TotalBlackPieces(ply));
+           temp_score,TotalBlackPieces);
     error=1;
   }
-  temp_score=Popcnt(BlackPawns(ply));
-  if(temp_score != TotalBlackPawns(ply)) {
+  temp_score=PopCnt(BlackPawns);
+  if(temp_score != TotalBlackPawns) {
     Print(1,"ERROR  black_pawns is wrong, good=%d, bad=%d\n",
-           temp_score,TotalBlackPawns(ply));
+           temp_score,TotalBlackPawns);
     error=1;
   }
 /*
@@ -144,22 +143,22 @@ void ValidatePosition(int ply)
 /*
    test pawn locations
 */
-    temp=WhitePawns(ply);
+    temp=WhitePawns;
     while(temp) {
       square=FirstOne(temp);
-      if (PieceOnSquare(ply,square) != pawn) {
+      if (PieceOnSquare(square) != pawn) {
         Print(1,"ERROR!  board[%d]=%d, should be 1\n",square,
-              PieceOnSquare(ply,square));
+              PieceOnSquare(square));
         error=1;
       }
       Clear(square,temp);
     }
-    temp=BlackPawns(ply);
+    temp=BlackPawns;
     while(temp) {
       square=FirstOne(temp);
-      if (PieceOnSquare(ply,square) != -pawn) {
+      if (PieceOnSquare(square) != -pawn) {
         Print(1,"ERROR!  board[%d]=%d, should be -1\n",square,
-              PieceOnSquare(ply,square));
+              PieceOnSquare(square));
         error=1;
       }
       Clear(square,temp);
@@ -167,22 +166,22 @@ void ValidatePosition(int ply)
 /*
    test knight locations
 */
-    temp=WhiteKnights(ply);
+    temp=WhiteKnights;
     while(temp) {
       square=FirstOne(temp);
-      if (PieceOnSquare(ply,square) != knight) {
+      if (PieceOnSquare(square) != knight) {
         Print(1,"ERROR!  board[%d]=%d, should be 2\n",square,
-              PieceOnSquare(ply,square));
+              PieceOnSquare(square));
         error=1;
       }
       Clear(square,temp);
     }
-    temp=BlackKnights(ply);
+    temp=BlackKnights;
     while(temp) {
       square=FirstOne(temp);
-      if (PieceOnSquare(ply,square) != -knight) {
+      if (PieceOnSquare(square) != -knight) {
         Print(1,"ERROR!  board[%d]=%d, should be -2\n",square,
-              PieceOnSquare(ply,square));
+              PieceOnSquare(square));
         error=1;
       }
       Clear(square,temp);
@@ -190,16 +189,16 @@ void ValidatePosition(int ply)
 /*
    test bishop locations
 */
-    temp=WhiteBishops(ply);
+    temp=WhiteBishops;
     while(temp) {
       square=FirstOne(temp);
-      if (PieceOnSquare(ply,square) != bishop) {
+      if (PieceOnSquare(square) != bishop) {
         Print(1,"ERROR!  board[%d]=%d, should be 3\n",square,
-              PieceOnSquare(ply,square));
+              PieceOnSquare(square));
         error=1;
       }
       rattacks=AttacksBishop(square);
-      cattacks=ValidateComputeBishopAttacks(square,ply);
+      cattacks=ValidateComputeBishopAttacks(square);
       if (rattacks != cattacks) {
         Print(1,"ERROR!  bishop attacks wrong, square=%d\n",square);
         Display2BitBoards(rattacks,cattacks);
@@ -207,16 +206,16 @@ void ValidatePosition(int ply)
       }
       Clear(square,temp);
     }
-    temp=BlackBishops(ply);
+    temp=BlackBishops;
     while(temp) {
       square=FirstOne(temp);
-      if (PieceOnSquare(ply,square) != -bishop) {
+      if (PieceOnSquare(square) != -bishop) {
         Print(1,"ERROR!  board[%d]=%d, should be -3\n",square,
-              PieceOnSquare(ply,square));
+              PieceOnSquare(square));
         error=1;
       }
       rattacks=AttacksBishop(square);
-      cattacks=ValidateComputeBishopAttacks(square,ply);
+      cattacks=ValidateComputeBishopAttacks(square);
       if (rattacks != cattacks) {
         Print(1,"ERROR!  bishop attacks wrong, square=%d\n",square);
         Display2BitBoards(rattacks,cattacks);
@@ -227,16 +226,16 @@ void ValidatePosition(int ply)
 /*
    test rook locations
 */
-    temp=WhiteRooks(ply);
+    temp=WhiteRooks;
     while(temp) {
       square=FirstOne(temp);
-      if (PieceOnSquare(ply,square) != rook) {
+      if (PieceOnSquare(square) != rook) {
         Print(1,"ERROR!  board[%d]=%d, should be 4\n",square,
-              PieceOnSquare(ply,square));
+              PieceOnSquare(square));
         error=1;
       }
       rattacks=AttacksRook(square);
-      cattacks=ValidateComputeRookAttacks(square,ply);
+      cattacks=ValidateComputeRookAttacks(square);
       if (rattacks != cattacks) {
         Print(1,"ERROR!  Rook attacks wrong, square=%d\n",square);
         Display2BitBoards(rattacks,cattacks);
@@ -244,16 +243,16 @@ void ValidatePosition(int ply)
       }
       Clear(square,temp);
     }
-    temp=BlackRooks(ply);
+    temp=BlackRooks;
     while(temp) {
       square=FirstOne(temp);
-      if (PieceOnSquare(ply,square) != -rook) {
+      if (PieceOnSquare(square) != -rook) {
         Print(1,"ERROR!  board[%d]=%d, should be -4\n",square,
-              PieceOnSquare(ply,square));
+              PieceOnSquare(square));
         error=1;
       }
       rattacks=AttacksRook(square);
-      cattacks=ValidateComputeRookAttacks(square,ply);
+      cattacks=ValidateComputeRookAttacks(square);
       if (rattacks != cattacks) {
         Print(1,"ERROR!  Rook attacks wrong, square=%d\n",square);
         Display2BitBoards(rattacks,cattacks);
@@ -264,16 +263,16 @@ void ValidatePosition(int ply)
 /*
    test queen locations
 */
-    temp=WhiteQueens(ply);
+    temp=WhiteQueens;
     while(temp) {
       square=FirstOne(temp);
-      if (PieceOnSquare(ply,square) != queen) {
+      if (PieceOnSquare(square) != queen) {
         Print(1,"ERROR!  board[%d]=%d, should be 5\n",square,
-              PieceOnSquare(ply,square));
+              PieceOnSquare(square));
         error=1;
       }
       rattacks=AttacksQueen(square);
-      cattacks=Or(ValidateComputeRookAttacks(square,ply),ValidateComputeBishopAttacks(square,ply));
+      cattacks=Or(ValidateComputeRookAttacks(square),ValidateComputeBishopAttacks(square));
       if (rattacks != cattacks) {
         Print(1,"ERROR!  queen attacks wrong, square=%d\n",square);
         Display2BitBoards(rattacks,cattacks);
@@ -281,16 +280,16 @@ void ValidatePosition(int ply)
       }
       Clear(square,temp);
     }
-    temp=BlackQueens(ply);
+    temp=BlackQueens;
     while(temp) {
       square=FirstOne(temp);
-      if (PieceOnSquare(ply,square) != -queen) {
+      if (PieceOnSquare(square) != -queen) {
         Print(1,"ERROR!  board[%d]=%d, should be -5\n",square,
-              PieceOnSquare(ply,square));
+              PieceOnSquare(square));
         error=1;
       }
       rattacks=AttacksQueen(square);
-      cattacks=Or(ValidateComputeRookAttacks(square,ply),ValidateComputeBishopAttacks(square,ply));
+      cattacks=Or(ValidateComputeRookAttacks(square),ValidateComputeBishopAttacks(square));
       if (rattacks != cattacks) {
         Print(1,"ERROR!  queen attacks wrong, square=%d\n",square);
         Display2BitBoards(rattacks,cattacks);
@@ -301,32 +300,32 @@ void ValidatePosition(int ply)
 /*
    test king locations
 */
-    temp=WhiteKing(ply);
+    temp=WhiteKing;
     while(temp) {
       square=FirstOne(temp);
-      if (PieceOnSquare(ply,square) != king) {
+      if (PieceOnSquare(square) != king) {
         Print(1,"ERROR!  board[%d]=%d, should be 6\n",square,
-              PieceOnSquare(ply,square));
+              PieceOnSquare(square));
         error=1;
       }
-      if (WhiteKingSQ(ply) != square) {
+      if (WhiteKingSQ != square) {
         Print(1,"ERROR!  white_king is %d, should be %d\n",
-              WhiteKingSQ(ply),square);
+              WhiteKingSQ,square);
         error=1;
       }
       Clear(square,temp);
     }
-    temp=BlackKing(ply);
+    temp=BlackKing;
     while(temp) {
       square=FirstOne(temp);
-      if (PieceOnSquare(ply,square) != -king) {
+      if (PieceOnSquare(square) != -king) {
         Print(1,"ERROR!  board[%d]=%d, should be -6\n",square,
-              PieceOnSquare(ply,square));
+              PieceOnSquare(square));
         error=1;
       }
-      if (BlackKingSQ(ply) != square) {
+      if (BlackKingSQ != square) {
         Print(1,"ERROR!  black_king is %d, should be %d\n",
-              BlackKingSQ(ply),square);
+              BlackKingSQ,square);
         error=1;
       }
       Clear(square,temp);
@@ -335,75 +334,75 @@ void ValidatePosition(int ply)
    test board[i] fully now.
 */
     for (i=0;i<64;i++)
-    switch (PieceOnSquare(ply,i)) {
+    switch (PieceOnSquare(i)) {
       case -king:
-        if (!And(BlackKing(ply),set_mask[i])) {
+        if (!And(BlackKing,set_mask[i])) {
           Print(1,"ERROR!  b_king/board[%d] don't agree!\n",i);
           error=1;
         }
         break;
       case -queen:
-        if (!And(BlackQueens(ply),set_mask[i])) {
+        if (!And(BlackQueens,set_mask[i])) {
           Print(1,"ERROR!  b_queen/board[%d] don't agree!\n",i);
           error=1;
         }
         break;
       case -rook:
-        if (!And(BlackRooks(ply),set_mask[i])) {
+        if (!And(BlackRooks,set_mask[i])) {
           Print(1,"ERROR!  b_rook/board[%d] don't agree!\n",i);
           error=1;
         }
         break;
       case -bishop:
-        if (!And(BlackBishops(ply),set_mask[i])) {
+        if (!And(BlackBishops,set_mask[i])) {
           Print(1,"ERROR!  b_bishop/board[%d] don't agree!\n",i);
           error=1;
         }
         break;
       case -knight:
-        if (!And(BlackKnights(ply),set_mask[i])) {
+        if (!And(BlackKnights,set_mask[i])) {
           Print(1,"ERROR!  b_knight/board[%d] don't agree!\n",i);
           error=1;
         }
         break;
       case -pawn:
-        if (!And(BlackPawns(ply),set_mask[i])) {
+        if (!And(BlackPawns,set_mask[i])) {
           Print(1,"ERROR!  b_pawn/board[%d] don't agree!\n",i);
           error=1;
         }
         break;
       case king:
-        if (!And(WhiteKing(ply),set_mask[i])) {
+        if (!And(WhiteKing,set_mask[i])) {
           Print(1,"ERROR!  w_king/board[%d] don't agree!\n",i);
           error=1;
         }
         break;
       case queen:
-        if (!And(WhiteQueens(ply),set_mask[i])) {
+        if (!And(WhiteQueens,set_mask[i])) {
           Print(1,"ERROR!  w_queen/board[%d] don't agree!\n",i);
           error=1;
         }
         break;
       case rook:
-        if (!And(WhiteRooks(ply),set_mask[i])) {
+        if (!And(WhiteRooks,set_mask[i])) {
           Print(1,"ERROR!  w_rook/board[%d] don't agree!\n",i);
           error=1;
         }
         break;
       case bishop:
-        if (!And(WhiteBishops(ply),set_mask[i])) {
+        if (!And(WhiteBishops,set_mask[i])) {
           Print(1,"ERROR!  w_bishop/board[%d] don't agree!\n",i);
           error=1;
         }
         break;
       case knight:
-        if (!And(WhiteKnights(ply),set_mask[i])) {
+        if (!And(WhiteKnights,set_mask[i])) {
           Print(1,"ERROR!  w_knight/board[%d] don't agree!\n",i);
           error=1;
         }
         break;
       case pawn:
-        if (!And(WhitePawns(ply),set_mask[i])) {
+        if (!And(WhitePawns,set_mask[i])) {
           Print(1,"ERROR!  w_pawn/board[%d] don't agree!\n",i);
           error=1;
         }
@@ -415,9 +414,9 @@ void ValidatePosition(int ply)
     temp=Compl(Or(temp_occ,temp_occx));
     while(temp) {
       square=FirstOne(temp);
-      if (PieceOnSquare(ply,square)) {
+      if (PieceOnSquare(square)) {
         Print(1,"ERROR!  board[%d]=%d, should be 0\n",square,
-              PieceOnSquare(ply,square));
+              PieceOnSquare(square));
         error=1;
       }
       Clear(square,temp);
@@ -428,7 +427,7 @@ void ValidatePosition(int ply)
   temp=0;
   temp1=0;
   for (i=0;i<64;i++) {
-    switch (PieceOnSquare(ply,i)) {
+    switch (PieceOnSquare(i)) {
       case king:
         temp=Xor(temp,w_king_random[i]);
         break;
@@ -471,28 +470,37 @@ void ValidatePosition(int ply)
         break;
     }
   }
-  if (EnPassantTarget(ply)) HashEP(FirstOne(EnPassantTarget(ply)),temp);
+  if (EnPassantTarget(ply)) HashEP(EnPassant(ply),temp);
   if (!(WhiteCastle(ply)&1)) HashCastleW(0,temp);
   if (!(WhiteCastle(ply)&2)) HashCastleW(1,temp);
   if (!(BlackCastle(ply)&1)) HashCastleB(0,temp);
   if (!(BlackCastle(ply)&2)) HashCastleB(1,temp);
-  if(Xor(temp,HashKey(ply))) {
+  if(Xor(temp,HashKey)) {
     Print(1,"ERROR!  hash_key is bad.\n");
     error=1;
   }
-  if(Xor(temp1,PawnHashKey(ply))) {
+  if(Xor(temp1,PawnHashKey)) {
     Print(1,"ERROR!  pawn_hash_key is bad.\n");
     error=1;
   }
-  if (error) exit(1);
+  if (error) {
+    Print(0,"active path:\n");
+    for (i=1;i<=ply;i++)
+      DisplayChessMove("move=",move);
+    Print(0,"current move:\n");
+    DisplayChessMove("move=",move);
+    Print(0,"called from %s, ply=%d\n",caller,ply);
+    Print(0,"node=%d\n",nodes_searched+q_nodes_searched);
+    exit(1);
+  }
 }
 
-BITBOARD ValidateComputeBishopAttacks(int square,int ply)
+BITBOARD ValidateComputeBishopAttacks(int square)
 {
   BITBOARD attacks, temp_attacks;
   BITBOARD temp7, temp9;
   attacks=bishop_attacks[square];
-  temp_attacks=And(attacks,Compl(Occupied(ply)));
+  temp_attacks=And(attacks,Compl(Occupied));
   temp_attacks=Compl(Or(temp_attacks,Compl(bishop_attacks[square])));
   temp7=And(temp_attacks,mask_plus7dir[square]);
   temp9=And(temp_attacks,mask_plus9dir[square]);
@@ -505,12 +513,12 @@ BITBOARD ValidateComputeBishopAttacks(int square,int ply)
   return(attacks);
 }
 
-BITBOARD ValidateComputeRookAttacks(int square,int ply)
+BITBOARD ValidateComputeRookAttacks(int square)
 {
   BITBOARD attacks, temp_attacks;
   BITBOARD temp1, temp8;
   attacks=rook_attacks[square];
-  temp_attacks=And(attacks,Compl(Occupied(ply)));
+  temp_attacks=And(attacks,Compl(Occupied));
   temp_attacks=Compl(Or(temp_attacks,Compl(rook_attacks[square])));
   temp1=And(temp_attacks,mask_plus1dir[square]);
   temp8=And(temp_attacks,mask_plus8dir[square]);

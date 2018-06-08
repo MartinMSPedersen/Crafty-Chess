@@ -4,6 +4,8 @@
 #include "types.h"
 #include "function.h"
 #include "data.h"
+
+/* last modified 05/18/96 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -26,6 +28,7 @@
 int Ponder(int wtm)
 {
   int dummy=0, i;
+  BITBOARD target;
 
 /*
  ----------------------------------------------------------
@@ -40,52 +43,51 @@ int Ponder(int wtm)
 */
   ponder_completed=0;
   if (!ponder_move) {
-    (void) Lookup(0,0,wtm,&dummy,dummy,dummy);
+    (void) LookUp(0,0,wtm,&dummy,dummy,dummy);
     if (hash_move[0]) ponder_move=hash_move[0];
   }
-  if (!ponder_move && (move_number > 1)) {
+  if (!ponder_move) {
+    TimeSet(puzzle);
+    if (time_limit < 3) return(0);
     puzzling=1;
-    if (time_limit > 5) {
-      position[1]=position[0];
-      Print(2,"puzzling over a move to ponder.\n");
-      pv[0].path_length=0;
-      pv[0].path_iteration_depth=0;
-      for (i=0;i<MAXPLY;i++) {
-        killer_move[i][0]=0;
-        killer_move[i][1]=0;
-        killer_move_count[i][0]=0;
-        killer_move_count[i][1]=0;
-      }
-      (void) Iterate(wtm,puzzle);
-      for (i=0;i<MAXPLY;i++) {
-        killer_move[i][0]=0;
-        killer_move[i][1]=0;
-        killer_move_count[i][0]=0;
-        killer_move_count[i][1]=0;
-      }
-      puzzling=0;
-      if (pv[0].path_length) ponder_move=pv[0].path[1];
-      pv[0].path_length=0;
-      pv[0].path_iteration_depth=0;
-      if (!ponder_move) return(0);
-      if (!ValidMove(1,wtm,ponder_move)) {
-        printf("puzzle returned an illegal move!\n");
-        DisplayChessMove("move= ",ponder_move);
-        ponder_move=0;
-        return(0);
-      }
+    position[1]=position[0];
+    Print(2,"              puzzling over a move to ponder.\n");
+    last_pv.path_length=0;
+    last_pv.path_iteration_depth=0;
+    for (i=0;i<MAXPLY;i++) {
+      killer_move[i][0]=0;
+      killer_move[i][1]=0;
+      killer_move_count[i][0]=0;
+      killer_move_count[i][1]=0;
     }
-    else {
-      puzzling=0;
+    (void) Iterate(wtm,puzzle);
+    for (i=0;i<MAXPLY;i++) {
+      killer_move[i][0]=0;
+      killer_move[i][1]=0;
+      killer_move_count[i][0]=0;
+      killer_move_count[i][1]=0;
+    }
+    puzzling=0;
+    if (pv[0].path_length) ponder_move=pv[0].path[1];
+    if (!ponder_move) return(0);
+    for (i=1;i<pv[0].path_length-1;i++) last_pv.path[i]=pv[0].path[i+1];
+    last_pv.path_length=pv[0].path_length-1;
+    last_pv.path_iteration_depth=0;
+    if (!ValidMove(1,wtm,ponder_move)) {
+      printf("puzzle returned an illegal move!\n");
+      DisplayChessMove("move= ",ponder_move);
+      ponder_move=0;
       return(0);
     }
   }
-  if (!ponder_move) return(0);
+  if (!ponder_move) {
+    strcpy(hint,"none");
+    return(0);
+  }
 /*
  ----------------------------------------------------------
 |                                                          |
-|   make the predicted move (if any) to produce the        |
-|   position we will ponder.                               |
+|   display the move we are going to "ponder".             |
 |                                                          |
  ----------------------------------------------------------
 */
@@ -95,7 +97,9 @@ int Ponder(int wtm)
   else
     Print(2,"Black(%d): %s [pondering]\n",
           move_number,OutputMove(&ponder_move,0,wtm));
-  MakeMove(0,ponder_move,wtm);
+  sprintf(hint,"%s",OutputMove(&ponder_move,0,wtm));
+  target=(wtm) ? Compl(WhitePieces) : Compl(BlackPieces);
+  num_ponder_moves=GenerateMoves(0, 1, wtm, target, 1, ponder_moves)-ponder_moves;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -106,14 +110,24 @@ int Ponder(int wtm)
 |                                                          |
  ----------------------------------------------------------
 */
-  repetition_list[++repetition_head]=HashKey(1);
-  if (RepetitionDraw()) Print(0,"game is a draw by repetition\n");
+  MakeMove(0,ponder_move,wtm);
+  last_opponent_move=ponder_move;
+  if (ChangeSide(wtm))
+    *repetition_head_w++=HashKey;
+  else
+    *repetition_head_b++=HashKey;
+  if (RepetitionDraw(wtm)) Print(0,"game is a draw by repetition\n");
   if (whisper) strcpy(whisper_text,"n/a");
   pondering=1;
-  (void) Iterate(!wtm,think);
+  (void) Iterate(ChangeSide(wtm),think);
   pondering=0;
   if (!abort_search) ponder_completed=1;
-  repetition_head--;
+  if (ChangeSide(wtm))
+    repetition_head_w--;
+  else
+    repetition_head_b--;
+  last_opponent_move=0;
+  UnMakeMove(0,ponder_move,wtm);
 /*
  ----------------------------------------------------------
 |                                                          |
