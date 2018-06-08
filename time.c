@@ -67,7 +67,7 @@ int TimeCheck(int abort)
   int time_used;
   int value, last_value, searched;
   int *i, ndone;
-  TREE *tree=local[0];
+  TREE * const tree=local[0];
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -179,7 +179,7 @@ int TimeCheck(int abort)
   return(1);
 }
 
-/* last modified 10/17/97 */
+/* last modified 01/04/98 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -193,8 +193,8 @@ int TimeCheck(int abort)
 */
 void TimeSet(int search_type)
 {
-  float behind[6] = {32.0, 16.0, 8.0, 4.0, 2.0, 1.5};
-  int reduce[6] = {96, 48, 24, 12, 6, 3};
+  static const float behind[6] = {32.0, 16.0, 8.0, 4.0, 2.0, 1.5};
+  static const int reduce[6] = {96, 48, 24, 12, 6, 3};
   int i;
   int surplus, average;
   int simple_average;
@@ -212,14 +212,14 @@ void TimeSet(int search_type)
 */
   if (tc_sudden_death == 1) {
     if (tc_increment) {
-      time_limit=(tc_time_remaining-tc_operator_time*tc_moves_remaining)/30+
+      time_limit=(tc_time_remaining-tc_operator_time*tc_moves_remaining)/35+
                  tc_increment;
       if (tc_time_remaining < 3000) time_limit=tc_increment;
       if (tc_time_remaining < 1500) time_limit=tc_increment/2;
       absolute_time_limit=tc_time_remaining/2;
     }
     else {
-      time_limit=tc_time_remaining/35;
+      time_limit=tc_time_remaining/40;
       absolute_time_limit=Min(time_limit*6,tc_time_remaining/2);
     }
   }
@@ -278,7 +278,7 @@ void TimeSet(int search_type)
 |                                                          |
  ----------------------------------------------------------
 */
-  if (mode!=tournament_mode && !tc_increment) {
+  if (mode!=tournament_mode && !tc_increment && !computer_opponent) {
     for (i=0;i<6;i++) {
       if ((float)tc_time_remaining*behind[i] <
           (float)tc_time_remaining_opponent) {

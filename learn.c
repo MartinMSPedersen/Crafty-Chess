@@ -42,7 +42,7 @@ void LearnBook(TREE *tree, int wtm, int search_value, int search_depth, int lv,
 |                                                          |
  ----------------------------------------------------------
 */
-  int t_wtm=wtm;
+  const int t_wtm=wtm;
   if (!book_file) return;
   if (!(learning&book_learning)) return;
   if (moves_out_of_book <= LEARN_INTERVAL && !force) {
@@ -67,7 +67,7 @@ void LearnBook(TREE *tree, int wtm, int search_value, int search_depth, int lv,
     float temp_value;
     char cmd[32], buff[80], *nextc;
     int best_eval=-999999, best_eval_p=0;
-    int worst_eval=999999, worst_eval_p=0, save_wtm;
+    int worst_eval=999999, worst_eval_p=0;
     int best_after_worst_eval=-999999, worst_after_best_eval=999999;
     struct tm *timestruct;
     int n_book_moves[512];
@@ -188,7 +188,6 @@ void LearnBook(TREE *tree, int wtm, int search_value, int search_depth, int lv,
 |                                                          |
  ----------------------------------------------------------
 */
-    save_wtm=wtm;
     InitializeChessBoard(&tree->position[0]);
     for (i=0;i<512;i++) n_book_moves[i]=0;
     wtm=1;
@@ -402,9 +401,9 @@ void LearnBookUpdate(TREE *tree, int wtm, int move, float learn_value) {
 */
 int LearnFunction(int sv, int search_depth, int rating_difference,
                   int trusted_value) {
-  float rating_multiplier_trusted[11] = {.00625, .0125, .025, .05, .075, .1,
-                                         0.15, 0.2, 0.25, 0.3, 0.35};
-  float rating_multiplier_untrusted[11] = {.25, .2, .15, .1, .05, .025, .012,
+  static const float rating_mult_t[11] = {.00625, .0125, .025, .05, .075, .1,
+                                          0.15, 0.2, 0.25, 0.3, 0.35};
+  static const float rating_mult_ut[11] = {.25, .2, .15, .1, .05, .025, .012,
                                            .006, .003, .001};
   float multiplier;
   int sd, rd;
@@ -412,9 +411,9 @@ int LearnFunction(int sv, int search_depth, int rating_difference,
   sd=Max(Min(search_depth,19),0);
   rd=Max(Min(rating_difference/200,5),-5)+5;
   if (trusted_value)
-    multiplier=rating_multiplier_trusted[rd]*sd;
+    multiplier=rating_mult_t[rd]*sd;
   else
-    multiplier=rating_multiplier_untrusted[rd]*sd;
+    multiplier=rating_mult_ut[rd]*sd;
   sv=Max(Min(sv,600),-600);
   return(sv*multiplier);
 }
@@ -459,6 +458,12 @@ void LearnImport(TREE *tree, int nargs, char **args) {
  ----------------------------------------------------------
 */
   display_options&=4095-128;
+  if (!strcmp(*args,"book.lrn") || !strcmp(*args,"position.lrn")) {
+    Print(4095,"ERROR  you must not import either book.lrn or position.lrn\n");
+    Print(4095,"       if you really want to do this, first rename them to\n");
+    Print(4095,"       another filename and import those files.\n");
+    return;
+  }
   learn_in=fopen(*args,"r");
   if (learn_in == NULL) {
     Print(4095,"unable to open %s for input\n", *args);
@@ -621,8 +626,6 @@ void LearnImportPosition(TREE *tree, int nargs, char **args) {
   BITBOARD word1, word2;
   int positions, nextp, secs;
   struct tm *timestruct;
-  char xlate[15]={'q','r','b',0,'k','n','p',0,'P','N','K',0,'B','R','Q'};
-  char empty[9]={' ','1','2','3','4','5','6','7','8'};
   int i, rank, file, nempty, value, move, depth, added_positions=0;
   char *eof, text[80];
   FILE *learn_in;
@@ -826,7 +829,7 @@ void LearnImportPosition(TREE *tree, int nargs, char **args) {
   fflush(position_lrn_file);
 }
 
-/* last modified 03/11/98 */
+/* last modified 01/26/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -839,17 +842,15 @@ void LearnImportPosition(TREE *tree, int nargs, char **args) {
 *   were learned.                                                              *
 *                                                                              *
 *     bits     name  SL  description                                           *
-*       1       wtm  63  used to control which transposition table gets this   *
-*                        position.                                             *
-*      19     value  43  unsigned integer value of this position + 65536.      *
-*                        this might be a good score or search bound.           *
-*      21      move  16  best move from the current position, according to the *
+*      21      move  32  best move from the current position, according to the *
 *                        search at the time this position was stored.          *
 *                                                                              *
-*      16     draft   0  the depth of the search below this position, which is *
+*      15     draft  17  the depth of the search below this position, which is *
 *                        used to see if we can use this entry at the current   *
 *                        position.  note that this is in units of 1/60th of a  *
 *                        ply.                                                  *
+*      17     value   0  unsigned integer value of this position + 65536.      *
+*                        this might be a good score or search bound.           *
 *      64       key   0  complete 64bit hash key.                              *
 *                                                                              *
 *    the file will, by default, hold 65536 learned positions.  the first word  *
@@ -864,8 +865,6 @@ void LearnPosition(TREE *tree, int wtm, int last_value, int value) {
   BITBOARD word1, word2;
   int positions, nextp, secs;
   struct tm *timestruct;
-  char xlate[15]={'q','r','b',0,'k','n','p',0,'P','N','K',0,'B','R','Q'};
-  char empty[9]={' ','1','2','3','4','5','6','7','8'};
   int rank, file, nempty;
 /*
  ----------------------------------------------------------
@@ -879,6 +878,7 @@ void LearnPosition(TREE *tree, int wtm, int last_value, int value) {
 |                                                          |
  ----------------------------------------------------------
 */
+  if (!(learning & position_learning)) return;
   if ((!position_lrn_file) || (!position_file)) return;
   if (last_value < -2*PAWN_VALUE) return;
   if (last_value < value+PAWN_VALUE/3) return;
@@ -892,14 +892,10 @@ void LearnPosition(TREE *tree, int wtm, int last_value, int value) {
  ----------------------------------------------------------
 */
   Print(4095,"learning position, wtm=%d  value=%d\n",wtm,value);
-  word1=Shiftl((BITBOARD) (value+65536),43);
-  word1=Or(word1,Shiftl((BITBOARD) wtm,63));
-  word1=Or(word1,Shiftl((BITBOARD) tree->pv[0].path[1],16));
-  word1=Or(word1,(BITBOARD) (tree->pv[0].path_iteration_depth*INCREMENT_PLY-INCREMENT_PLY));
-
-  
-  word2=HashKey;
-
+  word1=(BITBOARD) (value+65536);
+  word1=Or(word1,Shiftl((BITBOARD) (tree->pv[0].pathd*INCPLY-INCPLY),17));
+  word1=Or(word1,Shiftl((BITBOARD) tree->pv[0].path[1],32));
+  word2=(wtm) ? HashKey : ~HashKey;
   fseek(position_file,0,SEEK_SET);
   fread(&positions,sizeof(int),1,position_file);
   fread(&nextp,sizeof(int),1,position_file);
@@ -952,11 +948,11 @@ void LearnPosition(TREE *tree, int wtm, int last_value, int value) {
                             Rank(EnPassant(0))+'1');
   fprintf(position_lrn_file,"\n{%d %d %d}\n",value,
           tree->pv[0].path[1],
-          tree->pv[0].path_iteration_depth*INCREMENT_PLY);
+          tree->pv[0].pathd*INCPLY);
   fflush(position_lrn_file);
 }
 
-/* last modified 03/11/98 */
+/* last modified 01/26/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -965,8 +961,7 @@ void LearnPosition(TREE *tree, int wtm, int last_value, int value) {
 ********************************************************************************
 */
 void LearnPositionLoad(TREE *tree) {
-  register BITBOARD temp_hash_key;
-  BITBOARD word1, word2, worda, wordb;
+  BITBOARD word1, word2;
   register HASH_ENTRY *htable;
   int n, positions;
 /*
@@ -977,6 +972,7 @@ void LearnPositionLoad(TREE *tree) {
 |                                                          |
  ----------------------------------------------------------
 */
+  if (!(learning & position_learning)) return;
   if (!position_file) return; 
   if (time_limit < 100) return;
 /*
@@ -1002,17 +998,9 @@ void LearnPositionLoad(TREE *tree) {
   for (n=0;n<positions;n++) {
     fread(&word1,sizeof(BITBOARD),1,position_file);
     fread(&word2,sizeof(BITBOARD),1,position_file);
-    temp_hash_key=word2;
-    htable=((Shiftr(word1,63)) ? trans_ref_wa : trans_ref_ba)+
-      (((int) temp_hash_key)&hash_maska);
-    temp_hash_key=temp_hash_key>>16;
-    wordb=Shiftr(word2,16);
-    wordb=Or(wordb,Shiftl(And(word1,mask_112),48));
-
-    worda=Shiftl((BITBOARD) (Shiftr(word1,43) & 01777777),21);
-    worda=Or(worda,Shiftl((BITBOARD) 3,59));
-    htable->word1=worda;
-    htable->word2=wordb;
+    htable=trans_ref_a+(((int) word2)&hash_maska);
+    htable->word1=And((BITBOARD) word1,~Shiftl((BITBOARD)1,63));
+    htable->word2=word2;
   }
 }
 
@@ -1035,7 +1023,7 @@ void LearnResult(TREE *tree, int wtm) {
   char cmd[32], buff[80], *nextc;
   struct tm *timestruct;
   int n_book_moves[512];
-  int t_wtm=wtm;
+  const int t_wtm=wtm;
 /*
  ----------------------------------------------------------
 |                                                          |

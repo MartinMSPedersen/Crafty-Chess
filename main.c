@@ -2225,7 +2225,7 @@
 *           mtmin command that adjusts this correctly multiplied it by 60,    *
 *           but in data.c, it was left at "2" which lets the search split way *
 *           too deeply and can cause thrashing.  it now correctly defaults to *
-*           120 (2*INCREMENT_PLY) as planned.  Crafty now *only* supports     *
+*           120 (2*INCPLY) as planned.  Crafty now *only* supports     *
 *           winboard/xboard 4.0 or higher, by sending the string "move xxx"   *
 *           to indicate its move.  this was done to eliminate older xboard    *
 *           versions that had some incompatibilities with crafty that were    *
@@ -2288,10 +2288,38 @@
 *   16.3    performance tweaks plus a few evaluation changes.  An oversight   *
 *           would let crafty play a move like exd5 when cxd5 was playable.    *
 *           IE it didn't follow the general rule "capture toward the center." *
-*           this has been fixed.  one restriction on extensions has been      *
-*           removed, so that extensions are used regardless of how far out in *
-*           the tree search things have reached.  king safety ramped up just  *
-*           a bit.                                                            *
+*           this has been fixed.  king safety ramped up just a bit.           *
+*                                                                             *
+*   16.4    search extension fixed.  one-reply was being triggered when there *
+*           was only one capture to look at as well, which was wrong.  minor  *
+*           fix to king safety in Evaluate().  adjustments to preeval to fix  *
+*           some "space" problems caused by not wanting to advance pawns at   *
+*           all, plus some piece/square pawn values that were too large near  *
+*           the opponent's king position.  new swindle on|off command allows  *
+*           the user to disable "swindle mode" so that crafty will report     *
+*           tablebase draws as draws.  swindle mode is now disabled auto-     *
+*           matically in analysis or annotate modes.  DrawScore() now returns *
+*           a draw score that is not nearly so negative when playing humans.  *
+*           the score was a bit large (-.66 and -.33) so that this could tend *
+*           to force Crafty into losing rather than drawn positions at times. *
+*           EGTB probe code now monitors how the probes are affecting the nps *
+*           and modifies the probe depth to control this.  IE it adjusts the  *
+*           max depth of probes to attempt to keep the NPS at around 50% or   *
+*           thereabouts of the nominal NPS rate.  fixed a nasty bug in the    *
+*           EGTB 'throttle' code.  it was possible that the EGTB_mindepth     *
+*           could get set to something more than 4 plies, then the next       *
+*           search starts off already in a tablebase ending, but with this    *
+*           probe limit, it wouldn't probe yet Iterate() would terminate the  *
+*           search after a couple of plies.  and the move chosen could draw.  *
+*           new code submitted by George Barrett, which adds a new command    *
+*           "html on".  Using this will cause the annotate command to produce *
+*           a game.html file (rather than game.can) which includes nice board *
+*           displays (bitmapped images) everywhere Crafty suggests a different*
+*           move.  you will need to download the bitmaps directory files to   *
+*           make this work.  note that html on enables this or you will get   *
+*           normal annotation output in the .can file.  final hashing changes *
+*           made.  now crafty has only two hash tables, the 'depth preferred' *
+*           and 'always store' tables, but not one for each side.             *
 *                                                                             *
 *******************************************************************************
 */
@@ -2327,9 +2355,9 @@ int main(int argc, char **argv)
   local[0]->thread_id=0;
   tree=local[0];
   input_stream=stdin;
-  for (i=0;i<32;i++) args[i]=malloc(128);
+  for (i=0;i<32;i++) args[i]=(char *) malloc(128);
   if (argc > 1) {
-    for (i=0;i<32;i++) targs[i]=malloc(128);
+    for (i=0;i<32;i++) targs[i]=(char *) malloc(128);
     for (i=1;i<argc;i++) {
       if (!strcmp(argv[i],"c")) cont=1;
       else if (argv[i][0]>='0' && argv[i][0] <= '9' && i+1<argc) {
@@ -2480,7 +2508,7 @@ int main(int argc, char **argv)
           nargs=ReadParse(buffer,args," 	;");
           move=InputMove(tree,args[0],0,wtm,0,0);
           if (auto232 && presult!=3) {
-            char *mv=OutputMoveICS(tree,move);
+            const char *mv=OutputMoveICS(tree,move);
             DelayTime(auto232_delay);
             if (!wtm) fprintf(auto_file,"\t");
             fprintf(auto_file, " %c%c-%c%c", mv[0], mv[1], mv[2], mv[3]);
@@ -2562,8 +2590,8 @@ int main(int argc, char **argv)
     if (presult == 1) value=last_search_value;
     else {
       strcpy(whisper_text,"n/a");
-      last_pv.path_iteration_depth=0;
-      last_pv.path_length=0;
+      last_pv.pathd=0;
+      last_pv.pathl=0;
       display=tree->pos;
       value=Iterate(wtm,think,0);
     }
@@ -2579,7 +2607,7 @@ int main(int argc, char **argv)
     last_value=value;
     if (abs(last_value) > (MATE-300)) last_mate_score=last_value;
     thinking=0;
-    if (!last_pv.path_length) {
+    if (!last_pv.pathl) {
       if (value == -MATE+1) {
         over=1;
         if(wtm) {
@@ -2604,11 +2632,11 @@ int main(int argc, char **argv)
     else {
       if ((value > MATE-300) && (value < MATE-2)) {
         Print(128,"\nmate in %d moves.\n\n",(MATE-value)/2);
-        Whisper(1,0,0,(MATE-value)/2,tree->nodes_searched,0,0,0," ");
+        Whisper(1,0,0,(MATE-value)/2,tree->nodes_searched,0,0," ");
       }
       else if ((-value > MATE-300) && (-value < MATE-1)) {
         Print(128,"\nmated in %d moves.\n\n",(MATE+value)/2);
-        Whisper(1,0,0,-(MATE+value)/2,tree->nodes_searched,0,0,0," ");
+        Whisper(1,0,0,-(MATE+value)/2,tree->nodes_searched,0,0," ");
       }
       if (wtm) {
         if (!xboard && !ics) {
@@ -2620,7 +2648,7 @@ int main(int argc, char **argv)
           printf("%s",Normal());
           Print(4095,"\n");
           if (auto232) { 
-            char *mv=OutputMoveICS(tree,last_pv.path[1]);
+            const char *mv=OutputMoveICS(tree,last_pv.path[1]);
             DelayTime(auto232_delay);
             fprintf(auto_file, " %c%c-%c%c", mv[0],mv[1],mv[2],mv[3]);
             if ((mv[4]!=' ') && (mv[4]!=0))
@@ -2645,7 +2673,7 @@ int main(int argc, char **argv)
           printf("%s",Normal());
           Print(4095,"\n");
           if (auto232) { 
-            char *mv=OutputMoveICS(tree,last_pv.path[1]);
+            const char *mv=OutputMoveICS(tree,last_pv.path[1]);
             DelayTime(auto232_delay);
             fprintf(auto_file, "\t %c%c-%c%c", mv[0],mv[1],mv[2],mv[3]);
             if ((mv[4]!=' ') && (mv[4]!=0))
@@ -2712,20 +2740,20 @@ int main(int argc, char **argv)
 |                                                          |
  ----------------------------------------------------------
 */
-      if (last_pv.path_length>1 &&
+      if (last_pv.pathl>1 &&
           LegalMove(tree,0,ChangeSide(wtm),last_pv.path[2])) {
         ponder_move=last_pv.path[2];
-        for (i=1;i<=(int) last_pv.path_length-2;i++)
+        for (i=1;i<=(int) last_pv.pathl-2;i++)
           last_pv.path[i]=last_pv.path[i+2];
-        last_pv.path_length=(last_pv.path_length > 2) ? last_pv.path_length-2 : 0;
-        last_pv.path_iteration_depth-=2;
-        if (last_pv.path_iteration_depth > last_pv.path_length)
-          last_pv.path_iteration_depth=last_pv.path_length;
-        if (last_pv.path_length == 0) last_pv.path_iteration_depth=0;
+        last_pv.pathl=(last_pv.pathl > 2) ? last_pv.pathl-2 : 0;
+        last_pv.pathd-=2;
+        if (last_pv.pathd > last_pv.pathl)
+          last_pv.pathd=last_pv.pathl;
+        if (last_pv.pathl == 0) last_pv.pathd=0;
       }
       else {
-        last_pv.path_iteration_depth=0;
-        last_pv.path_length=0;
+        last_pv.pathd=0;
+        last_pv.pathl=0;
         ponder_move=0;
       }
     }
@@ -2740,10 +2768,10 @@ int main(int argc, char **argv)
     if (kibitz || whisper) {
       if (tree->nodes_searched)
         Whisper(2,whisper_depth,end_time-start_time,whisper_value,
-                tree->nodes_searched,cpu_percent,predicted,
+                tree->nodes_searched,cpu_percent,
                 tree->egtb_probes_successful,whisper_text);
       else
-        Whisper(4,0,0,0,0,0,0,0,whisper_text);
+        Whisper(4,0,0,0,0,0,0,whisper_text);
     }
 /*
  ----------------------------------------------------------
@@ -2757,7 +2785,7 @@ int main(int argc, char **argv)
     ResignOrDraw(tree,value,wtm);
     if (moves_out_of_book) 
       LearnBook(tree,crafty_is_white,last_value,
-                last_pv.path_iteration_depth+2,0,0);
+                last_pv.pathd+2,0,0);
     if (value == -MATE+1) LearnResult(tree,crafty_is_white);
     for (i=0;i<4096;i++) {
       history_w[i]=history_w[i]>>8;

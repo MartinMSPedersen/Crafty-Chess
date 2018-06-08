@@ -2,63 +2,27 @@ alignment = 4
 
         .text
         .align  alignment, 0x90
-        .globl  _PopCnt
-_PopCnt:
-        movl    4(%esp), %eax
-        movl    8(%esp), %edx
-        pushl   %ebx
-        pushl   %esi
-# x = (x >> 1  & 0x55555555) + (x & 0x55555555);
-        movl    $0x55555555, %esi
-        movl    %eax, %ecx
-        shrl    $1, %eax
-        movl    %edx, %ebx
-        shrl    $1, %edx
-        andl    %esi, %ecx
-        andl    %esi, %ebx
-        andl    %esi, %eax
-        andl    %esi, %edx
-        addl    %ecx, %eax
-        addl    %ebx, %edx
-# x = ((x >> 2) & 0x33333333) + (x & 0x33333333);
-        movl    $0x33333333, %esi
-        movl    %eax, %ecx
-        shrl    $2, %eax
-        movl    %edx, %ebx
-        shrl    $2, %edx
-        andl    %esi, %ecx
-        andl    %esi, %ebx
-        andl    %esi, %eax
-        andl    %esi, %edx
-        addl    %ecx, %eax
-        addl    %ebx, %edx
-# x = ((x >> 4) + x) & 0x0f0f0f0f;
-        movl    %eax, %ecx
-        shrl    $4, %eax
-        movl    %edx, %ebx
-        shrl    $4, %edx
-        addl    %ecx, %eax
-        addl    %ebx, %edx
-        andl    $0x0f0f0f0f, %eax
-        andl    $0x0f0f0f0f, %edx
-# x = ((x >> 8) + x);
-        movl    %eax, %ecx
-        shrl    $8, %eax
-        movl    %edx, %ebx
-        shrl    $8, %edx
-        addl    %ecx, %eax
-        addl    %ebx, %edx
-# return (x + (x >> 16)) & 0xff;
-        movl    %eax, %ecx
-        shrl    $16, %eax
-        movl    %edx, %ebx
-        shrl    $16, %edx
-        addl    %ecx, %eax
-        addl    %ebx, %edx
-        popl    %esi
-        popl    %ebx
-        addl    %edx, %eax
-        andl    $0x7f, %eax
+.globl PopCnt
+PopCnt:
+        movl    4(%esp), %ecx
+        xorl    %eax, %eax
+        testl   %ecx, %ecx
+        jz      l1
+l0:
+        leal    -1(%ecx), %edx
+        incl    %eax
+        andl    %edx, %ecx
+        jnz     l0
+l1:
+        movl    8(%esp), %ecx
+        testl   %ecx, %ecx
+        jz      l3
+l2:
+        leal    -1(%ecx), %edx
+        incl    %eax
+        andl    %edx, %ecx
+        jnz     l2
+l3:
         ret
 
 /*----------------------------------------------------------------------------*/
@@ -70,28 +34,28 @@ _FirstOne:
         sbbl    %eax, %eax
         movl    8(%esp,%eax,4), %edx
         bsr     %edx, %ecx
-        jz      l2
+        jz      l4
         andl    $32, %eax
         subl    $31, %ecx
         subl    %ecx, %eax
         ret
-l2:     movl    $64, %eax
+l4:     movl    $64, %eax
         ret
 
         .globl  _LastOne
 
 _LastOne:
         bsf     4(%esp),%edx
-        jz      l3
+        jz      l5
         movl    $63, %eax
         subl    %edx, %eax
         ret
-l3:     bsf     8(%esp), %edx
-        jz      l4
+l5:     bsf     8(%esp), %edx
+        jz      l6
         movl    $31, %eax
         subl    %edx, %eax
         ret
-l4:     mov     $64, %eax
+l6:     mov     $64, %eax
         ret
 
 /*----------------------------------------------------------------------------*/

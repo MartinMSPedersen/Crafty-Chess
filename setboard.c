@@ -50,11 +50,14 @@ void SetBoard(int nargs, char *args[], int special)
   int twtm, i, match, num, pos, square, tboard[64];
   int bcastle, ep, wcastle;
   char input[80];
-  char bdinfo[] = {'q','r','b','*','k','n','p','*','P','N','K','*','B','R',
-                   'Q','*', '1','2','3','4','5','6','7','8','/'};
-  char status[13]={'K','Q','k','q','a','b','c','d','e','f','g','h',' '};
-  int whichsq, firstsq[8]={56,48,40,32,24,16,8,0};
-  TREE *tree=local[0];
+  static const char bdinfo[] = {'q','r','b','*','k','n','p','*','P','N',
+                                'K','*','B','R', 'Q','*','1','2','3','4',
+                                '5','6','7','8','/'};
+  static const char status[13]={'K','Q','k','q','a','b','c','d','e','f','g',
+                                'h',' '};
+  int whichsq;
+  static const int firstsq[8]={56,48,40,32,24,16,8,0};
+  TREE * const tree=local[0];
 
   if (special)
     strcpy(input,initial_position);
@@ -206,10 +209,10 @@ void SetBoard(int nargs, char *args[], int special)
       tree->killer_move1[i]=0;
       tree->killer_move2[i]=0;
     }
-    last_pv.path_iteration_depth=0;
-    last_pv.path_length=0;
-    tree->pv[0].path_iteration_depth=0;
-    tree->pv[0].path_length=0;
+    last_pv.pathd=0;
+    last_pv.pathl=0;
+    tree->pv[0].pathd=0;
+    tree->pv[0].pathl=0;
     moves_out_of_book=0;
     largest_positional_score=100;
     opening=0;

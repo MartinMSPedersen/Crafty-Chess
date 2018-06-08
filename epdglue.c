@@ -828,8 +828,8 @@ for (index = 0; index < MAXPLY; index++) {
 /* clear miscellaneous host items */
 
 ponder_move = 0;
-last_pv.path_iteration_depth = 0;
-last_pv.path_length = 0;
+last_pv.pathd = 0;
+last_pv.pathl = 0;
 over = 0;
 
 return;
@@ -991,9 +991,9 @@ if (EPDFetchMoveCount() == 1)
 
 	/* set Iterate() result variables */
 
-	tree->pv[0].path_hashed = 0;
-	tree->pv[0].path_length = 1;
-	tree->pv[0].path_iteration_depth = 1;
+	tree->pv[0].pathh = 0;
+	tree->pv[0].pathl = 1;
+	tree->pv[0].pathd = 1;
 	tree->pv[0].path[1] = move;
 	}
 else
@@ -1208,8 +1208,8 @@ switch (EPDExtractRefcomIndex(epdptr0))
 
 			ponder_move = 0;
 			thinking = 1;
-			last_pv.path_iteration_depth = 0;
-			last_pv.path_length = 0;
+			last_pv.pathd = 0;
+			last_pv.pathl = 0;
 			tree->position[1] = tree->position[0];
 
 			/* search */
@@ -1284,8 +1284,8 @@ switch (EPDExtractRefcomIndex(epdptr0))
 		ponder = 0;
 		ponder_move = 0;
 
-		last_pv.path_iteration_depth = 0;
-		last_pv.path_length = 0;
+		last_pv.pathd = 0;
+		last_pv.pathl = 0;
 
 		InitializeChessBoard(&tree->position[0]);
 		InitializeHashTables();
@@ -2609,7 +2609,7 @@ if (flag)
 				EPDDropIfLocEOPCode(epdptr, epdso_pv);
 				eopptr = EPDCreateEOPCode(epdso_pv);
 
-				for (index = 1; index <= (int) tree->pv[0].path_length; index++)
+				for (index = 1; index <= (int) tree->pv[0].pathl; index++)
 					{
 					/* generate moves for the current position */
 
@@ -3171,47 +3171,6 @@ if (flag)
 	};
 
 return (flag);
-}
-
-/*--> EGCommandParmCount: return parameter count for a command */
-nonstatic
-int
-EGCommandParmCount(char *s)
-{
-siT count;
-egcommT egcomm;
-
-/* this is called by Option() in option.c */
-
-/*
-This routine is required for interfacing with Crafty to support EPD glue
-command line construction.  Because Crafty only distributes command input
-one token at a time, it is necessary to have input processor code in
-Option() assemble an EPD glue command line complete with parameter tokens.
-To assist with this task, the code in Option has to have a way of knowing
-how many parameters are associated with a given EPD glue command.
-
-Note that the Crafty is unable to uniformly process commands that have a
-variable number of parameters.  This is why every EPD glue command
-parameter count in this integration is fixed for the corresponding command.
-
-Other implementations may send an entire command text line.  This is a
-simpler approach and also easily supports having a variable number of
-parameters for EPD glue commands.  For these other implementations, the
-driver code in the host program need only call the EGCommand() routine
-with the whole command input string as the single EGCommand() parameter.
-*/
-
-/* get command index */
-
-egcomm = EGLocateCommand(s);
-
-if (egcomm == egcomm_nil)
-	count = 0;
-else
-	count = egparmcountv[egcomm];
-
-return (count);
 }
 
 /*--> EGCommandCheck: check if a string starts with an EPD command token */

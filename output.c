@@ -21,7 +21,7 @@ char* OutputMove(TREE *tree, int move, int ply, int wtm) {
   static char text_move[10], new_text[10];
   int *mvp;
   char *text;
-  char piece_names[8] = { ' ','P','N','K',' ','B','R','Q'};
+  static const char piece_names[8] = { ' ','P','N','K',' ','B','R','Q'};
 
   text=text_move;
 /*
@@ -168,7 +168,7 @@ char* OutputMove(TREE *tree, int move, int ply, int wtm) {
 char* OutputMoveICS(TREE *tree, int move) {
   static char text_move[10];
   char *text;
-  char piece_names[8] = { ' ','P','N','K',' ','B','R','Q'};
+  static const char piece_names[8] = { ' ','P','N','K',' ','B','R','Q'};
 
 /*
    convert to fully-qualified algebraic form first.

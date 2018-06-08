@@ -24,7 +24,7 @@ void RootMoveList(int wtm)
 {
   int *mvp, tempm;
   int square, i, side, done, temp, value;
-  TREE *tree=local[0];
+  TREE * const tree=local[0];
   int tb_value;
 /*
  ----------------------------------------------------------
@@ -39,21 +39,10 @@ void RootMoveList(int wtm)
  ----------------------------------------------------------
 */
   EGTB_draw=0;
-  if (!analyze_mode && EGTBlimit && TotalPieces<=5 &&
+  if (swindle_mode && EGTBlimit && TotalPieces<=5 &&
       EGTBProbe(tree, 1, wtm, &tb_value)) {
-    register int wpawn, bpawn;
-    if (TotalWhitePawns && TotalBlackPawns) {
-      wpawn=FirstOne(WhitePawns);
-      bpawn=FirstOne(BlackPawns);
-      if (FileDistance(wpawn,bpawn) == 1) {
-        if(((Rank(wpawn)==RANK2) && (Rank(bpawn)>RANK3)) ||
-           ((Rank(bpawn)==RANK7) && (Rank(wpawn)<RANK6)) || 
-           EnPassant(1)) tb_value=1;
-      }
-    }
-    if (tb_value == 0) {
+    if (tb_value == 0)
       if ((wtm && Material>0) || (!wtm && Material<0)) EGTB_draw=1;
-    }
   }
 /*
  ----------------------------------------------------------

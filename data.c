@@ -39,10 +39,6 @@
    int            root_value;
    int            root_wtm;
    int            root_move;
-   int            root_total_white_pieces;
-   int            root_total_white_pawns;
-   int            root_total_black_pieces;
-   int            root_total_black_pawns;
    int            cpu_percent;
    int            easy_move;
    int            absolute_time_limit;
@@ -57,22 +53,19 @@
    unsigned int   program_start_time, program_end_time;
    unsigned int   start_time, end_time;
    unsigned int   elapsed_start, elapsed_end;
-   unsigned int   evaluations;
    int            book_move;
    int            book_learn_eval[LEARN_INTERVAL];
    int            book_learn_depth[LEARN_INTERVAL];
    int            hash_maska;
    int            hash_maskb;
    unsigned int   pawn_hash_mask;
-   HASH_ENTRY      *trans_ref_wa;
-   HASH_ENTRY      *trans_ref_wb;
-   HASH_ENTRY      *trans_ref_ba;
-   HASH_ENTRY      *trans_ref_bb;
+   HASH_ENTRY      *trans_ref_a;
+   HASH_ENTRY      *trans_ref_b;
    PAWN_HASH_ENTRY *pawn_hash_table;
+   HASH_ENTRY      *trans_ref_a_orig;
+   HASH_ENTRY      *trans_ref_b_orig;
+   PAWN_HASH_ENTRY *pawn_hash_table_orig;
    int            history_w[4096], history_b[4096];
-   signed char    searched_this_root_move[256];
-   unsigned int   root_nodes[256];
-   PATH           pv[MAXPLY];
    PATH           last_pv;
    int            last_value;
    int            pawn_value_b[64];
@@ -107,7 +100,6 @@
   int            rook_mobility_rl90[64][256];
 #endif
 
-   POSITION       search;
    POSITION       display;
    BITBOARD       queen_attacks[64];
    BITBOARD       king_attacks[64];
@@ -132,11 +124,6 @@
    BITBOARD       castle_random_w[2];
    BITBOARD       castle_random_b[2];
    BITBOARD       wtm_random[2];
-   BITBOARD       endgame_random_w;
-   BITBOARD       endgame_random_b;
-   BITBOARD       w_rooks_random;
-   BITBOARD       b_rooks_random;
-   BITBOARD       threat_flag;
    BITBOARD       clear_mask[65];
    BITBOARD       clear_mask_rl90[65];
    BITBOARD       clear_mask_rl45[65];
@@ -147,31 +134,22 @@
    BITBOARD       set_mask_rr45[65];
    BITBOARD       file_mask[8];
    BITBOARD       rank_mask[8];
-   BITBOARD       mask_not_rank8;
-   BITBOARD       mask_not_rank1;
    BITBOARD       right_side_mask[8];
    BITBOARD       left_side_mask[8];
    BITBOARD       right_side_empty_mask[8];
    BITBOARD       left_side_empty_mask[8];
-   BITBOARD       mask_efgh, mask_abcd;
    BITBOARD       mask_fgh, mask_abc;
    BITBOARD       mask_abs7_w, mask_abs7_b;
-   BITBOARD       pawns_cramp_black;
-   BITBOARD       pawns_cramp_white;
    BITBOARD       mask_advance_2_w;
    BITBOARD       mask_advance_2_b;
    BITBOARD       mask_left_edge;
    BITBOARD       mask_right_edge;
-   BITBOARD       mask_corner_squares;
-   BITBOARD       promote_mask_w;
-   BITBOARD       promote_mask_b;
    BITBOARD       mask_G2G3;
    BITBOARD       mask_B2B3;
    BITBOARD       mask_G6G7;
    BITBOARD       mask_B6B7;
    BITBOARD       mask_A7H7;
    BITBOARD       mask_A2H2;
-   BITBOARD       center;
    BITBOARD       stonewall_white;
    BITBOARD       stonewall_black;
    BITBOARD       closed_white;
@@ -201,26 +179,15 @@
      BITBOARD       mask_1;
      BITBOARD       mask_2;
      BITBOARD       mask_3;
-     BITBOARD       mask_4;
      BITBOARD       mask_8;
      BITBOARD       mask_16;
-     BITBOARD       mask_32;
-     BITBOARD       mask_72;
-     BITBOARD       mask_80;
-     BITBOARD       mask_85;
-     BITBOARD       mask_96;
-     BITBOARD       mask_107;
-     BITBOARD       mask_108;
      BITBOARD       mask_112;
-     BITBOARD       mask_118;
      BITBOARD       mask_120;
-     BITBOARD       mask_121;
-     BITBOARD       mask_127;
 #  endif
 
    BITBOARD       mask_clear_entry;
 
-#  if !defined(CRAY1)
+#  if !defined(CRAY1) && !defined(USE_ASSEMBLY_B)
      unsigned char  first_ones[65536];
      unsigned char  last_ones[65536];
 #  endif
@@ -228,39 +195,21 @@
    unsigned char  first_ones_8bit[256];
    unsigned char  last_ones_8bit[256];
    unsigned char  connected_passed[256];
-   BITBOARD       mask_kingside_attack_w1;
-   BITBOARD       mask_kingside_attack_w2;
-   BITBOARD       mask_kingside_attack_b1;
-   BITBOARD       mask_kingside_attack_b2;
-   BITBOARD       mask_queenside_attack_w1;
-   BITBOARD       mask_queenside_attack_w2;
-   BITBOARD       mask_queenside_attack_b1;
-   BITBOARD       mask_queenside_attack_b2;
    BITBOARD       mask_pawn_protected_b[64];
    BITBOARD       mask_pawn_protected_w[64];
    BITBOARD       mask_pawn_duo[64];
    BITBOARD       mask_pawn_isolated[64];
    BITBOARD       mask_pawn_passed_w[64];
    BITBOARD       mask_pawn_passed_b[64];
-   BITBOARD       mask_promotion_threat_w[64];
-   BITBOARD       mask_promotion_threat_b[64];
-   BITBOARD       mask_pawn_connected[64];
    BITBOARD       mask_no_pawn_attacks_w[64];
    BITBOARD       mask_no_pawn_attacks_b[64];
-   BITBOARD       mask_a1_corner;
-   BITBOARD       mask_a8_corner;
-   BITBOARD       mask_h1_corner;
-   BITBOARD       mask_h8_corner;
    BITBOARD       white_minor_pieces;
    BITBOARD       black_minor_pieces;
-   BITBOARD       white_center_pawns;
-   BITBOARD       black_center_pawns;
    BITBOARD       white_pawn_race_wtm[64];
    BITBOARD       white_pawn_race_btm[64];
    BITBOARD       black_pawn_race_wtm[64];
    BITBOARD       black_pawn_race_btm[64];
    BITBOARD       mask_wk_4th, mask_wq_4th, mask_bk_4th, mask_bq_4th;
-   BITBOARD       mask_wk_5th, mask_wq_5th, mask_bk_5th, mask_bq_5th;
    BOOK_POSITION  book_buffer[BOOK_CLUSTER_SIZE];
    BOOK_POSITION  books_buffer[BOOK_CLUSTER_SIZE];
    unsigned int   thread_start_time[CPUS];
@@ -279,7 +228,7 @@
    unsigned int   max_split_blocks;
    volatile unsigned int   splitting;
 
-# define    VERSION                             "16.3"
+# define    VERSION                             "16.4"
   char      version[6] =                    {VERSION};
   PLAYING_MODE mode =                     normal_mode;
 
@@ -289,6 +238,7 @@
 #endif
 
   int       batch_mode =                            0; /* no asynch reads */
+  int       swindle_mode =                          1; /* try to swindle draws */
   int       call_flag =                             0;
   int       crafty_rating =                      2500;
   int       opponent_rating =                    2500;
@@ -500,6 +450,7 @@
   int       wtm =                                   1;
   int       crafty_is_white =                       0;
   int       last_opponent_move =                    0;
+  int       average_nps =                           0;
   int       incheck_depth =                        60;
   int       onerep_depth =                         45;
   int       recap_depth =                          45;
@@ -517,7 +468,6 @@
   int       time_used =                             0;
   int       time_used_opponent =                    0;
   int       cpu_time_used =                         0;
-  int       auto_kibitzing =                        0;
   signed char transposition_id =                    0;
 
   int       opening =                               1;
@@ -553,9 +503,8 @@
   char      hint[512] =                          {""};
   char      book_hint[512] =                     {""};
   int       over =                                  0;
-  int       no_tricks =                             1;
+  int       trojan_check =                          0;
   int       computer_opponent =                     0;
-  int       draw_score_normal =                     0;
   int       usage_level =                           0;
   char      audible_alarm =                      0x07;
 #if defined(MACOS)
@@ -578,7 +527,7 @@
   int       trace_level =                           0;
   int       display_options =                    4095;
   int       max_threads =                           0;
-  int       min_thread_depth =        2*INCREMENT_PLY;
+  int       min_thread_depth =        2*INCPLY;
   unsigned int noise_level =                    10000;
  
   int       hash_table_size =                   65536;
@@ -586,22 +535,25 @@
   int       pawn_hash_table_size =              32768;
   int       log_pawn_hash =                        15;
 
-  int       default_draw_score =                 DRAW;
+  int       draw_score =                            0;
   int       accept_draws =                          0;
 
-  int       passed_pawn_value[8] = { 0,
+  const char xlate[15] = {'q','r','b',0,'k','n','p',0,'P','N','K',0,'B','R','Q'};
+  const char empty[9]  = {' ','1','2','3','4','5','6','7','8'};
+
+  const int passed_pawn_value[8] = { 0,
                                      PAWN_PASSED, PAWN_PASSED*2,
                                      PAWN_PASSED*3, PAWN_PASSED*4,
                                      PAWN_PASSED*6,PAWN_PASSED*9,
                                      0};
 
-  int       isolated_pawn_value[9] = { 0,
+  const int isolated_pawn_value[9] = { 0,
                                        PAWN_ISOLATED,   PAWN_ISOLATED*2,
                                        PAWN_ISOLATED*4, PAWN_ISOLATED*6,
                                        PAWN_ISOLATED*9,PAWN_ISOLATED*12,
                                        PAWN_ISOLATED*15,PAWN_ISOLATED*20};
 
-  int       supported_passer[8] =  { 0,
+  const int supported_passer[8] =  { 0,
                                      PAWN_SUPPORTED_PASSED_RANK2,
                                      PAWN_SUPPORTED_PASSED_RANK3,
                                      PAWN_SUPPORTED_PASSED_RANK4,
@@ -610,10 +562,10 @@
                                      PAWN_SUPPORTED_PASSED_RANK7,
                                      0};
 
-  int       reduced_material_passer[20] = { 10,10,9,9,8,8,7,7,6,6,
+  const int reduced_material_passer[20] = { 10,10,9,9,8,8,7,7,6,6,
                                              5,5,4,4,3,3,2,2,1,1};
 
-  int       outside_passed[128] = { 80, 50, 50, 50, 45, 42, 40, 40,
+  const int outside_passed[128] = { 80, 50, 50, 50, 45, 42, 40, 40,
                                     36, 36, 32, 32, 28, 28, 24, 24,
                                     20, 20, 16, 16, 12, 12, 12, 12,
                                     12, 12, 12, 12, 12, 12, 12, 12,
@@ -630,7 +582,7 @@
                                     12, 12, 12, 12, 12, 12, 12, 12,
                                     12, 12, 12, 12, 12, 12, 12, 12};
 
-  int       scale_up[128] =       { 12, 12, 12, 11, 11, 11, 10, 10,
+  const int scale_up[128] =       { 12, 12, 12, 11, 11, 11, 10, 10,
                                     10,  9,  9,  9,  8,  8,  8,  7,
                                      6,  6,  6,  6,  6,  6,  6,  6,
                                      6,  6,  6,  6,  6,  6,  6,  6,
@@ -647,33 +599,50 @@
                                      6,  6,  6,  6,  6,  6,  6,  6,
                                      6,  6,  6,  6,  6,  6,  6,  6};
 
-  int       scale_down[128] =     {  1,  1,  1,  1,  1,  1,  1,  1,
-                                     1,  1,  1,  1,  1,  2,  4,  5,
+  const int scale_down[128] =     {  1,  1,  1,  1,  1,  1,  1,  1,
+                                     1,  1,  1,  1,  2,  3,  4,  5,
                                      5,  6,  6,  7,  7,  8,  8,  8,
-                                    10, 10, 10, 10, 12, 12, 12, 12,
-                                    12, 12, 12, 12, 12, 12, 12, 12,
-                                    12, 12, 12, 12, 12, 12, 12, 12,
-                                    12, 12, 12, 12, 12, 12, 12, 12,
-                                    12, 12, 12, 12, 12, 12, 12, 12,
-                                    12, 12, 12, 12, 12, 12, 12, 12,
-                                    12, 12, 12, 12, 12, 12, 12, 12,
-                                    12, 12, 12, 12, 12, 12, 12, 12,
-                                    12, 12, 12, 12, 12, 12, 12, 12,
-                                    12, 12, 12, 12, 12, 12, 12, 12,
-                                    12, 12, 12, 12, 12, 12, 12, 12,
-                                    12, 12, 12, 12, 12, 12, 12, 12,
-                                    12, 12, 12, 12, 12, 12, 12, 12};
+                                     9,  9,  9, 10, 10, 10, 10, 10,
+                                    10, 10, 10, 10, 10, 10, 10, 10,
+                                    10, 10, 10, 10, 10, 10, 10, 10,
+                                    10, 10, 10, 10, 10, 10, 10, 10,
+                                    10, 10, 10, 10, 10, 10, 10, 10,
+                                    10, 10, 10, 10, 10, 10, 10, 10,
+                                    10, 10, 10, 10, 10, 10, 10, 10,
+                                    10, 10, 10, 10, 10, 10, 10, 10,
+                                    10, 10, 10, 10, 10, 10, 10, 10,
+                                    10, 10, 10, 10, 10, 10, 10, 10,
+                                    10, 10, 10, 10, 10, 10, 10, 10,
+                                    10, 10, 10, 10, 10, 10, 10, 10,
+                                    10, 10, 10, 10, 10, 10, 10, 10};
 
-  char      square_color[64]  = { 1, 0, 1, 0, 1, 0, 1, 0,
-                                  0, 1, 0, 1, 0, 1, 0, 1,
-                                  1, 0, 1, 0, 1, 0, 1, 0,
-                                  0, 1, 0, 1, 0, 1, 0, 1,
-                                  1, 0, 1, 0, 1, 0, 1, 0,
-                                  0, 1, 0, 1, 0, 1, 0, 1,
-                                  1, 0, 1, 0, 1, 0, 1, 0,
-                                  0, 1, 0, 1, 0, 1, 0, 1 };
+  const int temper[128] =         {  0,  1,  2,  5,  8, 10, 10, 11,
+                                    11, 12, 12, 13, 13, 14, 14, 15,
+                                    15, 16, 16, 17, 17, 18, 18, 19,
+                                    19, 20, 20, 20, 20, 20, 20, 20,
+                                    20, 20, 20, 20, 20, 20, 20, 20,
+                                    20, 20, 20, 20, 20, 20, 20, 20,
+                                    20, 20, 20, 20, 20, 20, 20, 20,
+                                    20, 20, 20, 20, 20, 20, 20, 20,
+                                    20, 20, 20, 20, 20, 20, 20, 20,
+                                    20, 20, 20, 20, 20, 20, 20, 20,
+                                    20, 20, 20, 20, 20, 20, 20, 20,
+                                    20, 20, 20, 20, 20, 20, 20, 20,
+                                    20, 20, 20, 20, 20, 20, 20, 20,
+                                    20, 20, 20, 20, 20, 20, 20, 20,
+                                    20, 20, 20, 20, 20, 20, 20, 20,
+                                    20, 20, 20, 20, 20, 20, 20, 20};
 
-  int       b_n_mate_dark_squares[64] = 
+  const char square_color[64]  = { 1, 0, 1, 0, 1, 0, 1, 0,
+                                   0, 1, 0, 1, 0, 1, 0, 1,
+                                   1, 0, 1, 0, 1, 0, 1, 0,
+                                   0, 1, 0, 1, 0, 1, 0, 1,
+                                   1, 0, 1, 0, 1, 0, 1, 0,
+                                   0, 1, 0, 1, 0, 1, 0, 1,
+                                   1, 0, 1, 0, 1, 0, 1, 0,
+                                   0, 1, 0, 1, 0, 1, 0, 1 };
+
+  const int b_n_mate_dark_squares[64] = 
                              { 100,  90,  80,  70,  60,  50,  40,  30,
                                 90,  80,  70,  60,  50,  40,  30,  40,
                                 80,  70,  60,  50,  40,  30,  40,  50,
@@ -683,7 +652,7 @@
                                 40,  30,  40,  50,  60,  70,  80,  90,
                                 30,  40,  50,  60,  70,  80,  90, 100};
 
-  int       b_n_mate_light_squares[64] =
+  const int b_n_mate_light_squares[64] =
                              {  30,  40,  50,  60,  70,  80,  90, 100,
                                 40,  30,  40,  50,  60,  70,  80,  90,
                                 50,  40,  30,  40,  50,  60,  70,  80,
@@ -693,7 +662,7 @@
                                 90,  80,  70,  60,  50,  40,  30,  40,
                                100,  90,  80,  70,  60,  50,  40,  30};
 
-  int       mate[64] =        {100, 96, 93, 90, 90, 93, 96,100,
+  const int mate[64] =        {100, 96, 93, 90, 90, 93, 96,100,
                                 96, 80, 70, 60, 60, 70, 80, 96,
                                 93, 70, 60, 50, 50, 60, 70, 93,
                                 90, 60, 50, 40, 40, 50, 60, 90,
@@ -702,7 +671,7 @@
                                 96, 80, 70, 60, 60, 70, 80, 96,
                                100, 96, 93, 90, 90, 93, 96,100};
 
-  char            white_outpost[64] = { 0, 0, 0, 0, 0, 0, 0, 0,
+  const char      white_outpost[64] = { 0, 0, 0, 0, 0, 0, 0, 0,
                                         0, 0, 0, 0, 0, 0, 0, 0,
                                         0, 0, 0, 0, 0, 0, 0, 0,
                                         0, 0, 0, 2, 2, 0, 0, 0,
@@ -711,7 +680,7 @@
                                         0, 0, 0, 1, 1, 0, 0, 0,
                                         0, 0, 0, 0, 0, 0, 0, 0 };
 
-  char            black_outpost[64] = { 0, 0, 0, 0, 0, 0, 0, 0,
+  const char      black_outpost[64] = { 0, 0, 0, 0, 0, 0, 0, 0,
                                         0, 0, 0, 1, 1, 0, 0, 0,
                                         0, 0, 3, 6, 6, 3, 0, 0,
                                         0, 0, 4, 5, 5, 4, 0, 0,
@@ -720,7 +689,7 @@
                                         0, 0, 0, 0, 0, 0, 0, 0,
                                         0, 0, 0, 0, 0, 0, 0, 0 };
 
-  char           push_extensions[64] = { 0, 0, 0, 0, 0, 0, 0, 0,
+  const char     push_extensions[64] = { 0, 0, 0, 0, 0, 0, 0, 0,
                                          1, 1, 1, 1, 1, 1, 1, 1,
                                          0, 0, 0, 0, 0, 0, 0, 0,
                                          0, 0, 0, 0, 0, 0, 0, 0,
@@ -738,22 +707,22 @@
                               0,  0,  0,  0,  0,  0,  0,  0,
                               0,  0,  0,  0,  0,  0,  0,  0};
 
-  int  knight_value_w[64] = {-15,-15, -5, -5, -5, -5,-15,-15,
+  int  knight_value_w[64] = {-15,-15, -3, -3, -3, -3,-15,-15,
                              -15,-15,  0,  0,  0,  0,-15,-15,
-                              -5,  5,  5,  5,  5,  5,  5, -5,
-                               0,  5, 10, 10, 10, 10,  5,  0,
-                               0,  5, 15, 15, 15, 15,  5,  0,
-                               0,  5, 15, 15, 15, 15,  5,  0,
-                             -25,-25, 10, 10, 10, 10,-25,-25,
-                             -25,-25,  5,  5,  5,  5,-25,-25};
+                              -5,  2,  2,  2,  2,  2,  2, -5,
+                               0,  2,  4,  4,  4,  4,  2,  0,
+                               0,  2,  6,  6,  6,  6,  2,  0,
+                               0,  2,  6,  6,  6,  6,  2,  0,
+                             -25,-25,  4,  4,  4,  4,-25,-25,
+                             -25,-25,  2,  2,  2,  2,-25,-25};
 
-  int  bishop_value_w[64] = {-15,-15,-10,-10,-10,-10,-15,-15,
-                             -15,  5,  5,  5,  5,  5,  5,-15,
-                               0,  5,  5,  5,  5,  5,  5,  0,
-                               0,  5, 10, 10, 10, 10,  5,  0,
-                               0,  5, 15, 15, 15, 15,  5,  0,
-                               0,  5, 15, 15, 15, 15,  5,  0,
-                             -15,  5, 10, 10, 10, 10,  5,-15,
+  int  bishop_value_w[64] = {-15,-15, -3, -3, -3, -3,-15,-15,
+                             -15,  2,  0,  0,  0,  0,  2,-15,
+                               0,  2,  2,  2,  2,  2,  2,  0,
+                               0,  2,  4,  4,  4,  4,  2,  0,
+                               0,  2,  6,  6,  6,  6,  2,  0,
+                               0,  2,  6,  6,  6,  6,  2,  0,
+                             -15,  2,  4,  4,  4,  4,  2,-15,
                              -15,-15,  0,  0,  0,  0,-15,-15};
 
   int    rook_value_w[64] = {  1,  2,  4,  6,  6,  4,  2,  1,
@@ -786,30 +755,30 @@
 /* note that black piece/square values are copied from white, but
    reflected */
 
-   char king_defects_w[64]= { 1, 0, 1, 3, 3, 1, 0, 1,
-                              1, 1, 1, 3, 3, 1, 1, 1,
-                              3, 3, 3, 3, 3, 3, 3, 3,
-                              4, 4, 4, 4, 4, 4, 4, 4,
-                              5, 5, 5, 5, 5, 5, 5, 5,
-                              6, 6, 6, 6, 6, 6, 6, 6,
-                              7, 7, 7, 7, 7, 7, 7, 7,
-                              8, 8, 8, 8, 8, 8, 8, 8};
+   const char king_defects_w[64]= { 1, 0, 1, 3, 3, 1, 0, 1,
+                                    1, 1, 1, 3, 3, 1, 1, 1,
+                                    3, 3, 3, 3, 3, 3, 3, 3,
+                                    4, 4, 4, 4, 4, 4, 4, 4,
+                                    5, 5, 5, 5, 5, 5, 5, 5,
+                                    6, 6, 6, 6, 6, 6, 6, 6,
+                                    7, 7, 7, 7, 7, 7, 7, 7,
+                                    8, 8, 8, 8, 8, 8, 8, 8};
 
-   char king_defects_b[64]= { 8, 8, 8, 8, 8, 8, 8, 8,
-                              7, 7, 7, 7, 7, 7, 7, 7,
-                              6, 6, 6, 6, 6, 6, 6, 6,
-                              5, 5, 5, 5, 5, 5, 5, 5,
-                              4, 4, 4, 4, 4, 4, 4, 4,
-                              3, 3, 3, 3, 3, 3, 3, 3,
-                              1, 1, 1, 3, 3, 1, 1, 1,
-                              1, 0, 1, 3, 3, 1, 0, 1};
+   const char king_defects_b[64]= { 8, 8, 8, 8, 8, 8, 8, 8,
+                                    7, 7, 7, 7, 7, 7, 7, 7,
+                                    6, 6, 6, 6, 6, 6, 6, 6,
+                                    5, 5, 5, 5, 5, 5, 5, 5,
+                                    4, 4, 4, 4, 4, 4, 4, 4,
+                                    3, 3, 3, 3, 3, 3, 3, 3,
+                                    1, 1, 1, 3, 3, 1, 1, 1,
+                                    1, 0, 1, 3, 3, 1, 0, 1};
 
-  int       p_values[15] =       {QUEEN_VALUE,ROOK_VALUE,BISHOP_VALUE,0,
+  const int p_values[15] =       {QUEEN_VALUE,ROOK_VALUE,BISHOP_VALUE,0,
                                   KING_VALUE,KNIGHT_VALUE,PAWN_VALUE,
                                   0,PAWN_VALUE,KNIGHT_VALUE,KING_VALUE,
                                   0, BISHOP_VALUE,ROOK_VALUE,QUEEN_VALUE};
 
-  int       unblocked_pawns[9] = {-PAWN_UNBLOCKED*2,0,PAWN_UNBLOCKED*2,
+  const int unblocked_pawns[9] = {-PAWN_UNBLOCKED*2,0,PAWN_UNBLOCKED*2,
                                    PAWN_UNBLOCKED*3,  PAWN_UNBLOCKED*4,
                                    PAWN_UNBLOCKED*4,  PAWN_UNBLOCKED*4,
                                    PAWN_UNBLOCKED*4,  PAWN_UNBLOCKED*4};

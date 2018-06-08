@@ -31,7 +31,7 @@ int ValidMove(TREE *tree, int ply, int wtm, int move)
   }
       
   switch (Piece(move)) {
-    case empty:
+    case none:
       return(0);
 /*
  ----------------------------------------------------------

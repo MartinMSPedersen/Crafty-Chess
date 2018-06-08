@@ -27,10 +27,10 @@ int InputMove(TREE *tree, char *text, int ply, int wtm, int silent,
   int current, i, nleft, ambig;
   char *goodchar;
   char movetext[128];
-  char pieces[17]={' ',' ','P','p','N','n','K','k',' ',' ',
-                   'B','B','R','r','Q','q','\0'};
-  char pro_pieces[17]={' ',' ','P','p','N','n','K','k',' ',' ',
-                       'B','b','R','r','Q','q','\0'};
+  static const char pieces[17]={' ',' ','P','p','N','n','K','k',' ',' ',
+                                'B','B','R','r','Q','q','\0'};
+  static const char pro_pieces[17]={' ',' ','P','p','N','n','K','k',' ',' ',
+                                    'B','b','R','r','Q','q','\0'};
 
 /*
    check for fully-qualified input (f1e1) and handle if needed.
@@ -254,8 +254,8 @@ int InputMoveICS(TREE *tree, char *text, int ply, int wtm, int silent,
   int ffile, frank, tfile, trank;
   int i, nleft;
   char movetext[128];
-  char pieces[17]={' ',' ','P','p','N','n','K','k',' ',' ',
-                   'B','b','R','r','Q','q','\0'};
+  static const char pieces[17]={' ',' ','P','p','N','n','K','k',' ',' ',
+                                'B','b','R','r','Q','q','\0'};
 /*
    initialize move structure in case an error is found
 */

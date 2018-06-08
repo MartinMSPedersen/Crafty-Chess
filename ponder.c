@@ -28,7 +28,7 @@ int Ponder(int wtm)
 {
   int dummy=0, i, *n_ponder_moves, *mv;
   int save_move_number;
-  TREE *tree=local[0];
+  TREE * const tree=local[0];
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -58,7 +58,7 @@ int Ponder(int wtm)
     if (!LegalMove(tree,1,wtm,ponder_move)) {
       ponder_move=0;
       Print(4095,"ERROR.  ponder_move is illegal (1).\n");
-      Print(4095,"ERROR.  PV path_length=%d\n",last_pv.path_length);
+      Print(4095,"ERROR.  PV pathl=%d\n",last_pv.pathl);
       Print(4095,"ERROR.  move=%d  %x\n",last_pv,last_pv);
     }
   }
@@ -69,7 +69,7 @@ int Ponder(int wtm)
       if (!LegalMove(tree,1,wtm,ponder_move)) {
         ponder_move=0;
         Print(4095,"ERROR.  ponder_move is illegal (2).\n");
-        Print(4095,"ERROR.  PV path_length=%d\n",last_pv.path_length);
+        Print(4095,"ERROR.  PV pathl=%d\n",last_pv.pathl);
         Print(4095,"ERROR.  move=%d  %x\n",last_pv,last_pv);
       }
     }
@@ -80,8 +80,8 @@ int Ponder(int wtm)
     puzzling=1;
     tree->position[1]=tree->position[0];
     Print(128,"              puzzling over a move to ponder.\n");
-    last_pv.path_length=0;
-    last_pv.path_iteration_depth=0;
+    last_pv.pathl=0;
+    last_pv.pathd=0;
     for (i=0;i<MAXPLY;i++) {
       tree->killer_move1[i]=0;
       tree->killer_move2[i]=0;
@@ -92,15 +92,15 @@ int Ponder(int wtm)
       tree->killer_move2[i]=0;
     }
     puzzling=0;
-    if (tree->pv[0].path_length) ponder_move=tree->pv[0].path[1];
+    if (tree->pv[0].pathl) ponder_move=tree->pv[0].path[1];
     if (!ponder_move) return(0);
-    for (i=1;i<(int) tree->pv[0].path_length;i++) last_pv.path[i]=tree->pv[0].path[i+1];
-    last_pv.path_length=tree->pv[0].path_length-1;
-    last_pv.path_iteration_depth=0;
+    for (i=1;i<(int) tree->pv[0].pathl;i++) last_pv.path[i]=tree->pv[0].path[i+1];
+    last_pv.pathl=tree->pv[0].pathl-1;
+    last_pv.pathd=0;
     if (!LegalMove(tree,1,wtm,ponder_move)) {
       ponder_move=0;
       Print(4095,"ERROR.  ponder_move is illegal (3).\n");
-      Print(4095,"ERROR.  PV path_length=%d\n",last_pv.path_length);
+      Print(4095,"ERROR.  PV pathl=%d\n",last_pv.pathl);
       return(0);
     }
   }

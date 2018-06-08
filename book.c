@@ -58,7 +58,7 @@ int Book(TREE *tree, int wtm, int root_list_done) {
   float tempr;
   int done, i, j, last_move, temp, which, minlv=999999, maxlv=-999999;
   int maxp=-999999, minev=999999, maxev=-999999;
-  int *mv, mp, value, np;
+  int *mv, value, np;
   int cluster, scluster, test;
   BITBOARD temp_hash_key, common;
   int key, nmoves, num_selected, st;
@@ -261,7 +261,6 @@ int Book(TREE *tree, int wtm, int root_list_done) {
 |                                                          |
  ----------------------------------------------------------
 */
-    mp=0;
     for (i=0;i<nmoves;i++) 
       if (book_status[i] & 030) break;
     if (i < nmoves){
@@ -576,18 +575,18 @@ int Book(TREE *tree, int wtm, int root_list_done) {
         if (!forced) {
           for (i=0;i<nmoves;i++) *(tree->last[0]+i)=book_moves[i];
           tree->last[1]=tree->last[0]+nmoves;
-          last_pv.path_iteration_depth=0;
+          last_pv.pathd=0;
           booking=1;
           value=Iterate(wtm,booking,1);
           booking=0;
           if (value <- 50) {
-            last_pv.path_iteration_depth=0;
+            last_pv.pathd=0;
             return(0);
           }
         }
         else {
           tree->pv[1].path[1]=book_moves[0];
-          tree->pv[1].path_length=1;
+          tree->pv[1].pathl=1;
         }
         return(1);
       }
@@ -614,14 +613,14 @@ int Book(TREE *tree, int wtm, int root_list_done) {
       Print(128,"               moves considered {only non-book moves}\n");
       nmoves=j;
       if (nmoves > 1) {
-        last_pv.path_iteration_depth=0;
+        last_pv.pathd=0;
         booking=1;
         (void) Iterate(wtm,booking,1);
         booking=0;
       }
       else {
         tree->pv[1].path[1]=book_moves[0];
-        tree->pv[1].path_length=1;
+        tree->pv[1].pathl=1;
       }
       return(1);
     }
@@ -654,7 +653,7 @@ int Book(TREE *tree, int wtm, int root_list_done) {
     percent_played=100*bs_played[which]/Max(total_played,1);
     total_played=bs_played[which];
     m1_status=book_status[which];
-    tree->pv[1].path_length=1;
+    tree->pv[1].pathl=1;
     MakeMove(tree,1,book_moves[which],wtm);
     UnMakeMove(tree,1,book_moves[which],wtm);
     Print(128,"               book   0.0s    %3d%%   ", percent_played);
@@ -726,7 +725,8 @@ void BookUp(TREE *tree, char *output_filename, int nargs, char **args) {
   BB_POSITION *bbuffer;
   BITBOARD temp_hash_key, common;
   FILE *book_input;
-  char fname[64], *start, *ch, schar[2]={"."};
+  char fname[64], *start, *ch;
+  static char schar[2]={"."};
   int result=0, played, i, mask_word, total_moves;
   int move, move_num, wtm, book_positions, major, minor;
   int cluster, max_cluster, discarded=0, discarded_mp=0, discarded_lose=0;
@@ -990,7 +990,7 @@ void BookUp(TREE *tree, char *output_filename, int nargs, char **args) {
 */
     printf("merging sorted files (%d) (10K/dot)\n",files);
     counter=0;
-    index=malloc(32768*sizeof(int));
+    index=(int *) malloc(32768*sizeof(int));
     if (!index) {
       Print(4095,"Unable to malloc() index block, aborting\n");
       exit(1);
@@ -1198,7 +1198,7 @@ BB_POSITION BookUpNextPosition(int files, int init) {
         printf("unable to open sort.%d file, may be too many files open.\n",i);
         exit(1);
       }
-      buffer[i]=malloc(sizeof(BB_POSITION)*MERGE_BLOCK);
+      buffer[i]=(BB_POSITION *) malloc(sizeof(BB_POSITION)*MERGE_BLOCK);
       if (!buffer[i]) {
         printf("out of memory.  aborting. \n");
         exit(1);

@@ -23,7 +23,7 @@
 void Phase(void)
 {
   int t_opening, t_middle_game, t_end_game;
-  TREE *tree=local[0];
+  TREE * const tree=local[0];
 
 /*
  ----------------------------------------------------------

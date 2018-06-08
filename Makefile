@@ -151,7 +151,7 @@ opts = $(opt) -D$(target)
 
 objects = searchr.o search.o thread.o searchmp.o repeat.o next.o nexte.o      \
         nextr.o history.o quiesce.o evaluate.o movgen.o make.o unmake.o       \
-        hash.o attacks.o swap.o boolean.o draw.o utility.o valid.o book.o     \
+        hash.o attacks.o swap.o boolean.o utility.o valid.o book.o            \
         data.o drawn.o edit.o enprise.o epd.o epdglue.o init.o input.o        \
         interupt.o iterate.o main.o option.o output.o phase.o ponder.o        \
         preeval.o resign.o root.o learn.o setboard.o test.o time.o validate.o \

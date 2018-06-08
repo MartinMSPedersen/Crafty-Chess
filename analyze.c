@@ -18,7 +18,7 @@
 */
 void Analyze() {
   int i, move, back_number, readstat=1;
-  TREE *tree=local[0];
+  TREE * const tree=local[0];
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -26,9 +26,10 @@ void Analyze() {
 |                                                          |
  ----------------------------------------------------------
 */
+    int save_swindle_mode=swindle_mode;
+    swindle_mode=0;
     ponder_move=0;
     analyze_mode=1;
-    draw_score_normal=1;
     if (!xboard) display_options|=1+2+4;
     printf("Analyze Mode: type \"exit\" to terminate.\n");
 /*
@@ -41,8 +42,8 @@ void Analyze() {
 */
     do {
       do {
-        last_pv.path_iteration_depth=0;
-        last_pv.path_length=0;
+        last_pv.pathd=0;
+        last_pv.pathl=0;
         analyze_move_read=0;
         pondering=1;
         tree->position[1]=tree->position[0];
@@ -129,4 +130,5 @@ void Analyze() {
     analyze_mode=0;
     printf("analyze complete.\n");
     pondering=0;
+    swindle_mode=save_swindle_mode;
 }

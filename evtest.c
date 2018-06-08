@@ -31,7 +31,7 @@ void EVTest(char *filename)
   FILE *test_input;
   int i, len;
   char *eof;
-  TREE *tree=local[0];
+  TREE * const tree=local[0];
 /*
  ----------------------------------------------------------
 |                                                          |

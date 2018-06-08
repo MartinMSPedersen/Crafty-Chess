@@ -299,28 +299,24 @@ void Initialize(int continuing) {
     log_file=fopen(log_filename,"w");
     history_file=fopen(history_filename,"w+");
   }
-
-  trans_ref_wa=malloc(16*hash_table_size);
-  trans_ref_wb=malloc(16*2*hash_table_size);
-  trans_ref_ba=malloc(16*hash_table_size);
-  trans_ref_bb=malloc(16*2*hash_table_size);
-  pawn_hash_table=malloc(sizeof(PAWN_HASH_ENTRY)*pawn_hash_table_size);
+  trans_ref_a_orig=(HASH_ENTRY *) malloc(16*hash_table_size+15);
+  trans_ref_b_orig=(HASH_ENTRY *) malloc(16*2*hash_table_size+15);
+  pawn_hash_table_orig=(PAWN_HASH_ENTRY *) malloc(sizeof(PAWN_HASH_ENTRY)*pawn_hash_table_size+15);
+  trans_ref_a=(HASH_ENTRY*) (((unsigned) trans_ref_a_orig+15)&~15);
+  trans_ref_b=(HASH_ENTRY*) (((unsigned) trans_ref_b_orig+15)&~15);
+  pawn_hash_table=(PAWN_HASH_ENTRY*) (((unsigned) pawn_hash_table_orig+15)&~15);
   InitializeHashTables();
-  if (!trans_ref_wa || !trans_ref_wb || !trans_ref_ba || !trans_ref_bb ) {
+  if (!trans_ref_a || !trans_ref_b) {
     printf("malloc() failed, not enough memory.\n");
-    free(trans_ref_wa);
-    free(trans_ref_wb);
-    free(trans_ref_ba);
-    free(trans_ref_bb);
-    free(pawn_hash_table);
+    free(trans_ref_a_orig);
+    free(trans_ref_b_orig);
+    free(pawn_hash_table_orig);
     hash_table_size=0;
     pawn_hash_table_size=0;
     log_hash=0;
     log_pawn_hash=0;
-    trans_ref_wa=0;
-    trans_ref_wb=0;
-    trans_ref_ba=0;
-    trans_ref_bb=0;
+    trans_ref_a=0;
+    trans_ref_b=0;
     pawn_hash_table=0;
   }
   hash_maska=(1<<log_hash)-1;
@@ -343,9 +339,9 @@ void InitializeAttackBoards(void)
 
   int i, j, frank, ffile, trank, tfile;
   int sq, lastsq;
-  int knightsq[8]={-17,-15,-10,-6,6,10,15,17};
-  int bishopsq[4]={-9,-7,7,9};
-  int rooksq[4]={-8,-1,1,8};
+  static const int knightsq[8]={-17,-15,-10,-6,6,10,15,17};
+  static const int bishopsq[4]={-9,-7,7,9};
+  static const int rooksq[4]={-8,-1,1,8};
   BITBOARD sqs;
 /*
    initialize pawn attack boards
@@ -687,7 +683,7 @@ void InitializeAttackBoards(void)
 void InitializeChessBoard(SEARCH_POSITION *new_pos)
 {
   int i;
-  TREE *tree=local[0];
+  TREE * const tree=local[0];
 
   if (strlen(initial_position)) {
     static char a1[80], a2[16], a3[16], a4[16], a5[16];
@@ -698,7 +694,7 @@ void InitializeChessBoard(SEARCH_POSITION *new_pos)
     SetBoard(nargs,args,1);
   }
   else {
-    for(i=0;i<64;i++) tree->pos.board[i]=empty;
+    for(i=0;i<64;i++) tree->pos.board[i]=none;
     new_pos->rule_50_moves=0;
     opening=1;
     middle_game=0;
@@ -765,7 +761,7 @@ void InitializeChessBoard(SEARCH_POSITION *new_pos)
 void SetChessBitBoards(SEARCH_POSITION *new_pos)
 {
   int i;
-  TREE *tree=local[0];
+  TREE * const tree=local[0];
   tree->pos.hash_key=0;
   tree->pos.pawn_hash_key=0;
 /*
@@ -1015,16 +1011,12 @@ void InitializeHashTables(void)
   int i;
   transposition_id=0;
   for (i=0;i<hash_table_size;i++) {
-    (trans_ref_wa+i)->word1=Shiftl((BITBOARD) 7,61);
-    (trans_ref_wa+i)->word2=0;
-    (trans_ref_ba+i)->word1=Shiftl((BITBOARD) 7,61);
-    (trans_ref_ba+i)->word2=0;
+    (trans_ref_a+i)->word1=Shiftl((BITBOARD) 7,61);
+    (trans_ref_a+i)->word2=0;
   }
   for (i=0;i<2*hash_table_size;i++) {
-    (trans_ref_wb+i)->word1=Shiftl((BITBOARD) 7,61);
-    (trans_ref_wb+i)->word2=0;
-    (trans_ref_bb+i)->word1=Shiftl((BITBOARD) 7,61);
-    (trans_ref_bb+i)->word2=0;
+    (trans_ref_b+i)->word1=Shiftl((BITBOARD) 7,61);
+    (trans_ref_b+i)->word2=0;
   }
   for (i=0;i<pawn_hash_table_size;i++) {
     (pawn_hash_table+i)->key=0;
@@ -1050,23 +1042,12 @@ void InitializeMasks(void) {
     mask_1=Mask(1);
     mask_2=Mask(2);
     mask_3=Mask(3);
-    mask_4=Mask(4);
     mask_8=Mask(8);
     mask_16=Mask(16);
-    mask_32=Mask(32);
-    mask_72=Mask(72);
-    mask_80=Mask(80);
-    mask_85=Mask(85);
-    mask_96=Mask(96);
-    mask_107=Mask(107);
-    mask_108=Mask(108);
     mask_112=Mask(112);
-    mask_118=Mask(118);
     mask_120=Mask(120);
-    mask_121=Mask(121);
-    mask_127=Mask(127);
 #  endif
-  mask_clear_entry=Compl(Or(Mask(109),Shiftr(Mask(3),3)));
+  mask_clear_entry=Compl(Or(Mask(111),Shiftr(Mask(2),3)));
 /*
   masks to set/clear a bit on a specific square
 */
@@ -1142,9 +1123,7 @@ void InitializeMasks(void) {
     for (j=i-1;j>=0;j--)
       left_side_empty_mask[i]=Or(left_side_empty_mask[i],file_mask[j]);
   }
-  mask_efgh=Or(Or(Or(file_mask[FILEE],file_mask[FILEF]),file_mask[FILEG]),file_mask[FILEH]);
   mask_fgh=Or(Or(file_mask[FILEF],file_mask[FILEG]),file_mask[FILEH]);
-  mask_abcd=Or(Or(Or(file_mask[FILEA],file_mask[FILEB]),file_mask[FILEC]),file_mask[FILED]);
   mask_abc=Or(Or(file_mask[FILEA],file_mask[FILEB]),file_mask[FILEC]);
   mask_kr_trapped_w[0]=SetMask(H2);
   mask_kr_trapped_w[1]=Or(SetMask(H1),SetMask(H2));
@@ -1162,14 +1141,8 @@ void InitializeMasks(void) {
   mask_abs7_w=Xor(rank_mask[RANK7],Or(SetMask(H7),SetMask(A7)));
   mask_abs7_b=Xor(rank_mask[RANK2],Or(SetMask(H2),SetMask(A2)));
 
-  mask_not_rank8=~rank_mask[RANK8];
-  mask_not_rank1=~rank_mask[RANK1];
-
   mask_A7H7=Or(SetMask(A7),SetMask(H7));
   mask_A2H2=Or(SetMask(A2),SetMask(H2));
-  center=Or(Or(SetMask(D4),SetMask(E4)),
-            Or(SetMask(D5),SetMask(E5)));
-  threat_flag=Shiftl((BITBOARD) 1, 58);
 }
 
 void InitializePawnMasks(void)
@@ -1184,25 +1157,6 @@ void InitializePawnMasks(void)
     if (!(i&7)) mask_pawn_isolated[i]=file_mask[(i&7)+1];
     else if ((i&7) == 7) mask_pawn_isolated[i]=file_mask[(i&7)-1];
     else mask_pawn_isolated[i]=Or(file_mask[(i&7)-1],file_mask[(i&7)+1]);
-  }
-/*
-    initialize connected pawn masks, which are nothing more than 1's on
-    files adjacent to the pawn and ranks that are within 1 rank of the
-    pawn.
-*/
-  for (i=8;i<56;i++) {
-    if (((i&7)>0) && ((i&7)<7))
-      mask_pawn_connected[i]=Or(Or(Or(Or(Or(SetMask(i-9),SetMask(i-7)),
-                                         SetMask(i-1)),
-                                      SetMask(i+1)),
-                                   SetMask(i+7)),
-                                SetMask(i+9));
-    else if ((i&7)==0)
-      mask_pawn_connected[i]=Or(Or(SetMask(i-7),SetMask(i+1)),
-                                SetMask(i+9));
-    else if ((i&7)==7)
-      mask_pawn_connected[i]=Or(Or(SetMask(i-9),SetMask(i-1)),
-                                SetMask(i+7));
   }
 /*
     initialize passed pawn masks, which are nothing more than 1's on
@@ -1254,35 +1208,6 @@ void InitializePawnMasks(void)
   mask_eptest[H4]=SetMask(G4);
   mask_eptest[A5]=SetMask(B5);
   mask_eptest[H5]=SetMask(G5);
-
-/*
-  masks to detect pawns bearing down on the king
-*/
-  mask_kingside_attack_w1=Or(Or(minus8dir[F5],minus8dir[G5]),
-                             minus8dir[H5]);
-  mask_kingside_attack_w2=Or(Or(minus8dir[F4],minus8dir[G4]),
-                             minus8dir[H4]);
-  mask_queenside_attack_w1=Or(Or(minus8dir[A5],minus8dir[B5]),
-                              minus8dir[C5]);
-  mask_queenside_attack_w2=Or(Or(minus8dir[A4],minus8dir[B4]),
-                              minus8dir[C4]);
-  mask_kingside_attack_b1=Or(Or(plus8dir[F4],plus8dir[G4]),
-                             plus8dir[H4]);
-  mask_kingside_attack_b2=Or(Or(plus8dir[F5],plus8dir[G5]),
-                             plus8dir[H5]);
-  mask_queenside_attack_b1=Or(Or(plus8dir[A4],plus8dir[B4]),
-                              plus8dir[C4]);
-  mask_queenside_attack_b2=Or(Or(plus8dir[A5],plus8dir[B5]),
-                              plus8dir[C5]);
-/* 
-  pawns at d5/e5/f5 cramp black, and pawns at d4/e4/f4 cramp
-  white, especially if there are no pawns that can attack
-  these pawns.
-*/
-  pawns_cramp_black=Or(Or(SetMask(D5),SetMask(E5)),
-                       SetMask(F5));
-  pawns_cramp_white=Or(Or(SetMask(D4),SetMask(E4)),
-                       SetMask(F4));
 /* 
   these two masks have 1's on dark squares and light squares
   to test to see if pawns/bishops are on them.
@@ -1320,13 +1245,6 @@ void InitializePawnMasks(void)
   mask_advance_2_w=rank_mask[RANK3];
   mask_advance_2_b=rank_mask[RANK6];
 /* 
-  this mask has 1's on the 4 corner squares, and is used to detect
-  the king sitting right in the corner where it's easier to get
-  mated.
-*/
-  mask_corner_squares=Or(Or(SetMask(A1),SetMask(H1)),
-                         Or(SetMask(A8),SetMask(H8)));
-/* 
   these masks have 1's on the squares where it is useful to have a bishop
   when the b or g pawn is missing or pushed one square.
 */
@@ -1334,45 +1252,6 @@ void InitializePawnMasks(void)
   good_bishop_qw=Or(Or(SetMask(A1),SetMask(C1)),SetMask(B2));
   good_bishop_kb=Or(Or(SetMask(G7),SetMask(F8)),SetMask(H8));
   good_bishop_qb=Or(Or(SetMask(B7),SetMask(A8)),SetMask(C8));
-/*
-    these masks are used to detect when a passed pawn reaches the 6th or
-    7th rank with a connected neighboring pawn also on the 6th or 7th rank
-    so that the threat to promote is really significant.
-*/
-  for (i=0;i<64;i++) {
-    mask_promotion_threat_w[i]=0;
-    mask_promotion_threat_b[i]=0;
-  }
-  for (i=8;i<24;i++) {
-    if (!(i&7)) {
-      mask_promotion_threat_b[i]=Or(SetMask(B2),SetMask(B3));
-    }
-    else if ((i&7) == 7) {
-      mask_promotion_threat_b[i]=Or(SetMask(G2),SetMask(G3));
-    }
-    else {
-      mask_promotion_threat_b[i]=Or(Or(SetMask((i&7)+7),SetMask((i&7)+9)),
-                                    Or(SetMask((i&7)+15),SetMask((i&7)+17)));
-    }
-  }
-  for (i=40;i<56;i++) {
-    if (!(i&7)) {
-      mask_promotion_threat_w[i]=Or(SetMask(B6),SetMask(B7));
-    }
-    else if ((i&7) == 7) {
-      mask_promotion_threat_w[i]=Or(SetMask(G6),SetMask(G7));
-    }
-    else {
-      mask_promotion_threat_w[i]=Or(Or(SetMask((i&7)+39),SetMask((i&7)+47)),
-                                    Or(SetMask((i&7)+41),SetMask((i&7)+49)));
-    }
-  }
-/*
-  these two masks are for generating passed pawn pushes and are used to
-  select the 6th-7th rank squares as targets.
-*/
-  promote_mask_w=Compl(Or(rank_mask[5],rank_mask[6]));
-  promote_mask_b=Compl(Or(rank_mask[1],rank_mask[2]));
 /*
   these masks are used to test for the presence of a pawn at g2/g3, etc.
   and are used in evaluating a bishop potentially trapped at h2, etc.
@@ -1387,16 +1266,12 @@ void InitializePawnMasks(void)
 */
   mask_wq_4th=Or(Or(SetMask(A4),SetMask(B4)),
                  SetMask(C4));
-  mask_wq_5th=Or(Or(SetMask(A5),SetMask(B5)),
-                 SetMask(C5));
   mask_wk_4th=Or(Or(SetMask(F4),SetMask(G4)),
                  SetMask(H4));
-  mask_wk_5th=Or(Or(SetMask(F5),SetMask(G5)),
+  mask_bq_4th=Or(Or(SetMask(A5),SetMask(B5)),
+                 SetMask(C5));
+  mask_bk_4th=Or(Or(SetMask(F5),SetMask(G5)),
                  SetMask(H5));
-  mask_bk_4th=mask_wk_5th;
-  mask_bq_4th=mask_wq_5th;
-  mask_bk_5th=mask_wk_4th;
-  mask_bq_5th=mask_wq_4th;
 
 /*
   these masks are used to detect that the opponent is trying to set up
@@ -1412,21 +1287,11 @@ void InitializePieceMasks(void)
 {
   int i, j;
 /*
-    initialize king corner masks, which are 1's on the four squares in
-    each corner.
-*/
-  mask_a1_corner=Or(mask_2,Shiftr(mask_2,8));
-  mask_h1_corner=Or(Shiftr(mask_2,6),Shiftr(mask_2,14));
-  mask_a8_corner=Or(Shiftr(mask_2,48),Shiftr(mask_2,56));
-  mask_h8_corner=Or(Shiftr(mask_2,54),Shiftr(mask_2,62));
-/*
     initialize masks used to evaluate development, which includes
-    minor piece squares and center pawn squares.
+    minor piece squares.
 */
   white_minor_pieces=Or(Shiftr(mask_2,1),Shiftr(mask_2,5));
   black_minor_pieces=Or(Shiftr(mask_2,57),Shiftr(mask_2,61));
-  white_center_pawns=Shiftr(mask_2,11);
-  black_center_pawns=Shiftr(mask_2,51);
 /*
     initialize masks used to evaluate pawn races.  these masks are
     used to determine if the opposing king is in a position to stop a
@@ -1519,10 +1384,6 @@ void InitializeRandomHash(void)
   for (i=0;i<2;i++) {
     wtm_random[i]=Random64();
   }
-  endgame_random_w=Random64();
-  endgame_random_b=Random64();
-  w_rooks_random=Random64();
-  b_rooks_random=Random64();
   for (i=0;i<64;i++) {
     w_pawn_random32[i]=Random32();
     b_pawn_random32[i]=Random32();
@@ -1556,8 +1417,9 @@ void InitializeSMP(void) {
 
 void InitializeZeroMasks(void)
 {
-  int i,j,maskl,maskr;
-#if !defined(CRAY1)
+  int i,j;
+#if !defined(CRAY1) && !defined(USE_ASSEMBLY_B)
+  int maskl,maskr;
   first_ones[0]=16;
   last_ones[0]=16;
   for (i=1;i<65536;i++){

@@ -171,8 +171,8 @@ int SearchRoot(TREE *tree, int alpha, int beta, int wtm, int depth) {
   }
   else {
     if (alpha != initial_alpha) {
-      memcpy(&tree->pv[0].path[1],&tree->pv[1].path[1],(tree->pv[1].path_length)*4);
-      memcpy(&tree->pv[0].path_hashed,&tree->pv[1].path_hashed,3);
+      memcpy(&tree->pv[0].path[1],&tree->pv[1].path[1],(tree->pv[1].pathl)*4);
+      memcpy(&tree->pv[0].pathh,&tree->pv[1].pathh,3);
       History(tree,1,depth,wtm,tree->pv[1].path[1]);
     }
     return(alpha);
@@ -254,14 +254,14 @@ void SearchOutput(TREE *tree, int value, int bound)
                 OutputMove(tree,tree->current_move[1],1,wtm));
         MakeMove(tree,1,tree->current_move[1],wtm);
         Whisper(6,iteration_depth,end_time-start_time,whisper_value,
-                tree->nodes_searched,-1,predicted, 
-                tree->egtb_probes_successful, whisper_text);
+                tree->nodes_searched,-1, tree->egtb_probes_successful,
+                whisper_text);
       }
       if (tree->current_move[1] != tree->pv[1].path[1]) {
         tree->pv[1].path[1]=tree->current_move[1];
-        tree->pv[1].path_length=1;
-        tree->pv[1].path_hashed=0;
-        tree->pv[1].path_iteration_depth=iteration_depth;
+        tree->pv[1].pathl=1;
+        tree->pv[1].pathh=0;
+        tree->pv[1].pathd=iteration_depth;
       }
     }
     tree->pv[0]=tree->pv[1];
@@ -284,7 +284,7 @@ void SearchTrace(TREE *tree, int ply, int depth, int wtm,
   Lock(lock_io);
   for (i=1;i<ply;i++) printf("  ");
   printf("%d  %s d:%5.2f [%s,",ply,OutputMove(tree,tree->current_move[ply],ply,wtm),
-         (float) depth/ (float) INCREMENT_PLY,DisplayEvaluation(alpha));
+         (float) depth/ (float) INCPLY,DisplayEvaluation(alpha));
   printf("%s] n:%d %s(%d)", DisplayEvaluation(beta),
          (tree->nodes_searched),name,phase);
   if (max_threads > 1) printf(" (t=%d) ",tree->thread_id);

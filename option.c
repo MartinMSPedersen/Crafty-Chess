@@ -10,7 +10,7 @@
 #endif
 #include "epdglue.h"
 
-/* last modified 06/08/98 */
+/* last modified 01/14/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -34,6 +34,7 @@ int Option(TREE *tree) {
 */
   nargs=ReadParse(buffer,args," 	;=/");
   if (!nargs) return(0);
+  if (args[0][0] == '#') return(1);
   if (initialized) {
     if (EGCommandCheck(buffer)) {
       if (thinking || pondering) return (2);
@@ -97,7 +98,7 @@ int Option(TREE *tree) {
 |                                                          |
  ----------------------------------------------------------
 */
-  else if (OptionMatch("annotate",*args)) {
+  else if (OptionMatch("annotateh",*args)) {
     if (thinking || pondering) return(2);
     Annotate();
   }
@@ -194,8 +195,8 @@ int Option(TREE *tree) {
     if (strlen(*args) == 1) return(1);
     if (thinking || pondering) return (2);
     ponder_move=0;
-    last_pv.path_iteration_depth=0;
-    last_pv.path_length=0;
+    last_pv.pathd=0;
+    last_pv.pathl=0;
     if (wtm) Pass();
     force=0;
   }
@@ -275,6 +276,7 @@ int Option(TREE *tree) {
         if (*from != '*') *to++=*from;
         from++;
       }
+      *to=0;
     }
   }
 /*
@@ -339,7 +341,6 @@ int Option(TREE *tree) {
   else if (OptionMatch("computer",*args)) {
     Print(128,"playing a computer!\n");
     computer_opponent=1;
-    draw_score_normal=1;
     book_selection_width=2;
     usage_level=0;
     book_weight_freq=1.0;
@@ -572,9 +573,9 @@ int Option(TREE *tree) {
       printf("usage:  drawscore <n>\n");
       return(1);
     }
-    default_draw_score=atoi(args[1]);
+    draw_score=atoi(args[1]);
     printf("draw score set to %7.2f pawns.\n",
-           ((float) default_draw_score) / 100.0);
+           ((float) draw_score) / 100.0);
   }
 /*
  ----------------------------------------------------------
@@ -612,8 +613,8 @@ int Option(TREE *tree) {
       Pass();
     }
     ponder_move=0;
-    last_pv.path_iteration_depth=0;
-    last_pv.path_length=0;
+    last_pv.pathd=0;
+    last_pv.pathl=0;
     strcpy(buffer,"savepos *");
     (void) Option(tree);
   }
@@ -693,8 +694,8 @@ int Option(TREE *tree) {
     }
     EVTest(args[1]);
     ponder_move=0;
-    last_pv.path_iteration_depth=0;
-    last_pv.path_length=0;
+    last_pv.pathd=0;
+    last_pv.pathl=0;
   }
 /*
  ----------------------------------------------------------
@@ -725,37 +726,37 @@ int Option(TREE *tree) {
       return(1);
     }
     if (OptionMatch("incheck",args[1])) {
-      float ext=atof(args[2]);
+      const float ext=atof(args[2]);
       incheck_depth=60.0*ext;
       if (incheck_depth < 0) incheck_depth=0;
       if (incheck_depth > 60) incheck_depth=60;
     }
     if (OptionMatch("onerep",args[1])) {
-      float ext=atof(args[2]);
+      const float ext=atof(args[2]);
       onerep_depth=60.0*ext;
       if (onerep_depth < 0) onerep_depth=0;
       if (onerep_depth > 60) onerep_depth=60;
     }
     if (OptionMatch("pushpp",args[1])) {
-      float ext=atof(args[2]);
+      const float ext=atof(args[2]);
       pushpp_depth=60.0*ext;
       if (pushpp_depth < 0) pushpp_depth=0;
       if (pushpp_depth > 60) pushpp_depth=60;
     }
     if (OptionMatch("recapture",args[1])) {
-      float ext=atof(args[2]);
+      const float ext=atof(args[2]);
       recap_depth=60.0*ext;
       if (recap_depth < 0) recap_depth=0;
       if (recap_depth > 60) recap_depth=60;
     }
     if (OptionMatch("singular",args[1])) {
-      float ext=atof(args[2]);
+      const float ext=atof(args[2]);
       singular_depth=60.0*ext;
       if (singular_depth < 0) singular_depth=0;
       if (singular_depth > 60) singular_depth=60;
     }
     if (OptionMatch("threat",args[1])) {
-      float ext=atof(args[2]);
+      const float ext=atof(args[2]);
       threat_depth=60.0*ext;
       if (threat_depth < 0) threat_depth=0;
       if (threat_depth > 60) threat_depth=60;
@@ -849,8 +850,8 @@ int Option(TREE *tree) {
       return(1);
     }
     ponder_move=0;
-    last_pv.path_iteration_depth=0;
-    last_pv.path_length=0;
+    last_pv.pathd=0;
+    last_pv.pathl=0;
     save_move_number=move_number;
     movenum=move_number;
     if (wtm) movenum--;
@@ -864,8 +865,8 @@ int Option(TREE *tree) {
       fseek(history_file,((movenum-1)*2+1-wtm)*10,SEEK_SET);
       fprintf(history_file,"%9s\n",OutputMove(tree,move,0,wtm));
       MakeMoveRoot(tree,move,wtm);
-      last_pv.path_iteration_depth=0;
-      last_pv.path_length=0;
+      last_pv.pathd=0;
+      last_pv.pathl=0;
     }
     else if (input_stream == stdin) printf("illegal move.\n");
     wtm=ChangeSide(wtm);
@@ -967,58 +968,50 @@ int Option(TREE *tree) {
       }
       if (new_hash_size > 0) {
         if (hash_table_size) {
-          free(trans_ref_wa);
-          free(trans_ref_wb);
-          free(trans_ref_ba);
-          free(trans_ref_bb);
+          free(trans_ref_a_orig);
+          free(trans_ref_b_orig);
         }
-        new_hash_size/=16*6;
+        new_hash_size/=16*3;
         for (log_hash=0;log_hash<(int) (8*sizeof(int));log_hash++)
           if ((1<<(log_hash+1)) > new_hash_size) break;
         if (log_hash) {
           hash_table_size=1<<log_hash;
-          trans_ref_wa=malloc(16*hash_table_size);
-          trans_ref_wb=malloc(16*2*hash_table_size);
-          trans_ref_ba=malloc(16*hash_table_size);
-          trans_ref_bb=malloc(16*2*hash_table_size);
-          if (!trans_ref_wa || !trans_ref_wb || !trans_ref_ba || !trans_ref_bb) {
+          trans_ref_a_orig=(HASH_ENTRY *) malloc(16*hash_table_size+15);
+          trans_ref_b_orig=(HASH_ENTRY *) malloc(16*2*hash_table_size+15);
+          trans_ref_a=(HASH_ENTRY*) (((unsigned) trans_ref_a_orig+15)&~15);
+          trans_ref_b=(HASH_ENTRY*) (((unsigned) trans_ref_b_orig+15)&~15);
+          if (!trans_ref_a || !trans_ref_b) {
             printf("malloc() failed, not enough memory.\n");
-            free(trans_ref_wa);
-            free(trans_ref_wb);
-            free(trans_ref_ba);
-            free(trans_ref_bb);
+            free(trans_ref_a_orig);
+            free(trans_ref_b_orig);
             hash_table_size=0;
             log_hash=0;
-            trans_ref_wa=0;
-            trans_ref_wb=0;
-            trans_ref_ba=0;
-            trans_ref_bb=0;
+            trans_ref_a=0;
+            trans_ref_b=0;
           }
           hash_maska=(1<<log_hash)-1;
           hash_maskb=(1<<(log_hash+1))-1;
           ClearHashTables();
         }
         else {
-          trans_ref_wa=0;
-          trans_ref_wb=0;
-          trans_ref_ba=0;
-          trans_ref_bb=0;
+          trans_ref_a=0;
+          trans_ref_b=0;
           hash_table_size=0;
           log_hash=0;
         }
       }
       else Print(4095,"ERROR:  hash table size must be > 0\n");
     }
-    if (hash_table_size*6*sizeof(HASH_ENTRY) < 1<<20)
+    if (hash_table_size*3*sizeof(HASH_ENTRY) < 1<<20)
       Print(4095,"hash table memory = %dK bytes.\n",
-            hash_table_size*6*sizeof(HASH_ENTRY)/(1<<10));
+            hash_table_size*3*sizeof(HASH_ENTRY)/(1<<10));
     else {
-      if (hash_table_size*6*sizeof(HASH_ENTRY)%(1<<20))
+      if (hash_table_size*3*sizeof(HASH_ENTRY)%(1<<20))
         Print(4095,"hash table memory = %.1fM bytes.\n",
-              (float) hash_table_size*6*sizeof(HASH_ENTRY)/(1<<20));
+              (float) hash_table_size*3*sizeof(HASH_ENTRY)/(1<<20));
       else
         Print(4095,"hash table memory = %dM bytes.\n",
-              hash_table_size*6*sizeof(HASH_ENTRY)/(1<<20));
+              hash_table_size*3*sizeof(HASH_ENTRY)/(1<<20));
     }
   }
 /*
@@ -1038,7 +1031,7 @@ int Option(TREE *tree) {
       if (strchr(args[1],'M') || strchr(args[1],'m')) new_hash_size*=1<<20;
       if (new_hash_size > 0) {
         if (pawn_hash_table) {
-          free(pawn_hash_table);
+          free(pawn_hash_table_orig);
           pawn_hash_table_size=0;
           log_pawn_hash=0;
           pawn_hash_table=0;
@@ -1049,10 +1042,11 @@ int Option(TREE *tree) {
              log_pawn_hash++)
           if ((1<<(log_pawn_hash+1)) > new_hash_size) break;
         pawn_hash_table_size=1<<log_pawn_hash;
-        pawn_hash_table=malloc(sizeof(PAWN_HASH_ENTRY)*pawn_hash_table_size);
+        pawn_hash_table_orig=(PAWN_HASH_ENTRY *) malloc(sizeof(PAWN_HASH_ENTRY)*pawn_hash_table_size+15);
+        pawn_hash_table=(PAWN_HASH_ENTRY*) (((unsigned) pawn_hash_table_orig+15)&~15);
         if (!pawn_hash_table) {
           printf("malloc() failed, not enough memory.\n");
-          free(pawn_hash_table);
+          free(pawn_hash_table_orig);
           pawn_hash_table_size=0;
           log_pawn_hash=0;
           pawn_hash_table=0;
@@ -1106,7 +1100,7 @@ int Option(TREE *tree) {
         printf("the number of moves, counting each player's move as one.\n");
       }
       else if (!strcmp("annotate",args[1])) {
-        printf("annotate filename b|w|bw moves margin time [n]\n");
+        printf("annotate[h] filename b|w|bw moves margin time [n]\n");
         printf("where filename is the input file with game moves, while the\n");
         printf("output will be written to filename.can.  the input file is\n");
         printf("PGN-compatible with one addition, the ability to request that\n");
@@ -1125,6 +1119,8 @@ int Option(TREE *tree) {
         printf("just the very best move.  it won't display any move that is worse\n");
         printf("than the actual game move played, but you can use -N to force\n");
         printf("Crafty to produce N PV's regardless of how bad they get.\n");
+        printf("using 'annotateh' produces an HTML file with bitmapped\n");
+        printf("board displays where analysis was displayed.\n");
       }
       else if (!strcmp("book",args[1])) {
         printf("you can use the following commands to customize how the\n");
@@ -1410,6 +1406,7 @@ int Option(TREE *tree) {
       printf("settc.....................set time controls.\n");
       printf("show book.................toggle book statistics.\n");
       printf("st n......................sets absolute search time.\n");
+      printf("swindle on|off............enables/disables swindle mode.\n");
       printf("test <file> [N]...........test a suite of problems. [help]\n");
       printf("time......................time controls. [help]\n");
       printf("trace n...................display search tree below depth n.\n");
@@ -2035,7 +2032,7 @@ int Option(TREE *tree) {
       printf("usage:  mtmin <plies>\n");
       return(1);
     }
-    min_thread_depth=INCREMENT_PLY*atoi(args[1]);
+    min_thread_depth=INCPLY*atoi(args[1]);
     Print(4095,"minimum thread depth set to %d\n",min_thread_depth);
   }
 #endif
@@ -2069,7 +2066,6 @@ int Option(TREE *tree) {
     if (nargs > 1) {
       if (!strcmp(args[1],"tournament")) {
         mode=tournament_mode;
-        draw_score_normal=1;
         printf("use 'settc' command if a game is restarted after crafty\n");
         printf("has been terminated for any reason.\n");
       }
@@ -2123,14 +2119,12 @@ int Option(TREE *tree) {
       for (i=0;i<number_auto_kibitzers;i++)
         if (!strcmp(auto_kibitz_list[i],args[1])) {
           kibitz=4;
-          auto_kibitzing=1;
           break;
         }
       for (i=0;i<number_of_computers;i++)
         if (!strcmp(computer_list[i],args[1])) {
           Print(128,"playing a computer!\n");
           computer_opponent=1;
-          draw_score_normal=1;
           book_selection_width=1;
           usage_level=0;
           book_weight_freq=1.0;
@@ -2157,7 +2151,7 @@ int Option(TREE *tree) {
           resign_count=5;
           draw_count=8;
           kibitz=0;
-          no_tricks=0;
+          trojan_check=1;
           break;
         }
       for (i=0;i<number_of_IMs;i++)
@@ -2480,8 +2474,8 @@ int Option(TREE *tree) {
     }
     else {
       ponder_move=InputMove(tree,args[1],0,wtm,0,0);
-      last_pv.path_iteration_depth=0;
-      last_pv.path_length=0;
+      last_pv.pathd=0;
+      last_pv.pathl=0;
     }
   }
 /*
@@ -2524,20 +2518,15 @@ int Option(TREE *tree) {
     }
     crafty_rating=atoi(args[1]);
     opponent_rating=atoi(args[2]);
-    if (opponent_rating-crafty_rating > 0) default_draw_score=20;
+    draw_score=0;
+    if (crafty_rating-opponent_rating < 0) draw_score=0+20;
+    else if (crafty_rating-opponent_rating < 200) draw_score=0;
+    else if (crafty_rating-opponent_rating < 400) draw_score=0-20;
+    else if (crafty_rating-opponent_rating < 600) draw_score=0-30;
     if (log_file) {
       fprintf(log_file,"Crafty's rating: %d.\n",crafty_rating);
       fprintf(log_file,"opponent's rating: %d.\n",opponent_rating);
     }
-  }
-/*
- ----------------------------------------------------------
-|                                                          |
-|  "remark" indicates the line is a comment.               |
-|                                                          |
- ----------------------------------------------------------
-*/
-  else if (OptionMatch("remark",*args)) {
   }
 /*
  ----------------------------------------------------------
@@ -2573,8 +2562,8 @@ int Option(TREE *tree) {
     }
     ponder_move=0;
     last_mate_score=0;
-    last_pv.path_iteration_depth=0;
-    last_pv.path_length=0;
+    last_pv.pathd=0;
+    last_pv.pathl=0;
     if (thinking || pondering) return(2);
     over=0;
     move_number=atoi(args[1]);
@@ -2640,8 +2629,8 @@ int Option(TREE *tree) {
     else
       append=0;
     ponder_move=0;
-    last_pv.path_iteration_depth=0;
-    last_pv.path_length=0;
+    last_pv.pathd=0;
+    last_pv.pathl=0;
     if (nargs > 1) {
       if (!(read_input=fopen(args[1],"r"))) {
         printf("file %s does not exist.\n",args[1]);
@@ -2783,7 +2772,7 @@ int Option(TREE *tree) {
     struct tm *timestruct;
     int i, secs, more, swtm;
     FILE *output_file;
-    char input[128], text[128], *next, *tomove;
+    char input[128], text[128], *next;
 
     output_file=stdout;
     secs=time(0);
@@ -2808,15 +2797,11 @@ int Option(TREE *tree) {
     swtm=1;
     if (move_number>1 || !wtm) {
       fseek(history_file,0,SEEK_SET);
-      if (fscanf(history_file,"%s",input)==1 && strcmp(input,"pass")==0) {
-	swtm=0;
-      }
+      if (fscanf(history_file,"%s",input)==1 && strcmp(input,"pass")==0) swtm=0;
     }
-    if (initial_position[0]) {
-      tomove=strchr(initial_position,' ');
-      tomove[1]=(swtm?'w':'b');
+    if (initial_position[0])
       fprintf(output_file,"[FEN \"%s\"]\n[SetUp \"1\"]\n",initial_position);
-    } else if (!swtm) {
+    else if (!swtm) {
       fprintf(output_file,
         "[FEN \"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR b KQkq - 0 1\"\n"
 	"[SetUp \"1\"]\n");
@@ -2861,8 +2846,6 @@ int Option(TREE *tree) {
  ----------------------------------------------------------
 */
   else if (OptionMatch("savepos",*args)) {
-    char xlate[15]={'q','r','b',0,'k','n','p',0,'P','N','K',0,'B','R','Q'};
-    char empty[9]={' ','1','2','3','4','5','6','7','8'};
     int rank, file, nempty;
     FILE *output_file;
     output_file=stdout;
@@ -3006,8 +2989,8 @@ int Option(TREE *tree) {
       Pass();
     }
     ponder_move=0;
-    last_pv.path_iteration_depth=0;
-    last_pv.path_length=0;
+    last_pv.pathd=0;
+    last_pv.pathl=0;
     over=0;
     strcpy(buffer,"savepos *");
     (void) Option(tree);
@@ -3021,13 +3004,13 @@ int Option(TREE *tree) {
  ----------------------------------------------------------
 */
   else if (OptionMatch("score",*args)) {
-    int s1, s2=0, s3=0, s4=0, s5=0, s6;
+    int s1, s2=0, s3=0, s4=0, s5=0, s6=0, s7;
 
     if (thinking || pondering) return(2);
     root_wtm=ChangeSide(wtm);
     tree->position[1]=tree->position[0];
     PreEvaluate(tree,wtm);
-    s6=Evaluate(tree,1,1,-99999,99999);
+    s7=Evaluate(tree,1,1,-99999,99999);
     s1=Material;
     if (opening) s2=EvaluateDevelopment(tree,1);
     if (TotalWhitePawns+TotalBlackPawns) {
@@ -3036,6 +3019,7 @@ int Option(TREE *tree) {
       s4=EvaluatePassedPawns(tree);
       s5=EvaluatePassedPawnRaces(tree,wtm);
     }
+    s6=EvaluateKingSafety(tree,0);
     Print(128,"note: scores are for the white side\n");
     Print(128,"material evaluation.................%s\n",
       DisplayEvaluation(s1));
@@ -3047,10 +3031,12 @@ int Option(TREE *tree) {
       DisplayEvaluation(s4));
     Print(128,"passed pawn race evaluation.........%s\n",
       DisplayEvaluation(s5));
-    Print(128,"interactive piece evaluation........%s\n",
-      DisplayEvaluation(s6-s1-s2-s3-s4-s5));
-    Print(128,"total evaluation....................%s\n",
+    Print(128,"king safety evaluation..............%s\n",
       DisplayEvaluation(s6));
+    Print(128,"interactive piece evaluation........%s\n",
+      DisplayEvaluation(s7-s1-s2-s3-s4-s5-s6));
+    Print(128,"total evaluation....................%s\n",
+      DisplayEvaluation(s7));
   }
 /*
  ----------------------------------------------------------
@@ -3137,6 +3123,18 @@ int Option(TREE *tree) {
 /*
  ----------------------------------------------------------
 |                                                          |
+|   "swindle" command turns swindle mode off/on.           |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  else if (OptionMatch("swindle",*args)) {
+    if (!strcmp(args[1],"on")) swindle_mode=1;
+    else if (!strcmp(args[1],"off")) swindle_mode=0;
+    else printf("usage:  swindle on|off\n");
+  }
+/*
+ ----------------------------------------------------------
+|                                                          |
 |   "test" command runs a test suite of problems and       |
 |   prints results.                                        |
 |                                                          |
@@ -3152,8 +3150,8 @@ int Option(TREE *tree) {
     if (nargs > 2) early_exit=atoi(args[2]);
     Test(args[1]);
     ponder_move=0;
-    last_pv.path_iteration_depth=0;
-    last_pv.path_length=0;
+    last_pv.pathd=0;
+    last_pv.pathl=0;
   }
 /*
  ----------------------------------------------------------
@@ -3448,8 +3446,8 @@ int Option(TREE *tree) {
   else if (OptionMatch("white",*args)) {
     if (thinking || pondering) return(2);
     ponder_move=0;
-    last_pv.path_iteration_depth=0;
-    last_pv.path_length=0;
+    last_pv.pathd=0;
+    last_pv.pathl=0;
     if (!wtm) Pass();
     force=0;
   }

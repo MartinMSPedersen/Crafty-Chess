@@ -16,7 +16,7 @@
 ********************************************************************************
 */
 int Quiesce(TREE *tree, int alpha, int beta, int wtm, int ply) {
-  register int initial_alpha, value, delta;
+  register int o_alpha, value, delta;
   register int *next_move;
   register int *goodmv, *movep, moves=0, *sortv, temp;
 /*
@@ -30,7 +30,7 @@ int Quiesce(TREE *tree, int alpha, int beta, int wtm, int ply) {
   tree->nodes_searched++;
   next_time_check--;
   tree->last[ply]=tree->last[ply-1];
-  initial_alpha=alpha;
+  o_alpha=alpha;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -46,9 +46,9 @@ int Quiesce(TREE *tree, int alpha, int beta, int wtm, int ply) {
   if (value > alpha) {
     if (value >= beta) return(value);
     alpha=value;
-    tree->pv[ply].path_length=ply-1;
-    tree->pv[ply].path_hashed=0;
-    tree->pv[ply].path_iteration_depth=iteration_depth;
+    tree->pv[ply].pathl=ply-1;
+    tree->pv[ply].pathh=0;
+    tree->pv[ply].pathd=iteration_depth;
   }
 /*
  ----------------------------------------------------------
@@ -63,7 +63,7 @@ int Quiesce(TREE *tree, int alpha, int beta, int wtm, int ply) {
  ----------------------------------------------------------
 */
   tree->last[ply]=GenerateCaptures(tree, ply, wtm, tree->last[ply-1]);
-  delta=alpha-50-(wtm?Material:-Material);
+  delta=alpha-80-(wtm?Material:-Material);
   goodmv=tree->last[ply-1];
   sortv=tree->sort_value;
   for (movep=tree->last[ply-1];movep<tree->last[ply];movep++)
@@ -96,7 +96,7 @@ int Quiesce(TREE *tree, int alpha, int beta, int wtm, int ply) {
 */
   if (moves > 1) {
     register int done;
-    register int *end=tree->last[ply-1]+moves-1;
+    register const int *end=tree->last[ply-1]+moves-1;
     do {
       done=1;
       sortv=tree->sort_value;
@@ -147,10 +147,10 @@ int Quiesce(TREE *tree, int alpha, int beta, int wtm, int ply) {
 |                                                          |
  ----------------------------------------------------------
 */
-  if (alpha != initial_alpha) {
+  if (alpha != o_alpha) {
     memcpy(&tree->pv[ply-1].path[ply],&tree->pv[ply].path[ply],
-           (tree->pv[ply].path_length-ply+1)*sizeof(int));
-    memcpy(&tree->pv[ply-1].path_hashed,&tree->pv[ply].path_hashed,3);
+           (tree->pv[ply].pathl-ply+1)*sizeof(int));
+    memcpy(&tree->pv[ply-1].pathh,&tree->pv[ply].pathh,3);
     tree->pv[ply-1].path[ply-1]=tree->current_move[ply-1];
   }
   return(alpha);

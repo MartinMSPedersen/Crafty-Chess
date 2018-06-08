@@ -82,7 +82,7 @@ AOPTS    = /DVC_INLINE_ASM
 ALLOPTS  = $(COPTS) $(AOPTS) /D$(TARGET)
 
 cobjs    = analyze.obj annotate.obj attacks.obj bench.obj book.obj boolean.obj \
-	   data.obj draw.obj drawn.obj edit.obj enprise.obj epd.obj \
+	   data.obj drawn.obj edit.obj enprise.obj epd.obj \
            epdglue.obj evaluate.obj evtest.obj hash.obj history.obj init.obj \
            input.obj interupt.obj iterate.obj learn.obj make.obj main.obj \
            movgen.obj next.obj nexte.obj nextr.obj option.obj output.obj \

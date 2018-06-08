@@ -40,7 +40,7 @@ void Test(char *filename)
   double nodes=0.0;
   char *eof;
   float avg_depth=0.0;
-  TREE *tree=local[0];
+  TREE * const tree=local[0];
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -114,7 +114,7 @@ void Test(char *filename)
       }
       Print(4095,"\n");
       InitializeHashTables();
-      last_pv.path_iteration_depth=0;
+      last_pv.pathd=0;
       largest_positional_score=100;
       thinking=1;
       tree->position[1]=tree->position[0];

@@ -30,11 +30,18 @@ void DGTInit(int nargs, char *args[]) {
   char dgt[]={"dgt"};
   char *argv[5]={0,0,0,0,0}, *env[2];
   int tp[2], fp[2], dgt_pid;
+  char device[]={"/dev/ttyS0"}, setup[]={"lw"};
 
   printf("Executing DGT driver.\n");
   argv[0]=dgt;
-  argv[1]=args[1];
-  argv[2]=args[2];
+  if (nargs > 1)
+    argv[1]=args[1];
+  else
+    argv[1]=device;
+  if (nargs > 2)
+    argv[2]=args[2];
+  else
+    argv[2]=setup;
   if (nargs > 3) argv[3]=args[3];
   env[0]=dgt;
   env[1]=0;

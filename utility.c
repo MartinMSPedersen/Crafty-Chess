@@ -193,29 +193,25 @@ void ClearHashTables(void)
 {
   int i;
 
-  if (trans_ref_ba && trans_ref_wa) {
+  if (trans_ref_a && trans_ref_b) {
     for (i=0;i<hash_table_size;i++) {
-      (trans_ref_ba+i)->word1=Or(And((trans_ref_ba+i)->word1,
-			      mask_clear_entry),(BITBOARD) 65536);
-	      (trans_ref_wa+i)->word1=Or(And((trans_ref_wa+i)->word1,
-			      mask_clear_entry),(BITBOARD) 65536);
+      (trans_ref_a+i)->word1=Or(And((trans_ref_a+i)->word1,
+                                     mask_clear_entry),(BITBOARD) 65536);
     }
     for (i=0;i<2*hash_table_size;i++) {
-      (trans_ref_bb+i)->word1=Or(And((trans_ref_bb+i)->word1,
-                      mask_clear_entry),(BITBOARD) 65536);
-      (trans_ref_wb+i)->word1=Or(And((trans_ref_wb+i)->word1,
-                      mask_clear_entry),(BITBOARD) 65536);
+      (trans_ref_b+i)->word1=Or(And((trans_ref_b+i)->word1,
+                                     mask_clear_entry),(BITBOARD) 65536);
     }
   }
 }
 
 void DelayTime(int ms)
 {
-  int old,new;
-  old=ReadClock(elapsed);
+  int oldt, newt;
+  oldt=ReadClock(elapsed);
   do {
-    new=ReadClock(elapsed);
-  } while (new-ms/10 < old);
+    newt=ReadClock(elapsed);
+  } while (newt-ms/10 < oldt);
 }
 
 void DisplayBitBoard(BITBOARD board)
@@ -227,10 +223,10 @@ void DisplayBitBoard(BITBOARD board)
   union doub x;
   int i,j;
 #if defined(LITTLE_ENDIAN_ARCH) && defined(HAS_LONGLONG)
-  int subs[8]={7,6,5,4,3,2,1,0};
+  static const int subs[8]={7,6,5,4,3,2,1,0};
 #endif
 #if defined(LITTLE_ENDIAN_ARCH) && !defined(HAS_LONGLONG)
-  int subs[8]={3,2,1,0,7,6,5,4};
+  static const int subs[8]={3,2,1,0,7,6,5,4};
 #endif
 
   x.d=board;
@@ -269,7 +265,7 @@ void DisplayBitBoard(BITBOARD board)
 void DisplayChessBoard(FILE *display_file, POSITION pos)
 {
   int display_board[64];
-  char display_string[] =
+  static const char display_string[] =
     {"*Q\0*R\0*B\0  \0*K\0*N\0*P\0  \0P \0N \0K \0  \0B \0R \0Q \0"};
   int i,j;
 /*
@@ -346,7 +342,7 @@ void DisplayPieceBoards(int *white, int *black)
   }
 }
 
-/* last modified 08/23/96 */
+/* last modified 01/11/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -372,7 +368,7 @@ void DisplayPV(TREE *tree, int level, int wtm, int time, int value, PATH *pv) {
   if (display_options&64) sprintf(buffer," %d.",move_number);
   else buffer[0]=0;
   if ((display_options&64) && !wtm) sprintf(buffer+strlen(buffer)," ...");
-  for (i=1;i<=(int) pv->path_length;i++) {
+  for (i=1;i<=(int) pv->pathl;i++) {
     if ((display_options&64) && i>1 && wtm)
       sprintf(buffer+strlen(buffer)," %d.",t_move_number);
     sprintf(buffer+strlen(buffer)," %s",OutputMove(tree,pv->path[i],i,wtm));
@@ -390,15 +386,15 @@ void DisplayPV(TREE *tree, int level, int wtm, int time, int value, PATH *pv) {
 |                                                          |
  ----------------------------------------------------------
 */
-  if(pv->path_hashed == 1) {
-    for (i=pv->path_length+1;i<MAXPLY;i++) {
+  if(pv->pathh == 1) {
+    for (i=pv->pathl+1;i<MAXPLY;i++) {
       HashProbe(tree,i,0,wtm,&dummy,&dummy,&dummy);
       if (tree->hash_move[i] && LegalMove(tree,i,wtm,tree->hash_move[i])) {
         pv->path[i]=tree->hash_move[i];
         for (j=1;j<i;j++) 
           if (pv->path[i] == pv->path[j]) break;
         if (j < i) break;
-        pv->path_length++;
+        pv->pathl++;
         if ((display_options&64) && wtm)
           sprintf(buffer+strlen(buffer)," %d.",t_move_number);
         sprintf(buffer+strlen(buffer)," %s",OutputMove(tree,pv->path[i],i,wtm));
@@ -410,7 +406,7 @@ void DisplayPV(TREE *tree, int level, int wtm, int time, int value, PATH *pv) {
     }
     sprintf(buffer+strlen(buffer)," <HT>");
   }
-  else if(pv->path_hashed == 2) 
+  else if(pv->pathh == 2) 
     sprintf(buffer+strlen(buffer)," <EGTB>");
   strcpy(whisper_text,buffer);
   if (PrintOK()) {
@@ -432,10 +428,10 @@ void DisplayPV(TREE *tree, int level, int wtm, int time, int value, PATH *pv) {
       if (bufftemp) Print(type,"                                    ");
     } while(bufftemp);
     Whisper(level,iteration_depth,end_time-start_time,whisper_value,
-            tree->nodes_searched,0,predicted,tree->egtb_probes_successful,
+            tree->nodes_searched,0,tree->egtb_probes_successful,
             whisper_text);
   }
-  for (i=pv->path_length;i>0;i--) {
+  for (i=pv->pathl;i>0;i--) {
     wtm=ChangeSide(wtm);
     UnMakeMove(tree,i,pv->path[i],wtm);
   }
@@ -538,10 +534,10 @@ void Display2BitBoards(BITBOARD board1, BITBOARD board2)
   union doub x,y;
   int i,j;
 #if defined(LITTLE_ENDIAN_ARCH) && defined(HAS_LONGLONG)
-  int subs[8]={7,6,5,4,3,2,1,0};
+  static const int subs[8]={7,6,5,4,3,2,1,0};
 #endif
 #if defined(LITTLE_ENDIAN_ARCH) && !defined(HAS_LONGLONG)
-  int subs[8]={3,2,1,0,7,6,5,4};
+  static const int subs[8]={3,2,1,0,7,6,5,4};
 #endif
 
   x.d=board1;
@@ -605,7 +601,7 @@ char *FormatPV(TREE *tree, int wtm, PATH pv) {
   if (display_options&64) sprintf(buffer," %d.",move_number);
   else buffer[0]=0;
   if ((display_options&64) && !wtm) sprintf(buffer+strlen(buffer)," ...");
-  for (i=1;i<=(int) pv.path_length;i++) {
+  for (i=1;i<=(int) pv.pathl;i++) {
     if ((display_options&64) && i>1 && wtm)
       sprintf(buffer+strlen(buffer)," %d.",t_move_number);
     sprintf(buffer+strlen(buffer)," %s",OutputMove(tree,pv.path[i],i,wtm));
@@ -613,7 +609,7 @@ char *FormatPV(TREE *tree, int wtm, PATH pv) {
     wtm=ChangeSide(wtm);
     if (wtm) t_move_number++;
   }
-  for (i=pv.path_length;i>0;i--) {
+  for (i=pv.pathl;i>0;i--) {
     wtm=ChangeSide(wtm);
     UnMakeMove(tree,i,pv.path[i],wtm);
   }
@@ -797,7 +793,7 @@ void NewGame(int save) {
   static int save_resign=0, save_resign_count=0, save_draw_count=0;
   static int save_learning=0;
   static int save_accept_draws=0;
-  TREE *tree=local[0];
+  TREE * const tree=local[0];
 
   new_game=0;
   if (save) {
@@ -828,15 +824,15 @@ void NewGame(int save) {
     moves_out_of_book=0;
     ponder_move=0;
     previous_search_value=0;
-    last_pv.path_iteration_depth=0;
-    last_pv.path_length=0;
+    last_pv.pathd=0;
+    last_pv.pathl=0;
     strcpy(initial_position,"");
     InitializeChessBoard(&tree->position[0]);
     InitializeHashTables();
     force=0;
-    no_tricks=1;
+    trojan_check=0;
     computer_opponent=0;
-    default_draw_score=0;
+    draw_score=0;
     wtm=1;
     move_number=1;
     tc_time_remaining=tc_time;
@@ -935,7 +931,7 @@ int ParseTime(char* string)
 
 void Pass(void) {
   char buffer[128];
-  int halfmoves_done=2*(move_number-1)+(1-wtm);
+  const int halfmoves_done=2*(move_number-1)+(1-wtm);
   int prev_pass=0;
   /* Was previous move a pass? */
   if (halfmoves_done>0) {
@@ -1088,7 +1084,7 @@ unsigned int Random32(void)
   SeedRandom = 1;
   Table[Random[Integer, {0, 2^32 - 1}]
   */
-  static unsigned long x[55] = {
+  static const unsigned long x[55] = {
     1410651636UL, 3012776752UL, 3497475623UL, 2892145026UL, 1571949714UL,
     3253082284UL, 3489895018UL, 387949491UL, 2597396737UL, 1981903553UL,
     3160251843UL, 129444464UL, 1851443344UL, 4156445905UL, 224604922UL,
@@ -1686,7 +1682,7 @@ unsigned MobilityRankFunc(int square, POSITION *boardp)
 
 #endif
 
-unsigned char bishop_shift_rl45[64] = {
+const unsigned char bishop_shift_rl45[64] = {
           59, 57, 54, 50, 45, 39, 32,  0,
           57, 54, 50, 45, 39, 32,  0,  8,
           54, 50, 45, 39, 32,  0,  8, 15,
@@ -1696,7 +1692,7 @@ unsigned char bishop_shift_rl45[64] = {
           32,  0,  8, 15, 21, 60, 26, 29,
            0,  8, 15, 21, 60, 26, 29, 31 };
 
-unsigned char bishop_shift_rr45[64] = {
+const unsigned char bishop_shift_rr45[64] = {
             0,  8, 15, 21, 60, 26, 29, 31,
            32,  0,  8, 15, 21, 60, 26, 29,
            39, 32,  0,  8, 15, 21, 60, 26,
@@ -1707,7 +1703,7 @@ unsigned char bishop_shift_rr45[64] = {
            59, 57, 54, 50, 45, 39, 32,  0 };
 
 
-unsigned char init_l45[64] = {
+const unsigned char init_l45[64] = {
               4,  5,  7, 10, 14, 19, 25, 56, 
               6,  8, 11, 15, 20, 26, 57, 49,
               9, 12, 16, 21, 27, 58, 50, 43,
@@ -1717,7 +1713,7 @@ unsigned char init_l45[64] = {
              31, 62, 54, 47, 41,  2, 36, 33,
              63, 55, 48, 42,  3, 37, 34, 32 };
         
-unsigned char init_r45[64] = {
+const unsigned char init_r45[64] = {
              56, 49, 43, 38,  0, 35, 33, 32,
              25, 57, 50, 44, 39,  1, 36, 34,
              19, 26, 58, 51, 45, 40,  2, 37,
@@ -1727,7 +1723,7 @@ unsigned char init_r45[64] = {
               5,  8, 12, 17, 23, 30, 62, 55,
               4,  6,  9, 13, 18, 24, 31, 63 };
 
-unsigned char init_l90[64] = {
+const unsigned char init_l90[64] = {
         0,  8, 16, 24, 32, 40, 48, 56,
         1,  9, 17, 25, 33, 41, 49, 57,
         2, 10, 18, 26, 34, 42, 50, 58,
@@ -1739,7 +1735,7 @@ unsigned char init_l90[64] = {
 
 /* How many attacks are there on a length n gfile from square m */
 /*                             N  M */
-static unsigned char n_attacks[9][8] =
+const unsigned char n_attacks[9][8] =
 {
   {  0 },
   {  1 },
@@ -1753,7 +1749,7 @@ static unsigned char n_attacks[9][8] =
 };
 
 /* How many attacks are there from all squares on a gfile of length n. */
-static unsigned char n_length_attacks[9] =
+const unsigned char n_length_attacks[9] =
 { 0, 1, 2, 5, 10, 18, 30, 47, 70 };
 
 #define NDIAG           (7 + 1 + 7)
@@ -1800,10 +1796,10 @@ static void InitializeMaps(BITBOARD *temp_rank_attack_bitboards)
   BITBOARD *b;
   unsigned char *m;
   unsigned char *mobility_for_length[9];
-  unsigned char diag_base [NDIAG] =
+  static const unsigned char diag_base [NDIAG] =
     { SQ(7,0), SQ(6,0), SQ(5,0), SQ(4,0), SQ(3,0), SQ(2,0), SQ(1,0), SQ(0,0),
       SQ(0,1), SQ(0,2), SQ(0,3), SQ(0,4), SQ(0,5), SQ(0,6), SQ(0,7) };
-  unsigned char anti_base[NDIAG] =
+  static const unsigned char anti_base[NDIAG] =
     { SQ(0,0), SQ(0,1), SQ(0,2), SQ(0,3), SQ(0,4), SQ(0,5), SQ(0,6), SQ(0,7),
       SQ(1,7), SQ(2,7), SQ(3,7), SQ(4,7), SQ(5,7), SQ(6,7), SQ(7,7) };
 
@@ -1822,8 +1818,8 @@ static void InitializeMaps(BITBOARD *temp_rank_attack_bitboards)
   b = diag_attack_bitboards;
   for (diag = 0; diag < NDIAG; diag++, gfile++) {
     int sq = diag_base[diag];
-    int len = DIAG_LENGTH(sq);
-    int excess = 8 - len;
+    const int len = DIAG_LENGTH(sq);
+    const int excess = 8 - len;
     int i;
 
     gfiles[gfile].length = len;
@@ -1918,7 +1914,7 @@ void ComputeAttacksAndMobility ()
     for (g = 0; g < 64; g++) {
       int a, p, found;
       unsigned lower, upper, attack;
-      unsigned gfile_value = g << 1;
+      const unsigned gfile_value = g << 1;
   
       lower = 0;
       for (p = attacker-1; p >= 0; p--) {
@@ -1942,7 +1938,7 @@ void ComputeAttacksAndMobility ()
         int gf;
         attacks_seen[attacks_found] = attack;
         for (gf = 0; gf < NGFILES; gf++) {
-          unsigned max_attacks = n_attacks[gfiles[gf].length][attacker];
+          const unsigned max_attacks = n_attacks[gfiles[gf].length][attacker];
           if (attacks_found < max_attacks) {
             BITBOARD b = 0;
             int i, p;
@@ -1962,8 +1958,8 @@ void ComputeAttacksAndMobility ()
       at.which_attack[attacker][brev[g]] = a;
     }
     for (gf = 0; gf < NGFILES; gf++) {
-      unsigned len = gfiles[gf].length;
-      unsigned this_inc =
+      const unsigned len = gfiles[gf].length;
+      const unsigned this_inc =
         (gfiles[gf].inc ? gfiles[gf].inc : n_attacks[len][attacker]);
       if ((unsigned) attacker < len) {
         if (gfiles[gf].mobility) gfiles[gf].mobility += this_inc;
@@ -1994,7 +1990,7 @@ void ComputeAttacksAndMobility ()
 ********************************************************************************
 */
 void Whisper(int level,int depth,int time,int value,unsigned int nodes,
-             int cpu, int predicted, int tb_hits, char *pv) {
+             int cpu, int tb_hits, char *pv) {
   if (!puzzling) {
     char prefix[128];
 
@@ -2020,17 +2016,17 @@ void Whisper(int level,int depth,int time,int value,unsigned int nodes,
     case 2:
       if (kibitz >= 2) {
         if (ics) printf("*");
-        printf("kibitz ply=%d; eval=%s; nps=%dK; time=%s; cpu=%d%%; p=%d; egtb=%d\n",
+        printf("kibitz ply=%d; eval=%s; nps=%dK; time=%s; cpu=%d%%; egtb=%d\n",
                depth,DisplayEvaluationWhisper(value),
                (int) ((time)?100*(BITBOARD)nodes/(BITBOARD)time:nodes)/1000,
-               DisplayTimeWhisper(time),cpu,predicted,tb_hits);
+               DisplayTimeWhisper(time),cpu,tb_hits);
       }
       else if (whisper >= 2) {
         if (ics) printf("*");
-        printf("%s ply=%d; eval=%s; nps=%dK; time=%s; cpu=%d%%; p=%d; egtb=%d\n",
+        printf("%s ply=%d; eval=%s; nps=%dK; time=%s; cpu=%d%%; egtb=%d\n",
                prefix,depth,DisplayEvaluationWhisper(value),
                (int) ((time)?100*(BITBOARD)nodes/(BITBOARD)time:nodes)/1000,
-               DisplayTimeWhisper(time),cpu,predicted,tb_hits);
+               DisplayTimeWhisper(time),cpu,tb_hits);
       }
     case 3:
       if ((kibitz >= 3) && (nodes>5000 || level==2)) {

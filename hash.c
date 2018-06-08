@@ -3,7 +3,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 12/23/98 */
+/* last modified 01/30/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -19,15 +19,14 @@
 *                        low bound; 2-> value represents a fail-high bound;    *
 *                        3-> value is an exact score.                          *
 *       1    threat  58  threat extension flag, 1 -> extend this position.     *
-*       5    unused  54  unused at present time.                               *
-*      21      move   0  best move from the current position, according to the *
+*       5    unused  53  unused at present time.                               *
+*      21      move  32  best move from the current position, according to the *
 *                        search at the time this position was stored.          *
-
-*      15     draft  38  the depth of the search below this position, which is *
+*      15     draft  17  the depth of the search below this position, which is *
 *                        used to see if we can use this entry at the current   *
 *                        position.  note that this is in units of 1/60th of a  *
 *                        ply.                                                  *
-*      17     value  21  unsigned integer value of this position + 65536.      *
+*      17     value   0  unsigned integer value of this position + 65536.      *
 *                        this might be a good score or search bound.           *
 *                                                                              *
 *      64       key   0  64 bit hash signature, used to verify that this entry *
@@ -38,8 +37,9 @@
 int HashProbe(TREE *tree, int ply, int depth, int wtm, int *alpha,
            int *beta, int *threat) {
   register BITBOARD word1, word2;
-  register HASH_ENTRY *htable;
   register int type, draft, avoid_null=WORTHLESS, val, word1l, word1r;
+  BITBOARD temp_hashkey;
+  HASH_ENTRY *htable;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -60,12 +60,13 @@ int HashProbe(TREE *tree, int ply, int depth, int wtm, int *alpha,
 |                                                          |
  ----------------------------------------------------------
 */
-  htable=((wtm)?trans_ref_wa:trans_ref_ba)+(((int) HashKey) & hash_maska);
+  temp_hashkey=(wtm) ? HashKey : ~HashKey;
+  htable=trans_ref_a+((int) temp_hashkey&hash_maska);
   Lock(lock_hasha);
   word1=htable->word1;
   word2=htable->word2;
   UnLock(lock_hasha);
-  if (word2 ==HashKey) do {
+  if (word2 == temp_hashkey) do {
 #if !defined(FAST)
     tree->transposition_hits++;
 #endif
@@ -77,7 +78,7 @@ int HashProbe(TREE *tree, int ply, int depth, int wtm, int *alpha,
     *threat=(word1l>>26) & 01;
     type=(word1l>>27) & 03;
     if ((type & UPPER) &&
-        depth-NULL_MOVE_DEPTH-INCREMENT_PLY <= draft &&
+        depth-NULL_MOVE_DEPTH-INCPLY <= draft &&
         val < *beta) avoid_null=AVOID_NULL_MOVE;
     if (depth > draft) break;
 
@@ -104,12 +105,12 @@ int HashProbe(TREE *tree, int ply, int depth, int wtm, int *alpha,
     }
   } while(0);
 
-  htable=((wtm)?trans_ref_wb:trans_ref_bb)+(((int) HashKey) & hash_maskb);
+  htable=trans_ref_b+((int)temp_hashkey&hash_maskb);
   Lock(lock_hashb);
   word1=htable->word1;
   word2=htable->word2;
   UnLock(lock_hashb);
-  if (word2 == HashKey) {
+  if (word2 == temp_hashkey) {
 #if !defined(FAST)
     tree->transposition_hits++;
 #endif
@@ -121,7 +122,7 @@ int HashProbe(TREE *tree, int ply, int depth, int wtm, int *alpha,
     *threat=(word1l>>26) & 01;
     type=(word1l>>27) & 03;
     if ((type & UPPER) &&
-        depth-NULL_MOVE_DEPTH-INCREMENT_PLY <= draft &&
+        depth-NULL_MOVE_DEPTH-INCPLY <= draft &&
         val < *beta) avoid_null=AVOID_NULL_MOVE;
     if (depth > draft) return(avoid_null);
 
@@ -150,7 +151,7 @@ int HashProbe(TREE *tree, int ply, int depth, int wtm, int *alpha,
   return(avoid_null);
 }
 
-/* last modified 12/23/98 */
+/* last modified 01/30/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -166,14 +167,14 @@ int HashProbe(TREE *tree, int ply, int depth, int wtm, int *alpha,
 *                        low bound; 2-> value represents a fail-high bound;    *
 *                        3-> value is an exact score.                          *
 *       1    threat  58  threat extension flag, 1 -> extend this position.     *
-*       5    unused  54  unused at present time.                               *
-*      21      move   0  best move from the current position, according to the *
+*       5    unused  53  unused at present time.                               *
+*      21      move  32  best move from the current position, according to the *
 *                        search at the time this position was stored.          *
-*      15     draft  38  the depth of the search below this position, which is *
+*      15     draft  17  the depth of the search below this position, which is *
 *                        used to see if we can use this entry at the current   *
 *                        position.  note that this is in units of 1/60th of a  *
 *                        ply.                                                  *
-*      17     value  21  unsigned integer value of this position + 65536.      *
+*      17     value   0  unsigned integer value of this position + 65536.      *
 *                        this might be a good score or search bound.           *
 *                                                                              *
 *      64       key   0  64 bit hash signature, used to verify that this entry *
@@ -183,8 +184,8 @@ int HashProbe(TREE *tree, int ply, int depth, int wtm, int *alpha,
 */
 void HashStore(TREE *tree, int ply, int depth, int wtm, int type,
                int value, int threat) {
-  register HASH_ENTRY *htablea, *htableb;
   register BITBOARD word1, word2;
+  register HASH_ENTRY *htablea, *htableb;
   register int draft, age, word1l, word1r;
 /*
  ----------------------------------------------------------
@@ -198,7 +199,7 @@ void HashStore(TREE *tree, int ply, int depth, int wtm, int type,
   if (type == EXACT) {
     if (value > MATE-300) value=value+ply-1;
     else if (value < -MATE+300) value=value-ply+1;
-    if ((int) tree->pv[ply].path_length >= ply) 
+    if ((int) tree->pv[ply].pathl >= ply) 
       word1l|=tree->pv[ply].path[ply];
   }
   else if (type == LOWER) {
@@ -206,7 +207,7 @@ void HashStore(TREE *tree, int ply, int depth, int wtm, int type,
   }
   word1r=(depth<<17)+value+65536;
   word1=word1r+((BITBOARD)word1l<<32);
-  word2=HashKey;
+  word2=(wtm) ? HashKey : ~HashKey;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -219,23 +220,25 @@ void HashStore(TREE *tree, int ply, int depth, int wtm, int type,
 |                                                          |
  ----------------------------------------------------------
 */
-  htablea=((wtm) ? trans_ref_wa:trans_ref_ba)+(((int) HashKey) & hash_maska);
+  htablea=trans_ref_a+((int) word2&hash_maska);
   draft=(int) Shiftr(htablea->word1,17) & 077777;
   age=(unsigned int) Shiftr(htablea->word1,61);
   age=age && (age!=transposition_id);
   if (age || (depth >= draft)) {
     Lock(lock_hasha);
-    Lock(lock_hashb);
-    htableb=((wtm) ? trans_ref_wb:trans_ref_bb)+(htablea->word2 & hash_maskb);
-    htableb->word1=htablea->word1;
-    htableb->word2=htablea->word2;
-    UnLock(lock_hashb);
+    if (word2 != htablea->word2) {
+      Lock(lock_hashb);
+      htableb=trans_ref_b+((int) (htablea->word2)&hash_maskb);
+      htableb->word1=htablea->word1;
+      htableb->word2=htablea->word2;
+      UnLock(lock_hashb);
+    }
     htablea->word1=word1;
     htablea->word2=word2;
     UnLock(lock_hasha);
   }
   else {
-    htableb=((wtm) ? trans_ref_wb:trans_ref_bb)+(((int) HashKey) & hash_maskb);
+    htableb=trans_ref_b+((int) word2&hash_maskb);
     Lock(lock_hashb);
     htableb->word1=word1;
     htableb->word2=word2;
@@ -243,7 +246,7 @@ void HashStore(TREE *tree, int ply, int depth, int wtm, int type,
   }
 }
 
-/* last modified 12/23/98 */
+/* last modified 01/30/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -253,7 +256,8 @@ void HashStore(TREE *tree, int ply, int depth, int wtm, int type,
 ********************************************************************************
 */
 void HashStorePV(TREE *tree, int ply, int wtm) {
-  register HASH_ENTRY *htable;
+  register HASH_ENTRY *htablea, *htableb;
+  register BITBOARD temp_hashkey;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -262,7 +266,9 @@ void HashStorePV(TREE *tree, int ply, int wtm) {
 |                                                          |
  ----------------------------------------------------------
 */
-  htable=((wtm) ? trans_ref_wb : trans_ref_bb)+(((int) HashKey)&hash_maskb);
+  temp_hashkey=(wtm) ? HashKey : ~HashKey;
+  htablea=trans_ref_a+(((int) temp_hashkey)&hash_maska);
+  htableb=trans_ref_b+(((int) temp_hashkey)&hash_maskb);
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -271,8 +277,18 @@ void HashStorePV(TREE *tree, int ply, int wtm) {
 |                                                          |
  ----------------------------------------------------------
 */
-  htable->word1=(BITBOARD) 65536;
-  htable->word1|=Shiftl((BITBOARD) ((transposition_id<<2)+WORTHLESS),59);
-  htable->word1|=Shiftl((BITBOARD) tree->pv[ply].path[ply],32);
-  htable->word2=HashKey;
+  if (htablea->word2 == HashKey) {
+    htablea->word1&=~((BITBOARD) 07777777<<32);
+    htablea->word1|=Shiftl((BITBOARD) tree->pv[ply].path[ply],32);
+  }
+  else if (htableb->word2 == HashKey) {
+    htableb->word1&=~((BITBOARD) 07777777<<32);
+    htableb->word1|=Shiftl((BITBOARD) tree->pv[ply].path[ply],32);
+  }
+  else {
+    htableb->word1=(BITBOARD) 65536;
+    htableb->word1|=Shiftl((BITBOARD) ((transposition_id<<2)+WORTHLESS),59);
+    htableb->word1|=Shiftl((BITBOARD) tree->pv[ply].path[ply],32);
+    htableb->word2=HashKey;
+  }
 }

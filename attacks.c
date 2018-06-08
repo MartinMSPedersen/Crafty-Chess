@@ -43,7 +43,7 @@ BITBOARD AttacksFrom(TREE *tree, int square, int wtm) {
   }
 }
 
-/* last modified 03/12/98 */
+/* last modified 01/12/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -58,61 +58,25 @@ BITBOARD AttacksFrom(TREE *tree, int square, int wtm) {
 ********************************************************************************
 */
 BITBOARD AttacksTo(TREE *tree, int square) {
-  register BITBOARD attacks;
 /*
  ----------------------------------------------------------
 |                                                          |
 |  start with the pawn attacks by checking in both         |
 |  directions to see if a pawn on <square> would attack    |
-|  a pawn.                                                 |
+|  a pawn.  then fold in knights, bishops, rooks and then  |
+|  finally kings.                                          |
 |                                                          |
  ----------------------------------------------------------
 */
-  attacks=And(w_pawn_attacks[square],BlackPawns);
-  attacks=Or(attacks,And(b_pawn_attacks[square],WhitePawns));
-/*
- ----------------------------------------------------------
-|                                                          |
-|  now the knights.  same drill as above.                  |
-|                                                          |
- ----------------------------------------------------------
-*/
-  attacks=Or(attacks,And(knight_attacks[square],Or(BlackKnights,
-                                                   WhiteKnights)));
-/*
- ----------------------------------------------------------
-|                                                          |
-|  now the bishops and queens.  we generate the diagonal   |
-|  attacks from <square> then see if the blocking piece    |
-|  is a bishop or queen for either side.  if so, we add    |
-|  in that attack.                                         |
-|                                                          |
- ----------------------------------------------------------
-*/
-  attacks=Or(attacks,And(AttacksBishop(square),BishopsQueens));
-/*
- ----------------------------------------------------------
-|                                                          |
-|  now the rooks and queens.  just like bishops and        |
-|  queens, but along ranks and files.                      |
-|                                                          |
- ----------------------------------------------------------
-*/
-  attacks=Or(attacks,And(AttacksRook(square),RooksQueens));
-/*
- ----------------------------------------------------------
-|                                                          |
-|  now the kings.  just like pawns and knights.            |
-|                                                          |
- ----------------------------------------------------------
-*/
-  attacks=Or(attacks,And(king_attacks[square],Or(BlackKing,
-                                                 WhiteKing)));
-
-  return(attacks);
+  return(Or(Or(Or(Or(Or(And(w_pawn_attacks[square],BlackPawns),
+                        And(b_pawn_attacks[square],WhitePawns)),
+    And(knight_attacks[square],Or(BlackKnights,WhiteKnights))),
+    And(AttacksBishop(square),BishopsQueens)),
+    And(AttacksRook(square),RooksQueens)),
+    And(king_attacks[square],Or(BlackKing,WhiteKing))));
 }
 
-/* last modified 03/12/98 */
+/* last modified 01/12/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -125,9 +89,7 @@ BITBOARD AttacksTo(TREE *tree, int square) {
 */
 
 int Attacked(TREE *tree, int square, int wtm) {
-  register BITBOARD attacks;
 
-  if (wtm) {
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -138,16 +100,12 @@ int Attacked(TREE *tree, int square, int wtm) {
 |                                                          |
  ----------------------------------------------------------
 */
-    attacks=And(b_pawn_attacks[square],WhitePawns);
-    if (attacks) return(1);
-    attacks=And(knight_attacks[square],WhiteKnights);
-    if(attacks) return(1);
-    attacks=And(And(AttacksBishop(square),BishopsQueens),WhitePieces);
-    if(attacks) return(1);
-    attacks=And(And(AttacksRook(square),RooksQueens),WhitePieces);
-    if(attacks) return(1);
-    attacks=And(king_attacks[square],WhiteKing);
-    if(attacks) return(1);
+  if (wtm) {
+    if (And(b_pawn_attacks[square],WhitePawns)) return(1);
+    if (And(knight_attacks[square],WhiteKnights)) return(1);
+    if (And(And(AttacksBishop(square),BishopsQueens),WhitePieces)) return(1);
+    if (And(And(AttacksRook(square),RooksQueens),WhitePieces)) return(1);
+    if (And(king_attacks[square],WhiteKing)) return(1);
     return(0);
   }
 
@@ -162,16 +120,11 @@ int Attacked(TREE *tree, int square, int wtm) {
  ----------------------------------------------------------
 */
   else {
-    attacks= And(w_pawn_attacks[square],BlackPawns);
-    if (attacks) return(1);
-    attacks=And(knight_attacks[square],BlackKnights);
-    if(attacks) return(1);
-    attacks=And(And(AttacksBishop(square),BishopsQueens),BlackPieces);
-    if (attacks) return(1);
-    attacks=And(And(AttacksRook(square),RooksQueens),BlackPieces);
-    if(attacks) return(1);
-    attacks=And(king_attacks[square],BlackKing);
-    if(attacks) return(1);
+    if (And(w_pawn_attacks[square],BlackPawns)) return(1);
+    if (And(knight_attacks[square],BlackKnights)) return(1);
+    if (And(And(AttacksBishop(square),BishopsQueens),BlackPieces)) return(1);
+    if (And(And(AttacksRook(square),RooksQueens),BlackPieces)) return(1);
+    if (And(king_attacks[square],BlackKing)) return(1);
     return(0);
   }
 }

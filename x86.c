@@ -479,3 +479,67 @@ __declspec(naked) unsigned __cdecl MobilityFileFunc(int square, POSITION *board)
 }
      
 #endif /* USE_ASSEMBLY_A */
+#ifdef USE_ASSEMBLY_B
+
+#if _MSC_VER >= 1200
+#define FORCEINLINE __forceinline
+#else
+#define FORCEINLINE __inline
+#endif
+
+
+FORCEINLINE int PopCnt(BITBOARD a) {
+
+/* Because Crafty bitboards are typically sparsely populated, we use a
+   streamlined version of the boolean.c algorithm instead of the one in x86.s */
+
+  __asm {
+        mov     ecx, dword ptr a
+	xor	eax, eax
+	test	ecx, ecx
+	jz	L2
+L1:
+	lea	edx, [ecx-1]
+	inc	eax
+	and	ecx, edx
+	jnz	L1
+L2:
+        mov     ecx, dword ptr a+4
+	test	ecx, ecx
+	jz	L4
+L3:
+	lea	edx, [ecx-1]
+	inc	eax
+	and	ecx, edx
+	jnz	L3
+L4:
+  }
+
+FORCEINLINE int FirstOne(BITBOARD a) {
+
+  __asm {
+        bsr     edx, dword ptr a+4
+        mov     eax, 31
+        jnz     l1
+        bsr     edx, dword ptr a
+        mov     eax, 63
+        jnz     l1
+        mov     edx, -1
+  l1:   sub     eax, edx
+  }
+}
+
+FORCEINLINE int LastOne(BITBOARD a) {
+
+  __asm {
+        bsf     edx, dword ptr a
+        mov     eax, 63
+        jnz     l1
+        bsf     edx, dword ptr a+4
+        mov     eax, 31
+        jnz     l1
+        mov     edx, -33
+  l1:   sub     eax, edx
+  }
+}
+#endif /* USE_ASSEMBLY_B */

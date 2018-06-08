@@ -2,7 +2,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 12/19/98 */
+/* last modified 01/06/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -27,9 +27,9 @@ int DrawScore(int crafty_is_white) {
 */
   if (!draw_score_normal) {
     if (move_number <= 30) 
-      draw_score=default_draw_score-66;
+      draw_score=default_draw_score-40;
     else if (middle_game)
-      draw_score=default_draw_score-33;
+      draw_score=default_draw_score-20;
     else
       draw_score=default_draw_score;
 /*
@@ -43,9 +43,9 @@ int DrawScore(int crafty_is_white) {
 */
     if (tc_increment == 0) {
       if (tc_time_remaining_opponent < 3000)
-        draw_score=default_draw_score-50;
+        draw_score=default_draw_score-20;
       if (tc_time_remaining_opponent < 1500)
-        draw_score=default_draw_score-100;
+        draw_score=default_draw_score-40;
     }
   }
 /*

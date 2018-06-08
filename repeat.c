@@ -3,7 +3,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 10/22/98 */
+/* last modified 01/14/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -49,7 +49,7 @@ int RepetitionCheck(TREE *tree, int ply, int wtm)
   thispos=((wtm)?tree->rephead_w:tree->rephead_b)+((ply-1)>>1);
   *thispos=HashKey;
   for (replist=thispos-1;entries;replist--,entries--)
-    if(*thispos == *replist) return(1);
+    if(HashKey == *replist) return(1);
   return(0);
 }
 

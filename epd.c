@@ -265,16 +265,6 @@ strcpy(ptr, s);
 return (ptr);
 }
 
-/*--> EPDStringFree: deallocate a string */
-nonstatic
-void
-EPDStringFree(charptrT s)
-{
-EPDMemoryFree(s);
-
-return;
-}
-
 /*--> EPDStringAppendChar: append a character to a string */
 nonstatic
 charptrT
@@ -312,42 +302,6 @@ strcat(ptr, s1);
 EPDMemoryFree(s0);
 
 return (ptr);
-}
-
-/*--> EPDMapFromDuration: convert from duration to seconds */
-nonstatic
-liT
-EPDMapFromDuration(charptrT s)
-{
-liT seconds;
-siT scs, mns, hrs, dys;
-
-sscanf(s, "%04hd:%02hd:%02hd:%02hd", &dys, &hrs, &mns, &scs);
-
-seconds = ((liT) dys * 86400) +
-	((liT) hrs * 3600) + ((liT) mns * 60) + (liT) scs;
-
-return (seconds);
-}
-
-/*--> EPDMapToDuration: convert from seconds to duration */
-nonstatic
-charptrT
-EPDMapToDuration(liT seconds)
-{
-charptrT s;
-siT scs, mns, hrs, dys;
-
-s = (charptrT) EPDMemoryGrab(durationL);
-
-scs = seconds % 60;
-mns = (seconds / 60) % 60;
-hrs = (seconds / 3600) % 24;
-dys = (seconds / 86400) % 10000;
-
-sprintf(s, "%04hd:%02hd:%02hd:%02hd", dys, hrs, mns, scs);
-
-return (s);
 }
 
 /*--> EPDNewGPM: allocate and initialize a new GPM record */
@@ -1033,20 +987,6 @@ else
 return;
 }
 
-/*--> EPDCreateEOVStr: create a new EOV record with a string value */
-nonstatic
-eovptrT
-EPDCreateEOVStr(charptrT str)
-{
-eovptrT eovptr;
-
-eovptr = EPDNewEOV();
-eovptr->eov_eob = eob_string;
-eovptr->eov_str = EPDStringGrab(str);
-
-return (eovptr);
-}
-
 /*--> EPDCreateEOVSym: create a new EOV record with a symbol value */
 nonstatic
 eovptrT
@@ -1097,25 +1037,6 @@ if (!flag)
 	eovptr = NULL;
 
 return (eovptr);
-}
-
-/*--> EPDCountEOV: count EOV entries in EOP */
-nonstatic
-siT
-EPDCountEOV(eopptrT eopptr)
-{
-eovptrT eovptr;
-siT count;
-
-count = 0;
-eovptr = eopptr->eop_headeov;
-while (eovptr != NULL)
-	{
-	count++;
-	eovptr = eovptr->eov_next;
-	};
-
-return (count);
 }
 
 /*--> EPDReplaceEOVStr: replace EOV string value with given string value */
@@ -1268,42 +1189,6 @@ EPDLocateEOPCode(epdptrT epdptr, epdsoT epdso)
 return (EPDLocateEOP(epdptr, epdsostrv[epdso]));
 }
 
-/*--> EPDCountEOP: count EOP entries in EPD */
-nonstatic
-siT
-EPDCountEOP(epdptrT epdptr)
-{
-eopptrT eopptr;
-siT count;
-
-count = 0;
-eopptr = epdptr->epd_headeop;
-while (eopptr != NULL)
-	{
-	count++;
-	eopptr = eopptr->eop_next;
-	};
-
-return (count);
-}
-
-/*--> EPDDropIfLocEOP: try to locate/drop EOP record with given opsym */
-nonstatic
-void
-EPDDropIfLocEOP(epdptrT epdptr, charptrT opsym)
-{
-eopptrT eopptr;
-
-eopptr = EPDLocateEOP(epdptr, opsym);
-if (eopptr != NULL)
-	{
-	EPDUnthreadEOP(epdptr, eopptr);
-	EPDReleaseEOP(eopptr);
-	};
-
-return;
-}
-
 /*--> EPDDropIfLocEOPCode: try to locate/drop EOP record with given code */
 nonstatic
 void
@@ -1330,23 +1215,6 @@ eopptrT eopptr;
 eovptrT eovptr;
 
 eovptr = EPDCreateEOVInt(val);
-eopptr = EPDCreateEOPCode(epdso);
-EPDAppendEOV(eopptr, eovptr);
-EPDDropIfLocEOPCode(epdptr, epdso);
-EPDAppendEOP(epdptr, eopptr);
-
-return;
-}
-
-/*--> EPDAddOpStr: add a single string operand operation */
-nonstatic
-void
-EPDAddOpStr(epdptrT epdptr, epdsoT epdso, charptrT s)
-{
-eopptrT eopptr;
-eovptrT eovptr;
-
-eovptr = EPDCreateEOVStr(s);
 eopptr = EPDCreateEOPCode(epdso);
 EPDAppendEOV(eopptr, eovptr);
 EPDDropIfLocEOPCode(epdptr, epdso);
@@ -1689,27 +1557,6 @@ while (rptr != NULL)
 return (nptr);
 }
 
-/*--> EPDCloneEPD: clone an EPD structure */
-nonstatic
-epdptrT
-EPDCloneEPD(epdptrT epdptr)
-{
-epdptrT nptr;
-eopptrT eopptr, rptr;
-
-nptr = EPDCloneEPDBase(epdptr);
-
-rptr = epdptr->epd_headeop;
-while (rptr != NULL)
-	{
-	eopptr = EPDCloneEOP(rptr);
-	EPDAppendEOP(nptr, eopptr);
-	rptr = rptr->eop_next;
-	};
-
-return (nptr);
-}
-
 /*--> EPDSetKings: set the king location vector */
 static
 void
@@ -1888,57 +1735,6 @@ cp = EPDboard.rbv[sq];
 return (cp);
 }
 
-/*--> EPDFetchBoardString: create and return a board diagram */
-nonstatic
-charptrT
-EPDFetchBoardString(void)
-{
-charptrT s;
-charptrT r;
-rankT rank;
-fileT file;
-cpT cp;
-
-/* allocate */
-
-s = (charptrT) EPDMemoryGrab((rankL * ((fileL * 2) + 1)) + 1);
-
-/* fill */
-
-r = s;
-for (rank = rank_8; rank >= rank_1; rank--)
-	{
-	for (file = file_a; file <= file_h; file++)
-		{
-		cp = EPDboard.rbm[rank][file];
-		if (cp == cp_v0) {
-			if ((rank % 2) == (file % 2))
-				{
-				*r++ = ':';
-				*r++ = ':';
-				}
-			else
-				{
-				*r++ = ascii_sp;
-				*r++ = ascii_sp;
-				}
-                }
-		else
-			{
-			*r++ = asccv[cv_c_cpv[cp]];
-			*r++ = ascpv[cv_p_cpv[cp]];
-			};
-		};
-	*r++ = '\n';
-	};
-
-/* terminating NUL */
-
-*r = ascii_nul;
-
-return (s);
-}
-
 /*--> EPDGetGTIM: get game termination marker indicator */
 nonstatic
 gtimT
@@ -1988,237 +1784,6 @@ charptrT ptr;
 ptr = EPDGenBasic(&EPDboard, ese.ese_actc, ese.ese_cast, ese.ese_epsq);
 
 return (ptr);
-}
-
-/*--> EPDDecodeFEN: read a FEN string to make an EPD structure */
-nonstatic
-epdptrT
-EPDDecodeFEN(charptrT s)
-{
-epdptrT epdptr;
-siT flag;
-tknptrT save_head_tknptr, save_tail_tknptr;
-charptrT tptr;
-
-/* this does not reference the current position */
-
-flag = 1;
-epdptr = NULL;
-tptr = NULL;
-
-/* save the initial token chain pointers */
-
-save_head_tknptr = head_tknptr;
-save_tail_tknptr = tail_tknptr;
-
-/* clear the token chain pointers */
-
-head_tknptr = NULL;
-tail_tknptr = NULL;
-
-/* tokenize the input */
-
-EPDTokenize(s);
-
-/* check for six tokens */
-
-if (flag)
-	if (EPDTokenCount() != 6)
-		flag = 0;
-
-/* construct an input string from the tokens */
-
-if (flag)
-	{
-	/* handle the first four common fields */
-
-	tptr = EPDStringGrab("");
-	tptr = EPDStringAppendStr(tptr, EPDTokenFetch(0));
-	tptr = EPDStringAppendChar(tptr, ascii_sp);
-	tptr = EPDStringAppendStr(tptr, EPDTokenFetch(1));
-	tptr = EPDStringAppendChar(tptr, ascii_sp);
-	tptr = EPDStringAppendStr(tptr, EPDTokenFetch(2));
-	tptr = EPDStringAppendChar(tptr, ascii_sp);
-	tptr = EPDStringAppendStr(tptr, EPDTokenFetch(3));
-	tptr = EPDStringAppendChar(tptr, ascii_sp);
-
-	/* append the halfmove clock operation */
-
-	tptr = EPDStringAppendStr(tptr, epdsostrv[epdso_hmvc]);
-	tptr = EPDStringAppendChar(tptr, ascii_sp);
-	tptr = EPDStringAppendStr(tptr, EPDTokenFetch(4));
-	tptr = EPDStringAppendChar(tptr, ';');
-	tptr = EPDStringAppendChar(tptr, ascii_sp);
-
-	/* append the fullmove number operation */
-
-	tptr = EPDStringAppendStr(tptr, epdsostrv[epdso_fmvn]);
-	tptr = EPDStringAppendChar(tptr, ascii_sp);
-	tptr = EPDStringAppendStr(tptr, EPDTokenFetch(5));
-	tptr = EPDStringAppendChar(tptr, ';');
-	};
-
-/* release the temporary token chain */
-
-EPDReleaseTokenChain();
-
-/* restore the initial token chain pointers */
-
-head_tknptr = save_head_tknptr;
-tail_tknptr = save_tail_tknptr;
-
-/* read the resulting EPD input string */
-
-if (flag)
-	{
-	epdptr = EPDDecode(tptr);
-	if (epdptr == NULL)
-		flag = 0;
-	};
-
-/* cancellations if a problem occurred */
-
-if (!flag)
-	{
-	if (tptr != NULL)
-		EPDMemoryFree(tptr);
-
-	if (epdptr != NULL)
-		{
-		EPDReleaseEPD(epdptr);
-		epdptr = NULL;
-		};
-	};
-
-return (epdptr);
-}
-
-/*--> EPDEncodeFEN: make a FEN string from an EPD structure */
-nonstatic
-charptrT
-EPDEncodeFEN(epdptrT epdptr)
-{
-charptrT s;
-char ch;
-siT bi;
-siT ps;
-sqT sq;
-cpT cp;
-rankT rank;
-fileT file;
-eopptrT eopptr;
-char nv[tL];
-char bv[tL];
-
-/* this does not reference the current position */
-
-bi = 0;
-
-/* output board */
-
-for (rank = rank_8; rank >= rank_1; rank--)
-	{
-	ps = 0;
-	for (file = file_a; file <= file_h; file++)
-		{
-		sq = map_sq(rank, file);
-		if ((sq % 2) == 0)
-			cp = (epdptr->epd_nbv[sq >> 1] & nybbM);
-		else
-			cp = ((epdptr->epd_nbv[sq >> 1] >> nybbW) & nybbM);
-
-		if (cp == cp_v0)
-			ps++;
-		else
-			{
-			if (ps != 0)
-				{
-				bv[bi++] = '0' + ps;
-				ps = 0;
-				};
-			ch = ascpv[cv_p_cpv[cp]];
-			if (cv_c_cpv[cp] == c_w)
-				ch = map_upper(ch);
-			else
-				ch = map_lower(ch);
-			bv[bi++] = ch;
-			};
-		};
-	if (ps != 0)
-		{
-		bv[bi++] = '0' + ps;
-		ps = 0;
-		};
-	if (rank != rank_1)
-		bv[bi++] = '/';
-	};
-bv[bi++] = ascii_sp;
-
-/* output active color (lower case) */
-
-bv[bi++] = map_lower(asccv[epdptr->epd_actc]);
-bv[bi++] = ascii_sp;
-
-/* output castling availablility */
-
-if (epdptr->epd_cast == 0)
-	bv[bi++] = '-';
-else
-	{
-	if (epdptr->epd_cast & cf_wk)
-		bv[bi++] = map_upper(ascpv[p_k]);
-	if (epdptr->epd_cast & cf_wq)
-		bv[bi++] = map_upper(ascpv[p_q]);
-	if (epdptr->epd_cast & cf_bk)
-		bv[bi++] = map_lower(ascpv[p_k]);
-	if (epdptr->epd_cast & cf_bq)
-		bv[bi++] = map_lower(ascpv[p_q]);
-	};
-bv[bi++] = ascii_sp;
-
-/* output ep capture square */
-
-if (epdptr->epd_epsq == sq_nil)
-	bv[bi++] = '-';
-else
-	{
-	bv[bi++] = ascfv[map_file(epdptr->epd_epsq)];
-	bv[bi++] = ascrv[map_rank(epdptr->epd_epsq)];
-	};
-bv[bi++] = ascii_sp;
-
-/* output halfmove clock */
-
-eopptr = EPDLocateEOP(epdptr, epdsostrv[epdso_hmvc]);
-if ((eopptr != NULL) && (eopptr->eop_headeov != NULL) &&
-	(eopptr->eop_headeov->eov_str != NULL))
-	sprintf(nv, "%ld", atol(eopptr->eop_headeov->eov_str));
-else
-	sprintf(nv, "0");
-strcpy(&bv[bi], nv);
-bi += strlen(nv);
-bv[bi++] = ascii_sp;
-
-/* output fullmove number */
-
-eopptr = EPDLocateEOP(epdptr, epdsostrv[epdso_fmvn]);
-if ((eopptr != NULL) && (eopptr->eop_headeov != NULL) &&
-	(eopptr->eop_headeov->eov_str != NULL))
-	sprintf(nv, "%ld", atol(eopptr->eop_headeov->eov_str));
-else
-	sprintf(nv, "1");
-strcpy(&bv[bi], nv);
-bi += strlen(nv);
-
-/* NUL termination */
-
-bv[bi++] = ascii_nul;
-
-/* allocate result */
-
-s = EPDStringGrab(bv);
-
-return (s);
 }
 
 /*--> EPDDecode: read an EPD structure from a string */
@@ -2898,15 +2463,6 @@ ese.ese_fmvn = 1;
 EPDSetKings();
 
 return;
-}
-
-/*--> EPDPlayerString: return a pointer to the player name string */
-nonstatic
-charptrT
-EPDPlayerString(cT c)
-{
-
-return (playerstrv[c]);
 }
 
 /*--> EPDSANEncodeChar: encode SAN character */
@@ -3955,232 +3511,6 @@ if (flag && EPDTestPKIC())
 	flag = 0;
 
 return (flag);
-}
-
-/*--> EPDIsCheckmate: test for checkmate status */
-nonstatic
-siT
-EPDIsCheckmate(void)
-{
-siT flag;
-
-/* set default return value: no checkmate */
-
-flag = 0;
-
-/* generate legal moves (assume legal position) */
-
-EPDGenMoves();
-
-/* no legal moves and in check? */
-
-if ((tse.tse_count == 0) && EPDTestAKIC())
-	flag = 1;
-
-return (flag);
-}
-
-/*--> EPDIsStalemate: test for stalemate status */
-nonstatic
-siT
-EPDIsStalemate(void)
-{
-siT flag;
-
-/* set default return value: no stalemate */
-
-flag = 0;
-
-/* generate legal moves (assume legal position) */
-
-EPDGenMoves();
-
-/* no legal moves and not in check? */
-
-if ((tse.tse_count == 0) && !EPDTestAKIC())
-	flag = 1;
-
-return (flag);
-}
-
-/*--> EPDIsInsufficientMaterial: test for insufficient material */
-nonstatic
-siT
-EPDIsInsufficientMaterial(void)
-{
-siT flag;
-
-/* set default return value: no draw by insufficient material */
-
-flag = 0;
-
-/* calculate local census (assume legal position) */
-
-EPDCensus();
-
-/* only K vs K, K+N vs K, and K+B vs K are considered draws here */
-
-if ((count_cv[c_w] == 1) && (count_cv[c_b] == 1))
-	flag = 1;
-else
-	if ((count_cv[c_w] == 2) && (count_cv[c_b] == 1) &&
-		((count_cpv[c_w][p_n] == 1) || (count_cpv[c_w][p_b] == 1)))
-		flag = 1;
-	else
-		if ((count_cv[c_b] == 2) && (count_cv[c_w] == 1) &&
-			((count_cpv[c_b][p_n] == 1) || (count_cpv[c_b][p_b] == 1)))
-			flag = 1;
-
-return (flag);
-}
-
-/*--> EPDIsFiftyMoveDraw: test for 50 move draw */
-nonstatic
-siT
-EPDIsFiftyMoveDraw(void)
-{
-siT flag;
-
-if (ese.ese_hmvc >= 100)
-	flag = 1;
-else
-	flag = 0;
-
-return (flag);
-}
-
-/*--> EPDIsThirdRepetition: test for third repetition */
-nonstatic
-siT
-EPDIsThirdRepetition(gamptrT gamptr)
-{
-siT flag;
-gpmptrT gpmptr;
-siT count, limit, index, match;
-sqT sq;
-cpT cp0, cp1;
-nbvT nbv;
-
-/* point to the last game played move record */
-
-gpmptr = gamptr->gam_tailgpm;
-
-/* set the repetion count (current position counts as one) */
-
-count = 1;
-
-/* set the limit on the number of records to check */
-
-limit = ese.ese_hmvc;
-
-/* construct the nybble board for the current position */
-
-for (sq = sq_a1; sq <= sq_h8; sq += 2)
-	{
-	cp0 = EPDboard.rbv[sq + 0];
-	cp1 = EPDboard.rbv[sq + 1];
-	nbv[sq >> 1] = ((cp1 << nybbW) | cp0);
-	};
-
-/* loop backwards */
-
-while ((gpmptr != NULL) && (limit > 0) && (count < 3))
-	{
-	/* check for match against current position */
-
-	if ((ese.ese_actc == gpmptr->gpm_ese.ese_actc) &&
-		(ese.ese_cast == gpmptr->gpm_ese.ese_cast) &&
-		(ese.ese_epsq == gpmptr->gpm_ese.ese_epsq))
-		{
-		/* scalars matched, check for board match */
-
-		match = 1;
-		index = 0;
-		while (match && (index < nbL))
-			{
-			if (nbv[index] == gpmptr->gpm_nbv[index])
-				index++;
-			else
-				match = 0;
-			};
-
-		/* complete match? */
-
-		if (match)
-			count++;
-		};
-
-	/* retreat to previous played move record */
-
-	gpmptr = gpmptr->gpm_prev;
-
-	/* one less to go */
-
-	limit--;
-	};
-
-/* set return value */
-
-if (count == 3)
-	flag = 1;
-else
-	flag = 0;
-
-return (flag);
-}
-
-/*--> EPDIsDraw: determine if the current position is a draw */
-nonstatic
-siT
-EPDIsDraw(gamptrT gamptr)
-{
-siT flag;
-
-if (EPDIsFiftyMoveDraw() ||
-	EPDIsInsufficientMaterial() ||
-	EPDIsStalemate() ||
-	EPDIsThirdRepetition(gamptr))
-	flag = 1;
-else
-	flag = 0;
-
-return (flag);
-}
-
-/*--> EPDMateInOne: return a mating move if one exists */
-nonstatic
-mptrT
-EPDMateInOne(void)
-{
-mptrT mptr;
-mptrT rmptr;
-siT index;
-
-/* set default return value (no mate in one) */
-
-mptr = NULL;
-
-/* generate legal moves (assume legal position) */
-
-EPDGenMoves();
-
-/* try to locate a mating move */
-
-rmptr = tse.tse_base;
-index = 0;
-while ((mptr == NULL) && (index < tse.tse_count))
-	if (rmptr->m_flag & mf_chmt)
-		{
-		ret_m = *rmptr;
-		mptr = &ret_m;
-		}
-	else
-		{
-		rmptr++;
-		index++;
-		};
-
-return (mptr);
 }
 
 /*--> EPDGeneratePL: generate psuedolegal moves */
@@ -6458,33 +5788,6 @@ s = EPDStringAppendChar(s, '\n');
 return (s);
 }
 
-/*--> EPDCopyInPTP: copy STR into an EDP structure (ptp operation) */
-nonstatic
-void
-EPDCopyInPTP(gamptrT gamptr, epdptrT epdptr)
-{
-eopptrT eopptr;
-pgnstrT pgnstr;
-
-if (epdptr != NULL)
-	{
-	EPDDropIfLocEOPCode(epdptr, epdso_ptp);
-	eopptr = EPDCreateEOPCode(epdso_ptp);
-
-	for (pgnstr = 0; pgnstr < pgnstrL; pgnstr++)
-		{
-		EPDAppendEOV(eopptr,
-			EPDCreateEOVSym(EPDPGNFetchTagName(pgnstr)));
-		EPDAppendEOV(eopptr,
-			EPDCreateEOVStr(EPDPGNGetSTR(gamptr, pgnstr)));
-		};
-
-	EPDAppendEOP(epdptr, eopptr);
-	};
-
-return;
-}
-
 /*--> EPDCopyOutPTP: copy STR from an EDP structure (ptp operation) */
 nonstatic
 void
@@ -6547,25 +5850,6 @@ while ((refcom == refcom_nil) && (rcom < refcomL))
 return (refcom);
 }
 
-/*--> EPDFetchRefreqIndex: return a referee request index */
-nonstatic
-refreqT
-EPDFetchRefreqIndex(charptrT s)
-{
-refreqT refreq;
-refreqT rreq;
-
-refreq = refreq_nil;
-rreq = 0;
-while ((refreq == refreq_nil) && (rreq < refreqL))
-	if (strcmp(s, EPDFetchRefreqStr(rreq)) == 0)
-		refreq = rreq;
-	else
-		rreq++;
-
-return (refreq);
-}
-
 /*--> EPDExtractRefcomIndex: extract a referee command index */
 nonstatic
 refreqT
@@ -6585,27 +5869,6 @@ if (epdptr != NULL)
 			refcom = EPDFetchRefcomIndex(eovptr->eov_str);
 
 return (refcom);
-}
-
-/*--> EPDExtractRefreqIndex: extract a referee request index */
-nonstatic
-refreqT
-EPDExtractRefreqIndex(epdptrT epdptr)
-{
-refreqT refreq;
-eopptrT eopptr;
-eovptrT eovptr;
-
-/* set default return value */
-
-refreq = refreq_nil;
-
-if (epdptr != NULL)
-	if ((eopptr = EPDLocateEOPCode(epdptr, epdso_refreq)) != NULL)
-		if ((eovptr = eopptr->eop_headeov) != NULL)
-			refreq = EPDFetchRefreqIndex(eovptr->eov_str);
-
-return (refreq);
 }
 
 /*--> EPDComm: slave to Duplex autoplay program */

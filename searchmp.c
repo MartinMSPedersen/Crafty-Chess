@@ -130,7 +130,7 @@ int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
 |                                                          |
  ----------------------------------------------------------
 */
-      if (depth<3*INCREMENT_PLY && depth>=2*INCREMENT_PLY &&
+      if (depth<3*INCPLY && depth>=2*INCPLY &&
           !tree->in_check[ply] && extensions == -60) {
         register int value=-Evaluate(tree,ply+1,ChangeSide(wtm),
                                      -(beta+51),-(alpha-51));

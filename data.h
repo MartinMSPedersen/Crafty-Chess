@@ -4,6 +4,7 @@
    extern char           version[6];
    extern PLAYING_MODE   mode;
    extern int            batch_mode;
+   extern int            swindle_mode;
    extern int            call_flag;
    extern int            crafty_rating;
    extern int            opponent_rating;
@@ -15,7 +16,6 @@
    extern int            time_used;
    extern int            time_used_opponent;
    extern int            cpu_time_used;
-   extern int            auto_kibitzing;
    extern int            next_time_check;
    extern int            total_moves;
    extern int            initialized;
@@ -51,6 +51,7 @@
    extern int            whisper_depth;
    extern int            last_mate_score;
    extern int            last_opponent_move;
+   extern int            average_nps;
 
    extern int            incheck_depth;
    extern int            onerep_depth;
@@ -75,7 +76,7 @@
    extern int            number_of_solutions;
    extern int            solutions[10];
    extern int            solution_type;
-   extern int            default_draw_score;
+   extern int            draw_score;
    extern int            accept_draws;
    extern int            over;
    extern int            ics;
@@ -107,10 +108,6 @@
    extern int            root_value;
    extern int            root_wtm;
    extern int            root_move;
-   extern int            root_total_white_pieces;
-   extern int            root_total_white_pawns;
-   extern int            root_total_black_pieces;
-   extern int            root_total_black_pawns;
    extern int            nodes_per_second;
    extern int            cpu_percent;
    extern int            opening;
@@ -194,9 +191,8 @@
    extern int            tc_sudden_death;
    extern int            tc_operator_time;
    extern int            tc_safety_margin;
-   extern int            no_tricks;
+   extern int            trojan_check;
    extern int            computer_opponent;
-   extern int            draw_score_normal;
    extern int            usage_level;
    extern int            log_hash;
    extern int            log_pawn_hash;
@@ -205,29 +201,34 @@
    extern int            hash_maska;
    extern int            hash_maskb;
    extern unsigned int   pawn_hash_mask;
-   extern HASH_ENTRY      *trans_ref_wa;
-   extern HASH_ENTRY      *trans_ref_wb;
-   extern HASH_ENTRY      *trans_ref_ba;
-   extern HASH_ENTRY      *trans_ref_bb;
+   extern HASH_ENTRY      *trans_ref_a;
+   extern HASH_ENTRY      *trans_ref_b;
    extern PAWN_HASH_ENTRY *pawn_hash_table;
+   extern HASH_ENTRY      *trans_ref_a_orig;
+   extern HASH_ENTRY      *trans_ref_b_orig;
+   extern PAWN_HASH_ENTRY *pawn_hash_table_orig;
 
    extern int            history_w[4096], history_b[4096];
 
    extern int            unblocked_pawns[9];
    extern int            p_values[15];
-   extern PATH     last_pv;
+   extern PATH           last_pv;
    extern int            last_value;
+
+   extern const char     xlate[15];
+   extern const char     empty[9];
 
    extern char           white_outpost[64];
    extern char           black_outpost[64];
    extern char           square_color[64];
-   extern int            passed_pawn_value[8];
-   extern int            isolated_pawn_value[9];
-   extern int            supported_passer[8];
-   extern int            reduced_material_passer[20];
-   extern int            outside_passed[128];
-   extern int            scale_down[128];
-   extern int            scale_up[128];
+   extern const int      passed_pawn_value[8];
+   extern const int      isolated_pawn_value[9];
+   extern const int      supported_passer[8];
+   extern const int      reduced_material_passer[20];
+   extern const int      outside_passed[128];
+   extern const int      scale_down[128];
+   extern const int      scale_up[128];
+   extern const int      temper[128];
    extern int            pawn_value_w[64];
    extern int            pawn_value_b[64];
    extern int            knight_value_w[64];
@@ -243,11 +244,11 @@
    extern char           king_defects_w[64];
    extern char           king_defects_b[64];
 
-   extern int            b_n_mate_dark_squares[64];
-   extern int            b_n_mate_light_squares[64];
-   extern int            mate[64];
+   extern const int      b_n_mate_dark_squares[64];
+   extern const int      b_n_mate_light_squares[64];
+   extern const int      mate[64];
 
-   extern char           push_extensions[64];
+   extern const char     push_extensions[64];
 
    extern signed char    directions[64][64];
    extern BITBOARD       w_pawn_attacks[64];
@@ -261,8 +262,8 @@
   extern BITBOARD       diag_attack_bitboards[NDIAG_ATTACKS];
   extern BITBOARD       anti_diag_attack_bitboards[NDIAG_ATTACKS];
   extern DIAG_INFO      diag_info[64];
-  extern unsigned char  bishop_shift_rl45[64];
-  extern unsigned char  bishop_shift_rr45[64];
+  extern const unsigned char  bishop_shift_rl45[64];
+  extern const unsigned char  bishop_shift_rr45[64];
 #else
   extern BITBOARD       bishop_attacks_rl45[64][256];
   extern BITBOARD       bishop_attacks_rr45[64][256];
@@ -305,12 +306,7 @@
    extern BITBOARD       castle_random_w[2];
    extern BITBOARD       castle_random_b[2];
    extern BITBOARD       wtm_random[2];
-   extern BITBOARD       endgame_random_w;
-   extern BITBOARD       endgame_random_b;
-   extern BITBOARD       w_rooks_random;
-   extern BITBOARD       b_rooks_random;
 
-   extern BITBOARD       threat_flag;
    extern BITBOARD       clear_mask[65];
    extern BITBOARD       clear_mask_rl90[65];
    extern BITBOARD       clear_mask_rl45[65];
@@ -321,31 +317,22 @@
    extern BITBOARD       set_mask_rr45[65];
    extern BITBOARD       file_mask[8];
    extern BITBOARD       rank_mask[8];
-   extern BITBOARD       mask_not_rank8;
-   extern BITBOARD       mask_not_rank1;
    extern BITBOARD       right_side_mask[8];
    extern BITBOARD       left_side_mask[8];
    extern BITBOARD       right_side_empty_mask[8];
    extern BITBOARD       left_side_empty_mask[8];
-   extern BITBOARD       mask_efgh, mask_abcd;
    extern BITBOARD       mask_fgh, mask_abc;
    extern BITBOARD       mask_abs7_w, mask_abs7_b;
-   extern BITBOARD       pawns_cramp_black;
-   extern BITBOARD       pawns_cramp_white;
    extern BITBOARD       mask_advance_2_w;
    extern BITBOARD       mask_advance_2_b;
    extern BITBOARD       mask_left_edge;
    extern BITBOARD       mask_right_edge;
-   extern BITBOARD       mask_corner_squares;
-   extern BITBOARD       promote_mask_w;
-   extern BITBOARD       promote_mask_b;
    extern BITBOARD       mask_G2G3;
    extern BITBOARD       mask_B2B3;
    extern BITBOARD       mask_G6G7;
    extern BITBOARD       mask_B6B7;
    extern BITBOARD       mask_A7H7;
    extern BITBOARD       mask_A2H2;
-   extern BITBOARD       center;
 
    extern BITBOARD       stonewall_white;
    extern BITBOARD       stonewall_black;
@@ -380,25 +367,14 @@
      extern BITBOARD       mask_1;
      extern BITBOARD       mask_2;
      extern BITBOARD       mask_3;
-     extern BITBOARD       mask_4;
      extern BITBOARD       mask_8;
      extern BITBOARD       mask_16;
-     extern BITBOARD       mask_32;
-     extern BITBOARD       mask_72;
-     extern BITBOARD       mask_80;
-     extern BITBOARD       mask_85;
-     extern BITBOARD       mask_96;
-     extern BITBOARD       mask_107;
-     extern BITBOARD       mask_108;
      extern BITBOARD       mask_112;
-     extern BITBOARD       mask_118;
      extern BITBOARD       mask_120;
-     extern BITBOARD       mask_121;
-     extern BITBOARD       mask_127;
 #  endif
    extern BITBOARD       mask_clear_entry;
 
-#  if !defined(CRAY1)
+#  if !defined(CRAY1) && !defined(USE_ASSEMBLY_B)
      extern unsigned char  first_ones[65536];
      extern unsigned char  last_ones[65536];
 #  endif
@@ -406,41 +382,22 @@
    extern unsigned char  last_ones_8bit[256];
    extern unsigned char  connected_passed[256];
 
-   extern BITBOARD       mask_kingside_attack_w1;
-   extern BITBOARD       mask_kingside_attack_w2;
-   extern BITBOARD       mask_kingside_attack_b1;
-   extern BITBOARD       mask_kingside_attack_b2;
-   extern BITBOARD       mask_queenside_attack_w1;
-   extern BITBOARD       mask_queenside_attack_w2;
-   extern BITBOARD       mask_queenside_attack_b1;
-   extern BITBOARD       mask_queenside_attack_b2;
-
    extern BITBOARD       mask_pawn_protected_b[64];
    extern BITBOARD       mask_pawn_protected_w[64];
    extern BITBOARD       mask_pawn_duo[64];
    extern BITBOARD       mask_pawn_isolated[64];
    extern BITBOARD       mask_pawn_passed_w[64];
    extern BITBOARD       mask_pawn_passed_b[64];
-   extern BITBOARD       mask_promotion_threat_w[64];
-   extern BITBOARD       mask_promotion_threat_b[64];
-   extern BITBOARD       mask_pawn_connected[64];
    extern BITBOARD       mask_no_pawn_attacks_w[64];
    extern BITBOARD       mask_no_pawn_attacks_b[64];
-   extern BITBOARD       mask_a1_corner;
-   extern BITBOARD       mask_a8_corner;
-   extern BITBOARD       mask_h1_corner;
-   extern BITBOARD       mask_h8_corner;
    extern BITBOARD       white_minor_pieces;
    extern BITBOARD       black_minor_pieces;
-   extern BITBOARD       white_center_pawns;
-   extern BITBOARD       black_center_pawns;
    extern BITBOARD       white_pawn_race_wtm[64];
    extern BITBOARD       white_pawn_race_btm[64];
    extern BITBOARD       black_pawn_race_wtm[64];
    extern BITBOARD       black_pawn_race_btm[64];
 
    extern BITBOARD       mask_wk_4th, mask_wq_4th, mask_bk_4th, mask_bq_4th;
-   extern BITBOARD       mask_wk_5th, mask_wq_5th, mask_bk_5th, mask_bq_5th;
    extern BOOK_POSITION  book_buffer[BOOK_CLUSTER_SIZE];
    extern BOOK_POSITION  books_buffer[BOOK_CLUSTER_SIZE];
 

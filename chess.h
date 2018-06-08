@@ -208,11 +208,11 @@
 
 /*
   fractional ply extensions.  these should be in units based on the
-  value of INCREMENT_PLY (default is 60).  a value of 60 means this
+  value of INCPLY (default is 60).  a value of 60 means this
   extension is exactly one ply.
 */
 
-#define INCREMENT_PLY            60  /* 1.00 */
+#define INCPLY            60  /* 1.00 */
 #define NULL_MOVE_DEPTH         120  /* 2.00 */
 #define RAZORING_DEPTH           60  /* 1.00 */
 
@@ -253,7 +253,7 @@ typedef enum {FILEA, FILEB, FILEC, FILED, FILEE, FILEF, FILEG, FILEH} files;
 
 typedef enum {RANK1, RANK2, RANK3, RANK4, RANK5, RANK6, RANK7, RANK8} ranks;
 
-typedef enum {empty=0, pawn=1, knight=2, king=3, 
+typedef enum {none=0, pawn=1, knight=2, king=3, 
               bishop=5, rook=6, queen=7} PIECE;
   
 typedef enum {empty_v=0, pawn_v=1, knight_v=2, 
@@ -336,9 +336,9 @@ typedef struct {
   
 typedef struct {
   int path[MAXPLY];
-  unsigned char path_hashed;
-  unsigned char path_length;
-  unsigned char path_iteration_depth;
+  unsigned char pathh;
+  unsigned char pathl;
+  unsigned char pathd;
 } PATH;
   
 typedef struct {
@@ -494,6 +494,10 @@ typedef struct tree TREE;
   
 void           Analyze();
 void           Annotate();
+void           AnnotateHeaderHTML(char*, FILE*);
+void           AnnotateFooterHTML(FILE*);
+void           AnnotatePositionHTML(TREE*, int, FILE*);
+char           *AnnotateValueToNAG(int, int);
 int            Attacked(TREE*, int, int);
 BITBOARD       AttacksFrom(TREE*, int, int);
 BITBOARD       AttacksTo(TREE*, int);
@@ -531,7 +535,6 @@ char*          DisplayTimeWhisper(unsigned int);
 void           DisplayTreeState(TREE*, int, int, int);
 void           Display2BitBoards(BITBOARD, BITBOARD);
 void           DisplayChessMove(char*, int);
-int            DrawScore(int);
 int            Drawn(TREE*, int);
 void           Edit(void);
 int            EGTBProbe(TREE*, int, int, int*);
@@ -643,7 +646,7 @@ int            ValidMove(TREE*, int, int, int);
 void           ValidatePosition(TREE*, int, int, char*);
 BITBOARD       ValidateComputeBishopAttacks(TREE*, int);
 BITBOARD       ValidateComputeRookAttacks(TREE*, int);
-void           Whisper(int, int, int, int, unsigned int, int, int, int, char*);
+void           Whisper(int, int, int, int, unsigned int, int, int, char*);
   
 #if defined(HAS_64BITS) || defined(HAS_LONGLONG)
 #  define And(a,b)    ((a) & (b))
@@ -679,7 +682,7 @@ void           Whisper(int, int, int, int, unsigned int, int, int, int, char*);
 #endif
 
 #define ABSearch(tree,alpha,beta,wtm,depth,ply,donull)        \
-        (((depth) >= INCREMENT_PLY) ?                         \
+        (((depth) >= INCPLY) ?                         \
         Search(tree,alpha,beta,wtm,depth,ply,donull) :        \
         Quiesce(tree,alpha,beta,wtm,ply))
 
@@ -689,8 +692,9 @@ void           Whisper(int, int, int, int, unsigned int, int, int, int, char*);
 #define RankDistance(a,b) abs(((a)>>3) - ((b)>>3))
 #define Distance(a,b) Max(FileDistance(a,b),RankDistance(a,b))
 #define KingSafety(s,p)                ((s)*scale_down[p])
-#define ScaleDown(s,m)                 ((s)*scale_down[m]/12)
+#define ScaleDown(s,m)                 ((s)*scale_down[m]/10)
 #define ScaleUp(s,m)                   ((s)*scale_up[m]/12)
+#define DrawScore(wtm)                 ((wtm)?draw_score:-draw_score)
 
 /*  
     the following macro is used to determine if one side is in check.  it
@@ -999,14 +1003,14 @@ void           Whisper(int, int, int, int, unsigned int, int, int, int, char*);
 #define HashCastleB(a,b)    b=Xor(castle_random_b[a],b);
 #define SavePV(tree,ply,value,ph) do {                                      \
           tree->pv[ply-1].path[ply-1]=tree->current_move[ply-1];            \
-          tree->pv[ply-1].path_length=ply-1;                                \
-          tree->pv[ply-1].path_hashed=ph;                                   \
-          tree->pv[ply-1].path_iteration_depth=iteration_depth;} while(0)
+          tree->pv[ply-1].pathl=ply-1;                                \
+          tree->pv[ply-1].pathh=ph;                                   \
+          tree->pv[ply-1].pathd=iteration_depth;} while(0)
 #define SavePVS(tree,ply,value,ph) do {                                     \
           tree->pv[ply-1].path[ply-1]=tree->current_move[ply-1];            \
-          tree->pv[ply-1].path_length=ply-1;                                \
-          tree->pv[ply-1].path_hashed=ph;                                   \
-          tree->pv[ply-1].path_iteration_depth=iteration_depth;             \
+          tree->pv[ply-1].pathl=ply-1;                                \
+          tree->pv[ply-1].pathh=ph;                                   \
+          tree->pv[ply-1].pathd=iteration_depth;             \
           SearchOutput(tree,value,beta);} while(0)
 
 /*
@@ -1020,7 +1024,7 @@ void           Whisper(int, int, int, int, unsigned int, int, int, int, char*);
   int  cPieces = 0;\
   BITBOARD bbTemp = (bitboard);\
   while (bbTemp) {\
-    square sq = FirstOne (bbTemp);\
+    const square sq = FirstOne (bbTemp);\
     (rgSquares)[(piece)*C_PIECES+cPieces] = sq;\
     cPieces ++;\
     Clear (sq, bbTemp);\

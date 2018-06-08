@@ -120,7 +120,7 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
 |                                                          |
  ----------------------------------------------------------
 */
-  if (TotalPieces<=EGTB_use && ply <= EGTB_maxdepth) {
+  if (TotalPieces<=EGTB_use && ply<EGTB_maxdepth) {
     int egtb_value;
     tree->egtb_probes++;
     if (EGTBProbe(tree, ply, wtm, &egtb_value)) {
@@ -184,8 +184,7 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
 */
 # if defined(NULL_MOVE_DEPTH)
   pieces=(wtm) ? TotalWhitePieces : TotalBlackPieces;
-  if (do_null && !tree->in_check[ply] && pieces &&
-      (pieces>5 || depth<421)) {
+  if (do_null && !tree->in_check[ply] && pieces && (pieces>5 || depth<421)) {
     tree->current_move[ply]=0;
     tree->current_phase[ply]=NULL_MOVE;
 #if !defined(FAST)
@@ -200,7 +199,7 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
       EnPassant(ply+1)=0;
     }
     value=-ABSearch(tree,-beta,-beta+1,ChangeSide(wtm),
-                    depth-NULL_MOVE_DEPTH-INCREMENT_PLY,ply+1,NO_NULL);
+                    depth-NULL_MOVE_DEPTH-INCPLY,ply+1,NO_NULL);
     HashKey=save_hash_key;
     if (abort_search || tree->stop) return(0);
     if (value >= beta) {
@@ -226,18 +225,20 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
  ----------------------------------------------------------
 */
   tree->next_status[ply].phase=FIRST_PHASE;
-  if (tree->hash_move[ply]==0 && (depth > 2*INCREMENT_PLY) &&
+  if (tree->hash_move[ply]==0 && (depth > 2*INCPLY) &&
       (((ply & 1) && alpha == root_alpha && beta == root_beta) ||
       (!(ply & 1) && alpha == -root_beta && beta == -root_alpha))) {
     tree->current_move[ply]=0;
-    value=ABSearch(tree,alpha,beta,wtm,depth-2*INCREMENT_PLY,ply,DO_NULL);
+    value=ABSearch(tree,alpha,beta,wtm,depth-2*INCPLY,ply,0);
     if (abort_search || tree->stop) return(0);
     if (value <= alpha) {
-      value=ABSearch(tree,-MATE,beta,wtm,depth-2*INCREMENT_PLY,ply,DO_NULL);
+      value=ABSearch(tree,-MATE,beta,wtm,depth-2*INCPLY,ply,0);
       if (abort_search || tree->stop) return(0);
+      if (value > -MATE && (int) tree->pv[ply-1].pathl >= ply) 
+        tree->hash_move[ply]=tree->pv[ply-1].path[ply];
     }
     else if (value < beta) {
-      if ((int) tree->pv[ply-1].path_length >= ply) 
+      if ((int) tree->pv[ply-1].pathl >= ply) 
         tree->hash_move[ply]=tree->pv[ply-1].path[ply];
     }
     else tree->hash_move[ply]=tree->current_move[ply];
@@ -255,8 +256,8 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
 |                                                          |
  ----------------------------------------------------------
 */
-  while ((tree->current_phase[ply]=(tree->in_check[ply]) ? NextEvasion(tree,ply,wtm) : 
-                                               NextMove(tree,ply,wtm))) {
+  while ((tree->current_phase[ply]=(tree->in_check[ply]) ?
+         NextEvasion(tree,ply,wtm) : NextMove(tree,ply,wtm))) {
     tree->extended_reason[ply]&=check_extension;
 #if !defined(FAST)
     if (ply <= trace_level)
@@ -293,14 +294,8 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
 |                                                          |
  ----------------------------------------------------------
 */
-    if (Piece(tree->current_move[ply])==pawn && 
-         ((wtm && To(tree->current_move[ply])>H5 && TotalBlackPieces<16 &&
-          !And(mask_pawn_passed_w[To(tree->current_move[ply])],BlackPawns)) ||
-         (!wtm && To(tree->current_move[ply])<A4 && TotalWhitePieces<16 &&
-          !And(mask_pawn_passed_b[To(tree->current_move[ply])],WhitePawns)) ||
-         push_extensions[To(tree->current_move[ply])]) &&
-         Swap(tree,From(tree->current_move[ply]),To(tree->current_move[ply]),wtm) ==
-           p_values[Captured(tree->current_move[ply])+7]) {
+    if (Piece(tree->current_move[ply])==pawn &&
+      push_extensions[To(tree->current_move[ply])]) {
       tree->extended_reason[ply]|=passed_pawn_extension;
       tree->passed_pawn_extensions_done++;
       extensions+=(ply<=2*iteration_depth) ? pushpp_depth : pushpp_depth>>1;
@@ -347,10 +342,10 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
 |                                                          |
  ----------------------------------------------------------
 */
-      if (depth<3*INCREMENT_PLY && depth>=2*INCREMENT_PLY &&
+      if (depth<3*INCPLY && depth>=2*INCPLY &&
           !tree->in_check[ply] && extensions == -60) {
-        register int value=-Evaluate(tree,ply+1,ChangeSide(wtm),
-                                     -(beta+51),-(alpha-51));
+        register const int value=-Evaluate(tree,ply+1,ChangeSide(wtm),
+                                           -(beta+51),-(alpha-51));
         if (value+50 < alpha) extensions-=60;
       }
 /*
@@ -362,7 +357,7 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
  ----------------------------------------------------------
 */
       if (!moves_searched) {
-        if (tree->last[ply]-tree->last[ply-1] == 1) {
+        if (tree->in_check[ply] && tree->last[ply]-tree->last[ply-1] == 1) {
           tree->extended_reason[ply]|=one_reply_extension;
           tree->one_reply_extensions_done++;
           extensions+=(ply<=2*iteration_depth) ? onerep_depth : onerep_depth>>1;
@@ -456,8 +451,8 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
   }
   else {
     if (alpha != o_alpha) {
-      memcpy(&tree->pv[ply-1].path[ply],&tree->pv[ply].path[ply],(tree->pv[ply].path_length-ply+1)*4);
-      memcpy(&tree->pv[ply-1].path_hashed,&tree->pv[ply].path_hashed,3);
+      memcpy(&tree->pv[ply-1].path[ply],&tree->pv[ply].path[ply],(tree->pv[ply].pathl-ply+1)*4);
+      memcpy(&tree->pv[ply-1].pathh,&tree->pv[ply].pathh,3);
       tree->pv[ply-1].path[ply-1]=tree->current_move[ply-1];
       History(tree,ply,depth,wtm,tree->pv[ply].path[ply]);
     }

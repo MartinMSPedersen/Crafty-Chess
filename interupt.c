@@ -22,7 +22,7 @@ void Interrupt(int ply)
 {
   int temp, *mvp, left, readstat, result, time_used;
   int save_move_number;
-  TREE *tree=local[0];
+  TREE * const tree=local[0];
   static int busy=0;
 /*
  ----------------------------------------------------------
@@ -181,7 +181,7 @@ void Interrupt(int ply)
           temp=InputMove(tree,args[0],0,ChangeSide(root_wtm),1,1);
           if (temp) {
             if (auto232) {
-              char *mv=OutputMoveICS(tree,temp);
+              const char *mv=OutputMoveICS(tree,temp);
               DelayTime(auto232_delay);
               if (!wtm) fprintf(auto_file,"\t");
               fprintf(auto_file, " %c%c-%c%c", mv[0], mv[1], mv[2], mv[3]);
@@ -214,7 +214,10 @@ void Interrupt(int ply)
             break;
           }
           else {
-            Print(4095,"Illegal move: %s\n", args[0]);
+            if (!xboard)
+              Print(4095,"Illegal move: %s\n", args[0]);
+            else if (log_file)
+              fprintf(log_file,"Illegal move: %s\n", args[0]);
             if (log_file) DisplayChessBoard(log_file,tree->pos);
           }
         }
