@@ -533,7 +533,7 @@ void EGGetHostPosition(void) {
  current position is lost.
  */
 /* transfer from ply zero host position */
-  EGGetIndexedHostPosition(block[0], 0, wtm);
+  EGGetIndexedHostPosition(block[0], 0, game_wtm);
   return;
 }
 
@@ -571,7 +571,7 @@ void EGPutHostPosition(void) {
   for (sq = sq_a1; sq <= sq_h8; sq++)
     tree->pos.board[EGMapToHostSq(sq)] = EGMapToHostCP(rb.rbv[sq]);
 /* copy the active color */
-  wtm = EGMapToHostColor(actc);
+  game_wtm = EGMapToHostColor(actc);
 /* copy the castling availibility */
   tree->position[0].castle[1] = 0;
   if (cast & cf_wk)
@@ -782,15 +782,15 @@ static epdptrT EGCommHandler(epdptrT epdptr0, siptrT flagptr) {
     case refcom_execute:
 /* execute the supplied move */
       eopptr = EPDLocateEOPCode(epdptr0, epdso_sm);
-      move = InputMove(tree, eopptr->eop_headeov->eov_str, 0, wtm, 0, 0);
+      move = InputMove(tree, eopptr->eop_headeov->eov_str, 0, game_wtm, 0, 0);
       if (history_file) {
-        fseek(history_file, ((((move_number - 1) * 2) + 1 - wtm) * 10),
+        fseek(history_file, ((((move_number - 1) * 2) + 1 - game_wtm) * 10),
             SEEK_SET);
         fprintf(history_file, "%9s\n", eopptr->eop_headeov->eov_str);
       }
-      MakeMoveRoot(tree, move, wtm);
-      wtm = Flip(wtm);
-      if (wtm)
+      MakeMoveRoot(tree, move, game_wtm);
+      game_wtm = Flip(game_wtm);
+      if (game_wtm)
         move_number++;
 /* execute the move in the EPD Kit */
       EPDGenMoves();
@@ -823,15 +823,15 @@ static epdptrT EGCommHandler(epdptrT epdptr0, siptrT flagptr) {
 /* execute the supplied move (if any) */
       eopptr = EPDLocateEOPCode(epdptr0, epdso_sm);
       if (eopptr != NULL) {
-        move = InputMove(tree, eopptr->eop_headeov->eov_str, 0, wtm, 0, 0);
+        move = InputMove(tree, eopptr->eop_headeov->eov_str, 0, game_wtm, 0, 0);
         if (history_file) {
-          fseek(history_file, ((((move_number - 1) * 2) + 1 - wtm) * 10),
+          fseek(history_file, ((((move_number - 1) * 2) + 1 - game_wtm) * 10),
               SEEK_SET);
           fprintf(history_file, "%9s\n", eopptr->eop_headeov->eov_str);
         }
-        MakeMoveRoot(tree, move, wtm);
-        wtm = Flip(wtm);
-        if (wtm)
+        MakeMoveRoot(tree, move, game_wtm);
+        game_wtm = Flip(game_wtm);
+        if (game_wtm)
           move_number++;
 /* execute the move in the EPD Kit */
         EPDGenMoves();
@@ -851,9 +851,9 @@ static epdptrT EGCommHandler(epdptrT epdptr0, siptrT flagptr) {
         last_pv.pathl = 0;
         tree->position[1] = tree->position[0];
 /* search */
-        (void) EGIterate((siT) wtm, (siT) think);
+        (void) EGIterate((siT) game_wtm, (siT) think);
 /* process search result */
-        strcpy(tv, OutputMove(tree, last_pv.path[1], 0, wtm));
+        strcpy(tv, OutputMove(tree, last_pv.path[1], 0, game_wtm));
         move = last_pv.path[1];
 /* locate SAN move */
         mptr = EPDSANDecodeAux(tv, 0);
@@ -861,14 +861,14 @@ static epdptrT EGCommHandler(epdptrT epdptr0, siptrT flagptr) {
         EPDSANEncode(&m, san);
 /* output to temporary history file */
         if (history_file) {
-          fseek(history_file, ((((move_number - 1) * 2) + 1 - wtm) * 10),
+          fseek(history_file, ((((move_number - 1) * 2) + 1 - game_wtm) * 10),
               SEEK_SET);
           fprintf(history_file, "%9s\n", san);
         }
 /* update host position */
-        MakeMoveRoot(tree, move, wtm);
-        wtm = Flip(wtm);
-        if (wtm)
+        MakeMoveRoot(tree, move, game_wtm);
+        game_wtm = Flip(game_wtm);
+        if (game_wtm)
           move_number++;
 /* create reply EPD structure */
         epdptr1 = EPDGetCurrentPosition();
@@ -901,7 +901,7 @@ static epdptrT EGCommHandler(epdptrT epdptr0, siptrT flagptr) {
       last_pv.pathl = 0;
       InitializeChessBoard(tree);
       InitializeHashTables();
-      wtm = 1;
+      game_wtm = 1;
       move_number = 1;
 /* open the temporary history file */
       if (history_file != NULL) {

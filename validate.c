@@ -21,8 +21,8 @@
  *******************************************************************************
  */
 void ValidatePosition(TREE * RESTRICT tree, int ply, int move, char *caller) {
-  BITBOARD temp, temp1, temp_occ;
-  BITBOARD temp_occx;
+  uint64_t temp, temp1, temp_occ;
+  uint64_t temp_occx;
   int i, square, error;
   int side, piece, temp_score;
 

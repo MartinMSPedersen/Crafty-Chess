@@ -43,7 +43,7 @@
 int Book(TREE * RESTRICT tree, int wtm, int root_list_done) {
   static int book_moves[200];
   static BOOK_POSITION start_moves[200];
-  static BITBOARD selected_key[200];
+  static uint64_t selected_key[200];
   static int selected[200];
   static int selected_order_played[200], selected_value[200];
   static int selected_status[200], selected_percent[200],
@@ -51,7 +51,7 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done) {
   static int bs_played[200], bs_percent[200];
   static int book_status[200], evaluations[200], bs_learn[200];
   static float bs_value[200], total_value;
-  static BITBOARD book_key[200], bs_key[200];
+  static uint64_t book_key[200], bs_key[200];
   int m1_status, forced = 0, total_percent, play_percentage = 0;
   float tempr;
   int done, i, j, last_move, temp, which, minlv = 999999, maxlv = -999999;
@@ -59,7 +59,7 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done) {
   int nflagged, im, value, np, book_ponder_move;
   int cluster, scluster, test;
   unsigned char buf32[4];
-  BITBOARD temp_hash_key, common, tempk;
+  uint64_t temp_hash_key, common, tempk;
   int key, nmoves, num_selected, st;
   int percent_played, total_played, total_moves, smoves;
   int distribution;
@@ -99,14 +99,14 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done) {
       scluster = BookIn32(buf32);
       BookClusterIn(books_file, scluster, book_buffer);
       for (im = 0; im < n_root_moves; im++) {
-        common = HashKey & ((BITBOARD) 65535 << 48);
+        common = HashKey & ((uint64_t) 65535 << 48);
         MakeMove(tree, 1, root_moves[im].move, wtm);
         if (RepetitionCheckBook(tree, 2, Flip(wtm))) {
           UnmakeMove(tree, 1, root_moves[im].move, wtm);
           return (0);
         }
         temp_hash_key = (wtm) ? HashKey : ~HashKey;
-        temp_hash_key = (temp_hash_key & ~((BITBOARD) 65535 << 48)) | common;
+        temp_hash_key = (temp_hash_key & ~((uint64_t) 65535 << 48)) | common;
         for (i = 0; i < scluster; i++)
           if (!(temp_hash_key ^ book_buffer[i].position)) {
             start_moves[smoves++] = book_buffer[i];
@@ -176,14 +176,14 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done) {
     total_moves = 0;
     nmoves = 0;
     for (im = 0; im < n_root_moves; im++) {
-      common = HashKey & ((BITBOARD) 65535 << 48);
+      common = HashKey & ((uint64_t) 65535 << 48);
       MakeMove(tree, 1, root_moves[im].move, wtm);
       if (RepetitionCheckBook(tree, 2, Flip(wtm))) {
         UnmakeMove(tree, 1, root_moves[im].move, wtm);
         return (0);
       }
       temp_hash_key = (wtm) ? HashKey : ~HashKey;
-      temp_hash_key = (temp_hash_key & ~((BITBOARD) 65535 << 48)) | common;
+      temp_hash_key = (temp_hash_key & ~((uint64_t) 65535 << 48)) | common;
       for (i = 0; i < cluster; i++) {
         if (!(temp_hash_key ^ book_buffer[i].position)) {
           book_status[nmoves] = book_buffer[i].status_played >> 24;
@@ -791,7 +791,7 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done) {
  *******************************************************************************
  */
 int BookPonderMove(TREE * RESTRICT tree, int wtm) {
-  BITBOARD temp_hash_key, common;
+  uint64_t temp_hash_key, common;
   static int book_moves[200];
   int i, key, *lastm, cluster, n_moves, im, played, tplayed;
   int book_ponder_move = 0, test;
@@ -835,10 +835,10 @@ int BookPonderMove(TREE * RESTRICT tree, int wtm) {
  */
     played = -1;
     for (im = 0; im < n_moves; im++) {
-      common = HashKey & ((BITBOARD) 65535 << 48);
+      common = HashKey & ((uint64_t) 65535 << 48);
       MakeMove(tree, 2, book_moves[im], wtm);
       temp_hash_key = (wtm) ? HashKey : ~HashKey;
-      temp_hash_key = (temp_hash_key & ~((BITBOARD) 65535 << 48)) | common;
+      temp_hash_key = (temp_hash_key & ~((uint64_t) 65535 << 48)) | common;
       for (i = 0; i < cluster; i++) {
         if (!(temp_hash_key ^ book_buffer[i].position)) {
           tplayed = book_buffer[i].status_played & 077777777;
@@ -905,7 +905,7 @@ int BookPonderMove(TREE * RESTRICT tree, int wtm) {
  */
 void BookUp(TREE * RESTRICT tree, int nargs, char **args) {
   BB_POSITION *bbuffer;
-  BITBOARD temp_hash_key, common;
+  uint64_t temp_hash_key, common;
   FILE *book_input;
   char fname[128], start, *ch, output_filename[128];
   static char schar[2] = { "." };
@@ -1114,7 +1114,7 @@ void BookUp(TREE * RESTRICT tree, int nargs, char **args) {
                 ply++;
                 max_search_depth = Max(max_search_depth, ply);
                 total_moves++;
-                common = HashKey & ((BITBOARD) 65535 << 48);
+                common = HashKey & ((uint64_t) 65535 << 48);
                 MakeMove(tree, 2, move, wtm);
                 if (Rule50Moves(3) == 0) {
                   Repetition(black) = 0;
@@ -1124,7 +1124,7 @@ void BookUp(TREE * RESTRICT tree, int nargs, char **args) {
                 if (ply <= max_ply) {
                   temp_hash_key = (wtm) ? HashKey : ~HashKey;
                   temp_hash_key =
-                      (temp_hash_key & ~((BITBOARD) 65535 << 48)) | common;
+                      (temp_hash_key & ~((uint64_t) 65535 << 48)) | common;
                   memcpy(bbuffer[buffered].position, (char *) &temp_hash_key,
                       8);
                   if (result & 1)
@@ -1475,7 +1475,7 @@ BB_POSITION BookUpNextPosition(int files, int init) {
   }
   for (i++; i <= files; i++) {
     if (data_read[i]) {
-      BITBOARD p1, p2;
+      uint64_t p1, p2;
 
       memcpy((char *) &p1, least.position, 8);
       memcpy((char *) &p2, buffer[i][next[i]].position, 8);
@@ -1500,7 +1500,7 @@ int _cdecl BookUpCompare(const void *pos1, const void *pos2) {
 #else
 int BookUpCompare(const void *pos1, const void *pos2) {
 #endif
-  static BITBOARD p1, p2;
+  static uint64_t p1, p2;
 
   memcpy((char *) &p1, ((BB_POSITION *) pos1)->position, 8);
   memcpy((char *) &p2, ((BB_POSITION *) pos2)->position, 8);

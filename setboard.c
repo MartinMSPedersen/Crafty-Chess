@@ -245,7 +245,7 @@ void SetBoard(TREE * tree, int nargs, char *args[], int special) {
  *                                                          *
  ************************************************************
  */
-  wtm = twtm;
+  game_wtm = twtm;
   error += InvalidPosition(tree);
   if (!error) {
     if (log_file)

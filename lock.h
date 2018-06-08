@@ -8,6 +8,7 @@
  *******************************************************************************
  */
 #  if defined(_WIN32) || defined(_WIN64)
+#    include <windows.h>
 #    define pthread_attr_t  HANDLE
 #    define pthread_t       HANDLE
 #    define thread_t        HANDLE

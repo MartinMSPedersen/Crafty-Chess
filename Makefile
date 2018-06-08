@@ -129,11 +129,11 @@ linux-amd64:
 linux:
 	$(MAKE) target=LINUX \
 		CC=gcc CXX=g++ \
-		CFLAGS='-pg -Wwrite-strings -Wcast-qual -Wshadow \
-		-Wconversion -W -Wall -ansi -pedantic -pipe' \
-		CXFLAGS='' \
-		LDFLAGS='$(LDFLAGS) -pg -lstdc++ -lpthread' \
-		opt='$(opt) -DTRACE -DINLINE64 -DCPUS=2' \
+		CFLAGS='$(CFLAGS) -Wall -pipe -O3 \
+			-pg -fno-gcse -mpreferred-stack-boundary=8' \
+		CXFLAGS=$(CFLAGS) \
+		LDFLAGS='$(LDFLAGS) -pg -lpthread -lstdc++' \
+		opt='$(opt) -DINLINE64 -DCPUS=8' \
 		crafty-make
 
 linux-profile:
@@ -166,8 +166,8 @@ linux-64:
 linux-64-profile:
 	$(MAKE) target=LINUX \
 		CC=icc CXX=icc \
-		CFLAGS='-w -xP -O2 -fno-alias -prof-gen=srcpos -prof-dir ./profdir' \
-		CXFLAGS='-w -xP -O2 -ip -prof-gen=srcpos -prof-dir ./profdir' \
+		CFLAGS='-w -xP -O2 -fno-alias -prof-gen -prof-dir ./profdir' \
+		CXFLAGS='-w -xP -O2 -ip -prof-gen -prof-dir ./profdir' \
 		LDFLAGS='$(LDFLAGS) -lpthread -lstdc++ ' \
 		opt='$(opt) -DINLINE64 -DCPUS=2' \
 		crafty-make
@@ -318,7 +318,7 @@ profile:
 #objects = search.o thread.o repeat.o next.o killer.o quiesce.o evaluate.o    \
        movgen.o make.o unmake.o hash.o  attacks.o swap.o boolean.o utility.o  \
        probe.o book.o data.o drawn.o edit.o epd.o epdglue.o init.o input.o    \
-       interupt.o iterate.o main.o option.o output.o ponder.o resign.o root.o \
+       interrupt.o iterate.o main.o option.o output.o ponder.o resign.o root.o\
        learn.o setboard.o test.o time.o validate.o annotate.o analyze.o       \
        evtest.o bench.o
 objects = crafty.o

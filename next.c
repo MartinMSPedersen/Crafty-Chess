@@ -314,7 +314,7 @@ int NextMove(TREE * RESTRICT tree, int ply, int wtm) {
  */
 int NextRootMove(TREE * RESTRICT tree, TREE * RESTRICT mytree, int wtm) {
   int done, which, i;
-  BITBOARD total_nodes;
+  uint64_t total_nodes;
 
 /*
  ************************************************************
@@ -351,22 +351,22 @@ int NextRootMove(TREE * RESTRICT tree, TREE * RESTRICT mytree, int wtm) {
  */
   done = 0;
   for (which = 0; which < n_root_moves; which++)
-    if (root_moves[which].status & 256)
+    if (root_moves[which].status & 16)
       done++;
-  if (done == 1 && (root_moves[0].status & 256) && root_value == root_alpha &&
-      !(root_moves[0].status & 0x38))
+  if (done == 1 && (root_moves[0].status & 16) && root_value == root_alpha &&
+      !(root_moves[0].status & 2))
     return (NONE);
   for (which = 0; which < n_root_moves; which++)
-    if (!(root_moves[which].status & 256)) {
+    if (!(root_moves[which].status & 16)) {
       if (search_move) {
         if (root_moves[which].move != search_move) {
-          root_moves[which].status |= 256;
+          root_moves[which].status |= 16;
           continue;
         }
       }
       tree->curmv[1] = root_moves[which].move;
       tree->root_move = which;
-      root_moves[which].status |= 256;
+      root_moves[which].status |= 16;
 /*
  ************************************************************
  *                                                          *
@@ -427,7 +427,7 @@ int NextRootMove(TREE * RESTRICT tree, TREE * RESTRICT mytree, int wtm) {
  *                                                          *
  ************************************************************
  */
-      if (root_moves[which].status & 0xc0)
+      if (root_moves[which].status & (4 + 8))
         return (HASH_MOVE);
       else
         return (REMAINING_MOVES);
@@ -471,9 +471,9 @@ int NextRootMoveParallel(void) {
  ************************************************************
  */
   for (which = 0; which < n_root_moves; which++)
-    if (!(root_moves[which].status & 256))
+    if (!(root_moves[which].status & 16))
       break;
-  if (which < n_root_moves && root_moves[which].status & 64)
+  if (which < n_root_moves && root_moves[which].status & 4)
     return (0);
   if (root_value >= last_root_value - 33 || which > n_root_moves / 3)
     return (1);

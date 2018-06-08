@@ -226,7 +226,7 @@ void RootMoveList(int wtm) {
   for (i = 0; i < n_root_moves; i++) {
     root_moves[i].move = rmoves[i];
     root_moves[i].nodes = 0;
-    root_moves[i].status = 128;
+    root_moves[i].status = 8;
   }
   root_moves[0].status = 0;
   return;

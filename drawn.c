@@ -79,7 +79,7 @@ int Drawn(TREE * RESTRICT tree, int value) {
  *                                                          *
  ************************************************************
  */
-  if (value != DrawScore(wtm))
+  if (value != DrawScore(game_wtm))
     return (0);
   if (TotalPieces(white, occupied) == TotalPieces(black, occupied))
     return (1);

@@ -1,6 +1,6 @@
 #include "chess.h"
 /* *INDENT-OFF* */
-int scale = 4;
+int scale = 30;
 FILE *input_stream;
 FILE *book_file;
 FILE *books_file;
@@ -10,9 +10,9 @@ FILE *history_file;
 FILE *log_file;
 int presult = 0;
 int done = 0;
-BITBOARD burner[10] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
+uint64_t burner[10] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
 int burnc[10] = {40000, 20000, 10000, 4000, 2000, 800, 400, 200, 100, 0};
-BITBOARD total_moves;
+uint64_t total_moves;
 int allow_cores = 1;
 int allow_memory = 1;
 int last_mate_score;
@@ -37,11 +37,11 @@ int book_learn_eval[LEARN_INTERVAL];
 int book_learn_depth[LEARN_INTERVAL];
 int learn_positions_count = 0;
 int learn_seekto[64];
-BITBOARD learn_key[64];
+uint64_t learn_key[64];
 int learn_nmoves[64];
 int book_learn_nmoves;
 int book_learn_seekto;
-BITBOARD book_learn_key;
+uint64_t book_learn_key;
 HASH_ENTRY *trans_ref;
 HPATH_ENTRY *hash_path;
 PAWN_HASH_ENTRY *pawn_hash_table;
@@ -58,8 +58,8 @@ int mob_curve_r[48] = {
    17, 18, 19, 20, 21, 22, 23, 24,
    25, 26, 27, 28, 29, 30, 31, 32
 };
-signed char directions[64][64];
-BITBOARD randoms[2][7][64] = {
+char directions[64][64];
+uint64_t randoms[2][7][64] = {
   {
     { 0x0000000000000000ull, 0x0000000000000000ull, 0x0000000000000000ull,
       0x0000000000000000ull, 0x0000000000000000ull, 0x0000000000000000ull,
@@ -371,12 +371,12 @@ BITBOARD randoms[2][7][64] = {
       0x9475361b15b45cd5ull },
   },
 };
-BITBOARD castle_random[2][2] = {
+uint64_t castle_random[2][2] = {
   { 0x557723689550b69bull, 0xa92c541efa336c6cull },
   { 0xc7bedab779d5361bull, 0x3bb70e80435e60b7ull }
 
 };
-BITBOARD enpassant_random[65] = {
+uint64_t enpassant_random[65] = {
   0x0000000000000000ull, 0x0000000000000000ull, 0x0000000000000000ull,
   0x0000000000000000ull, 0x0000000000000000ull, 0x0000000000000000ull,
   0x0000000000000000ull, 0x0000000000000000ull, 0x0000000000000000ull,
@@ -400,42 +400,42 @@ BITBOARD enpassant_random[65] = {
   0x0000000000000000ull, 0x0000000000000000ull, 0x0000000000000000ull,
   0x0000000000000000ull, 0x0000000000000000ull
 };
-BITBOARD pawn_attacks[2][64];
-BITBOARD knight_attacks[64];
-BITBOARD rook_attacks[64];
-BITBOARD bishop_attacks[64];
-BITBOARD king_attacks[64];
-BITBOARD intervening[64][64];
-BITBOARD clear_mask[65];
-BITBOARD set_mask[65];
-BITBOARD file_mask[8];
-BITBOARD rank_mask[8];
-BITBOARD OO[2] = { 0x6000000000000000ull, 0x0000000000000060ull };
-BITBOARD OOO[2] = { 0x0E00000000000000ull, 0x000000000000000Eull };
-BITBOARD mask_efgh = 0xf0f0f0f0f0f0f0f0ull;
-BITBOARD mask_fgh = 0xe0e0e0e0e0e0e0e0ull;
-BITBOARD mask_abc = 0x0707070707070707ull;
-BITBOARD mask_abcd = 0x0f0f0f0f0f0f0f0full;
-BITBOARD mask_advance_2_w = 0x0000000000ff0000ull;
-BITBOARD mask_advance_2_b = 0x0000ff0000000000ull;
-BITBOARD mask_left_edge = 0xfefefefefefefefeull;
-BITBOARD mask_right_edge = 0x7f7f7f7f7f7f7f7full;
-BITBOARD mask_not_edge = 0x007e7e7e7e7e7e00ull;
-BITBOARD mask_kr_trapped[2][3];
-BITBOARD mask_qr_trapped[2][3];
-BITBOARD dark_squares = 0xaa55aa55aa55aa55ull;
-BITBOARD not_rook_pawns = 0x007e7e7e7e7e7e00ull;
-BITBOARD rook_pawns = 0x0081818181818100ull;
-BITBOARD plus1dir[65];
-BITBOARD plus7dir[65];
-BITBOARD plus8dir[65];
-BITBOARD plus9dir[65];
-BITBOARD minus1dir[65];
-BITBOARD minus7dir[65];
-BITBOARD minus8dir[65];
-BITBOARD minus9dir[65];
-BITBOARD mask_eptest[64];
-BITBOARD mask_clear_entry = 0xff9ffffffffe0000ull;
+uint64_t pawn_attacks[2][64];
+uint64_t knight_attacks[64];
+uint64_t rook_attacks[64];
+uint64_t bishop_attacks[64];
+uint64_t king_attacks[64];
+uint64_t intervening[64][64];
+uint64_t clear_mask[65];
+uint64_t set_mask[65];
+uint64_t file_mask[8];
+uint64_t rank_mask[8];
+uint64_t OO[2] = { 0x6000000000000000ull, 0x0000000000000060ull };
+uint64_t OOO[2] = { 0x0E00000000000000ull, 0x000000000000000Eull };
+uint64_t mask_efgh = 0xf0f0f0f0f0f0f0f0ull;
+uint64_t mask_fgh = 0xe0e0e0e0e0e0e0e0ull;
+uint64_t mask_abc = 0x0707070707070707ull;
+uint64_t mask_abcd = 0x0f0f0f0f0f0f0f0full;
+uint64_t mask_advance_2_w = 0x0000000000ff0000ull;
+uint64_t mask_advance_2_b = 0x0000ff0000000000ull;
+uint64_t mask_left_edge = 0xfefefefefefefefeull;
+uint64_t mask_right_edge = 0x7f7f7f7f7f7f7f7full;
+uint64_t mask_not_edge = 0x007e7e7e7e7e7e00ull;
+uint64_t mask_kr_trapped[2][3];
+uint64_t mask_qr_trapped[2][3];
+uint64_t dark_squares = 0xaa55aa55aa55aa55ull;
+uint64_t not_rook_pawns = 0x007e7e7e7e7e7e00ull;
+uint64_t rook_pawns = 0x0081818181818100ull;
+uint64_t plus1dir[65];
+uint64_t plus7dir[65];
+uint64_t plus8dir[65];
+uint64_t plus9dir[65];
+uint64_t minus1dir[65];
+uint64_t minus7dir[65];
+uint64_t minus8dir[65];
+uint64_t minus9dir[65];
+uint64_t mask_eptest[64];
+uint64_t mask_clear_entry = 0xff9ffffffffe0000ull;
 POSITION display;
 #if (!defined(_M_AMD64) && !defined (_M_IA64) && !defined(INLINE32)) || defined(VC_INLINE32)
 unsigned char msb[65536];
@@ -445,13 +445,13 @@ unsigned char msb_8bit[256];
 unsigned char lsb_8bit[256];
 unsigned char pop_cnt_8bit[256];
 unsigned char is_outside[256][256];
-BITBOARD mask_pawn_connected[64];
-BITBOARD mask_pawn_isolated[64];
-BITBOARD mask_passed[2][64];
-BITBOARD mask_no_pattacks[2][64];
-BITBOARD mask_hidden_left[2][8];
-BITBOARD mask_hidden_right[2][8];
-BITBOARD pawn_race[2][2][64];
+uint64_t mask_pawn_connected[64];
+uint64_t mask_pawn_isolated[64];
+uint64_t mask_passed[2][64];
+uint64_t mask_no_pattacks[2][64];
+uint64_t mask_hidden_left[2][8];
+uint64_t mask_hidden_right[2][8];
+uint64_t pawn_race[2][2][64];
 BOOK_POSITION book_buffer[BOOK_CLUSTER_SIZE];
 BOOK_POSITION book_buffer_char[BOOK_CLUSTER_SIZE];
 int OOsqs[2][3] = {{ E8, F8, G8 }, { E1, F1, G1 }};
@@ -459,7 +459,7 @@ int OOOsqs[2][3] = {{ E8, D8, C8 }, { E1, D1, C1 }};
 int OOfrom[2] = { E8, E1 };
 int OOto[2] = { G8, G1 };
 int OOOto[2] = { C8, C1 };
-#define    VERSION                             "23.4"
+#define    VERSION                             "23.5"
 char version[8] = { VERSION };
 PLAYING_MODE mode = normal_mode;
 int batch_mode = 0;             /* no asynch reads */
@@ -468,10 +468,9 @@ int call_flag = 0;
 int crafty_rating = 2500;
 int opponent_rating = 2500;
 int last_search_value = 0;
-int lazy_eval_cutoff = 125;
-int razor_margin = 300;
 int pruning_margin[8] = {0, 120, 120, 310, 310, 400, 400, 500};
 int pruning_depth = 5;
+int pp_ply[8] = { 0, 6, 6, 4, 2, 1, 0, 0 };
 int pgn_suggested_percent = 0;
 char pgn_event[128] = { "?" };
 char pgn_site[128] = { "?" };
@@ -514,7 +513,7 @@ int initialized = 0;
 int kibitz = 0;
 int post = 0;
 int log_id = 0;
-int wtm = 1;
+int game_wtm = 1;
 int last_opponent_move = 0;
 int check_depth = 1;
 int null_depth = 3;               /* R=3 */
@@ -522,8 +521,8 @@ int LMR_remaining_depth = 1;      /* leave 1 full ply after reductions */
 int LMR_min_reduction = 1;        /* minimum reduction 1 ply */
 int LMR_max_reduction = 2;        /* maximum reduction 2 plies */
 int search_depth = 0;
-unsigned int search_nodes = 0;
-unsigned int temp_search_nodes = 0;
+uint64_t search_nodes = 0;
+uint64_t temp_search_nodes = 0;
 int search_move = 0;
 int predicted = 0;
 int time_used = 0;
@@ -550,7 +549,6 @@ char initial_position[80] = { "" };
 char hint[512] = { "" };
 char book_hint[512] = { "" };
 int over = 0;
-int silent = 0;
 int usage_level = 0;
 char audible_alarm = 0x07;
 char speech = 0;
@@ -610,7 +608,7 @@ int display_options = 4095 - 256 - 512;
 int smp_max_threads = 0;
 int smp_max_thread_group = 4;
 int smp_split_at_root = 1;
-unsigned int smp_split_nodes = 8000;
+unsigned int smp_split_nodes = 2000;
 unsigned int noise_level = 200000;
 int tc_moves = 60;
 int tc_time = 180000;
@@ -623,7 +621,7 @@ int tc_sudden_death = 0;
 int tc_operator_time = 0;
 int tc_safety_margin = 0;
 int draw_score[2] = { 0, 0 };
-char kibitz_text[512];
+char kibitz_text[4096];
 int kibitz_depth;
 int move_number = 1;
 int root_print_ok = 0;
@@ -641,16 +639,17 @@ int trace_level = 0;
 /*  for the following 6 lines, each pair should have */
 /*  the same numeric value (the size value).         */
 size_t hash_table_size = 524288;
-BITBOARD hash_mask = (524288 -1) >> 2;
+uint64_t hash_mask = (524288 -1) >> 2;
 size_t hash_path_size = 32768;
-BITBOARD hash_path_mask = (32768 - 1) >> 4;
+uint64_t hash_path_mask = (32768 - 1) >> 4;
 size_t pawn_hash_table_size = 16384;
-BITBOARD pawn_hash_mask = 16384 - 1;
+uint64_t pawn_hash_mask = 16384 - 1;
 int abs_draw_score = 1;
 int accept_draws = 1;
 const char translate[13] =
     { 'k', 'q', 'r', 'b', 'n', 'p', 0, 'P', 'N', 'B', 'R', 'Q', 'K' };
-BITBOARD magic_bishop[64] = {
+int16_t knight_mobility_table[64];
+uint64_t magic_bishop[64] = {
   0x0002020202020200ull, 0x0002020202020000ull, 0x0004010202000000ull,
   0x0004040080000000ull, 0x0001104000000000ull, 0x0000821040000000ull,
   0x0000410410400000ull, 0x0000104104104000ull, 0x0000040404040400ull,
@@ -674,7 +673,7 @@ BITBOARD magic_bishop[64] = {
   0x0000000010020200ull, 0x0000000404080200ull, 0x0000040404040400ull,
   0x0002020202020200ull
 };
-BITBOARD magic_bishop_mask[64] = {
+uint64_t magic_bishop_mask[64] = {
   0x0040201008040200ull, 0x0000402010080400ull, 0x0000004020100A00ull,
   0x0000000040221400ull, 0x0000000002442800ull, 0x0000000204085000ull,
   0x0000020408102000ull, 0x0002040810204000ull, 0x0020100804020000ull,
@@ -708,8 +707,8 @@ unsigned int magic_bishop_shift[64] = {
   59, 59, 59, 59, 59, 59, 59, 59,
   58, 59, 59, 59, 59, 59, 59, 58
 };
-BITBOARD magic_bishop_table[5248];
-BITBOARD *magic_bishop_indices[64] = {
+uint64_t magic_bishop_table[5248];
+uint64_t *magic_bishop_indices[64] = {
   magic_bishop_table + 4992, magic_bishop_table + 2624,
   magic_bishop_table + 256, magic_bishop_table + 896,
   magic_bishop_table + 1280, magic_bishop_table + 1664,
@@ -743,8 +742,8 @@ BITBOARD *magic_bishop_indices[64] = {
   magic_bishop_table + 1632, magic_bishop_table + 2272,
   magic_bishop_table + 4896, magic_bishop_table + 5184
 };
-short int magic_bishop_mobility_table[5248];
-short int *magic_bishop_mobility_indices[64] = {
+int16_t magic_bishop_mobility_table[5248];
+int16_t *magic_bishop_mobility_indices[64] = {
   magic_bishop_mobility_table + 4992, magic_bishop_mobility_table + 2624,
   magic_bishop_mobility_table + 256, magic_bishop_mobility_table + 896,
   magic_bishop_mobility_table + 1280, magic_bishop_mobility_table + 1664,
@@ -778,8 +777,8 @@ short int *magic_bishop_mobility_indices[64] = {
   magic_bishop_mobility_table + 1632, magic_bishop_mobility_table + 2272,
   magic_bishop_mobility_table + 4896, magic_bishop_mobility_table + 5184
 };
-BITBOARD magic_rook_table[102400];
-BITBOARD *magic_rook_indices[64] = {
+uint64_t magic_rook_table[102400];
+uint64_t *magic_rook_indices[64] = {
   magic_rook_table + 86016, magic_rook_table + 73728,
   magic_rook_table + 36864, magic_rook_table + 43008,
   magic_rook_table + 47104, magic_rook_table + 51200,
@@ -813,8 +812,8 @@ BITBOARD *magic_rook_indices[64] = {
   magic_rook_table + 49152, magic_rook_table + 55296,
   magic_rook_table + 79872, magic_rook_table + 98304
 };
-short int magic_rook_mobility_table[102400];
-short int *magic_rook_mobility_indices[64] = {
+int16_t magic_rook_mobility_table[102400];
+int16_t *magic_rook_mobility_indices[64] = {
   magic_rook_mobility_table + 86016, magic_rook_mobility_table + 73728,
   magic_rook_mobility_table + 36864, magic_rook_mobility_table + 43008,
   magic_rook_mobility_table + 47104, magic_rook_mobility_table + 51200,
@@ -848,7 +847,7 @@ short int *magic_rook_mobility_indices[64] = {
   magic_rook_mobility_table + 49152, magic_rook_mobility_table + 55296,
   magic_rook_mobility_table + 79872, magic_rook_mobility_table + 98304
 };
-BITBOARD magic_rook[64] = {
+uint64_t magic_rook[64] = {
   0x0080001020400080ull, 0x0040001000200040ull, 0x0080081000200080ull,
   0x0080040800100080ull, 0x0080020400080080ull, 0x0080010200040080ull,
   0x0080008001000200ull, 0x0080002040800100ull, 0x0000800020400080ull,
@@ -872,7 +871,7 @@ BITBOARD magic_rook[64] = {
   0x0001000204080011ull, 0x0001000204000801ull, 0x0001000082000401ull,
   0x0001FFFAABFAD1A2ull
 };
-BITBOARD magic_rook_mask[64] = {
+uint64_t magic_rook_mask[64] = {
   0x000101010101017Eull, 0x000202020202027Cull, 0x000404040404047Aull,
   0x0008080808080876ull, 0x001010101010106Eull, 0x002020202020205Eull,
   0x004040404040403Eull, 0x008080808080807Eull, 0x0001010101017E00ull,
@@ -906,15 +905,15 @@ unsigned int magic_rook_shift[64] = {
   53, 54, 54, 54, 54, 54, 54, 53,
   53, 54, 54, 53, 53, 53, 53, 53
 };
-BITBOARD mobility_mask_n[4] = {
+uint64_t mobility_mask_n[4] = {
   0xFF818181818181FFull, 0x007E424242427E00ull,
   0x00003C24243C0000ull, 0x0000001818000000ull
 };
-BITBOARD mobility_mask_b[4] = {
+uint64_t mobility_mask_b[4] = {
   0xFF818181818181FFull, 0x007E424242427E00ull,
   0x00003C24243C0000ull, 0x0000001818000000ull
 };
-BITBOARD mobility_mask_r[4] = {
+uint64_t mobility_mask_r[4] = {
   0x8181818181818181ull, 0x4242424242424242ull,
   0x2424242424242424ull, 0x1818181818181818ull
 };
@@ -944,7 +943,6 @@ const int sqflip[2][64] = {
    A7, B7, C7, D7, E7, F7, G7, H7,
    A8, B8, C8, D8, E8, F8, G8, H8 }
 };
-const BITBOARD rank12[2] = { 0xffff000000000000ull, 0x000000000000ffffull };
 const int sign[2] = { -1, 1 };
 int direction[2] = { -8, 8 };
 int dark_corner[2] = { FILEA, FILEH };
@@ -983,22 +981,36 @@ int imbalance[9][9] = {
   {  42,  126,  126,  126,  126,  126,  126,  126,  126 }  /* R=+4 */
 };
 int pp_dist_bonus[8] = { 0, 0, 0, 2, 7, 19, 31, 0 };
-int pp_bonus[8] = { 0, 3, 3, 15, 35, 60, 100, 0 };
 int king_tropism_n[8] = { 0, 3, 3, 2, 1, 0, 0, 0 };
 int king_tropism_b[8] = { 0, 2, 2, 1, 0, 0, 0, 0 };
 int king_tropism_r[8] = { 0, 4, 3, 2, 1, 1, 1, 1 };
 int king_tropism_q[8] = { 0, 6, 5, 4, 3, 2, 2, 2 };
-int passed_pawn_candidate[2][2][8] = {
- {{ 0,  0, 36, 16,  8,  4,  4, 0 },         /* [mg][black][rank] */
-  { 0,  4,  4,  8, 16, 36,  0, 0 }},        /* [mg][white][rank] */
- {{ 0,  0, 48, 32, 16,  9,  9, 0 },         /* [eg][black][rank] */
-  { 0,  9,  9, 16, 32, 48,  0, 0 }}         /* [eg][white][rank] */
+int passed_pawn_value[2][8] = {
+  { 0, 6, 6, 30, 70, 120, 200, 0 },              /* [mg][8] */
+  { 0, 7, 7, 33, 77, 132, 220, 0 }               /* [eg][8] */
 };
-int passed_pawn_value[2][2][8] = {
- {{ 0, 200, 120,  80,  20,   0,   0, 0 },   /* [mg][black][rank] */
-  { 0,   0,   0,  20,  80, 120, 200, 0 }},  /* [mg][white][rank] */
- {{ 0, 234, 145,  95,  24,   2,   2, 0 },   /* [eg][black][rank] */
-  { 0,   2,   2,  24,  95, 145, 234, 0 }}   /* [eg][white][rank] */
+int passed_pawn_connected[2][8] = {
+  { 0, 1, 1, 3,  7, 12, 20, 0 },                 /* [mg][8] */
+  { 0, 2, 2, 9, 21, 36, 60, 0 }                  /* [eg][8] */
+};
+int rook_behind_passed_pawn[2][8] = {
+  { 0, 1, 1, 3,  7, 12, 20, 0 },                 /* [mg][8] */
+  { 0, 2, 2, 9, 21, 36, 60, 0 }                  /* [eg][8] */
+};
+int passed_pawn_blockaded_by_enemy[2][8] = {
+  { 0, 3, 3, 14, 33, 57, 95, 0 },                /* [mg][8] */
+  { 0, 2, 2, 11, 25, 42, 70, 0 }                 /* [eg][8] */
+};
+int passed_pawn_blockaded_by_friendly[2][8] = {
+  { 0, 1, 1, 7, 16, 27, 45, 0 },                 /* [mg][8] */
+  { 0, 1, 1, 3,  7, 12, 20, 0 }                  /* [eg][8] */
+};
+int passed_pawn_obstructed[8] = { 0, 1, 1, 4, 9, 15, 25, 0 };
+int passed_pawn_far_away[8] = { 0, 1, 1, 6, 14, 24, 40, 0 };
+int passed_pawn_not_far_away[8] = { 0, 1, 1, 4, 9, 15, 25, 0 };
+int passed_pawn_candidate[2][8] = {
+  { 0,  4,  4,  8, 16, 36,  0, 0 },         /* [mg][rank] */
+  { 0,  9,  9, 16, 32, 48,  0, 0 }          /* [eg][rank] */
 };
 int passed_pawn_hidden[2] = { 0, 40 };
 int doubled_pawn_value[2] = { 5, 6 };
@@ -1087,39 +1099,39 @@ int bishop_outpost[2][64] = {
 };
 int pval[2][2][64] = {
    {{ 0,   0,   0,   0,   0,   0,   0,   0,
-     66,  66,  66,  66,  66,  66,  66,  66,
-     10,  10,  10,  30,  30,  10,  10,  10,
-      6,   6,   6,  16,  16,   6,   6,   6,
-      3,   3,   3,  13,  13,   3,   3,   3,   /* [mg][black][64] */
-      1,   1,   1,  10,  10,   1,   1,   1,
-      0,   0,   0, -12, -12,   0,   0,   0,
+     56,  66,  66,  66,  66,  66,  66,  56,
+      0,  10,  10,  30,  30,  10,  10,   0,
+     -4,   6,   6,  16,  16,   6,   6,  -4,
+     -7,   3,   3,  13,  13,   3,   3,  -7,   /* [mg][black][64] */
+     -9,   1,   1,  10,  10,   1,   1,  -9,
+    -10,   0,   0, -12, -12,   0,   0, -10,
       0,   0,   0,   0,   0,   0,   0,   0 },
 
     { 0,   0,   0,   0,   0,   0,   0,   0,
-      0,   0,   0, -12, -12,   0,   0,   0,
-      1,   1,   1,  10,  10,   1,   1,   1,
-      3,   3,   3,  13,  13,   3,   3,   3,
-      6,   6,   6,  16,  16,   6,   6,   6,   /* [mg][white][64] */
-     10,  10,  10,  30,  30,  10,  10,  10,
-     66,  66,  66,  66,  66,  66,  66,  66,
+    -10,   0,   0, -12, -12,   0,   0, -10,
+     -9,   1,   1,  10,  10,   1,   1,  -9,
+     -7,   3,   3,  13,  13,   3,   3,  -7,
+     -4,   6,   6,  16,  16,   6,   6,  -4,   /* [mg][white][64] */
+      0,  10,  10,  30,  30,  10,  10,   0,
+     56,  66,  66,  66,  66,  66,  66,  56,
       0,   0,   0,   0,   0,   0,   0,   0 }},
 
    {{ 0,   0,   0,   0,   0,   0,   0,   0,
-     66,  66,  66,  66,  66,  66,  66,  66,
-     10,  10,  10,  30,  30,  10,  10,  10,
-      6,   6,   6,  16,  16,   6,   6,   6,
-      3,   3,   3,  13,  13,   3,   3,   3,   /* [eg][black][64] */
-      1,   1,   1,  10,  10,   1,   1,   1,
-      0,   0,   0, -12, -12,   0,   0,   0,
+     56,  66,  66,  66,  66,  66,  66,  56,
+      0,  10,  10,  30,  30,  10,  10,   0,
+     -4,   6,   6,  16,  16,   6,   6,  -4,
+     -7,   3,   3,  13,  13,   3,   3,  -7,   /* [eg][black][64] */
+     -9,   1,   1,  10,  10,   1,   1,  -9,
+    -10,   0,   0, -12, -12,   0,   0, -10,
       0,   0,   0,   0,   0,   0,   0,   0 },
 
     { 0,   0,   0,   0,   0,   0,   0,   0,
-      0,   0,   0, -12, -12,   0,   0,   0,
-      1,   1,   1,  10,  10,   1,   1,   1,
-      3,   3,   3,  13,  13,   3,   3,   3,
-      6,   6,   6,  16,  16,   6,   6,   6,   /* [eg][white][64] */
-     10,  10,  10,  30,  30,  10,  10,  10,
-     66,  66,  66,  66,  66,  66,  66,  66,
+    -10,   0,   0, -12, -12,   0,   0, -10,
+     -9,   1,   1,  10,  10,   1,   1,  -9,
+     -7,   3,   3,  13,  13,   3,   3,  -7,
+     -4,   6,   6,  16,  16,   6,   6,  -4,   /* [eg][white][64] */
+      0,  10,  10,  30,  30,  10,  10,   0,
+     56,  66,  66,  66,  66,  66,  66,  56,
       0,   0,   0,   0,   0,   0,   0,   0 }}
 };
 int nval[2][2][64] = {
@@ -1160,41 +1172,38 @@ int nval[2][2][64] = {
     -29, -19, -19,  -9,  -9, -19, -19, -29 }}
 };
 int bval[2][2][64] = {
-  {{  0,   0,   2,   4,   4,   2,   0,   0,
-      0,   8,   6,   8,   8,   6,   8,   0,
-      2,   6,  12,  10,  10,  12,   6,   2,
-      4,   8,  10,  16,  16,  10,   8,   4,
-      4,   8,  10,  16,  16,  10,   8,   4,   /* [mg][black][64] */
-      2,   6,  12,  10,  10,  12,   6,   2,
-      0,   8,   6,   8,   8,   6,   8,   0,
-    -10, -10,  -8,  -6,  -6,  -8, -10, -10 },
-
-   {-10, -10,  -8,  -6,  -6,  -8, -10, -10,
-      0,   8,   6,   8,   8,   6,   8,   0,
-      2,   6,  12,  10,  10,  12,   6,   2,
-      4,   8,  10,  16,  16,  10,   8,   4,
-      4,   8,  10,  16,  16,  10,   8,   4,   /* [mg][white][64] */
-      2,   6,  12,  10,  10,  12,   6,   2,
-      0,   8,   6,   8,   8,   6,   8,   0,
-      0,   0,   2,   4,   4,   2,   0,   0 }},
-
-  {{  0,   0,   2,   4,   4,   2,   0,   0,
-      0,   8,   6,   8,   8,   6,   8,   0,
-      2,   6,  12,  10,  10,  12,   6,   2,
-      4,   8,  10,  16,  16,  10,   8,   4,
-      4,   8,  10,  16,  16,  10,   8,   4,   /* [eg][black][64] */
-      2,   6,  12,  10,  10,  12,   6,   2,
-      0,   8,   6,   8,   8,   6,   8,   0,
-    -10, -10,  -8,  -6,  -6,  -8, -10, -10 },
-
-   {-10, -10,  -8,  -6,  -6,  -8, -10, -10,
-      0,   8,   6,   8,   8,   6,   8,   0,
-      2,   6,  12,  10,  10,  12,   6,   2,
-      4,   8,  10,  16,  16,  10,   8,   4,
-      4,   8,  10,  16,  16,  10,   8,   4,   /* [eg][white][64] */
-      2,   6,  12,  10,  10,  12,   6,   2,
-      0,   8,   6,   8,   8,   6,   8,   0,
-      0,   0,   2,   4,   4,   2,   0,   0 }}
+  {{  0,   0,   0,   0,   0,   0,   0,   0,
+      0,   4,   4,   4,   4,   4,   4,   0,
+      0,   4,   8,   8,   8,   8,   4,   0,
+      0,   4,   8,  12,  12,   8,   4,   0,
+      0,   4,   8,  12,  12,   8,   4,   0,  /* [mg][black][64] */
+      0,   4,   8,   8,   8,   8,   4,   0,
+      0,   4,   4,   4,   4,   4,   4,   0,
+    -15, -15, -15, -15, -15, -15, -15, -15}, 
+   {-15, -15, -15, -15, -15, -15, -15, -15,
+      0,   4,   4,   4,   4,   4,   4,   0,
+      0,   4,   8,   8,   8,   8,   4,   0,
+      0,   4,   8,  12,  12,   8,   4,   0,
+      0,   4,   8,  12,  12,   8,   4,   0,  /* [mg][white][64] */
+      0,   4,   8,   8,   8,   8,   4,   0,
+      0,   4,   4,   4,   4,   4,   4,   0,
+      0,   0,   0,   0,   0,   0,   0,   0}}, 
+  {{  0,   0,   0,   0,   0,   0,   0,   0,
+      0,   4,   4,   4,   4,   4,   4,   0,
+      0,   4,   8,   8,   8,   8,   4,   0,
+      0,   4,   8,  12,  12,   8,   4,   0,
+      0,   4,   8,  12,  12,   8,   4,   0,  /* [eg][black][64] */
+      0,   4,   8,   8,   8,   8,   4,   0,
+      0,   4,   4,   4,   4,   4,   4,   0,
+    -15, -15, -15, -15, -15, -15, -15, -15}, 
+   {-15, -15, -15, -15, -15, -15, -15, -15,
+      0,   4,   4,   4,   4,   4,   4,   0,
+      0,   4,   8,   8,   8,   8,   4,   0,
+      0,   4,   8,  12,  12,   8,   4,   0,
+      0,   4,   8,  12,  12,   8,   4,   0,  /* [eg][white][64] */
+      0,   4,   8,   8,   8,   8,   4,   0,
+      0,   4,   4,   4,   4,   4,   4,   0,
+      0,   0,   0,   0,   0,   0,   0,   0}} 
 };
 int qval[2][2][64] = {
    {{ 0,   0,   0,   0,   0,   0,   0,   0,
@@ -1307,12 +1316,6 @@ const int pieces[2][7] = {
   { 0, -1, -2, -3, -4, -5, -6 },
   { 0, +1, +2, +3, +4, +5, +6 }
 };
-int pawn_value = PAWN_VALUE;
-int knight_value = KNIGHT_VALUE;
-int bishop_value = BISHOP_VALUE;
-int rook_value = ROOK_VALUE;
-int queen_value = QUEEN_VALUE;
-int king_value = KING_VALUE;
 int piece_values[7][2] = { {0, 0},
   {-PAWN_VALUE, PAWN_VALUE},     {-KNIGHT_VALUE, KNIGHT_VALUE},
   {-BISHOP_VALUE, BISHOP_VALUE}, {-ROOK_VALUE, ROOK_VALUE},
@@ -1334,7 +1337,6 @@ int mobility_score_r[4] = { 1, 2, 3, 4 };
 int rook_on_7th[2] = { 25, 35 };
 int rook_open_file[2] = { 35, 20 };
 int rook_half_open_file[2] = { 10, 10 };
-int rook_behind_passed_pawn[2] = { 10, 36 };
 int rook_trapped = 60;
 int open_file[8] = { 6, 5, 4, 4, 4, 4, 5, 6 };
 int half_open_file[8] = { 4, 4, 3, 3, 3, 3, 4, 4 };
@@ -1350,16 +1352,13 @@ int development_not_castled = 20;
   Second term is the "type" of the value.  
      0 = heading entry (no values, just a category name to display).
      1 = scalar value.
-     2 = mg/eg two-element array
+     2 = array[mg]
      3 = array[mg][side][64].  These values are displayed as 8x8
        boards with white values at the bottom, and the ranks/files
        labeled to make them easier to read.
      4 = array[side][64]
-     5 = array[side][N!=64]
-     6 = array[mg][side][8]
-     7 = array[mg][small#]
-     8 = array[n]
-     9 = btm/wtm two element array
+     5 = array[rank]
+     6 = array[mg][8]
 
    Third term is the "size" of the scoring term, where 0 is a
      scalar value, otherwise it is the actual number of elements in
@@ -1375,15 +1374,15 @@ struct personality_term personality_packet[256] = {
   {"LMR min reduction                    ", 1, 0, &LMR_min_reduction},
   {"LMR max reduction                    ", 1, 0, &LMR_max_reduction},
   {"prune depth                          ", 1, 0, &pruning_depth},
-  {"prune margin                         ", 8, 8, pruning_margin},
+  {"prune margin [remain_depth]          ", 5, 8, pruning_margin},
   {NULL, 0, 0, NULL},
   {NULL, 0, 0, NULL},
   {"raw piece values                     ", 0, 0, NULL},        /* 10 */
-  {"pawn value                           ", 9, 2, piece_values[pawn]},
-  {"knight value                         ", 9, 2, piece_values[knight]},
-  {"bishop value                         ", 9, 2, piece_values[bishop]},
-  {"rook value                           ", 9, 2, piece_values[rook]},
-  {"queen value                          ", 9, 2, piece_values[queen]},
+  {"pawn value                           ", 2, 2, piece_values[pawn]},
+  {"knight value                         ", 2, 2, piece_values[knight]},
+  {"bishop value                         ", 2, 2, piece_values[bishop]},
+  {"rook value                           ", 2, 2, piece_values[rook]},
+  {"queen value                          ", 2, 2, piece_values[queen]},
   {NULL, 0, 0, NULL},
   {NULL, 0, 0, NULL},
   {NULL, 0, 0, NULL},
@@ -1404,29 +1403,29 @@ struct personality_term personality_packet[256] = {
   {NULL, 0, 0, NULL},
   {"pawn evaluation                      ", 0, 0, NULL},        /* 30 */
   {"pawn piece/square table (white)      ", 3, 256, (int *) pval},
-  {"passed pawn [rank]                   ", 6, 32, (int *) passed_pawn_value},
   {"pawn duo                             ", 2, 2, pawn_duo},
   {"pawn isolated                        ", 2, 2, pawn_isolated},
   {"pawn weak                            ", 2, 2, pawn_weak},
-  {"pawn can promote                     ", 1, 0, &pawn_can_promote},
   {"outside passed pawn                  ", 2, 2, outside_passed},
   {"hidden passed pawn                   ", 2, 2, passed_pawn_hidden},
   {"doubled pawn                         ", 2, 2, doubled_pawn_value},
-  {NULL, 0, 0, NULL},
-  {NULL, 0, 0, NULL},
-  {NULL, 0, 0, NULL},
-  {NULL, 0, 0, NULL},
-  {NULL, 0, 0, NULL},
-  {NULL, 0, 0, NULL},
-  {NULL, 0, 0, NULL},
+  {"candidate passed pawn [rank]         ", 6, 16, (int *) passed_pawn_candidate},
+  {"passed pawn [rank]                   ", 6, 16, (int *) passed_pawn_value},
+  {"passed pawn blocked by enemy [rank]  ", 6, 16, (int *) passed_pawn_blockaded_by_enemy},
+  {"passed pawn blocked by friend [rank] ", 6, 16, (int *) passed_pawn_blockaded_by_friendly},
+  {"passed pawn connected [rank]         ", 6, 16, (int *) passed_pawn_connected},
+  {"passed pawn obstructed [rank]        ", 5, 8, (int *) passed_pawn_obstructed},
+  {"passed pawn far away [rank]          ", 5, 8, (int *) passed_pawn_far_away},
+  {"passed pawn not far away [rank]      ", 5, 8, (int *) passed_pawn_not_far_away},
+  {"pawn can promote                     ", 1, 0, &pawn_can_promote},
   {NULL, 0, 0, NULL},
   {NULL, 0, 0, NULL},
   {NULL, 0, 0, NULL},
   {"knight scoring                       ", 0, 0, NULL},        /* 50 */
   {"knight piece/square table (white)    ", 3, 256, (int *) nval},
   {"knight outpost [square]              ", 4, 128, (int *) knight_outpost},
-  {"knight king tropism [distance]       ", 8, 8, king_tropism_n},
-  {"knight mobility                      ", 8, 4, mobility_score_n},
+  {"knight king tropism [distance]       ", 5, 8, king_tropism_n},
+  {"knight mobility                      ", 5, 4, mobility_score_n},
   {NULL, 0, 0, NULL},
   {NULL, 0, 0, NULL},
   {NULL, 0, 0, NULL},
@@ -1434,27 +1433,27 @@ struct personality_term personality_packet[256] = {
   {NULL, 0, 0, NULL},
   {"bishop scoring                       ", 0, 0, NULL},        /* 60 */
   {"bishop piece/square table (white)    ", 3, 256, (int *) bval},
-  {"bishop king tropism [distance]       ", 8, 8, king_tropism_b},
-  {"bishop mobility/square table         ", 8, 4, (int *) mobility_score_b},
+  {"bishop king tropism [distance]       ", 5, 8, king_tropism_b},
+  {"bishop mobility/square table         ", 5, 4, mobility_score_b},
+  {"bishop outpost [square]              ", 4, 128, (int *) bishop_outpost},
   {"bishop with wing pawns               ", 2, 2, bishop_with_wing_pawns},
   {"bishop trapped                       ", 1, 0, &bishop_trapped},
   {NULL, 0, 0, NULL},
   {NULL, 0, 0, NULL},
   {NULL, 0, 0, NULL},
-  {NULL, 0, 0, NULL},
   {"rook scoring                         ", 0, 0, NULL},        /* 70 */
-  {"rook open file                       ", 2, 2, rook_open_file},
-  {"rook king tropism [distance]         ", 8, 8, king_tropism_r},
   {"rook half open file                  ", 2, 2, rook_half_open_file},
+  {"rook open file                       ", 2, 2, rook_open_file},
+  {"rook king tropism [distance]         ", 5, 8, king_tropism_r},
+  {"rook mobility/square table           ", 5, 4, mobility_score_r},
   {"rook on 7th                          ", 2, 2, rook_on_7th},
-  {"rook behind passed pawn              ", 2, 2, rook_behind_passed_pawn},
+  {"rook behind passed pawn              ", 6, 16, &rook_behind_passed_pawn[0][0]},
   {"rook trapped                         ", 1, 0, &rook_trapped},
-  {NULL, 0, 0, NULL},
   {NULL, 0, 0, NULL},
   {NULL, 0, 0, NULL},
   {"queen scoring                        ", 0, 0, NULL},        /* 80 */
   {"queen piece/square table (white)     ", 3, 256, (int *) qval},
-  {"queen king tropism [distance]        ", 8, 8, king_tropism_q},
+  {"queen king tropism [distance]        ", 5, 8, king_tropism_q},
   {NULL, 0, 0, NULL},
   {NULL, 0, 0, NULL},
   {NULL, 0, 0, NULL},
@@ -1466,23 +1465,13 @@ struct personality_term personality_packet[256] = {
   {"king piece/square normal             ", 4, 128, (int *)kval_n},
   {"king piece/square kside pawns        ", 4, 128, (int *)kval_k},
   {"king piece/square qside pawns        ", 4, 128, (int *)kval_q},
-  {"king safety pawn-shield vector       ", 8, 16, safety_vector},
-  {"king safety tropism vector           ", 8, 16, tropism_vector},
-  {"king safe open file [file]           ", 8, 8, open_file},
-  {"king safe half-open file [file]      ", 8, 8, half_open_file},
+  {"king safety pawn-shield vector       ", 6, 16, safety_vector},
+  {"king safety tropism vector           ", 6, 16, tropism_vector},
+  {"king safe open file [file]           ", 5, 8, open_file},
+  {"king safe half-open file [file]      ", 5, 8, half_open_file},
   {"king king tropism (endgame)          ", 1, 0, &king_king_tropism},
   {NULL, 0, 0, NULL},
-  {NULL, 0, 0, NULL},
-  {NULL, 0, 0, NULL},
-  {NULL, 0, 0, NULL},
-  {NULL, 0, 0, NULL},
-  {NULL, 0, 0, NULL},
-  {NULL, 0, 0, NULL},
-  {NULL, 0, 0, NULL},
-  {NULL, 0, 0, NULL},
-  {NULL, 0, 0, NULL},
-  {NULL, 0, 0, NULL},
-  {"development scoring                  ", 0, 0, NULL},        /* 110 */
+  {"development scoring                  ", 0, 0, NULL},        /* 100 */
   {"development thematic                 ", 1, 0, &development_thematic},
   {"development losing castle rights     ", 1, 0, &development_losing_castle},
   {"development not castled              ", 1, 0, &development_not_castled},

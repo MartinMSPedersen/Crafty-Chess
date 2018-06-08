@@ -152,12 +152,12 @@ void Initialize() {
  *******************************************************************************
  */
 void InitializeAttackBoards(void) {
-  int i, j, frank, ffile, trank, tfile;
+  int i, j, frank, ffile, trank, tfile, nmobility;
   int sq, lastsq;
   static const int knightsq[8] = { -17, -15, -10, -6, 6, 10, 15, 17 };
   static const int bishopsq[4] = { -9, -7, 7, 9 };
   static const int rooksq[4] = { -8, -1, 1, 8 };
-  BITBOARD sqs;
+  uint64_t sqs;
 
 /*
  initialize pawn attack boards
@@ -170,7 +170,7 @@ void InitializeAttackBoards(void) {
         if ((Abs(Rank(sq) - Rank(i)) == 1) && (Abs(File(sq) - File(i)) == 1)
             && (sq < 64) && (sq > -1))
           pawn_attacks[white][i] =
-              pawn_attacks[white][i] | (BITBOARD) 1 << sq;
+              pawn_attacks[white][i] | (uint64_t) 1 << sq;
       }
     pawn_attacks[black][i] = 0;
     if (i > 7)
@@ -179,7 +179,7 @@ void InitializeAttackBoards(void) {
         if ((Abs(Rank(sq) - Rank(i)) == 1) && (Abs(File(sq) - File(i)) == 1)
             && (sq < 64) && (sq > -1))
           pawn_attacks[black][i] =
-              pawn_attacks[black][i] | (BITBOARD) 1 << sq;
+              pawn_attacks[black][i] | (uint64_t) 1 << sq;
       }
   }
 /*
@@ -197,8 +197,14 @@ void InitializeAttackBoards(void) {
       tfile = File(sq);
       if ((Abs(frank - trank) > 2) || (Abs(ffile - tfile) > 2))
         continue;
-      knight_attacks[i] = knight_attacks[i] | (BITBOARD) 1 << sq;
+      knight_attacks[i] = knight_attacks[i] | (uint64_t) 1 << sq;
     }
+    nmobility = -lower_n;
+    for (j = 0; j < 4; j++)
+      nmobility +=
+          PopCnt(knight_attacks[i] & mobility_mask_n[j]) *
+          mobility_score_n[j];
+    knight_mobility_table[i] = nmobility;
   }
 /*
  initialize bishop/queen attack boards and masks
@@ -211,13 +217,13 @@ void InitializeAttackBoards(void) {
       while ((Abs(Rank(sq) - Rank(lastsq)) == 1) &&
           (Abs(File(sq) - File(lastsq)) == 1) && (sq < 64) && (sq > -1)) {
         if (bishopsq[j] == 7)
-          plus7dir[i] = plus7dir[i] | (BITBOARD) 1 << sq;
+          plus7dir[i] = plus7dir[i] | (uint64_t) 1 << sq;
         else if (bishopsq[j] == 9)
-          plus9dir[i] = plus9dir[i] | (BITBOARD) 1 << sq;
+          plus9dir[i] = plus9dir[i] | (uint64_t) 1 << sq;
         else if (bishopsq[j] == -7)
-          minus7dir[i] = minus7dir[i] | (BITBOARD) 1 << sq;
+          minus7dir[i] = minus7dir[i] | (uint64_t) 1 << sq;
         else
-          minus9dir[i] = minus9dir[i] | (BITBOARD) 1 << sq;
+          minus9dir[i] = minus9dir[i] | (uint64_t) 1 << sq;
         lastsq = sq;
         sq = sq + bishopsq[j];
       }
@@ -245,13 +251,13 @@ void InitializeAttackBoards(void) {
                   (Abs(File(sq) - File(lastsq)) == 1))) && (sq < 64) &&
           (sq > -1)) {
         if (rooksq[j] == 1)
-          plus1dir[i] = plus1dir[i] | (BITBOARD) 1 << sq;
+          plus1dir[i] = plus1dir[i] | (uint64_t) 1 << sq;
         else if (rooksq[j] == 8)
-          plus8dir[i] = plus8dir[i] | (BITBOARD) 1 << sq;
+          plus8dir[i] = plus8dir[i] | (uint64_t) 1 << sq;
         else if (rooksq[j] == -1)
-          minus1dir[i] = minus1dir[i] | (BITBOARD) 1 << sq;
+          minus1dir[i] = minus1dir[i] | (uint64_t) 1 << sq;
         else
-          minus8dir[i] = minus8dir[i] | (BITBOARD) 1 << sq;
+          minus8dir[i] = minus8dir[i] | (uint64_t) 1 << sq;
         lastsq = sq;
         sq = sq + rooksq[j];
       }
@@ -379,20 +385,20 @@ void InitializeMagic(void) {
   for (i = 0; i < 64; i++) {
     int squares[64];
     int numsquares = 0;
-    BITBOARD temp = magic_bishop_mask[i];
+    uint64_t temp = magic_bishop_mask[i];
 
     while (temp) {
-      BITBOARD abit = temp & -temp;
+      uint64_t abit = temp & -temp;
 
       squares[numsquares++] =
           initmagicmoves_bitpos64_database[(abit *
               0x07EDD5E59A4E28C2ull) >> 58];
       temp ^= abit;
     }
-    for (temp = 0; temp < (((BITBOARD) (1)) << numsquares); temp++) {
-      BITBOARD moves;
+    for (temp = 0; temp < (((uint64_t) (1)) << numsquares); temp++) {
+      uint64_t moves;
       int t = -lower_b;
-      BITBOARD tempoccupied =
+      uint64_t tempoccupied =
           InitializeMagicOccupied(squares, numsquares, temp);
       moves = InitializeMagicBishop(i, tempoccupied);
       *(magic_bishop_indices[i] +
@@ -414,20 +420,20 @@ void InitializeMagic(void) {
     int squares[64];
     int numsquares = 0;
     int t;
-    BITBOARD temp = magic_rook_mask[i];
+    uint64_t temp = magic_rook_mask[i];
 
     while (temp) {
-      BITBOARD abit = temp & -temp;
+      uint64_t abit = temp & -temp;
 
       squares[numsquares++] =
           initmagicmoves_bitpos64_database[(abit *
               0x07EDD5E59A4E28C2ull) >> 58];
       temp ^= abit;
     }
-    for (temp = 0; temp < (((BITBOARD) (1)) << numsquares); temp++) {
-      BITBOARD tempoccupied =
+    for (temp = 0; temp < (((uint64_t) (1)) << numsquares); temp++) {
+      uint64_t tempoccupied =
           InitializeMagicOccupied(squares, numsquares, temp);
-      BITBOARD moves = InitializeMagicRook(i, tempoccupied);
+      uint64_t moves = InitializeMagicRook(i, tempoccupied);
       *(magic_rook_indices[i] +
           (((tempoccupied) * magic_rook[i]) >> magic_rook_shift[i])) = moves;
       moves |= SetMask(i);
@@ -450,13 +456,13 @@ void InitializeMagic(void) {
  *                                                                             *
  *******************************************************************************
  */
-BITBOARD InitializeMagicBishop(int square, BITBOARD occupied) {
-  BITBOARD ret = 0;
-  BITBOARD abit;
-  BITBOARD abit2;
-  BITBOARD rowbits = (((BITBOARD) 0xFF) << (8 * (square / 8)));
+uint64_t InitializeMagicBishop(int square, uint64_t occupied) {
+  uint64_t ret = 0;
+  uint64_t abit;
+  uint64_t abit2;
+  uint64_t rowbits = (((uint64_t) 0xFF) << (8 * (square / 8)));
 
-  abit = (((BITBOARD) (1)) << square);
+  abit = (((uint64_t) (1)) << square);
   abit2 = abit;
   do {
     abit <<= 8 - 1;
@@ -466,7 +472,7 @@ BITBOARD InitializeMagicBishop(int square, BITBOARD occupied) {
     else
       break;
   } while (abit && !(abit & occupied));
-  abit = (((BITBOARD) (1)) << square);
+  abit = (((uint64_t) (1)) << square);
   abit2 = abit;
   do {
     abit <<= 8 + 1;
@@ -476,7 +482,7 @@ BITBOARD InitializeMagicBishop(int square, BITBOARD occupied) {
     else
       break;
   } while (abit && !(abit & occupied));
-  abit = (((BITBOARD) (1)) << square);
+  abit = (((uint64_t) (1)) << square);
   abit2 = abit;
   do {
     abit >>= 8 - 1;
@@ -486,7 +492,7 @@ BITBOARD InitializeMagicBishop(int square, BITBOARD occupied) {
     else
       break;
   } while (abit && !(abit & occupied));
-  abit = (((BITBOARD) (1)) << square);
+  abit = (((uint64_t) (1)) << square);
   abit2 = abit;
   do {
     abit >>= 8 + 1;
@@ -507,14 +513,14 @@ BITBOARD InitializeMagicBishop(int square, BITBOARD occupied) {
  *                                                                             *
  *******************************************************************************
  */
-BITBOARD InitializeMagicOccupied(int *squares, int numSquares,
-    BITBOARD linoccupied) {
+uint64_t InitializeMagicOccupied(int *squares, int numSquares,
+    uint64_t linoccupied) {
   int i;
-  BITBOARD ret = 0;
+  uint64_t ret = 0;
 
   for (i = 0; i < numSquares; i++)
-    if (linoccupied & (((BITBOARD) (1)) << i))
-      ret |= (((BITBOARD) (1)) << squares[i]);
+    if (linoccupied & (((uint64_t) (1)) << i))
+      ret |= (((uint64_t) (1)) << squares[i]);
   return (ret);
 }
 
@@ -526,22 +532,22 @@ BITBOARD InitializeMagicOccupied(int *squares, int numSquares,
  *                                                                             *
  *******************************************************************************
  */
-BITBOARD InitializeMagicRook(int square, BITBOARD occupied) {
-  BITBOARD ret = 0;
-  BITBOARD abit;
-  BITBOARD rowbits = (((BITBOARD) 0xFF) << (8 * (square / 8)));
+uint64_t InitializeMagicRook(int square, uint64_t occupied) {
+  uint64_t ret = 0;
+  uint64_t abit;
+  uint64_t rowbits = (((uint64_t) 0xFF) << (8 * (square / 8)));
 
-  abit = (((BITBOARD) (1)) << square);
+  abit = (((uint64_t) (1)) << square);
   do {
     abit <<= 8;
     ret |= abit;
   } while (abit && !(abit & occupied));
-  abit = (((BITBOARD) (1)) << square);
+  abit = (((uint64_t) (1)) << square);
   do {
     abit >>= 8;
     ret |= abit;
   } while (abit && !(abit & occupied));
-  abit = (((BITBOARD) (1)) << square);
+  abit = (((uint64_t) (1)) << square);
   do {
     abit <<= 1;
     if (abit & rowbits)
@@ -549,7 +555,7 @@ BITBOARD InitializeMagicRook(int square, BITBOARD occupied) {
     else
       break;
   } while (!(abit & occupied));
-  abit = (((BITBOARD) (1)) << square);
+  abit = (((uint64_t) (1)) << square);
   do {
     abit >>= 1;
     if (abit & rowbits)
@@ -583,7 +589,7 @@ void InitializeChessBoard(TREE * tree) {
     Rule50Moves(0) = 0;
     Repetition(black) = 0;
     Repetition(white) = 0;
-    wtm = 1;
+    game_wtm = 1;
 /*
  place pawns
  */
@@ -792,17 +798,13 @@ void InitializeHashTables(void) {
     (pawn_hash_table + i)->key = 0;
     (pawn_hash_table + i)->score_mg = 0;
     (pawn_hash_table + i)->score_eg = 0;
-    (pawn_hash_table + i)->open_files = 0;
-    (pawn_hash_table + i)->filler = 0;
     for (side = black; side <= white; side++) {
-      (pawn_hash_table + i)->candidates[side] = 0;
       (pawn_hash_table + i)->defects_k[side] = 0;
       (pawn_hash_table + i)->defects_e[side] = 0;
       (pawn_hash_table + i)->defects_d[side] = 0;
       (pawn_hash_table + i)->defects_q[side] = 0;
       (pawn_hash_table + i)->all[side] = 0;
       (pawn_hash_table + i)->passed[side] = 0;
-      (pawn_hash_table + i)->candidates[side] = 0;
     }
   }
 }
@@ -874,18 +876,18 @@ void InitializeMasks(void) {
  masks to set/clear a bit on a specific square
  */
   for (i = 0; i < 64; i++) {
-    ClearMask(i) = ~((BITBOARD) 1 << i);
-    SetMask(i) = (BITBOARD) 1 << i;
+    ClearMask(i) = ~((uint64_t) 1 << i);
+    SetMask(i) = (uint64_t) 1 << i;
   }
   ClearMask(BAD_SQUARE) = 0;
   SetMask(BAD_SQUARE) = 0;
 /*
  masks to select bits on a specific rank or file
  */
-  rank_mask[0] = (BITBOARD) 255;
+  rank_mask[0] = (uint64_t) 255;
   for (i = 1; i < 8; i++)
     rank_mask[i] = rank_mask[i - 1] << 8;
-  file_mask[FILEA] = (BITBOARD) 1;
+  file_mask[FILEA] = (uint64_t) 1;
   for (i = 1; i < 8; i++)
     file_mask[FILEA] = file_mask[FILEA] | file_mask[FILEA] << 8;
   for (i = 1; i < 8; i++)

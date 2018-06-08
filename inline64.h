@@ -4,47 +4,47 @@
      X86-64 instructions.
 */
 /* *INDENT-OFF* */
-static __inline__ int MSB(long word)
+static __inline__ int MSB(uint64_t word)
 {
-  long dummy, dummy2;
+  uint64_t dummy, dummy2;
 
 asm("          bsrq    %1, %0     " "\n\t"
     "          jnz     1f         " "\n\t"
     "          movq    $64, %0    " "\n\t"
     "1:                           " "\n\t"
 :   "=&r"(dummy), "=&r" (dummy2)
-:   "1"((long) (word))
+:   "1"((uint64_t) (word))
 :   "cc");
   return (dummy);
 }
-static __inline__ int LSB(long word)
+static __inline__ int LSB(uint64_t word)
 {
-  long dummy, dummy2;
+  uint64_t dummy, dummy2;
 
 asm("          bsfq    %1, %0     " "\n\t"
     "          jnz     1f         " "\n\t"
     "          movq    $64, %0    " "\n\t"
     "1:                           " "\n\t"
 :   "=&r"(dummy), "=&r" (dummy2)
-:   "1"((long) (word))
+:   "1"((uint64_t) (word))
 :   "cc");
   return (dummy);
 }
 #if defined(POPCNT)
-static __inline__ int PopCnt(long word)
+static __inline__ int PopCnt(uint64_t word)
 {
-  long dummy, dummy2;
+  uint64_t dummy, dummy2;
 
 asm("          popcnt  %1, %0     " "\n\t"
 :   "=&r"(dummy), "=&r" (dummy2)
-:   "1"((long) (word))
+:   "1"((uint64_t) (word))
 :   "cc");
   return (dummy);
 }
 #else
-static __inline__ int PopCnt(long word)
+static __inline__ int PopCnt(uint64_t word)
 {
-  long dummy, dummy2, dummy3;
+  uint64_t dummy, dummy2, dummy3;
 
 asm("          xorq    %0, %0    " "\n\t"
     "          testq   %1, %1    " "\n\t"
@@ -55,7 +55,7 @@ asm("          xorq    %0, %0    " "\n\t"
     "          jnz     1b        " "\n\t"
     "2:                          " "\n\t"
 :   "=&r"(dummy), "=&r"(dummy2), "=&r"(dummy3)
-:   "1"((long) (word))
+:   "1"((uint64_t) (word))
 :   "cc");
   return (dummy);
 }

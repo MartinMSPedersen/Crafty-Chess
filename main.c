@@ -13,7 +13,7 @@
 /*
  *******************************************************************************
  *                                                                             *
- *  Crafty, copyright 1996-2010 by Robert M. Hyatt, Ph.D., Associate Professor *
+ *  Crafty, copyright 1996-2011 by Robert M. Hyatt, Ph.D., Associate Professor *
  *  of Computer and Information Sciences, University of Alabama at Birmingham. *
  *                                                                             *
  *  Crafty is a team project consisting of the following members.  These are   *
@@ -24,7 +24,6 @@
  *     Robert Hyatt, University of Alabama at Birmingham.                      *
  *     Tracy Riegle, Hershey, PA.                                              *
  *     Peter Skinner, Edmonton, AB  Canada.                                    *
- *     Ted Langreck                       .                                    *
  *                                                                             *
  *  All rights reserved.  No part of this program may be reproduced in any     *
  *  form or by any means, for other than your personal use, without the        *
@@ -2099,7 +2098,7 @@
  *           increase in king centralization (endgame) scoring to encourage    *
  *           the king to come out and fight rather than stay back and get      *
  *           squeezed to death.  Minor change to queen/king tropism to only    *
- *           conside the file distance, not ranks also.  Bug in interupt.c     *
+ *           conside the file distance, not ranks also.  Bug in interrupt.c    *
  *           fixed.  This bug would, on very rare occasion, let Crafty read in *
  *           a move, but another thread could read on top of this and lose the *
  *           move.  Xboard would then watch the game end with a <flag>.        *
@@ -2636,7 +2635,7 @@
  *           much faster by using pre-computed bitmaps to recognize the right  *
  *           patterns.                                                         *
  *                                                                             *
- *   17.6    Minor fix in interupt.c, which screwed up handling some commands  *
+ *   17.6    Minor fix in interrupt.c, which screwed up handling some commands *
  *           while pondering.  Minor fix to score for weak back rank.  Score   *
  *           was in units of 'defects' but should have been in units of        *
  *           "centipawns".   Minor bug in "drawn.c" could mis-classify some    *
@@ -3896,6 +3895,23 @@
  *           draw by repetition code to greatly simplify the code as well as   *
  *           speed it up.                                                      *
  *                                                                             *
+ *    23.5   Several pieces of code cleanup, both for readability and speed.   *
+ *           We are now using stdint.h, which lets us specific the exact size  *
+ *           of an integer value which gets rid of the int vs long issues that *
+ *           exist between MSVC and the rest of the world on X86_64.  We still *
+ *           use things like "int" if we want to let the compiler choose the   *
+ *           most efficient size, but when we need a specific number of bits,  *
+ *           such as 64, we use a specific type (uint64_t for 64 bits).  Minor *
+ *           change to forward pruning that does not toss out passed pawn      *
+ *           moves if they are advanced enough (compared to remaining depth)   *
+ *           that they might be worth searching.  Cleanup to passed pawn eval  *
+ *           code to help efficiency and readability.  New options to the      *
+ *           display command.  "display nothing" turns all output off except   *
+ *           for the move Crafty chooses to play.  "display everything" will   *
+ *           produce a veritable flood of information before it makes a move.  *
+ *           Cleanup of personality code to fix some values that were not      *
+ *           included, as well as clean up the formatting for simplicity.      *
+ *                                                                             *
  *******************************************************************************
  */
 int main(int argc, char **argv) {
@@ -4035,6 +4051,7 @@ int main(int argc, char **argv) {
       if (strcmp(argv[i], "c"))
         if (!strstr(argv[i], "path")) {
           strcpy(buffer, argv[i]);
+          Print(128, "(info) command line option \"%s\"\n", buffer);
           result = Option(tree);
           if (result == 0)
             printf("ERROR \"%s\" is unknown command-line option\n", buffer);
@@ -4180,21 +4197,21 @@ int main(int argc, char **argv) {
           pong = 0;
         }
         display = tree->pos;
-        if (presult != 2 && (move_number != 1 || !wtm))
-          presult = Ponder(wtm);
+        if (presult != 2 && (move_number != 1 || !game_wtm))
+          presult = Ponder(game_wtm);
         if (presult == 1)
           value = last_root_value;
         else if (presult == 2)
           value = ponder_value;
         if (presult == 0 || presult == 2) {
           if (!xboard) {
-            printf("%s(%d): ", SideToMove(wtm), move_number);
+            printf("%s(%d): ", SideToMove(game_wtm), move_number);
             fflush(stdout);
           }
           readstat = Read(1, buffer);
           if (log_file)
-            fprintf(log_file, "%s(%d): %s\n", SideToMove(wtm), move_number,
-                buffer);
+            fprintf(log_file, "%s(%d): %s\n", SideToMove(game_wtm),
+                move_number, buffer);
           if (readstat < 0 && input_stream == stdin) {
             strcpy(buffer, "end");
             (void) Option(tree);
@@ -4206,7 +4223,7 @@ int main(int argc, char **argv) {
         result = Option(tree);
         if (result == 0) {
           nargs = ReadParse(buffer, args, " 	;");
-          move = InputMove(tree, args[0], 0, wtm, 0, 0);
+          move = InputMove(tree, args[0], 0, game_wtm, 0, 0);
           result = !move;
           if (move)
             last_pv.path[1] = 0;
@@ -4227,16 +4244,17 @@ int main(int argc, char **argv) {
  ************************************************************
  */
       if (result == 0) {
-        fseek(history_file, ((move_number - 1) * 2 + 1 - wtm) * 10, SEEK_SET);
-        fprintf(history_file, "%9s\n", OutputMove(tree, move, 0, wtm));
-        MakeMoveRoot(tree, move, wtm);
+        fseek(history_file, ((move_number - 1) * 2 + 1 - game_wtm) * 10,
+            SEEK_SET);
+        fprintf(history_file, "%9s\n", OutputMove(tree, move, 0, game_wtm));
+        MakeMoveRoot(tree, move, game_wtm);
         time_used_opponent = opponent_end_time - opponent_start_time;
         if (!force)
           Print(1, "              time used: %s\n",
               DisplayTime(time_used_opponent));
-        TimeAdjust(time_used_opponent, wtm);
-        wtm = Flip(wtm);
-        if (wtm)
+        TimeAdjust(time_used_opponent, game_wtm);
+        game_wtm = Flip(game_wtm);
+        if (game_wtm)
           move_number++;
         move_actually_played = 1;
         last_opponent_move = move;
@@ -4260,15 +4278,15 @@ int main(int argc, char **argv) {
  *                                                          *
  ************************************************************
  */
-        if ((draw_type = RepetitionDraw(tree, wtm)) == 1) {
+        if ((draw_type = RepetitionDraw(tree, game_wtm)) == 1) {
           Print(128, "I claim a draw by 3-fold repetition.\n");
-          value = DrawScore(wtm);
+          value = DrawScore(game_wtm);
           if (xboard)
             Print(4095, "1/2-1/2 {Drawn by 3-fold repetition}\n");
         }
         if (draw_type == 2) {
           Print(128, "I claim a draw by the 50 move rule.\n");
-          value = DrawScore(wtm);
+          value = DrawScore(game_wtm);
           if (xboard)
             Print(4095, "1/2-1/2 {Drawn by 50-move rule}\n");
         }
@@ -4292,7 +4310,7 @@ int main(int argc, char **argv) {
  *                                                          *
  ************************************************************
  */
-    crafty_is_white = wtm;
+    crafty_is_white = game_wtm;
     if (presult == 2) {
       if ((From(ponder_move) == From(move)) && (To(ponder_move) == To(move))
           && (Piece(ponder_move) == Piece(move)) &&
@@ -4311,7 +4329,7 @@ int main(int argc, char **argv) {
       last_pv.pathd = 0;
       last_pv.pathl = 0;
       display = tree->pos;
-      value = Iterate(wtm, think, 0);
+      value = Iterate(game_wtm, think, 0);
     }
 /*
  ************************************************************
@@ -4335,7 +4353,7 @@ int main(int argc, char **argv) {
       if (move_number < 40 || !accept_draws)
         drawsc = -300;
       if (value <= drawsc && (tc_increment != 0 ||
-              tc_time_remaining[Flip(wtm)] >= 1000)) {
+              tc_time_remaining[Flip(game_wtm)] >= 1000)) {
         if (xboard)
           Print(4095, "offer draw\n");
         else {
@@ -4385,7 +4403,7 @@ int main(int argc, char **argv) {
     if (!last_pv.pathl) {
       if (value == -MATE + 1) {
         over = 1;
-        if (wtm) {
+        if (game_wtm) {
           Print(4095, "0-1 {Black mates}\n");
           strcpy(pgn_result, "0-1");
         } else {
@@ -4416,12 +4434,12 @@ int main(int argc, char **argv) {
     } else {
       if ((value > MATE - 300) && (value < MATE - 2)) {
         Print(128, "\nmate in %d moves.\n\n", (MATE - value) / 2);
-        Kibitz(1, wtm, 0, 0, (MATE - value) / 2, tree->nodes_searched, 0,
+        Kibitz(1, game_wtm, 0, 0, (MATE - value) / 2, tree->nodes_searched, 0,
             " ");
       } else if ((-value > MATE - 300) && (-value < MATE - 1)) {
         Print(128, "\nmated in %d moves.\n\n", (MATE + value) / 2);
-        Kibitz(1, wtm, 0, 0, -(MATE + value) / 2, tree->nodes_searched, 0,
-            " ");
+        Kibitz(1, game_wtm, 0, 0, -(MATE + value) / 2, tree->nodes_searched,
+            0, " ");
       }
 /*
  ************************************************************
@@ -4446,7 +4464,7 @@ int main(int argc, char **argv) {
  */
       if (speech) {
         char announce[128];
-        char *moveptr = OutputMove(tree, last_pv.path[1], 0, wtm);
+        char *moveptr = OutputMove(tree, last_pv.path[1], 0, game_wtm);
 
         strcpy(announce, SPEAK);
         strcat(announce, moveptr);
@@ -4454,12 +4472,13 @@ int main(int argc, char **argv) {
       }
       if (!xboard && audible_alarm)
         printf("%c", audible_alarm);
-      Print(128, "%s(%d): %s\n", SideToMove(wtm), move_number,
-          OutputMove(tree, last_pv.path[1], 0, wtm));
-      if (xboard)
-        printf("move %s\n", OutputMove(tree, last_pv.path[1], 0, wtm));
+      if (!xboard)
+        Print(4095, "%s(%d): %s\n", SideToMove(game_wtm), move_number,
+            OutputMove(tree, last_pv.path[1], 0, game_wtm));
+      else
+        printf("move %s\n", OutputMove(tree, last_pv.path[1], 0, game_wtm));
       if (value == MATE - 2) {
-        if (wtm) {
+        if (game_wtm) {
           Print(4095, "1-0 {White mates}\n");
           strcpy(pgn_result, "1-0");
         } else {
@@ -4469,20 +4488,21 @@ int main(int argc, char **argv) {
       }
       time_used = program_end_time - program_start_time;
       Print(1, "              time used: %s\n", DisplayTime(time_used));
-      TimeAdjust(time_used, wtm);
-      fseek(history_file, ((move_number - 1) * 2 + 1 - wtm) * 10, SEEK_SET);
+      TimeAdjust(time_used, game_wtm);
+      fseek(history_file, ((move_number - 1) * 2 + 1 - game_wtm) * 10,
+          SEEK_SET);
       fprintf(history_file, "%9s\n", OutputMove(tree, last_pv.path[1], 0,
-              wtm));
+              game_wtm));
       last_search_value = value;
       if (kibitz) {
         if (kibitz_depth)
-          Kibitz(2, wtm, kibitz_depth, end_time - start_time, value,
+          Kibitz(2, game_wtm, kibitz_depth, end_time - start_time, value,
               tree->nodes_searched, tree->egtb_probes_successful,
               kibitz_text);
         else
-          Kibitz(4, wtm, 0, 0, 0, 0, 0, kibitz_text);
+          Kibitz(4, game_wtm, 0, 0, 0, 0, 0, kibitz_text);
       }
-      MakeMoveRoot(tree, last_pv.path[1], wtm);
+      MakeMoveRoot(tree, last_pv.path[1], game_wtm);
 /*
  ************************************************************
  *                                                          *
@@ -4497,21 +4517,21 @@ int main(int argc, char **argv) {
  *                                                          *
  ************************************************************
  */
-      wtm = Flip(wtm);
-      if (wtm)
+      game_wtm = Flip(game_wtm);
+      if (game_wtm)
         move_number++;
       move_actually_played = 1;
-      if ((draw_type = RepetitionDraw(tree, wtm)) == 1) {
+      if ((draw_type = RepetitionDraw(tree, game_wtm)) == 1) {
         Print(128, "I claim a draw by 3-fold repetition after my move.\n");
         if (xboard)
           Print(4095, "1/2-1/2 {Drawn by 3-fold repetition}\n");
-        value = DrawScore(wtm);
+        value = DrawScore(game_wtm);
       }
       if (draw_type == 2 && last_search_value < MATE - 1024) {
         Print(128, "I claim a draw by the 50 move rule after my move.\n");
         if (xboard)
           Print(4095, "1/2-1/2 {Drawn by 50-move rule}\n");
-        value = DrawScore(wtm);
+        value = DrawScore(game_wtm);
       }
       if (Drawn(tree, last_search_value) == 2) {
         Print(128,
@@ -4534,7 +4554,7 @@ int main(int argc, char **argv) {
  *                                                          *
  ************************************************************
  */
-      if (last_pv.pathl > 2 && VerifyMove(tree, 0, wtm, last_pv.path[2])) {
+      if (last_pv.pathl > 2 && VerifyMove(tree, 0, game_wtm, last_pv.path[2])) {
         ponder_move = last_pv.path[2];
         for (i = 1; i < (int) last_pv.pathl - 2; i++)
           last_pv.path[i] = last_pv.path[i + 2];
@@ -4554,7 +4574,7 @@ int main(int argc, char **argv) {
     strcpy(buffer, "score");
     Option(tree);
 #endif
-    if ((i = GameOver(wtm))) {
+    if ((i = GameOver(game_wtm))) {
       if (i == 1)
         Print(4095, "1/2-1/2 {stalemate}\n");
     }
@@ -4562,7 +4582,7 @@ int main(int argc, char **argv) {
       moves_out_of_book = 0;
       predicted++;
       if (ponder_move)
-        sprintf(book_hint, "%s", OutputMove(tree, ponder_move, 0, wtm));
+        sprintf(book_hint, "%s", OutputMove(tree, ponder_move, 0, game_wtm));
     } else
       moves_out_of_book++;
     ValidatePosition(tree, 0, last_pv.path[1], "Main(2)");

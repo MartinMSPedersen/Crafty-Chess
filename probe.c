@@ -14,7 +14,7 @@
  */
 #  define  VInitSqCtr(rgCtr, rgSquares, piece, bitboard) {       \
   int  cPieces=0;                                                \
-  BITBOARD bbTemp=(bitboard);                                    \
+  uint64_t bbTemp=(bitboard);                                    \
   while (bbTemp) {                                               \
     const squaret sq=MSB(bbTemp);                                \
     (rgSquares)[(piece)*C_PIECES+cPieces]=sq;                    \
@@ -26,9 +26,9 @@
 #  define  T_INDEX64
 #  define  C_PIECES  3  /* Maximum # of pieces of one color OTB */
 #  if defined (T_INDEX64) && defined (_MSC_VER)
-typedef unsigned __int64 INDEX;
+typedef uint64_t INDEX;
 #  elif defined (T_INDEX64)
-typedef unsigned long long INDEX;
+typedef uint64_t INDEX;
 #  else
 typedef unsigned long INDEX;
 #  endif

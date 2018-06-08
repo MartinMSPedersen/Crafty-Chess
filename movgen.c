@@ -1,6 +1,6 @@
 #include "chess.h"
 #include "data.h"
-/* modified 10/28/09 */
+/* modified 11/30/10 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -13,10 +13,10 @@
  *                                                                             *
  *******************************************************************************
  */
-int *GenerateCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move) {
-  BITBOARD target, piecebd, moves;
-  BITBOARD promotions, pcapturesl, pcapturesr;
-  int from, to, temp, common, btm = Flip(wtm);
+int *GenerateCaptures(TREE * RESTRICT tree, int ply, int side, int *move) {
+  uint64_t target, piecebd, moves;
+  uint64_t promotions, pcapturesl, pcapturesr;
+  int from, to, temp, common, enemy = Flip(side);
 
 /*
  ************************************************************
@@ -28,11 +28,11 @@ int *GenerateCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move) {
  *                                                          *
  ************************************************************
  */
-  for (piecebd = Knights(wtm); piecebd; Clear(from, piecebd)) {
-    from = Advanced(wtm, piecebd);
-    moves = knight_attacks[from] & Occupied(btm);
+  for (piecebd = Knights(side); piecebd; Clear(from, piecebd)) {
+    from = Advanced(side, piecebd);
+    moves = knight_attacks[from] & Occupied(enemy);
     temp = from + (knight << 12);
-    Unpack(wtm, move, moves, temp);
+    Unpack(side, move, moves, temp);
   }
 /*
  ************************************************************
@@ -44,11 +44,11 @@ int *GenerateCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move) {
  *                                                          *
  ************************************************************
  */
-  for (piecebd = Bishops(wtm); piecebd; Clear(from, piecebd)) {
-    from = Advanced(wtm, piecebd);
-    moves = AttacksBishop(from, OccupiedSquares) & Occupied(btm);
+  for (piecebd = Bishops(side); piecebd; Clear(from, piecebd)) {
+    from = Advanced(side, piecebd);
+    moves = AttacksBishop(from, OccupiedSquares) & Occupied(enemy);
     temp = from + (bishop << 12);
-    Unpack(wtm, move, moves, temp);
+    Unpack(side, move, moves, temp);
   }
 /*
  ************************************************************
@@ -60,11 +60,11 @@ int *GenerateCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move) {
  *                                                          *
  ************************************************************
  */
-  for (piecebd = Rooks(wtm); piecebd; Clear(from, piecebd)) {
-    from = Advanced(wtm, piecebd);
-    moves = AttacksRook(from, OccupiedSquares) & Occupied(btm);
+  for (piecebd = Rooks(side); piecebd; Clear(from, piecebd)) {
+    from = Advanced(side, piecebd);
+    moves = AttacksRook(from, OccupiedSquares) & Occupied(enemy);
     temp = from + (rook << 12);
-    Unpack(wtm, move, moves, temp);
+    Unpack(side, move, moves, temp);
   }
 /*
  ************************************************************
@@ -76,11 +76,11 @@ int *GenerateCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move) {
  *                                                          *
  ************************************************************
  */
-  for (piecebd = Queens(wtm); piecebd; Clear(from, piecebd)) {
-    from = Advanced(wtm, piecebd);
-    moves = AttacksQueen(from, OccupiedSquares) & Occupied(btm);
+  for (piecebd = Queens(side); piecebd; Clear(from, piecebd)) {
+    from = Advanced(side, piecebd);
+    moves = AttacksQueen(from, OccupiedSquares) & Occupied(enemy);
     temp = from + (queen << 12);
-    Unpack(wtm, move, moves, temp);
+    Unpack(side, move, moves, temp);
   }
 /*
  ************************************************************
@@ -91,10 +91,10 @@ int *GenerateCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move) {
  *                                                          *
  ************************************************************
  */
-  from = KingSQ(wtm);
-  moves = king_attacks[from] & Occupied(btm);
+  from = KingSQ(side);
+  moves = king_attacks[from] & Occupied(enemy);
   temp = from + (king << 12);
-  Unpack(wtm, move, moves, temp);
+  Unpack(side, move, moves, temp);
 /*
  ************************************************************
  *                                                          *
@@ -110,31 +110,32 @@ int *GenerateCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move) {
  ************************************************************
  */
   promotions =
-      ((wtm) ? (Pawns(white) & rank_mask[RANK7]) << 8 : (Pawns(black) &
+      ((side) ? (Pawns(white) & rank_mask[RANK7]) << 8 : (Pawns(black) &
           rank_mask[RANK2]) >> 8) & ~OccupiedSquares;
   for (; promotions; Clear(to, promotions)) {
     to = LSB(promotions);
-    *move++ = (to + pawnadv1[wtm]) | (to << 6) | (pawn << 12) | (queen << 18);
+    *move++ =
+        (to + pawnadv1[side]) | (to << 6) | (pawn << 12) | (queen << 18);
   }
-  target = Occupied(btm) | EnPassantTarget(ply);
+  target = Occupied(enemy) | EnPassantTarget(ply);
   pcapturesl =
-      ((wtm) ? (Pawns(wtm) & mask_left_edge) << 7 : (Pawns(wtm) &
+      ((side) ? (Pawns(white) & mask_left_edge) << 7 : (Pawns(black) &
           mask_left_edge) >> 9) & target;
-  pcapturesr =
-      ((wtm) ? (Pawns(wtm) & mask_right_edge) << 9 : (Pawns(wtm) &
-          mask_right_edge) >> 7) & target;
   for (; pcapturesl; Clear(to, pcapturesl)) {
-    to = Advanced(wtm, pcapturesl);
-    common = (to + capleft[wtm]) | (to << 6) | (pawn << 12);
-    if ((wtm == 0 && to > 7) || (wtm == 1 && to < 56))
+    to = Advanced(side, pcapturesl);
+    common = (to + capleft[side]) | (to << 6) | (pawn << 12);
+    if ((side) ? to < 56 : to > 7)
       *move++ = common | (((PcOnSq(to)) ? Abs(PcOnSq(to)) : pawn) << 15);
     else
       *move++ = common | (Abs(PcOnSq(to)) << 15) | (queen << 18);
   }
+  pcapturesr =
+      ((side) ? (Pawns(white) & mask_right_edge) << 9 : (Pawns(black) &
+          mask_right_edge) >> 7) & target;
   for (; pcapturesr; Clear(to, pcapturesr)) {
-    to = Advanced(wtm, pcapturesr);
-    common = (to + capright[wtm]) | (to << 6) | (pawn << 12);
-    if ((wtm == 0 && to > 7) || (wtm == 1 && to < 56))
+    to = Advanced(side, pcapturesr);
+    common = (to + capright[side]) | (to << 6) | (pawn << 12);
+    if ((side) ? to < 56 : to > 7)
       *move++ = common | (((PcOnSq(to)) ? Abs(PcOnSq(to)) : pawn) << 15);
     else
       *move++ = common | (Abs(PcOnSq(to)) << 15) | (queen << 18);
@@ -142,7 +143,7 @@ int *GenerateCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move) {
   return (move);
 }
 
-/* modified 10/28/09 */
+/* modified 11/30/10 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -179,10 +180,10 @@ int *GenerateCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move) {
  *                                                                             *
  *******************************************************************************
  */
-int *GenerateChecks(TREE * RESTRICT tree, int ply, int wtm, int *move) {
-  BITBOARD temp_target, target, piecebd, moves;
-  BITBOARD padvances1, blockers, checkers;
-  int from, to, promote, temp, btm = Flip(wtm);
+int *GenerateChecks(TREE * RESTRICT tree, int ply, int side, int *move) {
+  uint64_t temp_target, target, piecebd, moves;
+  uint64_t padvances1, blockers, checkers;
+  int from, to, promote, temp, enemy = Flip(side);
 
 /*
  *********************************************************************
@@ -204,12 +205,12 @@ int *GenerateChecks(TREE * RESTRICT tree, int ply, int wtm, int *move) {
  *                                                          *
  ************************************************************
  */
-  temp_target = target & knight_attacks[KingSQ(btm)];
-  for (piecebd = Knights(wtm); piecebd; Clear(from, piecebd)) {
-    from = Advanced(wtm, piecebd);
+  temp_target = target & knight_attacks[KingSQ(enemy)];
+  for (piecebd = Knights(side); piecebd; Clear(from, piecebd)) {
+    from = Advanced(side, piecebd);
     moves = knight_attacks[from] & temp_target;
     temp = from + (knight << 12);
-    Unpack(wtm, move, moves, temp);
+    Unpack(side, move, moves, temp);
   }
 /*
  ************************************************************
@@ -218,12 +219,12 @@ int *GenerateChecks(TREE * RESTRICT tree, int ply, int wtm, int *move) {
  *                                                          *
  ************************************************************
  */
-  temp_target = target & AttacksBishop(KingSQ(btm), OccupiedSquares);
-  for (piecebd = Bishops(wtm); piecebd; Clear(from, piecebd)) {
-    from = Advanced(wtm, piecebd);
+  temp_target = target & AttacksBishop(KingSQ(enemy), OccupiedSquares);
+  for (piecebd = Bishops(side); piecebd; Clear(from, piecebd)) {
+    from = Advanced(side, piecebd);
     moves = AttacksBishop(from, OccupiedSquares) & temp_target;
     temp = from + (bishop << 12);
-    Unpack(wtm, move, moves, temp);
+    Unpack(side, move, moves, temp);
   }
 /*
  ************************************************************
@@ -232,12 +233,12 @@ int *GenerateChecks(TREE * RESTRICT tree, int ply, int wtm, int *move) {
  *                                                          *
  ************************************************************
  */
-  temp_target = target & AttacksRook(KingSQ(btm), OccupiedSquares);
-  for (piecebd = Rooks(wtm); piecebd; Clear(from, piecebd)) {
-    from = Advanced(wtm, piecebd);
+  temp_target = target & AttacksRook(KingSQ(enemy), OccupiedSquares);
+  for (piecebd = Rooks(side); piecebd; Clear(from, piecebd)) {
+    from = Advanced(side, piecebd);
     moves = AttacksRook(from, OccupiedSquares) & temp_target;
     temp = from + (rook << 12);
-    Unpack(wtm, move, moves, temp);
+    Unpack(side, move, moves, temp);
   }
 /*
  ************************************************************
@@ -246,12 +247,12 @@ int *GenerateChecks(TREE * RESTRICT tree, int ply, int wtm, int *move) {
  *                                                          *
  ************************************************************
  */
-  temp_target = target & AttacksQueen(KingSQ(btm), OccupiedSquares);
-  for (piecebd = Queens(wtm); piecebd; Clear(from, piecebd)) {
-    from = Advanced(wtm, piecebd);
+  temp_target = target & AttacksQueen(KingSQ(enemy), OccupiedSquares);
+  for (piecebd = Queens(side); piecebd; Clear(from, piecebd)) {
+    from = Advanced(side, piecebd);
     moves = AttacksQueen(from, OccupiedSquares) & temp_target;
     temp = from + (queen << 12);
-    Unpack(wtm, move, moves, temp);
+    Unpack(side, move, moves, temp);
   }
 /*
  ************************************************************
@@ -260,11 +261,11 @@ int *GenerateChecks(TREE * RESTRICT tree, int ply, int wtm, int *move) {
  *                                                          *
  ************************************************************
  */
-  temp_target = target & pawn_attacks[btm][KingSQ(btm)];
-  padvances1 = ((wtm) ? Pawns(wtm) << 8 : Pawns(wtm) >> 8) & temp_target;
+  temp_target = target & pawn_attacks[enemy][KingSQ(enemy)];
+  padvances1 = ((side) ? Pawns(white) << 8 : Pawns(black) >> 8) & temp_target;
   for (; padvances1; Clear(to, padvances1)) {
-    to = Advanced(wtm, padvances1);
-    *move++ = (to + pawnadv1[wtm]) | (to << 6) | (pawn << 12);
+    to = Advanced(side, padvances1);
+    *move++ = (to + pawnadv1[side]) | (to << 6) | (pawn << 12);
   }
 /*
  *********************************************************************
@@ -294,25 +295,25 @@ int *GenerateChecks(TREE * RESTRICT tree, int ply, int wtm, int *move) {
  ************************************************************
  */
   blockers =
-      AttacksBishop(KingSQ(btm),
-      OccupiedSquares) & (Rooks(wtm) | Knights(wtm) | Pawns(wtm));
+      AttacksBishop(KingSQ(enemy),
+      OccupiedSquares) & (Rooks(side) | Knights(side) | Pawns(side));
   if (blockers) {
     checkers =
-        AttacksBishop(KingSQ(btm),
-        OccupiedSquares & ~blockers) & (Bishops(wtm) | Queens(wtm));
+        AttacksBishop(KingSQ(enemy),
+        OccupiedSquares & ~blockers) & (Bishops(side) | Queens(side));
     if (checkers) {
-      if ((plus7dir[KingSQ(btm)] & blockers) &&
-          !(plus7dir[KingSQ(btm)] & checkers))
-        blockers &= ~plus7dir[KingSQ(btm)];
-      if ((plus9dir[KingSQ(btm)] & blockers) &&
-          !(plus9dir[KingSQ(btm)] & checkers))
-        blockers &= ~plus9dir[KingSQ(btm)];
-      if ((minus7dir[KingSQ(btm)] & blockers) &&
-          !(minus7dir[KingSQ(btm)] & checkers))
-        blockers &= ~minus7dir[KingSQ(btm)];
-      if ((minus9dir[KingSQ(btm)] & blockers) &&
-          !(minus9dir[KingSQ(btm)] & checkers))
-        blockers &= ~minus9dir[KingSQ(btm)];
+      if ((plus7dir[KingSQ(enemy)] & blockers) &&
+          !(plus7dir[KingSQ(enemy)] & checkers))
+        blockers &= ~plus7dir[KingSQ(enemy)];
+      if ((plus9dir[KingSQ(enemy)] & blockers) &&
+          !(plus9dir[KingSQ(enemy)] & checkers))
+        blockers &= ~plus9dir[KingSQ(enemy)];
+      if ((minus7dir[KingSQ(enemy)] & blockers) &&
+          !(minus7dir[KingSQ(enemy)] & checkers))
+        blockers &= ~minus7dir[KingSQ(enemy)];
+      if ((minus9dir[KingSQ(enemy)] & blockers) &&
+          !(minus9dir[KingSQ(enemy)] & checkers))
+        blockers &= ~minus9dir[KingSQ(enemy)];
 /*
  ************************************************************
  *                                                          *
@@ -321,12 +322,12 @@ int *GenerateChecks(TREE * RESTRICT tree, int ply, int wtm, int *move) {
  ************************************************************
  */
       target = ~OccupiedSquares;
-      temp_target = target & ~knight_attacks[KingSQ(btm)];
-      for (piecebd = Knights(wtm) & blockers; piecebd; Clear(from, piecebd)) {
-        from = Advanced(wtm, piecebd);
+      temp_target = target & ~knight_attacks[KingSQ(enemy)];
+      for (piecebd = Knights(side) & blockers; piecebd; Clear(from, piecebd)) {
+        from = Advanced(side, piecebd);
         moves = knight_attacks[from] & temp_target;
         temp = from + (knight << 12);
-        Unpack(wtm, move, moves, temp);
+        Unpack(side, move, moves, temp);
       }
 /*
  ************************************************************
@@ -336,12 +337,12 @@ int *GenerateChecks(TREE * RESTRICT tree, int ply, int wtm, int *move) {
  ************************************************************
  */
       target = ~OccupiedSquares;
-      temp_target = target & ~AttacksRook(KingSQ(btm), OccupiedSquares);
-      for (piecebd = Rooks(wtm) & blockers; piecebd; Clear(from, piecebd)) {
-        from = Advanced(wtm, piecebd);
+      temp_target = target & ~AttacksRook(KingSQ(enemy), OccupiedSquares);
+      for (piecebd = Rooks(side) & blockers; piecebd; Clear(from, piecebd)) {
+        from = Advanced(side, piecebd);
         moves = AttacksRook(from, OccupiedSquares) & temp_target;
         temp = from + (rook << 12);
-        Unpack(wtm, move, moves, temp);
+        Unpack(side, move, moves, temp);
       }
 /*
  ************************************************************
@@ -351,12 +352,12 @@ int *GenerateChecks(TREE * RESTRICT tree, int ply, int wtm, int *move) {
  ************************************************************
  */
       piecebd =
-          Pawns(wtm) & blockers & ((wtm) ? ~OccupiedSquares >> 8 :
+          Pawns(side) & blockers & ((side) ? ~OccupiedSquares >> 8 :
           ~OccupiedSquares << 8);
       for (; piecebd; Clear(from, piecebd)) {
-        from = Advanced(wtm, piecebd);
-        to = from + pawnadv1[btm];
-        if ((wtm && to > 55) || (btm && to < 8))
+        from = Advanced(side, piecebd);
+        to = from + pawnadv1[enemy];
+        if ((side) ? to > 55 : to < 8)
           promote = queen;
         else
           promote = 0;
@@ -375,26 +376,26 @@ int *GenerateChecks(TREE * RESTRICT tree, int ply, int wtm, int *move) {
  ************************************************************
  */
   blockers =
-      AttacksRook(KingSQ(btm),
-      OccupiedSquares) & (Bishops(wtm) | Knights(wtm) | (Pawns(wtm) &
-          rank_mask[Rank(KingSQ(btm))]));
+      AttacksRook(KingSQ(enemy),
+      OccupiedSquares) & (Bishops(side) | Knights(side) | (Pawns(side) &
+          rank_mask[Rank(KingSQ(enemy))]));
   if (blockers) {
     checkers =
-        AttacksRook(KingSQ(btm),
-        OccupiedSquares & ~blockers) & (Rooks(wtm) | Queens(wtm));
+        AttacksRook(KingSQ(enemy),
+        OccupiedSquares & ~blockers) & (Rooks(side) | Queens(side));
     if (checkers) {
-      if ((plus1dir[KingSQ(btm)] & blockers) &&
-          !(plus1dir[KingSQ(btm)] & checkers))
-        blockers &= ~plus1dir[KingSQ(btm)];
-      if ((plus8dir[KingSQ(btm)] & blockers) &&
-          !(plus8dir[KingSQ(btm)] & checkers))
-        blockers &= ~plus8dir[KingSQ(btm)];
-      if ((minus1dir[KingSQ(btm)] & blockers) &&
-          !(minus1dir[KingSQ(btm)] & checkers))
-        blockers &= ~minus1dir[KingSQ(btm)];
-      if ((minus8dir[KingSQ(btm)] & blockers) &&
-          !(minus8dir[KingSQ(btm)] & checkers))
-        blockers &= ~minus8dir[KingSQ(btm)];
+      if ((plus1dir[KingSQ(enemy)] & blockers) &&
+          !(plus1dir[KingSQ(enemy)] & checkers))
+        blockers &= ~plus1dir[KingSQ(enemy)];
+      if ((plus8dir[KingSQ(enemy)] & blockers) &&
+          !(plus8dir[KingSQ(enemy)] & checkers))
+        blockers &= ~plus8dir[KingSQ(enemy)];
+      if ((minus1dir[KingSQ(enemy)] & blockers) &&
+          !(minus1dir[KingSQ(enemy)] & checkers))
+        blockers &= ~minus1dir[KingSQ(enemy)];
+      if ((minus8dir[KingSQ(enemy)] & blockers) &&
+          !(minus8dir[KingSQ(enemy)] & checkers))
+        blockers &= ~minus8dir[KingSQ(enemy)];
 /*
  ************************************************************
  *                                                          *
@@ -403,12 +404,12 @@ int *GenerateChecks(TREE * RESTRICT tree, int ply, int wtm, int *move) {
  ************************************************************
  */
       target = ~OccupiedSquares;
-      temp_target = target & ~knight_attacks[KingSQ(btm)];
-      for (piecebd = Knights(wtm) & blockers; piecebd; Clear(from, piecebd)) {
-        from = Advanced(wtm, piecebd);
+      temp_target = target & ~knight_attacks[KingSQ(enemy)];
+      for (piecebd = Knights(side) & blockers; piecebd; Clear(from, piecebd)) {
+        from = Advanced(side, piecebd);
         moves = knight_attacks[from] & temp_target;
         temp = from + (knight << 12);
-        Unpack(wtm, move, moves, temp);
+        Unpack(side, move, moves, temp);
       }
 /*
  ************************************************************
@@ -418,12 +419,12 @@ int *GenerateChecks(TREE * RESTRICT tree, int ply, int wtm, int *move) {
  ************************************************************
  */
       target = ~OccupiedSquares;
-      temp_target = target & ~AttacksBishop(KingSQ(btm), OccupiedSquares);
-      for (piecebd = Bishops(wtm) & blockers; piecebd; Clear(from, piecebd)) {
-        from = Advanced(wtm, piecebd);
+      temp_target = target & ~AttacksBishop(KingSQ(enemy), OccupiedSquares);
+      for (piecebd = Bishops(side) & blockers; piecebd; Clear(from, piecebd)) {
+        from = Advanced(side, piecebd);
         moves = AttacksBishop(from, OccupiedSquares) & temp_target;
         temp = from + (bishop << 12);
-        Unpack(wtm, move, moves, temp);
+        Unpack(side, move, moves, temp);
       }
 /*
  ************************************************************
@@ -433,12 +434,12 @@ int *GenerateChecks(TREE * RESTRICT tree, int ply, int wtm, int *move) {
  ************************************************************
  */
       piecebd =
-          Pawns(wtm) & blockers & ((wtm) ? ~OccupiedSquares >> 8 :
+          Pawns(side) & blockers & ((side) ? ~OccupiedSquares >> 8 :
           ~OccupiedSquares << 8);
       for (; piecebd; Clear(from, piecebd)) {
-        from = Advanced(wtm, piecebd);
-        to = from + pawnadv1[btm];
-        if ((wtm && to > 55) || (btm && to < 8))
+        from = Advanced(side, piecebd);
+        to = from + pawnadv1[enemy];
+        if ((side) ? to > 55 : to < 8)
           promote = queen;
         else
           promote = 0;
@@ -449,7 +450,7 @@ int *GenerateChecks(TREE * RESTRICT tree, int ply, int wtm, int *move) {
   return (move);
 }
 
-/* modified 10/28/09 */
+/* modified 11/30/10 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -473,11 +474,11 @@ int *GenerateChecks(TREE * RESTRICT tree, int ply, int wtm, int *move) {
  *                                                                             *
  *******************************************************************************
  */
-int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move) {
-  BITBOARD target, targetc, targetp, piecebd, moves;
-  BITBOARD padvances1, padvances2, pcapturesl, pcapturesr;
-  BITBOARD padvances1_all, empty, checksqs;
-  int from, to, temp, common, btm = Flip(wtm);
+int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int side, int *move) {
+  uint64_t target, targetc, targetp, piecebd, moves;
+  uint64_t padvances1, padvances2, pcapturesl, pcapturesr;
+  uint64_t padvances1_all, empty, checksqs;
+  int from, to, temp, common, enemy = Flip(side);
   int king_square, checkers, checking_square;
   int check_direction1 = 0, check_direction2 = 0;
 
@@ -490,24 +491,24 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move) {
  *                                                          *
  ************************************************************
  */
-  king_square = KingSQ(wtm);
-  checksqs = AttacksTo(tree, king_square) & Occupied(btm);
+  king_square = KingSQ(side);
+  checksqs = AttacksTo(tree, king_square) & Occupied(enemy);
   checkers = PopCnt(checksqs);
   if (checkers == 1) {
     checking_square = LSB(checksqs);
-    if (PcOnSq(checking_square) != pieces[btm][pawn])
+    if (PcOnSq(checking_square) != pieces[enemy][pawn])
       check_direction1 = directions[checking_square][king_square];
     target = InterposeSquares(king_square, checking_square);
     target |= checksqs;
-    target |= Kings(btm);
+    target |= Kings(enemy);
   } else {
-    target = Kings(btm);
+    target = Kings(enemy);
     checking_square = LSB(checksqs);
-    if (PcOnSq(checking_square) != pieces[btm][pawn])
+    if (PcOnSq(checking_square) != pieces[enemy][pawn])
       check_direction1 = directions[checking_square][king_square];
     Clear(checking_square, checksqs);
     checking_square = LSB(checksqs);
-    if (PcOnSq(checking_square) != pieces[btm][pawn])
+    if (PcOnSq(checking_square) != pieces[enemy][pawn])
       check_direction2 = directions[checking_square][king_square];
   }
 /*
@@ -530,9 +531,9 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move) {
  */
   from = king_square;
   temp = from + (king << 12);
-  for (moves = king_attacks[from] & ~Occupied(wtm); moves; Clear(to, moves)) {
-    to = Advanced(wtm, moves);
-    if (!Attacks(tree, to, btm)
+  for (moves = king_attacks[from] & ~Occupied(side); moves; Clear(to, moves)) {
+    to = Advanced(side, moves);
+    if (!Attacks(tree, to, enemy)
         && (directions[from][to] != check_direction1)
         && (directions[from][to] != check_direction2))
       *move++ = temp | (to << 6) | (Abs(PcOnSq(to)) << 15);
@@ -548,12 +549,12 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move) {
  ************************************************************
  */
   if (checkers == 1) {
-    for (piecebd = Knights(wtm); piecebd; Clear(from, piecebd)) {
-      from = Advanced(wtm, piecebd);
-      if (!PinnedOnKing(tree, wtm, from)) {
+    for (piecebd = Knights(side); piecebd; Clear(from, piecebd)) {
+      from = Advanced(side, piecebd);
+      if (!PinnedOnKing(tree, side, from)) {
         moves = knight_attacks[from] & target;
         temp = from + (knight << 12);
-        Unpack(wtm, move, moves, temp);
+        Unpack(side, move, moves, temp);
       }
     }
 /*
@@ -566,12 +567,12 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move) {
  *                                                          *
  ************************************************************
  */
-    for (piecebd = Bishops(wtm); piecebd; Clear(from, piecebd)) {
-      from = Advanced(wtm, piecebd);
-      if (!PinnedOnKing(tree, wtm, from)) {
+    for (piecebd = Bishops(side); piecebd; Clear(from, piecebd)) {
+      from = Advanced(side, piecebd);
+      if (!PinnedOnKing(tree, side, from)) {
         moves = AttacksBishop(from, OccupiedSquares) & target;
         temp = from + (bishop << 12);
-        Unpack(wtm, move, moves, temp);
+        Unpack(side, move, moves, temp);
       }
     }
 /*
@@ -584,12 +585,12 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move) {
  *                                                          *
  ************************************************************
  */
-    for (piecebd = Rooks(wtm); piecebd; Clear(from, piecebd)) {
-      from = Advanced(wtm, piecebd);
-      if (!PinnedOnKing(tree, wtm, from)) {
+    for (piecebd = Rooks(side); piecebd; Clear(from, piecebd)) {
+      from = Advanced(side, piecebd);
+      if (!PinnedOnKing(tree, side, from)) {
         moves = AttacksRook(from, OccupiedSquares) & target;
         temp = from + (rook << 12);
-        Unpack(wtm, move, moves, temp);
+        Unpack(side, move, moves, temp);
       }
     }
 /*
@@ -602,12 +603,12 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move) {
  *                                                          *
  ************************************************************
  */
-    for (piecebd = Queens(wtm); piecebd; Clear(from, piecebd)) {
-      from = Advanced(wtm, piecebd);
-      if (!PinnedOnKing(tree, wtm, from)) {
+    for (piecebd = Queens(side); piecebd; Clear(from, piecebd)) {
+      from = Advanced(side, piecebd);
+      if (!PinnedOnKing(tree, side, from)) {
         moves = AttacksQueen(from, OccupiedSquares) & target;
         temp = from + (queen << 12);
-        Unpack(wtm, move, moves, temp);
+        Unpack(side, move, moves, temp);
       }
     }
 /*
@@ -626,14 +627,14 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move) {
  */
     empty = ~OccupiedSquares;
     targetp = target & empty;
-    if (wtm) {
+    if (side) {
       padvances1 = Pawns(white) << 8 & targetp;
       padvances1_all = Pawns(white) << 8 & empty;
-      padvances2 = ((padvances1_all & ((BITBOARD) 255 << 16)) << 8) & targetp;
+      padvances2 = ((padvances1_all & ((uint64_t) 255 << 16)) << 8) & targetp;
     } else {
       padvances1 = Pawns(black) >> 8 & targetp;
       padvances1_all = Pawns(black) >> 8 & empty;
-      padvances2 = ((padvances1_all & ((BITBOARD) 255 << 40)) >> 8) & targetp;
+      padvances2 = ((padvances1_all & ((uint64_t) 255 << 40)) >> 8) & targetp;
     }
 /*
  ************************************************************
@@ -645,30 +646,28 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move) {
  ************************************************************
  */
     for (; padvances2; Clear(to, padvances2)) {
-      to = Advanced(wtm, padvances2);
-      if (!PinnedOnKing(tree, wtm, to + pawnadv2[wtm]))
-        *move++ = (to + pawnadv2[wtm]) | (to << 6) | (pawn << 12);
+      to = Advanced(side, padvances2);
+      if (!PinnedOnKing(tree, side, to + pawnadv2[side]))
+        *move++ = (to + pawnadv2[side]) | (to << 6) | (pawn << 12);
     }
     for (; padvances1; Clear(to, padvances1)) {
-      to = Advanced(wtm, padvances1);
-      if (!PinnedOnKing(tree, wtm, to + pawnadv1[wtm])) {
-        common = (to + pawnadv1[wtm]) | (to << 6) | (pawn << 12);
-        if ((wtm == 0 && to > 7) || (wtm == 1 && to < 56))
+      to = Advanced(side, padvances1);
+      if (!PinnedOnKing(tree, side, to + pawnadv1[side])) {
+        common = (to + pawnadv1[side]) | (to << 6) | (pawn << 12);
+        if ((side) ? to < 56 : to > 7)
           *move++ = common;
         else {
           *move++ = common | (queen << 18);
-          *move++ = common | (rook << 18);
-          *move++ = common | (bishop << 18);
           *move++ = common | (knight << 18);
         }
       }
     }
-    targetc = Occupied(btm) | EnPassantTarget(ply);
+    targetc = Occupied(enemy) | EnPassantTarget(ply);
     targetc = targetc & target;
-    if (Pawns(btm) & target & ((wtm) ? EnPassantTarget(ply) >> 8 :
+    if (Pawns(enemy) & target & ((side) ? EnPassantTarget(ply) >> 8 :
             EnPassantTarget(ply) << 8))
       targetc = targetc | EnPassantTarget(ply);
-    if (wtm) {
+    if (side) {
       pcapturesl = (Pawns(white) & mask_left_edge) << 7 & targetc;
       pcapturesr = (Pawns(white) & mask_right_edge) << 9 & targetc;
     } else {
@@ -676,29 +675,25 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move) {
       pcapturesr = (Pawns(black) & mask_right_edge) >> 7 & targetc;
     }
     for (; pcapturesl; Clear(to, pcapturesl)) {
-      to = Advanced(wtm, pcapturesl);
-      if (!PinnedOnKing(tree, wtm, to + capleft[wtm])) {
-        common = (to + capleft[wtm]) | (to << 6) | (pawn << 12);
-        if ((wtm == 0 && to > 7) || (wtm == 1 && to < 56)) {
+      to = Advanced(side, pcapturesl);
+      if (!PinnedOnKing(tree, side, to + capleft[side])) {
+        common = (to + capleft[side]) | (to << 6) | (pawn << 12);
+        if ((side) ? to < 56 : to > 7)
           *move++ = common | (((PcOnSq(to)) ? Abs(PcOnSq(to)) : pawn) << 15);
-        } else {
+        else {
           *move++ = common | (Abs(PcOnSq(to)) << 15) | (queen << 18);
-          *move++ = common | (Abs(PcOnSq(to)) << 15) | (rook << 18);
-          *move++ = common | (Abs(PcOnSq(to)) << 15) | (bishop << 18);
           *move++ = common | (Abs(PcOnSq(to)) << 15) | (knight << 18);
         }
       }
     }
     for (; pcapturesr; Clear(to, pcapturesr)) {
-      to = Advanced(wtm, pcapturesr);
-      if (!PinnedOnKing(tree, wtm, to + capright[wtm])) {
-        common = (to + capright[wtm]) | (to << 6) | (pawn << 12);
-        if ((wtm == 0 && to > 7) || (wtm == 1 && to < 56)) {
+      to = Advanced(side, pcapturesr);
+      if (!PinnedOnKing(tree, side, to + capright[side])) {
+        common = (to + capright[side]) | (to << 6) | (pawn << 12);
+        if ((side) ? to < 56 : to > 7)
           *move++ = common | (((PcOnSq(to)) ? Abs(PcOnSq(to)) : pawn) << 15);
-        } else {
+        else {
           *move++ = common | (Abs(PcOnSq(to)) << 15) | (queen << 18);
-          *move++ = common | (Abs(PcOnSq(to)) << 15) | (rook << 18);
-          *move++ = common | (Abs(PcOnSq(to)) << 15) | (bishop << 18);
           *move++ = common | (Abs(PcOnSq(to)) << 15) | (knight << 18);
         }
       }
@@ -707,7 +702,7 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move) {
   return (move);
 }
 
-/* modified 10/28/09 */
+/* modified 11/30/10 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -730,10 +725,10 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move) {
  *                                                                             *
  *******************************************************************************
  */
-int *GenerateNoncaptures(TREE * RESTRICT tree, int ply, int wtm, int *move) {
-  BITBOARD target, piecebd, moves;
-  BITBOARD padvances1, padvances2, pcapturesl, pcapturesr;
-  int from, to, temp, common, btm = Flip(wtm);
+int *GenerateNoncaptures(TREE * RESTRICT tree, int ply, int side, int *move) {
+  uint64_t target, piecebd, moves;
+  uint64_t padvances1, padvances2, pcapturesl, pcapturesr;
+  int from, to, temp, common, enemy = Flip(side);
 
 /*
  ************************************************************
@@ -742,18 +737,18 @@ int *GenerateNoncaptures(TREE * RESTRICT tree, int ply, int wtm, int *move) {
  *                                                          *
  ************************************************************
  */
-  if (Castle(ply, wtm) > 0) {
-    if ((Castle(ply, wtm) & 1) && !(OccupiedSquares & OO[wtm]) &&
-        !Attacks(tree, OOsqs[wtm][0], btm) &&
-        !Attacks(tree, OOsqs[wtm][1], btm)
-        && !Attacks(tree, OOsqs[wtm][2], btm)) {
-      *move++ = (king << 12) + (OOto[wtm] << 6) + OOfrom[wtm];
+  if (Castle(ply, side) > 0) {
+    if ((Castle(ply, side) & 1) && !(OccupiedSquares & OO[side]) &&
+        !Attacks(tree, OOsqs[side][0], enemy) &&
+        !Attacks(tree, OOsqs[side][1], enemy)
+        && !Attacks(tree, OOsqs[side][2], enemy)) {
+      *move++ = (king << 12) + (OOto[side] << 6) + OOfrom[side];
     }
-    if ((Castle(ply, wtm) & 2) && !(OccupiedSquares & OOO[wtm]) &&
-        !Attacks(tree, OOOsqs[wtm][0], btm) &&
-        !Attacks(tree, OOOsqs[wtm][1], btm) &&
-        !Attacks(tree, OOOsqs[wtm][2], btm)) {
-      *move++ = (king << 12) + (OOOto[wtm] << 6) + OOfrom[wtm];
+    if ((Castle(ply, side) & 2) && !(OccupiedSquares & OOO[side]) &&
+        !Attacks(tree, OOOsqs[side][0], enemy) &&
+        !Attacks(tree, OOOsqs[side][1], enemy) &&
+        !Attacks(tree, OOOsqs[side][2], enemy)) {
+      *move++ = (king << 12) + (OOOto[side] << 6) + OOfrom[side];
     }
   }
 /*
@@ -767,11 +762,11 @@ int *GenerateNoncaptures(TREE * RESTRICT tree, int ply, int wtm, int *move) {
  ************************************************************
  */
   target = ~OccupiedSquares;
-  for (piecebd = Knights(wtm); piecebd; Clear(from, piecebd)) {
-    from = Advanced(wtm, piecebd);
+  for (piecebd = Knights(side); piecebd; Clear(from, piecebd)) {
+    from = Advanced(side, piecebd);
     moves = knight_attacks[from] & target;
     temp = from + (knight << 12);
-    Unpack(wtm, move, moves, temp);
+    Unpack(side, move, moves, temp);
   }
 /*
  ************************************************************
@@ -783,11 +778,11 @@ int *GenerateNoncaptures(TREE * RESTRICT tree, int ply, int wtm, int *move) {
  *                                                          *
  ************************************************************
  */
-  for (piecebd = Bishops(wtm); piecebd; Clear(from, piecebd)) {
-    from = Advanced(wtm, piecebd);
+  for (piecebd = Bishops(side); piecebd; Clear(from, piecebd)) {
+    from = Advanced(side, piecebd);
     moves = AttacksBishop(from, OccupiedSquares) & target;
     temp = from + (bishop << 12);
-    Unpack(wtm, move, moves, temp);
+    Unpack(side, move, moves, temp);
   }
 /*
  ************************************************************
@@ -799,11 +794,11 @@ int *GenerateNoncaptures(TREE * RESTRICT tree, int ply, int wtm, int *move) {
  *                                                          *
  ************************************************************
  */
-  for (piecebd = Rooks(wtm); piecebd; Clear(from, piecebd)) {
-    from = Advanced(wtm, piecebd);
+  for (piecebd = Rooks(side); piecebd; Clear(from, piecebd)) {
+    from = Advanced(side, piecebd);
     moves = AttacksRook(from, OccupiedSquares) & target;
     temp = from + (rook << 12);
-    Unpack(wtm, move, moves, temp);
+    Unpack(side, move, moves, temp);
   }
 /*
  ************************************************************
@@ -815,11 +810,11 @@ int *GenerateNoncaptures(TREE * RESTRICT tree, int ply, int wtm, int *move) {
  *                                                          *
  ************************************************************
  */
-  for (piecebd = Queens(wtm); piecebd; Clear(from, piecebd)) {
-    from = Advanced(wtm, piecebd);
+  for (piecebd = Queens(side); piecebd; Clear(from, piecebd)) {
+    from = Advanced(side, piecebd);
     moves = AttacksQueen(from, OccupiedSquares) & target;
     temp = from + (queen << 12);
-    Unpack(wtm, move, moves, temp);
+    Unpack(side, move, moves, temp);
   }
 /*
  ************************************************************
@@ -830,10 +825,10 @@ int *GenerateNoncaptures(TREE * RESTRICT tree, int ply, int wtm, int *move) {
  *                                                          *
  ************************************************************
  */
-  from = KingSQ(wtm);
+  from = KingSQ(side);
   moves = king_attacks[from] & target;
   temp = from + (king << 12);
-  Unpack(wtm, move, moves, temp);
+  Unpack(side, move, moves, temp);
 /*
  ************************************************************
  *                                                          *
@@ -853,9 +848,9 @@ int *GenerateNoncaptures(TREE * RESTRICT tree, int ply, int wtm, int *move) {
  *                                                          *
  ************************************************************
  */
-  padvances1 = ((wtm) ? Pawns(wtm) << 8 : Pawns(wtm) >> 8) & target;
+  padvances1 = ((side) ? Pawns(side) << 8 : Pawns(side) >> 8) & target;
   padvances2 =
-      ((wtm) ? (padvances1 & mask_advance_2_w) << 8 : (padvances1 &
+      ((side) ? (padvances1 & mask_advance_2_w) << 8 : (padvances1 &
           mask_advance_2_b) >> 8) & target;
 /*
  ************************************************************
@@ -867,13 +862,13 @@ int *GenerateNoncaptures(TREE * RESTRICT tree, int ply, int wtm, int *move) {
  ************************************************************
  */
   for (; padvances2; Clear(to, padvances2)) {
-    to = Advanced(wtm, padvances2);
-    *move++ = (to + pawnadv2[wtm]) | (to << 6) | (pawn << 12);
+    to = Advanced(side, padvances2);
+    *move++ = (to + pawnadv2[side]) | (to << 6) | (pawn << 12);
   }
   for (; padvances1; Clear(to, padvances1)) {
-    to = Advanced(wtm, padvances1);
-    common = (to + pawnadv1[wtm]) | (to << 6) | (pawn << 12);
-    if ((wtm == 0 && to > 7) || (wtm == 1 && to < 56))
+    to = Advanced(side, padvances1);
+    common = (to + pawnadv1[side]) | (to << 6) | (pawn << 12);
+    if ((side) ? to < 56 : to > 7)
       *move++ = common;
     else {
       *move++ = common | (rook << 18);
@@ -890,23 +885,23 @@ int *GenerateNoncaptures(TREE * RESTRICT tree, int ply, int wtm, int *move) {
  *                                                          *
  ************************************************************
  */
-  target = Occupied(btm) & rank_mask[RANK1 + wtm * 7];
+  target = Occupied(enemy) & rank_mask[RANK1 + side * 7];
   pcapturesl =
-      ((wtm) ? (Pawns(white) & mask_left_edge) << 7 : (Pawns(black) &
+      ((side) ? (Pawns(white) & mask_left_edge) << 7 : (Pawns(black) &
           mask_left_edge) >> 9) & target;
-  pcapturesr =
-      ((wtm) ? (Pawns(white) & mask_right_edge) << 9 : (Pawns(black) &
-          mask_right_edge) >> 7) & target;
   for (; pcapturesl; Clear(to, pcapturesl)) {
-    to = Advanced(wtm, pcapturesl);
-    common = (to + capleft[wtm]) | (to << 6) | (pawn << 12);
+    to = Advanced(side, pcapturesl);
+    common = (to + capleft[side]) | (to << 6) | (pawn << 12);
     *move++ = common | (Abs(PcOnSq(to)) << 15) | (rook << 18);
     *move++ = common | (Abs(PcOnSq(to)) << 15) | (bishop << 18);
     *move++ = common | (Abs(PcOnSq(to)) << 15) | (knight << 18);
   }
+  pcapturesr =
+      ((side) ? (Pawns(white) & mask_right_edge) << 9 : (Pawns(black) &
+          mask_right_edge) >> 7) & target;
   for (; pcapturesr; Clear(to, pcapturesr)) {
-    to = Advanced(wtm, pcapturesr);
-    common = (to + capright[wtm]) | (to << 6) | (pawn << 12);
+    to = Advanced(side, pcapturesr);
+    common = (to + capright[side]) | (to << 6) | (pawn << 12);
     *move++ = common | (Abs(PcOnSq(to)) << 15) | (rook << 18);
     *move++ = common | (Abs(PcOnSq(to)) << 15) | (bishop << 18);
     *move++ = common | (Abs(PcOnSq(to)) << 15) | (knight << 18);
@@ -925,9 +920,9 @@ int *GenerateNoncaptures(TREE * RESTRICT tree, int ply, int wtm, int *move) {
  *                                                                             *
  *******************************************************************************
  */
-int PinnedOnKing(TREE * RESTRICT tree, int wtm, int square) {
+int PinnedOnKing(TREE * RESTRICT tree, int side, int square) {
   int ray;
-  int btm = Flip(wtm);
+  int enemy = Flip(side);
 
 /*
  ************************************************************
@@ -938,7 +933,7 @@ int PinnedOnKing(TREE * RESTRICT tree, int wtm, int square) {
  *                                                          *
  ************************************************************
  */
-  ray = directions[square][KingSQ(wtm)];
+  ray = directions[square][KingSQ(side)];
   if (!ray)
     return (0);
 /*
@@ -954,23 +949,25 @@ int PinnedOnKing(TREE * RESTRICT tree, int wtm, int square) {
  */
   switch (Abs(ray)) {
     case 1:
-      if (AttacksRank(square) & Kings(wtm))
-        return ((AttacksRank(square) & (Rooks(btm) | Queens(btm))) != 0);
+      if (AttacksRank(square) & Kings(side))
+        return ((AttacksRank(square) & (Rooks(enemy) | Queens(enemy))) != 0);
       else
         return (0);
     case 7:
-      if (AttacksDiagh1(square) & Kings(wtm))
-        return ((AttacksDiagh1(square) & (Bishops(btm) | Queens(btm))) != 0);
+      if (AttacksDiagh1(square) & Kings(side))
+        return ((AttacksDiagh1(square) & (Bishops(enemy) | Queens(enemy))) !=
+            0);
       else
         return (0);
     case 8:
-      if (AttacksFile(square) & Kings(wtm))
-        return ((AttacksFile(square) & (Rooks(btm) | Queens(btm))) != 0);
+      if (AttacksFile(square) & Kings(side))
+        return ((AttacksFile(square) & (Rooks(enemy) | Queens(enemy))) != 0);
       else
         return (0);
     case 9:
-      if (AttacksDiaga1(square) & Kings(wtm))
-        return ((AttacksDiaga1(square) & (Bishops(btm) | Queens(btm))) != 0);
+      if (AttacksDiaga1(square) & Kings(side))
+        return ((AttacksDiaga1(square) & (Bishops(enemy) | Queens(enemy))) !=
+            0);
       else
         return (0);
   }

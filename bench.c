@@ -15,7 +15,7 @@
  *******************************************************************************
  */
 void Bench(int increase) {
-  BITBOARD nodes = 0;
+  uint64_t nodes = 0;
   int old_do, old_st, old_sd, total_time_used;
   FILE *old_books, *old_book;
   TREE *const tree = block[0];
@@ -44,7 +44,7 @@ void Bench(int increase) {
   last_pv.pathd = 0;
   thinking = 1;
   tree->position[1] = tree->position[0];
-  (void) Iterate(wtm, think, 0);
+  (void) Iterate(game_wtm, think, 0);
   thinking = 0;
   nodes += tree->nodes_searched;
   total_time_used += (program_end_time - program_start_time);
@@ -59,7 +59,7 @@ void Bench(int increase) {
   last_pv.pathd = 0;
   thinking = 1;
   tree->position[1] = tree->position[0];
-  (void) Iterate(wtm, think, 0);
+  (void) Iterate(game_wtm, think, 0);
   thinking = 0;
   nodes += tree->nodes_searched;
   total_time_used += (program_end_time - program_start_time);
@@ -73,7 +73,7 @@ void Bench(int increase) {
   last_pv.pathd = 0;
   thinking = 1;
   tree->position[1] = tree->position[0];
-  (void) Iterate(wtm, think, 0);
+  (void) Iterate(game_wtm, think, 0);
   thinking = 0;
   nodes += tree->nodes_searched;
   total_time_used += (program_end_time - program_start_time);
@@ -87,7 +87,7 @@ void Bench(int increase) {
   last_pv.pathd = 0;
   thinking = 1;
   tree->position[1] = tree->position[0];
-  (void) Iterate(wtm, think, 0);
+  (void) Iterate(game_wtm, think, 0);
   thinking = 0;
   nodes += tree->nodes_searched;
   total_time_used += (program_end_time - program_start_time);
@@ -102,7 +102,7 @@ void Bench(int increase) {
   last_pv.pathd = 0;
   thinking = 1;
   tree->position[1] = tree->position[0];
-  (void) Iterate(wtm, think, 0);
+  (void) Iterate(game_wtm, think, 0);
   thinking = 0;
   nodes += tree->nodes_searched;
   total_time_used += (program_end_time - program_start_time);
@@ -117,7 +117,7 @@ void Bench(int increase) {
   last_pv.pathd = 0;
   thinking = 1;
   tree->position[1] = tree->position[0];
-  (void) Iterate(wtm, think, 0);
+  (void) Iterate(game_wtm, think, 0);
   thinking = 0;
   nodes += tree->nodes_searched;
   total_time_used += (program_end_time - program_start_time);

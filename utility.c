@@ -72,7 +72,7 @@
 void AlignedMalloc(void **pointer, int alignment, size_t size) {
   segments[nsegments][0] = malloc(size + alignment - 1);
   segments[nsegments][1] =
-      (void *) (((long) segments[nsegments][0] + alignment -
+      (void *) (((uintptr_t) segments[nsegments][0] + alignment -
           1) & ~(alignment - 1));
   *pointer = segments[nsegments][1];
   nsegments++;
@@ -88,8 +88,8 @@ void AlignedMalloc(void **pointer, int alignment, size_t size) {
  *******************************************************************************
  */
 
-BITBOARD atoiKM(char *input) {
-  BITBOARD size;
+uint64_t atoiKM(char *input) {
+  uint64_t size;
 
   size = atoi(input);
   if (strchr(input, 'K') || strchr(input, 'k'))
@@ -120,7 +120,8 @@ void AlignedRemalloc(void **pointer, int alignment, size_t size) {
   free(segments[i][0]);
   segments[i][0] = malloc(size + alignment - 1);
   segments[i][1] =
-      (void *) (((long) segments[i][0] + alignment - 1) & ~(alignment - 1));
+      (void *) (((uintptr_t) segments[i][0] + alignment - 1) & ~(alignment -
+          1));
   *pointer = segments[i][1];
 }
 
@@ -215,12 +216,12 @@ int BookIn32(unsigned char *ch) {
  *                                                                             *
  *******************************************************************************
  */
-BITBOARD BookIn64(unsigned char *ch) {
-  return ((((BITBOARD) ch[7]) << 56) | (((BITBOARD) ch[6]) << 48) |
-      (((BITBOARD)
-              ch[5]) << 40) | (((BITBOARD) ch[4]) << 32) | (((BITBOARD) ch[3])
-          << 24) | (((BITBOARD) ch[2]) << 16) | (((BITBOARD) ch[1]) << 8) |
-      ((BITBOARD)
+uint64_t BookIn64(unsigned char *ch) {
+  return ((((uint64_t) ch[7]) << 56) | (((uint64_t) ch[6]) << 48) |
+      (((uint64_t)
+              ch[5]) << 40) | (((uint64_t) ch[4]) << 32) | (((uint64_t) ch[3])
+          << 24) | (((uint64_t) ch[2]) << 16) | (((uint64_t) ch[1]) << 8) |
+      ((uint64_t)
           ch[0]));
 }
 
@@ -273,7 +274,7 @@ unsigned char *BookOut32f(float val) {
  *                                                                             *
  *******************************************************************************
  */
-unsigned char *BookOut64(BITBOARD val) {
+unsigned char *BookOut64(uint64_t val) {
   convert_buff[7] = (val >> 56) & 0xff;
   convert_buff[6] = (val >> 48) & 0xff;
   convert_buff[5] = (val >> 40) & 0xff;
@@ -380,7 +381,7 @@ void ClearHashTableScores(void) {
     for (i = 0; i < hash_table_size; i++) {
       (trans_ref + i)->word2 ^= (trans_ref + i)->word1;
       (trans_ref + i)->word1 =
-          ((trans_ref + i)->word1 & mask_clear_entry) | (BITBOARD) 65536;
+          ((trans_ref + i)->word1 & mask_clear_entry) | (uint64_t) 65536;
       (trans_ref + i)->word2 ^= (trans_ref + i)->word1;
     }
 }
@@ -526,7 +527,7 @@ void DisplayArrayX2(int *array, int *array2, int size) {
  *                                                                             *
  *******************************************************************************
  */
-void DisplayBitBoard(BITBOARD board) {
+void DisplayBitBoard(uint64_t board) {
   int i, j, x;
 
   for (i = 56; i >= 0; i -= 8) {
@@ -550,7 +551,7 @@ void DisplayBitBoard(BITBOARD board) {
  *                                                                             *
  *******************************************************************************
  */
-void Display2BitBoards(BITBOARD board1, BITBOARD board2) {
+void Display2BitBoards(uint64_t board1, uint64_t board2) {
   int i, j, x, y;
 
   for (i = 56; i >= 0; i -= 8) {
@@ -712,7 +713,7 @@ char *DisplayEvaluationKibitz(int value, int wtm) {
 void DisplayPV(TREE * RESTRICT tree, int level, int wtm, int time, int value,
     PATH * pv) {
   char buffer[4096], *buffp, *bufftemp;
-  int i, t_move_number, type, j, dummy = 0;
+  int i, t_move_number, type;
   int nskip = 0, twtm = wtm;
 
   root_print_ok = root_print_ok || tree->nodes_searched > noise_level;
@@ -724,7 +725,7 @@ void DisplayPV(TREE * RESTRICT tree, int level, int wtm, int time, int value,
  ************************************************************
  */
   for (i = 0; i < n_root_moves; i++)
-    if (!(root_moves[i].status & 256) && root_moves[i].status & 64)
+    if (!(root_moves[i].status & 16) && root_moves[i].status & 4)
       nskip++;
   if (level == 5)
     type = 4;
@@ -903,13 +904,13 @@ void DisplayTreeState(TREE * RESTRICT tree, int sply, int spos, int maxply) {
   if (sply == 1) {
     left = 0;
     for (i = 0; i < n_root_moves; i++)
-      if (!(root_moves[i].status & 256))
+      if (!(root_moves[i].status & 16))
         left++;
     sprintf(buf, "%d:%d/%d  ", 1, left, n_root_moves);
   } else {
     for (i = 0; i < spos - 6; i++)
       sprintf(buf + strlen(buf), " ");
-    sprintf(buf + strlen(buf), "[p%2ld] ", tree->thread_id);
+    sprintf(buf + strlen(buf), "[p%2d] ", tree->thread_id);
   }
   for (i = Max(sply, 2); i <= maxply; i++) {
     left = 0;
@@ -998,110 +999,39 @@ void DisplayType4(int *array, int *array2) {
 /*
  *******************************************************************************
  *                                                                             *
- *   DisplayType5() prints personality parameters that use an nx8 board for    *
- *   their base values.  This prints them side by side.                        *
+ *   DisplayType5() prints personality parameters that use an array[size].     *
  *                                                                             *
  *******************************************************************************
  */
-void DisplayType5(int *array, int *array2, int rows) {
-  int i, j;
-
-  printf("    ----------- Middlegame -----------   ");
-  printf("    ------------- Endgame -----------\n");
-  for (i = 0; i < rows; i++) {
-    printf("    ");
-    for (j = 0; j < 8; j++)
-      printf("%3d ", array[(rows - 1 - i) * 8 + j]);
-    printf("  |  %d  |", 8 - i);
-    printf("  ");
-    for (j = 0; j < 8; j++)
-      printf("%3d ", array2[(rows - 1 - i) * 8 + j]);
-    printf("\n");
-  }
-}
-
-/*
- *******************************************************************************
- *                                                                             *
- *   DisplayType6() prints personality parameters that use an arran of the     *
- *   form array[mg][side][8].                                                  *
- *                                                                             *
- *******************************************************************************
- */
-void DisplayType6(int *array, int *array2) {
-  int i;
-
-  printf("    ----------- Middlegame -----------   ");
-  printf("    ------------- Endgame -----------\n");
-  printf("    ");
-  for (i = 0; i < 8; i++)
-    printf("%3d ", array[i]);
-  printf("  |     |");
-  printf("  ");
-  for (i = 0; i < 8; i++)
-    printf("%3d ", array2[i]);
-  printf("\n");
-}
-
-/*
- *******************************************************************************
- *                                                                             *
- *   DisplayType7() prints personality parameters that use an array[mg][5]     *
- *   format.                                                                   *
- *                                                                             *
- *******************************************************************************
- */
-void DisplayType7(int *array, int *array2) {
-  int i;
-
-  printf("    ----- Middlegame -----   ");
-  printf("    ------- Endgame ------\n");
-  printf("    ");
-  for (i = 0; i < 5; i++)
-    printf("%3d ", array[i]);
-  printf("  |     |");
-  printf("  ");
-  for (i = 0; i < 5; i++)
-    printf("%3d ", array2[i]);
-  printf("\n");
-}
-
-/*
- *******************************************************************************
- *                                                                             *
- *   DisplayType8() prints personality parameters that use an array[x].        *
- *                                                                             *
- *******************************************************************************
- */
-void DisplayType8(int *array, int size) {
+void DisplayType5(int *array, int size) {
   int i;
 
   printf("   ");
   for (i = 0; i < size; i++)
-    printf("%3d ", array[i]);
+    printf("%4d ", array[i]);
   printf("\n");
 }
 
 /*
  *******************************************************************************
  *                                                                             *
- *   DisplayType9() prints personality parameters that use an array[mg][9]     *
+ *   DisplayType6() prints personality parameters that use an array[mg][8]     *
  *   format.                                                                   *
  *                                                                             *
  *******************************************************************************
  */
-void DisplayType9(int *array, int *array2) {
+void DisplayType6(int *array) {
   int i;
 
-  printf("    ------------- Middlegame -------------   ");
-  printf("    --------------- Endgame --------------\n");
+  printf("    ----------- Middlegame ------------ ");
+  printf("    ------------- Endgame ------------\n");
   printf("    ");
-  for (i = 0; i < 9; i++)
+  for (i = 0; i < 8; i++)
     printf("%3d ", array[i]);
   printf("  |     |");
   printf("  ");
-  for (i = 0; i < 9; i++)
-    printf("%3d ", array2[i]);
+  for (i = 8; i < 16; i++)
+    printf("%3d ", array[i]);
   printf("\n");
 }
 
@@ -1127,9 +1057,9 @@ void DisplayType9(int *array, int *array2) {
  */
 void EGTBPV(TREE * RESTRICT tree, int wtm) {
   int moves[1024], current[256];
-  BITBOARD hk[1024], phk[1024];
+  uint64_t hk[1024], phk[1024];
   char buffer[16384], *next;
-  BITBOARD pos[1024];
+  uint64_t pos[1024];
   int value;
   int ply, i, j, nmoves, *last, t_move_number;
   int best = 0, bestmv = 0, optimal_mv = 0;
@@ -1383,7 +1313,7 @@ unsigned int ReadClock(void) {
 #if defined(NT_i386)
   HANDLE hThread;
   FILETIME ftCreate, ftExit, ftKernel, ftUser;
-  BITBOARD tUser64;
+  uint64_t tUser64;
 #endif
 #if defined(UNIX) || defined(AMIGA)
   gettimeofday(&timeval, &timezone);
@@ -1499,7 +1429,7 @@ int InvalidPosition(TREE * RESTRICT tree) {
     Print(4095, "illegal position, black pawns on first/eighth rank(s)\n");
     error = 1;
   }
-  if (error == 0 && Check(!wtm)) {
+  if (error == 0 && Check(!game_wtm)) {
     Print(4095, "ERROR side not on move is in check!\n");
     error = 1;
   }
@@ -1577,7 +1507,7 @@ void NewGame(int save) {
     books_file = normal_bs_file;
     draw_score[0] = 0;
     draw_score[1] = 0;
-    wtm = 1;
+    game_wtm = 1;
     move_number = 1;
     tc_time_remaining[white] = tc_time;
     tc_time_remaining[black] = tc_time;
@@ -1676,7 +1606,7 @@ int ParseTime(char *string) {
  */
 void Pass(void) {
   char buffer[128];
-  const int halfmoves_done = 2 * (move_number - 1) + (1 - wtm);
+  const int halfmoves_done = 2 * (move_number - 1) + (1 - game_wtm);
   int prev_pass = 0;
 
 /* Was previous move a pass? */
@@ -1689,17 +1619,17 @@ void Pass(void) {
     }
   }
   if (prev_pass) {
-    if (wtm)
+    if (game_wtm)
       move_number--;
   } else {
     if (history_file) {
       fseek(history_file, halfmoves_done * 10, SEEK_SET);
       fprintf(history_file, "%9s\n", "pass");
     }
-    if (!wtm)
+    if (!game_wtm)
       move_number++;
   }
-  wtm = Flip(wtm);
+  game_wtm = Flip(game_wtm);
 }
 
 /*
@@ -1783,7 +1713,7 @@ unsigned int Random32(void) {
  SeedRandom = 1;
  Table[Random[Integer, {0, 2^32 - 1}]
  */
-  static const unsigned long x[55] = {
+  static const uint64_t x[55] = {
     1410651636UL, 3012776752UL, 3497475623UL, 2892145026UL, 1571949714UL,
     3253082284UL, 3489895018UL, 387949491UL, 2597396737UL, 1981903553UL,
     3160251843UL, 129444464UL, 1851443344UL, 4156445905UL, 224604922UL,
@@ -1797,9 +1727,9 @@ unsigned int Random32(void) {
     2017105031UL, 3882325900UL, 810735053UL, 384606609UL, 2393861397UL
   };
   static int init = 1;
-  static unsigned long y[55];
+  static uint64_t y[55];
   static int j, k;
-  unsigned long ul;
+  uint64_t ul;
 
   if (init) {
     int i;
@@ -1827,13 +1757,13 @@ unsigned int Random32(void) {
  *                                                                             *
  *******************************************************************************
  */
-BITBOARD Random64(void) {
-  BITBOARD result;
+uint64_t Random64(void) {
+  uint64_t result;
   unsigned int r1, r2;
 
   r1 = Random32();
   r2 = Random32();
-  result = r1 | (BITBOARD) r2 << 32;
+  result = r1 | (uint64_t) r2 << 32;
   return (result);
 }
 
@@ -2294,20 +2224,20 @@ void RestoreGame(void) {
 
   if (!history_file)
     return;
-  wtm = 1;
+  game_wtm = 1;
   InitializeChessBoard(block[0]);
   for (i = 0; i < 500; i++) {
     fseek(history_file, i * 10, SEEK_SET);
     strcpy(cmd, "");
     fscanf(history_file, "%s", cmd);
     if (strcmp(cmd, "pass")) {
-      move = InputMove(block[0], cmd, 0, wtm, 1, 0);
+      move = InputMove(block[0], cmd, 0, game_wtm, 1, 0);
       if (move)
-        MakeMoveRoot(block[0], move, wtm);
+        MakeMoveRoot(block[0], move, game_wtm);
       else
         break;
     }
-    wtm = Flip(wtm);
+    game_wtm = Flip(game_wtm);
   }
 }
 
@@ -2320,10 +2250,10 @@ void RestoreGame(void) {
  *******************************************************************************
  */
 void Kibitz(int level, int wtm, int depth, int time, int value,
-    BITBOARD nodes, int tb_hits, char *pv) {
+    uint64_t nodes, int tb_hits, char *pv) {
   int nps;
 
-  nps = (int) ((time) ? 100 * nodes / (BITBOARD) time : nodes);
+  nps = (int) ((time) ? 100 * nodes / (uint64_t) time : nodes);
   if (!puzzling) {
     char prefix[128];
 
@@ -2485,7 +2415,7 @@ void Trace(TREE * RESTRICT tree, int ply, int depth, int wtm, int alpha,
     printf("%s] n:" BMF " %s(%d)", DisplayEvaluation(beta, 1),
         (tree->nodes_searched), name, phase);
     if (smp_max_threads > 1)
-      printf(" (t=%ld) ", tree->thread_id);
+      printf(" (t=%d) ", tree->thread_id);
     printf("\n");
   } else {
     printf("%d window/eval(%s) = {", ply, name);

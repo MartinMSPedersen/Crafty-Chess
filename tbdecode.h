@@ -84,9 +84,6 @@ extern "C" {
 #  define MAX_BITS_HALF	((MAX_BLOCK_BITS + 1) >> 1)
 #  define MAX_BITS	(MAX_BITS_HALF * 2)
 /* assume that integer is at least 32 bits wide */
-#  ifndef uint
-#    define uint unsigned
-#  endif
 #  ifndef uchar
 #    define uchar unsigned char
 #  endif
@@ -229,24 +226,24 @@ static unsigned CRC32(uchar * p, int n, unsigned k1)
 /* ------------------------ Bit IO interface -------------------------- */
 /*                          ----------------                            */
 #  define BITIO_LOCALS	\
-  uint   _mask;         \
+  unsigned int _mask;   \
   int    _bits;         \
   uchar *_ptr
 typedef struct {
   BITIO_LOCALS;
 } bitio_t;
 
-#  define BITIO_ENTER(p) do {     \
+#  define BITIO_ENTER(p) do {   \
   _mask = (p)._mask;            \
   _bits = (p)._bits;            \
   _ptr  = (p)._ptr;             \
 } while (0)
-#  define BITIO_LEAVE(p) do {     \
+#  define BITIO_LEAVE(p) do {   \
   (p)._mask = _mask;            \
   (p)._bits = _bits;            \
   (p)._ptr  = _ptr;             \
 } while (0)
-#  define BIORD_START(from) do {		\
+#  define BIORD_START(from) do {	\
   _ptr = (uchar *) (from);              \
   _bits = sizeof (_mask);               \
   _mask = 0;                            \

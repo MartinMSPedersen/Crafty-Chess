@@ -90,21 +90,21 @@ void EVTest(char *filename) {
       Castle(1, white) = 0;
       Castle(0, black) = 0;
       Castle(1, black) = 0;
-      root_wtm = wtm;
+      root_wtm = game_wtm;
       tree->pawn_score.key = 0;
-      s1 = Evaluate(tree, 0, wtm, -99999, 99999);
+      s1 = Evaluate(tree, 0, game_wtm, -99999, 99999);
       strcpy(buffer, "flop");
       (void) Option(tree);
       tree->pawn_score.key = 0;
-      s2 = Evaluate(tree, 0, wtm, -99999, 99999);
+      s2 = Evaluate(tree, 0, game_wtm, -99999, 99999);
       strcpy(buffer, "flip");
       (void) Option(tree);
       tree->pawn_score.key = 0;
-      s3 = Evaluate(tree, 0, wtm, -99999, 99999);
+      s3 = Evaluate(tree, 0, game_wtm, -99999, 99999);
       strcpy(buffer, "flop");
       (void) Option(tree);
       tree->pawn_score.key = 0;
-      s4 = Evaluate(tree, 0, wtm, -99999, 99999);
+      s4 = Evaluate(tree, 0, game_wtm, -99999, 99999);
 /*
  ************************************************************
  *                                                          *
@@ -115,17 +115,21 @@ void EVTest(char *filename) {
  *                                                          *
  ************************************************************
  */
+/*
       if (s1 != s2 || s1 != s3 || s1 != s4 || s2 != s3 || s2 != s4 ||
           s3 != s4) {
-        strcpy(buffer, "flip");
-        (void) Option(tree);
-        printf("FEN = %s\n", buff);
-        DisplayChessBoard(stdout, tree->pos);
-        if (id)
-          Print(4095, "id=%s  ", args[id + 1]);
-        Print(4095, "wtm=%d  score=%d  %d (flop)  %d (flip)  %d (flop)\n",
-            wtm, s1, s2, s3, s4);
+*/
+      strcpy(buffer, "flip");
+      (void) Option(tree);
+      printf("FEN = %s\n", buff);
+      DisplayChessBoard(stdout, tree->pos);
+      if (id)
+        Print(4095, "id=%s  ", args[id + 1]);
+      Print(4095, "wtm=%d  score=%d  %d (flop)  %d (flip)  %d (flop)\n",
+          game_wtm, s1, s2, s3, s4);
+/*
       }
+*/
     }
   }
   input_stream = stdin;

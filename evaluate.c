@@ -1,6 +1,6 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 06/20/10 */
+/* last modified 12/13/10 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -28,15 +28,14 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta) {
  *                                                                    *
  **********************************************************************
  */
+  cutoff = (TotalPieces(white, occupied) & TotalPieces(black, occupied))
+      ? KNIGHT_VALUE : ROOK_VALUE;
   lscore = (wtm) ? Material : -Material;
-  cutoff = KNIGHT_VALUE - 5;
   if (lscore + cutoff < alpha || lscore - cutoff > beta)
     return lscore;
-  tree->dangerous[white] = (Queens(white) &&
-      TotalPieces(white, occupied) > 13)
+  tree->dangerous[white] = (Queens(white) && TotalPieces(white, occupied) > 9)
       || (TotalPieces(white, rook) > 1 && TotalPieces(white, occupied) > 15);
-  tree->dangerous[black] = (Queens(black) &&
-      TotalPieces(black, occupied) > 13)
+  tree->dangerous[black] = (Queens(black) && TotalPieces(black, occupied) > 9)
       || (TotalPieces(black, rook) > 1 && TotalPieces(black, occupied) > 15);
   tree->evaluations++;
   tree->score_mg = 0;
@@ -144,7 +143,7 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta) {
       if (skill < 100)
         tree->score_eg =
             skill * tree->score_eg / 100 + ((100 -
-                skill) * PAWN_VALUE * (BITBOARD) Random32() /
+                skill) * PAWN_VALUE * (uint64_t) Random32() /
             0x100000000ull) / 100;
 #endif
       return ((wtm) ? tree->score_eg : -tree->score_eg);
@@ -190,7 +189,6 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta) {
           pxtable->entry[1] ^ pxtable->entry[2] ^ pxtable->entry[3];
       if (tree->pawn_score.key != PawnHashKey) {
         tree->pawn_score.key = PawnHashKey;
-        tree->pawn_score.open_files = 255;
         tree->pawn_score.score_mg = 0;
         tree->pawn_score.score_eg = 0;
         for (side = black; side <= white; side++)
@@ -220,7 +218,7 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta) {
     if (tree->pawn_score.passed[black] || tree->pawn_score.passed[white]) {
       for (side = black; side <= white; side++)
         if (tree->pawn_score.passed[side])
-          EvaluatePassedPawns(tree, side);
+          EvaluatePassedPawns(tree, side, wtm);
       if ((TotalPieces(white, occupied) == 0 &&
               tree->pawn_score.passed[black])
           || (TotalPieces(black, occupied) == 0 &&
@@ -258,17 +256,17 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta) {
   lscore = (wtm) ? score : -score;
   cutoff = (tree->dangerous[white] ||
       tree->dangerous[black]) ? 114 + phase : 102;
-  if (tree->ply < 6)
-    cutoff += phase;
   if (lscore + cutoff > alpha && lscore - cutoff < beta) {
     tree->tropism[white] = 0;
     tree->tropism[black] = 0;
-    for (side = black; side <= white; side++) {
+    for (side = black; side <= white; side++)
       EvaluateKnights(tree, side);
+    for (side = black; side <= white; side++)
       EvaluateBishops(tree, side);
+    for (side = black; side <= white; side++)
       EvaluateRooks(tree, side);
+    for (side = black; side <= white; side++)
       EvaluateQueens(tree, side);
-    }
     for (side = black; side <= white; side++)
       EvaluateKings(tree, ply, side);
   }
@@ -290,7 +288,7 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta) {
   if (skill < 100)
     score =
         skill * score / 100 + ((100 -
-            skill) * PAWN_VALUE * (BITBOARD) Random32() / 0x100000000ull) /
+            skill) * PAWN_VALUE * (uint64_t) Random32() / 0x100000000ull) /
         100;
 #endif
   return ((wtm) ? score : -score);
@@ -305,7 +303,7 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta) {
  *******************************************************************************
  */
 void EvaluateBishops(TREE * RESTRICT tree, int side) {
-  BITBOARD temp, moves;
+  uint64_t temp, moves;
   int square, t, mobility;
   int score_eg = 0, score_mg = 0, enemy = Flip(side);
 /*
@@ -532,17 +530,17 @@ int EvaluateDraws(TREE * RESTRICT tree, int ply, int can_win, int score) {
             TotalPieces(black, occupied) == 3 &&
             ((TotalPieces(white, pawn) < 4 && TotalPieces(black, pawn) < 4) ||
                 Abs(TotalPieces(white, pawn) - TotalPieces(black, pawn)) < 2))
-          score = score / 2;
+          score = score / 2 + DrawScore(1);
         else if (TotalPieces(white, occupied) == TotalPieces(black, occupied))
-          score = 3 * score / 4;
+          score = 3 * score / 4 + DrawScore(1);
       }
     }
   }
   if (can_win != 3) {
     if (can_win != 1 && score > DrawScore(1))
-      score = score / 4;
+      score = score / 4 + DrawScore(1);
     else if (can_win != 2 && score < DrawScore(1))
-      score = score / 4;
+      score = score / 4 + DrawScore(1);
   }
 /*
  ************************************************************
@@ -742,8 +740,8 @@ int EvaluateKingsFile(TREE * RESTRICT tree, int whichfile, int side) {
  *******************************************************************************
  */
 void EvaluateKnights(TREE * RESTRICT tree, int side) {
-  BITBOARD temp, moves;
-  int square, i, t, score_eg = 0, score_mg = 0;
+  uint64_t temp;
+  int square, t, score_eg = 0, score_mg = 0;
   int enemy = Flip(side);
 
 /*
@@ -784,21 +782,13 @@ void EvaluateKnights(TREE * RESTRICT tree, int side) {
  ************************************************************
  *                                                          *
  *   Mobility counts the number of squares the piece        *
- *   attacks, excluding squares with friendly pieces, and   *
+ *   attacks, including squares with friendly pieces, and   *
  *   weighs each square according to centralization.        *
  *                                                          *
  ************************************************************
  */
-    moves = AttacksKnight(square) & ~Occupied(side);
-    if (tree->cache_n[square] != moves) {
-      tree->cache_n[square] = moves;
-      t = -lower_n;
-      for (i = 0; i < 4; i++)
-        t += PopCnt(moves & mobility_mask_n[i]) * mobility_score_n[i];
-      tree->cache_n_mobility[square] = t;
-    }
-    score_mg += tree->cache_n_mobility[square];
-    score_eg += tree->cache_n_mobility[square];
+    score_mg += knight_mobility_table[square];
+    score_eg += knight_mobility_table[square];
 /*
  ************************************************************
  *                                                          *
@@ -936,16 +926,14 @@ void EvaluateMaterial(TREE * RESTRICT tree, int wtm) {
  ************************************************************
  */
   if (!imbal && !tree->pos.majors[white] && tree->pos.minors[white] == 1) {
-    if (tree->all_pawns & mask_fgh && tree->all_pawns & mask_abc) {
-      imbal = bon[(TotalPieces(white, pawn) + TotalPieces(black, pawn))];
-      if (Bishops(white)) {
-        score_mg += imbal;
-        score_eg += imbal;
-      }
-      if (Bishops(black)) {
-        score_mg -= imbal;
-        score_eg -= imbal;
-      }
+    imbal = bon[(TotalPieces(white, pawn) + TotalPieces(black, pawn))];
+    if (Bishops(white)) {
+      score_mg += imbal;
+      score_eg += imbal;
+    }
+    if (Bishops(black)) {
+      score_mg -= imbal;
+      score_eg -= imbal;
     }
   }
   tree->score_mg += score_mg;
@@ -960,7 +948,7 @@ void EvaluateMaterial(TREE * RESTRICT tree, int wtm) {
 #endif
 }
 
-/* last modified 10/29/09 */
+/* last modified 03/24/12 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -971,10 +959,10 @@ void EvaluateMaterial(TREE * RESTRICT tree, int wtm) {
  *                                                                             *
  *******************************************************************************
  */
-void EvaluatePassedPawns(TREE * RESTRICT tree, int side) {
-  BITBOARD behind;
-  int file, square, sq, score_mg = 0, score_eg = 0;
-  int pawns, rank, dist_bonus, mgsc, egsc;
+void EvaluatePassedPawns(TREE * RESTRICT tree, int side, int wtm) {
+  uint64_t behind;
+  int file, square, score_mg = 0, score_eg = 0;
+  int pawns, rank;
   int enemy = Flip(side);
 
 /*
@@ -988,7 +976,6 @@ void EvaluatePassedPawns(TREE * RESTRICT tree, int side) {
     file = LSB8Bit(pawns);
     square = Advanced(side, Pawns(side) & file_mask[file]);
     rank = rankflip[side][Rank(square)];
-    dist_bonus = pp_dist_bonus[rank];
 #ifdef DEBUGPP
     printf("score[passed pawns %s] on square %d\n",
         (side) ? "white" : "black", square);
@@ -1002,8 +989,8 @@ void EvaluatePassedPawns(TREE * RESTRICT tree, int side) {
  *                                                   *
  *****************************************************
  */
-    mgsc = 200;
-    egsc = 220;
+    score_mg += passed_pawn_value[mg][rank];
+    score_eg += passed_pawn_value[eg][rank];
 #ifdef DEBUGPP
     printf("score[passed rank %s] = (MG)       %d\n",
         (side) ? "white" : "black", score_mg);
@@ -1019,8 +1006,8 @@ void EvaluatePassedPawns(TREE * RESTRICT tree, int side) {
  *****************************************************
  */
     if (mask_pawn_connected[square] & Pawns(side)) {
-      mgsc += 20;
-      egsc += 65;
+      score_mg += passed_pawn_connected[mg][rank];
+      score_eg += passed_pawn_connected[eg][rank];
     }
 #ifdef DEBUGPP
     printf("score[passed connected %s] = (MG)       %d\n",
@@ -1039,18 +1026,24 @@ void EvaluatePassedPawns(TREE * RESTRICT tree, int side) {
  */
     if (Rooks(white) | Rooks(black)) {
       behind =
-          ((side) ? minus8dir[square] : plus8dir[square]) & OccupiedSquares;
+          ((side) ? minus8dir[square] : plus8dir[square]) &
+          AttacksRook(square, OccupiedSquares);
       if (behind) {
-        sq = PcOnSq(Advanced(side, behind));
-        if (sq == pieces[side][rook]) {
-          mgsc += 20;
-          egsc += 60;
-        } else if (sq == pieces[enemy][rook]) {
-          mgsc -= 20;
-          egsc -= 60;
+        if (behind & Rooks(side)) {
+          score_mg += rook_behind_passed_pawn[mg][rank];
+          score_eg += rook_behind_passed_pawn[eg][rank];
+        } else if (behind & Rooks(enemy)) {
+          score_mg -= rook_behind_passed_pawn[mg][rank];
+          score_eg -= rook_behind_passed_pawn[eg][rank];
         }
       }
     }
+#ifdef DEBUGPP
+    printf("score[rook behind %s] = (MG)       %d\n",
+        (side) ? "white" : "black", score_mg);
+    printf("score[rook behind %s] = (EG)       %d\n",
+        (side) ? "white" : "black", score_eg);
+#endif
 /*
  *****************************************************
  *                                                   *
@@ -1063,26 +1056,43 @@ void EvaluatePassedPawns(TREE * RESTRICT tree, int side) {
  *                                                   *
  *****************************************************
  */
-    sq = square + direction[side];
-    behind = ((side) ? plus8dir[square] : minus8dir[square]);
-    if (behind & OccupiedSquares) {
-      egsc -= 25;
-      if (PcOnSq(sq) * sign[side] < 0) {
-        mgsc -= 95;
-        egsc -= 70;
-      } else if (PcOnSq(sq)) {
-        mgsc -= 45;
-        egsc -= 20;
+    if (OccupiedSquares & ((side) ? plus8dir[square] : minus8dir[square])) {
+      score_eg -= passed_pawn_obstructed[rank];
+      if (SetMask(square + direction[side]) & Occupied(enemy)) {
+        score_mg -= passed_pawn_blockaded_by_enemy[mg][rank];
+        score_eg -= passed_pawn_blockaded_by_enemy[eg][rank];
+      } else if (SetMask(square + direction[side]) & Occupied(side)) {
+        score_mg -= passed_pawn_blockaded_by_friendly[mg][rank];
+        score_eg -= passed_pawn_blockaded_by_friendly[eg][rank];
       }
-    } else
-      egsc += (pawn_race[side][wtm][square] & Kings(enemy)) ? 25 : 40;
-
-    score_mg += (pp_bonus[rank] * mgsc) / 100;
-    score_eg += (pp_bonus[rank] * egsc) / 100;
 #ifdef DEBUGPP
-    printf("score[passed blocked %s] = (MG)       %d\n",
+      printf("score[passed blocked %s] = (MG)       %d\n",
+          (side) ? "white" : "black", score_mg);
+      printf("score[passed blocked %s] = (EG)       %d\n",
+          (side) ? "white" : "black", score_eg);
+#endif
+/*
+ *****************************************************
+ *                                                   *
+ *   If the pawn has nothing blocking its progress   *
+ *   to the promotion square, then we give a bonus.  *
+ *   If the pawn is outside the square of the enemy  *
+ *   king, this bonus is increased, because this     *
+ *   makes it more difficult for the opponent to     *
+ *   trade pieces which might let this pawn run.     *
+ *                                                   *
+ *****************************************************
+ */
+    } else {
+      if (!(pawn_race[side][wtm][square] & Kings(enemy)))
+        score_eg += passed_pawn_far_away[rank];
+      else
+        score_eg += passed_pawn_not_far_away[rank];
+    }
+#ifdef DEBUGPP
+    printf("score[passed can run %s] = (MG)       %d\n",
         (side) ? "white" : "black", score_mg);
-    printf("score[passed blocked %s] = (EG)       %d\n",
+    printf("score[passed can run %s] = (EG)       %d\n",
         (side) ? "white" : "black", score_eg);
 #endif
 /*
@@ -1097,9 +1107,10 @@ void EvaluatePassedPawns(TREE * RESTRICT tree, int side) {
  *                                                   *
  *****************************************************
  */
+    square += direction[side];
     score_eg -=
-        (Distance(sq, KingSQ(side)) - Distance(sq,
-            KingSQ(enemy))) * dist_bonus;
+        (Distance(square, KingSQ(side)) - Distance(square,
+            KingSQ(enemy))) * pp_dist_bonus[rank];
 #ifdef DEBUGPP
     printf("score[passed supported %s] = (EG)       %d\n",
         (side) ? "white" : "black", score_eg);
@@ -1156,10 +1167,10 @@ void EvaluatePassedPawnRaces(TREE * RESTRICT tree, int wtm) {
   int file, square;
   int queen_distance;
   int pawnsq;
-  BITBOARD pawns;
+  uint64_t pawns;
   int passed;
   int side, enemy;
-  BITBOARD runners[2] = { 0, 0 };
+  uint64_t runners[2] = { 0, 0 };
   int queener[2] = { 8, 8 };
 #ifdef DEBUGPP
   int psquare[2] = { 0, 0 };
@@ -1240,7 +1251,6 @@ void EvaluatePassedPawnRaces(TREE * RESTRICT tree, int wtm) {
             tree->score_eg += sign[side] * pawn_can_promote;
             return;
           }
-        }
 /*
  **************************************************
  *                                                *
@@ -1250,10 +1260,12 @@ void EvaluatePassedPawnRaces(TREE * RESTRICT tree, int wtm) {
  *                                                *
  **************************************************
  */
-        if ((Rank(KingSQ(side)) == Rank(pawnsq) - 1 + 2 * side) &&
-            EvaluateHasOpposition(wtm == side, KingSQ(side), KingSQ(enemy))) {
-          tree->score_eg += sign[side] * pawn_can_promote;
-          return;
+          if ((Rank(KingSQ(side)) == Rank(pawnsq) - 1 + 2 * side) &&
+              EvaluateHasOpposition(wtm == side, KingSQ(side),
+                  KingSQ(enemy))) {
+            tree->score_eg += sign[side] * pawn_can_promote;
+            return;
+          }
         }
       }
     }
@@ -1346,7 +1358,7 @@ void EvaluatePassedPawnRaces(TREE * RESTRICT tree, int wtm) {
   }
 }
 
-/* last modified 10/29/09 */
+/* last modified 04/05/12 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -1362,9 +1374,9 @@ void EvaluatePassedPawnRaces(TREE * RESTRICT tree, int wtm) {
  *******************************************************************************
  */
 void EvaluatePawns(TREE * RESTRICT tree, int side) {
-  BITBOARD pawns;
-  BITBOARD temp;
-  BITBOARD p_moves[2];
+  uint64_t pawns;
+  uint64_t temp;
+  uint64_t p_moves[2];
   int square, file, rank, score_eg = 0, score_mg = 0;
   int defenders, attackers, sq;
   int enemy = Flip(side);
@@ -1377,7 +1389,6 @@ void EvaluatePawns(TREE * RESTRICT tree, int side) {
  ************************************************************
  */
   tree->pawn_score.all[side] = 0;
-  tree->pawn_score.candidates[side] = 0;
   tree->pawn_score.passed[side] = 0;
 /*
  ************************************************************
@@ -1413,16 +1424,7 @@ void EvaluatePawns(TREE * RESTRICT tree, int side) {
   for (pawns = Pawns(side); pawns; pawns &= pawns - 1) {
     square = LSB(pawns);
     file = File(square);
-    rank = Rank(square);
-/*
- ************************************************************
- *                                                          *
- *   The first thing we do is make a note that the current  *
- *   file can't be open since there is a pawn on it.        *
- *                                                          *
- ************************************************************
- */
-    tree->pawn_score.open_files &= ~(1 << file);
+    rank = rankflip[side][Rank(square)];
 /*
  ************************************************************
  *                                                          *
@@ -1598,17 +1600,13 @@ void EvaluatePawns(TREE * RESTRICT tree, int side) {
         }
         if (attackers <= defenders) {
           if (!(mask_passed[side][sq + direction[side]] & Pawns(enemy))) {
-            tree->pawn_score.candidates[side] |= 1 << file;
-            score_mg += passed_pawn_candidate[mg][side][rank];
-            score_eg += passed_pawn_candidate[eg][side][rank];
+            score_mg += passed_pawn_candidate[mg][rank];
+            score_eg += passed_pawn_candidate[eg][rank];
           }
         }
       }
     }
 #ifdef DEBUGP
-    if (tree->pawn_score.candidates[side] & (1 << file))
-      printf("%s pawn[candidate] square=%d\n", (side) ? "white" : "black",
-          square);
     printf("%s pawn[candidate] file=%d, score_mg=%d\n",
         (side) ? "white" : "black", file, score_mg);
     printf("%s pawn[candidate] file=%d, score_eg=%d\n",
@@ -1675,7 +1673,7 @@ void EvaluatePawns(TREE * RESTRICT tree, int side) {
  *******************************************************************************
  */
 void EvaluateQueens(TREE * RESTRICT tree, int side) {
-  BITBOARD temp;
+  uint64_t temp;
   int square, t, score_mg = 0, score_eg = 0;
   int enemy = Flip(side);
 
@@ -1733,7 +1731,7 @@ void EvaluateQueens(TREE * RESTRICT tree, int side) {
  *******************************************************************************
  */
 void EvaluateRooks(TREE * RESTRICT tree, int side) {
-  BITBOARD temp, moves;
+  uint64_t temp, moves;
   int square, rank, fRank, file, i, t, mobility;
   int score_mg = 0, score_eg = 0;
   int enemy = Flip(side);
@@ -1948,9 +1946,14 @@ int EvaluateWinningChances(TREE * RESTRICT tree, int side, int wtm) {
  *                                                          *
  ************************************************************
  */
-  if (TotalPieces(side, pawn) == 0 && TotalPieces(side, occupied) == 6 &&
-      TotalPieces(enemy, occupied) == 3 && (Knights(side) || !Knights(enemy)))
-    return (0);
+  if (TotalPieces(side, pawn) == 0 && TotalPieces(side, occupied) == 6) {
+    if (TotalPieces(enemy, occupied) == 3 && (Knights(side) ||
+            !Knights(enemy)))
+      return (0);
+    if (!Knights(side) && (!(dark_squares & Bishops(side)) ||
+            !(~dark_squares & Bishops(side))))
+      return (0);
+  }
 /*
  ************************************************************
  *                                                          *

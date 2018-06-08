@@ -32,7 +32,7 @@ void Test(char *filename) {
   FILE *test_input;
   int i, move, right = 0, wrong = 0, correct;
   int time = 0, len;
-  BITBOARD nodes = 0;
+  uint64_t nodes = 0;
   char *eof, *delim;
   float avg_depth = 0.0;
   TREE *const tree = block[0];
@@ -112,11 +112,11 @@ void Test(char *filename) {
           solution_type = 0;
           args[i][strlen(args[i]) - 1] = '\0';
         }
-        move = InputMove(tree, args[i], 0, wtm, 0, 0);
+        move = InputMove(tree, args[i], 0, game_wtm, 0, 0);
         if (move) {
           solutions[number_of_solutions] = move;
           Print(4095, "%d. %s", (number_of_solutions++) + 1, OutputMove(tree,
-                  move, 0, wtm));
+                  move, 0, game_wtm));
           if (solution_type == 1)
             Print(4095, "? ");
           else
@@ -129,7 +129,7 @@ void Test(char *filename) {
       last_pv.pathd = 0;
       thinking = 1;
       tree->position[1] = tree->position[0];
-      (void) Iterate(wtm, think, 0);
+      (void) Iterate(game_wtm, think, 0);
       thinking = 0;
       nodes += tree->nodes_searched;
       avg_depth += (float) iteration_depth;
@@ -210,7 +210,7 @@ void TestEPD(char *filename) {
   FILE *test_input;
   int i, move, right = 0, wrong = 0, correct;
   int time = 0, len;
-  BITBOARD nodes = 0;
+  uint64_t nodes = 0;
   char *eof, *mvs, *title;
   float avg_depth = 0.0;
   TREE *const tree = block[0];
@@ -293,11 +293,11 @@ void TestEPD(char *filename) {
     for (i = 1; i < nargs; i++) {
       if (!strcmp(args[i], "c0"))
         break;
-      move = InputMove(tree, args[i], 0, wtm, 0, 0);
+      move = InputMove(tree, args[i], 0, game_wtm, 0, 0);
       if (move) {
         solutions[number_of_solutions] = move;
         Print(4095, "%d. %s", (number_of_solutions++) + 1, OutputMove(tree,
-                move, 0, wtm));
+                move, 0, game_wtm));
         if (solution_type == 1)
           Print(4095, "? ");
         else
@@ -310,7 +310,7 @@ void TestEPD(char *filename) {
     last_pv.pathd = 0;
     thinking = 1;
     tree->position[1] = tree->position[0];
-    (void) Iterate(wtm, think, 0);
+    (void) Iterate(game_wtm, think, 0);
     thinking = 0;
     nodes += tree->nodes_searched;
     avg_depth += (float) iteration_depth;

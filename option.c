@@ -27,9 +27,9 @@ int Option(TREE * RESTRICT tree) {
  ************************************************************
  */
   if (StrCnt(buffer, '/') >= 7)
-    nargs = ReadParse(buffer, args, " 	;=");
+    nargs = ReadParse(buffer, args, " \t;=");
   else
-    nargs = ReadParse(buffer, args, " 	;=/");
+    nargs = ReadParse(buffer, args, " \t;=/");
   if (!nargs)
     return (1);
   if (args[0][0] == '#')
@@ -257,7 +257,7 @@ int Option(TREE * RESTRICT tree) {
     ponder_move = 0;
     last_pv.pathd = 0;
     last_pv.pathl = 0;
-    if (!wtm)
+    if (!game_wtm)
       Pass();
     force = 0;
   } else if (!strcmp("black", *args)) {
@@ -266,7 +266,7 @@ int Option(TREE * RESTRICT tree) {
     ponder_move = 0;
     last_pv.pathd = 0;
     last_pv.pathl = 0;
-    if (wtm)
+    if (game_wtm)
       Pass();
     force = 0;
   }
@@ -309,10 +309,10 @@ int Option(TREE * RESTRICT tree) {
  ************************************************************
  */
   else if (!strcmp("book", *args)) {
-    nargs = ReadParse(buffer, args, " 	;");
+    nargs = ReadParse(buffer, args, " \t;");
     BookUp(tree, nargs, args);
   } else if (!strcmp("create", *(args + 1))) {
-    nargs = ReadParse(buffer, args, " 	;");
+    nargs = ReadParse(buffer, args, " \t;");
     BookUp(tree, nargs, args);
   }
 /*
@@ -330,7 +330,7 @@ int Option(TREE * RESTRICT tree) {
   else if (OptionMatch("channel", *args)) {
     int tchannel;
 
-    nargs = ReadParse(buffer, args, " 	;");
+    nargs = ReadParse(buffer, args, " \t;");
     if (nargs < 2) {
       printf("usage:  channel <n> [title]\n");
       return (1);
@@ -504,6 +504,12 @@ int Option(TREE * RESTRICT tree) {
         } else if (OptionMatch("noply1", args[1])) {
           display_options &= 4095 - 512;
           Print(128, "don't display ply-1 moves/evaluations.\n");
+        } else if (OptionMatch("everything", args[1])) {
+          display_options = 4095;
+          Print(128, "display everything (lots of output).\n");
+        } else if (OptionMatch("nothing", args[1])) {
+          display_options = 4095 - 1023;
+          Print(128, "display nothing.\n");
         } else if (OptionMatch("*", args[1])) {
           if (display_options & 1)
             printf("display time for moves\n");
@@ -547,11 +553,8 @@ int Option(TREE * RESTRICT tree) {
     printf("from, to, piece: ");
     scanf("%d %d %d", &from, &to, &piece);
     move = from + (to << 6) + (piece << 12);
-    printf("swapo=%d\n", SwapO(tree, move, wtm));
-    int *mv;
-    tree->last[1] = GenerateCheckEvasions(tree, 1, wtm, tree->last[0]);
-    for (mv = tree->last[0]; mv < tree->last[1]; mv++)
-      printf("%s\n", OutputMove(tree, *mv, 1, wtm));
+    printf("swap=%d\n", Swap(tree, move, game_wtm));
+    printf("swapo=%d\n", SwapO(tree, move, game_wtm));
   }
 */
 /*
@@ -636,8 +639,8 @@ int Option(TREE * RESTRICT tree) {
       return (2);
     Edit();
     move_number = 1;    /* discard history */
-    if (!wtm) {
-      wtm = 1;
+    if (!game_wtm) {
+      game_wtm = 1;
       Pass();
     }
     ponder_move = 0;
@@ -677,7 +680,7 @@ int Option(TREE * RESTRICT tree) {
       }
     } else {
       if (nargs == 1)
-        EGTBPV(tree, wtm);
+        EGTBPV(tree, game_wtm);
       else if (nargs == 2)
         EGTBlimit = Min(atoi(args[1]), 5);
     }
@@ -790,13 +793,13 @@ int Option(TREE * RESTRICT tree) {
         PcOnSq(((7 - rank) << 3) + file) = piece;
       }
     }
-    wtm = Flip(wtm);
+    game_wtm = Flip(game_wtm);
     temp = Castle(0, white);
     Castle(0, white) = Castle(0, black);
     Castle(0, black) = temp;
     SetChessBitBoards(tree);
 #if defined(DEBUG)
-    ValidatePosition(tree, 0, wtm, "Option().flip");
+    ValidatePosition(tree, 0, game_wtm, "Option().flip");
 #endif
   }
 /*
@@ -822,7 +825,7 @@ int Option(TREE * RESTRICT tree) {
     }
     SetChessBitBoards(tree);
 #if defined(DEBUG)
-    ValidatePosition(tree, 0, wtm, "Option().flop");
+    ValidatePosition(tree, 0, game_wtm, "Option().flop");
 #endif
   }
 /*
@@ -853,26 +856,27 @@ int Option(TREE * RESTRICT tree) {
     last_pv.pathl = 0;
     save_move_number = move_number;
     movenum = move_number;
-    if (wtm)
+    if (game_wtm)
       movenum--;
     strcpy(text, args[1]);
     sprintf(buffer, "reset %d", movenum);
-    wtm = Flip(wtm);
+    game_wtm = Flip(game_wtm);
     (void) Option(tree);
-    move = InputMove(tree, text, 0, wtm, 0, 0);
+    move = InputMove(tree, text, 0, game_wtm, 0, 0);
     if (move) {
       if (input_stream != stdin)
-        printf("%s\n", OutputMove(tree, move, 0, wtm));
+        printf("%s\n", OutputMove(tree, move, 0, game_wtm));
       if (history_file) {
-        fseek(history_file, ((movenum - 1) * 2 + 1 - wtm) * 10, SEEK_SET);
-        fprintf(history_file, "%9s\n", OutputMove(tree, move, 0, wtm));
+        fseek(history_file, ((movenum - 1) * 2 + 1 - game_wtm) * 10,
+            SEEK_SET);
+        fprintf(history_file, "%9s\n", OutputMove(tree, move, 0, game_wtm));
       }
-      MakeMoveRoot(tree, move, wtm);
+      MakeMoveRoot(tree, move, game_wtm);
       last_pv.pathd = 0;
       last_pv.pathl = 0;
     } else if (input_stream == stdin)
       printf("illegal move.\n");
-    wtm = Flip(wtm);
+    game_wtm = Flip(game_wtm);
     move_number = save_move_number;
     strcpy(hint, "none");
   }
@@ -889,7 +893,7 @@ int Option(TREE * RESTRICT tree) {
 
     if (thinking || pondering)
       return (2);
-    if (wtm) {
+    if (game_wtm) {
       if (strncmp(pgn_white, "Crafty", 6)) {
         strcpy(temp, pgn_white);
         strcpy(pgn_white, pgn_black);
@@ -918,7 +922,7 @@ int Option(TREE * RESTRICT tree) {
 
     if (history_file) {
       printf("    white       black\n");
-      for (i = 0; i < (move_number - 1) * 2 - wtm + 1; i++) {
+      for (i = 0; i < (move_number - 1) * 2 - game_wtm + 1; i++) {
         fseek(history_file, i * 10, SEEK_SET);
         fscanf(history_file, "%s", buffer);
         if (!(i % 2))
@@ -927,7 +931,7 @@ int Option(TREE * RESTRICT tree) {
         if (i % 2 == 1)
           printf("\n");
       }
-      if (Flip(wtm))
+      if (Flip(game_wtm))
         printf("  ...\n");
     }
   }
@@ -980,7 +984,7 @@ int Option(TREE * RESTRICT tree) {
         hash_table_size = 0;
         trans_ref = 0;
       }
-      hash_mask = (1ull << (MSB((BITBOARD) hash_table_size) - 2)) - 1;
+      hash_mask = (1ull << (MSB((uint64_t) hash_table_size) - 2)) - 1;
       InitializeHashTables();
     }
     Print(128, "hash table memory = %s bytes",
@@ -1022,7 +1026,7 @@ int Option(TREE * RESTRICT tree) {
         hash_path_size = 0;
         hash_path = 0;
       }
-      hash_path_mask = (1ull << MSB((BITBOARD) hash_path_size / 16)) - 1;
+      hash_path_mask = (1ull << MSB((uint64_t) hash_path_size / 16)) - 1;
     }
     Print(128, "hash path table memory = %s bytes",
         PrintKM(hash_path_size * sizeof(HPATH_ENTRY), 1));
@@ -1058,7 +1062,7 @@ int Option(TREE * RESTRICT tree) {
         pawn_hash_table_size = 0;
         pawn_hash_table = 0;
       }
-      pawn_hash_mask = (1ull << MSB((BITBOARD) pawn_hash_table_size)) - 1;
+      pawn_hash_mask = (1ull << MSB((uint64_t) pawn_hash_table_size)) - 1;
       for (i = 0; i < pawn_hash_table_size; i++) {
         (pawn_hash_table + i)->key = 0;
         (pawn_hash_table + i)->score_mg = 0;
@@ -1073,8 +1077,6 @@ int Option(TREE * RESTRICT tree) {
         (pawn_hash_table + i)->defects_e[black] = 0;
         (pawn_hash_table + i)->passed[white] = 0;
         (pawn_hash_table + i)->passed[black] = 0;
-        (pawn_hash_table + i)->candidates[white] = 0;
-        (pawn_hash_table + i)->candidates[black] = 0;
       }
     }
     Print(128, "pawn hash table memory = %s bytes",
@@ -1157,7 +1159,7 @@ int Option(TREE * RESTRICT tree) {
   else if (OptionMatch("input", *args)) {
     if (thinking || pondering)
       return (2);
-    nargs = ReadParse(buffer, args, " 	=");
+    nargs = ReadParse(buffer, args, " \t=");
     if (nargs < 2) {
       printf("usage:  input <filename>\n");
       return (1);
@@ -1320,7 +1322,7 @@ int Option(TREE * RESTRICT tree) {
     if (adaptive_hash) {
       float percent;
       int optimal_hash_size;
-      BITBOARD positions_per_move;
+      uint64_t positions_per_move;
 
       TimeSet(tree, think);
       time_limit /= 100;
@@ -1551,7 +1553,7 @@ int Option(TREE * RESTRICT tree) {
 
     if (thinking || pondering)
       return (2);
-    nargs = ReadParse(buffer, args, " 	=");
+    nargs = ReadParse(buffer, args, " \t=");
     if (nargs < 3) {
       printf("usage:  input <filename> title\n");
       return (1);
@@ -1575,7 +1577,7 @@ int Option(TREE * RESTRICT tree) {
       }
       if (readstat == NULL)
         break;
-      nargs = ReadParse(buffer, args, " 	;\n");
+      nargs = ReadParse(buffer, args, " \t;\n");
       if (!strcmp(args[0], "title") && strstr(buffer, title))
         break;
     }
@@ -1593,7 +1595,7 @@ int Option(TREE * RESTRICT tree) {
       }
       if (readstat == NULL)
         break;
-      nargs = ReadParse(buffer, args, " 	;\n");
+      nargs = ReadParse(buffer, args, " \t;\n");
       if (!strcmp(args[0], "setboard")) {
         (void) Option(tree);
         break;
@@ -1805,7 +1807,7 @@ int Option(TREE * RESTRICT tree) {
  ************************************************************
  */
   else if (OptionMatch("memory", *args)) {
-    BITBOARD size;
+    uint64_t size;
     size_t hmemory, pmemory;
     if (nargs < 2) {
       printf("usage:  memory <size>\n");
@@ -1817,10 +1819,10 @@ int Option(TREE * RESTRICT tree) {
     pmemory = (1ull) << MSB(size);
     if (pmemory < 1024 * 1024)
       pmemory = 0;
-    sprintf(buffer, "hash %lld\n", (BITBOARD) hmemory);
+    sprintf(buffer, "hash %lld\n", (uint64_t) hmemory);
     (void) Option(tree);
     if (pmemory) {
-      sprintf(buffer, "hashp %lld\n", (BITBOARD) pmemory);
+      sprintf(buffer, "hashp %lld\n", (uint64_t) pmemory);
       (void) Option(tree);
     }
   }
@@ -1901,7 +1903,7 @@ int Option(TREE * RESTRICT tree) {
       printf("usage:  name <name>\n");
       return (1);
     }
-    if (wtm) {
+    if (game_wtm) {
       strcpy(pgn_white, args[1]);
       sprintf(pgn_black, "Crafty %s", version);
     } else {
@@ -2132,30 +2134,11 @@ int Option(TREE * RESTRICT tree) {
             case 5:
               printf("%3d  %s\n", i, personality_packet[i].description);
               DisplayType5(personality_packet[i].value,
-                  personality_packet[i].value +
-                  personality_packet[i].size / 2,
-                  personality_packet[i].size / 16);
+                  personality_packet[i].size);
               break;
             case 6:
               printf("%3d  %s\n", i, personality_packet[i].description);
-              DisplayType6(personality_packet[i].value,
-                  personality_packet[i].value + 16);
-              break;
-            case 7:
-              printf("%3d  %s\n", i, personality_packet[i].description);
-              DisplayType7(personality_packet[i].value,
-                  personality_packet[i].value + 5);
-              break;
-            case 8:
-              printf("%3d  %s\n", i, personality_packet[i].description);
-              DisplayType8(personality_packet[i].value,
-                  personality_packet[i].size);
-              break;
-            case 9:
-              printf("%3d  %s %7d (btm) %7d (wtm)\n", i,
-                  personality_packet[i].description,
-                  personality_packet[i].value[mg],
-                  personality_packet[i].value[eg]);
+              DisplayType6(personality_packet[i].value);
               break;
           }
         } else {
@@ -2184,7 +2167,6 @@ int Option(TREE * RESTRICT tree) {
         strcat(filename, ".cpf");
       Print(128, "Loading personality file %s\n", filename);
       if ((file = fopen(filename, "r+"))) {
-        silent = 1;
         while (fgets(buffer, 4096, file)) {
           char *delim;
 
@@ -2199,7 +2181,6 @@ int Option(TREE * RESTRICT tree) {
             *delim = ' ';
           (void) Option(tree);
         }
-        silent = 0;;
         fclose(file);
       }
       return (1);
@@ -2302,7 +2283,7 @@ int Option(TREE * RESTRICT tree) {
       if (log_file)
         Print(4095, "ERROR -- this must be used on command line only\n");
     }
-    nargs = ReadParse(buffer, args, " 	=");
+    nargs = ReadParse(buffer, args, " \t=");
     if (nargs < 2) {
       printf("usage:  bookpath|perspath|logpath|tbpath <path>\n");
       return (1);
@@ -2349,8 +2330,8 @@ int Option(TREE * RESTRICT tree) {
     while (clock() == clock_before);
     clock_before = clock();
     for (i = 0; i < PERF_CYCLES; i++) {
-      tree->last[1] = GenerateCaptures(tree, 0, wtm, tree->last[0]);
-      tree->last[1] = GenerateNoncaptures(tree, 0, wtm, tree->last[1]);
+      tree->last[1] = GenerateCaptures(tree, 0, game_wtm, tree->last[0]);
+      tree->last[1] = GenerateNoncaptures(tree, 0, game_wtm, tree->last[1]);
     }
     clock_after = clock();
     time_used =
@@ -2364,11 +2345,11 @@ int Option(TREE * RESTRICT tree) {
     while (clock() == clock_before);
     clock_before = clock();
     for (i = 0; i < PERF_CYCLES; i++) {
-      tree->last[1] = GenerateCaptures(tree, 0, wtm, tree->last[0]);
-      tree->last[1] = GenerateNoncaptures(tree, 0, wtm, tree->last[1]);
+      tree->last[1] = GenerateCaptures(tree, 0, game_wtm, tree->last[0]);
+      tree->last[1] = GenerateNoncaptures(tree, 0, game_wtm, tree->last[1]);
       for (mv = tree->last[0]; mv < tree->last[1]; mv++) {
-        MakeMove(tree, 0, *mv, wtm);
-        UnmakeMove(tree, 0, *mv, wtm);
+        MakeMove(tree, 0, *mv, game_wtm);
+        UnmakeMove(tree, 0, *mv, game_wtm);
       }
     }
     clock_after = clock();
@@ -2408,7 +2389,7 @@ int Option(TREE * RESTRICT tree) {
       return (1);
     }
     total_moves = 0;
-    OptionPerft(tree, 1, i, wtm);
+    OptionPerft(tree, 1, i, game_wtm);
     clock_after = clock();
     time_used =
         ((float) clock_after - (float) clock_before) / (float) CLOCKS_PER_SEC;
@@ -2513,7 +2494,7 @@ int Option(TREE * RESTRICT tree) {
       ponder = 0;
       Print(128, "pondering disabled.\n");
     } else {
-      ponder_move = InputMove(tree, args[1], 0, wtm, 0, 0);
+      ponder_move = InputMove(tree, args[1], 0, game_wtm, 0, 0);
       last_pv.pathd = 0;
       last_pv.pathl = 0;
     }
@@ -2579,6 +2560,7 @@ int Option(TREE * RESTRICT tree) {
  ************************************************************
  */
   else if (OptionMatch("rating", *args)) {
+    int rd;
     if (nargs < 3) {
       printf("usage:  rating <Crafty> <opponent>\n");
       return (1);
@@ -2589,21 +2571,17 @@ int Option(TREE * RESTRICT tree) {
       crafty_rating = 2500;
       opponent_rating = 2300;
     }
-    if (computer_opponent)
-      abs_draw_score = 1;
-    else if (crafty_rating - opponent_rating < 0)
-      abs_draw_score = +20;
-    else if (crafty_rating - opponent_rating < 100)
-      abs_draw_score = 1;
-    else if (crafty_rating - opponent_rating < 300)
-      abs_draw_score = -20;
-    else if (crafty_rating - opponent_rating < 500)
-      abs_draw_score = -30;
+    rd = opponent_rating - crafty_rating;
+    if (rd < 0)
+      rd = (rd - 50) / 100;
     else
-      abs_draw_score = -50;
+      rd = (rd + 50) / 100;
+    rd = Max(Min(rd, 10), -10);
+    abs_draw_score = rd * 20 + 20;
     if (log_file) {
       fprintf(log_file, "Crafty's rating: %d.\n", crafty_rating);
       fprintf(log_file, "opponent's rating: %d.\n", opponent_rating);
+      fprintf(log_file, "draw score: %d.\n", abs_draw_score);
     }
   }
 /*
@@ -2654,10 +2632,10 @@ int Option(TREE * RESTRICT tree) {
       move_number = 1;
       return (1);
     }
-    nmoves = (move_number - 1) * 2 + 1 - wtm;
-    root_wtm = Flip(wtm);
+    nmoves = (move_number - 1) * 2 + 1 - game_wtm;
+    root_wtm = Flip(game_wtm);
     InitializeChessBoard(tree);
-    wtm = 1;
+    game_wtm = 1;
     move_number = 1;
     tc_moves_remaining[white] = tc_moves;
     tc_moves_remaining[black] = tc_moves;
@@ -2670,21 +2648,21 @@ int Option(TREE * RESTRICT tree) {
  position; then white's first move is recorded as a pass.
  */
       if (strcmp(buffer, "pass") == 0) {
-        wtm = Flip(wtm);
-        if (wtm)
+        game_wtm = Flip(game_wtm);
+        if (game_wtm)
           move_number++;
         continue;
       }
-      move = InputMove(tree, buffer, 0, wtm, 0, 0);
+      move = InputMove(tree, buffer, 0, game_wtm, 0, 0);
       if (move) {
-        MakeMoveRoot(tree, move, wtm);
+        MakeMoveRoot(tree, move, game_wtm);
       } else {
         printf("ERROR!  move %s is illegal\n", buffer);
         break;
       }
-      TimeAdjust(0, wtm);
-      wtm = Flip(wtm);
-      if (wtm)
+      TimeAdjust(0, game_wtm);
+      game_wtm = Flip(game_wtm);
+      if (game_wtm)
         move_number++;
     }
     moves_out_of_book = 0;
@@ -2709,7 +2687,7 @@ int Option(TREE * RESTRICT tree) {
 
     if (thinking || pondering)
       return (2);
-    nargs = ReadParse(buffer, args, " 	=");
+    nargs = ReadParse(buffer, args, " \t=");
     if (!strcmp("reada", *args))
       append = 1;
     else
@@ -2728,7 +2706,7 @@ int Option(TREE * RESTRICT tree) {
     }
     if (!append) {
       InitializeChessBoard(tree);
-      wtm = 1;
+      game_wtm = 1;
       move_number = 1;
       tc_moves_remaining[white] = tc_moves;
       tc_moves_remaining[black] = tc_moves;
@@ -2739,7 +2717,7 @@ int Option(TREE * RESTRICT tree) {
     readstat = ReadPGN(0, 0);
     do {
       if (read_input == stdin) {
-        if (wtm)
+        if (game_wtm)
           printf("read.White(%d): ", move_number);
         else
           printf("read.Black(%d): ", move_number);
@@ -2754,29 +2732,30 @@ int Option(TREE * RESTRICT tree) {
  */
     do {
       move = 0;
-      move = ReadNextMove(tree, buffer, 0, wtm);
+      move = ReadNextMove(tree, buffer, 0, game_wtm);
       if (move) {
         if (read_input != stdin) {
-          printf("%s ", OutputMove(tree, move, 0, wtm));
-          if (!(move_number % 8) && Flip(wtm))
+          printf("%s ", OutputMove(tree, move, 0, game_wtm));
+          if (!(move_number % 8) && Flip(game_wtm))
             printf("\n");
         }
-        fseek(history_file, ((move_number - 1) * 2 + 1 - wtm) * 10, SEEK_SET);
-        fprintf(history_file, "%9s\n", OutputMove(tree, move, 0, wtm));
-        MakeMoveRoot(tree, move, wtm);
-        TimeAdjust(0, wtm);
+        fseek(history_file, ((move_number - 1) * 2 + 1 - game_wtm) * 10,
+            SEEK_SET);
+        fprintf(history_file, "%9s\n", OutputMove(tree, move, 0, game_wtm));
+        MakeMoveRoot(tree, move, game_wtm);
+        TimeAdjust(0, game_wtm);
 #if defined(DEBUG)
         ValidatePosition(tree, 1, move, "Option()");
 #endif
       } else if (!read_input)
         printf("illegal move.\n");
       if (move) {
-        wtm = Flip(wtm);
-        if (wtm)
+        game_wtm = Flip(game_wtm);
+        if (game_wtm)
           move_number++;
       }
       if (read_input == stdin) {
-        if (wtm)
+        if (game_wtm)
           printf("read.White(%d): ", move_number);
         else
           printf("read.Black(%d): ", move_number);
@@ -2791,7 +2770,7 @@ int Option(TREE * RESTRICT tree) {
     moves_out_of_book = 0;
     printf("NOTICE: %d moves to next time control\n",
         tc_moves_remaining[root_wtm]);
-    root_wtm = !wtm;
+    root_wtm = !game_wtm;
     if (read_input != stdin) {
       printf("\n");
       fclose(read_input);
@@ -2909,7 +2888,7 @@ int Option(TREE * RESTRICT tree) {
     fprintf(output_file, "[Result \"%s\"]\n", pgn_result);
 /* Handle setup positions and initial pass by white */
     swtm = 1;
-    if (move_number > 1 || !wtm) {
+    if (move_number > 1 || !game_wtm) {
       fseek(history_file, 0, SEEK_SET);
       if (fscanf(history_file, "%s", input) == 1 &&
           strcmp(input, "pass") == 0)
@@ -2930,7 +2909,7 @@ int Option(TREE * RESTRICT tree) {
     }
 /* Output the moves */
     more = 0;
-    for (i = (swtm ? 0 : 1); i < (move_number - 1) * 2 - wtm + 1; i++) {
+    for (i = (swtm ? 0 : 1); i < (move_number - 1) * 2 - game_wtm + 1; i++) {
       fseek(history_file, i * 10, SEEK_SET);
       fscanf(history_file, "%s", input);
       if (!(i % 2)) {
@@ -3014,10 +2993,10 @@ int Option(TREE * RESTRICT tree) {
       }
     }
     if (output_file)
-      fprintf(output_file, " %c ", (wtm) ? 'w' : 'b');
+      fprintf(output_file, " %c ", (game_wtm) ? 'w' : 'b');
     else
       sprintf(initial_position + strlen(initial_position), " %c ",
-          (wtm) ? 'w' : 'b');
+          (game_wtm) ? 'w' : 'b');
     if (Castle(0, white) & 1) {
       if (output_file)
         fprintf(output_file, "K");
@@ -3097,9 +3076,9 @@ int Option(TREE * RESTRICT tree) {
       printf("usage:  search <move>\n");
       return (1);
     }
-    search_move = InputMove(tree, args[1], 0, wtm, 0, 0);
+    search_move = InputMove(tree, args[1], 0, game_wtm, 0, 0);
     if (!search_move)
-      search_move = InputMove(tree, args[1], 0, Flip(wtm), 0, 0);
+      search_move = InputMove(tree, args[1], 0, Flip(game_wtm), 0, 0);
     if (!search_move)
       printf("illegal move.\n");
   }
@@ -3145,15 +3124,15 @@ int Option(TREE * RESTRICT tree) {
   else if (OptionMatch("setboard", *args)) {
     if (thinking || pondering)
       return (2);
-    nargs = ReadParse(buffer, args, " 	;=");
+    nargs = ReadParse(buffer, args, " \t;=");
     if (nargs < 3) {
       printf("usage:  setboard <fen>\n");
       return (1);
     }
     SetBoard(tree, nargs - 1, args + 1, 0);
     move_number = 1;
-    if (!wtm) {
-      wtm = 1;
+    if (!game_wtm) {
+      game_wtm = 1;
       Pass();
     }
     ponder_move = 0;
@@ -3165,11 +3144,11 @@ int Option(TREE * RESTRICT tree) {
   } else if (StrCnt(*args, '/') > 3) {
     if (thinking || pondering)
       return (2);
-    nargs = ReadParse(buffer, args, " 	;=");
+    nargs = ReadParse(buffer, args, " \t;=");
     SetBoard(tree, nargs, args, 0);
     move_number = 1;
-    if (!wtm) {
-      wtm = 1;
+    if (!game_wtm) {
+      game_wtm = 1;
       Pass();
     }
     ponder_move = 0;
@@ -3200,15 +3179,15 @@ int Option(TREE * RESTRICT tree) {
     tree->score_mg = 0;
     tree->score_eg = 0;
     mgb = tree->score_mg;
-    EvaluateMaterial(tree, wtm);
+    EvaluateMaterial(tree, game_wtm);
     mgb = tree->score_mg - mgb;
     Print(128, "material.......%s", DisplayEvaluation(mgb, 1));
     Print(128, "  |    comp     mg      eg   |");
     Print(128, "    comp     mg      eg   |\n");
-    root_wtm = Flip(wtm);
+    root_wtm = Flip(game_wtm);
     tree->position[1] = tree->position[0];
-    s = Evaluate(tree, 1, wtm, -99999, 99999);
-    if (!wtm)
+    s = Evaluate(tree, 1, game_wtm, -99999, 99999);
+    if (!game_wtm)
       s = -s;
     tree->score_mg = 0;
     tree->score_eg = 0;
@@ -3239,12 +3218,12 @@ int Option(TREE * RESTRICT tree) {
     Print(128, " %s  |\n", DisplayEvaluation(egb, 1));
     mgb = tree->score_mg;
     egb = tree->score_eg;
-    EvaluatePassedPawns(tree, black);
+    EvaluatePassedPawns(tree, black, game_wtm);
     mgb = tree->score_mg - mgb;
     egb = tree->score_eg - egb;
     mgw = tree->score_mg;
     egw = tree->score_eg;
-    EvaluatePassedPawns(tree, white);
+    EvaluatePassedPawns(tree, white, game_wtm);
     mgw = tree->score_mg - mgw;
     egw = tree->score_eg - egw;
     tb = (mgb * phase + egb * (62 - phase)) / 62;
@@ -3374,7 +3353,7 @@ int Option(TREE * RESTRICT tree) {
     if ((TotalPieces(white, occupied) == 0 && tree->pawn_score.passed[black])
         || (TotalPieces(black, occupied) == 0 &&
             tree->pawn_score.passed[white]))
-      EvaluatePassedPawnRaces(tree, wtm);
+      EvaluatePassedPawnRaces(tree, game_wtm);
     egb = tree->score_eg - egb;
     Print(128, "pawn races.....%s", DisplayEvaluation(egb, 1));
     Print(128, "  +--------------------------+--------------------------+\n");
@@ -3542,7 +3521,7 @@ int Option(TREE * RESTRICT tree) {
  */
   else if (OptionMatch("tags", *args)) {
     struct tm *timestruct;
-    long secs;
+    uint64_t secs;
 
     secs = time(0);
     timestruct = localtime((time_t *) & secs);
@@ -3566,7 +3545,7 @@ int Option(TREE * RESTRICT tree) {
  ************************************************************
  */
   else if (OptionMatch("test", *args)) {
-    nargs = ReadParse(buffer, args, "	 ;=");
+    nargs = ReadParse(buffer, args, "\t ;=");
     if (thinking || pondering)
       return (2);
     if (nargs < 2) {
@@ -3801,9 +3780,9 @@ int Option(TREE * RESTRICT tree) {
   else if (!strcmp("undo", *args)) {
     if (thinking || pondering)
       return (2);
-    if (!wtm || move_number != 1) {
-      wtm = Flip(wtm);
-      if (Flip(wtm))
+    if (!game_wtm || move_number != 1) {
+      game_wtm = Flip(game_wtm);
+      if (Flip(game_wtm))
         move_number--;
       sprintf(buffer, "reset %d", move_number);
       (void) Option(tree);
@@ -3909,7 +3888,7 @@ int Option(TREE * RESTRICT tree) {
     ponder_move = 0;
     last_pv.pathd = 0;
     last_pv.pathl = 0;
-    if (!wtm)
+    if (!game_wtm)
       Pass();
     force = 0;
   }
@@ -4007,8 +3986,8 @@ int OptionMatch(char *command, char *input) {
 }
 void OptionPerft(TREE * RESTRICT tree, int ply, int depth, int wtm) {
   int *mv;
-  static char line[256];
 #if defined(TRACE)
+  static char line[256];
   static char move[16], *p[64];
 #endif
   tree->last[ply] = GenerateCaptures(tree, ply, wtm, tree->last[ply - 1]);

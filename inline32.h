@@ -4,10 +4,10 @@
      (double-word) X86 instructions.
 */
 /* *INDENT-OFF* */
-int static __inline__ PopCnt(BITBOARD word)
+int static __inline__ PopCnt(uint64_t word)
 {
 /*  r0=result, %1=tmp, %2=first input, %3=second input */
-  long dummy1, dummy2, dummy3, dummy4;
+  uint64_t dummy1, dummy2, dummy3, dummy4;
 
 asm("        xorl    %0, %0      " "\n\t"
     "        testl   %2, %2      " "\n\t"
@@ -28,7 +28,7 @@ asm("        xorl    %0, %0      " "\n\t"
 :   "cc");
   return (dummy1);
 }
-int static __inline__ MSB(BITBOARD word)
+int static __inline__ MSB(uint64_t word)
 {
   int dummy1, dummy2, dummy3;
 
@@ -45,7 +45,7 @@ asm("        bsr     %1, %0      " "\n\t"
 :    "cc");
   return (dummy1);
 }
-int static __inline__ LSB(BITBOARD word)
+int static __inline__ LSB(uint64_t word)
 {
   int dummy1, dummy2, dummy3;
 

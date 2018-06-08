@@ -12,7 +12,7 @@
  *******************************************************************************
  */
 void UnmakeMove(TREE * RESTRICT tree, int ply, int move, int wtm) {
-  BITBOARD bit_move;
+  uint64_t bit_move;
   int piece, from, to, captured, promote, btm = Flip(wtm);
 
 /*

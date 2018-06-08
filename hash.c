@@ -60,7 +60,7 @@ int HashProbe(TREE * RESTRICT tree, int ply, int depth, int wtm, int alpha,
     int beta, int *value) {
   HASH_ENTRY *htable;
   HPATH_ENTRY *pv_index;
-  BITBOARD word1, word2, temp_hashkey;
+  uint64_t word1, word2, temp_hashkey;
   int type, draft, avoid_null = 0, val, entry, i;
 
 /*
@@ -111,7 +111,7 @@ int HashProbe(TREE * RESTRICT tree, int ply, int depth, int wtm, int alpha,
   if (entry < 4) {
     if (word1 >> 55 != transposition_age) {
       word1 =
-          (word1 & 0x007fffffffffffffull) | ((BITBOARD) transposition_age <<
+          (word1 & 0x007fffffffffffffull) | ((uint64_t) transposition_age <<
           55);
       htable->word1 = word1;
       htable->word2 = word1 ^ word2;
@@ -153,11 +153,14 @@ int HashProbe(TREE * RESTRICT tree, int ply, int depth, int wtm, int alpha,
             pv_index = hash_path + 16 * (word2 & hash_path_mask);
             for (i = 0; i < 16; i++, pv_index++)
               if (pv_index->path_sig == word2) {
-                for (i = ply; i < Min(64, pv_index->hash_pathl + ply); i++)
+                for (i = ply; i < Min(MAXPLY - 1, pv_index->hash_pathl + ply);
+                    i++)
                   tree->pv[ply - 1].path[i] = pv_index->hash_path[i - ply];
-                if (draft != MAX_DRAFT && pv_index->hash_pathl + ply < 64)
+                if (draft != MAX_DRAFT &&
+                    pv_index->hash_pathl + ply < MAXPLY - 1)
                   tree->pv[ply - 1].pathh = 0;
-                tree->pv[ply - 1].pathl = Min(64, ply + pv_index->hash_pathl);
+                tree->pv[ply - 1].pathl =
+                    Min(MAXPLY - 1, ply + pv_index->hash_pathl);
                 pv_index->hash_path_age = transposition_age;
                 break;
               }
@@ -219,7 +222,7 @@ void HashStore(TREE * RESTRICT tree, int ply, int depth, int wtm, int type,
     int value, int bestmove) {
   HASH_ENTRY *htable, *replace = 0;
   HPATH_ENTRY *pv_index;
-  BITBOARD word1, word2;
+  uint64_t word1, word2;
   int entry, draft, age, replace_draft, i;
 
 /*
@@ -349,7 +352,7 @@ void HashStore(TREE * RESTRICT tree, int ply, int depth, int wtm, int type,
  */
 void HashStorePV(TREE * RESTRICT tree, int wtm, int bestmove) {
   HASH_ENTRY *htable, *replace;
-  BITBOARD temp_hashkey, word1, word2;
+  uint64_t temp_hashkey, word1, word2;
   int entry, draft, replace_draft, age;
 
 /*
@@ -399,8 +402,8 @@ void HashStorePV(TREE * RESTRICT tree, int wtm, int bestmove) {
   htable = trans_ref + 4 * (temp_hashkey & hash_mask);
   for (entry = 0; entry < 4; entry++, htable++) {
     if ((htable->word2 ^ htable->word1) == temp_hashkey) {
-      htable->word1 &= ~((BITBOARD) 0x1fffff << 32);
-      htable->word1 |= (BITBOARD) bestmove << 32;
+      htable->word1 &= ~((uint64_t) 0x1fffff << 32);
+      htable->word1 |= (uint64_t) bestmove << 32;
       htable->word2 = temp_hashkey ^ htable->word1;
       break;
     }

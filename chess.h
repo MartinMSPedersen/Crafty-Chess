@@ -4,10 +4,6 @@
  *   configuration information:  the following variables need to be set to     *
  *   indicate the machine configuration/capabilities.                          *
  *                                                                             *
- *   HAS_64BITS:  define this for a machine that has true 64-bit hardware      *
- *   including leading-zero hardware, population count, etc.  ie, a Cray-like  *
- *   machine.                                                                  *
- *                                                                             *
  *   UNIX:  define this if the program is being run on a unix-based system,    *
  *   which causes the executable to use unix-specific runtime utilities.       *
  *                                                                             *
@@ -21,6 +17,7 @@
  */
 /* *INDENT-OFF* */
 
+#include <stdint.h>
 #include <stdio.h>
 #include <assert.h>
 #include <stdlib.h>
@@ -29,7 +26,6 @@
 #endif
 #include <string.h>
 #if !defined(TYPES_INCLUDED)
-#  include "lock.h"
 #  if defined (_MSC_VER) && (_MSC_VER >= 1300) && \
     (!defined(_M_IX86) || (_MSC_VER >= 1400))
 #    define RESTRICT __restrict
@@ -47,48 +43,33 @@
 #  define CDECL
 #  define STDCALL
 /* Provide reasonable defaults for UNIX systems. */
-#  undef  HAS_64BITS    /* machine has 64-bit integers / operators    */
 #  define UNIX  /* system is unix-based                       */
 /* Architecture-specific definitions */
 #  if defined(AIX)
-#    undef  HAS_64BITS  /* machine has 64-bit integers / operators    */
 #    define UNIX        /* system is unix-based                       */
 #  endif
 #  if defined(AMIGA)
-#    undef  HAS_64BITS  /* machine has 64-bit integers / operators    */
 #    undef  UNIX        /* system is unix-based                       */
 #  endif
 #  if defined(FreeBSD)
-#    undef  HAS_64BITS  /* machine has 64-bit integers / operators    */
 #    define UNIX        /* system is unix-based                       */
 #  endif
 #  if defined(HP)
-#    undef  HAS_64BITS  /* machine has 64-bit integers / operators    */
 #    define UNIX        /* system is unix-based                       */
 #  endif
 #  if defined(LINUX)
-#    define HAS_64BITS  /* machine has 64-bit integers / operators    */
 #    define UNIX        /* system is unix-based                       */
 #  endif
 #  if defined(MIPS)
-#    undef  HAS_64BITS  /* machine has 64-bit integers / operators    */
 #    define UNIX        /* system is unix-based                       */
 #  endif
 #  if defined(NetBSD)
-#    if defined(__alpha__)
-#      define HAS_64BITS        /* machine has 64-bit integers / operators   */
-#      define UNIX      /* system is unix-based                      */
-#    else
-#      undef  HAS_64BITS        /* machine has 64-bit integers / operators   */
-#      define UNIX      /* system is unix-based                      */
-#    endif
+#    define UNIX        /* system is unix-based                      */
 #  endif
 #  if defined(NEXT)
-#    undef  HAS_64BITS  /* machine has 64-bit integers / operators    */
 #    define UNIX        /* system is unix-based                       */
 #  endif
 #  if defined(NT_i386)
-#    undef  HAS_64BITS  /* machine has 64-bit integers / operators    */
 #    undef  UNIX        /* system is unix-based                       */
 #    undef  STDCALL
 #    define STDCALL __stdcall
@@ -98,15 +79,12 @@
 #    endif
 #  endif
 #  if defined(OS2)
-#    undef  HAS_64BITS  /* machine has 64-bit integers / operators    */
 #    define UNIX        /* system is unix-based                       */
 #  endif
 #  if defined(SGI)
-#    undef  HAS_64BITS  /* machine has 64-bit integers / operators    */
 #    define UNIX        /* system is unix-based                       */
 #  endif
 #  if defined(SUN)
-#    undef  HAS_64BITS  /* machine has 64-bit integers / operators    */
 #    define UNIX        /* system is unix-based                       */
 #  endif
 #  if !defined(BOOKDIR)
@@ -121,6 +99,7 @@
 #  if !defined(RCDIR)
 #    define       RCDIR        "."
 #  endif
+#  include "lock.h"
 #  define MAXPLY                                  65
 #  define MAX_TC_NODES                       1000000
 #  define MAX_BLOCKS_PER_CPU                      64
@@ -140,13 +119,6 @@
 #  define QUEEN_VALUE                           1050
 #  define KING_VALUE                           40000
 #  define MAX_DRAFT                              256
-#  if defined(HAS_64BITS)
-typedef unsigned long BITBOARD;
-#  elif defined(NT_i386)
-typedef unsigned __int64 BITBOARD;
-#  else
-typedef unsigned long long BITBOARD;
-#  endif
 #  if defined(NT_i386)
 #    define BMF   "%I64u"
 #    define BMF6  "%6I64u"
@@ -188,7 +160,7 @@ typedef enum { think = 1, puzzle = 2, book = 3, annotate = 4 } SEARCH_TYPE;
 typedef enum { normal_mode, tournament_mode } PLAYING_MODE;
 typedef struct {
   unsigned char enpassant_target;
-  signed char castle[2];
+  char castle[2];
   unsigned char rule_50_moves;
 } SEARCH_POSITION;
 typedef struct {
@@ -196,26 +168,26 @@ typedef struct {
   int move2;
 } KILLER;
 typedef struct {
-  BITBOARD pieces[7];
+  uint64_t pieces[7];
 } BB_PIECES;
 typedef struct {
   BB_PIECES color[2];
-  BITBOARD hash_key;
-  BITBOARD pawn_hash_key;
+  uint64_t hash_key;
+  uint64_t pawn_hash_key;
   int material_evaluation;
   int kingsq[2];
-  signed char board[64];
-  signed char pieces[2][7];
-  signed char majors[2];
-  signed char minors[2];
-  signed char total_all_pieces;
+  char board[64];
+  char pieces[2][7];
+  char majors[2];
+  char minors[2];
+  char total_all_pieces;
 } POSITION;
 typedef struct {
-  BITBOARD word1;
-  BITBOARD word2;
+  uint64_t word1;
+  uint64_t word2;
 } HASH_ENTRY;
 typedef struct {
-  BITBOARD key;
+  uint64_t key;
   int score_mg, score_eg;
   unsigned char defects_k[2];
   unsigned char defects_e[2];
@@ -223,12 +195,9 @@ typedef struct {
   unsigned char defects_q[2];
   unsigned char all[2];
   unsigned char passed[2];
-  unsigned char candidates[2];
-  unsigned char open_files;
-  unsigned char filler;
 } PAWN_HASH_ENTRY;
 typedef struct {
-  BITBOARD entry[4];
+  uint64_t entry[4];
 } PXOR;
 typedef struct {
   int path[MAXPLY];
@@ -237,7 +206,7 @@ typedef struct {
   unsigned char pathd;
 } PATH;
 typedef struct {
-  BITBOARD path_sig;
+  uint64_t path_sig;
   int hash_pathl;
   int  hash_path_age;
   int hash_path[MAXPLY];
@@ -248,18 +217,14 @@ typedef struct {
   int *last;
 } NEXT_MOVE;
 typedef struct {
-  BITBOARD nodes;
+  uint64_t nodes;
   int move;
 /*
-   x..xx xxxx xxx1 = failed low once
-   x..xx xxxx xx1x = failed low twice
-   x..xx xxxx x1xx = failed low three times
-   x..xx xxxx 1xxx = failed high once
-   x..xx xxx1 xxxx = failed high twice
-   x..xx xx1x xxxx = failed high three times
-   x..xx x1xx xxxx = don't search in parallel
-   x..xx 1xxx xxxx = do not reduce this move
-   x..x1 xxxx xxxx = move has been searched
+   x..xx xxxx xxx1 = failed low this iteration
+   x..xx xxxx xx1x = failed high this iteration
+   x..xx xxxx x1xx = don't search in parallel
+   x..xx xxxx 1xxx = do not reduce this move
+   x..xx xxx1 xxxx = move has been searched
  */
   unsigned int status;
 } ROOT_MOVE;
@@ -267,7 +232,7 @@ typedef struct {
 #    pragma pack(4)
 #  endif
 typedef struct {
-  BITBOARD position;
+  uint64_t position;
   unsigned int status_played;
   float learn;
 } BOOK_POSITION;
@@ -287,12 +252,12 @@ struct personality_term {
 };
 struct tree {
   POSITION pos;
-  BITBOARD save_hash_key[MAXPLY + 2];
-  BITBOARD rep_list[2][128];
-  BITBOARD all_pawns;
-  BITBOARD nodes_searched;
-  BITBOARD save_pawn_hash_key[MAXPLY + 2];
-  BITBOARD cache_n[64];
+  uint64_t save_hash_key[MAXPLY + 2];
+  uint64_t rep_list[2][128];
+  uint64_t all_pawns;
+  uint64_t nodes_searched;
+  uint64_t save_pawn_hash_key[MAXPLY + 2];
+  uint64_t cache_n[64];
   PAWN_HASH_ENTRY pawn_score;
   SEARCH_POSITION position[MAXPLY + 2];
   NEXT_MOVE next_status[MAXPLY];
@@ -324,7 +289,7 @@ struct tree {
 #  if (CPUS > 1)
   lock_t lock;
 #  endif
-  long thread_id;
+  int thread_id;
   volatile int stop;
   char root_move_text[16];
   char remaining_moves_text[16];
@@ -369,9 +334,9 @@ typedef struct tree TREE;
 #    include "vcinline.h"
 #  else
 #    if !defined(INLINE64) && !defined(INLINE32)
-int CDECL PopCnt(BITBOARD);
-int CDECL MSB(BITBOARD);
-int CDECL LSB(BITBOARD);
+int CDECL PopCnt(uint64_t);
+int CDECL MSB(uint64_t);
+int CDECL LSB(uint64_t);
 #    endif
 #  endif
 void AlignedMalloc(void **, int, size_t);
@@ -385,20 +350,20 @@ char *AnnotateVtoNAG(int, int, int, int);
 void AnnotateHeaderTeX(char *, FILE *);
 void AnnotateFooterTeX(FILE *);
 void AnnotatePositionTeX(TREE *, int, FILE *);
-BITBOARD atoiKM(char *);
+uint64_t atoiKM(char *);
 int Attacks(TREE * RESTRICT, int, int);
-BITBOARD AttacksTo(TREE * RESTRICT, int);
+uint64_t AttacksTo(TREE * RESTRICT, int);
 void Bench(int);
 int Book(TREE * RESTRICT, int, int);
 void BookClusterIn(FILE *, int, BOOK_POSITION *);
 void BookClusterOut(FILE *, int, BOOK_POSITION *);
 int BookIn32(unsigned char *);
 float BookIn32f(unsigned char *);
-BITBOARD BookIn64(unsigned char *);
+uint64_t BookIn64(unsigned char *);
 int BookMask(char *);
 unsigned char *BookOut32(int);
 unsigned char *BookOut32f(float);
-unsigned char *BookOut64(BITBOARD);
+unsigned char *BookOut64(uint64_t);
 int BookPonderMove(TREE * RESTRICT, int);
 void BookUp(TREE * RESTRICT, int, char **);
 void BookSort(BB_POSITION *, int, int);
@@ -415,28 +380,25 @@ TREE *CopyToChild(TREE * RESTRICT, int);
 void CraftyExit(int);
 void DisplayArray(int *, int);
 void DisplayArrayX2(int *, int *, int);
-void DisplayBitBoard(BITBOARD);
-void Display2BitBoards(BITBOARD, BITBOARD);
+void DisplayBitBoard(uint64_t);
+void Display2BitBoards(uint64_t, uint64_t);
 void DisplayChessBoard(FILE *, POSITION);
 char *DisplayEvaluation(int, int);
 char *DisplayEvaluationKibitz(int, int);
 void DisplayFT(int, int, int);
-char *DisplayHHMM(unsigned int);
-char *DisplayHHMMSS(unsigned int);
-char *DisplayKM(unsigned int);
+char *DisplayHHMM(uint);
+char *DisplayHHMMSS(uint);
+char *DisplayKM(uint);
 void DisplayPV(TREE * RESTRICT, int, int, int, int, PATH *);
-char *DisplayTime(unsigned int);
-char *DisplayTimeKibitz(unsigned int);
+char *DisplayTime(uint);
+char *DisplayTimeKibitz(uint);
 void DisplayTreeState(TREE * RESTRICT, int, int, int);
 void DisplayChessMove(char *, int);
 int Drawn(TREE * RESTRICT, int);
 void DisplayType3(int *, int *);
 void DisplayType4(int *, int *);
-void DisplayType5(int *, int *, int);
-void DisplayType6(int *, int *);
-void DisplayType7(int *, int *);
-void DisplayType8(int *, int);
-void DisplayType9(int *, int *);
+void DisplayType5(int *, int);
+void DisplayType6(int *);
 void Edit(void);
 #  if !defined(NOEGTB)
 int EGTBProbe(TREE * RESTRICT, int, int, int *);
@@ -451,7 +413,7 @@ int EvaluateKingsFile(TREE * RESTRICT, int, int);
 void EvaluateKnights(TREE * RESTRICT, int);
 void EvaluateMate(TREE * RESTRICT, int);
 void EvaluateMaterial(TREE * RESTRICT, int);
-void EvaluatePassedPawns(TREE * RESTRICT, int);
+void EvaluatePassedPawns(TREE * RESTRICT, int, int);
 void EvaluatePassedPawnRaces(TREE * RESTRICT, int);
 void EvaluatePawns(TREE * RESTRICT, int);
 void EvaluateQueens(TREE * RESTRICT, int);
@@ -479,19 +441,19 @@ void InitializeHashTables(void);
 void InitializeKillers(void);
 void InitializeKingSafety(void);
 void InitializeMagic(void);
-BITBOARD InitializeMagicBishop(int, BITBOARD);
-BITBOARD InitializeMagicRook(int, BITBOARD);
-BITBOARD InitializeMagicOccupied(int *, int, BITBOARD);
+uint64_t InitializeMagicBishop(int, uint64_t);
+uint64_t InitializeMagicRook(int, uint64_t);
+uint64_t InitializeMagicOccupied(int *, int, uint64_t);
 void InitializeMasks(void);
 void InitializePawnMasks(void);
 void InitializeSMP(void);
 int InputMove(TREE * RESTRICT, char *, int, int, int, int);
 int InputMoveICS(TREE * RESTRICT, char *, int, int, int, int);
-BITBOARD InterposeSquares(int, int, int);
+uint64_t InterposeSquares(int, int, int);
 void Interrupt(int);
 int InvalidPosition(TREE * RESTRICT);
 int Iterate(int, int, int);
-void Kibitz(int, int, int, int, int, BITBOARD, int, char *);
+void Kibitz(int, int, int, int, int, uint64_t, int, char *);
 void Killer(TREE * RESTRICT, int, int);
 int KingPawnSquare(int, int, int, int);
 void LearnBook(void);
@@ -518,7 +480,7 @@ char *PrintKM(size_t, int);
 int Quiesce(TREE * RESTRICT, int, int, int, int, int);
 int QuiesceEvasions(TREE * RESTRICT, int, int, int, int);
 unsigned int Random32(void);
-BITBOARD Random64(void);
+uint64_t Random64(void);
 int Read(int, char *);
 int ReadChessMove(TREE * RESTRICT, FILE *, int, int);
 void ReadClear(void);
@@ -538,8 +500,8 @@ int SearchParallel(TREE * RESTRICT, int, int, int, int, int, int);
 void Trace(TREE * RESTRICT, int, int, int, int, int, const char *, int);
 void SetBoard(TREE *, int, char **, int);
 void SetChessBitBoards(TREE *);
-int SetRootAlpha(unsigned char, int);
-int SetRootBeta(unsigned char, int);
+int SetRootAlpha(unsigned char, int, int*);
+int SetRootBeta(unsigned char, int, int*);
 void SharedFree(void *address);
 int StrCnt(char *, char);
 int Swap(TREE * RESTRICT, int, int);
@@ -550,10 +512,10 @@ int Thread(TREE * RESTRICT);
 void WaitForAllThreadsInitialized(void);
 void *STDCALL ThreadInit(void *);
 #  if defined(_WIN32) || defined(_WIN64)
-void ThreadMalloc(int);
+void ThreadMalloc(int64_t);
 #  endif
 void ThreadStop(TREE * RESTRICT);
-int ThreadWait(long, TREE * RESTRICT);
+int ThreadWait(int64_t, TREE * RESTRICT);
 void TimeAdjust(int, int);
 int TimeCheck(TREE * RESTRICT, int);
 void TimeSet(TREE * RESTRICT, int);
@@ -624,6 +586,7 @@ extern void WinFreeInterleaved(void *, size_t);
    the following macros are used to extract the pieces of a move that are
    kept compressed into the rightmost 21 bits of a simple integer.
  */
+#  define Passed(sq, wtm)       (!(mask_passed[wtm][sq] & Pawns(Flip(wtm))))
 #  define From(a)               ((a) & 63)
 #  define To(a)                 (((a)>>6) & 63)
 #  define Piece(a)              (((a)>>12) & 7)

@@ -277,22 +277,22 @@ void *STDCALL ThreadInit(void *tid) {
   int i, j;
 
 #if defined(_WIN32) || defined(_WIN64)
-  ThreadMalloc((int) tid);
+  ThreadMalloc((uint64_t) tid);
 #endif
   for (i = 0; i < MAX_BLOCKS_PER_CPU; i++) {
-    memset((void *) block[(long) tid * MAX_BLOCKS_PER_CPU + i + 1], 0,
+    memset((void *) block[(uint64_t) tid * MAX_BLOCKS_PER_CPU + i + 1], 0,
         sizeof(TREE));
-    block[(long) tid * MAX_BLOCKS_PER_CPU + i + 1]->used = 0;
-    block[(long) tid * MAX_BLOCKS_PER_CPU + i + 1]->parent = NULL;
-    LockInit(block[(long) tid * MAX_BLOCKS_PER_CPU + i + 1]->lock);
+    block[(uint64_t) tid * MAX_BLOCKS_PER_CPU + i + 1]->used = 0;
+    block[(uint64_t) tid * MAX_BLOCKS_PER_CPU + i + 1]->parent = NULL;
+    LockInit(block[(uint64_t) tid * MAX_BLOCKS_PER_CPU + i + 1]->lock);
     for (j = 0; j < 64; j++)
-      block[(long) tid * MAX_BLOCKS_PER_CPU + i + 1]->cache_n[j] = ~0ull;
+      block[(uint64_t) tid * MAX_BLOCKS_PER_CPU + i + 1]->cache_n[j] = ~0ull;
   }
   Lock(lock_smp);
   initialized_threads++;
   Unlock(lock_smp);
   WaitForAllThreadsInitialized();
-  ThreadWait((long) tid, (TREE *) 0);
+  ThreadWait((uint64_t) tid, (TREE *) 0);
   Lock(lock_smp);
   smp_threads--;
   Unlock(lock_smp);
@@ -311,10 +311,10 @@ void *STDCALL ThreadInit(void *tid) {
  *******************************************************************************
  */
 extern void *WinMalloc(size_t, int);
-void ThreadMalloc(int tid) {
+void ThreadMalloc(int64_t tid) {
   int i, n = MAX_BLOCKS_PER_CPU;
 
-  for (i = MAX_BLOCKS_PER_CPU * ((int) tid) + 1; n; i++, n--) {
+  for (i = MAX_BLOCKS_PER_CPU * (tid) + 1; n; i++, n--) {
     if (block[i] == NULL)
       block[i] =
           (TREE *) ((~(size_t) 127) & (127 + (size_t) WinMalloc(sizeof(TREE) +
@@ -369,7 +369,7 @@ void ThreadStop(TREE * RESTRICT tree) {
  *                                                                             *
  *******************************************************************************
  */
-int ThreadWait(long tid, TREE * RESTRICT waiting) {
+int ThreadWait(int64_t tid, TREE * RESTRICT waiting) {
   int value;
 
 /*

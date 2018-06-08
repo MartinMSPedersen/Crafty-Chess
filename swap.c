@@ -20,13 +20,13 @@
  *                                                                             *
  *******************************************************************************
  */
-int Swap(TREE * RESTRICT tree, int move, int wtm) {
-  BITBOARD attacks, temp = 0, toccupied = OccupiedSquares;
-  BITBOARD bsliders =
+int Swap(TREE * RESTRICT tree, int move, int side) {
+  uint64_t attacks, temp = 0, toccupied = OccupiedSquares;
+  uint64_t bsliders =
       Bishops(white) | Bishops(black) | Queens(white) | Queens(black);
-  BITBOARD rsliders =
+  uint64_t rsliders =
       Rooks(white) | Rooks(black) | Queens(white) | Queens(black);
-  int attacked_piece, piece, color, nc = 1, swap_list[32];
+  int attacked_piece, piece, nc = 1, swap_list[32];
   int source = From(move);
   int target = To(move);
 
@@ -49,7 +49,7 @@ int Swap(TREE * RESTRICT tree, int move, int wtm) {
  *                                                          *
  ************************************************************
  */
-  color = Flip(wtm);
+  side = Flip(side);
   swap_list[0] = attacked_piece;
   piece = Piece(move);
   attacked_piece = pc_values[piece];
@@ -77,7 +77,7 @@ int Swap(TREE * RESTRICT tree, int move, int wtm) {
  */
   for (attacks &= toccupied; attacks; attacks &= toccupied) {
     for (piece = pawn; piece <= king; piece++)
-      if ((temp = Pieces(color, piece) & attacks))
+      if ((temp = Pieces(side, piece) & attacks))
         break;
     if (piece > king)
       break;
@@ -92,7 +92,7 @@ int Swap(TREE * RESTRICT tree, int move, int wtm) {
     attacked_piece = pc_values[piece];
     if (swap_list[nc++] - attacked_piece > 0)
       break;
-    color = Flip(color);
+    side = Flip(side);
   }
 /*
  ************************************************************
@@ -119,13 +119,13 @@ int Swap(TREE * RESTRICT tree, int move, int wtm) {
  *                                                                             *
  *******************************************************************************
  */
-int SwapO(TREE * RESTRICT tree, int move, int wtm) {
-  BITBOARD attacks, temp = 0, toccupied = OccupiedSquares;
-  BITBOARD bsliders =
+int SwapO(TREE * RESTRICT tree, int move, int side) {
+  uint64_t attacks, temp = 0, toccupied = OccupiedSquares;
+  uint64_t bsliders =
       Bishops(white) | Bishops(black) | Queens(white) | Queens(black);
-  BITBOARD rsliders =
+  uint64_t rsliders =
       Rooks(white) | Rooks(black) | Queens(white) | Queens(black);
-  int attacked_piece, piece, color, nc = 1, swap_list[32];
+  int attacked_piece, piece, nc = 1, swap_list[32];
   int target = To(move);
 
 /*
@@ -148,10 +148,10 @@ int SwapO(TREE * RESTRICT tree, int move, int wtm) {
  *                                                          *
  ************************************************************
  */
-  color = Flip(wtm);
+  side = Flip(side);
   swap_list[0] = attacked_piece;
   for (piece = pawn; piece <= king; piece++)
-    if ((temp = Pieces(color, piece) & attacks))
+    if ((temp = Pieces(side, piece) & attacks))
       break;
   if (piece > king)
     return (0);
@@ -163,7 +163,7 @@ int SwapO(TREE * RESTRICT tree, int move, int wtm) {
       attacks |= AttacksRook(target, toccupied) & rsliders;
   }
   attacked_piece = pc_values[piece];
-  color = Flip(color);
+  side = Flip(side);
 /*
  ************************************************************
  *                                                          *
@@ -181,7 +181,7 @@ int SwapO(TREE * RESTRICT tree, int move, int wtm) {
  */
   for (attacks &= toccupied; attacks; attacks &= toccupied) {
     for (piece = pawn; piece <= king; piece++)
-      if ((temp = Pieces(color, piece) & attacks))
+      if ((temp = Pieces(side, piece) & attacks))
         break;
     if (piece > king)
       break;
@@ -196,7 +196,7 @@ int SwapO(TREE * RESTRICT tree, int move, int wtm) {
     attacked_piece = pc_values[piece];
     if (swap_list[nc++] - attacked_piece > 0)
       break;
-    color = Flip(color);
+    side = Flip(side);
   }
 /*
  ************************************************************

@@ -50,12 +50,12 @@ void Analyze() {
       input_status = 0;
       pondering = 1;
       tree->position[1] = tree->position[0];
-      (void) Iterate(wtm, think, 0);
+      (void) Iterate(game_wtm, think, 0);
       pondering = 0;
       if (book_move)
         moves_out_of_book = 0;
       if (!xboard) {
-        if (wtm)
+        if (game_wtm)
           printf("analyze.White(%d): ", move_number);
         else
           printf("analyze.Black(%d): ", move_number);
@@ -79,7 +79,7 @@ void Analyze() {
           nargs = ReadParse(buffer, args, " 	;");
           Print(128, "%s\n", buffer);
           if (strstr(args[0], "timeleft") && !xboard) {
-            if (wtm)
+            if (game_wtm)
               printf("analyze.White(%d): ", move_number);
             else
               printf("analyze.Black(%d): ", move_number);
@@ -108,13 +108,13 @@ void Analyze() {
         else
           back_number = 1;
         for (i = 0; i < back_number; i++) {
-          wtm = Flip(wtm);
-          if (Flip(wtm))
+          game_wtm = Flip(game_wtm);
+          if (Flip(game_wtm))
             move_number--;
         }
         if (move_number == 0) {
           move_number = 1;
-          wtm = 1;
+          game_wtm = 1;
         }
         sprintf(buffer, "reset %d", move_number);
         (void) Option(tree);
@@ -131,15 +131,15 @@ void Analyze() {
  *                                                          *
  ************************************************************
  */
-      else if ((move = InputMove(tree, buffer, 0, wtm, 1, 0))) {
-        char *outmove = OutputMove(tree, move, 0, wtm);
+      else if ((move = InputMove(tree, buffer, 0, game_wtm, 1, 0))) {
+        char *outmove = OutputMove(tree, move, 0, game_wtm);
 
         if (history_file) {
-          fseek(history_file, ((move_number - 1) * 2 + 1 - wtm) * 10,
+          fseek(history_file, ((move_number - 1) * 2 + 1 - game_wtm) * 10,
               SEEK_SET);
           fprintf(history_file, "%9s\n", outmove);
         }
-        if (wtm)
+        if (game_wtm)
           Print(128, "White(%d): ", move_number);
         else
           Print(128, "Black(%d): ", move_number);
@@ -151,7 +151,7 @@ void Analyze() {
           strcat(announce, outmove);
           system(announce);
         }
-        MakeMoveRoot(tree, move, wtm);
+        MakeMoveRoot(tree, move, game_wtm);
         display = tree->pos;
         last_mate_score = 0;
         if (log_file)
@@ -175,8 +175,8 @@ void Analyze() {
     } while (!move);
     if (readstat < 0 || !strcmp(args[0], "exit"))
       break;
-    wtm = Flip(wtm);
-    if (wtm)
+    game_wtm = Flip(game_wtm);
+    if (game_wtm)
       move_number++;
   } while (1);
   analyze_mode = 0;

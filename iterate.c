@@ -18,7 +18,7 @@
  */
 int Iterate(int wtm, int search_type, int root_list_done) {
   ROOT_MOVE temp;
-  int i;
+  int i, fail_delta, old_root_alpha, old_root_beta;
   int value = 0, twtm;
   int correct, correct_count, material = 0, sorted;
   char *fh_indicator, *fl_indicator;
@@ -150,9 +150,9 @@ int Iterate(int wtm, int search_type, int root_list_done) {
  */
       tree->pv[0] = last_pv;
       if (iteration_depth > 1) {
-        root_alpha = last_value - 40;
-        root_value = last_value - 40;
-        root_beta = last_value + 40;
+        root_alpha = last_value - 16;
+        root_value = last_value - 16;
+        root_beta = last_value + 16;
       } else {
         root_alpha = -MATE - 1;
         root_value = -MATE - 1;
@@ -201,6 +201,7 @@ int Iterate(int wtm, int search_type, int root_list_done) {
  *                                                          *
  ************************************************************
  */
+        fail_delta = 16;
         twtm = wtm;
         for (i = 1; i < (int) tree->pv[0].pathl; i++) {
           if (!VerifyMove(tree, i, twtm, tree->pv[0].path[i])) {
@@ -252,11 +253,9 @@ int Iterate(int wtm, int search_type, int root_list_done) {
         nodes_between_time_checks =
             Min(nodes_between_time_checks, MAX_TC_NODES);
         while (1) {
+          old_root_alpha = root_alpha;
+          old_root_beta = root_beta;
           thread[0] = block[0];
-          for (i = 0; i < n_root_moves; i++)
-            if (!(root_moves[i].status & 256))
-              break;
-          root_moves[i].status &= 4095 - 128;
           tree->inchk[1] = Check(wtm);
           value =
               Search(tree, root_alpha, root_beta, wtm, iteration_depth, 1, 0);
@@ -275,30 +274,17 @@ int Iterate(int wtm, int search_type, int root_list_done) {
  ************************************************************
  */
           if (value >= root_beta) {
-            if (!(root_moves[0].status & 8))
-              root_moves[0].status |= 8;
-            else if (!(root_moves[0].status & 16))
-              root_moves[0].status |= 16;
-            else
-              root_moves[0].status |= 32;
-            root_alpha = SetRootAlpha(root_moves[0].status, root_alpha);
+            root_moves[0].status |= 2;
             root_value = root_alpha;
-            root_beta = SetRootBeta(root_moves[0].status, root_beta);
-            root_moves[0].status &= 4095 - 256;
+            root_beta =
+                SetRootBeta(root_moves[0].status, root_beta, &fail_delta);
+            root_moves[0].status &= 255 - 16;
             root_moves[0].nodes = 0;
             if (root_print_ok) {
               if (wtm) {
-                fh_indicator = "+1";
-                if (root_moves[0].status & 16)
-                  fh_indicator = "+3";
-                if (root_moves[0].status & 32)
-                  fh_indicator = "+M";
+                fh_indicator = "++";
               } else {
-                fh_indicator = "-1";
-                if (root_moves[0].status & 16)
-                  fh_indicator = "-3";
-                if (root_moves[0].status & 32)
-                  fh_indicator = "-M";
+                fh_indicator = "--";
               }
               Print(2, "               %2i   %s     %2s   ", iteration_depth,
                   DisplayTime(end_time - start_time), fh_indicator);
@@ -306,8 +292,9 @@ int Iterate(int wtm, int search_type, int root_list_done) {
                 Print(2, "%d. ", move_number);
               if ((display_options & 64) && !wtm)
                 Print(2, "... ");
-              Print(2, "%s!                    \n", OutputMove(tree,
-                      tree->pv[1].path[1], 1, wtm));
+              Print(2, "%s! ", OutputMove(tree, tree->pv[1].path[1], 1, wtm));
+              Print(2, "(%c%s)                  \n", (wtm) ? '>' : '<',
+                  DisplayEvaluationKibitz(old_root_beta, wtm));
               kibitz_text[0] = 0;
               if (display_options & 64)
                 sprintf(kibitz_text, " %d.", move_number);
@@ -331,33 +318,19 @@ int Iterate(int wtm, int search_type, int root_list_done) {
  ************************************************************
  */
           } else if (value <= root_alpha) {
-            if (!(root_moves[0].status & 0x38)) {
-              if (!(root_moves[0].status & 1))
-                root_moves[0].status |= 1;
-              else if (!(root_moves[0].status & 2))
-                root_moves[0].status |= 2;
-              else
-                root_moves[0].status |= 4;
-              root_alpha = SetRootAlpha(root_moves[0].status, root_alpha);
+            if (!(root_moves[0].status & 2)) {
+              root_moves[0].status |= 1;
+              root_alpha =
+                  SetRootAlpha(root_moves[0].status, root_alpha, &fail_delta);
               root_value = root_alpha;
-              root_beta = SetRootBeta(root_moves[0].status, root_beta);
-              root_moves[0].status &= 4095 - 256;
+              root_moves[0].status &= 255 - 16;
               root_moves[0].nodes = 0;
               easy_move = 0;
               if (root_print_ok && !abort_after_ply1 && !abort_search) {
-                if (wtm) {
-                  fl_indicator = "-1";
-                  if (root_moves[0].status & 2)
-                    fl_indicator = "-3";
-                  if (root_moves[0].status & 4)
-                    fl_indicator = "-M";
-                } else {
-                  fl_indicator = "+1";
-                  if (root_moves[0].status & 2)
-                    fl_indicator = "+3";
-                  if (root_moves[0].status & 4)
-                    fl_indicator = "+M";
-                }
+                if (wtm)
+                  fl_indicator = "--";
+                else
+                  fl_indicator = "++";
                 Print(4, "               %2i   %s     %2s   ",
                     iteration_depth, DisplayTime(ReadClock() - start_time),
                     fl_indicator);
@@ -365,8 +338,11 @@ int Iterate(int wtm, int search_type, int root_list_done) {
                   Print(4, "%d. ", move_number);
                 if ((display_options & 64) && !wtm)
                   Print(4, "... ");
-                Print(4, "%s?                    \n", OutputMove(tree,
-                        root_moves[0].move, 1, wtm));
+                Print(4, "%s? ", OutputMove(tree, root_moves[0].move, 1,
+                        wtm));
+                Print(4, "(%c%s)                  \n",
+                    (Flip(wtm)) ? '>' : '<',
+                    DisplayEvaluationKibitz(old_root_alpha, wtm));
               }
             } else
               break;
@@ -435,14 +411,14 @@ int Iterate(int wtm, int search_type, int root_list_done) {
  */
         for (i = 0; i < n_root_moves; i++)
           root_moves[i].status = 0;
-        root_moves[0].status |= 64 + 128;
+        root_moves[0].status |= 4 + 8;
         if (root_moves[0].nodes >= 3)
           for (i = 0; i < n_root_moves; i++) {
             if (i < Min(n_root_moves, 16) &&
                 root_moves[i].nodes > root_moves[0].nodes / 3)
-              root_moves[i].status |= 64;
+              root_moves[i].status |= 4;
             if (i < n_root_moves / 4)
-              root_moves[i].status |= 128;
+              root_moves[i].status |= 8;
           }
 /*
  ************************************************************
@@ -453,15 +429,15 @@ int Iterate(int wtm, int search_type, int root_list_done) {
  ************************************************************
  */
         if (display_options & 256) {
-          BITBOARD total_nodes = 0;
+          uint64_t total_nodes = 0;
 
           Print(128, "       move       nodes     R/P\n");
           for (i = 0; i < n_root_moves; i++) {
             total_nodes += root_moves[i].nodes;
             Print(128, " %10s  " BMF10 "     %d %d\n", OutputMove(tree,
                     root_moves[i].move, 1, wtm), root_moves[i].nodes,
-                (root_moves[i].status & 128) == 0,
-                (root_moves[i].status & 64) == 0);
+                (root_moves[i].status & 8) == 0,
+                (root_moves[i].status & 4) == 0);
           }
           Print(256, "      total  " BMF10 "\n", total_nodes);
         }
@@ -469,7 +445,7 @@ int Iterate(int wtm, int search_type, int root_list_done) {
           root_moves[i].nodes = 0;
         if (end_time - start_time > 10)
           nodes_per_second =
-              tree->nodes_searched * 100 / (BITBOARD) (end_time - start_time);
+              tree->nodes_searched * 100 / (uint64_t) (end_time - start_time);
         else
           nodes_per_second = 1000000;
         if (!abort_after_ply1 && !abort_search && value != -(MATE - 1)) {
@@ -482,9 +458,9 @@ int Iterate(int wtm, int search_type, int root_list_done) {
             print_ok = 1;
           }
         }
-        root_alpha = value - 40;
+        root_alpha = value - 16;
         root_value = root_alpha;
-        root_beta = value + 40;
+        root_beta = value + 16;
         if (iteration_depth > 3 && value > MATE - 300 &&
             value >= (MATE - iteration_depth - 1) && value > last_mate_score)
           break;
@@ -517,7 +493,7 @@ int Iterate(int wtm, int search_type, int root_list_done) {
       elapsed_end = ReadClock() - elapsed_start;
       if (elapsed_end > 10)
         nodes_per_second =
-            (BITBOARD) tree->nodes_searched * 100 / (BITBOARD) elapsed_end;
+            (uint64_t) tree->nodes_searched * 100 / (uint64_t) elapsed_end;
       if (!root_print_ok && print_ok) {
         root_print_ok = 1;
         DisplayPV(tree, 5, wtm, end_time - start_time, savevalue, &savepv);
@@ -531,8 +507,8 @@ int Iterate(int wtm, int search_type, int root_list_done) {
             DisplayTimeKibitz(end_time - start_time), material);
         Print(8, "  n=" BMF, tree->nodes_searched);
         Print(8, "  fh=%u%%",
-            (int) ((BITBOARD) tree->fail_high_first * 100 /
-                (BITBOARD) tree->fail_high));
+            (int) ((uint64_t) tree->fail_high_first * 100 /
+                (uint64_t) tree->fail_high));
         Print(8, "  nps=%s\n", DisplayKM(nodes_per_second));
         Print(16, "              extensions=%s ",
             DisplayKM(tree->extensions_done));
@@ -582,14 +558,15 @@ int Iterate(int wtm, int search_type, int root_list_done) {
  *                                                                             *
  *******************************************************************************
  */
-int SetRootAlpha(unsigned char status, int old_root_alpha) {
-  if (status & 4)
-    return (-MATE - 1);
-  if (status & 2)
-    return (old_root_alpha - 200);
-  if (status & 1)
-    return (old_root_alpha - 100);
-  return (old_root_alpha);
+int SetRootAlpha(unsigned char status, int old_root_alpha, int *fail_delta) {
+  int new_root_value;
+
+  new_root_value = old_root_alpha - *fail_delta;
+  *fail_delta *= 2;
+  if (*fail_delta > 10 * PAWN_VALUE)
+    *fail_delta = 99999;
+
+  return (Max(new_root_value, -MATE));
 }
 
 /*
@@ -602,12 +579,12 @@ int SetRootAlpha(unsigned char status, int old_root_alpha) {
  *                                                                             *
  *******************************************************************************
  */
-int SetRootBeta(unsigned char status, int old_root_beta) {
-  if (status & 32)
-    return (MATE + 1);
-  if (status & 16)
-    return (old_root_beta + 200);
-  if (status & 8)
-    return (old_root_beta + 100);
-  return (old_root_beta);
+int SetRootBeta(unsigned char status, int old_root_beta, int *fail_delta) {
+  int new_root_value;
+
+  new_root_value = old_root_beta + *fail_delta;
+  *fail_delta *= 2;
+  if (*fail_delta > 10 * PAWN_VALUE)
+    *fail_delta = 99999;
+  return (Min(new_root_value, MATE));
 }

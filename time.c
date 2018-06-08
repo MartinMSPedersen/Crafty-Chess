@@ -146,7 +146,7 @@ int TimeCheck(TREE * RESTRICT tree, int abort) {
  */
   ndone = 0;
   for (i = 0; i < n_root_moves; i++)
-    if (root_moves[i].status & 256)
+    if (root_moves[i].status & 16)
       ndone++;
   if (ndone == 1)
     abort = 1;
@@ -198,9 +198,9 @@ int TimeCheck(TREE * RESTRICT tree, int abort) {
  *                                                          *
  ************************************************************
  */
-  if (root_value == root_alpha && !(root_moves[0].status & 7) && ndone == 1)
+  if (root_value == root_alpha && !(root_moves[0].status & 1) && ndone == 1)
     return (1);
-  if ((root_value >= last_root_value && !(root_moves[0].status & 7)))
+  if ((root_value >= last_root_value && !(root_moves[0].status & 1)))
     return (abort);
 /*
  ************************************************************

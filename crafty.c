@@ -38,7 +38,7 @@
 #include "evtest.c"
 #include "init.c"
 #include "input.c"
-#include "interupt.c"
+#include "interrupt.c"
 #include "iterate.c"
 #include "learn.c"
 #include "main.c"
