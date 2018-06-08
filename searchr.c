@@ -33,7 +33,6 @@ int SearchRoot(TREE *tree, int alpha, int beta, int wtm, int depth) {
   tree->in_check[2]=0;
   tree->extended_reason[2]=no_extension;
   initial_alpha=alpha;
-  RepetitionCheck(tree,1,wtm);
   tree->in_check[1]=Check(wtm);
   tree->next_status[1].phase=ROOT_MOVES;
 /*

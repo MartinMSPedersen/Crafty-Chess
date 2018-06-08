@@ -549,7 +549,7 @@ void EGTBPV(TREE *tree, int wtm) {
   int value;
   register int ply, i, j, nmoves, *last, t_move_number;
   register int best=0, bestmv=0, optimal_mv=0;
-  register int bang=0;
+  register int bang=0, legal;
   if (!strcmp(args[1],"!")) bang=1;
 /*
  ----------------------------------------------------------
@@ -583,9 +583,11 @@ void EGTBPV(TREE *tree, int wtm) {
     last=GenerateNonCaptures(tree, 1, wtm, last);
     nmoves=last-current;
     best=-MATE-1;
+    legal=0;
     for (i=0;i<nmoves;i++) {
       MakeMove(tree,1,current[i],wtm);
       if (!Check(wtm)) {
+        legal++;
         if(TotalPieces==2 || EGTBProbe(tree, 2, ChangeSide(wtm), &value)) {
           if (TotalPieces > 2) value=-value;
           else value=DrawScore(wtm);
@@ -604,7 +606,8 @@ void EGTBPV(TREE *tree, int wtm) {
       if ((display_options&64) && ply>1 && wtm)
         sprintf(buffer+strlen(buffer)," %d.",t_move_number);
       sprintf(buffer+strlen(buffer)," %s",OutputMove(tree,bestmv,1,wtm));
-      if (bang && optimal_mv) sprintf(buffer+strlen(buffer),"!");
+      if (!strchr(buffer,'#') && bang &&
+          legal>1 && optimal_mv) sprintf(buffer+strlen(buffer),"!");
       hk[ply]=HashKey;
       phk[ply]=PawnHashKey;
       MakeMove(tree,1,bestmv,wtm);

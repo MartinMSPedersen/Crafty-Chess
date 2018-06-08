@@ -10,7 +10,7 @@
 #endif
 #include "epdglue.h"
 
-/* last modified 10/25/99 */
+/* last modified 01/14/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -81,6 +81,7 @@ int Option(TREE *tree) {
  ----------------------------------------------------------
 */
   else if (OptionMatch("alarm",*args)) {
+    RestoreGame();
     if (!strcmp(args[1],"on")) audible_alarm=0x07;
     else if (!strcmp(args[1],"off")) audible_alarm=0x00;
     else printf("usage:  alarm on|off\n");
@@ -203,15 +204,8 @@ int Option(TREE *tree) {
 |                                                          |
  ----------------------------------------------------------
 */
-  else if (!strcmp("white",*args)) {
-    if (thinking || pondering) return(2);
-    ponder_move=0;
-    last_pv.pathd=0;
-    last_pv.pathl=0;
-    if (!wtm) Pass();
-    force=0;
-  }
-  else if (!strcmp("black",*args)) {
+  else if (OptionMatch("black",*args)) {
+    if (strlen(*args) == 1) return(1);
     if (thinking || pondering) return (2);
     ponder_move=0;
     last_pv.pathd=0;
@@ -367,8 +361,7 @@ int Option(TREE *tree) {
   else if (OptionMatch("computer",*args)) {
     Print(128,"playing a computer!\n");
     computer_opponent=1;
-    accept_draws=0;
-    book_selection_width=1;
+    book_selection_width=2;
     usage_level=0;
     book_weight_freq=1.0;
     book_weight_eval=.1;
@@ -582,7 +575,7 @@ int Option(TREE *tree) {
 */
   else if (OptionMatch("draw",*args)) {
     if (nargs == 1) {
-      int drawsc=DrawScore(wtm);
+      int drawsc=DrawScore(1);
       if (move_number<40 || !accept_draws) drawsc=-300;
       if (last_search_value<=drawsc && (tc_increment!=0 ||
           tc_time_remaining_opponent>=1000)) {
@@ -624,9 +617,9 @@ int Option(TREE *tree) {
       printf("usage:  drawscore <n>\n");
       return(1);
     }
-    if (nargs == 2) abs_draw_score=atoi(args[1]);
+    if (nargs == 2) draw_score=atoi(args[1]);
     printf("draw score set to %7.2f pawns.\n",
-           ((float) abs_draw_score) / 100.0);
+           ((float) draw_score) / 100.0);
   }
 /*
  ----------------------------------------------------------
@@ -857,6 +850,10 @@ int Option(TREE *tree) {
  ----------------------------------------------------------
 */
   else if (OptionMatch("extensions",*args)) {
+    if (nargs < 3) {
+      printf("usage:  ext/name=n\n");
+      return(1);
+    }
     if (OptionMatch("incheck",args[1])) {
       const float ext=atof(args[2]);
       incheck_depth=60.0*ext;
@@ -1586,7 +1583,6 @@ int Option(TREE *tree) {
       printf("show book.................toggle book statistics.\n");
       printf("sn n......................sets absolute search node limit.\n");
       printf("st n......................sets absolute search time.\n");
-      printf("store <val>...............stores position/score (position.bin).\n");
       printf("swindle on|off............enables/disables swindle mode.\n");
       printf("test <file> [N]...........test a suite of problems. [help]\n");
       printf("tags......................list PGN header tags.\n");
@@ -1709,7 +1705,7 @@ int Option(TREE *tree) {
       if (tc_increment) Print(4095,"increment %d seconds.\n",tc_increment/100);
     }
     else if (tc_sudden_death == 1) {
-      Print(4095," game/%d minutes primary time control\n", tc_time/6000);
+      Print(4095," game/%d minutes primary time control\n", tc_time/100);
       if (tc_increment) Print(4095,"increment %d seconds.\n",(tc_increment/100)%60);
     }
     else if (tc_sudden_death == 2) {
@@ -2115,7 +2111,7 @@ int Option(TREE *tree) {
       if (readstat == NULL) break;
       nargs=ReadParse(buffer,args," 	;\n");
       if (!strcmp(args[0],"setboard")) {
-        (void) Option(tree);
+        Option(tree);
         break;
       }
     }
@@ -2370,6 +2366,11 @@ int Option(TREE *tree) {
     while (*next) {
       *next=tolower(*next);
       next++;
+    }
+    if (!strcmp(args[1],"vic11")) {
+      books_file=fopen("/fast1/book/bookr.bin","rb");
+      if (!books_file) books_file=normal_bs_file;
+      else Print(4095,"Using Roman's special book\n");
     }
     if (mode != tournament_mode) {
       for (i=0;i<number_of_blockers;i++)
@@ -2658,10 +2659,6 @@ int Option(TREE *tree) {
     tree->position[1]=tree->position[0];
     tree->last[0]=tree->move_list;
     i=atoi(args[1]);
-    if (i <= 0) {
-      Print(4095,"usage:  perft <maxply>\n");
-      return(1);
-    }
     total_moves=0;
     OptionPerft(tree,1,i,wtm);
     printf("total moves=%d\n",total_moves);
@@ -2789,11 +2786,11 @@ int Option(TREE *tree) {
     }
     crafty_rating=atoi(args[1]);
     opponent_rating=atoi(args[2]);
-    if (crafty_rating-opponent_rating < 0) abs_draw_score=+20;
-    else if (crafty_rating-opponent_rating < 100) abs_draw_score=0;
-    else if (crafty_rating-opponent_rating < 300) abs_draw_score=-20;
-    else if (crafty_rating-opponent_rating < 500) abs_draw_score=-30;
-    else abs_draw_score=-50;
+    if (crafty_rating-opponent_rating < 0) draw_score=+20;
+    else if (crafty_rating-opponent_rating < 200) draw_score=0;
+    else if (crafty_rating-opponent_rating < 400) draw_score=-20;
+    else if (crafty_rating-opponent_rating < 600) draw_score=-30;
+    else draw_score=-50;
     if (log_file) {
       fprintf(log_file,"Crafty's rating: %d.\n",crafty_rating);
       fprintf(log_file,"opponent's rating: %d.\n",opponent_rating);
@@ -3308,17 +3305,14 @@ int Option(TREE *tree) {
     tree->position[1]=tree->position[0];
     PreEvaluate(tree,wtm);
     s7=Evaluate(tree,1,1,-99999,99999);
-    s1=EvaluateMaterial(tree);
-    if (opening) {
-      s2=EvaluateDevelopmentB(tree,1);
-      s2+=EvaluateDevelopmentW(tree,1);
-    }
+    s1=Material;
+    if (opening) s2=EvaluateDevelopment(tree,1);
     if (TotalWhitePawns+TotalBlackPawns) {
       s3=EvaluatePawns(tree);
       s4=EvaluatePassedPawns(tree);
       s5=EvaluatePassedPawnRaces(tree,wtm);
     }
-    if (!tree->endgame) s6=EvaluateKingSafety(tree,0);
+    s6=EvaluateKingSafety(tree,0);
     Print(128,"note: scores are for the white side\n");
     Print(128,"material evaluation.................%s\n",
       DisplayEvaluation(s1));
@@ -3410,7 +3404,7 @@ int Option(TREE *tree) {
 |                                                          |
  ----------------------------------------------------------
 */
-  else if (!strcmp("st",*args)) {
+  else if (OptionMatch("st",*args)) {
     int fract;
     if (nargs < 2) {
       printf("usage:  st <time>\n");
@@ -3423,40 +3417,6 @@ int Option(TREE *tree) {
       search_time_limit+=fract;
     }
     Print(4095,"search time set to %.2f.\n",(float)search_time_limit/100.0);
-  }
-/*
- ----------------------------------------------------------
-|                                                          |
-|   "store" command is used to store the current position, |
-|   side to move, and the specified score, in the          |
-|   position.bin (position learning) file.  this will end  |
-|   up in the hash table and influence any future searches.|
-|                                                          |
- ----------------------------------------------------------
-*/
-  else if (OptionMatch("store",*args)) {
-    int score, temp1, temp2, temp3;
-    if (thinking || pondering) return(2);
-    if (nargs < 2) {
-      printf("usage:  store <value>\n");
-      return(1);
-    }
-    score=100*atof(args[1]);
-    if (score > 32000 || score < -32000) {
-      Print(4095,"ERROR.  -32 <= score <= 32 is an acceptable value\n");
-      return(1);
-    }
-    learning|=position_learning;
-    temp1=tree->pv[0].pathd;
-    temp2=tree->pv[0].path[1];
-    temp3=moves_out_of_book;
-    moves_out_of_book=0;
-    tree->pv[0].pathd=60;
-    tree->pv[0].path[1]=0;
-    LearnPosition(tree,wtm,Max(score+100,0),score);
-    tree->pv[0].pathd=temp1;
-    tree->pv[0].path[1]=temp2;
-    moves_out_of_book=temp3;
   }
 /*
  ----------------------------------------------------------
@@ -3720,7 +3680,7 @@ int Option(TREE *tree) {
       TimeAdjust(time_used,opponent);
       TimeAdjust(time_used,crafty);
       sprintf(buffer,"clock");
-      (void) Option(tree);
+      Option(tree);
       move_number++;
     } while (time_used >= 0);
   }

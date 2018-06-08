@@ -1006,10 +1006,16 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
          !(BlackBishops&(BlackBishops-1)))) {
       if (square_color[FirstOne(BlackBishops)] != 
           square_color[FirstOne(WhiteBishops)]) {
-        if (TotalWhitePieces==3 && TotalBlackPieces==3)
-          score=((score-Material)>>2)+Material;
-        else if (TotalWhitePieces==TotalBlackPieces)
-          score=((score-Material)>>1)+Material;
+        if (abs(Material) > 2*PAWN_VALUE) {
+          if (TotalWhitePieces==3 && TotalBlackPieces==3)
+            score=((score-Material)>>2)+Material;
+          else if (TotalWhitePieces==TotalBlackPieces)
+            score=((score-Material)>>1)+Material;
+        }
+        else {
+          if (TotalWhitePieces==3 && TotalBlackPieces==3)
+            score=score>>1;
+        }
       }
     }
   }
@@ -2142,7 +2148,7 @@ int EvaluatePassedPawnRaces(TREE *tree, int wtm) {
   return(0);
 }
 
-/* last modified 01/12/00 */
+/* last modified 03/07/00 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -2252,7 +2258,7 @@ int EvaluatePawns(TREE *tree) {
       if (SetMask(sq+8)&tree->all_pawns) break;
       defenders=PopCnt(b_pawn_attacks[sq+8]&WhitePawns);
       attackers=PopCnt(w_pawn_attacks[sq+8]&BlackPawns);
-      if (attackers-defenders == 2) break;
+      if (attackers-defenders > 0) break;
     }
     Clear(square,pawns);
   }
@@ -2266,7 +2272,7 @@ int EvaluatePawns(TREE *tree) {
       if (SetMask(sq-8)&tree->all_pawns) break;
       attackers=PopCnt(b_pawn_attacks[sq-8]&WhitePawns);
       defenders=PopCnt(w_pawn_attacks[sq-8]&BlackPawns);
-      if (attackers-defenders == 2) break;
+      if (attackers-defenders > 0) break;
     }
     Clear(square,pawns);
   }

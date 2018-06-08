@@ -157,7 +157,7 @@ int Ponder(int wtm) {
   thinking=0;
   pondering=1;
   if (!wtm) move_number++;
-  (void) Iterate(ChangeSide(wtm),think,0);
+  ponder_value=Iterate(ChangeSide(wtm),think,0);
   move_number=save_move_number;
   pondering=0;
   thinking=0;

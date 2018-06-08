@@ -112,6 +112,7 @@
   extern int            root_alpha;
   extern int            root_beta;
   extern int            last_root_value;
+  extern int            ponder_value;
   extern int            root_value;
   extern int            root_wtm;
   extern int            root_print_ok;

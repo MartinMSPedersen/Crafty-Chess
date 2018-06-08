@@ -215,7 +215,7 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
       HashStore(tree,ply,depth,wtm,LOWER,value,threat);
       return(value);
     }
-    if (value < -MATE+300) threat=1;
+    if (value == -MATE+ply+2) threat=1;
   }
 # endif
 /*

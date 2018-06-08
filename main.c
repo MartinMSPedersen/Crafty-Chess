@@ -2635,6 +2635,21 @@
 *           effectively disabled position learning.  this was broken in 17.7  *
 *           but is now fixed.                                                 *
 *                                                                             *
+*   17.10   minor change to "threat" extension now only extends if the null-  *
+*           move search returns "mated in 1" and not "mated in N".  this      *
+*           tends to shrink the trees a bit with no noticable effect in       *
+*           tactical strength.  EvaluatePawns() was not doing a reasonable    *
+*           job of recognizing blocked pawns and candidate passers.  it did   *
+*           not do well in recognizing that the pawn supporting a candidate   *
+*           could not advance far enough to help make a real passed pawn.     *
+*           minor change to RepetitionCheck() to not count two-fold repeats   *
+*           as draws in the first two plies, which prevents some odd-looking  *
+*           repeats at the expense of a little inefficiency.  Ugly repetition *
+*           bug fixed.  rephead was off by one for whatever side crafty was   *
+*           playing which would screw up repetition detection in some cases.  *
+*           minor bug in main() that would report stalemate on some mates     *
+*           when the ponder score was forgotten.                              *
+*                                                                             *
 *******************************************************************************
 */
 int main(int argc, char **argv) {
@@ -2816,6 +2831,7 @@ int main(int argc, char **argv) {
         display=tree->pos;
         if (presult !=2 && (move_number!=1 || !wtm)) presult=Ponder(wtm);
         if (presult == 1) value=last_root_value;
+        else if (presult == 2) value=ponder_value;
         if (presult==0 || presult==2) {
           if (!ics && !xboard) {
             if (wtm) printf("White(%d): ",move_number);

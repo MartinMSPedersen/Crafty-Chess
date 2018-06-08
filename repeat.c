@@ -3,7 +3,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 01/14/99 */
+/* last modified 03/09/00 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -45,10 +45,18 @@ int RepetitionCheck(TREE *tree, int ply, int wtm) {
  ----------------------------------------------------------
 */
   entries=Rule50Moves(ply)>>1;
-  thispos=((wtm)?tree->rephead_w:tree->rephead_b)+((ply-1)>>1);
+  thispos=((wtm)?tree->rephead_w:tree->rephead_b)+((ply-2)>>1);
   *thispos=HashKey;
-  for (replist=thispos-1;entries;replist--,entries--)
-    if(HashKey == *replist) return(1);
+  if (ply > 3) {
+    for (replist=thispos-1;entries;replist--,entries--)
+      if(HashKey == *replist) return(1);
+  }
+  else {
+    int count=0;
+    for (replist=thispos-1;entries;replist--,entries--)
+      if(HashKey == *replist) count++;
+    if (count > 1) return(1);
+  }
   return(0);
 }
 
