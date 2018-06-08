@@ -20,23 +20,10 @@
 void PreEvaluate(TREE * RESTRICT tree, int crafty_is_white)
 {
   int i;
-  static int hashing_opening = 0;
-  static int hashing_middle_game = 0;
-  static int hashing_end_game = 0;
   static int last_crafty_is_white = 0;
   static int last_trojan_check = 0;
   static int last_clear = 0;
 
-/*
- ************************************************************
- *                                                          *
- *   the first step is to determine if we are in the        *
- *   opening (not castled), middle-game, or end-game (with  *
- *   material <= 15 for both sides).                        *
- *                                                          *
- ************************************************************
- */
-  Phase();
 /*
  ************************************************************
  *                                                          *
@@ -124,10 +111,8 @@ void PreEvaluate(TREE * RESTRICT tree, int crafty_is_white)
  ************************************************************
  */
   if (((last_crafty_is_white != crafty_is_white) ||
-          (last_trojan_check != trojan_check) || (hashing_opening != opening) ||
-          (hashing_middle_game != middle_game) ||
-          (hashing_end_game != end_game))
-      && !test_mode) {
+       (last_trojan_check != trojan_check)) &&
+      !test_mode) {
 /*
  **************************************************
  *                                                *
@@ -168,9 +153,6 @@ void PreEvaluate(TREE * RESTRICT tree, int crafty_is_white)
       Print(128, "              clearing hash tables (50 moves fix)\n");
     }
   }
-  hashing_opening = opening;
-  hashing_middle_game = middle_game;
-  hashing_end_game = end_game;
   last_crafty_is_white = crafty_is_white;
   last_trojan_check = trojan_check;
 }

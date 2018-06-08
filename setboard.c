@@ -247,9 +247,6 @@ void SetBoard(SEARCH_POSITION * position, int nargs, char *args[], int special)
     moves_out_of_book = 0;
     lazy_eval_cutoff = 200;
     largest_positional_score = 300;
-    opening = 0;
-    middle_game = 1;
-    end_game = 0;
     wtm = twtm;
   }
   if (Check(!wtm)) {

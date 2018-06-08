@@ -288,23 +288,27 @@ void DisplayArray(int *array, int size)
   if (size > 0 && size % 16 == 0 && len == 8)
     len = 16;
   if (size > 0) {
+    printf("    ");
     for (i = 0; i < size; i++) {
       printf("%3d ", array[i]);
-      if ((i + 1) % len == 0)
+      if ((i + 1) % len == 0) {
         printf("\n");
+        if (i < size - 1) printf("    ");
+      }
     }
     if (i % len != 0)
       printf("\n");
   }
   if (size < 0) {
     for (i = 0; i < 8; i++) {
+    printf("    ");
       for (j = 0; j < 8; j++) {
         printf("%3d ", array[(7 - i) * 8 + j]);
       }
       printf(" | %d\n", 8 - i);
     }
-    printf("---------------------------------\n");
-    printf("  a   b   c   d   e   f   g   h\n");
+    printf("    ---------------------------------\n");
+    printf("      a   b   c   d   e   f   g   h\n");
   }
 }
 
@@ -1955,7 +1959,6 @@ void RestoreGame(void)
     }
     wtm = Flip(wtm);
   }
-  Phase();
 }
 char *Reverse(void)
 {
@@ -2353,9 +2356,9 @@ static void WinNumaInit(void)
         printf("Current ideal CPU is %u\n", dwCPU);
         pSetThreadIdealProcessor(GetCurrentThread(), dwCPU);
         if ((((DWORD) - 1) != dwCPU) && (MAXIMUM_PROCESSORS != dwCPU) &&
-            !(ullProcessorMask[0] & (1u i64 << dwCPU))) {
+            !(ullProcessorMask[0] & (1ui64 << dwCPU))) {
           for (ulNode = 1; ulNode <= ulNumaNodes; ulNode++) {
-            if (ullProcessorMask[ulNode] & (1u i64 << dwCPU)) {
+            if (ullProcessorMask[ulNode] & (1ui64 << dwCPU)) {
               printf("Exchanging nodes 0 and %d\n", ulNode);
               ullMask = ullProcessorMask[ulNode];
               ullProcessorMask[ulNode] = ullProcessorMask[0];
@@ -2561,9 +2564,9 @@ void NumaInit(void)
         printf("Current ideal CPU is %u\n", dwCPU);
         pSetThreadIdealProcessor(GetCurrentThread(), dwCPU);
         if ((((DWORD) - 1) != dwCPU) && (MAXIMUM_PROCESSORS != dwCPU) &&
-            !(ullProcessorMask[0] & (1u i64 << dwCPU))) {
+            !(ullProcessorMask[0] & (1ui64 << dwCPU))) {
           for (ulNode = 1; ulNode <= ulNumaNodes; ulNode++) {
-            if (ullProcessorMask[ulNode] & (1u i64 << dwCPU)) {
+            if (ullProcessorMask[ulNode] & (1ui64 << dwCPU)) {
               printf("Exchanging nodes 0 and %d\n", ulNode);
               ullMask = ullProcessorMask[ulNode];
               ullProcessorMask[ulNode] = ullProcessorMask[0];

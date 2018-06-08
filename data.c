@@ -151,10 +151,6 @@ BITBOARD  mask_white_OO;
 BITBOARD  mask_white_OOO;
 BITBOARD  mask_black_OO;
 BITBOARD  mask_black_OOO;
-BITBOARD  stonewall_white;
-BITBOARD  stonewall_black;
-BITBOARD  e7_e6;
-BITBOARD  e2_e3;
 BITBOARD  mask_kr_trapped_w[3];
 BITBOARD  mask_qr_trapped_w[3];
 BITBOARD  mask_kr_trapped_b[3];
@@ -228,7 +224,7 @@ unsigned int parallel_splits;
 unsigned int parallel_stops;
 unsigned int max_split_blocks;
 volatile unsigned int splitting;
-# define    VERSION                             "19.14"
+# define    VERSION                             "19.15"
 char      version[6] = { VERSION };
 PLAYING_MODE mode = normal_mode;
 #if defined(SMP)
@@ -311,9 +307,6 @@ int       time_used = 0;
 int       time_used_opponent = 0;
 int       cpu_time_used = 0;
 signed char transposition_id = 0;
-int       opening = 1;
-int       middle_game = 0;
-int       end_game = 0;
 signed char thinking = 0;
 signed char pondering = 0;
 signed char puzzling = 0;
@@ -437,7 +430,7 @@ int king_tropism[128] = {
 };
 int connected_passed_pawn_value[8] = { 0, -6, -6, 0, 10, 48, 72, 0 };
 int hidden_passed_pawn_value[8] = { 0, 0, 0, 0, 0, 16, 24, 0 };
-int passed_pawn_value[8] = { 0, 4, 8, 16, 32, 64, 96, 0 };
+int passed_pawn_value[8] = { 0, 12, 20, 26, 32, 64, 96, 0 };
 int blockading_passed_pawn_value[8] = { 0, 8, 12, 16, 30, 48, 64, 0 };
 int isolated_pawn_value[9] = { 0, 12, 24, 30, 38, 52, 80, 80, 80 };
 int isolated_pawn_of_value[9] = { 0, 7, 20, 30, 40, 50, 60, 60, 60 };
@@ -445,9 +438,9 @@ int doubled_pawn_value[9] = { 0, 0, 8, 20, 40, 40, 40, 40, 40};
 int pawn_rams_v[9] = { 0, 0, 6, 24, 40, 64, 80, 94, 96 };
 int supported_passer[8] = { 0, 0, 0, 0, 12, 60, 100, 0 };
 int outside_passed[128] = {
-  72, 40, 40, 40, 36, 36, 32, 32,
-  30, 30, 28, 28, 26, 26, 24, 24,
-  20, 20, 16, 16, 12, 12, 12, 12,
+  72, 64, 64, 64, 56, 56, 52, 52,
+  48, 48, 44, 44, 42, 42, 40, 40,
+  36, 36, 30, 30, 24, 24, 24, 12,
   12, 12, 12, 12, 12, 12, 12, 12,
   12, 12, 12, 12, 12, 12, 12, 12,
   12, 12, 12, 12, 12, 12, 12, 12,
@@ -463,7 +456,7 @@ int outside_passed[128] = {
   12, 12, 12, 12, 12, 12, 12, 12
 };
 int majority[128] = {
-  60, 32, 32, 32, 30, 30, 28, 28,
+  60, 40, 40, 40, 34, 32, 28, 28,
   26, 26, 24, 24, 21, 21, 18, 18,
   15, 15, 12, 12, 10, 10, 10, 10,
   10, 10, 10, 10, 10, 10, 10, 10,
@@ -764,9 +757,8 @@ int bishop_king_safety = 10;
 int rook_on_7th = 30;
 int rook_absolute_7th = 20;
 int rook_connected_7th_rank = 16;
-int rook_open_file = 24;
-int rook_half_open_file = 5;
-int rook_connected_open_file = 10;
+int rook_open_file[8] = {3, 3, 4, 5, 5, 4, 3, 3};
+int rook_half_open_file[8] = {1, 1, 2, 3, 3, 2, 1, 1};
 int rook_behind_passed_pawn = 30;
 int rook_trapped = 30;
 int rook_limited = 20;
@@ -777,7 +769,6 @@ int queen_is_strong = 30;
 int queen_offside_tropism = 8;
 int king_safety_mate_g2g7 = 3;
 int king_safety_mate_threat = 600;
-int king_safety_stonewall = 7;
 int king_safety_open_file = 4;
 int castle_opposite = 3;
 int development_thematic = 6;
@@ -825,11 +816,11 @@ int *evalterm_value[256] =
       bval_w,                      NULL,
       NULL,                        &rook_on_7th,
       &rook_absolute_7th,          &rook_connected_7th_rank,
-      &rook_half_open_file,        &rook_open_file,
-      &rook_connected_open_file,   &rook_behind_passed_pawn,
       &rook_trapped,               &rook_limited,
-      king_tropism_r,              king_tropism_at_r,
-      rval_w,                      NULL,
+      &rook_behind_passed_pawn,    rook_half_open_file,
+      rook_open_file,              king_tropism_r,
+      king_tropism_at_r,           rval_w,
+      NULL,                        NULL,
       NULL,                        NULL,
       NULL,                        NULL,
       NULL,                        NULL,
@@ -840,12 +831,12 @@ int *evalterm_value[256] =
       qval_w,                      NULL,
       NULL,                        &king_king_tropism,
       &king_safety_mate_g2g7,      &king_safety_mate_threat,
-      &king_safety_stonewall,      &king_safety_open_file,
-      &castle_opposite,            king_tropism,
-      king_defects_w,              kval_wn,
-      kval_wk,                     kval_wq,
-      hopenf,                      openf,
-      temper,                      ttemper,
+      &king_safety_open_file,      &castle_opposite,
+      king_tropism,                king_defects_w,
+      kval_wn,                     kval_wk,
+      kval_wq,                     hopenf,
+      openf,                       temper,
+      ttemper,                     NULL,
       NULL,                        NULL,
       NULL,                        NULL,
       NULL,                        &development_thematic,
@@ -891,11 +882,11 @@ char *evalterm_description[256] =
       "bishop piece/square table       ", NULL,
       "rook scoring--------------------", "rook on 7th                     ",
       "rook absolute 7th               ", "rook connected 7th rank         ",
-      "rook half open file             ", "rook open file                  ",
-      "rook connected open file        ", "rook behind passed pawn         ",
       "rook trapped                    ", "rook limited mobility           ",
-      "king tropism [distance]         ", "king file tropism [distance]    ",
-      "rook piece/square table         ", NULL,
+      "rook behind passed pawn         ", "rook half open file             ",
+      "rook open file                  ", "king tropism [distance]         ",
+      "king file tropism [distance]    ", "rook piece/square table         ",
+      NULL,                               NULL,
       NULL,                               NULL,
       NULL,                               NULL,
       NULL,                               NULL,
@@ -906,12 +897,12 @@ char *evalterm_description[256] =
       "queen piece/square table        ", NULL,
       "king scoring--------------------", "king king tropism (endgame)     ",
       "king safety mate g2g7           ", "king safety trojan horse threat ",
-      "king safety stonewall threat    ", "king safety open file           ",
-      "king safety castle opposite     ", "king tropism [defects]          ",
-      "king defects (white - mirror B) ", "king piece/square normal        ",
-      "king piece/square kside pawns   ", "king piece/square qside pawns   ",
-      "king safety half-open file def  ", "king safety open file defects   ",
-      "king safety indirect temper     ", "king safety tropism temper      ",
+      "king safety open file           ", "king safety castle opposite     ",
+      "king tropism [defects]          ", "king defects (white - mirror B) ",
+      "king piece/square normal        ", "king piece/square kside pawns   ",
+      "king piece/square qside pawns   ", "king safety half-open file def  ",
+      "king safety open file defects   ", "king safety indirect temper     ",
+      "king safety tropism temper      ", NULL,
       NULL,                               NULL,
       NULL,                               NULL,
       "development scoring-------------", "development thematic            ",
@@ -927,11 +918,11 @@ int evalterm_size[256] = {
   9,  8,128,128,  0,  0,  0,  0,  0,  0,
   0,  8,-64,-64,  0,  0,  0,  0,  0,  0, 
   0,  0,  0,  0,  0,  0,  9,  8,-64,  0,
-  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 
-  8,  8,-64,  0,  0,  0,  0,  0,  0,  0, 
+  0,  0,  0,  0,  0,  0,  0,  8,  8,  8, 
+  8,-64,  0,  0,  0,  0,  0,  0,  0,  0,
   0,  0,  0,  0,  0,  0,  8,  8,-64,  0, 
-  0,  0,  0,  0,  0,  0,  0,128,-64,-64, 
--64,-64,  4,  4, 64, 64,  0,  0,  0,  0, 
+  0,  0,  0,  0,  0,  0,128,-64,-64,-64,
+-64,  4,  4, 64, 64,  0,  0,  0,  0,  0,
   0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 
   0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 
   0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 

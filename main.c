@@ -3079,6 +3079,21 @@
  *           opponent has a protected passer, which easily negates the outside *
  *           passer's threat.                                                  *
  *                                                                             *
+ *   19.15   fix to outside passed pawn code that requires pawns on both sides *
+ *           of the board for the side with an "outside passer" or "outside    *
+ *           candidate" to avoid some bizarre evaluations. sel 0/0 now works   *
+ *           without crashing Crafty.  this would fail in previous versions as *
+ *           the hash signature would be modified but not restored.  slightly  *
+ *           more conservative limit on using null-move search to head off a   *
+ *           few notable zugzwang problems was added.  fix to time control     *
+ *           code to remove a hole that could cause a divide-by-zero at a time *
+ *           control boundary.  Stonewall detection removed completely as it   *
+ *           appears to be no longer needed.  rook scoring changed to better   *
+ *           evaluate "open files" by measuring mobility on them.  complete    *
+ *           removal of Phase() (phase.c) and references to the opening,       *
+ *           middlegame and endgame phases as they were no longer referenced   *
+ *           anywhere in the code.                                             *
+ *                                                                             *
  *******************************************************************************
  */
 int main(int argc, char **argv)

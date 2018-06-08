@@ -159,8 +159,6 @@ int Ponder(int wtm)
   tlom = last_opponent_move;
   last_opponent_move = ponder_move;
   tree->rep_list[++tree->rep_game] = HashKey;
-  if (RepetitionDraw(tree))
-    Print(128, "game is a draw by repetition\n");
   if (kibitz)
     strcpy(kibitz_text, "n/a");
   thinking = 0;

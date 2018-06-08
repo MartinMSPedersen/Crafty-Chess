@@ -217,7 +217,7 @@ linux-icc-profile:
                         -xN -prof_genx -prof_dir ./profdir \
                         -Ob2 -fno-alias' \
 		CXFLAGS='$(CFLAGS) -D_REENTRANT -O2 \
-                        -xN -prof_genx -prof_dir ./profdir' \
+                        -w -xN -prof_genx -prof_dir ./profdir' \
 		LDFLAGS='$(LDFLAGS) -lpthread' \
 		opt='$(opt) -DFUTILITY -DFAST -DINLINE_ASM \
                          -DPOSIX -DSMP -DCPUS=2' \
@@ -230,7 +230,7 @@ linux-icc:
                         -xN -prof_use -prof_dir ./profdir \
                         -Ob2 -fno-alias' \
 		CXFLAGS='$(CFLAGS) -D_REENTRANT -O2 \
-                        -xN -prof_use -prof_dir ./profdir' \
+                        -w -xN -prof_use -prof_dir ./profdir' \
 		LDFLAGS='$(LDFLAGS) -lpthread' \
 		opt='$(opt) -DFUTILITY -DFAST -DINLINE_ASM \
                          -DPOSIX -DSMP -DCPUS=2' \
@@ -437,9 +437,9 @@ profile:
        nextr.o history.o quiesce.o evaluate.o movgen.o make.o unmake.o hash.o  \
        attacks.o swap.o boolean.o utility.o valid.o probe.o book.o data.o      \
        drawn.o edit.o epd.o epdglue.o init.o input.o interupt.o iterate.o      \
-       main.o option.o output.o phase.o ponder.o preeval.o resign.o root.o     \
-       learn.o setboard.o test.o time.o validate.o annotate.o analyze.o        \
-       evtest.o bench.o egtb.o dgt.o
+       main.o option.o output.o ponder.o preeval.o resign.o root.o learn.o     \
+       setboard.o test.o time.o validate.o annotate.o analyze.o evtest.o       \
+       bench.o egtb.o dgt.o
 objects = crafty.o egtb.o
 
 # Do not change anything below this line!

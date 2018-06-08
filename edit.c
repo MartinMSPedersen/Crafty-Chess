@@ -159,7 +159,4 @@ void Edit(void)
   moves_out_of_book = 0;
   lazy_eval_cutoff = 200;
   largest_positional_score = 300;
-  opening = 0;
-  middle_game = 1;
-  end_game = 0;
 }

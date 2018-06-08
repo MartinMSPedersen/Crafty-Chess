@@ -139,7 +139,7 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
       fread(book_buffer, sizeof(BOOK_POSITION), cluster, book_file);
     } else
       cluster = 0;
-    if (!cluster)
+    if (!cluster && !smoves)
       return (0);
 /*
  ************************************************************
@@ -254,9 +254,6 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
         book_status[i] |= BAD_MOVE;
       if (bs_percent[i])
         book_status[i] |= GOOD_MOVE;
-      if (!(book_status[i] & GOOD_MOVE) &&
-          BookRejectMove(tree, wtm, book_moves[i]))
-        book_status[i] |= BAD_MOVE;
     }
 /*
  ************************************************************
@@ -1367,44 +1364,6 @@ int BookMask(char *flags)
     }
   }
   return (mask);
-}
-
-/* last modified 08/29/02 */
-/*
- *******************************************************************************
- *                                                                             *
- *   BookRejectMove() is called to test a move to see if it should be excluded *
- *   for some reason.  One example is a kingside castling move that castles    *
- *   a stonewall attack type formation.                                        *
- *                                                                             *
- *******************************************************************************
- */
-int BookRejectMove(TREE * RESTRICT tree, int wtm, int move)
-{
-/*
- ************************************************************
- *                                                          *
- *   look for the "stonewall" formation in the pawns and    *
- *   reject this move if it castles into the attack.        *
- *                                                          *
- ************************************************************
- */
-  if (Piece(move) != king)
-    return (0);
-  if (wtm) {
-    if (From(move) != E1 || (To(move) != C1 && To(move) != G1))
-      return (0);
-    if (PopCnt(BlackPawns & stonewall_black) == 2 && (WhitePawns & SetMask(E2)
-            || WhitePawns & SetMask(E3)))
-      return (1);
-  } else {
-    if (From(move) != E8 || (To(move) != C8 && To(move) != G8))
-      return (0);
-    if (PopCnt(WhitePawns & stonewall_white) == 2 && (BlackPawns & SetMask(E7)
-            || BlackPawns & SetMask(E6)))
-      return (1);
-  }
-  return (0);
 }
 
 /* last modified 06/19/98 */

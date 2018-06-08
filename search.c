@@ -216,7 +216,8 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
  ************************************************************
  */
   pieces = (wtm) ? TotalWhitePieces : TotalBlackPieces;
-  if (do_null && !tree->in_check[ply] && (pieces > 5 || depth < 7 * INCPLY)) {
+  if (do_null && !tree->in_check[ply] && pieces &&
+      (pieces > 9 || depth < 7 * INCPLY)) {
     register BITBOARD save_hash_key;
     int null_depth;
 
@@ -226,15 +227,15 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
     if (ply <= trace_level)
       SearchTrace(tree, ply, depth, wtm, beta - 1, beta, "Search", 0);
 #endif
-    tree->position[ply + 1] = tree->position[ply];
-    Rule50Moves(ply + 1)++;
-    save_hash_key = HashKey;
-    if (EnPassant(ply)) {
-      HashEP(EnPassant(ply + 1), HashKey);
-      EnPassant(ply + 1) = 0;
-    }
-    null_depth = (depth > 6 * INCPLY && pieces > 8) ? null_max : null_min;
+    null_depth = (depth > 6 * INCPLY && pieces > 9) ? null_max : null_min;
     if (null_depth) {
+      tree->position[ply + 1] = tree->position[ply];
+      Rule50Moves(ply + 1)++;
+      save_hash_key = HashKey;
+      if (EnPassant(ply)) {
+        HashEP(EnPassant(ply + 1), HashKey);
+        EnPassant(ply + 1) = 0;
+      }
       if (depth - null_depth >= INCPLY)
         value =
             -Search(tree, -beta, 1 - beta, Flip(wtm), depth - null_depth,

@@ -453,7 +453,6 @@ void      Bench(void);
 int       Book(TREE * RESTRICT, int, int);
 int       BookMask(char *);
 int       BookPonderMove(TREE * RESTRICT, int);
-int       BookRejectMove(TREE * RESTRICT, int, int);
 void      BookUp(TREE * RESTRICT, int, char **);
 void      BookSort(BB_POSITION *, int, int);
 
@@ -562,7 +561,6 @@ char     *OutputMoveICS(int);
 int       OutputGood(TREE * RESTRICT, char *, int, int);
 int       ParseTime(char *);
 void      Pass(void);
-void      Phase(void);
 int       PinnedOnKing(TREE * RESTRICT, int, int);
 int       Ponder(int);
 void      PreEvaluate(TREE * RESTRICT, int);

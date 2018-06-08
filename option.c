@@ -449,7 +449,10 @@ int Option(TREE * RESTRICT tree)
       tc_time_remaining_opponent = ParseTime(args[2]) * 6000;
     Print(128, "time remaining %s (Crafty)", DisplayHHMM(tc_time_remaining));
     Print(128, "  %s (opponent).\n", DisplayHHMM(tc_time_remaining_opponent));
-    Print(128, "%d moves to next time control (Crafty)\n", tc_moves_remaining);
+    if (tc_sudden_death != 1)
+      Print(128, "%d moves to next time control (Crafty)\n", tc_moves_remaining);
+    else
+      Print(128, "Sudden-death time control in effect\n");
   }
 /*
  ************************************************************
@@ -2861,7 +2864,6 @@ int Option(TREE * RESTRICT tree)
       wtm = Flip(wtm);
       if (wtm)
         move_number++;
-      Phase();
     }
     moves_out_of_book = 0;
     tc_moves_remaining = tc_moves - move_number + 1;
@@ -2947,7 +2949,6 @@ int Option(TREE * RESTRICT tree)
         printf("illegal move.\n");
       if (move) {
         wtm = Flip(wtm);
-        Phase();
         if (wtm)
           move_number++;
       }
@@ -2965,6 +2966,10 @@ int Option(TREE * RESTRICT tree)
         break;
     } while (1);
     moves_out_of_book = 0;
+    tc_moves_remaining = tc_moves - move_number + 1;
+    while (tc_moves_remaining <= 0 && tc_secondary_moves)
+      tc_moves_remaining += tc_secondary_moves;
+    printf("NOTICE: %d moves to next time control\n", tc_moves_remaining);
     root_wtm = !wtm;
     if (read_input != stdin) {
       printf("\n");
@@ -3297,7 +3302,10 @@ int Option(TREE * RESTRICT tree)
         DisplayTime(tc_time_remaining));
     Print(128, "time remaining: %s (opponent).\n",
         DisplayTime(tc_time_remaining_opponent));
-    Print(128, "%d moves to next time control (Crafty)\n", tc_moves_remaining);
+    if (tc_sudden_death != 1)
+      Print(128, "%d moves to next time control (Crafty)\n", tc_moves_remaining);
+    else
+      Print(128, "Sudden-death time control in effect\n");
   }
 /*
  ************************************************************
@@ -3361,10 +3369,10 @@ int Option(TREE * RESTRICT tree)
     s7 = Evaluate(tree, 1, wtm, -99999, 99999);
     if (!wtm) s7 = -s7;
     s1 = EvaluateMaterial(tree);
-    if (opening) {
+    if (BlackCastle(1))
       s2 = EvaluateDevelopmentB(tree, 1);
+    if (WhiteCastle(1))
       s2 += EvaluateDevelopmentW(tree, 1);
-    }
     if (TotalWhitePawns + TotalBlackPawns) {
       s3 = EvaluatePawns(tree);
       s4 = EvaluatePassedPawns(tree);
@@ -3677,13 +3685,13 @@ int Option(TREE * RESTRICT tree)
  */
         tc_secondary_time = tc_time;
         tc_secondary_moves = tc_moves;
-        if (nargs > 3)
+        if (nargs > 4) {
           if (!strcmp(args[3], "sd")) {
             tc_sudden_death = 2;
             tc_secondary_moves = 1000;
           }
-        if (nargs > 4) {
-          tc_secondary_moves = atoi(args[3]);
+          else
+             tc_secondary_moves = atoi(args[3]);
           tc_secondary_time = atoi(args[4]) * 100;
         }
         if (nargs > 5)
@@ -3780,9 +3788,8 @@ int Option(TREE * RESTRICT tree)
       printf("time used? ");
       fflush(stdout);
       fgets(buffer, 128, stdin);
-      if (strlen(buffer))
-        time_used = atoi(buffer);
-      else
+      time_used = atoi(buffer);
+      if (time_used == 0)
         time_used = time_limit;
       TimeAdjust(time_used, opponent);
       TimeAdjust(time_used, crafty);

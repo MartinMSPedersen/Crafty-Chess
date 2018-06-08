@@ -639,9 +639,6 @@ void InitializeChessBoard(SEARCH_POSITION * new_pos)
     for (i = 0; i < 64; i++)
       tree->pos.board[i] = none;
     new_pos->rule_50_moves = 0;
-    opening = 1;
-    middle_game = 0;
-    end_game = 0;
     lazy_eval_cutoff = 200;
     largest_positional_score = 300;
     wtm = 1;
@@ -1324,15 +1321,6 @@ void InitializePawnMasks(void)
   good_bishop_qw = SetMask(B2) | SetMask(A1) | SetMask(C1);
   good_bishop_kb = SetMask(G7) | SetMask(F8) | SetMask(H8);
   good_bishop_qb = SetMask(B7) | SetMask(A8) | SetMask(C8);
-
-/*
- these masks are used to detect that the opponent is trying to set up
- a stonewall type pawn formation.
- */
-  stonewall_white = SetMask(D4) | SetMask(F4);
-  e2_e3 = SetMask(E2) | SetMask(E3);
-  stonewall_black = SetMask(D5) | SetMask(F5);
-  e7_e6 = SetMask(E7) | SetMask(E6);
 }
 
 void InitializePieceMasks(void)
