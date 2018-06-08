@@ -80,7 +80,7 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
  *                                                          *
  ************************************************************
  */
-  if (moves_out_of_book > 3)
+  if (shared->moves_out_of_book > 3)
     return (0);
 /*
  ************************************************************
@@ -1207,7 +1207,7 @@ void BookUp(TREE * RESTRICT tree, int nargs, char **args)
     memcpy((char *) &current.position, temp.position, 8);
     current.status_played = temp.status << 24;
     if (start)
-      current.status_played += temp.percent_play;
+      current.status_played += temp.percent_play & 127;
     current.learn = 0.0;
     played = 1;
     fclose(book_file);
@@ -1266,13 +1266,13 @@ void BookUp(TREE * RESTRICT tree, int nargs, char **args)
           current.learn = 0.0;
           current.CAP_score = -MATE * 2;
           memcpy((void *) &book_buffer_char[0].position,
-            (void *) BookOut64(current.position), 8);
+              (void *) BookOut64(current.position), 8);
           memcpy((void *) &book_buffer_char[0].status_played,
-            (void *) BookOut32(current.status_played), 4);
+              (void *) BookOut32(current.status_played), 4);
           memcpy((void *) &book_buffer_char[0].learn,
-            (void *) BookOut32(current.learn), 4);
+              (void *) BookOut32(current.learn), 4);
           memcpy((void *) &book_buffer_char[0].CAP_score,
-            (void *) BookOut32(current.CAP_score), 4);
+              (void *) BookOut32(current.CAP_score), 4);
           stat = fwrite(book_buffer_char, BOOK_POSITION_SIZE, 1, book_file);
           if (stat != 1)
             Print(4095, "ERROR!  write failed, disk probably full.\n");
@@ -1312,7 +1312,7 @@ void BookUp(TREE * RESTRICT tree, int nargs, char **args)
       }
     }
     fseek(book_file, 0, SEEK_SET);
-    for (i=0; i<32768; i++) {
+    for (i = 0; i < 32768; i++) {
       memcpy((void *) &cluster, (void *) BookOut32(index[i]), 4);
       fwrite(&cluster, 4, 1, book_file);
     }

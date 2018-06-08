@@ -45,6 +45,10 @@
 #  else
 #    include <sys/ioctl.h>
 #  endif
+#  if defined(SMP)
+#    include <signal.h>
+#    include <sys/wait.h>
+#  endif
 #endif
 #if defined(UNIX)
 #  if !defined(CLK_TCK)
@@ -62,7 +66,6 @@ static clock_t clk_tck = 0;
 #  include <os2.h>
 #endif
 
-
 /*
  *******************************************************************************
  *                                                                             *
@@ -72,21 +75,22 @@ static clock_t clk_tck = 0;
  *                                                                             *
  *******************************************************************************
  */
-void BookClusterIn(FILE *file, int positions, BOOK_POSITION *buffer)
+void BookClusterIn(FILE * file, int positions, BOOK_POSITION * buffer)
 {
   char file_buffer[BOOK_CLUSTER_SIZE * BOOK_POSITION_SIZE];
   int i;
 
   fread(file_buffer, positions, BOOK_POSITION_SIZE, file);
-  for (i=0;i<positions;i++) {
+  for (i = 0; i < positions; i++) {
     buffer[i].position =
-      BookIn64((unsigned char *) (file_buffer + i * BOOK_POSITION_SIZE));
+        BookIn64((unsigned char *) (file_buffer + i * BOOK_POSITION_SIZE));
     buffer[i].status_played =
-      BookIn32((unsigned char *) (file_buffer + i * BOOK_POSITION_SIZE + 8));
+        BookIn32((unsigned char *) (file_buffer + i * BOOK_POSITION_SIZE + 8));
     buffer[i].learn =
-      BookIn32f((unsigned char *) (file_buffer + i * BOOK_POSITION_SIZE + 12));
+        BookIn32f((unsigned char *) (file_buffer + i * BOOK_POSITION_SIZE +
+            12));
     buffer[i].CAP_score =
-      BookIn32((unsigned char *) (file_buffer + i * BOOK_POSITION_SIZE + 16));
+        BookIn32((unsigned char *) (file_buffer + i * BOOK_POSITION_SIZE + 16));
   }
 }
 
@@ -99,20 +103,20 @@ void BookClusterIn(FILE *file, int positions, BOOK_POSITION *buffer)
  *                                                                             *
  *******************************************************************************
  */
-void BookClusterOut(FILE *file, int positions, BOOK_POSITION *buffer)
+void BookClusterOut(FILE * file, int positions, BOOK_POSITION * buffer)
 {
   char file_buffer[BOOK_CLUSTER_SIZE * BOOK_POSITION_SIZE];
   int i;
 
-  for (i=0;i<positions;i++) {
-    memcpy(file_buffer + i * BOOK_POSITION_SIZE,
-      BookOut64(buffer[i].position), 8);
+  for (i = 0; i < positions; i++) {
+    memcpy(file_buffer + i * BOOK_POSITION_SIZE, BookOut64(buffer[i].position),
+        8);
     memcpy(file_buffer + i * BOOK_POSITION_SIZE + 8,
-      BookOut32(buffer[i].status_played), 4);
+        BookOut32(buffer[i].status_played), 4);
     memcpy(file_buffer + i * BOOK_POSITION_SIZE + 12,
-      BookOut32f(buffer[i].learn), 4);
+        BookOut32f(buffer[i].learn), 4);
     memcpy(file_buffer + i * BOOK_POSITION_SIZE + 16,
-      BookOut32(buffer[i].CAP_score), 4);
+        BookOut32(buffer[i].CAP_score), 4);
   }
   fwrite(file_buffer, positions, BOOK_POSITION_SIZE, file);
 }
@@ -162,10 +166,10 @@ int BookIn32(unsigned char *ch)
 BITBOARD BookIn64(unsigned char *ch)
 {
 
-  return ((((BITBOARD) ch[7]) << 56) | (((BITBOARD) ch[6]) << 48) |
-          (((BITBOARD) ch[5]) << 40) | (((BITBOARD) ch[4]) << 32) |
-          (((BITBOARD) ch[3]) << 24) | (((BITBOARD) ch[2]) << 16) |
-          (((BITBOARD) ch[1]) <<  8) |  ((BITBOARD) ch[0]));
+  return ((((BITBOARD) ch[7]) << 56) | (((BITBOARD) ch[6]) << 48) | (((BITBOARD)
+              ch[5]) << 40) | (((BITBOARD) ch[4]) << 32) | (((BITBOARD) ch[3])
+          << 24) | (((BITBOARD) ch[2]) << 16) | (((BITBOARD) ch[1]) << 8) |
+      ((BITBOARD) ch[0]));
 }
 
 /*
@@ -427,7 +431,7 @@ void DisplayArray(int *array, int size)
   }
   if (size < 0) {
     for (i = 0; i < 8; i++) {
-    printf("    ");
+      printf("    ");
       for (j = 0; j < 8; j++) {
         printf("%3d ", array[(7 - i) * 8 + j]);
       }
@@ -1162,6 +1166,7 @@ int InvalidPosition(TREE * RESTRICT tree)
 {
   int error = 0;
   int wp, wn, wb, wr, wq, bp, bn, bb, br, bq;
+
   wp = PopCnt(WhitePawns);
   wn = PopCnt(WhiteKnights);
   wb = PopCnt(WhiteBishops);
@@ -1282,7 +1287,7 @@ void NewGame(int save)
     save_learning = learning;
     save_accept_draws = accept_draws;
   } else {
-    if (learning & book_learning && moves_out_of_book) {
+    if (learning & book_learning && shared->moves_out_of_book) {
       int val =
           (shared->crafty_is_white) ? last_search_value : -last_search_value;
 
@@ -1295,7 +1300,7 @@ void NewGame(int save)
               shared->max_threads));
     }
     over = 0;
-    moves_out_of_book = 0;
+    shared->moves_out_of_book = 0;
     ponder_move = 0;
     last_search_value = 0;
     last_pv.pathd = 0;
@@ -1340,7 +1345,6 @@ void NewGame(int save)
     draw_counter = 0;
     usage_level = 0;
     learning = save_learning;
-    shared->lazy_eval_cutoff = 200;
     shared->largest_positional_score = 300;
     predicted = 0;
     shared->kibitz_depth = 0;
@@ -2203,8 +2207,6 @@ void CopyFromSMP(TREE * RESTRICT p, TREE * RESTRICT c, int value)
   p->transposition_uppers += c->transposition_uppers;
   p->transposition_lowers += c->transposition_lowers;
   p->transposition_exacts += c->transposition_exacts;
-  p->pawn_probes += c->pawn_probes;
-  p->pawn_hits += c->pawn_hits;
   p->egtb_probes += c->egtb_probes;
   p->egtb_probes_successful += c->egtb_probes_successful;
   p->check_extensions_done += c->check_extensions_done;
@@ -2280,8 +2282,6 @@ TREE *CopyToSMP(TREE * RESTRICT p, int thread)
   c->transposition_uppers = 0;
   c->transposition_lowers = 0;
   c->transposition_exacts = 0;
-  c->pawn_probes = 0;
-  c->pawn_hits = 0;
   c->egtb_probes = 0;
   c->egtb_probes_successful = 0;
   c->check_extensions_done = 0;
@@ -2544,9 +2544,9 @@ static void WinNumaInit(void)
         printf("Current ideal CPU is %u\n", dwCPU);
         pSetThreadIdealProcessor(GetCurrentThread(), dwCPU);
         if ((((DWORD) - 1) != dwCPU) && (MAXIMUM_PROCESSORS != dwCPU) &&
-            !(ullProcessorMask[0] & (1ui64 << dwCPU))) {
+            !(ullProcessorMask[0] & (1u i64 << dwCPU))) {
           for (ulNode = 1; ulNode <= ulNumaNodes; ulNode++) {
-            if (ullProcessorMask[ulNode] & (1ui64 << dwCPU)) {
+            if (ullProcessorMask[ulNode] & (1u i64 << dwCPU)) {
               printf("Exchanging nodes 0 and %d\n", ulNode);
               ullMask = ullProcessorMask[ulNode];
               ullProcessorMask[ulNode] = ullProcessorMask[0];
@@ -2681,42 +2681,60 @@ void *SharedMalloc(size_t size, int tid)
 {
 #if defined(UNIX)
 #  if defined(SMP)
-    int shmid;
-    void *shared;
+  int shmid;
+  void *shared;
 
   shmid = shmget(IPC_PRIVATE, size, (IPC_CREAT | 0600));
   if (shmid < 0) {
-    Print(4095,"ERROR.  shmget() failed, unable to allocate a shared memory segment.\n");
-    Print(4095,"        Please verify that your /proc/sys/kernel/shmmax value is\n");
-    Print(4095,"        large enough to allow allocating the amount of memory you\n");
-    Print(4095,"        are requesting.  \"echo 1000000000 > /proc/sys/kernel/shmmax\"\n");
-    Print(4095,"        will allow a segment up to one billion bytes.\n");
+    Print(4095,
+        "ERROR.  shmget() failed, unable to allocate a shared memory segment.\n");
+    Print(4095,
+        "        Please verify that your /proc/sys/kernel/shmmax value is\n");
+    Print(4095,
+        "        large enough to allow allocating the amount of memory you\n");
+    Print(4095,
+        "        are requesting.  \"echo 1000000000 > /proc/sys/kernel/shmmax\"\n");
+    Print(4095, "        will allow a segment up to one billion bytes.\n");
     exit(1);
   }
   shared = shmat(shmid, 0, 0);
   shmctl(shmid, IPC_RMID, 0);
-    return (shared);
+  return (shared);
 #  else
-    return (malloc(size));
+  return (malloc(size));
 #  endif
 #else
-# if !defined(SMP)
-    return (malloc(size));
-# else
-    return WinMalloc(size, tid);
-# endif
+#  if !defined(SMP)
+  return (malloc(size));
+#  else
+  return WinMalloc(size, tid);
+#  endif
 #endif
 }
 
 void SharedFree(void *address)
 {
 #if defined(SMP)
-# if defined(UNIX)
+#  if defined(UNIX)
   shmdt(address);
-# else
+#  else
   VirtualFree(address, 0, MEM_RELEASE);
-# endif
+#  endif
 #else
   free(address);
 #endif
 }
+
+#if defined(UNIX) && defined(SMP)
+void SignalInterrupt(int sigtype)
+{
+  signal(SIGCHLD, SignalInterrupt);
+  while (1) {
+    int status, r;
+
+    r = waitpid(-1, &status, WNOHANG);
+    if (r <= 0)
+      return;
+  }
+}
+#endif

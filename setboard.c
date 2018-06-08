@@ -271,8 +271,7 @@ void SetBoard(SEARCH_POSITION * position, int nargs, char *args[], int special)
       last_pv.pathl = 0;
       tree->pv[0].pathd = 0;
       tree->pv[0].pathl = 0;
-      moves_out_of_book = 0;
-      shared->lazy_eval_cutoff = 200;
+      shared->moves_out_of_book = 0;
       shared->largest_positional_score = 300;
     }
   } else {

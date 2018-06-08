@@ -594,6 +594,7 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move)
           common = (to - 7) | (to << 6) | (pawn << 12);
           if (to < 56) {
             register int cap = (PcOnSq(to)) ? -PcOnSq(to) : pawn;
+
             *move++ = common | (cap << 15);
           } else {
             *move++ = common | ((-PcOnSq(to)) << 15) | (queen << 18);

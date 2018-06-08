@@ -11,7 +11,7 @@
 #endif
 #include "epdglue.h"
 
-/* last modified 08/07/05 */
+/* last modified 10/10/05 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -762,7 +762,7 @@ int Option(TREE * RESTRICT tree)
     shared->quit = 1;
     last_search_value =
         (shared->crafty_is_white) ? last_search_value : -last_search_value;
-    if (moves_out_of_book)
+    if (shared->moves_out_of_book)
       LearnBook(tree, wtm, last_search_value, 0, 0, 1);
     if (book_file)
       fclose(book_file);
@@ -2249,6 +2249,7 @@ int Option(TREE * RESTRICT tree)
 #if defined(SMP)
     if (shared->max_threads) {
       int proc;
+
       Print(128, "parallel threads terminated.\n");
       for (proc = 1; proc < CPUS; proc++)
         shared->thread[proc] = (TREE *) - 1;
@@ -2874,7 +2875,7 @@ int Option(TREE * RESTRICT tree)
       if (wtm)
         shared->move_number++;
     }
-    moves_out_of_book = 0;
+    shared->moves_out_of_book = 0;
     shared->tc_moves_remaining = shared->tc_moves - shared->move_number + 1;
     while (shared->tc_moves_remaining <= 0 && shared->tc_secondary_moves)
       shared->tc_moves_remaining += shared->tc_secondary_moves;
@@ -2976,7 +2977,7 @@ int Option(TREE * RESTRICT tree)
       if (!strcmp(buffer, "exit"))
         break;
     } while (1);
-    moves_out_of_book = 0;
+    shared->moves_out_of_book = 0;
     shared->tc_moves_remaining = shared->tc_moves - shared->move_number + 1;
     while (shared->tc_moves_remaining <= 0 && shared->tc_secondary_moves)
       shared->tc_moves_remaining += shared->tc_secondary_moves;
@@ -3383,16 +3384,16 @@ int Option(TREE * RESTRICT tree)
  ************************************************************
  */
   else if (OptionMatch("score", *args)) {
-    int s1, s2 = 0, s3 = 0, s4 = 0, s5 = 0, s6 = 0, s7;
+    int s1, s2 = 0, s3 = 0, s4 = 0, s5 = 0, s6 = 0;
 
     if (shared->thinking || shared->pondering)
       return (2);
     shared->root_wtm = Flip(wtm);
     tree->position[1] = tree->position[0];
     PreEvaluate(tree, shared->root_wtm);
-    s7 = Evaluate(tree, 1, wtm, -99999, 99999);
+    s6 = Evaluate(tree, 1, wtm, -99999, 99999);
     if (!wtm)
-      s7 = -s7;
+      s6 = -s6;
     s1 = EvaluateMaterial(tree);
     if (BlackCastle(1))
       s2 = EvaluateDevelopmentB(tree, 1);
@@ -3400,12 +3401,11 @@ int Option(TREE * RESTRICT tree)
       s2 += EvaluateDevelopmentW(tree, 1);
     if (TotalWhitePawns + TotalBlackPawns) {
       s3 = EvaluatePawns(tree);
-      s4 = EvaluatePassedPawns(tree);
+      s4 = EvaluatePassedPawns(tree, wtm);
       s5 = EvaluatePassedPawnRaces(tree, wtm);
     }
     if (!tree->endgame)
-      s6 = EvaluateKingSafety(tree, 1);
-    Print(128, "note: scores are for the white side\n");
+      Print(128, "note: scores are for the white side\n");
     Print(128, "material evaluation.................%s\n", DisplayEvaluation(s1,
             1));
     Print(128, "development.........................%s\n", DisplayEvaluation(s2,
@@ -3416,11 +3416,9 @@ int Option(TREE * RESTRICT tree)
             1));
     Print(128, "passed pawn race evaluation.........%s\n", DisplayEvaluation(s5,
             1));
-    Print(128, "king safety evaluation..............%s\n", DisplayEvaluation(s6,
-            1));
     Print(128, "interactive piece evaluation........%s\n",
-        DisplayEvaluation(s7 - s1 - s2 - s3 - s4 - s5 - s6, 1));
-    Print(128, "total evaluation....................%s\n", DisplayEvaluation(s7,
+        DisplayEvaluation(s6 - s1 - s2 - s3 - s4 - s5, 1));
+    Print(128, "total evaluation....................%s\n", DisplayEvaluation(s6,
             1));
   }
 /*
@@ -3543,14 +3541,14 @@ int Option(TREE * RESTRICT tree)
     learning |= position_learning;
     temp1 = tree->pv[0].pathd;
     temp2 = tree->pv[0].path[1];
-    temp3 = moves_out_of_book;
-    moves_out_of_book = 0;
+    temp3 = shared->moves_out_of_book;
+    shared->moves_out_of_book = 0;
     tree->pv[0].pathd = INCPLY - 5;
     tree->pv[0].path[1] = 0;
     LearnPosition(tree, wtm, Max(score + 100, 0), score);
     tree->pv[0].pathd = temp1;
     tree->pv[0].path[1] = temp2;
-    moves_out_of_book = temp3;
+    shared->moves_out_of_book = temp3;
   }
 /*
  ************************************************************
@@ -3707,7 +3705,7 @@ int Option(TREE * RESTRICT tree)
           shared->tc_sudden_death = 2;
           shared->tc_secondary_moves = 1000;
         } else
-           shared->tc_secondary_moves = atoi(args[3]);
+          shared->tc_secondary_moves = atoi(args[3]);
         shared->tc_secondary_time = atoi(args[4]) * 100;
       }
       if (nargs > 5)
@@ -3740,6 +3738,40 @@ int Option(TREE * RESTRICT tree)
       shared->tc_time_remaining_opponent *= 60;
       shared->tc_secondary_time *= 60;
       shared->tc_safety_margin = shared->tc_time / 6;
+    }
+  }
+/*
+ ************************************************************
+ *                                                          *
+ *   "timebook" command is used to adjust Crafty's time     *
+ *   usage after it leaves the opening book.  the first     *
+ *   value specifies the multiplier for the time used on    *
+ *   the first move out of book expressed as a percentage   *
+ *   (100 is 100% for example).  the second value specifies *
+ *   the "span" (number of moves) that this multiplier      *
+ *   decays over.  for example, "timebook 100 10" says to   *
+ *   add 100% of the normal search time for the first move  *
+ *   out of book, then 90% for the next, until after 10     *
+ *   non-book moves have been played, the percentage has    *
+ *   dropped back to 0 where it will stay for the rest of   *
+ *   the game.                                              *
+ *                                                          *
+ ************************************************************
+ */
+  else if (OptionMatch("timebook", *args)) {
+    if (nargs < 3) {
+      printf("usage:  timebook <percentage> <move span>\n");
+      return (1);
+    }
+    shared->first_nonbook_factor = atoi(args[1]);
+    shared->first_nonbook_span = atoi(args[2]);
+    if (shared->first_nonbook_factor < 0 || shared->first_nonbook_factor > 500) {
+      Print(4095, "ERROR, factor must be >= 0 and <= 500\n");
+      shared->first_nonbook_factor = 0;
+    }
+    if (shared->first_nonbook_span < 0 || shared->first_nonbook_span > 30) {
+      Print(4095, "ERROR, span must be >= 0 and <= 30\n");
+      shared->first_nonbook_span = 0;
     }
   }
 /*

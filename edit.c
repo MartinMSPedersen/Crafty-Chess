@@ -158,8 +158,7 @@ void Edit(void)
     tree->rep_game = 0;
     tree->rep_list[tree->rep_game] = HashKey;
     tree->position[0].rule_50_moves = 0;
-    moves_out_of_book = 0;
-    shared->lazy_eval_cutoff = 200;
+    shared->moves_out_of_book = 0;
     shared->largest_positional_score = 300;
   } else {
     InitializeChessBoard(&tree->position[0]);

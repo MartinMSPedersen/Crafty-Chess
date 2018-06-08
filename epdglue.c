@@ -32,13 +32,13 @@
 #  include <stdio.h>
 #  include <stdlib.h>
 #  if !defined(NT_i386)
-#  include <unistd.h>
+#    include <unistd.h>
 #  endif
 #  include <string.h>
 #  include <ctype.h>
 #  include <time.h>
 #  if defined(NT_i386)
-#  include <process.h>
+#    include <process.h>
 #  endif
 /* Crafty includes */
 
@@ -747,7 +747,7 @@ void EGPutHostPosition(void)
   SetChessBitBoards(&tree->position[0]);
 
   tree->rep_game = 0;
-  moves_out_of_book = 0;
+  shared->moves_out_of_book = 0;
   last_mate_score = 0;
 
 /* clear the host history */

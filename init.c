@@ -301,9 +301,9 @@ void Initialize(int continuing)
  ************************************************************
  */
 #if defined(SMP)
-# if defined(_WIN32) || defined(_WIN64)
+#  if defined(_WIN32) || defined(_WIN64)
   ThreadMalloc((int) 0);
-# else
+#  else
   for (i = 0; i < CPUS; i++) {
     mem = SharedMalloc(MAX_BLOCKS_PER_CPU * ((sizeof(TREE) + 2047)) & ~2047, 0);
     for (j = 0; j < MAX_BLOCKS_PER_CPU; j++) {
@@ -317,7 +317,7 @@ void Initialize(int continuing)
     shared->local[i + 1]->parent = (TREE *) - 1;
     LockInit(shared->local[i + 1]->lock);
   }
-# endif
+#  endif
   shared->initialized_threads++;
 #endif
   InitializeHashTables();
@@ -658,22 +658,22 @@ void InitializeChessBoard(SEARCH_POSITION * new_pos)
     static char a1[80], a2[16], a3[16], a4[16], a5[16];
     static char *args[256] =
         { a1, a2, a3, a4, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5,
-          a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5,
-          a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5,
-          a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5,
-          a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5,
-          a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5,
-          a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5,
-          a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5,
-          a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5,
-          a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5,
-          a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5,
-          a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5,
-          a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5,
-          a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5,
-          a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5,
-          a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5
-        };
+      a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5,
+      a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5,
+      a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5,
+      a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5,
+      a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5,
+      a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5,
+      a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5,
+      a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5,
+      a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5,
+      a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5,
+      a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5,
+      a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5,
+      a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5,
+      a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5,
+      a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5
+    };
     int nargs;
 
     nargs = ReadParse(initial_position, args, " ;");
@@ -682,7 +682,6 @@ void InitializeChessBoard(SEARCH_POSITION * new_pos)
     for (i = 0; i < 64; i++)
       tree->pos.board[i] = none;
     new_pos->rule_50_moves = 0;
-    shared->lazy_eval_cutoff = 200;
     shared->largest_positional_score = 300;
     wtm = 1;
 /*

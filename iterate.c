@@ -42,7 +42,6 @@ int Iterate(int wtm, int search_type, int root_list_done)
  */
   shared->largest_positional_score =
       Max(shared->largest_positional_score * 3 / 4, 300);
-  shared->lazy_eval_cutoff = Max(shared->lazy_eval_cutoff * 3 / 4, 200);
   if (shared->average_nps == 0)
     shared->average_nps = 150000 * shared->max_threads;
   if (wtm) {
@@ -109,8 +108,6 @@ int Iterate(int wtm, int search_type, int root_list_done)
       tree->transposition_lowers = 0;
       tree->transposition_exacts = 0;
       tree->transposition_probes = 0;
-      tree->pawn_probes = 0;
-      tree->pawn_hits = 0;
 #endif
       tree->egtb_probes = 0;
       tree->egtb_probes_successful = 0;
@@ -578,9 +575,7 @@ int Iterate(int wtm, int search_type, int root_list_done)
                 (BITBOARD) (tree->transposition_probes + 1)),
             (int) (100 * (BITBOARD) tree->transposition_good_hits /
                 (BITBOARD) (tree->transposition_probes + 1)),
-            used * 100 / (3 * hash_table_size + 1),
-            (int) (100 * (BITBOARD) tree->pawn_hits /
-                (BITBOARD) (tree->pawn_probes + 1)));
+            used * 100 / (3 * hash_table_size + 1));
         Print(16,
             "              hashing-> %d%%(exact)  %d%%(lower)  %d%%(upper)\n",
             (int) (100 * (BITBOARD) tree->transposition_exacts /

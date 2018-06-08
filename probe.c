@@ -30,9 +30,9 @@ typedef unsigned int squaret;
 /* Those declarations necessary because Crafty is C, not C++ program */
 
 #  if defined (_MSC_VER)
-#  define  TB_FASTCALL  __fastcall
+#    define  TB_FASTCALL  __fastcall
 #  else
-#  define  TB_FASTCALL
+#    define  TB_FASTCALL
 #  endif
 
 typedef int color;

@@ -13,7 +13,7 @@
 #endif
 #include <signal.h>
 
-/* last modified 08/07/05 */
+/* last modified 10/10/05 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -3176,12 +3176,42 @@
  *           even in simple endgames, inflating/deflating the score for a      *
  *           feature that was pointless.  (2005 WCCC final version).           *
  *                                                                             *
- *   20.0    First in a new series.  first change is to produce an endian-     *
+ *   20.0    first in a new series.  first change is to produce an endian-     *
  *           independent opening book.  the format has not changed so that old *
  *           book.bin/books.bin files will work fine, but they may now be      *
  *           freely between big-endian and little-endian architectures.  this  *
  *           makes the binary format compatible between a PC and a Sun or HP   *
  *           box, for example, so that just one book.bin file is needed.       *
+ *                                                                             *
+ *   20.1    first step toward a complete redesign of the evaluation code in   *
+ *           Evaluate() (evaluate.c).  this first set of changes are mainly    *
+ *           restructuring related, an attempt to collect the various bits of  *
+ *           evaluation code that are related to a common theme (i.e. all      *
+ *           bishop scoring, all passed pawn scoring, etc) are not contained   *
+ *           in one routine, with a sensible name.  this makes it much easier  *
+ *           to find evaluation code and modify it, without having bits and    *
+ *           pieces scattered all over the place.  perhaps the most signifi-   *
+ *           cant is that the current evaluation has dropped the asymmetric    *
+ *           king safety, and later the asymmetric blocked pawn code will go   *
+ *           as well.  to do this, I did have to make some changes in terms    *
+ *           of the "tropism" code.  the basic idea is that white's "tropism"  *
+ *           bonus in incremented for each white piece that attacks the black  *
+ *           king, but it is also decrement for each black piece that attacks  *
+ *           the black king, so that a defender offsets an attacker.  this has *
+ *           certainly changed the "personality" of how it plays.  it is now   *
+ *           far more aggressive, and further changes planned for the future   *
+ *           will hopefully improve on this change.  it is playing quite a bit *
+ *           better, but whether this aggressiveness is "over the top" remains *
+ *           to be seen.  fix to "won kp ending" logic.  if one king is closer *
+ *           to the opponent's "average pawn square" than the other, by at     *
+ *           least 2 moves, then that side is credited as having a won k+p     *
+ *           ending. new code for time allocation testing added.  a new        *
+ *           "timebook <factor> <moves>" command that says use "factor" extra  *
+ *           time (factor is expressed as a percent, 100 means use 100% extra  *
+ *           time) tapered off for "moves" out of book.  for example,          *
+ *           "timebook 100 10" says use 100% extra time on first non-book move *
+ *           followed by 90% extra on the next move, 80% on the next, until    *
+ *           after 10 moves we are back to the normal time average.            *
  *                                                                             *
  *******************************************************************************
  */
@@ -3192,11 +3222,6 @@ int main(int argc, char **argv)
   TREE *tree;
   FILE *personality;
 
-#if defined(NT_i386)
-  extern void _cdecl SignalInterrupt(int);
-#else
-  extern void SignalInterrupt(int);
-#endif
 #if defined(UNIX)
   char path[1024];
   struct passwd *pwd;
@@ -3255,6 +3280,9 @@ int main(int argc, char **argv)
   shared->draw_score[0] = 0;
   shared->draw_score[1] = 0;
   shared->move_number = 1;
+  shared->moves_out_of_book = 0;
+  shared->first_nonbook_factor = 0;
+  shared->first_nonbook_span = 0;
   if (directory_spec)
     strncpy(book_path, directory_spec, sizeof book_path);
   directory_spec = getenv("CRAFTY_LOG_PATH");
@@ -3396,6 +3424,9 @@ int main(int argc, char **argv)
 #if defined(UNIX)
   if (xboard)
     signal(SIGINT, SIG_IGN);
+#  if defined(SMP)
+  signal(SIGCHLD, SignalInterrupt);
+#  endif
 #endif
 #if defined(SMP)
   Print(128, "\nCrafty v%s (%d cpus)\n\n", version, Max(shared->max_threads,
@@ -3829,12 +3860,12 @@ int main(int argc, char **argv)
     }
     wtm = Flip(wtm);
     if (book_move) {
-      moves_out_of_book = 0;
+      shared->moves_out_of_book = 0;
       predicted++;
       if (ponder_move)
         sprintf(book_hint, "%s", OutputMove(tree, ponder_move, 0, wtm));
     } else
-      moves_out_of_book++;
+      shared->moves_out_of_book++;
     if (wtm)
       shared->move_number++;
     ValidatePosition(tree, 0, last_pv.path[1], "Main(2)");
@@ -3855,7 +3886,7 @@ int main(int argc, char **argv)
  *                                                          *
  ************************************************************
  */
-    if (moves_out_of_book) {
+    if (shared->moves_out_of_book) {
       LearnBook(tree, wtm, last_value, last_pv.pathd + 2, 0, 0);
     }
     if (abs(value) > MATE - 200) {

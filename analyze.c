@@ -57,7 +57,7 @@ void Analyze()
       (void) Iterate(wtm, think, 0);
       shared->pondering = 0;
       if (book_move)
-        moves_out_of_book = 0;
+        shared->moves_out_of_book = 0;
       if (!xboard) {
         if (wtm)
           printf("analyze.White(%d): ", shared->move_number);

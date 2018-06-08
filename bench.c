@@ -53,7 +53,6 @@ void Bench(void)
 
   InitializeHashTables();
   last_pv.pathd = 0;
-  shared->lazy_eval_cutoff = 200;
   shared->largest_positional_score = 300;
   shared->thinking = 1;
   tree->position[1] = tree->position[0];
@@ -72,7 +71,6 @@ void Bench(void)
 
   InitializeHashTables();
   last_pv.pathd = 0;
-  shared->lazy_eval_cutoff = 200;
   shared->largest_positional_score = 300;
   shared->thinking = 1;
   tree->position[1] = tree->position[0];
@@ -90,7 +88,6 @@ void Bench(void)
 
   InitializeHashTables();
   last_pv.pathd = 0;
-  shared->lazy_eval_cutoff = 200;
   shared->largest_positional_score = 300;
   shared->thinking = 1;
   tree->position[1] = tree->position[0];
@@ -108,7 +105,6 @@ void Bench(void)
 
   InitializeHashTables();
   last_pv.pathd = 0;
-  shared->lazy_eval_cutoff = 200;
   shared->largest_positional_score = 300;
   shared->thinking = 1;
   tree->position[1] = tree->position[0];
@@ -126,7 +122,6 @@ void Bench(void)
 
   InitializeHashTables();
   last_pv.pathd = 0;
-  shared->lazy_eval_cutoff = 200;
   shared->largest_positional_score = 300;
   shared->thinking = 1;
   tree->position[1] = tree->position[0];
@@ -145,7 +140,6 @@ void Bench(void)
 
   InitializeHashTables();
   last_pv.pathd = 0;
-  shared->lazy_eval_cutoff = 200;
   shared->largest_positional_score = 300;
   shared->thinking = 1;
   tree->position[1] = tree->position[0];

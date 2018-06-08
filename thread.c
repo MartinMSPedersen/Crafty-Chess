@@ -149,7 +149,7 @@ int Thread(TREE * RESTRICT tree)
 
 void WaitForAllThreadsInitialized(void)
 {
-  while (shared->initialized_threads < shared->max_threads);     /* Do nothing */
+  while (shared->initialized_threads < shared->max_threads);    /* Do nothing */
 }
 
 /* modified 08/07/05 */
@@ -265,6 +265,7 @@ void ThreadStop(TREE * RESTRICT tree)
 int ThreadWait(int tid, TREE * RESTRICT waiting)
 {
   int value;
+
 /*
  ************************************************************
  *                                                          *

@@ -205,7 +205,7 @@ int TimeCheck(TREE * RESTRICT tree, int abort)
   return (1);
 }
 
-/* last modified 08/07/05 */
+/* last modified 10/10/05 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -221,7 +221,7 @@ void TimeSet(int search_type)
 {
   static const float behind[6] = { 32.0, 16.0, 8.0, 4.0, 2.0, 1.5 };
   static const int reduce[6] = { 96, 48, 24, 12, 6, 3 };
-  int i;
+  int i, mult = 0, extra = 0;
   int surplus, average;
   int simple_average;
 
@@ -296,7 +296,7 @@ void TimeSet(int search_type)
   }
   if (surplus < 0)
     surplus = 0;
-  if (shared->tc_increment > 200 && moves_out_of_book < 2)
+  if (shared->tc_increment > 200 && shared->moves_out_of_book < 2)
     shared->time_limit *= 1.2;
   if (shared->time_limit <= 0)
     shared->time_limit = 5;
@@ -308,12 +308,29 @@ void TimeSet(int search_type)
   if (shared->absolute_time_limit > shared->tc_time_remaining / 2)
     shared->absolute_time_limit = shared->tc_time_remaining / 2;
 /*
- new option 'usage' increases and decrease the time factors)
+ ************************************************************
+ *                                                          *
+ *  the "usage" option can be used to force the time limit  *
+ *  higher or lower than normal.  the new "timebook"        *
+ *  command can also modify the target time making the      *
+ *  program use more time early in the game as it exits the *
+ *  book, knowing it will save time later on by ponder hits *
+ *  and instant moves.                                      *
+ *                                                          *
+ ************************************************************
  */
   if (usage_level)
     shared->time_limit *= 1.0 + usage_level / 100.0;
   if (!ponder)
     shared->time_limit = 3 * shared->time_limit / 4;
+  if (shared->first_nonbook_factor &&
+      shared->moves_out_of_book < shared->first_nonbook_span) {
+    mult =
+        (shared->first_nonbook_span - shared->moves_out_of_book +
+        1) * shared->first_nonbook_factor;
+    extra = shared->time_limit * mult / shared->first_nonbook_span / 100;
+    shared->time_limit += extra;
+  }
 /*
  ************************************************************
  *                                                          *
@@ -373,6 +390,7 @@ void TimeSet(int search_type)
     else
       Print(128, "              ");
     Print(128, "time limit %s", DisplayTimeKibitz(shared->time_limit));
+    Print(128, " (+%s)", DisplayTimeKibitz(extra));
     Print(128, " (%s)", DisplayTimeKibitz(shared->absolute_time_limit));
     if (fabs(usage_level) > 0.0001) {
       Print(128, "/");

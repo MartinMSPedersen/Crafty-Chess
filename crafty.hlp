@@ -73,6 +73,7 @@ swindle on|off................. enables/disables swindle mode.
 tags........................... list PGN header tags.
 test file [N].................. test a suite of problems.
 time........................... time controls.
+timebook....................... out of book time adjustment
 trace n........................ display search tree below depth n.
 usage percentage............... adjusts Crafty's time usage up or down.
 whisper n...................... sets ICS whisper mode n.
@@ -491,6 +492,35 @@ time 60/30/sd/30
 
 This sets 60 moves in 30 minutes, then game in 30 additional minutes.
 An increment can be added if desired.
+<end>
+
+<timebook>
+This command is used to adjust the time crafty uses for the first few
+moves out of book.  The first few non-book moves are often critical,
+but the usual search time limit will be somewhat short since Crafty
+wants to average the time left over the moves remaining until the
+next time control.  This command allows the user to influence how the
+time is allocated on the first few moves out of book.
+
+timebook <factor> <moves>
+
+factor is a number expressed as a percentage, and specifies how much
+extra time (in terms of the normal target time) to use.  For example,
+a value of 100 says use 100% extra time, which essentially doubles
+the target time limit.  A value of 50 says use 50% extra time, or
+1.5X the normal target time.  This applies to the first move out of
+book.
+
+moves indicates the number of moves this extra time will be used.  The
+extra time is uniformly "decayed" over those moves.  For example a value
+of 10 says use the "factor" extra time on the first non-book move, then
+9/10 of that extra time on the next move, 8/10 on the next move, until
+after 10 moves out of book, where this is turned off.
+
+timebook 100 10 therefore says use 200% of the normal time target for
+the first move out of book, 190% for the next move out of book, until
+it drops back to 100% where it will stick for the remainder of the
+game after the first ten non-book move searches have been completed.
 <end>
 
 <tournament>

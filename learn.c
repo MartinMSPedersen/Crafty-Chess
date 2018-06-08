@@ -33,7 +33,7 @@ void LearnBook(TREE * RESTRICT tree, int wtm, int search_value,
     int search_depth, int lv, int force)
 {
   int nplies = 0, thisply = 0;
-  char buf32[4];
+  unsigned char buf32[4];
 
 /*
  ************************************************************
@@ -51,10 +51,10 @@ void LearnBook(TREE * RESTRICT tree, int wtm, int search_value,
     return;
   if (!(learning & result_learning) && force == 2)
     return;
-  if (moves_out_of_book <= LEARN_INTERVAL && !force) {
-    if (moves_out_of_book) {
-      book_learn_eval[moves_out_of_book - 1] = search_value;
-      book_learn_depth[moves_out_of_book - 1] = search_depth;
+  if (shared->moves_out_of_book <= LEARN_INTERVAL && !force) {
+    if (shared->moves_out_of_book) {
+      book_learn_eval[shared->moves_out_of_book - 1] = search_value;
+      book_learn_depth[shared->moves_out_of_book - 1] = search_depth;
     }
   }
 /*
@@ -67,7 +67,7 @@ void LearnBook(TREE * RESTRICT tree, int wtm, int search_value,
  *                                                          *
  ************************************************************
  */
-  else if (moves_out_of_book == LEARN_INTERVAL + 1 || force) {
+  else if (shared->moves_out_of_book == LEARN_INTERVAL + 1 || force) {
     int move, i, j, learn_value, read;
     time_t secs;
     int interval, last_book_move = -1;
@@ -80,14 +80,14 @@ void LearnBook(TREE * RESTRICT tree, int wtm, int search_value,
     int n_book_moves[512];
     float book_learn[512], t_learn_value;
 
-    if (moves_out_of_book < 1)
+    if (shared->moves_out_of_book < 1)
       return;
     Print(128, "LearnBook() executed\n");
     if (force != 2)
       learning &= ~book_learning;
     else
       learning &= ~result_learning;
-    interval = Min(LEARN_INTERVAL, moves_out_of_book);
+    interval = Min(LEARN_INTERVAL, shared->moves_out_of_book);
     if (interval < 2)
       return;
 
@@ -376,7 +376,7 @@ void LearnBookUpdate(TREE * RESTRICT tree, int wtm, int move, float learn_value)
 {
   int cluster, test, move_index, key;
   BITBOARD temp_hash_key, common;
-  char buf32[4];
+  unsigned char buf32[4];
 
 /*
  ************************************************************
@@ -537,7 +537,7 @@ void LearnImportBook(TREE * RESTRICT tree, int nargs, char **args)
   FILE *learn_in;
   char nextc, text[128], *eof;
   int wtm, learn_value, depth, rating_difference, move = 0, i, added_lines = 0;
-  char buf32[4];
+  unsigned char buf32[4];
 
 /*
  ************************************************************
@@ -555,7 +555,7 @@ void LearnImportBook(TREE * RESTRICT tree, int nargs, char **args)
     sprintf(text, "%s/book.lrn", book_path);
     book_lrn_file = fopen(text, "w");
     fseek(book_file, 0, SEEK_SET);
-    for (i=0; i<32768; i++) {
+    for (i = 0; i < 32768; i++) {
       fread(buf32, 4, 1, book_file);
       index[i] = BookIn32(buf32);
     }
@@ -646,13 +646,13 @@ void LearnImportBook(TREE * RESTRICT tree, int nargs, char **args)
       fseek(history_file, ((shared->move_number - 1) * 2 + 1 - wtm) * 10,
           SEEK_SET);
       fprintf(history_file, "%9s\n", text);
-      moves_out_of_book = 0;
+      shared->moves_out_of_book = 0;
       MakeMoveRoot(tree, move, wtm);
     } while (1);
     if (move < 0)
       break;
     fscanf(learn_in, "%d %d %d}\n", &learn_value, &depth, &rating_difference);
-    moves_out_of_book = LEARN_INTERVAL + 1;
+    shared->moves_out_of_book = LEARN_INTERVAL + 1;
     shared->move_number += LEARN_INTERVAL + 1 - wtm;
     for (i = 0; i < LEARN_INTERVAL; i++)
       book_learn_eval[i] = learn_value;
@@ -697,7 +697,7 @@ void LearnImportCAP(TREE * RESTRICT tree, int nargs, char **args)
   char *eof, *pvp, *pmp, *acd, buffer[2048];
   int ce, move, CAP_used = 0, CAP_found = 0, key, cluster, test, i;
   FILE *CAP_in;
-  char buf32[4];
+  unsigned char buf32[4];
 
 /*
  ************************************************************
@@ -712,7 +712,7 @@ void LearnImportCAP(TREE * RESTRICT tree, int nargs, char **args)
     int index[32768], i, j, cluster;
 
     fseek(book_file, 0, SEEK_SET);
-    for (i=0; i<32768; i++) {
+    for (i = 0; i < 32768; i++) {
       fread(buf32, 4, 1, book_file);
       index[i] = BookIn32(buf32);
     }
@@ -1150,7 +1150,7 @@ void LearnPosition(TREE * RESTRICT tree, int wtm, int last_value, int value)
     return;
   if (last_value < value + learning_trigger)
     return;
-  if (moves_out_of_book > 10)
+  if (shared->moves_out_of_book > 10)
     return;
 /*
  ************************************************************
@@ -1265,7 +1265,7 @@ void LearnPositionLoad(void)
  *                                                          *
  ************************************************************
  */
-  if (moves_out_of_book >= 10)
+  if (shared->moves_out_of_book >= 10)
     return;
   fseek(position_file, 0, SEEK_SET);
   fread(&positions, sizeof(int), 1, position_file);
