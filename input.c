@@ -1,6 +1,5 @@
 #include "chess.h"
 #include "data.h"
-
 /* last modified 12/08/07 */
 /*
  *******************************************************************************
@@ -33,7 +32,6 @@ int InputMove(TREE * RESTRICT tree, char *text, int ply, int wtm, int silent,
       { ' ', ' ', 'P', 'p', 'N', 'n', 'B', 'b', 'R', 'r', 'Q', 'q',
     'K', 'k', '\0'
   };
-
 /*
  first strip off things like !!/??/!? and so forth, to avoid
  confusing the parsing.
@@ -203,7 +201,7 @@ int InputMove(TREE * RESTRICT tree, char *text, int ply, int wtm, int silent,
     piece = 1;
   if (!ponder_list) {
     mvp = GenerateCaptures(tree, MAXPLY, wtm, moves);
-    mvp = GenerateNonCaptures(tree, MAXPLY, wtm, mvp);
+    mvp = GenerateNoncaptures(tree, MAXPLY, wtm, mvp);
   } else {
     for (i = 0; i < num_ponder_moves; i++)
       moves[i] = ponder_moves[i];
@@ -335,7 +333,7 @@ int InputMoveICS(TREE * RESTRICT tree, char *text, int ply, int wtm, int silent,
   }
   if (!ponder_list) {
     mvp = GenerateCaptures(tree, MAXPLY, wtm, moves);
-    mvp = GenerateNonCaptures(tree, MAXPLY, wtm, mvp);
+    mvp = GenerateNoncaptures(tree, MAXPLY, wtm, mvp);
   } else {
     for (i = 0; i < num_ponder_moves; i++)
       moves[i] = ponder_moves[i];

@@ -7,8 +7,7 @@
 #  include <signal.h>
 #endif
 #include "epdglue.h"
-
-/* last modified 10/31/07 */
+/* last modified 10/13/08 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -20,7 +19,6 @@
  */
 int Option(TREE * RESTRICT tree)
 {
-
 /*
  ************************************************************
  *                                                          *
@@ -50,7 +48,7 @@ int Option(TREE * RESTRICT tree)
 #if defined(EPD)
   if (initialized) {
     if (EGCommandCheck(buffer)) {
-      if (shared->thinking || shared->pondering)
+      if (thinking || pondering)
         return (2);
       else {
         (void) EGCommand(buffer);
@@ -174,7 +172,7 @@ int Option(TREE * RESTRICT tree)
 /*
  ************************************************************
  *                                                          *
- *   "analyze" puts crafty in analyze mode, where it reads  *
+ *   "analyze" puts Crafty in analyze mode, where it reads  *
  *   moves in and between moves, computes as though it is   *
  *   trying to find the best move to make.  when another    *
  *   move is entered, it switches sides and continues.  it  *
@@ -184,7 +182,7 @@ int Option(TREE * RESTRICT tree)
  ************************************************************
  */
   else if (OptionMatch("analyze", *args)) {
-    if (shared->thinking || shared->pondering)
+    if (thinking || pondering)
       return (2);
     Analyze();
   }
@@ -201,7 +199,7 @@ int Option(TREE * RESTRICT tree)
  */
   else if (OptionMatch("annotate", *args) || OptionMatch("annotateh", *args) ||
       OptionMatch("annotatet", *args)) {
-    if (shared->thinking || shared->pondering)
+    if (thinking || pondering)
       return (2);
     Annotate();
   }
@@ -278,7 +276,7 @@ int Option(TREE * RESTRICT tree)
  ************************************************************
  */
   else if (!strcmp("white", *args)) {
-    if (shared->thinking || shared->pondering)
+    if (thinking || pondering)
       return (2);
     ponder_move = 0;
     last_pv.pathd = 0;
@@ -287,7 +285,7 @@ int Option(TREE * RESTRICT tree)
       Pass();
     force = 0;
   } else if (!strcmp("black", *args)) {
-    if (shared->thinking || shared->pondering)
+    if (thinking || pondering)
       return (2);
     ponder_move = 0;
     last_pv.pathd = 0;
@@ -414,36 +412,33 @@ int Option(TREE * RESTRICT tree)
  */
   else if (OptionMatch("clock", *args)) {
     if (nargs > 1)
-      shared->tc_time_remaining = ParseTime(args[1]) * 6000;
-    if (shared->tc_time_remaining <= shared->tc_operator_time) {
+      tc_time_remaining = ParseTime(args[1]) * 6000;
+    if (tc_time_remaining <= tc_operator_time) {
       Print(4095, "ERROR:  remaining time less than operator time\n");
       Print(4095, "ERROR:  resetting operator time to 0:00.\n");
       Print(4095, "ERROR:  use \"operator n\" command to correct.\n");
-      shared->tc_operator_time = 0;
+      tc_operator_time = 0;
     }
-
     if (nargs > 2)
-      shared->tc_time_remaining_opponent = ParseTime(args[2]) * 6000;
-    Print(128, "time remaining %s (Crafty)",
-        DisplayHHMM(shared->tc_time_remaining));
-    Print(128, "  %s (opponent).\n",
-        DisplayHHMM(shared->tc_time_remaining_opponent));
-    if (shared->tc_sudden_death != 1)
+      tc_time_remaining_opponent = ParseTime(args[2]) * 6000;
+    Print(128, "time remaining %s (Crafty)", DisplayHHMM(tc_time_remaining));
+    Print(128, "  %s (opponent).\n", DisplayHHMM(tc_time_remaining_opponent));
+    if (tc_sudden_death != 1)
       Print(128, "%d moves to next time control (Crafty)\n",
-          shared->tc_moves_remaining);
+          tc_moves_remaining);
     else
       Print(128, "Sudden-death time control in effect\n");
   }
 /*
  ************************************************************
  *                                                          *
- *   "computer" lets crafty know it is playing a computer.  *
+ *   "computer" lets Crafty know it is playing a computer.  *
  *                                                          *
  ************************************************************
  */
   else if (OptionMatch("computer", *args)) {
     Print(128, "playing a computer!\n");
-    shared->computer_opponent = 1;
+    computer_opponent = 1;
     accept_draws = 1;
     resign = 5;
     resign_counter = 4;
@@ -479,86 +474,86 @@ int Option(TREE * RESTRICT tree)
     if (nargs > 1)
       do {
         if (OptionMatch("time", args[1])) {
-          shared->display_options |= 1;
+          display_options |= 1;
           Print(128, "display time for moves played in game.\n");
         } else if (OptionMatch("notime", args[1])) {
-          shared->display_options &= 4095 - 1;
+          display_options &= 4095 - 1;
           Print(128, "don't display time for moves played in game.\n");
         } else if (OptionMatch("changes", args[1])) {
-          shared->display_options |= 2;
+          display_options |= 2;
           Print(128, "display PV each time it changes.\n");
         } else if (OptionMatch("nochanges", args[1])) {
-          shared->display_options &= 4095 - 2;
+          display_options &= 4095 - 2;
           Print(128, "don't display PV each time it changes.\n");
         } else if (OptionMatch("variation", args[1])) {
-          shared->display_options |= 4;
+          display_options |= 4;
           Print(128, "display PV at end of each iteration.\n");
         } else if (OptionMatch("novariation", args[1])) {
-          shared->display_options &= 4095 - 4;
+          display_options &= 4095 - 4;
           Print(128, "don't display PV at end of each iteration.\n");
         } else if (OptionMatch("stats", args[1])) {
-          shared->display_options |= 8;
+          display_options |= 8;
           Print(128, "display statistics at end of each search.\n");
         } else if (OptionMatch("nostats", args[1])) {
-          shared->display_options &= 4095 - 8;
+          display_options &= 4095 - 8;
           Print(128, "don't.display statistics at end of each search.\n");
         } else if (OptionMatch("extstats", args[1])) {
-          shared->display_options |= 16;
+          display_options |= 16;
           Print(128, "display extended statistics at end of each search.\n");
         } else if (OptionMatch("noextstats", args[1])) {
-          shared->display_options &= 4095 - 16;
+          display_options &= 4095 - 16;
           Print(128,
               "don't display extended statistics at end of each search.\n");
         } else if (OptionMatch("movenum", args[1])) {
-          shared->display_options |= 64;
+          display_options |= 64;
           Print(128, "display move numbers in variations.\n");
         } else if (OptionMatch("nomovenum", args[1])) {
-          shared->display_options &= 4095 - 64;
+          display_options &= 4095 - 64;
           Print(128, "don't display move numbers in variations.\n");
         } else if (OptionMatch("moves", args[1])) {
-          shared->display_options |= 32;
+          display_options |= 32;
           Print(128, "display ply-1 moves as they are searched.\n");
         } else if (OptionMatch("nomoves", args[1])) {
-          shared->display_options &= 4095 - 32;
+          display_options &= 4095 - 32;
           Print(128, "don't display ply-1 moves as they are searched.\n");
         } else if (OptionMatch("general", args[1])) {
-          shared->display_options |= 128;
+          display_options |= 128;
           Print(128, "display informational messages.\n");
         } else if (OptionMatch("nogeneral", args[1])) {
-          shared->display_options &= 4095 - 128;
+          display_options &= 4095 - 128;
           Print(128, "don't display informational messages.\n");
         } else if (OptionMatch("nodes", args[1])) {
-          shared->display_options |= 256;
+          display_options |= 256;
           Print(128, "display ply-1 node counts after each iteration.\n");
         } else if (OptionMatch("nonodes", args[1])) {
-          shared->display_options &= 4095 - 256;
+          display_options &= 4095 - 256;
           Print(128, "don't display ply-1 node counts after each iteration.\n");
         } else if (OptionMatch("ply1", args[1])) {
-          shared->display_options |= 512;
+          display_options |= 512;
           Print(128, "display ply-1 moves/evaluations.\n");
         } else if (OptionMatch("noply1", args[1])) {
-          shared->display_options &= 4095 - 512;
+          display_options &= 4095 - 512;
           Print(128, "don't display ply-1 moves/evaluations.\n");
         } else if (OptionMatch("*", args[1])) {
-          if (shared->display_options & 1)
+          if (display_options & 1)
             printf("display time for moves\n");
-          if (shared->display_options & 2)
+          if (display_options & 2)
             printf("display variation when it changes.\n");
-          if (shared->display_options & 4)
+          if (display_options & 4)
             printf("display variation at end of iteration.\n");
-          if (shared->display_options & 8)
+          if (display_options & 8)
             printf("display basic search stats.\n");
-          if (shared->display_options & 16)
+          if (display_options & 16)
             printf("display extended search stats.\n");
-          if (shared->display_options & 32)
+          if (display_options & 32)
             printf("display ply-1 moves as they are searched.\n");
-          if (shared->display_options & 64)
+          if (display_options & 64)
             printf("display move numbers in variations.\n");
-          if (shared->display_options & 128)
+          if (display_options & 128)
             printf("display general messages.\n");
-          if (shared->display_options & 256)
+          if (display_options & 256)
             printf("display ply-1 node counts every iteration.\n");
-          if (shared->display_options & 512)
+          if (display_options & 512)
             printf("display ply-1 moves and evaluations.\n");
         } else
           break;
@@ -587,7 +582,7 @@ int Option(TREE * RESTRICT tree)
  ************************************************************
  *                                                          *
  *   "draw" is used to offer Crafty a draw, or to control   *
- *   whether crafty will offer and/or accept draw offers.   *
+ *   whether Crafty will offer and/or accept draw offers.   *
  *                                                          *
  ************************************************************
  */
@@ -618,30 +613,12 @@ int Option(TREE * RESTRICT tree)
 /*
  ************************************************************
  *                                                          *
- *   "drawscore" sets the default draw score (which is      *
- *    forced to zero when the endgame is reached.)          *
- *                                                          *
- ************************************************************
- */
-  else if (OptionMatch("drawscore", *args)) {
-    if (nargs > 2) {
-      printf("usage:  drawscore <n>\n");
-      return (1);
-    }
-    if (nargs == 2)
-      abs_draw_score = atoi(args[1]);
-    printf("draw score set to %7.2f pawns.\n",
-        ((float) abs_draw_score) / 100.0);
-  }
-/*
- ************************************************************
- *                                                          *
  *  "easy" command disables thinking on opponent's time.    *
  *                                                          *
  ************************************************************
  */
   else if (OptionMatch("easy", *args)) {
-    if (shared->thinking || shared->pondering)
+    if (thinking || pondering)
       return (2);
     ponder = 0;
     Print(128, "pondering disabled.\n");
@@ -663,10 +640,10 @@ int Option(TREE * RESTRICT tree)
  ************************************************************
  */
   else if (OptionMatch("edit", *args) && strcmp(*args, "ed")) {
-    if (shared->thinking || shared->pondering)
+    if (thinking || pondering)
       return (2);
     Edit();
-    shared->move_number = 1;    /* discard history */
+    move_number = 1;    /* discard history */
     if (!wtm) {
       wtm = 1;
       Pass();
@@ -721,11 +698,11 @@ int Option(TREE * RESTRICT tree)
  ************************************************************
  */
   else if (OptionMatch("end", *args) || OptionMatch("quit", *args)) {
-    shared->abort_search = 1;
-    shared->quit = 1;
+    abort_search = 1;
+    quit = 1;
     last_search_value =
-        (shared->crafty_is_white) ? last_search_value : -last_search_value;
-    if (shared->moves_out_of_book)
+        (crafty_is_white) ? last_search_value : -last_search_value;
+    if (moves_out_of_book)
       LearnBook(last_search_value, 0, 0, 1);
     if (book_file)
       fclose(book_file);
@@ -752,155 +729,13 @@ int Option(TREE * RESTRICT tree)
 /*
  ************************************************************
  *                                                          *
- *   "evaluation" command is used to adjust the eval terms  *
- *   to modify the way Crafty behaves.                      *
- *                                                          *
- ************************************************************
- */
-  else if (OptionMatch("evaluation", *args)) {
-    int i, j, k, param, index, value;
-
-/*
- **************************************************
- *                                                *
- *   handle "eval list" and dump everything that  *
- *   can be modified.                             *
- *                                                *
- **************************************************
- */
-    if (nargs == 2 && !strcmp(args[1], "list")) {
-      for (i = 0; i < 256; i++) {
-        if (!eval_packet[i].description)
-          continue;
-        if (eval_packet[i].value) {
-          if (eval_packet[i].size == 0)
-            printf("%3d  %s %7d\n", i, eval_packet[i].description,
-                *eval_packet[i].value);
-          else {
-            printf("%3d  %s\n", i, eval_packet[i].description);
-            DisplayArray(eval_packet[i].value, eval_packet[i].size);
-          }
-        } else
-          printf("------------%s\n", eval_packet[i].description);
-      }
-      printf("\n");
-      return (1);
-    }
-/*
- **************************************************
- *                                                *
- *   handle "eval save" and dump everything that  *
- *   can be modified to a file                    *
- *                                                *
- **************************************************
- */
-    if (nargs == 3 && !strcmp(args[1], "save")) {
-      char filename[256];
-      FILE *file;
-
-      strcpy(filename, args[2]);
-      strcat(filename, ".cpf");
-      file = fopen(filename, "w");
-      if (!file) {
-        printf("ERROR.  Unable to open %s for writing\n", args[2]);
-        return (1);
-      }
-      printf("saving to file \"%s\"\n", filename);
-      for (i = 0; i < 256; i++) {
-        if (!eval_packet[i].description)
-          continue;
-        if (eval_packet[i].value) {
-          if (eval_packet[i].size == 0)
-            fprintf(file, "evaluation %3d %7d\n", i, *eval_packet[i].value);
-          else if (eval_packet[i].size > 0) {
-            fprintf(file, "evaluation %3d ", i);
-            for (j = 0; j < eval_packet[i].size; j++)
-              fprintf(file, "%d ", eval_packet[i].value[j]);
-            fprintf(file, "\n");
-          } else {
-            fprintf(file, "evaluation %3d ", i);
-            for (j = 0; j < 8; j++)
-              for (k = 0; k < 8; k++)
-                fprintf(file, "%d ", eval_packet[i].value[(7 - j) * 8 + k]);
-            fprintf(file, "\n");
-          }
-        }
-      }
-      fprintf(file, "exit");
-      fclose(file);
-      return (1);
-    }
-/*
- **************************************************
- *                                                *
- *   handle "eval index val" command that changes *
- *   only those terms that are scalars.           *
- *                                                *
- **************************************************
- */
-    param = atoi(args[1]);
-    value = atoi(args[2]);
-    if (!eval_packet[param].value) {
-      Print(4095, "ERROR.  evaluation term %d is not defined\n", param);
-      return (1);
-    }
-    if (eval_packet[param].size == 0) {
-      if (nargs > 3) {
-        printf("this eval term requires exactly 1 value.\n");
-        return (1);
-      }
-      if (!silent)
-        Print(128, "%s old:%d  new:%d\n", eval_packet[param].description,
-            *eval_packet[param].value, value);
-      *eval_packet[param].value = value;
-    }
-/*
- **************************************************
- *                                                *
- *   handle "eval index v1 v2 .. vn" command that *
- *   changes eval terms that are vectors.         *
- *                                                *
- **************************************************
- */
-    else {
-      index = nargs - 2;
-      if (index != abs(eval_packet[param].size)) {
-        printf("this eval term (%s [%d]) requires exactly %d values.\n",
-            eval_packet[param].description, param,
-            abs(eval_packet[param].size));
-        return (1);
-      }
-      if (!silent)
-        printf("%2d  %s\n", param, eval_packet[param].description);
-      if (!silent) {
-        printf("old:\n");
-        DisplayArray(eval_packet[param].value, eval_packet[param].size);
-      }
-      if (eval_packet[param].size > 0)
-        for (i = 0; i < index; i++) {
-          eval_packet[param].value[i] = atoi(args[i + 2]);
-      } else
-        for (i = 0; i < 8; i++)
-          for (j = 0; j < 8; j++)
-            eval_packet[param].value[(7 - i) * 8 + j] =
-                atoi(args[i * 8 + j + 2]);
-      if (!silent) {
-        printf("new:\n");
-        DisplayArray(eval_packet[param].value, eval_packet[param].size);
-      }
-    }
-    InitializeEvaluation();
-  }
-/*
- ************************************************************
- *                                                          *
  *   "evtest" command runs a test suite of problems and     *
  *   prints evaluations only.                               *
  *                                                          *
  ************************************************************
  */
   else if (OptionMatch("evtest", *args)) {
-    if (shared->thinking || shared->pondering)
+    if (thinking || pondering)
       return (2);
     if (nargs < 2) {
       printf("usage:  evtest <filename>\n");
@@ -926,54 +761,6 @@ int Option(TREE * RESTRICT tree)
     input_stream = stdin;
     ReadClear();
     Print(128, "\n");
-  }
-/*
- ************************************************************
- *                                                          *
- *   "extension" command allows setting the various search  *
- *   extension depths to any reasonable value between 0 and *
- *   1.0                                                    *
- *                                                          *
- ************************************************************
- */
-  else if (OptionMatch("extensions", *args)) {
-    if (nargs > 1) {
-      if (OptionMatch("check", args[1])) {
-        float ext = atof(args[2]);
-        incheck_depth = (float) PLY *ext;
-
-        if (incheck_depth < 0)
-          incheck_depth = 0;
-        if (incheck_depth > PLY)
-          incheck_depth = PLY;
-      }
-      if (OptionMatch("onerep", args[1])) {
-        float ext = atof(args[2]);
-        onerep_depth = (float) PLY *ext;
-
-        if (onerep_depth < 0)
-          onerep_depth = 0;
-        if (onerep_depth > PLY)
-          onerep_depth = PLY;
-      }
-      if (OptionMatch("mate", args[1])) {
-        float ext = atof(args[2]);
-        mate_depth = (float) PLY *ext;
-
-        if (mate_depth < 0)
-          mate_depth = 0;
-        if (mate_depth > PLY)
-          mate_depth = PLY;
-      }
-    }
-    if (!silent) {
-      Print(1, "one-reply extension..................%4.2f\n",
-          (float) onerep_depth / PLY);
-      Print(1, "in-check extension...................%4.2f\n",
-          (float) incheck_depth / PLY);
-      Print(1, "mate thrt extension..................%4.2f\n",
-          (float) mate_depth / PLY);
-    }
   }
 /*
  ************************************************************
@@ -1009,7 +796,7 @@ int Option(TREE * RESTRICT tree)
   else if (OptionMatch("flip", *args)) {
     int file, rank, piece, temp;
 
-    if (shared->thinking || shared->pondering)
+    if (thinking || pondering)
       return (2);
     for (rank = 0; rank < 4; rank++) {
       for (file = 0; file < 8; file++) {
@@ -1039,7 +826,7 @@ int Option(TREE * RESTRICT tree)
   else if (OptionMatch("flop", *args)) {
     int file, rank, piece;
 
-    if (shared->thinking || shared->pondering)
+    if (thinking || pondering)
       return (2);
     for (rank = 0; rank < 8; rank++) {
       for (file = 0; file < 4; file++) {
@@ -1065,7 +852,7 @@ int Option(TREE * RESTRICT tree)
     int move, movenum, save_move_number;
     char text[16];
 
-    if (shared->thinking || shared->pondering)
+    if (thinking || pondering)
       return (3);
     if (xboard) {
       force = 1;
@@ -1078,8 +865,8 @@ int Option(TREE * RESTRICT tree)
     ponder_move = 0;
     last_pv.pathd = 0;
     last_pv.pathl = 0;
-    save_move_number = shared->move_number;
-    movenum = shared->move_number;
+    save_move_number = move_number;
+    movenum = move_number;
     if (wtm)
       movenum--;
     strcpy(text, args[1]);
@@ -1098,7 +885,7 @@ int Option(TREE * RESTRICT tree)
     } else if (input_stream == stdin)
       printf("illegal move.\n");
     wtm = Flip(wtm);
-    shared->move_number = save_move_number;
+    move_number = save_move_number;
   }
 /*
  ************************************************************
@@ -1111,7 +898,7 @@ int Option(TREE * RESTRICT tree)
   else if (OptionMatch("go", *args) || OptionMatch("move", *args)) {
     char temp[64];
 
-    if (shared->thinking || shared->pondering)
+    if (thinking || pondering)
       return (2);
     if (wtm) {
       if (strncmp(pgn_white, "Crafty", 6)) {
@@ -1141,7 +928,7 @@ int Option(TREE * RESTRICT tree)
     char buffer[128];
 
     printf("    white       black\n");
-    for (i = 0; i < (shared->move_number - 1) * 2 - wtm + 1; i++) {
+    for (i = 0; i < (move_number - 1) * 2 - wtm + 1; i++) {
       fseek(history_file, i * 10, SEEK_SET);
       fscanf(history_file, "%s", buffer);
       if (!(i % 2))
@@ -1190,7 +977,7 @@ int Option(TREE * RESTRICT tree)
   else if (OptionMatch("hash", *args)) {
     size_t new_hash_size;
 
-    if (shared->thinking || shared->pondering)
+    if (thinking || pondering)
       return (2);
     if (nargs > 1) {
       new_hash_size = atoi(args[1]);
@@ -1204,7 +991,7 @@ int Option(TREE * RESTRICT tree)
       }
       if (new_hash_size > 0) {
         if (hash_table_size) {
-          SharedFree(trans_ref);
+          free(trans_ref);
         }
         new_hash_size /= 16 * 3;
         for (log_hash = 0; log_hash < (int) (8 * sizeof(int)); log_hash++)
@@ -1213,10 +1000,10 @@ int Option(TREE * RESTRICT tree)
         if (log_hash) {
           hash_table_size = 1 << log_hash;
           cb_trans_ref = sizeof(HASH_ENTRY) * hash_table_size + 15;
-          trans_ref = (HASH_ENTRY *) SharedMalloc(cb_trans_ref, 0);
+          trans_ref = (HASH_ENTRY *) malloc(cb_trans_ref);
           if (!trans_ref) {
             printf("malloc() failed, not enough memory.\n");
-            SharedFree(trans_ref);
+            free(trans_ref);
             hash_table_size = 0;
             log_hash = 0;
             trans_ref = 0;
@@ -1245,7 +1032,7 @@ int Option(TREE * RESTRICT tree)
     int i;
     size_t new_hash_size;
 
-    if (shared->thinking || shared->pondering)
+    if (thinking || pondering)
       return (2);
     if (nargs > 1) {
       new_hash_size = atoi(args[1]);
@@ -1258,7 +1045,7 @@ int Option(TREE * RESTRICT tree)
         return (1);
       }
       if (pawn_hash_table) {
-        SharedFree(pawn_hash_table);
+        free(pawn_hash_table);
         pawn_hash_table_size = 0;
         log_pawn_hash = 0;
         pawn_hash_table = 0;
@@ -1270,10 +1057,10 @@ int Option(TREE * RESTRICT tree)
           break;
       pawn_hash_table_size = 1 << log_pawn_hash;
       cb_pawn_hash_table = sizeof(PAWN_HASH_ENTRY) * pawn_hash_table_size + 15;
-      pawn_hash_table = (PAWN_HASH_ENTRY *) SharedMalloc(cb_pawn_hash_table, 0);
+      pawn_hash_table = (PAWN_HASH_ENTRY *) malloc(cb_pawn_hash_table);
       if (!pawn_hash_table) {
         printf("malloc() failed, not enough memory.\n");
-        SharedFree(pawn_hash_table);
+        free(pawn_hash_table);
         pawn_hash_table_size = 0;
         log_pawn_hash = 0;
         pawn_hash_table = 0;
@@ -1281,8 +1068,8 @@ int Option(TREE * RESTRICT tree)
       pawn_hash_mask = (1 << log_pawn_hash) - 1;
       for (i = 0; i < pawn_hash_table_size; i++) {
         (pawn_hash_table + i)->key = 0;
-        (pawn_hash_table + i)->p_score = 0;
-        (pawn_hash_table + i)->protected = 0;
+        (pawn_hash_table + i)->score_mg = 0;
+        (pawn_hash_table + i)->score_eg = 0;
         (pawn_hash_table + i)->defects_k[white] = 0;
         (pawn_hash_table + i)->defects_q[white] = 0;
         (pawn_hash_table + i)->defects_d[white] = 0;
@@ -1295,7 +1082,6 @@ int Option(TREE * RESTRICT tree)
         (pawn_hash_table + i)->passed[black] = 0;
         (pawn_hash_table + i)->candidates[white] = 0;
         (pawn_hash_table + i)->candidates[black] = 0;
-        (pawn_hash_table + i)->outside = 0;
       }
     }
     Print(128, "pawn hash table memory = %s bytes.\n",
@@ -1370,13 +1156,13 @@ int Option(TREE * RESTRICT tree)
  *                                                          *
  *  "ics" command is normally invoked from main() via the   *
  *  ics command-line option.  it sets proper defaults for   *
- *  defaults for the custom crafty/ics interface program.   *
+ *  defaults for the custom Crafty/ics interface program.   *
  *                                                          *
  ************************************************************
  */
   else if (OptionMatch("ics", *args)) {
     ics = 1;
-    shared->display_options &= 4095 - 32;
+    display_options &= 4095 - 32;
   }
 /*
  ************************************************************
@@ -1388,7 +1174,7 @@ int Option(TREE * RESTRICT tree)
  ************************************************************
  */
   else if (OptionMatch("input", *args)) {
-    if (shared->thinking || shared->pondering)
+    if (thinking || pondering)
       return (2);
     nargs = ReadParse(buffer, args, " 	=");
     if (nargs < 2) {
@@ -1417,28 +1203,25 @@ int Option(TREE * RESTRICT tree)
     Print(128, "EGTB cache memory =      %s bytes.\n", PrintKM(EGTB_cache_size,
             1));
 #endif
-    if (!shared->tc_sudden_death) {
+    if (!tc_sudden_death) {
       Print(128, "%d moves/%d minutes %d seconds primary time control\n",
-          shared->tc_moves, shared->tc_time / 6000,
-          (shared->tc_time / 100) % 60);
+          tc_moves, tc_time / 6000, (tc_time / 100) % 60);
       Print(128, "%d moves/%d minutes %d seconds secondary time control\n",
-          shared->tc_secondary_moves, shared->tc_secondary_time / 6000,
-          (shared->tc_secondary_time / 100) % 60);
-      if (shared->tc_increment)
-        Print(128, "increment %d seconds.\n", shared->tc_increment / 100);
-    } else if (shared->tc_sudden_death == 1) {
-      Print(128, " game/%d minutes primary time control\n",
-          shared->tc_time / 6000);
-      if (shared->tc_increment)
-        Print(128, "increment %d seconds.\n",
-            (shared->tc_increment / 100) % 60);
-    } else if (shared->tc_sudden_death == 2) {
-      Print(128, "%d moves/%d minutes primary time control\n", shared->tc_moves,
-          shared->tc_time / 6000);
+          tc_secondary_moves, tc_secondary_time / 6000,
+          (tc_secondary_time / 100) % 60);
+      if (tc_increment)
+        Print(128, "increment %d seconds.\n", tc_increment / 100);
+    } else if (tc_sudden_death == 1) {
+      Print(128, " game/%d minutes primary time control\n", tc_time / 6000);
+      if (tc_increment)
+        Print(128, "increment %d seconds.\n", (tc_increment / 100) % 60);
+    } else if (tc_sudden_death == 2) {
+      Print(128, "%d moves/%d minutes primary time control\n", tc_moves,
+          tc_time / 6000);
       Print(128, "game/%d minutes secondary time control\n",
-          shared->tc_secondary_time / 6000);
-      if (shared->tc_increment)
-        Print(128, "increment %d seconds.\n", shared->tc_increment / 100);
+          tc_secondary_time / 6000);
+      if (tc_increment)
+        Print(128, "increment %d seconds.\n", tc_increment / 100);
     }
     Print(128, "frequency (freq)..............%4.2f\n", book_weight_freq);
     Print(128, "static evaluation (eval)......%4.2f\n", book_weight_eval);
@@ -1467,7 +1250,7 @@ int Option(TREE * RESTRICT tree)
  ************************************************************
  *                                                          *
  *   "learn" command enables/disables the learning          *
- *   algorithms used in crafty.  these are controlled by    *
+ *   algorithms used in Crafty.  these are controlled by    *
  *   a single variable with multiple boolean switches in    *
  *   it as defined below:                                   *
  *                                                          *
@@ -1530,53 +1313,53 @@ int Option(TREE * RESTRICT tree)
       printf("usage:  level <nmoves> <stime> <inc>\n");
       return (1);
     }
-    shared->tc_moves = atoi(args[1]);
-    shared->tc_time = atoi(args[2]) * 100;
-    shared->tc_increment = atoi(args[3]) * 100;
-    shared->tc_time_remaining = shared->tc_time;
-    shared->tc_time_remaining_opponent = shared->tc_time;
-    if (!shared->tc_moves) {
-      shared->tc_sudden_death = 1;
-      shared->tc_moves = 1000;
-      shared->tc_moves_remaining = 1000;
+    tc_moves = atoi(args[1]);
+    tc_time = atoi(args[2]) * 100;
+    tc_increment = atoi(args[3]) * 100;
+    tc_time_remaining = tc_time;
+    tc_time_remaining_opponent = tc_time;
+    if (!tc_moves) {
+      tc_sudden_death = 1;
+      tc_moves = 1000;
+      tc_moves_remaining = 1000;
     } else
-      shared->tc_sudden_death = 0;
-    if (shared->tc_moves) {
-      shared->tc_secondary_moves = shared->tc_moves;
-      shared->tc_secondary_time = shared->tc_time;
-      shared->tc_moves_remaining = shared->tc_moves;
+      tc_sudden_death = 0;
+    if (tc_moves) {
+      tc_secondary_moves = tc_moves;
+      tc_secondary_time = tc_time;
+      tc_moves_remaining = tc_moves;
     }
-    if (!shared->tc_sudden_death) {
-      Print(128, "%d moves/%d minutes primary time control\n", shared->tc_moves,
-          shared->tc_time / 100);
+    if (!tc_sudden_death) {
+      Print(128, "%d moves/%d minutes primary time control\n", tc_moves,
+          tc_time / 100);
       Print(128, "%d moves/%d minutes secondary time control\n",
-          shared->tc_secondary_moves, shared->tc_secondary_time / 100);
-      if (shared->tc_increment)
-        Print(128, "increment %d seconds.\n", shared->tc_increment / 100);
-    } else if (shared->tc_sudden_death == 1) {
-      Print(128, " game/%d minutes primary time control\n",
-          shared->tc_time / 100);
-      if (shared->tc_increment)
-        Print(128, "increment %d seconds.\n", shared->tc_increment / 100);
+          tc_secondary_moves, tc_secondary_time / 100);
+      if (tc_increment)
+        Print(128, "increment %d seconds.\n", tc_increment / 100);
+    } else if (tc_sudden_death == 1) {
+      Print(128, " game/%d minutes primary time control\n", tc_time / 100);
+      if (tc_increment)
+        Print(128, "increment %d seconds.\n", tc_increment / 100);
     }
-    shared->tc_time *= 60;
-    shared->tc_time_remaining = shared->tc_time;
-    shared->tc_secondary_time *= 60;
+    tc_time *= 60;
+    tc_time_remaining = tc_time;
+    tc_secondary_time *= 60;
     if (adaptive_hash) {
       float percent;
       int optimal_hash_size;
       BITBOARD positions_per_move;
 
       TimeSet(think);
-      shared->time_limit /= 100;
-      positions_per_move = shared->time_limit * adaptive_hash / 16;
+      time_limit /= 100;
+      positions_per_move = time_limit * adaptive_hash / 16;
       optimal_hash_size = positions_per_move * 16 * 2;
+      printf("optimal=%d\n", optimal_hash_size);
       optimal_hash_size = Max(optimal_hash_size, adaptive_hash_min);
       optimal_hash_size = Min(optimal_hash_size, adaptive_hash_max);
       sprintf(buffer, "hash=%d\n", optimal_hash_size);
       (void) Option(tree);
       percent =
-          (float) (hash_table_size * sizeof(HASH_ENTRY) -
+          (float) (optimal_hash_size -
           adaptive_hash_min) / (float) (adaptive_hash_max - adaptive_hash_min);
       optimal_hash_size =
           adaptive_hashp_min + percent * (adaptive_hashp_max -
@@ -1609,7 +1392,7 @@ int Option(TREE * RESTRICT tree)
  ************************************************************
  *                                                          *
  *   "list" command allows the operator to add or remove    *
- *   names from the various lists crafty uses to recognize  *
+ *   names from the various lists Crafty uses to recognize  *
  *   and adapt to particular opponents.                     *
  *                                                          *
  *   list <listname> <player>                               *
@@ -1645,7 +1428,7 @@ int Option(TREE * RESTRICT tree)
  *   SP is the "special player" option.  this is an         *
  *   extended version of the "list" command that allows you *
  *   to specify a special "start book" for a particular     *
- *   opponent to make crafty play specific openings against *
+ *   opponent to make Crafty play specific openings against *
  *   that opponent, as well as allowing you to specify a    *
  *   personality file to use against that specific opponent *
  *   when he is identified by the correct "name" command.   *
@@ -1667,7 +1450,6 @@ int Option(TREE * RESTRICT tree)
     char **listaddr[6] = { AK_list, B_list, C_list, GM_list,
       IM_list, SP_list
     };
-
     targs = args;
     for (list = 0; list < 7; list++) {
       if (!strcmp(listname[list], args[1]))
@@ -1742,8 +1524,6 @@ int Option(TREE * RESTRICT tree)
           char filename[256];
           FILE *file;
 
-          strcpy(filename, personality_path);
-          strcat(filename, "/");
           strcat(filename, targs[1]);
           if (!strstr(args[2], ".cpf"))
             strcat(filename, ".cpf");
@@ -1794,7 +1574,7 @@ int Option(TREE * RESTRICT tree)
     char *readstat;
     FILE *prob_file;
 
-    if (shared->thinking || shared->pondering)
+    if (thinking || pondering)
       return (2);
     nargs = ReadParse(buffer, args, " 	=");
     if (nargs < 3) {
@@ -1979,16 +1759,15 @@ int Option(TREE * RESTRICT tree)
       printf("usage:  smpgroup <threads>\n");
       return (1);
     }
-    shared->max_thread_group = atoi(args[1]);
-    Print(128, "maximum thread group size set to %d\n",
-        shared->max_thread_group);
+    max_thread_group = atoi(args[1]);
+    Print(128, "maximum thread group size set to %d\n", max_thread_group);
   } else if (OptionMatch("smpmin", *args)) {
     if (nargs < 2) {
-      printf("usage:  smpmin <plies>\n");
+      printf("usage:  smpmin <percent>\n");
       return (1);
     }
-    shared->min_thread_depth = atoi(args[1]);
-    Print(128, "minimum thread depth set to %d%\n", shared->min_thread_depth);
+    min_thread_depth = atoi(args[1]);
+    Print(128, "minimum thread depth set to %d%%\n", min_thread_depth);
   } else if (OptionMatch("smpmt", *args) || OptionMatch("mt", *args)) {
     int proc;
 
@@ -1996,28 +1775,28 @@ int Option(TREE * RESTRICT tree)
       printf("usage:  smpmt=<threads>\n");
       return (1);
     }
-    if (shared->thinking || shared->pondering)
+    if (thinking || pondering)
       return (3);
-    shared->max_threads = atoi(args[1]);
-    if (shared->max_threads > CPUS) {
+    max_threads = atoi(args[1]);
+    if (max_threads > CPUS) {
       Print(4095, "ERROR - Crafty was compiled with CPUS=%d.", CPUS);
       Print(4095, "  mt can not exceed this value.\n");
-      shared->max_threads = CPUS;
+      max_threads = CPUS;
     }
-    if (shared->max_threads)
-      Print(128, "max threads set to %d\n", shared->max_threads);
+    if (max_threads)
+      Print(128, "max threads set to %d\n", max_threads);
     else
       Print(128, "parallel threads disabled.\n");
     for (proc = 1; proc < CPUS; proc++)
-      if (proc >= shared->max_threads)
-        shared->thread[proc] = (TREE *) - 1;
+      if (proc >= max_threads)
+        thread[proc] = (TREE *) - 1;
   } else if (OptionMatch("smpnice", *args)) {
     if (nargs < 2) {
       printf("usage:  smpnice 0|1\n");
       return (1);
     }
-    shared->nice = atoi(args[1]);
-    if (shared->nice)
+    smp_nice = atoi(args[1]);
+    if (smp_nice)
       Print(128, "SMP terminate extra processes when idle\n");
     else
       Print(128, "SMP keep extra processes when idle\n");
@@ -2026,8 +1805,8 @@ int Option(TREE * RESTRICT tree)
       printf("usage:  smproot 0|1\n");
       return (1);
     }
-    shared->split_at_root = atoi(args[1]);
-    if (shared->split_at_root)
+    split_at_root = atoi(args[1]);
+    if (split_at_root)
       Print(128, "SMP search split at ply >= 1\n");
     else
       Print(128, "SMP search split at ply > 1\n");
@@ -2045,16 +1824,16 @@ int Option(TREE * RESTRICT tree)
       printf("usage:  mn <number>\n");
       return (1);
     }
-    shared->move_number = atoi(args[1]);
-    Print(128, "move number set to %d\n", shared->move_number);
+    move_number = atoi(args[1]);
+    Print(128, "move number set to %d\n", move_number);
   }
 /*
  ************************************************************
  *                                                          *
  *   "mode" command sets tournament mode or normal mode.    *
- *   tournament mode is used when crafty is in a "real"     *
+ *   tournament mode is used when Crafty is in a "real"     *
  *   tournament.  it forces draw_score to 0, and makes      *
- *   crafty display the chess clock after each move.        *
+ *   Crafty display the chess clock after each move.        *
  *                                                          *
  ************************************************************
  */
@@ -2062,7 +1841,7 @@ int Option(TREE * RESTRICT tree)
     if (nargs > 1) {
       if (!strcmp(args[1], "tournament")) {
         mode = tournament_mode;
-        printf("use 'settc' command if a game is restarted after crafty\n");
+        printf("use 'settc' command if a game is restarted after Crafty\n");
         printf("has been terminated for any reason.\n");
       } else if (!strcmp(args[1], "normal")) {
         mode = normal_mode;
@@ -2075,7 +1854,7 @@ int Option(TREE * RESTRICT tree)
         book_weight_freq = 0.2;
         book_weight_eval = 0.1;
       } else {
-        printf("usage:  mode normal|tournament\n");
+        printf("usage:  mode normal|tournament|match\n");
         mode = normal_mode;
         book_weight_learn = 1.0;
         book_weight_freq = 1.0;
@@ -2131,7 +1910,7 @@ int Option(TREE * RESTRICT tree)
       for (i = 0; i < 128; i++)
         if (C_list[i] && !strcmp(C_list[i], args[1])) {
           Print(128, "playing a computer!\n");
-          shared->computer_opponent = 1;
+          computer_opponent = 1;
           book_selection_width = 1;
           usage_level = 0;
           break;
@@ -2180,7 +1959,7 @@ int Option(TREE * RESTRICT tree)
         }
     }
     printf("tellicsnoalias kibitz Hello from Crafty v%s! (%d cpus)\n", version,
-        Max(1, shared->max_threads));
+        Max(1, max_threads));
   }
 /*
  ************************************************************
@@ -2191,15 +1970,14 @@ int Option(TREE * RESTRICT tree)
  */
   else if (OptionMatch("new", *args)) {
     new_game = 1;
-    if (shared->thinking || shared->pondering)
+    if (thinking || pondering)
       return (3);
-    if (shared->max_threads) {
+    if (max_threads) {
       int proc;
 
       Print(128, "parallel threads terminated.\n");
       for (proc = 1; proc < CPUS; proc++)
-        shared->thread[proc] = (TREE *) - 1;
-      shared->smp_threads = 0;
+        thread[proc] = (TREE *) - 1;
     }
     NewGame(0);
     return (3);
@@ -2221,8 +1999,8 @@ int Option(TREE * RESTRICT tree)
       printf("usage:  noise <n>\n");
       return (1);
     }
-    shared->noise_level = atoi(args[1]);
-    Print(128, "noise level set to %d.\n", shared->noise_level);
+    noise_level = atoi(args[1]);
+    Print(128, "noise level set to %d.\n", noise_level);
   }
 /*
  ************************************************************
@@ -2239,9 +2017,9 @@ int Option(TREE * RESTRICT tree)
       printf("usage:  operator <seconds>\n");
       return (1);
     }
-    shared->tc_operator_time = ParseTime(args[1]) * 100;
+    tc_operator_time = ParseTime(args[1]) * 100;
     Print(128, "reserving %d seconds per move for operator overhead.\n",
-        shared->tc_operator_time / 100);
+        tc_operator_time / 100);
   }
 /*
  ************************************************************
@@ -2257,12 +2035,12 @@ int Option(TREE * RESTRICT tree)
       printf("usage:  otime <time(unit=.01 secs))>\n");
       return (1);
     }
-    shared->tc_time_remaining_opponent = atoi(args[1]);
-    if (log_file && shared->time_limit > 99)
+    tc_time_remaining_opponent = atoi(args[1]);
+    if (log_file && time_limit > 99)
       fprintf(log_file, "time remaining: %s (opponent).\n",
-          DisplayTime(shared->tc_time_remaining_opponent));
-    if (call_flag && xboard && shared->tc_time_remaining_opponent <= 1) {
-      if (shared->crafty_is_white)
+          DisplayTime(tc_time_remaining_opponent));
+    if (call_flag && xboard && tc_time_remaining_opponent <= 1) {
+      if (crafty_is_white)
         Print(128, "1-0 {Black ran out of time}\n");
       else
         Print(128, "0-1 {White ran out of time}\n");
@@ -2295,13 +2073,208 @@ int Option(TREE * RESTRICT tree)
 /*
  ************************************************************
  *                                                          *
- *   "bookpath", "perspath", "logpath" and "tbpath" set the *
- *   default paths to locate or save these files.           *
+ *   "personality" command is used to adjust the eval terms *
+ *   and search options to modify the way Crafty plays.     *
  *                                                          *
  ************************************************************
  */
-  else if (OptionMatch("logpath", *args) || OptionMatch("perspath", *args)
-      || OptionMatch("bookpath", *args) || OptionMatch("tbpath", *args)) {
+  else if (OptionMatch("personality", *args)) {
+    int i, j, param, index, value;
+
+/*
+ **************************************************
+ *                                                *
+ *   handle "pers list" and dump everything that  *
+ *   can be modified.                             *
+ *                                                *
+ **************************************************
+ */
+    if (nargs == 2 && !strcmp(args[1], "list")) {
+      printf("\n");
+      for (i = 0; i < 256; i++) {
+        if (!personality_packet[i].description)
+          continue;
+        if (personality_packet[i].value) {
+          switch (personality_packet[i].type) {
+          case 1:
+            printf("%3d  %s %7d\n", i, personality_packet[i].description,
+                *personality_packet[i].value);
+            break;
+          case 2:
+            printf("%3d  %s %7d (mg) %7d (eg)\n", i,
+                personality_packet[i].description,
+                personality_packet[i].value[mg],
+                personality_packet[i].value[eg]);
+            break;
+          case 3:
+            printf("%3d  %s\n", i, personality_packet[i].description);
+            DisplayType3(personality_packet[i].value, personality_packet[i].value+128);
+            break;
+          case 4:
+            printf("%3d  %s\n", i, personality_packet[i].description);
+            DisplayType4(personality_packet[i].value, personality_packet[i].value+64);
+            break;
+          case 5:
+            printf("%3d  %s\n", i, personality_packet[i].description);
+            DisplayType5(personality_packet[i].value, personality_packet[i].value+personality_packet[i].size / 2, personality_packet[i].size / 16);
+            break;
+          case 6:
+            printf("%3d  %s\n", i, personality_packet[i].description);
+            DisplayType6(personality_packet[i].value, personality_packet[i].value+16);
+            break;
+          case 7:
+            printf("%3d  %s\n", i, personality_packet[i].description);
+            DisplayType7(personality_packet[i].value, personality_packet[i].value+5);
+            break;
+          case 8:
+            printf("%3d  %s\n", i, personality_packet[i].description);
+            DisplayType8(personality_packet[i].value);
+            break;
+          }
+        } else {
+          printf("==================================================\n");
+          printf("=         %s  =\n", personality_packet[i].description);
+          printf("==================================================\n");
+        }
+      }
+      printf("\n");
+      return (1);
+    }
+/*
+ **************************************************
+ *                                                *
+ *   handle "pers load" and read in the data from *
+ *   the personality.cpf file.                    *
+ *                                                *
+ **************************************************
+ */
+    if (!strcmp(args[1], "load")) {
+      FILE *file;
+      char filename[256];
+      char *readstat;
+
+      strcpy(filename, args[2]);
+      if (!strstr(filename, ".cpf"))
+        strcat(filename, ".cpf");
+      Print(128, "Loading personality file %s\n", filename);
+      if ((file = fopen(filename, "rw"))) {
+        silent = 1;
+        while ((readstat = fgets(buffer, 4096, file))) {
+          char *delim;
+
+          delim = strchr(buffer, '\n');
+          if (delim)
+            *delim = 0;
+          delim = strstr(buffer, "->");
+          if (delim)
+            *delim = 0;
+          delim = strchr(buffer, '\r');
+          if (delim)
+            *delim = ' ';
+          (void) Option(tree);
+        }
+        silent = 0;;
+        fclose(file);
+      }
+      return (1);
+    }
+/*
+ **************************************************
+ *                                                *
+ *   handle "pers save" and dump everything that  *
+ *   can be modified to a file                    *
+ *                                                *
+ **************************************************
+ */
+    if (nargs == 3 && !strcmp(args[1], "save")) {
+      char filename[256];
+      FILE *file;
+
+      strcpy(filename, args[2]);
+      if (!strstr(filename, ".cpf"))
+        strcat(filename, ".cpf");
+      file = fopen(filename, "w");
+      if (!file) {
+        printf("ERROR.  Unable to open %s for writing\n", args[2]);
+        return (1);
+      }
+      printf("saving to file \"%s\"\n", filename);
+      fprintf(file, "# Crafty v%s personality file\n", version);
+      for (i = 0; i < 256; i++) {
+        if (!personality_packet[i].description)
+          continue;
+        if (personality_packet[i].value) {
+          if (personality_packet[i].size <= 1)
+            fprintf(file, "personality %3d %7d\n", i,
+                *personality_packet[i].value);
+          else if (personality_packet[i].size > 1) {
+            fprintf(file, "personality %3d ", i);
+            for (j = 0; j < personality_packet[i].size; j++)
+              fprintf(file, "%d ", personality_packet[i].value[j]);
+            fprintf(file, "\n");
+          }
+        }
+      }
+      fprintf(file, "exit\n");
+      fclose(file);
+      return (1);
+    }
+/*
+ **************************************************
+ *                                                *
+ *   handle "pers index val" command that changes *
+ *   only those terms that are scalars.           *
+ *                                                *
+ **************************************************
+ */
+    param = atoi(args[1]);
+    value = atoi(args[2]);
+    if (!personality_packet[param].value) {
+      Print(4095, "ERROR.  evaluation term %d is not defined\n", param);
+      return (1);
+    }
+    if (personality_packet[param].size == 0) {
+      if (nargs > 3) {
+        printf("this eval term requires exactly 1 value.\n");
+        return (1);
+      }
+      if (!silent)
+        Print(128, "%s old:%d  new:%d\n", personality_packet[param].description,
+            *personality_packet[param].value, value);
+      *personality_packet[param].value = value;
+    }
+/*
+ **************************************************
+ *                                                *
+ *   handle "pers index v1 v2 .. vn" command that *
+ *   changes eval terms that are vectors.         *
+ *                                                *
+ **************************************************
+ */
+    else {
+      index = nargs - 2;
+      if (index != personality_packet[param].size) {
+        printf
+            ("this eval term (%s [%d]) requires exactly %d values, found %d.\n",
+            personality_packet[param].description, param,
+            abs(personality_packet[param].size), index);
+        return (1);
+      }
+      for (i = 0; i < index; i++)
+        personality_packet[param].value[i] = atoi(args[i + 2]);
+    }
+    InitializeKingSafety();
+  }
+/*
+ ************************************************************
+ *                                                          *
+ *   "bookpath", "logpath" and "tbpath" set the default     *
+ *   paths to locate or save these files.                   *
+ *                                                          *
+ ************************************************************
+ */
+  else if (OptionMatch("logpath", *args) || OptionMatch("bookpath", *args)
+      || OptionMatch("tbpath", *args)) {
     if (OptionMatch("logpath", *args) || OptionMatch("bookpath", *args)) {
       if (log_file)
         Print(4095, "ERROR -- this must be used on command line only\n");
@@ -2314,8 +2287,6 @@ int Option(TREE * RESTRICT tree)
     if (!strchr(args[1], '(')) {
       if (strstr(args[0], "bookpath"))
         strcpy(book_path, args[1]);
-      else if (strstr(args[0], "perspath"))
-        strcpy(personality_path, args[1]);
       else if (strstr(args[0], "logpath"))
         strcpy(log_path, args[1]);
 #if !defined(NOEGTB)
@@ -2349,14 +2320,14 @@ int Option(TREE * RESTRICT tree)
     int i, *mv, clock_before, clock_after;
     float time_used;
 
-    if (shared->thinking || shared->pondering)
+    if (thinking || pondering)
       return (2);
     clock_before = clock();
     while (clock() == clock_before);
     clock_before = clock();
     for (i = 0; i < PERF_CYCLES; i++) {
       tree->last[1] = GenerateCaptures(tree, 0, wtm, tree->last[0]);
-      tree->last[1] = GenerateNonCaptures(tree, 0, wtm, tree->last[1]);
+      tree->last[1] = GenerateNoncaptures(tree, 0, wtm, tree->last[1]);
     }
     clock_after = clock();
     time_used =
@@ -2371,7 +2342,7 @@ int Option(TREE * RESTRICT tree)
     clock_before = clock();
     for (i = 0; i < PERF_CYCLES; i++) {
       tree->last[1] = GenerateCaptures(tree, 0, wtm, tree->last[0]);
-      tree->last[1] = GenerateNonCaptures(tree, 0, wtm, tree->last[1]);
+      tree->last[1] = GenerateNoncaptures(tree, 0, wtm, tree->last[1]);
       for (mv = tree->last[0]; mv < tree->last[1]; mv++) {
         MakeMove(tree, 0, *mv, wtm);
         UnmakeMove(tree, 0, *mv, wtm);
@@ -2397,7 +2368,7 @@ int Option(TREE * RESTRICT tree)
     int i, clock_before, clock_after;
     float time_used;
 
-    if (shared->thinking || shared->pondering)
+    if (thinking || pondering)
       return (2);
     clock_before = clock();
     while (clock() == clock_before);
@@ -2419,109 +2390,6 @@ int Option(TREE * RESTRICT tree)
     time_used =
         ((float) clock_after - (float) clock_before) / (float) CLOCKS_PER_SEC;
     printf("total moves=" BMF "  time=%.2f\n", total_moves, time_used);
-  }
-/*
- ************************************************************
- *                                                          *
- *   "personality" command is used to save or load a .cpf   *
- *   (crafty personality file).  the save option writes all *
- *   current evaluation paramenters, search extension       *
- *   paramenters, selective search parameters, etc., into a *
- *   file that can later be restored.  if you write to a    *
- *   file named "crafty.cpf" that will be the default       *
- *   settings everytime you start Crafty.                   *
- *                                                          *
- ************************************************************
- */
-  else if (OptionMatch("personality", *args)) {
-    int i, j, k;
-
-    nargs = ReadParse(buffer, args, " 	;=");
-    if (!strcmp(args[1], "save")) {
-      char filename[256];
-      FILE *file;
-
-      if (strchr(args[2], '/') == NULL) {
-        strcpy(filename, personality_path);
-        strcat(filename, "/");
-        strcat(filename, args[2]);
-      } else
-        strcpy(filename, args[2]);
-      if (!strstr(args[2], ".cpf"))
-        strcat(filename, ".cpf");
-      file = fopen(filename, "w");
-      if (!file) {
-        printf("ERROR.  Unable to open personality file %s for writing\n",
-            args[2]);
-        return (1);
-      }
-      printf("saving personality to file \"%s\"\n", filename);
-      fprintf(file, "# Crafty v%s personality file\n", version);
-#if defined(SKILL)
-      fprintf(file, "skill                 %3d\n", skill);
-#endif
-      fprintf(file, "extension/onerep      %4.2f\n",
-          (float) onerep_depth / PLY);
-      fprintf(file, "extension/check       %4.2f\n",
-          (float) incheck_depth / PLY);
-      fprintf(file, "extension/mate        %4.2f\n", (float) mate_depth / PLY);
-      fprintf(file, "selective             %d %d\n", null_min / PLY - 1,
-          null_max / PLY - 1);
-      for (i = 0; i < 256; i++) {
-        if (!eval_packet[i].description)
-          continue;
-        if (eval_packet[i].value) {
-          if (eval_packet[i].size == 0)
-            fprintf(file, "evaluation %3d %7d", i, *eval_packet[i].value);
-          else if (eval_packet[i].size > 0) {
-            fprintf(file, "evaluation %3d ", i);
-            for (j = 0; j < eval_packet[i].size; j++)
-              fprintf(file, "%d ", eval_packet[i].value[j]);
-          } else {
-            fprintf(file, "evaluation %3d ", i);
-            for (j = 0; j < 8; j++)
-              for (k = 0; k < 8; k++)
-                fprintf(file, "%d ", eval_packet[i].value[(7 - j) * 8 + k]);
-          }
-          fprintf(file, "  -> %s\n", eval_packet[i].description);
-        }
-      }
-      fclose(file);
-      return (1);
-    }
-    if (!strcmp(args[1], "load")) {
-      FILE *file;
-      char filename[256];
-      char *readstat;
-
-      if (strchr(args[2], '/') == NULL) {
-        strcpy(filename, personality_path);
-        strcat(filename, "/");
-        strcat(filename, args[2]);
-      } else
-        strcpy(filename, args[2]);
-      Print(128, "Loading personality file %s\n", filename);
-      if ((file = fopen(filename, "rw"))) {
-        silent = 1;
-        while ((readstat = fgets(buffer, 512, file))) {
-          char *delim;
-
-          delim = strchr(buffer, '\n');
-          if (delim)
-            *delim = 0;
-          delim = strstr(buffer, "->");
-          if (delim)
-            *delim = 0;
-          delim = strchr(buffer, '\r');
-          if (delim)
-            *delim = ' ';
-          (void) Option(tree);
-        }
-        silent = 0;;
-        fclose(file);
-      }
-      return (1);
-    }
   }
 /*
  ************************************************************
@@ -2582,7 +2450,7 @@ int Option(TREE * RESTRICT tree)
  ************************************************************
  */
   else if (!strcmp("ping", *args)) {
-    if (shared->pondering) {
+    if (pondering) {
       Print(4095, "pong %s\n", args[1]);
     } else {
       pong = atoi(args[1]);
@@ -2609,7 +2477,7 @@ int Option(TREE * RESTRICT tree)
  ************************************************************
  */
   else if (OptionMatch("ponder", *args)) {
-    if (shared->thinking || shared->pondering)
+    if (thinking || pondering)
       return (2);
     if (nargs < 2) {
       printf("usage:  ponder off|on|<move>\n");
@@ -2678,7 +2546,7 @@ int Option(TREE * RESTRICT tree)
 /*
  ************************************************************
  *                                                          *
- *   "rating" is used by xboard to set crafty's rating and  *
+ *   "rating" is used by xboard to set Crafty's rating and  *
  *   the opponent's rating, which is used by the learning   *
  *   functions.                                             *
  *                                                          *
@@ -2686,7 +2554,7 @@ int Option(TREE * RESTRICT tree)
  */
   else if (OptionMatch("rating", *args)) {
     if (nargs < 3) {
-      printf("usage:  rating <crafty> <opponent>\n");
+      printf("usage:  rating <Crafty> <opponent>\n");
       return (1);
     }
     crafty_rating = atoi(args[1]);
@@ -2695,7 +2563,7 @@ int Option(TREE * RESTRICT tree)
       crafty_rating = 2500;
       opponent_rating = 2300;
     }
-    if (shared->computer_opponent)
+    if (computer_opponent)
       abs_draw_score = 1;
     else if (crafty_rating - opponent_rating < 0)
       abs_draw_score = +20;
@@ -2715,40 +2583,6 @@ int Option(TREE * RESTRICT tree)
 /*
  ************************************************************
  *                                                          *
- *   "reduce" command is used to set the various search     *
- *   reduction parameters.                                  *
- *                                                          *
- *   "mindepth" sub-option sets the min depth remaining     *
- *   required before a search depth reduction can be used.  *
- *                                                          *
- *   "value" sets the actual reduction depth, which is the  *
- *   amount the search depth will be decreased by, if the   *
- *   various reduction criteria are met.  this should be    *
- *   entered in units of 1/4th of a ply, which means that   *
- *   "fractional values" are allowed (value=2 is .5 plies,  *
- *   for example.)                                          *
- *                                                          *
- ************************************************************
- */
-  else if (OptionMatch("reduce", *args)) {
-    if (nargs < 3) {
-      printf("usage:  reduce option value\n");
-      printf("current values are:\n");
-      printf("reduce mindepth %3.1f\n", (float) reduce_min_depth / PLY);
-      printf("reduce value    %3.1f\n", (float) reduce_depth / PLY);
-      return (1);
-    }
-    if (OptionMatch("mindepth", args[1]))
-      reduce_min_depth = (int) atof(args[2]) * PLY + .1;
-    else if (OptionMatch("value", args[1]))
-      reduce_depth = atoi(args[2]);
-    Print(128, "current values are:\n");
-    Print(128, "reduce mindepth %3.1f\n", (float) reduce_min_depth / PLY);
-    Print(128, "reduce value    %3.1f\n", (float) reduce_depth / PLY);
-  }
-/*
- ************************************************************
- *                                                          *
  *   "remove" command backs up the game one whole move,     *
  *   leaving the opponent still on move.  it's intended for *
  *   xboard compatibility, but works in any mode.           *
@@ -2756,10 +2590,10 @@ int Option(TREE * RESTRICT tree)
  ************************************************************
  */
   else if (!strcmp("remove", *args)) {
-    if (shared->thinking || shared->pondering)
+    if (thinking || pondering)
       return (2);
-    shared->move_number--;
-    sprintf(buffer, "reset %d", shared->move_number);
+    move_number--;
+    sprintf(buffer, "reset %d", move_number);
     (void) Option(tree);
   }
 /*
@@ -2774,7 +2608,7 @@ int Option(TREE * RESTRICT tree)
   else if (OptionMatch("reset", *args)) {
     int i, move, nmoves;
 
-    if (shared->thinking || shared->pondering)
+    if (thinking || pondering)
       return (2);
     if (nargs < 2) {
       printf("usage:  reset <movenumber>\n");
@@ -2784,19 +2618,19 @@ int Option(TREE * RESTRICT tree)
     last_mate_score = 0;
     last_pv.pathd = 0;
     last_pv.pathl = 0;
-    if (shared->thinking || shared->pondering)
+    if (thinking || pondering)
       return (2);
     over = 0;
-    shared->move_number = atoi(args[1]);
-    if (!shared->move_number) {
-      shared->move_number = 1;
+    move_number = atoi(args[1]);
+    if (!move_number) {
+      move_number = 1;
       return (1);
     }
-    nmoves = (shared->move_number - 1) * 2 + 1 - wtm;
-    shared->root_wtm = Flip(wtm);
+    nmoves = (move_number - 1) * 2 + 1 - wtm;
+    root_wtm = Flip(wtm);
     InitializeChessBoard(tree);
     wtm = 1;
-    shared->move_number = 1;
+    move_number = 1;
     for (i = 0; i < nmoves; i++) {
       fseek(history_file, i * 10, SEEK_SET);
       fscanf(history_file, "%s", buffer);
@@ -2808,7 +2642,7 @@ int Option(TREE * RESTRICT tree)
       if (strcmp(buffer, "pass") == 0) {
         wtm = Flip(wtm);
         if (wtm)
-          shared->move_number++;
+          move_number++;
         continue;
       }
       move = InputMove(tree, buffer, 0, wtm, 0, 0);
@@ -2820,14 +2654,13 @@ int Option(TREE * RESTRICT tree)
       }
       wtm = Flip(wtm);
       if (wtm)
-        shared->move_number++;
+        move_number++;
     }
-    shared->moves_out_of_book = 0;
-    shared->tc_moves_remaining = shared->tc_moves - shared->move_number + 1;
-    while (shared->tc_moves_remaining <= 0 && shared->tc_secondary_moves)
-      shared->tc_moves_remaining += shared->tc_secondary_moves;
-    printf("NOTICE: %d moves to next time control\n",
-        shared->tc_moves_remaining);
+    moves_out_of_book = 0;
+    tc_moves_remaining = tc_moves - move_number + 1;
+    while (tc_moves_remaining <= 0 && tc_secondary_moves)
+      tc_moves_remaining += tc_secondary_moves;
+    printf("NOTICE: %d moves to next time control\n", tc_moves_remaining);
   }
 /*
  ************************************************************
@@ -2845,7 +2678,7 @@ int Option(TREE * RESTRICT tree)
     int append, move, readstat;
     FILE *read_input = 0;
 
-    if (shared->thinking || shared->pondering)
+    if (thinking || pondering)
       return (2);
     nargs = ReadParse(buffer, args, " 	=");
     if (!strcmp("reada", *args))
@@ -2867,7 +2700,7 @@ int Option(TREE * RESTRICT tree)
     if (!append) {
       InitializeChessBoard(tree);
       wtm = 1;
-      shared->move_number = 1;
+      move_number = 1;
     }
 /*
  step 1:  read in the PGN tags.
@@ -2876,9 +2709,9 @@ int Option(TREE * RESTRICT tree)
     do {
       if (read_input == stdin) {
         if (wtm)
-          printf("read.White(%d): ", shared->move_number);
+          printf("read.White(%d): ", move_number);
         else
-          printf("read.Black(%d): ", shared->move_number);
+          printf("read.Black(%d): ", move_number);
         fflush(stdout);
       }
       readstat = ReadPGN(read_input, 0);
@@ -2894,11 +2727,10 @@ int Option(TREE * RESTRICT tree)
       if (move) {
         if (read_input != stdin) {
           printf("%s ", OutputMove(tree, move, 0, wtm));
-          if (!(shared->move_number % 8) && Flip(wtm))
+          if (!(move_number % 8) && Flip(wtm))
             printf("\n");
         }
-        fseek(history_file, ((shared->move_number - 1) * 2 + 1 - wtm) * 10,
-            SEEK_SET);
+        fseek(history_file, ((move_number - 1) * 2 + 1 - wtm) * 10, SEEK_SET);
         fprintf(history_file, "%9s\n", OutputMove(tree, move, 0, wtm));
         MakeMoveRoot(tree, move, wtm);
 #if defined(DEBUG)
@@ -2909,13 +2741,13 @@ int Option(TREE * RESTRICT tree)
       if (move) {
         wtm = Flip(wtm);
         if (wtm)
-          shared->move_number++;
+          move_number++;
       }
       if (read_input == stdin) {
         if (wtm)
-          printf("read.White(%d): ", shared->move_number);
+          printf("read.White(%d): ", move_number);
         else
-          printf("read.Black(%d): ", shared->move_number);
+          printf("read.Black(%d): ", move_number);
         fflush(stdout);
       }
       readstat = ReadPGN(read_input, 0);
@@ -2924,13 +2756,12 @@ int Option(TREE * RESTRICT tree)
       if (!strcmp(buffer, "exit"))
         break;
     } while (1);
-    shared->moves_out_of_book = 0;
-    shared->tc_moves_remaining = shared->tc_moves - shared->move_number + 1;
-    while (shared->tc_moves_remaining <= 0 && shared->tc_secondary_moves)
-      shared->tc_moves_remaining += shared->tc_secondary_moves;
-    printf("NOTICE: %d moves to next time control\n",
-        shared->tc_moves_remaining);
-    shared->root_wtm = !wtm;
+    moves_out_of_book = 0;
+    tc_moves_remaining = tc_moves - move_number + 1;
+    while (tc_moves_remaining <= 0 && tc_secondary_moves)
+      tc_moves_remaining += tc_secondary_moves;
+    printf("NOTICE: %d moves to next time control\n", tc_moves_remaining);
+    root_wtm = !wtm;
     if (read_input != stdin) {
       printf("\n");
       fclose(read_input);
@@ -2960,7 +2791,7 @@ int Option(TREE * RESTRICT tree)
  */
   else if (OptionMatch("resign", *args)) {
     if (nargs < 2) {
-      if (shared->crafty_is_white) {
+      if (crafty_is_white) {
         Print(4095, "result 1-0\n");
         strcpy(pgn_result, "1-0");
       } else {
@@ -2991,13 +2822,13 @@ int Option(TREE * RESTRICT tree)
     if (nargs > 1) {
       if (!strcmp(args[1], "1-0")) {
         strcpy(pgn_result, "1-0");
-        if (!shared->crafty_is_white)
+        if (!crafty_is_white)
           LearnBook(300, 0, 1, 2);
         else
           LearnBook(-300, 0, 1, 2);
       } else if (!strcmp(args[1], "0-1")) {
         strcpy(pgn_result, "0-1");
-        if (shared->crafty_is_white)
+        if (crafty_is_white)
           LearnBook(-300, 0, 1, 2);
         else
           LearnBook(300, 0, 1, 2);
@@ -3045,7 +2876,7 @@ int Option(TREE * RESTRICT tree)
     fprintf(output_file, "[Result \"%s\"]\n", pgn_result);
 /* Handle setup positions and initial pass by white */
     swtm = 1;
-    if (shared->move_number > 1 || !wtm) {
+    if (move_number > 1 || !wtm) {
       fseek(history_file, 0, SEEK_SET);
       if (fscanf(history_file, "%s", input) == 1 && strcmp(input, "pass") == 0)
         swtm = 0;
@@ -3065,7 +2896,7 @@ int Option(TREE * RESTRICT tree)
     }
 /* Output the moves */
     more = 0;
-    for (i = (swtm ? 0 : 1); i < (shared->move_number - 1) * 2 - wtm + 1; i++) {
+    for (i = (swtm ? 0 : 1); i < (move_number - 1) * 2 - wtm + 1; i++) {
       fseek(history_file, i * 10, SEEK_SET);
       fscanf(history_file, "%s", input);
       if (!(i % 2)) {
@@ -3190,6 +3021,11 @@ int Option(TREE * RESTRICT tree)
       else
         sprintf(initial_position + strlen(initial_position), " %c%c",
             File(EnPassant(0)) + 'a', Rank(EnPassant(0)) + '1');
+    } else {
+      if (output_file)
+        fprintf(output_file, " -");
+      else
+        sprintf(initial_position + strlen(initial_position), " -");
     }
     if (output_file)
       fprintf(output_file, "\n");
@@ -3203,13 +3039,45 @@ int Option(TREE * RESTRICT tree)
 /*
  ************************************************************
  *                                                          *
+ *   "scale" command is used for tuning.  we modify this to *
+ *   scale some scoring value(s) by a percentage that can   *
+ *   be either positive or negative.                        *
+ *                                                          *
+ ************************************************************
+ */
+  else if (!strcmp("scale", *args)) {
+    int v = atoi(args[1]);
+    if (v < 2000)
+      outside_passed[mg] = v % 1000;
+    else
+      outside_passed[eg] = v % 1000;
+/*
+    int i, j;
+
+    connected_passed_pawn_value[mg] =
+        atoi(args[1]) * connected_passed_pawn_value[mg] / 100;
+    for (i = 0; i < 2; i++)
+      for (j = 0; j < 8; j++) {
+        passed_pawn_value[mg][i][j] =
+            atoi(args[1]) * passed_pawn_value[mg][i][j] / 100;
+        blockading_passed_pawn_value[mg][i][j] =
+            atoi(args[1]) * blockading_passed_pawn_value[mg][i][j] / 100;
+      }
+*/
+/*
+    mate_depth=atoi(args[1]);
+*/
+  }
+/*
+ ************************************************************
+ *                                                          *
  *   "search" command sets a specific move for the search   *
  *   to analyze, ignoring all others completely.            *
  *                                                          *
  ************************************************************
  */
   else if (OptionMatch("search", *args)) {
-    if (shared->thinking || shared->pondering)
+    if (thinking || pondering)
       return (2);
     if (nargs < 2) {
       printf("usage:  search <move>\n");
@@ -3224,51 +3092,28 @@ int Option(TREE * RESTRICT tree)
 /*
  ************************************************************
  *                                                          *
- *   "selective" command sets the mininum and maximum null- *
- *   move search depths (default=2 and 3 respectively).     *
- *                                                          *
- ************************************************************
- */
-  else if (OptionMatch("selective", *args)) {
-    if (nargs < 3) {
-      Print(128, "usage: selective min max\n");
-    } else {
-      null_min = (atoi(args[1]) + 1) * PLY;
-      null_max = (atoi(args[2]) + 1) * PLY;
-    }
-    if (!silent) {
-      if (null_min + null_max)
-        Print(128, "null depth set to %d/%d (min/max)\n", null_min / PLY - 1,
-            null_max / PLY - 1);
-      else
-        Print(128, "null move disabled.\n");
-    }
-  }
-/*
- ************************************************************
- *                                                          *
  *   "settc" command is used to reset the time controls     *
  *   after a complete restart.                              *
  *                                                          *
  ************************************************************
  */
   else if (OptionMatch("settc", *args)) {
-    if (shared->thinking || shared->pondering)
+    if (thinking || pondering)
       return (2);
     if (nargs < 4) {
       printf("usage:  settc <moves> <ctime> <otime>\n");
       return (1);
     }
-    shared->tc_moves_remaining = atoi(args[1]);
-    shared->tc_time_remaining = ParseTime(args[2]) * 6000;
-    shared->tc_time_remaining_opponent = ParseTime(args[3]) * 6000;
-    Print(128, "time remaining: %s (crafty).\n",
-        DisplayTime(shared->tc_time_remaining));
+    tc_moves_remaining = atoi(args[1]);
+    tc_time_remaining = ParseTime(args[2]) * 6000;
+    tc_time_remaining_opponent = ParseTime(args[3]) * 6000;
+    Print(128, "time remaining: %s (Crafty).\n",
+        DisplayTime(tc_time_remaining));
     Print(128, "time remaining: %s (opponent).\n",
-        DisplayTime(shared->tc_time_remaining_opponent));
-    if (shared->tc_sudden_death != 1)
+        DisplayTime(tc_time_remaining_opponent));
+    if (tc_sudden_death != 1)
       Print(128, "%d moves to next time control (Crafty)\n",
-          shared->tc_moves_remaining);
+          tc_moves_remaining);
     else
       Print(128, "Sudden-death time control in effect\n");
   }
@@ -3281,11 +3126,11 @@ int Option(TREE * RESTRICT tree)
  ************************************************************
  */
   else if (OptionMatch("setboard", *args)) {
-    if (shared->thinking || shared->pondering)
+    if (thinking || pondering)
       return (2);
     nargs = ReadParse(buffer, args, " 	;=");
     SetBoard(tree, nargs - 1, args + 1, 0);
-    shared->move_number = 1;
+    move_number = 1;
     if (!wtm) {
       wtm = 1;
       Pass();
@@ -3297,11 +3142,11 @@ int Option(TREE * RESTRICT tree)
     strcpy(buffer, "savepos *");
     (void) Option(tree);
   } else if (StrCnt(*args, '/') > 3) {
-    if (shared->thinking || shared->pondering)
+    if (thinking || pondering)
       return (2);
     nargs = ReadParse(buffer, args, " 	;=");
     SetBoard(tree, nargs, args, 0);
-    shared->move_number = 1;
+    move_number = 1;
     if (!wtm) {
       wtm = 1;
       Pass();
@@ -3322,66 +3167,199 @@ int Option(TREE * RESTRICT tree)
  ************************************************************
  */
   else if (OptionMatch("score", *args)) {
-    int s1, s2 = 0, s4 = 0, s5 = 0, s6 = 0, s7 = 0;
-    int a, n, b, r, q, k;
+    int phase, s, tw, tb;
+    int mgb, mgw, egb, egw;
 
-    if (shared->thinking || shared->pondering)
+    if (thinking || pondering)
       return (2);
-    shared->root_wtm = Flip(wtm);
+    Print(128, "note: scores are for the white side\n");
+    Print(128, "                       ");
+    Print(128, " +-----------white----------+");
+    Print(128, "-----------black----------+\n");
+    tree->score_mg = 0;
+    tree->score_eg = 0;
+    mgb = tree->score_mg;
+    EvaluateMaterial(tree, wtm);
+    mgb = tree->score_mg - mgb;
+    Print(128, "material.......%s", DisplayEvaluation(mgb, 1));
+    Print(128, "  |    comp     mg      eg   |");
+    Print(128, "    comp     mg      eg   |\n");
+    root_wtm = Flip(wtm);
     tree->position[1] = tree->position[0];
     PreEvaluate(tree);
-    s7 = Evaluate(tree, 1, wtm, -99999, 99999);
+    s = Evaluate(tree, 1, wtm, -99999, 99999);
     if (!wtm)
-      s7 = -s7;
-    s1 = EvaluateMaterial(tree);
-    if (Castle(1, white))
-      s2 = EvaluateDevelopment(tree, 1, white);
-    if (Castle(1, black))
-      s2 -= EvaluateDevelopment(tree, 1, black);
-    if (TotalPieces(white, pawn) + TotalPieces(black, pawn)) {
-      if (tree->pawn_score.passed[black] || tree->pawn_score.passed[white] ||
-          tree->pawn_score.candidates[black] ||
-          tree->pawn_score.candidates[white]) {
-        s4 = EvaluatePassedPawns(tree, white) - EvaluatePassedPawns(tree,
-            black);
-        s5 = EvaluatePassedPawnRaces(tree, wtm);
-      }
-    }
-    s6 = EvaluateMobility(tree, white) - EvaluateMobility(tree, black);
+      s = -s;
+    tree->score_mg = 0;
+    tree->score_eg = 0;
     tree->tropism[black] = 0;
     tree->tropism[white] = 0;
-    a = EvaluateAll(tree, white) - EvaluateAll(tree, black);
-    n = EvaluateKnights(tree, white) - EvaluateKnights(tree, black);
-    b = EvaluateBishops(tree, white) - EvaluateBishops(tree, black);
-    r = EvaluateRooks(tree, white) - EvaluateRooks(tree, black);
-    q = EvaluateQueens(tree, white) - EvaluateQueens(tree, black);
-    k = EvaluateKings(tree, 1, white) - EvaluateKings(tree, 1, black);
-    Print(128, "note: scores are for the white side\n");
-    Print(128, "material evaluation.................%s\n", DisplayEvaluation(s1,
-            1));
-    Print(128, "development.........................%s\n", DisplayEvaluation(s2,
-            1));
-    Print(128, "passed pawn evaluation..............%s",
-        DisplayEvaluation(ScaleEG(s4), 1));
-    Print(128, " (%.2f)\n", (float) s4 / 100.0);
-    Print(128, "passed pawn race evaluation.........%s\n", DisplayEvaluation(s5,
-            1));
-    Print(128, "knight evaluation...................%s\n", DisplayEvaluation(n,
-            1));
-    Print(128, "bishop evaluation...................%s\n", DisplayEvaluation(b,
-            1));
-    Print(128, "rook evaluation.....................%s\n", DisplayEvaluation(r,
-            1));
-    Print(128, "queen evaluation....................%s\n", DisplayEvaluation(q,
-            1));
-    Print(128, "king evaluation.....................%s\n", DisplayEvaluation(k,
-            1));
-    Print(128, "mobility evaluation.................%s\n", DisplayEvaluation(s6,
-            1));
-    Print(128, "combined evaluation.................%s\n", DisplayEvaluation(a,
-            1));
-    Print(128, "total evaluation....................%s\n", DisplayEvaluation(s7,
-            1));
+    phase =
+        Min(62, TotalPieces(white, occupied) + TotalPieces(black, occupied));
+    tree->pawn_score.score_mg = 0;
+    tree->pawn_score.score_eg = 0;
+    mgb = tree->pawn_score.score_mg;
+    egb = tree->pawn_score.score_eg;
+    EvaluatePawns(tree, black);
+    mgb = tree->pawn_score.score_mg - mgb;
+    egb = tree->pawn_score.score_eg - egb;
+    mgw = tree->pawn_score.score_mg;
+    egw = tree->pawn_score.score_eg;
+    EvaluatePawns(tree, white);
+    mgw = tree->pawn_score.score_mg - mgw;
+    egw = tree->pawn_score.score_eg - egw;
+    tb = (mgb * phase + egb * (62 - phase)) / 62;
+    tw = (mgw * phase + egw * (62 - phase)) / 62;
+    Print(128, "pawns..........%s  |", DisplayEvaluation(tb + tw, 1));
+    Print(128, " %s", DisplayEvaluation(tw, 1));
+    Print(128, " %s", DisplayEvaluation(mgw, 1));
+    Print(128, " %s  |", DisplayEvaluation(egw, 1));
+    Print(128, " %s", DisplayEvaluation(tb, 1));
+    Print(128, " %s", DisplayEvaluation(mgb, 1));
+    Print(128, " %s  |\n", DisplayEvaluation(egb, 1));
+    mgb = tree->score_mg;
+    egb = tree->score_eg;
+    EvaluatePassedPawns(tree, black);
+    mgb = tree->score_mg - mgb;
+    egb = tree->score_eg - egb;
+    mgw = tree->score_mg;
+    egw = tree->score_eg;
+    EvaluatePassedPawns(tree, white);
+    mgw = tree->score_mg - mgw;
+    egw = tree->score_eg - egw;
+    tb = (mgb * phase + egb * (62 - phase)) / 62;
+    tw = (mgw * phase + egw * (62 - phase)) / 62;
+    Print(128, "passed pawns...%s  |", DisplayEvaluation(tb + tw, 1));
+    Print(128, " %s", DisplayEvaluation(tw, 1));
+    Print(128, " %s", DisplayEvaluation(mgw, 1));
+    Print(128, " %s  |", DisplayEvaluation(egw, 1));
+    Print(128, " %s", DisplayEvaluation(tb, 1));
+    Print(128, " %s", DisplayEvaluation(mgb, 1));
+    Print(128, " %s  |\n", DisplayEvaluation(egb, 1));
+    mgb = tree->score_mg;
+    egb = tree->score_eg;
+    EvaluateKnights(tree, black);
+    mgb = tree->score_mg - mgb;
+    egb = tree->score_eg - egb;
+    mgw = tree->score_mg;
+    egw = tree->score_eg;
+    EvaluateKnights(tree, white);
+    mgw = tree->score_mg - mgw;
+    egw = tree->score_eg - egw;
+    tb = (mgb * phase + egb * (62 - phase)) / 62;
+    tw = (mgw * phase + egw * (62 - phase)) / 62;
+    Print(128, "knights........%s  |", DisplayEvaluation(tb + tw, 1));
+    Print(128, " %s", DisplayEvaluation(tw, 1));
+    Print(128, " %s", DisplayEvaluation(mgw, 1));
+    Print(128, " %s  |", DisplayEvaluation(egw, 1));
+    Print(128, " %s", DisplayEvaluation(tb, 1));
+    Print(128, " %s", DisplayEvaluation(mgb, 1));
+    Print(128, " %s  |\n", DisplayEvaluation(egb, 1));
+    mgb = tree->score_mg;
+    egb = tree->score_eg;
+    EvaluateBishops(tree, black);
+    mgb = tree->score_mg - mgb;
+    egb = tree->score_eg - egb;
+    mgw = tree->score_mg;
+    egw = tree->score_eg;
+    EvaluateBishops(tree, white);
+    mgw = tree->score_mg - mgw;
+    egw = tree->score_eg - egw;
+    tb = (mgb * phase + egb * (62 - phase)) / 62;
+    tw = (mgw * phase + egw * (62 - phase)) / 62;
+    Print(128, "bishops........%s  |", DisplayEvaluation(tb + tw, 1));
+    Print(128, " %s", DisplayEvaluation(tw, 1));
+    Print(128, " %s", DisplayEvaluation(mgw, 1));
+    Print(128, " %s  |", DisplayEvaluation(egw, 1));
+    Print(128, " %s", DisplayEvaluation(tb, 1));
+    Print(128, " %s", DisplayEvaluation(mgb, 1));
+    Print(128, " %s  |\n", DisplayEvaluation(egb, 1));
+    mgb = tree->score_mg;
+    egb = tree->score_eg;
+    EvaluateRooks(tree, black);
+    mgb = tree->score_mg - mgb;
+    egb = tree->score_eg - egb;
+    mgw = tree->score_mg;
+    egw = tree->score_eg;
+    EvaluateRooks(tree, white);
+    mgw = tree->score_mg - mgw;
+    egw = tree->score_eg - egw;
+    tb = (mgb * phase + egb * (62 - phase)) / 62;
+    tw = (mgw * phase + egw * (62 - phase)) / 62;
+    Print(128, "rooks..........%s  |", DisplayEvaluation(tb + tw, 1));
+    Print(128, " %s", DisplayEvaluation(tw, 1));
+    Print(128, " %s", DisplayEvaluation(mgw, 1));
+    Print(128, " %s  |", DisplayEvaluation(egw, 1));
+    Print(128, " %s", DisplayEvaluation(tb, 1));
+    Print(128, " %s", DisplayEvaluation(mgb, 1));
+    Print(128, " %s  |\n", DisplayEvaluation(egb, 1));
+    mgb = tree->score_mg;
+    egb = tree->score_eg;
+    EvaluateQueens(tree, black);
+    mgb = tree->score_mg - mgb;
+    egb = tree->score_eg - egb;
+    mgw = tree->score_mg;
+    egw = tree->score_eg;
+    EvaluateQueens(tree, white);
+    mgw = tree->score_mg - mgw;
+    egw = tree->score_eg - egw;
+    tb = (mgb * phase + egb * (62 - phase)) / 62;
+    tw = (mgw * phase + egw * (62 - phase)) / 62;
+    Print(128, "queens.........%s  |", DisplayEvaluation(tb + tw, 1));
+    Print(128, " %s", DisplayEvaluation(tw, 1));
+    Print(128, " %s", DisplayEvaluation(mgw, 1));
+    Print(128, " %s  |", DisplayEvaluation(egw, 1));
+    Print(128, " %s", DisplayEvaluation(tb, 1));
+    Print(128, " %s", DisplayEvaluation(mgb, 1));
+    Print(128, " %s  |\n", DisplayEvaluation(egb, 1));
+    mgb = tree->score_mg;
+    egb = tree->score_eg;
+    EvaluateKings(tree, 1, black);
+    mgb = tree->score_mg - mgb;
+    egb = tree->score_eg - egb;
+    mgw = tree->score_mg;
+    egw = tree->score_eg;
+    EvaluateKings(tree, 1, white);
+    mgw = tree->score_mg - mgw;
+    egw = tree->score_eg - egw;
+    tb = (mgb * phase + egb * (62 - phase)) / 62;
+    tw = (mgw * phase + egw * (62 - phase)) / 62;
+    Print(128, "kings..........%s  |", DisplayEvaluation(tb + tw, 1));
+    Print(128, " %s", DisplayEvaluation(tw, 1));
+    Print(128, " %s", DisplayEvaluation(mgw, 1));
+    Print(128, " %s  |", DisplayEvaluation(egw, 1));
+    Print(128, " %s", DisplayEvaluation(tb, 1));
+    Print(128, " %s", DisplayEvaluation(mgb, 1));
+    Print(128, " %s  |\n", DisplayEvaluation(egb, 1));
+    mgb = tree->score_mg;
+    egb = tree->score_eg;
+    if (Castle(1, black))
+      EvaluateDevelopment(tree, 1, black);
+    mgb = tree->score_mg - mgb;
+    egb = tree->score_eg - egb;
+    mgw = tree->score_mg;
+    egw = tree->score_eg;
+    if (Castle(1, white))
+      EvaluateDevelopment(tree, 1, white);
+    mgw = tree->score_mg - mgw;
+    egw = tree->score_eg - egw;
+    tb = (mgb * phase + egb * (62 - phase)) / 62;
+    tw = (mgw * phase + egw * (62 - phase)) / 62;
+    Print(128, "development....%s  |", DisplayEvaluation(tb + tw, 1));
+    Print(128, " %s", DisplayEvaluation(tw, 1));
+    Print(128, " %s", DisplayEvaluation(mgw, 1));
+    Print(128, " %s  |", DisplayEvaluation(egw, 1));
+    Print(128, " %s", DisplayEvaluation(tb, 1));
+    Print(128, " %s", DisplayEvaluation(mgb, 1));
+    Print(128, " %s  |\n", DisplayEvaluation(egb, 1));
+    egb = tree->score_eg;
+    if ((TotalPieces(white, occupied) == 0 && tree->pawn_score.passed[black]) ||
+        (TotalPieces(black, occupied) == 0 && tree->pawn_score.passed[white]))
+      EvaluatePassedPawnRaces(tree, wtm);
+    egb = tree->score_eg - egb;
+    Print(128, "pawn races.....%s", DisplayEvaluation(egb, 1));
+    Print(128, "  +--------------------------+--------------------------+\n");
+    Print(128, "total..........%s\n", DisplayEvaluation(s, 1));
   }
 /*
  ************************************************************
@@ -3446,12 +3424,9 @@ int Option(TREE * RESTRICT tree)
         skill = 100;
       }
       Print(128, "skill level set to %d%%\n", skill);
-      null_min = null_min * skill / 100;
-      null_max = null_max * skill / 100;
-      mate_depth = mate_depth * skill / 100;
-      incheck_depth = incheck_depth * skill / 100;
-      onerep_depth = onerep_depth * skill / 100;
-      reduce_depth = reduce_depth * skill / 100;
+      null_depth = null_depth * skill / 100;
+      check_depth = check_depth * skill / 100;
+      LMR_depth = LMR_depth * skill / 100;
     }
   }
 #endif
@@ -3506,9 +3481,8 @@ int Option(TREE * RESTRICT tree)
       printf("usage:  st <time>\n");
       return (1);
     }
-    shared->search_time_limit = atof(args[1]) * 100;
-    Print(128, "search time set to %.2f.\n",
-        (float) shared->search_time_limit / 100.0);
+    search_time_limit = atof(args[1]) * 100;
+    Print(128, "search time set to %.2f.\n", (float) search_time_limit / 100.0);
   }
 /*
  ************************************************************
@@ -3520,9 +3494,8 @@ int Option(TREE * RESTRICT tree)
  */
   else if (OptionMatch("surplus", *args)) {
     if (nargs == 2)
-      shared->tc_safety_margin = atoi(args[1]) * 6000;
-    Print(128, "time surplus set to %s.\n",
-        DisplayTime(shared->tc_safety_margin));
+      tc_safety_margin = atoi(args[1]) * 6000;
+    Print(128, "time surplus set to %s.\n", DisplayTime(tc_safety_margin));
   }
 /*
  ************************************************************
@@ -3573,7 +3546,7 @@ int Option(TREE * RESTRICT tree)
  */
   else if (OptionMatch("test", *args)) {
     nargs = ReadParse(buffer, args, "	 ;=");
-    if (shared->thinking || shared->pondering)
+    if (thinking || pondering)
       return (2);
     if (nargs < 2) {
       printf("usage:  test <filename> [exitcnt]\n");
@@ -3589,14 +3562,7 @@ int Option(TREE * RESTRICT tree)
 /*
  ************************************************************
  *                                                          *
- *   "time" controls whether the program uses cpu time or   *
- *   wall-clock time for timing.  for tournament play,      *
- *   it is safer to use wall-clock timing, for testing it   *
- *   may be more consistent to use cpu timing if the        *
- *   machine is used for other things concurrently with the *
- *   tests being run.                                       *
- *                                                          *
- *   "time" is also used to set the basic search timing     *
+ *   "time" is used to set the basic search timing          *
  *   controls.  the general form of the command is as       *
  *   follows:                                               *
  *                                                          *
@@ -3627,77 +3593,76 @@ int Option(TREE * RESTRICT tree)
  */
   else if (OptionMatch("time", *args)) {
     if (ics || xboard) {
-      shared->tc_time_remaining = atoi(args[1]);
-      if (log_file && shared->time_limit > 99)
-        fprintf(log_file, "time remaining: %s (crafty).\n",
-            DisplayTime(shared->tc_time_remaining));
+      tc_time_remaining = atoi(args[1]);
+      if (log_file && time_limit > 99)
+        fprintf(log_file, "time remaining: %s (Crafty).\n",
+            DisplayTime(tc_time_remaining));
     } else {
-      if (shared->thinking || shared->pondering)
+      if (thinking || pondering)
         return (2);
-      shared->tc_moves = 60;
-      shared->tc_time = 180000;
-      shared->tc_moves_remaining = 60;
-      shared->tc_time_remaining = 180000;
-      shared->tc_time_remaining_opponent = 180000;
-      shared->tc_secondary_moves = 60;
-      shared->tc_secondary_time = 180000;
-      shared->tc_increment = 0;
-      shared->tc_sudden_death = 0;
+      tc_moves = 60;
+      tc_time = 180000;
+      tc_moves_remaining = 60;
+      tc_time_remaining = 180000;
+      tc_time_remaining_opponent = 180000;
+      tc_secondary_moves = 60;
+      tc_secondary_time = 180000;
+      tc_increment = 0;
+      tc_sudden_death = 0;
 /*
  first let's pick off the basic time control (moves/minutes)
  */
       if (nargs > 1)
         if (!strcmp(args[1], "sd")) {
-          shared->tc_sudden_death = 1;
-          shared->tc_moves = 1000;
+          tc_sudden_death = 1;
+          tc_moves = 1000;
         }
       if (nargs > 2) {
-        shared->tc_moves = atoi(args[1]);
-        shared->tc_time = atoi(args[2]) * 100;
+        tc_moves = atoi(args[1]);
+        tc_time = atoi(args[2]) * 100;
       }
 /*
  now let's pick off the secondary time control (moves/minutes)
  */
-      shared->tc_secondary_time = shared->tc_time;
-      shared->tc_secondary_moves = shared->tc_moves;
+      tc_secondary_time = tc_time;
+      tc_secondary_moves = tc_moves;
       if (nargs > 4) {
         if (!strcmp(args[3], "sd")) {
-          shared->tc_sudden_death = 2;
-          shared->tc_secondary_moves = 1000;
+          tc_sudden_death = 2;
+          tc_secondary_moves = 1000;
         } else
-          shared->tc_secondary_moves = atoi(args[3]);
-        shared->tc_secondary_time = atoi(args[4]) * 100;
+          tc_secondary_moves = atoi(args[3]);
+        tc_secondary_time = atoi(args[4]) * 100;
       }
       if (nargs > 5)
-        shared->tc_increment = atoi(args[5]) * 100;
-      shared->tc_time_remaining = shared->tc_time;
-      shared->tc_time_remaining_opponent = shared->tc_time;
-      shared->tc_moves_remaining = shared->tc_moves;
-      if (!shared->tc_sudden_death) {
-        Print(128, "%d moves/%d minutes primary time control\n",
-            shared->tc_moves, shared->tc_time / 100);
+        tc_increment = atoi(args[5]) * 100;
+      tc_time_remaining = tc_time;
+      tc_time_remaining_opponent = tc_time;
+      tc_moves_remaining = tc_moves;
+      if (!tc_sudden_death) {
+        Print(128, "%d moves/%d minutes primary time control\n", tc_moves,
+            tc_time / 100);
         Print(128, "%d moves/%d minutes secondary time control\n",
-            shared->tc_secondary_moves, shared->tc_secondary_time / 100);
-        if (shared->tc_increment)
-          Print(128, "increment %d seconds.\n", shared->tc_increment / 100);
-      } else if (shared->tc_sudden_death == 1) {
-        Print(128, " game/%d minutes primary time control\n",
-            shared->tc_time / 100);
-        if (shared->tc_increment)
-          Print(128, "increment %d seconds.\n", shared->tc_increment / 100);
-      } else if (shared->tc_sudden_death == 2) {
-        Print(128, "%d moves/%d minutes primary time control\n",
-            shared->tc_moves, shared->tc_time / 100);
+            tc_secondary_moves, tc_secondary_time / 100);
+        if (tc_increment)
+          Print(128, "increment %d seconds.\n", tc_increment / 100);
+      } else if (tc_sudden_death == 1) {
+        Print(128, " game/%d minutes primary time control\n", tc_time / 100);
+        if (tc_increment)
+          Print(128, "increment %d seconds.\n", tc_increment / 100);
+      } else if (tc_sudden_death == 2) {
+        Print(128, "%d moves/%d minutes primary time control\n", tc_moves,
+            tc_time / 100);
         Print(128, "game/%d minutes secondary time control\n",
-            shared->tc_secondary_time / 100);
-        if (shared->tc_increment)
-          Print(128, "increment %d seconds.\n", shared->tc_increment / 100);
+            tc_secondary_time / 100);
+        if (tc_increment)
+          Print(128, "increment %d seconds.\n", tc_increment / 100);
       }
-      shared->tc_time *= 60;
-      shared->tc_time_remaining *= 60;
-      shared->tc_time_remaining_opponent *= 60;
-      shared->tc_secondary_time *= 60;
-      shared->tc_safety_margin = shared->tc_time / 6;
+      tc_time *= 60;
+      tc_time_remaining *= 60;
+      tc_time_remaining_opponent *= 60;
+      tc_secondary_time *= 60;
+      tc_safety_margin = tc_time / 6;
     }
   }
 /*
@@ -3723,15 +3688,15 @@ int Option(TREE * RESTRICT tree)
       printf("usage:  timebook <percentage> <move span>\n");
       return (1);
     }
-    shared->first_nonbook_factor = atoi(args[1]);
-    shared->first_nonbook_span = atoi(args[2]);
-    if (shared->first_nonbook_factor < 0 || shared->first_nonbook_factor > 500) {
+    first_nonbook_factor = atoi(args[1]);
+    first_nonbook_span = atoi(args[2]);
+    if (first_nonbook_factor < 0 || first_nonbook_factor > 500) {
       Print(4095, "ERROR, factor must be >= 0 and <= 500\n");
-      shared->first_nonbook_factor = 0;
+      first_nonbook_factor = 0;
     }
-    if (shared->first_nonbook_span < 0 || shared->first_nonbook_span > 30) {
+    if (first_nonbook_span < 0 || first_nonbook_span > 30) {
       Print(4095, "ERROR, span must be >= 0 and <= 30\n");
-      shared->first_nonbook_span = 0;
+      first_nonbook_span = 0;
     }
   }
 /*
@@ -3748,18 +3713,18 @@ int Option(TREE * RESTRICT tree)
       printf("usage:  timeleft <wtime> <btime>\n");
       return (1);
     }
-    if (shared->crafty_is_white) {
-      shared->tc_time_remaining = atoi(args[1]) * 100;
-      shared->tc_time_remaining_opponent = atoi(args[2]) * 100;
+    if (crafty_is_white) {
+      tc_time_remaining = atoi(args[1]) * 100;
+      tc_time_remaining_opponent = atoi(args[2]) * 100;
     } else {
-      shared->tc_time_remaining_opponent = atoi(args[1]) * 100;
-      shared->tc_time_remaining = atoi(args[2]) * 100;
+      tc_time_remaining_opponent = atoi(args[1]) * 100;
+      tc_time_remaining = atoi(args[2]) * 100;
     }
     if (log_file) {
-      fprintf(log_file, "time remaining: %s (crafty).\n",
-          DisplayTime(shared->tc_time_remaining));
+      fprintf(log_file, "time remaining: %s (Crafty).\n",
+          DisplayTime(tc_time_remaining));
       fprintf(log_file, "time remaining: %s (opponent).\n",
-          DisplayTime(shared->tc_time_remaining_opponent));
+          DisplayTime(tc_time_remaining_opponent));
     }
   }
 /*
@@ -3798,12 +3763,12 @@ int Option(TREE * RESTRICT tree)
       fgets(buffer, 128, stdin);
       time_used = atoi(buffer);
       if (time_used == 0)
-        time_used = shared->time_limit;
+        time_used = time_limit;
       TimeAdjust(time_used, opponent);
       TimeAdjust(time_used, crafty);
       sprintf(buffer, "clock");
       (void) Option(tree);
-      shared->move_number++;
+      move_number++;
     } while (time_used >= 0);
   }
 /*
@@ -3815,13 +3780,13 @@ int Option(TREE * RESTRICT tree)
  ************************************************************
  */
   else if (!strcmp("undo", *args)) {
-    if (shared->thinking || shared->pondering)
+    if (thinking || pondering)
       return (2);
-    if (!wtm || shared->move_number != 1) {
+    if (!wtm || move_number != 1) {
       wtm = Flip(wtm);
       if (Flip(wtm))
-        shared->move_number--;
-      sprintf(buffer, "reset %d", shared->move_number);
+        move_number--;
+      sprintf(buffer, "reset %d", move_number);
       (void) Option(tree);
     }
   }
@@ -3859,7 +3824,7 @@ int Option(TREE * RESTRICT tree)
  ************************************************************
  */
   else if (OptionMatch("variant", *args)) {
-    if (shared->thinking || shared->pondering)
+    if (thinking || pondering)
       return (2);
     printf("command=[%s]\n", buffer);
     return (-1);
@@ -3919,7 +3884,7 @@ int Option(TREE * RESTRICT tree)
  ************************************************************
  */
   else if (OptionMatch("white", *args)) {
-    if (shared->thinking || shared->pondering)
+    if (thinking || pondering)
       return (2);
     ponder_move = 0;
     last_pv.pathd = 0;
@@ -3941,13 +3906,13 @@ int Option(TREE * RESTRICT tree)
     if (!xboard) {
       signal(SIGINT, SIG_IGN);
       xboard = 1;
-      shared->display_options &= 4095 - 1 - 2 - 4 - 8 - 16 - 32 - 128;
+      display_options &= 4095 - 1 - 2 - 4 - 8 - 16 - 32 - 128;
       ansi = 0;
       printf("\n");
       printf("tellicsnoalias set 1 Crafty v%s (%d cpus)\n", version, Max(1,
-              shared->max_threads));
+              max_threads));
       printf("tellicsnoalias kibitz Hello from Crafty v%s! (%d cpus)\n",
-          version, Max(1, shared->max_threads));
+          version, Max(1, max_threads));
       fflush(stdout);
     }
   }
@@ -3955,7 +3920,7 @@ int Option(TREE * RESTRICT tree)
  ************************************************************
  *                                                          *
  *  "?" command does nothing, but since this is the "move   *
- *  now" keystroke, if crafty is not searching, this will   *
+ *  now" keystroke, if Crafty is not searching, this will   *
  *  simply "wave it off" rather than produce an error.      *
  *                                                          *
  ************************************************************
@@ -4022,7 +3987,6 @@ int OptionMatch(char *command, char *input)
     return (1);
   return (0);
 }
-
 void OptionPerft(TREE * RESTRICT tree, int ply, int depth, int wtm)
 {
   int *mv;
@@ -4031,12 +3995,11 @@ void OptionPerft(TREE * RESTRICT tree, int ply, int depth, int wtm)
 #if defined(TRACE)
   static char move[16];
 #endif
-
   tree->last[ply] = GenerateCaptures(tree, ply, wtm, tree->last[ply - 1]);
   for (mv = tree->last[ply - 1]; mv < tree->last[ply]; mv++)
     if (Captured(*mv) == king)
       return;
-  tree->last[ply] = GenerateNonCaptures(tree, ply, wtm, tree->last[ply]);
+  tree->last[ply] = GenerateNoncaptures(tree, ply, wtm, tree->last[ply]);
   p[1] = line;
   for (mv = tree->last[ply - 1]; mv < tree->last[ply]; mv++) {
 #if defined(TRACE)

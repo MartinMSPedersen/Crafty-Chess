@@ -12,7 +12,6 @@
 #if defined(NT_i386)
 #  include <fcntl.h>    /* needed for definition of "_O_BINARY" */
 #endif
-
 /*
  *******************************************************************************
  *                                                                             *
@@ -29,8 +28,7 @@ void Initialize()
   void *mem;
   int j;
 
-  tree = shared->local[0];
-  InitializeSharedData();
+  tree = block[0];
   InitializeMagic();
   InitializeSMP();
   InitializeMasks();
@@ -42,13 +40,11 @@ void Initialize()
 #if defined(NT_i386)
   _fmode = _O_BINARY;   /* set file mode binary to avoid text translation */
 #endif
-
 #if defined(EPD)
   EGInit();
 #endif
   tree->last[0] = tree->move_list;
   tree->last[1] = tree->move_list;
-
   sprintf(log_filename, "%s/book.bin", book_path);
   book_file = fopen(log_filename, "rb+");
   if (!book_file) {
@@ -73,7 +69,6 @@ void Initialize()
     Print(128, "found computer opening book file [%s/bookc.bin].\n", book_path);
   if (book_file) {
     int maj_min;
-
     fseek(book_file, -sizeof(int), SEEK_END);
     fread(&maj_min, 4, 1, book_file);
     major = BookIn32((unsigned char *) &maj_min);
@@ -97,13 +92,13 @@ void Initialize()
     CraftyExit(1);
   }
   cb_trans_ref = sizeof(HASH_ENTRY) * hash_table_size + 15;
-  trans_ref = (HASH_ENTRY *) SharedMalloc(cb_trans_ref, 0);
+  trans_ref = (HASH_ENTRY *) malloc(cb_trans_ref);
   cb_pawn_hash_table = sizeof(PAWN_HASH_ENTRY) * pawn_hash_table_size + 15;
-  pawn_hash_table = (PAWN_HASH_ENTRY *) SharedMalloc(cb_pawn_hash_table, 0);
+  pawn_hash_table = (PAWN_HASH_ENTRY *) malloc(cb_pawn_hash_table);
   if (!trans_ref) {
     Print(128, "malloc() failed, not enough memory.\n");
-    SharedFree(trans_ref);
-    SharedFree(pawn_hash_table);
+    free(trans_ref);
+    free(pawn_hash_table);
     hash_table_size = 0;
     pawn_hash_table_size = 0;
     log_hash = 0;
@@ -130,30 +125,27 @@ void Initialize()
   ThreadMalloc((int) 0);
 #else
   for (i = 0; i < CPUS; i++) {
-    mem = SharedMalloc(MAX_BLOCKS_PER_CPU * ((sizeof(TREE) + 2047)) & ~2047, 0);
+    mem = malloc(MAX_BLOCKS_PER_CPU * ((sizeof(TREE) + 2047)) & ~2047);
     for (j = 0; j < MAX_BLOCKS_PER_CPU; j++) {
-      shared->local[i * MAX_BLOCKS_PER_CPU + j + 1] =
+      block[i * MAX_BLOCKS_PER_CPU + j + 1] =
           (TREE *) ((long) mem + j * ((sizeof(TREE) + 2047) & ~2047));
     }
   }
   for (i = 0; i < MAX_BLOCKS_PER_CPU; i++) {
-    memset((void *) shared->local[i + 1], 0, sizeof(TREE));
-    shared->local[i + 1]->used = 0;
-    shared->local[i + 1]->parent = (TREE *) - 1;
-    LockInit(shared->local[i + 1]->lock);
+    memset((void *) block[i + 1], 0, sizeof(TREE));
+    block[i + 1]->used = 0;
+    block[i + 1]->parent = (TREE *) - 1;
+    LockInit(block[i + 1]->lock);
   }
 #endif
-  shared->initialized_threads++;
+  initialized_threads++;
   InitializeHashTables();
   hash_mask = (1 << log_hash) - 1;
   pawn_hash_mask = (1 << (log_pawn_hash)) - 1;
-
-  InitializeEvaluation();
+  InitializeKingSafety();
 }
-
 void InitializeAttackBoards(void)
 {
-
   int i, j, frank, ffile, trank, tfile;
   int sq, lastsq;
   static const int knightsq[8] = { -17, -15, -10, -6, 6, 10, 15, 17 };
@@ -336,11 +328,9 @@ void InitializeAttackBoards(void)
     }
   }
 }
-
 void InitializeMagic(void)
 {
   int i;
-
   int initmagicmoves_bitpos64_database[64] = {
     63, 0, 58, 1, 59, 47, 53, 2,
     60, 39, 48, 27, 54, 33, 42, 3,
@@ -351,7 +341,6 @@ void InitializeMagic(void)
     56, 45, 25, 31, 35, 16, 9, 12,
     44, 24, 15, 8, 23, 7, 6, 5
   };
-
   for (i = 0; i < 64; i++) {
     int squares[64];
     int numsquares = 0;
@@ -368,7 +357,6 @@ void InitializeMagic(void)
     for (temp = 0; temp < (((BITBOARD) (1)) << numsquares); temp++) {
       BITBOARD tempoccupied =
           InitializeMagicOccupied(squares, numsquares, temp);
-
       *(magic_bishop_indices[i] +
           (((tempoccupied) * magic_bishop[i]) >> magic_bishop_shift[i])) =
           InitializeMagicBishop(i, tempoccupied);
@@ -390,14 +378,12 @@ void InitializeMagic(void)
     for (temp = 0; temp < (((BITBOARD) (1)) << numsquares); temp++) {
       BITBOARD tempoccupied =
           InitializeMagicOccupied(squares, numsquares, temp);
-
       *(magic_rook_indices[i] +
           (((tempoccupied) * magic_rook[i]) >> magic_rook_shift[i])) =
           InitializeMagicRook(i, tempoccupied);
     }
   }
 }
-
 BITBOARD InitializeMagicBishop(int square, BITBOARD occupied)
 {
   BITBOARD ret = 0;
@@ -588,7 +574,6 @@ void InitializeChessBoard(TREE * tree)
     SetChessBitBoards(tree);
   }
 }
-
 void SetChessBitBoards(TREE * tree)
 {
   int side, piece, square;
@@ -646,21 +631,6 @@ void SetChessBitBoards(TREE * tree)
   Repetition(white) = 0;
 }
 
-void InitializeEvaluation(void)
-{
-  int i, j;
-
-  for (i = 0; i < 8; i++)
-    for (j = 0; j < 8; j++) {
-      pval[0][i * 8 + j] = pval[1][(7 - i) * 8 + j];
-      kval_n[0][i * 8 + j] = kval_n[1][(7 - i) * 8 + j];
-      kval_k[0][i * 8 + j] = kval_k[1][(7 - i) * 8 + j];
-      kval_q[0][i * 8 + j] = kval_q[1][(7 - i) * 8 + j];
-      outpost[0][i * 8 + j] = outpost[1][(7 - i) * 8 + j];
-    }
-  InitializeKingSafety();
-}
-
 /*
  *******************************************************************************
  *                                                                             *
@@ -709,7 +679,6 @@ int InitializeFindAttacks(int square, int pieces, int length)
   }
   return (result & ((1 << length) - 1));
 }
-
 int InitializeGetLogID(void)
 {
 #if defined(UNIX)
@@ -751,12 +720,11 @@ int InitializeGetLogID(void)
   t = log_id++;
   return (t);
 }
-
 void InitializeHashTables(void)
 {
   int i, side;
 
-  shared->transposition_id = 0;
+  transposition_id = 0;
   if (!trans_ref)
     return;
   for (i = 0; i < hash_table_size; i++) {
@@ -771,11 +739,9 @@ void InitializeHashTables(void)
     return;
   for (i = 0; i < pawn_hash_table_size; i++) {
     (pawn_hash_table + i)->key = 0;
-    (pawn_hash_table + i)->p_score = 0;
-    (pawn_hash_table + i)->protected = 0;
-    (pawn_hash_table + i)->outside = 0;
+    (pawn_hash_table + i)->score_mg = 0;
+    (pawn_hash_table + i)->score_eg = 0;
     (pawn_hash_table + i)->open_files = 0;
-    (pawn_hash_table + i)->protected_count = 0;
     for (side = black; side <= white; side++) {
       (pawn_hash_table + i)->candidates[side] = 0;
       (pawn_hash_table + i)->defects_k[side] = 0;
@@ -783,25 +749,22 @@ void InitializeHashTables(void)
       (pawn_hash_table + i)->defects_d[side] = 0;
       (pawn_hash_table + i)->defects_q[side] = 0;
       (pawn_hash_table + i)->all[side] = 0;
-      (pawn_hash_table + i)->weak[side] = 0;
       (pawn_hash_table + i)->passed[side] = 0;
-      (pawn_hash_table + i)->hidden[side] = 0;
       (pawn_hash_table + i)->candidates[side] = 0;
     }
   }
 }
-
 void InitializeKillers(void)
 {
   int i, j;
 
   for (i = 0; i < MAXPLY; i++) {
-    shared->local[0]->killers[i].move1 = 0;
-    shared->local[0]->killers[i].move2 = 0;
+    block[0]->killers[i].move1 = 0;
+    block[0]->killers[i].move2 = 0;
   }
   for (i = 0; i < 2; i++)
     for (j = 0; j < 128; j++)
-      shared->local[0]->rep_list[i][j] = 0;
+      block[0]->rep_list[i][j] = 0;
 }
 
 /*
@@ -823,12 +786,19 @@ void InitializeKingSafety()
   for (safety = 0; safety < 16; safety++) {
     for (tropism = 0; tropism < 16; tropism++) {
       king_safety[safety][tropism] =
-          (safety_vector[safety] + 100) * (tropism_vector[tropism] +
-          100) / 100 - 100;
+          180 * ((safety_vector[safety] + 100) * (tropism_vector[tropism] +
+              100) / 100 - 100) / 100;
     }
   }
+/*
+  for (safety = 0; safety < 16; safety++) {
+    for (tropism = 0; tropism < 16; tropism++) {
+      printf("%4d", king_safety[safety][tropism]);
+    }
+    printf("\n");
+  }
+*/
 }
-
 void InitializeMasks(void)
 {
   int i, j;
@@ -861,28 +831,15 @@ void InitializeMasks(void)
   for (i = 8; i < 56; i++) {
     if (File(i) > 0 && File(i) < 7) {
       mask_pawn_duo[i] = SetMask(i - 1) | SetMask(i + 1);
-      mask_pawn_protected[white][i] = SetMask(i - 1) | SetMask(i + 1);
-      if (i > 15)
-        mask_pawn_protected[white][i] |= SetMask(i - 7) | SetMask(i - 9);
-      mask_pawn_protected[black][i] = SetMask(i - 1) | SetMask(i + 1);
-      if (i < 48)
-        mask_pawn_protected[black][i] |= SetMask(i + 7) | SetMask(i + 9);
+      mask_pawn_connected[i] =
+          SetMask(i - 1) | SetMask(i + 1) | SetMask(i - 9) | SetMask(i -
+          7) | SetMask(i + 7) | SetMask(i + 9);
     } else if (File(i) == 0) {
       mask_pawn_duo[i] = SetMask(i + 1);
-      mask_pawn_protected[white][i] = SetMask(i + 1);
-      if (i > 15)
-        mask_pawn_protected[white][i] |= SetMask(i - 7);
-      mask_pawn_protected[black][i] = SetMask(i + 1);
-      if (i < 48)
-        mask_pawn_protected[black][i] |= SetMask(i + 9);
+      mask_pawn_connected[i] = SetMask(i + 1) | SetMask(i - 7) | SetMask(i + 9);
     } else if (File(i) == 7) {
       mask_pawn_duo[i] = SetMask(i - 1);
-      mask_pawn_protected[white][i] = SetMask(i - 1);
-      if (i > 15)
-        mask_pawn_protected[white][i] |= SetMask(i - 9);
-      mask_pawn_protected[black][i] = SetMask(i - 1);
-      if (i < 48)
-        mask_pawn_protected[black][i] |= SetMask(i + 7);
+      mask_pawn_connected[i] = SetMask(i - 1) | SetMask(i - 9) | SetMask(i + 7);
     }
   }
   mask_fgh = file_mask[FILEF] | file_mask[FILEG] | file_mask[FILEH];
@@ -891,7 +848,6 @@ void InitializeMasks(void)
   mask_abc = file_mask[FILEA] | file_mask[FILEB] | file_mask[FILEC];
   mask_abcd =
       file_mask[FILEA] | file_mask[FILEB] | file_mask[FILEC] | file_mask[FILED];
-  virgin_center_pawns = SetMask(D2) | SetMask(E2) | SetMask(D7) | SetMask(E7);
   mask_kr_trapped[black][0] = SetMask(H7);
   mask_kr_trapped[black][1] = SetMask(H8) | SetMask(H7);
   mask_kr_trapped[black][2] = SetMask(H8) | SetMask(G8) | SetMask(H7);
@@ -936,7 +892,6 @@ void InitializeMasks(void)
     }
   }
 }
-
 void InitializePawnMasks(void)
 {
   int i, j, k, file;
@@ -1049,12 +1004,13 @@ void InitializePawnMasks(void)
       dark_squares = dark_squares | m1 >> i;
     }
 /*
-   this mask is used to detect that one side has pawns, but all
-   are rook pawns.
+   these masks are used to detect that one side has pawns, but all
+   are rook pawns, or all are now rook pawns.
  */
   not_rook_pawns =
       file_mask[FILEB] | file_mask[FILEC] | file_mask[FILED] | file_mask[FILEE]
       | file_mask[FILEF] | file_mask[FILEG];
+  rook_pawns = ~not_rook_pawns;
 /*
    these two masks have 1's on everywhere but the left or right
    files, used to prevent pawns from capturing off the edge of
@@ -1168,15 +1124,13 @@ void InitializePawnMasks(void)
       file_spread[i] = 0;
   }
 /*
- is_outside[p][a] /is_outside_c[p][a] values:
+ is_outside[p][a]
  p=8 bit mask for passed pawns
  a=8 bit mask for all pawns on board
  p must have left-most or right-most bit set when compared to
  mask 'a'.  and this bit must be separated from the next bit
  by at least one file (ie the outside passed pawn is 2 files
- from the rest of the pawns, at least.  for is_outside_c[] the
- candidate passer only has to be outside by 1 file.
-
+ from the rest of the pawns, at least.
  ppsq = square that contains a (potential) passed pawn.
  psql = leftmost pawn, period.
  psqr = rightmost pawn, period.
@@ -1184,33 +1138,25 @@ void InitializePawnMasks(void)
  1 -> passed pawn is 'outside'
  2 -> passed pawn is 'outside' on both sides of board
  */
-
   for (i = 0; i < 256; i++) {
     for (j = 0; j < 256; j++) {
       int ppsq1, ppsq2, psql, psqr;
 
       is_outside[i][j] = 0;
-      is_outside_c[i][j] = 0;
       ppsq1 = lsb_8bit[i];
       if (ppsq1 < 8) {
         psql = lsb_8bit[j];
         if (ppsq1 < psql - 1 || psql == 8)
           is_outside[i][j] += 1;
-        if (ppsq1 <= psql + 1 || psql == 8)
-          is_outside_c[i][j] += 1;
       }
       ppsq2 = msb_8bit[i];
       if (ppsq2 < 8) {
         psqr = msb_8bit[j];
         if (ppsq2 > psqr + 1 || psqr == 8)
           is_outside[i][j] += 1;
-        if (ppsq2 >= psqr - 1 || psqr == 8)
-          is_outside_c[i][j] += 1;
       }
       if (ppsq1 == ppsq2 && is_outside[i][j] > 0)
         is_outside[i][j] = 1;
-      if (ppsq1 == ppsq2 && is_outside_c[i][j] > 0)
-        is_outside_c[i][j] = 1;
     }
   }
 }
@@ -1250,67 +1196,14 @@ void InitializeRandomHash(void)
 /*
  *******************************************************************************
  *                                                                             *
- *   InitlializeSharedData() is used to initialize the shared data that can    *
- *   not be initialized normally since it is in a shared memory (SYSV) memory  *
- *   block.                                                                    *
- *                                                                             *
- *******************************************************************************
- */
-void InitializeSharedData(void)
-{
-  shared->nice = 1;
-  shared->smp_idle = 0;
-  shared->smp_threads = 0;
-  shared->initialized_threads = 0;
-  shared->crafty_is_white = 0;
-  shared->average_nps = 0;
-  shared->nodes_between_time_checks = 1000000;
-  shared->nodes_per_second = 1000000;
-  shared->transposition_id = 0;
-  shared->thinking = 0;
-  shared->pondering = 0;
-  shared->puzzling = 0;
-  shared->booking = 0;
-  shared->time_limit = 100;
-  shared->trojan_check = 0;
-  shared->computer_opponent = 0;
-  shared->max_threads = 0;
-  shared->min_thread_depth = 40;
-  shared->max_thread_group = 4;
-  shared->split_at_root = 1;
-  shared->noise_level = 200000;
-  shared->quit = 0;
-  shared->display_options = 4095 - 256 - 512;
-  shared->tc_moves = 60;
-  shared->tc_time = 180000;
-  shared->tc_time_remaining = 180000;
-  shared->tc_time_remaining_opponent = 180000;
-  shared->tc_moves_remaining = 60;
-  shared->tc_secondary_moves = 30;
-  shared->tc_secondary_time = 90000;
-  shared->tc_increment = 0;
-  shared->tc_sudden_death = 0;
-  shared->tc_operator_time = 0;
-  shared->tc_safety_margin = 0;
-  shared->draw_score[0] = 0;
-  shared->draw_score[1] = 0;
-  shared->move_number = 1;
-  shared->moves_out_of_book = 0;
-  shared->first_nonbook_factor = 0;
-  shared->first_nonbook_span = 0;
-}
-
-/*
- *******************************************************************************
- *                                                                             *
  *   InitlializeSMP() is used to initialize the pthread lock variables.        *
  *                                                                             *
  *******************************************************************************
  */
 void InitializeSMP(void)
 {
-  LockInit(shared->lock_smp);
-  LockInit(shared->lock_io);
-  LockInit(shared->lock_root);
-  LockInit(shared->local[0]->lock);
+  LockInit(lock_smp);
+  LockInit(lock_io);
+  LockInit(lock_root);
+  LockInit(block[0]->lock);
 }

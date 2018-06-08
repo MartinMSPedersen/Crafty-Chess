@@ -1,7 +1,6 @@
 #include "chess.h"
 #include "data.h"
 #include "epdglue.h"
-
 /* last modified 08/07/05 */
 /*
  *******************************************************************************
@@ -17,7 +16,7 @@ void RootMoveList(int wtm)
 {
   int *mvp, *lastm, rmoves[256], sort_value[256];
   int i, done, temp, value;
-  TREE *const tree = shared->local[0];
+  TREE *const tree = block[0];
   int tb_value;
   int mating_via_tb = 0;
 
@@ -53,10 +52,10 @@ void RootMoveList(int wtm)
  *                                                          *
  ************************************************************
  */
-  shared->easy_move = 0;
+  easy_move = 0;
   lastm = GenerateCaptures(tree, 1, wtm, rmoves);
-  lastm = GenerateNonCaptures(tree, 1, wtm, lastm);
-  shared->n_root_moves = lastm - rmoves;
+  lastm = GenerateNoncaptures(tree, 1, wtm, lastm);
+  n_root_moves = lastm - rmoves;
 /*
  ************************************************************
  *                                                          *
@@ -105,7 +104,6 @@ void RootMoveList(int wtm)
  *                                                          *
  ************************************************************
  */
-
         if ((Piece(*mvp) == Piece(last_pv.path[1])) &&
             (From(*mvp) == From(last_pv.path[1])) &&
             (To(*mvp) == To(last_pv.path[1])) &&
@@ -159,8 +157,8 @@ void RootMoveList(int wtm)
  *                                                          *
  ************************************************************
  */
-  for (; shared->n_root_moves; shared->n_root_moves--)
-    if (sort_value[shared->n_root_moves - 1] > -3000000)
+  for (; n_root_moves; n_root_moves--)
+    if (sort_value[n_root_moves - 1] > -3000000)
       break;
   if (sort_value[0] > 1000000)
     sort_value[0] -= 2000000;
@@ -168,7 +166,7 @@ void RootMoveList(int wtm)
       ((To(rmoves[0]) == To(last_opponent_move) &&
               Captured(rmoves[0]) == Piece(last_opponent_move)) ||
           sort_value[0] < PAWN_VALUE))
-    shared->easy_move = 1;
+    easy_move = 1;
 /*
  ************************************************************
  *                                                          *
@@ -177,10 +175,10 @@ void RootMoveList(int wtm)
  *                                                          *
  ************************************************************
  */
-  if (shared->display_options & 512) {
-    Print(512, "%d moves at root\n", shared->n_root_moves);
+  if (display_options & 512) {
+    Print(512, "%d moves at root\n", n_root_moves);
     Print(512, "        move   score\n");
-    for (i = 0; i < shared->n_root_moves; i++) {
+    for (i = 0; i < n_root_moves; i++) {
       tree->curmv[1] = rmoves[i];
       Print(512, "%12s", OutputMove(tree, rmoves[i], 1, wtm));
       Print(512, "%8d\n", sort_value[i]);
@@ -196,7 +194,7 @@ void RootMoveList(int wtm)
  */
 #if !defined(NOEGTB)
   if (mating_via_tb) {
-    for (i = 0; i < shared->n_root_moves; i++) {
+    for (i = 0; i < n_root_moves; i++) {
       tree->curmv[1] = rmoves[i];
       MakeMove(tree, 1, rmoves[i], wtm);
       if (mating_via_tb && TotalAllPieces <= EGTBlimit &&
@@ -209,7 +207,7 @@ void RootMoveList(int wtm)
       if (temp)
         break;
     }
-    EGTB_search = (i == shared->n_root_moves);
+    EGTB_search = (i == n_root_moves);
   } else
     EGTB_search = 0;
 #endif
@@ -221,11 +219,11 @@ void RootMoveList(int wtm)
  *                                                          *
  ************************************************************
  */
-  for (i = 0; i < shared->n_root_moves; i++) {
-    shared->root_moves[i].move = rmoves[i];
-    shared->root_moves[i].nodes = 0;
-    shared->root_moves[i].status = 128;
+  for (i = 0; i < n_root_moves; i++) {
+    root_moves[i].move = rmoves[i];
+    root_moves[i].nodes = 0;
+    root_moves[i].status = 128;
   }
-  shared->root_moves[0].status = 0;
+  root_moves[0].status = 0;
   return;
 }

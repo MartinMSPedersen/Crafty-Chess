@@ -1,6 +1,5 @@
 #ifndef TBDECODE
 #  define	TBDECODE
-
 #  include <stdio.h>
 #  include <stdlib.h>
 #  include <string.h>
@@ -8,10 +7,8 @@
 #  ifndef CLOCKS_PER_SEC
 #    define CLOCKS_PER_SEC CLK_TCK
 #  endif
-
 /* ---------------------------- Error codes --------------------------- */
 /*                              -----------                             */
-
 #  define COMP_ERR_NONE     0   /* everything is OK                     */
 #  define COMP_ERR_READ     2   /* input file read error                */
 #  define COMP_ERR_NOMEM    5   /* no enough memory                     */
@@ -19,7 +16,6 @@
 #  define COMP_ERR_PARAM    7   /* incorrect function parameter         */
 #  define COMP_ERR_INTERNAL 9   /* everything else is internal error    */
                                 /* hopefully it should never happen     */
-
 /* Almost all  functions listed further return one as  its result on of */
 /* codes given  above: if no  error occured then COMP_ERR_NONE (i.e. 0) */
 /* is returned, otherwise functions return  error  code  plus number of */
@@ -29,7 +25,6 @@
 /*                                                                      */
 /* Thus, "(code &  0xff)"  gives proper error code,  and  "(code >> 8)" */
 /* gives number of line where the error was raised.                     */
-
 /* -------------------------------------------------------------------- */
 /*                                                                      */
 /*                Compress/decompress some chess tables                 */
@@ -48,14 +43,11 @@
 /* without written permission from the author.                          */
 /*                                                                      */
 /* -------------------------------------------------------------------- */
-
 /* ---------------------------- Debugging ----------------------------- */
 /*                              ---------                               */
-
 #  ifndef DEBUG
 #    define DEBUG	0
 #  endif
-
 #  if DEBUG
 #    define assert(cond) ((cond) ? (void) 0 : _local_assert (__LINE__))
 static void _local_assert(int lineno)
@@ -73,7 +65,6 @@ static void _local_assert(int lineno)
 #    define debug(x)     ((void) 0)
 #    define dprintf(x)   ((void) 0)
 #  endif
-
 /* mob_pach */
 #  ifndef  __cplusplus
 int cbEGTBCompBytes = 0;
@@ -82,11 +73,11 @@ extern "C" {
   int cbEGTBCompBytes = 0;
 }
 #  endif
-/* --------------------- Constants, types, etc. ----------------------- *//*                       ----------------------                         */
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              /* --------------------- Constants, types, etc. ----------------------- *//*                       ----------------------                         */
 #  define MIN_BLOCK_BITS	8
 /* LOG2 (min size of block to compress) */
 #  define MAX_BLOCK_BITS	16
-/* LOG2 (max size of block to compress) *//* max. integer we can take LOG2 by table       */
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              /* LOG2 (max size of block to compress) *//* max. integer we can take LOG2 by table       */
 #  define MAX_BITS_HALF	((MAX_BLOCK_BITS + 1) >> 1)
 #  define MAX_BITS	(MAX_BITS_HALF * 2)
 /* assume that integer is at least 32 bits wide */
@@ -132,15 +123,11 @@ extern "C" {
     "Compressed by DATACOMP v 1.0 (c) 1991--1998 Andrew Kadatch\r\n\0";
 
 #  define RET(n) ((n) + __LINE__ * 256)
-
 /* ------------------------- CRC32 routines --------------------------- */
 /*                           --------------                             */
-
 #  if USE_CRC32
-
 static unsigned CRC32_table[256];
 static int CRC32_initialized = 0;
-
 static void CRC32_init(void)
 {
   int i, j;
@@ -158,13 +145,11 @@ static void CRC32_init(void)
         k >>= 1;
         k ^= m;
       };
-    }
-    while (--j);
+    } while (--j);
     CRC32_table[i] = k;
   }
   CRC32_initialized = 1;
 }
-
 static unsigned CRC32(uchar * p, int n, unsigned k)
 {
   unsigned *table = CRC32_table;
@@ -195,11 +180,8 @@ static unsigned CRC32(uchar * p, int n, unsigned k)
     k = table[((uchar) k) ^ *p++] ^ (k >> 8);
   return (k);
 }
-
 #  else
-
 #    define CRC32_init()
-
 static unsigned CRC32(uchar * p, int n, unsigned k1)
 {
   unsigned k0 = k1 & 0xffff;
@@ -240,17 +222,13 @@ static unsigned CRC32(uchar * p, int n, unsigned k1)
   assert(((k0 | k1) >> 16) == 0);
   return (k0 + (k1 << 16));
 }
-
 #  endif                        /* USE_CRC32    */
-
 /* ------------------------ Bit IO interface -------------------------- */
 /*                          ----------------                            */
-
 #  define BITIO_LOCALS	\
   uint   _mask;         \
   int    _bits;         \
   uchar *_ptr
-
 typedef struct {
   BITIO_LOCALS;
 } bitio_t;
@@ -260,13 +238,11 @@ typedef struct {
   _bits = (p)._bits;            \
   _ptr  = (p)._ptr;             \
 } while (0)
-
 #  define BITIO_LEAVE(p) do {     \
   (p)._mask = _mask;            \
   (p)._bits = _bits;            \
   (p)._ptr  = _ptr;             \
 } while (0)
-
 #  define BIORD_START(from) do {		\
   _ptr = (uchar *) (from);              \
   _bits = sizeof (_mask);               \
@@ -276,11 +252,9 @@ typedef struct {
   while (--_bits != 0);                 \
   _bits = 16;                           \
 } while (0)
-
 /* read [1, 17] bits at once */
 #  define BIORD(bits)      \
   (_mask >> (8 * sizeof (_mask) - (bits)))
-
 #  define BIORD_MORE(bits) do {		\
   _mask <<= (bits);			\
   if ((_bits -= (bits)) <= 0)           \
@@ -289,10 +263,8 @@ typedef struct {
     _ptr += 2; _bits += 16;		\
   }					\
 } while (0)
-
 /* ------------------------ Huffman coding ---------------------------- */
 /*                          --------------                              */
-
 #  if MAX_ALPHABET <= 0xffff
 #    if MAX_ALPHABET <= 1024
 /* positive value takes 15 bits => symbol number occupies <= 10 bits    */
@@ -303,7 +275,6 @@ typedef struct {
 #  else
 #    define huffman_decode_t	int
 #  endif
-
 #  define HUFFMAN_DECODE(ch,table,start_bits) do {	\
   (ch) = table[BIORD (start_bits)];                     \
   if (((int) (ch)) >= 0)                                \
@@ -320,10 +291,8 @@ typedef struct {
   }                                                     \
   while (((int) (ch)) < 0);                             \
 } while (0)
-
 #  define HUFFMAN_TABLE_SIZE(n,start_bits) \
   ((1 << (start_bits)) + ((n) << 1))
-
 static int huffman_decode_create(huffman_decode_t * table, uchar * length,
     int n, int start_bits)
 {
@@ -336,7 +305,6 @@ static int huffman_decode_create(huffman_decode_t * table, uchar * length,
       return RET(COMP_ERR_BROKEN);
     ++freq[k];
   }
-
 /* handle special case(s) -- 0 and 1 symbols in alphabet              */
   if (freq[0] == n) {
     memset(table, 0, sizeof(table[0]) << start_bits);
@@ -352,10 +320,8 @@ static int huffman_decode_create(huffman_decode_t * table, uchar * length,
       *table++ = (huffman_decode_t) i;
     return (0);
   }
-
 /* save frequences                    */
   memcpy(sum, freq, sizeof(sum));
-
 /* check code correctness             */
   k = 0;
   for (i = 32; --i != 0;) {
@@ -365,7 +331,6 @@ static int huffman_decode_create(huffman_decode_t * table, uchar * length,
   }
   if (k != 1)
     return RET(COMP_ERR_BROKEN);
-
 /* sort symbols               */
   k = 0;
   for (i = 1; i < 32; ++i)
@@ -375,7 +340,6 @@ static int huffman_decode_create(huffman_decode_t * table, uchar * length,
     if ((k = length[i]) != 0)
       table[--freq[k]] = (huffman_decode_t) i;
   }
-
 /* now create decoding table  */
   k = i = (1 << start_bits) + (n << 1);
   for (n = 32; --n > start_bits;) {
@@ -386,12 +350,10 @@ static int huffman_decode_create(huffman_decode_t * table, uchar * length,
       table[--i] = table[--last];
     k = j;
   }
-
   j = i;
   i = 1 << start_bits;
   while (k > j)
     table[--i] = (huffman_decode_t) - (k -= 2);
-
   for (; n > 0; --n) {
     for (k = sum[n]; --k >= 0;) {
       assert(last <= i && last > 0);
@@ -404,21 +366,16 @@ static int huffman_decode_create(huffman_decode_t * table, uchar * length,
     }
   }
   assert((i | last) == 0);
-
   return (0);
 }
 
 /* -------------------- Read/write Huffman code ----------------------- */
 /*                      -----------------------                         */
-
 #  define MIN_REPT	2
-
 #  if MIN_REPT <= 1
 #    error MIN_REPT must exceed 1
 #  endif
-
 #  define TEMP_TABLE_BITS 8
-
 static int huffman_read_length(bitio_t * bitio, uchar * length, int n)
 {
   BITIO_LOCALS;
@@ -433,7 +390,6 @@ static int huffman_read_length(bitio_t * bitio, uchar * length, int n)
     memset(length, 0, n);
     goto ret;
   }
-
   if (n <= 128) {
     k = BIORD(5);
     BIORD_MORE(5);
@@ -451,7 +407,6 @@ static int huffman_read_length(bitio_t * bitio, uchar * length, int n)
     }
     goto ret;
   }
-
   BITIO_LEAVE(*bitio);
   i = huffman_read_length(bitio, bits, 128);
   if (i != 0)
@@ -463,7 +418,6 @@ static int huffman_read_length(bitio_t * bitio, uchar * length, int n)
   if (i != 0)
     return (i);
   BITIO_ENTER(*bitio);
-
   for (i = 0; i < n;) {
     HUFFMAN_DECODE(k, table[0], TEMP_TABLE_BITS);
     if (k <= 31) {
@@ -493,7 +447,6 @@ static int huffman_read_length(bitio_t * bitio, uchar * length, int n)
       length[i] = (uchar) k;
     while (++i != j);
   }
-
 ret:
   BITIO_LEAVE(*bitio);
   return (0);
@@ -501,18 +454,13 @@ ret:
 
 /* ----------------------- Proper compression ------------------------- */
 /*                         ------------------                           */
-
 #  if MIN_BLOCK_BITS > MAX_BLOCK_BITS || MAX_BLOCK_BITS > MAX_BITS_HALF*2
 #    error condition MIN_BLOCK_BITS <= MAX_BLOCK_BITS <= MAX_BITS_HALF*2 failed
 #  endif
-
 #  define DECODE_MAGIC    ((int) 0x5abc947fL)
 #  define BLOCK_MAGIC     ((int) 0x79a3f29dL)
-
 #  define START_BITS      13
-
 #  define SHORT_INDEX     8u
-
 typedef struct {
   huffman_decode_t table[HUFFMAN_TABLE_SIZE(ALPHABET_SIZE, START_BITS)];
   int distance[MAX_DISTANCES];
@@ -527,7 +475,6 @@ typedef struct {
   uchar *comp;
   int magic;
 } decode_info;
-
 typedef struct {
   unsigned char *ptr;           /* pointer to the first decoded byte */
   int decoded;                  /* number of bytes decoded so far    */
@@ -536,7 +483,6 @@ typedef struct {
 } COMP_BLOCK_T;
 
 /* Pointer to compressed data block                                     */
-
 typedef struct {
   COMP_BLOCK_T b;
   struct {
@@ -551,7 +497,6 @@ typedef struct {
   int n;
   int magic;
 } decode_block;
-
 static int calculate_offset(decode_info * info, unsigned n)
 {
   unsigned i;
@@ -562,7 +507,6 @@ static int calculate_offset(decode_info * info, unsigned n)
   else
     return info->blk_u[i] + info->blk_s[n];
 }
-
 static void do_decode(decode_info * info, decode_block * block, uchar * e)
 {
   BITIO_LOCALS;
@@ -590,9 +534,7 @@ static void do_decode(decode_info * info, decode_block * block, uchar * e)
       *p++ = (uchar) ch;
       OVER;
     }
-
     s = p + info->distance[ch >> MAX_LENGTH_BITS];
-
     ch &= MAX_LENGTH - 1;
     if (ch <= 3) {
       p[0] = s[0];
@@ -652,8 +594,7 @@ static void do_decode(decode_info * info, decode_block * block, uchar * e)
 #  undef X
         p += 16;
         s += 16;
-      }
-      while ((ch -= 16) > 16);
+      } while ((ch -= 16) > 16);
     }
     p += ch;
     s += ch;
@@ -677,8 +618,7 @@ static void do_decode(decode_info * info, decode_block * block, uchar * e)
 #  undef X
     }
     p[-1] = s[-1];
-  }
-  while (p < e);
+  } while (p < e);
 #  undef OVER
   block->emit.ptr = p;
   block->emit.src = s;
@@ -699,21 +639,15 @@ static int comp_open_file(decode_info ** res, FILE * fd, int check_crc)
 
   if (res == 0)
     return RET(COMP_ERR_PARAM);
-
   CRC32_init();
-
   *res = 0;
-
   if (fread(temp, 1, HEADER_SIZE, fd) != HEADER_SIZE)
     return RET(COMP_ERR_READ);
-
   if (memcmp(temp, header_title, 64) != 0)
     return RET(COMP_ERR_READ);
-
   ptr = temp;
 #  define R4(i) \
   ((ptr[i] << 24) + (ptr[(i) + 1] << 16) + (ptr[(i) + 2] << 8) + (ptr[(i) + 3]))
-
   header_size = R4(64);
   block_size_log = ptr[70];
   if (block_size_log > MAX_BITS || header_size < 84)
@@ -726,10 +660,8 @@ static int comp_open_file(decode_info ** res, FILE * fd, int check_crc)
       (ALPHABET_SIZE << 12) + (LONG_BITS << 8) + (LONG_LENGTH << 4) +
       MAX_LENGTH_BITS)
     return RET(COMP_ERR_BROKEN);
-
   if ((ptr = (uchar *) malloc(header_size)) == 0)
     return RET(COMP_ERR_NOMEM);
-
   if (fread(ptr + HEADER_SIZE, 1, header_size - HEADER_SIZE,
           fd) != (size_t) (header_size - HEADER_SIZE)) {
     free(ptr);
@@ -742,7 +674,6 @@ static int comp_open_file(decode_info ** res, FILE * fd, int check_crc)
     return RET(COMP_ERR_BROKEN);
   }
   header_size += 4;
-
 /*
    blk = (unsigned *) malloc (sizeof (unsigned) * (1 + n_blk));
  */
@@ -750,7 +681,6 @@ static int comp_open_file(decode_info ** res, FILE * fd, int check_crc)
   if (n < 4 * 1024 * 1024)
     n = 4 * 1024 * 1024;
   blk = (unsigned *) malloc(n);
-
   if (blk == 0) {
     free(ptr);
     return RET(COMP_ERR_NOMEM);
@@ -771,12 +701,10 @@ static int comp_open_file(decode_info ** res, FILE * fd, int check_crc)
     blk_u = info->blk_u = info->crc;
   blk_s = info->blk_s =
       (unsigned short *) (blk_u + 2 + n_blk / (2 * SHORT_INDEX));
-
   info->check_crc = check_crc;
   info->block_size_log = block_size_log;
   info->block_size = block_size;
   info->n_blk = n_blk;
-
   if (check_crc) {
     n_blk <<= 1;
     i = HEADER_SIZE;
@@ -786,10 +714,8 @@ static int comp_open_file(decode_info ** res, FILE * fd, int check_crc)
     }
     n_blk >>= 1;
   }
-
   i = HEADER_SIZE + (n_blk << 3);
   BIORD_START(ptr + i);
-
   info->comp_block_size = 0;
   for (n = 0; n <= n_blk; ++n) {
     if ((blk[n] = BIORD(block_size_log)) == 0)
@@ -799,12 +725,10 @@ static int comp_open_file(decode_info ** res, FILE * fd, int check_crc)
     BIORD_MORE(block_size_log);
   }
   info->comp_block_size += 32;
-
   for (n = 0; n < MAX_DISTANCES; ++n) {
     info->distance[n] = -((int) BIORD(block_size_log));
     BIORD_MORE(block_size_log);
   }
-
   i += ((n_blk + 1 + MAX_DISTANCES) * block_size_log + 7) >> 3;
   BIORD_START(ptr + i);
   BITIO_LEAVE(Bitio);
@@ -814,14 +738,12 @@ static int comp_open_file(decode_info ** res, FILE * fd, int check_crc)
     free(ptr);
     return RET(COMP_ERR_BROKEN);
   }
-
   if (huffman_decode_create(info->table, temp, ALPHABET_SIZE, START_BITS) != 0) {
     free(blk);
     free(info);
     free(ptr);
     return RET(COMP_ERR_BROKEN);
   }
-
   info->last_block_size = blk[n_blk];
   blk[n_blk] = 0;
   for (n = 0; n <= n_blk; ++n) {
@@ -832,7 +754,6 @@ static int comp_open_file(decode_info ** res, FILE * fd, int check_crc)
       blk_u[n / (2 * SHORT_INDEX)] = blk[n];
   }
   blk_u[n_blk / (2 * SHORT_INDEX) + 1] = blk[n_blk];
-
   for (n = 0; n <= n_blk; ++n) {
     i = n / (2 * SHORT_INDEX);
     if (n & SHORT_INDEX)
@@ -840,23 +761,19 @@ static int comp_open_file(decode_info ** res, FILE * fd, int check_crc)
     else
       blk_s[n] = blk[n] - blk_u[i];
   }
-
   free(blk);
   free(ptr);
   info->comp = 0;
   info->magic = DECODE_MAGIC;
   *res = info;
-
   return (COMP_ERR_NONE);
 }
-
 static int comp_tell_blocks(decode_info * info)
 {
   if (info == 0 || info->magic != DECODE_MAGIC)
     return (-1);
   return (info->n_blk);
 }
-
 static int comp_init_block(decode_block * block, int block_size, uchar * orig)
 {
   if (block == 0)
@@ -871,7 +788,6 @@ static int comp_init_block(decode_block * block, int block_size, uchar * orig)
   block->magic = BLOCK_MAGIC;
   return (COMP_ERR_NONE);
 }
-
 static int comp_alloc_block(decode_block ** ret_block, int block_size)
 {
   decode_block *block;
@@ -890,7 +806,6 @@ static int comp_alloc_block(decode_block ** ret_block, int block_size)
 
 #  define RETURN(n) \
   return ((n) == COMP_ERR_NONE ? COMP_ERR_NONE : RET (n));
-
 static int comp_read_block(decode_block * block, decode_info * info, FILE * fd,
     int n)
 {
@@ -930,10 +845,8 @@ static int comp_read_block(decode_block * block, decode_info * info, FILE * fd,
   block->b.number = n;
   block->b.ptr = orig;
   block->b.total = orig_size;
-
   RETURN(COMP_ERR_NONE);
 }
-
 static int comp_decode_and_check_crc(decode_block * block, decode_info * info,
     int n, int check_crc)
 {
@@ -956,18 +869,14 @@ static int comp_decode_and_check_crc(decode_block * block, decode_info * info,
   if (check_crc && info->check_crc &&
       info->crc[block->n << 1] != CRC32(block->orig.first, block->orig.size, 0))
     RETURN(COMP_ERR_BROKEN);
-
   RETURN(COMP_ERR_NONE);
 }
 
 #  if !defined (COLOR_DECLARED)
-
 /*
    Test driver
  */
-
 #    define	CRC_CHECK	1
-
 int main(int argc, char *argv[])
 {
   int i;
@@ -1003,7 +912,6 @@ int main(int argc, char *argv[])
     printf("Unable to allocate block: %d\n", result);
     exit(1);
   }
-
   size = 0;
   tStart = clock();
   for (i = 0; i < comp_info->n_blk; i++) {
@@ -1031,6 +939,5 @@ int main(int argc, char *argv[])
       size / (1024 * 1024) / dSeconds);
   return 0;
 }
-
 #  endif
 #endif

@@ -15,7 +15,6 @@ asm("        xorl    %0, %0" "\n\t" "        testl   %2, %2" "\n\t" "        jz 
 :    "cc");
   return (dummy1);
 }
-
 int static __inline__ MSB(BITBOARD word)
 {
   int dummy1, dummy2, dummy3;
@@ -27,7 +26,6 @@ asm("        bsr     %1, %0" "\n\t" "        jnz     1f" "\n\t" "        bsr    
 :    "cc");
   return (dummy1);
 }
-
 int static __inline__ LSB(BITBOARD word)
 {
   int dummy1, dummy2, dummy3;

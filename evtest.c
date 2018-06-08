@@ -1,6 +1,5 @@
 #include "chess.h"
 #include "data.h"
-
 /* last modified 08/07/05 */
 /*
  *******************************************************************************
@@ -27,7 +26,8 @@ void EVTest(char *filename)
 {
   FILE *test_input;
   char *eof;
-  TREE *const tree = shared->local[0];
+  char buff[4096];
+  TREE *const tree = block[0];
 
 /*
  ************************************************************
@@ -43,7 +43,7 @@ void EVTest(char *filename)
     return;
   }
   while (1) {
-    eof = fgets(buffer, 512, test_input);
+    eof = fgets(buffer, 4096, test_input);
     if (eof) {
       char *delim;
 
@@ -55,12 +55,12 @@ void EVTest(char *filename)
         *delim = ' ';
     } else
       break;
+    strcpy(buff, buffer);
     nargs = ReadParse(buffer, args, " ;");
     if (!strcmp(args[0], "end"))
       break;
     else {
       int s1, s2, s3, s4, id;
-      char buff[256];
 
       for (id = 2; id < nargs; id++)
         if (!strcmp(args[id], "id"))
@@ -68,37 +68,29 @@ void EVTest(char *filename)
       if (id >= nargs)
         id = 0;
       SetBoard(tree, nargs, args, 0);
-      strcpy(buff, args[0]);
-
       Castle(0, white) = 0;
       Castle(1, white) = 0;
       Castle(0, black) = 0;
       Castle(1, black) = 0;
-      shared->root_wtm = wtm;
-
+      root_wtm = wtm;
       PreEvaluate(tree);
       tree->pawn_score.key = 0;
       s1 = Evaluate(tree, 0, wtm, -99999, 99999);
-      printf("score=%d\n", s1);
-
       strcpy(buffer, "flop");
       (void) Option(tree);
       PreEvaluate(tree);
       tree->pawn_score.key = 0;
       s2 = Evaluate(tree, 0, wtm, -99999, 99999);
-
       strcpy(buffer, "flip");
       (void) Option(tree);
       PreEvaluate(tree);
       tree->pawn_score.key = 0;
       s3 = Evaluate(tree, 0, wtm, -99999, 99999);
-
       strcpy(buffer, "flop");
       (void) Option(tree);
       PreEvaluate(tree);
       tree->pawn_score.key = 0;
       s4 = Evaluate(tree, 0, wtm, -99999, 99999);
-
       if (s1 != s2 || s1 != s3 || s1 != s4 || s2 != s3 || s2 != s4 || s3 != s4) {
         strcpy(buffer, "flip");
         (void) Option(tree);

@@ -1,6 +1,5 @@
 #include "chess.h"
 #include "data.h"
-
 /* last modified 06/26/99 */
 /*
  *******************************************************************************
@@ -17,7 +16,6 @@
  */
 BITBOARD AttacksTo(TREE * RESTRICT tree, int square)
 {
-
   return ((pawn_attacks[white][square] & Pawns(black)) |
       (pawn_attacks[black][square]
           & Pawns(white)) | (knight_attacks[square] & (Knights(black) |
@@ -39,7 +37,6 @@ BITBOARD AttacksTo(TREE * RESTRICT tree, int square)
  *                                                                             *
  *******************************************************************************
  */
-
 int Attacked(TREE * RESTRICT tree, int square, int wtm)
 {
   if (pawn_attacks[Flip(wtm)][square] & Pawns(wtm))

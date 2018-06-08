@@ -1,6 +1,5 @@
 #include "chess.h"
 #include "data.h"
-
 /* last modified 08/07/05 */
 /*
  *******************************************************************************
@@ -37,7 +36,7 @@ void Test(char *filename)
   BITBOARD nodes = 0;
   char *eof, *delim;
   float avg_depth = 0.0;
-  TREE *const tree = shared->local[0];
+  TREE *const tree = block[0];
 
 /*
  ************************************************************
@@ -54,14 +53,13 @@ void Test(char *filename)
     return;
   }
   Print(4095, "\n");
-  eof = fgets(buffer, 512, test_input);
+  eof = fgets(buffer, 4096, test_input);
   if (strstr(buffer, "title"));
   else {
     fclose(test_input);
     TestEPD(filename);
     return;
   }
-
   if (book_file) {
     fclose(book_file);
     book_file = 0;
@@ -130,13 +128,13 @@ void Test(char *filename)
       Print(4095, "\n");
       InitializeHashTables();
       last_pv.pathd = 0;
-      shared->thinking = 1;
+      thinking = 1;
       tree->position[1] = tree->position[0];
       (void) Iterate(wtm, think, 0);
-      shared->thinking = 0;
+      thinking = 0;
       nodes += tree->nodes_searched;
-      avg_depth += (float) shared->iteration_depth;
-      time += (shared->end_time - shared->start_time);
+      avg_depth += (float) iteration_depth;
+      time += (end_time - start_time);
       correct = solution_type;
       for (i = 0; i < number_of_solutions; i++) {
         if (!solution_type) {
@@ -155,7 +153,7 @@ void Test(char *filename)
             right, right + wrong);
       }
     }
-    eof = fgets(buffer, 512, test_input);
+    eof = fgets(buffer, 4096, test_input);
   }
 /*
  ************************************************************
@@ -216,7 +214,7 @@ void TestEPD(char *filename)
   BITBOARD nodes = 0;
   char *eof, *mvs, *title;
   float avg_depth = 0.0;
-  TREE *const tree = shared->local[0];
+  TREE *const tree = block[0];
 
 /*
  ************************************************************
@@ -241,7 +239,7 @@ void TestEPD(char *filename)
     books_file = 0;
   }
   while (1) {
-    eof = fgets(buffer, 512, test_input);
+    eof = fgets(buffer, 4096, test_input);
     if (eof) {
       char *delim;
 
@@ -309,13 +307,13 @@ void TestEPD(char *filename)
     Print(4095, "\n");
     InitializeHashTables();
     last_pv.pathd = 0;
-    shared->thinking = 1;
+    thinking = 1;
     tree->position[1] = tree->position[0];
     (void) Iterate(wtm, think, 0);
-    shared->thinking = 0;
+    thinking = 0;
     nodes += tree->nodes_searched;
-    avg_depth += (float) shared->iteration_depth;
-    time += (shared->end_time - shared->start_time);
+    avg_depth += (float) iteration_depth;
+    time += (end_time - start_time);
     correct = solution_type;
     for (i = 0; i < number_of_solutions; i++) {
       if (!solution_type) {

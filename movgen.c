@@ -1,6 +1,5 @@
 #include "chess.h"
 #include "data.h"
-
 /* modified 02/19/08 */
 /*
  *******************************************************************************
@@ -152,6 +151,333 @@ int *GenerateCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
     else
       *move++ = common | (Abs(PcOnSq(to)) << 15) | (queen << 18);
     Clear(to, pcapturesr);
+  }
+  return (move);
+}
+
+/* modified 11/04/08 */
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   GenerateChecks() is used to generate non-capture moves from the current   *
+ *   position.                                                                 *
+ *                                                                             *
+ *   The first pass produces a bitmap that contains the squares a particular   *
+ *   piece type would attack if sitting on the square the enemy king sits on.  *
+ *   We then use each of these squares as a source and check to see if the     *
+ *   same piece type attacks one of these common targets.  If so, we can move  *
+ *   that piece to that square and it will directly attack the king.  We do    *
+ *   this for pawns, knights, bishops, rooks and queens to produce the set of  *
+ *   "direct checking moves."                                                  *
+ *                                                                             *
+ *   Then we generate discovered checks in two passes, once for diagonal       *
+ *   attacks and once for rank/file attacks (we do it in two passes since a    *
+ *   rook can't produce a discovered check along a rank or file since it moves *
+ *   in that direction as well.  For diagonals, we first generate the bishop   *
+ *   attacks from the enemy king square and mask them with the friendly piece  *
+ *   occupied squares bitmap.  This gives us a set of up to 4 "blocking        *
+ *   pieces" that could be preventing a check.  We then remove them via the    *
+ *   "magic move generation" tricks, and see if we now reach friendly bishops  *
+ *   or queens on those diagonals.  If we have a friendly blocker, and a       *
+ *   friendly diagonal mover behind that blocker, then moving the blocker is   *
+ *   a discovered check (and there could be double-checks included but we do   *
+ *   not check for that since a single check is good enough).  We repeat this  *
+ *   for the ranks/files and we are done.                                      *
+ *                                                                             *
+ *   For the present, this code does not produce discovered checks by the      *
+ *   king since all king moves are not discovered checks because the king can  *
+ *   move in the same direction as the piece it blocks and not uncover the     *
+ *   attack.  This might be fixed at some point, but it is rare enough to not  *
+ *   be an issue except in far endgames.                                       *
+ *                                                                             *
+ *******************************************************************************
+ */
+int *GenerateChecks(TREE * RESTRICT tree, int ply, int wtm, int *move)
+{
+  register BITBOARD temp_target, target, piecebd, moves;
+  register BITBOARD padvances1, blockers, checkers;
+  register int from, to, promote, temp, btm = Flip(wtm);
+
+/*
+ *********************************************************************
+ *                                                                   *
+ *  First pass:  produce direct checks.  for each piece type, we     *
+ *  pretent that a piece of that type stands on the square of the    *
+ *  king and we generate attacks from that square for that piece.    *
+ *  now, if we can find any piece of that type that attacks one of   *
+ *  those squares, then that piece move would deliver a direct       *
+ *  check to the enemy king.  easy, wasn't it?                       *
+ *                                                                   *
+ *********************************************************************
+ */
+  target = ~OccupiedSquares;
+/*
+ ************************************************************
+ *                                                          *
+ *  knight direct checks.                                   *
+ *                                                          *
+ ************************************************************
+ */
+  temp_target = target & knight_attacks[KingSQ(btm)];
+  piecebd = Knights(wtm);
+  while (piecebd) {
+    from = Advanced(wtm, piecebd);
+    moves = knight_attacks[from] & temp_target;
+    temp = from + (knight << 12);
+    Unpack(wtm, move, moves, temp);
+    Clear(from, piecebd);
+  }
+/*
+ ************************************************************
+ *                                                          *
+ *  bishop direct checks.                                   *
+ *                                                          *
+ ************************************************************
+ */
+  temp_target = target & AttacksBishop(KingSQ(btm), OccupiedSquares);
+  piecebd = Bishops(wtm);
+  while (piecebd) {
+    from = Advanced(wtm, piecebd);
+    moves = AttacksBishop(from, OccupiedSquares) & temp_target;
+    temp = from + (bishop << 12);
+    Unpack(wtm, move, moves, temp);
+    Clear(from, piecebd);
+  }
+/*
+ ************************************************************
+ *                                                          *
+ *  rook direct checks.                                     *
+ *                                                          *
+ ************************************************************
+ */
+  temp_target = target & AttacksRook(KingSQ(btm), OccupiedSquares);
+  piecebd = Rooks(wtm);
+  while (piecebd) {
+    from = Advanced(wtm, piecebd);
+    moves = AttacksRook(from, OccupiedSquares) & temp_target;
+    temp = from + (rook << 12);
+    Unpack(wtm, move, moves, temp);
+    Clear(from, piecebd);
+  }
+/*
+ ************************************************************
+ *                                                          *
+ *  queen direct checks.                                    *
+ *                                                          *
+ ************************************************************
+ */
+  temp_target = target & AttacksQueen(KingSQ(btm), OccupiedSquares);
+  piecebd = Queens(wtm);
+  while (piecebd) {
+    from = Advanced(wtm, piecebd);
+    moves = AttacksQueen(from, OccupiedSquares) & temp_target;
+    temp = from + (queen << 12);
+    Unpack(wtm, move, moves, temp);
+    Clear(from, piecebd);
+  }
+/*
+ ************************************************************
+ *                                                          *
+ *   pawn direct checks.                                    *
+ *                                                          *
+ ************************************************************
+ */
+  temp_target = target & pawn_attacks[btm][KingSQ(btm)];
+  padvances1 = ((wtm) ? Pawns(wtm) << 8 : Pawns(wtm) >> 8) & temp_target;
+  while (padvances1) {
+    to = Advanced(wtm, padvances1);
+    *move++ = (to + pawnadv1[wtm]) | (to << 6) | (pawn << 12);
+    Clear(to, padvances1);
+  }
+/*
+ *********************************************************************
+ *                                                                   *
+ *  Second pass:  produce discovered checks.  here we do things a    *
+ *  bit different.  We first take diagonal movers.  From the enemy   *
+ *  king's position, we generate diagonal moves to see if any of     *
+ *  them end at one of our pieces that does not slide diagonally,    *
+ *  such as a rook, knight or pawn.  If we find one, we look on down *
+ *  that diagonal to see if we now find a diagonal mover (queen or   *
+ *  bishop).  If so, any legal move by this piece (except captures   *
+ *  which have already been generated) will be a discovered check    *
+ *  that needs to be searched.  We do the same for vertical /        *
+ *  horizontal rays that are blocked by pawns, bishops, knights or   *
+ *  kings that would hide a discovered check by a rook or queen.     *
+ *                                                                   *
+ *********************************************************************
+ */
+/*
+ ************************************************************
+ *                                                          *
+ *   first we look for diagonal discovered attacks.  once   *
+ *   we know which squares hold pieces that create a        *
+ *   discovered check when they move, we generate them      *
+ *   piece type by piece type.                              *
+ *                                                          *
+ ************************************************************
+ */
+  blockers =
+      AttacksBishop(KingSQ(btm),
+      OccupiedSquares) & (Rooks(wtm) | Knights(wtm) | Pawns(wtm));
+  if (blockers) {
+    checkers =
+        AttacksBishop(KingSQ(btm),
+        OccupiedSquares & ~blockers) & BishopsQueens & Occupied(wtm);
+    if (checkers) {
+      if ((plus7dir[KingSQ(btm)] & blockers) &&
+          !(plus7dir[KingSQ(btm)] & checkers))
+        blockers &= ~plus7dir[KingSQ(btm)];
+      if ((plus9dir[KingSQ(btm)] & blockers) &&
+          !(plus9dir[KingSQ(btm)] & checkers))
+        blockers &= ~plus9dir[KingSQ(btm)];
+      if ((minus7dir[KingSQ(btm)] & blockers) &&
+          !(minus7dir[KingSQ(btm)] & checkers))
+        blockers &= ~minus7dir[KingSQ(btm)];
+      if ((minus9dir[KingSQ(btm)] & blockers) &&
+          !(minus9dir[KingSQ(btm)] & checkers))
+        blockers &= ~minus9dir[KingSQ(btm)];
+/*
+ ************************************************************
+ *                                                          *
+ *   knight discovered checks.                              *
+ *                                                          *
+ ************************************************************
+ */
+      target = ~OccupiedSquares;
+      temp_target = target & ~knight_attacks[KingSQ(btm)];
+      piecebd = Knights(wtm) & blockers;
+      while (piecebd) {
+        from = Advanced(wtm, piecebd);
+        moves = knight_attacks[from] & temp_target;
+        temp = from + (knight << 12);
+        Unpack(wtm, move, moves, temp);
+        Clear(from, piecebd);
+      }
+/*
+ ************************************************************
+ *                                                          *
+ *   rook discovered checks.                                *
+ *                                                          *
+ ************************************************************
+ */
+      target = ~OccupiedSquares;
+      temp_target = target & ~AttacksRook(KingSQ(btm), OccupiedSquares);
+      piecebd = Rooks(wtm) & blockers;
+      while (piecebd) {
+        from = Advanced(wtm, piecebd);
+        moves = AttacksRook(from, OccupiedSquares) & temp_target;
+        temp = from + (rook << 12);
+        Unpack(wtm, move, moves, temp);
+        Clear(from, piecebd);
+      }
+/*
+ ************************************************************
+ *                                                          *
+ *   pawn discovered checks.                                *
+ *                                                          *
+ ************************************************************
+ */
+      piecebd =
+          Pawns(wtm) & blockers & ((wtm) ? ~OccupiedSquares >> 8 :
+          ~OccupiedSquares << 8);
+      while (piecebd) {
+        from = Advanced(wtm, piecebd);
+        to = from + pawnadv1[btm];
+        if ((wtm && to > 55) || (btm && to < 8))
+          promote = queen;
+        else
+          promote = 0;
+        *move++ = from | (to << 6) | (pawn << 12) | (promote << 18);
+        Clear(from, piecebd);
+      }
+    }
+  }
+/*
+ ************************************************************
+ *                                                          *
+ *   next, we look for rank/file discovered attacks.  once  *
+ *   we know which squares hold pieces that create a        *
+ *   discovered check when they move, we generate them      *
+ *   piece type by piece type.                              *
+ *                                                          *
+ ************************************************************
+ */
+  blockers =
+      AttacksRook(KingSQ(btm),
+      OccupiedSquares) & (Bishops(wtm) | Knights(wtm) | (Pawns(wtm) &
+          rank_mask[Rank(KingSQ(btm))]));
+  if (blockers) {
+    checkers =
+        AttacksRook(KingSQ(btm),
+        OccupiedSquares & ~blockers) & RooksQueens & Occupied(wtm);
+    if (checkers) {
+      if ((plus1dir[KingSQ(btm)] & blockers) &&
+          !(plus1dir[KingSQ(wtm)] & checkers))
+        checkers &= ~plus1dir[KingSQ(btm)];
+      if ((plus8dir[KingSQ(btm)] & blockers) &&
+          !(plus8dir[KingSQ(wtm)] & checkers))
+        checkers &= ~plus8dir[KingSQ(btm)];
+      if ((minus1dir[KingSQ(btm)] & blockers) &&
+          !(minus1dir[KingSQ(wtm)] & checkers))
+        checkers &= ~minus1dir[KingSQ(btm)];
+      if ((minus8dir[KingSQ(btm)] & blockers) &&
+          !(minus8dir[KingSQ(wtm)] & checkers))
+        checkers &= ~minus8dir[KingSQ(btm)];
+/*
+ ************************************************************
+ *                                                          *
+ *   knight discovered checks.                              *
+ *                                                          *
+ ************************************************************
+ */
+      target = ~OccupiedSquares;
+      temp_target = target & ~knight_attacks[KingSQ(btm)];
+      piecebd = Knights(wtm) & blockers;
+      while (piecebd) {
+        from = Advanced(wtm, piecebd);
+        moves = knight_attacks[from] & temp_target;
+        temp = from + (knight << 12);
+        Unpack(wtm, move, moves, temp);
+        Clear(from, piecebd);
+      }
+/*
+ ************************************************************
+ *                                                          *
+ *   rook discovered checks.                                *
+ *                                                          *
+ ************************************************************
+ */
+      target = ~OccupiedSquares;
+      temp_target = target & ~AttacksRook(KingSQ(btm), OccupiedSquares);
+      piecebd = Rooks(wtm) & blockers;
+      while (piecebd) {
+        from = Advanced(wtm, piecebd);
+        moves = AttacksRook(from, OccupiedSquares) & temp_target;
+        temp = from + (rook << 12);
+        Unpack(wtm, move, moves, temp);
+        Clear(from, piecebd);
+      }
+/*
+ ************************************************************
+ *                                                          *
+ *   pawn discovered checks.                                *
+ *                                                          *
+ ************************************************************
+ */
+      piecebd =
+          Pawns(wtm) & blockers & ((wtm) ? ~OccupiedSquares >> 8 :
+          ~OccupiedSquares << 8);
+      while (piecebd) {
+        from = Advanced(wtm, piecebd);
+        to = from + pawnadv1[btm];
+        if ((wtm && to > 55) || (btm && to < 8))
+          promote = queen;
+        else
+          promote = 0;
+        *move++ = from | (to << 6) | (pawn << 12) | (promote << 18);
+        Clear(from, piecebd);
+      }
+    }
   }
   return (move);
 }
@@ -555,7 +881,7 @@ int PinnedOnKing(TREE * RESTRICT tree, int wtm, int square)
 /*
  *******************************************************************************
  *                                                                             *
- *   GenerateNonCaptures() is used to generate non-capture moves from the      *
+ *   GenerateNoncaptures() is used to generate non-capture moves from the      *
  *   current position.                                                         *
  *                                                                             *
  *   once the valid destination squares are known, we have to locate a friendly*
@@ -574,7 +900,7 @@ int PinnedOnKing(TREE * RESTRICT tree, int wtm, int square)
  *                                                                             *
  *******************************************************************************
  */
-int *GenerateNonCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
+int *GenerateNoncaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
 {
   register BITBOARD target, piecebd, moves;
   register BITBOARD padvances1, padvances2, pcapturesl, pcapturesr;

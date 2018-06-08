@@ -4,8 +4,8 @@
 #if defined(UNIX) || defined(AMIGA)
 #  include <unistd.h>
 #  include <sys/types.h>
+#  include <pthread.h>
 #endif
-
 /* last modified 01/05/08 */
 /*
  *******************************************************************************
@@ -24,8 +24,11 @@ int Iterate(int wtm, int search_type, int root_list_done)
   register int correct, correct_count, material = 0, sorted;
   register unsigned int time_used;
   char *fh_indicator, *fl_indicator;
-  TREE *const tree = shared->local[0];
+  TREE *const tree = block[0];
 
+#if (CPUS > 1)
+  pthread_t pt;
+#endif
 /*
  ************************************************************
  *                                                          *
@@ -38,33 +41,33 @@ int Iterate(int wtm, int search_type, int root_list_done)
  ************************************************************
  */
   tree->curmv[0] = 0;
-  if (shared->average_nps == 0)
-    shared->average_nps = 150000 * shared->max_threads;
+  if (average_nps == 0)
+    average_nps = 150000 * max_threads;
   if (wtm) {
-    shared->draw_score[0] = -abs_draw_score;
-    shared->draw_score[1] = abs_draw_score;
+    draw_score[0] = -abs_draw_score;
+    draw_score[1] = abs_draw_score;
   } else {
-    shared->draw_score[0] = abs_draw_score;
-    shared->draw_score[1] = -abs_draw_score;
+    draw_score[0] = abs_draw_score;
+    draw_score[1] = -abs_draw_score;
   }
 #if defined(NODES)
   temp_search_nodes = search_nodes;
 #endif
-  shared->time_abort = 0;
-  shared->abort_search = 0;
+  time_abort = 0;
+  abort_search = 0;
   book_move = 0;
-  shared->program_start_time = ReadClock();
-  shared->start_time = ReadClock();
-  shared->elapsed_start = ReadClock();
-  shared->root_wtm = wtm;
+  program_start_time = ReadClock();
+  start_time = ReadClock();
+  elapsed_start = ReadClock();
+  root_wtm = wtm;
   PreEvaluate(tree);
-  shared->kibitz_depth = 0;
+  kibitz_depth = 0;
   tree->nodes_searched = 0;
   tree->fail_high = 0;
   tree->fail_high_first = 0;
-  shared->parallel_splits = 0;
-  shared->parallel_aborts = 0;
-  shared->max_split_blocks = 0;
+  parallel_splits = 0;
+  parallel_aborts = 0;
+  max_split_blocks = 0;
   TB_use_ok = 1;
   if (TotalPieces(white, pawn) && TotalPieces(black, pawn)) {
     wpawn = MSB(Pawns(white));
@@ -75,14 +78,14 @@ int Iterate(int wtm, int search_type, int root_list_done)
         TB_use_ok = 0;
     }
   }
-  if (shared->booking || !Book(tree, wtm, root_list_done))
+  if (booking || !Book(tree, wtm, root_list_done))
     do {
-      if (shared->abort_search)
+      if (abort_search)
         break;
       if (!root_list_done)
         RootMoveList(wtm);
 #if !defined(NOEGTB)
-      if (EGTB_draw && !shared->puzzling && swindle_mode)
+      if (EGTB_draw && !puzzling && swindle_mode)
         EGTB_use = 0;
       else
         EGTB_use = EGTBlimit;
@@ -90,21 +93,17 @@ int Iterate(int wtm, int search_type, int root_list_done)
         Print(128, "Drawn at root, trying for swindle.\n");
 #endif
       correct_count = 0;
-      shared->burp = 15 * 100;
-      shared->transposition_id = (shared->transposition_id + 1) & 7;
-      if (!shared->transposition_id)
-        shared->transposition_id++;
-      shared->next_time_check = shared->nodes_between_time_checks;
+      burp = 15 * 100;
+      transposition_id = (transposition_id + 1) & 7;
+      next_time_check = nodes_between_time_checks;
       tree->evaluations = 0;
       tree->egtb_probes = 0;
       tree->egtb_probes_successful = 0;
       tree->check_extensions_done = 0;
-      tree->mate_extensions_done = 0;
-      tree->one_reply_extensions_done = 0;
-      tree->passed_pawn_extensions_done = 0;
+      tree->qsearch_check_extensions_done = 0;
       tree->reductions_attempted = 0;
       tree->reductions_done = 0;
-      shared->root_wtm = wtm;
+      root_wtm = wtm;
 /*
  ************************************************************
  *                                                          *
@@ -114,21 +113,21 @@ int Iterate(int wtm, int search_type, int root_list_done)
  *                                                          *
  ************************************************************
  */
-      if (shared->n_root_moves == 0) {
-        shared->program_end_time = ReadClock();
+      if (n_root_moves == 0) {
+        program_end_time = ReadClock();
         tree->pv[0].pathl = 0;
         tree->pv[0].pathd = 0;
         if (Check(wtm)) {
-          shared->root_value = -(MATE - 1);
+          root_value = -(MATE - 1);
         } else {
-          shared->root_value = DrawScore(wtm);
+          root_value = DrawScore(wtm);
         }
         Print(6, "              depth   time  score   variation\n");
         Print(6, "                                    (no moves)\n");
         tree->nodes_searched = 1;
-        if (!shared->puzzling)
-          shared->last_root_value = shared->root_value;
-        return (shared->root_value);
+        if (!puzzling)
+          last_root_value = root_value;
+        return (root_value);
       }
 /*
  ************************************************************
@@ -149,13 +148,13 @@ int Iterate(int wtm, int search_type, int root_list_done)
  ************************************************************
  */
       TimeSet(search_type);
-      shared->iteration_depth = 1;
+      iteration_depth = 1;
       if (last_pv.pathd > 1)
-        shared->iteration_depth = last_pv.pathd + 1;
+        iteration_depth = last_pv.pathd + 1;
       Print(6, "              depth   time  score   variation (%d)\n",
-          shared->iteration_depth);
-      shared->time_abort = 0;
-      shared->abort_search = 0;
+          iteration_depth);
+      time_abort = 0;
+      abort_search = 0;
 /*
  ************************************************************
  *                                                          *
@@ -165,14 +164,14 @@ int Iterate(int wtm, int search_type, int root_list_done)
  ************************************************************
  */
       tree->pv[0] = last_pv;
-      if (shared->iteration_depth > 1) {
-        shared->root_alpha = last_value - 40;
-        shared->root_value = last_value - 40;
-        shared->root_beta = last_value + 40;
+      if (iteration_depth > 1) {
+        root_alpha = last_value - 40;
+        root_value = last_value - 40;
+        root_beta = last_value + 40;
       } else {
-        shared->root_alpha = -MATE - 1;
-        shared->root_value = -MATE - 1;
-        shared->root_beta = MATE + 1;
+        root_alpha = -MATE - 1;
+        root_value = -MATE - 1;
+        root_beta = MATE + 1;
       }
 /*
  ************************************************************
@@ -184,34 +183,29 @@ int Iterate(int wtm, int search_type, int root_list_done)
  ************************************************************
  */
 #if (CPUS > 1)
-      if (shared->max_threads > shared->smp_idle + 1) {
+      if (max_threads > smp_idle + 1) {
         long proc;
 
-        for (proc = shared->smp_threads + 1; proc < shared->max_threads; proc++) {
+        initialized_threads = 1;
+        for (proc = smp_threads + 1; proc < max_threads; proc++) {
           Print(128, "starting thread %d\n", proc);
-          shared->thread[proc] = 0;
+          thread[proc] = 0;
 #  if defined(_WIN32) || defined(_WIN64)
           NumaStartThread(ThreadInit, (void *) proc);
 #  else
-          if (fork() == 0) {
-            ThreadInit((void *) proc);
-            Lock(shared->lock_smp);
-            shared->smp_threads--;
-            Unlock(shared->lock_smp);
-            exit(0);
-          }
+          pthread_create(&pt, NULL, ThreadInit, (void *) proc);
 #  endif
-          Lock(shared->lock_smp);
-          shared->smp_threads++;
-          Unlock(shared->lock_smp);
+          Lock(lock_smp);
+          smp_threads++;
+          Unlock(lock_smp);
         }
       }
       WaitForAllThreadsInitialized();
 #endif
-      shared->root_print_ok = 0;
+      root_print_ok = 0;
       if (search_nodes)
-        shared->nodes_between_time_checks = search_nodes;
-      for (; shared->iteration_depth <= MAXPLY - 5; shared->iteration_depth++) {
+        nodes_between_time_checks = search_nodes;
+      for (; iteration_depth <= MAXPLY - 5; iteration_depth++) {
 /*
  ************************************************************
  *                                                          *
@@ -224,10 +218,11 @@ int Iterate(int wtm, int search_type, int root_list_done)
         for (i = 1; i <= (int) tree->pv[0].pathl; i++) {
           tree->pv[i] = tree->pv[i - 1];
           if (!VerifyMove(tree, i, twtm, tree->pv[i].path[i])) {
-            Print(4095, "ERROR, not installing bogus move at ply=%d\n", i);
+            Print(4095, "ERROR, not installing bogus pv info at ply=%d\n", i);
             Print(4095, "not installing from=%d  to=%d  piece=%d\n",
                 From(tree->pv[i].path[i]), To(tree->pv[i].path[i]),
                 Piece(tree->pv[i].path[i]));
+            Print(4095, "pathlen=%d\n", tree->pv[i].pathl);
             break;
           }
           HashStorePV(tree, i, twtm);
@@ -240,44 +235,38 @@ int Iterate(int wtm, int search_type, int root_list_done)
         }
         if (trace_level) {
           printf("==================================\n");
-          printf("=      search iteration %2d       =\n",
-              shared->iteration_depth);
+          printf("=      search iteration %2d       =\n", iteration_depth);
           printf("==================================\n");
         }
         if (tree->nodes_searched) {
-          shared->nodes_between_time_checks =
-              shared->nodes_per_second / Max(1, shared->max_threads);
-          shared->nodes_between_time_checks =
-              Max(shared->nodes_between_time_checks, 50000);
+          nodes_between_time_checks = nodes_per_second / Max(1, max_threads);
+          nodes_between_time_checks = Max(nodes_between_time_checks, 50000);
           if (!analyze_mode) {
-            if (shared->time_limit > 300);
-            else if (shared->time_limit > 100)
-              shared->nodes_between_time_checks /= 10;
-            else if (shared->time_limit > 50)
-              shared->nodes_between_time_checks /= 20;
+            if (time_limit > 300);
+            else if (time_limit > 100)
+              nodes_between_time_checks /= 10;
+            else if (time_limit > 50)
+              nodes_between_time_checks /= 20;
             else
-              shared->nodes_between_time_checks /= 100;
+              nodes_between_time_checks /= 100;
           } else
-            shared->nodes_between_time_checks =
-                Min(shared->nodes_per_second / Max(1, shared->max_threads),
-                50000);
+            nodes_between_time_checks =
+                Min(nodes_per_second / Max(1, max_threads), 50000);
         }
         if (search_nodes)
-          shared->nodes_between_time_checks =
-              search_nodes - tree->nodes_searched;
-        shared->nodes_between_time_checks =
-            Min(shared->nodes_between_time_checks, MAX_TC_NODES);
+          nodes_between_time_checks = search_nodes - tree->nodes_searched;
+        nodes_between_time_checks =
+            Min(nodes_between_time_checks, MAX_TC_NODES);
         while (1) {
-          shared->thread[0] = shared->local[0];
-          for (i = 0; i < shared->n_root_moves; i++)
-            if (!(shared->root_moves[i].status & 256))
+          thread[0] = block[0];
+          for (i = 0; i < n_root_moves; i++)
+            if (!(root_moves[i].status & 256))
               break;
-          shared->root_moves[i].status &= 4095 - 128;
+          root_moves[i].status &= 4095 - 128;
           value =
-              SearchRoot(tree, shared->root_alpha, shared->root_beta, wtm,
-              shared->iteration_depth * PLY + PLY / 2);
-          shared->root_print_ok = tree->nodes_searched > shared->noise_level;
-          if (shared->abort_search || shared->time_abort)
+              SearchRoot(tree, root_alpha, root_beta, wtm, iteration_depth);
+          root_print_ok = tree->nodes_searched > noise_level;
+          if (abort_search || time_abort)
             break;
 /*
  ************************************************************
@@ -289,117 +278,106 @@ int Iterate(int wtm, int search_type, int root_list_done)
  *                                                          *
  ************************************************************
  */
-          time_used = ReadClock() - shared->start_time;
-          if (time_used > (5 * shared->time_limit / 8) &&
-              time_used < shared->time_limit) {
-            shared->time_limit = 3 * time_used / 2;
-            if (shared->time_limit > shared->absolute_time_limit)
-              shared->time_limit = shared->absolute_time_limit;
+          time_used = ReadClock() - start_time;
+/*
+          if (time_used > (5 * time_limit / 8) &&
+              time_used < time_limit) {
+            time_limit = 3 * time_used / 2;
+            if (time_limit > absolute_time_limit)
+              time_limit = absolute_time_limit;
           }
-
-          if (value >= shared->root_beta) {
-            if (!(shared->root_moves[0].status & 8)) {
-              shared->root_moves[0].status |= 8;
-            } else if (!(shared->root_moves[0].status & 16)) {
-              shared->root_moves[0].status |= 16;
+*/
+          if (time_limit > absolute_time_limit)
+            time_limit = absolute_time_limit;
+          if (value >= root_beta) {
+            if (!(root_moves[0].status & 8)) {
+              root_moves[0].status |= 8;
+            } else if (!(root_moves[0].status & 16)) {
+              root_moves[0].status |= 16;
             } else {
-              shared->root_moves[0].status |= 32;
+              root_moves[0].status |= 32;
             }
-            shared->root_alpha =
-                SetRootAlpha(shared->root_moves[0].status, shared->root_alpha);
-            shared->root_value = shared->root_alpha;
-            shared->root_beta =
-                SetRootBeta(shared->root_moves[0].status, shared->root_beta);
-            shared->root_moves[0].status &= 4095 - 256;
-            shared->root_moves[0].nodes = 0;
-            if (shared->root_print_ok) {
+            root_alpha = SetRootAlpha(root_moves[0].status, root_alpha);
+            root_value = root_alpha;
+            root_beta = SetRootBeta(root_moves[0].status, root_beta);
+            root_moves[0].status &= 4095 - 256;
+            root_moves[0].nodes = 0;
+            if (root_print_ok) {
               if (wtm) {
                 fh_indicator = "+1";
-                if (shared->root_moves[0].status & 16)
+                if (root_moves[0].status & 16)
                   fh_indicator = "+3";
-                if (shared->root_moves[0].status & 32)
+                if (root_moves[0].status & 32)
                   fh_indicator = "+M";
               } else {
                 fh_indicator = "-1";
-                if (shared->root_moves[0].status & 16)
+                if (root_moves[0].status & 16)
                   fh_indicator = "-3";
-                if (shared->root_moves[0].status & 32)
+                if (root_moves[0].status & 32)
                   fh_indicator = "-M";
               }
-              Print(2, "               %2i   %s     %2s   ",
-                  shared->iteration_depth,
-                  DisplayTime(shared->end_time - shared->start_time),
-                  fh_indicator);
-              if (shared->display_options & 64)
-                Print(2, "%d. ", shared->move_number);
-              if ((shared->display_options & 64) && !wtm)
+              Print(2, "               %2i   %s     %2s   ", iteration_depth,
+                  DisplayTime(end_time - start_time), fh_indicator);
+              if (display_options & 64)
+                Print(2, "%d. ", move_number);
+              if ((display_options & 64) && !wtm)
                 Print(2, "... ");
               Print(2, "%s!!\n", OutputMove(tree, tree->pv[1].path[1], 1, wtm));
-              shared->kibitz_text[0] = 0;
-              if (shared->display_options & 64)
-                sprintf(shared->kibitz_text, " %d.", shared->move_number);
-              if ((shared->display_options & 64) && !wtm)
-                sprintf(shared->kibitz_text + strlen(shared->kibitz_text),
-                    " ...");
-              sprintf(shared->kibitz_text + strlen(shared->kibitz_text),
-                  " %s!!", OutputMove(tree, tree->pv[1].path[1], 1, wtm));
-              Kibitz(6, wtm, shared->iteration_depth,
-                  shared->end_time - shared->start_time, value,
+              kibitz_text[0] = 0;
+              if (display_options & 64)
+                sprintf(kibitz_text, " %d.", move_number);
+              if ((display_options & 64) && !wtm)
+                sprintf(kibitz_text + strlen(kibitz_text), " ...");
+              sprintf(kibitz_text + strlen(kibitz_text), " %s!!",
+                  OutputMove(tree, tree->pv[1].path[1], 1, wtm));
+              Kibitz(6, wtm, iteration_depth, end_time - start_time, value,
                   tree->nodes_searched, tree->egtb_probes_successful,
-                  shared->kibitz_text);
+                  kibitz_text);
             }
-          } else if (value <= shared->root_alpha) {
-            if (!(shared->root_moves[0].status & 0x38)) {
-              if (!(shared->root_moves[0].status & 1)) {
-                shared->root_moves[0].status |= 1;
-              } else if (!(shared->root_moves[0].status & 2)) {
-                shared->root_moves[0].status |= 2;
+          } else if (value <= root_alpha) {
+            if (!(root_moves[0].status & 0x38)) {
+              if (!(root_moves[0].status & 1)) {
+                root_moves[0].status |= 1;
+              } else if (!(root_moves[0].status & 2)) {
+                root_moves[0].status |= 2;
               } else {
-                shared->root_moves[0].status |= 4;
+                root_moves[0].status |= 4;
               }
-              shared->root_alpha =
-                  SetRootAlpha(shared->root_moves[0].status,
-                  shared->root_alpha);
-              shared->root_value = shared->root_alpha;
-              shared->root_beta =
-                  SetRootBeta(shared->root_moves[0].status, shared->root_beta);
-              shared->root_moves[0].status &= 4095 - 256;
-              shared->root_moves[0].nodes = 0;
-              shared->easy_move = 0;
-              if (shared->root_print_ok && !shared->time_abort &&
-                  !shared->abort_search) {
+              root_alpha = SetRootAlpha(root_moves[0].status, root_alpha);
+              root_value = root_alpha;
+              root_beta = SetRootBeta(root_moves[0].status, root_beta);
+              root_moves[0].status &= 4095 - 256;
+              root_moves[0].nodes = 0;
+              easy_move = 0;
+              if (root_print_ok && !time_abort && !abort_search) {
                 if (wtm) {
                   fl_indicator = "-1";
-                  if (shared->root_moves[0].status & 2)
+                  if (root_moves[0].status & 2)
                     fl_indicator = "-3";
-                  if (shared->root_moves[0].status & 4)
+                  if (root_moves[0].status & 4)
                     fl_indicator = "-M";
                 } else {
                   fl_indicator = "+1";
-                  if (shared->root_moves[0].status & 2)
+                  if (root_moves[0].status & 2)
                     fl_indicator = "+3";
-                  if (shared->root_moves[0].status & 4)
+                  if (root_moves[0].status & 4)
                     fl_indicator = "+M";
                 }
-                Print(4, "               %2i   %s     %2s   ",
-                    shared->iteration_depth,
-                    DisplayTime(ReadClock() - shared->start_time),
-                    fl_indicator);
-                if (shared->display_options & 64)
-                  Print(4, "%d. ", shared->move_number);
-                if ((shared->display_options & 64) && !wtm)
+                Print(4, "               %2i   %s     %2s   ", iteration_depth,
+                    DisplayTime(ReadClock() - start_time), fl_indicator);
+                if (display_options & 64)
+                  Print(4, "%d. ", move_number);
+                if ((display_options & 64) && !wtm)
                   Print(4, "... ");
-                Print(4, "%s\n", OutputMove(tree, shared->root_moves[0].move, 1,
-                        wtm));
+                Print(4, "%s\n", OutputMove(tree, root_moves[0].move, 1, wtm));
               }
             } else
               break;
           } else
             break;
         }
-        if (shared->root_value > shared->root_alpha &&
-            shared->root_value < shared->root_beta)
-          shared->last_root_value = shared->root_value;
+        if (root_value > root_alpha && root_value < root_beta)
+          last_root_value = root_value;
 /*
  ************************************************************
  *                                                          *
@@ -433,14 +411,14 @@ int Iterate(int wtm, int search_type, int root_list_done)
  ************************************************************
  */
         twtm = wtm;
-        shared->end_time = ReadClock();
+        end_time = ReadClock();
         do {
           sorted = 1;
-          for (i = 1; i < shared->n_root_moves - 1; i++) {
-            if (shared->root_moves[i].nodes < shared->root_moves[i + 1].nodes) {
-              temp = shared->root_moves[i];
-              shared->root_moves[i] = shared->root_moves[i + 1];
-              shared->root_moves[i + 1] = temp;
+          for (i = 1; i < n_root_moves - 1; i++) {
+            if (root_moves[i].nodes < root_moves[i + 1].nodes) {
+              temp = root_moves[i];
+              root_moves[i] = root_moves[i + 1];
+              root_moves[i + 1] = temp;
               sorted = 0;
             }
           }
@@ -454,15 +432,15 @@ int Iterate(int wtm, int search_type, int root_list_done)
  *                                                          *
  ************************************************************
  */
-        for (i = 0; i < shared->n_root_moves; i++)
-          shared->root_moves[i].status &= 128;
-        if (shared->root_moves[0].nodes > 1000)
-          for (i = 0; i < shared->n_root_moves; i++) {
-            if (i < Min(shared->n_root_moves, 16) &&
-                shared->root_moves[i].nodes > shared->root_moves[0].nodes / 3)
-              shared->root_moves[i].status |= 64;
-            if (i > shared->n_root_moves / 4)
-              shared->root_moves[i].status |= 128;
+        for (i = 0; i < n_root_moves; i++)
+          root_moves[i].status &= 128;
+        if (root_moves[0].nodes > 1000)
+          for (i = 0; i < n_root_moves; i++) {
+            if (i < Min(n_root_moves, 16) &&
+                root_moves[i].nodes > root_moves[0].nodes / 3)
+              root_moves[i].status |= 64;
+            if (i > n_root_moves / 4)
+              root_moves[i].status |= 128;
           }
 /*
  ************************************************************
@@ -472,56 +450,51 @@ int Iterate(int wtm, int search_type, int root_list_done)
  *                                                          *
  ************************************************************
  */
-        if (shared->display_options & 256) {
+        if (display_options & 256) {
           BITBOARD total_nodes = 0;
 
           Print(128, "       move       nodes      hi/low   reduce\n");
-          for (i = 0; i < shared->n_root_moves; i++) {
-            total_nodes += shared->root_moves[i].nodes;
+          for (i = 0; i < n_root_moves; i++) {
+            total_nodes += root_moves[i].nodes;
             Print(128, " %10s  " BMF10 "       %d   %d     %d\n",
-                OutputMove(tree, shared->root_moves[i].move, 1, wtm),
-                shared->root_moves[i].nodes,
-                (shared->root_moves[i].status & 0x38) > 0,
-                (shared->root_moves[i].status & 7) > 0,
-                (shared->root_moves[i].status & 128) > 0);
+                OutputMove(tree, root_moves[i].move, 1, wtm),
+                root_moves[i].nodes, (root_moves[i].status & 0x38) > 0,
+                (root_moves[i].status & 7) > 0,
+                (root_moves[i].status & 128) > 0);
           }
           Print(256, "      total  " BMF10 "\n", total_nodes);
         }
-        for (i = 0; i < shared->n_root_moves; i++)
-          shared->root_moves[i].nodes = 0;
-        if (shared->end_time - shared->start_time > 10)
-          shared->nodes_per_second =
-              tree->nodes_searched * 100 / (BITBOARD) (shared->end_time -
-              shared->start_time);
+        for (i = 0; i < n_root_moves; i++)
+          root_moves[i].nodes = 0;
+        if (end_time - start_time > 10)
+          nodes_per_second =
+              tree->nodes_searched * 100 / (BITBOARD) (end_time - start_time);
         else
-          shared->nodes_per_second = 1000000;
-        if (!shared->time_abort && !shared->abort_search &&
-            (shared->root_print_ok || correct_count >= early_exit ||
-                value > MATE - 300 || tree->pv[0].pathh == 2)) {
+          nodes_per_second = 1000000;
+        if (!time_abort && !abort_search && (root_print_ok ||
+                correct_count >= early_exit || value > MATE - 300 ||
+                tree->pv[0].pathh == 2)) {
           if (value != -(MATE - 1))
-            DisplayPV(tree, 5, wtm, shared->end_time - shared->start_time,
-                value, &tree->pv[0]);
+            DisplayPV(tree, 5, wtm, end_time - start_time, value, &tree->pv[0]);
         }
-        shared->root_alpha = value - 40;
-        shared->root_value = shared->root_alpha;
-        shared->root_beta = value + 40;
-        if (shared->iteration_depth > 3 && value > MATE - 300 &&
-            value >= (MATE - shared->iteration_depth - 1) &&
-            value > last_mate_score)
+        root_alpha = value - 40;
+        root_value = root_alpha;
+        root_beta = value + 40;
+        if (iteration_depth > 3 && value > MATE - 300 &&
+            value >= (MATE - iteration_depth - 1) && value > last_mate_score)
           break;
-        if ((shared->iteration_depth >= search_depth) && search_depth)
+        if ((iteration_depth >= search_depth) && search_depth)
           break;
-        if (shared->time_abort || shared->abort_search)
+        if (time_abort || abort_search)
           break;
-        shared->end_time = ReadClock() - shared->start_time;
-        if (shared->thinking && (int) shared->end_time >= shared->time_limit)
+        end_time = ReadClock() - start_time;
+        if (thinking && (int) end_time >= time_limit)
           break;
         if (correct_count >= early_exit)
           break;
 #if !defined(NOEGTB)
-        if (shared->iteration_depth > 3 && TotalAllPieces <= EGTBlimit &&
-            TB_use_ok && EGTB_use && !EGTB_search &&
-            EGTBProbe(tree, 1, wtm, &i))
+        if (iteration_depth > 3 && TotalAllPieces <= EGTBlimit && TB_use_ok &&
+            EGTB_use && !EGTB_search && EGTBProbe(tree, 1, wtm, &i))
           break;
 #endif
         if (search_nodes && tree->nodes_searched >= search_nodes)
@@ -536,68 +509,61 @@ int Iterate(int wtm, int search_type, int root_list_done)
  ************************************************************
  */
       used = 0;
-      shared->end_time = ReadClock();
-      shared->elapsed_end = ReadClock() - shared->elapsed_start;
-      if (shared->elapsed_end > 10)
-        shared->nodes_per_second =
-            (BITBOARD) tree->nodes_searched * 100 /
-            (BITBOARD) shared->elapsed_end;
+      end_time = ReadClock();
+      elapsed_end = ReadClock() - elapsed_start;
+      if (elapsed_end > 10)
+        nodes_per_second =
+            (BITBOARD) tree->nodes_searched * 100 / (BITBOARD) elapsed_end;
       if (!tree->egtb_probes) {
-        if (shared->average_nps)
-          shared->average_nps =
-              (9 * shared->average_nps + shared->nodes_per_second) / 10;
+        if (average_nps)
+          average_nps = (9 * average_nps + nodes_per_second) / 10;
         else
-          shared->average_nps = shared->nodes_per_second;
+          average_nps = nodes_per_second;
       }
       tree->evaluations = (tree->evaluations) ? tree->evaluations : 1;
-      if ((!shared->abort_search || shared->time_abort) && !shared->puzzling) {
+      if ((!abort_search || time_abort) && !puzzling) {
         tree->fail_high++;
         tree->fail_high_first++;
         material = Material / pawn_value;
         Print(8, "              time=%s  mat=%d",
-            DisplayTimeKibitz(shared->end_time - shared->start_time), material);
+            DisplayTimeKibitz(end_time - start_time), material);
         Print(8, "  n=" BMF, tree->nodes_searched);
         Print(8, "  fh=%u%%",
             (int) ((BITBOARD) tree->fail_high_first * 100 /
                 (BITBOARD) tree->fail_high));
-
-        Print(8, "  nps=%s\n", DisplayKM(shared->nodes_per_second));
+        Print(8, "  nps=%s\n", DisplayKM(nodes_per_second));
         Print(16, "              ext-> check=%s ",
             DisplayKM(tree->check_extensions_done));
-        Print(16, "1rep=%s ", DisplayKM(tree->one_reply_extensions_done));
-        Print(16, "mate=%s ", DisplayKM(tree->mate_extensions_done));
-        Print(16, "pp=%s ", DisplayKM(tree->passed_pawn_extensions_done));
+        Print(16, "qcheck=%s ", DisplayKM(tree->qsearch_check_extensions_done));
         Print(16, "reduce=%s", DisplayKM(tree->reductions_attempted));
-
         Print(16, "/%s\n", DisplayKM(tree->reductions_done));
         Print(16, "              predicted=%d  evals=%s  50move=%d", predicted,
             DisplayKM(tree->evaluations), Rule50Moves(0));
         Print(16, "  EGTBprobes=%s  hits=%s\n", DisplayKM(tree->egtb_probes),
             DisplayKM(tree->egtb_probes_successful));
         Print(16, "              SMP->  splits=%d  aborts=%d  data=%d/%d  ",
-            shared->parallel_splits, shared->parallel_aborts,
-            shared->max_split_blocks, MAX_BLOCKS);
-        Print(16, "elap=%s\n", DisplayTimeKibitz(shared->elapsed_end));
+            parallel_splits, parallel_aborts, max_split_blocks, MAX_BLOCKS);
+        Print(16, "elap=%s\n", DisplayTimeKibitz(elapsed_end));
       }
     } while (0);
   else {
-    shared->last_root_value = 0;
-    shared->root_value = 0;
+    last_root_value = 0;
+    root_value = 0;
     book_move = 1;
     tree->pv[0] = tree->pv[1];
     if (analyze_mode)
-      Kibitz(4, wtm, 0, 0, 0, 0, 0, shared->kibitz_text);
+      Kibitz(4, wtm, 0, 0, 0, 0, 0, kibitz_text);
   }
-  if (shared->nice && ponder == 0 && shared->smp_threads) {
+  if (smp_nice && ponder == 0 && smp_threads) {
     Print(128, "terminating SMP processes.");
-    shared->quit = 1;
-    while (shared->smp_threads);
-    shared->quit = 0;
-    shared->smp_idle = 0;
+    quit = 1;
+    while (smp_threads);
+    quit = 0;
+    smp_idle = 0;
   }
-  shared->program_end_time = ReadClock();
+  program_end_time = ReadClock();
   search_move = 0;
-  return (shared->last_root_value);
+  return (last_root_value);
 }
 
 /*

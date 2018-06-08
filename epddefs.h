@@ -1,43 +1,31 @@
 #if !defined(EPDDEFS_INCLUDED)
 #  define EPDDEFS_INCLUDED
 /*>>> epddefs.h: Extended Position Description definitions */
-
 /* Revised: 1996.06.23 */
-
 /*
    Copyright (C) 1996 by Steven J. Edwards (sje@mv.mv.com)
    All rights reserved.  This code may be freely redistibuted and used by
    both research and commerical applications.  No warranty exists.
  */
-
 /*
    Everything in this source file is independent of the host program.
    Requests for changes and additions should be communicated to the author
    via the e-mail address given above.
  */
-
 /*
    This file was originally prepared on an Apple Macintosh using the
    Metrowerks CodeWarrior 6 ANSI C compiler.  Tabs are set at every
    four columns.  Further testing and development was performed on a
    generic PC running Linux 1.3.20 and using the gcc 2.7.0 compiler.
  */
-
 /* inclusion telltale */
-
 #  if (!defined(_epddefs))
 #    define _epddefs 1
-
 /* subprogram storage class for non-statics (usually empty definition) */
-
 #    define nonstatic
-
 /* a bit */
-
 #    define bit 0x01
-
 /* bit positions */
-
 #    define bit_00 (bit <<  0)
 #    define bit_01 (bit <<  1)
 #    define bit_02 (bit <<  2)
@@ -54,18 +42,12 @@
 #    define bit_13 (bit << 13)
 #    define bit_14 (bit << 14)
 #    define bit_15 (bit << 15)
-
 /* bit width constants */
-
 #    define nybbW  4
 #    define byteW  8
-
 /* simple masks */
-
 #    define nybbM 0x000f
-
 /* useful types */
-
 typedef void *voidptrT;
 typedef unsigned char byteT, *byteptrT;
 typedef char *charptrT;
@@ -76,28 +58,20 @@ typedef double lrT, *lrptrT;
 typedef FILE *fptrT;
 
 /* text I/O buffer length */
-
 #    define tL 256
-
 /* EPD I/O buffer length */
-
 #    define epdL 4096
-
 /* the standard algebraic notation character vector type */
-
 #    define sanL 16
                 /* must be at least 8; extra room for alternatives */
-
 typedef char sanT[sanL];
 typedef sanT *sanptrT;
 
 /* SAN style attributes, priority ordered (used for encoding) */
-
 typedef siT ssaT;
 
 #    define ssaL 12
 #    define ssa_nil (-1)
-
 #    define ssa_capt  0 /* 5 way: capture indicator */
 #    define ssa_case  1 /* 2 way: letter case */
 #    define ssa_chec  2 /* 3 way: checking */
@@ -110,13 +84,10 @@ typedef siT ssaT;
 #    define ssa_move  9 /* 2 way: movement indicator */
 #    define ssa_edcf 10 /* 2 way: extra disambiguating character (file) */
 #    define ssa_edcr 11 /* 2 way: extra disambiguating character (rank) */
-
 /* SAN style vector */
-
 typedef siT ssavT[ssaL];
 
 /* colors (ordering is critical) */
-
 typedef siT cT, *cptrT;
 
 #    define cQ 2
@@ -124,7 +95,6 @@ typedef siT cT, *cptrT;
 #    define rcQ 1
 #    define rcL (bit << rcQ)
 #    define c_nil (-1)
-
 #    define c_w 0
                 /* white */
 #    define c_b 1
@@ -133,15 +103,12 @@ typedef siT cT, *cptrT;
                 /* vacant */
 #    define c_x 3
                 /* extra */
-
 /* pieces (ordering is critical) */
-
 typedef siT pT, *pptrT;
 
 #    define pL 8
 #    define rpL 6
 #    define p_nil (-1)
-
 #    define p_p 0
                 /* pawn */
 #    define p_n 1
@@ -158,15 +125,12 @@ typedef siT pT, *pptrT;
                 /* vacant */
 #    define p_x 7
                 /* extra */
-
 /* color piece combinations (ordering is critical) */
-
 typedef siT cpT;
 
 #    define cpL 16
 #    define rcpL 12
 #    define cp_nil (-1)
-
 #    define cp_wp  0    /* white pawn */
 #    define cp_wn  1    /* white knight */
 #    define cp_wb  2    /* white bishop */
@@ -183,16 +147,13 @@ typedef siT cpT;
 #    define cp_x0 13    /* extra 0 */
 #    define cp_x1 14    /* extra 1 */
 #    define cp_x2 15    /* extra 2 */
-
 /* ranks */
-
 typedef siT rankT;
 
 #    define rankM (0x0007)
 #    define rankQ 3
 #    define rankL (bit << rankQ)
 #    define rank_nil (-1)
-
 #    define rank_1 0
 #    define rank_2 1
 #    define rank_3 2
@@ -201,16 +162,13 @@ typedef siT rankT;
 #    define rank_6 5
 #    define rank_7 6
 #    define rank_8 7
-
 /* files */
-
 typedef siT fileT;
 
 #    define fileM (0x0007)
 #    define fileQ 3
 #    define fileL (bit << fileQ)
 #    define file_nil (-1)
-
 #    define file_a 0    /* QR */
 #    define file_b 1    /* QN */
 #    define file_c 2    /* QB */
@@ -219,22 +177,17 @@ typedef siT fileT;
 #    define file_f 5    /* KB */
 #    define file_g 6    /* KN */
 #    define file_h 7    /* KR */
-
 /* location mappings */
-
 #    define map_sq(r, f) (((r) << fileQ | (f)))
 #    define map_file(sq) ((sq) & 0x07)
 #    define map_rank(sq) ((sq) >> fileQ)
-
 /* squares */
-
 typedef siT sqT, *sqptrT;
 
 #    define sqM (0x003f)
 #    define sqQ (rankQ + fileQ)
 #    define sqL (bit << sqQ)
 #    define sq_nil (-1)
-
 #    define sq_a1 map_sq(rank_1, file_a)
 #    define sq_b1 map_sq(rank_1, file_b)
 #    define sq_c1 map_sq(rank_1, file_c)
@@ -299,37 +252,29 @@ typedef siT sqT, *sqptrT;
 #    define sq_f8 map_sq(rank_8, file_f)
 #    define sq_g8 map_sq(rank_8, file_g)
 #    define sq_h8 map_sq(rank_8, file_h)
-
 /* regular board */
-
 typedef union rbU {
   cpT rbm[rankL][fileL];        /* rank/file indexing */
   cpT rbv[sqL];                 /* square indexing */
 } rbT, *rbptrT;
 
 /* nybble board vector */
-
 #    define nbL (sqL / (byteW / nybbW))
 typedef byteT nbvT[nbL];
 
 /* flanks */
-
 typedef siT flankT;
 
 #    define flankL 2
 #    define flank_nil (-1)
-
 #    define flank_k 0   /* kingside */
 #    define flank_q 1   /* queenside */
-
 /* direction indices */
-
 typedef siT dxT;
 
 #    define dxQ 4
 #    define dxL (bit << dxQ)
 #    define dx_nil (-1)
-
 #    define dx_0  0
 #    define dx_1  1
 #    define dx_2  2
@@ -346,9 +291,7 @@ typedef siT dxT;
 #    define dx_d 13
 #    define dx_e 14
 #    define dx_f 15
-
 /* direction vector displacements */
-
 typedef siT dvT;
 
 #    define dv_0 (( 0 * fileL) + 1)
@@ -367,9 +310,7 @@ typedef siT dvT;
 #    define dv_d ((-2 * fileL) - 1)
 #    define dv_e ((-2 * fileL) + 1)
 #    define dv_f ((-1 * fileL) + 2)
-
 /* extended direction vector offsets */
-
 typedef siT xdvT;
 
 #    define xdv_0 (( 0 * xfileL) + 1)
@@ -388,73 +329,53 @@ typedef siT xdvT;
 #    define xdv_d ((-2 * xfileL) - 1)
 #    define xdv_e ((-2 * xfileL) + 1)
 #    define xdv_f ((-1 * xfileL) + 2)
-
 /* extended rank, file, and square types */
-
 typedef siT xrankT;
 
 #    define xrankQ (rankQ + 1)
 #    define xrankL (bit << xrankQ)
-
 typedef siT xfileT;
 
 #    define xfileQ (fileQ + 1)
 #    define xfileM 0x0f
 #    define xfileL (bit << xfileQ)
-
 typedef siT xsqT, *xsqptrT;
 
 #    define xsqQ (xrankQ + xfileQ)
 #    define xsqL (bit << xsqQ)
-
 /* the extended board type */
-
 typedef union xbU {
   cpT xbm[xrankL][xfileL];
   cpT xbv[xsqL];
 } xbT, *xbptrT;
 
 /* extended board mapping macros */
-
 #    define map_xrank_xsq(xsq) ((xsq) >> xfileQ)
 #    define map_xfile_xsq(xsq) ((xsq) & xfileM)
 #    define map_xsq_xrank_xfile(xrank, xfile) (((xrank) << xfileQ) | (xfile))
-
 /* extended conversion macros */
-
 #    define xbdrL 4
-
 #    define map_xfile_file(file) ((file) + xbdrL)
 #    define map_xrank_rank(rank) ((rank) + xbdrL)
-
 #    define map_file_xfile(xfile) ((xfile) - xbdrL)
 #    define map_rank_xrank(xrank) ((xrank) - xbdrL)
-
 #    define map_sq_xsq(xsq) \
 	(((((xsq) >> xfileQ) - xbdrL) << fileQ) | (((xsq) & xfileM) - xbdrL))
-
 #    define map_xsq_sq(sq) \
 	((((((sq) >> fileQ) & fileM) + xbdrL) << xfileQ) | \
 	(((sq) & fileM) + xbdrL))
-
 /* castling availability indicators */
-
 typedef siT caiT;
 
 #    define caiL (rcL * flankL)
 #    define cai_nil (-1)
-
 #    define cai_wk ((c_w * flankL) + flank_k)
 #    define cai_wq ((c_w * flankL) + flank_q)
 #    define cai_bk ((c_b * flankL) + flank_k)
 #    define cai_bq ((c_b * flankL) + flank_q)
-
 /* castling index mapper */
-
 #    define castim(cai) (bit << (cai))
-
 /* castling flags */
-
 typedef siT castT;
 typedef castT *castptrT;
 
@@ -462,41 +383,28 @@ typedef castT *castptrT;
 #    define cf_wq castim(cai_wq)
 #    define cf_bk castim(cai_bk)
 #    define cf_bq castim(cai_bq)
-
 /* centipawn evaluation */
-
 typedef siT cpevT, *cpevptrT;
 
 /* some interesting centipawn evaluations */
-
 #    define cpev_best ((cpevT) ((((liT) bit) << 15) - 1))
 #    define cpev_bust (-cpev_best)
 #    define cpev_draw 0
 #    define cpev_mate cpev_best
 #    define cpev_wrck (cpev_bust - 1)
-
 /* mate and loss synthesis macros (fullmove distance argument) */
-
 #    define synth_mate(n) (cpev_mate - ((n) * 2) + 1)
 #    define synth_loss(n) (cpev_bust + ((n) * 2))
-
 /* distance to mate/loss macros (mate/loss centipawn argument) */
-
 #    define synth_distance_mate(cpev)  ((siT) (((cpev_mate - (cpev)) + 1) / 2))
 #    define synth_distance_loss(cpev)  ((siT) (((cpev) - cpev_bust) / 2))
-
 /* maximum distance to mate/loss (fullmove distance count) */
-
 #    define max_dist_mateL 1024
 #    define max_dist_lossL 1024
-
 /* forced mate/loss detection macros (mate/loss centipawn argument) */
-
 #    define forced_mate(cpev) ((cpev) >= ((cpev_mate - (max_dist_mateL * 2)) + 1))
 #    define forced_loss(cpev) ((cpev) <= (cpev_bust + (max_dist_lossL * 2)))
-
 /* move flag bits */
-
 typedef siT mfT;
 
 #    define mf_bust (bit << 0)  /* illegal move */
@@ -508,15 +416,12 @@ typedef siT mfT;
 #    define mf_sanf (bit << 6)  /* needs file disambiguation */
 #    define mf_sanr (bit << 7)  /* needs rank disambiguation */
 #    define mf_stmt (bit << 8)  /* stalemating */
-
 /* special case move type */
-
 typedef siT scmvT;
 
 #    define scmvQ 3
 #    define scmvL (bit << scmvQ)
 #    define scmv_nil (-1)
-
 #    define scmv_reg 0  /* regular */
 #    define scmv_epc 1  /* en passant capture */
 #    define scmv_cks 2  /* castles kingside */
@@ -525,9 +430,7 @@ typedef siT scmvT;
 #    define scmv_ppb 5  /* pawn promotes to bishop */
 #    define scmv_ppr 6  /* pawn promotes to rook */
 #    define scmv_ppq 7  /* pawn promotes to queen */
-
 /* move type */
-
 typedef struct mS {
   mfT m_flag;                   /* move flags */
   sqT m_frsq;                   /* from square */
@@ -538,41 +441,28 @@ typedef struct mS {
 } mT, *mptrT;
 
 /* game termination indicator markers */
-
 typedef siT gtimT, *gtimptrT;
 
 #    define gtimL 4
 #    define gtim_nil (-1)
-
 #    define gtim_w 0    /* White won */
 #    define gtim_b 1    /* Black won */
 #    define gtim_d 2    /* draw */
 #    define gtim_u 3    /* unknown */
-
 /* clockstamp length hh:mm:ss */
-
 #    define clockstampL (2 + 1 + 2 + 1 + 2 + 1)
-
 /* datestamp length YYYY.MM.DD */
-
 #    define datestampL (4 + 1 + 2 + 1 + 2 + 1)
-
 /* duration length dddd:hh:mm:ss */
-
 #    define durationL (4 + 1 + 2 + 1 + 2 + 1 + 2 + 1)
-
 /* EPD operand basetype */
-
 typedef siT eobT;
 
 #    define eobL 2
 #    define eob_nil (-1)
-
 #    define eob_string 0        /* quoted string */
 #    define eob_symbol 1        /* unquoted symbol */
-
 /* EPD operand value type */
-
 typedef struct eovS {
   eobT eov_eob;                 /* basetype */
   charptrT eov_str;             /* string value */
@@ -581,7 +471,6 @@ typedef struct eovS {
 } eovT, *eovptrT;
 
 /* EPD operation type */
-
 typedef struct eopS {
   charptrT eop_opsym;           /* operation code symbol */
   eovptrT eop_headeov;          /* head of operand value list */
@@ -591,7 +480,6 @@ typedef struct eopS {
 } eopT, *eopptrT;
 
 /* EPD record type */
-
 typedef struct epdS {
   nbvT epd_nbv;                 /* piece placement nybble board vector */
   cT epd_actc;                  /* active color */
@@ -602,12 +490,10 @@ typedef struct epdS {
 } epdT, *epdptrT;
 
 /* EPD standard operators */
-
 typedef siT epdsoT, *epdsoptrT;
 
 #    define epdsoL 51
 #    define epdso_nil (-1)
-
 #    define epdso_acd          0        /* analysis count: depth */
 #    define epdso_acn          1        /* analysis count: nodes */
 #    define epdso_acs          2        /* analysis count: seconds */
@@ -659,14 +545,11 @@ typedef siT epdsoT, *epdsoptrT;
 #    define epdso_v7          48        /* variation slot 7 */
 #    define epdso_v8          49        /* variation slot 8 */
 #    define epdso_v9          50        /* variation slot 9 */
-
 /* referee commands */
-
 typedef siT refcomT, *refcomptrT;
 
 #    define refcomL 7
 #    define refcom_nil (-1)
-
 #    define refcom_conclude   0
 #    define refcom_disconnect 1
 #    define refcom_execute    2
@@ -674,30 +557,23 @@ typedef siT refcomT, *refcomptrT;
 #    define refcom_inform     4
 #    define refcom_respond    5
 #    define refcom_reset      6
-
 /* referee requests */
-
 typedef siT refreqT, *refreqptrT;
 
 #    define refreqL 4
 #    define refreq_nil (-1)
-
 #    define refreq_fault    0
 #    define refreq_reply    1
 #    define refreq_sign_on  2
 #    define refreq_sign_off 3
-
 /* referee interface procedure type */
-
 typedef epdptrT(*refintptrT) (epdptrT epdptr, siptrT flagptr);
 
 /* PGN Seven Tag Roster names */
-
 typedef siT pgnstrT, *pgnstrptrT;
 
 #    define pgnstrL 7
 #    define pgnstr_nil (-1)
-
 #    define pgnstr_event  0
 #    define pgnstr_site   1
 #    define pgnstr_date   2
@@ -705,9 +581,7 @@ typedef siT pgnstrT, *pgnstrptrT;
 #    define pgnstr_white  4
 #    define pgnstr_black  5
 #    define pgnstr_result 6
-
 /* benchmark score structure */
-
 typedef struct bmsS {
   siT bms_acdflag;              /* ACD (depth) data valid flag */
   siT bms_acnflag;              /* ACN (nodes) data valid flag */
@@ -727,7 +601,6 @@ typedef struct bmsS {
 } bmsT, *bmsptrT;
 
 /* environment stack entry record type */
-
 typedef struct eseS {
   cT ese_actc;                  /* active color */
   castT ese_cast;               /* castling availability */
@@ -738,7 +611,6 @@ typedef struct eseS {
 } eseT, *eseptrT;
 
 /* game played move record type (entries are prior to move) */
-
 typedef struct gpmS {
   mT gpm_m;                     /* the move to be played */
   eseT gpm_ese;                 /* environment statck entry storage */
@@ -748,7 +620,6 @@ typedef struct gpmS {
 } gpmT, *gpmptrT;
 
 /* game record type */
-
 typedef struct gamS {
   charptrT gam_strv[pgnstrL];   /* PGN STR tag values */
   gtimT gam_gtim;               /* game termination indicator */
@@ -759,12 +630,8 @@ typedef struct gamS {
 } gamT, *gamptrT;
 
 /* statndard disply output column limit */
-
 #    define columnL 80
-
 /* inclusion telltale closure */
-
 #  endif
-
 #endif
 /*<<< epddefs.h: EOF */

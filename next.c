@@ -1,6 +1,5 @@
 #include "chess.h"
 #include "data.h"
-
 /* last modified 12/26/03 */
 /*
  *******************************************************************************
@@ -159,7 +158,7 @@ int NextMove(TREE * RESTRICT tree, int ply, int wtm)
  ************************************************************
  */
   case GENERATE_ALL_MOVES:
-    tree->last[ply] = GenerateNonCaptures(tree, ply, wtm, tree->last[ply]);
+    tree->last[ply] = GenerateNoncaptures(tree, ply, wtm, tree->last[ply]);
     tree->next_status[ply].phase = REMAINING_MOVES;
     tree->next_status[ply].last = tree->last[ply - 1];
 /*
@@ -178,7 +177,6 @@ int NextMove(TREE * RESTRICT tree, int ply, int wtm)
         return (REMAINING_MOVES);
       }
     return (NONE);
-
   default:
     Print(4095, "oops!  next_status.phase is bad! [normal %d]\n",
         tree->next_status[ply].phase);

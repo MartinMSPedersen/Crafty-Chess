@@ -1,7 +1,6 @@
 #include <signal.h>
 #include "chess.h"
 #include "data.h"
-
 /* last modified 08/07/05 */
 /*
  *******************************************************************************
@@ -19,7 +18,7 @@ void Interrupt(int ply)
 {
   int temp, i, left = 0, readstat, result, time_used;
   int save_move_number;
-  TREE *const tree = shared->local[0];
+  TREE *const tree = block[0];
 
 /*
  ************************************************************
@@ -29,8 +28,8 @@ void Interrupt(int ply)
  *                                                          *
  ************************************************************
  */
-  if (shared->puzzling)
-    shared->abort_search = 1;
+  if (puzzling)
+    abort_search = 1;
 /*
  ************************************************************
  *                                                          *
@@ -53,14 +52,14 @@ void Interrupt(int ply)
         break;
       }
       if (strcmp(args[0], ".")) {
-        save_move_number = shared->move_number;
+        save_move_number = move_number;
         if (!wtm)
-          shared->move_number--;
+          move_number--;
         if (wtm)
-          Print(128, "White(%d): %s\n", shared->move_number, buffer);
+          Print(128, "White(%d): %s\n", move_number, buffer);
         else
-          Print(128, "Black(%d): %s\n", shared->move_number, buffer);
-        shared->move_number = save_move_number;
+          Print(128, "Black(%d): %s\n", move_number, buffer);
+        move_number = save_move_number;
       }
 /*
  ************************************************************
@@ -71,23 +70,23 @@ void Interrupt(int ply)
  */
       if (!strcmp(args[0], ".")) {
         if (xboard) {
-          shared->end_time = ReadClock();
-          time_used = (shared->end_time - shared->start_time);
+          end_time = ReadClock();
+          time_used = (end_time - start_time);
           printf("stat01: %d ", time_used);
           printf(BMF " ", tree->nodes_searched);
-          printf("%d ", shared->iteration_depth);
-          for (i = 0; i < shared->n_root_moves; i++)
-            if (!(shared->root_moves[i].status & 128))
+          printf("%d ", iteration_depth);
+          for (i = 0; i < n_root_moves; i++)
+            if (!(root_moves[i].status & 128))
               left++;
-          printf("%d %d\n", left, shared->n_root_moves);
+          printf("%d %d\n", left, n_root_moves);
           fflush(stdout);
           break;
         } else {
-          shared->end_time = ReadClock();
-          time_used = (shared->end_time - shared->start_time);
+          end_time = ReadClock();
+          time_used = (end_time - start_time);
           printf("time:%s ", DisplayTime(time_used));
           printf("nodes:" BMF "\n", tree->nodes_searched);
-          DisplayTreeState(shared->local[0], 1, 0, ply);
+          DisplayTreeState(block[0], 1, 0, ply);
         }
       }
 /*
@@ -100,8 +99,8 @@ void Interrupt(int ply)
  */
       else if (!strcmp("mn", args[0])) {
         if (nargs == 2) {
-          shared->move_number = atoi(args[1]);
-          Print(128, "move number set to %d\n", shared->move_number);
+          move_number = atoi(args[1]);
+          Print(128, "move number set to %d\n", move_number);
         }
       }
 /*
@@ -112,9 +111,9 @@ void Interrupt(int ply)
  ************************************************************
  */
       else if (!strcmp(args[0], "?")) {
-        if (shared->thinking) {
-          shared->time_abort = 1;
-          shared->abort_search = 1;
+        if (thinking) {
+          time_abort = 1;
+          abort_search = 1;
         }
       }
 /*
@@ -125,21 +124,21 @@ void Interrupt(int ply)
  ************************************************************
  */
       else {
-        save_move_number = shared->move_number;
+        save_move_number = move_number;
         if (!analyze_mode && !wtm)
-          shared->move_number--;
+          move_number--;
         result = Option(tree);
-        shared->move_number = save_move_number;
+        move_number = save_move_number;
         if (result >= 2) {
-          if (shared->thinking && result != 3)
+          if (thinking && result != 3)
             Print(128, "command not legal now.\n");
           else {
-            shared->abort_search = 1;
+            abort_search = 1;
             input_status = 2;
             break;
           }
         } else if ((result != 1) && analyze_mode) {
-          shared->abort_search = 1;
+          abort_search = 1;
           input_status = 2;
           break;
         }
@@ -155,9 +154,9 @@ void Interrupt(int ply)
  ************************************************************
  */
         else if (!result) {
-          if (shared->pondering) {
+          if (pondering) {
             nargs = ReadParse(buffer, args, " 	;");
-            temp = InputMove(tree, args[0], 0, Flip(shared->root_wtm), 1, 1);
+            temp = InputMove(tree, args[0], 0, Flip(root_wtm), 1, 1);
             if (temp) {
               if ((From(temp) == From(ponder_move)) &&
                   (To(temp) == To(ponder_move)) &&
@@ -166,19 +165,19 @@ void Interrupt(int ply)
                   (Promote(temp) == Promote(ponder_move))) {
                 predicted++;
                 input_status = 1;
-                shared->pondering = 0;
-                shared->thinking = 1;
-                shared->opponent_end_time = ReadClock();
-                shared->program_start_time = ReadClock();
+                pondering = 0;
+                thinking = 1;
+                opponent_end_time = ReadClock();
+                program_start_time = ReadClock();
                 Print(128, "predicted move made.\n");
               } else {
                 input_status = 2;
-                shared->abort_search = 1;
+                abort_search = 1;
                 break;
               }
             } else if (!strcmp(args[0], "go") || !strcmp(args[0], "move") ||
                 !strcmp(args[0], "SP")) {
-              shared->abort_search = 1;
+              abort_search = 1;
               break;
             } else
               Print(4095, "Illegal move: %s\n", args[0]);

@@ -1,6 +1,5 @@
 #include "chess.h"
 #include "data.h"
-
 /* last modified 08/07/05 */
 /*
  *******************************************************************************
@@ -49,8 +48,7 @@ void ResignOrDraw(TREE * RESTRICT tree, int value)
  *                                                          *
  ************************************************************
  */
-  if ((shared->tc_increment > 200) ||
-      (shared->tc_time_remaining_opponent >= 3000)) {
+  if ((tc_increment > 200) || (tc_time_remaining_opponent >= 3000)) {
     if (resign) {
       if (value < -(MATE - 15)) {
         if (++resign_counter >= resign_count)
@@ -75,10 +73,8 @@ void ResignOrDraw(TREE * RESTRICT tree, int value)
  *                                                          *
  ************************************************************
  */
-  if ((shared->tc_increment > 200) ||
-      (shared->tc_time_remaining_opponent >= 3000)) {
-    if (abs(abs(value) - abs(DrawScore(wtm))) < 2 &&
-        shared->moves_out_of_book > 3) {
+  if ((tc_increment > 200) || (tc_time_remaining_opponent >= 3000)) {
+    if (abs(abs(value) - abs(DrawScore(wtm))) < 2 && moves_out_of_book > 3) {
       if (++draw_counter >= draw_count) {
         draw_counter = 0;
         result = 2;
@@ -96,7 +92,7 @@ void ResignOrDraw(TREE * RESTRICT tree, int value)
  ************************************************************
  */
   if (result == 1) {
-    int val = (shared->crafty_is_white) ? -300 : 300;
+    int val = (crafty_is_white) ? -300 : 300;
 
     LearnBook(val, 0, 1, 2);
     if (xboard)
@@ -110,7 +106,7 @@ void ResignOrDraw(TREE * RESTRICT tree, int value)
       strcat(announce, "Resign");
       system(announce);
     }
-    if (shared->crafty_is_white) {
+    if (crafty_is_white) {
       Print(4095, "0-1 {White resigns}\n");
       strcpy(pgn_result, "0-1");
     } else {

@@ -97,33 +97,13 @@ aix:
 		opt='$(opt)' \
 		crafty-make
 
-alpha:
-	$(MAKE) target=ALPHA \
-		CC=cc CXX=cxx \
-		CFLAGS='$(CFLAGS) -std -fast -O4 -newc' \
-		CXFLAGS=$(CFLAGS) \
-		LDFLAGS='$(LDFLAGS) $(CFLAGS)' \
-		LIBS='-lexc' \
-		opt='$(opt)' \
-		crafty-make
-
-alpha-host:
-	$(MAKE) target=ALPHA \
-		CC=cc CXX=cxx \
-		CFLAGS='$(CFLAGS) -std -fast -O4 -newc -arch host' \
-		CXFLAGS=$(CFLAGS) \
-		LDFLAGS='$(LDFLAGS) $(CFLAGS)' \
-		LIBS='-lexc' \
-		opt='$(opt)' \
-		crafty-make
-
 darwin:
 	$(MAKE) target=FreeBSD \
 		CC=gcc CXX=g++ \
 		CFLAGS='$(CFLAGS) -Wall -pipe -O3' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS=$(LDFLAGS) \
-		LIBS='-lstdc++' \
+		LIBS='-lpthread -lstdc++' \
 		opt='$(opt)' \
 		crafty-make
 
@@ -133,7 +113,7 @@ darwinG5:
 		CFLAGS='$(CFLAGS) -Wall -pipe -O3 -mcpu=G5 \
 			-mtune=G5 -fomit-frame-pointer -fast' \
 		CXFLAGS=$(CFLAGS) \
-		LDFLAGS='$(LDFLAGS) -lstdc++' \
+		LDFLAGS='$(LDFLAGS) -lpthread -lstdc++' \
 		opt='$(opt) -DCPUS=4 -DPOWERPC' \
 		crafty-make
 	
@@ -142,7 +122,7 @@ freebsd:
 		CC=gcc CXX='$(CC)' \
 		CFLAGS='$(CFLAGS) -fomit-frame-pointer -m486 -O3 -Wall' \
 		CXFLAGS=$(CFLAGS) \
-		LDFLAGS=$(LDFLAGS) \
+		LDFLAGS='$(LDFLAGS) -lpthread' \
 		opt='$(opt) -DINLINE32' \
 		crafty-make
 
@@ -151,7 +131,7 @@ freebsd-pgcc:
 		CC=gcc CXX='$(CC)' \
 		CFLAGS='$(CFLAGS) -pipe -mpentium -O -Wall' \
 		CXFLAGS=$(CFLAGS) \
-		LDFLAGS=$(LDFLAGS) \
+		LDFLAGS='$(LDFLAGS) -lpthread' \
 		opt='$(opt) -DINLINE32' \
 		crafty-make
 
@@ -169,7 +149,7 @@ linux-amd64-profile:
                 CFLAGS='$(CFLAGS) -Wall -pipe \
                         -fprofile-arcs -fomit-frame-pointer -O3 -march=k8' \
 		CXFLAGS=$(CFLAGS) \
-		LDFLAGS='$(LDFLAGS) -lnuma -fprofile-arcs -lstdc++' \
+		LDFLAGS='$(LDFLAGS) -lpthread -lnuma -fprofile-arcs -lstdc++' \
 		opt='$(opt) -DINLINE64 -DCPUS=8 -DNUMA -DLIBNUMA' \
 		crafty-make
 
@@ -179,7 +159,7 @@ linux-amd64:
                 CFLAGS='$(CFLAGS) -Wall -pipe \
                 -fbranch-probabilities -fomit-frame-pointer -O3 -march=k8' \
 		CXFLAGS=$(CFLAGS) \
-		LDFLAGS='$(LDFLAGS) -lnuma -lstdc++' \
+		LDFLAGS='$(LDFLAGS) -lpthread -lnuma -lstdc++' \
 		opt='$(opt) -DINLINE64 -DCPUS=8 -DNUMA -DLIBNUMA' \
 		crafty-make
 
@@ -189,7 +169,7 @@ linux:
 		CFLAGS='$(CFLAGS) -Wall -pipe -march=i686 -O3 \
 			-g -pg -fno-gcse -mpreferred-stack-boundary=2' \
 		CXFLAGS=$(CFLAGS) \
-		LDFLAGS='$(LDFLAGS) -lstdc++' \
+		LDFLAGS='$(LDFLAGS) -lpthread -lstdc++' \
 		opt='$(opt) -DINLINE32 -DCPUS=2' \
 		crafty-make
 
@@ -200,7 +180,7 @@ linux-profile:
 			-fprofile-arcs -fforce-mem -fomit-frame-pointer \
 			-fno-gcse -mpreferred-stack-boundary=2' \
 		CXFLAGS=$(CFLAGS) \
-		LDFLAGS='$(LDFLAGS) -fprofile-arcs -lstdc++ ' \
+		LDFLAGS='$(LDFLAGS) -lpthread -fprofile-arcs -lstdc++ ' \
 		opt='$(opt) -DINLINE32 -DCPUS=2' \
 		crafty-make
 
@@ -212,7 +192,7 @@ linux-icc:
 			-Ob2 -fno-alias' \
 		CXFLAGS='$(CFLAGS) -O2 \
 			-w -xN -prof_use -prof_dir ./profdir' \
-		LDFLAGS='$(LDFLAGS) -lstdc++' \
+		LDFLAGS='$(LDFLAGS) -lpthread -lstdc++' \
 		opt='$(opt) -DTEST -DINLINE32 -DCPUS=2' \
 		crafty-make
 
@@ -224,18 +204,8 @@ linux-icc-profile:
 			-Ob2 -fno-alias' \
 		CXFLAGS='$(CFLAGS) -O2 \
 			-w -xN -prof_genx -prof_dir ./profdir' \
-		LDFLAGS='$(LDFLAGS) -lstdc++ ' \
+		LDFLAGS='$(LDFLAGS) -lpthread -lstdc++ ' \
 		opt='$(opt) -DTEST -DINLINE32 -DCPUS=2' \
-		crafty-make
-
-linux-alpha:
-	$(MAKE) target=ALPHA \
-		CC=gcc CXX=g++ \
-		CFLAGS='$(CFLAGS) -O4 -ffast-math -funroll-loops' \
-		CXFLAGS=$(CFLAGS) \
-		LDFLAGS='$(LDFLAGS) $(CFLAGS)' \
-		LIBS='' \
-		opt='$(opt) -DNOBUILTINS' \
 		crafty-make
 
 netbsd:
@@ -245,7 +215,7 @@ netbsd:
 			-fomit-frame-pointer -funroll-all-loops \
 			-finline-functions -ffast-math' \
 		CXFLAGS=$(CFLAGS) \
-		LDFLAGS=$(LDFLAGS) \
+		LDFLAGS='$(LDFLAGS) -lpthread' \
 		opt='$(opt) -DINLINE32' \
 		crafty-make
 
@@ -256,7 +226,7 @@ netbsd-i386:
 			-fomit-frame-pointer -funroll-all-loops \
 			-finline-functions -ffast-math' \
 		CXFLAGS=$(CFLAGS) \
-		LDFLAGS=$(LDFLAGS) \
+		LDFLAGS='$(LDFLAGS) -lpthread' \
 		opt='$(opt) -DINLINE32' \
 		crafty-make
 
@@ -267,7 +237,7 @@ netbsd-sparc:
 			-fomit-frame-pointer -funroll-all-loops \
 			-finline-functions -ffast-math' \
 		CXFLAGS=$(CFLAGS) \
-		LDFLAGS=$(LDFLAGS) \
+		LDFLAGS='$(LDFLAGS) -lpthread' \
 		opt='$(opt)' \
 		crafty-make
 
@@ -276,7 +246,7 @@ next:
 		CC=/bin/cc CXX='$(CC)' \
 		CFLAGS='$(CFLAGS) -O2' \
 		CXFLAGS=$(CFLAGS) \
-		LDFLAGS='$(LDFLAGS) $(CFLAGS)'
+		LDFLAGS='$(LDFLAGS) $(CFLAGS) -lpthread'
 		opt='$(opt)' \
 		crafty-make
 
@@ -286,7 +256,7 @@ sgi:
 		AFLAGS='-P' \
 		CFLAGS='$(CFLAGS) -32 -mips2 -cckr' \
 		CXFLAGS=$(CFLAGS) \
-		LDFLAGS=$(LDFLAGS) \
+		LDFLAGS='$(LDFLAGS) -lpthread' \
 		opt='$(opt)' \
 		crafty-make
 
@@ -295,7 +265,7 @@ solaris:
 		CC=cc CXX='$(CC)' \
 		CFLAGS='$(CFLAGS) -fast -xO5 -xunroll=20' \
 		CXFLAGS=$(CFLAGS) \
-		LDFLAGS='$(LDFLAGS)' \
+		LDFLAGS='$(LDFLAGS) -lpthread' \
 		opt='$(opt)' \
 		crafty-make
 
@@ -305,7 +275,7 @@ solaris-gcc:
 		CFLAGS='$(CFLAGS) -Wall -pipe -O2 \
 			-fforce-mem -fomit-frame-pointer' \
 		CXFLAGS=$(CFLAGS) \
-		LDFLAGS='$(LDFLAGS) -lstdc++' \
+		LDFLAGS='$(LDFLAGS) -lpthread -lstdc++' \
 		opt='$(opt)' \
 		crafty-make
 
@@ -407,10 +377,10 @@ profile:
 #  compiling both ways to see which way produces the fastest code.
 #
 
-#objects = searchr.o search.o thread.o searchmp.o repeat.o next.o nexte.o    \
-       nextr.o killer.o quiesce.o evaluate.o movgen.o make.o unmake.o        \
-       hash.o attacks.o swap.o boolean.o utility.o probe.o book.o            \
-       data.o drawn.o edit.o epd.o epdglue.o init.o input.o interupt.o       \
+#objects = searchr.o search.o thread.o searchmp.o repeat.o next.o nexte.o     \
+       nextr.o killer.o quiesce.o qchecks.o qevasions.o evaluate.o movgen.o  \
+       make.o unmake.o hash.o attacks.o swap.o boolean.o utility.o probe.o   \
+       book.o data.o drawn.o edit.o epd.o epdglue.o init.o input.o interupt.o\
        iterate.o main.o option.o output.o ponder.o preeval.o resign.o root.o \
        learn.o setboard.o test.o time.o validate.o annotate.o analyze.o      \
        evtest.o bench.o

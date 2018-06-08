@@ -1,32 +1,14 @@
 #include "chess.h"
 #include "data.h"
-
 /* last modified 01/22/04 */
 /*
  *******************************************************************************
  *                                                                             *
  *   NextEvasion() is used to select the next move from the current move list  *
- *   when the king is in check.  it tries the following things to get out of   *
- *   check:                                                                    *
- *                                                                             *
- *     1.  if one piece is attacking the king (aren't bitboard attack vectors  *
- *         wonderful?) try to capture the checking piece first.  we use the    *
- *         normal capture logic that tries winning or even captures first, and *
- *         postpones losing captures until other safe moves have been tried.   *
- *                                                                             *
- *     2.  try moving the king to a safe square (one that is not already under *
- *         attack, otherwise this would do nothing...)                         *
- *                                                                             *
- *     3.  If more than one piece is attacking the king, we can give up as we  *
- *         can't do anything but move the king, which we've already tried.     *
- *         therefore, assuming one attacker, if it's a knight, again we are    *
- *         done as we can't interpose anything.  if it's a bishop, rook, or    *
- *         queen, try interposing.  we simply have to find the attacker (easy) *
- *         the attackee (the king's square, also easy) and use the precomputed *
- *         mask to produce a bit vector of the squares between these two       *
- *         squares.  then pass this to GenerateCheckEvasions() as targets      *
- *         and we have all interposing moves.  of course, we still try them    *
- *         in "sane" order of safe followed by any.                            *
+ *   when the king is in check.  we use GenerateEvasions() (in movgen.c) to    *
+ *   generate a list of moves that get us out of check.  The only unusual      *
+ *   feature is that these moves are all legal and do not need to be vetted    *
+ *   with the usual Check() function to test for legality.                     *
  *                                                                             *
  *******************************************************************************
  */
@@ -143,7 +125,6 @@ int NextEvasion(TREE * RESTRICT tree, int ply, int wtm)
         return (REMAINING_MOVES);
       }
     return (NONE);
-
   default:
     printf("oops!  next_status.phase is bad! [evasion %d]\n",
         tree->next_status[ply].phase);

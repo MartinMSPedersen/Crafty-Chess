@@ -1,28 +1,23 @@
 #if !defined(EPDH_INCLUDED)
 #  define EPDH_INCLUDED
 /*>>> epd.h: subprogram prototypes for epd.c */
-
 /* Revised: 1996.06.23 */
-
 /*
    Copyright (C) 1996 by Steven J. Edwards (sje@mv.mv.com)
    All rights reserved.  This code may be freely redistibuted and used by
    both research and commerical applications.  No warranty exists.
  */
-
 /*
    Everything in this source file is independent of the host program.
    Requests for changes and additions should be communicated to the author
    via the e-mail address given above.
  */
-
 /*
    This file was originally prepared on an Apple Macintosh using the
    Metrowerks CodeWarrior 6 ANSI C compiler.  Tabs are set at every
    four columns.  Further testing and development was performed on a
    generic PC running Linux 1.3.20 and using the gcc 2.7.0 compiler.
  */
-
 void EPDFatal(charptrT s);
 void EPDSwitchFault(charptrT s);
 voidptrT EPDMemoryGrab(liT n);
@@ -146,6 +141,5 @@ refreqT EPDExtractRefreqIndex(epdptrT epdptr);
 siT EPDComm(refintptrT refintptr, charptrT pipebase);
 void EPDInit(void);
 void EPDTerm(void);
-
 #endif
 /*<<< epd.h: EOF */

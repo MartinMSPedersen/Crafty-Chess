@@ -1,6 +1,5 @@
 #include "chess.h"
 #include "data.h"
-
 /* last modified 03/15/08 */
 /*
  *******************************************************************************
@@ -58,7 +57,6 @@ void SetBoard(TREE * tree, int nargs, char *args[], int special)
   };
   int whichsq;
   static const int firstsq[8] = { 56, 48, 40, 32, 24, 16, 8, 0 };
-
   if (special)
     strcpy(input, initial_position);
   else
@@ -260,7 +258,7 @@ void SetBoard(TREE * tree, int nargs, char *args[], int special)
       last_pv.pathl = 0;
       tree->pv[0].pathd = 0;
       tree->pv[0].pathl = 0;
-      shared->moves_out_of_book = 0;
+      moves_out_of_book = 0;
     }
   } else {
     if (special)

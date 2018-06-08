@@ -1,6 +1,5 @@
 #include "chess.h"
 #include "data.h"
-
 /* last modified 08/07/05 */
 /*
  *******************************************************************************
@@ -16,7 +15,7 @@
 void Analyze()
 {
   int i, move, back_number, readstat = 1;
-  TREE *const tree = shared->local[0];
+  TREE *const tree = block[0];
 
 /*
  ************************************************************
@@ -31,7 +30,7 @@ void Analyze()
   ponder_move = 0;
   analyze_mode = 1;
   if (!xboard)
-    shared->display_options |= 1 + 2 + 4;
+    display_options |= 1 + 2 + 4;
   printf("Analyze Mode: type \"exit\" to terminate.\n");
 /*
  ************************************************************
@@ -46,17 +45,17 @@ void Analyze()
       last_pv.pathd = 0;
       last_pv.pathl = 0;
       input_status = 0;
-      shared->pondering = 1;
+      pondering = 1;
       tree->position[1] = tree->position[0];
       (void) Iterate(wtm, think, 0);
-      shared->pondering = 0;
+      pondering = 0;
       if (book_move)
-        shared->moves_out_of_book = 0;
+        moves_out_of_book = 0;
       if (!xboard) {
         if (wtm)
-          printf("analyze.White(%d): ", shared->move_number);
+          printf("analyze.White(%d): ", move_number);
         else
-          printf("analyze.Black(%d): ", shared->move_number);
+          printf("analyze.Black(%d): ", move_number);
         fflush(stdout);
       }
 /*
@@ -78,9 +77,9 @@ void Analyze()
           Print(128, "%s\n", buffer);
           if (strstr(args[0], "timeleft") && !xboard) {
             if (wtm)
-              printf("analyze.White(%d): ", shared->move_number);
+              printf("analyze.White(%d): ", move_number);
             else
-              printf("analyze.Black(%d): ", shared->move_number);
+              printf("analyze.Black(%d): ", move_number);
             fflush(stdout);
           }
         } while (strstr(args[0], "timeleft"));
@@ -108,13 +107,13 @@ void Analyze()
         for (i = 0; i < back_number; i++) {
           wtm = Flip(wtm);
           if (Flip(wtm))
-            shared->move_number--;
+            move_number--;
         }
-        if (shared->move_number == 0) {
-          shared->move_number = 1;
+        if (move_number == 0) {
+          move_number = 1;
           wtm = 1;
         }
-        sprintf(buffer, "reset %d", shared->move_number);
+        sprintf(buffer, "reset %d", move_number);
         (void) Option(tree);
         display = tree->pos;
       } else if (Option(tree)) {
@@ -132,13 +131,12 @@ void Analyze()
       else if ((move = InputMove(tree, buffer, 0, wtm, 1, 0))) {
         char *outmove = OutputMove(tree, move, 0, wtm);
 
-        fseek(history_file, ((shared->move_number - 1) * 2 + 1 - wtm) * 10,
-            SEEK_SET);
+        fseek(history_file, ((move_number - 1) * 2 + 1 - wtm) * 10, SEEK_SET);
         fprintf(history_file, "%9s\n", outmove);
         if (wtm)
-          Print(128, "White(%d): ", shared->move_number);
+          Print(128, "White(%d): ", move_number);
         else
-          Print(128, "Black(%d): ", shared->move_number);
+          Print(128, "Black(%d): ", move_number);
         Print(128, "%s\n", outmove);
         if (speech) {
           char announce[64];
@@ -162,10 +160,10 @@ void Analyze()
  ************************************************************
  */
       else {
-        shared->pondering = 0;
+        pondering = 0;
         if (Option(tree) == 0)
           printf("illegal move: %s\n", buffer);
-        shared->pondering = 1;
+        pondering = 1;
         display = tree->pos;
       }
     } while (!move);
@@ -173,10 +171,10 @@ void Analyze()
       break;
     wtm = Flip(wtm);
     if (wtm)
-      shared->move_number++;
+      move_number++;
   } while (1);
   analyze_mode = 0;
   printf("analyze complete.\n");
-  shared->pondering = 0;
+  pondering = 0;
   swindle_mode = save_swindle_mode;
 }

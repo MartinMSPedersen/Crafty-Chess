@@ -4,7 +4,6 @@
 #if defined(UNIX)
 #  include <unistd.h>
 #endif
-
 /* last modified 08/07/05 */
 /*
  *******************************************************************************
@@ -41,7 +40,6 @@
  */
 #define BAD_MOVE  0x02
 #define GOOD_MOVE 0x08
-
 int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
 {
   static int book_moves[200];
@@ -76,7 +74,7 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
  *                                                          *
  ************************************************************
  */
-  if (shared->moves_out_of_book > 6)
+  if (moves_out_of_book > 6)
     return (0);
 /*
  ************************************************************
@@ -100,11 +98,11 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
       fread(buf32, 4, 1, books_file);
       scluster = BookIn32(buf32);
       BookClusterIn(books_file, scluster, book_buffer);
-      for (im = 0; im < shared->n_root_moves; im++) {
+      for (im = 0; im < n_root_moves; im++) {
         common = HashKey & ((BITBOARD) 65535 << 48);
-        MakeMove(tree, 1, shared->root_moves[im].move, wtm);
+        MakeMove(tree, 1, root_moves[im].move, wtm);
         if (RepetitionCheckBook(tree, 2, wtm)) {
-          UnmakeMove(tree, 1, shared->root_moves[im].move, wtm);
+          UnmakeMove(tree, 1, root_moves[im].move, wtm);
           return (0);
         }
         temp_hash_key = HashKey ^ wtm_random[wtm];
@@ -114,7 +112,7 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
             start_moves[smoves++] = book_buffer[i];
             break;
           }
-        UnmakeMove(tree, 1, shared->root_moves[im].move, wtm);
+        UnmakeMove(tree, 1, root_moves[im].move, wtm);
       }
     }
   }
@@ -172,16 +170,16 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
  *                                                          *
  ************************************************************
  */
-    initial_development =
-        (wtm) ? EvaluateDevelopment(tree, 1, white) : EvaluateDevelopment(tree,
-        1, black);
+    initial_development = tree->score_mg;
+    EvaluateDevelopment(tree, 1, wtm);
+    initial_development = tree->score_mg - initial_development;
     total_moves = 0;
     nmoves = 0;
-    for (im = 0; im < shared->n_root_moves; im++) {
+    for (im = 0; im < n_root_moves; im++) {
       common = HashKey & ((BITBOARD) 65535 << 48);
-      MakeMove(tree, 1, shared->root_moves[im].move, wtm);
+      MakeMove(tree, 1, root_moves[im].move, wtm);
       if (RepetitionCheckBook(tree, 2, wtm)) {
-        UnmakeMove(tree, 1, shared->root_moves[im].move, wtm);
+        UnmakeMove(tree, 1, root_moves[im].move, wtm);
         return (0);
       }
       temp_hash_key = HashKey ^ wtm_random[wtm];
@@ -193,19 +191,19 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
           bs_learn[nmoves] = (int) (book_buffer[i].learn * 100.0);
           if (!wtm)
             bs_learn[nmoves] *= -1;
-          if (shared->puzzling)
+          if (puzzling)
             bs_played[nmoves] += 1;
-          tree->curmv[1] = shared->root_moves[im].move;
-          if (!Captured(shared->root_moves[im].move))
+          tree->curmv[1] = root_moves[im].move;
+          if (!Captured(root_moves[im].move)) {
+            book_development[nmoves] = tree->score_mg;
+            EvaluateDevelopment(tree, 2, wtm);
             book_development[nmoves] =
-                ((wtm) ? EvaluateDevelopment(tree, 2,
-                    white) : EvaluateDevelopment(tree, 2,
-                    black)) - initial_development;
-          else
+                tree->score_mg - book_development[nmoves];
+          } else
             book_development[nmoves] = 0;
           total_moves += bs_played[nmoves];
           evaluations[nmoves] = Evaluate(tree, 2, wtm, -99999, 99999);
-          evaluations[nmoves] -= (wtm) ? Material : -Material;
+          evaluations[nmoves] -= MaterialSTM;
           bs_percent[nmoves] = 0;
           for (j = 0; j < smoves; j++) {
             if (!(book_buffer[i].position ^ start_moves[j].position)) {
@@ -214,13 +212,13 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
               break;
             }
           }
-          book_moves[nmoves] = shared->root_moves[im].move;
+          book_moves[nmoves] = root_moves[im].move;
           book_key[nmoves] = temp_hash_key;
           nmoves++;
           break;
         }
       }
-      UnmakeMove(tree, 1, shared->root_moves[im].move, wtm);
+      UnmakeMove(tree, 1, root_moves[im].move, wtm);
     }
     if (!nmoves)
       return (0);
@@ -458,20 +456,20 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
  *                                                          *
  ************************************************************
  */
-    if (!shared->puzzling)
+    if (!puzzling)
       do {
-        shared->kibitz_text[0] = '\0';
+        kibitz_text[0] = '\0';
         if (!nmoves)
           break;
-        sprintf(shared->kibitz_text, "book moves (");
-        kibitz_p = shared->kibitz_text + strlen(shared->kibitz_text);
+        sprintf(kibitz_text, "book moves (");
+        kibitz_p = kibitz_text + strlen(kibitz_text);
         for (i = 0; i < nmoves; i++) {
           sprintf(kibitz_p, "%s %d%%", OutputMove(tree, book_moves[i], 1, wtm),
               100 * bs_played[i] / Max(total_played, 1));
-          kibitz_p = shared->kibitz_text + strlen(shared->kibitz_text);
+          kibitz_p = kibitz_text + strlen(kibitz_text);
           if (i < nmoves - 1) {
             sprintf(kibitz_p, ", ");
-            kibitz_p = shared->kibitz_text + strlen(shared->kibitz_text);
+            kibitz_p = kibitz_text + strlen(kibitz_text);
           }
         }
         sprintf(kibitz_p, ")\n");
@@ -494,7 +492,7 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
  first, check for !! moves
  */
     num_selected = 0;
-    if (!num_selected && !shared->puzzling)
+    if (!num_selected && !puzzling)
       if (book_accept_mask & 16)
         for (i = 0; i < nmoves; i++)
           if (book_status[i] & 16) {
@@ -508,7 +506,7 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
 /*
  if none, then check for ! moves
  */
-    if (!num_selected && !shared->puzzling)
+    if (!num_selected && !puzzling)
       if (book_accept_mask & 8)
         for (i = 0; i < nmoves; i++)
           if (book_status[i] & 8) {
@@ -522,7 +520,7 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
 /*
  if none, then check for = moves
  */
-    if (!num_selected && !shared->puzzling)
+    if (!num_selected && !puzzling)
       if (book_accept_mask & 4)
         for (i = 0; i < nmoves; i++)
           if (book_status[i] & 4) {
@@ -535,7 +533,7 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
 /*
  if none, then check for any flagged moves
  */
-    if (!num_selected && !shared->puzzling)
+    if (!num_selected && !puzzling)
       for (i = 0; i < nmoves; i++)
         if (book_status[i] & book_accept_mask) {
           selected_status[num_selected] = book_status[i];
@@ -570,7 +568,6 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
     nmoves = num_selected;
     if (nmoves == 0)
       return (0);
-
     Print(128, "               book moves {");
     for (i = 0; i < nmoves; i++) {
       Print(128, "%s", OutputMove(tree, book_moves[i], 1, wtm));
@@ -667,22 +664,22 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
  *                                                          *
  ************************************************************
  */
-    if (nmoves && (!shared->puzzling || mode != tournament_mode)) {
+    if (nmoves && (!puzzling || mode != tournament_mode)) {
       np = bs_played[nmoves - 1];
-      if (!shared->puzzling && (!book_random || (mode == tournament_mode &&
+      if (!puzzling && (!book_random || (mode == tournament_mode &&
                   np < book_search_trigger))) {
         if (!forced) {
-          shared->n_root_moves = nmoves;
-          for (i = 0; i < shared->n_root_moves; i++) {
-            shared->root_moves[i].move = book_moves[i];
-            shared->root_moves[i].nodes = 0;
-            shared->root_moves[i].status = 0;
+          n_root_moves = nmoves;
+          for (i = 0; i < n_root_moves; i++) {
+            root_moves[i].move = book_moves[i];
+            root_moves[i].nodes = 0;
+            root_moves[i].status = 0;
           }
           last_pv.pathd = 0;
-          shared->booking = 1;
-          value = Iterate(wtm, shared->booking, 1);
-          shared->booking = 0;
-          shared->abort_search = 0;
+          booking = 1;
+          value = Iterate(wtm, booking, 1);
+          booking = 0;
+          abort_search = 0;
           if (value < -50) {
             last_pv.pathd = 0;
             return (0);
@@ -706,23 +703,23 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
  *                                                          *
  ************************************************************
  */
-    else if (mode == tournament_mode && shared->puzzling) {
+    else if (mode == tournament_mode && puzzling) {
       RootMoveList(wtm);
-      for (i = 0; i < shared->n_root_moves; i++)
+      for (i = 0; i < n_root_moves; i++)
         for (j = 0; j < nmoves; j++)
-          if (shared->root_moves[i].move == book_moves[j])
-            shared->root_moves[i].move = 0;
-      for (i = 0, j = 0; i < shared->n_root_moves; i++)
-        if (shared->root_moves[i].move != 0)
-          shared->root_moves[j++] = shared->root_moves[i];
-      shared->n_root_moves = j;
+          if (root_moves[i].move == book_moves[j])
+            root_moves[i].move = 0;
+      for (i = 0, j = 0; i < n_root_moves; i++)
+        if (root_moves[i].move != 0)
+          root_moves[j++] = root_moves[i];
+      n_root_moves = j;
       Print(128, "               moves considered {only non-book moves}\n");
       nmoves = j;
       if (nmoves > 1) {
         last_pv.pathd = 0;
-        shared->booking = 1;
-        (void) Iterate(wtm, shared->booking, 1);
-        shared->booking = 0;
+        booking = 1;
+        (void) Iterate(wtm, booking, 1);
+        booking = 0;
       } else {
         tree->pv[1].path[1] = book_moves[0];
         tree->pv[1].pathl = 1;
@@ -815,7 +812,6 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
  */
 int BookPonderMove(TREE * RESTRICT tree, int wtm)
 {
-
   BITBOARD temp_hash_key, common;
   static int book_moves[200];
   int i, key, *lastm, cluster, n_moves, im, played, tplayed;
@@ -847,7 +843,7 @@ int BookPonderMove(TREE * RESTRICT tree, int wtm)
     if (!cluster)
       return (0);
     lastm = GenerateCaptures(tree, 2, wtm, book_moves);
-    lastm = GenerateNonCaptures(tree, 2, wtm, lastm);
+    lastm = GenerateNoncaptures(tree, 2, wtm, lastm);
     n_moves = lastm - book_moves;
 /*
  ************************************************************
@@ -955,6 +951,9 @@ void BookUp(TREE * RESTRICT tree, int nargs, char **args)
  *                                                          *
  ************************************************************
  */
+#if defined(POSITIONS)
+  FILE *pout = fopen("positions", "w");
+#endif
   if (!strcmp(args[1], "create")) {
     if (nargs < 4) {
       Print(4095, "usage:  <binfile> create <pgn-filename> ");
@@ -1174,6 +1173,25 @@ void BookUp(TREE * RESTRICT tree, int nargs, char **args)
                 wtm = Flip(wtm);
                 if (wtm)
                   move_num++;
+#if defined(POSITIONS)
+                if (wtm && move_num == 11) {
+                  char t_initial_position[256];
+                  SEARCH_POSITION temp_pos;
+
+                  strcpy(t_initial_position, initial_position);
+                  temp_pos = tree->position[0];
+                  tree->position[0] = tree->position[3];
+                  if (Castle(0, white) < 0)
+                    Castle(0, white) = 0;
+                  if (Castle(0, black) < 0)
+                    Castle(0, black) = 0;
+                  strcpy(buffer, "savepos *");
+                  (void) Option(tree);
+                  fprintf(pout, "%s\n", initial_position);
+                  strcpy(initial_position, t_initial_position);
+                  tree->position[0] = temp_pos;
+                }
+#endif
               } else if (strspn(buffer, "0123456789/-.*") != strlen(buffer) &&
                   ply < max_ply) {
                 errors++;
@@ -1463,6 +1481,8 @@ BB_POSITION BookUpNextPosition(int files, int init)
   }
   for (i = 0; i < 8; i++)
     least.position[i] = 0;
+  least.status = 0;
+  least.percent_play = 0;
   used = -1;
   for (i = 1; i <= files; i++)
     if (data_read[i]) {

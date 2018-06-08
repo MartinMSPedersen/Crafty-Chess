@@ -3,7 +3,6 @@
 #else
 #  define FORCEINLINE __inline
 #endif
-
 FORCEINLINE int PopCnt(BITBOARD a)
 {
 /* Because Crafty bitboards are typically sparsely populated, we use a

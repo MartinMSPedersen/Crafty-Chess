@@ -1,10 +1,7 @@
 #include "chess.h"
 #include "data.h"
-
 #if (!defined(INLINE32) && !defined(VC_INLINE32) && !defined(ALPHA) && !defined(INLINE64)) || (defined(ALPHA) && !defined(PopCnt))
-
 #  if defined (_M_IA64)
-
 #    ifdef __ICL
 typedef unsigned long long __m64;
 #    elif _MSC_VER >= 1300
@@ -21,11 +18,9 @@ typedef union __declspec (intrin_type) __declspec(align(8)) __m64
   unsigned __int32 m64_u32[2];
 } __m64;
 #    endif
-
 __m64 __m64_popcnt(__m64);
 
 #    pragma intrinsic (__m64_popcnt)
-
 int PopCnt(register BITBOARD a)
 {
 #    ifdef __ICL
@@ -38,9 +33,7 @@ int PopCnt(register BITBOARD a)
   return (int) m.m64_u64;
 #    endif
 }
-
 #  else
-
 #    if !defined(INLINE32) && !defined(VC_INLINE32)
 int PopCnt(register BITBOARD a)
 {
@@ -53,18 +46,14 @@ int PopCnt(register BITBOARD a)
   return (c);
 }
 #    endif
-
 #  endif
-
 #  if defined (_M_AMD64) || defined (_M_IA64)
-
 extern unsigned char _BitScanReverse64(unsigned long *, unsigned __int64);
 
 #    pragma intrinsic (_BitScanReverse64)
 extern unsigned char _BitScanForward64(unsigned long *, unsigned __int64);
 
 #    pragma intrinsic (_BitScanForward64)
-
 int MSB(BITBOARD arg1)
 {
   unsigned long index;
@@ -84,9 +73,7 @@ int LSB(BITBOARD arg1)
   else
     return 64;
 }
-
 #  else
-
 #    if !defined(INLINE32) && !defined(VC_INLINE32)
 int MSB(BITBOARD arg1)
 {

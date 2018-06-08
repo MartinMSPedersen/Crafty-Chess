@@ -1,7 +1,6 @@
 #if !defined(NOEGTB)
 #  include "chess.h"
 #  include "data.h"
-
 /* last modified 11/03/98 */
 /*
  *******************************************************************************
@@ -11,7 +10,6 @@
  *                                                                             *
  *******************************************************************************
  */
-
 /*
    Service macro - initialize squares of the particular piece as well as
    counter for that piece. Note: dual initialization saves some time when
@@ -31,7 +29,6 @@
 #  define  T_INDEX64
 #  define  XX  127
 #  define  C_PIECES  3  /* Maximum # of pieces of one color OTB */
-
 #  if defined (T_INDEX64) && defined (_MSC_VER)
 typedef unsigned __int64 INDEX;
 #  elif defined (T_INDEX64)
@@ -39,24 +36,20 @@ typedef unsigned long long INDEX;
 #  else
 typedef unsigned long INDEX;
 #  endif
-
 typedef unsigned int squaret;
 
 /* Those declarations necessary because Crafty is C, not C++ program */
-
 #  if defined (_MSC_VER)
 #    define  TB_FASTCALL  __fastcall
 #  else
 #    define  TB_FASTCALL
 #  endif
-
 typedef int pcolor;
 
 #  define  x_colorWhite  0
 #  define  x_colorBlack  1
 #  define  x_colorNeutral  2
 #  define COLOR_DECLARED
-
 typedef int piece;
 
 #  define  x_pieceNone    0
@@ -78,10 +71,8 @@ typedef signed char tb_t;
 #  define bev_limax   (-1)      /* mated in max moves */
 #  define bev_li0     (-tbbe_ssL)
                                 /* mated in 0 moves */
-
 typedef INDEX(TB_FASTCALL * PfnCalcIndex)
  (squaret *, squaret *, squaret, int fInverse);
-
 extern int IDescFindFromCounters(int *);
 extern int FRegisteredFun(int, pcolor);
 extern PfnCalcIndex PfnIndCalcFun(int, pcolor);
@@ -89,7 +80,6 @@ extern int TB_FASTCALL L_TbtProbeTable(int, pcolor, INDEX);
 
 #  define PfnIndCalc PfnIndCalcFun
 #  define FRegistered FRegisteredFun
-
 int EGTBProbe(TREE * RESTRICT tree, int ply, int wtm, int *score)
 {
   int rgiCounters[10], iTb, fInvert;

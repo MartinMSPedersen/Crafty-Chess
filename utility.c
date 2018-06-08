@@ -49,13 +49,11 @@
 #  include <sys/ipc.h>
 #  include <sys/shm.h>
 #endif
-
 #if defined(__EMX__)
 #  define INCL_DOS
 #  define INCL_KBD
 #  include <os2.h>
 #endif
-
 /*
  *******************************************************************************
  *                                                                             *
@@ -138,7 +136,6 @@ float BookIn32f(unsigned char *ch)
  */
 int BookIn32(unsigned char *ch)
 {
-
   return ((ch[3] << 24) | (ch[2] << 16) | (ch[1] << 8) | ch[0]);
 }
 
@@ -153,7 +150,6 @@ int BookIn32(unsigned char *ch)
  */
 BITBOARD BookIn64(unsigned char *ch)
 {
-
   return ((((BITBOARD) ch[7]) << 56) | (((BITBOARD) ch[6]) << 48) | (((BITBOARD)
               ch[5]) << 40) | (((BITBOARD) ch[4]) << 32) | (((BITBOARD) ch[3])
           << 24) | (((BITBOARD) ch[2]) << 16) | (((BITBOARD) ch[1]) << 8) |
@@ -242,7 +238,6 @@ unsigned char *BookOut64(BITBOARD val)
 #  define RAW 1
 #  define CON 0
 #  include <limits.h>
-
 int _kbhit(void)
 {
   BPTR inp;
@@ -258,7 +253,6 @@ int _kbhit(void)
   return ret;
 }
 #endif                          /* if defined(AMIGA)  */
-
 #if defined(NT_i386)
 #  include <windows.h>
 #  include <conio.h>
@@ -304,7 +298,6 @@ int CheckInput(void)
   return (i);
 }
 #endif
-
 #if defined(UNIX)
 #  ifdef __EMX__
 int CheckInput(void)
@@ -346,7 +339,6 @@ int CheckInput(void)
 }
 #  endif
 #endif
-
 /*
  *******************************************************************************
  *                                                                             *
@@ -388,8 +380,9 @@ void ClearHashTableScores(void)
  */
 void CraftyExit(int exit_type)
 {
-  shared->abort_search = 1;
-  shared->quit = 1;
+  abort_search = 1;
+  quit = 1;
+  while (smp_threads);
   exit(exit_type);
 }
 
@@ -437,6 +430,75 @@ void DisplayArray(int *array, int size)
     printf("    ---------------------------------\n");
     printf("      a   b   c   d   e   f   g   h\n");
   }
+}
+
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   DisplayArray() prints array data either 8 or 16 values per line, and also *
+ *   reverses the output for arrays that overlay the chess board so that the   *
+ *   'white side" is at the bottom rather than the top.  this is mainly used   *
+ *   from inside Option() to display the many evaluation terms.                *
+ *                                                                             *
+ *******************************************************************************
+ */
+void DisplayArrayX2(int *array, int *array2, int size)
+{
+  int i, j;
+
+  if (size == 256) {
+    printf("    ----------- Middlegame -----------   ");
+    printf("    ------------- Endgame -----------\n");
+    for (i = 0; i < 8; i++) {
+      printf("    ");
+      for (j = 0; j < 8; j++)
+        printf("%3d ", array[(7 - i) * 8 + j]);
+      printf("  |  %d  |", 8 - i);
+      printf("  ");
+      for (j = 0; j < 8; j++)
+        printf("%3d ", array2[(7 - i) * 8 + j]);
+      printf("\n");
+    }
+    printf
+        ("    ----------------------------------       ---------------------------------\n");
+    printf("      a   b   c   d   e   f   g   h        ");
+    printf("      a   b   c   d   e   f   g   h\n");
+  } else if (size == 32) {
+    printf("    ----------- Middlegame -----------   ");
+    printf("    ------------- Endgame -----------\n");
+    printf("    ");
+    for (i = 0; i < 8; i++)
+      printf("%3d ", array[i]);
+    printf("  |     |");
+    printf("  ");
+    for (i = 0; i < 8; i++)
+      printf("%3d ", array2[i]);
+    printf("\n");
+  } else if (size <= 20) {
+    size = size / 2;
+    printf("    ");
+    for (i = 0; i < size; i++)
+      printf("%3d ", array[i]);
+    printf("  |<mg    eg>|");
+    printf("  ");
+    for (i = 0; i < size; i++)
+      printf("%3d ", array2[i]);
+    printf("\n");
+  } else if (size > 128) {
+    printf("    ----------- Middlegame -----------   ");
+    printf("    ------------- Endgame -----------\n");
+    for (i = 0; i < size / 32; i++) {
+      printf("    ");
+      for (j = 0; j < 8; j++)
+        printf("%3d ", array[(7 - i) * 8 + j]);
+      printf("  |  %d  |", 8 - i);
+      printf("  ");
+      for (j = 0; j < 8; j++)
+        printf("%3d ", array2[(7 - i) * 8 + j]);
+      printf("\n");
+    }
+  } else
+    Print(4095, "ERROR, invalid size = -%d in packet\n", size);
 }
 
 /*
@@ -641,12 +703,11 @@ char *DisplayEvaluationKibitz(int value, int wtm)
 void DisplayPV(TREE * RESTRICT tree, int level, int wtm, int time, int value,
     PATH * pv)
 {
-  char buffer[512], *buffp, *bufftemp;
+  char buffer[4096], *buffp, *bufftemp;
   int i, t_move_number, type, j, dummy = 0;
   int nskip = 0, twtm = wtm;
 
-  shared->root_print_ok = shared->root_print_ok ||
-      tree->nodes_searched > shared->noise_level;
+  root_print_ok = root_print_ok || tree->nodes_searched > noise_level;
 /*
  ************************************************************
  *                                                          *
@@ -654,23 +715,22 @@ void DisplayPV(TREE * RESTRICT tree, int level, int wtm, int time, int value,
  *                                                          *
  ************************************************************
  */
-  for (i = 0; i < shared->n_root_moves; i++)
-    if (!(shared->root_moves[i].status & 256) &&
-        shared->root_moves[i].status & 64)
+  for (i = 0; i < n_root_moves; i++)
+    if (!(root_moves[i].status & 256) && root_moves[i].status & 64)
       nskip++;
   if (level == 5)
     type = 4;
   else
     type = 2;
-  t_move_number = shared->move_number;
-  if (shared->display_options & 64)
-    sprintf(buffer, " %d.", shared->move_number);
+  t_move_number = move_number;
+  if (display_options & 64)
+    sprintf(buffer, " %d.", move_number);
   else
     buffer[0] = 0;
-  if ((shared->display_options & 64) && !wtm)
+  if ((display_options & 64) && !wtm)
     sprintf(buffer + strlen(buffer), " ...");
   for (i = 1; i <= (int) pv->pathl; i++) {
-    if ((shared->display_options & 64) && i > 1 && wtm)
+    if ((display_options & 64) && i > 1 && wtm)
       sprintf(buffer + strlen(buffer), " %d.", t_move_number);
     sprintf(buffer + strlen(buffer), " %s", OutputMove(tree, pv->path[i], i,
             wtm));
@@ -691,7 +751,7 @@ void DisplayPV(TREE * RESTRICT tree, int level, int wtm, int time, int value,
  */
   if (pv->pathh == 1) {
     for (i = pv->pathl + 1; i < MAXPLY; i++) {
-      HashProbe(tree, i, 0, wtm, &dummy, dummy, &dummy);
+      HashProbe(tree, i, 0, wtm, &dummy, dummy);
       if (tree->hash_move[i] && ValidMove(tree, i, wtm, tree->hash_move[i])) {
         pv->path[i] = tree->hash_move[i];
         for (j = 1; j < i; j++)
@@ -700,7 +760,7 @@ void DisplayPV(TREE * RESTRICT tree, int level, int wtm, int time, int value,
         if (j < i)
           break;
         pv->pathl++;
-        if ((shared->display_options & 64) && wtm)
+        if ((display_options & 64) && wtm)
           sprintf(buffer + strlen(buffer), " %d.", t_move_number);
         sprintf(buffer + strlen(buffer), " %s", OutputMove(tree, pv->path[i], i,
                 wtm));
@@ -714,17 +774,17 @@ void DisplayPV(TREE * RESTRICT tree, int level, int wtm, int time, int value,
     sprintf(buffer + strlen(buffer), " <HT>");
   } else if (pv->pathh == 2)
     sprintf(buffer + strlen(buffer), " <EGTB>");
-  strcpy(shared->kibitz_text, buffer);
-  if (nskip > 1 && shared->max_threads > 1)
+  strcpy(kibitz_text, buffer);
+  if (nskip > 1 && max_threads > 1)
     sprintf(buffer + strlen(buffer), " (s=%d)", nskip);
-  if (shared->root_print_ok) {
-    Lock(shared->lock_io);
+  if (root_print_ok) {
+    Lock(lock_io);
     Print(type, "               ");
     if (level == 6)
-      Print(type, "%2i   %s%s   ", shared->iteration_depth, DisplayTime(time),
+      Print(type, "%2i   %s%s   ", iteration_depth, DisplayTime(time),
           DisplayEvaluation(value, twtm));
     else
-      Print(type, "%2i-> %s%s   ", shared->iteration_depth, DisplayTime(time),
+      Print(type, "%2i-> %s%s   ", iteration_depth, DisplayTime(time),
           DisplayEvaluation(value, twtm));
     buffp = buffer + 1;
     do {
@@ -739,10 +799,9 @@ void DisplayPV(TREE * RESTRICT tree, int level, int wtm, int time, int value,
       if (bufftemp)
         Print(type, "                                    ");
     } while (bufftemp);
-    Kibitz(level, twtm, shared->iteration_depth,
-        shared->end_time - shared->start_time, value, tree->nodes_searched,
-        tree->egtb_probes_successful, shared->kibitz_text);
-    Unlock(shared->lock_io);
+    Kibitz(level, twtm, iteration_depth, end_time - start_time, value,
+        tree->nodes_searched, tree->egtb_probes_successful, kibitz_text);
+    Unlock(lock_io);
   }
   for (i = pv->pathl; i > 0; i--) {
     wtm = Flip(wtm);
@@ -855,10 +914,10 @@ void DisplayTreeState(TREE * RESTRICT tree, int sply, int spos, int maxply)
   buf[0] = 0;
   if (sply == 1) {
     left = 0;
-    for (i = 0; i < shared->n_root_moves; i++)
-      if (!(shared->root_moves[i].status & 256))
+    for (i = 0; i < n_root_moves; i++)
+      if (!(root_moves[i].status & 256))
         left++;
-    sprintf(buf, "%d:%d/%d  ", 1, left, shared->n_root_moves);
+    sprintf(buf, "%d:%d/%d  ", 1, left, n_root_moves);
   } else {
     for (i = 0; i < spos - 6; i++)
       sprintf(buf + strlen(buf), " ");
@@ -882,10 +941,163 @@ void DisplayTreeState(TREE * RESTRICT tree, int sply, int spos, int maxply)
   }
   printf("%s\n", buf);
   if (sply == 1 && tree->nprocs) {
-    for (i = 0; i < shared->max_threads; i++)
+    for (i = 0; i < max_threads; i++)
       if (tree->siblings[i])
         DisplayTreeState(tree->siblings[i], tree->ply + 1, parallel, maxply);
   }
+}
+
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   DisplayType3() prints personality parameters that use an 8x8 board for    *
+ *   their base values.  this prints them side by side with rank/file labels   *
+ *   to make it easier to read.                                                *
+ *                                                                             *
+ *******************************************************************************
+ */
+void DisplayType3(int *array, int *array2)
+{
+  int i, j;
+
+    printf("    ----------- Middlegame -----------   ");
+    printf("    ------------- Endgame -----------\n");
+    for (i = 0; i < 8; i++) {
+      printf("    ");
+      for (j = 0; j < 8; j++)
+        printf("%3d ", array[64 + (7 - i) * 8 + j]);
+      printf("  |  %d  |", 8 - i);
+      printf("  ");
+      for (j = 0; j < 8; j++)
+        printf("%3d ", array2[64 + (7 - i) * 8 + j]);
+      printf("\n");
+    }
+    printf
+        ("    ----------------------------------       ---------------------------------\n");
+    printf("      a   b   c   d   e   f   g   h        ");
+    printf("      a   b   c   d   e   f   g   h\n");
+}
+
+
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   DisplayType4() prints personality parameters that use an 8x8 board for    *
+ *   their base values.  this prints them side by side with rank/file labels   *
+ *   to make it easier to read.                                                *
+ *                                                                             *
+ *******************************************************************************
+ */
+void DisplayType4(int *array, int *array2)
+{
+  int i, j;
+
+  printf("    ----------- Middlegame -----------   ");
+  printf("    ------------- Endgame -----------\n");
+  for (i = 0; i < 8; i++) {
+    printf("    ");
+    for (j = 0; j < 8; j++)
+      printf("%3d ", array[(7 - i) * 8 + j]);
+    printf("  |  %d  |", 8 - i);
+    printf("  ");
+    for (j = 0; j < 8; j++)
+      printf("%3d ", array2[(7 - i) * 8 + j]);
+    printf("\n");
+  }
+  printf
+      ("    ----------------------------------       ---------------------------------\n");
+  printf("      a   b   c   d   e   f   g   h        ");
+  printf("      a   b   c   d   e   f   g   h\n");
+}
+
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   DisplayType5() prints personality parameters that use an nx8 board for    *
+ *   their base values.  this prints them side by side.                        *
+ *                                                                             *
+ *******************************************************************************
+ */
+void DisplayType5(int *array, int *array2, int rows)
+{
+  int i, j;
+
+    printf("    ----------- Middlegame -----------   ");
+    printf("    ------------- Endgame -----------\n");
+    for (i = 0; i < rows; i++) {
+      printf("    ");
+      for (j = 0; j < 8; j++)
+        printf("%3d ", array[(rows - 1 - i) * 8 + j]);
+      printf("  |  %d  |", 8 - i);
+      printf("  ");
+      for (j = 0; j < 8; j++)
+        printf("%3d ", array2[(rows - 1 - i) * 8 + j]);
+      printf("\n");
+    }
+}
+
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   DisplayType6() prints personality parameters that use an arran of the     *
+ *   form array[mg][side][8].                                                  *
+ *                                                                             *
+ *******************************************************************************
+ */
+void DisplayType6(int *array, int *array2)
+{
+  int i;
+
+  printf("    ----------- Middlegame -----------   ");
+  printf("    ------------- Endgame -----------\n");
+  printf("    ");
+  for (i = 0; i < 8; i++)
+    printf("%3d ", array[i]);
+  printf("  |     |");
+  printf("  ");
+  for (i = 0; i < 8; i++)
+    printf("%3d ", array2[i]);
+  printf("\n");
+}
+
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   DisplayType7() prints personality parameters that use an array[mg][5]     *
+ *   format.                                                                   *
+ *                                                                             *
+ *******************************************************************************
+ */
+void DisplayType7(int *array, int *array2)
+{
+  int i;
+
+  printf("    ----- Middlegame -----   ");
+  printf("    ------- Endgame ------\n");
+  printf("    ");
+  for (i = 0; i < 5; i++)
+    printf("%3d ", array[i]);
+  printf("  |     |");
+  printf("  ");
+  for (i = 0; i < 5; i++)
+    printf("%3d ", array2[i]);
+  printf("\n");
+}
+
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   DisplayType8() prints personality parameters that use an array[x].        *
+ *                                                                             *
+ *******************************************************************************
+ */
+void DisplayType8(int *array)
+{
+  int i;
+
+  for (i = 0; i < 4; i++)
+    printf("%3d ", array[i]);
+  printf("\n");
 }
 
 /*
@@ -934,12 +1146,12 @@ void EGTBPV(TREE * RESTRICT tree, int wtm)
     return;
   if (!EGTBProbe(tree, 1, wtm, &value))
     return;
-  t_move_number = shared->move_number;
-  if (shared->display_options & 64)
-    sprintf(buffer, "%d.", shared->move_number);
+  t_move_number = move_number;
+  if (display_options & 64)
+    sprintf(buffer, "%d.", move_number);
   else
     buffer[0] = 0;
-  if ((shared->display_options & 64) && !wtm)
+  if ((display_options & 64) && !wtm)
     sprintf(buffer + strlen(buffer), " ...");
 /*
  ************************************************************
@@ -956,7 +1168,7 @@ void EGTBPV(TREE * RESTRICT tree, int wtm)
   for (ply = 1; ply < 1024; ply++) {
     pos[ply] = HashKey;
     last = GenerateCaptures(tree, 1, wtm, current);
-    last = GenerateNonCaptures(tree, 1, wtm, last);
+    last = GenerateNoncaptures(tree, 1, wtm, last);
     nmoves = last - current;
     best = -MATE - 1;
     legal = 0;
@@ -981,7 +1193,7 @@ void EGTBPV(TREE * RESTRICT tree, int wtm)
     }
     if (best > -MATE - 1) {
       moves[ply] = bestmv;
-      if ((shared->display_options & 64) && ply > 1 && wtm)
+      if ((display_options & 64) && ply > 1 && wtm)
         sprintf(buffer + strlen(buffer), " %d.", t_move_number);
       sprintf(buffer + strlen(buffer), " %s", OutputMove(tree, bestmv, 1, wtm));
       if (!strchr(buffer, '#') && legal > 1 && optimal_mv)
@@ -1031,7 +1243,6 @@ void EGTBPV(TREE * RESTRICT tree, int wtm)
   }
 }
 #endif
-
 /*
  *******************************************************************************
  *                                                                             *
@@ -1056,7 +1267,7 @@ void DisplayChessMove(char *title, int move)
  */
 char *FormatPV(TREE * RESTRICT tree, int wtm, PATH pv)
 {
-  static char buffer[512];
+  static char buffer[4096];
   int i, t_move_number;
 
 /*
@@ -1066,15 +1277,15 @@ char *FormatPV(TREE * RESTRICT tree, int wtm, PATH pv)
  *                                                          *
  ************************************************************
  */
-  t_move_number = shared->move_number;
-  if (shared->display_options & 64)
-    sprintf(buffer, " %d.", shared->move_number);
+  t_move_number = move_number;
+  if (display_options & 64)
+    sprintf(buffer, " %d.", move_number);
   else
     buffer[0] = 0;
-  if ((shared->display_options & 64) && !wtm)
+  if ((display_options & 64) && !wtm)
     sprintf(buffer + strlen(buffer), " ...");
   for (i = 1; i <= (int) pv.pathl; i++) {
-    if ((shared->display_options & 64) && i > 1 && wtm)
+    if ((display_options & 64) && i > 1 && wtm)
       sprintf(buffer + strlen(buffer), " %d.", t_move_number);
     sprintf(buffer + strlen(buffer), " %s", OutputMove(tree, pv.path[i], i,
             wtm));
@@ -1104,7 +1315,7 @@ char *FormatPV(TREE * RESTRICT tree, int wtm, PATH pv)
 int GameOver(int wtm)
 {
   int *mvp, *lastm, rmoves[256];
-  TREE *const tree = shared->local[0];
+  TREE *const tree = block[0];
   int over = 1;
 
 /*
@@ -1116,7 +1327,7 @@ int GameOver(int wtm)
  ************************************************************
  */
   lastm = GenerateCaptures(tree, 1, wtm, rmoves);
-  lastm = GenerateNonCaptures(tree, 1, wtm, lastm);
+  lastm = GenerateNoncaptures(tree, 1, wtm, lastm);
 /*
  ************************************************************
  *                                                          *
@@ -1172,7 +1383,6 @@ unsigned int ReadClock(void)
   FILETIME ftCreate, ftExit, ftKernel, ftUser;
   BITBOARD tUser64;
 #endif
-
 #if defined(UNIX) || defined(AMIGA)
   gettimeofday(&timeval, &timezone);
   return (timeval.tv_sec * 100 + (timeval.tv_usec / 10000));
@@ -1190,12 +1400,12 @@ unsigned int ReadClock(void)
  *                                                                             *
  *******************************************************************************
  */
-int FindBlockID(TREE * RESTRICT block)
+int FindBlockID(TREE * RESTRICT which)
 {
   int i;
 
   for (i = 0; i < MAX_BLOCKS + 1; i++)
-    if (block == shared->local[i])
+    if (which == block[i])
       return (i);
   return (-1);
 }
@@ -1331,7 +1541,7 @@ void NewGame(int save)
   static int save_learning = 0;
   static int save_accept_draws = 0;
   int id;
-  TREE *const tree = shared->local[0];
+  TREE *const tree = block[0];
 
   new_game = 0;
   if (save) {
@@ -1344,9 +1554,8 @@ void NewGame(int save)
     save_learning = learning;
     save_accept_draws = accept_draws;
   } else {
-    if (learning & book_learning && shared->moves_out_of_book) {
-      int val =
-          (shared->crafty_is_white) ? last_search_value : -last_search_value;
+    if (learning & book_learning && moves_out_of_book) {
+      int val = (crafty_is_white) ? last_search_value : -last_search_value;
 
       LearnBook(val, 0, 0, 1);
     }
@@ -1354,10 +1563,10 @@ void NewGame(int save)
       printf("*whisper Hello from Crafty v%s !\n", version);
     if (xboard) {
       printf("tellicsnoalias set 1 Crafty v%s (%d cpus)\n", version, Max(1,
-              shared->max_threads));
+              max_threads));
     }
     over = 0;
-    shared->moves_out_of_book = 0;
+    moves_out_of_book = 0;
     learn_positions_count = 0;
     ponder_move = 0;
     last_search_value = 0;
@@ -1367,16 +1576,16 @@ void NewGame(int save)
     InitializeChessBoard(tree);
     InitializeHashTables();
     force = 0;
-    shared->trojan_check = 0;
-    shared->computer_opponent = 0;
+    trojan_check = 0;
+    computer_opponent = 0;
     books_file = normal_bs_file;
-    shared->draw_score[0] = 0;
-    shared->draw_score[1] = 0;
+    draw_score[0] = 0;
+    draw_score[1] = 0;
     wtm = 1;
-    shared->move_number = 1;
-    shared->tc_time_remaining = shared->tc_time;
-    shared->tc_time_remaining_opponent = shared->tc_time;
-    shared->tc_moves_remaining = shared->tc_moves;
+    move_number = 1;
+    tc_time_remaining = tc_time;
+    tc_time_remaining_opponent = tc_time;
+    tc_moves_remaining = tc_moves;
     if (move_actually_played) {
       if (log_file)
         fclose(log_file);
@@ -1405,11 +1614,11 @@ void NewGame(int save)
     usage_level = 0;
     learning = save_learning;
     predicted = 0;
-    shared->kibitz_depth = 0;
+    kibitz_depth = 0;
     tree->nodes_searched = 0;
     tree->fail_high = 0;
     tree->fail_high_first = 0;
-    shared->kibitz_text[0] = 0;
+    kibitz_text[0] = 0;
   }
 }
 
@@ -1429,7 +1638,6 @@ char *Normal(void)
 
   std_console = GetStdHandle(STD_OUTPUT_HANDLE);
 #endif
-
   if (ansi) {
 #if defined(UNIX) || defined(AMIGA)
     return ("\033[0m");
@@ -1498,7 +1706,7 @@ int ParseTime(char *string)
 void Pass(void)
 {
   char buffer[128];
-  const int halfmoves_done = 2 * (shared->move_number - 1) + (1 - wtm);
+  const int halfmoves_done = 2 * (move_number - 1) + (1 - wtm);
   int prev_pass = 0;
 
 /* Was previous move a pass? */
@@ -1509,12 +1717,12 @@ void Pass(void)
   }
   if (prev_pass) {
     if (wtm)
-      shared->move_number--;
+      move_number--;
   } else {
     fseek(history_file, halfmoves_done * 10, SEEK_SET);
     fprintf(history_file, "%9s\n", "pass");
     if (!wtm)
-      shared->move_number++;
+      move_number++;
   }
   wtm = Flip(wtm);
 }
@@ -1541,10 +1749,10 @@ void Print(int vb, char *fmt, ...)
   va_list ap;
 
   va_start(ap, fmt);
-  if (vb & shared->display_options)
+  if (vb & display_options)
     vprintf(fmt, ap);
   fflush(stdout);
-  if (shared->time_limit > 99 || shared->tc_time_remaining > 6000 || vb == 4095) {
+  if (time_limit > -99 || tc_time_remaining > 6000 || vb == 4095) {
     va_start(ap, fmt);
     if (log_file)
       vfprintf(log_file, fmt, ap);
@@ -1630,7 +1838,6 @@ unsigned int Random32(void)
     j = 24 - 1;
     k = 55 - 1;
   }
-
   ul = (y[k] += y[j]);
   if (--j < 0)
     j = 55 - 1;
@@ -1741,17 +1948,17 @@ void ReadClear()
  */
 int ReadParse(char *buffer, char *args[], char *delims)
 {
-  char *next, tbuffer[512];
+  char *next, tbuffer[4096];
   int nargs;
 
   strcpy(tbuffer, buffer);
-  for (nargs = 0; nargs < 255; nargs++)
+  for (nargs = 0; nargs < 512; nargs++)
     *(args[nargs]) = 0;
   next = strtok(tbuffer, delims);
   if (!next)
     return (0);
   strcpy(args[0], next);
-  for (nargs = 1; nargs < 255; nargs++) {
+  for (nargs = 1; nargs < 512; nargs++) {
     next = strtok(0, delims);
     if (!next)
       break;
@@ -1770,11 +1977,11 @@ int ReadParse(char *buffer, char *args[], char *delims)
  */
 int ReadInput(void)
 {
-  char buffer[512], *end;
+  char buffer[4096], *end;
   int bytes;
 
   do
-    bytes = read(fileno(input_stream), buffer, 512);
+    bytes = read(fileno(input_stream), buffer, 4096);
   while (bytes < 0 && errno == EINTR);
   if (bytes == 0) {
     if (input_stream != stdin)
@@ -1802,7 +2009,6 @@ int ReadInput(void)
  */
 int ReadChessMove(TREE * RESTRICT tree, FILE * input, int wtm, int one_move)
 {
-
   static char text[128];
   char *tmove;
   int move = 0, status;
@@ -1839,7 +2045,6 @@ int ReadChessMove(TREE * RESTRICT tree, FILE * input, int wtm, int one_move)
  */
 int ReadNextMove(TREE * RESTRICT tree, char *text, int ply, int wtm)
 {
-
   char *tmove;
   int move = 0;
 
@@ -1871,8 +2076,8 @@ int ReadNextMove(TREE * RESTRICT tree, char *text, int ply, int wtm)
 int ReadPGN(FILE * input, int option)
 {
   static int data = 0, lines_read = 0;
-  static char input_buffer[512];
-  char temp[512], *eof, analysis_move[64];
+  static char input_buffer[4096];
+  char temp[4096], *eof, analysis_move[64];
   int braces = 0, parens = 0, brackets = 0, analysis = 0, last_good_line;
 
 /*
@@ -1904,7 +2109,7 @@ int ReadPGN(FILE * input, int option)
  */
   while (1) {
     if (!data) {
-      eof = fgets(input_buffer, 512, input);
+      eof = fgets(input_buffer, 4096, input);
       if (!eof)
         return (-1);
       if (strchr(input_buffer, '\n'))
@@ -1948,7 +2153,7 @@ int ReadPGN(FILE * input, int option)
             strcpy(pgn_result, value);
           else if (strstr(input_buffer, "FEN")) {
             sprintf(buffer, "setboard %s", value);
-            (void) Option(shared->local[0]);
+            (void) Option(block[0]);
             continue;
           }
           return (1);
@@ -1982,7 +2187,7 @@ int ReadPGN(FILE * input, int option)
 /*
  ************************************************************
  *                                                          *
- *  this skips over nested { or ( characters and finds the  *
+ *  this skips over nested {} or () characters and finds the*
  *  'mate', before returning any more moves.  it also stops *
  *  if a PGN header is encountered, probably due to an      *
  *  incorrectly bracketed analysis variation.               *
@@ -2049,7 +2254,7 @@ int ReadPGN(FILE * input, int option)
           buffer[0] = 0;
           sscanf(input_buffer, "%s", buffer);
           if (strlen(buffer) == 0) {
-            eof = fgets(input_buffer, 512, input);
+            eof = fgets(input_buffer, 4096, input);
             if (!eof) {
               parens = 0;
               braces = 0;
@@ -2078,7 +2283,7 @@ int ReadPGN(FILE * input, int option)
         int skip;
 
         if ((skip = strspn(buffer, "0123456789."))) {
-          char temp[512];
+          char temp[4096];
 
           strcpy(temp, buffer + skip);
           strcpy(buffer, temp);
@@ -2122,15 +2327,15 @@ void RestoreGame(void)
   char cmd[16];
 
   wtm = 1;
-  InitializeChessBoard(shared->local[0]);
+  InitializeChessBoard(block[0]);
   for (i = 0; i < 500; i++) {
     fseek(history_file, i * 10, SEEK_SET);
     strcpy(cmd, "");
     fscanf(history_file, "%s", cmd);
     if (strcmp(cmd, "pass")) {
-      move = InputMove(shared->local[0], cmd, 0, wtm, 1, 0);
+      move = InputMove(block[0], cmd, 0, wtm, 1, 0);
       if (move)
-        MakeMoveRoot(shared->local[0], move, wtm);
+        MakeMoveRoot(block[0], move, wtm);
       else
         break;
     }
@@ -2154,7 +2359,6 @@ char *Reverse(void)
 
   std_console = GetStdHandle(STD_OUTPUT_HANDLE);
 #endif
-
   if (ansi) {
 #if defined(UNIX) || defined(AMIGA)
     return ("\033[7m");
@@ -2188,7 +2392,7 @@ void Kibitz(int level, int wtm, int depth, int time, int value, BITBOARD nodes,
   int nps;
 
   nps = (int) ((time) ? 100 * nodes / (BITBOARD) time : nodes);
-  if (!shared->puzzling) {
+  if (!puzzling) {
     char prefix[128];
 
     if (strlen(channel_title) && channel)
@@ -2302,22 +2506,21 @@ void Output(TREE * RESTRICT tree, int value, int bound)
  *                                                          *
  ************************************************************
  */
-  shared->root_print_ok = shared->root_print_ok ||
-      tree->nodes_searched > shared->noise_level;
-  wtm = shared->root_wtm;
-  if (!shared->abort_search) {
-    shared->kibitz_depth = shared->iteration_depth;
-    for (i = 0; i < shared->n_root_moves; i++)
-      if (tree->curmv[1] == shared->root_moves[i].move)
+  root_print_ok = root_print_ok || tree->nodes_searched > noise_level;
+  wtm = root_wtm;
+  if (!abort_search) {
+    kibitz_depth = iteration_depth;
+    for (i = 0; i < n_root_moves; i++)
+      if (tree->curmv[1] == root_moves[i].move)
         break;
-    if (i && i < shared->n_root_moves) {
-      temp_rm = shared->root_moves[i];
+    if (i && i < n_root_moves) {
+      temp_rm = root_moves[i];
       for (; i > 0; i--)
-        shared->root_moves[i] = shared->root_moves[i - 1];
-      shared->root_moves[0] = temp_rm;
-      shared->easy_move = 0;
+        root_moves[i] = root_moves[i - 1];
+      root_moves[0] = temp_rm;
+      easy_move = 0;
     }
-    shared->end_time = ReadClock();
+    end_time = ReadClock();
 /*
  ************************************************************
  *                                                          *
@@ -2327,20 +2530,19 @@ void Output(TREE * RESTRICT tree, int value, int bound)
  ************************************************************
  */
     if (value < bound) {
-      UnmakeMove(tree, 1, tree->pv[1].path[1], shared->root_wtm);
-      DisplayPV(tree, 6, wtm, shared->end_time - shared->start_time, value,
-          &tree->pv[1]);
-      MakeMove(tree, 1, tree->pv[1].path[1], shared->root_wtm);
+      UnmakeMove(tree, 1, tree->pv[1].path[1], root_wtm);
+      DisplayPV(tree, 6, wtm, end_time - start_time, value, &tree->pv[1]);
+      MakeMove(tree, 1, tree->pv[1].path[1], root_wtm);
     } else {
       if (tree->curmv[1] != tree->pv[1].path[1]) {
         tree->pv[1].path[1] = tree->curmv[1];
         tree->pv[1].pathl = 1;
         tree->pv[1].pathh = 0;
-        tree->pv[1].pathd = shared->iteration_depth;
+        tree->pv[1].pathd = iteration_depth;
       }
     }
     tree->pv[0] = tree->pv[1];
-    shared->local[0]->pv[0] = tree->pv[1];
+    block[0]->pv[0] = tree->pv[1];
   }
 }
 
@@ -2357,24 +2559,24 @@ void Trace(TREE * RESTRICT tree, int ply, int depth, int wtm, int alpha,
 {
   int i;
 
-  Lock(shared->lock_io);
+  Lock(lock_io);
   for (i = 1; i < ply; i++)
     printf("  ");
   if (phase != EVALUATION) {
-    printf("%d  %s d:%5.2f [%s,", ply, OutputMove(tree, tree->curmv[ply], ply,
-            wtm), (float) depth / (float) PLY, DisplayEvaluation(alpha, 1));
+    printf("%d  %s d:%2d [%s,", ply, OutputMove(tree, tree->curmv[ply], ply,
+            wtm), depth, DisplayEvaluation(alpha, 1));
     printf("%s] n:" BMF " %s(%d)", DisplayEvaluation(beta, 1),
         (tree->nodes_searched), name, phase);
-    if (shared->max_threads > 1)
+    if (max_threads > 1)
       printf(" (t=%d) ", tree->thread_id);
     printf("\n");
   } else {
-    printf("%d window/eval = {", ply);
+    printf("%d window/eval(%s) = {", ply, name);
     printf("%s, ", DisplayEvaluation(alpha, 1));
     printf("%s, ", DisplayEvaluation(depth, 1));
     printf("%s}\n", DisplayEvaluation(beta, 1));
   }
-  Unlock(shared->lock_io);
+  Unlock(lock_io);
 }
 
 /*
@@ -2553,7 +2755,7 @@ int VerifyMove(TREE * RESTRICT tree, int ply, int wtm, int move)
     return (0);
   tree->position[MAXPLY] = tree->position[ply];
   mvp = GenerateCaptures(tree, MAXPLY, wtm, moves);
-  mvp = GenerateNonCaptures(tree, MAXPLY, wtm, mvp);
+  mvp = GenerateNoncaptures(tree, MAXPLY, wtm, mvp);
   for (mv = &moves[0]; mv < mvp; mv++) {
     MakeMove(tree, MAXPLY, *mv, wtm);
     if (!Check(wtm) && move == *mv) {
@@ -2572,15 +2774,11 @@ int VerifyMove(TREE * RESTRICT tree, int ply, int wtm, int move)
  *                                                                             *
  *******************************************************************************
  */
-
 #if defined(_WIN32) || defined(_WIN64)
-
 lock_t ThreadsLock;
-
 static BOOL(WINAPI * pGetNumaHighestNodeNumber) (PULONG);
 static BOOL(WINAPI * pGetNumaNodeProcessorMask) (UCHAR, PULONGLONG);
 static DWORD(WINAPI * pSetThreadIdealProcessor) (HANDLE, DWORD);
-
 static volatile BOOL fThreadsInitialized = FALSE;
 static BOOL fSystemIsNUMA = FALSE;
 static ULONGLONG ullProcessorMask[256];
@@ -2588,7 +2786,6 @@ static ULONG ulNumaNodes;
 static ULONG ulNumaNode = 0;
 
 // Get NUMA-related information from Windows
-
 static void WinNumaInit(void)
 {
   DWORD_PTR dwMask;
@@ -2660,7 +2857,6 @@ static void WinNumaInit(void)
 }
 
 // Start thread. For NUMA system set it affinity.
-
 pthread_t NumaStartThread(void *func, void *args)
 {
   HANDLE hThread;
@@ -2684,7 +2880,6 @@ pthread_t NumaStartThread(void *func, void *args)
 }
 
 // Allocate memory for thread #N
-
 void *WinMalloc(size_t cbBytes, int iThread)
 {
   HANDLE hThread;
@@ -2712,7 +2907,6 @@ void *WinMalloc(size_t cbBytes, int iThread)
 }
 
 // Allocate interleaved memory
-
 void *WinMallocInterleaved(size_t cbBytes, int cThreads)
 {
   char *pBase;
@@ -2731,7 +2925,6 @@ void *WinMallocInterleaved(size_t cbBytes, int cThreads)
   if (fSystemIsNUMA && (cThreads > 1)) {
     GetSystemInfo(&sSysInfo);   // populate the system information structure
     dwPageSize = sSysInfo.dwPageSize;
-
 // Reserve pages in the process's virtual address space.
     pBase = (char *) VirtualAlloc(NULL, cbBytes, MEM_RESERVE, PAGE_NOACCESS);
     if (pBase == NULL) {
@@ -2766,67 +2959,11 @@ void *WinMallocInterleaved(size_t cbBytes, int cThreads)
 }
 
 // Free interleaved memory
-
 void WinFreeInterleaved(void *pMemory, size_t cBytes)
 {
   VirtualFree(pMemory, 0, MEM_RELEASE);
 }
 #endif
-
-/*
- *******************************************************************************
- *                                                                             *
- *   SharedMalloc() is used to allocate an object destined to be shared among  *
- *   multiple processes.  it uses the UNIX System V shared memory library to   *
- *   create a shared memory object that other processes will attach to after   *
- *   they are spawned.                                                         *
- *                                                                             *
- *******************************************************************************
- */
-void *SharedMalloc(size_t size, int tid)
-{
-#if defined(UNIX)
-  int shmid;
-  void *shared;
-
-  shmid = shmget(IPC_PRIVATE, size, (IPC_CREAT | 0600));
-  if (shmid < 0) {
-    Print(4095,
-        "ERROR.  shmget() failed, unable to allocate a shared memory segment.\n");
-    Print(4095,
-        "        Please verify that your /proc/sys/kernel/shmmax value is\n");
-    Print(4095,
-        "        large enough to allow allocating the amount of memory you\n");
-    Print(4095,
-        "        are requesting.  \"echo 1000000000 > /proc/sys/kernel/shmmax\"\n");
-    Print(4095, "        will allow a segment up to one billion bytes.\n");
-    CraftyExit(1);
-  }
-  shared = shmat(shmid, 0, 0);
-  shmctl(shmid, IPC_RMID, 0);
-  return (shared);
-#else
-  return WinMalloc(size, tid);
-#endif
-}
-
-/*
- *******************************************************************************
- *                                                                             *
- *   SharedFree() is used to free a shared object, probably because it is      *
- *   about to be resized.                                                      *
- *                                                                             *
- *******************************************************************************
- */
-void SharedFree(void *address)
-{
-#if defined(UNIX)
-  shmdt(address);
-#else
-  VirtualFree(address, 0, MEM_RELEASE);
-#endif
-}
-
 /*
  *******************************************************************************
  *                                                                             *

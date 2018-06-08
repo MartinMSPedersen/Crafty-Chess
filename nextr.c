@@ -1,6 +1,5 @@
 #include "chess.h"
 #include "data.h"
-
 /* last modified 10/31/07 */
 /*
  *******************************************************************************
@@ -12,6 +11,7 @@
 int NextRootMove(TREE * RESTRICT tree, TREE * RESTRICT mytree, int wtm)
 {
   register int done, which, i;
+  BITBOARD total_nodes;
 
 /*
  ************************************************************
@@ -23,66 +23,62 @@ int NextRootMove(TREE * RESTRICT tree, TREE * RESTRICT mytree, int wtm)
  *                                                          *
  ************************************************************
  */
-  shared->time_abort += TimeCheck(tree, 1);
-  if (shared->time_abort)
+  time_abort += TimeCheck(tree, 1);
+  if (time_abort)
     return (NONE);
-  if (!annotate_mode && !shared->pondering && !shared->booking &&
-      shared->n_root_moves == 1 && shared->iteration_depth > 4) {
-    shared->abort_search = 1;
+  if (!annotate_mode && !pondering && !booking && n_root_moves == 1 &&
+      iteration_depth > 4) {
+    abort_search = 1;
     return (NONE);
   }
   done = 0;
-  for (which = 0; which < shared->n_root_moves; which++)
-    if (shared->root_moves[which].status & 256)
+  for (which = 0; which < n_root_moves; which++)
+    if (root_moves[which].status & 256)
       done++;
-  if (done == 1 && (shared->root_moves[0].status & 256) &&
-      shared->root_value == shared->root_alpha &&
-      !(shared->root_moves[0].status & 0x38))
+  if (done == 1 && (root_moves[0].status & 256) && root_value == root_alpha &&
+      !(root_moves[0].status & 0x38))
     return (NONE);
-  for (which = 0; which < shared->n_root_moves; which++)
-    if (!(shared->root_moves[which].status & 256)) {
+  for (which = 0; which < n_root_moves; which++)
+    if (!(root_moves[which].status & 256)) {
       if (search_move) {
-        if (shared->root_moves[which].move != search_move) {
-          shared->root_moves[which].status |= 256;
+        if (root_moves[which].move != search_move) {
+          root_moves[which].status |= 256;
           continue;
         }
       }
-      tree->curmv[1] = shared->root_moves[which].move;
+      tree->curmv[1] = root_moves[which].move;
       tree->root_move = which;
-      shared->root_moves[which].status |= 256;
-      if ((tree->nodes_searched > shared->noise_level) &&
-          (shared->display_options & 32)) {
-        Lock(shared->lock_io);
-        sprintf(mytree->remaining_moves_text, "%d/%d", which + 1,
-            shared->n_root_moves);
-        shared->end_time = ReadClock();
-        if (shared->pondering)
-          printf("               %2i   %s%7s?  ", shared->iteration_depth,
-              DisplayTime(shared->end_time - shared->start_time),
-              mytree->remaining_moves_text);
+      root_moves[which].status |= 256;
+      if ((tree->nodes_searched > noise_level) && (display_options & 32)) {
+        Lock(lock_io);
+        sprintf(mytree->remaining_moves_text, "%d/%d", which + 1, n_root_moves);
+        end_time = ReadClock();
+        if (pondering)
+          printf("               %2i   %s%7s?  ", iteration_depth,
+              DisplayTime(end_time - start_time), mytree->remaining_moves_text);
         else
-          printf("               %2i   %s%7s*  ", shared->iteration_depth,
-              DisplayTime(shared->end_time - shared->start_time),
-              mytree->remaining_moves_text);
-        if (shared->display_options & 32 && shared->display_options & 64)
-          printf("%d. ", shared->move_number);
-        if ((shared->display_options & 32) && (shared->display_options & 64) &&
-            Flip(wtm))
+          printf("               %2i   %s%7s*  ", iteration_depth,
+              DisplayTime(end_time - start_time), mytree->remaining_moves_text);
+        if (display_options & 32 && display_options & 64)
+          printf("%d. ", move_number);
+        if ((display_options & 32) && (display_options & 64) && Flip(wtm))
           printf("... ");
         strcpy(mytree->root_move_text, OutputMove(tree, tree->curmv[1], 1,
                 wtm));
-        shared->nodes_per_second =
-            tree->nodes_searched * 100 / Max(shared->end_time -
-            shared->start_time, 1);
+        total_nodes = block[0]->nodes_searched;
+        for (i = 1; i < MAX_BLOCKS; i++)
+          if (block[i]->used)
+            total_nodes += block[i]->nodes_searched;
+        nodes_per_second = total_nodes * 100 / Max(end_time - start_time, 1);
         i = strlen(mytree->root_move_text);
         i = (i < 8) ? i : 8;
         strncat(mytree->root_move_text, "          ", 8 - i);
         printf("%s", mytree->root_move_text);
-        printf("(%snps)             \r", DisplayKM(shared->nodes_per_second));
+        printf("(%snps)             \r", DisplayKM(nodes_per_second));
         fflush(stdout);
-        Unlock(shared->lock_io);
+        Unlock(lock_io);
       }
-      if (!(shared->root_moves[which].status & 128))
+      if (!(root_moves[which].status & 128))
         return (HASH_MOVE);
       else
         return (REMAINING_MOVES);
@@ -116,13 +112,12 @@ int NextRootMoveParallel(void)
  *                                                          *
  ************************************************************
  */
-  for (which = 0; which < shared->n_root_moves; which++)
-    if (!(shared->root_moves[which].status & 256))
+  for (which = 0; which < n_root_moves; which++)
+    if (!(root_moves[which].status & 256))
       break;
-  if (which < shared->n_root_moves && shared->root_moves[which].status & 64)
+  if (which < n_root_moves && root_moves[which].status & 64)
     return (0);
-  if (shared->root_value >= shared->last_root_value - 33 ||
-      which > shared->n_root_moves / 3)
+  if (root_value >= last_root_value - 33 || which > n_root_moves / 3)
     return (1);
   return (0);
 }

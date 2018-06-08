@@ -5,7 +5,6 @@
 #if defined(UNIX)
 #  include <unistd.h>
 #endif
-
 /* last modified 07/06/06 */
 /*
  *******************************************************************************
@@ -47,10 +46,10 @@ void LearnBook(int search_value, int search_depth, int lv, int force)
     return;
   if (!(learning & result_learning) && force == 2)
     return;
-  if (shared->moves_out_of_book <= LEARN_INTERVAL && !force) {
-    if (shared->moves_out_of_book) {
-      book_learn_eval[shared->moves_out_of_book - 1] = search_value;
-      book_learn_depth[shared->moves_out_of_book - 1] = search_depth;
+  if (moves_out_of_book <= LEARN_INTERVAL && !force) {
+    if (moves_out_of_book) {
+      book_learn_eval[moves_out_of_book - 1] = search_value;
+      book_learn_depth[moves_out_of_book - 1] = search_depth;
     }
   }
 /*
@@ -63,7 +62,7 @@ void LearnBook(int search_value, int search_depth, int lv, int force)
  *                                                          *
  ************************************************************
  */
-  else if (shared->moves_out_of_book == LEARN_INTERVAL + 1 || force) {
+  else if (moves_out_of_book == LEARN_INTERVAL + 1 || force) {
     int i, j, learn_value, cluster;
     int interval;
     int best_eval = -999999, best_eval_p = 0;
@@ -71,17 +70,16 @@ void LearnBook(int search_value, int search_depth, int lv, int force)
     int best_after_worst_eval = -999999, worst_after_best_eval = 999999;
     float book_learn[64], t_learn_value;
 
-    if (shared->moves_out_of_book < 1)
+    if (moves_out_of_book < 1)
       return;
     Print(128, "LearnBook() executed\n");
     if (force != 2)
       learning &= ~book_learning;
     else
       learning &= ~result_learning;
-    interval = Min(LEARN_INTERVAL, shared->moves_out_of_book);
+    interval = Min(LEARN_INTERVAL, moves_out_of_book);
     if (interval < 2)
       return;
-
     for (i = 0; i < interval; i++) {
       if (book_learn_eval[i] > best_eval) {
         best_eval = book_learn_eval[i];
@@ -98,14 +96,12 @@ void LearnBook(int search_value, int search_depth, int lv, int force)
           worst_after_best_eval = book_learn_eval[i];
     } else
       worst_after_best_eval = book_learn_eval[interval - 1];
-
     if (worst_eval_p < interval - 1) {
       for (i = worst_eval_p; i < interval; i++)
         if (book_learn_eval[i] > best_after_worst_eval)
           best_after_worst_eval = book_learn_eval[i];
     } else
       best_after_worst_eval = book_learn_eval[interval - 1];
-
 #if defined(DEBUG)
     Print(128, "Learning analysis ...\n");
     Print(128, "worst=%d  best=%d  baw=%d  wab=%d\n", worst_eval, best_eval,
@@ -114,7 +110,6 @@ void LearnBook(int search_value, int search_depth, int lv, int force)
       Print(128, "%d(%d) ", book_learn_eval[i], book_learn_depth[i]);
     Print(128, "\n");
 #endif
-
 /*
  ************************************************************
  *                                                          *
@@ -180,7 +175,7 @@ void LearnBook(int search_value, int search_depth, int lv, int force)
       learn_value =
           LearnFunction(learn_value, search_depth,
           crafty_rating - opponent_rating, learn_value < 0);
-      learn_value *= (shared->crafty_is_white) ? 1 : -1;
+      learn_value *= (crafty_is_white) ? 1 : -1;
     } else
       learn_value = search_value;
 /*

@@ -1,6 +1,5 @@
 #include "chess.h"
 #include "data.h"
-
 /* last modified 08/07/05 */
 /*
  *******************************************************************************
@@ -34,7 +33,7 @@ void Edit(void)
       { 'x', 'X', 'P', 'p', 'N', 'n', 'B', 'b', 'R', 'r',
     'Q', 'q', 'K', 'k', '\0'
   };
-  TREE *const tree = shared->local[0];
+  TREE *const tree = block[0];
 
 /*
  ************************************************************
@@ -58,7 +57,6 @@ void Edit(void)
     nargs = ReadParse(buffer, args, " 	;");
     if (xboard)
       Print(128, "edit.command:%s\n", args[0]);
-
     if (!strcmp(args[0], "white"))
       wtm = 1;
     else if (!strcmp(args[0], "black"))
@@ -99,7 +97,6 @@ void Edit(void)
     } else
       printf("unrecognized piece %s\n", args[0]);
   }
-
 /*
  ************************************************************
  *                                                          *
@@ -151,11 +148,11 @@ void Edit(void)
     if (log_file)
       DisplayChessBoard(log_file, tree->pos);
     wtm = 1;
-    shared->move_number = 1;
+    move_number = 1;
     tree->rep_index[white] = 0;
     tree->rep_index[black] = 0;
     tree->position[0].rule_50_moves = 0;
-    shared->moves_out_of_book = 0;
+    moves_out_of_book = 0;
   } else {
     InitializeChessBoard(tree);
     Print(4095, "Illegal position, using normal initial chess position\n");

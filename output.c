@@ -1,6 +1,5 @@
 #include "chess.h"
 #include "data.h"
-
 /* last modified 01/22/01 */
 /*
  *******************************************************************************
@@ -20,7 +19,6 @@ char *OutputMove(TREE * RESTRICT tree, int move, int ply, int wtm)
   int *mvp;
   char *text;
   static const char piece_names[7] = { ' ', 'P', 'N', 'B', 'R', 'Q', 'K' };
-
   text = text_move;
 /*
  special case for null-move, used only in tracing the search
@@ -189,7 +187,6 @@ char *OutputMoveICS(int move)
   static char text_move[10];
   char *text;
   static const char piece_names[7] = { ' ', 'P', 'N', 'B', 'R', 'Q', 'K' };
-
 /*
  convert to fully-qualified algebraic form first.
  */
@@ -203,7 +200,6 @@ char *OutputMoveICS(int move)
   *text = '\0';
   return (text_move);
 }
-
 int OutputGood(TREE * RESTRICT tree, char *text, int ply, int wtm)
 {
   int new_move;

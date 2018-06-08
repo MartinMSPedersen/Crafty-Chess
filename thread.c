@@ -1,8 +1,7 @@
 #include "chess.h"
 #include "data.h"
 #include "epdglue.h"
-
-/* modified 08/07/05 */
+/* modified 11/02/08 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -11,7 +10,7 @@
  *   in their idle loop, we drop into thread, from Search(), and begin a new   *
  *   parallel search from this node.  this is simply a problem of copying the  *
  *   search state space for each thread working at this node, then sending     *
- *   everyone off to SearchSMP() to search this node in parallel.              *
+ *   everyone off to SearchParallel() to search this node in parallel.         *
  *                                                                             *
  *******************************************************************************
  */
@@ -30,22 +29,22 @@ int Thread(TREE * RESTRICT tree)
  *                                                          *
  ************************************************************
  */
-  Lock(shared->lock_smp);
-  for (proc = 0; proc < shared->max_threads && shared->thread[proc]; proc++);
-  if (proc == shared->max_threads || tree->stop) {
-    Unlock(shared->lock_smp);
+  Lock(lock_smp);
+  for (proc = 0; proc < max_threads && thread[proc]; proc++);
+  if (proc == max_threads || tree->stop) {
+    Unlock(lock_smp);
     return (0);
   }
 #if defined(DEBUGSMP)
-  Lock(shared->lock_io);
+  Lock(lock_io);
   Print(128, "thread %d  block %d  ply %d  parallel split\n", tree->thread_id,
       FindBlockID(tree), tree->ply);
   Print(128, "thread %d  threads(s) idle:", tree->thread_id);
-  for (proc = 0; proc < shared->max_threads; proc++)
-    if (!shared->thread[proc])
+  for (proc = 0; proc < max_threads; proc++)
+    if (!thread[proc])
       Print(128, " %d", proc);
   Print(128, "\n");
-  Unlock(shared->lock_io);
+  Unlock(lock_io);
 #endif
 /*
  ************************************************************
@@ -60,16 +59,13 @@ int Thread(TREE * RESTRICT tree)
  *                                                          *
  ************************************************************
  */
-  shared->splitting = 1;
-  shared->parallel_splits++;
-  shared->thread[tree->thread_id] = 0;
+  parallel_splits++;
+  thread[tree->thread_id] = 0;
   tree->nprocs = 0;
-  for (proc = 0;
-      proc < shared->max_threads && nblocks < shared->max_thread_group;
-      proc++) {
+  for (proc = 0; proc < max_threads && nblocks < max_thread_group; proc++) {
     tree->siblings[proc] = 0;
-    if (shared->thread[proc] == 0) {
-      block = CopyToSMP(tree, proc);
+    if (thread[proc] == 0) {
+      block = CopyToChild(tree, proc);
       if (!block)
         continue;
       nblocks++;
@@ -81,14 +77,12 @@ int Thread(TREE * RESTRICT tree)
       Print(128, "thread %d  block %d  allocated at ply=%d\n", proc,
           FindBlockID(block), tree->ply);
 #endif
-    } else
-      tree->siblings[proc] = 0;
+    }
   }
   tree->search_value = tree->value;
   if (!nblocks) {
-    Unlock(shared->lock_smp);
-    shared->thread[tree->thread_id] = tree;
-    shared->splitting = 0;
+    Unlock(lock_smp);
+    thread[tree->thread_id] = tree;
     return (0);
   }
 /*
@@ -100,10 +94,9 @@ int Thread(TREE * RESTRICT tree)
  *                                                          *
  ************************************************************
  */
-  for (proc = 0; proc < shared->max_threads; proc++)
+  for (proc = 0; proc < max_threads; proc++)
     if (tree->siblings[proc])
-      shared->thread[proc] = tree->siblings[proc];
-  shared->splitting = 0;
+      thread[proc] = tree->siblings[proc];
 /*
  ************************************************************
  *                                                          *
@@ -112,7 +105,7 @@ int Thread(TREE * RESTRICT tree)
  *   inserted as well.  however, since it is possible that  *
  *   this thread may finish before any or all of the other  *
  *   parallel threads, this thread is sent to ThreadWait()  *
- *   which will immediately send it to SearchSMP() just     *
+ *   which will immediately send it to SearchParallel()     *
  *   like the other threads.  going to ThreadWait() allows  *
  *   this thread to join others if it runs out of work to   *
  *   do.  we do pass ThreadWait() the address of the parent *
@@ -125,7 +118,7 @@ int Thread(TREE * RESTRICT tree)
  *                                                          *
  ************************************************************
  */
-  Unlock(shared->lock_smp);
+  Unlock(lock_smp);
   ThreadWait(tree->thread_id, tree);
 #if defined(DEBUGSMP)
   Print(128, "thread %d  block %d  ply %d  parallel join\n", tree->thread_id,
@@ -137,13 +130,13 @@ int Thread(TREE * RESTRICT tree)
 /*
  *******************************************************************************
  *                                                                             *
- *   CopyFromSMP() is used to copy data from a child thread to a parent thread.*
- *   this only copies the appropriate parts of the TREE structure to avoid     *
- *   burning memory bandwidth by copying everything.                           *
+ *   CopyFromChild() is used to copy data from a child thread to a parent      *
+ *   thread.  this only copies the appropriate parts of the TREE structure to  *
+ *   avoid burning memory bandwidth by copying everything.                     *
  *                                                                             *
  *******************************************************************************
  */
-void CopyFromSMP(TREE * RESTRICT p, TREE * RESTRICT c, int value)
+void CopyFromChild(TREE * RESTRICT p, TREE * RESTRICT c, int value)
 {
   int i;
 
@@ -162,39 +155,36 @@ void CopyFromSMP(TREE * RESTRICT p, TREE * RESTRICT c, int value)
   p->egtb_probes += c->egtb_probes;
   p->egtb_probes_successful += c->egtb_probes_successful;
   p->check_extensions_done += c->check_extensions_done;
-  p->one_reply_extensions_done += c->one_reply_extensions_done;
-  p->mate_extensions_done += c->mate_extensions_done;
-  p->passed_pawn_extensions_done += c->passed_pawn_extensions_done;
+  p->qsearch_check_extensions_done += c->qsearch_check_extensions_done;
   p->reductions_attempted += c->reductions_attempted;
   p->reductions_done += c->reductions_done;
-  strcpy(c->root_move_text, p->root_move_text);
   c->used = 0;
 }
 
 /*
  *******************************************************************************
  *                                                                             *
- *   CopyToSMP() is used to copy data from a parent thread to a particular     *
+ *   CopyToChild() is used to copy data from a parent thread to a particular   *
  *   child thread.  this only copies the appropriate parts of the TREE         *
  *   structure to avoid burning memory bandwidth by copying everything.        *
  *                                                                             *
  *******************************************************************************
  */
-TREE *CopyToSMP(TREE * RESTRICT p, int thread)
+TREE *CopyToChild(TREE * RESTRICT p, int thread)
 {
   int i, j, max;
   TREE *c;
   static int warnings = 0;
   int first = thread * MAX_BLOCKS_PER_CPU + 1;
   int last = first + MAX_BLOCKS_PER_CPU;
-  int maxb = shared->max_threads * MAX_BLOCKS_PER_CPU + 1;
+  int maxb = max_threads * MAX_BLOCKS_PER_CPU + 1;
 
-  for (i = first; i < last && shared->local[i]->used; i++);
+  for (i = first; i < last && block[i]->used; i++);
   if (i >= last) {
     if (++warnings < 6)
       Print(128, "WARNING.  optimal SMP block cannot be allocated, thread %d\n",
           thread);
-    for (i = 1; i < maxb && shared->local[i]->used; i++);
+    for (i = 1; i < maxb && block[i]->used; i++);
     if (i >= maxb) {
       if (warnings < 6)
         Print(128, "ERROR.  no SMP block can be allocated\n");
@@ -203,13 +193,13 @@ TREE *CopyToSMP(TREE * RESTRICT p, int thread)
   }
   max = 0;
   for (j = 1; j < maxb; j++)
-    if (shared->local[j]->used)
+    if (block[j]->used)
       max++;
-  shared->max_split_blocks = Max(shared->max_split_blocks, max);
-  c = shared->local[i];
+  max_split_blocks = Max(max_split_blocks, max);
+  c = block[i];
   c->used = 1;
   c->stop = 0;
-  for (i = 0; i < shared->max_threads; i++)
+  for (i = 0; i < max_threads; i++)
     c->siblings[i] = 0;
   c->pos = p->pos;
   c->pv[p->ply - 1] = p->pv[p->ply - 1];
@@ -241,9 +231,7 @@ TREE *CopyToSMP(TREE * RESTRICT p, int thread)
   c->egtb_probes = 0;
   c->egtb_probes_successful = 0;
   c->check_extensions_done = 0;
-  c->mate_extensions_done = 0;
-  c->one_reply_extensions_done = 0;
-  c->passed_pawn_extensions_done = 0;
+  c->qsearch_check_extensions_done = 0;
   c->reductions_attempted = 0;
   c->reductions_done = 0;
   c->alpha = p->alpha;
@@ -252,7 +240,6 @@ TREE *CopyToSMP(TREE * RESTRICT p, int thread)
   c->wtm = p->wtm;
   c->ply = p->ply;
   c->depth = p->depth;
-  c->mate_threat = p->mate_threat;
   c->search_value = 0;
   strcpy(c->root_move_text, p->root_move_text);
   strcpy(c->remaining_moves_text, p->remaining_moves_text);
@@ -263,14 +250,13 @@ TREE *CopyToSMP(TREE * RESTRICT p, int thread)
  *******************************************************************************
  *                                                                             *
  *   WaitForAllThreadsInitialized() waits till all max_threads are initialized.*
- *   Otherwise we can try to use not yet initialized local[] data.             *
+ *   Otherwise we can try to use not yet initialized block[] data.             *
  *                                                                             *
  *******************************************************************************
  */
-
 void WaitForAllThreadsInitialized(void)
 {
-  while (shared->initialized_threads < shared->max_threads);    /* Do nothing */
+  while (initialized_threads < max_threads);    /* Do nothing */
 }
 
 /* modified 08/07/05 */
@@ -286,7 +272,6 @@ void WaitForAllThreadsInitialized(void)
  *                                                                             *
  *******************************************************************************
  */
-
 void *STDCALL ThreadInit(void *tid)
 {
   int i;
@@ -297,15 +282,14 @@ void *STDCALL ThreadInit(void *tid)
 #endif
   j = (long) tid;
   for (i = 0; i < MAX_BLOCKS_PER_CPU; i++) {
-    memset((void *) shared->local[j * MAX_BLOCKS_PER_CPU + i + 1], 0,
-        sizeof(TREE));
-    shared->local[j * MAX_BLOCKS_PER_CPU + i + 1]->used = 0;
-    shared->local[j * MAX_BLOCKS_PER_CPU + i + 1]->parent = (TREE *) - 1;
-    LockInit(shared->local[j * MAX_BLOCKS_PER_CPU + i + 1]->lock);
+    memset((void *) block[j * MAX_BLOCKS_PER_CPU + i + 1], 0, sizeof(TREE));
+    block[j * MAX_BLOCKS_PER_CPU + i + 1]->used = 0;
+    block[j * MAX_BLOCKS_PER_CPU + i + 1]->parent = (TREE *) - 1;
+    LockInit(block[j * MAX_BLOCKS_PER_CPU + i + 1]->lock);
   }
-  Lock(shared->lock_smp);
-  shared->initialized_threads++;
-  Unlock(shared->lock_smp);
+  Lock(lock_smp);
+  initialized_threads++;
+  Unlock(lock_smp);
   WaitForAllThreadsInitialized();
   ThreadWait((long) tid, (TREE *) 0);
   return (0);
@@ -323,28 +307,26 @@ void *STDCALL ThreadInit(void *tid)
  *******************************************************************************
  */
 extern void *WinMalloc(size_t, int);
-
 void ThreadMalloc(int tid)
 {
   int i, n = MAX_BLOCKS_PER_CPU;
 
   for (i = MAX_BLOCKS_PER_CPU * ((int) tid) + 1; n; i++, n--) {
-    shared->local[i] =
+    block[i] =
         (TREE *) ((~(size_t) 127) & (127 + (size_t) WinMalloc(sizeof(TREE) +
                 127, tid)));
-    shared->local[i]->used = 0;
-    shared->local[i]->parent = (TREE *) - 1;
-    LockInit(shared->local[i]->lock);
+    block[i]->used = 0;
+    block[i]->parent = (TREE *) - 1;
+    LockInit(block[i]->lock);
   }
 }
 #endif
-
 /* modified 08/07/05 */
 /*
  *******************************************************************************
  *                                                                             *
- *   ThreadStop() is called from SearchSMP() when it detects a beta cutoff (or *
- *   fail high) at a node that is being searched in parallel.  we need to stop *
+ *   ThreadStop() is called from SearchParallel() when it detects a beta cutoff*
+ *   (fail high) at a node that is being searched in parallel.  we need to stop*
  *   all threads here, and since this threading algorithm is "recursive" it may*
  *   be necessary to stop other threads that are helping search this branch    *
  *   further down into the tree.  this function simply sets tree->stop to 1,   *
@@ -359,15 +341,15 @@ void ThreadStop(TREE * RESTRICT tree)
 
   Lock(tree->lock);
   tree->stop = 1;
-  for (proc = 0; proc < shared->max_threads; proc++)
+  for (proc = 0; proc < max_threads; proc++)
     if (tree->siblings[proc])
       ThreadStop(tree->siblings[proc]);
   Unlock(tree->lock);
 #if defined(DEBUGSMP)
-  Lock(shared->lock_io);
+  Lock(lock_io);
   Print(128, "thread %d (block %d) being stopped by beta cutoff.\n",
       tree->thread_id, FindBlockID(tree));
-  Unlock(shared->lock_io);
+  Unlock(lock_io);
 #endif
 }
 
@@ -379,7 +361,7 @@ void ThreadStop(TREE * RESTRICT tree)
  *   beginning when Crafty searches.  threads are "parked" here waiting on a   *
  *   pointer to something they should search (a parameter block built in the   *
  *   function Thread() in this case.  when this pointer becomes non-zero, each *
- *   thread "parked" here will immediately call SearchSMP() and begin the      *
+ *   thread "parked" here will immediately call SearchParallel() and begin the *
  *   parallel search as directed.                                              *
  *                                                                             *
  *******************************************************************************
@@ -401,18 +383,18 @@ int ThreadWait(int tid, TREE * RESTRICT waiting)
  ************************************************************
  */
   while (1) {
-    Lock(shared->lock_smp);
-    shared->smp_idle++;
-    Unlock(shared->lock_smp);
+    Lock(lock_smp);
+    smp_idle++;
+    Unlock(lock_smp);
 #if defined(DEBUGSMP)
-    Lock(shared->lock_io);
-    Print(128, "thread %d now idle (%d procs, %d idle).\n", tid,
-        shared->max_threads, shared->smp_idle);
+    Lock(lock_io);
+    Print(128, "thread %d now idle (%d procs, %d idle).\n", tid, max_threads,
+        smp_idle);
     if (FindBlockID(waiting) >= 0)
       Print(128,
           "thread %d  waiting on block %d, still %d threads busy there\n", tid,
           FindBlockID(waiting), waiting->nprocs);
-    Unlock(shared->lock_io);
+    Unlock(lock_io);
 #endif
 /*
  ************************************************************
@@ -425,17 +407,16 @@ int ThreadWait(int tid, TREE * RESTRICT waiting)
  *                                                          *
  ************************************************************
  */
-    while (!shared->thread[tid] && !shared->quit && (!waiting ||
-            waiting->nprocs));
-    if (shared->quit) {
-      Lock(shared->lock_smp);
-      shared->smp_threads--;
-      Unlock(shared->lock_smp);
-      exit(0);
+    while (!thread[tid] && !quit && (!waiting || waiting->nprocs));
+    if (quit) {
+      Lock(lock_smp);
+      smp_threads--;
+      Unlock(lock_smp);
+      return (0);
     }
-    Lock(shared->lock_smp);
-    if (!shared->thread[tid])
-      shared->thread[tid] = waiting;
+    Lock(lock_smp);
+    if (!thread[tid])
+      thread[tid] = waiting;
 /*
  ************************************************************
  *                                                          *
@@ -445,12 +426,12 @@ int ThreadWait(int tid, TREE * RESTRICT waiting)
  ************************************************************
  */
 #if defined(DEBUGSMP)
-    Lock(shared->lock_io);
+    Lock(lock_io);
     Print(128, "thread %d now has work at block %d.\n", tid,
-        FindBlockID(shared->thread[tid]));
-    Unlock(shared->lock_io);
+        FindBlockID(thread[tid]));
+    Unlock(lock_io);
 #endif
-    shared->smp_idle--;
+    smp_idle--;
 /*
  ************************************************************
  *                                                          *
@@ -460,14 +441,14 @@ int ThreadWait(int tid, TREE * RESTRICT waiting)
  *                                                          *
  ************************************************************
  */
-    Unlock(shared->lock_smp);
-    if (shared->thread[tid] == waiting)
+    Unlock(lock_smp);
+    if (thread[tid] == waiting)
       return (0);
-    if (shared->quit || shared->thread[tid] == (TREE *) - 1) {
-      Lock(shared->lock_io);
-      shared->smp_threads--;
-      Unlock(shared->lock_io);
-      exit(0);
+    if (quit || thread[tid] == (TREE *) - 1) {
+      Lock(lock_io);
+      smp_threads--;
+      Unlock(lock_io);
+      return (0);
     }
 /*
  ************************************************************
@@ -479,39 +460,35 @@ int ThreadWait(int tid, TREE * RESTRICT waiting)
  ************************************************************
  */
     value =
-        SearchSMP(shared->thread[tid], shared->thread[tid]->alpha,
-        shared->thread[tid]->beta, shared->thread[tid]->value,
-        shared->thread[tid]->wtm, shared->thread[tid]->depth,
-        shared->thread[tid]->ply, shared->thread[tid]->mate_threat);
-    Lock(shared->lock_smp);
-    Lock(shared->thread[tid]->parent->lock);
+        SearchParallel(thread[tid], thread[tid]->alpha, thread[tid]->beta,
+        thread[tid]->value, thread[tid]->wtm, thread[tid]->depth,
+        thread[tid]->ply);
+    Lock(lock_smp);
+    Lock(thread[tid]->parent->lock);
 #if defined(DEBUGSMP)
-    Lock(shared->lock_io);
+    Lock(lock_io);
     Print(128, "thread %d  block %d marked free at ply %d\n", tid,
-        FindBlockID(shared->thread[tid]), shared->thread[tid]->ply);
-    Unlock(shared->lock_io);
+        FindBlockID(thread[tid]), thread[tid]->ply);
+    Unlock(lock_io);
 #endif
-    CopyFromSMP((TREE *) shared->thread[tid]->parent, shared->thread[tid],
-        value);
-    shared->thread[tid]->parent->nprocs--;
+    CopyFromChild((TREE *) thread[tid]->parent, thread[tid], value);
+    thread[tid]->parent->nprocs--;
 #if defined(DEBUGSMP)
-    Lock(shared->lock_io);
+    Lock(lock_io);
     Print(128, "thread %d decremented block %d  nprocs=%d\n", tid,
-        FindBlockID(shared->thread[tid]->parent),
-        shared->thread[tid]->parent->nprocs);
-    Unlock(shared->lock_io);
+        FindBlockID(thread[tid]->parent), thread[tid]->parent->nprocs);
+    Unlock(lock_io);
 #endif
-    shared->thread[tid]->parent->siblings[tid] = 0;
-    Unlock(shared->thread[tid]->parent->lock);
+    thread[tid]->parent->siblings[tid] = 0;
+    Unlock(thread[tid]->parent->lock);
 #if defined(DEBUGSMP)
-    Lock(shared->lock_io);
+    Lock(lock_io);
     Print(128, "thread %d  block %d  parent %d  nprocs %d exit at ply %d\n",
-        tid, FindBlockID(shared->thread[tid]),
-        FindBlockID(shared->thread[tid]->parent),
-        shared->thread[tid]->parent->nprocs, shared->thread[tid]->ply);
-    Unlock(shared->lock_io);
+        tid, FindBlockID(thread[tid]), FindBlockID(thread[tid]->parent),
+        thread[tid]->parent->nprocs, thread[tid]->ply);
+    Unlock(lock_io);
 #endif
-    shared->thread[tid] = 0;
-    Unlock(shared->lock_smp);
+    thread[tid] = 0;
+    Unlock(lock_smp);
   }
 }

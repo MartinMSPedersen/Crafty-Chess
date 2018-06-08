@@ -8,6 +8,8 @@
 #include "nextr.c"
 #include "killer.c"
 #include "quiesce.c"
+#include "qchecks.c"
+#include "qevasions.c"
 #include "evaluate.c"
 #include "movgen.c"
 #include "make.c"

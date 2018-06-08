@@ -1,8 +1,7 @@
 #include "chess.h"
 #include "data.h"
 #include "epdglue.h"
-
-/* modified 11/08/07 */
+/* modified 11/02/07 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -41,7 +40,7 @@ int SearchRoot(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth)
 #endif
     MakeMove(tree, 1, tree->curmv[1], wtm);
     do {
-      extensions = SearchControl(tree, wtm, 1, depth, 0);
+      extensions = SearchExtensions(tree, wtm, 1, depth);
       begin_root_nodes = tree->nodes_searched;
 /*
  ************************************************************
@@ -64,33 +63,33 @@ int SearchRoot(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth)
  ************************************************************
  */
       if (first_move) {
-        if (depth - PLY + extensions >= PLY)
+        if (depth - 1 + extensions > 0)
           value =
-              -Search(tree, -beta, -alpha, Flip(wtm), depth - PLY + extensions,
+              -Search(tree, -beta, -alpha, Flip(wtm), depth - 1 + extensions,
               2, DO_NULL);
         else
-          value = -Quiesce(tree, -beta, -alpha, Flip(wtm), 2);
+          value = -QuiesceChecks(tree, -beta, -alpha, Flip(wtm), 2);
         first_move = 0;
       } else {
-        if (depth - PLY + extensions >= PLY) {
+        if (depth - 1 + extensions > 0) {
           value =
               -Search(tree, -alpha - 1, -alpha, Flip(wtm),
-              depth - PLY + extensions, 2, DO_NULL);
+              depth - 1 + extensions, 2, DO_NULL);
           if (value > alpha && extensions < 0)
             value =
-                -Search(tree, -alpha - 1, -alpha, Flip(wtm), depth - PLY, 2,
+                -Search(tree, -alpha - 1, -alpha, Flip(wtm), depth - 1, 2,
                 DO_NULL);
         } else
-          value = -Quiesce(tree, -alpha - 1, -alpha, Flip(wtm), 2);
-        if (shared->abort_search)
+          value = -QuiesceChecks(tree, -alpha - 1, -alpha, Flip(wtm), 2);
+        if (abort_search)
           break;
         if ((value > alpha) && (value < beta)) {
-          if (depth - PLY + extensions >= PLY)
+          if (depth - 1 + extensions > 0)
             value =
                 -Search(tree, -beta, -alpha, Flip(wtm),
-                depth - PLY + extensions, 2, DO_NULL);
+                depth - 1 + extensions, 2, DO_NULL);
           else
-            value = -Quiesce(tree, -beta, -alpha, Flip(wtm), 2);
+            value = -QuiesceChecks(tree, -beta, -alpha, Flip(wtm), 2);
         }
       }
 /*
@@ -106,13 +105,13 @@ int SearchRoot(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth)
  *                                                          *
  ************************************************************
  */
-      if (shared->abort_search)
+      if (abort_search)
         break;
-      shared->root_moves[tree->root_move].nodes =
+      root_moves[tree->root_move].nodes =
           tree->nodes_searched - begin_root_nodes;
       if (value > alpha) {
         Output(tree, value, beta);
-        shared->root_value = alpha;
+        root_value = alpha;
         if (value >= beta) {
           Killer(tree, 1, tree->curmv[1]);
           UnmakeMove(tree, 1, tree->curmv[1], wtm);
@@ -120,10 +119,10 @@ int SearchRoot(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth)
         }
         alpha = value;
       }
-      shared->root_value = alpha;
+      root_value = alpha;
     } while (0);
     UnmakeMove(tree, 1, tree->curmv[1], wtm);
-    if (shared->abort_search)
+    if (abort_search)
       return (0);
 /*
  ************************************************************
@@ -138,17 +137,16 @@ int SearchRoot(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth)
  *                                                          *
  ************************************************************
  */
-#if defined(SMP)
-    if (shared->split_at_root && shared->smp_idle && NextRootMoveParallel()) {
+#if (CPUS > 1)
+    if (split_at_root && smp_idle && NextRootMoveParallel()) {
       tree->alpha = alpha;
       tree->beta = beta;
       tree->value = alpha;
       tree->wtm = wtm;
       tree->ply = 1;
       tree->depth = depth;
-      tree->mate_threat = 0;
       if (Thread(tree)) {
-        if (shared->abort_search)
+        if (abort_search)
           return (0);
         value = tree->search_value;
         if (value > alpha) {
@@ -173,14 +171,14 @@ int SearchRoot(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth)
  *                                                          *
  ************************************************************
  */
-  if (shared->abort_search || shared->time_abort)
+  if (abort_search || time_abort)
     return (0);
   if (first_move == 1) {
     value = (Check(wtm)) ? -(MATE - 1) : DrawScore(wtm);
     if (value >= alpha && value < beta) {
       tree->pv[0].pathl = 0;
       tree->pv[0].pathh = 0;
-      tree->pv[0].pathd = shared->iteration_depth;
+      tree->pv[0].pathd = iteration_depth;
       Output(tree, value, beta);
 #if defined(TRACE)
       if (trace_level > 0)

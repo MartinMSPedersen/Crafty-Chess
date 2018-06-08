@@ -9,7 +9,6 @@
 #  include <numa.h>
 #endif
 #include <signal.h>
-
 /* last modified 03/08/07 */
 /*
  *******************************************************************************
@@ -2785,7 +2784,7 @@
  *           with the new xboard/winboard 4.2.2 versions.  book learning was   *
  *           badly broken in the previous version and has been fixed/tested.   *
  *                                                                             *
- *   18.4    recapture extension was left in SearchSMP() erroneously.  this    *
+ *   18.4    recapture extension was left in SearchParallel() by mistake.  this*
  *           has now been protected by a #ifdef just like it was in Search().  *
  *           bug in RepetitionCheck() was causing problems in SMP versions.    *
  *           The entire repetition list code was modified to clean this up.    *
@@ -3551,6 +3550,28 @@
  *           add -DSKILL to your Makefile options otherwise it is not included *
  *           in the executable.                                                *
  *                                                                             *
+ *   22.2    we are now back to using POSIX threads, since all current Linux   *
+ *           distributions now use the posix-conforming NTPL implementation    *
+ *           which should eliminate the various compatibility issues that      *
+ *           caused problems in the past.  this also should make the new       *
+ *           smpnice mode work correctly for Linux and Windows since they will *
+ *           now both use threads for the SMP search.  Fruit-like scoring      *
+ *           (interpolation between mg and eg scores) fully implemented.  AEL  *
+ *           pruning (Heinz 2000) also fully implemented (we had razoring and  *
+ *           futility, but not extended futility).  "eval" command has been    *
+ *           removed and combined with the "personality" command so that eval  *
+ *           parameters can be modified, in addition to some search parameters *
+ *           that also belong in the personality data.  mate threat extension  *
+ *           and one legal reply to check extensions have been removed.  tests *
+ *           proved them to be absolutely useless, over 30,000 games for each  *
+ *           test showed no gain and sometimes a loss in playing strength with *
+ *           them so we followed the "simple is better" and removed them.  The *
+ *           fractional ply code was also removed since the only extension we  *
+ *           now use is the "give check" extension which is a whole ply.  A    *
+ *           significant number of evaluation parameters have been changed,    *
+ *           a few even removed as cluster testing helped us find optimal      *
+ *           values.  There are a few new terms, with more planned.            *
+ *                                                                             *
  *******************************************************************************
  */
 int main(int argc, char **argv)
@@ -3565,14 +3586,12 @@ int main(int argc, char **argv)
   char path[1024];
   struct passwd *pwd;
 #endif
-
 #if !defined(UNIX)
   char crafty_rc_file_spec[FILENAME_MAX];
 #endif
 /* Collect environmental variables */
   char *directory_spec = getenv("CRAFTY_BOOK_PATH");
 
-  shared = SharedMalloc(sizeof(SHARED), 0);
   if (directory_spec)
     strncpy(book_path, directory_spec, sizeof book_path);
   directory_spec = getenv("CRAFTY_LOG_PATH");
@@ -3600,17 +3619,16 @@ int main(int argc, char **argv)
  *                                                          *
  ************************************************************
  */
-  shared->local[0] =
-      (TREE *) ((~(size_t) 127) & (127 + (size_t) SharedMalloc(sizeof(TREE) +
-              127, 0)));
-  shared->local[0]->used = 1;
-  shared->local[0]->stop = 0;
-  shared->local[0]->ply = 1;
-  shared->local[0]->nprocs = 0;
-  shared->local[0]->thread_id = 0;
-  tree = shared->local[0];
+  block[0] =
+      (TREE *) ((~(size_t) 127) & (127 + (size_t) malloc(sizeof(TREE) + 127)));
+  block[0]->used = 1;
+  block[0]->stop = 0;
+  block[0]->ply = 1;
+  block[0]->nprocs = 0;
+  block[0]->thread_id = 0;
+  tree = block[0];
   input_stream = stdin;
-  for (i = 0; i < 256; i++)
+  for (i = 0; i < 512; i++)
     args[i] = (char *) malloc(128);
   if (argc > 1) {
     for (i = 1; i < argc; i++) {
@@ -3742,11 +3760,10 @@ int main(int argc, char **argv)
     signal(SIGINT, SIG_IGN);
   signal(SIGCHLD, SignalInterrupt);
 #endif
-  Print(128, "\nCrafty v%s (%d cpus)\n\n", version, Max(shared->max_threads,
-          1));
+  Print(128, "\nCrafty v%s (%d cpus)\n\n", version, Max(max_threads, 1));
   if (ics)
     printf("*whisper Hello from Crafty v%s! (%d cpus)\n", version,
-        Max(shared->max_threads, 1));
+        Max(max_threads, 1));
   NewGame(1);
 /*
  ************************************************************
@@ -3779,7 +3796,7 @@ int main(int argc, char **argv)
     do {
       if (new_game)
         NewGame(0);
-      shared->opponent_start_time = ReadClock();
+      opponent_start_time = ReadClock();
       input_status = 0;
       display = tree->pos;
       move = 0;
@@ -3797,26 +3814,26 @@ int main(int argc, char **argv)
           pong = 0;
         }
         display = tree->pos;
-        if (presult != 2 && (shared->move_number != 1 || !wtm))
+        if (presult != 2 && (move_number != 1 || !wtm))
           presult = Ponder(wtm);
         if (presult == 1)
-          value = shared->last_root_value;
+          value = last_root_value;
         else if (presult == 2)
           value = ponder_value;
         if (presult == 0 || presult == 2) {
           if (!ics && !xboard) {
             if (wtm)
-              printf("White(%d): ", shared->move_number);
+              printf("White(%d): ", move_number);
             else
-              printf("Black(%d): ", shared->move_number);
+              printf("Black(%d): ", move_number);
             fflush(stdout);
           }
           readstat = Read(1, buffer);
           if (log_file) {
             if (wtm)
-              fprintf(log_file, "White(%d): %s\n", shared->move_number, buffer);
+              fprintf(log_file, "White(%d): %s\n", move_number, buffer);
             else
-              fprintf(log_file, "Black(%d): %s\n", shared->move_number, buffer);
+              fprintf(log_file, "Black(%d): %s\n", move_number, buffer);
           }
           if (readstat < 0 && input_stream == stdin) {
             strcpy(buffer, "end");
@@ -3825,7 +3842,7 @@ int main(int argc, char **argv)
         }
         if (presult == 1)
           break;
-        shared->opponent_end_time = ReadClock();
+        opponent_end_time = ReadClock();
         result = Option(tree);
         if (result == 0) {
           nargs = ReadParse(buffer, args, " 	;");
@@ -3850,8 +3867,7 @@ int main(int argc, char **argv)
  ************************************************************
  */
       if (result == 0) {
-        fseek(history_file, ((shared->move_number - 1) * 2 + 1 - wtm) * 10,
-            SEEK_SET);
+        fseek(history_file, ((move_number - 1) * 2 + 1 - wtm) * 10, SEEK_SET);
         fprintf(history_file, "%9s\n", OutputMove(tree, move, 0, wtm));
         MakeMoveRoot(tree, move, wtm);
         move_actually_played = 1;
@@ -3878,9 +3894,8 @@ int main(int argc, char **argv)
         }
         wtm = Flip(wtm);
         if (wtm)
-          shared->move_number++;
-        time_used_opponent =
-            shared->opponent_end_time - shared->opponent_start_time;
+          move_number++;
+        time_used_opponent = opponent_end_time - opponent_start_time;
         if (!force)
           Print(1, "              time used: %s\n",
               DisplayTime(time_used_opponent));
@@ -3900,7 +3915,7 @@ int main(int argc, char **argv)
  *                                                          *
  ************************************************************
  */
-    shared->crafty_is_white = wtm;
+    crafty_is_white = wtm;
     if (presult == 2) {
       if ((From(ponder_move) == From(move)) && (To(ponder_move) == To(move)) &&
           (Piece(ponder_move) == Piece(move)) &&
@@ -3913,9 +3928,9 @@ int main(int argc, char **argv)
         presult = 0;
     }
     ponder_move = 0;
-    shared->thinking = 1;
+    thinking = 1;
     if (presult != 1) {
-      strcpy(shared->kibitz_text, "n/a");
+      strcpy(kibitz_text, "n/a");
       last_pv.pathd = 0;
       last_pv.pathl = 0;
       display = tree->pos;
@@ -3933,10 +3948,10 @@ int main(int argc, char **argv)
       int drawsc = abs_draw_score;
 
       draw_offer_pending = 0;
-      if (shared->move_number < 40 || !accept_draws)
+      if (move_number < 40 || !accept_draws)
         drawsc = -300;
-      if (value <= drawsc && (shared->tc_increment != 0 ||
-              shared->tc_time_remaining_opponent >= 1000)) {
+      if (value <= drawsc && (tc_increment != 0 ||
+              tc_time_remaining_opponent >= 1000)) {
         if (xboard)
           Print(4095, "tellics draw\n");
         else {
@@ -3973,7 +3988,7 @@ int main(int argc, char **argv)
     last_value = value;
     if (abs(last_value) > (MATE - 300))
       last_mate_score = last_value;
-    shared->thinking = 0;
+    thinking = 0;
     if (!last_pv.pathl) {
       if (value == -MATE + 1) {
         over = 1;
@@ -4072,14 +4087,14 @@ int main(int argc, char **argv)
             strcat(announce, moveptr);
             system(announce);
           }
-          Print(128, "White(%d): %s ", shared->move_number, OutputMove(tree,
+          Print(128, "White(%d): %s ", move_number, OutputMove(tree,
                   last_pv.path[1], 0, wtm));
           printf("%s", Normal());
           Print(128, "\n");
         } else if (xboard) {
           if (log_file)
-            fprintf(log_file, "White(%d): %s\n", shared->move_number,
-                OutputMove(tree, last_pv.path[1], 0, wtm));
+            fprintf(log_file, "White(%d): %s\n", move_number, OutputMove(tree,
+                    last_pv.path[1], 0, wtm));
           printf("move %s\n", OutputMove(tree, last_pv.path[1], 0, wtm));
         } else
           Print(128, "*%s\n", OutputMove(tree, last_pv.path[1], 0, wtm));
@@ -4097,14 +4112,14 @@ int main(int argc, char **argv)
             strcat(announce, moveptr);
             system(announce);
           }
-          Print(128, "Black(%d): %s ", shared->move_number, OutputMove(tree,
+          Print(128, "Black(%d): %s ", move_number, OutputMove(tree,
                   last_pv.path[1], 0, wtm));
           printf("%s", Normal());
           Print(128, "\n");
         } else if (xboard) {
           if (log_file)
-            fprintf(log_file, "Black(%d): %s\n", shared->move_number,
-                OutputMove(tree, last_pv.path[1], 0, wtm));
+            fprintf(log_file, "Black(%d): %s\n", move_number, OutputMove(tree,
+                    last_pv.path[1], 0, wtm));
           printf("move %s\n", OutputMove(tree, last_pv.path[1], 0, wtm));
         } else
           Print(128, "*%s\n", OutputMove(tree, last_pv.path[1], 0, wtm));
@@ -4118,24 +4133,19 @@ int main(int argc, char **argv)
           strcpy(pgn_result, "0-1");
         }
       }
-      time_used = shared->program_end_time - shared->program_start_time;
+      time_used = program_end_time - program_start_time;
       Print(1, "              time used: %s\n", DisplayTime(time_used));
       TimeAdjust(time_used, crafty);
-      fseek(history_file, ((shared->move_number - 1) * 2 + 1 - wtm) * 10,
-          SEEK_SET);
+      fseek(history_file, ((move_number - 1) * 2 + 1 - wtm) * 10, SEEK_SET);
       fprintf(history_file, "%9s\n", OutputMove(tree, last_pv.path[1], 0, wtm));
       last_search_value = value;
       MakeMoveRoot(tree, last_pv.path[1], wtm);
       move_actually_played = 1;
 #if !defined(TEST)
-      if (shared->time_limit > 300)
+      if (time_limit > 300)
 #endif
         if (log_file)
           DisplayChessBoard(log_file, tree->pos);
-#if defined(TEST)
-      strcpy(buffer, "score");
-      Option(tree);
-#endif
 /*
  ************************************************************
  *                                                          *
@@ -4163,27 +4173,30 @@ int main(int argc, char **argv)
       }
     }
     wtm = Flip(wtm);
+#if defined(TEST)
+    strcpy(buffer, "score");
+    Option(tree);
+#endif
     if ((i = GameOver(wtm))) {
       if (i == 1)
         Print(4095, "1/2-1/2 {stalemate}\n");
     }
     if (book_move) {
-      shared->moves_out_of_book = 0;
+      moves_out_of_book = 0;
       predicted++;
       if (ponder_move)
         sprintf(book_hint, "%s", OutputMove(tree, ponder_move, 0, wtm));
     } else
-      shared->moves_out_of_book++;
+      moves_out_of_book++;
     if (wtm)
-      shared->move_number++;
+      move_number++;
     ValidatePosition(tree, 0, last_pv.path[1], "Main(2)");
     if (kibitz) {
-      if (shared->kibitz_depth)
-        Kibitz(2, !wtm, shared->kibitz_depth,
-            shared->end_time - shared->start_time, value, tree->nodes_searched,
-            tree->egtb_probes_successful, shared->kibitz_text);
+      if (kibitz_depth)
+        Kibitz(2, !wtm, kibitz_depth, end_time - start_time, value,
+            tree->nodes_searched, tree->egtb_probes_successful, kibitz_text);
       else
-        Kibitz(4, !wtm, 0, 0, 0, 0, 0, shared->kibitz_text);
+        Kibitz(4, !wtm, 0, 0, 0, 0, 0, kibitz_text);
     }
 /*
  ************************************************************
@@ -4194,7 +4207,7 @@ int main(int argc, char **argv)
  *                                                          *
  ************************************************************
  */
-    if (shared->moves_out_of_book) {
+    if (moves_out_of_book) {
       LearnBook(last_value, last_pv.pathd + 2, 0, 0);
     } else if (learn_positions_count < 63) {
       learn_seekto[learn_positions_count] = book_learn_seekto;
@@ -4202,7 +4215,7 @@ int main(int argc, char **argv)
       learn_nmoves[learn_positions_count++] = book_learn_nmoves;
     }
     if (abs(value) > MATE - 200) {
-      int val = (shared->crafty_is_white) ? 300 : -300;
+      int val = (crafty_is_white) ? 300 : -300;
 
       if (value < 0)
         val = -val;
