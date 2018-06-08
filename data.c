@@ -82,6 +82,7 @@
    signed char    black_outpost[64];
    signed char    king_defects_b[64];
    signed char    directions[64][64];
+   int            tropism[64];
    BITBOARD       w_pawn_attacks[64];
    BITBOARD       b_pawn_attacks[64];
    BITBOARD       knight_attacks[64];
@@ -240,7 +241,7 @@
   unsigned int   max_split_blocks;
   volatile unsigned int   splitting;
 
-# define    VERSION                            "16.10"
+# define    VERSION                            "16.11"
   char      version[6] =                    {VERSION};
   PLAYING_MODE mode =                     normal_mode;
 
@@ -292,132 +293,36 @@
   char      computer_list[512][20] = {
                                       {""}};
 
-  int       number_of_GMs =                       125;
-  char      GM_list[512][20] =       {{"agdestein"},
-                                      {"airgun"},
-                                      {"alexandrel"},
-                                      {"anat"},
-                                      {"andersson"},
-                                      {"anxions"},
-                                      {"ariela"},
-                                      {"attackgm"},
-                                      {"babyboss"},
+  int       number_of_GMs =                       29;
+  char      GM_list[512][20] =       {{"anat"},
                                       {"badviking"},
-                                      {"bareev"},
-                                      {"baskmask"},
-                                      {"benyehuda"},
-                                      {"berliner"},
-                                      {"bigd"},
                                       {"blatny"},
-                                      {"blow"},
-                                      {"bluedog"},
-                                      {"buzzcut"},
-                                      {"cambala"},
-                                      {"conguito"},
                                       {"davenogood"},
-                                      {"davinci"},
-                                      {"deep-blue"},
-                                      {"dgurevich"},
-                                      {"dirtyharry"},
-                                      {"dixon"},
                                       {"dlugy"},
                                       {"dr"},
-                                      {"dranov"},
-                                      {"dumbo"},
-                                      {"feeai"},
-                                      {"figo"},
                                       {"flamingskull"},
-                                      {"fosti"},
-                                      {"fright"},
                                       {"gasch"},
-                                      {"gatakamsky"},
-                                      {"gatotkaca"},
-                                      {"gelfand"},
-                                      {"geysir"},
                                       {"gmalex"},
-                                      {"gmdavies"},
                                       {"gmsoffer"},
                                       {"gref"},
                                       {"gulko"},
-                                      {"handokoe"},
-                                      {"harzvi"},
-                                      {"heine"},
-                                      {"helgi"},
-                                      {"henley"},
-                                      {"hernandez"},
                                       {"hugo"},
-                                      {"infochess"},
-                                      {"inov"},
-                                      {"jacaglaca"},
-                                      {"jantonio"},
-                                      {"jaque13"},
-                                      {"judgedredd"},
-                                      {"juditpolgar"},
-                                      {"juliogranda"},
-                                      {"julius"},
                                       {"junior"},
                                       {"kaidanov"},
-                                      {"karpov"},
-                                      {"kasparov"},
-                                      {"kc"},
-                                      {"kempka"},
                                       {"kevlar"},
                                       {"kingloek"},
-                                      {"knez"},
                                       {"kotronias"},
-                                      {"kramnik"},
-                                      {"krogius"},
-                                      {"kudrin"},
                                       {"lein"},
                                       {"leon"},
                                       {"leop"},
-                                      {"lev"},
-                                      {"levalburt"},
-                                      {"lombardy"},
-                                      {"lycan"},
-                                      {"margeir"},
-                                      {"mgur"},
-                                      {"moggy"},
-                                      {"mquinteros"},
-                                      {"mysko"},
-                                      {"nikolaidis"},
-                                      {"olafsson"},
-                                      {"phips"},
-                                      {"psakhis"},
-                                      {"racp"},
-                                      {"ree"},
-                                      {"repref"},
                                       {"ricardi"},
                                       {"rohde"},
                                       {"sagalchik"},
-                                      {"sagdestein"},
-                                      {"scratchy"},
-                                      {"securitron"},
-                                      {"seinfeld"},
-                                      {"serper"},
-                                      {"shamkovich"},
                                       {"shirov"},
-                                      {"short"},
-                                      {"sorokin"},
-                                      {"spangenberg"},
-                                      {"spanish-champ"},
-                                      {"spicegirl"},
                                       {"stefansson"},
                                       {"sweere"},
-                                      {"taimanov"},
-                                      {"tigre"},
-                                      {"tioro"},
-                                      {"tisdall"},
-                                      {"topalov"},
-                                      {"ttivel"},
-                                      {"uandersson"},
-                                      {"vagr"},
-                                      {"wbrowne"},
-                                      {"wilder"},
-                                      {"wojtkiewicz"},
-                                      {"yan"},
-                                      {"yermo"},
-                                      {"younglasker"}};
+                                      {"udav"},
+                                      {"wyatt"}};
 
   int       number_of_IMs =                         1;
   char      IM_list[512][20] =       {
@@ -544,12 +449,12 @@
 
   const int king_tropism_n[8]      = {3,3,3,2,1,0,0,0};
   const int king_tropism_b[8]      = {3,3,3,2,1,0,0,0};
-  const int king_tropism_r[8]      = {3,3,3,2,1,0,0,0};
-  const int king_tropism_at_r[8]   = {5,5,2,0,0,0,0,0};
-  const int king_tropism_q[8]      = {5,5,4,3,2,1,0,0};
-  const int king_tropism_at_q[8]   = {6,6,3,0,0,0,0,0};
-  const int king_tropism_file_q[8] = {0,0,0,0,2,4,4,4};
-  const int tropism[64] =       {  0, 1, 3, 5, 7, 9,11,13,
+  const int king_tropism_r[8]      = {2,2,2,1,1,0,0,0};
+  const int king_tropism_at_r[8]   = {4,4,2,0,0,0,0,0};
+  const int king_tropism_q[8]      = {4,4,4,2,1,0,0,0};
+  const int king_tropism_at_q[8]   = {5,5,3,0,0,0,0,0};
+  const int king_tropism_file_q[8] = {0,0,0,0,3,4,5,6};
+  const int king_tropism[64] =  {  0, 1, 3, 5, 7, 9,11,13,
                                   16,24,32,40,44,48,52,56,
                                   60,62,65,67,70,72,75,77,
                                   80,82,85,85,85,85,85,85,
@@ -571,9 +476,7 @@
                                      PAWN_PASSED*6,PAWN_PASSED*9,
                                      0};
 
-  const int isolated_pawn_value[17] = {0, 
-                                       12, 16, 24, 36, 48,  54,  60,  66,
-                                       72, 78, 84, 90, 96, 110, 120, 130};
+  const int isolated_pawn_value[9] =  {0, 12, 24, 32, 50, 80, 100, 120, 150};
 
   const int doubled_pawn_value[7] = { 0,
                                       0, PAWN_DOUBLED,
@@ -670,10 +573,10 @@
    numbered elements correspond to safe king positions, while higher-numbered
    elements represent disrupted kingsides.
 */
-  const int ttemper[32] =    { 16, 16, 16, 16, 20, 20, 20, 20, /*   0-   7 */
-                               24, 24, 24, 24, 28, 28, 28, 28, /*   8-  15 */
-                               32, 32, 32, 32, 32, 32, 32, 32, /*  16-  23 */
-                               32, 32, 32, 32, 32, 32, 32, 32};/*  24-  31 */
+  const int ttemper[32] =    { 16, 16, 16, 16, 17, 17, 18, 18, /*   0-   7 */
+                               19, 19, 20, 20, 21, 21, 22, 22, /*   8-  15 */
+                               23, 23, 24, 24, 25, 25, 26, 26, /*  16-  23 */
+                               27, 27, 27, 27, 27, 27, 27, 27};/*  24-  31 */
 /*
    penalty for a pawn that is missing from its initial square in front
    of the castled king.  ie h3 would count as 'one missing pawn' while
@@ -698,13 +601,20 @@
    king safety, making Crafty's less important (this will tend to increase
    aggressiveness while - values will make Crafty more passive/defensive.)
 */
-  int king_safety_asymmetry =                  -20;
+  int king_safety_asymmetry =                  -30;
 /*
    this value scales king safety up or down equally for both sides.  A
    value of 100 leaves the values as they are.  values below 100 drop
    the king safety scores for both sides proportionally.
 */
   int king_safety_scale =                      100;
+/*
+   this value scales king tropism up or down.  the default is 100 which
+   uses the built-in scores.  150 will increase tropism scores by 50%
+   which will make the program more aggressive, but probably less
+   positionally aware as a result.
+*/
+  int king_safety_tropism =                    100;
 /*
    the following is basically a 'defect' table for kings on a specific
    square.  this lets it figure out that the king doesn't want to go to
@@ -803,14 +713,14 @@
                              -15,  2,  4,  4,  4,  4,  2,-15,
                              -25,-15,  0,  0,  0,  0,-15,-25};
 
-  signed char  rval_w[64] = {  0,  0,  3,  6,  6,  3,  0,  0,
-                              -8,  0,  3,  6,  6,  3,  0, -8,
-                              -8,  0,  3,  6,  6,  3,  0, -8,
-                              -8,  0,  3,  6,  6,  3,  0, -8,
-                              -8,  0,  3,  6,  6,  3,  0, -8,
-                               0,  0,  3,  6,  6,  3,  0,  0,
-                               0,  0,  3,  6,  6,  3,  0,  0,
-                               0,  0,  3,  6,  6,  3,  0,  0};
+  signed char  rval_w[64] = {  0,  0,  2,  4,  4,  2,  0,  0,
+                             -10,  0,  2,  4,  4,  2,  0,-10,
+                             -10,  0,  2,  4,  4,  2,  0,-10,
+                             -10,  0,  2,  4,  4,  2,  0,-10,
+                               0,  0,  2,  4,  4,  2,  0,  0,
+                               0,  0,  2,  4,  4,  2,  0,  0,
+                               0,  0,  2,  4,  4,  2,  0,  0,
+                               0,  0,  2,  4,  6,  2,  0,  0};
 
   signed char  qval_w[64] = {-10, -8,  0,  0,  0,  0, -8,-10,
                              -10,  2,  8,  8,  8,  8,  2,-10,

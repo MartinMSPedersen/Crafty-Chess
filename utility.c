@@ -347,7 +347,7 @@ void DisplayPV(TREE *tree, int level, int wtm, int time, int value, PATH *pv) {
 #define PrintOK() (tree->nodes_searched>noise_level || value>(MATE-300))
   char buffer[512], *buffp, *bufftemp;
   int i, t_move_number, type, j, dummy;
-  int nskip=1;
+  int nskip=0;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -406,7 +406,7 @@ void DisplayPV(TREE *tree, int level, int wtm, int time, int value, PATH *pv) {
     sprintf(buffer+strlen(buffer)," <EGTB>");
   strcpy(whisper_text,buffer);
   if (PrintOK()) {
-    if (nskip == 1)
+    if (nskip <= 1)
       Print(type,"               ");
     else
       Print(type,"         (%1d)   ",nskip);

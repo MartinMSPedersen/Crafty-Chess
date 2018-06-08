@@ -162,6 +162,10 @@ void PreEvaluate(TREE *tree, int wtm) {
     temper_w[i]=temper_w[i]*king_safety_scale/100;
     temper_b[i]=temper_b[i]*king_safety_scale/100;
   }
+  for (i=0;i<32;i++) {
+    tropism[i]=king_tropism[i]*king_safety_tropism/100;
+    temper_b[i]=temper_b[i]*king_safety_scale/100;
+  }
 /*
  ----------------------------------------------------------
 |                                                          |

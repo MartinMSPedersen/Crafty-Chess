@@ -59,6 +59,10 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
       if (WhiteMinors > BlackMinors+1) score+=BAD_TRADE;
       else if (BlackMinors > WhiteMinors+1) score-=BAD_TRADE;
     }
+    else if (abs(WhiteMajors-BlackMajors) == 2) {
+      if (WhiteMinors > BlackMinors+2) score+=BAD_TRADE;
+      else if (BlackMinors > WhiteMinors+2) score-=BAD_TRADE;
+    }
   }
 #ifdef DEBUGEV
   if (score != lastsc)
@@ -819,7 +823,8 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
  ----------------------------------------------------------
 */
     if (!BlackQueens) {
-      if (TotalWhitePieces > 9) score+=QUEEN_VS_2_ROOKS;
+      if (TotalWhitePieces>9 &&
+          WhiteMajors==BlackMajors) score+=QUEEN_VS_2_ROOKS;
     }
 /*
  ----------------------------------------------------------
@@ -901,7 +906,8 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
  ----------------------------------------------------------
 */
     if (!WhiteQueens) {
-      if (TotalBlackPieces > 9) score-=QUEEN_VS_2_ROOKS;
+      if (TotalBlackPieces>9 &&
+          WhiteMajors==BlackMajors) score-=QUEEN_VS_2_ROOKS;
     }
 /*
  ----------------------------------------------------------
@@ -2005,8 +2011,9 @@ int EvaluatePawns(TREE *tree) {
   register int w_unblocked=0, b_unblocked=0;
   register int w_file_l, w_file_r, b_file_l, b_file_r;
   register int defenders, attackers, weakness, blocked, sq;
-  register int kside_open_files=0, kside_half_open_files=0;
-  register int qside_open_files=0, qside_half_open_files=0;
+  register int kside_open_files=0, qside_open_files=0;
+  register int kside_half_open_files_b=0, kside_half_open_files_w=0;
+  register int qside_half_open_files_b=0, qside_half_open_files_w=0;
   register int qmissb=0, kmissb=0, qmissw=0, kmissw=0;
 #if defined(DEBUGP)
   int lastsc=0;
@@ -2133,7 +2140,6 @@ int EvaluatePawns(TREE *tree) {
 */
     if (!(mask_pawn_isolated[square] & WhitePawns)) {
       w_isolated++;
-      if (!(plus8dir[square] & BlackPawns)) w_isolated++;
     }
     else do {
 /*
@@ -2356,7 +2362,6 @@ int EvaluatePawns(TREE *tree) {
 */
     if (!(mask_pawn_isolated[square] & BlackPawns)) {
       b_isolated++;
-      if (!(minus8dir[square] & WhitePawns)) b_isolated++;
     }
     else do {
 /*
@@ -2619,7 +2624,7 @@ int EvaluatePawns(TREE *tree) {
       kside_open_files++;
     else {
       if (!(right & WhitePawns)) {
-        kside_half_open_files++;
+        kside_half_open_files_w++;
       }
       else if (!(WhitePawns & SetMask(H2-file))) {
         kmissw++;
@@ -2627,7 +2632,7 @@ int EvaluatePawns(TREE *tree) {
         if (file == 1) kmissw++;
       }
       if (!(right & BlackPawns)) {
-        kside_half_open_files++;
+        kside_half_open_files_b++;
       }
       else if (!(BlackPawns & SetMask(H7-file))) {
         kmissb++;
@@ -2641,7 +2646,7 @@ int EvaluatePawns(TREE *tree) {
       qside_open_files++;
     else {
       if (!(left & WhitePawns)) {
-        qside_half_open_files++;
+        qside_half_open_files_w++;
       }
       else if (!(WhitePawns & SetMask(A2+file))) {
         qmissw++;
@@ -2649,7 +2654,7 @@ int EvaluatePawns(TREE *tree) {
         if (file == 1) qmissw++;
       }
       if (!(left & BlackPawns)) {
-        qside_half_open_files++;
+        qside_half_open_files_b++;
       }
       else if (!(BlackPawns & SetMask(A7+file))) {
         qmissb++;
@@ -2690,25 +2695,29 @@ int EvaluatePawns(TREE *tree) {
 */
   tree->pawn_score.white_defects_k=missing[kmissw]+
                                    openf[kside_open_files]+
-                                   hopenf[kside_half_open_files];
+                                   hopenf[kside_half_open_files_w]+
+                                   (hopenf[kside_half_open_files_b]>>1);
   tree->pawn_score.white_defects_q=missing[qmissw]+
                                    openf[qside_open_files]+
-                                   hopenf[qside_half_open_files];
+                                   hopenf[qside_half_open_files_w]+
+                                   (hopenf[qside_half_open_files_b]>>1);
   tree->pawn_score.black_defects_k=missing[kmissb]+
                                    openf[kside_open_files]+
-                                   hopenf[kside_half_open_files];
+                                   (hopenf[kside_half_open_files_w]>>1)+
+                                   hopenf[kside_half_open_files_b];
   tree->pawn_score.black_defects_q=missing[qmissb]+
                                    openf[qside_open_files]+
-                                   hopenf[qside_half_open_files];
+                                   (hopenf[qside_half_open_files_w]>>1)+
+                                   hopenf[qside_half_open_files_b];
 #if defined(DEBUGK)
   printf("white: kmissing=%d  kopen=%d  khalf=%d\n",
-         missing[kmissw],openf[kside_open_files], hopenf[kside_half_open_files]);
+         missing[kmissw],openf[kside_open_files], hopenf[kside_half_open_files_w]);
   printf("white: qmissing=%d  qopen=%d  qhalf=%d\n",
-         missing[qmissw],openf[qside_open_files], hopenf[qside_half_open_files]);
+         missing[qmissw],openf[qside_open_files], hopenf[qside_half_open_files_w]);
   printf("black: kmissing=%d  kopen=%d  khalf=%d\n",
-         missing[kmissb],openf[kside_open_files], hopenf[kside_half_open_files]);
+         missing[kmissb],openf[kside_open_files], hopenf[kside_half_open_files_b]);
   printf("black: qmissing=%d  qopen=%d  qhalf=%d\n",
-         missing[qmissb],openf[qside_open_files], hopenf[qside_half_open_files]);
+         missing[qmissb],openf[qside_open_files], hopenf[qside_half_open_files_b]);
   printf("white, defects=%d(q)  %d(k)\n",
          tree->pawn_score.white_defects_q,tree->pawn_score.white_defects_k);
   printf("black, defects=%d(q)  %d(k)\n",

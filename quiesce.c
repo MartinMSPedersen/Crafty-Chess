@@ -63,7 +63,7 @@ int Quiesce(TREE *tree, int alpha, int beta, int wtm, int ply) {
  ----------------------------------------------------------
 */
   tree->last[ply]=GenerateCaptures(tree, ply, wtm, tree->last[ply-1]);
-  delta=alpha-80-(wtm?Material:-Material);
+  delta=alpha-100-(wtm?Material:-Material);
   goodmv=tree->last[ply-1];
   sortv=tree->sort_value;
   for (movep=tree->last[ply-1];movep<tree->last[ply];movep++)

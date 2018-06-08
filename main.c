@@ -2418,6 +2418,11 @@
 *           crafty.doc for more details.  suffice it to say that you can now  *
 *           tune it to be aggressive or passive as you wish.                  *
 *                                                                             *
+*   16.11   adjustment to king safety asymmetry to make Crafty a bit more     *
+*           cautious about starting a king-side attack.  new "ksafe tropism"  *
+*           command allows the tropism scores (pulling pieces toward opponent *
+*           king) to be adjusted up or down (up is more aggressive).          *
+*                                                                             *
 *******************************************************************************
 */
 int main(int argc, char **argv) {

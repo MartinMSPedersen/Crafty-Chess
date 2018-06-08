@@ -201,7 +201,7 @@
 
 #define      BOOK_CLUSTER_SIZE            600
 #define            MERGE_BLOCK           1000
-#define             SORT_BLOCK         400000
+#define             SORT_BLOCK        4000000
 #define         LEARN_INTERVAL             10
 #define        LEARN_WINDOW_LB            -40
 #define        LEARN_WINDOW_UB            +40

@@ -226,7 +226,7 @@
   extern const char     square_color[64];
   extern const int      connected_passed_pawn_value[8];
   extern const int      passed_pawn_value[8];
-  extern const int      isolated_pawn_value[17];
+  extern const int      isolated_pawn_value[9];
   extern const int      doubled_pawn_value[7];
   extern const int      pawn_rams[9];
   extern const int      supported_passer[8];
@@ -241,6 +241,7 @@
   extern const int      ttemper[32];
   extern int            king_safety_asymmetry;
   extern int            king_safety_scale;
+  extern int            king_safety_tropism;
   extern const int      missing[8];
   extern const int      openf[4];
   extern const int      hopenf[4];
@@ -251,7 +252,8 @@
   extern const int      king_tropism_q[8];
   extern const int      king_tropism_at_q[8];
   extern const int      king_tropism_file_q[8];
-  extern const int      tropism[64];
+  extern const int      king_tropism[64];
+  extern int            tropism[64];
 
   extern signed char    pval_w[64];
   extern signed char    pval_b[64];

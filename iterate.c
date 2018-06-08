@@ -228,12 +228,6 @@ int Iterate(int wtm, int search_type, int root_list_done) {
         printf("=      search iteration %2d       =\n",iteration_depth);
         printf("==================================\n");
       }
-      for (i=0;i<n_root_moves;i++) root_moves[i].status=0;
-      for (i=0;i<Min(n_root_moves,4);i++) {
-        if (root_moves[i].nodes > root_moves[0].nodes/2)
-          root_moves[i].status|=64;
-      }
-      for (i=0;i<n_root_moves;i++) root_moves[i].nodes=0;
       if (tree->nodes_searched) {
         nodes_between_time_checks=nodes_per_second;
         nodes_between_time_checks=Min(nodes_between_time_checks,MAX_TC_NODES);
@@ -317,18 +311,6 @@ int Iterate(int wtm, int search_type, int root_list_done) {
 */
       twtm=wtm;
       end_time=ReadClock(time_type);
-      if (end_time-start_time > 10)
-        nodes_per_second=(BITBOARD) tree->nodes_searched*100/(BITBOARD) (end_time-start_time);
-      else
-        nodes_per_second=10000;
-      if (!time_abort && !abort_search && (tree->nodes_searched>noise_level ||
-          correct_count>=early_exit || value>MATE-300 || tree->pv[0].pathh==2)) {
-        if (value != -(MATE-1))
-          DisplayPV(tree,5,wtm,end_time-start_time,value,&tree->pv[0]);
-      }
-      root_alpha=value-40;
-      root_value=root_alpha;
-      root_beta=value+40;
       do {
         sorted=1;
         for (i=1;i<n_root_moves-1;i++) {
@@ -340,6 +322,12 @@ int Iterate(int wtm, int search_type, int root_list_done) {
           }
         }
       } while(!sorted);
+      for (i=0;i<n_root_moves;i++) root_moves[i].status=0;
+      if (root_moves[0].nodes > 1000)
+        for (i=0;i<Min(n_root_moves,4);i++) {
+          if (root_moves[i].nodes > root_moves[0].nodes/2)
+            root_moves[i].status|=64;
+        }
       if (display_options&256) {
         unsigned int total_nodes=0;
         Print(4095,"       move       nodes      hi/low\n");
@@ -352,6 +340,28 @@ int Iterate(int wtm, int search_type, int root_list_done) {
         }
         Print(256,"      total  %10d\n",total_nodes);
       }
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   notice if there are multiple moves that are producing  |
+|   large trees.  if so, don't search those in parallel by |
+|   setting the flag to avoid this.                        |
+|                                                          |
+ ----------------------------------------------------------
+*/
+      for (i=0;i<n_root_moves;i++) root_moves[i].nodes=0;
+      if (end_time-start_time > 10)
+        nodes_per_second=(BITBOARD) tree->nodes_searched*100/(BITBOARD) (end_time-start_time);
+      else
+        nodes_per_second=10000;
+      if (!time_abort && !abort_search && (tree->nodes_searched>noise_level ||
+          correct_count>=early_exit || value>MATE-300 || tree->pv[0].pathh==2)) {
+        if (value != -(MATE-1))
+          DisplayPV(tree,5,wtm,end_time-start_time,value,&tree->pv[0]);
+      }
+      root_alpha=value-40;
+      root_value=root_alpha;
+      root_beta=value+40;
       if (iteration_depth>3 && value>MATE-300 && value>last_mate_score) break;
       if ((iteration_depth >= search_depth) && search_depth) break;
       if (time_abort || abort_search) break;

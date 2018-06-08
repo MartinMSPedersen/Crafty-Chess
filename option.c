@@ -1274,6 +1274,13 @@ int Option(TREE *tree) {
         printf("makes king-safety less important and allows the other \n");
         printf("positional scores to influence the game more, but probably\n");
         printf("will make Crafty easier to attack\n");
+        printf("\n");
+        printf("tropism is used to increase/decrease the overall king\n");
+        printf("tropism scores.  this attracts pieces toward the enemy\n");
+        printf("king.  100 is again the default (same as scale) while\n");
+        printf("larger numbers will exaggerate aggressiveness at the\n");
+        printf("expense of positional quality.\n");
+        printf("\n");
       }
       else if (OptionMatch("list",args[1])) {
         printf("list is used to update the GM/IM/computer lists, which are\n");
@@ -1630,7 +1637,9 @@ int Option(TREE *tree) {
 |   than the opponents.  scale can be used to adjust all   |
 |   values up are down proportionally, where 100 is the    |
 |   default.  reducing them will make it less sensitive to |
-|   king safety for both sides.                            |
+|   king safety for both sides.  tropism is used to scale  |
+|   king tropism up (> 100) or down (< 100) which attracts |
+|   pieces toward the enemy king.                          |
 |                                                          |
  ----------------------------------------------------------
 */
@@ -1646,22 +1655,36 @@ int Option(TREE *tree) {
     else if (OptionMatch("scale",args[1])) {
       king_safety_scale=atoi(args[2]);
     }
+    else if (OptionMatch("tropism",args[1])) {
+      king_safety_tropism=atoi(args[2]);
+    }
     else printf("unknown option %s\n",args[1]);
     PreEvaluate(tree,!wtm);
-    Print(128,"modified king-safety values:\n");
-    Print(128,"white: ");
-    for (i=0;i<16;i++)
-      Print(128,"%3d ", temper_w[i]);
-    Print(128,"\n       ");
-    for (i=16;i<32;i++)
-      Print(128,"%3d ", temper_w[i]);
-    Print(128,"\n\nblack: ");
-    for (i=0;i<16;i++)
-      Print(128,"%3d ", temper_b[i]);
-    Print(128,"\n       ");
-    for (i=16;i<32;i++)
-      Print(128,"%3d ", temper_b[i]);
-    Print(128,"\n");
+    if (OptionMatch("scale",args[1]) || OptionMatch("asymmetry",args[1])) {
+      Print(128,"modified king-safety values:\n");
+      Print(128,"white: ");
+      for (i=0;i<16;i++)
+        Print(128,"%3d ", temper_w[i]);
+      Print(128,"\n       ");
+      for (i=16;i<32;i++)
+        Print(128,"%3d ", temper_w[i]);
+      Print(128,"\n\nblack: ");
+      for (i=0;i<16;i++)
+        Print(128,"%3d ", temper_b[i]);
+      Print(128,"\n       ");
+      for (i=16;i<32;i++)
+        Print(128,"%3d ", temper_b[i]);
+      Print(128,"\n");
+    }
+    else if (OptionMatch("tropism",args[1])) {
+      Print(128,"modified king-tropism values:\n");
+      for (i=0;i<16;i++)
+        Print(128,"%3d ", tropism[i]);
+      Print(128,"\n");
+      for (i=16;i<32;i++)
+        Print(128,"%3d ", tropism[i]);
+      Print(128,"\n");
+    }
   }
 /*
  ----------------------------------------------------------
@@ -2264,7 +2287,7 @@ int Option(TREE *tree) {
         if (!strcmp(computer_list[i],args[1])) {
           Print(128,"playing a computer!\n");
           computer_opponent=1;
-          book_selection_width=1;
+          book_selection_width=2;
           usage_level=0;
           book_weight_freq=1.0;
           book_weight_eval=.1;
