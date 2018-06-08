@@ -1140,8 +1140,8 @@ void InitializeSMP(void)
   LockInit(lock_io);
   LockInit(lock_root);
   LockInit(block[0]->lock);
-# if (CPUS > 1)
-  pthread_attr_init (&attributes);
+#if defined(UNIX) &&(CPUS > 1)
+  pthread_attr_init(&attributes);
   pthread_attr_setdetachstate(&attributes, PTHREAD_CREATE_DETACHED);
 #endif
 }

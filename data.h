@@ -164,9 +164,10 @@ extern TREE *volatile thread[CPUS];
 
 #  if (CPUS > 1)
 extern lock_t lock_smp, lock_io, lock_root;
-#if defined(UNIX)
-  extern pthread_attr_t attributes;
-#endif
+
+#    if defined(UNIX)
+extern pthread_attr_t attributes;
+#    endif
 #  endif
 extern unsigned int parallel_splits;
 extern unsigned int parallel_aborts;

@@ -1,6 +1,6 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 08/25/08 */
+/* last modified 11/24/08 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -73,6 +73,11 @@ int Quiesce(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply)
  *   minor pieces, then we search that capture always since *
  *   the endgame might be won or lost with no pieces left.  *
  *                                                          *
+ *   once we confirm that the capture is not losing any     *
+ *   material, we sort these non-losing captures into       *
+ *   MVV/LVA order which appears to be a slightly faster    *
+ *   move ordering idea.                                    *
+ *                                                          *
  ************************************************************
  */
   tree->last[ply] = GenerateCaptures(tree, ply, wtm, tree->last[ply - 1]);
@@ -85,13 +90,13 @@ int Quiesce(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply)
         ((wtm) ? TotalPieces(black, occupied) : TotalPieces(white,
                 occupied)) - p_vals[Captured(*movep)] == 0) {
       *goodmv++ = *movep;
-      *sortv++ = pc_values[Captured(*movep)];
+      *sortv++ = 128 * pc_values[Captured(*movep)] - pc_values[Piece(*movep)];
       moves++;
     } else {
       temp = Swap(tree, From(*movep), To(*movep), wtm);
       if (temp >= 0) {
         *goodmv++ = *movep;
-        *sortv++ = temp;
+        *sortv++ = 128 * pc_values[Captured(*movep)] - pc_values[Piece(*movep)];
         moves++;
       }
     }

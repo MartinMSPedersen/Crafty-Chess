@@ -106,7 +106,7 @@ int OOOsqs[2][3] = { {E8, D8, C8}, {E1, D1, C1} };
 int OOfrom[2] = { E8, E1 };
 int OOto[2] = { G8, G1 };
 int OOOto[2] = { C8, C1 };
-#define    VERSION                             "22.5"
+#define    VERSION                             "22.6"
 char version[8] = { VERSION };
 PLAYING_MODE mode = normal_mode;
 int batch_mode = 0;             /* no asynch reads */

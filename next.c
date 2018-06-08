@@ -1,6 +1,6 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 12/26/03 */
+/* last modified 11/24/08 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -39,7 +39,14 @@ int NextMove(TREE * RESTRICT tree, int ply, int wtm)
  *   generate captures and sort them based on (a) the value *
  *   of the captured piece - the value of the capturing     *
  *   piece if this is > 0; or, (b) the value returned by    *
- *   Swap().                                                *
+ *   Swap().  if the capture leaves the opponent with no    *
+ *   minor pieces, then we search that capture always since *
+ *   the endgame might be won or lost with no pieces left.  *
+ *                                                          *
+ *   once we confirm that the capture is not losing any     *
+ *   material, we sort these non-losing captures into       *
+ *   MVV/LVA order which appears to be a slightly faster    *
+ *   move ordering idea.                                    *
  *                                                          *
  ************************************************************
  */
@@ -56,24 +63,31 @@ int NextMove(TREE * RESTRICT tree, int ply, int wtm)
           tree->hash_move[ply] = 0;
         } else {
           if (pc_values[Piece(*movep)] < pc_values[Captured(*movep)]) {
-            *sortv = pc_values[Captured(*movep)] - pc_values[Piece(*movep)];
+            *sortv =
+                128 * pc_values[Captured(*movep)] - pc_values[Piece(*movep)];
             tree->next_status[ply].remaining++;
           } else {
             *sortv = Swap(tree, From(*movep), To(*movep), wtm);
-            if (*sortv >= 0)
+            if (*sortv >= 0) {
+              *sortv =
+                  128 * pc_values[Captured(*movep)] - pc_values[Piece(*movep)];
               tree->next_status[ply].remaining++;
+            }
           }
         }
     } else {
       for (movep = tree->last[ply - 1], sortv = tree->sort_value;
           movep < tree->last[ply]; movep++, sortv++)
         if (pc_values[Piece(*movep)] < pc_values[Captured(*movep)]) {
-          *sortv = pc_values[Captured(*movep)] - pc_values[Piece(*movep)];
+          *sortv = 128 * pc_values[Captured(*movep)] - pc_values[Piece(*movep)];
           tree->next_status[ply].remaining++;
         } else {
           *sortv = Swap(tree, From(*movep), To(*movep), wtm);
-          if (*sortv >= 0)
+          if (*sortv >= 0) {
+            *sortv =
+                128 * pc_values[Captured(*movep)] - pc_values[Piece(*movep)];
             tree->next_status[ply].remaining++;
+          }
         }
     }
 /*

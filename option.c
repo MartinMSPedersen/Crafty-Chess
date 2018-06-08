@@ -3058,10 +3058,12 @@ int Option(TREE * RESTRICT tree)
  ************************************************************
  */
   else if (!strcmp("scale", *args)) {
+/*
     int scale = atoi(args[1]);
     int orig = rook_open_file[mg];
     rook_open_file[mg] = scale * rook_open_file[mg] / 100;
     rook_open_file[eg] += orig - rook_open_file[mg];
+*/
 /*
     int i, j;
 

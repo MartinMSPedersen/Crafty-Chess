@@ -1,6 +1,6 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 01/22/04 */
+/* last modified 11/24/08 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -53,7 +53,12 @@ int NextEvasion(TREE * RESTRICT tree, int ply, int wtm)
  *                                                          *
  *   now sort the moves based on the expected gain or loss. *
  *   this is deferred until now to see if the hash move is  *
- *   good enough to produce a cutoff and avoid this work.   *
+ *   good enough to produce a cutoff and avoid this effort. *
+ *                                                          *
+ *   once we confirm that the capture is not losing any     *
+ *   material, we sort these non-losing captures into       *
+ *   MVV/LVA order which appears to be a slightly faster    *
+ *   move ordering idea.                                    *
  *                                                          *
  ************************************************************
  */
@@ -67,17 +72,26 @@ int NextEvasion(TREE * RESTRICT tree, int ply, int wtm)
           *movep = 0;
         } else {
           if (pc_values[Piece(*movep)] < pc_values[Captured(*movep)])
-            *sortv = pc_values[Captured(*movep)] - pc_values[Piece(*movep)];
-          else
+            *sortv =
+                128 * pc_values[Captured(*movep)] - pc_values[Piece(*movep)];
+          else {
             *sortv = Swap(tree, From(*movep), To(*movep), wtm);
+            if (*sortv >= 0)
+              *sortv =
+                  128 * pc_values[Captured(*movep)] - pc_values[Piece(*movep)];
+          }
         }
     } else {
       for (movep = tree->last[ply - 1], sortv = tree->sort_value;
           movep < tree->last[ply]; movep++, sortv++)
         if (pc_values[Piece(*movep)] < pc_values[Captured(*movep)])
-          *sortv = pc_values[Captured(*movep)] - pc_values[Piece(*movep)];
-        else
+          *sortv = 128 * pc_values[Captured(*movep)] - pc_values[Piece(*movep)];
+        else {
           *sortv = Swap(tree, From(*movep), To(*movep), wtm);
+          if (*sortv >= 0)
+            *sortv =
+                128 * pc_values[Captured(*movep)] - pc_values[Piece(*movep)];
+        }
     }
 /*
  ************************************************************
