@@ -884,13 +884,11 @@ void           Whisper(int, int, int, int, int, unsigned int, int, int, char*);
 #define Check(wtm)                                                     \
   Attacked(tree, (wtm)?WhiteKingSQ:BlackKingSQ,ChangeSide(wtm))
 /*  
-    Attack() is used to determine if a newly promoted pawn (queen)
-    attacks <square>.  normally <square> will be the location of the opposing
-    king, but it can also be the location of the opposing side's queening
-    square in case this pawn prevents the other pawn from safely queening on
-    the next move.
+    Attack() is used to determine if a sliding piece on 'from' can reach
+    'to'.  the only requirement is that there be no pieces along the pathway
+    connecting from and to.
 */
-#define Attack(square,queen) !(obstructed[square][queen] & Occupied)
+#define Attack(from,to) (!(obstructed[from][to] & Occupied))
 /*  
     the following macros are used to construct the attacks from a square.
     the attacks are computed as four separate bit vectors, one for each of the

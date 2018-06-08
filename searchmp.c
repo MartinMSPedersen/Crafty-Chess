@@ -77,7 +77,6 @@ int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
 |                                                          |
  ----------------------------------------------------------
 */
-#if defined(RECAPTURE)
     if (ply>1 && Captured(tree->current_move[ply]) &&
         Captured(tree->current_move[ply-1]) &&
         To(tree->current_move[ply-1]) == To(tree->current_move[ply]) &&
@@ -89,7 +88,6 @@ int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
       tree->recapture_extensions_done++;
       extensions+=(full_extension) ? recap_depth : recap_depth>>1;
     }
-#endif
 /*
  ----------------------------------------------------------
 |                                                          |

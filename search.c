@@ -316,7 +316,6 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
 |                                                          |
  ----------------------------------------------------------
 */
-#if defined(RECAPTURE)
     if (Captured(tree->current_move[ply]) &&
         Captured(tree->current_move[ply-1]) &&
         To(tree->current_move[ply-1]) == To(tree->current_move[ply]) &&
@@ -328,7 +327,6 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
       tree->recapture_extensions_done++;
       extensions+=(full_extension) ? recap_depth : recap_depth>>1;
     }
-#endif
 /*
  ----------------------------------------------------------
 |                                                          |

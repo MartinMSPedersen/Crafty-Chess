@@ -447,17 +447,11 @@ int Iterate(int wtm, int search_type, int root_list_done) {
             DisplayTimeWhisper(end_time-start_time), cpu_percent, material); 
       Print(8,"  n=%u", tree->nodes_searched);
       Print(8,"  fh=%u%%", tree->fail_high_first*100/tree->fail_high);
-      Print(8,"  nps=%d\n", nodes_per_second);
-#if defined(RECAPTURE)
+      Print(8,"  nps=%dk\n", nodes_per_second/1000);
       Print(16,"              ext-> chk=%d cap=%d pp=%d 1rep=%d mate=%d\n",
             tree->check_extensions_done, tree->recapture_extensions_done,
             tree->passed_pawn_extensions_done, tree->one_reply_extensions_done,
             tree->mate_extensions_done);
-#else
-      Print(16,"              ext-> chk=%d pp=%d 1rep=%d mate=%d\n",
-            tree->check_extensions_done, tree->passed_pawn_extensions_done,
-            tree->one_reply_extensions_done, tree->mate_extensions_done);
-#endif
       Print(16,"              predicted=%d  nodes=%u  evals=%u\n", 
              predicted, tree->nodes_searched, tree->evaluations);
       Print(16,"              endgame tablebase-> probes done=%d  successful=%d\n",

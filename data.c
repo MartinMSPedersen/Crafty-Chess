@@ -247,7 +247,7 @@
   unsigned int   max_split_blocks;
   volatile unsigned int   splitting;
 
-# define    VERSION                             "18.7"
+# define    VERSION                             "18.8"
   char      version[6] =                    {VERSION};
   PLAYING_MODE mode =                     normal_mode;
 
@@ -458,6 +458,26 @@
   int       abs_draw_score =                        0;
   int       accept_draws =                          1;
 
+#if !defined(COMPACT_ATTACKS)
+  char      bishop_shift_rl45[64] = { 63, 61, 58, 54, 49, 43, 36, 28,
+                                      61, 58, 54, 49, 43, 36, 28, 21,
+                                      58, 54, 49, 43, 36, 28, 21, 15,
+                                      54, 49, 43, 36, 28, 21, 15, 10,
+                                      49, 43, 36, 28, 21, 15, 10,  6,
+                                      43, 36, 28, 21, 15, 10,  6,  3,
+                                      36, 28, 21, 15, 10,  6,  3,  1,
+                                      28, 21, 15, 10,  6,  3,  1,  0 };
+
+  char      bishop_shift_rr45[64] = { 28, 36, 43, 49, 54, 58, 61, 63,
+                                      21, 28, 36, 43, 49, 54, 58, 61,
+                                      15, 21, 28, 36, 43, 49, 54, 58,
+                                      10, 15, 21, 28, 36, 43, 49, 54,
+                                       6, 10, 15, 21, 28, 36, 43, 49,
+                                       3,  6, 10, 15, 21, 28, 36, 43,
+                                       1,  3,  6, 10, 15, 21, 28, 36,
+                                       0,  1,  3,  6, 10, 15, 21, 28 };
+#endif
+
   const char xlate[15] = {'q','r','b',0,'k','n','p',0,'P','N','K',0,'B','R','Q'};
   const char empty[9]  = {0,'1','2','3','4','5','6','7','8'};
 
@@ -467,6 +487,7 @@
   const char king_tropism_at_r[8]   = {4,3,1,0,0,0,0,0};
   const char king_tropism_q[8]      = {4,4,4,2,1,0,0,0};
   const char king_tropism_at_q[8]   = {5,5,3,0,0,0,0,0};
+
   const int  king_tropism[128] =
                                 { -25, -25, -20, -20, -15, -15, -10,  -5,
                                     0,   2,   5,  10,  12,  16,  20,  25,
@@ -487,31 +508,18 @@
 
   const char connected_passed_pawn_value[8] = { 0, 0, 0, 12, 24, 48, 100, 0};
 
-  const int hidden_passed_pawn_value[8] ={ 0, 0, 0, 0, 0, 32, 48, 0};
+  const int hidden_passed_pawn_value[8] ={ 0, 0, 0, 0, 0, 16, 24, 0};
   const int passed_pawn_value[8] ={ 0, 8, 16, 32, 60, 120, 160, 0};
   const char blockading_passed_pawn_value[8] = { 0, 8, 12, 16, 30, 45, 60, 0};
 
   const char isolated_pawn_value[9] = {0, 12, 24, 56, 66, 80, 90, 100, 110};
   const char isolated_pawn_of_value[9] = {0, 5, 10, 15, 20, 25, 30, 35, 40};
 
-  const char doubled_pawn_value[7] ={ 0,
-                                      0, PAWN_DOUBLED,
-                                      PAWN_DOUBLED*2, PAWN_DOUBLED*4,
-                                      PAWN_DOUBLED*5,PAWN_DOUBLED*6};
+  const char doubled_pawn_value[7] ={ 0, 0, 5, 10, 20, 25, 30};
 
   const char pawn_rams_v[9] =      { 0, 0, 6, 24, 40, 64, 80, 94, 96};
 
-  const char supported_passer[8] = { 0,
-                                     PAWN_SUPPORTED_PASSED_RANK2,
-                                     PAWN_SUPPORTED_PASSED_RANK3,
-                                     PAWN_SUPPORTED_PASSED_RANK4,
-                                     PAWN_SUPPORTED_PASSED_RANK5,
-                                     PAWN_SUPPORTED_PASSED_RANK6,
-                                     PAWN_SUPPORTED_PASSED_RANK7,
-                                     0};
-
-  const char reduced_material_passer[20] = { 10,10,10,9,9,9,8,8,7,7,
-                                              6,6,6,5,5,5,4,4,4,3};
+  const char supported_passer[8] = { 0, 0, 0, 0, 12, 60, 100, 0};
 
   const char outside_passed[128] ={ 96, 48, 48, 48, 45, 42, 40, 40,
                                     36, 36, 32, 32, 28, 28, 24, 24,
@@ -553,7 +561,7 @@
    small pertubations in king safety can produce signficant scoring changes,
    but large pertubations won't cause Crafty to sacrifice pieces.
 */
-  const int temper[64] = 
+  const int temper[64] =
     {   0,   4,  15,  24,  36,  42,  54,  72, /*   0-   7 */
        81,  84,  87,  90,  93,  96,  99, 102, /*   8-  15 */
       105, 108, 111, 114, 117, 120, 124, 127, /*  16-  23 */
@@ -714,29 +722,29 @@
   signed char  pval_w[64] = { 0,  0,  0,  0,  0,  0,  0,  0,
                               0,  0,  0,  0,  0,  0,  0,  0,
                               0,  0,  0,  0,  0,  0,  0,  0,
-                              0,  0,  0,  6,  6,  0,  0,  0,
-                              0,  0,  3,  6,  6,  0,  0,  0,
-                              0,  0,  3,  3,  3,  0,  0,  0,
+                              0,  0,  0,  3,  3,  0,  0,  0,
+                              0,  0,  2,  3,  3,  0,  0,  0,
+                              0,  0,  2,  2,  2,  0,  0,  0,
                               0,  0,  0,  0,  0,  0,  0,  0,
                               0,  0,  0,  0,  0,  0,  0,  0};
 
-  signed char  nval_w[64] = {-15,-15, -8, -8, -8, -8,-15,-15,
-                             -15,-15,  0,  0,  0,  0,-15,-15,
+  signed char  nval_w[64] = { -8, -8, -8, -8, -8, -8, -8, -8,
+                              -8, -8,  0,  0,  0,  0, -8, -8,
                               -8,  2,  2,  2,  2,  2,  2, -8,
                               -8,  2,  4,  4,  4,  4,  2, -8,
                               -8,  2,  6,  6,  6,  6,  2, -8,
                               -8,  2,  6,  6,  6,  6,  2, -8,
-                             -25,-25,  4,  4,  4,  4,-25,-25,
-                             -25,-25, -8, -8, -8, -8,-25,-25};
+                             -16,-16,  4,  4,  4,  4,-16,-16,
+                             -16,-16, -8, -8, -8, -8,-16,-16};
 
-  signed char  bval_w[64] = {-25,-15, -8, -4, -4, -8,-15,-25,
-                             -15,  2,  0,  0,  0,  0,  2,-15,
+  signed char  bval_w[64] = {-16,-16, -8, -8, -8, -8,-16,-16,
+                             -16,  2,  0,  0,  0,  0,  2,-16,
                               -4,  2,  2,  2,  2,  2,  2, -4,
                               -4,  2,  4,  4,  4,  4,  2, -4,
                               -4,  2,  6,  6,  6,  6,  2, -4,
                               -4,  2,  6,  6,  6,  6,  2, -4,
-                             -15,  2,  4,  4,  4,  4,  2,-15,
-                             -25,-15,  0,  0,  0,  0,-15,-25};
+                             -16,  2,  4,  4,  4,  4,  2,-16,
+                             -16,-16,  0,  0,  0,  0,-16,-16};
 
   signed char  rval_w[64] = {  0,  0,  4,  6,  6,  4,  0,  0,
                                0,  0,  4,  6,  6,  4,  0,  0,
@@ -790,23 +798,3 @@
                                   KING_VALUE,KNIGHT_VALUE,PAWN_VALUE,
                                   0,PAWN_VALUE,KNIGHT_VALUE,KING_VALUE,
                                   0, BISHOP_VALUE,ROOK_VALUE,QUEEN_VALUE};
-
-#if !defined(COMPACT_ATTACKS)
-  char      bishop_shift_rl45[64] = { 63, 61, 58, 54, 49, 43, 36, 28,
-                                      61, 58, 54, 49, 43, 36, 28, 21,
-                                      58, 54, 49, 43, 36, 28, 21, 15,
-                                      54, 49, 43, 36, 28, 21, 15, 10,
-                                      49, 43, 36, 28, 21, 15, 10,  6,
-                                      43, 36, 28, 21, 15, 10,  6,  3,
-                                      36, 28, 21, 15, 10,  6,  3,  1,
-                                      28, 21, 15, 10,  6,  3,  1,  0 };
-
-  char      bishop_shift_rr45[64] = { 28, 36, 43, 49, 54, 58, 61, 63,
-                                      21, 28, 36, 43, 49, 54, 58, 61,
-                                      15, 21, 28, 36, 43, 49, 54, 58,
-                                      10, 15, 21, 28, 36, 43, 49, 54,
-                                       6, 10, 15, 21, 28, 36, 43, 49,
-                                       3,  6, 10, 15, 21, 28, 36, 43,
-                                       1,  3,  6, 10, 15, 21, 28, 36,
-                                       0,  1,  3,  6, 10, 15, 21, 28 };
-#endif

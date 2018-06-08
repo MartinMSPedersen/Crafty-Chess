@@ -889,14 +889,12 @@ int Option(TREE *tree) {
       if (pushpp_depth < 0) pushpp_depth=0;
       if (pushpp_depth > 60) pushpp_depth=60;
     }
-#if defined(RECAPTURE)
     if (OptionMatch("recapture",args[1])) {
       const float ext=atof(args[2]);
       recap_depth=60.0*ext;
       if (recap_depth < 0) recap_depth=0;
       if (recap_depth > 60) recap_depth=60;
     }
-#endif
     if (OptionMatch("mate",args[1])) {
       const float ext=atof(args[2]);
       mate_depth=60.0*ext;
@@ -905,9 +903,7 @@ int Option(TREE *tree) {
     }
     Print(1,"one-reply extension..................%4.2f\n",(float) onerep_depth/60.0);
     Print(1,"in-check extension...................%4.2f\n",(float) incheck_depth/60.0);
-#if defined(RECAPTURE)
     Print(1,"recapture extension..................%4.2f\n",(float) recap_depth/60.0);
-#endif
     Print(1,"pushpp extension.....................%4.2f\n",(float) pushpp_depth/60.0);
     Print(1,"mate thrt extension..................%4.2f\n",(float) mate_depth/60.0);
   }

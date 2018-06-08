@@ -247,7 +247,6 @@
   extern const char     pawn_rams_v[9];
   extern char           pawn_rams[9];
   extern const char     supported_passer[8];
-  extern const char     reduced_material_passer[20];
   extern const char     outside_passed[128];
   extern const char     majority[128];
   extern const int      temper[64];

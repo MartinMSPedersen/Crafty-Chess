@@ -2781,6 +2781,12 @@
 *           books.  a book made without this change could produce clusters    *
 *           that would cause memory overwrites.                               *
 *                                                                             *
+*   18.8    recapture extension turned back on for a while.  changes to the   *
+*           evaluation code, particularly EvaluatePawns() to make it more     *
+*           efficient and accurate.  IE it was possible for an isolated pawn  *
+*           to be penalized for being isolated, weak, and blocked, which made *
+*           little sense.                                                     *
+*                                                                             *
 *******************************************************************************
 */
 int main(int argc, char **argv) {
