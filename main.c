@@ -2400,6 +2400,17 @@
 *           other scoring terms have been modified as well to attempt to      *
 *           bring the scores back closer to something reasonable.             *
 *                                                                             *
+*   16.8    bug in evaluate.c (improper editing) broke the scoring for white  *
+*           rooks on open files (among other things.)                         *
+*                                                                             *
+*   16.9    tuning to king safety.  King in center of board was way too high  *
+*           which made the bonus for castling way too big.  more fine-tuning  *
+*           on the new 'tropism' code (that tries to coordinate piece attacks *
+*           on the king).  it understands closeness and (now) open files for  *
+*           the rooks/queens.  modified blocked center pawn code so that an   *
+*           'outpost' in front of an unmoved D/E pawn is made even stronger   *
+*           since it restrains that pawn and cramps the opponent.             *
+*                                                                             *
 *******************************************************************************
 */
 int main(int argc, char **argv) {

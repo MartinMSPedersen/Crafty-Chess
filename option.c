@@ -2051,8 +2051,22 @@ int Option(TREE *tree) {
 |   the root is more efficient, but might slow finding the |
 |   move in some test positions.                           |
 |                                                          |
+|   "smpgroup" command is used to control how many threads |
+|   may work together at any point in the tree.  the       |
+|   usual default is 8, but this might be reduced on a     |
+|   machine with a large number of processors.  it should  |
+|   be tested, of course.                                  |
+|                                                          |
  ----------------------------------------------------------
 */
+  else if (OptionMatch("smpgroup",*args)) {
+    if (nargs < 2) {
+      printf("usage:  smpgroup <threads>\n");
+      return(1);
+    }
+    max_thread_group=atoi(args[1]);
+    Print(4095,"maximum thread group size set to %d\n",max_thread_group);
+  }
   else if (OptionMatch("smpmin",*args)) {
     if (nargs < 2) {
       printf("usage:  smpmin <plies>\n");

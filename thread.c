@@ -66,7 +66,7 @@ int Thread(TREE *tree) {
   thread[tree->thread_id]=0;
   tree->nprocs=0;
   tree->done=0;
-  for (proc=0;proc<max_threads;proc++) {
+  for (proc=0;proc<max_threads && nblocks<max_thread_group;proc++) {
     tree->siblings[proc]=0;
     if (thread[proc] == 0) {
       block=CopyToSMP(tree);

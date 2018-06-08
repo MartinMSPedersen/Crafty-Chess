@@ -712,7 +712,6 @@ void           Whisper(int, int, int, int, unsigned int, int, int, char*);
 #define FileDistance(a,b) abs(((a)&7) - ((b)&7))
 #define RankDistance(a,b) abs(((a)>>3) - ((b)>>3))
 #define Distance(a,b) Max(FileDistance(a,b),RankDistance(a,b))
-#define KingSafety(s,p)                ((s)*scale_down[p])
 #define ScaleDown(s,m)                 ((s)*scale_down[m]/10)
 #define ScaleUp(s,m)                   ((s)*scale_up[m]/12)
 #define DrawScore(wtm)                 ((wtm)?draw_score:-draw_score)

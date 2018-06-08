@@ -228,17 +228,12 @@ int Iterate(int wtm, int search_type, int root_list_done) {
         printf("=      search iteration %2d       =\n",iteration_depth);
         printf("==================================\n");
       }
-      for (i=0;i<n_root_moves;i++) root_moves[i].status&=255-64;
+      for (i=0;i<n_root_moves;i++) root_moves[i].status=0;
       for (i=0;i<Min(n_root_moves,4);i++) {
-        if (root_moves[i].nodes > 2*root_moves[0].nodes/3)
+        if (root_moves[i].nodes > root_moves[0].nodes/2)
           root_moves[i].status|=64;
-        else
-          root_moves[i].status&=255-64;
       }
-      for (i=0;i<n_root_moves;i++) {
-        root_moves[i].status&=255-1-2-128;
-        root_moves[i].nodes=0;
-      }
+      for (i=0;i<n_root_moves;i++) root_moves[i].nodes=0;
       if (tree->nodes_searched) {
         nodes_between_time_checks=nodes_per_second;
         nodes_between_time_checks=Min(nodes_between_time_checks,MAX_TC_NODES);

@@ -239,7 +239,7 @@
   unsigned int   max_split_blocks;
   volatile unsigned int   splitting;
 
-# define    VERSION                             "16.8"
+# define    VERSION                            "16.10"
   char      version[6] =                    {VERSION};
   PLAYING_MODE mode =                     normal_mode;
 
@@ -525,8 +525,9 @@
   int       display_options =            4095-256-512;
   int       max_threads =                           0;
   int       min_thread_depth =               3*INCPLY;
+  int       max_thread_group =                   CPUS;
   int       split_at_root =                         1;
-  unsigned int noise_level =                    10000;
+  unsigned int noise_level =                   100000;
  
   int       hash_table_size =                   65536;
   int       log_hash =                             16;
@@ -539,20 +540,21 @@
   const char xlate[15] = {'q','r','b',0,'k','n','p',0,'P','N','K',0,'B','R','Q'};
   const char empty[9]  = {' ','1','2','3','4','5','6','7','8'};
 
-  const int king_tropism_n[8]      = {0,3,3,2,1,0,0,0};
-  const int king_tropism_b[8]      = {0,3,3,2,1,0,0,0};
-  const int king_tropism_r[8]      = {0,3,3,2,1,0,0,0};
-  const int king_tropism_at_r[8]   = {0,3,2,0,0,0,0,0};
-  const int king_tropism_q[8]      = {0,6,6,4,2,1,0,0};
+  const int king_tropism_n[8]      = {3,3,3,2,1,0,0,0};
+  const int king_tropism_b[8]      = {3,3,3,2,1,0,0,0};
+  const int king_tropism_r[8]      = {3,3,3,2,1,0,0,0};
+  const int king_tropism_at_r[8]   = {5,5,2,0,0,0,0,0};
+  const int king_tropism_q[8]      = {5,5,4,3,2,1,0,0};
+  const int king_tropism_at_q[8]   = {6,6,3,0,0,0,0,0};
   const int king_tropism_file_q[8] = {0,0,0,0,2,4,4,4};
-  const int tropism[64] =       {  0, 1, 3, 5, 8,10,13,17,
-                                  22,27,32,37, 0,42,45,47,
-                                  50,52,55,57,60,62,65,67,
-                                  70,72,75,75,75,75,75,75,
-                                  75,75,75,75,75,75,75,75,
-                                  75,75,75,75,75,75,75,75,
-                                  75,75,75,75,75,75,75,5,
-                                  75,75,75,75,75,75,75,75};
+  const int tropism[64] =       {  0, 1, 3, 5, 7,9, 11,13,
+                                  16,24,32,40,44,48,52,56,
+                                  60,62,65,67,70,72,75,77,
+                                  80,82,85,85,85,85,85,85,
+                                  85,85,85,85,85,85,85,85,
+                                  85,85,85,85,85,85,85,85,
+                                  85,85,85,85,85,85,85,85,
+                                  85,85,85,85,85,85,85,85};
 
   const int connected_passed_pawn_value[8] = { 0, 0, 0,
                                      PAWN_CONNECTED_PASSED,
@@ -642,20 +644,15 @@
 
 /*
    the following values are for king safety.  The 'temper' array is used
-   to scale the number of defects found into some sort of 'sane' range so that
+   to scale the number of defects found into some sort of 'sane' score so that
    small pertubations in king safety can produce signficant scoring changes,
-   but large pertubations won't cause Crafty to sacrifice pieces.  Note that
-   this gets multiplied by a number between 1 and 10 depending on how much
-   material is left on the board.
+   but large pertubations won't cause Crafty to sacrifice pieces.
 */
-  const int temper[64] =     {  0,  2,  3,  5,  5,  6,  8,  8, /*   0-   7 */
-                                9,  9, 10, 10, 11, 11, 12, 12, /*   8-  15 */
-                               13, 13, 13, 14, 14, 14, 15, 15, /*  16-  23 */
-                               15, 15, 15, 15, 15, 15, 15, 15, /*  24-  31 */
-                               15, 15, 15, 15, 15, 15, 15, 15, /*  32-  39 */
-                               15, 15, 15, 15, 15, 15, 15, 15, /*  40-  47 */
-                               15, 15, 15, 15, 15, 15, 15, 15, /*  48-  55 */
-                               15, 15, 15, 15, 15, 15, 15, 15};/*  56-  63 */
+  const int temper[32] = 
+    {   0,   5,  12,  18,  26,  40,  56,  72, /*   0-   7 */
+       96, 100, 107, 112, 116, 122, 126, 130, /*   8-  15 */
+      134, 138, 142, 146, 150, 150, 150, 150, /*  16-  23 */
+      150, 150, 150, 150, 150, 150, 150, 150};/*  24-  31 */
 /*
    the following array cuts the king safety term down to a value that can
    be used in the king tropism calculation.  this lets the safety of a king
@@ -670,38 +667,34 @@
    numbered elements correspond to safe king positions, while higher-numbered
    elements represent disrupted kingsides.
 */
-  const int ttemper[64] =    { 16, 16, 16, 16, 16, 16, 16, 16, /*   0-   7 */
-                               16, 16, 16, 16, 16, 16, 16, 16, /*   8-  15 */
-                               20, 20, 20, 20, 24, 24, 24, 24, /*  16-  23 */
-                               28, 28, 28, 28, 28, 28, 28, 28, /*  24-  31 */
-                               32, 32, 32, 32, 32, 32, 32, 32, /*  32-  39 */
-                               32, 32, 32, 32, 32, 32, 32, 32, /*  40-  47 */
-                               32, 32, 32, 32, 32, 32, 32, 32, /*  48-  55 */
-                               32, 32, 32, 32, 32, 32, 32, 32};/*  56-  63 */
+  const int ttemper[32] =    { 16, 16, 16, 16, 20, 20, 20, 20, /*   0-   7 */
+                               24, 24, 24, 24, 28, 28, 28, 28, /*   8-  15 */
+                               32, 32, 32, 32, 32, 32, 32, 32, /*  16-  23 */
+                               32, 32, 32, 32, 32, 32, 32, 32};/*  24-  31 */
 /*
    penalty for a pawn that is missing from its initial square in front
    of the castled king.  ie h3 would count as 'one missing pawn' while
    h4 counts as two since two squares in front of the king are now missing
    a pawn shelter.
 */
-  const int missing[7] =         { 0, 1, 3, 4, 6, 8, 9};
+  const int missing[8] =         { 0, 1, 2, 3, 4, 5, 6, 7};
 /*
    penalty for a fully open file in front of the castled king.
 */
-  const int openf[4] =           { 0, 8, 12, 15};
+  const int openf[4] =           { 0, 10, 15, 20};
 /*
    penalty for a half-open (one side's pawn is missing) file in front of
    the castled king.
 */
-  const int hopenf[4] =          { 0, 3, 6, 10};
+  const int hopenf[4] =          { 0, 3, 7, 9};
 /*
    the following is basically a 'defect' table for kings on a specific
    square.  this lets it figure out that the king doesn't want to go to
    (say f3 or e4 or anywhere near the center) with heavy pieces still on
    the board.
 */
-  signed char king_defects_w[64] ={ 1, 0, 1, 2, 2, 1, 0, 1,
-                                    1, 1, 1, 3, 3, 1, 1, 1,
+  signed char king_defects_w[64] ={ 1, 0, 1, 1, 1, 1, 0, 1,
+                                    1, 1, 1, 2, 2, 1, 1, 1,
                                     3, 3, 3, 3, 3, 3, 3, 3,
                                     4, 4, 4, 4, 4, 4, 4, 4,
                                     5, 5, 5, 5, 5, 5, 5, 5,
@@ -747,14 +740,14 @@
                                 96, 80, 70, 60, 60, 70, 80, 96,
                                100, 96, 93, 90, 90, 93, 96,100};
 
-  signed char     white_outpost[64] = { 0, 0, 0, 0, 0, 0, 0, 0,
-                                        0, 0, 0, 0, 0, 0, 0, 0,
-                                        0, 0, 0, 0, 0, 0, 0, 0,
-                                        0, 0, 0, 4, 4, 0, 0, 0,
-                                        0, 0, 5, 6, 6, 5, 0, 0,
-                                        0, 0, 5, 8, 8, 5, 0, 0,
-                                        0, 0, 2, 4, 4, 2, 0, 0,
-                                        0, 0, 0, 0, 0, 0, 0, 0 };
+  signed char     white_outpost[64] = { 0, 0, 0,   0,   0, 0, 0, 0,
+                                        0, 0, 0,   0,   0, 0, 0, 0,
+                                        0, 0, 0,   0,   0, 0, 0, 0,
+                                        0, 0, 0,   4,   4, 0, 0, 0,
+                                        0, 0, 5,   6,   6, 5, 0, 0,
+                                        0, 0, 5,MAXO,MAXO, 5, 0, 0,
+                                        0, 0, 2,   4,   4, 2, 0, 0,
+                                        0, 0, 0,   0,   0, 0, 0, 0 };
 
   const char     push_extensions[64] = { 0, 0, 0, 0, 0, 0, 0, 0,
                                          1, 1, 1, 1, 1, 1, 1, 1,

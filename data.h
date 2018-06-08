@@ -162,6 +162,7 @@
   extern int            trace_level;
   extern int            max_threads;
   extern int            min_thread_depth;
+  extern int            max_thread_group;
   extern int            split_at_root;
   extern int            thread_depth;
   extern int            display_options;
@@ -233,9 +234,9 @@
   extern const int      ks_scale_down[128];
   extern const int      scale_down[128];
   extern const int      scale_up[128];
-  extern const int      temper[64];
-  extern const int      ttemper[64];
-  extern const int      missing[7];
+  extern const int      temper[32];
+  extern const int      ttemper[32];
+  extern const int      missing[8];
   extern const int      openf[4];
   extern const int      hopenf[4];
   extern const int      king_tropism_n[8];
@@ -243,6 +244,7 @@
   extern const int      king_tropism_r[8];
   extern const int      king_tropism_at_r[8];
   extern const int      king_tropism_q[8];
+  extern const int      king_tropism_at_q[8];
   extern const int      king_tropism_file_q[8];
   extern const int      tropism[64];
 

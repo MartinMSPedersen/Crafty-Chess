@@ -1,9 +1,11 @@
 #if !defined(EVALUATE_INCLUDED)
 #  define    EVALUATE_INCLUDED
  
+#  define                                 MAXO           (8)
 #  define                            BAD_TRADE         (100)
 #  define                          EIGHT_PAWNS          (10)
 #  define                        PAWNS_BLOCKED          (12)
+#  define                  CENTER_PAWN_UNMOVED          (16)
 #  define                             PAWN_DUO           (2)
 #  define                             PAWN_JAM          (10)
 #  define                         PAWN_DOUBLED           (5)
@@ -66,35 +68,35 @@
 #  define           BISHOP_OVER_KNIGHT_ENDGAME          (10)
 #  define                      BISHOP_MOBILITY           (1)
 #  define                          BISHOP_PAIR          (25)
-#  define                   BISHOP_KING_SAFETY          (16)
+#  define                   BISHOP_KING_SAFETY          (20)
   
-#  define                       ROOK_PLUS_PAWN          (10)
 #  define                          ROOK_ON_7TH          (15)
 #  define                    ROOK_ABSOLUTE_7TH          (20)
 #  define              ROOK_CONNECTED_7TH_RANK           (5)
-#  define                       ROOK_OPEN_FILE          (10)
-#  define                  ROOK_HALF_OPEN_FILE           (5)
-#  define             ROOK_CONNECTED_OPEN_FILE           (5)
-#  define              ROOK_BEHIND_PASSED_PAWN          (10)
+#  define                       ROOK_OPEN_FILE          (12)
+#  define                  ROOK_HALF_OPEN_FILE           (6)
+#  define             ROOK_CONNECTED_OPEN_FILE           (8)
+#  define              ROOK_BEHIND_PASSED_PAWN          (12)
 #  define                         ROOK_TRAPPED          (20)
   
 #  define               QUEEN_ROOK_ON_7TH_RANK          (10)
 #  define                    QUEEN_KING_SAFETY           (6)
 #  define                     QUEEN_VS_2_ROOKS          (60)
+#  define                      QUEEN_IS_STRONG          (30)
  
 #  define                KING_SAFETY_MATE_G2G7           (3)
 #  define              KING_SAFETY_MATE_THREAT         (600)
 #  define                       KING_BACK_RANK           (2)
 #  define                KING_SAFETY_STONEWALL           (6)
 #  define                   KING_SAFETY_CLOSED           (5)
-#  define                KING_SAFETY_OPEN_FILE           (6)
+#  define                KING_SAFETY_OPEN_FILE           (4)
  
  
 #  define                 DEVELOPMENT_THEMATIC           (3)
 #  define                  DEVELOPMENT_UNMOVED           (3)
-#  define             DEVELOPMENT_BLOCKED_PAWN           (8)
+#  define                  BLOCKED_CENTER_PAWN          (12)
 #  define            DEVELOPMENT_LOSING_CASTLE          (12)
-#  define              DEVELOPMENT_NOT_CASTLED          (12)
+#  define              DEVELOPMENT_NOT_CASTLED          (24)
 #  define              DEVELOPMENT_QUEEN_EARLY           (8)
  
 #endif

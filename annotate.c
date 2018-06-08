@@ -4,7 +4,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 04/20/99 */
+/* last modified 05/28/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -282,7 +282,8 @@ void Annotate() {
               }
             }
             if (n_root_moves==0 ||
-                (player_score+annotate_margin>annotate_score[searches_done] &&
+                (annotate_margin>=0 &&
+                 player_score+annotate_margin>annotate_score[searches_done] &&
                  best_moves>0)) break;
           }
           if (search_player) {
