@@ -165,7 +165,7 @@ int ValidMove(TREE *tree, int ply, int wtm, int move) {
   if (wtm) {
     if (Piece(move) == PcOnSq(From(move)) &&
         Captured(move) == -PcOnSq(To(move)) &&
-        Captured(move) != -king &&
+        Captured(move) != king &&
         (AttacksFrom(tree,From(move),wtm) & SetMask(To(move)))) return(1);
   }
   else {

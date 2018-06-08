@@ -4,7 +4,7 @@
 #include "evaluate.h"
 #include "data.h"
 
-/* last modified 11/01/99 */
+/* last modified 12/08/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -177,7 +177,11 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
 **********************************************************************
 */
   tree->endgame=(TotalWhitePieces<EG_MAT)|(TotalBlackPieces<EG_MAT);
-  score+=EvaluateKingSafety(tree,ply);
+  tree->w_kingsq=WhiteKingSQ;
+  tree->b_kingsq=BlackKingSQ;
+  tree->w_safety=0;
+  tree->b_safety=0;
+  if (!tree->endgame) score+=EvaluateKingSafety(tree,ply);
 #ifdef DEBUGEV
   if (score != lastsc)
     printf("score[king safety]=               %4d (%+d)\n",score,score-lastsc);
@@ -1481,7 +1485,7 @@ int EvaluateMaterial(TREE *tree) {
   return (score);
 }
 
-/* last modified 06/10/99 */
+/* last modified 12/08/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -1522,115 +1526,107 @@ int EvaluateKingSafety(TREE *tree, int ply) {
 |                                                          |
  ----------------------------------------------------------
 */
-  tree->w_kingsq=WhiteKingSQ;
-  tree->b_kingsq=BlackKingSQ;
-  if (!tree->endgame) {
-    tree->w_safety=king_defects_w[WhiteKingSQ];
-    if (WhiteCastle(ply) <= 0) {
-      if (File(WhiteKingSQ) >= FILEE) {
-        if (File(WhiteKingSQ) == FILEH) tree->w_kingsq&=62;
-        tree->w_safety+=tree->pawn_score.white_defects_k;
-        if (!(WhitePawns&SetMask(G2))) {
-          if (SetMask(F3)&(BlackPawns|BlackBishops) && BlackQueens)
-            tree->w_safety+=KING_SAFETY_MATE_G2G7;
-        }
-        if (File(WhiteKingSQ)==FILEE) {
-          if (!(tree->all_pawns&file_mask[FILED]))
-            tree->w_safety+=KING_SAFETY_OPEN_FILE>>1;
-          if (!(tree->all_pawns&file_mask[FILEE]))
-            tree->w_safety+=KING_SAFETY_OPEN_FILE;
-          if (!(tree->all_pawns&file_mask[FILEF]))
-            tree->w_safety+=KING_SAFETY_OPEN_FILE>>1;
-        }
+  tree->w_safety=king_defects_w[WhiteKingSQ];
+  if (WhiteCastle(ply) <= 0) {
+    if (File(WhiteKingSQ) >= FILEE) {
+      if (File(WhiteKingSQ) == FILEH) tree->w_kingsq&=62;
+      tree->w_safety+=tree->pawn_score.white_defects_k;
+      if (!(WhitePawns&SetMask(G2))) {
+        if (SetMask(F3)&(BlackPawns|BlackBishops) && BlackQueens)
+          tree->w_safety+=KING_SAFETY_MATE_G2G7;
       }
-      else if (File(WhiteKingSQ) <= FILED) {
-        if (File(WhiteKingSQ) == FILEA) tree->w_kingsq|=1;
-        tree->w_safety+=tree->pawn_score.white_defects_q;
-        if (!(WhitePawns&SetMask(B2))) {
-          if (SetMask(C3)&(BlackPawns|BlackBishops) && BlackQueens)
-            tree->w_safety+=KING_SAFETY_MATE_G2G7;
-        }
-        if (File(WhiteKingSQ)==FILED) {
-          if (!(tree->all_pawns&file_mask[FILEC]))
-            tree->w_safety+=KING_SAFETY_OPEN_FILE>>1;
-          if (!(tree->all_pawns&file_mask[FILED]))
-            tree->w_safety+=KING_SAFETY_OPEN_FILE;
-          if (!(tree->all_pawns&file_mask[FILEE]))
-            tree->w_safety+=KING_SAFETY_OPEN_FILE>>1;
-        }
+      if (File(WhiteKingSQ)==FILEE) {
+        if (!(tree->all_pawns&file_mask[FILED]))
+          tree->w_safety+=KING_SAFETY_OPEN_FILE>>1;
+        if (!(tree->all_pawns&file_mask[FILEE]))
+          tree->w_safety+=KING_SAFETY_OPEN_FILE;
+        if (!(tree->all_pawns&file_mask[FILEF]))
+          tree->w_safety+=KING_SAFETY_OPEN_FILE>>1;
       }
     }
-    else {
-      if (WhiteCastle(ply) != 3) {
-        if (WhiteCastle(ply)&1)
-          tree->w_safety+=tree->pawn_score.white_defects_k>>1;
-        else if (WhiteCastle(ply)&2)
-          tree->w_safety+=tree->pawn_score.white_defects_q>>1;
+    else if (File(WhiteKingSQ) <= FILED) {
+      if (File(WhiteKingSQ) == FILEA) tree->w_kingsq|=1;
+      tree->w_safety+=tree->pawn_score.white_defects_q;
+      if (!(WhitePawns&SetMask(B2))) {
+        if (SetMask(C3)&(BlackPawns|BlackBishops) && BlackQueens)
+          tree->w_safety+=KING_SAFETY_MATE_G2G7;
       }
-      if (!(tree->all_pawns&file_mask[FILED]))
-        tree->w_safety+=KING_SAFETY_OPEN_FILE>>1;
-      if (!(tree->all_pawns&file_mask[FILEE]))
-        tree->w_safety+=KING_SAFETY_OPEN_FILE;
-      if (!(tree->all_pawns&file_mask[FILEF]))
-        tree->w_safety+=KING_SAFETY_OPEN_FILE>>1;
-    }
-
-    tree->b_safety=king_defects_b[BlackKingSQ];
-    if (BlackCastle(ply) <= 0) {
-      if (File(BlackKingSQ) >= FILEE) {
-        if (File(BlackKingSQ) == FILEH) tree->b_kingsq&=62;
-        tree->b_safety+=tree->pawn_score.black_defects_k;
-        if (!(BlackPawns&SetMask(G7))) {
-          if (SetMask(F6)&(WhitePawns|WhiteBishops) && WhiteQueens)
-            tree->b_safety+=KING_SAFETY_MATE_G2G7;
-        }
-        if (File(BlackKingSQ)==FILEE) {
-          if (!(tree->all_pawns&file_mask[FILED]))
-            tree->b_safety+=KING_SAFETY_OPEN_FILE>>1;
-          if (!(tree->all_pawns&file_mask[FILEE]))
-            tree->b_safety+=KING_SAFETY_OPEN_FILE;
-          if (!(tree->all_pawns&file_mask[FILEF]))
-            tree->b_safety+=KING_SAFETY_OPEN_FILE>>1;
-        }
-      }
-      else if (File(BlackKingSQ) <= FILED) {
-        if (File(BlackKingSQ) == FILEA) tree->b_kingsq|=1;
-        tree->b_safety+=tree->pawn_score.black_defects_q;
-        if (!(BlackPawns&SetMask(B7))) {
-          if (SetMask(C6)&(WhitePawns|WhiteBishops) && WhiteQueens)
-            tree->b_safety+=KING_SAFETY_MATE_G2G7;
-        }
-        if (File(BlackKingSQ)==FILED) {
-          if (!(tree->all_pawns&file_mask[FILEC]))
-            tree->b_safety+=KING_SAFETY_OPEN_FILE>>1;
-          if (!(tree->all_pawns&file_mask[FILED]))
-            tree->b_safety+=KING_SAFETY_OPEN_FILE;
-          if (!(tree->all_pawns&file_mask[FILEE]))
-            tree->b_safety+=KING_SAFETY_OPEN_FILE>>1;
-        }
+      if (File(WhiteKingSQ)==FILED) {
+        if (!(tree->all_pawns&file_mask[FILEC]))
+          tree->w_safety+=KING_SAFETY_OPEN_FILE>>1;
+        if (!(tree->all_pawns&file_mask[FILED]))
+          tree->w_safety+=KING_SAFETY_OPEN_FILE;
+        if (!(tree->all_pawns&file_mask[FILEE]))
+          tree->w_safety+=KING_SAFETY_OPEN_FILE>>1;
       }
     }
-    else {
-      if (BlackCastle(ply) != 3) {
-        if (BlackCastle(ply)&1)
-          tree->b_safety+=tree->pawn_score.black_defects_k>>1;
-        else if (BlackCastle(ply)&2)
-          tree->b_safety+=tree->pawn_score.black_defects_q>>1;
-      }
-      if (!(tree->all_pawns&file_mask[FILED]))
-        tree->b_safety+=KING_SAFETY_OPEN_FILE>>1;
-      if (!(tree->all_pawns&file_mask[FILEE]))
-        tree->b_safety+=KING_SAFETY_OPEN_FILE;
-      if (!(tree->all_pawns&file_mask[FILEF]))
-        tree->b_safety+=KING_SAFETY_OPEN_FILE>>1;
-    }
-    if (!WhiteQueens) tree->b_safety>>=1;
-    if (!BlackQueens) tree->w_safety>>=1;
   }
   else {
-    tree->w_safety=0;
-    tree->b_safety=0;
+    if (WhiteCastle(ply) != 3) {
+      if (WhiteCastle(ply)&1)
+        tree->w_safety+=tree->pawn_score.white_defects_k>>1;
+      else if (WhiteCastle(ply)&2)
+        tree->w_safety+=tree->pawn_score.white_defects_q>>1;
+    }
+    if (!(tree->all_pawns&file_mask[FILED]))
+      tree->w_safety+=KING_SAFETY_OPEN_FILE>>1;
+    if (!(tree->all_pawns&file_mask[FILEE]))
+      tree->w_safety+=KING_SAFETY_OPEN_FILE;
+    if (!(tree->all_pawns&file_mask[FILEF]))
+      tree->w_safety+=KING_SAFETY_OPEN_FILE>>1;
   }
+
+  tree->b_safety=king_defects_b[BlackKingSQ];
+  if (BlackCastle(ply) <= 0) {
+    if (File(BlackKingSQ) >= FILEE) {
+      if (File(BlackKingSQ) == FILEH) tree->b_kingsq&=62;
+      tree->b_safety+=tree->pawn_score.black_defects_k;
+      if (!(BlackPawns&SetMask(G7))) {
+        if (SetMask(F6)&(WhitePawns|WhiteBishops) && WhiteQueens)
+          tree->b_safety+=KING_SAFETY_MATE_G2G7;
+      }
+      if (File(BlackKingSQ)==FILEE) {
+        if (!(tree->all_pawns&file_mask[FILED]))
+          tree->b_safety+=KING_SAFETY_OPEN_FILE>>1;
+        if (!(tree->all_pawns&file_mask[FILEE]))
+          tree->b_safety+=KING_SAFETY_OPEN_FILE;
+        if (!(tree->all_pawns&file_mask[FILEF]))
+          tree->b_safety+=KING_SAFETY_OPEN_FILE>>1;
+      }
+    }
+    else if (File(BlackKingSQ) <= FILED) {
+      if (File(BlackKingSQ) == FILEA) tree->b_kingsq|=1;
+      tree->b_safety+=tree->pawn_score.black_defects_q;
+      if (!(BlackPawns&SetMask(B7))) {
+        if (SetMask(C6)&(WhitePawns|WhiteBishops) && WhiteQueens)
+          tree->b_safety+=KING_SAFETY_MATE_G2G7;
+      }
+      if (File(BlackKingSQ)==FILED) {
+        if (!(tree->all_pawns&file_mask[FILEC]))
+          tree->b_safety+=KING_SAFETY_OPEN_FILE>>1;
+        if (!(tree->all_pawns&file_mask[FILED]))
+          tree->b_safety+=KING_SAFETY_OPEN_FILE;
+        if (!(tree->all_pawns&file_mask[FILEE]))
+          tree->b_safety+=KING_SAFETY_OPEN_FILE>>1;
+      }
+    }
+  }
+  else {
+    if (BlackCastle(ply) != 3) {
+      if (BlackCastle(ply)&1)
+        tree->b_safety+=tree->pawn_score.black_defects_k>>1;
+      else if (BlackCastle(ply)&2)
+        tree->b_safety+=tree->pawn_score.black_defects_q>>1;
+    }
+    if (!(tree->all_pawns&file_mask[FILED]))
+      tree->b_safety+=KING_SAFETY_OPEN_FILE>>1;
+    if (!(tree->all_pawns&file_mask[FILEE]))
+      tree->b_safety+=KING_SAFETY_OPEN_FILE;
+    if (!(tree->all_pawns&file_mask[FILEF]))
+      tree->b_safety+=KING_SAFETY_OPEN_FILE>>1;
+  }
+  if (!WhiteQueens) tree->b_safety>>=1;
+  if (!BlackQueens) tree->w_safety>>=1;
   score-=temper_w[tree->w_safety]-temper_b[tree->b_safety];
   return(score);
 }
@@ -1710,10 +1706,18 @@ int EvaluatePassedPawns(TREE *tree) {
           !(SetMask(square1-8)&WhitePieces) &&
           !(SetMask(square2-8)&WhitePieces)) {
         score-=2*PAWN_CONNECTED_PASSED_6TH;
-        if ((TotalWhitePieces <= rook_v) && 
-            (!(WhiteKing&black_pawn_race_btm[square1]) ||
-             !(WhiteKing&black_pawn_race_btm[square2])))
-          score-=6*PAWN_CONNECTED_PASSED_6TH;
+        if (TotalWhitePieces <= rook_v) {
+          if (wtm) {
+            if (!(WhiteKing&black_pawn_race_wtm[square1]) &&
+                     !(WhiteKing&black_pawn_race_wtm[square2]))
+              score-=6*PAWN_CONNECTED_PASSED_6TH;
+          }
+          else {
+            if (!(WhiteKing&black_pawn_race_btm[square1]) ||
+               !(WhiteKing&black_pawn_race_btm[square2]))
+              score-=6*PAWN_CONNECTED_PASSED_6TH;
+          }
+        }
       }
     }
   }
@@ -1777,10 +1781,18 @@ int EvaluatePassedPawns(TREE *tree) {
           !(SetMask(square1+8)&BlackPieces) &&
           !(SetMask(square2+8)&BlackPieces)) {
         score+=2*PAWN_CONNECTED_PASSED_6TH;
-        if ((TotalBlackPieces <= rook_v) && 
-            (!(BlackKing&white_pawn_race_wtm[square1]) ||
-             !(BlackKing&white_pawn_race_wtm[square2])))
-          score+=6*PAWN_CONNECTED_PASSED_6TH;
+        if (TotalBlackPieces <= rook_v) {
+          if (wtm) {
+            if (!(BlackKing&white_pawn_race_wtm[square1]) &&
+                !(BlackKing&white_pawn_race_wtm[square2]))
+              score+=6*PAWN_CONNECTED_PASSED_6TH;
+          }
+          else {
+            if (!(BlackKing&white_pawn_race_btm[square1]) ||
+                !(BlackKing&white_pawn_race_btm[square2]))
+              score+=6*PAWN_CONNECTED_PASSED_6TH;
+          }
+        }
       }
     }
   }

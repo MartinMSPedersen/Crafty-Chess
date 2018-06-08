@@ -1,0 +1,145 @@
+# Makefile version 3 for Crafty 16.15
+# Crafty v16.x makefile for Windows NT Intel
+# Written by Jason Deines (jdeines@mindspring.com) April 1998
+# Version modified by Gregor Overney (gregor_overney@hp.com) Nov 1998
+# Version modified by Peter Karrer (pkarrer@active.ch) Dec 1998
+# Version modified by Gregor Overney (gregor_overney@hp.com) Sep 1999
+#
+# This makefile is designed to be used from the command line with 
+# Microsoft's nmake.  Either rename this # file to "Makefile" or name it 
+# explicitly when invoking nmake:
+#     nmake -f Makefile.nt
+#
+# The makefile is set up for Microsoft Visual C++ 6.0 Intel.
+#
+# The default target produces a file called "wcrafty.exe".  This compiles
+# all the .c files separately, producing individual .obj files, which are
+# then linked to create the executable.  You can also specify a target
+# called "wcraftyx".  This creates a file called "wcraftyx.exe" by combining
+# all of the .c files into two large .c files before the compile step.
+# The large files generally provides more optimization possibilities for
+# the compiler, and usually results in slightly faster code.  To try it,
+# type "nmake wcraftyx" instead of just "nmake".  The .c files x1.c and x2.c
+# will be created if needed and built automatically.
+
+
+# Build target is defined here.
+TARGET   = NT_i386
+
+# Command-line compiler and linker invocation commands:
+CC       = cl
+LD       = link
+
+# Base compiler flags needed for build:
+BFLAGS = /D_CONSOLE /DWIN32
+
+# Compiler flags:
+# /O2    optimize for speed
+# /Oa    assume no aliasing (no good for VC 6 without SP3)
+# /Gr    fastcall calling convention
+# /G5    target Pentium (but will run on all x86 architectures)
+# /G6    target Pentium Pro (but will run on all x86 architectures)
+# /Ob2   inline function calls if suitable
+#
+# For debugging use these flags instead:
+# CFLAGS  = /Od /Zi
+# LDFLAGS  = /DEBUG /DEBUGTYPE:CV
+#
+
+#CFLAGS   = /O2 /G6 /Gr /Ob2
+#CFLAGS   = /Od /Zi
+CFLAGS   = /Ox /G6 /Gr /Ob2
+
+# Linker flags, normally not needed except for debug builds:
+LDFLAGS  =
+#LDFLAGS  = /DEBUG /DEBUGTYPE:CV
+ 
+# See the default crafty makefile for a description of the options below.
+# With VC++, defines like COMPACT_ATTACKS, etc, makes the code slower, so 
+# those # options are disabled by default.  FAST is normally not defined 
+# so that hash statistics are reported -- for the fastest possible 
+# executable, define FAST below.  for 6 piece EGTB support, add /DEGTB6.
+
+#COPTS    = /DFAST
+
+# For an SMP build use/add the following build options.
+# NT_INTEREX is defined if you want to use the built-in InterlockedExchange()
+# function for thread resource locking, instead of the inline asm routine.
+# (This shouldn't be needed, at least on Intel.)
+# /MT is a compiler flag needed for multithreaded builds.
+
+#COPTS    = /MT /DSMP /DCPUS=4 /DNT_INTEREX
+#COPTS    = /MT /DSMP /DCPUS=2
+
+# If you are using any external assembler routines, put the name of the 
+# object code file(s) here.  Any such files will need to be generated 
+# separately -- there is no assembler step defined in the makefile.
+
+asmobjs  =
+
+# To enable assembly optimizations in x86.c and vcinline.h, use /DVC_INLINE_ASM.
+
+AOPTS    = /DVC_INLINE_ASM
+
+ALLOPTS  = $(COPTS) $(AOPTS) /D$(TARGET)
+
+cobjs    = analyze.obj annotate.obj attacks.obj bench.obj book.obj boolean.obj \
+           data.obj drawn.obj edit.obj enprise.obj epd.obj \
+           epdglue.obj evaluate.obj evtest.obj hash.obj history.obj init.obj \
+           input.obj interupt.obj iterate.obj learn.obj make.obj main.obj \
+           movgen.obj next.obj nexte.obj nextr.obj option.obj output.obj \
+           phase.obj ponder.obj preeval.obj quiesce.obj repeat.obj resign.obj \
+           root.obj search.obj searchmp.obj searchr.obj setboard.obj swap.obj \
+           test.obj thread.obj time.obj unmake.obj utility.obj valid.obj \
+           validate.obj probe.obj egtbpv.obj x86.obj
+
+xcobjs   = x1.obj x2.obj
+
+allobjs  = $(cobjs) $(asmobjs) egtb.obj
+
+xallobjs = $(xcobjs) $(asmobjs) egtb.obj
+
+includes = chess.h data.h epd.h epddefs.h epdglue.h evaluate.h vcinline.h
+
+wcrafty  : $(allobjs)
+           $(LD) $(LDFLAGS) $(allobjs) /out:wcrafty.exe
+
+wcraftyx : $(xallobjs)
+           $(LD) $(LDFLAGS) $(xallobjs) /out:wcraftyx.exe
+
+$(cobjs) : $(includes)
+
+.c.obj   :
+           $(CC) $(BFLAGS) $(CFLAGS) $(ALLOPTS) /c $*.c
+
+.cpp.obj :
+           $(CC) $(BFLAGS) $(CFLAGS) $(ALLOPTS) /c $*.cpp
+
+$(xcobjs): $(includes)
+
+x1.c:      searchr.c search.c repeat.c next.c nextr.c history.c nexte.c \
+           quiesce.c evaluate.c movgen.c make.c unmake.c attacks.c swap.c \
+           boolean.c utility.c valid.c searchmp.c thread.c x86.c
+           copy /b x86.c+boolean.c+swap.c+attacks.c+evaluate.c+make.c+\
+           unmake.c+movgen.c+quiesce.c+search.c+next.c+searchr.c+repeat.c+\
+           nextr.c+history.c+nexte.c+utility.c+valid.c+searchmp.c+\
+           thread.c x1.c
+x2.c:      book.c data.c drawn.c edit.c enprise.c epd.c epdglue.c init.c \
+           input.c interupt.c iterate.c main.c option.c output.c phase.c \
+           ponder.c preeval.c resign.c root.c learn.c setboard.c test.c time.c \
+           validate.c annotate.c analyze.c evtest.c bench.c hash.c probe.c egtbpv.c
+           copy /b book.c+data.c+drawn.c+edit.c+enprise.c+epd.c+epdglue.c+\
+           init.c+input.c+interupt.c+iterate.c+main.c+option.c+output.c+\
+           phase.c+ponder.c+preeval.c+resign.c+root.c+learn.c+setboard.c+\
+           test.c+time.c+validate.c+annotate.c+analyze.c+evtest.c+bench.c+\
+           hash.c+probe.c egtbpv.c x2.c
+
+clean:
+	   del /q $(cobjs)
+	   del /q egtb.obj
+	   del /q $(xcobjs)
+	   del /q log.*
+	   del /q game.**
+	   del /q *.bak
+	   del /q x1.c
+	   del /q x2.c

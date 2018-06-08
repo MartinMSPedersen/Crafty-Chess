@@ -505,7 +505,7 @@ void AnnotatePositionHTML(TREE *tree, int wtm, FILE *annotate_out) {
         break;
       case 'R':
         strcat(filename,"wr");
-	strcpy(alt, "P");
+	strcpy(alt, "R");
         break;
       case 'N':
         strcat(filename,"wn");

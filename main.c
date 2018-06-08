@@ -2589,6 +2589,12 @@
 *                                                                             *
 *   17.3    passed pawn scores increased somewhat to improve endgame play.    *
 *                                                                             *
+*   17.4    minor bug with "black" command (extra line from unknown origin)   *
+*           would make "black" command fail to do anything.  minor tweaks to  *
+*           passed pawn scoring again...  and a slight performance improve-   *
+*           ment in how EvaluateKingSafety() is called.  code for "bk"        *
+*           from xboard was somehow lost.  it now provides a book hint.       *
+*                                                                             *
 *******************************************************************************
 */
 int main(int argc, char **argv) {
@@ -3041,12 +3047,14 @@ int main(int argc, char **argv) {
         ponder_move=0;
       }
     }
+    wtm=ChangeSide(wtm);
     if (book_move) {
       moves_out_of_book=0;
       predicted++;
+      if (ponder_move)
+        sprintf(book_hint,"%s",OutputMove(tree,ponder_move,0,wtm));
     }
     else moves_out_of_book++;
-    wtm=ChangeSide(wtm);
     if (wtm) move_number++;
     ValidatePosition(tree,0,last_pv.path[1],"Main(2)");
     if (kibitz || whisper) {
