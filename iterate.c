@@ -6,7 +6,7 @@
 #  include <unistd.h>
 #  include <sys/types.h>
 #endif
-/* last modified 06/07/09 */
+/* last modified 10/14/13 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -222,7 +222,7 @@ int Iterate(int wtm, int search_type, int root_list_done) {
 /*
  ************************************************************
  *                                                          *
- *   Now we call SearchRoot() and start the next search     *
+ *   Now we call Search() and start the next search         *
  *   iteration.  We already have solid alpha/beta bounds    *
  *   set up for the aspiration search.  When each iteration *
  *   completes, these aspiration values are recomputed and  *
@@ -245,12 +245,16 @@ int Iterate(int wtm, int search_type, int root_list_done) {
               nodes_between_time_checks /= 100;
           } else
             nodes_between_time_checks = Min(nodes_per_second, 100000);
-          nodes_between_time_checks = Max(nodes_between_time_checks, 10000);
+#if defined(SKILL)
+          if (skill > 50)
+#endif
+            nodes_between_time_checks = Max(nodes_between_time_checks, 10000);
         }
         if (search_nodes)
           nodes_between_time_checks = search_nodes - tree->nodes_searched;
         nodes_between_time_checks =
             Min(nodes_between_time_checks, MAX_TC_NODES);
+        next_time_check = nodes_between_time_checks;
         while (1) {
           old_root_alpha = root_alpha;
           old_root_beta = root_beta;
@@ -315,6 +319,7 @@ int Iterate(int wtm, int search_type, int root_list_done) {
  ************************************************************
  */
           } else if (value <= root_alpha) {
+            difficulty = Max(difficulty, 100);
             if (!(root_moves[0].status & 2)) {
               root_moves[0].status |= 1;
               root_alpha =
@@ -471,9 +476,9 @@ int Iterate(int wtm, int search_type, int root_list_done) {
           if (difficulty < 100)
             difficulty = 100 + 20 * bm_changes;
           else
-            difficulty = 80 * difficulty / 100 + 20 * bm_changes;
+            difficulty = difficulty + 20 * bm_changes;
         }
-        difficulty = Max(60, Min(difficulty, 180));
+        difficulty = Max(60, Min(difficulty, 200));
         if (end_time - start_time > 10)
           nodes_per_second =
               tree->nodes_searched * 100 / (uint64_t) (end_time - start_time);

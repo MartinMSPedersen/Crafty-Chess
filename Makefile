@@ -129,11 +129,11 @@ linux-amd64:
 linux:
 	$(MAKE) target=LINUX \
 		CC=gcc CXX=g++ \
-		CFLAGS='$(CFLAGS) -Wall -pipe -O3 \
+		CFLAGS='$(CFLAGS) -g -Wall -pipe -O3 \
 			-fno-gcse -mpreferred-stack-boundary=8' \
 		CXFLAGS=$(CFLAGS) \
-		LDFLAGS='$(LDFLAGS) -lpthread -lstdc++' \
-		opt='$(opt) -DINLINE64 -DCPUS=8' \
+		LDFLAGS='$(LDFLAGS) -g -lpthread -lstdc++' \
+		opt='$(opt) -DTRACE -DINLINE64 -DCPUS=8' \
 		crafty-make
 
 linux-profile:
@@ -160,9 +160,8 @@ linux-64:
 		CFLAGS='-w -xP -O2 -fno-alias -prof-use -prof_dir ./profdir' \
 		CXFLAGS='-w -xP -O2 -prof-use -prof-dir ./profdir' \
 		LDFLAGS='$(LDFLAGS) -lpthread -lstdc++' \
-		opt='$(opt) -DINLINE64' \
+		opt='$(opt) -DTRACE -DINLINE64 -DCPUS=2' \
 		crafty-make
-#		opt='$(opt) -DINLINE64 -DCPUS=2' \
 
 linux-64-profile:
 	$(MAKE) target=LINUX \
@@ -318,7 +317,7 @@ profile:
 
 #objects = search.o thread.o repeat.o next.o killer.o quiesce.o evaluate.o     \
        movgen.o make.o unmake.o hash.o  attacks.o swap.o boolean.o utility.o  \
-       history.o probe.o book.o data.o drawn.o edit.o epd.o epdglue.o init.o  \
+       killer.o probe.o book.o data.o drawn.o edit.o epd.o epdglue.o init.o   \
        input.o interrupt.o iterate.o main.o option.o output.o ponder.o        \
        resign.o root.o learn.o setboard.o test.o time.o validate.o annotate.o \
        analyze.o evtest.o bench.o

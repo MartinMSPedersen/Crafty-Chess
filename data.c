@@ -1,6 +1,6 @@
 #include "chess.h"
 /* *INDENT-OFF* */
-int scale = 30;
+int scale = 6;
 FILE *input_stream;
 FILE *book_file;
 FILE *books_file;
@@ -11,7 +11,7 @@ FILE *log_file;
 int presult = 0;
 int done = 0;
 uint64_t burner[10] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
-int burnc[10] = {40000, 20000, 10000, 4000, 2000, 800, 400, 200, 100, 0};
+int burnc[10] = {40000, 20000, 10000, 5000, 2500, 1250, 625, 312, 156, 0};
 uint64_t total_moves;
 int allow_cores = 1;
 int allow_memory = 1;
@@ -58,7 +58,7 @@ int mob_curve_r[48] = {
    17, 18, 19, 20, 21, 22, 23, 24,
    25, 26, 27, 28, 29, 30, 31, 32
 };
-char directions[64][64];
+int8_t directions[64][64];
 uint64_t randoms[2][7][64] = {
   {
     { 0x0000000000000000ull, 0x0000000000000000ull, 0x0000000000000000ull,
@@ -459,7 +459,7 @@ int OOOsqs[2][3] = {{ E8, D8, C8 }, { E1, D1, C1 }};
 int OOfrom[2] = { E8, E1 };
 int OOto[2] = { G8, G1 };
 int OOOto[2] = { C8, C1 };
-#define    VERSION                             "23.6"
+#define    VERSION                             "23.7"
 char version[8] = { VERSION };
 PLAYING_MODE mode = normal_mode;
 int batch_mode = 0;             /* no asynch reads */
@@ -470,7 +470,6 @@ int opponent_rating = 2500;
 int last_search_value = 0;
 int pruning_margin[8] = {0, 120, 120, 310, 310, 400, 400, 500};
 int pruning_depth = 5;
-int pp_ply[8] = { 0, 6, 6, 4, 2, 1, 0, 0 };
 int pgn_suggested_percent = 0;
 char pgn_event[128] = { "?" };
 char pgn_site[128] = { "?" };

@@ -157,7 +157,7 @@ typedef enum { think = 1, puzzle = 2, book = 3, annotate = 4 } SEARCH_TYPE;
 typedef enum { normal_mode, tournament_mode } PLAYING_MODE;
 typedef struct {
   unsigned char enpassant_target;
-  char castle[2];
+  int8_t castle[2];
   unsigned char rule_50_moves;
 } SEARCH_POSITION;
 typedef struct {
@@ -173,7 +173,7 @@ typedef struct {
   uint64_t pawn_hash_key;
   int material_evaluation;
   int kingsq[2];
-  char board[64];
+  int8_t board[64];
   char pieces[2][7];
   char majors[2];
   char minors[2];
@@ -212,6 +212,8 @@ typedef struct {
   int phase;
   int remaining;
   int *last;
+  int excluded_moves[5];
+  int num_excluded;
 } NEXT_MOVE;
 typedef struct {
   int move;
@@ -406,6 +408,7 @@ int Evaluate(TREE * RESTRICT, int, int, int, int);
 void EvaluateBishops(TREE * RESTRICT, int);
 void EvaluateDevelopment(TREE * RESTRICT, int, int);
 int EvaluateDraws(TREE * RESTRICT, int, int, int);
+int EvaluateHasOpposition(int, int, int);
 void EvaluateKings(TREE * RESTRICT, int, int);
 int EvaluateKingsFile(TREE * RESTRICT, int, int);
 void EvaluateKnights(TREE * RESTRICT, int);
@@ -418,6 +421,7 @@ void EvaluateQueens(TREE * RESTRICT, int);
 void EvaluateRooks(TREE * RESTRICT, int);
 int EvaluateWinningChances(TREE * RESTRICT, int, int);
 void EVTest(char *);
+int Exclude(TREE * RESTRICT, int, int);
 int FindBlockID(TREE * RESTRICT);
 char *FormatPV(TREE * RESTRICT, int, PATH);
 int FTbSetCacheSize(void *, unsigned long);
@@ -429,7 +433,6 @@ int *GenerateNoncaptures(TREE * RESTRICT, int, int, int *);
 int HashProbe(TREE * RESTRICT, int, int, int, int, int, int*);
 void HashStore(TREE * RESTRICT, int, int, int, int, int, int);
 void HashStorePV(TREE * RESTRICT, int, int);
-int EvaluateHasOpposition(int, int, int);
 int IInitializeTb(char *);
 void Initialize(void);
 void InitializeAttackBoards(void);

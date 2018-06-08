@@ -3060,6 +3060,7 @@ int Option(TREE * RESTRICT tree) {
  *                                                          *
  ************************************************************
  */
+
   else if (!strcmp("scale", *args)) {
     scale = atoi(args[1]);
   }

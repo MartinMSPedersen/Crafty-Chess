@@ -127,40 +127,38 @@ int Thread(TREE * RESTRICT tree) {
   return (1);
 }
 
-/* modified 11/05/10 */
+/* modified 09/25/13 */
 /*
  *******************************************************************************
  *                                                                             *
- *   CopyFromChild() is used to copy data from a child thread to a parent      *
+ *   CopyToParent() is used to copy data from a child thread to a parent       *
  *   thread.  This only copies the appropriate parts of the TREE structure to  *
  *   avoid burning memory bandwidth by copying everything.                     *
  *                                                                             *
  *******************************************************************************
  */
-void CopyToParent(TREE * RESTRICT p, TREE * RESTRICT c, int value) {
-  int i;
+void CopyToParent(TREE * RESTRICT parent, TREE * RESTRICT child, int value) {
 
-  if (c->nodes_searched && !c->stop && value > p->value && !abort_search) {
-    p->pv[p->ply] = c->pv[p->ply];
-    p->value = value;
-    for (i = 1; i < MAXPLY; i++)
-      p->killers[i] = c->killers[i];
-    p->cutmove = c->curmv[p->ply];
+  if (child->nodes_searched && !child->stop && value > parent->value &&
+      !abort_search) {
+    parent->pv[parent->ply] = child->pv[parent->ply];
+    parent->value = value;
+    parent->cutmove = child->curmv[parent->ply];
   }
-  p->nodes_searched += c->nodes_searched;
-  p->fail_highs += c->fail_highs;
-  p->fail_high_number += c->fail_high_number;
-  p->evaluations += c->evaluations;
-  p->egtb_probes += c->egtb_probes;
-  p->egtb_probes_successful += c->egtb_probes_successful;
-  p->extensions_done += c->extensions_done;
-  p->qchecks_done += c->qchecks_done;
-  p->reductions_done += c->reductions_done;
-  p->moves_pruned += c->moves_pruned;
-  c->used = 0;
+  parent->nodes_searched += child->nodes_searched;
+  parent->fail_highs += child->fail_highs;
+  parent->fail_high_number += child->fail_high_number;
+  parent->evaluations += child->evaluations;
+  parent->egtb_probes += child->egtb_probes;
+  parent->egtb_probes_successful += child->egtb_probes_successful;
+  parent->extensions_done += child->extensions_done;
+  parent->qchecks_done += child->qchecks_done;
+  parent->reductions_done += child->reductions_done;
+  parent->moves_pruned += child->moves_pruned;
+  child->used = 0;
 }
 
-/* modified 11/05/10 */
+/* modified 09/25/13 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -170,9 +168,9 @@ void CopyToParent(TREE * RESTRICT p, TREE * RESTRICT c, int value) {
  *                                                                             *
  *******************************************************************************
  */
-TREE *CopyToChild(TREE * RESTRICT p, int thread) {
+TREE *CopyToChild(TREE * RESTRICT parent, int thread) {
   int i, j, max;
-  TREE *c;
+  TREE *child;
   static int warnings = 0;
   int first = thread * MAX_BLOCKS_PER_CPU + 1;
   int last = first + MAX_BLOCKS_PER_CPU;
@@ -196,51 +194,52 @@ TREE *CopyToChild(TREE * RESTRICT p, int thread) {
     if (block[j]->used)
       max++;
   max_split_blocks = Max(max_split_blocks, max);
-  c = block[i];
-  c->used = 1;
-  c->stop = 0;
+  child = block[i];
+  child->used = 1;
+  child->stop = 0;
   for (i = 0; i < smp_max_threads; i++)
-    c->siblings[i] = 0;
-  c->ply = p->ply;
-  c->pos = p->pos;
-  c->pv[c->ply - 1] = p->pv[c->ply - 1];
-  c->pv[c->ply] = p->pv[c->ply];
-  c->next_status[c->ply] = p->next_status[c->ply];
-  c->save_hash_key[c->ply] = p->save_hash_key[c->ply];
-  c->save_pawn_hash_key[c->ply] = p->save_pawn_hash_key[c->ply];
+    child->siblings[i] = 0;
+  child->ply = parent->ply;
+  child->pos = parent->pos;
+  child->pv[child->ply - 1] = parent->pv[child->ply - 1];
+  child->pv[child->ply] = parent->pv[child->ply];
+  child->next_status[child->ply] = parent->next_status[child->ply];
+  child->save_hash_key[child->ply] = parent->save_hash_key[child->ply];
+  child->save_pawn_hash_key[child->ply] =
+      parent->save_pawn_hash_key[child->ply];
   for (i = 0; i < 2; i++)
-    c->rep_index[i] = p->rep_index[i];
+    child->rep_index[i] = parent->rep_index[i];
   for (i = 0; i < 2; i++)
-    for (j = 0; j < c->rep_index[i] + (c->ply - 1) / 2; j++)
-      c->rep_list[i][j] = p->rep_list[i][j];
-  c->last[c->ply] = c->move_list;
-  c->hash_move[c->ply] = p->hash_move[c->ply];
-  for (i = 1; i <= c->ply + 1; i++) {
-    c->position[i] = p->position[i];
-    c->curmv[i] = p->curmv[i];
-    c->inchk[i] = p->inchk[i];
-    c->phase[i] = p->phase[i];
+    for (j = 0; j < child->rep_index[i] + (child->ply - 1) / 2; j++)
+      child->rep_list[i][j] = parent->rep_list[i][j];
+  child->last[child->ply] = child->move_list;
+  child->hash_move[child->ply] = parent->hash_move[child->ply];
+  for (i = 1; i <= child->ply + 1; i++) {
+    child->position[i] = parent->position[i];
+    child->curmv[i] = parent->curmv[i];
+    child->inchk[i] = parent->inchk[i];
+    child->phase[i] = parent->phase[i];
   }
   for (i = 1; i < MAXPLY; i++)
-    c->killers[i] = p->killers[i];
-  c->nodes_searched = 0;
-  c->fail_highs = 0;
-  c->fail_high_number = 0;
-  c->evaluations = 0;
-  c->egtb_probes = 0;
-  c->egtb_probes_successful = 0;
-  c->extensions_done = 0;
-  c->qchecks_done = 0;
-  c->reductions_done = 0;
-  c->moves_pruned = 0;
-  c->alpha = p->alpha;
-  c->beta = p->beta;
-  c->value = p->value;
-  c->wtm = p->wtm;
-  c->depth = p->depth;
-  strcpy(c->root_move_text, p->root_move_text);
-  strcpy(c->remaining_moves_text, p->remaining_moves_text);
-  return (c);
+    child->killers[i] = parent->killers[i];
+  child->nodes_searched = 0;
+  child->fail_highs = 0;
+  child->fail_high_number = 0;
+  child->evaluations = 0;
+  child->egtb_probes = 0;
+  child->egtb_probes_successful = 0;
+  child->extensions_done = 0;
+  child->qchecks_done = 0;
+  child->reductions_done = 0;
+  child->moves_pruned = 0;
+  child->alpha = parent->alpha;
+  child->beta = parent->beta;
+  child->value = parent->value;
+  child->wtm = parent->wtm;
+  child->depth = parent->depth;
+  strcpy(child->root_move_text, parent->root_move_text);
+  strcpy(child->remaining_moves_text, parent->remaining_moves_text);
+  return (child);
 }
 
 /*

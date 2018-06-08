@@ -813,7 +813,7 @@ void InitializeHashTables(void) {
  *******************************************************************************
  *                                                                             *
  *   InitializeKillers() is used to zero the killer moves and the repetition   *
- *   list so that random garbage won't confuse the search when it starts.      *
+ *   list to make sure the search starts off with a sane initial state.        *
  *                                                                             *
  *******************************************************************************
  */

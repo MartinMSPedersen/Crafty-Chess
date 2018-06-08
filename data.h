@@ -97,7 +97,6 @@ extern int game_wtm;
 extern int last_search_value;
 extern int pruning_margin[8];
 extern int pruning_depth;
-extern int pp_ply[8];
 extern int ponder_value;
 extern int move_actually_played;
 extern int analyze_mode;
@@ -163,7 +162,6 @@ extern unsigned int start_time, end_time;
 extern unsigned int elapsed_start, elapsed_end;
 extern TREE *block[MAX_BLOCKS + 1];
 extern TREE *volatile thread[CPUS];
-
 #  if (CPUS > 1)
 extern lock_t lock_smp, lock_io, lock_root;
 
@@ -292,7 +290,7 @@ extern uint64_t *magic_bishop_indices[64];
 extern uint64_t magic_bishop_table[5248];
 extern int16_t *magic_bishop_mobility_indices[64];
 extern int16_t magic_bishop_mobility_table[5248];
-extern char directions[64][64];
+extern int8_t directions[64][64];
 extern uint64_t pawn_attacks[2][64];
 extern uint64_t knight_attacks[64];
 extern uint64_t rook_attacks[64];

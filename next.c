@@ -130,11 +130,16 @@ int NextEvasion(TREE * RESTRICT tree, int ply, int wtm) {
   return (NONE);
 }
 
-/* last modified 05/26/13 */
+/* last modified 09/27/13 */
 /*
  *******************************************************************************
  *                                                                             *
  *   NextMove() is used to select the next move from the current move list.    *
+ *                                                                             *
+ *   The "excluded move" code below simply collects any move that was searched *
+ *   without being generated (hash move and up to 4 killers).  We save them    *
+ *   in the NEXT structure and make sure to exclude them when searching after  *
+ *   a move generation to avoid the duplicated effort.                         *
  *                                                                             *
  *******************************************************************************
  */
@@ -152,9 +157,12 @@ int NextMove(TREE * RESTRICT tree, int ply, int wtm) {
  ************************************************************
  */
     case HASH_MOVE:
+      tree->next_status[ply].num_excluded = 0;
       tree->next_status[ply].phase = GENERATE_CAPTURE_MOVES;
       if (tree->hash_move[ply]) {
         tree->curmv[ply] = tree->hash_move[ply];
+        tree->next_status[ply].excluded_moves[tree->
+            next_status[ply].num_excluded++] = tree->curmv[ply];
         if (ValidMove(tree, ply, wtm, tree->curmv[ply]))
           return (HASH_MOVE);
 #if defined(DEBUG)
@@ -183,6 +191,7 @@ int NextMove(TREE * RESTRICT tree, int ply, int wtm) {
         if (*movep == tree->hash_move[ply]) {
           *sortv = -999999;
           *movep = 0;
+          tree->next_status[ply].num_excluded = 0;
         } else {
           *sortv =
               128 * pc_values[Captured(*movep)] - pc_values[Piece(*movep)];
@@ -223,7 +232,7 @@ int NextMove(TREE * RESTRICT tree, int ply, int wtm) {
  *                                                          *
  *   Try the captures moves, which are in order based on    *
  *   the expected gain of material.  Captures that lose     *
- *   material have been excluded from this phase.           *
+ *   material are excluded from this phase.                 *
  *                                                          *
  ************************************************************
  */
@@ -245,40 +254,56 @@ int NextMove(TREE * RESTRICT tree, int ply, int wtm) {
  *                                                          *
  *   Now, try the killer moves.  This phase tries the two   *
  *   killers for the current ply without generating moves,  *
- *   which saves time if a cutoff occurs.                   *
+ *   which saves time if a cutoff occurs.  After those two  *
+ *   killers are searched, we try the killers from two      *
+ *   plies back since they have greater depth and might     *
+ *   produce a cutoff when the current two do not.          *
  *                                                          *
  ************************************************************
  */
     case KILLER_MOVE_1:
-      if (tree->hash_move[ply] != tree->killers[ply].move1 &&
+      tree->next_status[ply].remaining = tree->next_status[ply].num_excluded;
+      if (!Exclude(tree, ply, tree->killers[ply].move1) &&
           ValidMove(tree, ply, wtm, tree->killers[ply].move1)) {
         tree->curmv[ply] = tree->killers[ply].move1;
+        tree->next_status[ply].excluded_moves[tree->
+            next_status[ply].num_excluded++] = tree->curmv[ply];
+        tree->next_status[ply].remaining++;
         tree->next_status[ply].phase = KILLER_MOVE_2;
         return (KILLER_MOVE_1);
       }
     case KILLER_MOVE_2:
-      if (tree->hash_move[ply] != tree->killers[ply].move2 &&
+      if (!Exclude(tree, ply, tree->killers[ply].move2) &&
           ValidMove(tree, ply, wtm, tree->killers[ply].move2)) {
         tree->curmv[ply] = tree->killers[ply].move2;
-        tree->next_status[ply].phase =
-            (ply > 3) ? KILLER_MOVE_3 : GENERATE_ALL_MOVES;
+        tree->next_status[ply].excluded_moves[tree->
+            next_status[ply].num_excluded++] = tree->curmv[ply];
+        tree->next_status[ply].remaining++;
+        if (ply < 3) {
+          tree->next_status[ply].remaining =
+              tree->next_status[ply].num_excluded;
+          tree->next_status[ply].phase = GENERATE_ALL_MOVES;
+        } else
+          tree->next_status[ply].phase = KILLER_MOVE_3;
         return (KILLER_MOVE_2);
       }
     case KILLER_MOVE_3:
-      if (tree->killers[ply - 2].move1 != tree->hash_move[ply] &&
-          tree->killers[ply - 2].move1 != tree->killers[ply].move1 &&
-          tree->killers[ply - 2].move1 != tree->killers[ply].move2 &&
+      if (!Exclude(tree, ply, tree->killers[ply - 2].move1) &&
           ValidMove(tree, ply, wtm, tree->killers[ply - 2].move1)) {
         tree->curmv[ply] = tree->killers[ply - 2].move1;
+        tree->next_status[ply].excluded_moves[tree->
+            next_status[ply].num_excluded++] = tree->curmv[ply];
+        tree->next_status[ply].remaining++;
         tree->next_status[ply].phase = KILLER_MOVE_4;
         return (KILLER_MOVE_3);
       }
     case KILLER_MOVE_4:
-      if (tree->killers[ply - 2].move2 != tree->hash_move[ply] &&
-          tree->killers[ply - 2].move2 != tree->killers[ply].move1 &&
-          tree->killers[ply - 2].move2 != tree->killers[ply].move2 &&
+      if (!Exclude(tree, ply, tree->killers[ply - 2].move2) &&
           ValidMove(tree, ply, wtm, tree->killers[ply - 2].move2)) {
         tree->curmv[ply] = tree->killers[ply - 2].move2;
+        tree->next_status[ply].excluded_moves[tree->
+            next_status[ply].num_excluded++] = tree->curmv[ply];
+        tree->next_status[ply].remaining++;
         tree->next_status[ply].phase = GENERATE_ALL_MOVES;
         return (KILLER_MOVE_4);
       }
@@ -304,15 +329,11 @@ int NextMove(TREE * RESTRICT tree, int ply, int wtm) {
     case REMAINING_MOVES:
       for (; tree->next_status[ply].last < tree->last[ply];
           tree->next_status[ply].last++)
-        if (*tree->next_status[ply].last &&
-            *tree->next_status[ply].last != tree->hash_move[ply] &&
-            *tree->next_status[ply].last != tree->killers[ply].move1 &&
-            *tree->next_status[ply].last != tree->killers[ply].move2 &&
-            *tree->next_status[ply].last != tree->killers[ply - 2].move1 &&
-            *tree->next_status[ply].last != tree->killers[ply - 2].move2) {
-          tree->curmv[ply] = *tree->next_status[ply].last;
-          *tree->next_status[ply].last++ = 0;
-          return (REMAINING_MOVES);
+        if (!Exclude(tree, ply, *tree->next_status[ply].last)) {
+          if ((*tree->next_status[ply].last)) {
+            tree->curmv[ply] = *tree->next_status[ply].last++;
+            return (REMAINING_MOVES);
+          }
         }
       return (NONE);
     default:
@@ -490,5 +511,34 @@ int NextRootMoveParallel(void) {
     return (0);
   if (root_value >= last_root_value - 33 || which > n_root_moves / 3)
     return (1);
+  return (0);
+}
+
+/* last modified 09/27/13 */
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   Exclude() searches the list of moves searched prior to generating a move  *
+ *   list to exclude those that were searched via a hash table best move or    *
+ *   through the killer moves for the current ply and two plies back.          *
+ *                                                                             *
+ *   The variable next_status[].num_excluded is the total number of non-       *
+ *   generated moves we searched.  next_status[].remaining is initially set to *
+ *   num_excluded, but each time an excluded move is found, the counter is     *
+ *   decremented.  Once all excluded moves have been found, we avoid running   *
+ *   through the list of excluded moves on each call and simply return.        *
+ *                                                                             *
+ *******************************************************************************
+ */
+int Exclude(TREE * RESTRICT tree, int ply, int move) {
+  int i;
+
+  if (tree->next_status[ply].num_excluded)
+    for (i = 0; i < tree->next_status[ply].num_excluded; i++) {
+      if (move == tree->next_status[ply].excluded_moves[i]) {
+        tree->next_status[ply].remaining--;
+        return (1);
+      }
+    }
   return (0);
 }

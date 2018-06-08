@@ -85,6 +85,50 @@ void TimeAdjust(int time_used, int side) {
  *   limit (absolute_time_limit) is reached where the search is terminated     *
  *   immediately to avoid overstepping the time control limits.                *
  *                                                                             *
+ *   The "difficulty" value is used to implement the concept of an "easy move" *
+ *   or a "hard move".  With an easy move, we want to spend less time since    *
+ *   the easy move is obvious.  The opposite idea is a hard move, where we     *
+ *   actually want to spend more time to be sure we don't make a mistake by`   *
+ *   moving too quickly.                                                       *
+ *                                                                             *
+ *   The basic methodology revolves around how many times we change our mind   *
+ *   on the best move at the root of the tree.                                 *
+ *                                                                             *
+ *   The "difficulty" variable is initially set to 100, which represents a     *
+ *   percentage of the actual target time we should spend on this move.  If    *
+ *   we end an iteration without having changed our mind at all, difficulty    *
+ *   is reduced by multiplying by .9, with a lower bound of 60%.               *
+ *                                                                             *
+ *   If we change our mind during an iteration, there are two cases.  (1) If   *
+ *   difficulty is < 100%, we set it back to 100% +20% for each time we        *
+ *   changed the best move.  (2) if difficulty is already at 100% or higher,   *
+ *   we multiply difficulty by .80, then add 20% for each root move change.    *
+ *   For example, suppose we are at difficulty=60%, and we suddenly change our *
+ *   mind twice this iteration (3 different best moves).                       *
+ *                                                                             *
+ *   difficulty = 100 + 3*20 = 160% of the actual target time will be used.    *
+ *                                                                             *
+ *   Suppose we change back and forth between two best moves multiple times,   *
+ *   with difficulty currently at 100%.  The first time:                       *
+ *                                                                             *
+ *   difficulty = .80 * 100 + 2*20 = 120%                                      *
+ *                                                                             *
+ *   The next iteration:                                                       *
+ *                                                                             *
+ *   difficulty = .80 * 120 + 2 * 20 = 96% _ 40% = 136%                        *
+ *                                                                             *
+ *   The next iteration:                                                       *
+ *                                                                             *
+ *   difficulty = .80 * 136% + 40% = 149%                                      *
+ *                                                                             *
+ *   If we stop changing our mind, then difficulty starts on a downward trend. *
+ *   The basic idea is that if we are locked in on a move, we can make it a    *
+ *   bit quicker, but if we are changing back and forth, we are going to spend *
+ *   more time to try to choose the best move.                                 *
+ *                                                                             *
+ *   Notice that this doesn't alter the usual "use way more time if we fail    *
+ *   low at the root (score drop).  That works just as it always has.          *
+ *                                                                             *
  *******************************************************************************
  */
 int TimeCheck(TREE * RESTRICT tree, int abort) {

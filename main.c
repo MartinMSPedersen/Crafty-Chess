@@ -3938,6 +3938,28 @@
  *           modified so that the fail-high was ignored if the re-search       *
  *           failed low.  Removing this produced an 8 Elo gain.                *
  *                                                                             *
+ *    23.7   Minor fix to time check code.  Was particularly broken at very    *
+ *           low skill level settings, but it had a small impact everywhere.   *
+ *           Some simplification with the reduction code, and how moves are    *
+ *           counted as they are searched, which would not count any moves     *
+ *           that were pruned, which could delay triggering reductions at a    *
+ *           ply.  Fixed significant killer move bug that would only surface   *
+ *           during a parallel search.  NextMove (remaining moves phase) culls *
+ *           killer moves as it selects, because they have already been tried. *
+ *           Unfortunately, in a parallel search, the killers could get        *
+ *           modified by other threads, which could erroneously cause a move   *
+ *           to be excluded that had not been searched.  I discovered this bug *
+ *           on wac #266 where Crafty normally finds a mate at depth=11, but   *
+ *           a parallel search would often miss the mate completely.  Minor    *
+ *           fix to new "difficulty" time management.  It was possible for a   *
+ *           move to look "easy" (several iterations without finding a new     *
+ *           best move) but it could fail low at the beginning of the next     *
+ *           iteration.  Difficulty would be reduced due to not changing the   *
+ *           best move at previous iterations, so the search could time out    *
+ *           quicker than expected.  Simple fix was to reset difficulty to     *
+ *           100% on a fail low, which makes sense anyway if it was supposed   *
+ *           to be "easy" but the score is mysteriously dropping anyway.       *
+ *                                                                             *
  *******************************************************************************
  */
 int main(int argc, char **argv) {

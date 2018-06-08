@@ -374,7 +374,7 @@ void Annotate() {
           if (player_pv.pathd > 1 && player_pv.pathl >= 1 &&
               player_score + annotate_margin < annotate_score[0]
               && (temp[0].path[1] != player_pv.path[1]
-                  || annotate_margin < 0.0 || best_moves != 1)) {
+                  || annotate_margin < 0 || best_moves != 1)) {
             if (wtm) {
               analysis_printed = 1;
               fprintf(annotate_out, "%s\n", html_br);
