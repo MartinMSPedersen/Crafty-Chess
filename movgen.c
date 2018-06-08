@@ -302,17 +302,17 @@ int *GenerateChecks(TREE * RESTRICT tree, int ply, int side, int *move) {
         AttacksBishop(KingSQ(enemy),
         OccupiedSquares & ~blockers) & (Bishops(side) | Queens(side));
     if (checkers) {
-      if ((plus7dir[KingSQ(enemy)] & blockers) &&
-          !(plus7dir[KingSQ(enemy)] & checkers))
+      if ((plus7dir[KingSQ(enemy)] & blockers)
+          && !(plus7dir[KingSQ(enemy)] & checkers))
         blockers &= ~plus7dir[KingSQ(enemy)];
-      if ((plus9dir[KingSQ(enemy)] & blockers) &&
-          !(plus9dir[KingSQ(enemy)] & checkers))
+      if ((plus9dir[KingSQ(enemy)] & blockers)
+          && !(plus9dir[KingSQ(enemy)] & checkers))
         blockers &= ~plus9dir[KingSQ(enemy)];
-      if ((minus7dir[KingSQ(enemy)] & blockers) &&
-          !(minus7dir[KingSQ(enemy)] & checkers))
+      if ((minus7dir[KingSQ(enemy)] & blockers)
+          && !(minus7dir[KingSQ(enemy)] & checkers))
         blockers &= ~minus7dir[KingSQ(enemy)];
-      if ((minus9dir[KingSQ(enemy)] & blockers) &&
-          !(minus9dir[KingSQ(enemy)] & checkers))
+      if ((minus9dir[KingSQ(enemy)] & blockers)
+          && !(minus9dir[KingSQ(enemy)] & checkers))
         blockers &= ~minus9dir[KingSQ(enemy)];
 /*
  ************************************************************
@@ -384,17 +384,17 @@ int *GenerateChecks(TREE * RESTRICT tree, int ply, int side, int *move) {
         AttacksRook(KingSQ(enemy),
         OccupiedSquares & ~blockers) & (Rooks(side) | Queens(side));
     if (checkers) {
-      if ((plus1dir[KingSQ(enemy)] & blockers) &&
-          !(plus1dir[KingSQ(enemy)] & checkers))
+      if ((plus1dir[KingSQ(enemy)] & blockers)
+          && !(plus1dir[KingSQ(enemy)] & checkers))
         blockers &= ~plus1dir[KingSQ(enemy)];
-      if ((plus8dir[KingSQ(enemy)] & blockers) &&
-          !(plus8dir[KingSQ(enemy)] & checkers))
+      if ((plus8dir[KingSQ(enemy)] & blockers)
+          && !(plus8dir[KingSQ(enemy)] & checkers))
         blockers &= ~plus8dir[KingSQ(enemy)];
-      if ((minus1dir[KingSQ(enemy)] & blockers) &&
-          !(minus1dir[KingSQ(enemy)] & checkers))
+      if ((minus1dir[KingSQ(enemy)] & blockers)
+          && !(minus1dir[KingSQ(enemy)] & checkers))
         blockers &= ~minus1dir[KingSQ(enemy)];
-      if ((minus8dir[KingSQ(enemy)] & blockers) &&
-          !(minus8dir[KingSQ(enemy)] & checkers))
+      if ((minus8dir[KingSQ(enemy)] & blockers)
+          && !(minus8dir[KingSQ(enemy)] & checkers))
         blockers &= ~minus8dir[KingSQ(enemy)];
 /*
  ************************************************************
@@ -738,16 +738,16 @@ int *GenerateNoncaptures(TREE * RESTRICT tree, int ply, int side, int *move) {
  ************************************************************
  */
   if (Castle(ply, side) > 0) {
-    if ((Castle(ply, side) & 1) && !(OccupiedSquares & OO[side]) &&
-        !Attacks(tree, OOsqs[side][0], enemy) &&
-        !Attacks(tree, OOsqs[side][1], enemy)
+    if ((Castle(ply, side) & 1) && !(OccupiedSquares & OO[side])
+        && !Attacks(tree, OOsqs[side][0], enemy)
+        && !Attacks(tree, OOsqs[side][1], enemy)
         && !Attacks(tree, OOsqs[side][2], enemy)) {
       *move++ = (king << 12) + (OOto[side] << 6) + OOfrom[side];
     }
-    if ((Castle(ply, side) & 2) && !(OccupiedSquares & OOO[side]) &&
-        !Attacks(tree, OOOsqs[side][0], enemy) &&
-        !Attacks(tree, OOOsqs[side][1], enemy) &&
-        !Attacks(tree, OOOsqs[side][2], enemy)) {
+    if ((Castle(ply, side) & 2) && !(OccupiedSquares & OOO[side])
+        && !Attacks(tree, OOOsqs[side][0], enemy)
+        && !Attacks(tree, OOOsqs[side][1], enemy)
+        && !Attacks(tree, OOOsqs[side][2], enemy)) {
       *move++ = (king << 12) + (OOOto[side] << 6) + OOfrom[side];
     }
   }

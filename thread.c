@@ -79,7 +79,6 @@ int Thread(TREE * RESTRICT tree) {
 #endif
     }
   }
-  tree->search_value = tree->value;
   if (!nblocks) {
     Unlock(lock_smp);
     thread[tree->thread_id] = tree;
@@ -138,20 +137,19 @@ int Thread(TREE * RESTRICT tree) {
  *                                                                             *
  *******************************************************************************
  */
-void CopyFromChild(TREE * RESTRICT p, TREE * RESTRICT c, int value) {
+void CopyToParent(TREE * RESTRICT p, TREE * RESTRICT c, int value) {
   int i;
 
-  if (c->nodes_searched && !c->stop && value > p->search_value &&
-      !abort_search) {
+  if (c->nodes_searched && !c->stop && value > p->value && !abort_search) {
     p->pv[p->ply] = c->pv[p->ply];
-    p->search_value = value;
+    p->value = value;
     for (i = 1; i < MAXPLY; i++)
       p->killers[i] = c->killers[i];
     p->cutmove = c->curmv[p->ply];
   }
   p->nodes_searched += c->nodes_searched;
-  p->fail_high += c->fail_high;
-  p->fail_high_first += c->fail_high_first;
+  p->fail_highs += c->fail_highs;
+  p->fail_high_number += c->fail_high_number;
   p->evaluations += c->evaluations;
   p->egtb_probes += c->egtb_probes;
   p->egtb_probes_successful += c->egtb_probes_successful;
@@ -226,8 +224,8 @@ TREE *CopyToChild(TREE * RESTRICT p, int thread) {
   for (i = 1; i < MAXPLY; i++)
     c->killers[i] = p->killers[i];
   c->nodes_searched = 0;
-  c->fail_high = 0;
-  c->fail_high_first = 0;
+  c->fail_highs = 0;
+  c->fail_high_number = 0;
   c->evaluations = 0;
   c->egtb_probes = 0;
   c->egtb_probes_successful = 0;
@@ -240,7 +238,6 @@ TREE *CopyToChild(TREE * RESTRICT p, int thread) {
   c->value = p->value;
   c->wtm = p->wtm;
   c->depth = p->depth;
-  c->search_value = 0;
   strcpy(c->root_move_text, p->root_move_text);
   strcpy(c->remaining_moves_text, p->remaining_moves_text);
   return (c);
@@ -461,7 +458,7 @@ int ThreadWait(int64_t tid, TREE * RESTRICT waiting) {
         FindBlockID(thread[tid]), thread[tid]->ply);
     Unlock(lock_io);
 #endif
-    CopyFromChild((TREE *) thread[tid]->parent, thread[tid], value);
+    CopyToParent((TREE *) thread[tid]->parent, thread[tid], value);
     thread[tid]->parent->nprocs--;
 #if defined(DEBUGSMP)
     Lock(lock_io);

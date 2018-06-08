@@ -1,6 +1,6 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 11/22/10 */
+/* last modified 06/12/13 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -14,9 +14,9 @@
  */
 int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
     int ply, int do_null) {
-  uint64_t start_nodes = tree->nodes_searched, begin_root_nodes = 0;
+  uint64_t start_nodes = tree->nodes_searched;
   int first_tried = 0, moves_searched = 0, repeat = 0;
-  int o_alpha = alpha, value = 0, t_beta = beta;
+  int original_alpha = alpha, value = 0, t_beta = beta;
   int extensions;
 
 /*
@@ -38,7 +38,6 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
  */
 #if defined(NODES)
   if (--temp_search_nodes <= 0) {
-    abort_after_ply1 = 1;
     abort_search = 1;
     return (0);
   }
@@ -46,7 +45,6 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
   if (--next_time_check <= 0) {
     next_time_check = nodes_between_time_checks;
     if (TimeCheck(tree, 0)) {
-      abort_after_ply1 = 1;
       abort_search = 1;
       return (0);
     }
@@ -199,8 +197,8 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
  */
     tree->inchk[ply + 1] = 0;
     tree->last[ply] = tree->last[ply - 1];
-    if (do_null && alpha == beta - 1 && depth > 1 && !tree->inchk[ply] &&
-        TotalPieces(wtm, occupied)) {
+    if (do_null && alpha == beta - 1 && depth > 1 && !tree->inchk[ply]
+        && TotalPieces(wtm, occupied)) {
       uint64_t save_hash_key;
 
       tree->curmv[ply] = 0;
@@ -247,8 +245,8 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
  */
     tree->next_status[ply].phase = HASH_MOVE;
     if (!tree->hash_move[ply] && depth >= 6 && do_null && ply > 1) {
-      if (alpha == ((ply & 1) ? root_alpha : -root_beta) &&
-          beta == ((ply & 1) ? root_beta : -root_alpha)) {
+      if (alpha == ((ply & 1) ? root_alpha : -root_beta)
+          && beta == ((ply & 1) ? root_beta : -root_alpha)) {
         do {
           tree->curmv[ply] = 0;
           if (depth - 2 > 0)
@@ -307,7 +305,6 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
  *                                                          *
  ************************************************************
  */
-        begin_root_nodes = tree->nodes_searched;
         extensions = 0;
         if (Check(Flip(wtm))) {
           tree->inchk[ply + 1] = 1;
@@ -361,13 +358,13 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
  *                                                          *
  ************************************************************
  */
-        if (tree->phase[ply] == REMAINING_MOVES && !tree->inchk[ply] &&
-            !extensions && moves_searched) {
+        if (tree->phase[ply] == REMAINING_MOVES && !tree->inchk[ply]
+            && !extensions && moves_searched) {
           if (depth < pruning_depth &&
               MaterialSTM(wtm) + pruning_margin[depth] <= alpha) {
             if (Piece(tree->curmv[ply]) != pawn ||
-                !Passed(To(tree->curmv[ply]), wtm) ||
-                depth >= pp_ply[rankflip[wtm][Rank(To(tree->curmv[ply]))]]) {
+                !Passed(To(tree->curmv[ply]), wtm)
+                || depth >= pp_ply[rankflip[wtm][Rank(To(tree->curmv[ply]))]]) {
               tree->moves_pruned++;
               continue;
             }
@@ -395,8 +392,8 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
  ************************************************************
  */
           if (Piece(tree->curmv[ply]) != pawn ||
-              !Passed(To(tree->curmv[ply]), wtm) ||
-              rankflip[wtm][Rank(To(tree->curmv[ply]))] < RANK5) {
+              !Passed(To(tree->curmv[ply]), wtm)
+              || rankflip[wtm][Rank(To(tree->curmv[ply]))] < RANK5) {
             extensions =
                 Min(-Min(depth - 1 - LMR_remaining_depth,
                     (moves_searched >
@@ -458,6 +455,10 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
  ************************************************************
  */
         if (value > alpha && value < beta && moves_searched) {
+          if (ply == 1) {
+            alpha = value;
+            SearchFH(tree, wtm, value);
+          }
           extensions = Max(extensions, 0);
           if (depth + extensions - 1 > 0)
             value =
@@ -468,9 +469,6 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
           if (abort_search || tree->stop)
             break;
         }
-        if (ply == 1)
-          root_moves[tree->root_move].nodes =
-              tree->nodes_searched - begin_root_nodes;
 /*  
  ************************************************************
  *                                                          *
@@ -489,6 +487,7 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
  ************************************************************
  */
         if (value > alpha) {
+          alpha = value;
           if (ply == 1) {
             Output(tree, value, beta);
             root_value = alpha;
@@ -497,12 +496,10 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
             Killer(tree, ply, tree->curmv[ply]);
             UnmakeMove(tree, ply, tree->curmv[ply], wtm);
             HashStore(tree, ply, depth, wtm, LOWER, value, tree->curmv[ply]);
-            tree->fail_high++;
-            if (!moves_searched)
-              tree->fail_high_first++;
+            tree->fail_highs++;
+            tree->fail_high_number += moves_searched + 1;
             return (value);
           }
-          alpha = value;
         }
         if (ply == 1)
           root_value = alpha;
@@ -547,12 +544,11 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
           return (0);
         if (tree->thread_id == 0 && CheckInput())
           Interrupt(ply);
-        value = tree->search_value;
+        value = tree->value;
         if (value > alpha) {
           if (value >= beta) {
             Killer(tree, ply, tree->cutmove);
             HashStore(tree, ply, depth, wtm, LOWER, value, tree->cutmove);
-            tree->fail_high++;
             return (value);
           }
           alpha = value;
@@ -569,37 +565,9 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
  *   return either MATE or DRAW depending on whether the    *
  *   side to move is in check or not.                       *
  *                                                          *
- *   Subtle code warning.  "abort_after_ply1" is used to    *
- *   avoid aborting the search in the middle of searching   *
- *   any ply-1 move that has already been started.  Once we *
- *   reach the target time, the abort_after_ply1 flag is    *
- *   set so that any call to NextRootMove() will return a   *
- *   value of NONE, but we don't abort the other searches.  *
- *   Once all pending root moves are completed, we get to   *
- *   this point.  Any time we find abort_search or stop set *
- *   we have to get out without backing up anything.  And   *
- *   at the root, we have the additional escape where we    *
- *   find abort_after_ply1 set and we still do not want to  *
- *   overwrite anything that has not already been backed up *
- *   when we called Output() to display a new PV (if we did *
- *   this.)                                                 *
- *                                                          *
- *   When we reach time_limit abort_after_ply1 gets set to  *
- *   1 and after all currently pending ply-1 moves are      *
- *   finished, we get here.  If any produced a new best     *
- *   move, Output() has already backed the PV up to the     *
- *   ply=0 PV so we are done.  If we go over the absolute   *
- *   max time limit, abort_search is set and that will      *
- *   immediately terminate the search and get us to this    *
- *   point.  Finally, if we are in a parallel search and    *
- *   some node above this one in the tree finds a fail high *
- *   condition, that thread will set the stop flag for any  *
- *   threads working below that node, and again we get to   *
- *   this point and do not want to back up anything.        *
- *                                                          *
  ************************************************************
  */
-  if (abort_search || tree->stop || (ply == 1 && abort_after_ply1))
+  if (abort_search || tree->stop)
     return (0);
   if (moves_searched == 0) {
     value = (Check(wtm)) ? -(MATE - ply) : DrawScore(wtm);
@@ -613,8 +581,9 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
     return (value);
   } else {
     int bestmove, type;
-    bestmove = (alpha == o_alpha) ? first_tried : tree->pv[ply].path[ply];
-    type = (alpha == o_alpha) ? UPPER : EXACT;
+    bestmove =
+        (alpha == original_alpha) ? first_tried : tree->pv[ply].path[ply];
+    type = (alpha == original_alpha) ? UPPER : EXACT;
     if (repeat == 2 && alpha != -(MATE - ply - 1)) {
       value = DrawScore(wtm);
       if (value < beta)
@@ -624,10 +593,8 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
         printf("draw by 50 move rule detected, ply=%d.\n", ply);
 #endif
       return (value);
-    } else if (alpha != o_alpha) {
-      memcpy(&tree->pv[ply - 1].path[ply], &tree->pv[ply].path[ply],
-          (tree->pv[ply].pathl - ply) * sizeof(int));
-      memcpy(&tree->pv[ply - 1].pathh, &tree->pv[ply].pathh, 3);
+    } else if (alpha != original_alpha) {
+      tree->pv[ply - 1] = tree->pv[ply];
       tree->pv[ply - 1].path[ply - 1] = tree->curmv[ply - 1];
       Killer(tree, ply, tree->pv[ply].path[ply]);
     }
@@ -636,7 +603,7 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
   }
 }
 
-/* last modified 11/22/10 */
+/* last modified 06/12/13 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -653,7 +620,6 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
  */
 int SearchParallel(TREE * RESTRICT tree, int alpha, int beta, int value,
     int wtm, int depth, int ply) {
-  uint64_t begin_root_nodes;
   int extensions;
 
 /*  
@@ -702,7 +668,6 @@ int SearchParallel(TREE * RESTRICT tree, int alpha, int beta, int value,
  *                                                          *
  ************************************************************
  */
-        begin_root_nodes = tree->nodes_searched;
         extensions = 0;
         if (Check(Flip(wtm))) {
           tree->inchk[ply + 1] = 1;
@@ -756,13 +721,13 @@ int SearchParallel(TREE * RESTRICT tree, int alpha, int beta, int value,
  *                                                          *
  ************************************************************
  */
-        if (tree->phase[ply] == REMAINING_MOVES && !tree->inchk[ply] &&
-            !extensions) {
+        if (tree->phase[ply] == REMAINING_MOVES && !tree->inchk[ply]
+            && !extensions) {
           if (depth < pruning_depth &&
               MaterialSTM(wtm) + pruning_margin[depth] <= alpha) {
             if (Piece(tree->curmv[ply]) != pawn ||
-                !Passed(To(tree->curmv[ply]), wtm) ||
-                depth >= pp_ply[rankflip[wtm][Rank(To(tree->curmv[ply]))]]) {
+                !Passed(To(tree->curmv[ply]), wtm)
+                || depth >= pp_ply[rankflip[wtm][Rank(To(tree->curmv[ply]))]]) {
               tree->moves_pruned++;
               continue;
             }
@@ -790,8 +755,8 @@ int SearchParallel(TREE * RESTRICT tree, int alpha, int beta, int value,
  ************************************************************
  */
           if (Piece(tree->curmv[ply]) != pawn ||
-              !Passed(To(tree->curmv[ply]), wtm) ||
-              rankflip[wtm][Rank(To(tree->curmv[ply]))] < RANK5) {
+              !Passed(To(tree->curmv[ply]), wtm)
+              || rankflip[wtm][Rank(To(tree->curmv[ply]))] < RANK5) {
             extensions =
                 Min(-Min(depth - 1 - LMR_remaining_depth,
                     (tree->parent->moves_searched >
@@ -853,6 +818,10 @@ int SearchParallel(TREE * RESTRICT tree, int alpha, int beta, int value,
  ************************************************************
  */
         if (value > alpha && value < beta) {
+          if (ply == 1) {
+            alpha = value;
+            SearchFH(tree, wtm, value);
+          }
           extensions = Max(extensions, 0);
           if (depth + extensions - 1 > 0)
             value =
@@ -863,9 +832,6 @@ int SearchParallel(TREE * RESTRICT tree, int alpha, int beta, int value,
           if (abort_search || tree->stop)
             break;
         }
-        if (ply == 1)
-          root_moves[tree->root_move].nodes =
-              tree->nodes_searched - begin_root_nodes;
 /*
  ************************************************************
  *                                                          *
@@ -936,4 +902,89 @@ int SearchParallel(TREE * RESTRICT tree, int alpha, int beta, int value,
   if (tree->stop && ply == 1)
     root_moves[tree->root_move].status &= 255 - 16;
   return (alpha);
+}
+
+/* last modified 06/12/13 */
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   SearchFH() is called when we fail high at the root on the null-window.    *
+ *   We want to play this move no matter what, which means we need to display  *
+ *   the move as the PV as well as do the necessary bookkeeping to move it to  *
+ *   the front of the move list and update the root PV as well.                *
+ *                                                                             *
+ *******************************************************************************
+ */
+void SearchFH(TREE * RESTRICT tree, int wtm, int value) {
+  ROOT_MOVE temp_rm;
+  int i;
+  char *fh_indicator;
+
+/*
+ ************************************************************
+ *                                                          *
+ *   First, we need to move this move to the top of the     *
+ *   root move list, since this can't be the first move we  *
+ *   searched.                                              *
+ *                                                          *
+ ************************************************************
+ */
+  Lock(lock_root);
+  for (i = 0; i < n_root_moves; i++)
+    if (tree->curmv[1] == root_moves[i].move)
+      break;
+  if (i < n_root_moves) {
+    temp_rm = root_moves[i];
+    for (; i > 0; i--)
+      root_moves[i] = root_moves[i - 1];
+    root_moves[0] = temp_rm;
+  }
+  root_moves[0].bm_age = 4;
+/*
+ ************************************************************
+ *                                                          *
+ *   Next, we output this move with the normal fail-high    *
+ *   formatting.                                            *
+ *                                                          *
+ ************************************************************
+ */
+  if (tree->nodes_searched > noise_level || (tree->parent &&
+          tree->parent->nodes_searched > noise_level)) {
+    UnmakeMove(tree, 1, tree->curmv[1], wtm);
+    root_value = value;
+    if (wtm)
+      fh_indicator = "++";
+    else
+      fh_indicator = "--";
+    Lock(lock_io);
+    Print(2, "         %2i   %s     %2s   ", iteration_depth,
+        Display2Times(end_time - start_time), fh_indicator);
+    if (display_options & 64)
+      Print(2, "%d. ", move_number);
+    if ((display_options & 64) && !wtm)
+      Print(2, "... ");
+    Print(2, "%s! ", OutputMove(tree, tree->curmv[1], 1, wtm));
+    Print(2, "(%c%s)                  \n", (wtm) ? '>' : '<',
+        DisplayEvaluationKibitz(value, wtm));
+    Unlock(lock_io);
+    kibitz_text[0] = 0;
+    if (display_options & 64)
+      sprintf(kibitz_text, " %d.", move_number);
+    if ((display_options & 64) && !wtm)
+      sprintf(kibitz_text + strlen(kibitz_text), " ...");
+    sprintf(kibitz_text + strlen(kibitz_text), " %s!", OutputMove(tree,
+            tree->curmv[1], 1, wtm));
+    Kibitz(6, wtm, iteration_depth, end_time - start_time, value,
+        tree->nodes_searched, tree->egtb_probes_successful, kibitz_text);
+    MakeMove(tree, 1, tree->curmv[1], root_wtm);
+  }
+  tree->pv[1].path[1] = tree->curmv[1];
+  tree->pv[1].pathl = 2;
+  tree->pv[1].pathh = 0;
+  tree->pv[1].pathd = iteration_depth;
+  tree->pv[0] = tree->pv[1];
+  block[0]->pv[0] = tree->pv[1];
+  block[1]->pv[0] = tree->pv[1];
+  root_value = value;
+  Unlock(lock_root);
 }

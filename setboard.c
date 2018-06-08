@@ -212,10 +212,10 @@ void SetBoard(TREE * tree, int nargs, char *args[], int special) {
  *                                                          *
  ************************************************************
  */
-  if (((Castle(0, white) & 2) && (PcOnSq(A1) != rook)) ||
-      ((Castle(0, white) & 1) && (PcOnSq(H1) != rook)) ||
-      ((Castle(0, black) & 2) && (PcOnSq(A8) != -rook)) ||
-      ((Castle(0, black) & 1) && (PcOnSq(H8) != -rook))) {
+  if (((Castle(0, white) & 2) && (PcOnSq(A1) != rook))
+      || ((Castle(0, white) & 1) && (PcOnSq(H1) != rook))
+      || ((Castle(0, black) & 2) && (PcOnSq(A8) != -rook))
+      || ((Castle(0, black) & 1) && (PcOnSq(H8) != -rook))) {
     printf("ERROR-- castling status does not match board position\n");
     error = 1;
   }
@@ -226,12 +226,13 @@ void SetBoard(TREE * tree, int nargs, char *args[], int special) {
  *                                                          *
  ************************************************************
  */
-  if ((twtm && EnPassant(0) && (PcOnSq(EnPassant(0) + 8) != -pawn) &&
-          (PcOnSq(EnPassant(0) - 7) != pawn) &&
-          (PcOnSq(EnPassant(0) - 9) != pawn)) || (Flip(twtm) && EnPassant(0)
-          && (PcOnSq(EnPassant(0) - 8) != pawn) &&
-          (PcOnSq(EnPassant(0) + 7) != -pawn) &&
-          (PcOnSq(EnPassant(0) + 9) != -pawn))) {
+  if ((twtm && EnPassant(0) && (PcOnSq(EnPassant(0) + 8) != -pawn)
+          && (PcOnSq(EnPassant(0) - 7) != pawn)
+          && (PcOnSq(EnPassant(0) - 9) != pawn)) || (Flip(twtm)
+          && EnPassant(0)
+          && (PcOnSq(EnPassant(0) - 8) != pawn)
+          && (PcOnSq(EnPassant(0) + 7) != -pawn)
+          && (PcOnSq(EnPassant(0) + 9) != -pawn))) {
     EnPassant(0) = 0;
   }
   SetChessBitBoards(tree);

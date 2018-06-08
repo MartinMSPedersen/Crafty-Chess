@@ -459,7 +459,7 @@ int OOOsqs[2][3] = {{ E8, D8, C8 }, { E1, D1, C1 }};
 int OOfrom[2] = { E8, E1 };
 int OOto[2] = { G8, G1 };
 int OOOto[2] = { C8, C1 };
-#define    VERSION                             "23.5"
+#define    VERSION                             "23.6"
 char version[8] = { VERSION };
 PLAYING_MODE mode = normal_mode;
 int batch_mode = 0;             /* no asynch reads */
@@ -561,8 +561,7 @@ float book_weight_eval = 0.1;
 int book_search_trigger = 20;
 int learning = 1;
 int learn_value = 0;
-int abort_after_ply1;
-int abort_search;
+int abort_search;      /*  1 = abort / print stats, 2 = abort no print stats */
 int iteration_depth;
 int root_alpha;
 int root_beta;
@@ -571,7 +570,7 @@ int root_wtm;
 int last_root_value;
 ROOT_MOVE root_moves[256];
 int n_root_moves;
-int easy_move;
+int difficulty;
 int absolute_time_limit;
 int search_time_limit;
 int burp;
@@ -639,9 +638,9 @@ int trace_level = 0;
 /*  for the following 6 lines, each pair should have */
 /*  the same numeric value (the size value).         */
 size_t hash_table_size = 524288;
-uint64_t hash_mask = (524288 -1) >> 2;
-size_t hash_path_size = 32768;
-uint64_t hash_path_mask = (32768 - 1) >> 4;
+uint64_t hash_mask = (524288 -1) & ~3;
+size_t hash_path_size = 65536;
+uint64_t hash_path_mask = (65536 - 1) & ~15;
 size_t pawn_hash_table_size = 16384;
 uint64_t pawn_hash_mask = 16384 - 1;
 int abs_draw_score = 1;

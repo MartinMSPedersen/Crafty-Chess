@@ -1927,11 +1927,11 @@ void EPDSANEncodeAux(mptrT mptr, sanT san, ssavT ssav) {
     case p_r:
     case p_q:
       EPDSANEncodeChar(ascpv[cv_p_cpv[mptr->m_frcp]]);
-      if (((mptr->m_flag & mf_sanf) || (ssav[ssa_edcf] == 1)) ||
-          ((mptr->m_flag & mf_sanr) && (ssav[ssa_edcf] == 2)))
+      if (((mptr->m_flag & mf_sanf) || (ssav[ssa_edcf] == 1))
+          || ((mptr->m_flag & mf_sanr) && (ssav[ssa_edcf] == 2)))
         EPDSANEncodeFile(mptr->m_frsq);
-      if (((mptr->m_flag & mf_sanr) || (ssav[ssa_edcr] == 1)) ||
-          ((mptr->m_flag & mf_sanf) && (ssav[ssa_edcr] == 2)))
+      if (((mptr->m_flag & mf_sanr) || (ssav[ssa_edcr] == 1))
+          || ((mptr->m_flag & mf_sanf) && (ssav[ssa_edcr] == 2)))
         EPDSANEncodeRank(mptr->m_frsq);
       if (mptr->m_tocp != cp_v0)
         EPDSANEncodeCI(ssav[ssa_capt]);
@@ -2108,8 +2108,8 @@ static mptrT EPDSANDecodeFlex(sanT san) {
     if ((rmptr->m_scmv == scmv_cks) || (rmptr->m_scmv == scmv_cqs))
       bssav[ssa_cast] = 5;
 /* promoting */
-    if ((rmptr->m_scmv == scmv_ppn) || (rmptr->m_scmv == scmv_ppb) ||
-        (rmptr->m_scmv == scmv_ppr) || (rmptr->m_scmv == scmv_ppq))
+    if ((rmptr->m_scmv == scmv_ppn) || (rmptr->m_scmv == scmv_ppb)
+        || (rmptr->m_scmv == scmv_ppr) || (rmptr->m_scmv == scmv_ppq))
       bssav[ssa_prom] = 4;
 /* pawn destination target */
     if (cv_p_cpv[rmptr->m_frcp] == p_p)
@@ -2228,8 +2228,8 @@ static siT EPDAttack(cT c, sqT sq) {
     if (!flag) {
       dx = dx_8;
       while (!flag && (dx <= dx_f))
-        if ((*(xsqptr0 + xdvv[dx]) == cp_v0) &&
-            (*(sqptr0 + dvv[dx]) == cp_wn))
+        if ((*(xsqptr0 + xdvv[dx]) == cp_v0)
+            && (*(sqptr0 + dvv[dx]) == cp_wn))
           flag = 1;
         else
           dx++;
@@ -2268,8 +2268,8 @@ static siT EPDAttack(cT c, sqT sq) {
     if (!flag) {
       dx = dx_0;
       while (!flag && (dx <= dx_7))
-        if ((*(xsqptr0 + xdvv[dx]) == cp_v0) &&
-            (*(sqptr0 + dvv[dx]) == cp_wk))
+        if ((*(xsqptr0 + xdvv[dx]) == cp_v0)
+            && (*(sqptr0 + dvv[dx]) == cp_wk))
           flag = 1;
         else
           dx++;
@@ -2284,8 +2284,8 @@ static siT EPDAttack(cT c, sqT sq) {
     if (!flag) {
       dx = dx_8;
       while (!flag && (dx <= dx_f))
-        if ((*(xsqptr0 + xdvv[dx]) == cp_v0) &&
-            (*(sqptr0 + dvv[dx]) == cp_bn))
+        if ((*(xsqptr0 + xdvv[dx]) == cp_v0)
+            && (*(sqptr0 + dvv[dx]) == cp_bn))
           flag = 1;
         else
           dx++;
@@ -2324,8 +2324,8 @@ static siT EPDAttack(cT c, sqT sq) {
     if (!flag) {
       dx = dx_0;
       while (!flag && (dx <= dx_7))
-        if ((*(xsqptr0 + xdvv[dx]) == cp_v0) &&
-            (*(sqptr0 + dvv[dx]) == cp_bk))
+        if ((*(xsqptr0 + xdvv[dx]) == cp_v0)
+            && (*(sqptr0 + dvv[dx]) == cp_bk))
           flag = 1;
         else
           dx++;
@@ -2470,10 +2470,10 @@ nonstatic siT EPDIsLegal(void) {
   if (flag) {
     file = file_a;
     while (flag && (file <= file_h))
-      if ((EPDboard.rbm[rank_1][file] == cp_wp) ||
-          (EPDboard.rbm[rank_1][file] == cp_bp) ||
-          (EPDboard.rbm[rank_8][file] == cp_wp) ||
-          (EPDboard.rbm[rank_8][file] == cp_bp))
+      if ((EPDboard.rbm[rank_1][file] == cp_wp)
+          || (EPDboard.rbm[rank_1][file] == cp_bp)
+          || (EPDboard.rbm[rank_8][file] == cp_wp)
+          || (EPDboard.rbm[rank_8][file] == cp_bp))
         flag = 0;
       else
         file++;
@@ -2579,8 +2579,8 @@ void EPDGeneratePL(void) {
               };
             }
 /* two squares forward */
-            if ((frrank == rank_2) && Vacant(gen_m.m_frsq + dv_1) &&
-                Vacant(gen_m.m_frsq + (2 * dv_1))) {
+            if ((frrank == rank_2) && Vacant(gen_m.m_frsq + dv_1)
+                && Vacant(gen_m.m_frsq + (2 * dv_1))) {
               gen_m.m_tosq = gen_m.m_frsq + (2 * dv_1);
               gen_m.m_tocp = cp_v0;
               *treeptr++ = gen_m;
@@ -2629,8 +2629,8 @@ void EPDGeneratePL(void) {
 /* en passant */
             if ((frrank == rank_5) && (ese.ese_epsq != sq_nil)) {
 /* capture to left */
-              if ((frfile != file_a) &&
-                  ((gen_m.m_tosq = gen_m.m_frsq + dv_5) == ese.ese_epsq)) {
+              if ((frfile != file_a)
+                  && ((gen_m.m_tosq = gen_m.m_frsq + dv_5) == ese.ese_epsq)) {
                 gen_m.m_tocp = cp_v0;
                 gen_m.m_scmv = scmv_epc;
                 *treeptr++ = gen_m;
@@ -2638,8 +2638,8 @@ void EPDGeneratePL(void) {
                 gen_m.m_scmv = scmv_reg;
               };
 /* capture to right */
-              if ((frfile != file_h) &&
-                  ((gen_m.m_tosq = gen_m.m_frsq + dv_4) == ese.ese_epsq)) {
+              if ((frfile != file_h)
+                  && ((gen_m.m_tosq = gen_m.m_frsq + dv_4) == ese.ese_epsq)) {
                 gen_m.m_tocp = cp_v0;
                 gen_m.m_scmv = scmv_epc;
                 *treeptr++ = gen_m;
@@ -2666,8 +2666,8 @@ void EPDGeneratePL(void) {
               };
             }
 /* two squares forward */
-            if ((frrank == rank_7) && Vacant(gen_m.m_frsq + dv_3) &&
-                Vacant(gen_m.m_frsq + (2 * dv_3))) {
+            if ((frrank == rank_7) && Vacant(gen_m.m_frsq + dv_3)
+                && Vacant(gen_m.m_frsq + (2 * dv_3))) {
               gen_m.m_tosq = gen_m.m_frsq + (2 * dv_3);
               gen_m.m_tocp = cp_v0;
               *treeptr++ = gen_m;
@@ -2716,8 +2716,8 @@ void EPDGeneratePL(void) {
 /* en passant */
             if ((frrank == rank_4) && (ese.ese_epsq != sq_nil)) {
 /* capture to left */
-              if ((frfile != file_a) &&
-                  ((gen_m.m_tosq = gen_m.m_frsq + dv_6) == ese.ese_epsq)) {
+              if ((frfile != file_a)
+                  && ((gen_m.m_tosq = gen_m.m_frsq + dv_6) == ese.ese_epsq)) {
                 gen_m.m_tocp = cp_v0;
                 gen_m.m_scmv = scmv_epc;
                 *treeptr++ = gen_m;
@@ -2725,8 +2725,8 @@ void EPDGeneratePL(void) {
                 gen_m.m_scmv = scmv_reg;
               };
 /* capture to right */
-              if ((frfile != file_h) &&
-                  ((gen_m.m_tosq = gen_m.m_frsq + dv_7) == ese.ese_epsq)) {
+              if ((frfile != file_h)
+                  && ((gen_m.m_tosq = gen_m.m_frsq + dv_7) == ese.ese_epsq)) {
                 gen_m.m_tocp = cp_v0;
                 gen_m.m_scmv = scmv_epc;
                 *treeptr++ = gen_m;
@@ -2755,14 +2755,14 @@ void EPDGeneratePL(void) {
             xdv = xdvv[dx];
             gen_m.m_tosq = gen_m.m_frsq;
             xsqptr1 = xsqptr0;
-            while ((*(xsqptr1 += xdv) == cp_v0) &&
-                ((gen_m.m_tocp = EPDboard.rbv[gen_m.m_tosq +=
+            while ((*(xsqptr1 += xdv) == cp_v0)
+                && ((gen_m.m_tocp = EPDboard.rbv[gen_m.m_tosq +=
                             dv]) == cp_v0)) {
               *treeptr++ = gen_m;
               tse.tse_count++;
             };
-            if ((*xsqptr1 == cp_v0) &&
-                (cv_c_cpv[gen_m.m_tocp] == inv_cv[ese.ese_actc])) {
+            if ((*xsqptr1 == cp_v0)
+                && (cv_c_cpv[gen_m.m_tocp] == inv_cv[ese.ese_actc])) {
               *treeptr++ = gen_m;
               tse.tse_count++;
             };
@@ -2775,14 +2775,14 @@ void EPDGeneratePL(void) {
             xdv = xdvv[dx];
             gen_m.m_tosq = gen_m.m_frsq;
             xsqptr1 = xsqptr0;
-            while ((*(xsqptr1 += xdv) == cp_v0) &&
-                ((gen_m.m_tocp = EPDboard.rbv[gen_m.m_tosq +=
+            while ((*(xsqptr1 += xdv) == cp_v0)
+                && ((gen_m.m_tocp = EPDboard.rbv[gen_m.m_tosq +=
                             dv]) == cp_v0)) {
               *treeptr++ = gen_m;
               tse.tse_count++;
             };
-            if ((*xsqptr1 == cp_v0) &&
-                (cv_c_cpv[gen_m.m_tocp] == inv_cv[ese.ese_actc])) {
+            if ((*xsqptr1 == cp_v0)
+                && (cv_c_cpv[gen_m.m_tocp] == inv_cv[ese.ese_actc])) {
               *treeptr++ = gen_m;
               tse.tse_count++;
             };
@@ -2795,14 +2795,14 @@ void EPDGeneratePL(void) {
             xdv = xdvv[dx];
             gen_m.m_tosq = gen_m.m_frsq;
             xsqptr1 = xsqptr0;
-            while ((*(xsqptr1 += xdv) == cp_v0) &&
-                ((gen_m.m_tocp = EPDboard.rbv[gen_m.m_tosq +=
+            while ((*(xsqptr1 += xdv) == cp_v0)
+                && ((gen_m.m_tocp = EPDboard.rbv[gen_m.m_tosq +=
                             dv]) == cp_v0)) {
               *treeptr++ = gen_m;
               tse.tse_count++;
             };
-            if ((*xsqptr1 == cp_v0) &&
-                (cv_c_cpv[gen_m.m_tocp] == inv_cv[ese.ese_actc])) {
+            if ((*xsqptr1 == cp_v0)
+                && (cv_c_cpv[gen_m.m_tocp] == inv_cv[ese.ese_actc])) {
               *treeptr++ = gen_m;
               tse.tse_count++;
             };
@@ -2821,10 +2821,10 @@ void EPDGeneratePL(void) {
             };
 /* castling; process according to active color */
           if (ese.ese_actc == c_w) {
-            if ((ese.ese_cast & cf_wk) && !EPDBlackAttacks(sq_e1) &&
-                Vacant(sq_f1)
-                && !EPDBlackAttacks(sq_f1) && Vacant(sq_g1) &&
-                !EPDBlackAttacks(sq_g1)) {
+            if ((ese.ese_cast & cf_wk) && !EPDBlackAttacks(sq_e1)
+                && Vacant(sq_f1)
+                && !EPDBlackAttacks(sq_f1) && Vacant(sq_g1)
+                && !EPDBlackAttacks(sq_g1)) {
               gen_m.m_tosq = sq_g1;
               gen_m.m_tocp = cp_v0;
               gen_m.m_scmv = scmv_cks;
@@ -2832,10 +2832,10 @@ void EPDGeneratePL(void) {
               tse.tse_count++;
               gen_m.m_scmv = scmv_reg;
             };
-            if ((ese.ese_cast & cf_wq) && !EPDBlackAttacks(sq_e1) &&
-                Vacant(sq_d1)
-                && !EPDBlackAttacks(sq_d1) && Vacant(sq_c1) &&
-                !EPDBlackAttacks(sq_c1) && Vacant(sq_b1)) {
+            if ((ese.ese_cast & cf_wq) && !EPDBlackAttacks(sq_e1)
+                && Vacant(sq_d1)
+                && !EPDBlackAttacks(sq_d1) && Vacant(sq_c1)
+                && !EPDBlackAttacks(sq_c1) && Vacant(sq_b1)) {
               gen_m.m_tosq = sq_c1;
               gen_m.m_tocp = cp_v0;
               gen_m.m_scmv = scmv_cqs;
@@ -2844,10 +2844,10 @@ void EPDGeneratePL(void) {
               gen_m.m_scmv = scmv_reg;
             };
           } else {
-            if ((ese.ese_cast & cf_bk) && !EPDWhiteAttacks(sq_e8) &&
-                Vacant(sq_f8)
-                && !EPDWhiteAttacks(sq_f8) && Vacant(sq_g8) &&
-                !EPDWhiteAttacks(sq_g8)) {
+            if ((ese.ese_cast & cf_bk) && !EPDWhiteAttacks(sq_e8)
+                && Vacant(sq_f8)
+                && !EPDWhiteAttacks(sq_f8) && Vacant(sq_g8)
+                && !EPDWhiteAttacks(sq_g8)) {
               gen_m.m_tosq = sq_g8;
               gen_m.m_tocp = cp_v0;
               gen_m.m_scmv = scmv_cks;
@@ -2855,10 +2855,10 @@ void EPDGeneratePL(void) {
               tse.tse_count++;
               gen_m.m_scmv = scmv_reg;
             };
-            if ((ese.ese_cast & cf_bq) && !EPDWhiteAttacks(sq_e8) &&
-                Vacant(sq_d8)
-                && !EPDWhiteAttacks(sq_d8) && Vacant(sq_c8) &&
-                !EPDWhiteAttacks(sq_c8) && Vacant(sq_b8)) {
+            if ((ese.ese_cast & cf_bq) && !EPDWhiteAttacks(sq_e8)
+                && Vacant(sq_d8)
+                && !EPDWhiteAttacks(sq_d8) && Vacant(sq_c8)
+                && !EPDWhiteAttacks(sq_c8) && Vacant(sq_b8)) {
               gen_m.m_tosq = sq_c8;
               gen_m.m_tocp = cp_v0;
               gen_m.m_scmv = scmv_cqs;
@@ -2878,9 +2878,9 @@ void EPDGeneratePL(void) {
 static siT EPDSameMoveRef(mptrT mptr0, mptrT mptr1) {
   siT flag;
 
-  if ((mptr0->m_tosq == mptr1->m_tosq) && (mptr0->m_frsq == mptr1->m_frsq) &&
-      (mptr0->m_frcp == mptr1->m_frcp) && (mptr0->m_tocp == mptr1->m_tocp) &&
-      (mptr0->m_scmv == mptr1->m_scmv))
+  if ((mptr0->m_tosq == mptr1->m_tosq) && (mptr0->m_frsq == mptr1->m_frsq)
+      && (mptr0->m_frcp == mptr1->m_frcp) && (mptr0->m_tocp == mptr1->m_tocp)
+      && (mptr0->m_scmv == mptr1->m_scmv))
     flag = 1;
   else
     flag = 0;
@@ -3001,32 +3001,32 @@ void EPDExecute(mptrT mptr) {
 /* set values for updated environment record: castling availablity */
   if (ese.ese_cast != 0) {
     if (ese.ese_cast & cf_wk)
-      if ((mptr->m_frsq == sq_e1) || (mptr->m_frsq == sq_h1) ||
-          (mptr->m_tosq == sq_h1))
+      if ((mptr->m_frsq == sq_e1) || (mptr->m_frsq == sq_h1)
+          || (mptr->m_tosq == sq_h1))
         ese.ese_cast &= ~cf_wk;
     if (ese.ese_cast & cf_wq)
-      if ((mptr->m_frsq == sq_e1) || (mptr->m_frsq == sq_a1) ||
-          (mptr->m_tosq == sq_a1))
+      if ((mptr->m_frsq == sq_e1) || (mptr->m_frsq == sq_a1)
+          || (mptr->m_tosq == sq_a1))
         ese.ese_cast &= ~cf_wq;
     if (ese.ese_cast & cf_bk)
-      if ((mptr->m_frsq == sq_e8) || (mptr->m_frsq == sq_h8) ||
-          (mptr->m_tosq == sq_h8))
+      if ((mptr->m_frsq == sq_e8) || (mptr->m_frsq == sq_h8)
+          || (mptr->m_tosq == sq_h8))
         ese.ese_cast &= ~cf_bk;
     if (ese.ese_cast & cf_bq)
-      if ((mptr->m_frsq == sq_e8) || (mptr->m_frsq == sq_a8) ||
-          (mptr->m_tosq == sq_a8))
+      if ((mptr->m_frsq == sq_e8) || (mptr->m_frsq == sq_a8)
+          || (mptr->m_tosq == sq_a8))
         ese.ese_cast &= ~cf_bq;
   };
 /* set values for updated environment record: en passant */
   if (ese.ese_actc == c_b) {
-    if ((mptr->m_frcp == cp_wp) && (map_rank(mptr->m_frsq) == rank_2) &&
-        (map_rank(mptr->m_tosq) == rank_4))
+    if ((mptr->m_frcp == cp_wp) && (map_rank(mptr->m_frsq) == rank_2)
+        && (map_rank(mptr->m_tosq) == rank_4))
       ese.ese_epsq = mptr->m_frsq + dv_1;
     else
       ese.ese_epsq = sq_nil;
   } else {
-    if ((mptr->m_frcp == cp_bp) && (map_rank(mptr->m_frsq) == rank_7) &&
-        (map_rank(mptr->m_tosq) == rank_5))
+    if ((mptr->m_frcp == cp_bp) && (map_rank(mptr->m_frsq) == rank_7)
+        && (map_rank(mptr->m_tosq) == rank_5))
       ese.ese_epsq = mptr->m_frsq + dv_3;
     else
       ese.ese_epsq = sq_nil;
@@ -3230,8 +3230,8 @@ void EPDMLDisambiguate(void) {
       mptr1 = tse.tse_base;
       for (j = 0; j < tse.tse_count; j++) {
 /* the inner loop examines all possible sibling puns */
-        if ((i != j) && (mptr0->m_frcp == mptr1->m_frcp) &&
-            (mptr0->m_tosq == mptr1->m_tosq)) {
+        if ((i != j) && (mptr0->m_frcp == mptr1->m_frcp)
+            && (mptr0->m_tosq == mptr1->m_tosq)) {
           tmc++;
           if (map_rank(mptr1->m_frsq) == rank)
             rmc++;
@@ -4224,8 +4224,8 @@ nonstatic siT EPDComm(refintptrT refintptr, charptrT pipebase) {
     else {
 /* decode the message */
       epdptr1 = EPDDecode(ev);
-      if ((epdptr1 == NULL) ||
-          ((refcom = EPDExtractRefcomIndex(epdptr1)) == refcom_nil))
+      if ((epdptr1 == NULL)
+          || ((refcom = EPDExtractRefcomIndex(epdptr1)) == refcom_nil))
         flag = 0;
       else {
 /* send the message to the callback routine */

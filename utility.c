@@ -757,12 +757,12 @@ void DisplayPV(TREE * RESTRICT tree, int level, int wtm, int time, int value,
     sprintf(buffer + strlen(buffer), " (s=%d)", nskip);
   if (root_print_ok) {
     Lock(lock_io);
-    Print(type, "               ");
+    Print(type, "         ");
     if (level == 6)
-      Print(type, "%2i   %s%s   ", iteration_depth, DisplayTime(time),
+      Print(type, "%2i   %s%s   ", iteration_depth, Display2Times(time),
           DisplayEvaluation(value, twtm));
     else
-      Print(type, "%2i-> %s%s   ", iteration_depth, DisplayTime(time),
+      Print(type, "%2i-> %s%s   ", iteration_depth, Display2Times(time),
           DisplayEvaluation(value, twtm));
     buffp = buffer + 1;
     do {
@@ -775,7 +775,7 @@ void DisplayPV(TREE * RESTRICT tree, int level, int wtm, int time, int value,
       Print(type, "%s\n", buffp);
       buffp = bufftemp + 1;
       if (bufftemp)
-        Print(type, "                                    ");
+        Print(type, "                                     ");
     } while (bufftemp);
     Kibitz(level, twtm, iteration_depth, end_time - start_time, value,
         tree->nodes_searched, tree->egtb_probes_successful, kibitz_text);
@@ -863,6 +863,54 @@ char *DisplayTime(unsigned int time) {
     time = time / 100;
     sprintf(out, "%3u:%02u", time / 60, time % 60);
   }
+  return (out);
+}
+
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   Display2Times() is used to display search times, and shows times in one   *
+ *   of two ways depending on the value passed in.  If less than 60 seconds is *
+ *   to be displayed, it is displayed as a decimal fraction like 32.7, while   *
+ *   if more than 60 seconds is to be displayed, it is converted to the more   *
+ *   traditional mm:ss form.  The string it produces is of fixed length to     *
+ *   provide neater screen formatting.                                         *
+ *                                                                             *
+ *   The second argument is the "difficulty" value which lets us display the   *
+ *   target time (as modified by difficulty) so that it is possible to know    *
+ *   roughly when the move will be announced.                                  *
+ *                                                                             *
+ *******************************************************************************
+ */
+char *Display2Times(unsigned int time) {
+  static char out[20], tout[10];
+  int ttime;
+  int c, spaces;
+
+  if (time < 6000)
+    sprintf(out, "%6.2f", (float) time / 100.0);
+  else {
+    time = time / 100;
+    sprintf(out, "%3u:%02u", time / 60, time % 60);
+  }
+  if (search_time_limit)
+    ttime = search_time_limit;
+  else
+    ttime = difficulty * time_limit / 100;
+  if (ttime < 360000) {
+    if (ttime < 6000)
+      sprintf(tout, "%6.2f", (float) ttime / 100.0);
+    else {
+      ttime = ttime / 100;
+      sprintf(tout, "%3u:%02u", ttime / 60, ttime % 60);
+    }
+    c = strspn(tout, " ");
+    strcat(out, "/");
+    strcat(out, tout + c);
+  }
+  spaces = 13 - strlen(out);
+  for (c = 0; c < spaces; c++)
+    strcat(out, " ");
   return (out);
 }
 
@@ -1548,8 +1596,6 @@ void NewGame(int save) {
     predicted = 0;
     kibitz_depth = 0;
     tree->nodes_searched = 0;
-    tree->fail_high = 0;
-    tree->fail_high_first = 0;
     kibitz_text[0] = 0;
   }
 }
@@ -1918,8 +1964,8 @@ int ReadChessMove(TREE * RESTRICT tree, FILE * input, int wtm, int one_move) {
     else
       tmove = text;
     if (((tmove[0] >= 'a' && tmove[0] <= 'z') || (tmove[0] >= 'A' &&
-                tmove[0] <= 'Z')) || !strcmp(tmove, "0-0") ||
-        !strcmp(tmove, "0-0-0")) {
+                tmove[0] <= 'Z')) || !strcmp(tmove, "0-0")
+        || !strcmp(tmove, "0-0-0")) {
       if (!strcmp(tmove, "exit"))
         return (-1);
       move = InputMove(tree, tmove, 0, wtm, 1, 0);
@@ -1948,8 +1994,8 @@ int ReadNextMove(TREE * RESTRICT tree, char *text, int ply, int wtm) {
   else
     tmove = text;
   if (((tmove[0] >= 'a' && tmove[0] <= 'z') || (tmove[0] >= 'A' &&
-              tmove[0] <= 'Z')) || !strcmp(tmove, "0-0") ||
-      !strcmp(tmove, "0-0-0")) {
+              tmove[0] <= 'Z')) || !strcmp(tmove, "0-0")
+      || !strcmp(tmove, "0-0-0")) {
     if (!strcmp(tmove, "exit"))
       return (-1);
     move = InputMove(tree, tmove, ply, wtm, 1, 0);
@@ -2366,8 +2412,8 @@ void Output(TREE * RESTRICT tree, int value, int bound) {
       for (; i > 0; i--)
         root_moves[i] = root_moves[i - 1];
       root_moves[0] = temp_rm;
-      easy_move = 0;
     }
+    root_moves[0].bm_age = 4;
     end_time = ReadClock();
 /*
  ************************************************************
@@ -2497,16 +2543,16 @@ int ValidMove(TREE * RESTRICT tree, int ply, int wtm, int move) {
       if (Abs(From(move) - To(move)) == 2) {
         if (Castle(ply, wtm) > 0) {
           if (To(move) == csq[wtm]) {
-            if ((!(Castle(ply, wtm) & 2)) || (OccupiedSquares & OOO[wtm]) ||
-                (AttacksTo(tree, csq[wtm]) & Occupied(btm)) ||
-                (AttacksTo(tree, dsq[wtm]) & Occupied(btm)) ||
-                (AttacksTo(tree, esq[wtm]) & Occupied(btm)))
+            if ((!(Castle(ply, wtm) & 2)) || (OccupiedSquares & OOO[wtm])
+                || (AttacksTo(tree, csq[wtm]) & Occupied(btm))
+                || (AttacksTo(tree, dsq[wtm]) & Occupied(btm))
+                || (AttacksTo(tree, esq[wtm]) & Occupied(btm)))
               return (0);
           } else if (To(move) == gsq[wtm]) {
-            if ((!(Castle(ply, wtm) & 1)) || (OccupiedSquares & OO[wtm]) ||
-                (AttacksTo(tree, esq[wtm]) & Occupied(btm)) ||
-                (AttacksTo(tree, fsq[wtm]) & Occupied(btm)) ||
-                (AttacksTo(tree, gsq[wtm]) & Occupied(btm)))
+            if ((!(Castle(ply, wtm) & 1)) || (OccupiedSquares & OO[wtm])
+                || (AttacksTo(tree, esq[wtm]) & Occupied(btm))
+                || (AttacksTo(tree, fsq[wtm]) & Occupied(btm))
+                || (AttacksTo(tree, gsq[wtm]) & Occupied(btm)))
               return (0);
           }
         } else
@@ -2546,9 +2592,9 @@ int ValidMove(TREE * RESTRICT tree, int ply, int wtm, int move) {
  *                                                          *
  ************************************************************
  */
-      if ((PcOnSq(To(move)) == 0) &&
-          (PcOnSq(To(move) + epdir[wtm]) == ((wtm) ? -pawn : pawn)) &&
-          (EnPassantTarget(ply) & SetMask(To(move))))
+      if ((PcOnSq(To(move)) == 0)
+          && (PcOnSq(To(move) + epdir[wtm]) == ((wtm) ? -pawn : pawn))
+          && (EnPassantTarget(ply) & SetMask(To(move))))
         return (1);
       break;
 /*
@@ -2576,8 +2622,8 @@ int ValidMove(TREE * RESTRICT tree, int ply, int wtm, int move) {
  *                                                          *
  ************************************************************
  */
-  if ((Captured(move) == ((wtm) ? -PcOnSq(To(move)) : PcOnSq(To(move)))) &&
-      Captured(move) != king)
+  if ((Captured(move) == ((wtm) ? -PcOnSq(To(move)) : PcOnSq(To(move))))
+      && Captured(move) != king)
     return (1);
   return (0);
 }
@@ -2684,8 +2730,8 @@ static void WinNumaInit(void) {
             pSetThreadIdealProcessor(GetCurrentThread(), MAXIMUM_PROCESSORS);
         printf("Current ideal CPU is %u\n", dwCPU);
         pSetThreadIdealProcessor(GetCurrentThread(), dwCPU);
-        if ((((DWORD) - 1) != dwCPU) && (MAXIMUM_PROCESSORS != dwCPU) &&
-            !(ullProcessorMask[0] & (1u << dwCPU))) {
+        if ((((DWORD) - 1) != dwCPU) && (MAXIMUM_PROCESSORS != dwCPU)
+            && !(ullProcessorMask[0] & (1u << dwCPU))) {
           for (ulNode = 1; ulNode <= ulNumaNodes; ulNode++) {
             if (ullProcessorMask[ulNode] & (1u << dwCPU)) {
               printf("Exchanging nodes 0 and %d\n", ulNode);

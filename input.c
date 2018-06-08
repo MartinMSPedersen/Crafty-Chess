@@ -54,9 +54,9 @@ int InputMove(TREE * RESTRICT tree, char *text, int ply, int wtm, int silent,
  */
   if (strlen(text) == 0)
     return (0);
-  if ((text[0] >= 'a') && (text[0] <= 'h') && (text[1] >= '1') &&
-      (text[1] <= '8') && (text[2] >= 'a') && (text[2] <= 'h') &&
-      (text[3] >= '1') && (text[3] <= '8'))
+  if ((text[0] >= 'a') && (text[0] <= 'h') && (text[1] >= '1')
+      && (text[1] <= '8') && (text[2] >= 'a') && (text[2] <= 'h')
+      && (text[3] >= '1') && (text[3] <= '8'))
     return (InputMoveICS(tree, text, ply, wtm, silent, ponder_list));
 /*
  ************************************************************
@@ -89,9 +89,9 @@ int InputMove(TREE * RESTRICT tree, char *text, int ply, int wtm, int silent,
  *                                                          *
  ************************************************************
  */
-  if (!strcmp(movetext, "o-o") || !strcmp(movetext, "o-o+") ||
-      !strcmp(movetext, "O-O") || !strcmp(movetext, "O-O+") ||
-      !strcmp(movetext, "0-0") || !strcmp(movetext, "0-0+")) {
+  if (!strcmp(movetext, "o-o") || !strcmp(movetext, "o-o+")
+      || !strcmp(movetext, "O-O") || !strcmp(movetext, "O-O+")
+      || !strcmp(movetext, "0-0") || !strcmp(movetext, "0-0+")) {
     piece = king;
     if (wtm) {
       ffile = 4;
@@ -104,9 +104,9 @@ int InputMove(TREE * RESTRICT tree, char *text, int ply, int wtm, int silent,
       tfile = 6;
       trank = 7;
     }
-  } else if (!strcmp(movetext, "o-o-o") || !strcmp(movetext, "o-o-o+") ||
-      !strcmp(movetext, "O-O-O") || !strcmp(movetext, "O-O-O+") ||
-      !strcmp(movetext, "0-0-0") || !strcmp(movetext, "0-0-0+")) {
+  } else if (!strcmp(movetext, "o-o-o") || !strcmp(movetext, "o-o-o+")
+      || !strcmp(movetext, "O-O-O") || !strcmp(movetext, "O-O-O+")
+      || !strcmp(movetext, "0-0-0") || !strcmp(movetext, "0-0-0+")) {
     piece = king;
     if (wtm) {
       ffile = 4;
@@ -381,8 +381,8 @@ int InputMoveICS(TREE * RESTRICT tree, char *text, int ply, int wtm,
  *                                                          *
  ************************************************************
  */
-  if (!strcmp(movetext, "o-o") || !strcmp(movetext, "O-O") ||
-      !strcmp(movetext, "0-0")) {
+  if (!strcmp(movetext, "o-o") || !strcmp(movetext, "O-O")
+      || !strcmp(movetext, "0-0")) {
     piece = king;
     if (wtm) {
       ffile = 4;
@@ -395,8 +395,8 @@ int InputMoveICS(TREE * RESTRICT tree, char *text, int ply, int wtm,
       tfile = 6;
       trank = 7;
     }
-  } else if (!strcmp(movetext, "o-o-o") || !strcmp(movetext, "O-O-O") ||
-      !strcmp(movetext, "0-0-0")) {
+  } else if (!strcmp(movetext, "o-o-o") || !strcmp(movetext, "O-O-O")
+      || !strcmp(movetext, "0-0-0")) {
     piece = king;
     if (wtm) {
       ffile = 4;

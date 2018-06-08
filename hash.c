@@ -1,6 +1,6 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 10/05/10 */
+/* last modified 11/05/12 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -59,9 +59,9 @@
 int HashProbe(TREE * RESTRICT tree, int ply, int depth, int wtm, int alpha,
     int beta, int *value) {
   HASH_ENTRY *htable;
-  HPATH_ENTRY *pv_index;
+  HPATH_ENTRY *ptable;
   uint64_t word1, word2, temp_hashkey;
-  int type, draft, avoid_null = 0, val, entry, i;
+  int type, draft, avoid_null = 0, val, entry, i, j;
 
 /*
  ************************************************************
@@ -75,7 +75,7 @@ int HashProbe(TREE * RESTRICT tree, int ply, int depth, int wtm, int alpha,
  */
   tree->hash_move[ply] = 0;
   temp_hashkey = (wtm) ? HashKey : ~HashKey;
-  htable = trans_ref + 4 * (temp_hashkey & hash_mask);
+  htable = trans_ref + (temp_hashkey & hash_mask);
   for (entry = 0; entry < 4; entry++, htable++) {
     word1 = htable->word1;
     word2 = htable->word2 ^ word1;
@@ -150,18 +150,19 @@ int HashProbe(TREE * RESTRICT tree, int ply, int depth, int wtm, int alpha,
         case EXACT:
           if (val > alpha && val < beta) {
             SavePV(tree, ply, 1 + (draft == MAX_DRAFT));
-            pv_index = hash_path + 16 * (word2 & hash_path_mask);
-            for (i = 0; i < 16; i++, pv_index++)
-              if (pv_index->path_sig == word2) {
-                for (i = ply; i < Min(MAXPLY - 1, pv_index->hash_pathl + ply);
-                    i++)
-                  tree->pv[ply - 1].path[i] = pv_index->hash_path[i - ply];
+            ptable = hash_path + (temp_hashkey & hash_path_mask);
+            for (i = 0; i < 16; i++, ptable++)
+              if (ptable->path_sig == temp_hashkey) {
+                for (j = ply; j < Min(MAXPLY - 1, ptable->hash_pathl + ply);
+                    j++)
+                  tree->pv[ply - 1].path[j] =
+                      ptable->hash_path_moves[j - ply];
                 if (draft != MAX_DRAFT &&
-                    pv_index->hash_pathl + ply < MAXPLY - 1)
+                    ptable->hash_pathl + ply < MAXPLY - 1)
                   tree->pv[ply - 1].pathh = 0;
                 tree->pv[ply - 1].pathl =
-                    Min(MAXPLY - 1, ply + pv_index->hash_pathl);
-                pv_index->hash_path_age = transposition_age;
+                    Min(MAXPLY - 1, ply + ptable->hash_pathl);
+                ptable->hash_path_age = transposition_age;
                 break;
               }
           }
@@ -181,7 +182,7 @@ int HashProbe(TREE * RESTRICT tree, int ply, int depth, int wtm, int alpha,
   return (HASH_MISS);
 }
 
-/* last modified 10/05/10 */
+/* last modified 11/05/12 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -221,9 +222,9 @@ int HashProbe(TREE * RESTRICT tree, int ply, int depth, int wtm, int alpha,
 void HashStore(TREE * RESTRICT tree, int ply, int depth, int wtm, int type,
     int value, int bestmove) {
   HASH_ENTRY *htable, *replace = 0;
-  HPATH_ENTRY *pv_index;
-  uint64_t word1, word2;
-  int entry, draft, age, replace_draft, i;
+  HPATH_ENTRY *ptable;
+  uint64_t word1, temp_hashkey;
+  int entry, draft, age, replace_draft, i, j;
 
 /*
  ************************************************************
@@ -242,7 +243,7 @@ void HashStore(TREE * RESTRICT tree, int ply, int depth, int wtm, int type,
   word1 = (word1 << 21) | bestmove;
   word1 = (word1 << 15) | depth;
   word1 = (word1 << 17) | (value + 65536);
-  word2 = (wtm) ? HashKey : ~HashKey;
+  temp_hashkey = (wtm) ? HashKey : ~HashKey;
 /*
  ************************************************************
  *                                                          *
@@ -272,16 +273,16 @@ void HashStore(TREE * RESTRICT tree, int ply, int depth, int wtm, int type,
  *                                                          *
  ************************************************************
  */
-  htable = trans_ref + 4 * (word2 & hash_mask);
+  htable = trans_ref + (temp_hashkey & hash_mask);
   for (entry = 0; entry < 4; entry++, htable++) {
-    if (word2 == (htable->word1 ^ htable->word2)) {
+    if (temp_hashkey == (htable->word1 ^ htable->word2)) {
       replace = htable;
       break;
     }
   }
   if (!replace) {
     replace_draft = 99999;
-    htable = trans_ref + 4 * (word2 & hash_mask);
+    htable = trans_ref + (temp_hashkey & hash_mask);
     for (entry = 0; entry < 4; entry++, htable++) {
       age = htable->word1 >> 55;
       draft = (htable->word1 >> 17) & 0x7fff;
@@ -291,7 +292,7 @@ void HashStore(TREE * RESTRICT tree, int ply, int depth, int wtm, int type,
       }
     }
     if (!replace) {
-      htable = trans_ref + 4 * (word2 & hash_mask);
+      htable = trans_ref + (temp_hashkey & hash_mask);
       for (entry = 0; entry < 4; entry++, htable++) {
         draft = (htable->word1 >> 17) & 0x7fff;
         if (replace_draft > draft) {
@@ -312,7 +313,7 @@ void HashStore(TREE * RESTRICT tree, int ply, int depth, int wtm, int type,
  ************************************************************
  */
   replace->word1 = word1;
-  replace->word2 = word2 ^ word1;
+  replace->word2 = temp_hashkey ^ word1;
 /*
  ************************************************************
  *                                                          *
@@ -323,22 +324,23 @@ void HashStore(TREE * RESTRICT tree, int ply, int depth, int wtm, int type,
  *                                                          *
  ************************************************************
  */
-  if (type == EXACT && bestmove) {
-    pv_index = hash_path + 16 * (word2 & hash_path_mask);
-    for (i = 0; i < 16; i++, pv_index++)
-      if (pv_index->path_sig == word2 ||
-          pv_index->hash_path_age != transposition_age) {
-        for (i = ply; i < tree->pv[ply - 1].pathl; i++)
-          pv_index->hash_path[i - ply] = tree->pv[ply - 1].path[i];
-        pv_index->hash_pathl = tree->pv[ply - 1].pathl - ply;
-        pv_index->path_sig = word2;
-        pv_index->hash_path_age = transposition_age;
+  if (type == EXACT) {
+    ptable = hash_path + (temp_hashkey & hash_path_mask);
+    for (i = 0; i < 16; i++, ptable++) {
+      if (ptable->path_sig == temp_hashkey ||
+          ((transposition_age - ptable->hash_path_age) > 1)) {
+        for (j = ply; j < tree->pv[ply - 1].pathl; j++)
+          ptable->hash_path_moves[j - ply] = tree->pv[ply - 1].path[j];
+        ptable->hash_pathl = tree->pv[ply - 1].pathl - ply;
+        ptable->path_sig = temp_hashkey;
+        ptable->hash_path_age = transposition_age;
         break;
       }
+    }
   }
 }
 
-/* last modified 10/05/10 */
+/* last modified 11/05/12 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -350,9 +352,9 @@ void HashStore(TREE * RESTRICT tree, int ply, int depth, int wtm, int type,
  *                                                                             *
  *******************************************************************************
  */
-void HashStorePV(TREE * RESTRICT tree, int wtm, int bestmove) {
+void HashStorePV(TREE * RESTRICT tree, int wtm, int ply) {
   HASH_ENTRY *htable, *replace;
-  uint64_t temp_hashkey, word1, word2;
+  uint64_t temp_hashkey, word1;
   int entry, draft, replace_draft, age;
 
 /*
@@ -367,9 +369,8 @@ void HashStorePV(TREE * RESTRICT tree, int wtm, int bestmove) {
   temp_hashkey = (wtm) ? HashKey : ~HashKey;
   word1 = transposition_age;
   word1 = (word1 << 9) | WORTHLESS;
-  word1 = (word1 << 23) | bestmove;
+  word1 = (word1 << 23) | tree->pv[0].path[ply];
   word1 = (word1 << 32) | 65536;
-  word2 = temp_hashkey ^ word1;
 /*
  ************************************************************
  *                                                          *
@@ -399,17 +400,17 @@ void HashStorePV(TREE * RESTRICT tree, int wtm, int bestmove) {
  *                                                          *
  ************************************************************
  */
-  htable = trans_ref + 4 * (temp_hashkey & hash_mask);
+  htable = trans_ref + (temp_hashkey & hash_mask);
   for (entry = 0; entry < 4; entry++, htable++) {
     if ((htable->word2 ^ htable->word1) == temp_hashkey) {
       htable->word1 &= ~((uint64_t) 0x1fffff << 32);
-      htable->word1 |= (uint64_t) bestmove << 32;
+      htable->word1 |= (uint64_t) tree->pv[0].path[ply] << 32;
       htable->word2 = temp_hashkey ^ htable->word1;
       break;
     }
   }
   if (entry == 4) {
-    htable = trans_ref + 4 * (word2 & hash_mask);
+    htable = trans_ref + (temp_hashkey & hash_mask);
     replace = 0;
     replace_draft = 99999;
     for (entry = 0; entry < 4; entry++, htable++) {
@@ -421,7 +422,7 @@ void HashStorePV(TREE * RESTRICT tree, int wtm, int bestmove) {
       }
     }
     if (!replace) {
-      htable = trans_ref + 4 * (word2 & hash_mask);
+      htable = trans_ref + (temp_hashkey & hash_mask);
       for (entry = 0; entry < 4; entry++, htable++) {
         draft = (htable->word1 >> 17) & 0x7fff;
         if (replace_draft > draft) {
@@ -431,6 +432,6 @@ void HashStorePV(TREE * RESTRICT tree, int wtm, int bestmove) {
       }
     }
     replace->word1 = word1;
-    replace->word2 = word2;
+    replace->word2 = temp_hashkey ^ word1;
   }
 }

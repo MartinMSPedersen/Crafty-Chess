@@ -7,7 +7,7 @@
 #  include <signal.h>
 #endif
 #include "epdglue.h"
-/* last modified 02/15/10 */
+/* last modified 11/05/12 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -113,7 +113,7 @@ int Option(TREE * RESTRICT tree) {
  */
   else if (OptionMatch("adaptive", *args)) {
     if (nargs != 6) {
-      printf("usage:  adaptive NPS min max\n");
+      printf("usage:  adaptive NPS hmin hmax pmin pmax\n");
       return (1);
     }
     if (nargs > 1) {
@@ -433,7 +433,7 @@ int Option(TREE * RESTRICT tree) {
  *    32 -> display root moves as they are searched.        *
  *    64 -> display move numbers in the PV output.          *
  *   128 -> display general informational messages.         *
- *   256 -> display ply-1 move node counts after each       *
+ *   256 -> display ply-1 move list / flags after each      *
  *          iteration.                                      *
  *   512 -> display ply-1 moves and positional evaluations  *
  *                                                          *
@@ -491,13 +491,12 @@ int Option(TREE * RESTRICT tree) {
         } else if (OptionMatch("nogeneral", args[1])) {
           display_options &= 4095 - 128;
           Print(128, "don't display informational messages.\n");
-        } else if (OptionMatch("nodes", args[1])) {
+        } else if (OptionMatch("movelist", args[1])) {
           display_options |= 256;
-          Print(128, "display ply-1 node counts after each iteration.\n");
-        } else if (OptionMatch("nonodes", args[1])) {
+          Print(128, "display ply-1 move list after each iteration.\n");
+        } else if (OptionMatch("nomovelist", args[1])) {
           display_options &= 4095 - 256;
-          Print(128,
-              "don't display ply-1 node counts after each iteration.\n");
+          Print(128, "don't display ply-1 move list after each iteration.\n");
         } else if (OptionMatch("ply1", args[1])) {
           display_options |= 512;
           Print(128, "display ply-1 moves/evaluations.\n");
@@ -984,7 +983,7 @@ int Option(TREE * RESTRICT tree) {
         hash_table_size = 0;
         trans_ref = 0;
       }
-      hash_mask = (1ull << (MSB((uint64_t) hash_table_size) - 2)) - 1;
+      hash_mask = ((1ull << (MSB((uint64_t) hash_table_size) - 2)) - 1) << 2;
       InitializeHashTables();
     }
     Print(128, "hash table memory = %s bytes",
@@ -1009,6 +1008,7 @@ int Option(TREE * RESTRICT tree) {
  */
   else if (OptionMatch("phash", *args)) {
     size_t new_hash_size;
+    int i;
 
     if (thinking || pondering)
       return (2);
@@ -1026,7 +1026,9 @@ int Option(TREE * RESTRICT tree) {
         hash_path_size = 0;
         hash_path = 0;
       }
-      hash_path_mask = (1ull << MSB((uint64_t) hash_path_size / 16)) - 1;
+      hash_path_mask = (hash_path_size - 1) & ~15;
+      for (i = 0; i < hash_path_size; i++)
+        (hash_path + i)->hash_path_age = -99;
     }
     Print(128, "hash path table memory = %s bytes",
         PrintKM(hash_path_size * sizeof(HPATH_ENTRY), 1));
@@ -1327,7 +1329,7 @@ int Option(TREE * RESTRICT tree) {
       TimeSet(tree, think);
       time_limit /= 100;
       positions_per_move = time_limit * adaptive_hash / 16;
-      optimal_hash_size = positions_per_move * 16 * 2;
+      optimal_hash_size = positions_per_move * 16;
       printf("optimal=%d\n", optimal_hash_size);
       optimal_hash_size = Max(optimal_hash_size, adaptive_hash_min);
       optimal_hash_size = Min(optimal_hash_size, adaptive_hash_max);
@@ -1744,8 +1746,8 @@ int Option(TREE * RESTRICT tree) {
     smp_max_thread_group = atoi(args[1]);
     Print(128, "maximum thread group size set to %d.\n",
         smp_max_thread_group);
-  } else if (OptionMatch("smpmt", *args) || OptionMatch("mt", *args) ||
-      OptionMatch("cores", *args)) {
+  } else if (OptionMatch("smpmt", *args) || OptionMatch("mt", *args)
+      || OptionMatch("cores", *args)) {
     int proc;
 
     if (nargs < 2) {

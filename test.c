@@ -253,14 +253,14 @@ void TestEPD(char *filename) {
     mvs = strstr(buffer, " bm ");
     if (!mvs)
       mvs = strstr(buffer, " am ");
-    if (!mvs) {
-      Print(4095, "Error am/bm field missing, input string follows\n%s\n",
+    if (!mvs)
+      Print(4095, "Warning. am/bm field missing, input string follows\n%s\n",
           buffer);
-      continue;
-    }
-    mvs++;
+    if (mvs)
+      mvs++;
     title = strstr(buffer, "id");
-    *(mvs - 1) = 0;
+    if (mvs)
+      *(mvs - 1) = 0;
     if (title)
       *(title - 1) = 0;
     if (title) {
@@ -284,26 +284,28 @@ void TestEPD(char *filename) {
           "========================\n");
     }
     Option(tree);
-    nargs = ReadParse(mvs, args, " ;");
-    number_of_solutions = 0;
-    solution_type = 0;
-    if (!strcmp(args[0], "am"))
-      solution_type = 1;
-    Print(4095, "solution ");
-    for (i = 1; i < nargs; i++) {
-      if (!strcmp(args[i], "c0"))
-        break;
-      move = InputMove(tree, args[i], 0, game_wtm, 0, 0);
-      if (move) {
-        solutions[number_of_solutions] = move;
-        Print(4095, "%d. %s", (number_of_solutions++) + 1, OutputMove(tree,
-                move, 0, game_wtm));
-        if (solution_type == 1)
-          Print(4095, "? ");
-        else
-          Print(4095, "  ");
-      } else
-        DisplayChessBoard(stdout, tree->pos);
+    if (mvs) {
+      nargs = ReadParse(mvs, args, " ;");
+      number_of_solutions = 0;
+      solution_type = 0;
+      if (!strcmp(args[0], "am"))
+        solution_type = 1;
+      Print(4095, "solution ");
+      for (i = 1; i < nargs; i++) {
+        if (!strcmp(args[i], "c0"))
+          break;
+        move = InputMove(tree, args[i], 0, game_wtm, 0, 0);
+        if (move) {
+          solutions[number_of_solutions] = move;
+          Print(4095, "%d. %s", (number_of_solutions++) + 1, OutputMove(tree,
+                  move, 0, game_wtm));
+          if (solution_type == 1)
+            Print(4095, "? ");
+          else
+            Print(4095, "  ");
+        } else
+          DisplayChessBoard(stdout, tree->pos);
+      }
     }
     Print(4095, "\n");
     InitializeHashTables();

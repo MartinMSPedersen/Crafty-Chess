@@ -130,9 +130,9 @@ linux:
 	$(MAKE) target=LINUX \
 		CC=gcc CXX=g++ \
 		CFLAGS='$(CFLAGS) -Wall -pipe -O3 \
-			-pg -fno-gcse -mpreferred-stack-boundary=8' \
+			-fno-gcse -mpreferred-stack-boundary=8' \
 		CXFLAGS=$(CFLAGS) \
-		LDFLAGS='$(LDFLAGS) -pg -lpthread -lstdc++' \
+		LDFLAGS='$(LDFLAGS) -lpthread -lstdc++' \
 		opt='$(opt) -DINLINE64 -DCPUS=8' \
 		crafty-make
 
@@ -160,8 +160,9 @@ linux-64:
 		CFLAGS='-w -xP -O2 -fno-alias -prof-use -prof_dir ./profdir' \
 		CXFLAGS='-w -xP -O2 -prof-use -prof-dir ./profdir' \
 		LDFLAGS='$(LDFLAGS) -lpthread -lstdc++' \
-		opt='$(opt) -DINLINE64 -DCPUS=2' \
+		opt='$(opt) -DINLINE64' \
 		crafty-make
+#		opt='$(opt) -DINLINE64 -DCPUS=2' \
 
 linux-64-profile:
 	$(MAKE) target=LINUX \
@@ -315,12 +316,12 @@ profile:
 #  compiling both ways to see which way produces the fastest code.
 #
 
-#objects = search.o thread.o repeat.o next.o killer.o quiesce.o evaluate.o    \
+#objects = search.o thread.o repeat.o next.o killer.o quiesce.o evaluate.o     \
        movgen.o make.o unmake.o hash.o  attacks.o swap.o boolean.o utility.o  \
-       probe.o book.o data.o drawn.o edit.o epd.o epdglue.o init.o input.o    \
-       interrupt.o iterate.o main.o option.o output.o ponder.o resign.o root.o\
-       learn.o setboard.o test.o time.o validate.o annotate.o analyze.o       \
-       evtest.o bench.o
+       history.o probe.o book.o data.o drawn.o edit.o epd.o epdglue.o init.o  \
+       input.o interrupt.o iterate.o main.o option.o output.o ponder.o        \
+       resign.o root.o learn.o setboard.o test.o time.o validate.o annotate.o \
+       analyze.o evtest.o bench.o
 objects = crafty.o
 
 # Do not change anything below this line!
@@ -335,7 +336,7 @@ crafty-make:
 crafty.o: *.c *.h
 
 crafty:	$(objects) egtb.o
-	$(CC) $(LDFLAGS) -o crafty $(objects) egtb.o -lm  $(LIBS)
+	$(CC) -o crafty $(objects) egtb.o $(LDFLAGS) -lm  $(LIBS)
 
 egtb.o: egtb.cpp
 	$(CXX) -c $(CXFLAGS) $(opts) egtb.cpp

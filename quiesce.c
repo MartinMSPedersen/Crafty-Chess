@@ -59,7 +59,6 @@ int Quiesce(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply,
     return (beta);
 #if defined(NODES)
   if (--temp_search_nodes <= 0) {
-    abort_after_ply1 = 1;
     abort_search = 1;
     return (0);
   }
@@ -139,9 +138,7 @@ int Quiesce(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply,
   }
   if (!checks && tree->last[ply] == tree->last[ply - 1]) {
     if (alpha != original_alpha) {
-      memcpy(&tree->pv[ply - 1].path[ply], &tree->pv[ply].path[ply],
-          (tree->pv[ply].pathl - ply) * sizeof(int));
-      memcpy(&tree->pv[ply - 1].pathh, &tree->pv[ply].pathh, 3);
+      tree->pv[ply - 1] = tree->pv[ply];
       tree->pv[ply - 1].path[ply - 1] = tree->curmv[ply - 1];
     }
     return (value);
@@ -289,9 +286,7 @@ int Quiesce(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply,
  ************************************************************
  */
   if (alpha != original_alpha) {
-    memcpy(&tree->pv[ply - 1].path[ply], &tree->pv[ply].path[ply],
-        (tree->pv[ply].pathl - ply) * sizeof(int));
-    memcpy(&tree->pv[ply - 1].pathh, &tree->pv[ply].pathh, 3);
+    tree->pv[ply - 1] = tree->pv[ply];
     tree->pv[ply - 1].path[ply - 1] = tree->curmv[ply - 1];
   }
   return (alpha);
@@ -330,7 +325,6 @@ int QuiesceEvasions(TREE * RESTRICT tree, int alpha, int beta, int wtm,
     return (beta);
 #if defined(NODES)
   if (--temp_search_nodes <= 0) {
-    abort_after_ply1 = 1;
     abort_search = 1;
     return (0);
   }
@@ -405,9 +399,7 @@ int QuiesceEvasions(TREE * RESTRICT tree, int alpha, int beta, int wtm,
     }
     return (value);
   } else if (alpha != original_alpha) {
-    memcpy(&tree->pv[ply - 1].path[ply], &tree->pv[ply].path[ply],
-        (tree->pv[ply].pathl - ply) * sizeof(int));
-    memcpy(&tree->pv[ply - 1].pathh, &tree->pv[ply].pathh, 3);
+    tree->pv[ply - 1] = tree->pv[ply];
     tree->pv[ply - 1].path[ply - 1] = tree->curmv[ply - 1];
   }
   return (alpha);

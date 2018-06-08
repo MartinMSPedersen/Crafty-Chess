@@ -348,7 +348,6 @@ void Annotate() {
             tree->position[1] = tree->position[0];
             search_move = move;
             root_moves[0].move = move;
-            root_moves[0].nodes = 0;
             root_moves[0].status = 0;
             n_root_moves = 1;
             search_time_limit = 3 * annotate_search_time_limit;
@@ -373,9 +372,9 @@ void Annotate() {
  */
           thinking = 0;
           if (player_pv.pathd > 1 && player_pv.pathl >= 1 &&
-              player_score + annotate_margin < annotate_score[0] &&
-              (temp[0].path[1] != player_pv.path[1] || annotate_margin < 0.0
-                  || best_moves != 1)) {
+              player_score + annotate_margin < annotate_score[0]
+              && (temp[0].path[1] != player_pv.path[1]
+                  || annotate_margin < 0.0 || best_moves != 1)) {
             if (wtm) {
               analysis_printed = 1;
               fprintf(annotate_out, "%s\n", html_br);

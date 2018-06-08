@@ -52,9 +52,9 @@ void Interrupt(int ply) {
       }
       if (strcmp(args[0], ".")) {
         save_move_number = move_number;
-        if (!wtm)
+        if (!game_wtm)
           move_number--;
-        if (root_wtm)
+        if (game_wtm)
           Print(128, "Black(%d): %s\n", move_number, buffer);
         else
           Print(128, "White(%d): %s\n", move_number, buffer);
@@ -124,7 +124,7 @@ void Interrupt(int ply) {
  */
       else {
         save_move_number = move_number;
-        if (!analyze_mode && !wtm)
+        if (!analyze_mode && !game_wtm)
           move_number--;
         result = Option(tree);
         move_number = save_move_number;
@@ -155,13 +155,13 @@ void Interrupt(int ply) {
         else if (!result) {
           if (pondering) {
             nargs = ReadParse(buffer, args, " 	;");
-            temp = InputMove(tree, args[0], 0, Flip(root_wtm), 1, 1);
+            temp = InputMove(tree, args[0], 0, Flip(game_wtm), 1, 1);
             if (temp) {
-              if ((From(temp) == From(ponder_move)) &&
-                  (To(temp) == To(ponder_move)) &&
-                  (Piece(temp) == Piece(ponder_move)) &&
-                  (Captured(temp) == Captured(ponder_move)) &&
-                  (Promote(temp) == Promote(ponder_move))) {
+              if ((From(temp) == From(ponder_move))
+                  && (To(temp) == To(ponder_move))
+                  && (Piece(temp) == Piece(ponder_move))
+                  && (Captured(temp) == Captured(ponder_move))
+                  && (Promote(temp) == Promote(ponder_move))) {
                 predicted++;
                 input_status = 1;
                 pondering = 0;
@@ -174,8 +174,8 @@ void Interrupt(int ply) {
                 abort_search = 1;
                 break;
               }
-            } else if (!strcmp(args[0], "go") || !strcmp(args[0], "move") ||
-                !strcmp(args[0], "SP")) {
+            } else if (!strcmp(args[0], "go") || !strcmp(args[0], "move")
+                || !strcmp(args[0], "SP")) {
               abort_search = 1;
               break;
             } else

@@ -115,21 +115,17 @@ void EVTest(char *filename) {
  *                                                          *
  ************************************************************
  */
-/*
       if (s1 != s2 || s1 != s3 || s1 != s4 || s2 != s3 || s2 != s4 ||
           s3 != s4) {
-*/
-      strcpy(buffer, "flip");
-      (void) Option(tree);
-      printf("FEN = %s\n", buff);
-      DisplayChessBoard(stdout, tree->pos);
-      if (id)
-        Print(4095, "id=%s  ", args[id + 1]);
-      Print(4095, "wtm=%d  score=%d  %d (flop)  %d (flip)  %d (flop)\n",
-          game_wtm, s1, s2, s3, s4);
-/*
+        strcpy(buffer, "flip");
+        (void) Option(tree);
+        printf("FEN = %s\n", buff);
+        DisplayChessBoard(stdout, tree->pos);
+        if (id)
+          Print(4095, "id=%s  ", args[id + 1]);
+        Print(4095, "wtm=%d  score=%d  %d (flop)  %d (flip)  %d (flop)\n",
+            game_wtm, s1, s2, s3, s4);
       }
-*/
     }
   }
   input_stream = stdin;

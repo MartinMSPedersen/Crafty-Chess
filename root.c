@@ -51,7 +51,6 @@ void RootMoveList(int wtm) {
  *                                                          *
  ************************************************************
  */
-  easy_move = 0;
   lastm = GenerateCaptures(tree, 1, wtm, rmoves);
   lastm = GenerateNoncaptures(tree, 1, wtm, lastm);
   n_root_moves = lastm - rmoves;
@@ -87,10 +86,10 @@ void RootMoveList(int wtm) {
         if (mating_via_tb && TotalAllPieces <= EGTBlimit &&
             Castle(1, white) + Castle(1, black) == 0) {
           i = EGTBProbe(tree, 2, Flip(wtm), &tb_value);
-          if (i && ((mating_via_tb > DrawScore(Flip(wtm)) &&
-                      tb_value < mating_via_tb) ||
-                  (mating_via_tb < DrawScore(Flip(wtm)) &&
-                      tb_value > mating_via_tb)))
+          if (i && ((mating_via_tb > DrawScore(Flip(wtm))
+                      && tb_value < mating_via_tb)
+                  || (mating_via_tb < DrawScore(Flip(wtm))
+                      && tb_value > mating_via_tb)))
             break;
         }
 #endif
@@ -104,11 +103,11 @@ void RootMoveList(int wtm) {
  *                                                          *
  ************************************************************
  */
-        if ((Piece(*mvp) == Piece(last_pv.path[1])) &&
-            (From(*mvp) == From(last_pv.path[1])) &&
-            (To(*mvp) == To(last_pv.path[1])) &&
-            (Captured(*mvp) == Captured(last_pv.path[1])) &&
-            (Promote(*mvp) == Promote(last_pv.path[1])))
+        if ((Piece(*mvp) == Piece(last_pv.path[1]))
+            && (From(*mvp) == From(last_pv.path[1]))
+            && (To(*mvp) == To(last_pv.path[1]))
+            && (Captured(*mvp) == Captured(last_pv.path[1]))
+            && (Promote(*mvp) == Promote(last_pv.path[1])))
           value += 2000000;
 /*
  ************************************************************
@@ -152,12 +151,6 @@ void RootMoveList(int wtm) {
  *   Trim the move list to eliminate those moves that hang  *
  *   the king and are illegal.                              *
  *                                                          *
- *   If the first move in the list is better than the next  *
- *   move by at least two pawns, we set the "easy move"     *
- *   flag which will let us terminate the search early, if  *
- *   we don't have any fail lows on the move before we run  *
- *   out of time.                                           *
- *                                                          *
  ************************************************************
  */
   for (; n_root_moves; n_root_moves--)
@@ -165,11 +158,6 @@ void RootMoveList(int wtm) {
       break;
   if (sort_value[0] > 1000000)
     sort_value[0] -= 2000000;
-  if (sort_value[0] > sort_value[1] + 200 &&
-      ((To(rmoves[0]) == To(last_opponent_move) &&
-              Captured(rmoves[0]) == Piece(last_opponent_move)) ||
-          sort_value[0] < PAWN_VALUE))
-    easy_move = 1;
 /*
  ************************************************************
  *                                                          *
@@ -225,8 +213,8 @@ void RootMoveList(int wtm) {
  */
   for (i = 0; i < n_root_moves; i++) {
     root_moves[i].move = rmoves[i];
-    root_moves[i].nodes = 0;
     root_moves[i].status = 8;
+    root_moves[i].bm_age = 0;
   }
   root_moves[0].status = 0;
   return;

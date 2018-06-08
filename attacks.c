@@ -53,8 +53,8 @@ int Attacks(TREE * RESTRICT tree, int square, int side) {
       && (AttacksRook(square,
               OccupiedSquares) & (Rooks(side) | Queens(side))))
     return (1);
-  if ((bishop_attacks[square] & (Bishops(side) | Queens(side))) &&
-      (AttacksBishop(square,
+  if ((bishop_attacks[square] & (Bishops(side) | Queens(side)))
+      && (AttacksBishop(square,
               OccupiedSquares) & (Bishops(side) | Queens(side))))
     return (1);
   return (0);

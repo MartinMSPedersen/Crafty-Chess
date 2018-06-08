@@ -3912,6 +3912,32 @@
  *           Cleanup of personality code to fix some values that were not      *
  *           included, as well as clean up the formatting for simplicity.      *
  *                                                                             *
+ *    23.6   Minor tweak to "adaptive hash" code + a fix to the usage warning  *
+ *           that failed to explain how many parameters are required.  New way *
+ *           of timing the search, replacing the old "easy move" code that was *
+ *           simply too ineffective.  Now Crafty computes a "difficulty" level *
+ *           after each iteration.  If the best move doesn't change, this      *
+ *           level is reduced by 10% of the current value, until it reaches    *
+ *           60% where it stops dropping.  If the best move changes during an  *
+ *           iteration, it adjusts in one of two ways.  If the current         *
+ *           difficulty level is less than 100%, it reverts to 100% + the      *
+ *           number of different best moves minus 1 times 20%.  If the current *
+ *           difficulty level is already >= 100% it is set to 80% of the       *
+ *           current value + (again) the number of different best moves - 1    *
+ *           times 20%.  Repeated changes can run this up to 180% max.  As the *
+ *           search progresses this difficulty level represents the percentage *
+ *           of the nominal target time limit it should use.  It still tries   *
+ *           to complete the current iteration before quitting, so this limit  *
+ *           is a lower bound on the time it will use.  Restored an old idea   *
+ *           from earlier Crafty versions (and even Cray Blitz), that of       *
+ *           trying the killers from two plies earlier in the tree, once the   *
+ *           killers for the current ply have been tried.  Was a +10 Elo gain, *
+ *           added to about +10 for the new time control logic.  Old fail-high *
+ *           restriction removed.  At one point in time, a fail-high on the    *
+ *           null-window search at the root would cause problems.  Crafty was  *
+ *           modified so that the fail-high was ignored if the re-search       *
+ *           failed low.  Removing this produced an 8 Elo gain.                *
+ *                                                                             *
  *******************************************************************************
  */
 int main(int argc, char **argv) {
@@ -3959,6 +3985,7 @@ int main(int argc, char **argv) {
  ************************************************************
  */
   AlignedMalloc((void **) &block[0], 2048, (size_t) sizeof(TREE));
+  block[0]->parent = 0;
   block[0]->used = 1;
   block[0]->stop = 0;
   block[0]->ply = 1;
@@ -4024,7 +4051,7 @@ int main(int argc, char **argv) {
   if (numa_available() >= 0) {
     unsigned long cpus[8];
 
-    numa_node_to_cpus(0, cpus, 64);
+    numa_node_to_cpus(0, cpus);
     printf("\nMachine is NUMA, %d nodes (%d cpus/node)\n\n",
         numa_max_node() + 1, PopCnt(cpus[0]));
   }
@@ -4313,9 +4340,9 @@ int main(int argc, char **argv) {
     crafty_is_white = game_wtm;
     if (presult == 2) {
       if ((From(ponder_move) == From(move)) && (To(ponder_move) == To(move))
-          && (Piece(ponder_move) == Piece(move)) &&
-          (Captured(ponder_move) == Captured(move)) &&
-          (Promote(ponder_move) == Promote(move))) {
+          && (Piece(ponder_move) == Piece(move))
+          && (Captured(ponder_move) == Captured(move))
+          && (Promote(ponder_move) == Promote(move))) {
         presult = 1;
         if (!book_move)
           predicted++;
@@ -4472,10 +4499,9 @@ int main(int argc, char **argv) {
       }
       if (!xboard && audible_alarm)
         printf("%c", audible_alarm);
-      if (!xboard)
-        Print(4095, "%s(%d): %s\n", SideToMove(game_wtm), move_number,
-            OutputMove(tree, last_pv.path[1], 0, game_wtm));
-      else
+      Print(1, "%s(%d): %s\n", SideToMove(game_wtm), move_number,
+          OutputMove(tree, last_pv.path[1], 0, game_wtm));
+      if (xboard)
         printf("move %s\n", OutputMove(tree, last_pv.path[1], 0, game_wtm));
       if (value == MATE - 2) {
         if (game_wtm) {

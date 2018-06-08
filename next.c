@@ -1,6 +1,6 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 08/20/10 */
+/* last modified 05/29/13 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -28,7 +28,7 @@ int NextEvasion(TREE * RESTRICT tree, int ply, int wtm) {
  */
     case HASH_MOVE:
       if (tree->hash_move[ply]) {
-        tree->next_status[ply].phase = SORT_ALL_MOVES;
+        tree->next_status[ply].phase = GENERATE_ALL_MOVES;
         tree->curmv[ply] = tree->hash_move[ply];
         if (ValidMove(tree, ply, wtm, tree->curmv[ply]))
           return (HASH_MOVE);
@@ -57,7 +57,7 @@ int NextEvasion(TREE * RESTRICT tree, int ply, int wtm) {
  *                                                          *
  ************************************************************
  */
-    case SORT_ALL_MOVES:
+    case GENERATE_ALL_MOVES:
       tree->last[ply] =
           GenerateCheckEvasions(tree, ply, wtm, tree->last[ply - 1]);
       tree->next_status[ply].phase = REMAINING_MOVES;
@@ -88,8 +88,7 @@ int NextEvasion(TREE * RESTRICT tree, int ply, int wtm) {
  ************************************************************
  */
       if (tree->last[ply] > tree->last[ply - 1] + 1) {
-        int temp1, temp2, *tmovep, *tsortv;
-        int *end;
+        int temp1, temp2, *tmovep, *tsortv, *end;
 
         sortv = tree->sort_value + 1;
         end = tree->last[ply];
@@ -131,7 +130,7 @@ int NextEvasion(TREE * RESTRICT tree, int ply, int wtm) {
   return (NONE);
 }
 
-/* last modified 07/24/09 */
+/* last modified 05/26/13 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -199,8 +198,7 @@ int NextMove(TREE * RESTRICT tree, int ply, int wtm) {
  ************************************************************
  */
       if (tree->last[ply] > tree->last[ply - 1] + 1) {
-        int temp1, temp2, *tmovep, *tsortv;
-        int *end;
+        int temp1, temp2, *tmovep, *tsortv, *end;
 
         sortv = tree->sort_value + 1;
         end = tree->last[ply];
@@ -232,8 +230,7 @@ int NextMove(TREE * RESTRICT tree, int ply, int wtm) {
     case CAPTURE_MOVES:
       while (tree->next_status[ply].remaining) {
         tree->curmv[ply] = *(tree->next_status[ply].last++);
-        tree->next_status[ply].remaining--;
-        if (!tree->next_status[ply].remaining)
+        if (!--tree->next_status[ply].remaining)
           tree->next_status[ply].phase = KILLER_MOVE_1;
         if (pc_values[Piece(tree->curmv[ply])] >
             pc_values[Captured(tree->curmv[ply])] &&
@@ -253,18 +250,37 @@ int NextMove(TREE * RESTRICT tree, int ply, int wtm) {
  ************************************************************
  */
     case KILLER_MOVE_1:
-      if ((tree->hash_move[ply] != tree->killers[ply].move1) &&
+      if (tree->hash_move[ply] != tree->killers[ply].move1 &&
           ValidMove(tree, ply, wtm, tree->killers[ply].move1)) {
         tree->curmv[ply] = tree->killers[ply].move1;
         tree->next_status[ply].phase = KILLER_MOVE_2;
         return (KILLER_MOVE_1);
       }
     case KILLER_MOVE_2:
-      if ((tree->hash_move[ply] != tree->killers[ply].move2) &&
+      if (tree->hash_move[ply] != tree->killers[ply].move2 &&
           ValidMove(tree, ply, wtm, tree->killers[ply].move2)) {
         tree->curmv[ply] = tree->killers[ply].move2;
-        tree->next_status[ply].phase = GENERATE_ALL_MOVES;
+        tree->next_status[ply].phase =
+            (ply > 3) ? KILLER_MOVE_3 : GENERATE_ALL_MOVES;
         return (KILLER_MOVE_2);
+      }
+    case KILLER_MOVE_3:
+      if (tree->killers[ply - 2].move1 != tree->hash_move[ply] &&
+          tree->killers[ply - 2].move1 != tree->killers[ply].move1 &&
+          tree->killers[ply - 2].move1 != tree->killers[ply].move2 &&
+          ValidMove(tree, ply, wtm, tree->killers[ply - 2].move1)) {
+        tree->curmv[ply] = tree->killers[ply - 2].move1;
+        tree->next_status[ply].phase = KILLER_MOVE_4;
+        return (KILLER_MOVE_3);
+      }
+    case KILLER_MOVE_4:
+      if (tree->killers[ply - 2].move2 != tree->hash_move[ply] &&
+          tree->killers[ply - 2].move2 != tree->killers[ply].move1 &&
+          tree->killers[ply - 2].move2 != tree->killers[ply].move2 &&
+          ValidMove(tree, ply, wtm, tree->killers[ply - 2].move2)) {
+        tree->curmv[ply] = tree->killers[ply - 2].move2;
+        tree->next_status[ply].phase = GENERATE_ALL_MOVES;
+        return (KILLER_MOVE_4);
       }
       tree->next_status[ply].phase = GENERATE_ALL_MOVES;
 /*
@@ -291,7 +307,9 @@ int NextMove(TREE * RESTRICT tree, int ply, int wtm) {
         if (*tree->next_status[ply].last &&
             *tree->next_status[ply].last != tree->hash_move[ply] &&
             *tree->next_status[ply].last != tree->killers[ply].move1 &&
-            *tree->next_status[ply].last != tree->killers[ply].move2) {
+            *tree->next_status[ply].last != tree->killers[ply].move2 &&
+            *tree->next_status[ply].last != tree->killers[ply - 2].move1 &&
+            *tree->next_status[ply].last != tree->killers[ply - 2].move2) {
           tree->curmv[ply] = *tree->next_status[ply].last;
           *tree->next_status[ply].last++ = 0;
           return (REMAINING_MOVES);
@@ -319,20 +337,13 @@ int NextRootMove(TREE * RESTRICT tree, TREE * RESTRICT mytree, int wtm) {
 /*
  ************************************************************
  *                                                          *
- *   First, we check to see if we are out of time.  We try  *
- *   to complete any "current" root moves being searched,   *
- *   prior to ending the search, so it is possible that     *
- *   time has already expired, but we let the search finish *
- *   current root moves that are being searched (there may  *
- *   be more than one, thanks to the parallel search) so    *
- *   that we don't abort just before a new best move might  *
- *   be discovered.                                         *
+ *   First, we check to see if we only have one legal move. *
+ *   If so, and we are not pondering, we stop after a short *
+ *   search, saving time, but making sure we have something *
+ *   to ponder.                                             *
  *                                                          *
  ************************************************************
  */
-  abort_after_ply1 += TimeCheck(tree, 1);
-  if (abort_after_ply1)
-    return (NONE);
   if (!annotate_mode && !pondering && !booking && n_root_moves == 1 &&
       iteration_depth > 4) {
     abort_search = 1;
@@ -342,10 +353,17 @@ int NextRootMove(TREE * RESTRICT tree, TREE * RESTRICT mytree, int wtm) {
  ************************************************************
  *                                                          *
  *   For the moves at the root of the tree, the list has    *
- *   already been generated and sorted.  On entry, test     *
- *   the searched_this_root_move[] array to determine the   *
- *   first move in the list that has not yet been searched. *
- *   We select that move and search it next.                *
+ *   already been generated and sorted.                     *
+ *                                                          *
+ *   Step 1 is to count the number of root moves that have  *
+ *   been searched.  If just one has been searched, then we *
+ *   are being asked to select the second.  If the root     *
+ *   score is still root_alpha, we must have failed low, so *
+ *   we return "none" and get back to Iterate() where we    *
+ *   will relax the lower bound and search again.           *
+ *                                                          *
+ *   Step 2 is to find the first unsearched root move and   *
+ *   select that one for searching next.                    *
  *                                                          *
  ************************************************************
  */
@@ -389,12 +407,12 @@ int NextRootMove(TREE * RESTRICT tree, TREE * RESTRICT mytree, int wtm) {
             n_root_moves);
         end_time = ReadClock();
         if (pondering)
-          printf("               %2i   %s%7s?  ", iteration_depth,
-              DisplayTime(end_time - start_time),
+          printf("         %2i   %s%7s?  ", iteration_depth,
+              Display2Times(end_time - start_time),
               mytree->remaining_moves_text);
         else
-          printf("               %2i   %s%7s*  ", iteration_depth,
-              DisplayTime(end_time - start_time),
+          printf("         %2i   %s%7s*  ", iteration_depth,
+              Display2Times(end_time - start_time),
               mytree->remaining_moves_text);
         if (display_options & 32 && display_options & 64)
           printf("%d. ", move_number);
@@ -443,16 +461,11 @@ int NextRootMove(TREE * RESTRICT tree, TREE * RESTRICT mytree, int wtm) {
  *   searched in parallel.  If it appears to Iterate() that one of the moves   *
  *   following the first move might become the best move, the 'no parallel'    *
  *   flag is set to speed up finding the new best move.  This flag is set if   *
- *   any root move has an exceptionally large node count when compared to      *
- *   the other moves at the root.  Such moves might just lead to complex and   *
- *   tactical positions with a large tree, or they might be about to rise to   *
- *   the top and become the best move.  We want to search these moves one at   *
- *   time using all processors, so that we can find the best move as quickly   *
- *   as possible.                                                              *
- *                                                                             *
- *   We only allow this for at most 1/3 of the root moves before we start to   *
- *   split at the root and search in parallel, because this is a much more     *
- *   efficient way to search with no overhead whatsoever.                      *
+ *   this root move has an "age" value > 0 which indicates this move was the   *
+ *   "best move" within the previous 3 search depths.  We want to search such  *
+ *   moves as quickly as possible, prior to starting a parallel search at the  *
+ *   root, in case this move once again becomes the best move and provides a   *
+ *   better alpha bound.                                                       *
  *                                                                             *
  *******************************************************************************
  */

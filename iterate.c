@@ -1,3 +1,4 @@
+#include <math.h>
 #include "chess.h"
 #include "data.h"
 #include "epdglue.h"
@@ -17,15 +18,13 @@
  *******************************************************************************
  */
 int Iterate(int wtm, int search_type, int root_list_done) {
-  ROOT_MOVE temp;
-  int i, fail_delta, old_root_alpha, old_root_beta;
-  int value = 0, twtm;
-  int correct, correct_count, material = 0, sorted;
-  char *fh_indicator, *fl_indicator;
   TREE *const tree = block[0];
-  int savevalue = 0;
   PATH savepv;
-  int print_ok = 0;
+  ROOT_MOVE temp_rm;
+  int savevalue = 0, print_ok = 0, bm_changes;
+  int i, fail_delta, old_root_alpha, old_root_beta;
+  int value = 0, twtm, correct, correct_count;
+  char *fl_indicator, *fh_indicator;
 
 #if (CPUS > 1)
   pthread_t pt;
@@ -50,7 +49,6 @@ int Iterate(int wtm, int search_type, int root_list_done) {
 #if defined(NODES)
   temp_search_nodes = search_nodes;
 #endif
-  abort_after_ply1 = 0;
   abort_search = 0;
   book_move = 0;
   program_start_time = ReadClock();
@@ -59,8 +57,8 @@ int Iterate(int wtm, int search_type, int root_list_done) {
   root_wtm = wtm;
   kibitz_depth = 0;
   tree->nodes_searched = 0;
-  tree->fail_high = 0;
-  tree->fail_high_first = 0;
+  tree->fail_highs = 0;
+  tree->fail_high_number = 0;
   parallel_splits = 0;
   parallel_aborts = 0;
   max_split_blocks = 0;
@@ -107,8 +105,8 @@ int Iterate(int wtm, int search_type, int root_list_done) {
           root_value = -(MATE - 1);
         else
           root_value = DrawScore(wtm);
-        Print(6, "              depth   time  score   variation\n");
-        Print(6, "                                    (no moves)\n");
+        Print(6, "        depth     time       score   variation\n");
+        Print(6, "                                     (no moves)\n");
         tree->nodes_searched = 1;
         if (!puzzling)
           last_root_value = root_value;
@@ -136,9 +134,10 @@ int Iterate(int wtm, int search_type, int root_list_done) {
       iteration_depth = 1;
       if (last_pv.pathd > 1)
         iteration_depth = last_pv.pathd + 1;
-      Print(6, "              depth   time  score   variation (%d)\n",
+      else
+        difficulty = 100;
+      Print(6, "        depth     time       score   variation (%d)\n",
           iteration_depth);
-      abort_after_ply1 = 0;
       abort_search = 0;
 /*
  ************************************************************
@@ -212,7 +211,7 @@ int Iterate(int wtm, int search_type, int root_list_done) {
             Print(4095, "pathlen=%d\n", tree->pv[0].pathl);
             break;
           }
-          HashStorePV(tree, twtm, tree->pv[0].path[i]);
+          HashStorePV(tree, twtm, i);
           MakeMove(tree, i, tree->pv[0].path[i], twtm);
           twtm = Flip(twtm);
         }
@@ -260,7 +259,7 @@ int Iterate(int wtm, int search_type, int root_list_done) {
           value =
               Search(tree, root_alpha, root_beta, wtm, iteration_depth, 1, 0);
           root_print_ok = tree->nodes_searched > noise_level;
-          if (abort_search || abort_after_ply1)
+          if (abort_search)
             break;
 /*
  ************************************************************
@@ -279,15 +278,13 @@ int Iterate(int wtm, int search_type, int root_list_done) {
             root_beta =
                 SetRootBeta(root_moves[0].status, root_beta, &fail_delta);
             root_moves[0].status &= 255 - 16;
-            root_moves[0].nodes = 0;
             if (root_print_ok) {
-              if (wtm) {
+              if (wtm)
                 fh_indicator = "++";
-              } else {
+              else
                 fh_indicator = "--";
-              }
-              Print(2, "               %2i   %s     %2s   ", iteration_depth,
-                  DisplayTime(end_time - start_time), fh_indicator);
+              Print(2, "         %2i   %s     %2s   ", iteration_depth,
+                  Display2Times(end_time - start_time), fh_indicator);
               if (display_options & 64)
                 Print(2, "%d. ", move_number);
               if ((display_options & 64) && !wtm)
@@ -324,16 +321,13 @@ int Iterate(int wtm, int search_type, int root_list_done) {
                   SetRootAlpha(root_moves[0].status, root_alpha, &fail_delta);
               root_value = root_alpha;
               root_moves[0].status &= 255 - 16;
-              root_moves[0].nodes = 0;
-              easy_move = 0;
-              if (root_print_ok && !abort_after_ply1 && !abort_search) {
+              if (root_print_ok && !abort_search) {
                 if (wtm)
                   fl_indicator = "--";
                 else
                   fl_indicator = "++";
-                Print(4, "               %2i   %s     %2s   ",
-                    iteration_depth, DisplayTime(ReadClock() - start_time),
-                    fl_indicator);
+                Print(4, "         %2i   %s     %2s   ", iteration_depth,
+                    Display2Times(ReadClock() - start_time), fl_indicator);
                 if (display_options & 64)
                   Print(4, "%d. ", move_number);
                 if ((display_options & 64) && !wtm)
@@ -385,70 +379,107 @@ int Iterate(int wtm, int search_type, int root_list_done) {
  */
         twtm = wtm;
         end_time = ReadClock();
-        do {
-          sorted = 1;
-          for (i = 1; i < n_root_moves - 1; i++) {
-            if (root_moves[i].nodes < root_moves[i + 1].nodes) {
-              temp = root_moves[i];
-              root_moves[i] = root_moves[i + 1];
-              root_moves[i + 1] = temp;
-              sorted = 0;
-            }
-          }
-        } while (!sorted);
 /*
  ************************************************************
  *                                                          *
- *   Notice if there are multiple moves that are producing  *
- *   large trees.  If so, don't search those in parallel by *
- *   setting the flag to avoid this.  We also don't reduce  *
- *   the first 1/4 of the root moves, period, since after   *
- *   deep searches, several of them might have been best    *
- *   moves in previous iterations and need a chance to pop  *
- *   back to the top again.                                 *
+ *   A quick kludge to make certain the PV move comes first *
+ *   in the move list.  On rare occasions, multiple moves   *
+ *   can fail high on the null-window search at the root,   *
+ *   and some of them will then fail low on the re-search.  *
+ *   The last move to fail high ends up on the top of the   *
+ *   move list, while a different move shows up as best by  *
+ *   not failing low on the re-search.  This makes certain  *
+ *   that the PV move from the previous iteration is always *
+ *   searched first.                                        *
+ *                                                          *
+ ************************************************************
+ */
+        if (tree->pv[0].path[1] != root_moves[0].move) {
+          for (i = 0; i < n_root_moves; i++)
+            if (tree->pv[0].path[1] == root_moves[i].move)
+              break;
+          if (i < n_root_moves) {
+            temp_rm = root_moves[i];
+            for (; i > 0; i--)
+              root_moves[i] = root_moves[i - 1];
+            root_moves[0] = temp_rm;
+          }
+        }
+/*
+ ************************************************************
+ *                                                          *
+ *   Notice that we don't search moves that were best over  *
+ *   the last 3 iterations in parallel, nor do we reduce    *
+ *   those since they are potential best moves again.       *
  *                                                          *
  ************************************************************
  */
         for (i = 0; i < n_root_moves; i++)
           root_moves[i].status = 0;
         root_moves[0].status |= 4 + 8;
-        if (root_moves[0].nodes >= 3)
-          for (i = 0; i < n_root_moves; i++) {
-            if (i < Min(n_root_moves, 16) &&
-                root_moves[i].nodes > root_moves[0].nodes / 3)
-              root_moves[i].status |= 4;
-            if (i < n_root_moves / 4)
-              root_moves[i].status |= 8;
-          }
+        for (i = 0; i < n_root_moves; i++) {
+          if (root_moves[i].bm_age)
+            root_moves[i].bm_age--;
+          if (root_moves[i].bm_age)
+            root_moves[i].status |= 4 + 8;
+        }
 /*
  ************************************************************
  *                                                          *
  *   If requested, print the ply=1 move list along with the *
- *   node counts for the tree each move produced.           *
+ *   flags for each move.                                   *
  *                                                          *
  ************************************************************
  */
         if (display_options & 256) {
           uint64_t total_nodes = 0;
 
-          Print(128, "       move       nodes     R/P\n");
+          Print(128, "       move  age  R/P\n");
           for (i = 0; i < n_root_moves; i++) {
-            total_nodes += root_moves[i].nodes;
-            Print(128, " %10s  " BMF10 "     %d %d\n", OutputMove(tree,
-                    root_moves[i].move, 1, wtm), root_moves[i].nodes,
+            Print(128, " %10s   %d   %d %d\n", OutputMove(tree,
+                    root_moves[i].move, 1, wtm), root_moves[i].bm_age,
                 (root_moves[i].status & 8) == 0,
                 (root_moves[i].status & 4) == 0);
           }
           Print(256, "      total  " BMF10 "\n", total_nodes);
         }
+/*
+ ************************************************************
+ *                                                          *
+ *   now adjust the "difficulty" value.  The idea here is   *
+ *   that a position is easier if the best move does not    *
+ *   change during an iteration, and harder if it does.     *
+ *   We use this to adjust the target time during the       *
+ *   search to spend more or less time when appropriate.    *
+ *                                                          *
+ *   if the PV did not change, we lower the difficulty      *
+ *   setting, but we weigh the past difficulty more, so     *
+ *   it takes several iterations with no change to reach    *
+ *   the max easy setting.  Ditto for cases where there     *
+ *   were changes, except that the more changes in the last *
+ *   iteration, the more difficult we consider this search. *
+ *                                                          *
+ ************************************************************
+ */
+        bm_changes = 0;
         for (i = 0; i < n_root_moves; i++)
-          root_moves[i].nodes = 0;
+          if (root_moves[i].bm_age == 3)
+            bm_changes++;
+        if (bm_changes <= 1)
+          difficulty = 90 * difficulty / 100;
+        else {
+          if (difficulty < 100)
+            difficulty = 100 + 20 * bm_changes;
+          else
+            difficulty = 80 * difficulty / 100 + 20 * bm_changes;
+        }
+        difficulty = Max(60, Min(difficulty, 180));
         if (end_time - start_time > 10)
           nodes_per_second =
               tree->nodes_searched * 100 / (uint64_t) (end_time - start_time);
         else
           nodes_per_second = 1000000;
-        if (!abort_after_ply1 && !abort_search && value != -(MATE - 1)) {
+        if (!abort_search && value != -(MATE - 1)) {
           if (root_print_ok) {
             DisplayPV(tree, 5, wtm, end_time - start_time, value,
                 &tree->pv[0]);
@@ -462,14 +493,15 @@ int Iterate(int wtm, int search_type, int root_list_done) {
         root_value = root_alpha;
         root_beta = value + 16;
         if (iteration_depth > 3 && value > MATE - 300 &&
-            value >= (MATE - iteration_depth - 1) && value > last_mate_score)
+            value >= (MATE - iteration_depth - 1)
+            && value > last_mate_score)
           break;
         if ((iteration_depth >= search_depth) && search_depth)
           break;
-        if (abort_after_ply1 || abort_search)
+        if (abort_search)
           break;
         end_time = ReadClock() - start_time;
-        if (thinking && (int) end_time >= time_limit)
+        if (TimeCheck(tree, 1))
           break;
         if (correct_count >= early_exit)
           break;
@@ -494,34 +526,31 @@ int Iterate(int wtm, int search_type, int root_list_done) {
       if (elapsed_end > 10)
         nodes_per_second =
             (uint64_t) tree->nodes_searched * 100 / (uint64_t) elapsed_end;
-      if (!root_print_ok && print_ok) {
-        root_print_ok = 1;
-        DisplayPV(tree, 5, wtm, end_time - start_time, savevalue, &savepv);
-      }
-      tree->evaluations = (tree->evaluations) ? tree->evaluations : 1;
-      if ((!abort_search || abort_after_ply1) && !puzzling) {
-        tree->fail_high++;
-        tree->fail_high_first++;
-        material = Material / PieceValues(white, pawn);
-        Print(8, "              time=%s  mat=%d",
-            DisplayTimeKibitz(end_time - start_time), material);
+      if (abort_search != 2 && !puzzling) {
+        if (!root_print_ok && print_ok) {
+          root_print_ok = 1;
+          DisplayPV(tree, 5, wtm, end_time - start_time, savevalue, &savepv);
+        }
+        tree->evaluations = (tree->evaluations) ? tree->evaluations : 1;
+        tree->fail_highs++;
+        tree->fail_high_number++;
+        Print(8, "        time=%s", DisplayTimeKibitz(end_time - start_time));
         Print(8, "  n=" BMF, tree->nodes_searched);
-        Print(8, "  fh=%u%%",
-            (int) ((uint64_t) tree->fail_high_first * 100 /
-                (uint64_t) tree->fail_high));
+        Print(8, "  afhm=%.2f",
+            (float) tree->fail_high_number / (float) tree->fail_highs);
+        Print(8, "  predicted=%d", predicted);
+        Print(8, "  50move=%d", Rule50Moves(0));
         Print(8, "  nps=%s\n", DisplayKM(nodes_per_second));
-        Print(16, "              extensions=%s ",
-            DisplayKM(tree->extensions_done));
-        Print(16, "qchecks=%s ", DisplayKM(tree->qchecks_done));
-        Print(16, "reduced=%s ", DisplayKM(tree->reductions_done));
-        Print(16, "pruned=%s\n", DisplayKM(tree->moves_pruned));
-        Print(16, "              predicted=%d  evals=%s  50move=%d",
-            predicted, DisplayKM(tree->evaluations), Rule50Moves(0));
-        Print(16, "  EGTBprobes=%s  hits=%s\n", DisplayKM(tree->egtb_probes),
+        Print(16, "        extended=%s ", DisplayKM(tree->extensions_done));
+        Print(16, "qchks=%s", DisplayKM(tree->qchecks_done));
+        Print(16, "  reduced=%s", DisplayKM(tree->reductions_done));
+        Print(16, "  pruned=%s", DisplayKM(tree->moves_pruned));
+        Print(16, "  evals=%s\n", DisplayKM(tree->evaluations));
+        Print(16, "        EGTBprobes=%s  hits=%s",
+            DisplayKM(tree->egtb_probes),
             DisplayKM(tree->egtb_probes_successful));
-        Print(16, "              SMP->  splits=%d  aborts=%d  data=%d/%d  ",
-            parallel_splits, parallel_aborts, max_split_blocks, MAX_BLOCKS);
-        Print(16, "elap=%s\n", DisplayTimeKibitz(elapsed_end));
+        Print(16, "  splits=%d  aborts=%d  data=%d/%d\n", parallel_splits,
+            parallel_aborts, max_split_blocks, MAX_BLOCKS);
       }
     } while (0);
   else {

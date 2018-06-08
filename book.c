@@ -234,14 +234,14 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done) {
       if (!(book_status[i] & BAD_MOVE))
         maxp = Max(maxp, bs_played[i]);
     for (i = 0; i < nmoves; i++) {
-      if (bs_learn[i] <= LEARN_COUNTER_BAD && !bs_percent[i] &&
-          !(book_status[i] & 0x18))
+      if (bs_learn[i] <= LEARN_COUNTER_BAD && !bs_percent[i]
+          && !(book_status[i] & 0x18))
         book_status[i] |= BAD_MOVE;
-      if (wtm && !(book_status[i] & 0x80) && !bs_percent[i] &&
-          !(book_status[i] & 0x18))
+      if (wtm && !(book_status[i] & 0x80) && !bs_percent[i]
+          && !(book_status[i] & 0x18))
         book_status[i] |= BAD_MOVE;
-      if (!wtm && !(book_status[i] & 0x20) && !bs_percent[i] &&
-          !(book_status[i] & 0x18))
+      if (!wtm && !(book_status[i] & 0x20) && !bs_percent[i]
+          && !(book_status[i] & 0x18))
         book_status[i] |= BAD_MOVE;
       if (bs_played[i] < maxp / 10 && !bs_percent[i] && book_random &&
           !(book_status[i] & 0x18))
@@ -314,8 +314,8 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done) {
       do {
         done = 1;
         for (i = 0; i < nmoves - 1; i++) {
-          if (bs_percent[i] < bs_percent[i + 1] ||
-              (bs_percent[i] == bs_percent[i + 1]
+          if (bs_percent[i] < bs_percent[i + 1]
+              || (bs_percent[i] == bs_percent[i + 1]
                   && bs_value[i] < bs_value[i + 1])) {
             tempr = bs_played[i];
             bs_played[i] = bs_played[i + 1];
@@ -383,10 +383,10 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done) {
         Print(128, " %9.1f", bs_value[i]);
         Print(128, " %3d", bs_percent[i]);
         if ((book_status[i] & book_accept_mask &&
-                !(book_status[i] & book_reject_mask)) ||
-            (!(book_status[i] & book_reject_mask) && (bs_percent[i] ||
-                    book_status[i] & 0x18 || (wtm && book_status[i] & 0x80) ||
-                    (!wtm && book_status[i] & 0x20))))
+                !(book_status[i] & book_reject_mask))
+            || (!(book_status[i] & book_reject_mask) && (bs_percent[i]
+                    || book_status[i] & 0x18 || (wtm && book_status[i] & 0x80)
+                    || (!wtm && book_status[i] & 0x20))))
           Print(128, "  Y");
         else
           Print(128, "  N");
@@ -625,8 +625,8 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done) {
         Print(128, " %9.1f", bs_value[i]);
         Print(128, " %3d", bs_percent[i]);
         if ((book_status[i] & book_accept_mask &&
-                !(book_status[i] & book_reject_mask)) ||
-            (!(book_status[i] & book_reject_mask) && ((wtm &&
+                !(book_status[i] & book_reject_mask))
+            || (!(book_status[i] & book_reject_mask) && ((wtm &&
                         book_status[i] & 0x80) || (!wtm &&
                         book_status[i] & 0x20))))
           Print(128, "  Y");
@@ -652,7 +652,6 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done) {
           n_root_moves = nmoves;
           for (i = 0; i < n_root_moves; i++) {
             root_moves[i].move = book_moves[i];
-            root_moves[i].nodes = 0;
             root_moves[i].status = 0;
           }
           last_pv.pathd = 0;
@@ -931,6 +930,7 @@ void BookUp(TREE * RESTRICT tree, int nargs, char **args) {
  ************************************************************
  */
 #if defined(POSITIONS)
+  unsigned int output_pos, output_wtm;
   FILE *pout = fopen("positions", "w");
 #endif
   if (!strcmp(args[1], "create")) {
@@ -1097,6 +1097,12 @@ void BookUp(TREE * RESTRICT tree, int nargs, char **args) {
           tree->position[2] = tree->position[1];
           ply = 0;
           data_read = 0;
+#if defined(POSITIONS)
+          output_pos = Random32();
+          output_pos = (output_pos | (output_pos >> 16)) & 65535;
+          output_pos = output_pos % 30 + 12;
+          output_wtm = Random32() & 1;
+#endif
           while (data_read == 0) {
             mask_word = 0;
             if ((ch = strpbrk(buffer, "?!"))) {
@@ -1153,7 +1159,7 @@ void BookUp(TREE * RESTRICT tree, int nargs, char **args) {
                 if (wtm)
                   move_num++;
 #if defined(POSITIONS)
-                if (wtm && move_num == 11) {
+                if (wtm == output_wtm && move_num == output_pos) {
                   char t_initial_position[256];
                   SEARCH_POSITION temp_pos;
 
@@ -1171,8 +1177,8 @@ void BookUp(TREE * RESTRICT tree, int nargs, char **args) {
                   tree->position[0] = temp_pos;
                 }
 #endif
-              } else if (strspn(buffer, "0123456789/-.*") != strlen(buffer) &&
-                  ply < max_ply) {
+              } else if (strspn(buffer, "0123456789/-.*") != strlen(buffer)
+                  && ply < max_ply) {
                 errors++;
                 Print(4095, "ERROR!  move %d: %s is illegal (line %d)\n",
                     move_num, buffer, ReadPGN(book_input, -2));

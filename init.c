@@ -214,8 +214,8 @@ void InitializeAttackBoards(void) {
       sq = i;
       lastsq = sq;
       sq = sq + bishopsq[j];
-      while ((Abs(Rank(sq) - Rank(lastsq)) == 1) &&
-          (Abs(File(sq) - File(lastsq)) == 1) && (sq < 64) && (sq > -1)) {
+      while ((Abs(Rank(sq) - Rank(lastsq)) == 1)
+          && (Abs(File(sq) - File(lastsq)) == 1) && (sq < 64) && (sq > -1)) {
         if (bishopsq[j] == 7)
           plus7dir[i] = plus7dir[i] | (uint64_t) 1 << sq;
         else if (bishopsq[j] == 9)
@@ -245,11 +245,11 @@ void InitializeAttackBoards(void) {
       sq = i;
       lastsq = sq;
       sq = sq + rooksq[j];
-      while ((((Abs(Rank(sq) - Rank(lastsq)) == 1) &&
-                  (Abs(File(sq) - File(lastsq)) == 0)) ||
-              ((Abs(Rank(sq) - Rank(lastsq)) == 0) &&
-                  (Abs(File(sq) - File(lastsq)) == 1))) && (sq < 64) &&
-          (sq > -1)) {
+      while ((((Abs(Rank(sq) - Rank(lastsq)) == 1)
+                  && (Abs(File(sq) - File(lastsq)) == 0))
+              || ((Abs(Rank(sq) - Rank(lastsq)) == 0)
+                  && (Abs(File(sq) - File(lastsq)) == 1))) && (sq < 64)
+          && (sq > -1)) {
         if (rooksq[j] == 1)
           plus1dir[i] = plus1dir[i] | (uint64_t) 1 << sq;
         else if (rooksq[j] == 8)
@@ -791,7 +791,7 @@ void InitializeHashTables(void) {
     (trans_ref + i)->word2 = 0;
   }
   for (i = 0; i < hash_path_size; i++)
-    (hash_path + i)->hash_path_age = -1;
+    (hash_path + i)->hash_path_age = -99;
   if (!pawn_hash_table)
     return;
   for (i = 0; i < pawn_hash_table_size; i++) {

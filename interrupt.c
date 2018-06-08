@@ -28,7 +28,7 @@ void Interrupt(int ply) {
  ************************************************************
  */
   if (puzzling)
-    abort_search = 1;
+    abort_search = 2;
 /*
  ************************************************************
  *                                                          *
@@ -111,7 +111,6 @@ void Interrupt(int ply) {
  */
       else if (!strcmp(args[0], "?")) {
         if (thinking) {
-          abort_after_ply1 = 1;
           abort_search = 1;
         }
       }
@@ -132,7 +131,7 @@ void Interrupt(int ply) {
           if (thinking && result != 3)
             Print(128, "command not legal now.\n");
           else {
-            abort_search = 1;
+            abort_search = 2;
             input_status = 2;
             break;
           }
@@ -157,11 +156,11 @@ void Interrupt(int ply) {
             nargs = ReadParse(buffer, args, " 	;");
             temp = InputMove(tree, args[0], 0, Flip(root_wtm), 1, 1);
             if (temp) {
-              if ((From(temp) == From(ponder_move)) &&
-                  (To(temp) == To(ponder_move)) &&
-                  (Piece(temp) == Piece(ponder_move)) &&
-                  (Captured(temp) == Captured(ponder_move)) &&
-                  (Promote(temp) == Promote(ponder_move))) {
+              if ((From(temp) == From(ponder_move))
+                  && (To(temp) == To(ponder_move))
+                  && (Piece(temp) == Piece(ponder_move))
+                  && (Captured(temp) == Captured(ponder_move))
+                  && (Promote(temp) == Promote(ponder_move))) {
                 predicted++;
                 input_status = 1;
                 pondering = 0;
@@ -171,12 +170,12 @@ void Interrupt(int ply) {
                 Print(128, "predicted move made.\n");
               } else {
                 input_status = 2;
-                abort_search = 1;
+                abort_search = 2;
                 break;
               }
-            } else if (!strcmp(args[0], "go") || !strcmp(args[0], "move") ||
-                !strcmp(args[0], "SP")) {
-              abort_search = 1;
+            } else if (!strcmp(args[0], "go") || !strcmp(args[0], "move")
+                || !strcmp(args[0], "SP")) {
+              abort_search = 2;
               break;
             } else
               Print(4095, "Illegal move: %s\n", args[0]);

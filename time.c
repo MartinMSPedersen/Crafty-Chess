@@ -37,7 +37,7 @@ void TimeAdjust(int time_used, int side) {
     tc_time_remaining[side] += tc_increment;
 }
 
-/* last modified 08/27/10 */
+/* last modified 06/09/13 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -105,11 +105,11 @@ int TimeCheck(TREE * RESTRICT tree, int abort) {
       time_used > burp) {
     Lock(lock_io);
     if (pondering)
-      printf("               %2i   %s%7s?  ", iteration_depth,
-          DisplayTime(time_used), tree->remaining_moves_text);
+      printf("         %2i   %s%7s?  ", iteration_depth,
+          Display2Times(time_used), tree->remaining_moves_text);
     else
-      printf("               %2i   %s%7s*  ", iteration_depth,
-          DisplayTime(time_used), tree->remaining_moves_text);
+      printf("         %2i   %s%7s*  ", iteration_depth,
+          Display2Times(time_used), tree->remaining_moves_text);
     if (display_options & 32 && display_options & 64)
       printf("%d. ", move_number);
     if ((display_options & 32) && (display_options & 64) && Flip(root_wtm))
@@ -134,22 +134,6 @@ int TimeCheck(TREE * RESTRICT tree, int abort) {
   if (n_root_moves == 1 && !booking && !annotate_mode && !pondering &&
       iteration_depth > 1)
     return (1);
-/*
- ************************************************************
- *                                                          *
- *   Now, check to see if we are searching the first move   *
- *   at this depth.  If so, and we run out of time, we can  *
- *   abort the search rather than waiting to complete this  *
- *   ply=1 move to see if it's better.                      *
- *                                                          *
- ************************************************************
- */
-  ndone = 0;
-  for (i = 0; i < n_root_moves; i++)
-    if (root_moves[i].status & 16)
-      ndone++;
-  if (ndone == 1)
-    abort = 1;
   if (iteration_depth <= 2)
     return (0);
 /*
@@ -174,16 +158,33 @@ int TimeCheck(TREE * RESTRICT tree, int abort) {
  */
   if (pondering || analyze_mode)
     return (0);
-  if (time_used > absolute_time_limit)
-    return (1);
-  if (easy_move && !search_time_limit) {
-    if (time_used >= (36 * time_limit) / 100)
+  if (!search_time_limit) {
+    if (time_used < (difficulty * time_limit) / 100)
+      return (0);
+  } else {
+    if (time_used < time_limit)
+      return (0);
+    else
       return (1);
   }
-  if (time_used < time_limit)
-    return (0);
-  if (search_time_limit)
+  if (time_used > absolute_time_limit)
     return (1);
+/*
+ ************************************************************
+ *                                                          *
+ *   Now, check to see if we are searching the first move   *
+ *   at this depth.  If so, and we run out of time, we can  *
+ *   abort the search rather than waiting to complete this  *
+ *   ply=1 move to see if it's better.                      *
+ *                                                          *
+ ************************************************************
+ */
+  ndone = 0;
+  for (i = 0; i < n_root_moves; i++)
+    if (root_moves[i].status & 16)
+      ndone++;
+  if (ndone == 1)
+    abort = 1;
 /*
  ************************************************************
  *                                                          *
@@ -234,7 +235,7 @@ int TimeCheck(TREE * RESTRICT tree, int abort) {
   return (0);
 }
 
-/* last modified 01/17/09 */
+/* last modified 05/05/13 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -246,25 +247,10 @@ int TimeCheck(TREE * RESTRICT tree, int abort) {
  *                                                                             *
  *******************************************************************************
  */
-static int moves_left[64] = {
-  18, 18, 18, 18, 18, 18, 18, 18,
-  19, 19, 19, 19, 20, 20, 20, 20,
-  21, 21, 21, 21, 22, 22, 22, 22,
-  23, 23, 23, 23, 24, 24, 24, 24,
-  25, 25, 25, 25, 26, 26, 26, 26,
-  27, 27, 27, 27, 28, 28, 28, 28,
-  29, 29, 29, 29, 30, 30, 30, 30,
-  31, 31, 31, 31, 32, 32, 32, 32
-};
 void TimeSet(TREE * RESTRICT tree, int search_type) {
-  static const float behind[6] = { 32.0, 16.0, 8.0, 4.0, 2.0, 1.5 };
-  static const int reduce[6] = { 96, 48, 24, 12, 6, 3 };
-  int i, mult = 0, extra = 0;
+  int mult = 0, extra = 0;
   int surplus, average;
   int simple_average;
-  int phase =
-      moves_left[Min(63, TotalPieces(white, occupied) + TotalPieces(black,
-              occupied))] - 4;
 
   surplus = 0;
   average = 0;
@@ -296,7 +282,7 @@ void TimeSet(TREE * RESTRICT tree, int search_type) {
       time_limit =
           (tc_time_remaining[root_wtm] -
           tc_operator_time * tc_moves_remaining[root_wtm]) /
-          (ponder ? phase : phase + 6) + tc_increment;
+          (ponder ? 20 : 26) + tc_increment;
       if (tc_time_remaining[root_wtm] < 500 + tc_increment) {
         time_limit = tc_increment;
         if (tc_time_remaining[root_wtm] < 250 + tc_increment)
@@ -306,7 +292,6 @@ void TimeSet(TREE * RESTRICT tree, int search_type) {
       if (absolute_time_limit < time_limit ||
           tc_time_remaining[root_wtm] - time_limit < 100)
         absolute_time_limit = time_limit;
-     // Safety.
       if (tc_time_remaining[root_wtm] - time_limit < 50) {
         time_limit = tc_time_remaining[root_wtm] - 50;
         if (time_limit < 5)
@@ -319,8 +304,7 @@ void TimeSet(TREE * RESTRICT tree, int search_type) {
       }
 
     } else {
-      time_limit =
-          tc_time_remaining[root_wtm] / (ponder ? phase + 6 : phase + 12);
+      time_limit = tc_time_remaining[root_wtm] / (ponder ? 20 : 26);
       absolute_time_limit =
           Min(time_limit * 5, tc_time_remaining[root_wtm] / 2);
     }
@@ -400,39 +384,6 @@ void TimeSet(TREE * RESTRICT tree, int search_type) {
 /*
  ************************************************************
  *                                                          *
- *  This code is used to handle the case where someone is   *
- *  trying to "blitz" Crafty by reaching a position where   *
- *  things are locked up, and then just shuffling pieces    *
- *  back and forth.  When Crafty reaches the point where it *
- *  has less than 3/4 of the time the opponent has, it      *
- *  starts decreasing the target time.  At 1/2, it          *
- *  decreases it further.                                   *
- *                                                          *
- ************************************************************
- */
-  if (mode != tournament_mode && !computer_opponent) {
-    for (i = 0; i < 6; i++) {
-      if ((float) tc_time_remaining[root_wtm] * behind[i] <
-          (float) tc_time_remaining[Flip(root_wtm)]) {
-        time_limit = time_limit / reduce[i];
-        Print(128, "Crafty is behind %4.1f on time, reducing by 1/%d.\n",
-            behind[i], reduce[i]);
-        break;
-      }
-    }
-    if (tc_increment == 0 &&
-        tc_time_remaining[Flip(root_wtm)] > tc_time_remaining[root_wtm]) {
-      if (tc_time_remaining[root_wtm] < 3000)
-        time_limit /= 2;
-      if (tc_time_remaining[root_wtm] < 2000)
-        time_limit /= 2;
-      if (tc_time_remaining[root_wtm] < 1000)
-        time_limit = 1;
-    }
-  }
-/*
- ************************************************************
- *                                                          *
  *   If the operator has set an absolute search time limit  *
  *   already, then we simply copy this value and return.    *
  *                                                          *
@@ -452,9 +403,9 @@ void TimeSet(TREE * RESTRICT tree, int search_type) {
   time_limit = Min(time_limit, absolute_time_limit);
   if (search_type != puzzle) {
     if (!tc_sudden_death)
-      Print(128, "              time surplus %s  ", DisplayTime(surplus));
+      Print(128, "        time surplus %s  ", DisplayTime(surplus));
     else
-      Print(128, "              ");
+      Print(128, "         ");
     Print(128, "time limit %s", DisplayTimeKibitz(time_limit));
     Print(128, " (+%s)", DisplayTimeKibitz(extra));
     Print(128, " (%s)", DisplayTimeKibitz(absolute_time_limit));
@@ -462,8 +413,6 @@ void TimeSet(TREE * RESTRICT tree, int search_type) {
       Print(128, "/");
       Print(128, "(%d)", usage_level);
     }
-    if (easy_move)
-      Print(128, " [easy move]");
     Print(128, "\n");
   }
   if (time_limit <= 1) {

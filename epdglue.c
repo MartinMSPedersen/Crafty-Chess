@@ -823,7 +823,8 @@ static epdptrT EGCommHandler(epdptrT epdptr0, siptrT flagptr) {
 /* execute the supplied move (if any) */
       eopptr = EPDLocateEOPCode(epdptr0, epdso_sm);
       if (eopptr != NULL) {
-        move = InputMove(tree, eopptr->eop_headeov->eov_str, 0, game_wtm, 0, 0);
+        move =
+            InputMove(tree, eopptr->eop_headeov->eov_str, 0, game_wtm, 0, 0);
         if (history_file) {
           fseek(history_file, ((((move_number - 1) * 2) + 1 - game_wtm) * 10),
               SEEK_SET);
@@ -1786,9 +1787,9 @@ static siT EGProcessPFGA(void) {
 /* output record information to the display */
           sprintf(tbufv, "PFGA: EPD record: %ld", (record + 1));
           EGPrintTB();
-          if (((eopptr = EPDLocateEOPCode(epdptr, epdso_id)) != NULL) &&
-              ((eovptr = eopptr->eop_headeov) != NULL) &&
-              ((s = eovptr->eov_str) != NULL)) {
+          if (((eopptr = EPDLocateEOPCode(epdptr, epdso_id)) != NULL)
+              && ((eovptr = eopptr->eop_headeov) != NULL)
+              && ((s = eovptr->eov_str) != NULL)) {
             EGPrint("   ID: ");
             EGPrint(s);
           };
@@ -1796,9 +1797,9 @@ static siT EGProcessPFGA(void) {
 /* output record information to the log file */
           if (log_file != NULL) {
             fprintf(log_file, "PFGA: EPD record: %ld", (record + 1));
-            if (((eopptr = EPDLocateEOPCode(epdptr, epdso_id)) != NULL) &&
-                ((eovptr = eopptr->eop_headeov) != NULL) &&
-                ((s = eovptr->eov_str) != NULL))
+            if (((eopptr = EPDLocateEOPCode(epdptr, epdso_id)) != NULL)
+                && ((eovptr = eopptr->eop_headeov) != NULL)
+                && ((s = eovptr->eov_str) != NULL))
               fprintf(log_file, "   ID: %s", s);
             fprintf(log_file, "\n");
           };
@@ -1929,9 +1930,9 @@ static siT EGProcessPFLC(void) {
         flag = 0;
       else {
 /* did the expectation indicate a forced mate? */
-        if (((eopptr = EPDLocateEOPCode(epdptr, epdso_ce)) != NULL) &&
-            ((eovptr = eopptr->eop_headeov) != NULL) &&
-            forced_mate(atol(eovptr->eov_str))) {
+        if (((eopptr = EPDLocateEOPCode(epdptr, epdso_ce)) != NULL)
+            && ((eovptr = eopptr->eop_headeov) != NULL)
+            && forced_mate(atol(eovptr->eov_str))) {
 /* get the analysis result move from the pv */
           eopptr = EPDLocateEOPCode(epdptr, epdso_pv);
           if ((eopptr != NULL) && ((eovptr = eopptr->eop_headeov) != NULL)) {
@@ -1949,8 +1950,8 @@ static siT EGProcessPFLC(void) {
                     s);
                 EGPrintTB();
                 eopptr = EPDLocateEOPCode(epdptr, epdso_id);
-                if ((eopptr != NULL) &&
-                    ((eovptr = eopptr->eop_headeov) != NULL)) {
+                if ((eopptr != NULL)
+                    && ((eovptr = eopptr->eop_headeov) != NULL)) {
                   EGPrint("   ID: ");
                   EGPrint(eovptr->eov_str);
                 };

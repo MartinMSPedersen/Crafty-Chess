@@ -21,9 +21,6 @@
 #include <stdio.h>
 #include <assert.h>
 #include <stdlib.h>
-#if !defined(IPHONE)
-#  include <malloc.h>
-#endif
 #include <string.h>
 #if !defined(TYPES_INCLUDED)
 #  if defined (_MSC_VER) && (_MSC_VER >= 1300) && \
@@ -209,7 +206,7 @@ typedef struct {
   uint64_t path_sig;
   int hash_pathl;
   int  hash_path_age;
-  int hash_path[MAXPLY];
+  int hash_path_moves[MAXPLY];
 } HPATH_ENTRY;
 typedef struct {
   int phase;
@@ -217,7 +214,6 @@ typedef struct {
   int *last;
 } NEXT_MOVE;
 typedef struct {
-  uint64_t nodes;
   int move;
 /*
    x..xx xxxx xxx1 = failed low this iteration
@@ -227,6 +223,7 @@ typedef struct {
    x..xx xxx1 xxxx = move has been searched
  */
   unsigned int status;
+  int bm_age;
 } ROOT_MOVE;
 #  if defined(NT_i386)
 #    pragma pack(4)
@@ -267,8 +264,8 @@ struct tree {
   int curmv[MAXPLY];
   int hash_move[MAXPLY];
   int *last[MAXPLY];
-  unsigned int fail_high;
-  unsigned int fail_high_first;
+  uint64_t fail_highs;
+  uint64_t fail_high_number;
   unsigned int evaluations;
   unsigned int egtb_probes;
   unsigned int egtb_probes_successful;
@@ -281,7 +278,6 @@ struct tree {
   int sort_value[256];
   unsigned char inchk[MAXPLY];
   unsigned char phase[MAXPLY];
-  int search_value;
   int tropism[2];
   int dangerous[2];
   int score_mg, score_eg;
@@ -327,9 +323,10 @@ typedef struct tree TREE;
 #  define CAPTURE_MOVES             4
 #  define KILLER_MOVE_1             5
 #  define KILLER_MOVE_2             6
-#  define GENERATE_ALL_MOVES        7
-#  define SORT_ALL_MOVES            8
-#  define REMAINING_MOVES           9
+#  define KILLER_MOVE_3             7
+#  define KILLER_MOVE_4             8
+#  define GENERATE_ALL_MOVES        9
+#  define REMAINING_MOVES          10
 #  if defined(VC_INLINE32)
 #    include "vcinline.h"
 #  else
@@ -375,7 +372,7 @@ int BookUpCompare(const void *, const void *);
 BB_POSITION BookUpNextPosition(int, int);
 int CheckInput(void);
 void ClearHashTableScores(void);
-void CopyFromChild(TREE * RESTRICT, TREE * RESTRICT, int);
+void CopyToParent(TREE * RESTRICT, TREE * RESTRICT, int);
 TREE *CopyToChild(TREE * RESTRICT, int);
 void CraftyExit(int);
 void DisplayArray(int *, int);
@@ -386,12 +383,13 @@ void DisplayChessBoard(FILE *, POSITION);
 char *DisplayEvaluation(int, int);
 char *DisplayEvaluationKibitz(int, int);
 void DisplayFT(int, int, int);
-char *DisplayHHMM(uint);
-char *DisplayHHMMSS(uint);
-char *DisplayKM(uint);
+char *DisplayHHMM(unsigned int);
+char *DisplayHHMMSS(unsigned int);
+char *DisplayKM(unsigned int);
 void DisplayPV(TREE * RESTRICT, int, int, int, int, PATH *);
-char *DisplayTime(uint);
-char *DisplayTimeKibitz(uint);
+char *DisplayTime(unsigned int);
+char *Display2Times(unsigned int);
+char *DisplayTimeKibitz(unsigned int);
 void DisplayTreeState(TREE * RESTRICT, int, int, int);
 void DisplayChessMove(char *, int);
 int Drawn(TREE * RESTRICT, int);
@@ -470,6 +468,7 @@ int Option(TREE * RESTRICT);
 int OptionMatch(char *, char *);
 void OptionPerft(TREE * RESTRICT, int, int, int);
 void Output(TREE * RESTRICT, int, int);
+void SearchFH(TREE * RESTRICT, int, int);
 char *OutputMove(TREE * RESTRICT, int, int, int);
 int ParseTime(char *);
 void Pass(void);
