@@ -220,7 +220,7 @@ linux-icc:
 		CXFLAGS='$(CFLAGS) -D_REENTRANT -O2 \
 			-w -xN -prof_use -prof_dir ./profdir' \
 		LDFLAGS='$(LDFLAGS) -lstdc++' \
-		opt='$(opt) -DTRACE -DINLINE32 -DSMP -DCPUS=2' \
+		opt='$(opt) -DTEST -DINLINE32 -DSMP -DCPUS=2' \
 		crafty-make
 
 linux-icc-profile:
@@ -232,7 +232,7 @@ linux-icc-profile:
 		CXFLAGS='$(CFLAGS) -D_REENTRANT -O2 \
 			-w -xN -prof_genx -prof_dir ./profdir' \
 		LDFLAGS='$(LDFLAGS) -lstdc++ ' \
-		opt='$(opt) -DINLINE32 -DSMP -DCPUS=2' \
+		opt='$(opt) -DTEST -DINLINE32 -DSMP -DCPUS=2' \
 		crafty-make
 
 linux-alpha:
@@ -416,7 +416,7 @@ profile:
 
 #objects = searchr.o search.o thread.o searchmp.o repeat.o next.o nexte.o      \
        nextr.o history.o killer.o quiesce.o evaluate.o movgen.o make.o unmake.o\
-       hash.o attacks.o swap.o boolean.o utility.o probe.o book.o      \
+       hash.o attacks.o swap.o boolean.o utility.o probe.o book.o              \
        data.o drawn.o edit.o epd.o epdglue.o init.o input.o interupt.o         \
        iterate.o main.o option.o output.o ponder.o preeval.o resign.o root.o   \
        learn.o setboard.o test.o time.o validate.o annotate.o analyze.o        \

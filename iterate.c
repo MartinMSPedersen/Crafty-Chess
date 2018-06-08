@@ -345,24 +345,21 @@ int Iterate(int wtm, int search_type, int root_list_done)
                   SetRootBeta(shared->root_moves[0].status, shared->root_beta);
               shared->root_moves[0].status &= 255 - 128;
               shared->root_moves[0].nodes = 0;
-              if (shared->root_moves[0].status & 0x38)
-                shared->root_beta = MATE + 1;
-              shared->root_alpha = -MATE - 1;
               shared->root_value = shared->root_alpha;
               shared->easy_move = 0;
               if (shared->root_print_ok && !shared->time_abort &&
                   !shared->abort_search) {
                 if (wtm) {
                   fl_indicator = "-1";
-                  if (shared->root_moves[0].status & 16)
+                  if (shared->root_moves[0].status & 2)
                     fl_indicator = "-3";
-                  if (shared->root_moves[0].status & 32)
+                  if (shared->root_moves[0].status & 4)
                     fl_indicator = "-M";
                 } else {
                   fl_indicator = "+1";
-                  if (shared->root_moves[0].status & 16)
+                  if (shared->root_moves[0].status & 2)
                     fl_indicator = "+3";
-                  if (shared->root_moves[0].status & 32)
+                  if (shared->root_moves[0].status & 4)
                     fl_indicator = "+M";
                 }
                 Print(4, "               %2i   %s     %2s   ",

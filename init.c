@@ -168,31 +168,6 @@ void Initialize()
       books_file = 0;
     }
   }
-  if (learning & position_learning) {
-    sprintf(log_filename, "%s/position.bin", book_path);
-    position_file = fopen(log_filename, "rb+");
-    if (position_file) {
-      fseek(position_file, 0, SEEK_END);
-      if (ftell(position_file) == 0) {
-        fclose(position_file);
-        position_file = 0;
-      }
-    }
-    if (!position_file) {
-      position_file = fopen(log_filename, "wb+");
-      if (position_file) {
-        fseek(position_file, 0, SEEK_SET);
-        fwrite(&i, sizeof(int), 1, position_file);
-        i--;
-        fwrite(&i, sizeof(int), 1, position_file);
-      } else {
-        Print(128, "unable to open position learning file [%s/position.bin].\n",
-            book_path);
-        Print(128, "learning disabled.\n");
-        learning &= ~position_learning;
-      }
-    }
-  }
   id = InitializeGetLogID();
   sprintf(log_filename, "%s/log.%03d", log_path, id);
   sprintf(history_filename, "%s/game.%03d", log_path, id);
@@ -1215,7 +1190,7 @@ void InitializeMasks(void)
 
 void InitializePawnMasks(void)
 {
-  int i;
+  int i, file;
   BITBOARD m1, m2;
 
 /*
@@ -1320,6 +1295,30 @@ void InitializePawnMasks(void)
   mask_not_edge =
       ~(rank_mask[RANK1] | rank_mask[RANK8] | file_mask[FILEA] |
       file_mask[FILEH]);
+/*
+   this array is indexed by an 8-bit value that has a one for
+   each file with a pawn of a specific color.  it returns the 
+   number of "pawn islands" based on that file status.
+ */
+  for (i = 0; i < 256; i++) {
+    islands[i] = 0;
+    file = 1;
+    while (file <= 128) {
+      while (!(i & file)) {
+        file <<= 1;
+        if (file > 128)
+          break;
+      }
+      if (file <= 128) {
+        islands[i]++;
+        while (i & file) {
+          file <<= 1;
+          if (file > 128)
+            break;
+        }
+      }
+    }
+  }
 }
 
 void InitializePieceMasks(void)

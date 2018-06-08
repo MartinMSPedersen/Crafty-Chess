@@ -81,7 +81,9 @@ void EVTest(char *filename)
       PreEvaluate(tree);
       tree->pawn_score.key = 0;
       s1 = Evaluate(tree, 0, wtm, -99999, 99999);
-printf("eval=%d\n", s1);
+printf("===============================================\n");
+DisplayChessBoard(stdout, tree->pos);
+DisplayBitBoard(tree->pawn_score.weak_pawns);
 
       strcpy(buffer, "flop");
       (void) Option(tree);

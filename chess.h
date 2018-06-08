@@ -194,8 +194,7 @@ typedef enum { no_extension = 0, check_extension = 1,
 typedef enum { think = 1, puzzle = 2, book = 3, annotate = 4 } SEARCH_TYPE;
 typedef enum { normal_mode, tournament_mode } PLAYING_MODE;
 typedef enum { crafty, opponent } PLAYER;
-typedef enum { book_learning = 1, position_learning = 2,
-  result_learning = 4
+typedef enum { book_learning = 1, result_learning = 2
 } LEARNING_MODE;
 typedef struct {
   unsigned char enpassant_target;
@@ -253,6 +252,7 @@ typedef struct {
 } HISTORY;
 typedef struct {
   BITBOARD key;
+  BITBOARD weak_pawns;
   int      p_score;
   unsigned char allb;
   unsigned char black_defects_k;
@@ -261,7 +261,9 @@ typedef struct {
   unsigned char black_defects_q;
   unsigned char passed_b;
   unsigned char candidates_b;
+  unsigned char hidden_b;
   unsigned char average_b;
+  unsigned char weak_b;
   unsigned char allw;
   unsigned char white_defects_k;
   unsigned char white_defects_e;
@@ -269,7 +271,9 @@ typedef struct {
   unsigned char white_defects_q;
   unsigned char passed_w;
   unsigned char candidates_w;
+  unsigned char hidden_w;
   unsigned char average_w;
+  unsigned char weak_w;
   unsigned char protected;
   unsigned char outside;
   unsigned char open_files;
@@ -578,22 +582,22 @@ int       EvaluateStalemate(TREE * RESTRICT, int);
 int       EvaluateWinningChances(TREE * RESTRICT);
 
 // Slider functions.
-int inline IsPawnWeakW(TREE * RESTRICT tree, int square);
-int inline IsPawnWeakB(TREE * RESTRICT tree, int square);
-int inline SlideW2(TREE * RESTRICT tree, int sqr, int dir, int num, int ignore);
-int inline SlideB2(TREE * RESTRICT tree, int sqr, int dir, int num, int ignore);
-int inline SlideW(TREE * RESTRICT tree, int square, int dir, int num, int *sqrVal, int *hit1, int *hit2, int ignore);
-int inline SlideB(TREE * RESTRICT tree, int square, int dir, int num, int *sqrVal, int *hit1, int *hit2, int ignore);
-int inline BishopSlideEvalW(TREE * RESTRICT tree, int square, int dir, int num);
-int inline BishopSlideEvalB(TREE * RESTRICT tree, int square, int dir, int num);
-int inline RookSlideEvalW(TREE * RESTRICT tree, int square, int dir, int num, int *weakPawnScoreArray);
-int inline RookSlideEvalB(TREE * RESTRICT tree, int square, int dir, int num, int *weakPawnScoreArray);
-int inline RookSlideW(TREE * RESTRICT tree, int square);
-int inline RookSlideB(TREE * RESTRICT tree, int square);
-int inline BishopSlideW(TREE * RESTRICT tree, int square);
-int inline BishopSlideB(TREE * RESTRICT tree, int square);
-int inline KnightWeakPawnW(TREE * RESTRICT tree, int sqr);
-int inline KnightWeakPawnB(TREE * RESTRICT tree, int sqr);
+int IsPawnWeakW(TREE * RESTRICT, int);
+int IsPawnWeakB(TREE * RESTRICT, int);
+int SlideW2(TREE * RESTRICT, int, int, int, int);
+int SlideB2(TREE * RESTRICT, int, int, int, int);
+int SlideW(TREE * RESTRICT, int, int, int, int *, int *, int *, int);
+int SlideB(TREE * RESTRICT, int, int, int, int *, int *, int *, int);
+int BishopSlideEvalW(TREE * RESTRICT, int, int, int);
+int BishopSlideEvalB(TREE * RESTRICT, int, int, int);
+int RookSlideEvalW(TREE * RESTRICT, int, int, int);
+int RookSlideEvalB(TREE * RESTRICT, int, int, int);
+int RookSlideW(TREE * RESTRICT, int);
+int RookSlideB(TREE * RESTRICT, int);
+int BishopSlideW(TREE * RESTRICT, int);
+int BishopSlideB(TREE * RESTRICT, int);
+int KnightWeakPawnW(TREE * RESTRICT, int);
+int KnightWeakPawnB(TREE * RESTRICT, int);
 
 int EvaluateAll(TREE * RESTRICT tree);
 void      EVTest(char *);
@@ -637,8 +641,6 @@ int       KingPawnSquare(int, int, int, int);
 void      LearnBook(TREE * RESTRICT, int, int, int, int, int);
 void      LearnBookUpdate(TREE*, int, BITBOARD, float);
 int       LearnFunction(int, int, int, int);
-void      LearnPosition(TREE * RESTRICT, int, int, int);
-void      LearnPositionLoad(void);
 void      MakeMove(TREE * RESTRICT, int, int, int);
 void      MakeMoveRoot(TREE * RESTRICT, int, int);
 void      NewGame(int);
@@ -776,6 +778,15 @@ extern void WinFreeInterleaved(void *, size_t);
           extended=0;                                                        \
       }
 # endif
+/* the following macros scale parts of the evaluation depending on the
+   amount of material remaining on the board, to make endgame stuff more
+   important as material comes off, and to make non-endgame stuff like 
+   king-safety more important until material does come off.
+ */
+#define ScaleMG(s)                                                            \
+    ((s) * (Min(TotalWhitePieces + TotalBlackPieces, 62)) / 62)
+#define ScaleEG(s)                                                            \
+    ((s) * (62 - Min(TotalWhitePieces + TotalBlackPieces, 42)) / 62)
 
 /*
    the following macro is used to determine if one side is in check.  it

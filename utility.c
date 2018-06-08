@@ -461,7 +461,7 @@ void DisplayBitBoard(BITBOARD board)
 
   for (i = 56; i >= 0; i -= 8) {
     x = (board >> i) & 255;
-    for (j = 128; j > 0; j = j >> 1)
+    for (j = 1; j < 256; j = j << 1)
       if (x & j)
         printf("X ");
       else
@@ -2351,7 +2351,7 @@ void Kibitz(int level, int wtm, int depth, int time, int value, BITBOARD nodes,
       sprintf(prefix, "whisper");
     switch (level) {
     case 1:
-      if ((kibitz & 15) >= 2) {
+      if ((kibitz & 15) >= 1) {
         if (value > 0) {
           if (ics)
             printf("*");

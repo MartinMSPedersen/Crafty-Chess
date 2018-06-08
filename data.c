@@ -141,6 +141,7 @@ unsigned char lsb[65536];
 #endif
 unsigned char msb_8bit[256];
 unsigned char lsb_8bit[256];
+unsigned char islands[256];
 unsigned char pop_cnt_8bit[256];
 unsigned char connected_passed[256];
 unsigned char file_spread[256];
@@ -161,7 +162,7 @@ BITBOARD black_pawn_race_btm[64];
 BOOK_POSITION book_buffer[BOOK_CLUSTER_SIZE];
 BOOK_POSITION book_buffer_char[BOOK_CLUSTER_SIZE];
 
-#define    VERSION                             "21.1"
+#define    VERSION                             "21.2"
 char version[8] = { VERSION };
 PLAYING_MODE mode = normal_mode;
 int batch_mode = 0;             /* no asynch reads */
@@ -266,8 +267,7 @@ int book_reject_mask = 3;
 int book_random = 1;
 float book_weight_learn = 1.0;
 float book_weight_freq = 1.0;
-float book_weight_CAP = 0.7;
-float book_weight_eval = 0.5;
+float book_weight_eval = 0.1;
 int book_search_trigger = 20;
 int learning = 7;
 int learning_cutoff = -2 * PAWN_VALUE;
@@ -308,37 +308,17 @@ const char empty[9] = { 0, '1', '2', '3', '4', '5', '6', '7', '8' };
 int king_tropism_n[8] = { 0, 3, 3, 2, 1, 0, 0, 0 };
 int king_tropism_b[8] = { 0, 2, 2, 1, 0, 0, 0, 0 };
 int king_tropism_r[8] = { 0, 4, 3, 2, 1, 1, 1, 1 };
-int king_tropism_at_r[8] = { 4, 3, 2, 2, 2, 2, 2, 2 };
+int king_tropism_at_r = 1;
 int king_tropism_q[8] = { 0, 6, 5, 4, 3, 2, 2, 2 };
-int king_tropism_at_q[8] = { 6, 5, 4, 3, 3, 3, 3, 3 };
+int king_tropism_at_q = 2;
 
 int connected_passed_pawn_value[8] = { 0, 0, 10, 20, 40, 100, 200, 0 };
 int hidden_passed_pawn_value[8] = { 0, 0, 0, 0, 20, 40, 0, 0 };
 int passed_pawn_value[8] = { 0, 12, 20, 48, 72, 120, 150, 0 };
 int blockading_passed_pawn_value[8] = { 0, 6, 10, 24, 36, 60, 75, 0 };
-int isolated_pawn_value[9] = { 0, 8, 20, 40, 60, 70, 80, 80, 80 };
-int isolated_pawn_of_value[9] = { 0, 4, 10, 16, 24, 24, 24, 24, 24 };
 int doubled_pawn_value[9] = { 0, 0, 4, 7, 10, 10, 10, 10, 10 };
-int doubled_isolated_pawn_value[9] = { 0, 5, 10, 15, 15, 15, 15, 15, 15 };
 int supported_passer[8] = { 0, 0, 0, 20, 40, 60, 100, 0 };
-int outside_passed[128] = {
-  160, 100, 100, 100, 80, 80, 80, 70,
-   60,  50,  40,  40, 30, 30, 20, 20,
-   16,  16,  10,  10,  0,  0,  0,  0,
-    0,   0,   0,   0,  0,  0,  0,  0,
-    0,   0,   0,   0,  0,  0,  0,  0,
-    0,   0,   0,   0,  0,  0,  0,  0,
-    0,   0,   0,   0,  0,  0,  0,  0,
-    0,   0,   0,   0,  0,  0,  0,  0,
-    0,   0,   0,   0,  0,  0,  0,  0,
-    0,   0,   0,   0,  0,  0,  0,  0,
-    0,   0,   0,   0,  0,  0,  0,  0,
-    0,   0,   0,   0,  0,  0,  0,  0,
-    0,   0,   0,   0,  0,  0,  0,  0,
-    0,   0,   0,   0,  0,  0,  0,  0,
-    0,   0,   0,   0,  0,  0,  0,  0,
-    0,   0,   0,   0,  0,  0,  0,  0
-};
+int outside_passed = 100;
 const char square_color[64] = {
   1, 0, 1, 0, 1, 0, 1, 0,
   0, 1, 0, 1, 0, 1, 0, 1,
@@ -440,14 +420,14 @@ int qval[64] = {
   -20, -20,   0,   0,   0,   0, -20, -20,
 };
 int kval_wn[64] = {
-  -40, -20, -20, -20, -20, -20, -20, -40,
-  -20,   0,   0,   0,   0,   0,   0, -20,
-  -20,  20,  20,  20,  20,  20,  20, -20,
-  -20,  20,  40,  40,  40,  40,  20, -20,
-  -20,  30,  60,  60,  60,  60,  30, -20,
-  -20,  30,  60,  60,  60,  60,  30, -20,
-  -20,  30,  40,  40,  40,  40,  30, -20,
-  -40, -20, -20, -20, -20, -20, -20, -40
+  -40, -40, -40, -40, -40, -40, -40, -40,
+  -40, -10, -10, -10, -10, -10, -10, -40,
+  -40, -10,  20,  20,  20,  20, -10, -40,
+  -40, -10,  40,  40,  40,  40, -10, -40,
+  -40, -10,  60,  60,  60,  60, -10, -40,
+  -40, -10,  60,  60,  60,  60, -10, -40,
+  -40, -10, -10, -10, -10, -10, -10, -40,
+  -40, -40, -40, -40, -40, -40, -40, -40
 };
 int kval_wk[64] = {
   -60, -40, -20, -20, -20, -20, -20, -20,
@@ -498,8 +478,8 @@ int bad_trade = 150;
 int pawns_blocked = 2;
 int center_pawn_unmoved = 8;
 int pawn_duo = 2;
-int pawn_weak_p1 = 12;
-int pawn_weak_p2 = 20;
+int pawn_weak[9] = {0, 20, 40, 60, 70, 80, 90, 100, 110};
+int pawn_islands[5] = {0, 0, 0, 30, 40};
 int pawn_protected_passer_wins = 50;
 int won_kp_ending = 200;
 int split_passed = 50;
@@ -507,8 +487,8 @@ int king_king_tropism = 15;
 int bishop_trapped = 174;
 int slider_with_wing_pawns = 36;
 int pinOrDiscoveredCheck = 4;
-int weakPawnScore[4] = {4, 6, 5, 9};
-int weakPawnScoreVert[4] = {5, 9, 5, 9};
+int weakPawnScore = 9;
+int weakPawnScoreVert = 9;
 /*
     this is indexed by the center status (open, ..., blocked)
     as a bishop pair is more important when the board has opened
@@ -599,22 +579,22 @@ struct eval_term eval_packet[256] = {
   {"center pawn unmoved             ", 0, &center_pawn_unmoved},
   {"pawn duo                        ", 0, &pawn_duo},
   {"protected passed pawn wins      ", 0, &pawn_protected_passer_wins},
-  {"pawn weak (one pawn blocking)   ", 0, &pawn_weak_p1},
-  {"pawn weak (two pawns blocking)  ", 0, &pawn_weak_p2},
+  {"pawn weak [n]                   ", 9, pawn_weak},
+  {"pawn islands [0-4]              ", 5, pawn_islands},
   {"pawn can promote                ", 0, &pawn_can_promote},
   {"won kp ending                   ", 0, &won_kp_ending},
   {"split passed pawn bonus         ", 0, &split_passed},
+  {"outside passed pawn             ", 0, &outside_passed},
   {"pawn piece/square table         ", -64, pval_w},
   {"connected passed pawn [rank]    ", 8, connected_passed_pawn_value},
   {"hidden passed pawn [rank]       ", 8, hidden_passed_pawn_value},
   {"passed pawn [rank]              ", 8, passed_pawn_value},
   {"blockading a passed pawn [rank] ", 8, blockading_passed_pawn_value},
-  {"isolated pawn [n]               ", 9, isolated_pawn_value},
-  {"isolated pawn on open file [n]  ", 9, isolated_pawn_of_value},
   {"doubled pawn [n]                ", 9, doubled_pawn_value},
-  {"doubled isolated pawn [n]       ", 9, doubled_isolated_pawn_value},
   {"supported passed pawn [rank]    ", 8, supported_passer},
-  {"outside passed pawn [matrl]     ", 128, outside_passed},
+  {NULL, 0, NULL},
+  {NULL, 0, NULL},
+  {NULL, 0, NULL},
   {NULL, 0, NULL},
   {NULL, 0, NULL},
   {NULL, 0, NULL},
@@ -653,7 +633,7 @@ struct eval_term eval_packet[256] = {
   {"rook open file [9][8]           ", 72, &rook_open_file[0][0]},
   {"rook reaches open file          ", 0, &rook_reaches_open_file},
   {"king tropism [distance]         ", 8, king_tropism_r},
-  {"king file tropism [distance]    ", 8, king_tropism_at_r},
+  {"king file tropism [distance]    ", 0, &king_tropism_at_r},
   {"rook mobility/square table      ", -64, sqrvalR},
   {NULL, 0, NULL},
   {NULL, 0, NULL},
@@ -668,7 +648,7 @@ struct eval_term eval_packet[256] = {
   {"queen rook on 7th rank          ", 0, &queen_rook_on_7th_rank},
   {"queen offside                   ", 0, &queen_offside},
   {"king tropism [distance]         ", 8, king_tropism_q},
-  {"king file tropism [distance]    ", 8, king_tropism_at_q},
+  {"king file tropism [distance]    ", 0, &king_tropism_at_q},
   {"queen piece/square table        ", -64, qval},
   {NULL, 0, NULL},
   {NULL, 0, NULL},

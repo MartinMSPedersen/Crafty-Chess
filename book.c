@@ -278,7 +278,6 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
     for (i = 0; i < nmoves; i++) {
       bs_value[i] = 1;
       bs_value[i] += bs_played[i] / (float) maxp *1000.0 * book_weight_freq;
-
       if (minlv < maxlv)
         bs_value[i] +=
             (bs_learn[i] - minlv) / (float) (maxlv -

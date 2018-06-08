@@ -85,15 +85,6 @@ void PreEvaluate(TREE * RESTRICT tree)
     Print(128, "              clearing hash tables\n");
     ClearHashTableScores(1);
     last_clear = shared->move_number;
-/*
- ***************************************************
- *                                                 *
- *   now install the learned position information  *
- *   in the hash table.                            *
- *                                                 *
- ***************************************************
- */
-    LearnPositionLoad();
   }
 /*
  ************************************************************

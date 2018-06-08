@@ -328,13 +328,10 @@ int Option(TREE * RESTRICT tree)
         book_weight_eval = atof(args[2]);
       else if (!strcmp("learn", args[1]))
         book_weight_learn = atof(args[2]);
-      else if (!strcmp("CAP", args[1]))
-        book_weight_CAP = atof(args[2]);
     } else {
       Print(128, "frequency (freq)..............%4.2f\n", book_weight_freq);
       Print(128, "static evaluation (eval)......%4.2f\n", book_weight_eval);
       Print(128, "learning (learn)..............%4.2f\n", book_weight_learn);
-      Print(128, "CAP (CAP score)...............%4.2f\n", book_weight_CAP);
     }
   }
 /*
@@ -1250,7 +1247,6 @@ int Option(TREE * RESTRICT tree)
           }
           hash_mask = (1 << log_hash) - 1;
           ClearHashTableScores(1);
-          LearnPositionLoad();
         } else {
           trans_ref = 0;
           hash_table_size = 0;
@@ -1467,7 +1463,6 @@ int Option(TREE * RESTRICT tree)
     Print(128, "frequency (freq)..............%4.2f\n", book_weight_freq);
     Print(128, "static evaluation (eval)......%4.2f\n", book_weight_eval);
     Print(128, "learning (learn)..............%4.2f\n", book_weight_learn);
-    Print(128, "CAP (CAP score)...............%4.2f\n", book_weight_CAP);
   }
 /*
  ************************************************************
@@ -1527,19 +1522,38 @@ int Option(TREE * RESTRICT tree)
  */
   else if (OptionMatch("learn", *args)) {
     if (nargs == 2) {
-      learning = atoi(args[1]);
-      if (learning & book_learning)
-        Print(128, "book learning enabled\n");
-      else
-        Print(128, "book learning disabled\n");
-      if (learning & result_learning)
-        Print(128, "result learning enabled\n");
-      else
-        Print(128, "result learning disabled\n");
-      if (learning & position_learning)
-        Print(128, "position learning enabled\n");
-      else
-        Print(128, "position learning disabled\n");
+      if (OptionMatch("clear", *(args + 1))) {
+        int index[32768], i, j, cluster;
+        unsigned char buf32[4];
+
+        fseek(book_file, 0, SEEK_SET);
+        for (i = 0; i < 32768; i++) {
+          fread(buf32, 4, 1, book_file);
+          index[i] = BookIn32(buf32);
+        }
+        for (i = 0; i < 32768; i++)
+          if (index[i] > 0) {
+            fseek(book_file, index[i], SEEK_SET);
+            fread(buf32, 4, 1, book_file);
+            cluster = BookIn32(buf32);
+            BookClusterIn(book_file, cluster, book_buffer);
+            for (j = 0; j < cluster; j++)
+              book_buffer[j].learn = 0.0;
+            fseek(book_file, index[i] + sizeof(int), SEEK_SET);
+            BookClusterOut(book_file, cluster, book_buffer);
+          }
+      }
+      else {
+        learning = atoi(args[1]);
+        if (learning & book_learning)
+          Print(128, "book learning enabled\n");
+        else
+          Print(128, "book learning disabled\n");
+        if (learning & result_learning)
+          Print(128, "result learning enabled\n");
+        else
+          Print(128, "result learning disabled\n");
+      }
     } else if (nargs == 3) {
       learning_trigger = atof(args[1]) * 100;
       learning_cutoff = atof(args[2]) * 100;
@@ -2067,20 +2081,17 @@ int Option(TREE * RESTRICT tree)
         mode = normal_mode;
         book_weight_learn = 1.0;
         book_weight_freq = 1.0;
-        book_weight_CAP = 0.7;
         book_weight_eval = 0.5;
       } else if (!strcmp(args[1], "match")) {
         mode = normal_mode;
         book_weight_learn = 1.0;
         book_weight_freq = 0.2;
-        book_weight_CAP = 0.1;
         book_weight_eval = 0.1;
       } else {
         printf("usage:  mode normal|tournament\n");
         mode = normal_mode;
         book_weight_learn = 1.0;
         book_weight_freq = 1.0;
-        book_weight_CAP = 0.7;
         book_weight_eval = 0.5;
       }
     }
@@ -3341,9 +3352,6 @@ int Option(TREE * RESTRICT tree)
     over = 0;
     strcpy(buffer, "savepos *");
     (void) Option(tree);
-#if !defined(NOEGTB)
-    EGTBPV(tree, wtm);
-#endif
   } else if (StrCnt(*args, '/') > 3) {
     if (shared->thinking || shared->pondering)
       return (2);
@@ -3360,9 +3368,6 @@ int Option(TREE * RESTRICT tree)
     over = 0;
     strcpy(buffer, "savepos *");
     (void) Option(tree);
-#if !defined(NOEGTB)
-    EGTBPV(tree, wtm);
-#endif
   }
 /*
  ************************************************************
@@ -3411,8 +3416,9 @@ int Option(TREE * RESTRICT tree)
             1));
     Print(128, "pawn evaluation.....................%s\n", DisplayEvaluation(s3,
             1));
-    Print(128, "passed pawn evaluation..............%s\n", DisplayEvaluation(s4,
-            1));
+    Print(128, "passed pawn evaluation..............%s",
+            DisplayEvaluation(ScaleEG(s4),1));
+    Print(128, " (%.2f)\n", (float) s4 / 100.0);
     Print(128, "passed pawn race evaluation.........%s\n", DisplayEvaluation(s5,
             1));
     Print(128, "knight evaluation...................%s\n", DisplayEvaluation(n,
@@ -3520,42 +3526,6 @@ int Option(TREE * RESTRICT tree)
     shared->search_time_limit = atof(args[1]) * 100;
     Print(128, "search time set to %.2f.\n",
         (float) shared->search_time_limit / 100.0);
-  }
-/*
- ************************************************************
- *                                                          *
- *   "store" command is used to store the current position, *
- *   side to move, and the specified score, in the          *
- *   position.bin (position learning) file.  this will end  *
- *   up in the hash table and influence any future searches.*
- *                                                          *
- ************************************************************
- */
-  else if (OptionMatch("store", *args)) {
-    int score, temp1, temp2, temp3;
-
-    if (shared->thinking || shared->pondering)
-      return (2);
-    if (nargs < 2) {
-      printf("usage:  store <value>\n");
-      return (1);
-    }
-    score = 100 * atof(args[1]);
-    if (score > 32000 || score < -32000) {
-      Print(4095, "ERROR.  -32 <= score <= 32 is an acceptable value\n");
-      return (1);
-    }
-    learning |= position_learning;
-    temp1 = tree->pv[0].pathd;
-    temp2 = tree->pv[0].path[1];
-    temp3 = shared->moves_out_of_book;
-    shared->moves_out_of_book = 0;
-    tree->pv[0].pathd = PLY - 5;
-    tree->pv[0].path[1] = 0;
-    LearnPosition(tree, wtm, Max(score + 100, 0), score);
-    tree->pv[0].pathd = temp1;
-    tree->pv[0].path[1] = temp2;
-    shared->moves_out_of_book = temp3;
   }
 /*
  ************************************************************

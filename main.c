@@ -3495,6 +3495,21 @@
  *           and "opposition" prevented one king from moving closer to the     *
  *           pawns.                                                            *
  *                                                                             *
+ *   21.1    new piece scoring from Tracy, which changes the way pieces are    *
+ *           scored based on squares they attack.                              *
+ *                                                                             *
+ *   21.2    the scores are now scaled better for the transition from middle-  *
+ *           game to end-game.  Passed pawn scores climb as material is        *
+ *           removed from the board, to prevent them from overwhelming the     *
+ *           middlegame king safety scores.  We do exactly the same scaling on *
+ *           king-safety scores, but they are scaled downward as material is   *
+ *           removed so that they "phase out" as the endgame is reached.       *
+ *           weak pawn code changed to more accurately identify weak pawns.    *
+ *           these are totaled and then used to index a scoring array that     *
+ *           penalizes the number of weak pawns on each side.  pawn islands    *
+ *           are now recognized and each side is penalized according to the    *
+ *           number of islands he has, more being worse.                       *
+ *                                                                             *
  *******************************************************************************
  */
 int main(int argc, char **argv)
@@ -4036,15 +4051,6 @@ int main(int argc, char **argv)
       fseek(history_file, ((shared->move_number - 1) * 2 + 1 - wtm) * 10,
           SEEK_SET);
       fprintf(history_file, "%9s\n", OutputMove(tree, last_pv.path[1], 0, wtm));
-/*
- ************************************************************
- *                                                          *
- *   now execute LearnPosition() to determine if the        *
- *   current position is bad and should be remembered.      *
- *                                                          *
- ************************************************************
- */
-      LearnPosition(tree, wtm, last_search_value, value);
       last_search_value = value;
       MakeMoveRoot(tree, last_pv.path[1], wtm);
       move_actually_played = 1;
