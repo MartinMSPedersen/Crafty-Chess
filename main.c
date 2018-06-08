@@ -2625,6 +2625,12 @@
 *           about how it might affect the position learning since it is also  *
 *           hash-based.  needless to say, I broke it quite nicely, thank you. *
 *                                                                             *
+*   17.8    this is the version used in the first ICC computer chess          *
+*           tournament.  Crafty won with a score of 7.0/8.0 which included    *
+*           only 2 draws and no losses.  changes are minimal except for a few *
+*           non-engine syntax changes to eliminate warnings and fix a bad bug *
+*           in 'bench.c' that would crash if there was no books.bin file.     *
+*                                                                             *
 *******************************************************************************
 */
 int main(int argc, char **argv) {
@@ -2805,6 +2811,7 @@ int main(int argc, char **argv) {
         result=0;
         display=tree->pos;
         if (presult !=2 && (move_number!=1 || !wtm)) presult=Ponder(wtm);
+        if (presult == 1) value=last_root_value;
         if (presult==0 || presult==2) {
           if (!ics && !xboard) {
             if (wtm) printf("White(%d): ",move_number);
@@ -2910,8 +2917,7 @@ int main(int argc, char **argv) {
     }
     ponder_move=0;
     thinking=1;
-    if (presult == 1) value=last_search_value;
-    else {
+    if (presult != 1) {
       strcpy(whisper_text,"n/a");
       last_pv.pathd=0;
       last_pv.pathl=0;
@@ -3034,8 +3040,8 @@ int main(int argc, char **argv) {
 |                                                          |
  ----------------------------------------------------------
 */
-      LearnPosition(tree,wtm,previous_search_value,last_search_value);
-      previous_search_value=last_search_value;
+      LearnPosition(tree,wtm,value,last_root_value);
+      last_search_value=value;
       MakeMoveRoot(tree,last_pv.path[1],wtm);
       if (RepetitionDraw(tree,ChangeSide(wtm))==1) {
         Print(128,"%sgame is a draw by repetition.%s\n",Reverse(),Normal());

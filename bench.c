@@ -34,8 +34,10 @@ void Bench(void) {
 
   if (book_file) {
     fclose(book_file);
-    fclose(books_file);
     book_file=0;
+  }
+  if (books_file) {
+    fclose(books_file);
     books_file=0;
   }
 

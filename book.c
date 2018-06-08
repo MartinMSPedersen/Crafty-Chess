@@ -723,10 +723,10 @@ int Book(TREE *tree, int wtm, int root_list_done) {
 */
 int BookPonderMove(TREE *tree, int wtm) {
 
-  BITBOARD temp_hash_key, common, test;
+  BITBOARD temp_hash_key, common;
   static int book_moves[200];
   int i, key, *lastm, cluster, n_moves, im, played, tplayed;
-  int book_ponder_move=0;
+  int book_ponder_move=0, test;
 /*
  ----------------------------------------------------------
 |                                                          |

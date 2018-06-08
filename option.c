@@ -1709,7 +1709,7 @@ int Option(TREE *tree) {
       if (tc_increment) Print(4095,"increment %d seconds.\n",tc_increment/100);
     }
     else if (tc_sudden_death == 1) {
-      Print(4095," game/%d minutes primary time control\n", tc_time/100);
+      Print(4095," game/%d minutes primary time control\n", tc_time/6000);
       if (tc_increment) Print(4095,"increment %d seconds.\n",(tc_increment/100)%60);
     }
     else if (tc_sudden_death == 2) {

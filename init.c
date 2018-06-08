@@ -1059,6 +1059,18 @@ void InitializeHashTables(void) {
   }
 }
 
+void InitializeHistoryKillers(void) {
+  int i;
+  for (i=0;i<4096;i++) {
+    history_w[i]=0;
+    history_b[i]=0;
+  }
+  for (i=0;i<MAXPLY;i++) {
+    local[0]->killers[i].move1=0;
+    local[0]->killers[i].move2=0;
+  }
+}
+
 void InitializeMasks(void) {
   int i, j;
 /*

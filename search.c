@@ -251,6 +251,8 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
       else
         value=Quiesce(tree,-MATE,beta,wtm,ply);
       if (abort_search || tree->stop) return(0);
+      if ((int) tree->pv[ply-1].pathl >= ply) 
+        tree->hash_move[ply]=tree->pv[ply-1].path[ply];
     }
     else if (value < beta) {
       if ((int) tree->pv[ply-1].pathl >= ply) 

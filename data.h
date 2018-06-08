@@ -106,12 +106,12 @@
   extern int            crafty_is_white;
   extern int            iteration_depth;
   extern int            last_search_value;
-  extern int            previous_search_value;
   extern int            search_failed_high;
   extern int            search_failed_low;
   extern int            largest_positional_score;
   extern int            root_alpha;
   extern int            root_beta;
+  extern int            last_root_value;
   extern int            root_value;
   extern int            root_wtm;
   extern int            root_print_ok;

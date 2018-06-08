@@ -115,7 +115,7 @@ target  = LINUX
 CC      = gcc
 CPP	= g++
 CFLAGS  = -Wall -pipe -D_REENTRANT -march=i686 -O -fforce-mem \
-          -fomit-frame-pointer
+          -fomit-frame-pointer -mpreferred-stack-boundary=2
 LDFLAGS = -lpthread
 opt     = -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
           -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST -DSMP -DCPUS=4 -DDGT

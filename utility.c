@@ -899,7 +899,7 @@ void NewGame(int save) {
     over=0;
     moves_out_of_book=0;
     ponder_move=0;
-    previous_search_value=0;
+    last_search_value=0;
     last_pv.pathd=0;
     last_pv.pathl=0;
     strcpy(initial_position,"");

@@ -577,6 +577,7 @@ void           InitializeAttackBoards(void);
 void           InitializeChessBoard(SEARCH_POSITION*);
 int            InitializeFindAttacks(int, int, int);
 void           InitializeHashTables(void);
+void           InitializeHistoryKillers(void);
 void           InitializeMasks(void);
 void           InitializePawnMasks(void);
 void           InitializePieceMasks(void);

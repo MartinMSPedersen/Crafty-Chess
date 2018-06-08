@@ -19,7 +19,7 @@ int Iterate(int wtm, int search_type, int root_list_done) {
   ROOT_MOVE temp;
   int wpawn, bpawn, TB_use_ok;
   int i, value=0, time_used;
-  int twtm, used, search_value=last_search_value;
+  int twtm, used;
   int correct, correct_count, material=0, sorted;
   TREE * const tree=local[0];
 /*
@@ -121,7 +121,7 @@ int Iterate(int wtm, int search_type, int root_list_done) {
       Print(6,"              depth   time  score   variation\n");
       Print(6,"                                    (no moves)\n");
       tree->nodes_searched=1;
-      if (!puzzling) last_search_value=root_value;
+      if (!puzzling) last_root_value=root_value;
       return(root_value);
     }
 /*
@@ -285,8 +285,8 @@ int Iterate(int wtm, int search_type, int root_list_done) {
         }
         else break;
       }
-      if (root_value>root_alpha && root_value<root_beta) 
-        search_value=root_value;
+      if (root_value>root_alpha && root_value<root_beta)
+        last_root_value=root_value;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -445,14 +445,13 @@ int Iterate(int wtm, int search_type, int root_list_done) {
     }
   } while(0);
   else {
+    last_root_value=0;
     root_value=0;
-    search_value=0;
     book_move=1;
     tree->pv[0]=tree->pv[1];
     if (analyze_mode) Whisper(4,0,0,0,0,0,0,whisper_text);
   }
   program_end_time=ReadClock(time_type);
   search_move=0;
-  if (!puzzling) last_search_value=search_value;
-  return(search_value);
+  return(last_root_value);
 }

@@ -33,9 +33,9 @@
   char           buffer[512];
   int            nargs;
   int            iteration_depth;
-  int            previous_search_value;
   int            root_alpha;
   int            root_beta;
+  int            last_root_value;
   int            root_value;
   int            root_wtm;
   int            root_print_ok;
@@ -246,7 +246,7 @@
   unsigned int   max_split_blocks;
   volatile unsigned int   splitting;
 
-# define    VERSION                            "17.7"
+# define    VERSION                            "17.8"
   char      version[6] =                    {VERSION};
   PLAYING_MODE mode =                     normal_mode;
 

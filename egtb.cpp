@@ -83,10 +83,10 @@ typedef	int	color;
 typedef	int	piece;
 #define	x_pieceNone		0
 #define	x_piecePawn		1
-#define	x_pieceKnight	2
-#define	x_pieceBishop	3
+#define	x_pieceKnight		2
+#define	x_pieceBishop		3
 #define	x_pieceRook		4
-#define	x_pieceQueen	5
+#define	x_pieceQueen		5
 #define	x_pieceKing		6
 #define PIECES_DECLARED
 #endif
@@ -3467,7 +3467,7 @@ CTbDesc	rgtbdDesc[cTb] =
 	TB (krrknn, false, false, (T33<R, R, N, N>::IndCalcW), (T33<R, R, N, N>::IndCalcB),  1376421030,  1301488080)
 	TB (krrkbn, false, false, (T33<R, R, B, N>::IndCalcW), (T33<R, R, B, N>::IndCalcB),  2752842060,  2744597400)
 	TB (krrkbb, false, false, (T33<R, R, B, B>::IndCalcW), (T33<R, R, B, B>::IndCalcB),  1376421030,  1398096450)
-	TB (krrkrn, false, true,  (T33<R, R, R, N>::IndCalcW), (T33<R, R, R, N>::IndCalcB),  2752842060,  2723107830)
+	TB (krrkrn, false, false,  (T33<R, R, R, N>::IndCalcW), (T33<R, R, R, N>::IndCalcB),  2752842060,  2723107830)
 	TB (krrkrr, true,  false, (T33<R, R, R, R>::IndCalcW), (T33<R, R, R, R>::IndCalcB),  1376421030,  1376421030)
 	TB (kqnknn, false, false, (T33<Q, N, N, N>::IndCalcW), (T33<Q, N, N, N>::IndCalcB),  2583520320,  2602976160)
 	TB (kqnkbb, false, false, (T33<Q, N, B, B>::IndCalcW), (T33<Q, N, B, B>::IndCalcB),  2583520320,  2796192900)

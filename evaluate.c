@@ -831,7 +831,7 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
 /*
  ----------------------------------------------------------
 |                                                          |
-|   check to see if the queen is in a strong positiono on  |
+|   check to see if the queen is in a strong position on   |
 |   the 7th rank supported by a rook on the 7th.  if so,   |
 |   the positional advantage is almost overwhelming.       |
 |                                                          |
@@ -906,7 +906,7 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
 /*
  ----------------------------------------------------------
 |                                                          |
-|   check to see if the queen is in a strong positiono on  |
+|   check to see if the queen is in a strong position on   |
 |   the 7th rank supported by a rook on the 7th.  if so,   |
 |   the positional advantage is almost overwhelming.       |
 |                                                          |

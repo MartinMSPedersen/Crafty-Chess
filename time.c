@@ -25,7 +25,6 @@ void TimeAdjust(int time_used, PLAYER player) {
 |                                                          |
  ----------------------------------------------------------
 */
-  
   if (player == crafty) {
     tc_moves_remaining--;
     tc_time_remaining-=(tc_time_remaining > time_used) ? 
@@ -46,7 +45,7 @@ void TimeAdjust(int time_used, PLAYER player) {
   }
 }
 
-/* last modified 06/04/99 */
+/* last modified 01/26/00 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -140,7 +139,7 @@ int TimeCheck(int abort) {
  ----------------------------------------------------------
 */
   value=root_value;
-  last_value=last_search_value;
+  last_value=last_root_value;
   if ((value>=last_value-24 && !(root_moves[0].status&1)) ||
       (value>350 && value >= last_value-50)) {
     if (time_used > time_limit*2) return(1);
