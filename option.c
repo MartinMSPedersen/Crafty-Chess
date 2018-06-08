@@ -565,6 +565,21 @@ int Option(TREE * RESTRICT tree)
 /*
  ************************************************************
  *                                                          *
+ *   "debug" handles the new debug command that is often    *
+ *   modified to test some modified code function.          *
+ *                                                          *
+ ************************************************************
+ */
+  else if (OptionMatch("debug", *args)) {
+    int *mv;
+
+    tree->last[1] = GenerateChecks(tree, 1, wtm, tree->last[0]);
+    for (mv = tree->last[0]; mv < tree->last[1]; mv++)
+      printf("%s\n", OutputMove(tree, *mv, 1, wtm));
+  }
+/*
+ ************************************************************
+ *                                                          *
  *   "depth" command sets a specific search depth to        *
  *   control the tree search depth. [xboard compatibility]. *
  *                                                          *
@@ -2167,7 +2182,7 @@ int Option(TREE * RESTRICT tree)
       if (!strstr(filename, ".cpf"))
         strcat(filename, ".cpf");
       Print(128, "Loading personality file %s\n", filename);
-      if ((file = fopen(filename, "rw"))) {
+      if ((file = fopen(filename, "r+"))) {
         silent = 1;
         while ((readstat = fgets(buffer, 4096, file))) {
           char *delim;
@@ -3064,16 +3079,12 @@ int Option(TREE * RESTRICT tree)
     rook_open_file[mg] = scale * rook_open_file[mg] / 100;
     rook_open_file[eg] += orig - rook_open_file[mg];
 */
-/*
     int i, j;
 
     for (i = 0; i < 9; i++)
-      for (j = 0; j < 8; j++) {
-        rook_open_file[mg][i][j] =
-            atoi(args[1]) * rook_open_file[mg][i][j] / 100;
+      for (j = 0; j < 9; j++) {
+        imbalance[i][j] = atoi(args[1]) * imbalance[i][j] / 100;
       }
-    mate_depth=atoi(args[1]);
-*/
   }
 /*
  ************************************************************

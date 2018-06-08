@@ -258,6 +258,7 @@ extern int outside_passed[2];
 extern int pawn_defects[2][8];
 extern int open_file[8];
 extern int half_open_file[8];
+extern int imbalance[9][9];
 extern int king_tropism_n[8];
 extern int king_tropism_b[8];
 extern int king_tropism_r[8];

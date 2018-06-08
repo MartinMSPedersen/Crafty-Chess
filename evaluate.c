@@ -936,21 +936,21 @@ void EvaluateMaterial(TREE * RESTRICT tree, int wtm)
  **********************************************************************
  */
   majors =
-      TotalPieces(white, rook) + 2 * TotalPieces(white,
+      4 + TotalPieces(white, rook) + 2 * TotalPieces(white,
       queen) - TotalPieces(black, rook) - 2 * TotalPieces(black, queen);
   minors =
-      TotalPieces(white, knight) + TotalPieces(white,
+      4 + TotalPieces(white, knight) + TotalPieces(white,
       bishop) - TotalPieces(black, knight) - TotalPieces(black, bishop);
-  if (majors || minors)
-    if (Abs(TotalPieces(white, occupied) - TotalPieces(black, occupied)) != 2) {
-      if (TotalPieces(white, occupied) > TotalPieces(black, occupied)) {
-        score_mg += bad_trade;
-        score_eg += bad_trade;
-      } else if (TotalPieces(black, occupied) > TotalPieces(white, occupied)) {
-        score_mg -= bad_trade;
-        score_eg -= bad_trade;
-      }
-    }
+  if (majors < 0)
+    majors = 0;
+  else if (majors > 8)
+    majors = 8;
+  if (minors < 0)
+    minors = 0;
+  else if (minors > 8)
+    minors = 8;
+  score_mg += imbalance[majors][minors];
+  score_eg += imbalance[majors][minors];
   tree->score_mg += score_mg;
   tree->score_eg += score_eg;
 #ifdef DEBUGM

@@ -37,7 +37,7 @@
 /* cannot be  used in any product distributed in  Russia or CIS without */
 /* written permission from the author.                                  */
 /*                                                                      */
-/* Most of the code listed below is significantly  simplified code from  */
+/* Most of the code listed below is significantly  simplified code from */
 /* the PRS data compression library and therefore it should not be used */
 /* in any product (software or hardware, commercial or not, and  so on) */
 /* without written permission from the author.                          */
@@ -73,11 +73,13 @@ extern "C" {
   int cbEGTBCompBytes = 0;
 }
 #  endif
-/* --------------------- Constants, types, etc. ----------------------- *//*                       ----------------------                         */
+/* --------------------- Constants, types, etc. ----------------------- */
+/*                       ----------------------                         */
 #  define MIN_BLOCK_BITS	8
 /* LOG2 (min size of block to compress) */
 #  define MAX_BLOCK_BITS	16
-/* LOG2 (max size of block to compress) *//* max. integer we can take LOG2 by table       */
+/* LOG2 (max size of block to compress) */
+/* max. integer we can take LOG2 by table       */
 #  define MAX_BITS_HALF	((MAX_BLOCK_BITS + 1) >> 1)
 #  define MAX_BITS	(MAX_BITS_HALF * 2)
 /* assume that integer is at least 32 bits wide */

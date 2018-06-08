@@ -3606,6 +3606,13 @@
  *           smpnice=1.  This is unrelated, but similar, and has been around   *
  *           a long time.                                                      *
  *                                                                             *
+ *   22.8    modified material imbalance fix from Tracy included.  this        *
+ *           produced an immediate +7 Elo improvement, and additional tuning   *
+ *           is under way.  fix to GenerateChecks().  This code had bugs a few *
+ *           weeks back and they were fixed, but the fixes were somehow lost   *
+ *           during copying files among multiple machines.  The fixes are now  *
+ *           back in and properly saved.                                       *
+ *                                                                             *
  *******************************************************************************
  */
 int main(int argc, char **argv)
@@ -3728,9 +3735,7 @@ int main(int argc, char **argv)
 /*
  ************************************************************
  *                                                          *
- *   initialize chess board to starting position and set up *
- *   all the masks and things required to execute a real    *
- *   search.                                                *
+ *   initialize chess board to starting position.           *
  *                                                          *
  ************************************************************
  */

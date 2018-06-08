@@ -155,7 +155,7 @@ int *GenerateCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
   return (move);
 }
 
-/* modified 11/04/08 */
+/* modified 12/01/08 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -412,17 +412,17 @@ int *GenerateChecks(TREE * RESTRICT tree, int ply, int wtm, int *move)
         OccupiedSquares & ~blockers) & RooksQueens & Occupied(wtm);
     if (checkers) {
       if ((plus1dir[KingSQ(btm)] & blockers) &&
-          !(plus1dir[KingSQ(wtm)] & checkers))
-        checkers &= ~plus1dir[KingSQ(btm)];
+          !(plus1dir[KingSQ(btm)] & checkers))
+        blockers &= ~plus1dir[KingSQ(btm)];
       if ((plus8dir[KingSQ(btm)] & blockers) &&
-          !(plus8dir[KingSQ(wtm)] & checkers))
-        checkers &= ~plus8dir[KingSQ(btm)];
+          !(plus8dir[KingSQ(btm)] & checkers))
+        blockers &= ~plus8dir[KingSQ(btm)];
       if ((minus1dir[KingSQ(btm)] & blockers) &&
-          !(minus1dir[KingSQ(wtm)] & checkers))
-        checkers &= ~minus1dir[KingSQ(btm)];
+          !(minus1dir[KingSQ(btm)] & checkers))
+        blockers &= ~minus1dir[KingSQ(btm)];
       if ((minus8dir[KingSQ(btm)] & blockers) &&
-          !(minus8dir[KingSQ(wtm)] & checkers))
-        checkers &= ~minus8dir[KingSQ(btm)];
+          !(minus8dir[KingSQ(btm)] & checkers))
+        blockers &= ~minus8dir[KingSQ(btm)];
 /*
  ************************************************************
  *                                                          *
@@ -443,17 +443,17 @@ int *GenerateChecks(TREE * RESTRICT tree, int ply, int wtm, int *move)
 /*
  ************************************************************
  *                                                          *
- *   rook discovered checks.                                *
+ *   bishop discovered checks.                              *
  *                                                          *
  ************************************************************
  */
       target = ~OccupiedSquares;
-      temp_target = target & ~AttacksRook(KingSQ(btm), OccupiedSquares);
-      piecebd = Rooks(wtm) & blockers;
+      temp_target = target & ~AttacksBishop(KingSQ(btm), OccupiedSquares);
+      piecebd = Bishops(wtm) & blockers;
       while (piecebd) {
         from = Advanced(wtm, piecebd);
-        moves = AttacksRook(from, OccupiedSquares) & temp_target;
-        temp = from + (rook << 12);
+        moves = AttacksBishop(from, OccupiedSquares) & temp_target;
+        temp = from + (bishop << 12);
         Unpack(wtm, move, moves, temp);
         Clear(from, piecebd);
       }
