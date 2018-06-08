@@ -28,13 +28,13 @@
 */
 int Swap(int ply, int source, int target, int wtm)
 {
-  BITBOARD white_attackers, black_attackers;
-  BITBOARD piece_squares, temp_attacks;
+  register BITBOARD white_attackers, black_attackers;
+  register BITBOARD piece_squares, temp_attacks;
   BITBOARD *pawns[2], *knights[2], *bishops[2], 
            *rooks[2], *queens[2], *kings[2];
-  int attacked_piece;
-  int square;
-  int swap_sign, color, next_capture=1;
+  register int attacked_piece;
+  register int square;
+  register int swap_sign, color, next_capture=1;
   int swap_list[32];
 /*
  ----------------------------------------------------------
@@ -43,9 +43,9 @@ int Swap(int ply, int source, int target, int wtm)
 |                                                          |
  ----------------------------------------------------------
 */
-  temp_attacks=Attacks_To(target,ply);
-  white_attackers=And(temp_attacks,White_Pieces(ply));
-  black_attackers=And(temp_attacks,Black_Pieces(ply));
+  temp_attacks=AttacksTo(target,ply);
+  white_attackers=And(temp_attacks,WhitePieces(ply));
+  black_attackers=And(temp_attacks,BlackPieces(ply));
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -55,12 +55,10 @@ int Swap(int ply, int source, int target, int wtm)
  ----------------------------------------------------------
 */
   if (wtm) {
-    if (!white_attackers)
-      return(0);
+    if (!white_attackers) return(0);
   }
   else {
-    if (!black_attackers)
-      return(0);
+    if (!black_attackers) return(0);
   }
 /*
  ----------------------------------------------------------
@@ -71,7 +69,7 @@ int Swap(int ply, int source, int target, int wtm)
  ----------------------------------------------------------
 */
   color=!wtm;
-  attacked_piece=piece_values[abs(Piece_On_Square(ply,target))];
+  attacked_piece=piece_values[abs(PieceOnSquare(ply,target))];
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -82,12 +80,10 @@ int Swap(int ply, int source, int target, int wtm)
  ----------------------------------------------------------
 */
   if (wtm) {
-    if (!black_attackers)
-      return(attacked_piece);
+    if (!black_attackers) return(attacked_piece);
   }
   else {
-    if (!white_attackers)
-      return(attacked_piece);
+    if (!white_attackers) return(attacked_piece);
   }
 /*
  ----------------------------------------------------------
@@ -97,18 +93,18 @@ int Swap(int ply, int source, int target, int wtm)
 |                                                          |
  ----------------------------------------------------------
 */
-  pawns[0]=&Black_Pawns(ply);
-  pawns[1]=&White_Pawns(ply);
-  knights[0]=&Black_Knights(ply);
-  knights[1]=&White_Knights(ply);
-  bishops[0]=&Black_Bishops(ply);
-  bishops[1]=&White_Bishops(ply);
-  rooks[0]=&Black_Rooks(ply);
-  rooks[1]=&White_Rooks(ply);
-  queens[0]=&Black_Queens(ply);
-  queens[1]=&White_Queens(ply);
-  kings[0]=&Black_King(ply);
-  kings[1]=&White_King(ply);
+  pawns[0]=&BlackPawns(ply);
+  pawns[1]=&WhitePawns(ply);
+  knights[0]=&BlackKnights(ply);
+  knights[1]=&WhiteKnights(ply);
+  bishops[0]=&BlackBishops(ply);
+  bishops[1]=&WhiteBishops(ply);
+  rooks[0]=&BlackRooks(ply);
+  rooks[1]=&WhiteRooks(ply);
+  queens[0]=&BlackQueens(ply);
+  queens[1]=&WhiteQueens(ply);
+  kings[0]=&BlackKing(ply);
+  kings[1]=&WhiteKing(ply);
   swap_sign=-1;
   piece_squares=temp_attacks;
 /*
@@ -122,32 +118,32 @@ int Swap(int ply, int source, int target, int wtm)
   color=!wtm;
   swap_list[0]=attacked_piece;
   swap_sign=-1;
-  attacked_piece=piece_values[abs(Piece_On_Square(ply,source))];
+  attacked_piece=piece_values[abs(PieceOnSquare(ply,source))];
   Clear(source,piece_squares);
-  piece_squares=Swap_Xray(ply,piece_squares,source,target);
+  piece_squares=SwapXray(ply,piece_squares,source,target);
 /*
  ----------------------------------------------------------
 |                                                          |
 |   now pick out the least valuable piece for the correct  |
 |   side that is bearing on <target>.  as we find one, we  |
-|   call Swap_Xray() to add the piece behind this piece    |
+|   call SwapXray() to add the piece behind this piece    |
 |   that is indirectly bearing on <target> (if any).       |
 |                                                          |
  ----------------------------------------------------------
 */
   while (piece_squares) {
     if (And(*pawns[color],piece_squares))
-      square=First_One(And(*pawns[color],piece_squares));
+      square=FirstOne(And(*pawns[color],piece_squares));
     else if (And(*knights[color],piece_squares))
-      square=First_One(And(*knights[color],piece_squares));
+      square=FirstOne(And(*knights[color],piece_squares));
     else if (And(*bishops[color],piece_squares))
-      square=First_One(And(*bishops[color],piece_squares));
+      square=FirstOne(And(*bishops[color],piece_squares));
     else if (And(*rooks[color],piece_squares))
-      square=First_One(And(*rooks[color],piece_squares));
+      square=FirstOne(And(*rooks[color],piece_squares));
     else if (And(*queens[color],piece_squares))
-      square=First_One(And(*queens[color],piece_squares));
+      square=FirstOne(And(*queens[color],piece_squares));
     else if (And(*kings[color],piece_squares))
-      square=First_One(And(*kings[color],piece_squares));
+      square=FirstOne(And(*kings[color],piece_squares));
     else 
       break;
 /*
@@ -159,11 +155,10 @@ int Swap(int ply, int source, int target, int wtm)
 |                                                |
  ------------------------------------------------
 */
-    swap_list[next_capture]=swap_list[next_capture-1]+
-                            swap_sign*attacked_piece;
-    attacked_piece=piece_values[abs(Piece_On_Square(ply,square))];
+    swap_list[next_capture]=swap_list[next_capture-1]+swap_sign*attacked_piece;
+    attacked_piece=piece_values[abs(PieceOnSquare(ply,square))];
     Clear(square,piece_squares);
-    piece_squares=Swap_Xray(ply,piece_squares,square,target);
+    piece_squares=SwapXray(ply,piece_squares,square,target);
     next_capture++;
     swap_sign=-swap_sign;
     color=!color;
@@ -178,10 +173,8 @@ int Swap(int ply, int source, int target, int wtm)
  ----------------------------------------------------------
 */
   next_capture--;
-  if(next_capture&1) 
-    swap_sign=-1;
-  else
-    swap_sign=1;
+  if(next_capture&1) swap_sign=-1;
+  else swap_sign=1;
   while (next_capture) {
     if (swap_sign < 0) {
       if(swap_list[next_capture] <= swap_list[next_capture-1])
@@ -200,48 +193,40 @@ int Swap(int ply, int source, int target, int wtm)
 /*
 ********************************************************************************
 *                                                                              *
-*   Swap_Xray() is used to determine if a piece is "behind" the piece on       *
+*   SwapXray() is used to determine if a piece is "behind" the piece on        *
 *   <from>, and this piece would attack <to> if the piece on <from> were moved *
 *   (as in playing out sequences of swaps).  if so, this indirect attacker is  *
 *   added to the list of attackers bearing to <to>.                            *
 *                                                                              *
 ********************************************************************************
 */
-BITBOARD Swap_Xray(int ply, BITBOARD attacks, int from, int to)
+BITBOARD SwapXray(int ply, BITBOARD attacks, int from, int to)
 {
-  BITBOARD indirect = 0;
+  register BITBOARD indirect = 0;
   switch (directions[to][from]) {
   case 1: 
-    indirect=And(And(Attacks_Rank(from),Rooks_Queens(ply)),
-                 mask_plus1dir[from]);
+    indirect=And(And(AttacksRank(from),RooksQueens(ply)),mask_plus1dir[from]);
     break;
   case 7: 
-    indirect=And(And(Attacks_Diaga1(from),Bishops_Queens(ply)),
-                 mask_plus7dir[from]);
+    indirect=And(And(AttacksDiaga1(from),BishopsQueens(ply)),mask_plus7dir[from]);
     break;
   case 8: 
-    indirect=And(And(Attacks_File(from),Rooks_Queens(ply)),
-                 mask_plus8dir[from]);
+    indirect=And(And(AttacksFile(from),RooksQueens(ply)),mask_plus8dir[from]);
     break;
   case 9: 
-    indirect=And(And(Attacks_Diagh1(from),Bishops_Queens(ply)),
-                 mask_plus9dir[from]);
+    indirect=And(And(AttacksDiagh1(from),BishopsQueens(ply)),mask_plus9dir[from]);
     break;
   case -1: 
-    indirect=And(And(Attacks_Rank(from),Rooks_Queens(ply)),
-                 mask_minus1dir[from]);
+    indirect=And(And(AttacksRank(from),RooksQueens(ply)),mask_minus1dir[from]);
     break;
   case -7: 
-    indirect=And(And(Attacks_Diaga1(from),Bishops_Queens(ply)),
-                 mask_minus7dir[from]);
+    indirect=And(And(AttacksDiaga1(from),BishopsQueens(ply)),mask_minus7dir[from]);
     break;
   case -8: 
-    indirect=And(And(Attacks_File(from),Rooks_Queens(ply)),
-                 mask_minus8dir[from]);
+    indirect=And(And(AttacksFile(from),RooksQueens(ply)),mask_minus8dir[from]);
     break;
   case -9: 
-    indirect=And(And(Attacks_Diagh1(from),Bishops_Queens(ply)),
-                 mask_minus9dir[from]);
+    indirect=And(And(AttacksDiagh1(from),BishopsQueens(ply)),mask_minus9dir[from]);
     break;
   }
   return(Or(attacks,indirect));

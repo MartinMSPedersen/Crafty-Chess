@@ -25,14 +25,14 @@
 */
 int Ponder(int wtm)
 {
-  int dummy, i;
+  int dummy=0, i;
 
 /*
  ----------------------------------------------------------
 |                                                          |
 |   if we don't have a predicted move to ponder, try two   |
 |   sources:  (1) look up the current position in the      |
-|   transposition table and see if it has a suggest best   |
+|   transposition table and see if it has a suggested best |
 |   move;  (2) do a short tree search to calculate a move  |
 |   that we should ponder.                                 |
 |                                                          |
@@ -45,7 +45,6 @@ int Ponder(int wtm)
   }
   if (!ponder_move && (move_number > 1)) {
     puzzling=1;
-    Time_Set();
     if (time_limit > 5) {
       position[1]=position[0];
       Print(2,"puzzling over a move to ponder.\n");
@@ -57,7 +56,7 @@ int Ponder(int wtm)
         killer_move_count[i][0]=0;
         killer_move_count[i][1]=0;
       }
-      (void) Iterate(wtm);
+      (void) Iterate(wtm,puzzle);
       for (i=0;i<MAXPLY;i++) {
         killer_move[i][0]=0;
         killer_move[i][1]=0;
@@ -65,13 +64,13 @@ int Ponder(int wtm)
         killer_move_count[i][1]=0;
       }
       puzzling=0;
-      if (pv[1].path_length)
-        ponder_move=pv[1].path[1];
+      if (pv[0].path_length) ponder_move=pv[0].path[1];
       pv[0].path_length=0;
       pv[0].path_iteration_depth=0;
       if (!ponder_move) return(0);
-      if (!Valid_Move(1,wtm,ponder_move)) {
+      if (!ValidMove(1,wtm,ponder_move)) {
         printf("puzzle returned an illegal move!\n");
+        DisplayChessMove("move= ",ponder_move);
         ponder_move=0;
         return(0);
       }
@@ -92,11 +91,11 @@ int Ponder(int wtm)
 */
   if (wtm)
     Print(2,"White(%d): %s [pondering]\n",
-          move_number,Output_Move(&ponder_move,0,wtm));
+          move_number,OutputMove(&ponder_move,0,wtm));
   else
     Print(2,"Black(%d): %s [pondering]\n",
-          move_number,Output_Move(&ponder_move,0,wtm));
-  Make_Move(0,ponder_move,wtm);
+          move_number,OutputMove(&ponder_move,0,wtm));
+  MakeMove(0,ponder_move,wtm);
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -107,15 +106,11 @@ int Ponder(int wtm)
 |                                                          |
  ----------------------------------------------------------
 */
-  repetition_list[++repetition_head]=Hash_Key(1);
-  if (Repetition_Draw()) {
-    Print(0,"game is a draw by repetition\n");
-  }
-  if (whisper) {
-    strcpy(whisper_text,"n/a");
-  }
+  repetition_list[++repetition_head]=HashKey(1);
+  if (RepetitionDraw()) Print(0,"game is a draw by repetition\n");
+  if (whisper) strcpy(whisper_text,"n/a");
   pondering=1;
-  (void) Iterate(!wtm);
+  (void) Iterate(!wtm,think);
   pondering=0;
   if (!abort_search) ponder_completed=1;
   repetition_head--;
@@ -130,8 +125,6 @@ int Ponder(int wtm)
 |                                                          |
  ----------------------------------------------------------
 */
-  if (made_predicted_move)
-    return(1);
-  else
-    return(0);
+  if (made_predicted_move) return(1);
+  return(0);
 }

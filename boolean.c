@@ -8,7 +8,7 @@
 
 BITBOARD Mask(int arg1)
 {
-  unsigned long long i;
+  register unsigned long long i;
   i=-1;
   if (arg1 == 128)
     return(0);
@@ -35,7 +35,7 @@ int Popcntl(BITBOARD arg1)
     unsigned short i[4];
     BITBOARD d;
   };
-  union doub x;
+  register union doub x;
   if (arg1) {
     x.d=arg1;
     return (population_count[x.i[0]]+
@@ -47,15 +47,15 @@ int Popcntl(BITBOARD arg1)
     return(0);
 }
 
-int First_One(BITBOARD arg1)
+int FirstOne(BITBOARD arg1)
 {
   union doub {
     unsigned short i[4];
     BITBOARD d;
   };
-  union doub x;
+  register union doub x;
   x.d=arg1;
-#if defined(LITTLE_ENDIAN)
+#if defined(LITTLE_ENDIAN_ARCH)
   if (x.i[3])
     return (first_ones[x.i[3]]);
   if (x.i[2])
@@ -65,7 +65,7 @@ int First_One(BITBOARD arg1)
   if (x.i[0]) 
     return (first_ones[x.i[0]]+48);
 #endif
-#if !defined(LITTLE_ENDIAN)
+#if !defined(LITTLE_ENDIAN_ARCH)
   if (x.i[0])
     return (first_ones[x.i[0]]);
   if (x.i[1])
@@ -78,15 +78,15 @@ int First_One(BITBOARD arg1)
   return(64);
 }
 
-int Last_One(BITBOARD arg1)
+int LastOne(BITBOARD arg1)
 {
   union doub {
     unsigned short i[4];
     BITBOARD d;
   };
-  union doub x;
+  register union doub x;
   x.d=arg1;
-#if defined(LITTLE_ENDIAN)
+#if defined(LITTLE_ENDIAN_ARCH)
   if (x.i[0]) 
     return (last_ones[x.i[0]]+48);
   if (x.i[1])
@@ -96,7 +96,7 @@ int Last_One(BITBOARD arg1)
   if (x.i[3])
     return (last_ones[x.i[3]]);
 #endif
-#if !defined(LITTLE_ENDIAN)
+#if !defined(LITTLE_ENDIAN_ARCH)
   if (x.i[3]) 
     return (last_ones[x.i[3]]+48);
   if (x.i[2])

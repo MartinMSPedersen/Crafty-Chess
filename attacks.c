@@ -17,10 +17,10 @@
 */
 int Attack(int square, int queen, int ply)
 {
-  BITBOARD occupied_squares;
+  register BITBOARD occupied_squares;
 
-  occupied_squares=Or(White_Pieces(ply),
-                      Black_Pieces(ply));
+  occupied_squares=Or(WhitePieces(ply),
+                      BlackPieces(ply));
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -38,13 +38,13 @@ int Attack(int square, int queen, int ply)
 /*
 ********************************************************************************
 *                                                                              *
-*   Attacks_From() is used to produce a BITBOARD which is a map of all squares *
+*   AttacksFrom() is used to produce a BITBOARD which is a map of all squares  *
 *   attacked from this <square>.  this procedure uses the rotated bitboard     *
 *   technique to compute the attack maps for sliding pieces.                   *
 *                                                                              *
 ********************************************************************************
 */
-BITBOARD Attacks_From(int square, int ply, int wtm)
+BITBOARD AttacksFrom(int square, int ply, int wtm)
 {
 
 /*
@@ -57,7 +57,7 @@ BITBOARD Attacks_From(int square, int ply, int wtm)
 |                                                          |
  ----------------------------------------------------------
 */
-  switch (abs(Piece_On_Square(ply,square))) {
+  switch (abs(PieceOnSquare(ply,square))) {
   case pawn:
     if (wtm)
       return(w_pawn_attacks[square]);
@@ -66,11 +66,11 @@ BITBOARD Attacks_From(int square, int ply, int wtm)
   case knight:
     return(knight_attacks[square]);
   case bishop:
-    return(Attacks_Bishop(square));
+    return(AttacksBishop(square));
   case rook:
-    return(Attacks_Rook(square));
+    return(AttacksRook(square));
   case queen:
-    return(Attacks_Queen(square));
+    return(AttacksQueen(square));
   case king:
     return(king_attacks[square]);
   default:
@@ -81,7 +81,7 @@ BITBOARD Attacks_From(int square, int ply, int wtm)
 /*
 ********************************************************************************
 *                                                                              *
-*   Attacks_To() is used to produce a BITBOARD which is a map of all squares   *
+*   AttacksTo() is used to produce a BITBOARD which is a map of all squares    *
 *   that directly attack this <square>.  the non-sliding pieces are trivial    *
 *   to detect, but for sliding pieces, we use a rotated bitboard trick.  the   *
 *   idea is to compute the squares a queen would attack, if it was standing on *
@@ -91,9 +91,9 @@ BITBOARD Attacks_From(int square, int ply, int wtm)
 *                                                                              *
 ********************************************************************************
 */
-BITBOARD Attacks_To(int square, int ply)
+BITBOARD AttacksTo(int square, int ply)
 {
-  BITBOARD attacks;
+  register BITBOARD attacks;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -103,8 +103,8 @@ BITBOARD Attacks_To(int square, int ply)
 |                                                          |
  ----------------------------------------------------------
 */
-  attacks=And(w_pawn_attacks[square],Black_Pawns(ply));
-  attacks=Or(attacks,And(b_pawn_attacks[square],White_Pawns(ply)));
+  attacks=And(w_pawn_attacks[square],BlackPawns(ply));
+  attacks=Or(attacks,And(b_pawn_attacks[square],WhitePawns(ply)));
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -113,8 +113,8 @@ BITBOARD Attacks_To(int square, int ply)
  ----------------------------------------------------------
 */
   attacks=Or(attacks,
-             And(knight_attacks[square],Or(Black_Knights(ply),
-                                           White_Knights(ply))));
+             And(knight_attacks[square],Or(BlackKnights(ply),
+                                           WhiteKnights(ply))));
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -125,8 +125,8 @@ BITBOARD Attacks_To(int square, int ply)
 |                                                          |
  ----------------------------------------------------------
 */
-  attacks=Or(attacks,And(Attacks_Bishop(square),
-                         Bishops_Queens(ply)));
+  attacks=Or(attacks,And(AttacksBishop(square),
+                         BishopsQueens(ply)));
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -135,8 +135,8 @@ BITBOARD Attacks_To(int square, int ply)
 |                                                          |
  ----------------------------------------------------------
 */
-  attacks=Or(attacks,And(Attacks_Rook(square),
-                         Rooks_Queens(ply)));
+  attacks=Or(attacks,And(AttacksRook(square),
+                         RooksQueens(ply)));
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -144,8 +144,8 @@ BITBOARD Attacks_To(int square, int ply)
 |                                                          |
  ----------------------------------------------------------
 */
-  attacks=Or(attacks,And(king_attacks[square],Or(Black_King(ply),
-                                                 White_King(ply))));
+  attacks=Or(attacks,And(king_attacks[square],Or(BlackKing(ply),
+                                                 WhiteKing(ply))));
 
   return(attacks);
 }
@@ -154,7 +154,7 @@ BITBOARD Attacks_To(int square, int ply)
 ********************************************************************************
 *                                                                              *
 *   Attacked() is used to determine if <square> is attacked by "wtm".  the     *
-*   algorithm is simple, and is based on the Attacks_To() algorithm, but,      *
+*   algorithm is simple, and is based on the AttacksTo() algorithm, but,       *
 *   rather than returning a bitmap of squares attacking <square> it returns a  *
 *   "1" as soon as it finds anything that attacks <square>.                    *
 *                                                                              *
@@ -172,10 +172,10 @@ int Attacked(int square, int ply, int wtm)
  ----------------------------------------------------------
 */
   if (wtm) {
-    if(And(b_pawn_attacks[square],White_Pawns(ply))) return(1);
+    if(And(b_pawn_attacks[square],WhitePawns(ply))) return(1);
   }
   else {
-    if(And(w_pawn_attacks[square],Black_Pawns(ply))) return(1);
+    if(And(w_pawn_attacks[square],BlackPawns(ply))) return(1);
   }
 /*
  ----------------------------------------------------------
@@ -185,10 +185,10 @@ int Attacked(int square, int ply, int wtm)
  ----------------------------------------------------------
 */
   if (wtm) {
-    if(And(knight_attacks[square],White_Knights(ply))) return(1);
+    if(And(knight_attacks[square],WhiteKnights(ply))) return(1);
   }
   else {
-    if(And(knight_attacks[square],Black_Knights(ply))) return(1);
+    if(And(knight_attacks[square],BlackKnights(ply))) return(1);
   }
 /*
  ----------------------------------------------------------
@@ -201,12 +201,12 @@ int Attacked(int square, int ply, int wtm)
  ----------------------------------------------------------
 */
   if (wtm) {
-    if(And(And(Attacks_Bishop(square),Bishops_Queens(ply)),
-           White_Pieces(ply))) return(1);
+    if(And(And(AttacksBishop(square),BishopsQueens(ply)),
+           WhitePieces(ply))) return(1);
   }
   else {
-    if(And(And(Attacks_Bishop(square),Bishops_Queens(ply)),
-           Black_Pieces(ply))) return(1);
+    if(And(And(AttacksBishop(square),BishopsQueens(ply)),
+           BlackPieces(ply))) return(1);
   }
 /*
  ----------------------------------------------------------
@@ -217,12 +217,12 @@ int Attacked(int square, int ply, int wtm)
  ----------------------------------------------------------
 */
   if (wtm) {
-    if(And(And(Attacks_Rook(square),Rooks_Queens(ply)),
-           White_Pieces(ply))) return(1);
+    if(And(And(AttacksRook(square),RooksQueens(ply)),
+           WhitePieces(ply))) return(1);
   }
   else {
-    if(And(And(Attacks_Rook(square),Rooks_Queens(ply)),
-           Black_Pieces(ply))) return(1);
+    if(And(And(AttacksRook(square),RooksQueens(ply)),
+           BlackPieces(ply))) return(1);
   }
 /*
  ----------------------------------------------------------
@@ -232,10 +232,10 @@ int Attacked(int square, int ply, int wtm)
  ----------------------------------------------------------
 */
   if (wtm) {
-    if(And(king_attacks[square],White_King(ply))) return(1);
+    if(And(king_attacks[square],WhiteKing(ply))) return(1);
   }
   else {
-    if(And(king_attacks[square],Black_King(ply))) return(1);
+    if(And(king_attacks[square],BlackKing(ply))) return(1);
   }
 
   return(0);

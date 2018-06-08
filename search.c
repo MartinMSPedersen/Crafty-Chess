@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 #include "types.h"
 #include "function.h"
 #include "data.h"
@@ -20,7 +19,7 @@
 int Search(int alpha, int beta, int wtm, int depth, int ply, 
            int do_null, NODES node_type)
 {
-  register int no_legal_moves = 1;
+  register int no_legal_moves=1, first_move=1;
   register int save_alpha, value;
   register int tdepth, i, new_mev, result;
   register int tnodes;
@@ -45,8 +44,8 @@ int Search(int alpha, int beta, int wtm, int depth, int ply,
 */
   if (nodes_searched > next_time_check) {
     next_time_check=nodes_searched+nodes_between_time_checks;
-    if (Check_Input()) Interrupt(ply);
-    time_abort+=Time_Check();
+    if (CheckInput()) Interrupt(ply);
+    time_abort+=TimeCheck();
     if (time_abort) {
       abort_search=1;
       return(0);
@@ -55,7 +54,7 @@ int Search(int alpha, int beta, int wtm, int depth, int ply,
   full[ply]=0;
   in_check[ply]=0;
   extended_reason[ply]=no_extension;
-  positional_evaluation[ply]=0;
+  static_eval[ply]=0;
   save_alpha=alpha;
 /*
  ----------------------------------------------------------
@@ -64,9 +63,9 @@ int Search(int alpha, int beta, int wtm, int depth, int ply,
 |                                                          |
  ----------------------------------------------------------
 */
-  if (Repetition_Check(ply)) {
-    if (wtm == root_wtm) value=Draw_Score();
-    else value=-Draw_Score();
+  if (RepetitionCheck(ply)) {
+    if (wtm == root_wtm) value=DrawScore();
+    else value=-DrawScore();
     if (value < beta) {
       for (i=1;i<ply;i++) pv[ply-1].path[i]=current_move[i];
 #if !defined(FAST)
@@ -76,18 +75,17 @@ int Search(int alpha, int beta, int wtm, int depth, int ply,
       pv[ply-1].path_length=ply-1;
       pv[ply-1].path_hashed=0;
       pv[ply-1].path_iteration_depth=iteration_depth;
-      if (ply == 2) Search_Output(wtm,-value,-save_alpha);
+      if (ply == 2) SearchOutput(wtm,-value,-save_alpha);
     }
 #if !defined(FAST)
-    if(ply <= trace_level) 
-      printf("draw by repetition detected, ply=%d.\n",ply);
+    if(ply <= trace_level) printf("draw by repetition detected, ply=%d.\n",ply);
 #endif
     return(value);
   }
 /*
  ----------------------------------------------------------
 |                                                          |
-|   initialize.  set Next_Move() status to 0 so it will    |
+|   initialize.  set NextMove() status to 0 so it will     |
 |   know what has to be done.                              |
 |                                                          |
  ----------------------------------------------------------
@@ -128,14 +126,14 @@ int Search(int alpha, int beta, int wtm, int depth, int ply,
 |   better alpha or beta value, or, at least a good move   |
 |   to try first.  there are three cases to handle:        |
 |                                                          |
-|   1.  lookup returned "backed_up_value" which means the  |
+|   1.  lookup returned "good_score" which means the       |
 |   value returned is a good score.  if this good score is |
 |   greater than beta, return beta.  otherwise, return the |
 |   score.  In either case, no further searching is needed |
 |   from this position.  note that lookup verified that    |
 |   the table position has sufficient "draft" to meet the  |
 |   requirements of the current search depth remaining.    |
-|   2.  lookup returned "backed_up_bound" which means that |
+|   2.  lookup returned "failed_low" which means that      |
 |   when this position was searched previously, every move |
 |   was "refuted" by one of its descendents.  as a result, |
 |   when the search was completed, we returned alpha at    |
@@ -143,7 +141,7 @@ int Search(int alpha, int beta, int wtm, int depth, int ply,
 |   to return a value <= that "old" alpha, we simply need  |
 |   to make sure that the "old" alpha is <= the current    |
 |   alpha to make sure that we can still stop searching.   |
-|   3.  lookup returned "cutoff_bound" which means that    |
+|   3.  lookup returned "failed_high" which means that     |
 |   when we encountered this position before, we searched  |
 |   one branch (probably) which promptly refuted the move  |
 |   at the previous ply.  we returned beta the last time   |
@@ -165,7 +163,7 @@ int Search(int alpha, int beta, int wtm, int depth, int ply,
         printf("Lookup() returned %d at ply=%d\n",result,ply);
 #endif
       switch (result) {
-        case backed_up_value:
+        case good_score:
           if(alpha >= beta) return(beta);
           else {
             for (i=1;i<ply;i++) pv[ply-1].path[i]=current_move[i];
@@ -176,13 +174,13 @@ int Search(int alpha, int beta, int wtm, int depth, int ply,
             pv[ply-1].path_length=ply-1;
             pv[ply-1].path_hashed=1;
             pv[ply-1].path_iteration_depth=iteration_depth;
-            if (ply == 2) Search_Output(wtm,-alpha,-save_alpha);
+            if (ply == 2) SearchOutput(wtm,-alpha,-save_alpha);
             return(alpha);
           }
-        case backed_up_bound:
-          if (ply == 2) Search_Output(wtm,-alpha,-save_alpha);
+        case failed_low:
+          if (ply == 2) SearchOutput(wtm,-alpha,-save_alpha);
           return(alpha);
-        case cutoff_bound:
+        case failed_high:
           return(beta);
       }
     }
@@ -216,41 +214,41 @@ int Search(int alpha, int beta, int wtm, int depth, int ply,
  ----------------------------------------------------------
 */
   if ((ply > 1) && do_null && !in_check[ply] &&
-      ((Total_Black_Pieces(ply) && !wtm) ||
-       (Total_White_Pieces(ply) && wtm)) &&
-      !Captured(current_move[ply-1]) &&
-      (node_type != PV)) {
+      ((TotalBlackPieces(ply) && !wtm) || (TotalWhitePieces(ply) && wtm)) &&
+      !Captured(current_move[ply-1]) && (node_type != PV)) {
     current_move[ply]=0;
     current_phase[ply]=null_move;
 #if !defined(FAST)
     if (ply <= trace_level) {
       for (i=1;i<ply;i++) printf("  ");
-      printf("%d  %s d:%d [%s,",ply,
-             Output_Move(&current_move[ply],ply,wtm),depth,
-             Display_Evaluation(alpha));
-      printf("%s] n:%d [s-%d] nt=%d\n", Display_Evaluation(beta),
+      printf("%d  %s d:%d [%s,",ply,OutputMove(&current_move[ply],ply,wtm),
+             depth,DisplayEvaluation(alpha));
+      printf("%s] n:%d [s-%d] nt=%d\n", DisplayEvaluation(beta),
              nodes_searched,current_phase[ply],node_type);
     }
 #endif
     null_moves_tried++;
     tnodes=nodes_searched;
     position[ply+1]=position[ply];
-    EnPassant_Target(ply+1)=0;
+    if (EnPassantTarget(ply)) {
+      HashEP(FirstOne(EnPassantTarget(ply+1)),HashKey(ply+1));
+      EnPassantTarget(ply+1)=0;
+    }
     if (depth > 3)
       value=-Search(-beta,-alpha,!wtm,depth-null_depth-1,ply+1,0,node_type);
     else if (depth-2 > 0)
       value=-Search(-beta,-alpha,!wtm,depth-2,ply+1,0,node_type);
     else
       value=-Quiesce(-beta,-alpha,!wtm,depth-2,ply+1);
+    if (abort_search) return(0);
     nodes_searched_null_move+=nodes_searched-tnodes;
     if (value < beta) {
       nodes_searched_null_move_wasted+=nodes_searched-tnodes;
       null_moves_wasted++;
     }
-    if (abort_search) return(0);
     if (value > alpha) {
       if(value >= beta) {
-        Store_Refutation(ply,depth,wtm,beta);
+        StoreRefutation(ply,depth,wtm,beta);
         return(beta);
       }
     }
@@ -272,7 +270,11 @@ int Search(int alpha, int beta, int wtm, int depth, int ply,
 */
   if ((node_type == PV) && (ply > 2) && !hash_move[ply] && (depth > 2)) {
     value=Search(alpha,beta,wtm,depth-2,ply,1,node_type);
-    if (value <= alpha) value=Search(-MATE,beta,wtm,depth-2,ply,1,node_type);
+    if (abort_search) return(0);
+    if (value <= alpha) {
+      value=Search(-MATE,beta,wtm,depth-2,ply,1,node_type);
+      if (abort_search) return(0);
+    }
     if (value < beta) {
       if (pv[ply-1].path_length >= ply) hash_move[ply]=pv[ply-1].path[ply];
     }
@@ -292,15 +294,15 @@ int Search(int alpha, int beta, int wtm, int depth, int ply,
 |                                                          |
  ----------------------------------------------------------
 */
-  while ((current_phase[ply]=Next_Move(depth,ply,wtm))) {
+  while ((current_phase[ply]=NextMove(depth,ply,wtm))) {
     extended_reason[ply]&=255-recapture_extension-passed_pawn_extension;
 #if !defined(FAST)
     if (ply <= trace_level) {
       for (i=1;i<ply;i++) printf("  ");
       printf("%d  %s d:%d [%s,",ply,
-             Output_Move(&current_move[ply],ply,wtm),depth,
-             Display_Evaluation(alpha));
-      printf("%s] n:%d [s-%d] nt=%d\n", Display_Evaluation(beta),
+             OutputMove(&current_move[ply],ply,wtm),depth,
+             DisplayEvaluation(alpha));
+      printf("%s] n:%d [s-%d] nt=%d\n", DisplayEvaluation(beta),
              nodes_searched,current_phase[ply],node_type);
     }
 #endif
@@ -338,42 +340,63 @@ int Search(int alpha, int beta, int wtm, int depth, int ply,
 |                                                          |
  ----------------------------------------------------------
 */
-    if (passed_pawn_extensions && ((ply+depth) <= 2*iteration_depth))
-      if ((Piece(current_move[ply]) == 1) &&
-           push_extensions[To(current_move[ply])]) {
+    if (!passed_pawn_extensions && 
+        ((ply+depth) <= 2*iteration_depth) && end_game) 
+      if ((Piece(current_move[ply]) == pawn) &&
+          push_extensions[To(current_move[ply])] &&
+          (Swap(ply,From(current_move[ply]),To(current_move[ply]),wtm) >= 0)) {
         depth++;
         extended_reason[ply]|=passed_pawn_extension;
         passed_pawn_extensions_done++;
       }
-    Make_Move(ply,current_move[ply],wtm);
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   now make the move and search the resulting position.   |
+|                                                          |
+ ----------------------------------------------------------
+*/
+    MakeMove(ply,current_move[ply],wtm);
     if (!Check(ply+1,wtm)) {
       no_legal_moves=0;
 #if defined(DEBUG)
-      if (!Valid_Move(ply,wtm,current_move[ply]))
+      if (!ValidMove(ply,wtm,current_move[ply]))
         printf("Search() searching an illegal move at ply %d\n",ply);
-      Validate_Position(ply+1);
-      Validate_Hash_Key(ply);
+      ValidatePosition(ply+1);
 #endif
-      if (depth-1 > 0)
-        value=-Search(-beta,-alpha,!wtm,depth-1,ply+1,1,node_type);
-      else
-        value=-Quiesce(-beta,-alpha,!wtm,depth-1,ply+1);
-      if (abort_search) return(0);
+      if (first_move) {
+        if (depth-1 > 0)
+          value=-Search(-beta,-alpha,!wtm,depth-1,ply+1,1,node_type);
+        else
+          value=-Quiesce(-beta,-alpha,!wtm,depth-1,ply+1);
+        if (abort_search) return(0);
+        first_move=0;
+      }
+      else {
+        if (depth-1 > 0)
+          value=-Search(-alpha-1,-alpha,!wtm,depth-1,ply+1,1,node_type);
+        else
+          value=-Quiesce(-alpha-1,-alpha,!wtm,depth-1,ply+1);
+        if (abort_search) return(0);
+        if ((value > alpha) && (value < beta)) {
+          if (depth-1 > 0)
+            value=-Search(-beta,-alpha,!wtm,depth-1,ply+1,1,node_type);
+          else
+            value=-Quiesce(-beta,-alpha,!wtm,depth-1,ply+1);
+          if (abort_search) return(0);
+        }
+      }
       if (value > alpha) {
         if(value >= beta) {
-          History_Refutation(ply,depth,wtm);
-          Store_Refutation(ply,depth,wtm,beta);
+          HistoryRefutation(ply,depth,wtm);
+          StoreRefutation(ply,depth,wtm,beta);
           return(beta);
         }
         alpha=value;
         if (ply == 1) {
           root_value=alpha;
-          failed_high=0;
-          failed_low=0;
-          if (root_value < MATE-100) {
-            root_beta=root_value+1;
-            beta=root_value+1;
-          }
+          search_failed_high=0;
+          search_failed_low=0;
         }
       }
       node_type=ALL;
@@ -397,8 +420,7 @@ int Search(int alpha, int beta, int wtm, int depth, int ply,
  ------------------------------------------------
 */
     if (Check(ply,wtm)) {
-      for (i=1;i<ply;i++)
-        pv[ply-1].path[i]=current_move[i];
+      for (i=1;i<ply;i++) pv[ply-1].path[i]=current_move[i];
 #if !defined(FAST)
       if (show_extensions)
         for (i=1;i<ply;i++) pv_extensions[ply-1].extensions[i]=extended_reason[i];
@@ -406,10 +428,9 @@ int Search(int alpha, int beta, int wtm, int depth, int ply,
       pv[ply-1].path_length=ply-1;
       pv[ply-1].path_hashed=0;
       pv[ply-1].path_iteration_depth=iteration_depth;
-      if (ply == 2) Search_Output(wtm,MATE-ply,-save_alpha);
+      if (ply == 2) SearchOutput(wtm,MATE-ply,-save_alpha);
 #if !defined(FAST)
-      if (ply <= trace_level)
-        printf("search() checkmate!  ply=%d\n",ply);
+      if (ply <= trace_level) printf("search() checkmate!  ply=%d\n",ply);
 #endif
       return(-(MATE-ply));
     }
@@ -420,8 +441,8 @@ int Search(int alpha, int beta, int wtm, int depth, int ply,
 |                                                |
  ------------------------------------------------
 */
-    if (wtm == root_wtm) value=Draw_Score();
-    else value=-Draw_Score();
+    if (wtm == root_wtm) value=DrawScore();
+    else value=-DrawScore();
     if(value > beta) value=beta;
     else if (value < alpha) value=alpha;
     if (value >=alpha && value <beta) {
@@ -433,7 +454,7 @@ int Search(int alpha, int beta, int wtm, int depth, int ply,
       pv[ply-1].path_length=ply-1;
       pv[ply-1].path_hashed=0;
       pv[ply-1].path_iteration_depth=iteration_depth;
-      if (ply == 2) Search_Output(wtm,-value,-save_alpha);
+      if (ply == 2) SearchOutput(wtm,-value,-save_alpha);
     }
 #if !defined(FAST)
     if(ply <= trace_level) 
@@ -447,18 +468,18 @@ int Search(int alpha, int beta, int wtm, int depth, int ply,
 #if !defined(FAST)
       if (show_extensions) pv_extensions[ply-1]=pv_extensions[ply];
 #endif
-      History_Best(ply,depth,wtm);
+      HistoryBest(ply,depth,wtm);
     }
-    if (ply == 2) Search_Output(wtm,-alpha,-save_alpha);
-    Store_Best(ply,depth,wtm,alpha,save_alpha);
+    if (ply == 2) SearchOutput(wtm,-alpha,-save_alpha);
+    StoreBest(ply,depth,wtm,alpha,save_alpha);
     return(alpha);
   }
 }
 /*
 ********************************************************************************
 *                                                                              *
-*   Search_Output() is used to print the principal variation whenever it       *
-*   changes.  one additional feature is that Search_Output() will try to do    *
+*   SearchOutput() is used to print the principal variation whenever it        *
+*   changes.  one additional feature is that SearchOutput() will try to do     *
 *   something about variations truncated by the transposition table.  if the   *
 *   variation was cut short by a transposition table hit, then we can make the *
 *   last move, add it to the end of the variation and extend the depth of the  *
@@ -466,16 +487,16 @@ int Search(int alpha, int beta, int wtm, int depth, int ply,
 *                                                                              *
 ********************************************************************************
 */
-void Search_Output(int wtm, int value, int bound)
+void SearchOutput(int wtm, int value, int bound)
 {
   char ext_char[5] = {"-x=."};
-  int *mv, *mvp;
-  char *whisper_p;
-  int i, j, more, dummy, twtm, tv;
+  register int *mv, *mvp;
+  register char *whisper_p;
+  register int i, j, more, twtm, tv;
+  int dummy;
 
   if (!abort_search) {
-    for (mvp=first[1];mvp<last[1];mvp++)
-      if(current_move[1]== *mvp) break;
+    for (mvp=first[1];mvp<last[1];mvp++) if(current_move[1]== *mvp) break;
     if (mvp != first[1]) {
       tv=root_sort_value[mvp-first[1]];
       for (mv=mvp;mv>first[1];mv--) {
@@ -487,15 +508,15 @@ void Search_Output(int wtm, int value, int bound)
       easy_move=0;
     }
     if ((nodes_searched > noise_level) || (value > (MATE-100))) {
-      end_time=Get_Time(time_type);
+      end_time=GetTime(time_type);
       if(value < bound) {
         Print(2,"               %2i   %s%s   ",iteration_depth,
-               Display_Time(end_time-start_time),Display_Evaluation(value));
+               DisplayTime(end_time-start_time),DisplayEvaluation(value));
         more=1;
         for (i=1;i<=pv[1].path_length;i++) {
           wtm=!wtm;
           if (!more) Print(2,"                                     ");
-          Print(2," %s",Output_Move(&pv[1].path[i],i,wtm));
+          Print(2," %s",OutputMove(&pv[1].path[i],i,wtm));
 #if !defined(FAST)
           if (show_extensions && pv_extensions[1].extensions[i]) {
             int j,k;
@@ -509,7 +530,7 @@ void Search_Output(int wtm, int value, int bound)
             Print(2,"\n");
             more=0;
           }
-          Make_Move(i,pv[1].path[i],wtm);
+          MakeMove(i,pv[1].path[i],wtm);
         }
         if(pv[1].path_hashed) {
           for (i=pv[1].path_length+1;i<=MAXPLY;i++) {
@@ -531,16 +552,16 @@ void Search_Output(int wtm, int value, int bound)
             if (!more) Print(2,"                                     ");
 #if !defined(FAST)
             if (!show_extensions)
-              Print(2," %s",Output_Move(&pv[1].path[i],i,wtm));
+              Print(2," %s",OutputMove(&pv[1].path[i],i,wtm));
             else
-              Print(2," %s.",Output_Move(&pv[1].path[i],i,wtm));
+              Print(2," %s.",OutputMove(&pv[1].path[i],i,wtm));
 #endif
             more=1;
             if (!(i&7)) {
               Print(2,"\n");
               more=0;
             }
-            Make_Move(i,pv[1].path[i],wtm);
+            MakeMove(i,pv[1].path[i],wtm);
           }
           if (!more) Print(2,"                                     ");
           Print(2," ...");
@@ -550,8 +571,8 @@ void Search_Output(int wtm, int value, int bound)
       }
       else {
         Print(2,"               %2i   %s      ++   ",iteration_depth,
-        Display_Time(end_time-start_time));
-        Print(2," %s\n",Output_Move(&current_move[1],1,!wtm));
+        DisplayTime(end_time-start_time));
+        Print(2," %s\n",OutputMove(&current_move[1],1,!wtm));
         if (current_move[1] != pv[1].path[1]) {
           pv[1].path[1]=current_move[1];
           pv[1].path_length=1;
@@ -569,16 +590,19 @@ void Search_Output(int wtm, int value, int bound)
 |                                                          |
  ----------------------------------------------------------
 */
-    if (whisper || kibitz) {
-      whisper_p=whisper_text;
-      whisper_text[0]='\0';
+    if ((whisper || kibitz) && !puzzling) {
+      if (booking)
+        sprintf(whisper_text,"(book)");
+      else
+        whisper_text[0]=0;
+      whisper_p=whisper_text+strlen(whisper_text);
       whisper_value=value;
       whisper_depth=iteration_depth;
       twtm=root_wtm;
       for (i=1;i<=pv[1].path_length;i++) {
-        sprintf(whisper_p," %s",Output_Move(&pv[1].path[i],i,twtm));
+        sprintf(whisper_p," %s",OutputMove(&pv[1].path[i],i,twtm));
         whisper_p=whisper_text+strlen(whisper_text);
-        Make_Move(i,pv[1].path[i],twtm);
+        MakeMove(i,pv[1].path[i],twtm);
         twtm=!twtm;
       }
     }

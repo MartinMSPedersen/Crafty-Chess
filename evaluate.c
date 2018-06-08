@@ -7,7 +7,7 @@
 /*
 ********************************************************************************
 *                                                                              *
-*   Evaluate() is used to evaluate the chess board.  broadly, it addresses     *
+*   Evaluate() is used to evaluate the chess   broadly, it addresses     *
 *   four (4) distinct areas:  (1) material score which is simply a summing of  *
 *   piece types multiplied by piece values;  (2) pawn scoring which considers  *
 *   placement of pawns and also evaluates passed pawns, particularly in end-   *
@@ -22,9 +22,9 @@ int Evaluate(int ply, int wtm, int alpha, int beta)
 {
   register BITBOARD temp;
   register int square, file, score;
-  int passed_w, passed_b;
+  int passed_w, passed_b, weak_w, weak_b;
   register int w_safety, b_safety;
-  register int tempo_score;
+  register int tempo_score=0, bishops_opposite_color=0;
   register int white_target, white_attack, black_target, black_attack;
 
 /*
@@ -35,17 +35,16 @@ int Evaluate(int ply, int wtm, int alpha, int beta)
 *                                                                    *
 **********************************************************************
 */
-  tempo_score=0;
-  if (opening) tempo_score=Evaluate_Tempo(ply);
+  if (opening) tempo_score=EvaluateTempo(ply);
 #if !defined(DEBUG_HASH)
-  if (positional_evaluation[ply]) {
+  if (static_eval[ply]) {
     evaluations_hashed++;
-    if (positional_evaluation[ply] > 0) {
-      if (wtm) return( tempo_score+positional_evaluation[ply]-1);
-      else return(-tempo_score-positional_evaluation[ply]+1);
+    if (static_eval[ply] > 0) {
+      if (wtm) return( tempo_score+static_eval[ply]-1);
+      else return(-tempo_score-static_eval[ply]+1);
     }
-    if (wtm) return( tempo_score+positional_evaluation[ply]);
-    else return(-tempo_score-positional_evaluation[ply]);
+    if (wtm) return( tempo_score+static_eval[ply]);
+    else return(-tempo_score-static_eval[ply]);
   }
 #endif
   evaluations++;
@@ -56,12 +55,12 @@ int Evaluate(int ply, int wtm, int alpha, int beta)
 /*
 **********************************************************************
 *                                                                    *
-*   call Evaluate_Development() to evaluate development.  if the     *
+*   call EvaluateDevelopment() to evaluate development.  if the      *
 *   flag "opening" is zero, skip the call.                           *
 *                                                                    *
 **********************************************************************
 */
-  if (opening) score+=Evaluate_Development(ply);
+  if (opening) score+=EvaluateDevelopment(ply);
 #ifdef DEBUGEV
   printf("score[development]=               %d\n",score);
 #endif
@@ -70,52 +69,54 @@ int Evaluate(int ply, int wtm, int alpha, int beta)
 *                                                                    *
 *   determine if this is position should be evaluated to force mate  *
 *   (neither side has pawns) or if it should be evaluated normally.  *
-*   call Evaluate_Pawns() to evaluate the current pawn position.     *
+*   call EvaluatePawns() to evaluate the current pawn position.      *
 *   this routine modifies the "passed" pawn bit-vector which         *
 *   indicates whether a pawn on each file is passed or not.          *
 *                                                                    *
 **********************************************************************
 */
-  if (!White_Pawns(ply) && !Black_Pawns(ply)) {
-    score+=Evaluate_Mate(ply);
+  if (!WhitePawns(ply) && !BlackPawns(ply)) {
+    score+=EvaluateMate(ply);
 #ifdef DEBUGEV
     printf("score[mater]=                     %d\n",score);
 #endif
     passed_w=0;
     passed_b=0;
+    weak_w=0;
+    weak_b=0;
   }
   else
-    score+=Evaluate_Pawns(ply,&passed_b,&passed_w);
+    score+=EvaluatePawns(ply,&passed_b,&passed_w,&weak_b,&weak_w);
 #ifdef DEBUGEV
   printf("score[pawns]=                     %d\n",score);
 #endif
 /*
 **********************************************************************
 *                                                                    *
-*   call Evaluate_Trades() to determine if trades are good or bad,   *
+*   call EvaluateTrades() to determine if trades are good or bad,    *
 *   and then check the current path to see what was traded.          *
 *                                                                    *
 **********************************************************************
 */
-  score+=Evaluate_Trades(ply);
+  score+=EvaluateTrades(ply);
 #ifdef DEBUGEV
   printf("score[trades]=                    %d\n",score);
 #endif
 /*
 **********************************************************************
 *                                                                    *
-*   call Evaluate_Passed_Pawns() to evaluate the current position to *
+*   call EvaluatePassedPawns() to evaluate the current position to   *
 *   discover if one side has a passed pawn that is supported by the  *
 *   king which makes it very dangerous.                              *
 *                                                                    *
 **********************************************************************
 */
   if (passed_b || passed_w)
-    score+=Evaluate_Passed_Pawns(ply,passed_b,passed_w);
+    score+=EvaluatePassedPawns(ply,passed_b,passed_w);
 /*
 **********************************************************************
 *                                                                    *
-*   call Evaluate_Passed_Pawn_Races() to evaluate the current        *
+*   call EvaluatePassedPawnRacess() to evaluate the current          *
 *   position if (and only if) one side has passed pawns and the      *
 *   other side has *no* pieces other than the king.  this procedure  *
 *   uses the "square of the king" rule to determine if any of the    *
@@ -123,9 +124,9 @@ int Evaluate(int ply, int wtm, int alpha, int beta)
 *                                                                    *
 **********************************************************************
 */
-  if (((!Total_White_Pieces(ply)) && passed_b) ||
-      ((!Total_Black_Pieces(ply)) && passed_w))
-    score+=Evaluate_Passed_Pawn_Races(ply,wtm,passed_b,passed_w);
+  if (((!TotalWhitePieces(ply)) && passed_b) ||
+      ((!TotalBlackPieces(ply)) && passed_w))
+    score+=EvaluatePassedPawnRacess(ply,wtm,passed_b,passed_w);
 #ifdef DEBUGEV
   printf("score[passer races]=              %d\n",score);
 #endif
@@ -142,7 +143,7 @@ int Evaluate(int ply, int wtm, int alpha, int beta)
  ----------------------------------------------------------
 */
   if (passed_b || passed_w)
-    score+=Evaluate_Outside_Passed_Pawns(ply,passed_b,passed_w);
+    score+=EvaluateOutsidePassedPawns(ply,passed_b,passed_w);
 #ifdef DEBUGEV
   printf("score[outside passers]=           %d\n",score);
 #endif
@@ -152,43 +153,51 @@ int Evaluate(int ply, int wtm, int alpha, int beta)
 *   call Evaluate_King_Safety_*() to evaluate the current king       *
 *   safety for each side.  we will keep w_safety and b_safety for    *
 *   use later on to evaluate pieces and how they are attacking the   *
-*   king (if it's exposed).                                          *
+*   king (if it's exposed).  if there is little material left, then  *
+*   encourage the king to centralize; also check to see if this is   *
+*   a bishops of opposite color ending and set the flag if so.       *
 *                                                                    *
 **********************************************************************
 */
-  if ((Total_White_Pieces(ply) > 16) && (Total_Black_Pieces(ply) > 16)) {
-    w_safety=Evaluate_King_Safety_W(ply,White_King_SQ(ply));
-    b_safety=Evaluate_King_Safety_B(ply,Black_King_SQ(ply));
-    if (root_wtm)
-      score+=2*KING_SAFETY*w_safety-KING_SAFETY*b_safety;
-    else
-      score+=KING_SAFETY*w_safety-2*KING_SAFETY*b_safety;
+  if ((TotalWhitePieces(ply) > 16) && (TotalBlackPieces(ply) > 16)) {
+    w_safety=EvaluateKingSafetyW(ply,WhiteKingSQ(ply));
+    b_safety=EvaluateKingSafetyB(ply,BlackKingSQ(ply));
+    score-= (15+(TotalBlackPieces(ply)>>1))*w_safety
+           -(15+(TotalWhitePieces(ply)>>1))*b_safety;
     white_attack=black_attack=KING_TROPISM;
     if (root_wtm && (w_safety > ACCEPTABLE_FAULTS)) {
-      white_target=White_King_SQ(ply)+16;
-      black_target=White_King_SQ(ply);
+      white_target=WhiteKingSQ(ply)+16;
+      black_target=WhiteKingSQ(ply);
     }
     else if (!root_wtm && (b_safety > ACCEPTABLE_FAULTS)) {
-      white_target=Black_King_SQ(ply);
-      black_target=Black_King_SQ(ply)-16;
+      white_target=BlackKingSQ(ply);
+      black_target=BlackKingSQ(ply)-16;
     }
     else {
-      white_target=Black_King_SQ(ply);
-      black_target=White_King_SQ(ply);
+      white_target=BlackKingSQ(ply);
+      black_target=WhiteKingSQ(ply);
     }
   }
   else {
     w_safety=0;
-    white_target=Black_King_SQ(ply);
+    white_target=BlackKingSQ(ply);
     white_attack=KING_TROPISM;
     b_safety=0;
-    black_target=White_King_SQ(ply);
+    black_target=WhiteKingSQ(ply);
     black_attack=KING_TROPISM;
+    if ((TotalWhitePieces(ply)==bishop_v) && 
+        (TotalBlackPieces(ply)==bishop_v) &&
+        BlackBishops(ply) && WhiteBishops(ply)) {
+      if ((And(BlackBishops(ply),light_squares) &&
+           And(WhiteBishops(ply),dark_squares)) ||
+          (And(BlackBishops(ply),dark_squares) &&
+           And(WhiteBishops(ply),light_squares))) bishops_opposite_color=1;
+    }
   }
 #ifdef DEBUGEV
   printf("score[king safety]=               %d\n",score);
 #endif
-  if (Total_White_Pawns(ply) && Total_Black_Pawns(ply)) {
+  if (TotalWhitePawns(ply) && TotalBlackPawns(ply)) {
     if (wtm) {
       if((score < alpha-2000) || (score > beta+2000)) return(score);
     }
@@ -197,7 +206,7 @@ int Evaluate(int ply, int wtm, int alpha, int beta)
     }
   }
   open_files=0;
-  temp=Or(White_Pawns(ply),Black_Pawns(ply));
+  temp=Or(WhitePawns(ply),BlackPawns(ply));
   for (file=0;file<8;file++)
     if (!And(file_mask[file],temp)) open_files=Or(open_files,file_mask[file]);
 /*
@@ -210,17 +219,17 @@ int Evaluate(int ply, int wtm, int alpha, int beta)
 *                                                                    *
 **********************************************************************
 */
-  if (end_game) score+=king_value_w[White_King_SQ(ply)];
-  if (White_King_SQ(ply) < 8)
-    if (!And(And(king_attacks[White_King_SQ(ply)],rank_mask[1]),
-             Compl(White_Pawns(ply))) && !And(And(Rooks_Queens(ply),
-                 White_Pieces(ply)), rank_mask[0]))
+  if (end_game) score+=king_value_w[WhiteKingSQ(ply)];
+  if (WhiteKingSQ(ply) < 8)
+    if (!And(And(king_attacks[WhiteKingSQ(ply)],rank_mask[1]),
+             Compl(WhitePawns(ply))) && !And(And(RooksQueens(ply),
+                 WhitePieces(ply)), rank_mask[0]))
         score-=KING_BACK_RANK;
-  if (end_game) score-=king_value_b[Black_King_SQ(ply)];
-  if (Black_King_SQ(ply) > 55)
-    if (!And(And(king_attacks[Black_King_SQ(ply)],rank_mask[6]),
-             Compl(Black_Pawns(ply))) && !And(And(Rooks_Queens(ply),
-                 Black_Pieces(ply)), rank_mask[7]))
+  if (end_game) score-=king_value_b[BlackKingSQ(ply)];
+  if (BlackKingSQ(ply) > 55)
+    if (!And(And(king_attacks[BlackKingSQ(ply)],rank_mask[6]),
+             Compl(BlackPawns(ply))) && !And(And(RooksQueens(ply),
+                 BlackPieces(ply)), rank_mask[7]))
         score+=KING_BACK_RANK;
 /*
 **********************************************************************
@@ -238,12 +247,12 @@ int Evaluate(int ply, int wtm, int alpha, int beta)
 |                                                          |
  ----------------------------------------------------------
 */
-  temp=White_Knights(ply);
+  temp=WhiteKnights(ply);
   while(temp) {
-    square=First_One(temp);
+    square=FirstOne(temp);
     if (white_outpost[square] &&
-        !And(mask_no_pawn_attacks_b[square],Black_Pawns(ply)) &&
-        And(b_pawn_attacks[square],White_Pawns(ply)))
+        !And(mask_no_pawn_attacks_b[square],BlackPawns(ply)) &&
+        And(b_pawn_attacks[square],WhitePawns(ply)))
       score+=KNIGHT_OUTPOST*white_outpost[square];
 /*
  ----------------------------------------------------------
@@ -270,12 +279,12 @@ int Evaluate(int ply, int wtm, int alpha, int beta)
 |                                                          |
  ----------------------------------------------------------
 */
-  temp=Black_Knights(ply);
+  temp=BlackKnights(ply);
   while(temp) {
-    square=First_One(temp);
+    square=FirstOne(temp);
     if (black_outpost[square] &&
-        !And(mask_no_pawn_attacks_w[square],White_Pawns(ply)) &&
-        And(w_pawn_attacks[square],Black_Pawns(ply)))
+        !And(mask_no_pawn_attacks_w[square],WhitePawns(ply)) &&
+        And(w_pawn_attacks[square],BlackPawns(ply)))
       score-=KNIGHT_OUTPOST*black_outpost[square];
 /*
  ----------------------------------------------------------
@@ -312,10 +321,10 @@ int Evaluate(int ply, int wtm, int alpha, int beta)
 |                                                          |
  ----------------------------------------------------------
 */
-  temp=White_Bishops(ply);
+  temp=WhiteBishops(ply);
   while(temp) {
-    square=First_One(temp);
-    score+=BISHOP_MOBILITY*(Mobility_Bishop(square)-7);
+    square=FirstOne(temp);
+    score+=BISHOP_MOBILITY*(MobilityBishop(square)-7);
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -328,17 +337,6 @@ int Evaluate(int ply, int wtm, int alpha, int beta)
 /*
  ----------------------------------------------------------
 |                                                          |
-|   check to see if the bishop is fianchettoed in front of |
-|   the king and is therefore a valuable defender.         |
-|                                                          |
- ----------------------------------------------------------
-*/
-    if ((Total_Black_Pieces(ply) > 16) && ((square == 9) || (square == 14)))
-      if (And(king_attacks[square],White_King(ply)) && Black_Queens(ply)) 
-      score+=KING_SAFETY_GOOD_BISHOP;
-/*
- ----------------------------------------------------------
-|                                                          |
 |   check to see if the bishop is trapped at a7 or h7 with |
 |   a pawn at b6 or g6 that has trapped the bishop, and    |
 |   that this trapping pawn is defended at least one time. |
@@ -346,14 +344,31 @@ int Evaluate(int ply, int wtm, int alpha, int beta)
  ----------------------------------------------------------
 */
     if (square == 48) {
-      if (And(set_mask[49],Black_Pawns(ply)) && Attacked(41,ply,0))
+      if (And(set_mask[41],BlackPawns(ply)) && Attacked(41,ply,0))
         score-=BISHOP_TRAPPED;
     }
     else if (square == 55) {
-      if (And(set_mask[46],Black_Pawns(ply)) && Attacked(46,ply,0))
+      if (And(set_mask[46],BlackPawns(ply)) && Attacked(46,ply,0))
         score-=BISHOP_TRAPPED;
     }
     Clear(square,temp);
+  }
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   check to see if the bishop is fianchettoed in front of |
+|   the king and is therefore a valuable defender.         |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  if ((TotalBlackPieces(ply) > 16) && BlackQueens(ply)) {
+    if (((!And(WhitePawns(ply),set_mask[14])) &&
+          And(king_attacks[14],WhiteKing(ply)) && 
+          And(WhiteBishops(ply),good_bishop_kw)) ||
+        ((!And(WhitePawns(ply),set_mask[9])) &&
+          And(king_attacks[9],WhiteKing(ply)) && 
+          And(WhiteBishops(ply),good_bishop_qw)))
+    score+=KING_SAFETY_GOOD_BISHOP;
   }
 #ifdef DEBUGEV
   printf("score[bishops (white)]=           %d\n",score);
@@ -366,10 +381,10 @@ int Evaluate(int ply, int wtm, int alpha, int beta)
 |   mobility scoring bonus.                                |
  ----------------------------------------------------------
 */
-  temp=Black_Bishops(ply);
+  temp=BlackBishops(ply);
   while(temp) {
-    square=First_One(temp);
-    score-=BISHOP_MOBILITY*(Mobility_Bishop(square)-7);
+    square=FirstOne(temp);
+    score-=BISHOP_MOBILITY*(MobilityBishop(square)-7);
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -382,17 +397,6 @@ int Evaluate(int ply, int wtm, int alpha, int beta)
 /*
  ----------------------------------------------------------
 |                                                          |
-|   check to see if the bishop is fianchettoed in front of |
-|   the king and is therefore a valuable defender.         |
-|                                                          |
- ----------------------------------------------------------
-*/
-    if ((Total_White_Pieces(ply) > 16) && ((square == 49) || (square == 54)))
-      if (And(king_attacks[square],Black_King(ply)) && White_Queens(ply)) 
-      score-=KING_SAFETY_GOOD_BISHOP;
-/*
- ----------------------------------------------------------
-|                                                          |
 |   check to see if the bishop is trapped at a2 or h2 with |
 |   a pawn at b2 or g2 that can advance one square and     |
 |   trap the bishop, or a pawn at b3 or g3 that has        |
@@ -402,15 +406,35 @@ int Evaluate(int ply, int wtm, int alpha, int beta)
  ----------------------------------------------------------
 */
     if (square == 8) {
-      if (And(set_mask[17],White_Pawns(ply)) && Attacked(17,ply,1))
+      if (And(set_mask[17],WhitePawns(ply)) && Attacked(17,ply,1))
         score+=BISHOP_TRAPPED;
     }
     else if (square == 15) {
-      if (And(set_mask[22],White_Pawns(ply)) && Attacked(22,ply,1))
+      if (And(set_mask[22],WhitePawns(ply)) && Attacked(22,ply,1))
         score+=BISHOP_TRAPPED;
     }
     Clear(square,temp);
   }
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   check to see if the bishop is fianchettoed in front of |
+|   the king and is therefore a valuable defender.         |
+|                                                          |
+ ----------------------------------------------------------
+*/
+    if ((TotalWhitePieces(ply) > 16) && WhiteQueens(ply)) {
+      if ((!And(BlackPawns(ply),set_mask[54]) &&
+           And(king_attacks[54],BlackKing(ply)) && 
+           And(BlackBishops(ply),good_bishop_kb)) ||
+          (!And(BlackPawns(ply),set_mask[49]) &&
+           And(king_attacks[49],BlackKing(ply)) && 
+           And(BlackBishops(ply),good_bishop_qb)))
+      score-=KING_SAFETY_GOOD_BISHOP;
+    }
+    if ((TotalWhitePieces(ply) > 16) && ((square == 49) || (square == 54)))
+      if (And(king_attacks[square],BlackKing(ply)) && WhiteQueens(ply)) 
+      score-=KING_SAFETY_GOOD_BISHOP;
 #ifdef DEBUGEV
   printf("score[bishops (black)]=           %d\n",score);
 #endif
@@ -421,8 +445,8 @@ int Evaluate(int ply, int wtm, int alpha, int beta)
 |                                                          |
  ----------------------------------------------------------
 */
-  if (And(White_Bishops(ply),White_Bishops(ply)-1)) score+=BISHOP_PAIR;
-  if (And(Black_Bishops(ply),Black_Bishops(ply)-1)) score-=BISHOP_PAIR;
+  if (And(WhiteBishops(ply),WhiteBishops(ply)-1)) score+=BISHOP_PAIR;
+  if (And(BlackBishops(ply),BlackBishops(ply)-1)) score-=BISHOP_PAIR;
 #ifdef DEBUGEV
   printf("score[bishop pair]=               %d\n",score);
 #endif
@@ -434,9 +458,9 @@ int Evaluate(int ply, int wtm, int alpha, int beta)
 *                                                                    *
 **********************************************************************
 */
-  temp=White_Rooks(ply);
+  temp=WhiteRooks(ply);
   while(temp) {
-    square=First_One(temp);
+    square=FirstOne(temp);
     file=square&7;
 /*
  ----------------------------------------------------------
@@ -445,25 +469,25 @@ int Evaluate(int ply, int wtm, int alpha, int beta)
 |                                                          |
  ----------------------------------------------------------
 */
-    score+=ROOK_MOBILITY*(Mobility_Rook(square)-7);
+    score+=ROOK_MOBILITY*(MobilityRook(square)-7);
 /*
  ----------------------------------------------------------
 |                                                          |
 |   then, see if the rook is on an open file.  if it is,   |
 |   determine if this rook attacks another friendly rook,  |
 |   making it difficult to drive the rooks off the file.   |
-|   if the file is not open, see if it's half open and     |
-|   give a bonus if so.                                    |
+|   if the file is not open, see if it's only closed by a  |
+|   enemy pawn that is weak.  if so, a rook here is still  |
+|   strong.                                                |
 |                                                          |
  ----------------------------------------------------------
 */
-    if (And(file_mask[file],open_files)) {
+    if (And(file_mask[file],open_files) ||
+        (!And(file_mask[file],WhitePawns(ply)) && (weak_b & (128>>file)))) {
       score+=ROOK_OPEN_FILE;
-      if (And(Attacks_File(square),White_Rooks(ply)))
+      if (And(AttacksFile(square),WhiteRooks(ply)))
         score+=ROOK_CONNECTED_OPEN_FILE;
     }
-    else
-      if (!And(file_mask[file],White_Pawns(ply))) score+=ROOK_HALF_OPEN_FILE;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -475,7 +499,7 @@ int Evaluate(int ply, int wtm, int alpha, int beta)
  ----------------------------------------------------------
 */
     else
-      if (open_files && !And(Attacks_Rank(square),open_files))
+      if (open_files && !And(AttacksRank(square),open_files))
         score-=ROOK_POORLY_PLACED;
 /*
  ----------------------------------------------------------
@@ -485,10 +509,10 @@ int Evaluate(int ply, int wtm, int alpha, int beta)
 |                                                          |
  ----------------------------------------------------------
 */
-    if (((128 >> file) & passed_w) && (square < Last_One(And(White_Pawns(ply),
+    if (((128 >> file) & passed_w) && (square < LastOne(And(WhitePawns(ply),
                                file_mask[file]))))
       score+=ROOK_BEHIND_PASSED_PAWN;
-    if (((128 >> file) & passed_b) && (square > First_One(And(Black_Pawns(ply),
+    if (((128 >> file) & passed_b) && (square > FirstOne(And(BlackPawns(ply),
                                 file_mask[file]))))
       score+=ROOK_BEHIND_PASSED_PAWN;
 /*
@@ -511,10 +535,10 @@ int Evaluate(int ply, int wtm, int alpha, int beta)
 |                                                          |
  ----------------------------------------------------------
 */
-    if (((square>>3) == 6) && (And(Black_Pawns(ply),rank_mask[6]) ||
-        (Black_King_SQ(ply) >55))) {
+    if (((square>>3) == 6) && (And(BlackPawns(ply),rank_mask[6]) ||
+        (BlackKingSQ(ply) >55))) {
       score+=ROOK_ON_7TH;
-      if (And(Attacks_Rank(square),Or(White_Rooks(ply),White_Queens(ply))))
+      if (And(AttacksRank(square),Or(WhiteRooks(ply),WhiteQueens(ply))))
         score+=ROOK_CONNECTED_7TH_RANK;
     }
     Clear(square,temp);
@@ -522,9 +546,9 @@ int Evaluate(int ply, int wtm, int alpha, int beta)
 #ifdef DEBUGEV
   printf("score[rooks (white)]=             %d\n",score);
 #endif
-  temp=Black_Rooks(ply);
+  temp=BlackRooks(ply);
   while(temp) {
-    square=First_One(temp);
+    square=FirstOne(temp);
     file=square&7;
 /*
  ----------------------------------------------------------
@@ -533,25 +557,25 @@ int Evaluate(int ply, int wtm, int alpha, int beta)
 |                                                          |
  ----------------------------------------------------------
 */
-    score-=ROOK_MOBILITY*(Mobility_Rook(square)-7);
+    score-=ROOK_MOBILITY*(MobilityRook(square)-7);
 /*
  ----------------------------------------------------------
 |                                                          |
-|   next, see if the rook is on an open file.  if it is,   |
+|   then, see if the rook is on an open file.  if it is,   |
 |   determine if this rook attacks another friendly rook,  |
 |   making it difficult to drive the rooks off the file.   |
-|   if the file is not open, see if it's half open and     |
-|   give a bonus if so.                                    |
+|   if the file is not open, see if it's only closed by a  |
+|   enemy pawn that is weak.  if so, a rook here is still  |
+|   strong.                                                |
 |                                                          |
  ----------------------------------------------------------
 */
-    if (And(file_mask[file],open_files)) {
+    if (And(file_mask[file],open_files) ||
+        (!And(file_mask[file],BlackPawns(ply)) && (weak_w & (128>>file)))) {
       score-=ROOK_OPEN_FILE;
-      if (And(Attacks_File(square),Black_Rooks(ply)))
+      if (And(AttacksFile(square),BlackRooks(ply)))
         score-=ROOK_CONNECTED_OPEN_FILE;
     }
-    else
-      if (!And(file_mask[file],Black_Pawns(ply))) score-=ROOK_HALF_OPEN_FILE;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -563,7 +587,7 @@ int Evaluate(int ply, int wtm, int alpha, int beta)
  ----------------------------------------------------------
 */
     else
-      if (open_files && !And(Attacks_Rank(square),open_files))
+      if (open_files && !And(AttacksRank(square),open_files))
         score+=ROOK_POORLY_PLACED;
 /*
  ----------------------------------------------------------
@@ -573,10 +597,10 @@ int Evaluate(int ply, int wtm, int alpha, int beta)
 |                                                          |
  ----------------------------------------------------------
 */
-    if (((128 >> file) & passed_b) && (square > First_One(And(Black_Pawns(ply),
+    if (((128 >> file) & passed_b) && (square > FirstOne(And(BlackPawns(ply),
                                 file_mask[file]))))
       score-=ROOK_BEHIND_PASSED_PAWN;
-    if (((128 >> file) & passed_w) && (square < Last_One(And(White_Pawns(ply),
+    if (((128 >> file) & passed_w) && (square < LastOne(And(WhitePawns(ply),
                                file_mask[file]))))
       score-=ROOK_BEHIND_PASSED_PAWN;
 /*
@@ -599,10 +623,10 @@ int Evaluate(int ply, int wtm, int alpha, int beta)
 |                                                          |
  ----------------------------------------------------------
 */
-    if (((square>>3) == 1) && (And(White_Pawns(ply),rank_mask[1]) ||
-        (White_King_SQ(ply) <8))) {
+    if (((square>>3) == 1) && (And(WhitePawns(ply),rank_mask[1]) ||
+        (WhiteKingSQ(ply) <8))) {
       score-=ROOK_ON_7TH;
-      if (And(Attacks_Rank(square),Or(Black_Rooks(ply),Black_Queens(ply))))
+      if (And(AttacksRank(square),Or(BlackRooks(ply),BlackQueens(ply))))
         score-=ROOK_CONNECTED_7TH_RANK;
     }
     Clear(square,temp);
@@ -631,9 +655,9 @@ int Evaluate(int ply, int wtm, int alpha, int beta)
 |                                                          |
  ----------------------------------------------------------
 */
-  temp=White_Queens(ply);
+  temp=WhiteQueens(ply);
   while(temp) {
-    square=First_One(temp);
+    square=FirstOne(temp);
     score+=queen_value_w[square];
     if (w_safety+ACCEPTABLE_FAULTS < b_safety) score+=QUEEN_IS_STRONG;
 /*
@@ -643,7 +667,7 @@ int Evaluate(int ply, int wtm, int alpha, int beta)
 |                                                          |
  ----------------------------------------------------------
 */
-    score+=QUEEN_MOBILITY*(Mobility_Queen(square)-14);
+    score+=QUEEN_MOBILITY*(MobilityQueen(square)-14);
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -653,9 +677,9 @@ int Evaluate(int ply, int wtm, int alpha, int beta)
 |                                                          |
  ----------------------------------------------------------
 */
-    if (((square>>3) == 6) && (And(Black_Pawns(ply),rank_mask[6]) ||
-         (Black_King_SQ(ply) > 55))) {
-      if (And(Attacks_Rank(square),White_Rooks(ply)))
+    if (((square>>3) == 6) && (And(BlackPawns(ply),rank_mask[6]) ||
+         (BlackKingSQ(ply) > 55))) {
+      if (And(AttacksRank(square),WhiteRooks(ply)))
         score+=QUEEN_ROOK_ON_7TH_RANK;
     }
 /*
@@ -666,7 +690,8 @@ int Evaluate(int ply, int wtm, int alpha, int beta)
 |                                                          |
  ----------------------------------------------------------
 */
-    score+=(4-Distance(square,white_target))*white_attack;
+    score+=(10-2*FileDistance(square,white_target)-
+               RankDistance(square,white_target))*white_attack;
     Clear(square,temp);
   }
 /*
@@ -681,9 +706,9 @@ int Evaluate(int ply, int wtm, int alpha, int beta)
 |                                                          |
  ----------------------------------------------------------
 */
-  temp=Black_Queens(ply);
+  temp=BlackQueens(ply);
   while(temp) {
-    square=First_One(temp);
+    square=FirstOne(temp);
     score-=queen_value_b[square];
     if (b_safety+ACCEPTABLE_FAULTS < w_safety) score-=QUEEN_IS_STRONG;
 /*
@@ -693,7 +718,7 @@ int Evaluate(int ply, int wtm, int alpha, int beta)
 |                                                          |
  ----------------------------------------------------------
 */
-    score-=QUEEN_MOBILITY*(Mobility_Queen(square)-14);
+    score-=QUEEN_MOBILITY*(MobilityQueen(square)-14);
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -703,9 +728,9 @@ int Evaluate(int ply, int wtm, int alpha, int beta)
 |                                                          |
  ----------------------------------------------------------
 */
-    if (((square>>3) == 1) && (And(White_Pawns(ply),rank_mask[1]) ||
-         (White_King_SQ(ply) < 8))) {
-      if (And(Attacks_Rank(square),Black_Rooks(ply)))
+    if (((square>>3) == 1) && (And(WhitePawns(ply),rank_mask[1]) ||
+         (WhiteKingSQ(ply) < 8))) {
+      if (And(AttacksRank(square),BlackRooks(ply)))
         score-=QUEEN_ROOK_ON_7TH_RANK;
     }
 /*
@@ -716,7 +741,8 @@ int Evaluate(int ply, int wtm, int alpha, int beta)
 |                                                          |
  ----------------------------------------------------------
 */
-    score-=(4-Distance(square,black_target))*black_attack;
+    score-=(10-2*FileDistance(square,black_target)-
+               RankDistance(square,black_target))*black_attack;
     Clear(square,temp);
   }
 #ifdef DEBUGEV
@@ -732,14 +758,15 @@ int Evaluate(int ply, int wtm, int alpha, int beta)
 |                                                          |
  ----------------------------------------------------------
 */
-  score=Evaluate_Draws(ply,score);
-  if (score < 0) positional_evaluation[ply]=score;
-  else positional_evaluation[ply]=score+1;
+  score=EvaluateDraws(ply,score);
+  if (bishops_opposite_color) score=score>>1;
+  if (score < 0) static_eval[ply]=score;
+  else static_eval[ply]=score+1;
 #if defined(DEBUG_HASH)
   {
     int temp_eval;
-    if (positional_evaluation[ply]) {
-      temp_eval=positional_evaluation[ply];
+    if (static_eval[ply]) {
+      temp_eval=static_eval[ply];
       if (temp_eval > 0) temp_eval--;
       if (temp_eval != score) 
         printf("hash error (evaluate)!! ply=%d  hash=%d  compute=%d\n",
@@ -754,7 +781,7 @@ int Evaluate(int ply, int wtm, int alpha, int beta)
 /*
 ********************************************************************************
 *                                                                              *
-*   Evaluate_Development() is used to encourage the program to develop its     *
+*   EvaluateDevelopment() is used to encourage the program to develop its      *
 *   pieces before moving its queen.  standard developmental principles are     *
 *   applied.  they include:  (1) don't move the queen until minor pieces are   *
 *   developed;  (2) advance the center pawns as soon as possible;  (3) don't   *
@@ -762,7 +789,7 @@ int Evaluate(int ply, int wtm, int alpha, int beta)
 *                                                                              *
 ********************************************************************************
 */
-int Evaluate_Development(int ply)
+int EvaluateDevelopment(int ply)
 {
   register int i, possible, real, w_score, b_score;
   register int gave_up_castle_b, gave_up_castle_w;
@@ -779,20 +806,32 @@ int Evaluate_Development(int ply)
 |                                                          |
  ----------------------------------------------------------
 */
-  if (And(set_mask[27],White_Pawns(ply))) {
-    if (root_wtm) {
-      if (And(set_mask[10],White_Pawns(ply)) &&
-          And(set_mask[18],Or(White_Knights(ply),
-                              White_Bishops(ply))))
-      w_score+=DEVELOPMENT_THEMATIC;
-    }
-    else {
-      if (And(set_mask[50],Black_Pawns(ply)) &&
-          And(set_mask[42],Or(Black_Knights(ply),
-                              Black_Bishops(ply))))
-      b_score-=DEVELOPMENT_THEMATIC;
-    }
+  if (And(set_mask[27],WhitePawns(ply))) {
+    if (And(set_mask[10],WhitePawns(ply)) &&
+        And(set_mask[18],Or(WhiteKnights(ply),WhiteBishops(ply))))
+    w_score+=DEVELOPMENT_THEMATIC;
+    if (And(set_mask[50],BlackPawns(ply)) &&
+        And(set_mask[42],Or(BlackKnights(ply),BlackBishops(ply))))
+    b_score-=DEVELOPMENT_THEMATIC;
   }
+#ifdef DEBUGDV
+  printf("development.1 w_score=%d  b_score=%d\n",w_score, b_score);
+#endif
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   if all minor pieces aren't developed, then penalize    |
+|   each one that has not moved.                           |
+|                                                          |
+ ----------------------------------------------------------
+*/
+    w_score+=DEVELOPMENT_UNMOVED_PIECES*
+      Popcnt(And(Or(WhiteKnights(ply),WhiteBishops(ply)),white_minor_pieces));
+    w_score-=DEVELOPMENT_UNMOVED_PIECES*
+      Popcnt(And(Or(BlackKnights(ply),BlackBishops(ply)),black_minor_pieces));
+#ifdef DEBUGDV
+  printf("development.2 w_score=%d  b_score=%d\n",w_score, b_score);
+#endif
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -801,18 +840,14 @@ int Evaluate_Development(int ply)
 |                                                          |
  ----------------------------------------------------------
 */
-  if (root_wtm) {
-    if ((Popcnt(And(Or(White_Knights(ply),White_Bishops(ply)),
-         white_minor_pieces)) > 1) && !And(White_Queens(ply),set_mask[3]))
-      w_score+=DEVELOPMENT_QUEEN_EARLY;
-  }
-  else {
-    if ((Popcnt(And(Or(Black_Knights(ply),Black_Bishops(ply)),
-         black_minor_pieces)) > 1) && !And(Black_Queens(ply),set_mask[59]))
-      b_score-=DEVELOPMENT_QUEEN_EARLY;
-  }
+  if ((Popcnt(And(Or(WhiteKnights(ply),WhiteBishops(ply)),
+       white_minor_pieces)) > 1) && !And(WhiteQueens(ply),set_mask[3]))
+    w_score+=DEVELOPMENT_QUEEN_EARLY;
+  if ((Popcnt(And(Or(BlackKnights(ply),BlackBishops(ply)),
+       black_minor_pieces)) > 1) && !And(BlackQueens(ply),set_mask[59]))
+    b_score-=DEVELOPMENT_QUEEN_EARLY;
 #ifdef DEBUGDV
-  printf("development.1 w_score=%d  b_score=%d\n",w_score, b_score);
+  printf("development.3 w_score=%d  b_score=%d\n",w_score, b_score);
 #endif
 /*
  ----------------------------------------------------------
@@ -821,20 +856,14 @@ int Evaluate_Development(int ply)
 |                                                          |
  ----------------------------------------------------------
 */
-  if (root_wtm) {
-    if (And(Or(Or(White_Knights(ply),White_Bishops(ply)),White_Queens(ply)),
-            And(Shiftr(And(White_Pawns(ply),rank_mask[1]),8),
-                Or(file_mask[3],file_mask[4]))))
-      w_score+=DEVELOPMENT_BLOCKED_PAWN;
-  }
-  else {
-    if (And(Or(Or(Black_Knights(ply),Black_Bishops(ply)),Black_Queens(ply)),
-            And(Shiftl(And(Black_Pawns(ply),rank_mask[6]),8),
-                Or(file_mask[3],file_mask[4]))))
-      b_score-=DEVELOPMENT_BLOCKED_PAWN;
-  }
+  if (And(Occupied(ply),And(Shiftr(And(WhitePawns(ply),rank_mask[1]),8),
+                            Or(file_mask[3],file_mask[4]))))
+    w_score+=DEVELOPMENT_BLOCKED_PAWN;
+  if (And(Occupied(ply),And(Shiftl(And(BlackPawns(ply),rank_mask[6]),8),
+                            Or(file_mask[3],file_mask[4]))))
+    b_score-=DEVELOPMENT_BLOCKED_PAWN;
 #ifdef DEBUGDV
-  printf("development.2 w_score=%d  b_score=%d\n",w_score, b_score);
+  printf("development.4 w_score=%d  b_score=%d\n",w_score, b_score);
 #endif
 /*
  ----------------------------------------------------------
@@ -843,14 +872,12 @@ int Evaluate_Development(int ply)
 |                                                          |
  ----------------------------------------------------------
 */
-  if (root_wtm)
-    w_score+=Popcnt(And(White_Pawns(ply),
-                        white_center_pawns))*DEVELOPMENT_UNMOVED_PAWNS;
-  else
-    b_score-=Popcnt(And(Black_Pawns(ply),
-                        black_center_pawns))*DEVELOPMENT_UNMOVED_PAWNS;
+  w_score+=Popcnt(And(WhitePawns(ply),
+                      white_center_pawns))*DEVELOPMENT_UNMOVED_PAWNS;
+  b_score-=Popcnt(And(BlackPawns(ply),
+                      black_center_pawns))*DEVELOPMENT_UNMOVED_PAWNS;
 #ifdef DEBUGDV
-  printf("development.3 w_score=%d  b_score=%d\n",w_score, b_score);
+  printf("development.5 w_score=%d  b_score=%d\n",w_score, b_score);
 #endif
 /*
  ----------------------------------------------------------
@@ -860,26 +887,22 @@ int Evaluate_Development(int ply)
 |                                                          |
  ----------------------------------------------------------
 */
-  if (root_wtm) {
-    temp=White_Bishops(ply);
-    while(temp) {
-      square=First_One(temp);
-      moves=Popcntl(And(Attacks_Bishop(square),Compl(White_Pieces(ply))));
-      if (!moves) w_score+=DEVELOPMENT_CRAMPED;
-      Clear(square,temp);
-    }
+  temp=WhiteBishops(ply);
+  while(temp) {
+    square=FirstOne(temp);
+    moves=Popcntl(And(AttacksBishop(square),Compl(WhitePieces(ply))));
+    if (!moves) w_score+=DEVELOPMENT_CRAMPED;
+    Clear(square,temp);
   }
-  else {
-    temp=Black_Bishops(ply);
-    while(temp) {
-      square=First_One(temp);
-      moves=Popcntl(And(Attacks_Bishop(square),Compl(Black_Pieces(ply))));
-      if (!moves) b_score-=DEVELOPMENT_CRAMPED;
-      Clear(square,temp);
-    }
+  temp=BlackBishops(ply);
+  while(temp) {
+    square=FirstOne(temp);
+    moves=Popcntl(And(AttacksBishop(square),Compl(BlackPieces(ply))));
+    if (!moves) b_score-=DEVELOPMENT_CRAMPED;
+    Clear(square,temp);
   }
 #ifdef DEBUGDV
-  printf("development.4 w_score=%d  b_score=%d\n",w_score, b_score);
+  printf("development.6 w_score=%d  b_score=%d\n",w_score, b_score);
 #endif
 /*
  ----------------------------------------------------------
@@ -897,21 +920,24 @@ int Evaluate_Development(int ply)
  ----------------------------------------------------------
 */
   gave_up_castle_w=0;
-  if (White_Castle(1)&1) {
-    if (!(White_Castle(ply)&1)) {
+  if (WhiteCastle(1)&1) {
+    if (!(WhiteCastle(ply)&1)) {
       for (i=3-root_wtm;i<=ply;i+=2) {
-        if (!(White_Castle(i)&1)) {
-          if ((Piece(current_move[i-1]) != 6) ||
+        if (!(WhiteCastle(i)&1)) {
+          if ((Piece(current_move[i-1]) != king) ||
               (abs(From(current_move[i-1])-To(current_move[i-1])) != 2)) {
             w_score+=DEVELOPMENT_LOSING_CASTLE;
             gave_up_castle_w=1;
           }
-          else if (White_Castle(i-1) == 3) {
-            real=KING_SAFETY*Evaluate_King_Safety_W(ply,To(current_move[i-1]));
+          else if (WhiteCastle(i-1) == 3) {
+            real=-(15+(TotalBlackPieces(ply)>>1))*
+                 EvaluateKingSafetyW(ply,To(current_move[i-1]));
             if (To(current_move[i-1]) == 6)
-              possible=KING_SAFETY*Evaluate_King_Safety_W(ply,2);
+              possible=-(15+(TotalBlackPieces(ply)>>1))*
+                        EvaluateKingSafetyW(ply,2);
             else
-              possible=KING_SAFETY*Evaluate_King_Safety_W(ply,6);
+              possible=-(15+(TotalBlackPieces(ply)>>1))*
+                        EvaluateKingSafetyW(ply,6);
             if (possible > real+50) {
               w_score-=3*(possible-real);
               gave_up_castle_w=1;
@@ -923,21 +949,24 @@ int Evaluate_Development(int ply)
     }
   }
   gave_up_castle_b=0;
-  if (Black_Castle(1)&1) {
-    if (!(Black_Castle(ply)&1)) {
+  if (BlackCastle(1)&1) {
+    if (!(BlackCastle(ply)&1)) {
       for (i=2+root_wtm;i<=ply;i+=2) {
-        if (!(Black_Castle(i)&1)) {
-          if ((Piece(current_move[i-1]) != 6) ||
+        if (!(BlackCastle(i)&1)) {
+          if ((Piece(current_move[i-1]) != king) ||
               (abs(From(current_move[i-1])-To(current_move[i-1])) != 2)) {
             b_score-=DEVELOPMENT_LOSING_CASTLE;
             gave_up_castle_b=1;
           }
-          else if (Black_Castle(i-1) == 3) {
-            real=KING_SAFETY*Evaluate_King_Safety_B(ply,To(current_move[i-1]));
+          else if (BlackCastle(i-1) == 3) {
+            real=-(15+(TotalWhitePieces(ply)>>1))*
+                 EvaluateKingSafetyB(ply,To(current_move[i-1]));
             if (To(current_move[i-1]) == 62)
-              possible=KING_SAFETY*Evaluate_King_Safety_B(ply,58);
+              possible=-(15+(TotalWhitePieces(ply)>>1))*
+                        EvaluateKingSafetyB(ply,58);
             else
-              possible=KING_SAFETY*Evaluate_King_Safety_B(ply,62);
+              possible=-(15+(TotalWhitePieces(ply)>>1))*
+                        EvaluateKingSafetyB(ply,62);
             if (possible > real+50) {
               b_score+=3*(possible-real);
               gave_up_castle_b=1;
@@ -949,27 +978,23 @@ int Evaluate_Development(int ply)
     }
   }
 #ifdef DEBUGDV
-  printf("development.5 w_score=%d  b_score=%d\n",w_score, b_score);
+  printf("development.7 w_score=%d  b_score=%d\n",w_score, b_score);
 #endif
 /*
  ----------------------------------------------------------
 |                                                          |
 |   if the king hasn't castled, penalize the score for     |
 |   two reasons:  (1) to encourage castling to get out of  |
-|   the center of the board; (2) Evaluate_Development()    |
+|   the center of the board; (2) EvaluateDevelopment()    |
 |   will return a non-zero score which will continue to    |
 |   monitor developmental status until castling occurs.    |
 |                                                          |
  ----------------------------------------------------------
 */
-  if (root_wtm) {
-    if (White_Castle(ply) || gave_up_castle_w) w_score+=DEVELOPMENT_NOT_CASTLED;
-  }
-  else {
-    if (Black_Castle(ply) || gave_up_castle_b) b_score-=DEVELOPMENT_NOT_CASTLED;
-  }
+  if (WhiteCastle(ply) || gave_up_castle_w) w_score+=DEVELOPMENT_NOT_CASTLED;
+  if (BlackCastle(ply) || gave_up_castle_b) b_score-=DEVELOPMENT_NOT_CASTLED;
 #ifdef DEBUGDV
-  printf("development.6 w_score=%d  b_score=%d\n",w_score, b_score);
+  printf("development.8 w_score=%d  b_score=%d\n",w_score, b_score);
 #endif
 /*
  ----------------------------------------------------------
@@ -985,7 +1010,7 @@ int Evaluate_Development(int ply)
 /*
 ********************************************************************************
 *                                                                              *
-*   Evaluate_Draws() is used to catch positions where one side is ahead in     *
+*   EvaluateDraws() is used to catch positions where one side is ahead in      *
 *   material, but has insufficient material to force mate.                     *
 *                                                                              *
 *   the rules are simple:  (1) if both sides have pawns, it is not yet a draw; *
@@ -995,7 +1020,7 @@ int Evaluate_Development(int ply)
 *                                                                              *
 ********************************************************************************
 */
-int Evaluate_Draws(int ply, int score)
+int EvaluateDraws(int ply, int score)
 {
 /*
  ----------------------------------------------------------
@@ -1005,7 +1030,7 @@ int Evaluate_Draws(int ply, int score)
 |                                                          |
  ----------------------------------------------------------
 */
-  if (White_Pawns(ply) && Black_Pawns(ply)) return(score);
+  if (WhitePawns(ply) && BlackPawns(ply)) return(score);
 #ifdef DEBUGD
   printf("both sides do not have pawns.\n");
 #endif
@@ -1018,15 +1043,15 @@ int Evaluate_Draws(int ply, int score)
 |                                                          |
  ----------------------------------------------------------
 */
-  if ((!White_Pawns(ply)) && (!Black_Pawns(ply))) {
-    if ((Total_White_Pieces(ply)!=5) || (Total_Black_Pieces(ply)!=5)) {
-      if ((Total_White_Pieces(ply)==5) || (Total_White_Pieces(ply)>6) ||
-          ((Total_White_Pieces(ply)==6) && (White_Bishops(ply)))) return(score);
-      if ((Total_Black_Pieces(ply)==5) || (Total_Black_Pieces(ply)>6) ||
-          ((Total_Black_Pieces(ply)==6) && (Black_Bishops(ply)))) return(score);
+  if ((!WhitePawns(ply)) && (!BlackPawns(ply))) {
+    if ((TotalWhitePieces(ply)!=5) || (TotalBlackPieces(ply)!=5)) {
+      if ((TotalWhitePieces(ply)==5) || (TotalWhitePieces(ply)>6) ||
+          ((TotalWhitePieces(ply)==6) && (WhiteBishops(ply)))) return(score);
+      if ((TotalBlackPieces(ply)==5) || (TotalBlackPieces(ply)>6) ||
+          ((TotalBlackPieces(ply)==6) && (BlackBishops(ply)))) return(score);
     }
-    if (root_wtm) return(Draw_Score());
-    else return(-Draw_Score());
+    if (root_wtm) return(DrawScore());
+    else return(-DrawScore());
   }
 #ifdef DEBUGD
   printf("one side has pawns\n");
@@ -1040,9 +1065,9 @@ int Evaluate_Draws(int ply, int score)
 |                                                          |
  ----------------------------------------------------------
 */
-  if (!White_Pawns(ply)) {
-    if ((Total_White_Pieces(ply)==5) || (Total_White_Pieces(ply)>6) ||
-        ((Total_White_Pieces(ply)==6) && (White_Bishops(ply)))) return(score);
+  if (!WhitePawns(ply)) {
+    if ((TotalWhitePieces(ply)==5) || (TotalWhitePieces(ply)>6) ||
+        ((TotalWhitePieces(ply)==6) && (WhiteBishops(ply)))) return(score);
 #ifdef DEBUGD
   printf("white can not win.\n");
 #endif
@@ -1058,9 +1083,9 @@ int Evaluate_Draws(int ply, int score)
 |                                                          |
  ----------------------------------------------------------
 */
-  if (!Black_Pawns(ply)) {
-    if ((Total_Black_Pieces(ply)==5) || (Total_Black_Pieces(ply)>6) ||
-        ((Total_Black_Pieces(ply)==6) && (Black_Bishops(ply)))) return(score);
+  if (!BlackPawns(ply)) {
+    if ((TotalBlackPieces(ply)==5) || (TotalBlackPieces(ply)>6) ||
+        ((TotalBlackPieces(ply)==6) && (BlackBishops(ply)))) return(score);
 #ifdef DEBUGD
   printf("black can not win.\n");
 #endif
@@ -1073,17 +1098,17 @@ int Evaluate_Draws(int ply, int score)
 /*
 ********************************************************************************
 *                                                                              *
-*   Evaluate_King_Safety_B() is used to evaluate king safety for the black     *
+*   EvaluateKingSafetyB() is used to evaluate king safety for the black        *
 *   pieces.  it is primarily interested in the pawn structure around the king. *
 *   it checks for missing pawns, open files, pawns too far advanced, weak      *
 *   squares around the king and so forth.  this score is hashed to save time,  *
-*   in a manner similar to the Evaluate_Pawns() routine.  the safety score is  *
+*   in a manner similar to the EvaluatePawns() routine.  the safety score is   *
 *   made available in a global place so that evaluate() can use this number to *
 *   rate how important it is to attack the black king.                         *
 *                                                                              *
 ********************************************************************************
 */
-int Evaluate_King_Safety_B(int ply, int king_square)
+int EvaluateKingSafetyB(int ply, int king_square)
 {
   register BITBOARD *ktable, king_hash_key;
   register int file, rank, i, faults, rpfile, npfile, bpfile;
@@ -1101,7 +1126,7 @@ int Evaluate_King_Safety_B(int ply, int king_square)
 |                                                          |
  ----------------------------------------------------------
 */
-  king_hash_key=Xor(Pawn_Hash_Key(ply),b_king_random[king_square]);
+  king_hash_key=Xor(PawnHashKey(ply),b_king_random[king_square]);
   ktable=king_hash_table+And(king_hash_key,king_hash_mask);
   if (king_hash_table && !Xor(And(*ktable,mask_72),Shiftr(king_hash_key,8))) {
     king_hashes++;
@@ -1122,7 +1147,7 @@ int Evaluate_King_Safety_B(int ply, int king_square)
 |   determine which files are bearing on the king's        |
 |   position.  we evaluate safety from three perspectives: |
 |   king on left side of board, king in the center of      |
-|   board, king on right side of board.                    |
+|   board, king on right side of                     |
 |                                                          |
  ----------------------------------------------------------
 */
@@ -1149,7 +1174,7 @@ int Evaluate_King_Safety_B(int ply, int king_square)
   else {
     faults+=KING_SAFETY_IN_CENTER;
     for (i=(king_square&7)-1;i<(king_square&7)+2;i++) 
-      if (!And(Or(White_Pawns(ply),Black_Pawns(ply)),file_mask[i]))
+      if (!And(Or(WhitePawns(ply),BlackPawns(ply)),file_mask[i]))
         faults+=KING_SAFETY_OPEN_FILE;
 #ifdef DEBUGK
       printf("black.1, faults=%d\n",faults);
@@ -1180,14 +1205,14 @@ int Evaluate_King_Safety_B(int ply, int king_square)
  ------------------------------------------------
 */
   if (!faults) {
-    if (And(Black_Pawns(ply),set_mask[rpfile+48]));
-    else if (And(Black_Pawns(ply),set_mask[rpfile+40]))
+    if (And(BlackPawns(ply),set_mask[rpfile+48]));
+    else if (And(BlackPawns(ply),set_mask[rpfile+40]))
       faults+=KING_SAFETY_RP_ADV1;
-    else if (And(Black_Pawns(ply),set_mask[rpfile+32]))
+    else if (And(BlackPawns(ply),set_mask[rpfile+32]))
       faults+=KING_SAFETY_RP_ADV2;
-    else if (!And(Black_Pawns(ply),file_mask[rpfile])) {
+    else if (!And(BlackPawns(ply),file_mask[rpfile])) {
       faults+=KING_SAFETY_RP_MISSING;
-      if (!And(White_Pawns(ply),file_mask[rpfile]))
+      if (!And(WhitePawns(ply),file_mask[rpfile]))
         faults+=KING_SAFETY_RP_FILE_OPEN;
     }
     else
@@ -1202,14 +1227,14 @@ int Evaluate_King_Safety_B(int ply, int king_square)
 |                                                |
  ------------------------------------------------
 */
-    if (And(Black_Pawns(ply),set_mask[npfile+48]));
-    else if (And(Black_Pawns(ply),set_mask[npfile+40])) 
+    if (And(set_mask[npfile+48],BlackPawns(ply)));
+    else if (And(BlackPawns(ply),set_mask[npfile+40])) 
       faults+=KING_SAFETY_NP_ADV1;
-    else if (And(Black_Pawns(ply),set_mask[npfile+32]))
+    else if (And(BlackPawns(ply),set_mask[npfile+32]))
       faults+=KING_SAFETY_NP_ADV2;
-    else if (!And(Black_Pawns(ply),file_mask[npfile])) {
+    else if (!And(BlackPawns(ply),file_mask[npfile])) {
       faults+=KING_SAFETY_NP_MISSING;
-      if (!And(White_Pawns(ply),file_mask[npfile]))
+      if (!And(WhitePawns(ply),file_mask[npfile]))
         faults+=KING_SAFETY_NP_FILE_OPEN;
     }
     else
@@ -1228,12 +1253,12 @@ int Evaluate_King_Safety_B(int ply, int king_square)
  ------------------------------------------------
 */
     if (faults > 1) {
-      if (And(Black_Pawns(ply),set_mask[bpfile+48]));
-      else if (And(Black_Pawns(ply),set_mask[bpfile+40]))
+      if (And(BlackPawns(ply),set_mask[bpfile+48]));
+      else if (And(BlackPawns(ply),set_mask[bpfile+40]))
         faults+=KING_SAFETY_BP_ADV1;
-      else if (And(Black_Pawns(ply),set_mask[bpfile+32]))
+      else if (And(BlackPawns(ply),set_mask[bpfile+32]))
         faults+=KING_SAFETY_BP_ADV2;
-      else if (!And(Black_Pawns(ply),file_mask[bpfile]))
+      else if (!And(BlackPawns(ply),file_mask[bpfile]))
         faults+=KING_SAFETY_BP_MISSING;
       else
         faults+=KING_SAFETY_BP_TOO_FAR;
@@ -1244,16 +1269,22 @@ int Evaluate_King_Safety_B(int ply, int king_square)
 /*
  ------------------------------------------------
 |                                                |
-|   check for an enemy pawn on the b/g file that |
-|   has been pushed to b3/g3 which produces some |
-|   really dangerous back-rank problems.         |
+|   check for an enemy pawn on files close to    |
+|   the king that are on the 3rd rank, which     |
+|   produces some serious mate threats.          |
 |                                                |
  ------------------------------------------------
 */
-    if (And(set_mask[npfile+16],Black_Pawns(ply)))
-      faults+=KING_SAFETY_PAWN_ATTACK;
+    faults+=Popcnt(Or(Or(And(set_mask[rpfile+40],WhitePawns(ply)),
+                         And(set_mask[npfile+40],WhitePawns(ply))),
+                      And(set_mask[bpfile+40],WhitePawns(ply))))*
+              KING_SAFETY_PAWN_ATTACK_CLOSE;
+    faults+=Popcnt(Or(Or(And(set_mask[rpfile+32],WhitePawns(ply)),
+                         And(set_mask[npfile+32],WhitePawns(ply))),
+                      And(set_mask[bpfile+32],WhitePawns(ply))))*
+              KING_SAFETY_PAWN_ATTACK;
 #ifdef DEBUGK
-    printf("black.6, faults=%d\n",faults);
+    printf("black.5, faults=%d\n",faults);
 #endif
 /*
  ------------------------------------------------
@@ -1273,10 +1304,10 @@ int Evaluate_King_Safety_B(int ply, int king_square)
     if (rank < 7) faults+=KING_SAFETY_NOT_CORNER;
     if (rank < 6) faults+=KING_SAFETY_NOT_CORNER;
     if (rank < 5) faults+=KING_SAFETY_NOT_CORNER;
-    if (And(mask_corner_squares,Black_King(ply)))
+    if (And(mask_corner_squares,set_mask[king_square]))
       faults+=KING_SAFETY_IN_CORNER;
 #ifdef DEBUGK
-    printf("black.7, faults=%d\n",faults);
+    printf("black.6, faults=%d\n",faults);
 #endif
   }
 /*
@@ -1300,17 +1331,17 @@ int Evaluate_King_Safety_B(int ply, int king_square)
 /*
 ********************************************************************************
 *                                                                              *
-*   Evaluate_King_Safety_W() is used to evaluate king safety for the white     *
+*   EvaluateKingSafetyW() is used to evaluate king safety for the white     *
 *   pieces.  it is primarily interested in the pawn structure around the king. *
 *   it checks for missing pawns, open files, pawns too far advanced, weak      *
 *   squares around the king and so forth.  this score is hashed to save time,  *
-*   in a manner similar to the Evaluate_Pawns() routine.  the safety score is  *
+*   in a manner similar to the EvaluatePawns() routine.  the safety score is  *
 *   made available in a global place so that evaluate() can use this number to *
 *   rate how important it is to attack the white king.                         *
 *                                                                              *
 ********************************************************************************
 */
-int Evaluate_King_Safety_W(int ply, int king_square)
+int EvaluateKingSafetyW(int ply, int king_square)
 {
   register BITBOARD *ktable, king_hash_key;
   register int file, rank, i, faults, rpfile, npfile, bpfile;
@@ -1328,7 +1359,7 @@ int Evaluate_King_Safety_W(int ply, int king_square)
 |                                                          |
  ----------------------------------------------------------
 */
-  king_hash_key=Xor(Pawn_Hash_Key(ply),w_king_random[king_square]);
+  king_hash_key=Xor(PawnHashKey(ply),w_king_random[king_square]);
   ktable=king_hash_table+And(king_hash_key,king_hash_mask);
   if (king_hash_table && !Xor(And(*ktable,mask_72),Shiftr(king_hash_key,8))) {
     king_hashes++;
@@ -1349,7 +1380,7 @@ int Evaluate_King_Safety_W(int ply, int king_square)
 |   determine which files are bearing on the king's        |
 |   position.  we evaluate safety from three perspectives: |
 |   king on left side of board, king in the center of      |
-|   board, king on right side of board.                    |
+|   board, king on right side of                     |
 |                                                          |
  ----------------------------------------------------------
 */
@@ -1376,7 +1407,7 @@ int Evaluate_King_Safety_W(int ply, int king_square)
   else {
     faults+=KING_SAFETY_IN_CENTER;
     for (i=(king_square&7)-1;i<(king_square&7)+2;i++) 
-      if (!And(Or(White_Pawns(ply),Black_Pawns(ply)),file_mask[i]))
+      if (!And(Or(WhitePawns(ply),BlackPawns(ply)),file_mask[i]))
         faults+=KING_SAFETY_OPEN_FILE;
 #ifdef DEBUGK
     printf("white.1, faults=%d\n",faults);
@@ -1407,14 +1438,14 @@ int Evaluate_King_Safety_W(int ply, int king_square)
  ------------------------------------------------
 */
   if (!faults) {
-    if (And(White_Pawns(ply),set_mask[rpfile+8]));
-    else if (And(White_Pawns(ply),set_mask[rpfile+16]))
+    if (And(WhitePawns(ply),set_mask[rpfile+8]));
+    else if (And(WhitePawns(ply),set_mask[rpfile+16]))
       faults+=KING_SAFETY_RP_ADV1;
-    else if (And(White_Pawns(ply),set_mask[rpfile+24]))
+    else if (And(WhitePawns(ply),set_mask[rpfile+24]))
       faults+=KING_SAFETY_RP_ADV2;
-    else if (!And(White_Pawns(ply),file_mask[rpfile])) {
+    else if (!And(WhitePawns(ply),file_mask[rpfile])) {
       faults+=KING_SAFETY_RP_MISSING;
-      if (!And(Black_Pawns(ply),file_mask[rpfile]))
+      if (!And(BlackPawns(ply),file_mask[rpfile]))
         faults+=KING_SAFETY_RP_FILE_OPEN;
     }
     else
@@ -1429,14 +1460,14 @@ int Evaluate_King_Safety_W(int ply, int king_square)
 |                                                |
  ------------------------------------------------
 */
-    if (And(White_Pawns(ply),set_mask[npfile+8]));
-    else if (And(White_Pawns(ply),set_mask[npfile+16])) 
+    if (And(WhitePawns(ply),set_mask[npfile+8]));
+    else if (And(WhitePawns(ply),set_mask[npfile+16])) 
       faults+=KING_SAFETY_NP_ADV1;
-    else if (And(White_Pawns(ply),set_mask[npfile+24]))
+    else if (And(WhitePawns(ply),set_mask[npfile+24]))
       faults+=KING_SAFETY_NP_ADV2;
-    else if (!And(White_Pawns(ply),file_mask[npfile])) {
+    else if (!And(WhitePawns(ply),file_mask[npfile])) {
       faults+=KING_SAFETY_NP_MISSING;
-      if (!And(Black_Pawns(ply),file_mask[npfile]))
+      if (!And(BlackPawns(ply),file_mask[npfile]))
         faults+=KING_SAFETY_NP_FILE_OPEN;
     }
     else
@@ -1455,12 +1486,12 @@ int Evaluate_King_Safety_W(int ply, int king_square)
  ------------------------------------------------
 */
     if (faults > 1) {
-      if (And(White_Pawns(ply),set_mask[bpfile+8]));
-      else if (And(White_Pawns(ply),set_mask[bpfile+16]))
+      if (And(WhitePawns(ply),set_mask[bpfile+8]));
+      else if (And(WhitePawns(ply),set_mask[bpfile+16]))
         faults+=KING_SAFETY_BP_ADV1;
-      else if (And(White_Pawns(ply),set_mask[bpfile+24]))
+      else if (And(WhitePawns(ply),set_mask[bpfile+24]))
         faults+=KING_SAFETY_BP_ADV2;
-      else if (!And(White_Pawns(ply),file_mask[bpfile]))
+      else if (!And(WhitePawns(ply),file_mask[bpfile]))
         faults+=KING_SAFETY_BP_MISSING;
       else
         faults+=KING_SAFETY_BP_TOO_FAR;
@@ -1477,10 +1508,16 @@ int Evaluate_King_Safety_W(int ply, int king_square)
 |                                                |
  ------------------------------------------------
 */
-    if (And(set_mask[npfile+40],White_Pawns(ply)))
-      faults+=KING_SAFETY_PAWN_ATTACK;
+    faults+=Popcnt(Or(Or(And(set_mask[rpfile+16],WhitePawns(ply)),
+                         And(set_mask[npfile+16],WhitePawns(ply))),
+                      And(set_mask[bpfile+16],WhitePawns(ply))))*
+              KING_SAFETY_PAWN_ATTACK_CLOSE;
+    faults+=Popcnt(Or(Or(And(set_mask[rpfile+24],WhitePawns(ply)),
+                         And(set_mask[npfile+24],WhitePawns(ply))),
+                      And(set_mask[bpfile+24],WhitePawns(ply))))*
+              KING_SAFETY_PAWN_ATTACK;
 #ifdef DEBUGK
-    printf("white.6, faults=%d\n",faults);
+    printf("white.5, faults=%d\n",faults);
 #endif
 /*
  ------------------------------------------------
@@ -1500,10 +1537,10 @@ int Evaluate_King_Safety_W(int ply, int king_square)
     if (rank > 0) faults+=KING_SAFETY_NOT_CORNER;
     if (rank > 1) faults+=KING_SAFETY_NOT_CORNER;
     if (rank > 2) faults+=KING_SAFETY_NOT_CORNER;
-    if (And(mask_corner_squares,White_King(ply)))
+    if (And(mask_corner_squares,set_mask[king_square]))
       faults+=KING_SAFETY_IN_CORNER;
 #ifdef DEBUGK
-    printf("white.7, faults=%d\n",faults);
+    printf("white.6, faults=%d\n",faults);
 #endif
   }
 /*
@@ -1519,6 +1556,13 @@ int Evaluate_King_Safety_W(int ply, int king_square)
     printf("hash error (king_w)!!  hash=%d  real=%d  entry=%d\n",
             t_faults, faults, (int) And(king_hash_key,king_hash_mask));
 #endif
+/*
+  if (And(king_hash_key,king_hash_mask) == 2899) {
+    DisplayChessBoard(stdout,position[ply]);
+    printf("king position=%d\n",king_square);
+    printf("fauts=%d\n",faults);
+  }
+*/
   if (king_hash_table) 
     *ktable=Or(Shiftl((BITBOARD) faults,56),Shiftr(king_hash_key,8));
   return(faults);
@@ -1527,14 +1571,14 @@ int Evaluate_King_Safety_W(int ply, int king_square)
 /*
 ********************************************************************************
 *                                                                              *
-*   Evaluate_Mate() is used to evaluate positions where neither side has pawns *
+*   EvaluateMate() is used to evaluate positions where neither side has pawns  *
 *   and one side has enough material to force checkmate.  it simply trys to    *
 *   force the losing king to the edge of the board, and then to the corner     *
 *   where mates are easier to find.                                            *
 *                                                                              *
 ********************************************************************************
 */
-int Evaluate_Mate(int ply)
+int EvaluateMate(int ply)
 {
   register int mate_score;
 /*
@@ -1548,42 +1592,42 @@ int Evaluate_Mate(int ply)
  ----------------------------------------------------------
 */
   mate_score=0;
-  if ((Total_Black_Pieces(1)==0) && (Total_White_Pieces(1)==6) &&
-      (!White_Pawns(1)) && (!Black_Pawns(1)) && (Popcnt(White_Bishops(1))==1)) {
-    if (And(dark_squares,White_Bishops(1)))
-      mate_score=b_n_mate_dark_squares[Black_King_SQ(ply)];
+  if ((TotalBlackPieces(1)==0) && (TotalWhitePieces(1)==6) &&
+      (!WhitePawns(1)) && (!BlackPawns(1)) && (Popcnt(WhiteBishops(1))==1)) {
+    if (And(dark_squares,WhiteBishops(1)))
+      mate_score=b_n_mate_dark_squares[BlackKingSQ(ply)];
     else
-      mate_score=b_n_mate_light_squares[Black_King_SQ(ply)];
+      mate_score=b_n_mate_light_squares[BlackKingSQ(ply)];
   }
-  if ((Total_Black_Pieces(1)==6) && (Total_White_Pieces(1)==0) &&
-      (!White_Pawns(1)) && (!Black_Pawns(1)) && (Popcnt(Black_Bishops(1))==1)) {
-    if (And(dark_squares,Black_Bishops(1)))
-      mate_score=-b_n_mate_dark_squares[White_King_SQ(ply)];
+  if ((TotalBlackPieces(1)==6) && (TotalWhitePieces(1)==0) &&
+      (!WhitePawns(1)) && (!BlackPawns(1)) && (Popcnt(BlackBishops(1))==1)) {
+    if (And(dark_squares,BlackBishops(1)))
+      mate_score=-b_n_mate_dark_squares[WhiteKingSQ(ply)];
     else
-      mate_score=-b_n_mate_light_squares[White_King_SQ(ply)];
+      mate_score=-b_n_mate_light_squares[WhiteKingSQ(ply)];
   }
   if (!mate_score) {
 /*
  ----------------------------------------------------------
 |                                                          |
 |   if white is winning, force the black king to the edge  |
-|   of the board.                                          |
+|   of the                                           |
 |                                                          |
  ----------------------------------------------------------
 */
-    if (Total_White_Pieces(ply) > Total_Black_Pieces(ply)+3) {
-      mate_score=mate[Black_King_SQ(ply)];
+    if (TotalWhitePieces(ply) > TotalBlackPieces(ply)+3) {
+      mate_score=mate[BlackKingSQ(ply)];
     }
 /*
  ----------------------------------------------------------
 |                                                          |
 |   if black is winning, force the white king to the edge  |
-|   of the board.                                          |
+|   of the                                           |
 |                                                          |
  ----------------------------------------------------------
 */
-    if (Total_Black_Pieces(ply) > Total_White_Pieces(ply)+3) {
-      mate_score=-mate[White_King_SQ(ply)];
+    if (TotalBlackPieces(ply) > TotalWhitePieces(ply)+3) {
+      mate_score=-mate[WhiteKingSQ(ply)];
     }
   }
   return(mate_score);
@@ -1592,7 +1636,7 @@ int Evaluate_Mate(int ply)
 /*
 ********************************************************************************
 *                                                                              *
-*   Evaluate_Outside_Passed_Pawns() is used to evaluate outside passed pawns.  *
+*   EvaluateOutsidePassedPawns() is used to evaluate outside passed pawns.     *
 *   it analyzes the passed pawns for both sides, and returns a bonus if one    *
 *   side has a passed pawn on the opposite side of the board from the rest of  *
 *   the pawns.  the side with the most remote (outside) pawn gets a bonus that *
@@ -1602,13 +1646,13 @@ int Evaluate_Mate(int ply)
 *                                                                              *
 ********************************************************************************
 */
-int Evaluate_Outside_Passed_Pawns(int ply, int passed_b, int passed_w)
+int EvaluateOutsidePassedPawns(int ply, int passed_b, int passed_w)
 {
   register int score, w_file_l, w_file_r, b_file_l, b_file_r;
   register BITBOARD all_pawns;
 
   score=0;
-  all_pawns=Or(Black_Pawns(ply),White_Pawns(ply));
+  all_pawns=Or(BlackPawns(ply),WhitePawns(ply));
   w_file_l=first_ones_8bit[passed_w];
   if (w_file_l == 8) w_file_l=-1;
   b_file_l=first_ones_8bit[passed_b];
@@ -1628,13 +1672,13 @@ int Evaluate_Outside_Passed_Pawns(int ply, int passed_b, int passed_w)
     if ((w_file_l < (b_file_l-1)) || (w_file_r > (b_file_r+1))) {
       if (w_file_l < 4) {
         if(And(all_pawns,right_side_mask[w_file_l]) &&
-           !And(Black_Pawns(ply),left_side_empty_mask[w_file_l]))
-          score+=outside_passed[(int) Total_Black_Pieces(ply)];
+           !And(BlackPawns(ply),left_side_empty_mask[w_file_l]))
+          score+=outside_passed[(int) TotalBlackPieces(ply)];
       }
       if (w_file_r > 3) {
         if (And(all_pawns,left_side_mask[w_file_r]) &&
-            !And(Black_Pawns(ply),right_side_empty_mask[w_file_r]))
-          score+=outside_passed[(int) Total_Black_Pieces(ply)];
+            !And(BlackPawns(ply),right_side_empty_mask[w_file_r]))
+          score+=outside_passed[(int) TotalBlackPieces(ply)];
       }
     }
   }
@@ -1642,13 +1686,13 @@ int Evaluate_Outside_Passed_Pawns(int ply, int passed_b, int passed_w)
     if ((b_file_l < (w_file_l-1)) || (b_file_r > (w_file_r+1))) {
       if (b_file_l < 4) {
         if(And(all_pawns,right_side_mask[b_file_l]) &&
-           !And(White_Pawns(ply),left_side_empty_mask[b_file_l]))
-          score-=outside_passed[(int) Total_White_Pieces(ply)];
+           !And(WhitePawns(ply),left_side_empty_mask[b_file_l]))
+          score-=outside_passed[(int) TotalWhitePieces(ply)];
       }
       if (b_file_r > 3) {
         if (And(all_pawns,left_side_mask[b_file_r]) &&
-            !And(White_Pawns(ply),right_side_empty_mask[b_file_r]))
-          score-=outside_passed[(int) Total_White_Pieces(ply)];
+            !And(WhitePawns(ply),right_side_empty_mask[b_file_r]))
+          score-=outside_passed[(int) TotalWhitePieces(ply)];
       }
     }
   }
@@ -1658,14 +1702,14 @@ int Evaluate_Outside_Passed_Pawns(int ply, int passed_b, int passed_w)
 /*
 ********************************************************************************
 *                                                                              *
-*   Evaluate_Passed_Pawns() is used to evaluate passed pawns and the danger    *
+*   EvaluatePassedPawns() is used to evaluate passed pawns and the danger      *
 *   they produce.  currently, this code simply gives a bonus for an advanced   *
 *   passed pawn that is supported by the king being in front of it to make it  *
 *   very difficult to stop it from queening.                                   *
 *                                                                              *
 ********************************************************************************
 */
-int Evaluate_Passed_Pawns(int ply, int passed_b,int passed_w)
+int EvaluatePassedPawns(int ply, int passed_b,int passed_w)
 {
   register int file, square, score=0;
   register int white_king, black_king;
@@ -1680,10 +1724,10 @@ int Evaluate_Passed_Pawns(int ply, int passed_b,int passed_w)
  ----------------------------------------------------------
 */
   if (passed_b) {
-    black_king=Black_King_SQ(ply);
+    black_king=BlackKingSQ(ply);
     for (file=0;file<8;file++) {
       if (passed_b & (128 >> file)) {
-        square=First_One(And(Black_Pawns(ply),file_mask[file]));
+        square=FirstOne(And(BlackPawns(ply),file_mask[file]));
         if (Distance(square,black_king) < 2)
           score-=supported_passer[7-(square>>3)];
       }
@@ -1702,10 +1746,10 @@ int Evaluate_Passed_Pawns(int ply, int passed_b,int passed_w)
  ----------------------------------------------------------
 */
   if (passed_w) {
-    white_king=White_King_SQ(ply);
+    white_king=WhiteKingSQ(ply);
     for (file=0;file<8;file++) {
       if (passed_w & (128 >> file)) {
-        square=Last_One(And(White_Pawns(ply),file_mask[file]));
+        square=LastOne(And(WhitePawns(ply),file_mask[file]));
         if (Distance(square,white_king) < 2) 
           score+=supported_passer[square>>3];
       }
@@ -1720,7 +1764,7 @@ int Evaluate_Passed_Pawns(int ply, int passed_b,int passed_w)
 /*
 ********************************************************************************
 *                                                                              *
-*   Evaluate_Passed_Pawn_Races() is used to evalaute passed pawns when one     *
+*   EvaluatePassedPawnRacess() is used to evalaute passed pawns when one       *
 *   side has passed pawns and the other side (or neither) has pieces.  in      *
 *   such a case, the critical question is can the defending king stop the pawn *
 *   from queening or is it too far away?  if only one side has pawns that can  *
@@ -1735,7 +1779,7 @@ int Evaluate_Passed_Pawns(int ply, int passed_b,int passed_w)
 *                                                                              *
 ********************************************************************************
 */
-int Evaluate_Passed_Pawn_Races(int ply,int wtm,int passed_b,int passed_w)
+int EvaluatePassedPawnRacess(int ply,int wtm,int passed_b,int passed_w)
 {
   register int file, square;
   register int  white_queener, white_square, black_queener, black_square;
@@ -1757,9 +1801,9 @@ int Evaluate_Passed_Pawn_Races(int ply,int wtm,int passed_b,int passed_w)
 |                                                          |
  ----------------------------------------------------------
 */
-  if (White_Pawns(ply) && (!Black_Pawns(ply)) &&
-      (!Total_White_Pieces(ply)) && (!Total_Black_Pieces(ply))) do {
-    pawn=First_One(White_Pawns(ply));
+  if (WhitePawns(ply) && (!BlackPawns(ply)) &&
+      (!TotalWhitePieces(ply)) && (!TotalBlackPieces(ply))) do {
+    pawn=FirstOne(WhitePawns(ply));
 /*
  ------------------------------------------------
 |                                                |
@@ -1768,7 +1812,7 @@ int Evaluate_Passed_Pawn_Races(int ply,int wtm,int passed_b,int passed_w)
 |                                                |
  ------------------------------------------------
 */
-    if ((White_King_SQ(ply)>>3) <= (pawn>>3)) break;
+    if ((WhiteKingSQ(ply)>>3) <= (pawn>>3)) break;
 /*
  ------------------------------------------------
 |                                                |
@@ -1780,14 +1824,14 @@ int Evaluate_Passed_Pawn_Races(int ply,int wtm,int passed_b,int passed_w)
  ------------------------------------------------
 */
     if ((pawn&7) == 0) {
-      if (((White_King_SQ(ply)&7) == 1) &&
-          (Distance(White_King_SQ(ply),56) < Distance(Black_King_SQ(ply),56)))
+      if (((WhiteKingSQ(ply)&7) == 1) &&
+          (Distance(WhiteKingSQ(ply),56) < Distance(BlackKingSQ(ply),56)))
         return(QUEEN_VALUE-2*PAWN_VALUE);
       break;
     }
     else if ((pawn&7) == 7) {
-      if (((White_King_SQ(ply)&7) == 6) &&
-          (Distance(White_King_SQ(ply),63) < Distance(Black_King_SQ(ply),63)))
+      if (((WhiteKingSQ(ply)&7) == 6) &&
+          (Distance(WhiteKingSQ(ply),63) < Distance(BlackKingSQ(ply),63)))
         return(QUEEN_VALUE-2*PAWN_VALUE);
       break;
     }
@@ -1801,10 +1845,10 @@ int Evaluate_Passed_Pawn_Races(int ply,int wtm,int passed_b,int passed_w)
 |                                                |
  ------------------------------------------------
 */
-    if (Distance(White_King_SQ(ply),pawn)<=Distance(Black_King_SQ(ply),pawn)) {
-      if ((White_King_SQ(ply)>>3) > ((pawn>>3)+1))
+    if (Distance(WhiteKingSQ(ply),pawn)<=Distance(BlackKingSQ(ply),pawn)) {
+      if ((WhiteKingSQ(ply)>>3) > ((pawn>>3)+1))
         return(QUEEN_VALUE-2*PAWN_VALUE);
-      if ((White_King_SQ(ply)>>3) == 5)
+      if ((WhiteKingSQ(ply)>>3) == 5)
         return(QUEEN_VALUE-2*PAWN_VALUE);
     }
 /*
@@ -1816,8 +1860,8 @@ int Evaluate_Passed_Pawn_Races(int ply,int wtm,int passed_b,int passed_w)
 |                                                |
  ------------------------------------------------
 */
-    if (((White_King_SQ(ply)>>3) == ((pawn>>3)+1)) &&
-        Has_Opposition(wtm,White_King_SQ(ply),Black_King_SQ(ply)))
+    if (((WhiteKingSQ(ply)>>3) == ((pawn>>3)+1)) &&
+        HasOpposition(wtm,WhiteKingSQ(ply),BlackKingSQ(ply)))
       return(QUEEN_VALUE-2*PAWN_VALUE);
   } while(0);
 /*
@@ -1829,9 +1873,9 @@ int Evaluate_Passed_Pawn_Races(int ply,int wtm,int passed_b,int passed_w)
 |                                                          |
  ----------------------------------------------------------
 */
-  if (Black_Pawns(ply) && (!White_Pawns(ply)) &&
-      (!Total_White_Pieces(ply)) && (!Total_Black_Pieces(ply))) do {
-    pawn=First_One(Black_Pawns(ply));
+  if (BlackPawns(ply) && (!WhitePawns(ply)) &&
+      (!TotalWhitePieces(ply)) && (!TotalBlackPieces(ply))) do {
+    pawn=FirstOne(BlackPawns(ply));
 /*
  ------------------------------------------------
 |                                                |
@@ -1840,7 +1884,7 @@ int Evaluate_Passed_Pawn_Races(int ply,int wtm,int passed_b,int passed_w)
 |                                                |
  ------------------------------------------------
 */
-    if ((Black_King_SQ(ply)>>3) >= (pawn>>3)) break;
+    if ((BlackKingSQ(ply)>>3) >= (pawn>>3)) break;
 /*
  ------------------------------------------------
 |                                                |
@@ -1852,14 +1896,14 @@ int Evaluate_Passed_Pawn_Races(int ply,int wtm,int passed_b,int passed_w)
  ------------------------------------------------
 */
     if ((pawn&7) == 0) {
-      if (((Black_King_SQ(ply)&7) == 1) &&
-          (Distance(Black_King_SQ(ply),0) < Distance(White_King_SQ(ply),0)))
+      if (((BlackKingSQ(ply)&7) == 1) &&
+          (Distance(BlackKingSQ(ply),0) < Distance(WhiteKingSQ(ply),0)))
         return(-(QUEEN_VALUE-2*PAWN_VALUE));
       break;
     }
     else if ((pawn&7) == 7) {
-      if (((White_King_SQ(ply)&7) == 6) &&
-          (Distance(Black_King_SQ(ply),8) < Distance(White_King_SQ(ply),8)))
+      if (((WhiteKingSQ(ply)&7) == 6) &&
+          (Distance(BlackKingSQ(ply),8) < Distance(WhiteKingSQ(ply),8)))
         return(-(QUEEN_VALUE-2*PAWN_VALUE));
       break;
     }
@@ -1873,10 +1917,10 @@ int Evaluate_Passed_Pawn_Races(int ply,int wtm,int passed_b,int passed_w)
 |                                                |
  ------------------------------------------------
 */
-    if (Distance(Black_King_SQ(ply),pawn)<=Distance(White_King_SQ(ply),pawn)) {
-      if ((Black_King_SQ(ply)>>3) < ((pawn>>3)-1))
+    if (Distance(BlackKingSQ(ply),pawn)<=Distance(WhiteKingSQ(ply),pawn)) {
+      if ((BlackKingSQ(ply)>>3) < ((pawn>>3)-1))
         return(-(QUEEN_VALUE-2*PAWN_VALUE));
-      if ((Black_King_SQ(ply)>>3) == 2)
+      if ((BlackKingSQ(ply)>>3) == 2)
         return(-(QUEEN_VALUE-2*PAWN_VALUE));
     }
 /*
@@ -1888,8 +1932,8 @@ int Evaluate_Passed_Pawn_Races(int ply,int wtm,int passed_b,int passed_w)
 |                                                |
  ------------------------------------------------
 */
-    if (((Black_King_SQ(ply)>>3) == ((pawn>>3)-1)) &&
-        Has_Opposition(!wtm,Black_King_SQ(ply),White_King_SQ(ply)))
+    if (((BlackKingSQ(ply)>>3) == ((pawn>>3)-1)) &&
+        HasOpposition(!wtm,BlackKingSQ(ply),WhiteKingSQ(ply)))
       return(-(QUEEN_VALUE-2*PAWN_VALUE));
   } while(0);
 /*
@@ -1901,15 +1945,15 @@ int Evaluate_Passed_Pawn_Races(int ply,int wtm,int passed_b,int passed_w)
 |                                                          |
  ----------------------------------------------------------
 */
-  if (!Total_White_Pieces(ply) && passed_b) {
+  if (!TotalWhitePieces(ply) && passed_b) {
     for (file=0;file<8;file++) {
       if (passed_b & (128 >> file)) {
-        square=First_One(And(Black_Pawns(ply),file_mask[file]));
-        if (And(w_pawn_attacks[square],Black_Pawns(ply))) black_protected=1;
-        if ((wtm && !And(black_pawn_race_wtm[square],White_King(ply))) ||
-            (!wtm && !And(black_pawn_race_btm[square],White_King(ply)))) {
+        square=FirstOne(And(BlackPawns(ply),file_mask[file]));
+        if (And(w_pawn_attacks[square],BlackPawns(ply))) black_protected=1;
+        if ((wtm && !And(black_pawn_race_wtm[square],WhiteKing(ply))) ||
+            (!wtm && !And(black_pawn_race_btm[square],WhiteKing(ply)))) {
           queen_distance=square>>3;
-          if (And(Black_King(ply),mask_minus8dir[square])) queen_distance++;
+          if (And(BlackKing(ply),mask_minus8dir[square])) queen_distance++;
           if ((square>>3) == 6) queen_distance--;
           if (queen_distance < black_queener) {
             black_queener=queen_distance;
@@ -1933,15 +1977,15 @@ int Evaluate_Passed_Pawn_Races(int ply,int wtm,int passed_b,int passed_w)
 |                                                          |
  ----------------------------------------------------------
 */
-  if (!Total_Black_Pieces(ply) && passed_w) {
+  if (!TotalBlackPieces(ply) && passed_w) {
     for (file=0;file<8;file++) {
       if (passed_w & (128 >> file)) {
-        square=Last_One(And(White_Pawns(ply),file_mask[file]));
-        if (And(b_pawn_attacks[square],White_Pawns(ply))) white_protected=1;
-        if ((wtm && !And(white_pawn_race_wtm[square],Black_King(ply))) ||
-            (!wtm && !And(white_pawn_race_btm[square],Black_King(ply)))) {
+        square=LastOne(And(WhitePawns(ply),file_mask[file]));
+        if (And(b_pawn_attacks[square],WhitePawns(ply))) white_protected=1;
+        if ((wtm && !And(white_pawn_race_wtm[square],BlackKing(ply))) ||
+            (!wtm && !And(white_pawn_race_btm[square],BlackKing(ply)))) {
           queen_distance=7-(square>>3);
-          if (And(White_King(ply),mask_plus8dir[square])) queen_distance++;
+          if (And(WhiteKing(ply),mask_plus8dir[square])) queen_distance++;
           if ((square>>3) == 1) queen_distance--;
           if (queen_distance < white_queener) {
             white_queener=queen_distance;
@@ -1991,25 +2035,25 @@ int Evaluate_Passed_Pawn_Races(int ply,int wtm,int passed_b,int passed_w)
  ----------------------------------------------------------
 */
     if (white_queener == black_queener) {
-      tempw=White_Pieces(ply);
-      Clear(white_pawn,White_Pieces(ply));
-      White_Pieces(ply)=Or(White_Pieces(ply),set_mask[white_square]);
-      tempb=Black_Pieces(ply);
-      Clear(black_pawn,Black_Pieces(ply));
-      Black_Pieces(ply)=Or(Black_Pieces(ply),set_mask[black_square]);
-      if (Attack(Black_King_SQ(ply),white_square,ply)) {
-        White_Pieces(ply)=tempw;
-        Black_Pieces(ply)=tempb;
+      tempw=WhitePieces(ply);
+      Clear(white_pawn,WhitePieces(ply));
+      WhitePieces(ply)=Or(WhitePieces(ply),set_mask[white_square]);
+      tempb=BlackPieces(ply);
+      Clear(black_pawn,BlackPieces(ply));
+      BlackPieces(ply)=Or(BlackPieces(ply),set_mask[black_square]);
+      if (Attack(BlackKingSQ(ply),white_square,ply)) {
+        WhitePieces(ply)=tempw;
+        BlackPieces(ply)=tempb;
         return(QUEEN_VALUE-2*PAWN_VALUE+white_queener*PAWN_VALUE/10);
       }
       if (Attack(black_square,white_square,ply) &&
-          !And(king_attacks[black_square],Black_King(ply))) {
-        White_Pieces(ply)=tempw;
-        Black_Pieces(ply)=tempb;
+          !And(king_attacks[black_square],BlackKing(ply))) {
+        WhitePieces(ply)=tempw;
+        BlackPieces(ply)=tempb;
         return(QUEEN_VALUE-2*PAWN_VALUE+white_queener*PAWN_VALUE/10);
       }
-      White_Pieces(ply)=tempw;
-      Black_Pieces(ply)=tempb;
+      WhitePieces(ply)=tempw;
+      BlackPieces(ply)=tempb;
     }
 /*
  ----------------------------------------------------------
@@ -2023,25 +2067,25 @@ int Evaluate_Passed_Pawn_Races(int ply,int wtm,int passed_b,int passed_w)
  ----------------------------------------------------------
 */
     if (black_queener == (white_queener-1)) {
-      tempw=White_Pieces(ply);
-      Clear(white_pawn,White_Pieces(ply));
-      White_Pieces(ply)=Or(White_Pieces(ply),set_mask[white_square]);
-      tempb=Black_Pieces(ply);
-      Clear(black_pawn,Black_Pieces(ply));
-      Black_Pieces(ply)=Or(Black_Pieces(ply),set_mask[black_square]);
-      if (Attack(White_King_SQ(ply),black_square,ply)) {
-        White_Pieces(ply)=tempw;
-        Black_Pieces(ply)=tempb;
+      tempw=WhitePieces(ply);
+      Clear(white_pawn,WhitePieces(ply));
+      WhitePieces(ply)=Or(WhitePieces(ply),set_mask[white_square]);
+      tempb=BlackPieces(ply);
+      Clear(black_pawn,BlackPieces(ply));
+      BlackPieces(ply)=Or(BlackPieces(ply),set_mask[black_square]);
+      if (Attack(WhiteKingSQ(ply),black_square,ply)) {
+        WhitePieces(ply)=tempw;
+        BlackPieces(ply)=tempb;
         return(-(QUEEN_VALUE-2*PAWN_VALUE+black_queener*PAWN_VALUE/10));
       }
       if (Attack(white_square,black_square,ply) &&
-          !And(king_attacks[white_square],White_King(ply))) {
-        White_Pieces(ply)=tempw;
-        Black_Pieces(ply)=tempb;
+          !And(king_attacks[white_square],WhiteKing(ply))) {
+        WhitePieces(ply)=tempw;
+        BlackPieces(ply)=tempb;
         return(-(QUEEN_VALUE-2*PAWN_VALUE+black_queener*PAWN_VALUE/10));
       }
-      White_Pieces(ply)=tempw;
-      Black_Pieces(ply)=tempb;
+      WhitePieces(ply)=tempw;
+      BlackPieces(ply)=tempb;
     }
   } while(0);
 /*
@@ -2064,7 +2108,7 @@ int Evaluate_Passed_Pawn_Races(int ply,int wtm,int passed_b,int passed_w)
 /*
 ********************************************************************************
 *                                                                              *
-*   Evaluate_Pawns() is used to evaluate pawns.  broadly, it addresses three   *
+*   EvaluatePawns() is used to evaluate pawns.  broadly, it addresses three    *
 *   distinct actions:  (1) basic pawn scoring is hashed, the first thing done  *
 *   is to see if the score is in the pawn hash table;  (2) passed pawn scoring *
 *   for positions with pieces left;  (3) passed pawns where one side has a     *
@@ -2073,7 +2117,8 @@ int Evaluate_Passed_Pawn_Races(int ply,int wtm,int passed_b,int passed_w)
 *                                                                              *
 ********************************************************************************
 */
-int Evaluate_Pawns(int ply, int *passed_b, int *passed_w)
+int EvaluatePawns(int ply, int *passed_b, int *passed_w, 
+                   int *weak_b, int *weak_w)
 {
   register BITBOARD *ptable, *ptable_x, temp_key;
   register int square, attackers, defenders, rams, file, score, pshift;
@@ -2095,9 +2140,11 @@ int Evaluate_Pawns(int ply, int *passed_b, int *passed_w)
   score=0;
   *passed_w=0;
   *passed_b=0;
-  temp_key=Pawn_Hash_Key(ply);
-  if (White_Rooks(ply)) temp_key=Xor(temp_key,w_rooks_random);
-  if (Black_Rooks(ply)) temp_key=Xor(temp_key,b_rooks_random);
+  *weak_w=0;
+  *weak_b=0;
+  temp_key=PawnHashKey(ply);
+  if (WhiteRooks(ply)) temp_key=Xor(temp_key,w_rooks_random);
+  if (BlackRooks(ply)) temp_key=Xor(temp_key,b_rooks_random);
   ptable=pawn_hash_table+And(temp_key,pawn_hash_mask);
   ptable_x=pawn_hash_table_x+Shiftr(And(temp_key,pawn_hash_mask),1);
   pshift=And(temp_key,mask_127) << 5;
@@ -2106,10 +2153,14 @@ int Evaluate_Pawns(int ply, int *passed_b, int *passed_w)
     score+=Shiftr(*ptable,48)-32768;
     half_entry=And(Shiftr(*ptable_x,pshift),mask_96);
 #if !defined(DEBUG_HASH)
+    *weak_b=half_entry & 255;
+    *weak_w=(half_entry >> 8) & 255;
     *passed_b=(half_entry >> 16) & 255;
     *passed_w=(half_entry >> 24) & 255;
     return(score);
 #else
+    t_weak_b=half_entry & 255;
+    t_weak_w=(half_entry >> 8) & 255;
     t_passed_b=(half_entry >> 16) & 255;
     t_passed_w=(half_entry >> 24) & 255;
     t_score=score;
@@ -2128,42 +2179,14 @@ int Evaluate_Pawns(int ply, int *passed_b, int *passed_w)
 |                                                          |
  ----------------------------------------------------------
 */
-    if (And(White_Pawns(ply),file_mask[file])) {
-      square=Last_One(And(White_Pawns(ply),file_mask[file]));
+    if (And(WhitePawns(ply),file_mask[file])) {
+      square=LastOne(And(WhitePawns(ply),file_mask[file]));
       score+=pawn_value_w[square];
     }
-    if (And(Black_Pawns(ply),file_mask[file])) {
-      square=First_One(And(Black_Pawns(ply),file_mask[file]));
+    if (And(BlackPawns(ply),file_mask[file])) {
+      square=FirstOne(And(BlackPawns(ply),file_mask[file]));
       score-=pawn_value_b[square];
     }
-/*
- ----------------------------------------------------------
-|                                                          |
-|   evaluate isolated (weak) pawns.                        |
-|                                                          |
- ----------------------------------------------------------
-*/
-    if (And(White_Pawns(ply),file_mask[file])) {
-      square=Last_One(And(White_Pawns(ply),file_mask[file]));
-      if (!And(mask_pawn_isolated[square],White_Pawns(ply))) {
-        w_weak=1;
-        score-=isolated[Popcnt(And(White_Pawns(ply),file_mask[file]))];
-        if (!And(mask_plus8dir[square],Black_Pawns(ply)))
-          if (Black_Rooks(ply)) score-=PAWN_ISOLATED_WEAK;
-      }
-    }
-    if (And(Black_Pawns(ply),file_mask[file])) {
-      square=First_One(And(Black_Pawns(ply),file_mask[file]));
-      if (!And(mask_pawn_isolated[square],Black_Pawns(ply))) {
-        b_weak=1;
-        score+=isolated[Popcnt(And(Black_Pawns(ply),file_mask[file]))];
-        if (!And(mask_minus8dir[square],White_Pawns(ply)))
-          if (White_Rooks(ply)) score+=PAWN_ISOLATED_WEAK;
-      }
-    }
-#ifdef DEBUGP
-    printf("pawn[isolated] file=%d, score=%d\n",file,score);
-#endif
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -2173,81 +2196,80 @@ int Evaluate_Pawns(int ply, int *passed_b, int *passed_w)
 |   and advances one (or two if it hasn't moved yet) ranks |
 |   and is defended fewer times than it is attacked, it is |
 |   weak.  note that the penalty is greater if the pawn is |
-|   on an open file.                                       |
+|   on an open file.  note that an isolated pawn is just   |
+|   another case of a weak pawn, since it can never be     |
+|   defended by a pawn.                                    |
 |                                                          |
  ----------------------------------------------------------
 */
-    if (!w_weak) {
-      square=Last_One(And(White_Pawns(ply),file_mask[file]));
-      if (square < 64) {
-        if (!And(mask_pawn_backward_w[square],White_Pawns(ply))) {
-          defenders=Popcnt(And(b_pawn_attacks[square+8],White_Pawns(ply)));
-          attackers=Popcnt(And(w_pawn_attacks[square+8],Black_Pawns(ply)));
-          if (attackers > defenders) {
-            if (!And(mask_plus8dir[square],Black_Pawns(ply))) {
-              if (Black_Rooks(ply))
-                if (attackers-defenders == 1) score-=PAWN_VERY_WEAK_P1;
-                else if (attackers-defenders == 2) score-=PAWN_VERY_WEAK_P2;
+    square=LastOne(And(WhitePawns(ply),file_mask[file]));
+    if (square < 64) {
+      if (!And(mask_pawn_isolated[square],WhitePawns(ply))) {
+        score-=isolated[Popcnt(And(WhitePawns(ply),file_mask[file]))];
+        w_weak=128;
+      }
+      else {
+        if (!And(mask_pawn_backward_w[square],WhitePawns(ply))) {
+          defenders=Popcnt(And(b_pawn_attacks[square+8],WhitePawns(ply)));
+          attackers=Popcnt(And(w_pawn_attacks[square+8],BlackPawns(ply)));
+          if (BlackRooks(ply) && !And(mask_plus8dir[square],BlackPawns(ply))) {
+            if (attackers > defenders) {
+              if (attackers-defenders == 2) score-=PAWN_VERY_WEAK_P2;
+              else if (attackers-defenders == 1) score-=PAWN_VERY_WEAK_P1;
+              w_weak=128;
             }
-            else {
-              if (attackers-defenders == 1) score-=PAWN_WEAK_P1;
-              else if (attackers-defenders == 2) score-=PAWN_WEAK_P2;
+            else if (!defenders && !attackers && (square < 16)) {
+              defenders=Popcnt(And(b_pawn_attacks[square+16],WhitePawns(ply)));
+              attackers=Popcnt(And(w_pawn_attacks[square+16],BlackPawns(ply)));
+              if (attackers > defenders) {
+                if (attackers-defenders == 2) score-=PAWN_VERY_WEAK_P2;
+                else if (attackers-defenders == 1) score-=PAWN_VERY_WEAK_P1;
+                w_weak=128;
+              }
             }
           }
-          else if (!defenders && (square < 16)) {
-            defenders=Popcnt(And(b_pawn_attacks[square+16],White_Pawns(ply)));
-            attackers=Popcnt(And(w_pawn_attacks[square+16],Black_Pawns(ply)));
-            if (attackers > defenders) {
-              if (!And(mask_plus8dir[square],Black_Pawns(ply))) {
-                if (Black_Rooks(ply))
-                  if (attackers-defenders == 1) score-=PAWN_VERY_WEAK_P1;
-                  else if (attackers-defenders == 2) score-=PAWN_VERY_WEAK_P2;
-              }
-              else {
-                if (attackers-defenders == 1) score-=PAWN_WEAK_P1;
-                else if (attackers-defenders == 2) score-=PAWN_WEAK_P2;
-              }
-            }
+          else {
+            if (attackers-defenders == 1) score-=PAWN_WEAK_P1;
+            else if (attackers-defenders == 2) score-=PAWN_WEAK_P2;
           }
         }
       }
     }
-    if (!b_weak) {
-      square=First_One(And(Black_Pawns(ply),file_mask[file]));
-      if (square < 64) {
-        if (!And(mask_pawn_backward_b[square],Black_Pawns(ply))) {
-          defenders=Popcnt(And(w_pawn_attacks[square-8],Black_Pawns(ply)));
-          attackers=Popcnt(And(b_pawn_attacks[square-8],White_Pawns(ply)));
-          if (attackers > defenders) {
-            if (!And(mask_minus8dir[square],White_Pawns(ply))) {
-              if (White_Rooks(ply))
-                if (attackers-defenders == 1) score+=PAWN_VERY_WEAK_P1;
-                else if (attackers-defenders == 2) score+=PAWN_VERY_WEAK_P2;
+    square=LastOne(And(BlackPawns(ply),file_mask[file]));
+    if (square < 64) {
+      if (!And(mask_pawn_isolated[square],BlackPawns(ply))) {
+        score+=isolated[Popcnt(And(BlackPawns(ply),file_mask[file]))];
+        b_weak=128;
+      }
+      else {
+        if (!And(mask_pawn_backward_b[square],BlackPawns(ply))) {
+          defenders=Popcnt(And(w_pawn_attacks[square-8],BlackPawns(ply)));
+          attackers=Popcnt(And(b_pawn_attacks[square-8],WhitePawns(ply)));
+          if (WhiteRooks(ply) && !And(mask_minus8dir[square],WhitePawns(ply))){
+            if (attackers > defenders) {
+              if (attackers-defenders == 2) score+=PAWN_VERY_WEAK_P2;
+              else if (attackers-defenders == 1) score+=PAWN_VERY_WEAK_P1;
+              b_weak=128;
             }
-            else {
-              if (attackers-defenders == 1) score+=PAWN_WEAK_P1;
-              else if (attackers-defenders == 2) score+=PAWN_WEAK_P2;
+            else if (!defenders && !attackers && (square > 47)) {
+              defenders=Popcnt(And(w_pawn_attacks[square-16],BlackPawns(ply)));
+              attackers=Popcnt(And(b_pawn_attacks[square-16],WhitePawns(ply)));
+              if (attackers > defenders) {
+                if (attackers-defenders == 2) score+=PAWN_VERY_WEAK_P2;
+                else if (attackers-defenders == 1) score+=PAWN_VERY_WEAK_P1;
+                b_weak=128;
+              }
             }
           }
-          else if (!defenders && (square > 47)) {
-            defenders=Popcnt(And(w_pawn_attacks[square-16],Black_Pawns(ply)));
-            attackers=Popcnt(And(b_pawn_attacks[square-16],White_Pawns(ply)));
-            if (attackers > defenders) {
-              if (!And(mask_minus8dir[square],White_Pawns(ply))) {
-              if (attackers-defenders == 1)
-                if (White_Rooks(ply))
-                  if (attackers-defenders == 1) score+=PAWN_VERY_WEAK_P1;
-                  else if (attackers-defenders == 2) score+=PAWN_VERY_WEAK_P2;
-              }
-              else {
-                if (attackers-defenders == 1) score+=PAWN_WEAK_P1;
-                else if (attackers-defenders == 2) score+=PAWN_WEAK_P2;
-              }
-            }
+          else {
+            if (attackers-defenders == 1) score+=PAWN_WEAK_P1;
+            else if (attackers-defenders == 2) score+=PAWN_WEAK_P2;
           }
         }
       }
     }
+    *weak_w|=w_weak>>file;
+    *weak_b|=b_weak>>file;
 #ifdef DEBUGP
   printf("pawn[weak] file=%d,     score=%d\n",file,score);
 #endif
@@ -2259,12 +2281,12 @@ int Evaluate_Pawns(int ply, int *passed_b, int *passed_w)
 |                                                          |
  ----------------------------------------------------------
 */
-    if (And(White_Pawns(ply),file_mask[file])) {
-      square=Last_One(And(White_Pawns(ply),file_mask[file]));
-      if (!And(mask_pawn_passed_w[square],Black_Pawns(ply))) {
-        if (And(mask_pawn_isolated[square],White_Pawns(ply))) {
+    if (And(WhitePawns(ply),file_mask[file])) {
+      square=LastOne(And(WhitePawns(ply),file_mask[file]));
+      if (!And(mask_pawn_passed_w[square],BlackPawns(ply))) {
+        if (And(mask_pawn_isolated[square],WhitePawns(ply))) {
           score+=PAWN_PASSED*(square>>3);
-          if (And(mask_pawn_connected[square],White_Pawns(ply)))
+          if (And(mask_pawn_connected[square],WhitePawns(ply)))
             score+=connected_passer[square>>3];
         }
         else
@@ -2272,12 +2294,12 @@ int Evaluate_Pawns(int ply, int *passed_b, int *passed_w)
         *passed_w=*passed_w | (128 >> file);
       }
     }
-    if (And(Black_Pawns(ply),file_mask[file])) {
-      square=First_One(And(Black_Pawns(ply),file_mask[file]));
-      if (!And(mask_pawn_passed_b[square],White_Pawns(ply))) {
-        if (And(mask_pawn_isolated[square],Black_Pawns(ply))) {
+    if (And(BlackPawns(ply),file_mask[file])) {
+      square=FirstOne(And(BlackPawns(ply),file_mask[file]));
+      if (!And(mask_pawn_passed_b[square],WhitePawns(ply))) {
+        if (And(mask_pawn_isolated[square],BlackPawns(ply))) {
           score-=PAWN_PASSED*(7-(square>>3));
-          if (And(mask_pawn_connected[square],Black_Pawns(ply)))
+          if (And(mask_pawn_connected[square],BlackPawns(ply)))
             score-=connected_passer[7-(square>>3)];
         }
         else
@@ -2292,7 +2314,7 @@ int Evaluate_Pawns(int ply, int *passed_b, int *passed_w)
 /*
  ----------------------------------------------------------
 |                                                          |
-|   next count the number of pawn "rams" on the board.     |
+|   next count the number of pawn "rams" on the      |
 |   these are simply two pawns of opposite color on the    |
 |   same file, contacting each other face-to-face.  such   |
 |   positions are more blocked than tactical, which does   |
@@ -2303,7 +2325,7 @@ int Evaluate_Pawns(int ply, int *passed_b, int *passed_w)
 /*
   if (!end_game) {
 */
-    rams=Popcnt(And(Shiftr(White_Pawns(ply),8),Black_Pawns(ply)));
+    rams=Popcnt(And(Shiftr(WhitePawns(ply),8),BlackPawns(ply)));
     if (root_wtm) score-=pawn_ram[rams];
     else score+=pawn_ram[rams];
 #ifdef DEBUGP
@@ -2314,7 +2336,7 @@ int Evaluate_Pawns(int ply, int *passed_b, int *passed_w)
 */
   if (pawn_hash_table) {
     *ptable=Or(Shiftl((BITBOARD) score+32768,48),Shiftr(temp_key,16));
-    half_entry=(*passed_b<<16)+(*passed_w<<24);
+    half_entry=(*passed_b<<16)+(*passed_w<<24)+(*weak_b)+(*weak_w<<8);
     if (pshift)
       *ptable_x=Or(And(*ptable_x,mask_96),Shiftl((BITBOARD) half_entry,32));
     else
@@ -2322,13 +2344,15 @@ int Evaluate_Pawns(int ply, int *passed_b, int *passed_w)
   }
 #if defined(DEBUG_HASH)
   if (hashed && ((t_passed_b != *passed_b) || (t_passed_w != *passed_w) ||
-      (t_score != score))) {
+      (t_weak_b != *weak_b) || (t_weak_w != *weak_w) || (t_score != score))) {
     printf("hash error (pawn)!!  entry=%d\n", And(temp_key,pawn_hash_mask));
     printf("hash:  passed_b=%2x  passed_w=%2x", t_passed_b, t_passed_w);
+    printf("hash:  weak_b=%2x  weak_w=%2x", t_weak_b, t_weak_w);
     printf("  score=%d\n",t_score);
     printf("real:  passed_b=%2x  passed_w=%2x", *passed_b, *passed_w);
+    printf("real:  weak_b=%2x  weak_w=%2x", *weak_b, *weak_w);
     printf("  score=%d\n",score);
-    Display_Chess_Board(stdout,position[ply].board);
+    DisplayChessBoard(stdout,position[ply]);
     exit(1);
   }
 #endif
@@ -2338,14 +2362,14 @@ int Evaluate_Pawns(int ply, int *passed_b, int *passed_w)
 /*
 ********************************************************************************
 *                                                                              *
-*   Evaluate_Tempo() is used to discourage the program from moving pieces more *
+*   EvaluateTempo() is used to discourage the program from moving pieces more  *
 *   than once until all minor pieces have been developed.  this tends to get   *
 *   pieces off the back rank in a hurry since other piece moves produce a      *
 *   penalty as long as pieces are still standing on the back rank.             *
 *                                                                              *
 ********************************************************************************
 */
-int Evaluate_Tempo(int ply)
+int EvaluateTempo(int ply)
 {
   register int i, score;
 /*
@@ -2353,7 +2377,7 @@ int Evaluate_Tempo(int ply)
 |                                                          |
 |   if the king hasn't castled, penalize the score for     |
 |   two reasons:  (1) to encourage castling to get out of  |
-|   the center of the board; (2) Evaluate_Development()    |
+|   the center of the board; (2) EvaluateDevelopment()    |
 |   will return a non-zero score which will continue to    |
 |   monitor developmental status until castling occurs.    |
 |   if the king hasn't castled, penalize every move that   |
@@ -2367,29 +2391,29 @@ int Evaluate_Tempo(int ply)
   score=0;
   if (root_wtm) {
     for (i=1;i<ply;i+=2) {
-      if (((Piece(current_move[i]) > 1) && (From(current_move[i]) > 7) &&
+      if (((Piece(current_move[i]) > pawn) && (From(current_move[i]) > 7) &&
            (!Captured(current_move[i]) ||
-            (To(current_move[i]) == To(current_move[i-1])))))
+            (To(current_move[i]) != To(current_move[i-1])))))
         score+=DEVELOPMENT_WASTED_TEMPO;
-      else if ((Piece(current_move[i]) == 1) && (From(current_move[i]) > 15) &&
+      else if ((Piece(current_move[i]) == pawn) && (From(current_move[i]) > 15) &&
                (!Captured(current_move[i])))
         score+=DEVELOPMENT_WASTED_TEMPO;
-      else if ((Piece(current_move[i]) == 5) && (!Captured(current_move[i]) ||
-                (To(current_move[i]) == To(current_move[i-1]))))
+      else if ((Piece(current_move[i]) == queen) && (!Captured(current_move[i]) ||
+                (To(current_move[i]) != To(current_move[i-1]))))
         score+=DEVELOPMENT_WASTED_TEMPO;
     }
   }
   else {
     for (i=1;i<ply;i+=2) {
-      if (((Piece(current_move[i]) > 1) && (From(current_move[i]) < 56) &&
+      if (((Piece(current_move[i]) > pawn) && (From(current_move[i]) < 56) &&
            (!Captured(current_move[i]) ||
-            (To(current_move[i]) == To(current_move[i-1])))))
+            (To(current_move[i]) != To(current_move[i-1])))))
         score-=DEVELOPMENT_WASTED_TEMPO;
-      else if ((Piece(current_move[i]) == 1) && (From(current_move[i]) < 48) &&
+      else if ((Piece(current_move[i]) == pawn) && (From(current_move[i]) < 48) &&
                (!Captured(current_move[i])))
         score-=DEVELOPMENT_WASTED_TEMPO;
-      else if ((Piece(current_move[i]) == 5) && (!Captured(current_move[i]) ||
-                (To(current_move[i]) == To(current_move[i-1]))))
+      else if ((Piece(current_move[i]) == queen) && (!Captured(current_move[i]) ||
+                (To(current_move[i]) != To(current_move[i-1]))))
         score-=DEVELOPMENT_WASTED_TEMPO;
     }
   }
@@ -2400,7 +2424,7 @@ int Evaluate_Tempo(int ply)
 /*
 ********************************************************************************
 *                                                                              *
-*   Evaluate_Trades() is used to encourage the program to trade pieces but not *
+*   EvaluateTrades() is used to encourage the program to trade pieces but not  *
 *   pawns when it's ahead in material, and to trade pawns but not pieces when  *
 *   it's behind in material.  Currently the threshold to trigger this routine  *
 *   is one side is at least two (2) pawns ahead (in material, not counting any *
@@ -2408,7 +2432,7 @@ int Evaluate_Tempo(int ply)
 *                                                                              *
 ********************************************************************************
 */
-int Evaluate_Trades(int ply)
+int EvaluateTrades(int ply)
 {
   register int trade_bonus=0, ahead=0, behind=0;
 
@@ -2438,10 +2462,10 @@ int Evaluate_Trades(int ply)
 */
   if (ahead)
     if (root_wtm) {
-      trade_bonus+=(Total_Black_Pieces(0)-Total_Black_Pieces(ply))*TRADE_PIECES;
+      trade_bonus+=(TotalBlackPieces(0)-TotalBlackPieces(ply))*TRADE_PIECES;
     }
     else {
-      trade_bonus+=(Total_White_Pieces(0)-Total_White_Pieces(ply))*TRADE_PIECES;
+      trade_bonus+=(TotalWhitePieces(0)-TotalWhitePieces(ply))*TRADE_PIECES;
     }
 /*
  ----------------------------------------------------------
@@ -2454,12 +2478,12 @@ int Evaluate_Trades(int ply)
 */
   else if (behind) 
     if (root_wtm) {
-      trade_bonus-=(Total_White_Pieces(0)-Total_White_Pieces(ply))*TRADE_PIECES;
-      trade_bonus+=(Total_Black_Pawns(0)-Total_Black_Pawns(ply))*TRADE_PAWNS;
+      trade_bonus-=(TotalWhitePieces(0)-TotalWhitePieces(ply))*TRADE_PIECES;
+      trade_bonus+=(TotalBlackPawns(0)-TotalBlackPawns(ply))*TRADE_PAWNS;
     }
     else {
-      trade_bonus-=(Total_Black_Pieces(0)-Total_Black_Pieces(ply))*TRADE_PIECES;
-      trade_bonus+=(Total_White_Pawns(0)-Total_White_Pawns(ply))*TRADE_PAWNS;
+      trade_bonus-=(TotalBlackPieces(0)-TotalBlackPieces(ply))*TRADE_PIECES;
+      trade_bonus+=(TotalWhitePawns(0)-TotalWhitePawns(ply))*TRADE_PAWNS;
     }
   return(trade_bonus);
 }

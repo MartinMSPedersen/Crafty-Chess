@@ -6,7 +6,7 @@
 /*
 ********************************************************************************
 *                                                                              *
-*   Generate_Check_Evasions() is used to generate moves when the king is in    *
+*   GenerateCheckEvasions() is used to generate moves when the king is in      *
 *   check.                                                                     *
 *                                                                              *
 *   three types of check-evasion moves are generated:                          *
@@ -26,14 +26,14 @@
 *                                                                              *
 ********************************************************************************
 */
-int* Generate_Check_Evasions(int ply, int wtm, BITBOARD target,
+int* GenerateCheckEvasions(int ply, int wtm, BITBOARD target,
                                     int checkers, int check_direction,
                                     int king_square, int *move)
 {
   register BITBOARD targetc, targetp, piecebd, moves;
   register BITBOARD padvances1, padvances2, pcapturesl, pcapturesr;
   register BITBOARD padvances1_all, empty;
-  register int from, to, temp, promote;
+  register int from, to, temp;
   if (wtm) {
 /*
  ----------------------------------------------------------
@@ -51,8 +51,7 @@ int* Generate_Check_Evasions(int ply, int wtm, BITBOARD target,
  ----------------------------------------------------------
 */
     if (checkers == 1)
-      target=Or(target,And(Attacks_To(king_square,ply),
-                           Black_Pieces(ply)));
+      target=Or(target,And(AttacksTo(king_square,ply),BlackPieces(ply)));
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -64,12 +63,12 @@ int* Generate_Check_Evasions(int ply, int wtm, BITBOARD target,
  ----------------------------------------------------------
 */
     from=king_square;
-    moves=And(king_attacks[from],Compl(White_Pieces(ply)));
+    moves=And(king_attacks[from],Compl(WhitePieces(ply)));
     temp=from+(king<<12);
     while (moves) {
-      to=First_One(moves);
+      to=FirstOne(moves);
       if (!Attacked(to,ply,0) && (directions[from][to] != check_direction))
-        *move++=temp|(to<<6)|((-Piece_On_Square(ply,to))<<15);
+        *move++=temp|(to<<6)|((-PieceOnSquare(ply,to))<<15);
       Clear(to,moves);
     }
 /*
@@ -83,14 +82,14 @@ int* Generate_Check_Evasions(int ply, int wtm, BITBOARD target,
  ----------------------------------------------------------
 */
     if (checkers == 1) {
-      piecebd=White_Knights(ply);
+      piecebd=WhiteKnights(ply);
       while (piecebd) {
-        from=First_One(piecebd);
+        from=FirstOne(piecebd);
         moves=And(knight_attacks[from],target);
         temp=from+(knight<<12);
         while (moves) {
-          to=First_One(moves);
-          *move++=temp|(to<<6)|((-Piece_On_Square(ply,to))<<15);
+          to=FirstOne(moves);
+          *move++=temp|(to<<6)|((-PieceOnSquare(ply,to))<<15);
           Clear(to,moves);
         }
         Clear(from,piecebd);
@@ -100,19 +99,19 @@ int* Generate_Check_Evasions(int ply, int wtm, BITBOARD target,
 |                                                          |
 |   now, produce bishop moves by cycling through the       |
 |   *_bishop board to locate a [from] square and then      |
-|   generate the Attacks_From() bitmap which supplies the  |
+|   generate the AttacksFrom() bitmap which supplies the   |
 |   list of valid <to> squares.                            |
 |                                                          |
  ----------------------------------------------------------
 */
-      piecebd=White_Bishops(ply);
+      piecebd=WhiteBishops(ply);
       while (piecebd) {
-        from=First_One(piecebd);
-        moves=And(Attacks_Bishop(from),target);
+        from=FirstOne(piecebd);
+        moves=And(AttacksBishop(from),target);
         temp=from+(bishop<<12);
         while (moves) {
-          to=First_One(moves);
-          *move++=temp|(to<<6)|((-Piece_On_Square(ply,to))<<15);
+          to=FirstOne(moves);
+          *move++=temp|(to<<6)|((-PieceOnSquare(ply,to))<<15);
           Clear(to,moves);
         }
         Clear(from,piecebd);
@@ -122,19 +121,19 @@ int* Generate_Check_Evasions(int ply, int wtm, BITBOARD target,
 |                                                          |
 |   now, produce rook moves by cycling through the         |
 |   *_rook board to locate a [from] square and then        |
-|   generate the Attacks_From() bitmap which supplies the  |
+|   generate the AttacksFrom() bitmap which supplies the   |
 |   list of valid <to> squares.                            |
 |                                                          |
  ----------------------------------------------------------
 */
-      piecebd=White_Rooks(ply);
+      piecebd=WhiteRooks(ply);
       while (piecebd) {
-        from=First_One(piecebd);
-        moves=And(Attacks_Rook(from),target);
+        from=FirstOne(piecebd);
+        moves=And(AttacksRook(from),target);
         temp=from+(rook<<12);
         while (moves) {
-          to=First_One(moves);
-          *move++=temp|(to<<6)|((-Piece_On_Square(ply,to))<<15);
+          to=FirstOne(moves);
+          *move++=temp|(to<<6)|((-PieceOnSquare(ply,to))<<15);
           Clear(to,moves);
         }
         Clear(from,piecebd);
@@ -144,19 +143,19 @@ int* Generate_Check_Evasions(int ply, int wtm, BITBOARD target,
 |                                                          |
 |   now, produce queen moves by cycling through the        |
 |   *_queen board to locate a [from] square and then       |
-|   generate the Attacks_From() bitmap which supplies the  |
+|   generate the AttacksFrom() bitmap which supplies the   |
 |   list of valid <to> squares.                            |
 |                                                          |
  ----------------------------------------------------------
 */
-      piecebd=White_Queens(ply);
+      piecebd=WhiteQueens(ply);
       while (piecebd) {
-        from=First_One(piecebd);
-        moves=And(Attacks_Queen(from),target);
+        from=FirstOne(piecebd);
+        moves=And(AttacksQueen(from),target);
         temp=from+(queen<<12);
         while (moves) {
-          to=First_One(moves);
-          *move++=temp|(to<<6)|((-Piece_On_Square(ply,to))<<15);
+          to=FirstOne(moves);
+          *move++=temp|(to<<6)|((-PieceOnSquare(ply,to))<<15);
           Clear(to,moves);
         }
         Clear(from,piecebd);
@@ -175,11 +174,10 @@ int* Generate_Check_Evasions(int ply, int wtm, BITBOARD target,
 |                                                          |
  ----------------------------------------------------------
 */
-      empty=Compl(Or(White_Pieces(ply),
-                     Black_Pieces(ply)));
+      empty=Compl(Or(WhitePieces(ply),BlackPieces(ply)));
       targetp=And(target,empty);
-      padvances1=And(Shiftr(White_Pawns(ply),8),targetp);
-      padvances1_all=And(Shiftr(White_Pawns(ply),8),empty);
+      padvances1=And(Shiftr(WhitePawns(ply),8),targetp);
+      padvances1_all=And(Shiftr(WhitePawns(ply),8),empty);
       padvances2=And(Shiftr(And(padvances1_all,Shiftr(mask_8,16)),8),targetp);
 /*
  ----------------------------------------------------------
@@ -191,60 +189,60 @@ int* Generate_Check_Evasions(int ply, int wtm, BITBOARD target,
  ----------------------------------------------------------
 */
       while (padvances2) {
-        to=First_One(padvances2);
+        to=FirstOne(padvances2);
         *move++=(to-16)|(to<<6)|(pawn<<12);
         Clear(to,padvances2);
       }
       while (padvances1) {
-        to=First_One(padvances1);
-        if (to < 56)
-          *move++=(to-8)|(to<<6)|(pawn<<12);
-        else
-          for (promote=queen;promote>pawn;promote--)
-            *move++=(to-8)|(to<<6)|(pawn<<12)|(promote<<18);
+        to=FirstOne(padvances1);
+        if (to < 56) *move++=(to-8)|(to<<6)|(pawn<<12);
+        else {
+          *move++=(to-8)|(to<<6)|(pawn<<12)|(queen<<18);
+          *move++=(to-8)|(to<<6)|(pawn<<12)|(rook<<18);
+          *move++=(to-8)|(to<<6)|(pawn<<12)|(bishop<<18);
+          *move++=(to-8)|(to<<6)|(pawn<<12)|(knight<<18);
+        }
         Clear(to,padvances1);
       }
 
-      targetc=Or(Black_Pieces(ply),
-                 EnPassant_Target(ply));
+      targetc=Or(BlackPieces(ply),EnPassantTarget(ply));
       targetc=And(targetc,target);
       if (checkers == 1) {
-        if (And(And(Black_Pawns(ply),target),
-                 Shiftl(EnPassant_Target(ply),8)))
-          targetc=Or(targetc,EnPassant_Target(ply));
+        if (And(And(BlackPawns(ply),target),Shiftl(EnPassantTarget(ply),8)))
+          targetc=Or(targetc,EnPassantTarget(ply));
       }
-      pcapturesl=And(Shiftr(And(White_Pawns(ply),
-                                mask_left_edge),7),targetc);
-      pcapturesr=And(Shiftr(And(White_Pawns(ply),
-                                mask_right_edge),9),targetc);
+      pcapturesl=And(Shiftr(And(WhitePawns(ply),mask_left_edge),7),targetc);
+      pcapturesr=And(Shiftr(And(WhitePawns(ply),mask_right_edge),9),targetc);
       while (pcapturesl) {
-        to=First_One(pcapturesl);
+        to=FirstOne(pcapturesl);
         if (to < 56) {
-          if(Piece_On_Square(ply,to)) 
-            *move++=(to-7)|(to<<6)|(pawn<<12)|
-              ((-Piece_On_Square(ply,to))<<15);
+          if(PieceOnSquare(ply,to)) 
+            *move++=(to-7)|(to<<6)|(pawn<<12)|((-PieceOnSquare(ply,to))<<15);
           else
             *move++=(to-7)|(to<<6)|(pawn<<12)|(pawn<<15);
         }
-        else
-          for (promote=queen;promote>pawn;promote--)
-            *move++=(to-7)|(to<<6)|(pawn<<12)|
-              ((-Piece_On_Square(ply,to))<<15)|(promote<<18);
+        else {
+          *move++=(to-7)|(to<<6)|(pawn<<12)|((-PieceOnSquare(ply,to))<<15)|(queen<<18);
+          *move++=(to-7)|(to<<6)|(pawn<<12)|((-PieceOnSquare(ply,to))<<15)|(rook<<18);
+          *move++=(to-7)|(to<<6)|(pawn<<12)|((-PieceOnSquare(ply,to))<<15)|(bishop<<18);
+          *move++=(to-7)|(to<<6)|(pawn<<12)|((-PieceOnSquare(ply,to))<<15)|(knight<<18);
+        }
         Clear(to,pcapturesl);
       }
       while (pcapturesr) {
-        to=First_One(pcapturesr);
+        to=FirstOne(pcapturesr);
         if (to < 56) {
-          if(Piece_On_Square(ply,to)) 
-            *move++=(to-9)|(to<<6)|(pawn<<12)|
-              ((-Piece_On_Square(ply,to))<<15);
+          if(PieceOnSquare(ply,to)) 
+            *move++=(to-9)|(to<<6)|(pawn<<12)|((-PieceOnSquare(ply,to))<<15);
           else
             *move++=(to-9)|(to<<6)|(pawn<<12)|(pawn<<15);
         }
-        else
-          for (promote=queen;promote>pawn;promote--)
-            *move++=(to-9)|(to<<6)|(pawn<<12)|
-              ((-Piece_On_Square(ply,to))<<15)|(promote<<18);
+        else {
+          *move++=(to-9)|(to<<6)|(pawn<<12)|((-PieceOnSquare(ply,to))<<15)|(queen<<18);
+          *move++=(to-9)|(to<<6)|(pawn<<12)|((-PieceOnSquare(ply,to))<<15)|(rook<<18);
+          *move++=(to-9)|(to<<6)|(pawn<<12)|((-PieceOnSquare(ply,to))<<15)|(bishop<<18);
+          *move++=(to-9)|(to<<6)|(pawn<<12)|((-PieceOnSquare(ply,to))<<15)|(knight<<18);
+        }
         Clear(to,pcapturesr);
       }
     }
@@ -266,8 +264,7 @@ int* Generate_Check_Evasions(int ply, int wtm, BITBOARD target,
  ----------------------------------------------------------
 */
     if (checkers == 1)
-      target=Or(target,And(Attacks_To(king_square,ply),
-                           White_Pieces(ply)));
+      target=Or(target,And(AttacksTo(king_square,ply),WhitePieces(ply)));
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -279,12 +276,12 @@ int* Generate_Check_Evasions(int ply, int wtm, BITBOARD target,
  ----------------------------------------------------------
 */
     from=king_square;
-    moves=And(king_attacks[from],Compl(Black_Pieces(ply)));
+    moves=And(king_attacks[from],Compl(BlackPieces(ply)));
     temp=from+(king<<12);
     while (moves) {
-      to=First_One(moves);
+      to=FirstOne(moves);
       if (!Attacked(to,ply,1) && (directions[from][to] != check_direction))
-        *move++=temp|(to<<6)|(Piece_On_Square(ply,to)<<15);
+        *move++=temp|(to<<6)|(PieceOnSquare(ply,to)<<15);
       Clear(to,moves);
     }
 /*
@@ -298,14 +295,14 @@ int* Generate_Check_Evasions(int ply, int wtm, BITBOARD target,
  ----------------------------------------------------------
 */
     if (checkers == 1) {
-      piecebd=Black_Knights(ply);
+      piecebd=BlackKnights(ply);
       while (piecebd) {
-        from=First_One(piecebd);
+        from=FirstOne(piecebd);
         moves=And(knight_attacks[from],target);
         temp=from+(knight<<12);
         while (moves) {
-          to=First_One(moves);
-          *move++=temp|(to<<6)|(Piece_On_Square(ply,to)<<15);
+          to=FirstOne(moves);
+          *move++=temp|(to<<6)|(PieceOnSquare(ply,to)<<15);
           Clear(to,moves);
         }
         Clear(from,piecebd);
@@ -315,19 +312,19 @@ int* Generate_Check_Evasions(int ply, int wtm, BITBOARD target,
 |                                                          |
 |   now, produce bishop moves by cycling through the       |
 |   *_bishop board to locate a [from] square and then      |
-|   generate the Attacks_From() bitmap which supplies the  |
+|   generate the AttacksFrom() bitmap which supplies the   |
 |   list of valid <to> squares.                            |
 |                                                          |
  ----------------------------------------------------------
 */
-      piecebd=Black_Bishops(ply);
+      piecebd=BlackBishops(ply);
       while (piecebd) {
-        from=First_One(piecebd);
-        moves=And(Attacks_Bishop(from),target);
+        from=FirstOne(piecebd);
+        moves=And(AttacksBishop(from),target);
         temp=from+(bishop<<12);
         while (moves) {
-          to=First_One(moves);
-          *move++=temp|(to<<6)|(Piece_On_Square(ply,to)<<15);
+          to=FirstOne(moves);
+          *move++=temp|(to<<6)|(PieceOnSquare(ply,to)<<15);
           Clear(to,moves);
         }
         Clear(from,piecebd);
@@ -337,19 +334,19 @@ int* Generate_Check_Evasions(int ply, int wtm, BITBOARD target,
 |                                                          |
 |   now, produce rook moves by cycling through the         |
 |   *_rook board to locate a [from] square and then        |
-|   generate the Attacks_From() bitmap which supplies the  |
+|   generate the AttacksFrom() bitmap which supplies the   |
 |   list of valid <to> squares.                            |
 |                                                          |
  ----------------------------------------------------------
 */
-      piecebd=Black_Rooks(ply);
+      piecebd=BlackRooks(ply);
       while (piecebd) {
-        from=First_One(piecebd);
-        moves=And(Attacks_Rook(from),target);
+        from=FirstOne(piecebd);
+        moves=And(AttacksRook(from),target);
         temp=from+(rook<<12);
         while (moves) {
-          to=First_One(moves);
-          *move++=temp|(to<<6)|(Piece_On_Square(ply,to)<<15);
+          to=FirstOne(moves);
+          *move++=temp|(to<<6)|(PieceOnSquare(ply,to)<<15);
           Clear(to,moves);
         }
         Clear(from,piecebd);
@@ -362,14 +359,14 @@ int* Generate_Check_Evasions(int ply, int wtm, BITBOARD target,
 |                                                          |
  ----------------------------------------------------------
 */
-      piecebd=Black_Queens(ply);
+      piecebd=BlackQueens(ply);
       while (piecebd) {
-        from=First_One(piecebd);
-        moves=And(Attacks_Queen(from),target);
+        from=FirstOne(piecebd);
+        moves=And(AttacksQueen(from),target);
         temp=from+(queen<<12);
         while (moves) {
-          to=First_One(moves);
-          *move++=temp|(to<<6)|(Piece_On_Square(ply,to)<<15);
+          to=FirstOne(moves);
+          *move++=temp|(to<<6)|(PieceOnSquare(ply,to)<<15);
           Clear(to,moves);
         }
         Clear(from,piecebd);
@@ -394,11 +391,10 @@ int* Generate_Check_Evasions(int ply, int wtm, BITBOARD target,
 |                                                          |
  ----------------------------------------------------------
 */
-      empty=Compl(Or(White_Pieces(ply),
-                     Black_Pieces(ply)));
+      empty=Compl(Or(WhitePieces(ply),BlackPieces(ply)));
       targetp=And(target,empty);
-      padvances1=And(Shiftl(Black_Pawns(ply),8),targetp);
-      padvances1_all=And(Shiftl(Black_Pawns(ply),8),empty);
+      padvances1=And(Shiftl(BlackPawns(ply),8),targetp);
+      padvances1_all=And(Shiftl(BlackPawns(ply),8),empty);
       padvances2=And(Shiftl(And(padvances1_all,Shiftl(mask_120,16)),8),targetp);
 /*
  ----------------------------------------------------------
@@ -410,60 +406,60 @@ int* Generate_Check_Evasions(int ply, int wtm, BITBOARD target,
  ----------------------------------------------------------
 */
       while (padvances2) {
-        to=First_One(padvances2);
+        to=FirstOne(padvances2);
         *move++=(to+16)|(to<<6)|(pawn<<12);
         Clear(to,padvances2);
       }
       while (padvances1) {
-        to=First_One(padvances1);
-        if (to > 7)
-          *move++=(to+8)|(to<<6)|(pawn<<12);
-        else
-          for (promote=queen;promote>pawn;promote--)
-            *move++=(to+8)|(to<<6)|(pawn<<12)|(promote<<18);
+        to=FirstOne(padvances1);
+        if (to > 7) *move++=(to+8)|(to<<6)|(pawn<<12);
+        else {
+          *move++=(to+8)|(to<<6)|(pawn<<12)|(queen<<18);
+          *move++=(to+8)|(to<<6)|(pawn<<12)|(rook<<18);
+          *move++=(to+8)|(to<<6)|(pawn<<12)|(bishop<<18);
+          *move++=(to+8)|(to<<6)|(pawn<<12)|(knight<<18);
+        }
         Clear(to,padvances1);
       }
 
-      targetc=Or(White_Pieces(ply),
-                  EnPassant_Target(ply));
+      targetc=Or(WhitePieces(ply),EnPassantTarget(ply));
       targetc=And(targetc,target);
       if (checkers == 1) {
-        if (And(And(White_Pawns(ply),target),
-                 Shiftr(EnPassant_Target(ply),8)))
-          targetc=Or(targetc,EnPassant_Target(ply));
+        if (And(And(WhitePawns(ply),target),Shiftr(EnPassantTarget(ply),8)))
+          targetc=Or(targetc,EnPassantTarget(ply));
       }
-      pcapturesl=And(Shiftl(And(Black_Pawns(ply),
-                                mask_left_edge),9),targetc);
-      pcapturesr=And(Shiftl(And(Black_Pawns(ply),
-                                mask_right_edge),7),targetc);
+      pcapturesl=And(Shiftl(And(BlackPawns(ply),mask_left_edge),9),targetc);
+      pcapturesr=And(Shiftl(And(BlackPawns(ply),mask_right_edge),7),targetc);
       while (pcapturesl) {
-        to=First_One(pcapturesl);
+        to=FirstOne(pcapturesl);
         if (to > 7) {
-          if(Piece_On_Square(ply,to)) 
-            *move++=(to+9)|(to<<6)|(pawn<<12)|
-              (Piece_On_Square(ply,to)<<15);
+          if(PieceOnSquare(ply,to)) 
+            *move++=(to+9)|(to<<6)|(pawn<<12)|(PieceOnSquare(ply,to)<<15);
           else
             *move++=(to+9)|(to<<6)|(pawn<<12)|(pawn<<15);
         }
-        else
-          for (promote=queen;promote>pawn;promote--)
-            *move++=(to+9)|(to<<6)|(pawn<<12)|
-              (Piece_On_Square(ply,to)<<15)|(promote<<18);
+        else {
+          *move++=(to+9)|(to<<6)|(pawn<<12)|(PieceOnSquare(ply,to)<<15)|(queen<<18);
+          *move++=(to+9)|(to<<6)|(pawn<<12)|(PieceOnSquare(ply,to)<<15)|(rook<<18);
+          *move++=(to+9)|(to<<6)|(pawn<<12)|(PieceOnSquare(ply,to)<<15)|(bishop<<18);
+          *move++=(to+9)|(to<<6)|(pawn<<12)|(PieceOnSquare(ply,to)<<15)|(knight<<18);
+        }
         Clear(to,pcapturesl);
       }
       while (pcapturesr) {
-        to=First_One(pcapturesr);
+        to=FirstOne(pcapturesr);
         if (to > 7) {
-          if(Piece_On_Square(ply,to)) 
-            *move++=(to+7)|(to<<6)|(pawn<<12)|
-              (Piece_On_Square(ply,to)<<15);
+          if(PieceOnSquare(ply,to)) 
+            *move++=(to+7)|(to<<6)|(pawn<<12)|(PieceOnSquare(ply,to)<<15);
           else
             *move++=(to+7)|(to<<6)|(pawn<<12)|(pawn<<15);
         }
-        else
-          for (promote=queen;promote>pawn;promote--)
-            *move++=(to+7)|(to<<6)|(pawn<<12)|
-              (Piece_On_Square(ply,to)<<15)|(promote<<18);
+        else {
+          *move++=(to+7)|(to<<6)|(pawn<<12)|(PieceOnSquare(ply,to)<<15)|(queen<<18);
+          *move++=(to+7)|(to<<6)|(pawn<<12)|(PieceOnSquare(ply,to)<<15)|(rook<<18);
+          *move++=(to+7)|(to<<6)|(pawn<<12)|(PieceOnSquare(ply,to)<<15)|(bishop<<18);
+          *move++=(to+7)|(to<<6)|(pawn<<12)|(PieceOnSquare(ply,to)<<15)|(knight<<18);
+        }
         Clear(to,pcapturesr);
       }
     }
@@ -474,7 +470,7 @@ int* Generate_Check_Evasions(int ply, int wtm, BITBOARD target,
 /*
 ********************************************************************************
 *                                                                              *
-*   Generate_Moves() is used to generate moves to a set of squares from the    *
+*   GenerateMoves() is used to generate moves to a set of squares from the     *
 *   current position.  this set of squares is passed through "target" and is   *
 *   most often either (a) the complement of the current side's piece locations *
 *   (which generates all legal moves) or (b) the opposing side's piece         *
@@ -487,7 +483,7 @@ int* Generate_Check_Evasions(int ply, int wtm, BITBOARD target,
 *                                                                              *
 *   pawns are handled differently.  regular pawn moves are produced by         *
 *   shifting the pawn bit-board 8 bits "forward" and anding this with the      *
-*   complement of the occupied squares bit-board.  double advances are         *
+*   complement of the occupied squares bit-  double advances are         *
 *   produced by anding the pawn bit-board with a mask containing 1's on the    *
 *   second rank, shifting this 16 bits "forward" and then anding this with     *
 *   the complement of the occupied squares bit-board as before.  if [to]       *
@@ -498,7 +494,7 @@ int* Generate_Check_Evasions(int ply, int wtm, BITBOARD target,
 *   clear up two special cases caused by pawns.  (1) en passant captures are   *
 *   tricky since the pawn is capturing on a square that is not really occupied *
 *   and including the EnPassant_Target in "target" would erroneously cause     *
-*   Generate_Moves() to produce piece moves to this "wrong" square.  (2)       *
+*   GenerateMoves() to produce piece moves to this "wrong" square.  (2)        *
 *   promotions are another special case.  since a promotion can be thought of  *
 *   as a special case of captures (since the move does gain material..) the    *
 *   quiescence search needs these moves included.  generate_captures forces    *
@@ -506,12 +502,12 @@ int* Generate_Check_Evasions(int ply, int wtm, BITBOARD target,
 *                                                                              *
 ********************************************************************************
 */
-int* Generate_Moves(int ply, int depth, int wtm, BITBOARD target, 
+int* GenerateMoves(int ply, int depth, int wtm, BITBOARD target, 
                               int generate_captures, int *move)
 {
   register BITBOARD targets, targetc, temp_target , piecebd, moves;
   register BITBOARD  padvances1, padvances2, pcapturesl, pcapturesr;
-  register int from, to, promote, temp;
+  register int from, to, temp;
   if (wtm) {
 /*
  ----------------------------------------------------------
@@ -520,18 +516,16 @@ int* Generate_Moves(int ply, int depth, int wtm, BITBOARD target,
 |                                                          |
  ----------------------------------------------------------
 */
-    if (White_Castle(ply)) {
-      if ((White_Castle(ply) & 1) && And(set_mask[6],target) &&
-          !And(Or(White_Pieces(ply),
-                  Black_Pieces(ply)),Shiftr(mask_2,5)) &&
+    if (WhiteCastle(ply)) {
+      if ((WhiteCastle(ply) & 1) && And(set_mask[6],target) &&
+          !And(Or(WhitePieces(ply),BlackPieces(ply)),Shiftr(mask_2,5)) &&
           !Attacked(4,ply,0) && !Attacked(5,ply,0) && !Attacked(6,ply,0)) {
-        *move++=24964;
+        *move++=12676;
       }
-      if ((White_Castle(ply) & 2) && And(set_mask[2],target) &&
-          !And(Or(White_Pieces(ply),
-                  Black_Pieces(ply)),Shiftr(mask_3,1)) &&
+      if ((WhiteCastle(ply) & 2) && And(set_mask[2],target) &&
+          !And(Or(WhitePieces(ply),BlackPieces(ply)),Shiftr(mask_3,1)) &&
           !Attacked(2,ply,0) && !Attacked(3,ply,0) && !Attacked(4,ply,0)) {
-        *move++=24708;
+        *move++=12420;
       }
     }
 /*
@@ -544,14 +538,14 @@ int* Generate_Moves(int ply, int depth, int wtm, BITBOARD target,
 |                                                          |
  ----------------------------------------------------------
 */
-    piecebd=White_Knights(ply);
+    piecebd=WhiteKnights(ply);
     while (piecebd) {
-      from=First_One(piecebd);
+      from=FirstOne(piecebd);
       moves=And(knight_attacks[from],target);
       temp=from+(knight<<12);
       while (moves) {
-        to=First_One(moves);
-        *move++=temp|(to<<6)|((-Piece_On_Square(ply,to))<<15);
+        to=FirstOne(moves);
+        *move++=temp|(to<<6)|((-PieceOnSquare(ply,to))<<15);
         Clear(to,moves);
       }
       Clear(from,piecebd);
@@ -561,19 +555,19 @@ int* Generate_Moves(int ply, int depth, int wtm, BITBOARD target,
 |                                                          |
 |   now, produce bishop moves by cycling through the       |
 |   *_bishop board to locate a [from] square and then      |
-|   generate the Attacks_From() bitmap which supplies the  |
+|   generate the AttacksFrom() bitmap which supplies the   |
 |   list of valid <to> squares.                            |
 |                                                          |
  ----------------------------------------------------------
 */
-    piecebd=White_Bishops(ply);
+    piecebd=WhiteBishops(ply);
     while (piecebd) {
-      from=First_One(piecebd);
-      moves=And(Attacks_Bishop(from),target);
+      from=FirstOne(piecebd);
+      moves=And(AttacksBishop(from),target);
       temp=from+(bishop<<12);
       while (moves) {
-        to=First_One(moves);
-        *move++=temp|(to<<6)|((-Piece_On_Square(ply,to))<<15);
+        to=FirstOne(moves);
+        *move++=temp|(to<<6)|((-PieceOnSquare(ply,to))<<15);
         Clear(to,moves);
       }
       Clear(from,piecebd);
@@ -583,19 +577,19 @@ int* Generate_Moves(int ply, int depth, int wtm, BITBOARD target,
 |                                                          |
 |   now, produce rook moves by cycling through the         |
 |   *_rook board to locate a [from] square and then        |
-|   generate the Attacks_From() bitmap which supplies the  |
+|   generate the AttacksFrom() bitmap which supplies the   |
 |   list of valid <to> squares.                            |
 |                                                          |
  ----------------------------------------------------------
 */
-    piecebd=White_Rooks(ply);
+    piecebd=WhiteRooks(ply);
     while (piecebd) {
-      from=First_One(piecebd);
-      moves=And(Attacks_Rook(from),target);
+      from=FirstOne(piecebd);
+      moves=And(AttacksRook(from),target);
       temp=from+(rook<<12);
       while (moves) {
-        to=First_One(moves);
-        *move++=temp|(to<<6)|((-Piece_On_Square(ply,to))<<15);
+        to=FirstOne(moves);
+        *move++=temp|(to<<6)|((-PieceOnSquare(ply,to))<<15);
         Clear(to,moves);
       }
       Clear(from,piecebd);
@@ -605,19 +599,19 @@ int* Generate_Moves(int ply, int depth, int wtm, BITBOARD target,
 |                                                          |
 |   now, produce queen moves by cycling through the        |
 |   *_queen board to locate a [from] square and then       |
-|   generate the Attacks_From() bitmap which supplies the  |
+|   generate the AttacksFrom() bitmap which supplies the   |
 |   list of valid <to> squares.                            |
 |                                                          |
  ----------------------------------------------------------
 */
-    piecebd=White_Queens(ply);
+    piecebd=WhiteQueens(ply);
     while (piecebd) {
-      from=First_One(piecebd);
-      moves=And(Attacks_Queen(from),target);
+      from=FirstOne(piecebd);
+      moves=And(AttacksQueen(from),target);
       temp=from+(queen<<12);
       while (moves) {
-        to=First_One(moves);
-        *move++=temp|(to<<6)|((-Piece_On_Square(ply,to))<<15);
+        to=FirstOne(moves);
+        *move++=temp|(to<<6)|((-PieceOnSquare(ply,to))<<15);
         Clear(to,moves);
       }
       Clear(from,piecebd);
@@ -632,12 +626,12 @@ int* Generate_Moves(int ply, int depth, int wtm, BITBOARD target,
 |                                                          |
  ----------------------------------------------------------
 */
-    from=White_King_SQ(ply);
+    from=WhiteKingSQ(ply);
     moves=And(king_attacks[from],target);
     temp=from+(king<<12);
     while (moves) {
-      to=First_One(moves);
-      *move++=temp|(to<<6)|((-Piece_On_Square(ply,to))<<15);
+      to=FirstOne(moves);
+      *move++=temp|(to<<6)|((-PieceOnSquare(ply,to))<<15);
       Clear(to,moves);
     }
 /*
@@ -654,11 +648,10 @@ int* Generate_Moves(int ply, int depth, int wtm, BITBOARD target,
 |                                                          |
  ----------------------------------------------------------
 */
-    temp_target=Compl(Or(White_Pieces(ply),
-                         Black_Pieces(ply)));
+    temp_target=Compl(Or(WhitePieces(ply),BlackPieces(ply)));
     targets=And(temp_target,target);
     if(generate_captures) targets=Or(targets,And(mask_120,temp_target));
-    padvances1=And(Shiftr(White_Pawns(ply),8),targets);
+    padvances1=And(Shiftr(WhitePawns(ply),8),targets);
     padvances2=And(Shiftr(And(padvances1,mask_advance_2_w),8),targets);
 /*
  ----------------------------------------------------------
@@ -670,64 +663,61 @@ int* Generate_Moves(int ply, int depth, int wtm, BITBOARD target,
  ----------------------------------------------------------
 */
     while (padvances2) {
-      to=First_One(padvances2);
+      to=FirstOne(padvances2);
       *move++=(to-16)|(to<<6)|(pawn<<12);
       Clear(to,padvances2);
     }
     while (padvances1) {
-      to=First_One(padvances1);
-      if (to < 56)
-        *move++=(to-8)|(to<<6)|(pawn<<12);
+      to=FirstOne(padvances1);
+      if (to < 56) *move++=(to-8)|(to<<6)|(pawn<<12);
       else {
         *move++=(to-8)|(to<<6)|(pawn<<12)|(queen<<18);
-        if (depth > 0) 
-          for (promote=rook;promote>pawn;promote--)
-            *move++=(to-8)|(to<<6)|(pawn<<12)|(promote<<18);
+        if (depth > 0) {
+          *move++=(to-8)|(to<<6)|(pawn<<12)|(rook<<18);
+          *move++=(to-8)|(to<<6)|(pawn<<12)|(bishop<<18);
+          *move++=(to-8)|(to<<6)|(pawn<<12)|(knight<<18);
+        }
       }
       Clear(to,padvances1);
     }
     if (generate_captures) {
-      targetc=And(Black_Pieces(ply),target);
-      targetc=Or(targetc,EnPassant_Target(ply));
-      pcapturesl=And(Shiftr(And(White_Pawns(ply),
-                                mask_left_edge),7),targetc);
-      pcapturesr=And(Shiftr(And(White_Pawns(ply),
-                                mask_right_edge),9),targetc);
+      targetc=And(BlackPieces(ply),target);
+      targetc=Or(targetc,EnPassantTarget(ply));
+      pcapturesl=And(Shiftr(And(WhitePawns(ply),mask_left_edge),7),targetc);
+      pcapturesr=And(Shiftr(And(WhitePawns(ply),mask_right_edge),9),targetc);
       while (pcapturesl) {
-        to=First_One(pcapturesl);
+        to=FirstOne(pcapturesl);
         if (to < 56) {
-          if(Piece_On_Square(ply,to)) 
-            *move++=(to-7)|(to<<6)|(pawn<<12)|
-              ((-Piece_On_Square(ply,to))<<15);
+          if(PieceOnSquare(ply,to)) 
+            *move++=(to-7)|(to<<6)|(pawn<<12)|((-PieceOnSquare(ply,to))<<15);
           else
             *move++=(to-7)|(to<<6)|(pawn<<12)|(pawn<<15);
         }
         else {
-          *move++=(to-7)|(to<<6)|(pawn<<12)|
-            ((-Piece_On_Square(ply,to))<<15)|(queen<<18);
-          if (depth > 0) 
-            for (promote=rook;promote>pawn;promote--)
-              *move++=(to-7)|(to<<6)|(pawn<<12)|
-                ((-Piece_On_Square(ply,to))<<15)|(promote<<18);
+          *move++=(to-7)|(to<<6)|(pawn<<12)|((-PieceOnSquare(ply,to))<<15)|(queen<<18);
+          if (depth > 0) {
+            *move++=(to-7)|(to<<6)|(pawn<<12)|((-PieceOnSquare(ply,to))<<15)|(rook<<18);
+            *move++=(to-7)|(to<<6)|(pawn<<12)|((-PieceOnSquare(ply,to))<<15)|(bishop<<18);
+            *move++=(to-7)|(to<<6)|(pawn<<12)|((-PieceOnSquare(ply,to))<<15)|(knight<<18);
+          }
         }
         Clear(to,pcapturesl);
       }
       while (pcapturesr) {
-        to=First_One(pcapturesr);
+        to=FirstOne(pcapturesr);
         if (to < 56) {
-          if(Piece_On_Square(ply,to)) 
-            *move++=(to-9)|(to<<6)|(pawn<<12)|
-              (-Piece_On_Square(ply,to)<<15);
+          if(PieceOnSquare(ply,to)) 
+            *move++=(to-9)|(to<<6)|(pawn<<12)|(-PieceOnSquare(ply,to)<<15);
           else
             *move++=(to-9)|(to<<6)|(pawn<<12)|(pawn<<15);
         }
         else {
-          *move++=(to-9)|(to<<6)|(pawn<<12)|
-            ((-Piece_On_Square(ply,to))<<15)|(queen<<18);
-          if (depth > 0) 
-            for (promote=rook;promote>pawn;promote--)
-              *move++=(to-9)|(to<<6)|(pawn<<12)|
-                ((-Piece_On_Square(ply,to))<<15)|(promote<<18);
+          *move++=(to-9)|(to<<6)|(pawn<<12)|((-PieceOnSquare(ply,to))<<15)|(queen<<18);
+          if (depth > 0) {
+            *move++=(to-9)|(to<<6)|(pawn<<12)|((-PieceOnSquare(ply,to))<<15)|(rook<<18);
+            *move++=(to-9)|(to<<6)|(pawn<<12)|((-PieceOnSquare(ply,to))<<15)|(bishop<<18);
+            *move++=(to-9)|(to<<6)|(pawn<<12)|((-PieceOnSquare(ply,to))<<15)|(knight<<18);
+          }
         }
         Clear(to,pcapturesr);
       }
@@ -741,18 +731,16 @@ int* Generate_Moves(int ply, int depth, int wtm, BITBOARD target,
  ----------------------------------------------------------
 */
   else {
-    if (Black_Castle(ply)) {
-      if ((Black_Castle(ply) & 1)  && And(set_mask[62],target) &&
-          !And(Or(White_Pieces(ply),
-                  Black_Pieces(ply)),Shiftr(mask_2,61)) &&
+    if (BlackCastle(ply)) {
+      if ((BlackCastle(ply) & 1)  && And(set_mask[62],target) &&
+          !And(Or(WhitePieces(ply),BlackPieces(ply)),Shiftr(mask_2,61)) &&
           !Attacked(60,ply,1) && !Attacked(61,ply,1) && !Attacked(62,ply,1)) {
-        *move++=28604;
+        *move++=16316;
       }
-      if ((Black_Castle(ply) & 2) && And(set_mask[58],target) &&
-          !And(Or(White_Pieces(ply),
-                  Black_Pieces(ply)),Shiftr(mask_3,57)) &&
+      if ((BlackCastle(ply) & 2) && And(set_mask[58],target) &&
+          !And(Or(WhitePieces(ply),BlackPieces(ply)),Shiftr(mask_3,57)) &&
           !Attacked(58,ply,1) && !Attacked(59,ply,1) && !Attacked(60,ply,1)) {
-        *move++=28348;
+        *move++=16060;
       }
     }
 /*
@@ -765,14 +753,14 @@ int* Generate_Moves(int ply, int depth, int wtm, BITBOARD target,
 |                                                          |
  ----------------------------------------------------------
 */
-    piecebd=Black_Knights(ply);
+    piecebd=BlackKnights(ply);
     while (piecebd) {
-      from=First_One(piecebd);
+      from=FirstOne(piecebd);
       moves=And(knight_attacks[from],target);
       temp=from+(knight<<12);
       while (moves) {
-        to=First_One(moves);
-        *move++=temp|(to<<6)|(Piece_On_Square(ply,to)<<15);
+        to=FirstOne(moves);
+        *move++=temp|(to<<6)|(PieceOnSquare(ply,to)<<15);
         Clear(to,moves);
       }
       Clear(from,piecebd);
@@ -782,19 +770,19 @@ int* Generate_Moves(int ply, int depth, int wtm, BITBOARD target,
 |                                                          |
 |   now, produce bishop moves by cycling through the       |
 |   *_bishop board to locate a [from] square and then      |
-|   generate the Attacks_From() bitmap which supplies the  |
+|   generate the AttacksFrom() bitmap which supplies the   |
 |   list of valid <to> squares.                            |
 |                                                          |
  ----------------------------------------------------------
 */
-    piecebd=Black_Bishops(ply);
+    piecebd=BlackBishops(ply);
     while (piecebd) {
-      from=First_One(piecebd);
-      moves=And(Attacks_Bishop(from),target);
+      from=FirstOne(piecebd);
+      moves=And(AttacksBishop(from),target);
       temp=from+(bishop<<12);
       while (moves) {
-        to=First_One(moves);
-        *move++=temp|(to<<6)|(Piece_On_Square(ply,to)<<15);
+        to=FirstOne(moves);
+        *move++=temp|(to<<6)|(PieceOnSquare(ply,to)<<15);
         Clear(to,moves);
       }
       Clear(from,piecebd);
@@ -804,19 +792,19 @@ int* Generate_Moves(int ply, int depth, int wtm, BITBOARD target,
 |                                                          |
 |   now, produce rook moves by cycling through the         |
 |   *_rook board to locate a [from] square and then        |
-|   generate the Attacks_From() bitmap which supplies the  |
+|   generate the AttacksFrom() bitmap which supplies the   |
 |   list of valid <to> squares.                            |
 |                                                          |
  ----------------------------------------------------------
 */
-    piecebd=Black_Rooks(ply);
+    piecebd=BlackRooks(ply);
     while (piecebd) {
-      from=First_One(piecebd);
-      moves=And(Attacks_Rook(from),target);
+      from=FirstOne(piecebd);
+      moves=And(AttacksRook(from),target);
       temp=from+(rook<<12);
       while (moves) {
-        to=First_One(moves);
-        *move++=temp|(to<<6)|(Piece_On_Square(ply,to)<<15);
+        to=FirstOne(moves);
+        *move++=temp|(to<<6)|(PieceOnSquare(ply,to)<<15);
         Clear(to,moves);
       }
       Clear(from,piecebd);
@@ -826,19 +814,19 @@ int* Generate_Moves(int ply, int depth, int wtm, BITBOARD target,
 |                                                          |
 |   now, produce queen moves by cycling through the        |
 |   *_queen board to locate a [from] square and then       |
-|   generate the Attacks_From() bitmap which supplies the  |
+|   generate the AttacksFrom() bitmap which supplies the   |
 |   list of valid <to> squares.                            |
 |                                                          |
  ----------------------------------------------------------
 */
-    piecebd=Black_Queens(ply);
+    piecebd=BlackQueens(ply);
     while (piecebd) {
-      from=First_One(piecebd);
-      moves=And(Attacks_Queen(from),target);
+      from=FirstOne(piecebd);
+      moves=And(AttacksQueen(from),target);
       temp=from+(queen<<12);
       while (moves) {
-        to=First_One(moves);
-        *move++=temp|(to<<6)|(Piece_On_Square(ply,to)<<15);
+        to=FirstOne(moves);
+        *move++=temp|(to<<6)|(PieceOnSquare(ply,to)<<15);
         Clear(to,moves);
       }
       Clear(from,piecebd);
@@ -853,12 +841,12 @@ int* Generate_Moves(int ply, int depth, int wtm, BITBOARD target,
 |                                                          |
  ----------------------------------------------------------
 */
-    from=Black_King_SQ(ply);
+    from=BlackKingSQ(ply);
     moves=And(king_attacks[from],target);
     temp=from+(king<<12);
     while (moves) {
-      to=First_One(moves);
-      *move++=temp|(to<<6)|(Piece_On_Square(ply,to)<<15);
+      to=FirstOne(moves);
+      *move++=temp|(to<<6)|(PieceOnSquare(ply,to)<<15);
       Clear(to,moves);
     }
 /*
@@ -881,11 +869,10 @@ int* Generate_Moves(int ply, int depth, int wtm, BITBOARD target,
 |                                                          |
  ----------------------------------------------------------
 */
-    temp_target=Compl(Or(White_Pieces(ply),
-                         Black_Pieces(ply)));
+    temp_target=Compl(Or(WhitePieces(ply),BlackPieces(ply)));
     targets=And(temp_target,target);
     if(generate_captures) targets=Or(targets,And(mask_8,temp_target));
-    padvances1=And(Shiftl(Black_Pawns(ply),8),targets);
+    padvances1=And(Shiftl(BlackPawns(ply),8),targets);
     padvances2=And(Shiftl(And(padvances1,mask_advance_2_b),8),targets);
 /*
  ----------------------------------------------------------
@@ -897,64 +884,62 @@ int* Generate_Moves(int ply, int depth, int wtm, BITBOARD target,
  ----------------------------------------------------------
 */
     while (padvances2) {
-      to=First_One(padvances2);
+      to=FirstOne(padvances2);
       *move++=(to+16)|(to<<6)|(pawn<<12);
       Clear(to,padvances2);
     }
     while (padvances1) {
-      to=First_One(padvances1);
-      if (to > 7)
-        *move++=(to+8)|(to<<6)|(pawn<<12);
+      to=FirstOne(padvances1);
+      if (to > 7) *move++=(to+8)|(to<<6)|(pawn<<12);
       else {
         *move++=(to+8)|(to<<6)|(pawn<<12)|(queen<<18);
-        if (depth > 0) 
-          for (promote=rook;promote>pawn;promote--)
-            *move++=(to+8)|(to<<6)|(pawn<<12)|(promote<<18);
+        if (depth > 0) {
+          *move++=(to+8)|(to<<6)|(pawn<<12)|(rook<<18);
+          *move++=(to+8)|(to<<6)|(pawn<<12)|(bishop<<18);
+          *move++=(to+8)|(to<<6)|(pawn<<12)|(knight<<18);
+        }
       }
       Clear(to,padvances1);
     }
     if (generate_captures) {
-      targetc=And(White_Pieces(ply),target);
-      targetc=Or(targetc,EnPassant_Target(ply));
-      pcapturesl=And(Shiftl(And(Black_Pawns(ply),
-                                mask_left_edge),9),targetc);
-      pcapturesr=And(Shiftl(And(Black_Pawns(ply),
-                                mask_right_edge),7),targetc);
+      targetc=And(WhitePieces(ply),target);
+      targetc=Or(targetc,EnPassantTarget(ply));
+      pcapturesl=And(Shiftl(And(BlackPawns(ply),mask_left_edge),9),targetc);
+      pcapturesr=And(Shiftl(And(BlackPawns(ply),mask_right_edge),7),targetc);
       while (pcapturesl) {
-        to=First_One(pcapturesl);
+        to=FirstOne(pcapturesl);
         if (to > 7) {
-          if(Piece_On_Square(ply,to)) 
-            *move++=(to+9)|(to<<6)|(pawn<<12)|
-              (Piece_On_Square(ply,to)<<15);
+          if(PieceOnSquare(ply,to)) 
+            *move++=(to+9)|(to<<6)|(pawn<<12)|(PieceOnSquare(ply,to)<<15);
           else
             *move++=(to+9)|(to<<6)|(pawn<<12)|(pawn<<15);
         }
         else {
           *move++=(to+9)|(to<<6)|(pawn<<12)|
-            (Piece_On_Square(ply,to)<<15)|(queen<<18);
-          if (depth > 0) 
-            for (promote=rook;promote>pawn;promote--)
-              *move++=(to+9)|(to<<6)|(pawn<<12)|
-                (Piece_On_Square(ply,to)<<15)|(promote<<18);
+            (PieceOnSquare(ply,to)<<15)|(queen<<18);
+          if (depth > 0) {
+            *move++=(to+9)|(to<<6)|(pawn<<12)|(PieceOnSquare(ply,to)<<15)|(rook<<18);
+            *move++=(to+9)|(to<<6)|(pawn<<12)|(PieceOnSquare(ply,to)<<15)|(bishop<<18);
+            *move++=(to+9)|(to<<6)|(pawn<<12)|(PieceOnSquare(ply,to)<<15)|(knight<<18);
+          }
         }
         Clear(to,pcapturesl);
       }
       while (pcapturesr) {
-        to=First_One(pcapturesr);
+        to=FirstOne(pcapturesr);
         if (to > 7) {
-          if(Piece_On_Square(ply,to)) 
-            *move++=(to+7)|(to<<6)|(pawn<<12)|
-              (Piece_On_Square(ply,to)<<15);
+          if(PieceOnSquare(ply,to)) 
+            *move++=(to+7)|(to<<6)|(pawn<<12)|(PieceOnSquare(ply,to)<<15);
           else
             *move++=(to+7)|(to<<6)|(pawn<<12)|(pawn<<15);
         }
         else {
-          *move++=(to+7)|(to<<6)|(pawn<<12)|
-            (Piece_On_Square(ply,to)<<15)|(queen<<18);
-          if (depth > 0) 
-            for (promote=rook;promote>pawn;promote--)
-              *move++=(to+7)|(to<<6)|(pawn<<12)|
-                (Piece_On_Square(ply,to)<<15)|(promote<<18);
+          *move++=(to+7)|(to<<6)|(pawn<<12)|(PieceOnSquare(ply,to)<<15)|(queen<<18);
+          if (depth > 0) {
+            *move++=(to+7)|(to<<6)|(pawn<<12)|(PieceOnSquare(ply,to)<<15)|(rook<<18);
+            *move++=(to+7)|(to<<6)|(pawn<<12)|(PieceOnSquare(ply,to)<<15)|(bishop<<18);
+            *move++=(to+7)|(to<<6)|(pawn<<12)|(PieceOnSquare(ply,to)<<15)|(knight<<18);
+          }
         }
         Clear(to,pcapturesr);
       }

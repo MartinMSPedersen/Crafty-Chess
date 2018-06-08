@@ -3,7 +3,51 @@
 #include "types.h"
 #include "evaluate.h"
   
-  char      version[5] =                     {"8.11"};
+  char      version[5] =                     {"8.22"};
+
+  int       number_of_computers =                  12;
+  char      computer_list[100][20] = {
+                                      {"biggenius"},
+                                      {"ferret"},
+                                      {"fitter"},
+                                      {"fritzpentium"},
+                                      {"kerrigan"},
+                                      {"mephistoiii"},
+                                      {"megadiep"},
+                                      {"nowx"},
+                                      {"robocop"},
+                                      {"wchess"},
+                                      {"wchessx"},
+                                      {"zarkovx"}};
+
+  int       number_of_GMs =                        14;
+  char      GM_list[100][20] =       {
+                                      {"anat"},
+                                      {"dgurevich"},
+                                      {"dlugy"},
+                                      {"flamingskull"},
+                                      {"junior"},
+                                      {"kaidanov"},
+                                      {"kingloek"},
+                                      {"kudrin"},
+                                      {"lombardy"},
+                                      {"psakhis"},
+                                      {"roman"},
+                                      {"sagalchik"},
+                                      {"securitron"},
+                                      {"yofe"}};
+
+  int       number_of_IMs =                         9;
+  char      IM_list[100][20] =       {
+                                      {"adolf"},
+                                      {"badviking"},
+                                      {"bandora"},
+                                      {"impolzin"},
+                                      {"kevlar"},
+                                      {"laflair"},
+                                      {"lsokol"},
+                                      {"thutters"},
+                                      {"tim"}};
 
   int       ics =                                   0;
   int       whisper =                               0;
@@ -24,7 +68,6 @@
   int       recapture_extensions =                  1;
   int       passed_pawn_extensions =                1;
   int       quiescence_checks =                     2;
-  int       mvv_lva_ordering =                      0;
 #if !defined(FAST)
   int       show_extensions =                       0;
 #endif
@@ -35,6 +78,7 @@
   int       thinking =                              0;
   int       pondering =                             0;
   int       puzzling =                              0;
+  int       booking =                               0;
   int       analyze_mode =                          0;
   int       analyze_move_read =                     0;
   int       resign =                                5;
@@ -58,12 +102,13 @@
   int       force =                                 0;
   int       over =                                  0;
   
-  char      audible_alarm[2] =                 {"\a"};
+  char      audible_alarm =                      0x07;
   int       ansi =                                  1;
   int       book_accept_mask =                     ~3;
   int       book_reject_mask =                      3;
-  int       book_random =                           2;
-  int       book_lower_bound =                     10;
+  int       book_random =                           3;
+  int       book_lower_bound =                      2;
+  int       book_absolute_lower_bound =             2;
   int       show_book =                             0;
   float     book_min_percent_played =             .05;
   int       do_ponder =                             1;
@@ -116,10 +161,8 @@
                                     100, 100, 100, 100, 100, 100, 100, 100,
                                     100, 100, 100, 100, 100, 100, 100, 100};
     
-  int       piece_values[7] =        {0,PAWN_VALUE,KNIGHT_VALUE,
-                                      BISHOP_VALUE,ROOK_VALUE,
-                                      QUEEN_VALUE,KING_VALUE};
-  int       aggressor_order[7] =     {0,600,500,400,300,200,100};
+  int       piece_values[8] =        {0,PAWN_VALUE,KNIGHT_VALUE,KING_VALUE,
+                                      0, BISHOP_VALUE,ROOK_VALUE,QUEEN_VALUE};
   int       pawn_ram[9] =            {0,0,PAWN_RAM*2,PAWN_RAM*4,
                                       PAWN_RAM*6,PAWN_RAM*10,PAWN_RAM*13,
                                       PAWN_RAM*15,PAWN_RAM*18};
@@ -157,6 +200,8 @@
                                   4600,3600,3400,3200,3200,3400,3600,4600,
                                   4800,4600,4400,4200,4200,4400,4600,4800};
 
+
+#if !defined(COMPACT_ATTACKS)
   int            bishop_shift_rl45[64] = { 63, 61, 58, 54, 49, 43, 36, 28,
                                            61, 58, 54, 49, 43, 36, 28, 21,
                                            58, 54, 49, 43, 36, 28, 21, 15,
@@ -175,6 +220,7 @@
                                             3,  6, 10, 15, 21, 28, 36, 43,
                                             1,  3,  6, 10, 15, 21, 28, 36,
                                             0,  1,  3,  6, 10, 15, 21, 28 };
+#endif COMPACT_ATTACKS
 
   int            white_outpost[64] =  { 0, 0, 0, 0, 0, 0, 0, 0,
                                         0, 0, 0, 0, 0, 0, 0, 0,
@@ -203,138 +249,75 @@
                                          1, 1, 1, 1, 1, 1, 1, 1,
                                          0, 0, 0, 0, 0, 0, 0, 0 };
 
-  int  knight_value_w[64] = {KNIGHT_C_3, KNIGHT_C_3, KNIGHT_C_3, KNIGHT_C_3,
-                             KNIGHT_C_3, KNIGHT_C_3, KNIGHT_C_3, KNIGHT_C_3,
-                             KNIGHT_C_3, KNIGHT_C_2, KNIGHT_C_2, KNIGHT_C_2,
-                             KNIGHT_C_2, KNIGHT_C_2, KNIGHT_C_2, KNIGHT_C_3,
-                             KNIGHT_C_3, KNIGHT_C_2, KNIGHT_C_1, KNIGHT_C_1,
-                             KNIGHT_C_1, KNIGHT_C_1, KNIGHT_C_2, KNIGHT_C_3,
-                             KNIGHT_C_3, KNIGHT_C_2, KNIGHT_C_1, KNIGHT_C_0,
-                             KNIGHT_C_0, KNIGHT_C_1, KNIGHT_C_2, KNIGHT_C_3,
-                             KNIGHT_C_3, KNIGHT_C_2, KNIGHT_C_1, KNIGHT_C_0,
-                             KNIGHT_C_0, KNIGHT_C_1, KNIGHT_C_2, KNIGHT_C_3,
-                             KNIGHT_C_3, KNIGHT_C_2, KNIGHT_C_1, KNIGHT_C_1,
-                             KNIGHT_C_1, KNIGHT_C_1, KNIGHT_C_2, KNIGHT_C_3,
-                             KNIGHT_C_3, KNIGHT_C_2, KNIGHT_C_2, KNIGHT_C_2,
-                             KNIGHT_C_2, KNIGHT_C_2, KNIGHT_C_2, KNIGHT_C_3,
-                             KNIGHT_C_3, KNIGHT_C_3, KNIGHT_C_3, KNIGHT_C_3,
-                             KNIGHT_C_3, KNIGHT_C_3, KNIGHT_C_3, KNIGHT_C_3};
+  int  knight_value_w[64] = {-100, -100, -100, -100, -100, -100, -100, -100,
+                             -100,    0,    0,    0,    0,    0,    0, -100,
+                             -100,    0,   20,   20,   20,   20,    0, -100,
+                             -100,    0,   20,   40,   40,   20,    0, -100,
+                             -100,    0,   20,   40,   40,   20,    0, -100,
+                             -100,    0,   20,   20,   20,   20,    0, -100,
+                             -100,    0,    0,    0,    0,    0,    0, -100,
+                             -100, -100, -100, -100, -100, -100, -100, -100};
 
-  int  knight_value_b[64] = {KNIGHT_C_3, KNIGHT_C_3, KNIGHT_C_3, KNIGHT_C_3,
-                             KNIGHT_C_3, KNIGHT_C_3, KNIGHT_C_3, KNIGHT_C_3,
-                             KNIGHT_C_3, KNIGHT_C_2, KNIGHT_C_2, KNIGHT_C_2,
-                             KNIGHT_C_2, KNIGHT_C_2, KNIGHT_C_2, KNIGHT_C_3,
-                             KNIGHT_C_3, KNIGHT_C_2, KNIGHT_C_1, KNIGHT_C_1,
-                             KNIGHT_C_1, KNIGHT_C_1, KNIGHT_C_2, KNIGHT_C_3,
-                             KNIGHT_C_3, KNIGHT_C_2, KNIGHT_C_1, KNIGHT_C_0,
-                             KNIGHT_C_0, KNIGHT_C_1, KNIGHT_C_2, KNIGHT_C_3,
-                             KNIGHT_C_3, KNIGHT_C_2, KNIGHT_C_1, KNIGHT_C_0,
-                             KNIGHT_C_0, KNIGHT_C_1, KNIGHT_C_2, KNIGHT_C_3,
-                             KNIGHT_C_3, KNIGHT_C_2, KNIGHT_C_1, KNIGHT_C_1,
-                             KNIGHT_C_1, KNIGHT_C_1, KNIGHT_C_2, KNIGHT_C_3,
-                             KNIGHT_C_3, KNIGHT_C_2, KNIGHT_C_2, KNIGHT_C_2,
-                             KNIGHT_C_2, KNIGHT_C_2, KNIGHT_C_2, KNIGHT_C_3,
-                             KNIGHT_C_3, KNIGHT_C_3, KNIGHT_C_3, KNIGHT_C_3,
-                             KNIGHT_C_3, KNIGHT_C_3, KNIGHT_C_3, KNIGHT_C_3};
+  int  knight_value_b[64] = {-100, -100, -100, -100, -100, -100, -100, -100,
+                             -100,    0,    0,    0,    0,    0,    0, -100,
+                             -100,    0,   20,   20,   20,   20,    0, -100,
+                             -100,    0,   20,   40,   40,   20,    0, -100,
+                             -100,    0,   20,   40,   40,   20,    0, -100,
+                             -100,    0,   20,   20,   20,   20,    0, -100,
+                             -100,    0,    0,    0,    0,    0,    0, -100,
+                             -100, -100, -100, -100, -100, -100, -100, -100};
 
-  int  bishop_value_w[64] = {BISHOP_C_3, BISHOP_C_3, BISHOP_C_3, BISHOP_C_3,
-                             BISHOP_C_3, BISHOP_C_3, BISHOP_C_3, BISHOP_C_3,
-                             BISHOP_C_3, BISHOP_C_2, BISHOP_C_2, BISHOP_C_2,
-                             BISHOP_C_2, BISHOP_C_2, BISHOP_C_2, BISHOP_C_3,
-                             BISHOP_C_3, BISHOP_C_2, BISHOP_C_1, BISHOP_C_1,
-                             BISHOP_C_1, BISHOP_C_1, BISHOP_C_2, BISHOP_C_3,
-                             BISHOP_C_3, BISHOP_C_2, BISHOP_C_1, BISHOP_C_0,
-                             BISHOP_C_0, BISHOP_C_1, BISHOP_C_2, BISHOP_C_3,
-                             BISHOP_C_3, BISHOP_C_2, BISHOP_C_1, BISHOP_C_0,
-                             BISHOP_C_0, BISHOP_C_1, BISHOP_C_2, BISHOP_C_3,
-                             BISHOP_C_3, BISHOP_C_2, BISHOP_C_1, BISHOP_C_1,
-                             BISHOP_C_1, BISHOP_C_1, BISHOP_C_2, BISHOP_C_3,
-                             BISHOP_C_3, BISHOP_C_2, BISHOP_C_2, BISHOP_C_2,
-                             BISHOP_C_2, BISHOP_C_2, BISHOP_C_2, BISHOP_C_3,
-                             BISHOP_C_3, BISHOP_C_3, BISHOP_C_3, BISHOP_C_3,
-                             BISHOP_C_3, BISHOP_C_3, BISHOP_C_3, BISHOP_C_3};
+  int  bishop_value_w[64] = { -5,  -5,  -5,  -5,  -5,  -5,  -5,  -5,
+                              -5,   0,   0,   0,   0,   0,   0,  -5,
+                              -5,   0,   5,   5,   5,   5,   0,  -5,
+                              -5,   0,   5,  10,  10,   5,   0,  -5,
+                              -5,   0,   5,  10,  10,   5,   0,  -5,
+                              -5,   0,   5,   5,   5,   5,   0,  -5,
+                              -5,   0,   0,   0,   0,   0,   0,  -5,
+                              -5,  -5,  -5,  -5,  -5,  -5,  -5,  -5};
 
-  int  bishop_value_b[64] = {BISHOP_C_3, BISHOP_C_3, BISHOP_C_3, BISHOP_C_3,
-                             BISHOP_C_3, BISHOP_C_3, BISHOP_C_3, BISHOP_C_3,
-                             BISHOP_C_3, BISHOP_C_2, BISHOP_C_2, BISHOP_C_2,
-                             BISHOP_C_2, BISHOP_C_2, BISHOP_C_2, BISHOP_C_3,
-                             BISHOP_C_3, BISHOP_C_2, BISHOP_C_1, BISHOP_C_1,
-                             BISHOP_C_1, BISHOP_C_1, BISHOP_C_2, BISHOP_C_3,
-                             BISHOP_C_3, BISHOP_C_2, BISHOP_C_1, BISHOP_C_0,
-                             BISHOP_C_0, BISHOP_C_1, BISHOP_C_2, BISHOP_C_3,
-                             BISHOP_C_3, BISHOP_C_2, BISHOP_C_1, BISHOP_C_0,
-                             BISHOP_C_0, BISHOP_C_1, BISHOP_C_2, BISHOP_C_3,
-                             BISHOP_C_3, BISHOP_C_2, BISHOP_C_1, BISHOP_C_1,
-                             BISHOP_C_1, BISHOP_C_1, BISHOP_C_2, BISHOP_C_3,
-                             BISHOP_C_3, BISHOP_C_2, BISHOP_C_2, BISHOP_C_2,
-                             BISHOP_C_2, BISHOP_C_2, BISHOP_C_2, BISHOP_C_3,
-                             BISHOP_C_3, BISHOP_C_3, BISHOP_C_3, BISHOP_C_3,
-                             BISHOP_C_3, BISHOP_C_3, BISHOP_C_3, BISHOP_C_3};
+  int  bishop_value_b[64] = { -5,  -5,  -5,  -5,  -5,  -5,  -5,  -5,
+                              -5,   0,   0,   0,   0,   0,   0,  -5,
+                              -5,   0,   5,   5,   5,   5,   0,  -5,
+                              -5,   0,   5,  10,  10,   5,   0,  -5,
+                              -5,   0,   5,  10,  10,   5,   0,  -5,
+                              -5,   0,   5,   5,   5,   5,   0,  -5,
+                              -5,   0,   0,   0,   0,   0,   0,  -5,
+                              -5,  -5,  -5,  -5,  -5,  -5,  -5,  -5};
 
-  int  queen_value_b[64] =  {QUEEN_C_3, QUEEN_C_3, QUEEN_C_3, QUEEN_C_3,
-                             QUEEN_C_3, QUEEN_C_3, QUEEN_C_3, QUEEN_C_3,
-                             QUEEN_C_3, QUEEN_C_2, QUEEN_C_2, QUEEN_C_2,
-                             QUEEN_C_2, QUEEN_C_2, QUEEN_C_2, QUEEN_C_3,
-                             QUEEN_C_3, QUEEN_C_2, QUEEN_C_1, QUEEN_C_1,
-                             QUEEN_C_1, QUEEN_C_1, QUEEN_C_2, QUEEN_C_3,
-                             QUEEN_C_3, QUEEN_C_2, QUEEN_C_1, QUEEN_C_0,
-                             QUEEN_C_0, QUEEN_C_1, QUEEN_C_2, QUEEN_C_3,
-                             QUEEN_C_3, QUEEN_C_2, QUEEN_C_1, QUEEN_C_0,
-                             QUEEN_C_0, QUEEN_C_1, QUEEN_C_2, QUEEN_C_3,
-                             QUEEN_C_3, QUEEN_C_2, QUEEN_C_1, QUEEN_C_1,
-                             QUEEN_C_1, QUEEN_C_1, QUEEN_C_2, QUEEN_C_3,
-                             QUEEN_C_3, QUEEN_C_2, QUEEN_C_2, QUEEN_C_2,
-                             QUEEN_C_2, QUEEN_C_2, QUEEN_C_2, QUEEN_C_3,
-                             QUEEN_C_3, QUEEN_C_3, QUEEN_C_3, QUEEN_C_3,
-                             QUEEN_C_3, QUEEN_C_3, QUEEN_C_3, QUEEN_C_3};
+  int   queen_value_w[64] = {-10, -10, -10, -10, -10, -10, -10, -10,
+                             -10,   0,   0,   0,   0,   0,   0, -10,
+                             -10,   0,  10,  10,  10,  10,   0, -10,
+                             -10,   0,  10,  20,  20,  10,   0, -10,
+                             -10,   0,  10,  20,  20,  10,   0, -10,
+                             -10,   0,  10,  10,  10,  10,   0, -10,
+                             -10,   0,   0,   0,   0,   0,   0, -10,
+                             -10, -10, -10, -10, -10, -10, -10, -10};
 
-  int  queen_value_w[64] =  {QUEEN_C_3, QUEEN_C_3, QUEEN_C_3, QUEEN_C_3,
-                             QUEEN_C_3, QUEEN_C_3, QUEEN_C_3, QUEEN_C_3,
-                             QUEEN_C_3, QUEEN_C_2, QUEEN_C_2, QUEEN_C_2,
-                             QUEEN_C_2, QUEEN_C_2, QUEEN_C_2, QUEEN_C_3,
-                             QUEEN_C_3, QUEEN_C_2, QUEEN_C_1, QUEEN_C_1,
-                             QUEEN_C_1, QUEEN_C_1, QUEEN_C_2, QUEEN_C_3,
-                             QUEEN_C_3, QUEEN_C_2, QUEEN_C_1, QUEEN_C_0,
-                             QUEEN_C_0, QUEEN_C_1, QUEEN_C_2, QUEEN_C_3,
-                             QUEEN_C_3, QUEEN_C_2, QUEEN_C_1, QUEEN_C_0,
-                             QUEEN_C_0, QUEEN_C_1, QUEEN_C_2, QUEEN_C_3,
-                             QUEEN_C_3, QUEEN_C_2, QUEEN_C_1, QUEEN_C_1,
-                             QUEEN_C_1, QUEEN_C_1, QUEEN_C_2, QUEEN_C_3,
-                             QUEEN_C_3, QUEEN_C_2, QUEEN_C_2, QUEEN_C_2,
-                             QUEEN_C_2, QUEEN_C_2, QUEEN_C_2, QUEEN_C_3,
-                             QUEEN_C_3, QUEEN_C_3, QUEEN_C_3, QUEEN_C_3,
-                             QUEEN_C_3, QUEEN_C_3, QUEEN_C_3, QUEEN_C_3};
+  int   queen_value_b[64] = {-10, -10, -10, -10, -10, -10, -10, -10,
+                             -10,   0,   0,   0,   0,   0,   0, -10,
+                             -10,   0,  10,  10,  10,  10,   0, -10,
+                             -10,   0,  10,  20,  20,  10,   0, -10,
+                             -10,   0,  10,  20,  20,  10,   0, -10,
+                             -10,   0,  10,  10,  10,  10,   0, -10,
+                             -10,   0,   0,   0,   0,   0,   0, -10,
+                             -10, -10, -10, -10, -10, -10, -10, -10};
 
-  int  king_value_b[64] =   {KING_C_3, KING_C_3, KING_C_3, KING_C_3,
-                             KING_C_3, KING_C_3, KING_C_3, KING_C_3,
-                             KING_C_3, KING_C_2, KING_C_2, KING_C_2,
-                             KING_C_2, KING_C_2, KING_C_2, KING_C_3,
-                             KING_C_3, KING_C_2, KING_C_1, KING_C_1,
-                             KING_C_1, KING_C_1, KING_C_2, KING_C_3,
-                             KING_C_3, KING_C_2, KING_C_1, KING_C_0,
-                             KING_C_0, KING_C_1, KING_C_2, KING_C_3,
-                             KING_C_3, KING_C_2, KING_C_1, KING_C_0,
-                             KING_C_0, KING_C_1, KING_C_2, KING_C_3,
-                             KING_C_3, KING_C_2, KING_C_1, KING_C_1,
-                             KING_C_1, KING_C_1, KING_C_2, KING_C_3,
-                             KING_C_3, KING_C_2, KING_C_2, KING_C_2,
-                             KING_C_2, KING_C_2, KING_C_2, KING_C_3,
-                             KING_C_3, KING_C_3, KING_C_3, KING_C_3,
-                             KING_C_3, KING_C_3, KING_C_3, KING_C_3};
+  int    king_value_w[64] = {-80, -40, -40, -40, -40, -40, -40, -80,
+                             -40, -40,   0,   0,   0,   0, -40, -40,
+                             -30,   0,   0,  40,  40,   0,   0, -30,
+                             -20,   0,  40,  80,  80,  40,   0, -20,
+                             -10,  40,  80,  80,  80,  80,  40, -10,
+                              40,  80, 120, 120, 120, 120,  80,  40,
+                              40,  80,  80,  80,  80,  80,  80,  40,
+                             -80, -40, -40, -40, -40, -40, -40, -80};
 
-  int  king_value_w[64] =   {KING_C_3, KING_C_3, KING_C_3, KING_C_3,
-                             KING_C_3, KING_C_3, KING_C_3, KING_C_3,
-                             KING_C_3, KING_C_2, KING_C_2, KING_C_2,
-                             KING_C_2, KING_C_2, KING_C_2, KING_C_3,
-                             KING_C_3, KING_C_2, KING_C_1, KING_C_1,
-                             KING_C_1, KING_C_1, KING_C_2, KING_C_3,
-                             KING_C_3, KING_C_2, KING_C_1, KING_C_0,
-                             KING_C_0, KING_C_1, KING_C_2, KING_C_3,
-                             KING_C_3, KING_C_2, KING_C_1, KING_C_0,
-                             KING_C_0, KING_C_1, KING_C_2, KING_C_3,
-                             KING_C_3, KING_C_2, KING_C_1, KING_C_1,
-                             KING_C_1, KING_C_1, KING_C_2, KING_C_3,
-                             KING_C_3, KING_C_2, KING_C_2, KING_C_2,
-                             KING_C_2, KING_C_2, KING_C_2, KING_C_3,
-                             KING_C_3, KING_C_3, KING_C_3, KING_C_3,
-                             KING_C_3, KING_C_3, KING_C_3, KING_C_3};
+  int    king_value_b[64] = {-80, -40, -40, -40, -40, -40, -40, -80,
+                              40,  80,  80,  80,  80,  80,  80,  40,
+                              40,  80, 120, 120, 120, 120,  80,  40,
+                             -10,  40,  80,  80,  80,  80,  40, -10,
+                             -20,   0,  40,  80,  80,  40,   0, -20,
+                             -30,   0,   0,  40,  40,   0,   0, -30,
+                             -40, -40,   0,   0,   0,   0, -40, -40,
+                             -80, -40, -40, -40, -40, -40, -40, -80};
+

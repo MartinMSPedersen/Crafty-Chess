@@ -6,26 +6,26 @@
 /*
 ********************************************************************************
 *                                                                              *
-*   Next_Move() is used to select the next move from the current move list.    *
+*   NextMove() is used to select the next move from the current move list.     *
 *                                                                              *
 ********************************************************************************
 */
-int Next_Move(int depth, int ply, int wtm)
+int NextMove(int depth, int ply, int wtm)
 {
-  BITBOARD target;
-  int *mv, *mvp, tempm;
+  register BITBOARD target;
+  register int *mv, *mvp, tempm;
   char remain[10];
-  int history_value, bestval, done, i, index, ndone, temp;
+  register int history_value, bestval, done, i, index, ndone, temp;
 /*
  ----------------------------------------------------------
 |                                                          |
-|   if in check, use Next_Evasion() instead as it is more  |
+|   if in check, use NextEvasion() instead as it is more   |
 |   intelligent about the moves it produces when the king  |
 |   is in check.                                           |
 |                                                          |
  ----------------------------------------------------------
 */
-  if ((ply>1) && in_check[ply]) return(Next_Evasion(ply,wtm));
+  if ((ply>1) && in_check[ply]) return(NextEvasion(ply,wtm));
   switch (next_status[ply].phase) {
 /*
  ----------------------------------------------------------
@@ -40,36 +40,33 @@ int Next_Move(int depth, int ply, int wtm)
     next_status[ply].phase=capture_moves;
     if (hash_move[ply]) {
       current_move[ply]=hash_move[ply];
-      if (Valid_Move(ply,wtm,current_move[ply]))
-        return(hash_normal_move);
-      else
+      if (ValidMove(ply,wtm,current_move[ply])) return(hash_normal_move);
+      else {
         Print(1,"bad move from hash table, ply=%d\n",ply);
+        DisplayChessBoard(log_file,position[ply]);
+        fprintf(log_file,"bad move: %s\n",OutputMove(&current_move[ply],ply,wtm));
+/*
+        DisplayChessMove("bad move=",current_move[ply]);
+*/
+      }
     }
 /*
  ----------------------------------------------------------
 |                                                          |
 |   try the capture moves next.  this phase first uses     |
-|   Generate_Moves() with a target of the opponent's       |
+|   GenerateMoves() with a target of the opponent's        |
 |   occupied squares.  after generating the captures, we   |
 |   can use Swap() to evaluate the relative gain or loss   |
 |   incurred by the capture.                               |
-|                                                          |
-|   the type of capture ordering is determined by the      |
-|   setting of the mvv_lva_ordering variable, which can be |
-|   set by the mvv_lva=n (n=0 or 1) command.  if zero, we  |
-|   use normal SEE ordering, if non-zero, we use MVV/LVA   |
-|   ordering.                                              |
 |                                                          |
  ----------------------------------------------------------
 */
   case capture_moves:
     if (next_status[ply].whats_generated != captures_generated) {
-      if (wtm)
-        target=Black_Pieces(ply);
-      else
-        target=White_Pieces(ply);
+      if (wtm) target=BlackPieces(ply);
+      else target=WhitePieces(ply);
       next_status[ply].to=target;
-      last[ply]=Generate_Moves(ply, depth, wtm, target, 1, first[ply]);
+      last[ply]=GenerateMoves(ply, depth, wtm, target, 1, first[ply]);
       next_status[ply].whats_generated=captures_generated;
 /*
  --------------------------------------------------
@@ -86,17 +83,12 @@ int Next_Move(int depth, int ply, int wtm)
           sort_value[mvp-first[ply]]=-999999;
         }
         else {
-          if (!mvv_lva_ordering) {
-            sort_value[mvp-first[ply]]=
-              Swap(ply,From(*mvp),To(*mvp),wtm);
-            if (sort_value[mvp-first[ply]] >= 0) next_status[ply].remaining++;
-          }
-          else {
-            sort_value[mvp-first[ply]]=
-              piece_values[Captured(*mvp)]+
-              aggressor_order[Piece(*mvp)];
-            next_status[ply].remaining++;
-          }
+          if (piece_values[Piece(*mvp)] < piece_values[Captured(*mvp)])
+          sort_value[mvp-first[ply]]=
+            piece_values[Captured(*mvp)]-piece_values[Piece(*mvp)];
+          else
+            sort_value[mvp-first[ply]]=Swap(ply,From(*mvp),To(*mvp),wtm);
+          if (sort_value[mvp-first[ply]] >= 0) next_status[ply].remaining++;
         }
       }
       do {
@@ -128,8 +120,7 @@ int Next_Move(int depth, int ply, int wtm)
       next_status[ply].current=next_status[ply].last;
       *next_status[ply].last++=0;
       next_status[ply].remaining--;
-      if (!next_status[ply].remaining) 
-        next_status[ply].phase=killer_moves;
+      if (!next_status[ply].remaining) next_status[ply].phase=killer_moves;
       return(capture_moves);
     }
     next_status[ply].phase=killer_moves;
@@ -145,13 +136,13 @@ int Next_Move(int depth, int ply, int wtm)
   case killer_moves:
     if (next_status[ply].remaining==0) {
       if ((hash_move[ply] != killer_move[ply][0]) &&
-          Valid_Move(ply,wtm,killer_move[ply][0])) {
+          ValidMove(ply,wtm,killer_move[ply][0])) {
         current_move[ply]=killer_move[ply][0];
         next_status[ply].remaining=1;
         return(killer_moves);
       }
       if ((hash_move[ply] != killer_move[ply][1]) &&
-          Valid_Move(ply,wtm,killer_move[ply][1])) {
+          ValidMove(ply,wtm,killer_move[ply][1])) {
         current_move[ply]=killer_move[ply][1];
         next_status[ply].phase=history_moves;
         return(killer_moves);
@@ -159,7 +150,7 @@ int Next_Move(int depth, int ply, int wtm)
     }
     else {
       if ((hash_move[ply] != killer_move[ply][1]) &&
-          Valid_Move(ply,wtm,killer_move[ply][1])) {
+          ValidMove(ply,wtm,killer_move[ply][1])) {
         current_move[ply]=killer_move[ply][1];
         next_status[ply].phase=history_moves;
         return(killer_moves);
@@ -179,29 +170,36 @@ int Next_Move(int depth, int ply, int wtm)
 */
   case history_moves:
     if (next_status[ply].whats_generated != everything) {
-      if (wtm)
-        target=And(Compl(White_Pieces(ply)),
-                   Compl(next_status[ply].to));
-      else
-        target=And(Compl(Black_Pieces(ply)),
-                   Compl(next_status[ply].to));
-      next_status[ply].last=first[ply];
-      last[ply]=Generate_Moves(ply, depth, wtm, target, 0, last[ply]);
+      if (wtm) target=And(Compl(WhitePieces(ply)),Compl(next_status[ply].to));
+      else target=And(Compl(BlackPieces(ply)),Compl(next_status[ply].to));
+      last[ply]=GenerateMoves(ply, depth, wtm, target, 0, last[ply]);
       next_status[ply].whats_generated=everything;
+      bestval=0;
+      for (mv=first[ply];mv<last[ply];mv++) {
+        if ((*mv == hash_move[ply]) || (*mv == killer_move[ply][0]) ||
+            (*mv == killer_move[ply][1])) *mv=0;
+        if (*mv) {
+          index=*mv&4095;
+          if (wtm) history_value=history_w[index];
+          else history_value=history_b[index];
+          if (history_value > bestval) {
+            bestval=history_value;
+            mvp=mv;
+          }
+        }
+      }
     }
-    bestval=0;
-    for (mv=first[ply];mv<last[ply];mv++) {
-      if ((*mv == hash_move[ply]) || (*mv == killer_move[ply][0]) ||
-          (*mv == killer_move[ply][1])) *mv=0;
-      if (*mv) {
-        index=*mv&4095;
-        if (wtm)
-          history_value=history_w[index];
-        else
-          history_value=history_b[index];
-        if (history_value > bestval) {
-          bestval=history_value;
-          mvp=mv;
+    else {
+      bestval=0;
+      for (mv=first[ply];mv<last[ply];mv++) {
+        if (*mv) {
+          index=*mv&4095;
+          if (wtm) history_value=history_w[index];
+          else history_value=history_b[index];
+          if (history_value > bestval) {
+            bestval=history_value;
+            mvp=mv;
+          }
         }
       }
     }
@@ -212,6 +210,7 @@ int Next_Move(int depth, int ply, int wtm)
       return(history_moves);
     }
     next_status[ply].phase=remaining_moves;
+    next_status[ply].last=first[ply];
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -228,7 +227,7 @@ int Next_Move(int depth, int ply, int wtm)
         return(remaining_moves);
       }
     }
-    break;
+    return(none);
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -244,7 +243,7 @@ int Next_Move(int depth, int ply, int wtm)
     for (mvp=first[1];mvp<last[1];mvp++)
       if (searched_this_root_move[mvp-first[1]]) ndone++;
     if ((ndone==1) && searched_this_root_move[0] &&
-        (root_value==root_alpha) && !failed_high) return(none);
+        (root_value==root_alpha) && !search_failed_high) return(none);
     for (mvp=first[1];mvp<last[1];mvp++)
       if (!searched_this_root_move[mvp-first[1]]) {
         if (search_move)
@@ -257,39 +256,18 @@ int Next_Move(int depth, int ply, int wtm)
         searched_this_root_move[mvp-first[1]]=1;
         if ((nodes_searched > noise_level) && (verbosity_level >= 9)) {
           sprintf(remain,"%ld/%ld",mvp-first[ply]+1,last[ply]-first[ply]);
-          end_time=Get_Time(time_type);
+          end_time=GetTime(time_type);
           printf("               %2i   %s %7s   ",iteration_depth,
-                 Display_Time(end_time-start_time),remain);
-          printf(" %s      \r",Output_Move(&current_move[1],1,wtm));
+                 DisplayTime(end_time-start_time),remain);
+          printf(" %s      \r",OutputMove(&current_move[1],1,wtm));
           fflush(stdout);
         }
         return(root_moves);
       }
-      break;
-/*
- ----------------------------------------------------------
-|                                                          |
-|   this handles the special way we treat mates.  If a     |
-|   move leads to mate, then we don't look at any other    |
-|   moves since the mate is forced and one is as good as   |
-|   another since the iterated search will find the        |
-|   shortest mate first anyway.                            |
-|                                                          |
- ----------------------------------------------------------
-*/
-  case all_done:
-    return(none);
+      return(none);
   
   default:
-    printf("oops!  next_status.phase is bad! [normal %d]\n",
-           next_status[ply].phase);
+    printf("oops!  next_status.phase is bad! [normal %d]\n",next_status[ply].phase);
+    return(none);
   }
-/*
- ----------------------------------------------------------
-|                                                          |
-|   done, return (none) since nothing was found.           |
-|                                                          |
- ----------------------------------------------------------
-*/
-  return(none);
 }

@@ -7,7 +7,7 @@
 /*
 ********************************************************************************
 *                                                                              *
-*   Set_Board() is used to set up the board in any position desired.  it uses  *
+*   SetBoard() is used to set up the board in any position desired.  it uses   *
 *   a forsythe-like string of characters to describe the board position.       *
 *                                                                              *
 *   the standard piece codes p,n,b,r,q,k are used to denote the type of piece  *
@@ -44,21 +44,19 @@
 *                                                                              *
 ********************************************************************************
 */
-void Set_Board(void)
+void SetBoard(void)
 {
   int i, match, num, pos, square, tboard[64];
   int bcastle, ep, twtm, wcastle;
   char input[80];
-  char bdinfo[22] = {'k','q','r','b','n','p','@','P','N','B','R','Q','K',
-                     '1','2','3','4','5','6','7','8','/'};
+  char bdinfo[] = {'q','r','b','*','k','n','p','*','P','N','K','*','B','R',
+                   'Q','*', '1','2','3','4','5','6','7','8','/'};
   char status[13]={'K','Q','k','q','a','b','c','d','e','f','g','h',' '};
   int whichsq, firstsq[8]={56,48,40,32,24,16,8,0};
 
   fgets(input,80,input_stream);
-  if (input_stream != stdin) 
-    Print(0,"%s\n",input);
-  else
-    if (log_file) fprintf(log_file,"%s\n",input);
+  if (input_stream != stdin) Print(0,"%s\n",input);
+  else if (log_file) fprintf(log_file,"%s\n",input);
   input[strlen(input)-1]='\0';
   for (i=0;i<64;i++) tboard[i]=0;
   for (pos=0;(pos<(int) strlen(input)) && (input[pos]==' ');pos++);
@@ -72,21 +70,18 @@ void Set_Board(void)
  ----------------------------------------------------------
 */
   whichsq=0;
-  square=firstsq[whichsq];;
+  square=firstsq[whichsq];
   num=0;
   for (;pos<(int) strlen(input);pos++) {
-    for (match=0;match<21 && input[pos]!=bdinfo[match];match++);
+    for (match=0;match<25 && input[pos]!=bdinfo[match];match++);
 /*
    " " -> completed this part.
 */
-    if (match > 21) {
-      strcpy(status,&bdinfo[pos]);
-      break;
-    }
+    if (match > 24) break;
 /*
    "/" -> end of this rank.
 */
-    else if (match == 21) {
+    else if (match == 24) {
       num=0;
       square=firstsq[++whichsq];
       if (whichsq > 7) break;
@@ -94,9 +89,9 @@ void Set_Board(void)
 /*
    "1-8" -> empty squares.
 */
-    else if (match >= 13) {
-      num+=match-12;
-      square+=match-12;
+    else if (match >= 16) {
+      num+=match-15;
+      square+=match-15;
       if (num > 8) {
         printf("more than 8 squares on one rank\n");
         return;
@@ -112,7 +107,7 @@ void Set_Board(void)
         printf("more than 8 squares on one rank\n");
         return;
       }
-      tboard[square++]=match-6;;
+      tboard[square++]=match-7;
     }
   }
 /*
@@ -134,32 +129,33 @@ void Set_Board(void)
   else printf("side to move is bad\n");
   for (pos++;(pos<(int) strlen(input)) && (input[pos]==' ');pos++);
   for (;pos<(int) strlen(input);pos++) {
-    for (match=0;match<13 && input[pos]!=status[match];match++);
-    if (!match) wcastle+=1;
+    for (match=0;(match<13) && (input[pos]!=status[match]);match++);
+    if (match == 0) wcastle+=1;
     else if (match == 1) wcastle+=2;
     else if (match == 2) bcastle+=1;
     else if (match == 3) bcastle+=2;
-    else if ((match > 3) && (match < 12) &&
-             (input[pos+1] > '0') && (input[pos+1] < '9')) {
+    else if ((match>3) && (match<12) && (input[pos+1]>'0') && (input[pos+1]<'9')) {
       ep=(input[pos+1]-'1')*8+match-4;
       pos++;
     }
     else if (match == 12) continue;
     else printf("position ok, color/castle/enpassant is bad.\n");
   }
-  for (i=0;i<64;i++) Piece_On_Square(0,i)=tboard[i];
-  White_Castle(0)=wcastle;
-  Black_Castle(0)=bcastle;
-  if (ep >= 0) EnPassant_Target(0)=set_mask[ep];
+  for (i=0;i<64;i++) PieceOnSquare(0,i)=tboard[i];
+  WhiteCastle(0)=wcastle;
+  BlackCastle(0)=bcastle;
+  if (ep >= 0) EnPassantTarget(0)=set_mask[ep];
   wtm=twtm;
-  Set_Chess_Bit_Boards(&position[0]);
-  if (log_file) Display_Chess_Board(log_file,position[0].board);
+  SetChessBitBoards(&position[0]);
+  if (log_file) DisplayChessBoard(log_file,position[0]);
   if (wtm)
     repetition_head=0;
   else {
     repetition_head=1;
     repetition_list[1]=0;
   }
+  position[0].rule_50_moves=0;
+  last_mate_score=0;
   for (i=0;i<4096;i++) {
     history_w[i]=0;
     history_b[i]=0;

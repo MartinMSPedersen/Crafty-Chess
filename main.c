@@ -6,7 +6,7 @@
 #include "data.h"
 #include "evaluate.h"
 #if defined(UNIX)
-  #include <unistd.h>
+#  include <unistd.h>
 #endif
 /*
 *******************************************************************************
@@ -52,7 +52,7 @@
 *           erratic on most compilers and made portability nearly impossible. *
 *                                                                             *
 *    1.5    pawn scoring added.  this required three additions to the code:   *
-*           (1) Initialize_Pawn_Masks() which produces the necessary masks to *
+*           (1) InitializePawnMasks() which produces the necessary masks to   *
 *           let us efficiently detect isolated, backward, passed, etc. pawns; *
 *           (2) a pawn hash table to store recently computed pawn scores so   *
 *           it won't be too expensive to do complex analysis;  (3) Evaluate() *
@@ -177,12 +177,12 @@
 *           crafty now understands that a passed pawn on the side away from   *
 *           the rest of the pawns is a winning advantage due to decoying the  *
 *           king away from the pawns to prevent the passer from promoting.    *
-*           the advantage increases as material is removed from the board.    *
+*           the advantage increases as material is removed from the     *
 *                                                                             *
 *    3.0    the 3.* series of versions will primarily be performance en-      *
 *           hancements.  the first version (3.0) has a highly modified        *
-*           version of Make_Move() that tries to do no unnecessary work.  it  *
-*           is about 25% faster than old version of Make_Move() which makes   *
+*           version of MakeMove() that tries to do no unnecessary work.  it   *
+*           is about 25% faster than old version of MakeMove() which makes    *
 *           Crafty roughly 10% faster.  also calls to Mask() have been        *
 *           replaced by constants (which are replaced by calls to Mask() on   *
 *           the Crays for speed) to eliminate function calls.                 *
@@ -192,7 +192,7 @@
 *           move search to depth-2 instead of depth-1, which results in       *
 *           slightly improved speed.                                          *
 *                                                                             *
-*    3.2    null-move restored to depth-1.  depth-1 proved unsafe as Crafty   *
+*    3.2    null-move restored to depth-1.  depth-2 proved unsafe as Crafty   *
 *           was overlooking tactical moves, particularly against it, which    *
 *           which lost several "won" games.                                   *
 *                                                                             *
@@ -212,8 +212,8 @@
 *                                                                             *
 *    3.5    50-move rule implemented.  a count of moves since the last pawn   *
 *           move or capture is kept as part of the position[] structure.  it  *
-*           is updated by Make_Move().  when this number reaches 100 (which   *
-*           in plies is 50 moves) Repetition_Check() will return the draw     *
+*           is updated by MakeMove().  when this number reaches 100 (which    *
+*           in plies is 50 moves) RepetitionCheck() will return the draw      *
 *           score immediately, just as though the position was a repetition   *
 *           draw.                                                             *
 *                                                                             *
@@ -297,12 +297,12 @@
 *           reaching the point that sacrificing material to avoid simple      *
 *           positional difficulties begins to look attractive.                *
 *                                                                             *
-*    5.3    performance improvement produced by avoiding calls to Make_Move() *
+*    5.3    performance improvement produced by avoiding calls to MakeMove()  *
 *           when the attack information is not needed.  since the first test  *
 *           done in Quiesce() is to see if the material score is so bad that  *
 *           a normal evaluation and/or further search is futile, this test    *
 *           has been moved to inside the loop *before* Quiesce() is           *
-*           recursively called, avoiding the Make_Move() work only to         *
+*           recursively called, avoiding the MakeMove() work only to          *
 *           discover that the resulting position won't be searched further.   *
 *                                                                             *
 *    5.4    new Swap() function that now understands indirect attacks through *
@@ -313,7 +313,7 @@
 *    5.5    checks are now back in the quiescence search.  Crafty now stores  *
 *           a negative "draft" in the transposition table rather than forcing *
 *           any depth < 0 to be zero.  the null-move search now searches the  *
-*           null-move to depth-1 (R=1) rather than depth-1 (R=2) which seemed *
+*           null-move to depth-1 (R=1) rather than depth-2 (R=2) which seemed *
 *           to cause some tactical oversights in the search.                  *
 *                                                                             *
 *    5.6    improved move ordering by using the old "killer move" idea.  an   *
@@ -325,7 +325,7 @@
 *    5.7    king safety now "hates" a pawn at b3/g3 (white) or b6/g6 (black)  *
 *           to try and avoid the resulting mate threats.                      *
 *                                                                             *
-*    5.8    Evaluate_Outside_Passed_Pawns() fixed to correctly evaluate those *
+*    5.8    EvaluateOutsidePassedPawns() fixed to correctly evaluate those    *
 *           positions where both sides have outside passed pawns.  before     *
 *           this fix, it only evaluated positions where one side had a passed *
 *           pawn, which overlooked those won/lost positions where both sides  *
@@ -349,7 +349,7 @@
 *           and then only trying null-moves at type 2 nodes.  this has        *
 *           resulted in a 2x speedup in test positions.                       *
 *                                                                             *
-*    5.13   optimization to avoid doing a call to Make_Move() if it can be    *
+*    5.13   optimization to avoid doing a call to MakeMove() if it can be     *
 *           avoided by noting that the move is not good enough to bring the   *
 *           score up to an acceptable level.                                  *
 *                                                                             *
@@ -362,7 +362,7 @@
 *           feature to try to avoid losing games on time.                     *
 *                                                                             *
 *    6.0    converted to rotated bitboards to make attack generation *much*   *
-*           faster.  Make_Move() now can look up the attack bit vectors       *
+*           faster.  MakeMove() now can look up the attack bit vectors        *
 *           rather than computing them which is significantly faster.         *
 *                                                                             *
 *    6.1    added a "hung piece" term to Evaluate() which penalizes the side  *
@@ -374,11 +374,11 @@
 *           guard against back-rank mates.                                    *
 *                                                                             *
 *    6.2    modified the "futility" cutoff to (a) emulate the way the program *
-*           normally searches, but avoiding Make_Move() calls when possible,  *
+*           normally searches, but avoiding MakeMove() calls when possible,   *
 *           and (2) not searching a move near the horizon if the material     *
 *           score is hopeless.                                                *
 *                                                                             *
-*    6.3    null-move code moved from Next_Move() directly into Search().     *
+*    6.3    null-move code moved from NextMove() directly into Search().      *
 *           this results is a "cleaner" implementation, as well as fixing an  *
 *           error in the node type, caused by Search() thinking that after    *
 *           the first move tried fails to cause a cutoff, that suddenly this  *
@@ -401,7 +401,7 @@
 *           setting this to "1" (default at present) disables the forward     *
 *           pruning in quiescence search that wants to cull losing captures.  *
 *                                                                             *
-*    7.2    major clean-up of Make_Move() using macros to make it easier to   *
+*    7.2    major clean-up of MakeMove() using macros to make it easier to    *
 *           read and understand.  ditto for other modules as well.  fixed a   *
 *           bug in Evaluate() where bishop scoring failed in endgame          *
 *           situations, and discouraged king centralization.                  *
@@ -411,7 +411,7 @@
 *           is no longer done if the major scoring contributors in Evaluate() *
 *           haven't pulled the score within the alpha/beta window, and the    *
 *           remainder of Evaluate() can't possible accomplish this either.    *
-*           gross error in Evaluate_Pawns() fixed, which would "forget" all   *
+*           gross error in EvaluatePawns() fixed, which would "forget" all    *
 *           of the pawn scoring done up to the point where doubled white      *
 *           pawns were found.  error was xx=+ rather than xx+=, which had     *
 *           an extremely harmful on pawn structure evaluation.                *
@@ -437,11 +437,11 @@
 *           searches without futility, but seems to have *no* harmful effects *
 *           in tests run to date.                                             *
 *                                                                             *
-*    8.2    Futility() removed once and for all.  since Make_Move() is so     *
+*    8.2    Futility() removed once and for all.  since MakeMove() is so      *
 *           fast after the new attack generation algorithm, this was actually *
 *           slower than not using it.                                         *
 *                                                                             *
-*    8.3    Evaluate_Pawns() weak pawn analysis bug fixed.  other minor       *
+*    8.3    EvaluatePawns() weak pawn analysis bug fixed.  other minor        *
 *           performance enhancements and cleanup.                             *
 *                                                                             *
 *    8.4    dynamic "king tropism" evaluation term now used, which varies     *
@@ -499,6 +499,156 @@
 *           for accessing the "position" data structure are now used to make  *
 *           things a little more readable.                                    *
 *                                                                             *
+*    8.12   fixed minor bugs in quiescence checks, which let crafty include   *
+*           more checks than intended (default quiescence_checks=2, but the   *
+*           comparison was <= before including a check, which made it include *
+*           three.  Additionally, a hashed check was *always* tried, even if  *
+*           quiescence_checks had already been satisfied.  pawn scoring also  *
+*           had a bug, in that there was a "crack" between opening and middle *
+*           game, where crafty would conclude that it was in an endgame, and  *
+*           adjust the pawn advance scores accordingly, sometimes causing an  *
+*           odd a4/a5/etc move "out of the blue."  minor bug in next_capture  *
+*           was pruning even exchanges very early in quiescence search.  that *
+*           has now been removed, so only losing exchanges are pruned.        *
+*                                                                             *
+*    8.13   NextCapture() now *always* tries checking moves if the move at    *
+*           the previous ply was a null-move.  this avoids letting the null   *
+*           move hide some serious mating threats.  a minor bug where crafty  *
+*           could draw by repetition after announcing a mate.  this was a     *
+*           result of finding a mate score in hash table, and, after the      *
+*           search iteration completed, the mate score would terminate the    *
+*           search completely.  now, the search won't terminate until it      *
+*           finds a mate shorter than the previous search did.  minor eval    *
+*           tweaks and bugfixes as well.                                      *
+*                                                                             *
+*    8.14   checks after null moves discontinued.  worked in some cases, but, *
+*           in general made the tree larger for nothing.  eval tweaks to stop *
+*           sacs that resulted in connected passed pawns, often at the        *
+*           expense of a minor piece for a pawn or two, which often lost.     *
+*           mobility coeffecient increased for all pieces.  asymmetric king   *
+*           safety discontinued.  king safety for both sides is now equally   *
+*           important.  king safety is now also proportional to the number of *
+*           pieces the other side has, so that a disrupted king-side will     *
+*           encourage trading pieces to reduce attacking chances.             *
+*                                                                             *
+*    8.15   weak pawn scoring modified further.  the changes are designed to  *
+*           cause Crafty to keep pawns "mobile" where they can advance,       *
+*           rather than letting them become blocked or locked.                *
+*                                                                             *
+*    8.16   still more weak pawn modifications.  in addition, there is no     *
+*           "rook on half-open file" any longer.  if there are only enemy     *
+*           pawns on the file, and the most advanced one is weak, then the    *
+*           file is treated as though it were open.  technical error in the   *
+*           EvaluateDevelopment() code that caused screwey evaluations is     *
+*           fixed, making Crafty more likely to castle.  :)  Book() now       *
+*           verifies that the current position is in book, before trying any  *
+*           moves to see if the resulting positions are in book.  This avoids *
+*           something like e4 e5 Bb5 a6 Nf3 from causing Crafty to play Nc6   *
+*           which takes it back into book, rather than axb5 winning a piece.  *
+*           this will occasionally backfire and prevent Crafty from trans-    *
+*           posing back into book, but seems safer at present.                *
+*                                                                             *
+*    8.17   piece values changed somewhat, to avoid Crafty's propensity to    *
+*           make unfavorable trades.  an example:  Crafty is faced with the   *
+*           loss of a pawn.  instead, it trades the queen for a rook and      *
+*           bishop, which used to be the same as losing a pawn.  this is not  *
+*           so good, and often would result in a slow loss.  this version     *
+*           also implements several "user-supplied" patches to make Crafty    *
+*           compile cleanly on various machines.  In addition, you no longer  *
+*           have to continually modify types.h for different configurations.  *
+*           the Makefile now supplies a -D<target> to the compiler.  you need *
+*           to edit Makefile and set "target" to the appropriate value from   *
+*           the list provided.  then, when getting a new version, save your   *
+*           Makefile, extract the new source, copy in your makefile and you   *
+*           will be ready, except for those rare occasions where I add a new  *
+*           source module.  other changes are performance tweaks.  one is a   *
+*           simple trick to order captures while avoiding Swap() if possible. *
+*           if the captured piece is more valuable than the capturing piece,  *
+*           we can simply use the difference (pessimistic value) rather than  *
+*           calling Swap() since this pessimistic value is still > 0.  other  *
+*           tweaks to the various Next_*() routines to avoid a little un-     *
+*           necessary work.                                                   *
+*                                                                             *
+*    8.18   book move selection algorithm changed.  note that this is highly  *
+*           speculative, but when best book play is selected, Crafty will     *
+*           use the books.bin file as always.  if there is no move in books,  *
+*           Crafty reverts to book.bin, but now finds all known book moves    *
+*           and puts them into the root move list.  It then does a fairly     *
+*           short search, only considering these moves, and it will play the  *
+*           best one so long as the evaluation is acceptable.  if not, it     *
+*           simply returns as though there was no book move, and executes a   *
+*           search as it normally would.  the book hashing algorithm was also *
+*           modified so that the 64-bit hash key is slightly different from   *
+*           the real hash key.  in effect, the upper 16 bits are only set as  *
+*           a result of the side-not-to-move's pieces.  this means that for a *
+*           given position, all the book moves will be in the same "cluster"  *
+*           which makes the book dramatically faster, since one seek and read *
+*           produces all the possible book moves (plus some others too, since *
+*           the upper 16 bits are not unique enough.)  A significant speed    *
+*           improvement is noticable, particularly with a 60mb opening book.  *
+*           Crafty now understands (if that's the right word) that endings    *
+*           with bishops of opposite colors are to be avoided.  when such an  *
+*           ending is encountered, the total score is simply divided by two   *
+*           to make the ending look more drawish.                             *
+*                                                                             *
+*    8.19   book selection algorithm further modified, so that the result of  *
+*           each game in the GM database is known.  now Crafty will not play  *
+*           a move from book, if all games were lost by the side on move,     *
+*           hopefully avoiding many blunders.  Crafty now understands how to  *
+*           attack if both players castle on opposite sides, by encouraging   *
+*           pawn advances against the kings.  other minor modifications to    *
+*           the eval values.                                                  *
+*                                                                             *
+*    8.20   PVS search finally implemented fully.  problems several months    *
+*           ago prevented doing the PVS search along the PV itself.  this is  *
+*           therefore quite a bit faster, now that it's fully implemented and *
+*           working properly.  elapsed time code modified so that crafty now  *
+*           uses gettimeofday() to get fractions of a second elapsed time.    *
+*           slight modification time allocation algorithm to avoid using too  *
+*           much time early in the game.                                      *
+*                                                                             *
+*    8.21   courtesy of Mark Bromley, crafty may run significantly faster on  *
+*           your machine.  there are some options in the Makefile that will   *
+*           eliminate many of the large attack computation long longs, which  *
+*           helps prevent cache thrashing.  on some machines this will be     *
+*           slower, on others 20% (or maybe more) faster.  you'll have to     *
+*           try -DCOMPACT_ATTACKS, and if that's faster, then it's time to    *
+*           try -DUSE_SPLIT_SHIFTS which may help even more.  finally, if you *
+*           are running on a supersparc processor, you can use the fastattack *
+*           assembly module fastattack.s and get another big boost.  (attack  *
+*           function is largest compute user in Crafty at present.) serious   *
+*           search problem fixed.  it turns out that crafty uses the hash     *
+*           table to pass PV moves from one iteration to the next, but for    *
+*           moves at the root of the tree the hash table has no effect, so a  *
+*           special case was added to RootMoveList to check the list of moves *
+*           and if one matches the PV move, move it to the front of the list. *
+*           this turned out to be critical because after completing a search, *
+*           (say to 9 plies) crafty makes its move, then chops the first two  *
+*           moves off of the PV and then passes that to iterate to start a    *
+*           search.  this search starts at lastdepth-1 (8 in this case) since *
+*           the n-2 search was already done.  the "bug" showed up however, in *
+*           that RootMoveList() was not checking for the PV move correctly,   *
+*           which meant the root moves were ordered by static eval and static *
+*           exchange evaluation.  Normally not a serious problem, just that   *
+*           move ordering is not so good.  however, suppose that the opponent *
+*           takes a real long time to make a move (say 30 seconds) so that    *
+*           Crafty completes a 10 ply search.  it then starts the next search *
+*           at depth=9, but with the wrong move first.  if the target time is *
+*           not large enough to let it resolve this wrong move and get to the *
+*           other moves on the list, crafty is "confused" into playing this   *
+*           move knowing absolutely nothing about it.  the result is that it  *
+*           can play a blunder easily.  the circumstances leading to this are *
+*           not common, but in a 60 move game, once is enough.  PV was pretty *
+*           well mis-handled in carrying moves from one search to another     *
+*           (not from one iteration to another, but from one complete search  *
+*           to another) and has been fixed.  a cute glitch concerning storing *
+*           PV from one iteration to another was also fixed, where the score  *
+*           stored was confusing the following search.                        *
+*                                                                             *
+*    8.22   EPD support (courtesy of Steven Edwards [thanks]) is now standard *
+*           in Crafty.  for porting, I'll provide a small test run which can  *
+*           be used to validate Crafty once it's been compiled.               *
+*                                                                             *
 *******************************************************************************
 */
 void main(int argc, char **argv)
@@ -517,22 +667,15 @@ void main(int argc, char **argv)
 */
   input_stream=stdin;
   if (argc > 1) {
-    if (!strcmp(argv[1],"c"))
-      Initialize(1);
-    else
-      Initialize(0);
+    if (!strcmp(argv[1],"c")) Initialize(1);
+    else Initialize(0);
   }
-  else
-    Initialize(0);
+  else Initialize(0);
   if (argc > 1)
-    for (i=1;i<argc;i++)
-      if (strcmp(argv[i],"c"))
-        (void) Option(argv[i]);
+    for (i=1;i<argc;i++) if (strcmp(argv[i],"c")) (void) Option(argv[i]);
 
-  if (!ics)
-    Print(0,"\nCrafty v%s\n\n",version);
-  else
-    Print(1,"\nCrafty v%s\n\n",version);
+  if (!ics) Print(0,"\nCrafty v%s\n\n",version);
+  else Print(1,"\nCrafty v%s\n\n",version);
 
   while (1) {
 /*
@@ -541,100 +684,85 @@ void main(int argc, char **argv)
 |   prompt user and read input string for processing.  as  |
 |   long as Option() returns a non-zero value, continue    |
 |   reading lines and calling Option().  when Option()     |
-|   fails to recogize a command, then try Input_Move() to  |
+|   fails to recogize a command, then try InputMove() to   |
 |   determine if this is a legal move.                     |
 |                                                          |
  ----------------------------------------------------------
 */
-    opponent_start_time=Get_Time(elapsed);
+    opponent_start_time=GetTime(elapsed);
     made_predicted_move=0;
     ponder_completed=0;
     do {
       do {
         displayed=0;
-        if (do_ponder && !ponder_completed && !over)
-          Ponder(wtm);
-        if ((!do_ponder || over || !ponder_move || 
-             ponder_completed) && !made_predicted_move) {
+        if (do_ponder && !ponder_completed && !over) Ponder(wtm);
+        if ((!do_ponder || over || !ponder_move || ponder_completed) &&
+            !made_predicted_move) {
           if (!ics) {
-            if (wtm) {
-              printf("White(%d): ",move_number);
-            }
-            else {
-              printf("Black(%d): ",move_number);
-            }
+            if (wtm) printf("White(%d): ",move_number);
+            else printf("Black(%d): ",move_number);
           }
           fflush(stdout);
           fscanf(input_stream,"%s",input);
           displayed=1;
           if (!strcmp(input,".") && ponder_move) {
             made_predicted_move=1;
-            opponent_end_time=Get_Time(elapsed);
+            opponent_end_time=GetTime(elapsed);
           }
         }
         if (wtm) {
-          if (!displayed && !ics)
-            Print(0,"White(%d): %s\n",move_number,input);
-          else
-            if (log_file) fprintf(log_file,"White(%d): %s\n",move_number,input);
+          if (!displayed && !ics) Print(0,"White(%d): %s\n",move_number,input);
+          else if (log_file) fprintf(log_file,"White(%d): %s\n",move_number,input);
         }
         else {
-          if (!displayed && !ics)
-            Print(0,"Black(%d): %s\n",move_number,input);
-          else
-            if (log_file) fprintf(log_file,"Black(%d): %s\n",move_number,input);
+          if (!displayed && !ics) Print(0,"Black(%d): %s\n",move_number,input);
+          else if (log_file) fprintf(log_file,"Black(%d): %s\n",move_number,input);
         }
         if (made_predicted_move) break;
-        opponent_end_time=Get_Time(elapsed);
+        opponent_end_time=GetTime(elapsed);
       } while (Option(input));
       if (made_predicted_move) {
         move=ponder_move;
         break;
       }
       if (strcmp(input,"move") && strcmp(input,"go"))
-        if (!ics)
-          move=Input_Move(input,0,wtm,0);
+        if (!ics) move=InputMove(input,0,wtm,0);
         else {
-          move=Input_Move_ICS(input,0,wtm,1);
+          move=InputMoveICS(input,0,wtm,1);
           if (!move) {
-            move=Input_Move_ICS(input,0,!wtm,0);
+            move=InputMoveICS(input,0,!wtm,0);
             if (move) wtm=!wtm;
           }
         }
-    } while (!move && 
-             strcmp(input,"move") &&
-             strcmp(input,"go"));
+    } while (!move && strcmp(input,"move") && strcmp(input,"go"));
 /*
  ----------------------------------------------------------
 |                                                          |
 |   make the move (using internal form returned by         |
-|   Input_Move() and then complement wtm (white to move).  |
+|   InputMove() and then complement wtm (white to move).   |
 |                                                          |
  ----------------------------------------------------------
 */
     if(strcmp(input,"move") && strcmp(input,"go")) {
       fseek(history_file,((move_number-1)*2+1-wtm)*10,SEEK_SET);
-      fprintf(history_file,"%10s ",Output_Move(&move,0,wtm));
+      fprintf(history_file,"%10s ",OutputMove(&move,0,wtm));
       if (ics)
-        if (wtm)
-          printf("%d. %s\n",move_number,Output_Move_ICS(&move));
-        else
-          printf("%d. %s\n",move_number,Output_Move_ICS(&move));
-      Make_Move_Root(move,wtm);
-      if (Repetition_Draw()) Print(0,"game is a draw by repetition\n");
-      Resign_or_Draw(value);
+        if (wtm) printf("%d. %s\n",move_number,OutputMoveICS(&move));
+        else printf("%d. %s\n",move_number,OutputMoveICS(&move));
+      MakeMoveRoot(move,wtm);
+      if (RepetitionDraw()==1) Print(0,"game is a draw by repetition.\n");
+      if (RepetitionDraw()==2) Print(0,"game is a draw by the 50 move rule.\n");
+      ResignOrDraw(value);
       wtm=!wtm;
       if (wtm) move_number++;
       tu=opponent_end_time-opponent_start_time;
-      Print(1,"              time used: %s\n",Display_Time(tu));
+      Print(1,"              time used: %s\n",DisplayTime(tu));
     }
-    else
-      position[1]=position[0];
-    Validate_Position(0);
+    else position[1]=position[0];
+    ValidatePosition(0);
     if (!force) {
       if (ponder_completed) {
-        if((From(ponder_move) == From(move)) &&
-           (To(ponder_move) == To(move)) &&
+        if((From(ponder_move) == From(move)) && (To(ponder_move) == To(move)) &&
            (Piece(ponder_move) == Piece(move)) &&
            (Captured(ponder_move) == Captured(move)) &&
            (Promote(ponder_move) == Promote(move))) {
@@ -643,19 +771,19 @@ void main(int argc, char **argv)
       }
       ponder_move=0;
       thinking=1;
-      if (made_predicted_move)
-        value=last_search_value;
+      if (made_predicted_move) value=last_search_value;
       else {
-        if (whisper || kibitz)
-          strcpy(whisper_text,"n/a");
+        if (whisper || kibitz) strcpy(whisper_text,"n/a");
         pv[0].path_iteration_depth=0;
-        value=Iterate(wtm);
+        pv[0].path_length=0;
+        value=Iterate(wtm,think);
       }
+      pv[0]=pv[1];
       thinking=0;
       if (!pv[0].path_length) {
-        over=1;
         printf("%s",Reverse());
         if (-value == MATE-1) {
+          over=1;
           Print(0,"checkmate\n");
           if (ics)
             if(wtm) printf("White mates\n");
@@ -673,41 +801,36 @@ void main(int argc, char **argv)
         else if ((-value > MATE-100) && (-value < MATE-1)) {
           Print(1,"\nCrafty will be mated in %d moves.\n\n",(MATE+value)/2);
           if (whisper)
-            printf("whisper Crafty will be mated in %d moves.\n\n",
-                   (MATE+value)/2);
+            printf("whisper Crafty will be mated in %d moves.\n\n",(MATE+value)/2);
         }
         if (wtm) {
           if (!ics) {
             Print(0,"\n");
             printf("%s",Reverse());
-            printf("%s",audible_alarm);
-            Print(0,"White(%d): %s",move_number,
-                  Output_Move(&pv[1].path[1],0,wtm));
+            printf("%c",audible_alarm);
+            Print(0,"White(%d): %s ",move_number,OutputMove(&pv[0].path[1],0,wtm));
             printf("%s",Normal());
             Print(0,"\n");
           }
           else {
             if (log_file) fprintf(log_file,"White(%d): %s\n",move_number,
-                                  Output_Move(&pv[1].path[1],0,wtm));
-            printf("%d. ... %s\n",move_number,
-                   Output_Move_ICS(&pv[1].path[1]));
+                                  OutputMove(&pv[0].path[1],0,wtm));
+            printf("%d. ... %s\n",move_number,OutputMoveICS(&pv[0].path[1]));
           }
         }
         else {
           if (!ics) {
             Print(0,"\n");
             printf("%s",Reverse());
-            printf("%s",audible_alarm);
-            Print(0,"Black(%d): %s",move_number,
-                   Output_Move(&pv[1].path[1],0,wtm));
+            printf("%c",audible_alarm);
+            Print(0,"Black(%d): %s ",move_number,OutputMove(&pv[0].path[1],0,wtm));
             printf("%s",Normal());
             Print(0,"\n");
           }
           else {
             if (log_file) fprintf(log_file,"Black(%d): %s\n",move_number,
-                                  Output_Move(&pv[1].path[1],0,wtm));
-            printf("%d. ... %s\n",move_number,
-                   Output_Move_ICS(&pv[1].path[1]));
+                                  OutputMove(&pv[0].path[1],0,wtm));
+            printf("%d. ... %s\n",move_number,OutputMoveICS(&pv[0].path[1]));
           }
         }
         if (value == MATE-2) {
@@ -717,18 +840,21 @@ void main(int argc, char **argv)
             else printf("Black mates\n");
         }
         tu=program_end_time-program_start_time;
-        Print(1,"              time used: %s\n",Display_Time(tu));
-        Time_Adjust(tu);
+        Print(1,"              time used: %s\n",DisplayTime(tu));
+        TimeAdjust(tu);
         fseek(history_file,((move_number-1)*2+1-wtm)*10,SEEK_SET);
-        fprintf(history_file,"%10s ",
-                Output_Move(&pv[1].path[1],0,wtm));
-        Make_Move_Root(pv[1].path[1],wtm);
-        if (Repetition_Draw()) {
-          Print(0,"%sgame is a draw by repetition%s\n",Reverse(),Normal());
-        }
-        Resign_or_Draw(value);
-        if (log_file)
-          Display_Chess_Board(log_file,position[0].board);
+        fprintf(history_file,"%10s ",OutputMove(&pv[0].path[1],0,wtm));
+        MakeMoveRoot(pv[0].path[1],wtm);
+        if (RepetitionDraw()==1)
+          Print(0,"%sgame is a draw by repetition.%s\n",Reverse(),Normal());
+        if (RepetitionDraw()==2)
+          Print(0,"%sgame is a draw by the 50 move rule.%s\n",Reverse(),Normal());
+        ResignOrDraw(value);
+        if (log_file) DisplayChessBoard(log_file,position[0]);
+/*
+        strcpy(input,"sc");
+        Option(input);
+*/
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -739,52 +865,36 @@ void main(int argc, char **argv)
 |                                                          |
  ----------------------------------------------------------
 */
-        if ((pv[1].path_length > 1) &&
-            Valid_Move(0,!wtm,pv[1].path[2])) {
-          ponder_move=pv[1].path[2];
-          for (i=1;i<=pv[1].path_length-2;i++)
-            pv[1].path[i]=pv[1].path[i+2];
-          pv[1].path_length-=2;
-          pv[1].path_iteration_depth-=2;
-          if (pv[1].path_iteration_depth >
-              pv[1].path_length)
-            pv[1].path_iteration_depth=
-              pv[1].path_length;
-          if (pv[1].path_length <= 0)
-            pv[1].path_iteration_depth=0;
+        if ((pv[0].path_length > 1) && ValidMove(0,!wtm,pv[0].path[2])) {
+          ponder_move=pv[0].path[2];
+          for (i=1;i<=pv[0].path_length-2;i++) pv[0].path[i]=pv[0].path[i+2];
+          pv[0].path_length=(pv[0].path_length > 2) ? pv[0].path_length-2 : 0;
+          pv[0].path_iteration_depth-=2;
+          if (pv[0].path_iteration_depth > pv[0].path_length)
+            pv[0].path_iteration_depth=pv[0].path_length;
+          if (pv[0].path_length <= 0) pv[0].path_iteration_depth=0;
         }
         else {
-          pv[1].path_iteration_depth=0;
+          pv[0].path_iteration_depth=0;
           ponder_move=0;
         }
-        pv[0]=pv[1];
       }
       wtm=!wtm;
       if (wtm) move_number++;
-      Validate_Position(0);
+      ValidatePosition(0);
       if (kibitz > 1) {
         if (nodes_searched)
-          printf("kibitz depth:%d  score:%s  nodes:%d  nps:%d\n",
-                 whisper_depth,Display_Evaluation(whisper_value),
-                 nodes_searched,nodes_per_second);
-        if (kibitz == 3) {
-          if (nodes_searched)
-            printf("kibitz pv:%s\n",whisper_text);
-          else
-            printf("kibitz book move\n");
-        }
+          printf("kibitz depth:%d  score:%s  nodes:%d  nps:%d  cpu:%d%%\n",
+                 whisper_depth,DisplayEvaluation(whisper_value),
+                 nodes_searched,nodes_per_second,cpu_percent);
+        if ((kibitz >= 3) && nodes_searched) printf("kibitz pv:%s\n",whisper_text);
       }
       else {
         if (whisper && nodes_searched)
-          printf("whisper depth:%d  score:%s  nodes:%d  nps:%d\n",
-                 whisper_depth,Display_Evaluation(whisper_value),
-                 nodes_searched,nodes_per_second);
-        if (whisper == 2) {
-          if (nodes_searched)
-            printf("whisper pv:%s\n",whisper_text);
-          else
-            printf("whisper book move\n");
-        }
+          printf("whisper depth:%d  score:%s  nodes:%d  nps:%d  cpu:%d%%\n",
+                 whisper_depth,DisplayEvaluation(whisper_value),
+                 nodes_searched,nodes_per_second,cpu_percent);
+        if ((whisper >= 2) && nodes_searched) printf("whisper pv:%s\n",whisper_text);
       }
       fflush(stdout);
     }

@@ -6,16 +6,16 @@
 /*
 ********************************************************************************
 *                                                                              *
-*   Next_Capture() is used to select the next move in the capture search.  it  *
+*   NextCapture() is used to select the next move in the capture search.  it   *
 *   also may include checking moves under certain tightly constrained rules.   *
 *                                                                              *
 ********************************************************************************
 */
-int Next_Capture(int ply, int wtm, int depth)
+int NextCapture(int ply, int wtm, int depth)
 {
   register BITBOARD target;
   register int *mvp, tempm;
-  register int done, do_checks, no_checks, nchecks, i, temp;
+  register int done, do_checks, nchecks, i, temp;
 
   switch (next_status[ply].phase) {
 /*
@@ -33,37 +33,33 @@ int Next_Capture(int ply, int wtm, int depth)
     if (hash_move[ply]) {
       if (Captured(hash_move[ply]) || Promote(hash_move[ply])) {
         current_move[ply]=hash_move[ply];
-        if (Valid_Move(ply,wtm,current_move[ply]))
-          return(hash_capture_move);
-        else
+        if (ValidMove(ply,wtm,current_move[ply])) return(hash_capture_move);
+        else {
           Print(1,"bad move from hash table, ply=%d\n",ply);
+          DisplayChessBoard(log_file,position[ply]);
+          fprintf(log_file,"bad move: %s\n",OutputMove(&current_move[ply],ply,wtm));
+/*
+          DisplayChessMove("bad move=",current_move[ply]);
+*/
+        }
       }
-      else
-        hash_move[ply]=0;
+      else hash_move[ply]=0;
     }
 /*
  ----------------------------------------------------------
 |                                                          |
 |   try the capture moves next.  this phase first uses     |
-|   Generate_Moves() with a target of the opponent's       |
+|   GenerateMoves() with a target of the opponent's        |
 |   occupied squares.                                      |
-|                                                          |
-|   the type of capture ordering is determined by the      |
-|   setting of the mvv_lva_ordering variable, which can be |
-|   set by the mvv_lva=n (n=0 or 1) command.  if zero, we  |
-|   use normal SEE ordering, if non-zero, we use MVV/LVA   |
-|   ordering.                                              |
 |                                                          |
  ----------------------------------------------------------
 */
   case capture_moves:
     if (next_status[ply].whats_generated != captures_generated) {
-      if (wtm)
-        target=Black_Pieces(ply);
-      else
-        target=White_Pieces(ply);
+      if (wtm) target=BlackPieces(ply);
+      else target=WhitePieces(ply);
       next_status[ply].to=target;
-      last[ply]=Generate_Moves(ply, depth, wtm, target, 1, first[ply]);
+      last[ply]=GenerateMoves(ply, depth, wtm, target, 1, first[ply]);
       next_status[ply].whats_generated=captures_generated;
 /*
  --------------------------------------------------
@@ -80,10 +76,12 @@ int Next_Capture(int ply, int wtm, int depth)
           sort_value[mvp-first[ply]]=-9999;
         }
         else {
-          sort_value[mvp-first[ply]]=Swap(ply,From(*mvp),To(*mvp),wtm);
-          if ((sort_value[mvp-first[ply]] > 0) ||
-              ((depth > -1) && (sort_value[mvp-first[ply]] == 0)))
-            next_status[ply].remaining++;
+          if (piece_values[Piece(*mvp)] < piece_values[Captured(*mvp)])
+            sort_value[mvp-first[ply]]=
+              piece_values[Captured(*mvp)]-piece_values[Piece(*mvp)];
+          else
+            sort_value[mvp-first[ply]]=Swap(ply,From(*mvp),To(*mvp),wtm);
+          if (sort_value[mvp-first[ply]] >= 0) next_status[ply].remaining++;
         }
       }
       do {
@@ -115,8 +113,7 @@ int Next_Capture(int ply, int wtm, int depth)
       next_status[ply].current=next_status[ply].last;
       *next_status[ply].last++=0;
       next_status[ply].remaining--;
-      if (!next_status[ply].remaining) 
-        next_status[ply].phase=hash_checking_move;
+      if (!next_status[ply].remaining) next_status[ply].phase=hash_checking_move;
       return(capture_moves);
     }
     next_status[ply].phase=hash_checking_move;
@@ -133,16 +130,30 @@ int Next_Capture(int ply, int wtm, int depth)
   case hash_checking_move:
     if (!quiescence_checks || !in_check[ply-1]) return(none);
     next_status[ply].phase=checking_moves;
+    do_checks=0;
+    if (root_wtm == wtm) {
+      for (i=2;i<ply-abs(depth)+1;i+=2) if(in_check[i]) do_checks++;
+    }
+    else {
+      for (i=3;i<ply-abs(depth)+1;i+=2) if(in_check[i]) do_checks++;
+    }
+    nchecks=(abs(depth)+1)/2;
+    if (!do_checks || (nchecks >= do_checks) || (nchecks > quiescence_checks)) 
+      return(none);
     if (hash_move[ply]) {
-      if (Give_Check(ply,wtm,&hash_move[ply])) {
+      if (GiveCheck(ply,wtm,&hash_move[ply])) {
         current_move[ply]=hash_move[ply];
-        if (Valid_Move(ply,wtm,current_move[ply]))
-          return(hash_checking_move);
-        else
+        if (ValidMove(ply,wtm,current_move[ply])) return(hash_checking_move);
+        else {
           Print(1,"bad move from hash table, ply=%d\n",ply);
+          DisplayChessBoard(log_file,position[ply]);
+          fprintf(log_file,"bad move: %s\n",OutputMove(&current_move[ply],ply,wtm));
+/*
+          DisplayChessMove("bad move=",current_move[ply]);
+*/
+        }
       }
-      else
-        hash_move[ply]=0;
+      else hash_move[ply]=0;
     }
 /*
  ----------------------------------------------------------
@@ -157,51 +168,16 @@ int Next_Capture(int ply, int wtm, int depth)
   case checking_moves:
     if (next_status[ply].whats_generated != everything) {
       next_status[ply].last=last[ply];
-      if (in_check[ply-1]) {
-        do_checks=0;
-        no_checks=0;
-        if (root_wtm == wtm) {
-          for (i=2;i<ply-abs(depth)+1;i+=2) 
-            if(in_check[i]) 
-              do_checks++;
-            else
-              no_checks++;
-        }
-        else {
-          for (i=3;i<ply-abs(depth)+1;i+=2) 
-            if(in_check[i]) 
-              do_checks++;
-            else
-              no_checks++;
-        }
-        nchecks=(abs(depth)+1)/2;
-        if (do_checks &&
-            (nchecks <= do_checks) && 
-            ((nchecks <= quiescence_checks) || 
-             (!no_checks &&
-             (nchecks <= 2*quiescence_checks)))) {
-          if (wtm)
-            target=And(Compl(White_Pieces(ply)),
-                       Compl(next_status[ply].to));
-          else
-            target=And(Compl(Black_Pieces(ply)),
-                       Compl(next_status[ply].to));
-          next_status[ply].last=first[ply];
-          last[ply]=Generate_Moves(ply, depth, wtm, target, 0, last[ply]);
-          next_status[ply].whats_generated=everything;
-        }
-        else
-          return(none);
-      }
-      else
-        return(none);
+      if (wtm) target=And(Compl(WhitePieces(ply)),Compl(next_status[ply].to));
+      else target=And(Compl(BlackPieces(ply)),Compl(next_status[ply].to));
+      next_status[ply].last=first[ply];
+      last[ply]=GenerateMoves(ply, depth, wtm, target, 0, last[ply]);
+      next_status[ply].whats_generated=everything;
     }
     for (mvp=next_status[ply].last;mvp<last[ply];mvp++) {
-      if (*mvp == hash_move[ply])
-        *mvp=0;
-      else
-        if (*mvp && Give_Check(ply,wtm,mvp))
-          if (Swap(ply,From(*mvp),To(*mvp),wtm) >= 0) break;
+      if (*mvp == hash_move[ply]) *mvp=0;
+      else if (*mvp && GiveCheck(ply,wtm,mvp) &&
+               Swap(ply,From(*mvp),To(*mvp),wtm) >= 0) break;
     }
     if (mvp < last[ply]) {
       current_move[ply]=*mvp;
@@ -211,18 +187,9 @@ int Next_Capture(int ply, int wtm, int depth)
       check_extensions_done++;
       return(checking_moves);
     }
-  case all_done:
     return(none);
   default:
-    printf("oops!  next_status.phase is bad! [capture %d]\n",
-           next_status[ply].phase);
+    printf("oops!  next_status.phase is bad! [capture %d]\n",next_status[ply].phase);
+    return(none);
   }
-/*
- ----------------------------------------------------------
-|                                                          |
-|   done, return (none) since nothing was found.           |
-|                                                          |
- ----------------------------------------------------------
-*/
-  return (none);
 }

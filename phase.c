@@ -30,16 +30,11 @@ void Phase(void)
 |                                                          |
  ----------------------------------------------------------
 */
-  if (root_wtm)
-    opening=White_Castle(1) ||
-            Popcnt(And(Or(White_Knights(1),
-                          White_Bishops(1)),
-                       white_minor_pieces));
-  else
-    opening=Black_Castle(1) ||
-            Popcnt(And(Or(Black_Knights(1),
-                          Black_Bishops(1)),
-                       black_minor_pieces));
+  if (root_wtm) opening=WhiteCastle(1) ||
+          Popcnt(And(Or(WhiteKnights(1),WhiteBishops(1)),white_minor_pieces));
+  else opening=BlackCastle(1) ||
+          Popcnt(And(Or(BlackKnights(1),BlackBishops(1)),black_minor_pieces));
+  if (move_number > 20) opening=0;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -48,8 +43,7 @@ void Phase(void)
 |                                                          |
  ----------------------------------------------------------
 */
-  end_game= (Total_White_Pieces(1) < 17) &&
-            (Total_Black_Pieces(1) < 17);
+  end_game=(TotalWhitePieces(1) < 17) && (TotalBlackPieces(1) < 17);
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -71,10 +65,7 @@ void Phase(void)
     middle_game=1;
     end_game=0;
   }
-  if (opening)
-    Print(6,"opening phase\n");
-  else if (middle_game)
-    Print(6,"middle-game phase\n");
-  else
-    Print(6,"end-game phase\n");
+  if (opening) Print(6,"opening phase\n");
+  else if (middle_game) Print(6,"middle-game phase\n");
+  else Print(6,"end-game phase\n");
 }

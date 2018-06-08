@@ -11,13 +11,13 @@
 *   they can be captured.  this information is then used to order the moves at *
 *   the root of the tree to search moves that don't hang pieces first.         *
 *                                                                              *
-*   the algorithm is quite simple.  using Attacks_To(), we can enumerate all   *
+*   the algorithm is quite simple.  using AttacksTo(), we can enumerate all    *
 *   the pieces that are attacking [target] for either side.  then we simply    *
 *   use the lowest piece (value) for the correct side to capture on [target].  *
 *   we continually "flip" sides taking the lowest piece each time.             *
 *                                                                              *
 *   as a piece is "used", if it is a sliding piece (pawn, bishop, rook or      *
-*   queen) we use the Attacks_To(square) to see if a sliding piece is          *
+*   queen) we use the AttacksTo(square) to see if a sliding piece is           *
 *   attacking this piece in the same direction, meaning that the sliding piece *
 *   can now be used in the swap sequence.  one final "fix" is that the piece   *
 *   on <from> must be used first in the capture sequence (if [from] is a real  *
@@ -42,11 +42,11 @@ int EnPrise(int ply, int target, int wtm)
 |                                                          |
  ----------------------------------------------------------
 */
-  temp_attacks=Attacks_To(target,ply);
+  temp_attacks=AttacksTo(target,ply);
   white_attackers=And(temp_attacks,
-                      White_Pieces(ply));
+                      WhitePieces(ply));
   black_attackers=And(temp_attacks,
-                      Black_Pieces(ply));
+                      BlackPieces(ply));
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -70,7 +70,7 @@ int EnPrise(int ply, int target, int wtm)
  ----------------------------------------------------------
 */
   swap_list[0]=0;
-  attacked_piece=piece_values[abs(Piece_On_Square(ply,target))];
+  attacked_piece=piece_values[abs(PieceOnSquare(ply,target))];
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -79,44 +79,44 @@ int EnPrise(int ply, int target, int wtm)
 |                                                          |
  ----------------------------------------------------------
 */
-  pawns[0]=&Black_Pawns(ply);
-  pawns[1]=&White_Pawns(ply);
-  knights[0]=&Black_Knights(ply);
-  knights[1]=&White_Knights(ply);
-  bishops[0]=&Black_Bishops(ply);
-  bishops[1]=&White_Bishops(ply);
-  rooks[0]=&Black_Rooks(ply);
-  rooks[1]=&White_Rooks(ply);
-  queens[0]=&Black_Queens(ply);
-  queens[1]=&White_Queens(ply);
-  kings[0]=&Black_King(ply);
-  kings[1]=&White_King(ply);
+  pawns[0]=&BlackPawns(ply);
+  pawns[1]=&WhitePawns(ply);
+  knights[0]=&BlackKnights(ply);
+  knights[1]=&WhiteKnights(ply);
+  bishops[0]=&BlackBishops(ply);
+  bishops[1]=&WhiteBishops(ply);
+  rooks[0]=&BlackRooks(ply);
+  rooks[1]=&WhiteRooks(ply);
+  queens[0]=&BlackQueens(ply);
+  queens[1]=&WhiteQueens(ply);
+  kings[0]=&BlackKing(ply);
+  kings[1]=&WhiteKing(ply);
   swap_sign=1;
-  piece_squares=Attacks_To(target,ply);
+  piece_squares=AttacksTo(target,ply);
   color=wtm;
 /*
  ----------------------------------------------------------
 |                                                          |
 |   now pick out the least valuable piece for the correct  |
 |   side that is bearing on <target>.  as we find one, we  |
-|   call Swap_Xray() to add the piece behind this piece    |
+|   call SwapXray() to add the piece behind this piece    |
 |   that is indirectly bearing on <target> (if any).       |
 |                                                          |
  ----------------------------------------------------------
 */
   while (piece_squares) {
     if (And(*pawns[color],piece_squares))
-      square=First_One(And(*pawns[color],piece_squares));
+      square=FirstOne(And(*pawns[color],piece_squares));
     else if (And(*knights[color],piece_squares))
-      square=First_One(And(*knights[color],piece_squares));
+      square=FirstOne(And(*knights[color],piece_squares));
     else if (And(*bishops[color],piece_squares))
-      square=First_One(And(*bishops[color],piece_squares));
+      square=FirstOne(And(*bishops[color],piece_squares));
     else if (And(*rooks[color],piece_squares))
-      square=First_One(And(*rooks[color],piece_squares));
+      square=FirstOne(And(*rooks[color],piece_squares));
     else if (And(*queens[color],piece_squares))
-      square=First_One(And(*queens[color],piece_squares));
+      square=FirstOne(And(*queens[color],piece_squares));
     else if (And(*kings[color],piece_squares))
-      square=First_One(And(*kings[color],piece_squares));
+      square=FirstOne(And(*kings[color],piece_squares));
     else 
       square=-1;
 /*
@@ -134,9 +134,9 @@ int EnPrise(int ply, int target, int wtm)
                               swap_sign*attacked_piece;
     else
       swap_list[next_capture]=attacked_piece;
-    attacked_piece=piece_values[abs(Piece_On_Square(ply,square))];
+    attacked_piece=piece_values[abs(PieceOnSquare(ply,square))];
     Clear(square,piece_squares);
-    piece_squares=Swap_Xray(ply,piece_squares,square,target);
+    piece_squares=SwapXray(ply,piece_squares,square,target);
     next_capture++;
     swap_sign=-swap_sign;
     color=!color;

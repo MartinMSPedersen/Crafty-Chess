@@ -7,7 +7,7 @@
 /*
 ********************************************************************************
 *                                                                              *
-*   Output_Move() is responsible for converting the internal move format to a  *
+*   OutputMove() is responsible for converting the internal move format to a   *
 *   string that can be displayed.  first, it simply converts the from/to       *
 *   squares to fully-qualified algebraic (which includes o-o and o-o-o for     *
 *   castling moves).  next, we try several "shortcut" forms and call           *
@@ -16,12 +16,12 @@
 *                                                                              *
 ********************************************************************************
 */
-char* Output_Move(int *move, int ply, int wtm)
+char* OutputMove(int *move, int ply, int wtm)
 {
   static char text_move[10];
   char new_text[10];
   char *text;
-  char piece_names[7] = { ' ','P','N','B','R','Q','K'};
+  char piece_names[8] = { ' ','P','N','K',' ','B','R','Q'};
 
   text=text_move;
 /*
@@ -51,8 +51,7 @@ char* Output_Move(int *move, int ply, int wtm)
    first.
 */
   text=new_text;
-  if ((int) Piece(*move) > pawn) 
-    *text++=piece_names[Piece(*move)];
+  if ((int) Piece(*move) > pawn) *text++=piece_names[Piece(*move)];
   *text++=(From(*move) & 7)+'a';
   *text++=(From(*move) / 8)+'1';
   if (Captured(*move)) *text++='x';
@@ -66,7 +65,7 @@ char* Output_Move(int *move, int ply, int wtm)
    determine if it's a checking move.  if so, append "+".
 */
   position[MAXPLY]=position[ply];
-  Make_Move(MAXPLY, *move, wtm);
+  MakeMove(MAXPLY, *move, wtm);
   if (Check(MAXPLY+1,!wtm)) *text++='+';
   *text='\0';
 /*
@@ -77,25 +76,27 @@ char* Output_Move(int *move, int ply, int wtm)
   if (Piece(*move) == pawn) {
     if (!Captured(*move)) {
       strcpy(text_move,new_text+2);
-      if (Output_Good(text_move,ply,wtm)) return (text_move);
+      if (OutputGood(text_move,ply,wtm)) return (text_move);
     }
 /*
    if the move is a pawn capturing a pawn, try the short-form for pawn
    capture moves: (e4xf5->ef)
 */
+/*
     if (Captured(*move) == 1) {
       text_move[0]=new_text[0];
       text_move[1]=new_text[3];
       strcpy(text_move+2,new_text+5);
-      if (Output_Good(text_move,ply,wtm)) return (text_move);
+      if (OutputGood(text_move,ply,wtm)) return (text_move);
     }
+*/
 /*
    if the move is a pawn capturing a piece, try the short-form for pawn
    capture moves: (e4xf5->exf5)
 */
     text_move[0]=new_text[0];
     strcpy(text_move+1,new_text+2);
-    if (Output_Good(text_move,ply,wtm)) return (text_move);
+    if (OutputGood(text_move,ply,wtm)) return (text_move);
 /*
    punt, return the fully-qualified move.
 */
@@ -109,20 +110,20 @@ char* Output_Move(int *move, int ply, int wtm)
   if (!Captured(*move)) {
     text_move[0]=new_text[0];
     strcpy(text_move+1,new_text+3);
-    if (Output_Good(text_move,ply,wtm)) return (text_move);
+    if (OutputGood(text_move,ply,wtm)) return (text_move);
 /*
    now try to qualify with the origin file only: (Ng1f3->Ngf3)
 */
     text_move[0]=new_text[0];
     text_move[1]=new_text[1];
     strcpy(text_move+2,new_text+3);
-    if (Output_Good(text_move,ply,wtm)) return (text_move);
+    if (OutputGood(text_move,ply,wtm)) return (text_move);
 /*
    now try to qualify with the origin rank only: (Ng1f3->N1f3)
 */
     text_move[0]=new_text[0];
     strcpy(text_move+1,new_text+2);
-    if (Output_Good(text_move,ply,wtm)) return (text_move);
+    if (OutputGood(text_move,ply,wtm)) return (text_move);
 /*
    punt, return the fully-qualified move.
 */
@@ -136,20 +137,20 @@ char* Output_Move(int *move, int ply, int wtm)
 */
     text_move[0]=new_text[0];
     strcpy(text_move+1,new_text+3);
-    if (Output_Good(text_move,ply,wtm)) return (text_move);
+    if (OutputGood(text_move,ply,wtm)) return (text_move);
 /*
    next, try adding in the origin file: (Ng1xf3->Ngxf3)
 */
     text_move[0]=new_text[0];
     text_move[1]=new_text[1];
     strcpy(text_move+2,new_text+3);
-    if (Output_Good(text_move,ply,wtm)) return (text_move);
+    if (OutputGood(text_move,ply,wtm)) return (text_move);
 /*
    next, try adding in the origin rank: (Ng1xf3->N1xf3)
 */
     text_move[0]=new_text[0];
     strcpy(text_move+1,new_text+2);
-    if (Output_Good(text_move,ply,wtm)) return (text_move);
+    if (OutputGood(text_move,ply,wtm)) return (text_move);
 /*
    punt, return the fully-qualified move.
 */
@@ -160,16 +161,16 @@ char* Output_Move(int *move, int ply, int wtm)
 /*
 ********************************************************************************
 *                                                                              *
-*   Output_Move_ICS() is responsible for producing the rather primitive move   *
+*   OutputMoveICS() is responsible for producing the rather primitive move     *
 *   format that the ics interface wants, namely [from][to][promote].           *
 *                                                                              *
 ********************************************************************************
 */
-char* Output_Move_ICS(int *move)
+char* OutputMoveICS(int *move)
 {
   static char text_move[10];
   char *text;
-  char piece_names[7] = { ' ','P','N','B','R','Q','K'};
+  char piece_names[8] = { ' ','P','N','K',' ','B','R','Q'};
 
 /*
    convert to fully-qualified algebraic form first.
@@ -185,9 +186,9 @@ char* Output_Move_ICS(int *move)
   return (text_move);
 }
 
-int Output_Good(char* text, int ply, int wtm)
+int OutputGood(char* text, int ply, int wtm)
 {
   int new_move;
-  new_move=Input_Move(text,ply,wtm,1);
+  new_move=InputMove(text,ply,wtm,1);
   return (Piece(new_move));
 }

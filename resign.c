@@ -7,7 +7,7 @@
 /*
 ********************************************************************************
 *                                                                              *
-*   Resign_or_Draw() is used to determine if the program should either resign  *
+*   ResignOrDraw() is used to determine if the program should either resign    *
 *   or offer a draw.  this decision is based on two criteria:  (1) current     *
 *   search evaluation and (2) time remaining on opponent's clock.              *
 *                                                                              *
@@ -20,7 +20,7 @@
 *                                                                              *
 ********************************************************************************
 */
-void Resign_or_Draw(int value)
+void ResignOrDraw(int value)
 {
   int returnv=0;
 /*
@@ -33,7 +33,7 @@ void Resign_or_Draw(int value)
 |                                                          |
  ----------------------------------------------------------
 */
-  if (Repetition_Draw() || Drawn(0)) returnv=2;
+  if (RepetitionDraw() || Drawn(0,value)) returnv=2;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -51,14 +51,12 @@ void Resign_or_Draw(int value)
 |                                                          |
  ----------------------------------------------------------
 */
-  if ((tc_increment > 0) ||
-      (tc_time_remaining_opponent >= 30)) {
+  if ((tc_increment > 0) || (tc_time_remaining_opponent >= 30)) {
     if (resign) {
       if (value < -resign*PAWN_VALUE) {
         if (++resign_counter >= resign_count) returnv=1;
       }
-      else
-        resign_counter=0;
+      else resign_counter=0;
     }
   }
 /*
@@ -75,14 +73,13 @@ void Resign_or_Draw(int value)
  ----------------------------------------------------------
 */
   if (draw)
-    if ((value == Draw_Score()) && (last_move_in_book < move_number-3)) {
+    if ((value == DrawScore()) && (last_move_in_book < move_number-3)) {
       if (++draw_counter >= draw_count) {
         draw_counter=0;
         returnv=2;
       }
     }
-    else
-      draw_counter=0;
+    else draw_counter=0;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -93,13 +90,9 @@ void Resign_or_Draw(int value)
  ----------------------------------------------------------
 */
   if (returnv == 1)
-    if (!ics)
-      Print(0,"\nCrafty resigns.\n\n");
-    else
-      Print(0,"\nresign\n");
+    if (!ics) Print(0,"\nCrafty resigns.\n\n");
+    else Print(0,"\nresign\n");
   if (returnv == 2)
-    if (!ics)
-      Print(0,"\nCrafty offers a draw.\n\n");
-    else
-      Print(0,"\ndraw\n");
+    if (!ics) Print(0,"\nCrafty offers a draw.\n\n");
+    else Print(0,"\ndraw\n");
 }

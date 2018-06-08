@@ -6,7 +6,7 @@
 /*
 ********************************************************************************
 *                                                                              *
-*   Next_Evasion() is used to select the next move from the current move list  *
+*   NextEvasion() is used to select the next move from the current move list   *
 *   when the king is in check.  it tries the following things to get out of    *
 *   check:                                                                     *
 *                                                                              *
@@ -25,19 +25,19 @@
 *         queen, try interposing.  we simply have to find the attacker (easy)  *
 *         the attackee (the king's square, also easy) and use the precomputed  *
 *         mask to produce a bit vector of the squares between these two        *
-*         squares.  then pass this to Generate_Check_Evasions() as targets     *
+*         squares.  then pass this to GenerateCheckEvasions() as targets       *
 *         and we have all interposing moves.  of course, we still try them     *
 *         in "sane" order of safe followed by any.                             *
 *                                                                              *
 ********************************************************************************
 */
-int Next_Evasion(int ply, int wtm)
+int NextEvasion(int ply, int wtm)
 {
-  BITBOARD target;
-  int *mv, *mvp, tempm;
-  int history_value, bestval, done, i, index, temp;
-  int checkers, king_square;
-  int checking_square, check_direction;
+  register BITBOARD target;
+  register int *mv, *mvp, tempm;
+  register int history_value, bestval, done, i, index, temp;
+  register int checkers, king_square;
+  register int checking_square, check_direction;
   switch (next_status[ply].phase) {
 /*
  ----------------------------------------------------------
@@ -52,16 +52,21 @@ int Next_Evasion(int ply, int wtm)
     next_status[ply].phase=capture_moves;
     if (hash_move[ply]) {
       current_move[ply]=hash_move[ply];
-      if (Valid_Move(ply,wtm,current_move[ply]))
-        return(hash_normal_move);
-      else
+      if (ValidMove(ply,wtm,current_move[ply])) return(hash_normal_move);
+      else {
         Print(1,"bad move from hash table, ply=%d\n",ply);
+        DisplayChessBoard(log_file,position[ply]);
+        fprintf(log_file,"bad move: %s\n",OutputMove(&current_move[ply],ply,wtm));
+/*
+        DisplayChessMove("bad move=",current_move[ply]);
+*/
+      }
     }
 /*
  ----------------------------------------------------------
 |                                                          |
 |   try the capturing moves next.  this phase uses the     |
-|   special move generator Generate_Check_Evasions() to    |
+|   special move generator GenerateCheckEvasions() to      |
 |   generate moves that evade the current check.  this     |
 |   routine generates the moves as described previously.   |
 |                                                          |
@@ -72,37 +77,33 @@ int Next_Evasion(int ply, int wtm)
       next_status[ply].remaining=0;
       check_direction=0;
       if (wtm) {
-        king_square=White_King_SQ(ply);
-        checkers=Popcnt(And(Attacks_To(king_square,ply),
-                            Black_Pieces(ply)));
+        king_square=WhiteKingSQ(ply);
+        checkers=Popcnt(And(AttacksTo(king_square,ply),BlackPieces(ply)));
         if (checkers == 1) {
-          checking_square=First_One(And(Attacks_To(king_square,ply),
-                                        Black_Pieces(ply)));
-          if (Piece_On_Square(ply,checking_square) != -1)
+          checking_square=FirstOne(And(AttacksTo(king_square,ply),
+                                        BlackPieces(ply)));
+          if (PieceOnSquare(ply,checking_square) != -pawn)
             check_direction=directions[checking_square][king_square];
-          else
-            check_direction=0;
+          else check_direction=0;
         }
-        target=Next_Evasion_Interpose_Squares(ply,wtm,checkers,check_direction,
+        target=NextEvasionInterposeSquares(ply,wtm,checkers,check_direction,
                                               king_square,checking_square);
       }
       else {
-        king_square=Black_King_SQ(ply);
-        checkers=Popcnt(And(Attacks_To(king_square,ply),
-                            White_Pieces(ply)));
+        king_square=BlackKingSQ(ply);
+        checkers=Popcnt(And(AttacksTo(king_square,ply),WhitePieces(ply)));
         if (checkers == 1) {
-          checking_square=First_One(And(Attacks_To(king_square,ply),
-                                        White_Pieces(ply)));
-          if (Piece_On_Square(ply,checking_square) != 1)
+          checking_square=FirstOne(And(AttacksTo(king_square,ply),
+                                        WhitePieces(ply)));
+          if (PieceOnSquare(ply,checking_square) != pawn)
             check_direction=directions[checking_square][king_square];
-          else
-            check_direction=0;
+          else check_direction=0;
         }
-        target=Next_Evasion_Interpose_Squares(ply,wtm,checkers,check_direction,
+        target=NextEvasionInterposeSquares(ply,wtm,checkers,check_direction,
                                               king_square,checking_square);
       }
       next_status[ply].to=target;
-      last[ply]=Generate_Check_Evasions(ply, wtm, target, checkers,
+      last[ply]=GenerateCheckEvasions(ply, wtm, target, checkers,
                                         check_direction, king_square,
                                         first[ply]);
       next_status[ply].whats_generated=everything;
@@ -120,10 +121,14 @@ int Next_Evasion(int ply, int wtm)
           *mvp=0;
           sort_value[mvp-first[ply]]=-999999;
         }
-        else
-          sort_value[mvp-first[ply]]=
-            Swap(ply,From(*mvp),To(*mvp),wtm);
-        if (sort_value[mvp-first[ply]] >= 0) next_status[ply].remaining++;
+        else {
+          if (piece_values[Piece(*mvp)] < piece_values[Captured(*mvp)])
+            sort_value[mvp-first[ply]]=
+              piece_values[Captured(*mvp)]-piece_values[Piece(*mvp)];
+          else
+            sort_value[mvp-first[ply]]=Swap(ply,From(*mvp),To(*mvp),wtm);
+          if (sort_value[mvp-first[ply]] >= 0) next_status[ply].remaining++;
+        }
       }
       do {
         done=1;
@@ -154,8 +159,7 @@ int Next_Evasion(int ply, int wtm)
       next_status[ply].current=next_status[ply].last;
       *next_status[ply].last++=0;
       next_status[ply].remaining--;
-      if (!next_status[ply].remaining) 
-        next_status[ply].phase=history_moves;
+      if (!next_status[ply].remaining) next_status[ply].phase=history_moves;
       return(capture_moves);
     }
     next_status[ply].phase=history_moves;
@@ -175,10 +179,8 @@ int Next_Evasion(int ply, int wtm)
     for (mv=first[ply];mv<last[ply];mv++) {
       if (*mv == hash_move[ply]) *mv=0;
       index=*mv&4095;
-      if (wtm)
-        history_value=history_w[index];
-      else
-        history_value=history_b[index];
+      if (wtm) history_value=history_w[index];
+      else history_value=history_b[index];
       if ((history_value > bestval) && *mv) {
         bestval=history_value;
         mvp=mv;
@@ -202,8 +204,7 @@ int Next_Evasion(int ply, int wtm)
  ----------------------------------------------------------
 */
   case remaining_moves:
-    for (next_status[ply].last=first[ply];
-         next_status[ply].last<last[ply];
+    for (next_status[ply].last=first[ply];next_status[ply].last<last[ply];
          next_status[ply].last++) {
       if ((*next_status[ply].last)) {
         current_move[ply]=*next_status[ply].last;
@@ -212,36 +213,27 @@ int Next_Evasion(int ply, int wtm)
         return(remaining_moves);
       }
     }
-    break;
-  case all_done:
     return(none);
+
   default:
-    printf("oops!  next_status.phase is bad! [evasion %d]\n",
-           next_status[ply].phase);
+    printf("oops!  next_status.phase is bad! [evasion %d]\n",next_status[ply].phase);
+    return(none);
   }
-/*
- ----------------------------------------------------------
-|                                                          |
-|   done, return (none) since nothing was found.           |
-|                                                          |
- ----------------------------------------------------------
-*/
-  return(none);
 }
 
 /*
 ********************************************************************************
 *                                                                              *
-*   Next_Evasion_Interpose_Mask() is used to compute the set of squares that   *
+*   NextEvasionInterposeSquares() is used to compute the set of squares that   *
 *   blocks the one-and-only check.                                             *
 *                                                                              *
 ********************************************************************************
 */
-BITBOARD Next_Evasion_Interpose_Squares(int ply, int wtm, int checkers, 
+BITBOARD NextEvasionInterposeSquares(int ply, int wtm, int checkers, 
                                         int check_direction, int king_square,
                                         int checking_square)
 {
-  BITBOARD target;
+  register BITBOARD target;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -253,56 +245,45 @@ BITBOARD Next_Evasion_Interpose_Squares(int ply, int wtm, int checkers,
  ----------------------------------------------------------
 */
   if (wtm) {
-    if ((checkers == 1) && And(Attacks_To(king_square,ply),
-                                Black_Knights(ply)))
+    if ((checkers == 1) && And(AttacksTo(king_square,ply),BlackKnights(ply)))
       checkers=2;
   }
   else {
-    if ((checkers == 1) && And(Attacks_To(king_square,ply),
-                                White_Knights(ply)))
+    if ((checkers == 1) && And(AttacksTo(king_square,ply),WhiteKnights(ply)))
       checkers=2;
   }
 
   if (checkers == 1) {
     switch (check_direction) {
       case +1:
-        target=Xor(mask_plus1dir[king_square-1],
-                   mask_plus1dir[checking_square]);
+        target=Xor(mask_plus1dir[king_square-1],mask_plus1dir[checking_square]);
         break;
       case +7:
-        target=Xor(mask_plus7dir[king_square-7],
-                   mask_plus7dir[checking_square]);
+        target=Xor(mask_plus7dir[king_square-7],mask_plus7dir[checking_square]);
         break;
       case +8:
-        target=Xor(mask_plus8dir[king_square-8],
-                   mask_plus8dir[checking_square]);
+        target=Xor(mask_plus8dir[king_square-8],mask_plus8dir[checking_square]);
         break;
       case +9:
-        target=Xor(mask_plus9dir[king_square-9],
-                   mask_plus9dir[checking_square]);
+        target=Xor(mask_plus9dir[king_square-9],mask_plus9dir[checking_square]);
         break;
       case -1:
-        target=Xor(mask_minus1dir[king_square+1],
-                   mask_minus1dir[checking_square]);
+        target=Xor(mask_minus1dir[king_square+1],mask_minus1dir[checking_square]);
         break;
       case -7:
-        target=Xor(mask_minus7dir[king_square+7],
-                   mask_minus7dir[checking_square]);
+        target=Xor(mask_minus7dir[king_square+7],mask_minus7dir[checking_square]);
         break;
       case -8:
-        target=Xor(mask_minus8dir[king_square+8],
-                   mask_minus8dir[checking_square]);
+        target=Xor(mask_minus8dir[king_square+8],mask_minus8dir[checking_square]);
         break;
       case -9:
-        target=Xor(mask_minus9dir[king_square+9],
-                   mask_minus9dir[checking_square]);
+        target=Xor(mask_minus9dir[king_square+9],mask_minus9dir[checking_square]);
         break;
       default:
         target=0;
         break;
     }
   }
-  else
-    target=0;
+  else target=0;
   return(target);
 }

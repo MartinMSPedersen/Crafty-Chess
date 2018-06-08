@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <time.h>
 #include "types.h"
 #include "function.h"
 #include "data.h"
@@ -14,14 +13,14 @@
 *                                                                              *
 ********************************************************************************
 */
-int Iterate(int wtm)
+int Iterate(int wtm, int search_type)
 {
   int *mvp;
   int i, more, ndone, value, time_used;
   int twtm, used_w, used_b, draft;
   int cpu_start, cpu_end;
   int elapsed_start, elapsed_end;
-  int cpu_percent, material;
+  int material;
   char ext_char[5] = {"-x=."};
 
 /*
@@ -46,12 +45,13 @@ int Iterate(int wtm)
 */
   time_abort=0;
   abort_search=0;
-  failed_high=0;
-  failed_low=0;
-  program_start_time=Get_Time(time_type);
-  start_time=Get_Time(time_type);
-  cpu_start=Get_Time(cpu);
-  elapsed_start=Get_Time(elapsed);
+  search_failed_high=0;
+  search_failed_low=0;
+  program_start_time=GetTime(time_type);
+  start_time=GetTime(time_type);
+  cpu_start=GetTime(cpu);
+  cpu_percent=0;
+  elapsed_start=GetTime(elapsed);
   nodes_searched=0;
   next_time_check=nodes_between_time_checks;
   evaluations=0;
@@ -74,7 +74,7 @@ int Iterate(int wtm)
   root_value=-MATE-1;
   root_beta=MATE+1;
   root_wtm=wtm;
-  Pre_Evaluate(wtm,0);
+  PreEvaluate(wtm);
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -89,17 +89,28 @@ int Iterate(int wtm)
 */
   first[0]=move_list;
   last[0]=move_list;
-  Root_Move_List(wtm);
+  if (search_type != booking) RootMoveList(wtm);
   if (first[1] == last[1]) {
-    pv[0].path_length=0;
+    program_end_time=GetTime(time_type);
+    pv[1].path_length=0;
     if (Check(1,wtm)) {
       root_value=-(MATE-1);
       last_search_value=-(MATE-1);
     }
     else {
-      root_value=Draw_Score();
-      last_search_value=Draw_Score();
+      root_value=DrawScore();
+      last_search_value=DrawScore();
     }
+    nodes_searched=1;
+    return(root_value);
+  }
+  if (first[1] == (last[1]-1)) {
+    program_end_time=GetTime(time_type);
+    pv[1].path_length=1;
+    pv[1].path_hashed=0;
+    pv[1].path_iteration_depth=0;
+    pv[1].path[1]=*first[1];
+    nodes_searched=1;
     return(root_value);
   }
 /*
@@ -121,7 +132,7 @@ int Iterate(int wtm)
  ----------------------------------------------------------
 */
 
-  Time_Set();
+  TimeSet(search_type);
   nodes_between_time_checks=nodes_per_second;
   nodes_between_time_checks=Min(nodes_between_time_checks,50000);
   if (time_limit < 10) nodes_between_time_checks/=20;
@@ -131,11 +142,11 @@ int Iterate(int wtm)
     iteration_depth=pv[0].path_iteration_depth+1;
   Print(2,"              depth   time   value    variation (%d)\n",
         iteration_depth);
-  if (!Book(wtm,1)) {
-    program_start_time=Get_Time(time_type);
-    start_time=Get_Time(time_type);
-    cpu_start=Get_Time(cpu);
-    elapsed_start=Get_Time(elapsed);
+  if ((search_type==booking) || !Book(wtm,1)) {
+    program_start_time=GetTime(time_type);
+    start_time=GetTime(time_type);
+    cpu_start=GetTime(cpu);
+    elapsed_start=GetTime(elapsed);
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -146,18 +157,11 @@ int Iterate(int wtm)
 */
     draft=iteration_depth-1;
     if (draft) {
-      pv[1]=pv[0];
       twtm=wtm;
       for (i=1;i<=pv[0].path_length;i++) {
-        pv[i+1]=pv[i];
-        positional_evaluation[i]=0;
-        Make_Move(i,pv[0].path[i],twtm);
-        if (i & 1)
-          Store_Best(i, -50, twtm, last_search_value,
-                     last_search_value-1);
-        else
-          Store_Best(i, -50, twtm, -last_search_value,
-                     -last_search_value-1);
+        pv[i]=pv[i-1];
+        MakeMove(i,pv[0].path[i],twtm);
+        StorePV(i, twtm);
         twtm=!twtm;
       }
     }
@@ -169,22 +173,13 @@ int Iterate(int wtm)
       }
       for (mvp=first[1];mvp<last[1];mvp++)
         searched_this_root_move[mvp-first[1]]=0;
-      failed_high=0;
-      failed_low=0;
+      search_failed_high=0;
+      search_failed_low=0;
       while (!time_abort && !abort_search) {
         value=Search(root_alpha, root_beta, wtm, iteration_depth, 1, 1, 1);
-        if ((value >= root_beta) && (root_beta == root_value+1)) {
-          failed_high=1;
-          failed_low=0;
-          root_alpha=root_beta-1;
-          root_value=root_alpha;
-          root_beta=root_beta+400;
-          searched_this_root_move[0]=0;
-          if(root_beta > MATE-100) root_beta=100000;
-        }
-        else if (value >= root_beta) {
-          failed_high=1;
-          failed_low=0;
+        if (value >= root_beta) {
+          search_failed_high=1;
+          search_failed_low=0;
           root_alpha=root_beta-1;
           root_value=root_alpha;
           root_beta=100000;
@@ -195,18 +190,17 @@ int Iterate(int wtm)
           for (i=0;i<last[1]-first[1];i++)
             if (searched_this_root_move[i]) ndone++;
           if ((ndone == (last[1]-first[1])) && (last[1] > first[1]+1)) break;
-          if ((ndone == 1) && (!failed_high)) {
-            failed_high=0;
-            failed_low=1;
+          if ((ndone == 1) && (!search_failed_high)) {
+            search_failed_high=0;
+            search_failed_low=1;
             root_alpha=-100000;
             root_value=root_alpha;
             searched_this_root_move[0]=0;
             easy_move=0;
-            if ((nodes_searched > noise_level) && 
-                (!time_abort && !abort_search)) {
+            if ((nodes_searched > noise_level) && (!time_abort && !abort_search)) {
               Print(2,"               %2i   %s      --   ",iteration_depth,
-                    Display_Time(Get_Time(time_type)-start_time));
-              Print(2," %s\n",Output_Move(&current_move[1],1,wtm));
+                    DisplayTime(GetTime(time_type)-start_time));
+              Print(2," %s\n",OutputMove(&current_move[1],1,wtm));
             }
           }
         }
@@ -227,28 +221,24 @@ int Iterate(int wtm)
  ----------------------------------------------------------
 */
       twtm=wtm;
-      if (!time_abort  && !abort_search &&
-          (nodes_searched > noise_level)) {
-        end_time=Get_Time(time_type);
+      if (!time_abort  && !abort_search && (nodes_searched > noise_level)) {
+        end_time=GetTime(time_type);
         Print(3,"               %2i-> %s%s   ",iteration_depth,
-              Display_Time(end_time-start_time), Display_Evaluation(value));
+              DisplayTime(end_time-start_time), DisplayEvaluation(value));
       }
       if (value != -(MATE-1)) {
         more=1;
         draft=iteration_depth;
         for (i=1;i<=pv[1].path_length;i++) {
           pv[i+1]=pv[i];
-          positional_evaluation[i]=0;
-          if (!time_abort && !abort_search &&
-              (nodes_searched > noise_level)) {
+          if (!time_abort && !abort_search && (nodes_searched > noise_level)) {
             if (!more) Print(3,"                                     ");
-            Print(3," %s",Output_Move(&pv[1].path[i],i,twtm));
+            Print(3," %s",OutputMove(&pv[1].path[i],i,twtm));
 #if !defined(FAST)
             if (show_extensions && pv_extensions[1].extensions[i]) {
               int j,k;
               for (j=1,k=0;j<16;j=j<<1,k++)
-                if (pv_extensions[1].extensions[i]&j)
-                  Print(2,"%c",ext_char[k]);
+                if (pv_extensions[1].extensions[i]&j) Print(2,"%c",ext_char[k]);
             }
 #endif
             more=1;
@@ -257,18 +247,13 @@ int Iterate(int wtm)
               more=0;
             }
           }
-          Make_Move(i,pv[1].path[i],twtm);
+          MakeMove(i,pv[1].path[i],twtm);
           material=Material(i+1)/PAWN_VALUE;
-          if(!time_abort && !abort_search)
-            if (i & 1)
-              Store_Best(i, -50, twtm, value, value-1);
-            else
-              Store_Best(i, -50, twtm, -value, -value-1);
+          if(!time_abort && !abort_search) StorePV(i, twtm);
           twtm=!twtm;
         }
       }
-      if (!time_abort && !abort_search &&
-          (nodes_searched > noise_level)) {
+      if (!time_abort && !abort_search && (nodes_searched > noise_level)) {
         if(pv[1].path_hashed) {
           if (!more) Print(3,"                                     ");
           Print(3," ...");
@@ -278,7 +263,7 @@ int Iterate(int wtm)
       }
 /*
       Print(11,"              time:%s  n:%d/%d  maxd:%d\n",
-            Display_Time(end_time-start_time), nodes_searched, 
+            DisplayTime(end_time-start_time), nodes_searched, 
             evaluations, max_search_depth);
 */
       root_alpha=value-400;
@@ -287,7 +272,7 @@ int Iterate(int wtm)
       if ((value > MATE-100) && (value > last_mate_score)) break;
       if ((iteration_depth >= search_depth) && search_depth) break;
       if (time_abort || abort_search) break;
-      end_time=Get_Time(time_type)-start_time;
+      end_time=GetTime(time_type)-start_time;
       if (thinking) {
         if (end_time >= time_limit) break;
       }
@@ -306,14 +291,14 @@ int Iterate(int wtm)
       if (!And((trans_ref_b+i)->word1,mask_1)) used_w++;
       if (!And((trans_ref_w+i)->word1,mask_1)) used_b++;
     }
-    end_time=Get_Time(time_type);
+    end_time=GetTime(time_type);
     time_used=(end_time-start_time);
     if (time_used < 10) time_used=10;
-    cpu_end=Get_Time(cpu)-cpu_start;
+    cpu_end=GetTime(cpu)-cpu_start;
     cpu_end=(cpu_end > 0) ? cpu_end : 1;
-    elapsed_end=Get_Time(elapsed)-elapsed_start;
+    elapsed_end=GetTime(elapsed)-elapsed_start;
     if (elapsed_end) {
-      cpu_percent=100*cpu_end/elapsed_end;
+      cpu_percent=Min(100*cpu_end/elapsed_end,100);
     }
     else {
       cpu_percent=100;
@@ -324,7 +309,7 @@ int Iterate(int wtm)
     if (!abort_search || time_abort) {
       if (!wtm) material=-material;
       Print(4,"              time:%s  cpu:%d%%  mat:%d",
-            Display_Time(end_time-start_time), cpu_percent, material); 
+            DisplayTime(end_time-start_time), cpu_percent, material); 
       Print(4,"  n:%d/%d  maxd:%d  nps:%d\n",
             nodes_searched, evaluations, max_search_depth, nodes_per_second);
       Print(5,"              ext-> checks:%d recaps:%d pawns:%d\n",
@@ -346,14 +331,13 @@ int Iterate(int wtm)
             nodes_searched_null_move-nodes_searched_null_move_wasted,
             null_moves_wasted,nodes_searched_null_move_wasted);
     }
-    if (abs(root_value) > MATE-100) last_mate_score=root_value;
   }
   else {
     root_value=0;
     last_search_value=0;
     last_move_in_book=move_number;
   }
-  pv[0]=pv[1];
-  program_end_time=Get_Time(time_type);
+  program_end_time=GetTime(time_type);
+  if (abs(last_search_value) > (MATE-100)) last_mate_score=last_search_value;
   return(last_search_value);
 }

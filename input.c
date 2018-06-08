@@ -7,18 +7,18 @@
 /*
 ********************************************************************************
 *                                                                              *
-*   Input_Move() is responsible for converting a move from a text string to    *
+*   InputMove() is responsible for converting a move from a text string to     *
 *   the internal move format.  it allows the so-called "reduced algebraic      *
 *   move format" which makes the origin square optional unless required for    *
 *   clarity.  it also accepts as little as required to remove ambiguity from   *
-*   the move, by using Generate_Moves() to produce a set of legal moves        *
+*   the move, by using GenerateMoves() to produce a set of legal moves         *
 *   that the text can be applied against to eliminate those moves not          *
 *   intended.  hopefully, only one move will remain after the elimination      *
 *   and legality checks.                                                       *
 *                                                                              *
 ********************************************************************************
 */
-int Input_Move(char *text, int ply, int wtm, int silent)
+int InputMove(char *text, int ply, int wtm, int silent)
 {
   int moves[200], *mv, *mvp, *goodmove;
   BITBOARD target;
@@ -27,8 +27,8 @@ int Input_Move(char *text, int ply, int wtm, int silent)
   int current, i, nleft, ambig;
   char *goodchar;
   char movetext[10];
-  char pieces[15]={' ',' ','P','p','N','n','B','b',
-                   'R','r','Q','q','K','k','\0'};
+  char pieces[17]={' ',' ','P','p','N','n','K','k',' ',' ',
+                   'B','b','R','r','Q','q','\0'};
 /*
    check for fully-qualified input (f1e1) and handle if needed.
 */
@@ -37,7 +37,7 @@ int Input_Move(char *text, int ply, int wtm, int silent)
         (text[1] >= '1') && (text[1] <= '8') &&
         (text[2] >= 'a') && (text[2] <= 'h') &&
         (text[3] >= '1') && (text[3] <= '8'))
-    return(Input_Move_ICS(text,ply,wtm,silent));
+    return(InputMoveICS(text,ply,wtm,silent));
   }
 /*
    initialize move structure in case an error is found
@@ -63,7 +63,7 @@ int Input_Move(char *text, int ply, int wtm, int silent)
   if (!strcmp(movetext,"o-o") || !strcmp(movetext,"o-o+") ||
       !strcmp(movetext,"O-O") || !strcmp(movetext,"O-O+") ||
       !strcmp(movetext,"0-0") || !strcmp(movetext,"0-0+")) {
-    piece=6;
+    piece=king;
     if(wtm) {
       ffile=4;
       frank=0;
@@ -81,7 +81,7 @@ int Input_Move(char *text, int ply, int wtm, int silent)
     if (!strcmp(movetext,"o-o-o") || !strcmp(movetext,"o-o-o+") ||
 		!strcmp(movetext,"O-O-O") || !strcmp(movetext,"O-O-O+") ||
         !strcmp(movetext,"0-0-0") || !strcmp(movetext,"0-0-0+")) {
-      piece=6;
+      piece=king;
       if(wtm) {
         ffile=4;
         frank=0;
@@ -188,10 +188,10 @@ int Input_Move(char *text, int ply, int wtm, int silent)
   }
   if (!piece) piece=1;
   if (wtm)
-    target=Compl(White_Pieces(MAXPLY));
+    target=Compl(WhitePieces(MAXPLY));
   else
-    target=Compl(Black_Pieces(MAXPLY));
-  mvp=Generate_Moves(MAXPLY, 1, wtm, target, 1, moves);
+    target=Compl(BlackPieces(MAXPLY));
+  mvp=GenerateMoves(MAXPLY, 1, wtm, target, 1, moves);
   for (mv=&moves[0];mv<mvp;mv++) {
     if (!ambig) {
       if (piece && (Piece(*mv) != piece)) *mv=0;
@@ -209,7 +209,7 @@ int Input_Move(char *text, int ply, int wtm, int silent)
     if ((tfile >= 0)  && ((To(*mv) & 7) != tfile)) *mv=0;
     if ((trank >= 0)  && ((To(*mv) / 8) != trank)) *mv=0;
     if (*mv) {
-      Make_Move(MAXPLY, *mv, wtm);
+      MakeMove(MAXPLY, *mv, wtm);
       if(Check(MAXPLY+1,wtm)) *mv=0;
       if (give_check && Check(MAXPLY+1,wtm)) *mv=0;
     }
@@ -252,12 +252,12 @@ int Input_Move(char *text, int ply, int wtm, int silent)
 /*
 ********************************************************************************
 *                                                                              *
-*   Input_Move_ICS() is responsible for converting a move from the ics format  *
+*   InputMoveICS() is responsible for converting a move from the ics format    *
 *   [from][to][promote] to the program's internal format.                      *
 *                                                                              *
 ********************************************************************************
 */
-int Input_Move_ICS(char *text, int ply, int wtm, int silent)
+int InputMoveICS(char *text, int ply, int wtm, int silent)
 {
   int moves[200], *mv, *mvp, *goodmove;
   BITBOARD target;
@@ -265,8 +265,8 @@ int Input_Move_ICS(char *text, int ply, int wtm, int silent)
   int ffile, frank, tfile, trank;
   int nleft;
   char movetext[10];
-  char pieces[15]={' ',' ','P','p','N','n','B','b',
-                   'R','r','Q','q','K','k','\0'};
+  char pieces[17]={' ',' ','P','p','N','n','K','k',' ',' ',
+                   'B','b','R','r','Q','q','\0'};
 /*
    initialize move structure in case an error is found
 */
@@ -279,7 +279,7 @@ int Input_Move_ICS(char *text, int ply, int wtm, int silent)
    do is eliminate castling moves
 */
   if (!strcmp(movetext,"o-o") || !strcmp(movetext,"O-O")) {
-    piece=6;
+    piece=king;
     if(wtm) {
       ffile=4;
       frank=0;
@@ -295,7 +295,7 @@ int Input_Move_ICS(char *text, int ply, int wtm, int silent)
   }
   else 
     if (!strcmp(movetext,"o-o-o") || !strcmp(movetext,"O-O-O")) {
-      piece=6;
+      piece=king;
       if(wtm) {
         ffile=4;
         frank=0;
@@ -327,10 +327,10 @@ int Input_Move_ICS(char *text, int ply, int wtm, int silent)
     }
   }
   if (wtm)
-    target=Compl(White_Pieces(MAXPLY));
+    target=Compl(WhitePieces(MAXPLY));
   else
-    target=Compl(Black_Pieces(MAXPLY));
-  mvp=Generate_Moves(MAXPLY, 1, wtm, target, 1, moves);
+    target=Compl(BlackPieces(MAXPLY));
+  mvp=GenerateMoves(MAXPLY, 1, wtm, target, 1, moves);
   for (mv=&moves[0];mv<mvp;mv++) {
     if (promote && (Promote(*mv) != promote)) *mv=0;
     if ((frank >= 0)  && ((From(*mv) / 8) != frank)) *mv=0;
@@ -338,7 +338,7 @@ int Input_Move_ICS(char *text, int ply, int wtm, int silent)
     if ((trank >= 0)  && ((To(*mv) / 8) != trank)) *mv=0;
     if ((tfile >= 0)  && ((To(*mv) & 7) != tfile)) *mv=0;
     if (*mv) {
-      Make_Move(MAXPLY, *mv, wtm);
+      MakeMove(MAXPLY, *mv, wtm);
       if(Check(MAXPLY+1,wtm)) *mv=0;
     }
   }

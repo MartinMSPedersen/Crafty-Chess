@@ -27,7 +27,7 @@
 *       8    unused  56  currently the final 8 bits are unused.                *
 *       8     draft  48  the depth of the search below this position, which is *
 *                        used to see if we can use this entry at the current   *
-*                        position.  (+128 to make it positive.)                *
+*                        position.                                             *
 *      48       key   0  leftmost 48 bits of the 64 bit hash key.  this is     *
 *                        used to "verify" that this entry goes with the        *
 *                        current board position.                               *
@@ -36,38 +36,26 @@
 */
 int Lookup(int ply, int depth, int wtm, int *value, int alpha, int beta)
 {
-  BITBOARD temp_hash_key;
-  HASH_ENTRY *htable;
-  int i, found, rehash;
-  int draft, type, val;
+  register BITBOARD temp_hash_key;
+  register HASH_ENTRY *htable;
+  register int i, found, rehash;
+  register int draft, type, val;
 /*
  ----------------------------------------------------------
 |                                                          |
-|   first, "adjust" the hash key to include both castling  |
-|   status and en passant status.                          |
+|   first, compute the initial hash address and choose     |
+|   which hash table (based on color) to probe.            |
 |                                                          |
  ----------------------------------------------------------
 */
-  positional_evaluation[ply]=0;
+  static_eval[ply]=0;
   hash_move[ply]=0;
   if (!trans_ref_w) return(worthless);
-  temp_hash_key=Hash_Key(ply);
-  if (EnPassant_Target(ply))
-    temp_hash_key=Xor(Hash_Key(ply),
-                      enpassant_random[First_One(
-                        EnPassant_Target(ply))]);
-  if (White_Castle(ply))
-    temp_hash_key=Xor(temp_hash_key,
-                      castle_random_w[(int) White_Castle(ply)]);
-  if (Black_Castle(ply))
-    temp_hash_key=Xor(temp_hash_key,
-                      castle_random_b[(int) Black_Castle(ply)]);
-  if (wtm)
-    htable=trans_ref_w+And(temp_hash_key,hash_mask);
-  else
-    htable=trans_ref_b+And(temp_hash_key,hash_mask);
+  temp_hash_key=HashKey(ply);
+  if (wtm) htable=trans_ref_w+And(temp_hash_key,hash_mask);
+  else htable=trans_ref_b+And(temp_hash_key,hash_mask);
   rehash=And(Shiftr(temp_hash_key,log_hash_table_size),mask_118)+1;
-
+  temp_hash_key=temp_hash_key>>16;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -78,7 +66,7 @@ int Lookup(int ply, int depth, int wtm, int *value, int alpha, int beta)
 */
   found=0;
   for (i=0;i<4;i++) {
-    if (!Xor(And(htable->word2,mask_80),Shiftr(temp_hash_key,16))) {
+    if (!Xor(And(htable->word2,mask_80),temp_hash_key)) {
       found=1;
       break;
     }
@@ -97,11 +85,9 @@ int Lookup(int ply, int depth, int wtm, int *value, int alpha, int beta)
 |                                                          |
  ----------------------------------------------------------
 */
-  positional_evaluation[ply]=And(Shiftr(htable->word1,21),
-                                  mask_108)-131072;
+  static_eval[ply]=((int) And(Shiftr(htable->word1,21),mask_108))-131072;
   hash_move[ply]=And(htable->word1,mask_107);
-  if (hash_move[ply])
-    (void) Valid_Move(ply,wtm,hash_move[ply]);
+  if (hash_move[ply]) (void) ValidMove(ply,wtm,hash_move[ply]);
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -113,10 +99,10 @@ int Lookup(int ply, int depth, int wtm, int *value, int alpha, int beta)
  ----------------------------------------------------------
 */
   if (depth < 0) depth=0;
-  draft=Shiftr(htable->word2,48) & 255;
+  draft=((int) Shiftr(htable->word2,48)) & 255;
   if (depth > draft) return(worthless);
-  type=Shiftr(htable->word1,61) & 3;
-  val=And(Shiftr(htable->word1,41),mask_108)-131072;
+  type=((int) Shiftr(htable->word1,61)) & 3;
+  val=((int) And(Shiftr(htable->word1,41),mask_108))-131072;
   switch (type) {
 /*
  ----------------------------------------------------------
@@ -138,23 +124,15 @@ int Lookup(int ply, int depth, int wtm, int *value, int alpha, int beta)
 |                                                          |
  ----------------------------------------------------------
 */
-    case backed_up_value:
+    case good_score:
       transposition_hashes_value++;
       if (abs(val) > MATE-100) {
-        if (val > 0) 
-          val-=(ply-1);
-        else
-          val+=(ply-1);
+        if (val > 0) val-=(ply-1);
+        else val+=(ply-1);
       }
-      if (val >= beta)
-        *value=beta;
-      else {
-        if (current_move[ply-1] != 0)
-          *value=val;
-        else
-          return(worthless);
-      }
-      return(backed_up_value);
+      if (val >= beta) *value=beta;
+      else *value=val;
+      return(good_score);
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -167,12 +145,10 @@ int Lookup(int ply, int depth, int wtm, int *value, int alpha, int beta)
 |                                                          |
  ----------------------------------------------------------
 */
-    case backed_up_bound:
+    case failed_low:
       transposition_hashes_bound++;
-      if (val <= alpha) 
-        return(backed_up_bound);
-      else
-        return(worthless);
+      if (val <= alpha) return(failed_low);
+      else return(worthless);
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -185,12 +161,10 @@ int Lookup(int ply, int depth, int wtm, int *value, int alpha, int beta)
 |                                                          |
  ----------------------------------------------------------
 */
-    case cutoff_bound:
+    case failed_high:
       transposition_hashes_cutoff++;
-      if (val >= beta) 
-        return(cutoff_bound);
-      else
-        return(worthless);
+      if (val >= beta) return(failed_high);
+      else return(worthless);
   }
   return(worthless);
 }

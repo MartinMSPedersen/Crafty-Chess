@@ -15,8 +15,8 @@
 */
 int Quiesce(int alpha, int beta, int wtm, int depth, int ply)
 {
-  int save_alpha, value;
-  int i, result;
+  register int save_alpha, value;
+  register int i, result;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -29,11 +29,11 @@ int Quiesce(int alpha, int beta, int wtm, int depth, int ply)
   full[ply]=0;
   in_check[ply]=0;
   extended_reason[ply]=no_extension;
-  positional_evaluation[ply]=0;
+  static_eval[ply]=0;
   if (nodes_searched > next_time_check) {
     next_time_check=nodes_searched+nodes_between_time_checks;
-    if (Check_Input()) Interrupt(ply);
-    time_abort+=Time_Check();
+    if (CheckInput()) Interrupt(ply);
+    time_abort+=TimeCheck();
     if (time_abort) {
       abort_search=1;
       return(0);
@@ -49,14 +49,14 @@ int Quiesce(int alpha, int beta, int wtm, int depth, int ply)
 |   better alpha or beta value, or, at least a good move   |
 |   to try first.  there are three cases to handle:        |
 |                                                          |
-|   1.  lookup returned "backed_up_value" which means the  |
+|   1.  lookup returned "good_score" which means the       |
 |   value returned is a good score.  if this good score is |
 |   greater than beta, return beta.  otherwise, return the |
 |   score.  In either case, no further searching is needed |
 |   from this position.  note that lookup verified that    |
 |   the table position has sufficient "draft" to meet the  |
 |   requirements of the current search depth remaining.    |
-|   2.  lookup returned "backed_up_bound" which means that |
+|   2.  lookup returned "failed_low" which means that      |
 |   when this position was searched previously, every move |
 |   was "refuted" by one of its descendents.  as a result, |
 |   when the search was completed, we returned alpha at    |
@@ -64,7 +64,7 @@ int Quiesce(int alpha, int beta, int wtm, int depth, int ply)
 |   to return a value <= that "old" alpha, we simply need  |
 |   to make sure that the "old" alpha is <= the current    |
 |   alpha to make sure that we can still stop searching.   |
-|   3.  lookup returned "cutoff_bound" which means that    |
+|   3.  lookup returned "failed_high" which means that     |
 |   when we encountered this position before, we searched  |
 |   one branch (probably) which promptly refuted the move  |
 |   at the previous ply.  we returned beta the last time   |
@@ -84,7 +84,7 @@ int Quiesce(int alpha, int beta, int wtm, int depth, int ply)
       printf("Lookup() returned %d at ply=%d\n",result,ply);
 #endif
     switch (result) {
-      case backed_up_value:
+      case good_score:
         if(alpha >= beta) return(beta);
         else {
           for (i=1;i<ply;i++) pv[ply-1].path[i]=current_move[i];
@@ -95,20 +95,20 @@ int Quiesce(int alpha, int beta, int wtm, int depth, int ply)
           pv[ply-1].path_length=ply-1;
           pv[ply-1].path_hashed=1;
           pv[ply-1].path_iteration_depth=iteration_depth;
-          if (ply == 2) Search_Output(wtm,-alpha,-save_alpha);
+          if (ply == 2) SearchOutput(wtm,-alpha,-save_alpha);
           return(alpha);
         }
-      case backed_up_bound:
-        if (ply == 2) Search_Output(wtm,-alpha,-save_alpha);
+      case failed_low:
+        if (ply == 2) SearchOutput(wtm,-alpha,-save_alpha);
         return(alpha);
-      case cutoff_bound:
+      case failed_high:
         return(beta);
     }
   }
 /*
  ----------------------------------------------------------
 |                                                          |
-|   if in check, use Quiesce_Full() search code to escape. |
+|   if in check, use QuiesceFull() search code to escape.  |
 |   make sure that all moves in the quiescence search have |
 |   been checks, otherwise any mates found aren't forced   |
 |   and this would waste time avoiding something that is   |
@@ -119,10 +119,10 @@ int Quiesce(int alpha, int beta, int wtm, int depth, int ply)
   if ((depth >= -1) || in_check[ply-2])
     if (Check(ply,wtm)) {
       in_check[ply]=1;
-      value=Quiesce_Full(alpha,beta,wtm,depth,ply);
+      value=QuiesceFull(alpha,beta,wtm,depth,ply);
       return(value);
     }
-  repetition_list[repetition_head+ply]=Hash_Key(ply);
+  repetition_list[repetition_head+ply]=HashKey(ply);
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -155,7 +155,7 @@ int Quiesce(int alpha, int beta, int wtm, int depth, int ply)
  ----------------------------------------------------------
 |                                                          |
 |   now iterate through the move list and search the       |
-|   resulting positions.  note that Search() culls any     |
+|   resulting positions.  note that Quiesce() culls any    |
 |   move that is not legal by using Check().  the special  |
 |   case is that we must find one legal move to search to  |
 |   confirm that it's not a mate or draw.                  |
@@ -166,30 +166,29 @@ int Quiesce(int alpha, int beta, int wtm, int depth, int ply)
   next_status[ply].phase=hash_capture_move;
   first[ply]=last[ply-1]+1;
   last[ply]=first[ply];
-  while ((current_phase[ply]=Next_Capture(ply,wtm,depth))) {
+  while ((current_phase[ply]=NextCapture(ply,wtm,depth))) {
 #if !defined(FAST)
     if (ply <= trace_level) {
       for (i=1;i<ply;i++) printf("  ");
       printf("%d  %s d:%d [%s,",ply,
-             Output_Move(&current_move[ply],ply,wtm),depth,
-             Display_Evaluation(alpha));
-      printf("%s] n:%d [q-%d]\n", Display_Evaluation(beta),
+             OutputMove(&current_move[ply],ply,wtm),depth,
+             DisplayEvaluation(alpha));
+      printf("%s] n:%d [q-%d]\n", DisplayEvaluation(beta),
              nodes_searched,current_phase[ply]);
     }
 #endif
-    Make_Move(ply,current_move[ply],wtm);
+    MakeMove(ply,current_move[ply],wtm);
     if (!Check(ply+1,wtm)) {
 #if defined(DEBUG)
-      if (!Valid_Move(ply,wtm,current_move[ply]))
+      if (!ValidMove(ply,wtm,current_move[ply]))
         printf("Quiesce() searching an illegal move at ply %d\n",ply);
-      Validate_Position(ply+1);
-      Validate_Hash_Key(ply);
+      ValidatePosition(ply+1);
 #endif
       value=-Quiesce(-beta,-alpha,!wtm,depth-1,ply+1);
       if (abort_search) return(0);
       if (value > alpha) {
         if(value >= beta) {
-          Store_Refutation(ply,depth,wtm,beta);
+          StoreRefutation(ply,depth,wtm,beta);
           return(beta);
         }
         alpha=value;
@@ -202,27 +201,27 @@ int Quiesce(int alpha, int beta, int wtm, int depth, int ply)
     if (show_extensions) pv_extensions[ply-1]=pv_extensions[ply];
 #endif
   }
-  if (ply == 2) Search_Output(wtm,-alpha,-save_alpha);
-  Store_Best(ply,depth,wtm,alpha,save_alpha);
+  if (ply == 2) SearchOutput(wtm,-alpha,-save_alpha);
+  StoreBest(ply,depth,wtm,alpha,save_alpha);
   return(alpha);
 }
 
 /*
 ********************************************************************************
 *                                                                              *
-*   Quiesce_Full() is the recursive routine used to implement the alpha/beta   *
-*   negamax search (similar to minimax but simpler to code.)  Quiesce_Full()   *
+*   QuiesceFull() is the recursive routine used to implement the alpha/beta    *
+*   negamax search (similar to minimax but simpler to code.)  QuiesceFull()    *
 *   is called from Quiesce() whenever the side-to-move is in check.            *
-*   Quiesce_Full() searches all successor positions rather than choosing       *
+*   QuiesceFull() searches all successor positions rather than choosing        *
 *   all successor branches to avoid a potential checkmate condition.           *
 *                                                                              *
 ********************************************************************************
 */
-int Quiesce_Full(int alpha, int beta, int wtm, int depth, int ply)
+int QuiesceFull(int alpha, int beta, int wtm, int depth, int ply)
 {
-  int no_legal_moves = 1;
-  int save_alpha, value;
-  int i;
+  register int no_legal_moves = 1;
+  register int save_alpha, value;
+  register int i;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -239,9 +238,9 @@ int Quiesce_Full(int alpha, int beta, int wtm, int depth, int ply)
 |                                                          |
  ----------------------------------------------------------
 */
-  if (Repetition_Check(ply)) {
-    if (wtm == root_wtm) value=Draw_Score();
-    else value=-Draw_Score();
+  if (RepetitionCheck(ply)) {
+    if (wtm == root_wtm) value=DrawScore();
+    else value=-DrawScore();
     if (value < beta) {
       for (i=1;i<ply;i++) pv[ply-1].path[i]=current_move[i];
 #if !defined(FAST)
@@ -251,7 +250,7 @@ int Quiesce_Full(int alpha, int beta, int wtm, int depth, int ply)
       pv[ply-1].path_length=ply-1;
       pv[ply-1].path_hashed=0;
       pv[ply-1].path_iteration_depth=iteration_depth;
-      if (ply == 2) Search_Output(wtm,-value,-save_alpha);
+      if (ply == 2) SearchOutput(wtm,-value,-save_alpha);
     }
 #if !defined(FAST)
     if(ply <= trace_level) printf("draw by repetition detected, ply=%d.\n",ply);
@@ -261,7 +260,7 @@ int Quiesce_Full(int alpha, int beta, int wtm, int depth, int ply)
 /*
  ----------------------------------------------------------
 |                                                          |
-|   initialize.  set Next_Move() status to 0 so it will    |
+|   initialize.  set NextMove() status to 0 so it will     |
 |   know what has to be done.                              |
 |                                                          |
  ----------------------------------------------------------
@@ -274,39 +273,38 @@ int Quiesce_Full(int alpha, int beta, int wtm, int depth, int ply)
  ----------------------------------------------------------
 |                                                          |
 |   now iterate through the move list and search the       |
-|   resulting positions.  note that Search() culls any     |
+|   resulting positions.  note that Quiesce() culls any    |
 |   move that is not legal by using Check().  the special  |
 |   case is that we must find one legal move to search to  |
 |   confirm that it's not a mate or draw.                  |
 |                                                          |
  ----------------------------------------------------------
 */
-  while ((current_phase[ply]=Next_Move(depth,ply,wtm))) {
+  while ((current_phase[ply]=NextMove(depth,ply,wtm))) {
 #if !defined(FAST)
     if (ply <= trace_level) {
       for (i=1;i<ply;i++) printf("  ");
       printf("%d  %s d:%d [%s,",ply,
-             Output_Move(&current_move[ply],ply,wtm),depth,
-             Display_Evaluation(alpha));
-      printf("%s] n:%d [qf-%d]\n", Display_Evaluation(beta),
+             OutputMove(&current_move[ply],ply,wtm),depth,
+             DisplayEvaluation(alpha));
+      printf("%s] n:%d [qf-%d]\n", DisplayEvaluation(beta),
              nodes_searched,current_phase[ply]);
     }
 #endif
-    Make_Move(ply,current_move[ply],wtm);
+    MakeMove(ply,current_move[ply],wtm);
     if (!Check(ply+1,wtm)) {
 #if defined(DEBUG)
-      if (!Valid_Move(ply,wtm,current_move[ply]))
-        printf("Quiesce_Full() searching an illegal move at ply %d\n",ply);
-      Validate_Position(ply+1);
-      Validate_Hash_Key(ply);
+      if (!ValidMove(ply,wtm,current_move[ply]))
+        printf("QuiesceFull() searching an illegal move at ply %d\n",ply);
+      ValidatePosition(ply+1);
 #endif
       value=-Quiesce(-beta,-alpha,!wtm,depth-1,ply+1);
       if (abort_search) return(0);
       no_legal_moves=0;
       if (value > alpha) {
         if(value >= beta) {
-          History_Refutation(ply,depth,wtm);
-          Store_Refutation(ply,depth,wtm,beta);
+          HistoryRefutation(ply,depth,wtm);
+          StoreRefutation(ply,depth,wtm,beta);
           return(beta);
         }
         alpha=value;
@@ -339,10 +337,9 @@ int Quiesce_Full(int alpha, int beta, int wtm, int depth, int ply)
       pv[ply-1].path_length=ply-1;
       pv[ply-1].path_hashed=0;
       pv[ply-1].path_iteration_depth=iteration_depth;
-      if (ply == 2) Search_Output(wtm,MATE-ply,-save_alpha);
+      if (ply == 2) SearchOutput(wtm,MATE-ply,-save_alpha);
 #if !defined(FAST)
-      if (ply <= trace_level)
-        printf("Quiesce_Full() checkmate!  ply=%d\n",ply);
+      if (ply <= trace_level) printf("QuiesceFull() checkmate!  ply=%d\n",ply);
 #endif
       return(-(MATE-ply));
     }
@@ -353,8 +350,8 @@ int Quiesce_Full(int alpha, int beta, int wtm, int depth, int ply)
 |                                                |
  ------------------------------------------------
 */
-    if (wtm == root_wtm) value=Draw_Score();
-    else value=-Draw_Score();
+    if (wtm == root_wtm) value=DrawScore();
+    else value=-DrawScore();
     if(value > beta) value=beta;
     else if (value < alpha) value=alpha;
     if (value >=alpha && value <beta) {
@@ -366,7 +363,7 @@ int Quiesce_Full(int alpha, int beta, int wtm, int depth, int ply)
       pv[ply-1].path_length=ply-1;
       pv[ply-1].path_hashed=0;
       pv[ply-1].path_iteration_depth=iteration_depth;
-      if (ply == 2) Search_Output(wtm,-value,-save_alpha);
+      if (ply == 2) SearchOutput(wtm,-value,-save_alpha);
     }
 #if !defined(FAST)
     if(ply <= trace_level) printf("stalemate!  ply=%d.\n",ply);
@@ -378,9 +375,9 @@ int Quiesce_Full(int alpha, int beta, int wtm, int depth, int ply)
 #if !defined(FAST)
     if (show_extensions) pv_extensions[ply-1]=pv_extensions[ply];
 #endif
-    if (ply == 2) Search_Output(wtm,-alpha,-save_alpha);
-    if (alpha != save_alpha) History_Best(ply,depth,wtm);
-    Store_Best(ply,depth,wtm,alpha,save_alpha);
+    if (ply == 2) SearchOutput(wtm,-alpha,-save_alpha);
+    if (alpha != save_alpha) HistoryBest(ply,depth,wtm);
+    StoreBest(ply,depth,wtm,alpha,save_alpha);
     return(alpha);
   }
 }

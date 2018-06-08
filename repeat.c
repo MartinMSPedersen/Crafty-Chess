@@ -6,25 +6,25 @@
 /*
 ********************************************************************************
 *                                                                              *
-*   Repetition_Check() is used to detect a draw by repetition.  it saves the   *
+*   RepetitionCheck() is used to detect a draw by repetition.  it saves the    *
 *   current position in the repetition list each time it is called.  the list  *
 *   contains all positions encountered since the last irreversible move        *
 *   (capture or pawn push).                                                    *
 *                                                                              *
-*   Repetition_Check() then scans the list to determine if this position has   *
+*   RepetitionCheck() then scans the list to determine if this position has    *
 *   occurred before.  if so, the position will be treated as a draw by         *
 *   Search().                                                                  *
 *                                                                              *
-*   Repetition_Check() also handles 50-move draws.  the position[] structure   *
+*   RepetitionCheck() also handles 50-move draws.  the position[] structure    *
 *   countains the count of moves since the last capture or pawn push.  when    *
 *   this value reaches 100 (plies, which is 50 moves) the score is set to      *
 *   DRAW.                                                                      *
 *                                                                              *
 ********************************************************************************
 */
-int Repetition_Check(int ply)
+int RepetitionCheck(int ply)
 {
-  int i, this_position, more;
+  register int i, this_position, more, reps, search_list;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -34,7 +34,7 @@ int Repetition_Check(int ply)
  ----------------------------------------------------------
 */
   this_position=repetition_head+ply-1;
-  repetition_list[this_position]=Hash_Key(ply);
+  repetition_list[this_position]=HashKey(ply);
   if (ply == 1) return(0);
 /*
  ----------------------------------------------------------
@@ -44,7 +44,7 @@ int Repetition_Check(int ply)
 |                                                          |
  ----------------------------------------------------------
 */
-  if (position[ply].moves_since_cap_or_push > 99) return(2);
+  if (position[ply].rule_50_moves > 99) return(2);
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -52,10 +52,8 @@ int Repetition_Check(int ply)
 |                                                          |
  ----------------------------------------------------------
 */
-  if (!(Total_White_Pawns(ply)+Total_Black_Pawns(ply))) {
-    if ((Total_White_Pieces(ply) < 5) && 
-        (Total_Black_Pieces(ply) < 5)) return(1);
-  }
+  if (!(TotalWhitePawns(ply)+TotalBlackPawns(ply)) &&
+      (TotalWhitePieces(ply) < 5) && (TotalBlackPieces(ply) < 5)) return(1);
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -64,28 +62,34 @@ int Repetition_Check(int ply)
 |                                                          |
  ----------------------------------------------------------
 */
-  more=position[ply].moves_since_cap_or_push>>1;
-  for (i=this_position-2;more;i-=2,more--)
-      if(repetition_list[this_position] == repetition_list[i]) return(1);
+  reps=0;
+  more=position[ply].rule_50_moves>>1;
+  search_list=Min(more,(ply-2)>>1);
+  more-=search_list;
+  for (i=this_position-2;search_list;i-=2,search_list--)
+    if(repetition_list[this_position] == repetition_list[i]) return(1);
+  for (;more>0;i-=2,more--)
+    if(repetition_list[this_position] == repetition_list[i]) reps++;
+  if (reps > 1) return(1);
   return(0);
 }
 
 /*
 ********************************************************************************
 *                                                                              *
-*   Repetition_Draw() is used to detect a draw by repetition.  it saves the    *
+*   RepetitionDraw() is used to detect a draw by repetition.  it saves the     *
 *   current position in the repetition list each time it is called.  the list  *
 *   contains all positions encountered since the last irreversible move        *
 *   (capture or pawn push).                                                    *
 *                                                                              *
-*   Repetition_Draw() then scans the list to determine if this position has    *
+*   RepetitionDraw() then scans the list to determine if this position has     *
 *   been repeated three times (a real draw by repetition, not a "psuedo-draw." *
 *                                                                              *
 ********************************************************************************
 */
-int Repetition_Draw(void)
+int RepetitionDraw(void)
 {
-  int i, more, rep;
+  register int i, more, reps;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -94,7 +98,7 @@ int Repetition_Draw(void)
 |                                                          |
  ----------------------------------------------------------
 */
-  if (position[0].moves_since_cap_or_push > 99) return(2);
+  if (position[0].rule_50_moves > 99) return(2);
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -103,9 +107,9 @@ int Repetition_Draw(void)
 |                                                          |
  ----------------------------------------------------------
 */
-  rep=0;
-  more=position[0].moves_since_cap_or_push>>1;
+  reps=0;
+  more=position[0].rule_50_moves>>1;
   for (i=repetition_head;more;i-=2,more--)
-    if(Hash_Key(0) == repetition_list[i]) rep++;
-  return(rep == 3);
+    if(HashKey(0) == repetition_list[i]) reps++;
+  return(reps == 3);
 }

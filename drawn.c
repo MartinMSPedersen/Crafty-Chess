@@ -16,7 +16,7 @@
 *                                                                              *
 ********************************************************************************
 */
-int Drawn(int ply)
+int Drawn(int ply, int value)
 {
 /*
  ----------------------------------------------------------
@@ -26,8 +26,17 @@ int Drawn(int ply)
 |                                                          |
  ----------------------------------------------------------
 */
-  if (White_Pawns(ply) ||
-      Black_Pawns(ply)) return(0);
+  if (WhitePawns(ply) ||
+      BlackPawns(ply)) return(0);
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   the search result must indicate a draw also, otherwise |
+|   it could be a tactical win or loss.                    |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  if (value != DrawScore()) return(0);
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -37,8 +46,8 @@ int Drawn(int ply)
 |                                                          |
  ----------------------------------------------------------
 */
-  if (Total_White_Pieces(ply) ==
-      Total_Black_Pieces(ply)) return(1);
+  if (TotalWhitePieces(ply) ==
+      TotalBlackPieces(ply)) return(1);
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -48,16 +57,16 @@ int Drawn(int ply)
 |                                                          |
  ----------------------------------------------------------
 */
-  if ((Total_White_Pieces(ply) != 5) ||
-      (Total_Black_Pieces(ply) != 5)) {
-    if ((Total_White_Pieces(ply) == 5) ||
-        (Total_White_Pieces(ply) > 6) ||
-        ((Total_White_Pieces(ply) == 6) &&
-         (White_Bishops(ply)))) return(0);
-    if ((Total_Black_Pieces(ply) == 5) ||
-        (Total_Black_Pieces(ply) > 6) ||
-        ((Total_Black_Pieces(ply) == 6) &&
-         (Black_Bishops(ply)))) return(0);
+  if ((TotalWhitePieces(ply) != 5) ||
+      (TotalBlackPieces(ply) != 5)) {
+    if ((TotalWhitePieces(ply) == 5) ||
+        (TotalWhitePieces(ply) > 6) ||
+        ((TotalWhitePieces(ply) == 6) &&
+         (WhiteBishops(ply)))) return(0);
+    if ((TotalBlackPieces(ply) == 5) ||
+        (TotalBlackPieces(ply) > 6) ||
+        ((TotalBlackPieces(ply) == 6) &&
+         (BlackBishops(ply)))) return(0);
   }
   return(1);
 }

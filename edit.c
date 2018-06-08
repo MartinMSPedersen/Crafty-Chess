@@ -18,7 +18,7 @@
 *                                                                              *
 *   # clears the chessboard completely.                                        *
 *                                                                              *
-*   c changes (toggles) the color of pieces being placed on the board.         *
+*   c changes (toggles) the color of pieces being placed on the          *
 *                                                                              *
 *   end (or . for ICS/Xboard) terminates Edit().                               *
 *                                                                              *
@@ -33,8 +33,8 @@ void Edit(void)
 {
   char command[80];
   int i, tfile, trank, square, piece;
-  char pieces[15]={'x','X','P','p','N','n','B','b',
-                   'R','r','Q','q','K','k','\0'};
+  char pieces[]={'x','X','P','p','N','n','K','k','*','*',
+                   'B','b','R','r','Q','q','\0'};
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -56,7 +56,7 @@ void Edit(void)
     }
     if (!strcmp(command,"#")) {
       for (i=0;i<64;i++)
-        Piece_On_Square(0,i)=0;
+        PieceOnSquare(0,i)=0;
     }
     else if (!strcmp(command,"c")) {
       wtm=!wtm;
@@ -73,9 +73,9 @@ void Edit(void)
         if ((square < 0) || (square > 63))
           printf("unrecognized square %s\n",command);
         if (wtm)
-          Piece_On_Square(0,square)=piece;
+          PieceOnSquare(0,square)=piece;
         else
-          Piece_On_Square(0,square)=-piece;
+          PieceOnSquare(0,square)=-piece;
       }
       else {
         printf("unrecognized piece %s\n",command);
@@ -91,19 +91,19 @@ void Edit(void)
 |                                                          |
  ----------------------------------------------------------
 */
-  White_Castle(0)=0;
-  Black_Castle(0)=0;
-  if (Piece_On_Square(0,4) == 6) {
-    if (Piece_On_Square(0,0) == 4)
-      White_Castle(0)=White_Castle(0)|2;
-    if (Piece_On_Square(0,7) == 4)
-      White_Castle(0)=White_Castle(0)|1;
+  WhiteCastle(0)=0;
+  BlackCastle(0)=0;
+  if (PieceOnSquare(0,4) == king) {
+    if (PieceOnSquare(0,0) == rook)
+      WhiteCastle(0)=WhiteCastle(0)|2;
+    if (PieceOnSquare(0,7) == rook)
+      WhiteCastle(0)=WhiteCastle(0)|1;
   }
-  if (Piece_On_Square(0,60) == -6) {
-    if (Piece_On_Square(0,56) == -4)
-      Black_Castle(0)=Black_Castle(0)|2;
-    if (Piece_On_Square(0,63) == -4)
-      Black_Castle(0)=Black_Castle(0)|1;
+  if (PieceOnSquare(0,60) == -king) {
+    if (PieceOnSquare(0,56) == -rook)
+      BlackCastle(0)=BlackCastle(0)|2;
+    if (PieceOnSquare(0,63) == -rook)
+      BlackCastle(0)=BlackCastle(0)|1;
   }
 /*
  ----------------------------------------------------------
@@ -113,9 +113,9 @@ void Edit(void)
 |                                                          |
  ----------------------------------------------------------
 */
-  Set_Chess_Bit_Boards(&position[0]);
+  SetChessBitBoards(&position[0]);
   if (log_file)
-    Display_Chess_Board(log_file,position[0].board);
+    DisplayChessBoard(log_file,position[0]);
   wtm=1;
   move_number=1;
   if (wtm)
@@ -124,5 +124,6 @@ void Edit(void)
     repetition_head=1;
     repetition_list[1]=0;
   }
+  position[0].rule_50_moves=0;
   last_move_in_book=-100;
 }

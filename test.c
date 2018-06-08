@@ -16,7 +16,7 @@
 *   as follows:                                                                *
 *                                                                              *
 *   setboard <forsythe-string>:  this sets the board position using the usual  *
-*   forsythe notation (see module Set_Board() in setboard.c for a full ex-     *
+*   forsythe notation (see module SetBoard() in setc for a full ex-      *
 *   planation of the syntax).                                                  *
 *                                                                              *
 *   solution <move1> <move2> ... <moven>:  this provides a solution move (or   *
@@ -51,7 +51,7 @@ void Test(void)
 */
   if (book_file) fclose(book_file);
   while (1) {
-    Initialize_Hash_Tables();
+    InitializeHashTables();
     pv[0].path_iteration_depth=0;
     fscanf(input_stream,"%s",command);
     if (!strcmp(command,"end")) break;
@@ -62,9 +62,7 @@ void Test(void)
       Print(0,"!  %-50s !\n",command);
       Print(0,"=======================================================\n");
     }
-    else if (!strcmp(command,"setboard")) {
-      Set_Board();
-    }
+    else if (!strcmp(command,"setboard")) SetBoard();
     else if (!strcmp(command,"solution")) {
       number_of_solutions=0;
       solution_type=0;
@@ -80,7 +78,7 @@ void Test(void)
           solution_type=0;
           command[strlen(command)-1]='\0';
         }
-        move=Input_Move(command,0,wtm,0);
+        move=InputMove(command,0,wtm,0);
         if (move)
           solutions[number_of_solutions++]=move;
         nextc=getc(input_stream);
@@ -88,19 +86,17 @@ void Test(void)
       Print(0,"\n");
       thinking=1;
       position[1]=position[0];
-      (void) Iterate(wtm);
+      (void) Iterate(wtm,think);
       thinking=0;
       nodes+=nodes_searched;
       avg_depth+=(float)iteration_depth;
       correct=solution_type;
       for (i=0;i<number_of_solutions;i++) {
         if (!solution_type) {
-          if (solutions[i] == pv[1].path[1])
-            correct=1;
+          if (solutions[i] == pv[1].path[1]) correct=1;
         }
         else
-          if (solutions[i] == pv[1].path[1])
-            correct=0;
+          if (solutions[i] == pv[1].path[1]) correct=0;
       }
       if (correct) {
         right++;

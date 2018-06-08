@@ -6,7 +6,7 @@
 /*
 ********************************************************************************
 *                                                                              *
-*   Time_Adjust() is called to adjust timing variables after each program move *
+*   TimeAdjust() is called to adjust timing variables after each program move  *
 *   is made.  it simply increments the number of moves made, decrements the    *
 *   amount of time used, and then makes any necessary adjustments based on the *
 *   time controls.                                                             *
@@ -14,7 +14,7 @@
 *                                                                              *
 ********************************************************************************
 */
-void Time_Adjust(int time_used)
+void TimeAdjust(int time_used)
 {
 /*
  ----------------------------------------------------------
@@ -35,15 +35,13 @@ void Time_Adjust(int time_used)
     tc_time_remaining+=tc_secondary_time;
     Print(0,"time control reached\n");
   }
-  if (tc_increment) {
-    tc_time_remaining+=tc_increment;
-  }
+  if (tc_increment) tc_time_remaining+=tc_increment;
 }
 
 /*
 ********************************************************************************
 *                                                                              *
-*   Time_Check() is used to determine when the search should stop.  it uses    *
+*   TimeCheck() is used to determine when the search should stop.  it uses    *
 *   several conditions to make this determination:  (1) the search time has    *
 *   exceeded the time per move limit;  (2) the value at the root of the tree   *
 *   has not dropped to low.  (3) if the root move was flagged as "easy" and    *
@@ -54,7 +52,7 @@ void Time_Adjust(int time_used)
 *                                                                              *
 ********************************************************************************
 */
-int Time_Check()
+int TimeCheck()
 {
   int time_used;
   int value, last_value, searched;
@@ -69,11 +67,10 @@ int Time_Check()
 |                                                          |
  ----------------------------------------------------------
 */
-  time_used=(Get_Time(time_type)-start_time);
+  time_used=(GetTime(time_type)-start_time);
   if ((nodes_searched > noise_level) && (verbosity_level >= 9) &&
       !((time_used/10)%burp)) {
-    printf("               %2i   %s\r",iteration_depth,
-           Display_Time(time_used));
+    printf("               %2i   %s\r",iteration_depth,DisplayTime(time_used));
     fflush(stdout);
   }
   if (search_depth || pondering || analyze_mode) return(0);
@@ -98,7 +95,7 @@ int Time_Check()
 */
   value=root_value;
   last_value=last_search_value;
-  if ((value >= last_value-250) && !failed_low) return(1);
+  if ((value >= last_value-250) && !search_failed_low) return(1);
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -108,7 +105,7 @@ int Time_Check()
 |                                                          |
  ----------------------------------------------------------
 */
-  if ((root_value == root_alpha) && !failed_low) {
+  if ((root_value == root_alpha) && !search_failed_low) {
     searched=0;
     for (i=first[1];i<last[1];i++)
       if (searched_this_root_move[i-first[1]]) searched++;
@@ -126,7 +123,7 @@ int Time_Check()
  ----------------------------------------------------------
 */
   if (time_used < time_limit*2) return(0);
-  if ((value >= last_value-600) && !failed_low) return(1);
+  if ((value >= last_value-600) && !search_failed_low) return(1);
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -144,7 +141,7 @@ int Time_Check()
 /*
 ********************************************************************************
 *                                                                              *
-*   Time_Set() is called to set the two variables "time_limit" and             *
+*   TimeSet() is called to set the two variables "time_limit" and              *
 *   "absolute_time_limit" which controls the amount of time taken by the       *
 *   iterated search.  it simply takes the timing controls as set by the user   *
 *   and uses these values to calculate how much time should be spent on the    *
@@ -152,7 +149,7 @@ int Time_Check()
 *                                                                              *
 ********************************************************************************
 */
-void Time_Set()
+void TimeSet(int search_type)
 {
   int surplus, average;
   surplus=0;
@@ -168,13 +165,13 @@ void Time_Set()
 */
   if (tc_sudden_death == 1) {
     if (tc_increment) {
-      time_limit=(tc_time_remaining/25+tc_increment-tc_operator_time)*10;
+      time_limit=(tc_time_remaining/30+tc_increment-tc_operator_time)*10;
       if (tc_time_remaining < 60) time_limit=tc_increment*10;
       if (tc_time_remaining < 10) time_limit=tc_increment*5;
       absolute_time_limit=(tc_time_remaining/2)*10;
     }
     else {
-      time_limit=tc_time_remaining*10/25;
+      time_limit=tc_time_remaining*10/30;
       absolute_time_limit=time_limit*5;
     }
     surplus=0;
@@ -210,7 +207,7 @@ void Time_Set()
     if (absolute_time_limit > 5*time_limit) absolute_time_limit=5*time_limit;
   }
   if (time_limit <= 0) time_limit=1;
-  if (puzzling) {
+  if ((search_type == puzzle) || (search_type == booking)) {
     time_limit/=10;
     absolute_time_limit=time_limit*3;
   }
@@ -238,29 +235,11 @@ void Time_Set()
 
   if (!puzzling) {
     if (tc_sudden_death != 1)
-      Print(1,"              time surplus %s  ",Display_Time(10*surplus));
+      Print(1,"              time surplus %s  ",DisplayTime(10*surplus));
     else
       Print(1,"              ");
-    Print(1,"time limit %s ", Display_Time(time_limit));
-    if (easy_move)
-      Print(1," [easy move]\n");
-    else
-      Print(1,"\n");
+    Print(1,"time limit %s ", DisplayTime(time_limit));
+    if (easy_move) Print(1," [easy move]\n");
+    else Print(1,"\n");
   }
-/*
- ----------------------------------------------------------
-|                                                          |
-|   kludge-time.  if the target is less than a second, we  |
-|   have to use cpu time.  unix keeps elapsed time only to |
-|   the nearest second, which is not accurate enough here. |
-|   also, if we are using elapsed time, we need to round   |
-|   the target "down" to the nearest second.               |
-|                                                          |
- ----------------------------------------------------------
-*/
-  if ((!puzzling) && (time_limit < 10) && (time_type == elapsed)) {
-    Print(0,"switching to cpu time\n");
-    time_type=cpu;
-  }
-  if (time_type == elapsed) time_limit=(time_limit/10)*10;
 }

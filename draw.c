@@ -6,7 +6,7 @@
 /*
 ********************************************************************************
 *                                                                              *
-*   Draw_Score() is used to determine how good or bad a draw is in the current *
+*   DrawScore() is used to determine how good or bad a draw is in the current  *
 *   game situation.  It depends on several factors, including the stage of the *
 *   game (opening [draw=bad], middlegame [draw=somewhat bad] and endgames      *
 *   [draw=default_draw_score.])  Additionally, it looks at the opponent's time *
@@ -15,9 +15,9 @@
 *                                                                              *
 ********************************************************************************
 */
-int Draw_Score(void)
+int DrawScore(void)
 {
-  int draw_score;
+  register int draw_score;
 /*
  ----------------------------------------------------------
 |                                                          |

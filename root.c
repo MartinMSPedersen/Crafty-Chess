@@ -6,7 +6,7 @@
 /*
 ********************************************************************************
 *                                                                              *
-*   Root_Move_List() is used to set up the ply one move list.  it is a  more   *
+*   RootMoveList() is used to set up the ply one move list.  it is a  more     *
 *   accurate ordering of the move list than that done for plies deeper than    *
 *   one.  briefly, Evaluate() is used to evaluate the positional/material      *
 *   score for each move and then the status of friendly pieces is added in.    *
@@ -18,17 +18,16 @@
 *                                                                              *
 ********************************************************************************
 */
-void Root_Move_List(int wtm)
+void RootMoveList(int wtm)
 {
-  BITBOARD target;
-  CHESS_BOARD board;
+  BITBOARD target, btemp;
   int *mvp, tempm;
   int square, i, done, temp, value;
 
 /*
  ----------------------------------------------------------
 |                                                          |
-|   first, use Generate_Moves() to generate the set of     |
+|   first, use GenerateMoves() to generate the set of      |
 |   legal moves from the root position.                    |
 |                                                          |
  ----------------------------------------------------------
@@ -37,10 +36,10 @@ void Root_Move_List(int wtm)
   first[1]=last[0];
   last[1]=first[1];
   if (wtm)
-    target=Compl(White_Pieces(1));
+    target=Compl(WhitePieces(1));
   else
-    target=Compl(Black_Pieces(1));
-  last[1]=Generate_Moves(1, 1, wtm, target, 1, last[1]);
+    target=Compl(BlackPieces(1));
+  last[1]=GenerateMoves(1, 1, wtm, target, 1, last[1]);
   if (last[1] == first[1]+1) return;
 /*
  ----------------------------------------------------------
@@ -52,15 +51,15 @@ void Root_Move_List(int wtm)
 */
   for (mvp=first[1];mvp<last[1];mvp++) {
     value=-4000000;
-    Make_Move(1, *mvp, wtm);
-    positional_evaluation[2]=0;
+    MakeMove(1, *mvp, wtm);
+    static_eval[2]=0;
     if (!Check(2,wtm)) {
+      current_move[1]=*mvp;
       value=Evaluate(2,wtm,-99999,99999);
-      board=position[2].board;
 /*
  ----------------------------------------------------------
 |                                                          |
-|   now use Sort() to analyze the state of all the         |
+|   now use EnPrise() to analyze the state of all the      |
 |   friendly pieces to see what appears to be hanging when |
 |   we try the current move.                               |
 |                                                          |
@@ -69,78 +68,98 @@ void Root_Move_List(int wtm)
 /*
    now check queens
 */
-      if (wtm)
-        while(board.w_queen) {
-          square=First_One(board.w_queen);
+      if (wtm) {
+        btemp=position[2].w_queen;
+        while(btemp) {
+          square=FirstOne(btemp);
           value-=Max(EnPrise(2,square,!wtm),0);
-          Clear(square,board.w_queen);
+          Clear(square,btemp);
         }
-      else
-        while(board.b_queen) {
-          square=First_One(board.b_queen);
+      }
+      else {
+        btemp=position[2].b_queen;
+        while(btemp) {
+          square=FirstOne(btemp);
           value-=Max(EnPrise(2,square,!wtm),0);
-          Clear(square,board.b_queen);
+          Clear(square,btemp);
         }
+      }
 /*
    now check rooks
 */
-      if (wtm)
-        while(board.w_rook) {
-          square=First_One(board.w_rook);
+      if (wtm) {
+        btemp=position[2].w_rook;
+        while(btemp) {
+          square=FirstOne(btemp);
           value-=Max(EnPrise(2,square,!wtm),0);
-          Clear(square,board.w_rook);
+          Clear(square,btemp);
         }
-      else
-        while(board.b_rook) {
-          square=First_One(board.b_rook);
+      }
+      else {
+        btemp=position[2].b_rook;
+        while(btemp) {
+          square=FirstOne(btemp);
           value-=Max(EnPrise(2,square,!wtm),0);
-          Clear(square,board.b_rook);
+          Clear(square,btemp);
         }
+      }
 /*
    now check bishops
 */
-      if (wtm)
-        while(board.w_bishop) {
-          square=First_One(board.w_bishop);
+      if (wtm) {
+        btemp=position[2].w_bishop;
+        while(btemp) {
+          square=FirstOne(btemp);
           value-=Max(EnPrise(2,square,!wtm),0);
-          Clear(square,board.w_bishop);
+          Clear(square,btemp);
         }
-      else
-        while(board.b_bishop) {
-          square=First_One(board.b_bishop);
+      }
+      else {
+        btemp=position[2].b_bishop;
+        while(btemp) {
+          square=FirstOne(btemp);
           value-=Max(EnPrise(2,square,!wtm),0);
-          Clear(square,board.b_bishop);
+          Clear(square,btemp);
         }
+      }
 /*
    now check knights
 */
-      if (wtm)
-        while(board.w_knight) {
-          square=First_One(board.w_knight);
+      if (wtm) {
+        btemp=position[2].w_knight;
+        while(btemp) {
+          square=FirstOne(btemp);
           value-=Max(EnPrise(2,square,!wtm),0);
-          Clear(square,board.w_knight);
+          Clear(square,btemp);
         }
-      else
-        while(board.b_knight) {
-          square=First_One(board.b_knight);
+      }
+      else {
+        btemp=position[2].b_knight;
+        while(btemp) {
+          square=FirstOne(btemp);
           value-=Max(EnPrise(2,square,!wtm),0);
-          Clear(square,board.b_knight);
+          Clear(square,btemp);
         }
+      }
 /*
    now check pawns
 */
-      if (wtm)
-        while(board.w_pawn) {
-          square=First_One(board.w_pawn);
+      if (wtm) {
+        btemp=position[2].w_pawn;
+        while(btemp) {
+          square=FirstOne(btemp);
           value-=Max(EnPrise(2,square,!wtm),0);
-          Clear(square,board.w_pawn);
+          Clear(square,btemp);
         }
-      else
-        while(board.b_pawn) {
-          square=First_One(board.b_pawn);
+      }
+      else {
+        btemp=position[2].b_pawn;
+        while(btemp) {
+          square=FirstOne(btemp);
           value-=Max(EnPrise(2,square,!wtm),0);
-          Clear(square,board.b_pawn);
+          Clear(square,btemp);
         }
+      }
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -151,13 +170,13 @@ void Root_Move_List(int wtm)
  ----------------------------------------------------------
 */
 
-      if((Piece(*mvp) == Piece(pv[1].path[1])) &&
-         (From(*mvp) == From(pv[1].path[1])) &&
-         (To(*mvp) == To(pv[1].path[1])) &&
-         (Captured(*mvp) == 
-          Captured(pv[1].path[1])) &&
-         (Promote(*mvp) == Promote(pv[1].path[1])))
+      if((Piece(*mvp) == Piece(pv[0].path[1])) &&
+         (From(*mvp) == From(pv[0].path[1])) &&
+         (To(*mvp) == To(pv[0].path[1])) &&
+         (Captured(*mvp) == Captured(pv[0].path[1])) &&
+         (Promote(*mvp) == Promote(pv[0].path[1]))) {
         value+=2000000;
+    }
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -208,13 +227,14 @@ void Root_Move_List(int wtm)
   if (root_sort_value[0] > 1000000) root_sort_value[0]-=2000000;
   if ((root_sort_value[0] > root_sort_value[1]+800)) easy_move=1;
   if (trace_level > 0) {
-    printf("produced %d moves at root\n",last[1]-first[1]);
+    Print(1,"produced %d moves at root\n",last[1]-first[1]);
     for (mvp=first[1];mvp<last[1];mvp++) {
-      Make_Move(1, *mvp, wtm);
-      positional_evaluation[2]=0;
-      printf("%s/%d/%d  ",Output_Move(mvp,1,wtm),root_sort_value[mvp-first[1]],
+      MakeMove(1, *mvp, wtm);
+      static_eval[2]=0;
+      current_move[1]=*mvp;
+      Print(1,"%s/%d/%d  ",OutputMove(mvp,1,wtm),root_sort_value[mvp-first[1]],
              Evaluate(2,wtm,-99999,99999));
-      if (!((mvp-first[1]+1) % 5)) printf("\n");
+      if (!((mvp-first[1]+1) % 5)) Print(1,"\n");
     }
   }
   return;

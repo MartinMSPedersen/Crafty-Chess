@@ -7,7 +7,7 @@
 /*
 ********************************************************************************
 *                                                                              *
-*   Pre_Evaluate() is used to set the piece/square tables.  these tables       *
+*   PreEvaluate() is used to set the piece/square tables.  these tables        *
 *   contain evaluation parameters that are not dynamic in nature and don't     *
 *   change during the course of a single iteration.                            *
 *                                                                              *
@@ -17,7 +17,7 @@
 *                                                                              *
 ********************************************************************************
 */
-void Pre_Evaluate(int wtm, int pawns_only)
+void PreEvaluate(int wtm)
 {
   int i, j;
   static int hashing_pawns = 0;
@@ -46,7 +46,7 @@ void Pre_Evaluate(int wtm, int pawns_only)
 |                                                          |
  ----------------------------------------------------------
 */
-  if (White_Castle(1)) {
+  if (opening) {
     hash_pawns=1;
     pawn_advance[0]=PAWN_ADVANCE_BC_A;
     pawn_advance[1]=PAWN_ADVANCE_BC_B;
@@ -89,47 +89,19 @@ void Pre_Evaluate(int wtm, int pawns_only)
   for (i=0;i<8;i++)
     for (j=0;j<8;j++)
       pawn_value_w[i*8+j]=pawn_advance[j]*(((i-1)>0) ? i-1 : 0);
-/*
- ----------------------------------------------------------
-|                                                          |
-|   pawn advances.  before castling, moving the king-side  |
-|   pawns is a no-no.  also, the b-pawn is restrained just |
-|   in case we castle queen-side.                          |
-|                                                          |
- ----------------------------------------------------------
-*/
-  if (Black_Castle(1)) {
-    hash_pawns+=10;
-    pawn_advance[0]=PAWN_ADVANCE_BC_A;
-    pawn_advance[1]=PAWN_ADVANCE_BC_B;
-    pawn_advance[2]=PAWN_ADVANCE_BC_C;
-    pawn_advance[3]=PAWN_ADVANCE_BC_D;
-    pawn_advance[4]=PAWN_ADVANCE_BC_E;
-    pawn_advance[5]=PAWN_ADVANCE_BC_F;
-    pawn_advance[6]=PAWN_ADVANCE_BC_G;
-    pawn_advance[7]=PAWN_ADVANCE_BC_H;
-  }
-  else if (middle_game) {
-    hash_pawns+=20;
-    pawn_advance[0]=PAWN_ADVANCE_A;
-    pawn_advance[1]=PAWN_ADVANCE_B;
-    pawn_advance[2]=PAWN_ADVANCE_C;
-    pawn_advance[3]=PAWN_ADVANCE_D;
-    pawn_advance[4]=PAWN_ADVANCE_E;
-    pawn_advance[5]=PAWN_ADVANCE_F;
-    pawn_advance[6]=PAWN_ADVANCE_G;
-    pawn_advance[7]=PAWN_ADVANCE_H;
-  }
-  else {
-    hash_pawns+=30;
-    pawn_advance[0]=PAWN_ADVANCE_EG_A;
-    pawn_advance[1]=PAWN_ADVANCE_EG_B;
-    pawn_advance[2]=PAWN_ADVANCE_EG_C;
-    pawn_advance[3]=PAWN_ADVANCE_EG_D;
-    pawn_advance[4]=PAWN_ADVANCE_EG_E;
-    pawn_advance[5]=PAWN_ADVANCE_EG_F;
-    pawn_advance[6]=PAWN_ADVANCE_EG_G;
-    pawn_advance[7]=PAWN_ADVANCE_EG_H;
+  if (!WhiteCastle(1) && !BlackCastle(1)) {
+    if (And(WhiteKing(1),left_half_mask) && 
+        And(BlackKing(1),right_half_mask)) {
+      for (i=0;i<8;i++)
+        for (j=5;j<8;j++)
+          pawn_value_w[i*8+j]=PAWN_ADVANCE_KING*(((i-1)>0) ? i-1 : 0);
+    }
+    if (And(WhiteKing(1),right_half_mask) && 
+        And(BlackKing(1),left_half_mask)) {
+      for (i=0;i<8;i++)
+        for (j=0;j<3;j++)
+          pawn_value_w[i*8+j]=PAWN_ADVANCE_KING*(((i-1)>0) ? i-1 : 0);
+    }
   }
 /*
  ----------------------------------------------------------
@@ -141,8 +113,21 @@ void Pre_Evaluate(int wtm, int pawns_only)
   for (i=7;i>=0;i--)
     for (j=0;j<8;j++)
       pawn_value_b[i*8+j]=pawn_advance[j]*(((6-i)>0) ? 6-i : 0);
+  if (!WhiteCastle(1) && !BlackCastle(1)) {
+    if (And(BlackKing(1),left_half_mask) && 
+        And(WhiteKing(1),right_half_mask)) {
+      for (i=0;i<8;i++)
+        for (j=5;j<8;j++)
+          pawn_value_b[i*8+j]=PAWN_ADVANCE_KING*(((6-i)>0) ? 6-i : 0);
+    }
+    if (And(BlackKing(1),right_half_mask) && 
+        And(WhiteKing(1),left_half_mask)) {
+      for (i=0;i<8;i++)
+        for (j=0;j<3;j++)
+          pawn_value_b[i*8+j]=PAWN_ADVANCE_KING*(((6-i)>0) ? 6-i : 0);
+    }
+  }
 
-  if (pawns_only) return;
 /*
  ----------------------------------------------------------
 |                                                          |

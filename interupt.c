@@ -11,7 +11,7 @@
 *   while a search is in progress (during pondering as one example.)  this     *
 *   routine reads in a command (move) and then makes two attempts to use this  *
 *   input:  (1) call Option() to see if the command can be executed;  (2) try  *
-*   Input_Move() to see if this input is a legal move;  if so, and we are      *
+*   InputMove() to see if this input is a legal move;  if so, and we are       *
 *   pondering see if it matches the move we are pondering.                     *
 *                                                                              *
 ********************************************************************************
@@ -47,9 +47,9 @@ void Interrupt(int ply)
       scanf("%s",input);
       Print(1,"ok.\n");
       if (!strcmp(input,".")) {
-        end_time=Get_Time(time_type);
+        end_time=GetTime(time_type);
         time_used=(end_time-start_time);
-        printf("time:%s ",Display_Time(time_used));
+        printf("time:%s ",DisplayTime(time_used));
         printf("nodes:%ld ",nodes_searched);
         printf("maxd:%ld\n",max_search_depth);
         for (left=0,mvp=first[1];mvp<last[1];mvp++) 
@@ -97,7 +97,7 @@ void Interrupt(int ply)
  ----------------------------------------------------------
 */
           if (pondering) {
-            temp=Input_Move(input,0,!root_wtm,1);
+            temp=InputMove(input,0,!root_wtm,1);
             if (temp) {
               if ((From(temp) == From(ponder_move)) &&
                   (To(temp) == To(ponder_move)) &&
@@ -107,8 +107,8 @@ void Interrupt(int ply)
                 made_predicted_move=1;
                 pondering=0;
                 thinking=1;
-                opponent_end_time=Get_Time(elapsed);
-                program_start_time=Get_Time(time_type);
+                opponent_end_time=GetTime(elapsed);
+                program_start_time=GetTime(time_type);
               }
               else
                 abort_search=1;
@@ -120,7 +120,7 @@ void Interrupt(int ply)
            Print(0,"unknown command/command not legal now.\n");
         }
       }
-    } while (Check_Input());
+    } while (CheckInput());
   }
 /*
  ----------------------------------------------------------
@@ -157,7 +157,7 @@ void Interrupt(int ply)
    ----------------------------------------------------------
   */
         if (pondering) {
-          temp=Input_Move_ICS(input,0,!root_wtm,1);
+          temp=InputMoveICS(input,0,!root_wtm,1);
           if (temp) {
             if ((From(temp) == From(ponder_move)) &&
                 (To(temp) == To(ponder_move)) &&
@@ -167,8 +167,8 @@ void Interrupt(int ply)
               made_predicted_move=1;
               pondering=0;
               thinking=1;
-              opponent_end_time=Get_Time(elapsed);
-              program_start_time=Get_Time(time_type);
+              opponent_end_time=GetTime(elapsed);
+              program_start_time=GetTime(time_type);
             }
             else
               abort_search=1;
