@@ -112,7 +112,7 @@ int Option(TREE * RESTRICT tree)
  *    without dropping below the minimum or exceeding the   *
  *    maximum memory size given.  the min/max sizes can be  *
  *    given using the same syntax as the hash= command, ie  *
- *    xxx, xxxK or xxxM will all work. the fourth and fifth * 
+ *    xxx, xxxK or xxxM will all work. the fourth and fifth *
  *    parameters are used to limit hashp in the same way.   *
  *                                                          *
  ************************************************************

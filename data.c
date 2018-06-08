@@ -157,7 +157,7 @@ BITBOARD black_pawn_race_btm[64];
 BOOK_POSITION book_buffer[BOOK_CLUSTER_SIZE];
 BOOK_POSITION book_buffer_char[BOOK_CLUSTER_SIZE];
 
-#define    VERSION                             "20.5"
+#define    VERSION                             "20.6"
 char version[6] = { VERSION };
 PLAYING_MODE mode = normal_mode;
 int batch_mode = 0;             /* no asynch reads */
@@ -414,14 +414,14 @@ int nval[64] = {
   -60, -30, -30, -30, -30, -30, -30, -60,
 };
 int bval[64] = {
-   10,  10,  10,  10,  10,  10,  10,  10,
-   10,  13,  13,  13,  13,  13,  13,  10,
-   10,  13,  15,  15,  15,  15,  13,  10,
-   10,  13,  15,  18,  18,  15,  13,  10,
-   10,  13,  15,  18,  18,  15,  13,  10,
-   10,  13,  15,  15,  15,  15,  13,  10,
-   10,  13,  13,  13,  13,  13,  13,  10,
-   10,  10,  10,  10,  10,  10,  10,  10
+  -20, -20, -20, -20, -20, -20, -20, -20,
+  -20,   6,   6,   3,   3,   6,   6, -20,
+  -20,   6,   8,   6,   6,   8,   6, -20,
+  -20,   3,   6,  10,  10,   6,   3, -20,
+  -20,   3,   6,  10,  10,   6,   3, -20,
+  -20,   6,   8,   6,   6,   8,   6, -20,
+  -20,   6,   6,   3,   3,   6,   6, -20,
+  -20, -20, -20, -20, -20, -20, -20, -20,
 };
 int rval[64] = {
   -10, -6, -2, 2, 2, -2, -6, -10,
@@ -434,14 +434,14 @@ int rval[64] = {
   -10, -6, -2, 2, 2, -2, -6, -10
 };
 int qval[64] = {
-  -20, -20,  0,  0,  0,  0, -20, -20,
-  -20,   0,  8,  8,  8,  8,   0, -20,
-    0,   8,  8, 12, 12,  8,   8,   0,
-    0,   8, 12, 16, 16, 12,   8,   0,
-    0,   8, 12, 16, 16, 12,   8,   0,
-    0,   8,  8, 12, 12,  8,   8,   0,
-  -20,   0,  8,  8,  8,  8,   0, -20,
-  -20, -20,  0,  0,  0,  0, -20, -20,
+  -20, -20,   0,   0,   0,   0, -20, -20,
+  -20,   0,   8,   8,   8,   8,   0, -20,
+    0,   8,   8,  12,  12,   8,   8,   0,
+    0,   8,  12,  16,  16,  12,   8,   0,
+    0,   8,  12,  16,  16,  12,   8,   0,
+    0,   8,   8,  12,  12,   8,   8,   0,
+  -20,   0,   8,   8,   8,   8,   0, -20,
+  -20, -20,   0,   0,   0,   0, -20, -20,
 };
 int kval_wn[64] = {
   -40, -20, -20, -20, -20, -20, -20, -40,
@@ -507,12 +507,13 @@ int bishop_over_knight_endgame = 36;
     up so that mobility is high.
 */
 int bishop_pair[9] = { 40, 40, 40, 40, 36, 32, 28, 24, 24 };
+int bishop_bad = 12;
 int rook_on_7th = 24;
 int rook_connected_7th_rank = 10;
 /*
     each row contains values for a rook occupying a specific open
     file starting with file A and going through file H.  Row 0 is
-    not used, row 1 is used when there is only one open file on 
+    not used, row 1 is used when there is only one open file on
     the board, row 2 is used when there are two openfiles on the
     board, etc.  obviously control of a file is more important if
     there is only one or two files available.
@@ -534,16 +535,15 @@ int rook_behind_passed_pawn = 24;
 int rook_trapped = 40;
 int queen_rook_on_7th_rank = 50;
 int queen_vs_2_rooks = 100;
-int queen_is_strong = 30;
+int queen_offside = 30;
 int open_file = 6;
 int half_open_file = 4;
-int king_safety_mate_g2g7 = 3;
 int king_safety_mate_threat = 600;
 int development_thematic = 12;
 int development_unmoved = 7;
 int blocked_center_pawn = 12;
 int development_losing_castle = 30;
-int development_not_castled = 20;
+int development_not_castled = 35;
 
 /*
    First term is a character string explaining what the eval
@@ -620,10 +620,10 @@ struct eval_term eval_packet[256] = {
   {"bishop scoring------------------", 0, NULL},        /* 60 */
   {"bishop over knight endgame      ", 0, &bishop_over_knight_endgame},
   {"bishop trapped                  ", 0, &bishop_trapped},
+  {"bishop bad                      ", 0, &bishop_bad},
   {"bishop pair                     ", 9, bishop_pair},
   {"king tropism [distance]         ", 8, king_tropism_b},
   {"bishop piece/square table       ", -64, bval},
-  {NULL, 0, NULL},
   {NULL, 0, NULL},
   {NULL, 0, NULL},
   {NULL, 0, NULL},
@@ -650,7 +650,7 @@ struct eval_term eval_packet[256] = {
   {"queen scoring-------------------", 0, NULL},        /* 90 */
   {"queen rook on 7th rank          ", 0, &queen_rook_on_7th_rank},
   {"queen vs 2 rooks                ", 0, &queen_vs_2_rooks},
-  {"queen is strong                 ", 0, &queen_is_strong},
+  {"queen offside                   ", 0, &queen_offside},
   {"king tropism [distance]         ", 8, king_tropism_q},
   {"king file tropism [distance]    ", 8, king_tropism_at_q},
   {"queen piece/square table        ", -64, qval},
@@ -659,7 +659,6 @@ struct eval_term eval_packet[256] = {
   {NULL, 0, NULL},
   {"king scoring--------------------", 0, NULL},        /* 100 */
   {"king king tropism (endgame)     ", 0, &king_king_tropism},
-  {"king safety mate g2g7           ", 0, &king_safety_mate_g2g7},
   {"king safety trojan horse threat ", 0, &king_safety_mate_threat},
   {"king piece/square normal        ", -64, kval_wn},
   {"king piece/square kside pawns   ", -64, kval_wk},
@@ -677,10 +676,11 @@ struct eval_term eval_packet[256] = {
   {NULL, 0, NULL},
   {NULL, 0, NULL},
   {NULL, 0, NULL},
+  {NULL, 0, NULL},
   {"development scoring-------------", 0, NULL},        /* 120 */
   {"development thematic            ", 0, &development_thematic},
   {"development unmoved             ", 0, &development_unmoved},
   {"development blocked center pawn ", 0, &blocked_center_pawn},
   {"development losing castle       ", 0, &development_losing_castle},
-  {"development not castled         ", 0, &development_not_castled}
+  {"development not castled         ", 0, &development_not_castled},
 };

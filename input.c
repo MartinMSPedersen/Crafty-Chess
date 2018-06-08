@@ -109,7 +109,7 @@ int InputMove(TREE * RESTRICT tree, char *text, int ply, int wtm, int silent,
 /*
  ok, it's not a castling.  check for the first two characters of "bb" which
  indicates that the first "b" really means "B" since pawn advances don't
- require a source file.  
+ require a source file.
  */
     if ((movetext[0] == 'b') && (movetext[1] == 'b'))
       movetext[0] = 'B';
@@ -121,7 +121,7 @@ int InputMove(TREE * RESTRICT tree, char *text, int ply, int wtm, int silent,
       give_check = 1;
     }
 /*
- now, continue by picking off the promotion piece if one is present.  this 
+ now, continue by picking off the promotion piece if one is present.  this
  is indicated by something like =q on the end of the move string.
  */
     if (strchr(movetext, '=')) {
@@ -131,7 +131,7 @@ int InputMove(TREE * RESTRICT tree, char *text, int ply, int wtm, int silent,
       *strchr(movetext, '=') = 0;
     }
 /*
- now, for a kludge.  ChessBase can't follow the PGN standard and likes to  
+ now, for a kludge.  ChessBase can't follow the PGN standard and likes to
  export pawn promotions as axb8Q, omitting the required '=' character.  this
  fix handles that particular ChessBase error.
  */
@@ -328,7 +328,7 @@ int InputMoveICS(TREE * RESTRICT tree, char *text, int ply, int wtm, int silent,
     tfile = movetext[2] - 'a';
     trank = movetext[3] - '1';
 /*
- now, continue by picking off the promotion piece if one is present.  this 
+ now, continue by picking off the promotion piece if one is present.  this
  is indicated by something like q on the end of the move string.
  */
     if (movetext[4] == '=')

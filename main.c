@@ -3288,6 +3288,11 @@
  *           the bishop value from going way over its normal range with these  *
  *           new and somewhat larger numbers.                                  *
  *                                                                             *
+ *   20.6    new eval code to look for bishops that are blocked in the forward *
+ *           direction by friendly pawns.  that basically turns a bishop into  *
+ *           a "tall pawn" since movement in the critical direction is not     *
+ *           possible.                                                         *
+ *                                                                             *
  *******************************************************************************
  */
 int main(int argc, char **argv)

@@ -438,14 +438,14 @@ profile:
 #  compiling both ways to see which way produces the fastest code.
 #
 
-objects = searchr.o search.o thread.o searchmp.o repeat.o next.o nexte.o      \
+#objects = searchr.o search.o thread.o searchmp.o repeat.o next.o nexte.o      \
        nextr.o history.o quiesce.o evaluate.o movgen.o make.o unmake.o hash.o  \
        attacks.o swap.o boolean.o utility.o valid.o probe.o book.o data.o      \
        drawn.o edit.o epd.o epdglue.o init.o input.o interupt.o iterate.o      \
        main.o option.o output.o ponder.o preeval.o resign.o root.o learn.o     \
        setboard.o test.o time.o validate.o annotate.o analyze.o evtest.o       \
        bench.o egtb.o dgt.o
-#objects = crafty.o egtb.o
+objects = crafty.o egtb.o
 
 # Do not change anything below this line!
 

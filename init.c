@@ -320,7 +320,7 @@ void InitializeAttackBoards(void)
       }
   }
 /*
- initialize knight attack board 
+ initialize knight attack board
  */
   for (i = 0; i < 64; i++) {
     knight_attacks[i] = 0;
@@ -401,7 +401,7 @@ void InitializeAttackBoards(void)
     }
   }
 /*
- initialize king attack board 
+ initialize king attack board
  */
   for (i = 0; i < 64; i++) {
     king_attacks[i] = 0;
@@ -415,7 +415,7 @@ void InitializeAttackBoards(void)
  sq1 to sq2.  obstructed[sq1][sq2] gives a bit vector that indicates
  which squares must be unoccupied in order for <sq1> to attack <sq2>,
  assuming a sliding piece is involved.  to use this, you simply have
- to Or(obstructed[sq1][sq2],occupied_squares) and if the result is 
+ to Or(obstructed[sq1][sq2],occupied_squares) and if the result is
  "0" then a sliding piece on sq1 would attack sq2 and vice-versa.
  */
   for (i = 0; i < 64; i++) {
@@ -506,7 +506,7 @@ void InitializeAttackBoards(void)
 
 /*
  initialize the rotated attack board that is based on the
- normal chess 
+ normal chess
  */
     for (square = 0; square < 64; square++) {
       for (i = 0; i < 64; i++) {
@@ -548,8 +548,8 @@ void InitializeAttackBoards(void)
       }
     }
 /*
- initialize the rotated attack board that is based on one that is 
- rotated left 45 degrees (which lines up the (a8-h1) diagonal 
+ initialize the rotated attack board that is based on one that is
+ rotated left 45 degrees (which lines up the (a8-h1) diagonal
  horizontally.
  */
     for (square = 0; square < 64; square++) {
@@ -578,7 +578,7 @@ void InitializeAttackBoards(void)
       }
     }
 /*
- initialize the rotated attack board that is based on one that is 
+ initialize the rotated attack board that is based on one that is
  rotated right 45 degrees (which lines up the (a1-h8) diagonal
  horizontally,
  */
@@ -999,7 +999,7 @@ int InitializeGetLogID(void)
       char tfn[128];
       FILE *tlog;
       int i;
-  
+
       sprintf(tfn, "%s/log.%03d", log_path, log_id - 1);
       tlog = fopen(tfn, "r+");
       if (tlog) {
@@ -1094,6 +1094,14 @@ void InitializeKingSafety()
       king_safety[safety][tropism] = king_safety[0][x];
     }
   }
+/*
+  for (safety = 0; safety < 32; safety++) {
+    for (tropism = 0; tropism < 32; tropism++) {
+      printf("%4d", king_safety[safety][tropism]);
+    }
+    printf("\n");
+  }
+*/
 }
 
 void InitializeMasks(void)
@@ -1264,7 +1272,7 @@ void InitializePawnMasks(void)
 /*
  initialize passed pawn masks, which are nothing more than 1's on
  the pawn's file and the adjacent files, but only on ranks that are
- in "front" of the pawn.  
+ in "front" of the pawn.
  */
   for (i = 0; i < 64; i++) {
     if (!File(i)) {
@@ -1297,7 +1305,7 @@ void InitializePawnMasks(void)
   }
 /*
  enpassant pawns are on either file adjacent to the current file, and
- on the same rank.                                          
+ on the same rank.
  */
   for (i = 0; i < 64; i++)
     mask_eptest[i] = 0;
@@ -1309,7 +1317,7 @@ void InitializePawnMasks(void)
   mask_eptest[H4] = SetMask(G4);
   mask_eptest[A5] = SetMask(B5);
   mask_eptest[H5] = SetMask(G5);
-/* 
+/*
    these two masks have 1's on dark squares and light squares
    to test to see if pawns/bishops are on them.
  */
@@ -1328,14 +1336,14 @@ void InitializePawnMasks(void)
       light_squares = light_squares | m2 >> i;
     }
   }
-/* 
+/*
    this mask is used to detect that one side has pawns, but all
-   are rook pawns.                                                
+   are rook pawns.
  */
   not_rook_pawns =
       file_mask[FILEB] | file_mask[FILEC] | file_mask[FILED] | file_mask[FILEE]
       | file_mask[FILEF] | file_mask[FILEG];
-/* 
+/*
    these two masks have 1's on everywhere but the left or right
    files, used to prevent pawns from capturing off the edge of
    the board and wrapping around.rom capturing off the edge of
@@ -1344,7 +1352,7 @@ void InitializePawnMasks(void)
   mask_right_edge = ~file_mask[FILEH];
   mask_advance_2_w = rank_mask[RANK3];
   mask_advance_2_b = rank_mask[RANK6];
-/* 
+/*
    this mask has 1's everywhere except the a/h file and
    the first/last rank.
  */

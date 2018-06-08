@@ -158,7 +158,7 @@ char *OutputMove(TREE * RESTRICT tree, int move, int ply, int wtm)
     }
   } while (0);
 /*
- determine if it's a checking move, or if it's mate.  if so, 
+ determine if it's a checking move, or if it's mate.  if so,
  append "+" or "#" as appropriate.
  */
   text = text_move + strlen(text_move);

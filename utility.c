@@ -2461,7 +2461,7 @@ int LegalMove(TREE * RESTRICT tree, int ply, int wtm, int move)
   int moves[220], *mv, *mvp;
 
 /*
- generate moves, then eliminate any that are illegal.               
+ generate moves, then eliminate any that are illegal.
  */
   if (move == 0)
     return (0);

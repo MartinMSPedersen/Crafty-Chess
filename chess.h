@@ -216,7 +216,7 @@ typedef enum { none = 0, pawn = 1, knight = 2, king = 3,
 typedef enum { empty_v = 0, pawn_v = 1, knight_v = 3,
   bishop_v = 3, rook_v = 5, queen_v = 9, king_v = 99
 } PIECE_V;
-typedef enum { no_extension = 0, check_extension = 1, 
+typedef enum { no_extension = 0, check_extension = 1,
   one_reply_extension = 2, mate_extension = 4
 } EXTENSIONS;
 typedef enum { think = 1, puzzle = 2, book = 3, annotate = 4 } SEARCH_TYPE;
@@ -280,12 +280,16 @@ typedef struct {
   int      p_score;
   unsigned char allb;
   unsigned char black_defects_k;
+  unsigned char black_defects_e;
+  unsigned char black_defects_d;
   unsigned char black_defects_q;
   unsigned char passed_b;
   unsigned char candidates_b;
   unsigned char average_b;
   unsigned char allw;
   unsigned char white_defects_k;
+  unsigned char white_defects_e;
+  unsigned char white_defects_d;
   unsigned char white_defects_q;
   unsigned char passed_w;
   unsigned char candidates_w;
@@ -308,7 +312,7 @@ typedef struct {
 typedef struct {
   BITBOARD  nodes;
   int       move;
- /* 
+ /*
     xxxx xxx1 = failed low once
     xxxx xx1x = failed low twice
     xxxx x1xx = failed low three times
@@ -481,7 +485,7 @@ typedef struct {
   int       first_nonbook_factor;
   int       first_nonbook_span;
 } SHARED;
-/*  
+/*
    DO NOT modify these.  these are constants, used in multiple modules.
    modification may corrupt the search in any number of ways, all bad.
  */
@@ -760,7 +764,7 @@ extern void WinFreeInterleaved(void *, size_t);
 #define PopCnt8Bit(a) (pop_cnt_8bit[a])
 #define FirstOne8Bit(a) (first_one_8bit[a])
 #define LastOne8Bit(a) (last_one_8bit[a])
-/*  
+/*
    the following macro is used to limit the search extensions based on the
    current iteration depth and current ply in the tree.
  */
@@ -773,19 +777,19 @@ extern void WinFreeInterleaved(void *, size_t);
         else                                                                 \
           extended=0;                                                        \
       }
-/*  
+/*
    the following macro is used to determine if one side is in check.  it
    simply returns the result of Attacked().
  */
 #define Check(wtm)                                                           \
   Attacked(tree, (wtm)?WhiteKingSQ:BlackKingSQ,Flip(wtm))
-/*  
+/*
    Attack() is used to determine if a sliding piece on 'from' can reach
    'to'.  the only requirement is that there be no pieces along the pathway
    connecting from and to.
  */
 #define Attack(from,to) (!(obstructed[from][to] & Occupied))
-/*  
+/*
    the following macros are used to construct the attacks from a square.
    the attacks are computed as four separate bit vectors, one for each of the
    two diagonals, and one for the ranks and one for the files.  these can be
@@ -809,10 +813,10 @@ extern void WinFreeInterleaved(void *, size_t);
 #  define AttacksDiagh1(a)                                                 \
       bishop_attacks_rr45[(a)][(tree->pos.occupied_rr45>>                  \
                                 bishop_shift_rr45[(a)])&63]
-/*  
+/*
    the following macros are used to compute the mobility for a sliding piece.
-   The basic idea is the same as the attack vectors above, but the result is 
-   an integer mobility factor rather than a bitboard.  this saves having to 
+   The basic idea is the same as the attack vectors above, but the result is
+   an integer mobility factor rather than a bitboard.  this saves having to
    do a PopCnt() on the attack bit vector, which is much slower.
  */
 #define MobilityRook(a)   (MobilityRank(a)+MobilityFile(a))
@@ -830,7 +834,7 @@ extern void WinFreeInterleaved(void *, size_t);
 #  define MobilityDiagh1(a)                                                 \
      (bishop_mobility_rr45[(a)][(tree->pos.occupied_rr45>>                  \
                                 bishop_shift_rr45[(a)])&63])
-/*  
+/*
    the following macros are used to extract the pieces of a move that are
    kept compressed into the rightmost 21 bits of a simple integer.
  */
@@ -848,7 +852,7 @@ extern void WinFreeInterleaved(void *, size_t);
 #define ClearMaskRL90(a)    (clear_mask_rl90[a])
 #define ClearMaskRL45(a)    (clear_mask_rl45[a])
 #define ClearMaskRR45(a)    (clear_mask_rr45[a])
-/*  
+/*
    the following macros are used to extract the correct bits for the piece
    type desired.
  */
@@ -895,7 +899,7 @@ extern void WinFreeInterleaved(void *, size_t);
 #define Sliding(piece)        ((piece) & 4)
 #define SlidingDiag(piece)    (((piece) & 5) == 5)
 #define SlidingRow(piece)     (((piece) & 6) == 6)
-/*  
+/*
    the following macros are used to Set and Clear a specific bit in the
    second argument.  this is done to make the code more readable, rather
    than to make it faster.
