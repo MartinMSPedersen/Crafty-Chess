@@ -49,14 +49,7 @@ __forceinline void Lock(volatile LONG * hPtr)
  *                                                                             *
  *******************************************************************************
  */
-#    if defined(ALPHA)
-#      include <machine/builtins.h>
-#      define lock_t           volatile long
-#      define LockInit(v)      ((v) = 0)
-#      define LockFree(v)      ((v) = 0)
-#      define Lock(v)          __LOCK_LONG(&(v))
-#      define Unlock(v)        __UNLOCK_LONG(&(v))
-#    elif defined(POWERPC)
+#    if defined(POWERPC)
                         /* OS X */
 #      include <libkern/OSAtomic.h>
 #      define lock_t				OSSpinLock

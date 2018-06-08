@@ -88,14 +88,12 @@ int HashProbe(TREE * RESTRICT tree, int ply, int depth, int wtm, int *alpha,
         else
           return (EXACTEGTB);
       case UPPER:
-        if (val <= *alpha) {
+        if (val <= *alpha)
           return (UPPER);
-        }
         break;
       case LOWER:
-        if (val >= beta) {
+        if (val >= beta)
           return (LOWER);
-        }
         break;
       }
     } while (0);
@@ -129,14 +127,12 @@ int HashProbe(TREE * RESTRICT tree, int ply, int depth, int wtm, int *alpha,
       else
         return (EXACTEGTB);
     case UPPER:
-      if (val <= *alpha) {
+      if (val <= *alpha)
         return (UPPER);
-      }
       return (avoid_null);
     case LOWER:
-      if (val >= beta) {
+      if (val >= beta)
         return (LOWER);
-      }
       tree->transposition_hits++;
       return (avoid_null);
     }

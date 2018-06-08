@@ -4,7 +4,6 @@
 #if defined(UNIX) || defined(AMIGA)
 #  include <unistd.h>
 #  include <sys/types.h>
-#  include <pthread.h>
 #endif
 /* last modified 01/05/08 */
 /*
@@ -193,7 +192,7 @@ int Iterate(int wtm, int search_type, int root_list_done)
 #  if defined(_WIN32) || defined(_WIN64)
           NumaStartThread(ThreadInit, (void *) proc);
 #  else
-          pthread_create(&pt, NULL, ThreadInit, (void *) proc);
+          pthread_create(&pt, &attributes, ThreadInit, (void *) proc);
 #  endif
           Lock(lock_smp);
           smp_threads++;
@@ -263,8 +262,7 @@ int Iterate(int wtm, int search_type, int root_list_done)
             if (!(root_moves[i].status & 256))
               break;
           root_moves[i].status &= 4095 - 128;
-          value =
-              SearchRoot(tree, root_alpha, root_beta, wtm, iteration_depth);
+          value = SearchRoot(tree, root_alpha, root_beta, wtm, iteration_depth);
           root_print_ok = tree->nodes_searched > noise_level;
           if (abort_search || time_abort)
             break;

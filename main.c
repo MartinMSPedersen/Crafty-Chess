@@ -3588,6 +3588,14 @@
  *           if one of them turns out to be better than zero.  So far, no, but *
  *           the test has not completed.                                       *
  *                                                                             *
+ *                                                                             *
+ *   22.5    minor eval tweaks.  pthread_create was called without giving it   *
+ *           any attributes for the new thread(s) which makes them default to  *
+ *           "joinable".  when smpnice=1 terminates threads, the threads hang  *
+ *           around using memory expecting that the parent will join with them *
+ *           to check the exit status.  we now set "detached" as the proper    *
+ *           attribute so that this memory leak no longer happens.             *
+ *                                                                             *
  *******************************************************************************
  */
 int main(int argc, char **argv)

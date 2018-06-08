@@ -265,8 +265,10 @@ void Annotate()
       if (move <= 0)
         break;
       strcpy(text, OutputMove(tree, move, 0, wtm));
-      fseek(history_file, ((move_number - 1) * 2 + 1 - wtm) * 10, SEEK_SET);
-      fprintf(history_file, "%9s\n", text);
+      if (history_file) {
+        fseek(history_file, ((move_number - 1) * 2 + 1 - wtm) * 10, SEEK_SET);
+        fprintf(history_file, "%9s\n", text);
+      }
       if (wtm)
         Print(4095, "White(%d): %s\n", move_number, text);
       else

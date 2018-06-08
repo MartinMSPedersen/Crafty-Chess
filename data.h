@@ -29,8 +29,6 @@ extern FILE *normal_bs_file;
 extern FILE *computer_bs_file;
 extern FILE *history_file;
 extern FILE *log_file;
-extern FILE *auto_file;
-extern FILE *position_file;
 extern int log_id;
 extern int output_format;
 
@@ -166,6 +164,9 @@ extern TREE *volatile thread[CPUS];
 
 #  if (CPUS > 1)
 extern lock_t lock_smp, lock_io, lock_root;
+#if defined(UNIX)
+  extern pthread_attr_t attributes;
+#endif
 #  endif
 extern unsigned int parallel_splits;
 extern unsigned int parallel_aborts;
@@ -280,7 +281,6 @@ extern unsigned magic_rook_shift[64];
 extern BITBOARD mobility_mask_n[4];
 extern BITBOARD mobility_mask_b[4];
 extern BITBOARD mobility_mask_r[4];
-extern BITBOARD mobility_mask_q[4];
 extern BITBOARD *magic_rook_indices[64];
 extern BITBOARD magic_rook_table[102400];
 extern BITBOARD magic_bishop[64];
@@ -333,8 +333,6 @@ extern unsigned char lsb[65536];
 extern unsigned char msb_8bit[256];
 extern unsigned char lsb_8bit[256];
 extern unsigned char pop_cnt_8bit[256];
-extern unsigned char connected_passed[256];
-extern unsigned char file_spread[256];
 extern signed char is_outside[256][256];
 extern BITBOARD mask_pawn_connected[64];
 extern BITBOARD mask_pawn_duo[64];
@@ -343,7 +341,6 @@ extern BITBOARD mask_pawn_passed[2][64];
 extern BITBOARD mask_no_pattacks[2][64];
 extern BITBOARD mask_hidden_left[2][8];
 extern BITBOARD mask_hidden_right[2][8];
-extern BITBOARD pawn_race[2][2][64];
 extern BITBOARD pawn_race[2][2][64];
 extern BOOK_POSITION book_buffer[BOOK_CLUSTER_SIZE];
 extern BOOK_POSITION book_buffer_char[BOOK_CLUSTER_SIZE];
@@ -388,19 +385,17 @@ extern int lower_r;
 extern int mobility_score_n[4];
 extern int mobility_score_b[2][4];
 extern int mobility_score_r[4];
-extern int mobility_score_q[4];
 extern int undeveloped_piece;
 extern int friendly_queen[8];
 extern int pawn_can_promote;
 extern int pawn_duo[2];
 extern int pawn_weak[2];
 extern int pawn_isolated[2];
-extern int split_passed[2];
 extern int king_king_tropism;
 extern int bishop_trapped;
 extern int bishop_with_wing_pawns[2];
 extern int rook_on_7th[2];
-extern int rook_open_file[2][9][8];
+extern int rook_open_file[2];
 extern int rook_half_open_file[2];
 extern int rook_behind_passed_pawn[2];
 extern int rook_trapped;

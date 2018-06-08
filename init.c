@@ -857,7 +857,6 @@ void InitializeMasks(void)
   msb_8bit[0] = 8;
   lsb_8bit[0] = 8;
   pop_cnt_8bit[0] = 0;
-  connected_passed[0] = 0;
   for (i = 1; i < 256; i++) {
     pop_cnt_8bit[i] = 0;
     for (j = 0; j < 8; j++)
@@ -875,7 +874,7 @@ void InitializeMasks(void)
 }
 void InitializePawnMasks(void)
 {
-  int i, j, k, file;
+  int i, j;
   BITBOARD m1, m2;
 
 /*
@@ -1059,28 +1058,6 @@ void InitializePawnMasks(void)
     }
   }
 /*
-  table to detect connected pawns and to determine how far apart
-  two "split" passed pawns are.
- */
-  for (i = 1; i < 256; i++) {
-    connected_passed[i] = 0;
-    for (j = 0; j < 8; j++)
-      if ((i & (3 << j)) == (3 << j)) {
-        connected_passed[i] = j + 1;
-        break;
-      }
-    for (j = 0; j < 8; j++)
-      if (i & (1 << j))
-        break;
-    for (k = 7; k >= 0; k--)
-      if (i & (1 << k))
-        break;
-    if (k > j)
-      file_spread[i] = k - j - 1;
-    else
-      file_spread[i] = 0;
-  }
-/*
  is_outside[p][a]
  p=8 bit mask for passed pawns
  a=8 bit mask for all pawns on board
@@ -1163,4 +1140,8 @@ void InitializeSMP(void)
   LockInit(lock_io);
   LockInit(lock_root);
   LockInit(block[0]->lock);
+# if (CPUS > 1)
+  pthread_attr_init (&attributes);
+  pthread_attr_setdetachstate(&attributes, PTHREAD_CREATE_DETACHED);
+#endif
 }

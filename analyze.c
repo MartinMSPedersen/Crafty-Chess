@@ -131,8 +131,10 @@ void Analyze()
       else if ((move = InputMove(tree, buffer, 0, wtm, 1, 0))) {
         char *outmove = OutputMove(tree, move, 0, wtm);
 
-        fseek(history_file, ((move_number - 1) * 2 + 1 - wtm) * 10, SEEK_SET);
-        fprintf(history_file, "%9s\n", outmove);
+        if (history_file) {
+          fseek(history_file, ((move_number - 1) * 2 + 1 - wtm) * 10, SEEK_SET);
+          fprintf(history_file, "%9s\n", outmove);
+        }
         if (wtm)
           Print(128, "White(%d): ", move_number);
         else

@@ -804,8 +804,10 @@ static epdptrT EGCommHandler(epdptrT epdptr0, siptrT flagptr)
 /* execute the supplied move */
     eopptr = EPDLocateEOPCode(epdptr0, epdso_sm);
     move = InputMove(tree, eopptr->eop_headeov->eov_str, 0, wtm, 0, 0);
-    fseek(history_file, ((((move_number - 1) * 2) + 1 - wtm) * 10), SEEK_SET);
-    fprintf(history_file, "%9s\n", eopptr->eop_headeov->eov_str);
+    if (history_file) {
+      fseek(history_file, ((((move_number - 1) * 2) + 1 - wtm) * 10), SEEK_SET);
+      fprintf(history_file, "%9s\n", eopptr->eop_headeov->eov_str);
+    }
     MakeMoveRoot(tree, move, wtm);
     wtm = Flip(wtm);
     if (wtm)
@@ -842,8 +844,11 @@ static epdptrT EGCommHandler(epdptrT epdptr0, siptrT flagptr)
     eopptr = EPDLocateEOPCode(epdptr0, epdso_sm);
     if (eopptr != NULL) {
       move = InputMove(tree, eopptr->eop_headeov->eov_str, 0, wtm, 0, 0);
-      fseek(history_file, ((((move_number - 1) * 2) + 1 - wtm) * 10), SEEK_SET);
-      fprintf(history_file, "%9s\n", eopptr->eop_headeov->eov_str);
+      if (history_file) {
+        fseek(history_file, ((((move_number - 1) * 2) + 1 - wtm) * 10),
+            SEEK_SET);
+        fprintf(history_file, "%9s\n", eopptr->eop_headeov->eov_str);
+      }
       MakeMoveRoot(tree, move, wtm);
       wtm = Flip(wtm);
       if (wtm)
@@ -875,8 +880,11 @@ static epdptrT EGCommHandler(epdptrT epdptr0, siptrT flagptr)
       m = *mptr;
       EPDSANEncode(&m, san);
 /* output to temporary history file */
-      fseek(history_file, ((((move_number - 1) * 2) + 1 - wtm) * 10), SEEK_SET);
-      fprintf(history_file, "%9s\n", san);
+      if (history_file) {
+        fseek(history_file, ((((move_number - 1) * 2) + 1 - wtm) * 10),
+            SEEK_SET);
+        fprintf(history_file, "%9s\n", san);
+      }
 /* update host position */
       MakeMoveRoot(tree, move, wtm);
       wtm = Flip(wtm);

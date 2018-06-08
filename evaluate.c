@@ -80,8 +80,8 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta)
           queen) - TotalPieces(black, rook) - 2 * TotalPieces(black, queen);
       if (abs(majors) == 1) {
         minors =
-            TotalPieces(white, knight) + TotalPieces(white, bishop) -
-            TotalPieces(black, knight) - TotalPieces(black, bishop);
+            TotalPieces(white, knight) + TotalPieces(white,
+            bishop) - TotalPieces(black, knight) - TotalPieces(black, bishop);
         if (majors == -minors) {
           if (TotalPieces(black, pawn) == 0)
             can_win &= 1;
@@ -1124,24 +1124,6 @@ void EvaluatePassedPawns(TREE * RESTRICT tree, int side)
 /*
  ************************************************************
  *                                                          *
- *   check to see if side has "split" passed pawns, as      *
- *   these are much harder for a lone king to stop than two *
- *   connected passers are.                                 *
- *                                                          *
- ************************************************************
- */
-  if (TotalPieces(enemy, occupied) == 0) {
-    int spread;
-
-    spread = file_spread[tree->pawn_score.passed[side]];
-    if (spread > 0) {
-      score_mg += (spread - 1) * split_passed[mg];
-      score_eg += (spread - 1) * split_passed[eg];
-    }
-  }
-/*
- ************************************************************
- *                                                          *
  *   check to see if side has an outside passed pawn.       *
  *                                                          *
  ************************************************************
@@ -1775,7 +1757,7 @@ void EvaluateQueens(TREE * RESTRICT tree, int side)
 void EvaluateRooks(TREE * RESTRICT tree, int side)
 {
   register BITBOARD temp, moves;
-  register int square, file, open_files, trop, tscore = 0, i;
+  register int square, file, trop, tscore = 0, i;
   register int score_mg = 0, score_eg = 0, pawnsq;
   register int enemy = Flip(side);
 
@@ -1786,7 +1768,9 @@ void EvaluateRooks(TREE * RESTRICT tree, int side)
  *                                                          *
  ************************************************************
  */
+/*
   open_files = PopCnt8Bit(tree->pawn_score.open_files);
+*/
   temp = Rooks(side);
   while (temp) {
     square = LSB(temp);
@@ -1802,8 +1786,8 @@ void EvaluateRooks(TREE * RESTRICT tree, int side)
  */
     if (!(file_mask[file] & Pawns(side))) {
       if (!(file_mask[file] & Pawns(enemy))) {
-        score_mg += rook_open_file[mg][open_files][file];
-        score_eg += rook_open_file[eg][open_files][file];
+        score_mg += rook_open_file[mg];
+        score_eg += rook_open_file[eg];
       } else {
         score_mg += rook_half_open_file[mg];
         score_eg += rook_half_open_file[eg];

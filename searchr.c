@@ -65,8 +65,8 @@ int SearchRoot(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth)
       if (first_move) {
         if (depth - 1 + extensions > 0)
           value =
-              -Search(tree, -beta, -alpha, Flip(wtm), depth - 1 + extensions,
-              2, DO_NULL);
+              -Search(tree, -beta, -alpha, Flip(wtm), depth - 1 + extensions, 2,
+              DO_NULL);
         else
           value = -QuiesceChecks(tree, -beta, -alpha, Flip(wtm), 2);
         first_move = 0;
@@ -86,8 +86,8 @@ int SearchRoot(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth)
         if ((value > alpha) && (value < beta)) {
           if (depth - 1 + extensions > 0)
             value =
-                -Search(tree, -beta, -alpha, Flip(wtm),
-                depth - 1 + extensions, 2, DO_NULL);
+                -Search(tree, -beta, -alpha, Flip(wtm), depth - 1 + extensions,
+                2, DO_NULL);
           else
             value = -QuiesceChecks(tree, -beta, -alpha, Flip(wtm), 2);
         }

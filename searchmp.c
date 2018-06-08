@@ -74,7 +74,8 @@ int SearchParallel(TREE * RESTRICT tree, int alpha, int beta, int value,
             if (depth == 2) {
               if (MaterialSTM + futility_margin <= alpha)
                 fprune = 1;
-            } else if (depth == 3 && MaterialSTM + extended_futility_margin <= alpha)
+            } else if (depth == 3 &&
+                MaterialSTM + extended_futility_margin <= alpha)
               fprune = 1;
             else if (depth == 4 && MaterialSTM + razor_margin <= alpha)
               extensions -= 1;
@@ -86,8 +87,8 @@ int SearchParallel(TREE * RESTRICT tree, int alpha, int beta, int value,
               ply + 1, DO_NULL);
           if (value > alpha && extensions < -1)
             value =
-                -Search(tree, -alpha - 1, -alpha, Flip(wtm), depth - 1,
-                ply + 1, DO_NULL);
+                -Search(tree, -alpha - 1, -alpha, Flip(wtm), depth - 1, ply + 1,
+                DO_NULL);
         } else
           value = -QuiesceChecks(tree, -alpha - 1, -alpha, Flip(wtm), ply + 1);
         if (abort_search || tree->stop)

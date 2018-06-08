@@ -327,10 +327,11 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
             !tree->inchk[ply + 1] && abs(alpha) < (MATE - 500)) {
           if (depth < 5) {
             if (depth == 2) {
-                if (MaterialSTM + futility_margin <= alpha)
-                  fprune = 1;
-            } else if (depth == 3 && MaterialSTM + extended_futility_margin <= alpha)
+              if (MaterialSTM + futility_margin <= alpha)
                 fprune = 1;
+            } else if (depth == 3 &&
+                MaterialSTM + extended_futility_margin <= alpha)
+              fprune = 1;
             else if (depth == 4 && MaterialSTM + razor_margin <= alpha)
               extensions -= 1;
           }

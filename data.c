@@ -8,8 +8,6 @@ FILE *normal_bs_file;
 FILE *computer_bs_file;
 FILE *history_file;
 FILE *log_file;
-FILE *auto_file;
-FILE *position_file;
 int done = 0;
 BITBOARD total_moves;
 int last_mate_score;
@@ -92,8 +90,6 @@ unsigned char lsb[65536];
 unsigned char msb_8bit[256];
 unsigned char lsb_8bit[256];
 unsigned char pop_cnt_8bit[256];
-unsigned char connected_passed[256];
-unsigned char file_spread[256];
 signed char is_outside[256][256];
 BITBOARD mask_pawn_connected[64];
 BITBOARD mask_pawn_duo[64];
@@ -103,7 +99,6 @@ BITBOARD mask_no_pattacks[2][64];
 BITBOARD mask_hidden_left[2][8];
 BITBOARD mask_hidden_right[2][8];
 BITBOARD pawn_race[2][2][64];
-BITBOARD pawn_race[2][2][64];
 BOOK_POSITION book_buffer[BOOK_CLUSTER_SIZE];
 BOOK_POSITION book_buffer_char[BOOK_CLUSTER_SIZE];
 int OOsqs[2][3] = { {E8, F8, G8}, {E1, F1, G1} };
@@ -111,7 +106,7 @@ int OOOsqs[2][3] = { {E8, D8, C8}, {E1, D1, C1} };
 int OOfrom[2] = { E8, E1 };
 int OOto[2] = { G8, G1 };
 int OOOto[2] = { C8, C1 };
-#define    VERSION                             "22.4"
+#define    VERSION                             "22.5"
 char version[8] = { VERSION };
 PLAYING_MODE mode = normal_mode;
 int batch_mode = 0;             /* no asynch reads */
@@ -239,6 +234,9 @@ TREE *block[MAX_BLOCKS + 1];
 TREE *volatile thread[CPUS];
 #if (CPUS > 1)
 lock_t lock_smp, lock_io, lock_root;
+#if defined(UNIX)
+  pthread_attr_t attributes;
+#endif
 #endif
 unsigned int parallel_splits;
 unsigned int parallel_aborts;
@@ -496,10 +494,6 @@ BITBOARD mobility_mask_b[4] = {
 BITBOARD mobility_mask_r[4] = {
   0x8181818181818181ULL, 0x4242424242424242ULL,
   0x2424242424242424ULL, 0x1818181818181818ULL
-};
-BITBOARD mobility_mask_q[4] = {
-  0xFF818181818181FFULL, 0x007E424242427E00ULL,
-  0x00003C24243C0000ULL, 0x0000001818000000ULL
 };
 /*
   values use to deal with white/black independently
@@ -894,13 +888,11 @@ int lower_r = 16;
 int mobility_score_b[2][4] = {{1, 2, 3, 4}, {2, 3, 4, 5}};
 int mobility_score_n[4] = {1, 2, 3, 4};
 int mobility_score_r[4] = {1, 2, 3, 4};
-int mobility_score_q[4] = {1, 2, 3, 4};
 int undeveloped_piece = 12;
 int friendly_queen[8] = {2, 2, 2, 1, 0, 0, -1, -1};
 int pawn_duo[2] = {4, 8};
 int pawn_isolated[2] = {12, 18};
 int pawn_weak[2] = {16, 24};
-int split_passed[2] = {0, 50};
 int king_king_tropism = 10;
 int bishop_trapped = 174;
 int bishop_with_wing_pawns[2] = {18, 36};
@@ -913,26 +905,7 @@ int rook_on_7th[2] = {20, 40};
     board, etc.  obviously control of a file is more important if
     there is only one or two files available.
 */
-int rook_open_file[2][9][8] = {
- {{ 0,  0,  0,  0,  0,  0,  0,  0},
-  {12, 16, 24, 24, 24, 24, 16, 12},
-  {12, 16, 20, 20, 20, 20, 16, 12},
-  {12, 16, 20, 20, 20, 20, 16, 12},
-  {12, 16, 20, 20, 20, 20, 16, 12},
-  {12, 16, 20, 20, 20, 20, 16, 12},
-  {12, 16, 20, 20, 20, 20, 16, 12},
-  {12, 16, 20, 20, 20, 20, 16, 12},
-  {12, 16, 20, 20, 20, 20, 16, 12}},
- {{ 0,  0,  0,  0,  0,  0,  0,  0},
-  {12, 16, 24, 24, 24, 24, 16, 12},
-  {12, 16, 20, 20, 20, 20, 16, 12},
-  {12, 16, 20, 20, 20, 20, 16, 12},
-  {12, 16, 20, 20, 20, 20, 16, 12},
-  {12, 16, 20, 20, 20, 20, 16, 12},
-  {12, 16, 20, 20, 20, 20, 16, 12},
-  {12, 16, 20, 20, 20, 20, 16, 12},
-  {12, 16, 20, 20, 20, 20, 16, 12}}
-};
+int rook_open_file[2] = {40, 20};
 int rook_half_open_file[2] = {10, 10};
 int rook_behind_passed_pawn[2] = {10, 36};
 int rook_trapped = 60;
@@ -1009,10 +982,10 @@ struct personality_term personality_packet[256] = {
   {"pawn isolated                        ", 2, 2, pawn_isolated},
   {"pawn weak                            ", 2, 2, pawn_weak},
   {"pawn can promote                     ", 1, 0, &pawn_can_promote},
-  {"split passed pawn bonus              ", 2, 2, split_passed},
   {"outside passed pawn                  ", 2, 2, outside_passed},
   {"hidden passed pawn                   ", 2, 2, passed_pawn_hidden},
   {"doubled pawn                         ", 2, 2, doubled_pawn_value},
+  {NULL, 0, 0, NULL},
   {NULL, 0, 0, NULL},
   {NULL, 0, 0, NULL},
   {NULL, 0, 0, NULL},
@@ -1041,7 +1014,7 @@ struct personality_term personality_packet[256] = {
   {NULL, 0, 0, NULL},
   {NULL, 0, 0, NULL},
   {"rook scoring                         ", 0, 0, NULL},        /* 70 */
-  {"rook open file [2[[9][8]             ", 5, 144, (int *) rook_open_file},
+  {"rook open file                       ", 2, 2, rook_open_file},
   {"rook king tropism [distance]         ", 8, 8, king_tropism_r},
   {"rook mobility/square table           ", 8, 4, mobility_score_r},
   {"rook half open file                  ", 2, 2, rook_half_open_file},

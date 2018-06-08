@@ -22,7 +22,7 @@
 #if defined(UNIX)
 #  include <unistd.h>
 #  include <sys/types.h>
-#  if !defined(LINUX) && !defined(ALPHA) && !defined(HP) && \
+#  if !defined(LINUX) && !defined(HP) && \
    !defined(FreeBSD) && !defined(NetBSD) && !defined(__EMX__)
 #    if defined(AIX)
 #      include <sys/termio.h>
@@ -960,24 +960,23 @@ void DisplayType3(int *array, int *array2)
 {
   int i, j;
 
-    printf("    ----------- Middlegame -----------   ");
-    printf("    ------------- Endgame -----------\n");
-    for (i = 0; i < 8; i++) {
-      printf("    ");
-      for (j = 0; j < 8; j++)
-        printf("%3d ", array[64 + (7 - i) * 8 + j]);
-      printf("  |  %d  |", 8 - i);
-      printf("  ");
-      for (j = 0; j < 8; j++)
-        printf("%3d ", array2[64 + (7 - i) * 8 + j]);
-      printf("\n");
-    }
-    printf
-        ("    ----------------------------------       ---------------------------------\n");
-    printf("      a   b   c   d   e   f   g   h        ");
-    printf("      a   b   c   d   e   f   g   h\n");
+  printf("    ----------- Middlegame -----------   ");
+  printf("    ------------- Endgame -----------\n");
+  for (i = 0; i < 8; i++) {
+    printf("    ");
+    for (j = 0; j < 8; j++)
+      printf("%3d ", array[64 + (7 - i) * 8 + j]);
+    printf("  |  %d  |", 8 - i);
+    printf("  ");
+    for (j = 0; j < 8; j++)
+      printf("%3d ", array2[64 + (7 - i) * 8 + j]);
+    printf("\n");
+  }
+  printf
+      ("    ----------------------------------       ---------------------------------\n");
+  printf("      a   b   c   d   e   f   g   h        ");
+  printf("      a   b   c   d   e   f   g   h\n");
 }
-
 
 /*
  *******************************************************************************
@@ -1022,18 +1021,18 @@ void DisplayType5(int *array, int *array2, int rows)
 {
   int i, j;
 
-    printf("    ----------- Middlegame -----------   ");
-    printf("    ------------- Endgame -----------\n");
-    for (i = 0; i < rows; i++) {
-      printf("    ");
-      for (j = 0; j < 8; j++)
-        printf("%3d ", array[(rows - 1 - i) * 8 + j]);
-      printf("  |  %d  |", 8 - i);
-      printf("  ");
-      for (j = 0; j < 8; j++)
-        printf("%3d ", array2[(rows - 1 - i) * 8 + j]);
-      printf("\n");
-    }
+  printf("    ----------- Middlegame -----------   ");
+  printf("    ------------- Endgame -----------\n");
+  for (i = 0; i < rows; i++) {
+    printf("    ");
+    for (j = 0; j < 8; j++)
+      printf("%3d ", array[(rows - 1 - i) * 8 + j]);
+    printf("  |  %d  |", 8 - i);
+    printf("  ");
+    for (j = 0; j < 8; j++)
+      printf("%3d ", array2[(rows - 1 - i) * 8 + j]);
+    printf("\n");
+  }
 }
 
 /*
@@ -1711,16 +1710,21 @@ void Pass(void)
 
 /* Was previous move a pass? */
   if (halfmoves_done > 0) {
-    fseek(history_file, (halfmoves_done - 1) * 10, SEEK_SET);
-    if (fscanf(history_file, "%s", buffer) == 0 || strcmp(buffer, "pass") == 0)
-      prev_pass = 1;
+    if (history_file) {
+      fseek(history_file, (halfmoves_done - 1) * 10, SEEK_SET);
+      if (fscanf(history_file, "%s", buffer) == 0 ||
+          strcmp(buffer, "pass") == 0)
+        prev_pass = 1;
+    }
   }
   if (prev_pass) {
     if (wtm)
       move_number--;
   } else {
-    fseek(history_file, halfmoves_done * 10, SEEK_SET);
-    fprintf(history_file, "%9s\n", "pass");
+    if (history_file) {
+      fseek(history_file, halfmoves_done * 10, SEEK_SET);
+      fprintf(history_file, "%9s\n", "pass");
+    }
     if (!wtm)
       move_number++;
   }
@@ -2326,6 +2330,8 @@ void RestoreGame(void)
   int i, move;
   char cmd[16];
 
+  if (!history_file)
+    return;
   wtm = 1;
   InitializeChessBoard(block[0]);
   for (i = 0; i < 500; i++) {

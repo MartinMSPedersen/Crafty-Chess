@@ -708,8 +708,6 @@ int Option(TREE * RESTRICT tree)
       fclose(book_file);
     if (books_file)
       fclose(books_file);
-    if (position_file)
-      fclose(position_file);
     if (history_file)
       fclose(history_file);
     if (log_file)
@@ -877,8 +875,10 @@ int Option(TREE * RESTRICT tree)
     if (move) {
       if (input_stream != stdin)
         printf("%s\n", OutputMove(tree, move, 0, wtm));
-      fseek(history_file, ((movenum - 1) * 2 + 1 - wtm) * 10, SEEK_SET);
-      fprintf(history_file, "%9s\n", OutputMove(tree, move, 0, wtm));
+      if (history_file) {
+        fseek(history_file, ((movenum - 1) * 2 + 1 - wtm) * 10, SEEK_SET);
+        fprintf(history_file, "%9s\n", OutputMove(tree, move, 0, wtm));
+      }
       MakeMoveRoot(tree, move, wtm);
       last_pv.pathd = 0;
       last_pv.pathl = 0;
@@ -927,18 +927,20 @@ int Option(TREE * RESTRICT tree)
     int i;
     char buffer[128];
 
-    printf("    white       black\n");
-    for (i = 0; i < (move_number - 1) * 2 - wtm + 1; i++) {
-      fseek(history_file, i * 10, SEEK_SET);
-      fscanf(history_file, "%s", buffer);
-      if (!(i % 2))
-        printf("%3d", i / 2 + 1);
-      printf("  %-10s", buffer);
-      if (i % 2 == 1)
-        printf("\n");
+    if (history_file) {
+      printf("    white       black\n");
+      for (i = 0; i < (move_number - 1) * 2 - wtm + 1; i++) {
+        fseek(history_file, i * 10, SEEK_SET);
+        fscanf(history_file, "%s", buffer);
+        if (!(i % 2))
+          printf("%3d", i / 2 + 1);
+        printf("  %-10s", buffer);
+        if (i % 2 == 1)
+          printf("\n");
+      }
+      if (Flip(wtm))
+        printf("  ...\n");
     }
-    if (Flip(wtm))
-      printf("  ...\n");
   }
 /*
  ************************************************************
@@ -1659,6 +1661,8 @@ int Option(TREE * RESTRICT tree)
       log_file = 0;
       sprintf(filename, "%s/log.%03d", log_path, log_id - 1);
       remove(filename);
+      sprintf(filename, "%s/game.%03d", log_path, log_id - 1);
+      remove(filename);
     } else if (args[1][0] >= '0' && args[1][0] <= '9') {
       if (log_id == 0)
         log_id = atoi(args[1]);
@@ -2108,23 +2112,29 @@ int Option(TREE * RESTRICT tree)
             break;
           case 3:
             printf("%3d  %s\n", i, personality_packet[i].description);
-            DisplayType3(personality_packet[i].value, personality_packet[i].value+128);
+            DisplayType3(personality_packet[i].value,
+                personality_packet[i].value + 128);
             break;
           case 4:
             printf("%3d  %s\n", i, personality_packet[i].description);
-            DisplayType4(personality_packet[i].value, personality_packet[i].value+64);
+            DisplayType4(personality_packet[i].value,
+                personality_packet[i].value + 64);
             break;
           case 5:
             printf("%3d  %s\n", i, personality_packet[i].description);
-            DisplayType5(personality_packet[i].value, personality_packet[i].value+personality_packet[i].size / 2, personality_packet[i].size / 16);
+            DisplayType5(personality_packet[i].value,
+                personality_packet[i].value + personality_packet[i].size / 2,
+                personality_packet[i].size / 16);
             break;
           case 6:
             printf("%3d  %s\n", i, personality_packet[i].description);
-            DisplayType6(personality_packet[i].value, personality_packet[i].value+16);
+            DisplayType6(personality_packet[i].value,
+                personality_packet[i].value + 16);
             break;
           case 7:
             printf("%3d  %s\n", i, personality_packet[i].description);
-            DisplayType7(personality_packet[i].value, personality_packet[i].value+5);
+            DisplayType7(personality_packet[i].value,
+                personality_packet[i].value + 5);
             break;
           case 8:
             printf("%3d  %s\n", i, personality_packet[i].description);
@@ -2608,6 +2618,8 @@ int Option(TREE * RESTRICT tree)
   else if (OptionMatch("reset", *args)) {
     int i, move, nmoves;
 
+    if (!history_file)
+      return (1);
     if (thinking || pondering)
       return (2);
     if (nargs < 2) {
@@ -3046,25 +3058,18 @@ int Option(TREE * RESTRICT tree)
  ************************************************************
  */
   else if (!strcmp("scale", *args)) {
-    int v = atoi(args[1]);
-    if (v < 2000)
-      outside_passed[mg] = v % 1000;
-    else
-      outside_passed[eg] = v % 1000;
+    int scale = atoi(args[1]);
+    int orig = rook_open_file[mg];
+    rook_open_file[mg] = scale * rook_open_file[mg] / 100;
+    rook_open_file[eg] += orig - rook_open_file[mg];
 /*
     int i, j;
 
-    connected_passed_pawn_value[mg] =
-        atoi(args[1]) * connected_passed_pawn_value[mg] / 100;
-    for (i = 0; i < 2; i++)
+    for (i = 0; i < 9; i++)
       for (j = 0; j < 8; j++) {
-        passed_pawn_value[mg][i][j] =
-            atoi(args[1]) * passed_pawn_value[mg][i][j] / 100;
-        blockading_passed_pawn_value[mg][i][j] =
-            atoi(args[1]) * blockading_passed_pawn_value[mg][i][j] / 100;
+        rook_open_file[mg][i][j] =
+            atoi(args[1]) * rook_open_file[mg][i][j] / 100;
       }
-*/
-/*
     mate_depth=atoi(args[1]);
 */
   }

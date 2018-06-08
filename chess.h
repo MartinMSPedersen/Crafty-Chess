@@ -49,10 +49,6 @@
 #    undef  HAS_64BITS  /* machine has 64-bit integers / operators    */
 #    define UNIX        /* system is unix-based                       */
 #  endif
-#  if defined(ALPHA)
-#    define HAS_64BITS  /* machine has 64-bit integers / operators    */
-#    define UNIX        /* system is unix-based                       */
-#  endif
 #  if defined(AMIGA)
 #    undef  HAS_64BITS  /* machine has 64-bit integers / operators    */
 #    undef  UNIX        /* system is unix-based                       */
@@ -160,6 +156,9 @@ typedef unsigned long long BITBOARD;
 #    define BMF   "%llu"
 #    define BMF6  "%6llu"
 #    define BMF10 "%10llu"
+#  endif
+#  if defined(UNIX) & (CPUS > 1)
+#    include <pthread.h>
 #  endif
 #  include <time.h>
 #  if !defined(CLOCKS_PER_SEC)
@@ -438,6 +437,7 @@ void DisplayType6(int *, int *);
 void DisplayType7(int *, int *);
 void DisplayType8(int *);
 void Edit(void);
+
 #  if !defined(NOEGTB)
 int EGTBProbe(TREE * RESTRICT, int, int, int *);
 void EGTBPV(TREE * RESTRICT, int);
@@ -592,15 +592,6 @@ extern void WinFreeInterleaved(void *, size_t);
 #      define FreeInterleaved(pMemory, cBytes)    free(pMemory)
 #    endif
 #  endif
-#  if defined(ALPHA)
-#    include <machine/builtins.h>
-/* The following are defined only on Unix 4.0E and later. */
-#    ifdef _int_mult_upper      /* kludge to identify version of builtins.h */
-#      define PopCnt(a)     _popcnt(a)
-#      define MSB(a)   _leadz(a)
-#      define LSB(a)    (63 - _trailz(a))
-#    endif
-#  endif
 #  define Abs(a)    (((a) > 0) ? (a) : -(a))
 #  define Max(a,b)  (((a) > (b)) ? (a) : (b))
 #  define Min(a,b)  (((a) < (b)) ? (a) : (b))
@@ -617,12 +608,12 @@ extern void WinFreeInterleaved(void *, size_t);
   m = bit vector of to squares to unpack
   t = pre-computed from + moving piece
  */
-#  define Unpack(wtm, mptr, m, t)                                              \
-    while (m) {                                                              \
-      int to = Advanced(wtm, moves);                                         \
-      *mptr++ = t | (to << 6) | (Abs(PcOnSq(to)) << 15);                     \
-      Clear(to, m);                                                          \
-    }
+#  define Unpack(wtm, mptr, m, t)                                            \
+  while (m) {                                                              \
+    int to = Advanced(wtm, moves);                                         \
+    *mptr++ = t | (to << 6) | (Abs(PcOnSq(to)) << 15);                     \
+    Clear(to, m);                                                          \
+  }
 #  define Check(wtm) Attacked(tree, KingSQ(wtm), Flip(wtm))
 #  define Attack(from,to) (!(obstructed[from][to] & OccupiedSquares))
 #  define AttacksBishop(square, occ) *(magic_bishop_indices[square]+((((occ)&magic_bishop_mask[square])*magic_bishop[square])>>magic_bishop_shift[square]))
@@ -696,10 +687,10 @@ extern void WinFreeInterleaved(void *, size_t);
 #  define HashCastle(a,b,c)     (b^=castle_random[c][a])
 #  define HashEP(a,b)           (b^=enpassant_random[a])
 #  define SavePV(tree,ply,ph)   do {                                          \
-          tree->pv[ply-1].path[ply-1]=tree->curmv[ply-1];                     \
-          tree->pv[ply-1].pathl=ply-1;                                        \
-          tree->pv[ply-1].pathh=ph;                                           \
-          tree->pv[ply-1].pathd=iteration_depth;} while(0)
+        tree->pv[ply-1].path[ply-1]=tree->curmv[ply-1];                     \
+        tree->pv[ply-1].pathl=ply-1;                                        \
+        tree->pv[ply-1].pathh=ph;                                           \
+        tree->pv[ply-1].pathd=iteration_depth;} while(0)
 #  if defined(INLINE64)
 #    include "inline64.h"
 #  endif

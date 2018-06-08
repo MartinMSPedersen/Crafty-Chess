@@ -1,6 +1,6 @@
 #include "chess.h"
 #include "data.h"
-#if (!defined(INLINE32) && !defined(VC_INLINE32) && !defined(ALPHA) && !defined(INLINE64)) || (defined(ALPHA) && !defined(PopCnt))
+#if (!defined(INLINE32) && !defined(VC_INLINE32) && !defined(INLINE64))
 #  if defined (_M_IA64)
 #    ifdef __ICL
 typedef unsigned long long __m64;
