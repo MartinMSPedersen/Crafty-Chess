@@ -2722,7 +2722,18 @@
 *           console output window.  and when whispering/kibitzing on a chess  *
 *           server.  this should eliminate _all_ confusion about the values   *
 *           that are displayed as there are now no exceptions to the above    *
-*           policy of any kind.                                               *
+*           policy of any kind.  Book() was changed so that if it notices     *
+*           that the opponent has a "stonewall pattern" set up (IE crafty     *
+*           is black, has a pawn at e7 or e6, and the opponent has pawns at   *
+*           d4/f4) then it won't play a castle move from book.  It will do a  *
+*           normal search instead and let the evaluation guide it on whether  *
+*           to castle or not (generally it won't unless it is forced).        *
+*                                                                             *
+*   18.1    easy move code broken, so that no move ever appeared to be "easy" *
+*           even if it was the only possible recapture move to make.  a minor *
+*           problem in analysis mode dealing with pawn promotions was fixed.  *
+*           it was possible for a move like h8=Q to be rejected even though   *
+*           it was perfectly legal.                                           *
 *                                                                             *
 *******************************************************************************
 */

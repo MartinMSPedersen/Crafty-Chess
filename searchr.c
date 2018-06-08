@@ -5,7 +5,7 @@
 #include "data.h"
 #include "epdglue.h"
 
-/* modified 10/18/99 */
+/* modified 01/10/01 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -241,7 +241,7 @@ void SearchOutput(TREE *tree, int value, int bound) {
     whisper_depth=iteration_depth;
     for (i=0;i<n_root_moves;i++)
       if (tree->current_move[1] == root_moves[i].move) break;
-    if (i < n_root_moves) {
+    if (i && i<n_root_moves) {
       temp_rm=root_moves[i];
       for (;i>0;i--) root_moves[i]=root_moves[i-1];
       root_moves[0]=temp_rm;

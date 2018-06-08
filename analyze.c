@@ -118,7 +118,7 @@ void Analyze() {
 |                                                          |
  ----------------------------------------------------------
 */
-      else if ((move=InputMove(tree,args[0],0,wtm,1,0))) {
+      else if ((move=InputMove(tree,buffer,0,wtm,1,0))) {
         fseek(history_file,((move_number-1)*2+1-wtm)*10,SEEK_SET);
         fprintf(history_file,"%9s\n",OutputMove(tree,move,0,wtm));
         if (wtm) Print(128,"White(%d): ",move_number);
@@ -127,6 +127,7 @@ void Analyze() {
         MakeMoveRoot(tree,move,wtm);
         display=tree->pos;
         last_mate_score=0;
+        if (log_file) DisplayChessBoard(log_file,tree->pos);
       }
 /*
  ----------------------------------------------------------
@@ -140,7 +141,7 @@ void Analyze() {
       else {
         if (!DGT_active) {
           pondering=0;
-          if (Option(tree) == 0) printf("illegal move.\n");
+          if (Option(tree) == 0) printf("illegal move: %s\n",buffer);
           pondering=1;
         }
         else {
