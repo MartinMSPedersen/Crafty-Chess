@@ -10,7 +10,7 @@
 #  define F_MARGIN ((bishop_value+1)/2)
 #endif
 
-/* last modified 03/01/06 */
+/* last modified 01/07/07 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -534,7 +534,7 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
 int SearchControl(TREE * RESTRICT tree, int wtm, int ply, int depth,
     int mate_threat)
 {
-  register int adjustment = 0, move, index, fh_percent;
+  register int adjustment = 0, move, index, fh_percent, square;
 
 /*
  ************************************************************
@@ -565,27 +565,31 @@ int SearchControl(TREE * RESTRICT tree, int wtm, int ply, int depth,
     adjustment += incheck_depth;
   } else
     tree->in_check[ply + 1] = 0;
-
-
-    if(wtm){
-    if (Piece(tree->current_move[ply])==pawn &&
-    w_push_extensions[To(tree->current_move[ply])] &&
-    TotalWhitePieces < (WhiteQueens ? 15 : 12) && TotalWhitePawns < 6 )
-    {tree->passed_pawn_extensions_done++;
-    adjustment +=  pushpp_depth;
-    }
+  move = tree->current_move[ply];
+  square = To(move);
+  if (Piece(move) == pawn && (TotalWhitePieces < (WhiteQueens ? 15 : 12) || TotalBlackPieces < (BlackQueens ? 15 : 12)) )
+  {
+    if(wtm)
+    {
+      if (w_push_extensions[square]
+        && !(mask_pawn_passed_w[square] & BlackPawns)
+        && !PcOnSq(square+8))
+      {
+        tree->passed_pawn_extensions_done++;
+        adjustment += pushpp_depth;
+      }
     }
     else
-    {if (Piece(tree->current_move[ply])==pawn &&
-    b_push_extensions[To(tree->current_move[ply])] &&
-    TotalBlackPieces < (BlackQueens ? 15 : 12) && TotalBlackPawns < 6 )
-    {tree->passed_pawn_extensions_done++;
-    adjustment += pushpp_depth;
+    {
+      if (b_push_extensions[square]
+        && !(mask_pawn_passed_b[square] & WhitePawns)
+        && !PcOnSq(square-8))
+      {
+        tree->passed_pawn_extensions_done++;
+        adjustment += pushpp_depth;
+      }
     }
-    }
-
-
-
+  }
 /*
  ************************************************************
  *                                                          *
@@ -651,7 +655,6 @@ int SearchControl(TREE * RESTRICT tree, int wtm, int ply, int depth,
  */
   if (tree->phase[ply] != REMAINING_MOVES)
     return (0);
-  move = tree->current_move[ply];
   if (depth - PLY - reduce_value < reduce_min_depth || tree->in_check[ply] ||
       CaptureOrPromote(move))
     return (0);
@@ -665,10 +668,10 @@ int SearchControl(TREE * RESTRICT tree, int wtm, int ply, int depth,
  */
   if (Piece(move) == pawn) {
     if (wtm) {
-      if (!(mask_pawn_passed_w[To(move)] & BlackPawns))
+      if (!(mask_pawn_passed_w[square] & BlackPawns))
         return (0);
     } else {
-      if (!(mask_pawn_passed_b[To(move)] & WhitePawns))
+      if (!(mask_pawn_passed_b[square] & WhitePawns))
         return (0);
     }
   }

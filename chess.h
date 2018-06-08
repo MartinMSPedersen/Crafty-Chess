@@ -747,7 +747,7 @@ extern void WinFreeInterleaved(void *, size_t);
 #  define LSB(a)    (63 - _trailz(a))
 #  endif
 #endif
-#define Abs(a)    (((a) > 0) ? (a) : (-a))
+#define Abs(a)    (((a) > 0) ? (a) : -(a))
 #define Max(a,b)  (((a) > (b)) ? (a) : (b))
 #define Min(a,b)  (((a) < (b)) ? (a) : (b))
 #define FileDistance(a,b) abs(File(a) - File(b))
@@ -757,8 +757,6 @@ extern void WinFreeInterleaved(void *, size_t);
 #define PopCnt8Bit(a) (pop_cnt_8bit[a])
 #define MSB8Bit(a) (msb_8bit[a])
 #define LSB8Bit(a) (lsb_8bit[a])
-
-//TLR
 #define RawFileDistance(a,b) (File(a) - File(b))
 #define RawRankDistance(a,b) (Rank(a) - Rank(b))
 
@@ -796,8 +794,6 @@ extern void WinFreeInterleaved(void *, size_t);
     ((s) * (Min(TotalWhitePieces + TotalBlackPieces, 62)) / 62)
 #define ScaleEG(s)                                                            \
     ((s) * (62 - Min(TotalWhitePieces + TotalBlackPieces, 42)) / 86)
- //TLR   ((s) * (62 - Min(TotalWhitePieces + TotalBlackPieces, 42)) / 62)
-
 /*
    the following macro is used to determine if one side is in check.  it
    simply returns the result of Attacked().

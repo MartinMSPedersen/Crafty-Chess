@@ -3515,6 +3515,17 @@
  *           but it is far simpler overall.  Original code by Pradu Kannan as  *
  *           posted on CCC/Winboard forums, modified to work with Crafty.      *
  *                                                                             *
+ *   21.4    minor eval changes.                                               *
+ *                                                                             *
+ *   21.5    passed pawn extension revisited.  bad trade was giving a penalty  *
+ *           for being down an exchange (or a bonus for being up an exchange)  *
+ *           which was not expected behavior.  this has been fixed.  EGTB      *
+ *           initialization was being done during the first pass over the      *
+ *           RC file, which was too early as the rest of the engine had not    *
+ *           been initialized.  now the "egtb" command is the only thing that  *
+ *           triggers initialization, and is only processed during the second  *
+ *           pass over the RC file after paths have been properly set up.      *
+ *                                                                             *
  *******************************************************************************
  */
 int main(int argc, char **argv)

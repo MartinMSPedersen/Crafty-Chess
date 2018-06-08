@@ -3,7 +3,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 08/25/06 */
+/* last modified 01/07/07 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -418,21 +418,22 @@ int EvaluateAll(TREE * RESTRICT tree)
   if (PcOnSq(G8) == -knight && PcOnSq(H8) == -rook)
       score += undeveloped_piece;
 
-//TLR
-  // If a side is winning (material wise) by one minor,
-  // penalize that side if it trades off its pawns down
-  // to drawish material.
+/*
+ ************************************************************
+ *                                                          *
+ *  If a side is winning (material wise) by one minor,      *
+ *  penalize that side if it trades off its pawns down      *
+ *  to drawish material.                                    *
+ *                                                          *
+ ************************************************************
+ */
   diff = TotalWhitePieces - TotalBlackPieces;
   if (diff)
   {
     if (diff == 3 || diff == 2)
-    {
       score -= not_enough_pawns[ TotalWhitePawns ];
-    }
     else if (diff == -3 || diff == -2)
-    {
       score += not_enough_pawns[ TotalBlackPawns ];
-    }
   }
 
 /*
@@ -483,13 +484,9 @@ int EvaluateBishops(TREE * RESTRICT tree)
   temp = WhiteBishops;
   while (temp) {
     square = LSB(temp);
-
-//TLRB
     trop = 0;
     if (score1) score2 = BishopSlideW(tree, square, &trop);
     else score1 = BishopSlideW(tree, square, &trop);
-
-  //  score += BishopSlideW(tree, square) - 24;
 /*
  ************************************************************
  *                                                          *
@@ -569,12 +566,9 @@ int EvaluateBishops(TREE * RESTRICT tree)
   while (temp) {
     square = LSB(temp);
 
-//TLRB
     trop = 0;
     if (score1) score2 = BishopSlideB(tree, square, &trop);
     else score1 = BishopSlideB(tree, square, &trop);
-
- //   score -= BishopSlideB(tree, square) - 24;
 /*
  ************************************************************
  *                                                          *
@@ -943,16 +937,8 @@ int EvaluateKings(TREE * RESTRICT tree, int wtm, int ply)
  *                                                          *
  ************************************************************
  */
-/*
-    if (tree->b_tropism < 0)
-      tree->b_tropism = 0;
-    score -= ScaleMG(king_safety[tree->w_safety][Min(tree->b_tropism, 15)]);
-*/
-
-//TLR
     if (BlackQueens && TotalBlackPieces > 13)
     {
-      // Pawn tropism.
       if (WhiteKingSQ < 16 && (king_attacks[WhiteKingSQ] | king_attacks[WhiteKingSQ+8]) & BlackPawns)
         tree->b_tropism += 3;
 
@@ -1069,16 +1055,8 @@ int EvaluateKings(TREE * RESTRICT tree, int wtm, int ply)
  *                                                          *
  ************************************************************
  */
-/*
-    if (tree->w_tropism < 0)
-      tree->w_tropism = 0;
-    score += ScaleMG(king_safety[tree->b_safety][Min(tree->w_tropism, 15)]);
-*/
-
-//TLR
     if (WhiteQueens && TotalWhitePieces > 13)
     {
-      // Pawn tropism.
       if (BlackKingSQ > 47 && (king_attacks[BlackKingSQ] | king_attacks[BlackKingSQ-8]) & WhitePawns)
         tree->w_tropism += 3;
 
@@ -1246,7 +1224,6 @@ int EvaluateKnights(TREE * RESTRICT tree)
   while (temp) {
     square = LSB(temp);
     score += nval[square];
-//TLRN    score += KnightWeakPawnW(tree, square) - 4;
 /*
  ************************************************************
  *                                                          *
@@ -1293,7 +1270,6 @@ int EvaluateKnights(TREE * RESTRICT tree)
   while (temp) {
     square = LSB(temp);
     score -= nval[square];
-//TLRN    score -= KnightWeakPawnB(tree, square) - 4;
 /*
  ************************************************************
  *                                                          *
@@ -2976,16 +2952,6 @@ int EvaluateQueens(TREE * RESTRICT tree)
  *                                                          *
  ************************************************************
  */
-/*
-    trop = 7;
-    if (!(plus8dir[square] & WhitePawns))
-      trop = FileDistance(square, BlackKingSQ);
-    tree->w_tropism += king_tropism_q[Distance(square, BlackKingSQ)];
-    if (trop <= 1)
-      tree->w_tropism += king_tropism_at_q;
-*/
-
-//TLRQ
     if (TotalWhitePieces > 13)
     {
       trop = Distance(square, BlackKingSQ);
@@ -3052,16 +3018,6 @@ int EvaluateQueens(TREE * RESTRICT tree)
  *                                                          *
  ************************************************************
  */
-/*
-    trop = 7;
-    if (!(minus8dir[square] & BlackPawns))
-      trop = FileDistance(square, WhiteKingSQ);
-    tree->b_tropism += king_tropism_q[Distance(square, WhiteKingSQ)];
-    if (trop <= 1)
-      tree->b_tropism += king_tropism_at_q;
-*/
-
-//TLRQ
     if (TotalBlackPieces > 13)
     {
       trop = Distance(square, WhiteKingSQ);
@@ -3108,11 +3064,8 @@ int EvaluateRooks(TREE * RESTRICT tree)
     square = LSB(temp);
     file = File(square);
 
-//TLRR
     trop = 0;
     score += (RookSlideW(tree, square, &trop) * lower_r_percent / 100) - lower_r;
-
-//    score += RookSlideW(tree, square) - 24;
 /*
  ************************************************************
  *                                                          *
@@ -3246,11 +3199,8 @@ int EvaluateRooks(TREE * RESTRICT tree)
     square = LSB(temp);
     file = File(square);
 
-//TLRR
     trop = 0;
     score -= (RookSlideB(tree, square, &trop) * lower_r_percent / 100) - lower_r;
-
-//    score -= RookSlideB(tree, square) - 24;
 /*
  ************************************************************
  *                                                          *

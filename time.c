@@ -240,14 +240,8 @@ void TimeSet(int search_type)
     if (shared->tc_increment) {
       shared->time_limit =
           (shared->tc_time_remaining -
-  //TLR        shared->tc_operator_time * shared->tc_moves_remaining) / 35 +
           shared->tc_operator_time * shared->tc_moves_remaining) / (ponder ? 24 : 29) +
           shared->tc_increment;
-/*
-      if (shared->tc_time_remaining < 3000)
-        shared->time_limit = shared->tc_increment;
-      if (shared->tc_time_remaining < 1500)
-*/
       if (shared->tc_time_remaining < 600)
         shared->time_limit = shared->tc_increment;
       if (shared->tc_time_remaining < 300)
@@ -255,7 +249,6 @@ void TimeSet(int search_type)
 
       shared->absolute_time_limit = shared->tc_time_remaining / 2;
     } else {
- //TLR     shared->time_limit = shared->tc_time_remaining / 40;
       shared->time_limit = shared->tc_time_remaining / (ponder ? 30 : 36);
       shared->absolute_time_limit =
           Min(shared->time_limit * 6, shared->tc_time_remaining / 2);
