@@ -22,13 +22,12 @@
 ********************************************************************************
 */
 int Option(TREE *tree) {
+
 /*
  ----------------------------------------------------------
 |                                                          |
-|   EPD implementation interface code.  EPD commands can   |
-|   not be handled if the program is actually searching in |
-|   a real game, and if Crafty is "pondering" this has to  |
-|   be stopped.                                            |
+|   parse the input.  if it looks like a FEN string, don't |
+|   parse using "/" as a separator, otherwise do.          |
 |                                                          |
  ----------------------------------------------------------
 */
@@ -38,15 +37,6 @@ int Option(TREE *tree) {
     nargs=ReadParse(buffer,args," 	;=/");
   if (!nargs) return(1);
   if (args[0][0] == '#') return(1);
-  if (initialized) {
-    if (EGCommandCheck(buffer)) {
-      if (thinking || pondering) return (2);
-      else {
-        (void) EGCommand(buffer);
-        return (1);
-      }
-    }
-  }
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -2452,7 +2442,7 @@ int Option(TREE *tree) {
           book_selection_width=3;
           resign=Min(6,resign);
           resign_count=4;
-          draw_count=8;
+          draw_count=4;
           accept_draws=1;
           kibitz=0;
           break;
@@ -2463,7 +2453,7 @@ int Option(TREE *tree) {
           book_selection_width=4;
           resign=Min(9,resign);
           resign_count=5;
-          draw_count=8;
+          draw_count=4;
           accept_draws=1;
           kibitz=0;
           break;
@@ -2680,7 +2670,7 @@ int Option(TREE *tree) {
     time_used=((float) clock_after-(float) clock_before) /
               (float) CLOCKS_PER_SEC;
     printf("generated %d moves, time=%.2f seconds\n",
-           (tree->last[1]-tree->last[0])*PERF_CYCLES,time_used);
+           (int) (tree->last[1]-tree->last[0])*PERF_CYCLES,time_used);
     printf("generated %d moves per second\n",(int) (((float) (PERF_CYCLES*
            (tree->last[1]-tree->last[0])))/time_used));
     clock_before=clock();
@@ -2698,7 +2688,7 @@ int Option(TREE *tree) {
     time_used=((float) clock_after-(float) clock_before) /
               (float) CLOCKS_PER_SEC;
     printf("generated/made/unmade %d moves, time=%.2f seconds\n",
-      (tree->last[1]-tree->last[0])*PERF_CYCLES, time_used);
+           (int) (tree->last[1]-tree->last[0])*PERF_CYCLES, time_used);
     printf("generated/made/unmade %d moves per second\n",(int) (((float) (PERF_CYCLES*
            (tree->last[1]-tree->last[0])))/time_used));
   }
@@ -3804,12 +3794,12 @@ int Option(TREE *tree) {
       return(1);
     }
     if (crafty_is_white) {
-      tc_time_remaining=atoi(args[1]);
-      tc_time_remaining_opponent=atoi(args[2]);
+      tc_time_remaining=atoi(args[1])*100;
+      tc_time_remaining_opponent=atoi(args[2])*100;
     }
     else {
-      tc_time_remaining_opponent=atoi(args[1]);
-      tc_time_remaining=atoi(args[2]);
+      tc_time_remaining_opponent=atoi(args[1])*100;
+      tc_time_remaining=atoi(args[2])*100;
     }
     if (log_file) {
       fprintf(log_file,"time remaining: %s (crafty).\n",
@@ -4014,6 +4004,27 @@ int Option(TREE *tree) {
 */
   else if (OptionMatch("?",*args)) {
   }
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   EPD implementation interface code.  EPD commands can   |
+|   not be handled if the program is actually searching in |
+|   a real game, and if Crafty is "pondering" this has to  |
+|   be stopped.                                            |
+|                                                          |
+ ----------------------------------------------------------
+*/
+#if defined(EPD)
+  else if (initialized) {
+    if (EGCommandCheck(buffer)) {
+      if (thinking || pondering) return (2);
+      else {
+        (void) EGCommand(buffer);
+        return (1);
+      }
+    }
+  }
+#endif
 /*
  ----------------------------------------------------------
 |                                                          |

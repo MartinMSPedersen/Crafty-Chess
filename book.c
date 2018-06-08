@@ -890,7 +890,7 @@ void BookUp(TREE *tree, int nargs, char **args) {
   }
   else if (!strcmp(args[1],"off")) {
     if (book_file) fclose(book_file);
-    if (books_file) fclose(books_file);
+    if (books_file) fclose(normal_bs_file);
     if (computer_bs_file) fclose(computer_bs_file);
     book_file=0;
     books_file=0;

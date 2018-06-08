@@ -248,7 +248,7 @@
   unsigned int   max_split_blocks;
   volatile unsigned int   splitting;
 
-# define    VERSION                             "19.6"
+# define    VERSION                             "19.7"
   char      version[6] =                    {VERSION};
   PLAYING_MODE mode =                     normal_mode;
 
@@ -389,7 +389,7 @@
   signed char resign_counter =                      0;
   signed char resign_count =                        5;
   signed char draw_counter =                        0;
-  signed char draw_count =                         10;
+  signed char draw_count =                          5;
   signed char draw_offer_pending =                  0;
   int       offer_draws =                           1;
   int       adaptive_hash =                         0;

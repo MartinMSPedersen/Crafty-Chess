@@ -10,7 +10,7 @@
 #endif
 #include <signal.h>
 
-/* last modified 10/21/03 */
+/* last modified 12/01/03 */
 /*
 *******************************************************************************
 *                                                                             *
@@ -900,7 +900,7 @@
 *           copying the large position[ply] structure around, the piece       *
 *           location bitmaps and the array of which piece is on which square  *
 *           are now simple global variables.  this means that there is now an *
-*           UnMakeMove() function that must be used to restore these after a  *
+*           UnmakeMove() function that must be used to restore these after a  *
 *           a move has been made.  the benefit is that we avoid copying 10    *
 *           bitmaps for piece locations when typically only one is changed,   *
 *           ditto for the which piece is on which square array which is 64    *
@@ -1148,7 +1148,7 @@
 *           exact multiple of what crafty needs, it silently reduces the size *
 *           to an optimum value as close to the suggested size as possible.   *
 *           trade bonus/penalty is now back in, after having been removed     *
-*           when the new UnMake() code was added.  crafty now tries to trade  *
+*           when the new UnmakeMove() code was added.  crafty tries to trade  *
 *           pawns but not pieces when behind, and tries to trade pieces but   *
 *           not pawns when ahead.  EvaluateDraws() now understands that rook  *
 *           pawns + the wrong bishop is a draw.  minor adjustment to the      *
@@ -1615,7 +1615,7 @@
 *           have reached an endgame database, there's now a counter for the   *
 *           total number of pieces on the board, as it's much faster to inc   *
 *           and dec that value rather than count 1 bits.  tweaks to MakeMove  *
-*           and UnMakeMove to make things a couple of percent faster, but a   *
+*           and UnmakeMove to make things a couple of percent faster, but a   *
 *           whole lot cleaner.  ditto for Swap and Quiesce.  more speed, and  *
 *           cleaner code.  outside passed pawn scored scaled down except when *
 *           the opponent has no pieces at all.  "lazy eval" cleaned up.  we   *
@@ -2958,6 +2958,13 @@
 *           with no harmful side-effects.  fixes to NUMA code to make SMP and *
 *           non-SMP windows compiles go cleanly.                              *
 *                                                                             *
+*   19.7    changes to draw code so that Crafty will first claim a draw and   *
+*           then play the move, to avoid any confusion in whether the draw    *
+*           was made according to FIDE rules or not.  minor bug in evaluate() *
+*           dealing with candidate passed pawns fixed.  A few additions to    *
+*           support my AMD Opteron inline assembly for FirstOne(), LastOne()  *
+*           and PopCnt() procedures.                                          *
+*                                                                             *
 *******************************************************************************
 */
 int main(int argc, char **argv) {
@@ -3203,17 +3210,19 @@ int main(int argc, char **argv) {
         move_actually_played=1;
         last_opponent_move=move;
         if (RepetitionDraw(tree)==1) {
-          Print(128,"%sgame is a draw by repetition.%s\n",Reverse(),Normal());
+          Print(128,"%sI claim a draw by 3-fold repetition.%s\n",
+                Reverse(),Normal());
           value=DrawScore(wtm);
           if (xboard) Print(4095,"1/2-1/2 {Drawn by 3-fold repetition}\n");
         }
         if (RepetitionDraw(tree)==2) {
-          Print(128,"%sgame is a draw by the 50 move rule.%s\n",Reverse(),Normal());
+          Print(128,"%sI claim a draw by the 50 move rule.%s\n",
+                Reverse(),Normal());
           value=DrawScore(wtm);
           if (xboard) Print(4095,"1/2-1/2 {Drawn by 50-move rule}\n");
         }
         if (Drawn(tree,last_search_value) == 2) {
-          Print(128,"%sgame is a draw due to insufficient material.%s\n",
+          Print(128,"%sI claim a draw due to insufficient material.%s\n",
                 Reverse(),Normal());
           if (xboard) Print(4095,"1/2-1/2 {Insufficient material}\n");
         }
@@ -3331,6 +3340,47 @@ int main(int argc, char **argv) {
         Print(128,"\nmated in %d moves.\n\n",(MATE+value)/2);
         Kibitz(1,wtm,0,0,-(MATE+value)/2,tree->nodes_searched,0,0," ");
       }
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   see if we need to claim a draw due to either the 50    |
+|   move rule, 3-fold repetition, or insufficient material |
+|   as the case may be.  if so, we should make the claim   |
+|   before making the move that results in the draw.       |
+|                                                          |
+ ----------------------------------------------------------
+*/
+      tree->position[MAXPLY]=tree->position[0];
+      MakeMove(tree, MAXPLY, last_pv.path[1], wtm);
+      tree->rep_list[++tree->rep_game]=HashKey;
+      if (RepetitionDraw(tree)==1) {
+        Print(128,"%sI claim a draw by 3-fold repetition after my move.%s\n",
+              Reverse(),Normal());
+        if (xboard) Print(4095,"1/2-1/2 {Drawn by 3-fold repetition}\n");
+        value=DrawScore(wtm);
+      }
+      if (RepetitionDraw(tree)==2) {
+        Print(128,"%sI claim a draw by the 50 move rule after my move.%s\n",
+              Reverse(),Normal());
+        if (xboard) Print(4095,"1/2-1/2 {Drawn by 50-move rule}\n");
+        value=DrawScore(wtm);
+      }
+      if (Drawn(tree,last_search_value) == 2) {
+        Print(128,"%sI claim a draw due to insufficient material after my move.%s\n",
+              Reverse(),Normal());
+        if (xboard) Print(4095,"1/2-1/2 {Insufficient material}\n");
+      }
+      UnmakeMove(tree, MAXPLY, last_pv.path[1], wtm);
+      --tree->rep_game;
+      ResignOrDraw(tree,value);
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   now output the move chosen by the search, and the      |
+|   "result" string if necessary.                          |
+|                                                          |
+ ----------------------------------------------------------
+*/
       if (wtm) {
         if (!xboard && !ics) {
           Print(128,"\n");
@@ -3353,15 +3403,17 @@ int main(int argc, char **argv) {
           Print(128,"\n");
           printf("%s",Reverse());
           if (audible_alarm) printf("%c",audible_alarm);
-          Print(128,"Black(%d): %s ",move_number,OutputMove(tree,last_pv.path[1],0,wtm));
+          Print(128,"Black(%d): %s ",move_number,
+                OutputMove(tree,last_pv.path[1],0,wtm));
           printf("%s",Normal());
           Print(128,"\n");
         }
-        else {
+        else if (xboard) {
           if (log_file) fprintf(log_file,"Black(%d): %s\n",move_number,
                                 OutputMove(tree,last_pv.path[1],0,wtm));
           printf("move %s\n",OutputMove(tree,last_pv.path[1],0,wtm));
         }
+        else Print(128,"*%s\n",OutputMove(tree,last_pv.path[1],0,wtm));
       }
       if (value == MATE-2) {
         if(wtm) {
@@ -3390,21 +3442,6 @@ int main(int argc, char **argv) {
       last_search_value=value;
       MakeMoveRoot(tree,last_pv.path[1],wtm);
       move_actually_played=1;
-      if (RepetitionDraw(tree)==1) {
-        Print(128,"%sgame is a draw by repetition.%s\n",Reverse(),Normal());
-        if (xboard) Print(4095,"1/2-1/2 {Drawn by 3-fold repetition}\n");
-        value=DrawScore(wtm);
-      }
-      if (RepetitionDraw(tree)==2) {
-        Print(128,"%sgame is a draw by the 50 move rule.%s\n",Reverse(),Normal());
-        if (xboard) Print(4095,"1/2-1/2 {Drawn by 50-move rule}\n");
-        value=DrawScore(wtm);
-      }
-      if (Drawn(tree,last_search_value) == 2) {
-        Print(128,"%sgame is a draw due to insufficient material.%s\n",
-              Reverse(),Normal());
-        if (xboard) Print(4095,"1/2-1/2 {Insufficient material}\n");
-      }
       if (log_file && time_limit > 300) DisplayChessBoard(log_file,tree->pos);
 /*
  ----------------------------------------------------------
@@ -3460,7 +3497,6 @@ int main(int argc, char **argv) {
 |                                                          |
  ----------------------------------------------------------
 */
-    ResignOrDraw(tree,value);
     if (moves_out_of_book) {
       LearnBook(tree,wtm,last_value,last_pv.pathd+2,0,0);
     }

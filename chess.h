@@ -31,6 +31,10 @@
 */
 #if !defined(TYPES_INCLUDED)
 
+#if defined(AMD_INLINE)
+#  include "inlineasm.h"
+#endif
+
 #if defined (_MSC_VER) && (_MSC_VER >= 1300) && (!defined(_M_IX86) || (_MSC_VER >= 1400))
 #  define RESTRICT __restrict
 #else
@@ -548,9 +552,11 @@ typedef struct tree TREE;
 #  if defined(VC_INLINE_ASM)
 #    include "vcinline.h"
 #  else
-     int CDECL PopCnt(BITBOARD);
-     int CDECL FirstOne(BITBOARD);
-     int CDECL LastOne(BITBOARD);
+#    if !defined(AMD_INLINE)
+       int CDECL PopCnt(BITBOARD);
+       int CDECL FirstOne(BITBOARD);
+       int CDECL LastOne(BITBOARD);
+#    endif
 #  endif
 #endif
   

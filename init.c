@@ -154,8 +154,9 @@ void Initialize(int continuing) {
   _fmode = _O_BINARY;  /* set global file mode to binary to avoid text translation */
 #endif
 
+#if defined(EPD)
   EGInit();
-
+#endif
   tree->last[0]=tree->move_list;
   tree->last[1]=tree->move_list;
 

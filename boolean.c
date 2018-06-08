@@ -87,6 +87,7 @@ int PopCnt(register BITBOARD a) {
 
 #else
 
+#  if !defined(AMD_INLINE)
 int PopCnt(register BITBOARD a) {
   register int c=0;
 
@@ -96,6 +97,7 @@ int PopCnt(register BITBOARD a) {
   }
   return(c);
 }
+#  endif
 
 #endif
 
@@ -126,6 +128,7 @@ int LastOne(BITBOARD arg1) {
 
 #else
 
+#if !defined(AMD_INLINE)
 int FirstOne(BITBOARD arg1) {
     if (arg1>>48)
       return (first_one[arg1>>48]);
@@ -145,6 +148,7 @@ int LastOne(BITBOARD arg1) {
       return (last_one[(arg1>>32)&65535]+16);
     return (last_one[arg1>>48]);
 }
+#endif
 #endif
 #endif
 #endif

@@ -31,18 +31,48 @@
 #   improvement is 33%, but this only applies to X86 machines and the
 #   Sun Sparc-20.
 #   
-#   1.  opt = -DCOMPACT_ATTACKS
-#   2.  opt = -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS
+#   -DCOMPACT_ATTACKS This option turns on the compact attacks option
+#                     which is more cache-friendly, but takes more
+#                     instructions.  This is usually faster.
+#   -DUSE_ATTACK_FUNCTIONS This option is needed if assembly versions
+#                     of some functions are used.  This eliminates the
+#                     c versions to avoid link errors.
+#   -DSMP             enables SMP support (not clustering).  If you choose
+#                     this option, you need to look closely at the following
+#                     four options as well.
+#   -DCPUS=n          defines the maximum number of CPUS Crafty will be able
+#                     to use in a SMP system.  Note that this is the max you
+#                     will be able to use.  You need to use the smpmt=n command
+#                     to make crafty use more than the default 1 thread.
+#   -DPOSIX           This enables POSIX threads support. 
+#   -DCLONE           This uses the linux clone() thread support instead.
+#   -DMUTEX           This uses posix threads MUTEX locks, which are not as
+#                     efficient as spinlocks, but are very portable.  If this
+#                     option is not chosen, then lock.h has to be modified to
+#                     define inline assembly lock functions.
+#   -DBOOKDIR         path to the directory containing the book binary files.
+#                     The default for all such path values is "." if you don't
+#                     specify a path with this macro definition.
+#   -DLOGDIR          path to the directory where Crafty puts the log.nnn and
+#                     game.nnn files.
+#   -DTBDIR           path to the directory where the endgame tablebase files
+#                     are found.  default = "./TB"
+#   -DRCDIR           path to the directory where we look for the .craftyrc or
+#                     crafty.rc (windows) file.
+#   -DDGT             This is a unix-only option to support the DGT board.
+#   -DFAST            This option compiles out some of the statistics 
+#                     gathering to slightly speed up the code.
+#   -DTRACE           This enables the "trace" command so that the search tree
+#                     can be dumped while running.
+#   -DDETECTDRAW      This enables experimental code that detects lots of the
+#                     famous blocked-pawn positions as draws.  It is much slower
+#                     and perhaps slightly risky.
+#   -DFUTILITY        Enables futility pruning (unsafe form of forward pruning)
+#                     that is included for experimentation.
 #   
-#   Finally, if you have a Symmetric MultiProcessor machine, you should
-#   add -DSMP to the opt definition for your make configuration, and then
-#   add -DCPUS=N where N is the number of processors (max) you will use.
-#   
-#   if you want 6 man EGTB support, you will need to add -DEGTB6 to the
-#   options above.
 
 default:
-	$(MAKE) -j4  linux-icc
+	$(MAKE) -j linux-icc
 help:
 	@echo "You must specify the system which you want to compile for:"
 	@echo ""
@@ -151,6 +181,17 @@ linux:
 		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST' \
 		asm=X86.o \
 		crafty-make
+
+linux-amd64:
+        $(MAKE) target=LINUX \
+                CC=gcc CXX=g++ \
+                CFLAGS='$(CFLAGS) -Wall -pipe -D_REENTRANT \
+                -fomit-frame-pointer -O3' \
+                CXFLAGS='$(CFLAGS)' \
+                LDFLAGS='$(LDFLAGS) -lpthread -lstdc++' \
+                opt='$(opt) -DPOSIX -DFAST -DSMP -DCPUS=4 \
+                     -DAMD_INLINE' \
+                crafty-make
 
 linux-i686:
 	$(MAKE) target=LINUX \

@@ -5,9 +5,9 @@
 #  define pthread_attr_t  HANDLE
 #  define pthread_t       HANDLE
 #  define thread_t        HANDLE
-#  define tfork(t,f,p)    WinStartThread((void *)(f),(void *)(p))
+#  define tfork(t,f,p)    NumaStartThread((void *)(f),(void *)(p))
 
-extern pthread_t WinStartThread(void * func, void * args);
+extern pthread_t NumaStartThread(void * func, void * args);
 
 #if (defined (_M_ALPHA) && !defined(NT_INTEREX))
    

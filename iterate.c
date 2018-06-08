@@ -447,7 +447,10 @@ int Iterate(int wtm, int search_type, int root_list_done) {
             DisplayTimeKibitz(end_time-start_time), cpu_percent, material); 
       Print(8,"  n=" BMF, tree->nodes_searched);
       Print(8,"  fh=%u%%", (int) ((BITBOARD) tree->fail_high_first*100/(BITBOARD) tree->fail_high));
-      Print(8,"  nps=%dk\n", nodes_per_second/1000);
+      if (nodes_per_second < 1000000)
+        Print(8,"  nps=%dK\n", nodes_per_second/1000);
+      else
+        Print(8,"  nps=%.2fM\n", (float) nodes_per_second/1000000.0);
       Print(16,"              ext-> chk=%d cap=%d pp=%d 1rep=%d mate=%d\n",
             tree->check_extensions_done, tree->recapture_extensions_done,
             tree->passed_pawn_extensions_done, tree->one_reply_extensions_done,

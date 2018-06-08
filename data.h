@@ -187,7 +187,6 @@
   extern int            min_thread_depth;
   extern int            max_thread_group;
   extern int            split_at_root;
-  extern int            thread_depth;
   extern int            display_options;
   extern unsigned int   noise_level;
 

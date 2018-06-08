@@ -9,6 +9,9 @@
 #if !defined(AMIGA)
 #  include <limits.h>
 #endif
+#if defined(SMP) && defined(NUMA)
+#  include <numa.h>
+#endif
 #if defined(OS2)
 #  include <sys/select.h>
 #endif
@@ -239,8 +242,9 @@ void DisplayBitBoard(BITBOARD board) {
 */
 void DisplayChessBoard(FILE *display_file, POSITION pos) {
   int display_board[64];
-  static const char display_string[] =
-    {"*Q\0*R\0*B\0  \0*K\0*N\0*P\0  \0P \0N \0K \0  \0B \0R \0Q \0"};
+  static const char display_string[16][4] =
+    {"(Q)","(R)","(B)","   ","(K)","(N)","(P)","   ",
+     " P "," N "," K ","   "," B "," R "," Q "," . "};
   int i,j;
 /*
  ----------------------------------------------------------
@@ -250,7 +254,12 @@ void DisplayChessBoard(FILE *display_file, POSITION pos) {
 |                                                          |
  ----------------------------------------------------------
 */
-  for(i=0;i<64;i++) display_board[i]=(pos.board[i]+7)*3;
+  for(i=0;i<64;i++) {
+    display_board[i]=pos.board[i]+7;
+    if (pos.board[i] == 0) {
+      if (((i/8)&1) == ((i%8)&1)) display_board[i]=15;
+    }
+  }
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -263,7 +272,7 @@ void DisplayChessBoard(FILE *display_file, POSITION pos) {
   for(i=7;i>=0;i--) {
     fprintf(display_file,"   %2d  ",i+1);
     for(j=0;j<8;j++)
-      fprintf(display_file,"| %s",&display_string[display_board[i*8+j]]);
+      fprintf(display_file,"|%s",display_string[display_board[i*8+j]]);
     fprintf(display_file,"|\n");
     fprintf(display_file,"       +---+---+---+---+---+---+---+---+\n");
   }
@@ -491,7 +500,8 @@ void DisplayTreeState(TREE *tree, int sply, int spos, int maxply) {
     left=0;
     for (mvp=tree->last[i-1];mvp<tree->last[i];mvp++) 
       if (*mvp) left++;
-    sprintf(buf+strlen(buf),"%d:%d/%d  ",i,left,tree->last[i]-tree->last[i-1]);
+    sprintf(buf+strlen(buf),"%d:%d/%d  ",i,left,
+            (int) (tree->last[i]-tree->last[i-1]));
     if (!(i%8)) sprintf(buf+strlen(buf),"\n");
     if (tree->nprocs>1 && tree->ply==i) {
       parallel=strlen(buf);
@@ -2187,6 +2197,14 @@ TREE* CopyToSMP(TREE *p, int thread) {
 */
 void Kibitz(int level, int wtm, int depth, int time, int value,
              BITBOARD nodes, int cpu, int tb_hits, char *pv) {
+
+  int nps;
+  char snps[32];
+  nps=(int) ((time)?100*nodes/(BITBOARD)time:nodes);
+  if (nps < 1000000)
+    sprintf(snps,"%dK",nps/1000);
+  else
+    sprintf(snps,"%.2fM",(float) nps/1000000.0);
   if (!puzzling) {
     char prefix[128];
 
@@ -2211,9 +2229,8 @@ void Kibitz(int level, int wtm, int depth, int time, int value,
     case 2:
       if ((kibitz&15) >= 2) {
         if (ics) printf("*");
-        printf("%s ply=%d; eval=%s; nps=%dK; time=%s; cpu=%d%%; egtb=%d\n",
-               prefix,depth,DisplayEvaluationKibitz(value,wtm),
-               (int) ((time)?100*nodes/(BITBOARD)time:nodes)/1000,
+        printf("%s ply=%d; eval=%s; nps=%s; time=%s; cpu=%d%%; egtb=%d\n",
+               prefix,depth,DisplayEvaluationKibitz(value,wtm),snps,
                DisplayTimeKibitz(time),cpu,tb_hits);
       }
     case 3:
@@ -2231,8 +2248,7 @@ void Kibitz(int level, int wtm, int depth, int time, int value,
     case 5:
       if ((kibitz&15)>=5 && nodes>5000) {
         if (ics) printf("*");
-        printf("%s d%d-> %dK/s %s %s %s ",prefix,depth,
-               (int) ((time)?100*nodes/(BITBOARD)time:nodes)/1000,
+        printf("%s d%d-> %dK/s %s %s %s ",prefix,depth,snps,
                DisplayTimeKibitz(time),
                DisplayEvaluationKibitz(value,wtm),pv);
         if (tb_hits) printf("egtb=%d",tb_hits);
@@ -2243,13 +2259,11 @@ void Kibitz(int level, int wtm, int depth, int time, int value,
       if ((kibitz&15) >= 6 && nodes>5000) {
         if (ics) printf("*");
         if (cpu == 0)
-          printf("%s d%d+ %dK/s %s %s %s\n",prefix,depth,
-                 (int) ((time)?100*nodes/(BITBOARD)time:nodes)/1000,
+          printf("%s d%d+ %s/s %s %s %s\n",prefix,depth,snps,
                  DisplayTimeKibitz(time),
                  DisplayEvaluationKibitz(value,wtm),pv);
         else
-          printf("%s d%d+ %dK/s %s >(%s) %s <re-searching>\n",prefix,depth,
-                 (int) ((time)?100*nodes/(BITBOARD)time:nodes)/1000,
+          printf("%s d%d+ %s/s %s >(%s) %s <re-searching>\n",prefix,depth,snps,
                  DisplayTimeKibitz(time),DisplayEvaluationKibitz(value,wtm),pv);
       }
       break;
@@ -2398,7 +2412,208 @@ static void WinNumaInit (void) {
 
 // Start thread. For NUMA system set it affinity.
 
-pthread_t WinStartThread(void * func, void * args) {
+pthread_t NumaStartThread(void * func, void * args) {
+  HANDLE hThread;
+  ULONGLONG ullMask;
+
+  WinNumaInit();
+  if (fSystemIsNUMA) {
+    ulNumaNode ++;
+    if (ulNumaNode > ulNumaNodes) ulNumaNode = 0;
+    ullMask = ullProcessorMask[ulNumaNode];
+    printf ("Starting thread on node %d CPU mask %I64d\n", ulNumaNode, ullMask);
+    SetThreadAffinityMask(GetCurrentThread(), (DWORD_PTR) ullMask);
+    hThread = (HANDLE) _beginthreadex(0,0,func,args,CREATE_SUSPENDED,0);
+    SetThreadAffinityMask(hThread, (DWORD_PTR) ullMask);
+    ResumeThread(hThread);
+    SetThreadAffinityMask(GetCurrentThread(), ullProcessorMask[0]);
+  }
+  else hThread = (HANDLE) _beginthreadex(0,0,func,args,0,0);
+  return hThread;
+}
+
+// Allocate memory for thread #N
+
+void * WinMalloc(size_t cbBytes, int iThread) {
+  HANDLE hThread;
+  DWORD_PTR dwAffinityMask;
+  void *pBytes;
+  ULONG ulNode;
+
+  WinNumaInit();
+  if (fSystemIsNUMA) {
+    ulNode = iThread % (ulNumaNodes+1);
+    hThread = GetCurrentThread();
+    dwAffinityMask = SetThreadAffinityMask(hThread, ullProcessorMask[ulNode]);
+    pBytes = VirtualAlloc(NULL, cbBytes, MEM_COMMIT, PAGE_READWRITE);
+    memset (pBytes, 0, cbBytes);
+    SetThreadAffinityMask(hThread, dwAffinityMask);
+    return pBytes;
+  }
+  else return malloc(cbBytes);
+}
+
+// Allocate interleaved memory
+
+void * WinMallocInterleaved(size_t cbBytes, int cThreads) {
+  char *pBase;
+  char *pEnd;
+  char * pch;
+  HANDLE hThread;
+  DWORD_PTR dwAffinityMask;
+  ULONG ulNode;
+  SYSTEM_INFO sSysInfo;
+  size_t dwStep;
+  int iThread;
+  DWORD dwPageSize;   // the page size on this computer
+  LPVOID lpvResult;
+
+  WinNumaInit();
+  if (fSystemIsNUMA && (cThreads > 1)) {
+    GetSystemInfo(&sSysInfo);     // populate the system information structure
+    dwPageSize = sSysInfo.dwPageSize;
+
+    // Reserve pages in the process's virtual address space.
+    pBase = (char*) VirtualAlloc(NULL, cbBytes, MEM_RESERVE, PAGE_NOACCESS);
+    if (pBase == NULL) {
+      printf ("VirtualAlloc() reserve failed\n");
+      exit(0);
+    }
+
+    // Now walk through memory, committing each page
+    hThread = GetCurrentThread();
+    dwStep = dwPageSize * cThreads;
+    pEnd = pBase + cbBytes;
+    for (iThread = 0; iThread < cThreads; iThread++) {
+      ulNode = iThread % (ulNumaNodes+1);
+      dwAffinityMask = SetThreadAffinityMask(hThread, ullProcessorMask[ulNode]);
+      for (pch = pBase + iThread * dwPageSize;
+           pch < pEnd;
+           pch += dwStep) {
+        lpvResult = VirtualAlloc(pch,             // next page to commit
+                                 dwPageSize,      // page size, in bytes
+                                 MEM_COMMIT,      // allocate a committed page
+                                 PAGE_READWRITE); // read/write access
+        if (lpvResult == NULL)
+          ExitProcess(GetLastError());
+        memset (lpvResult, 0, dwPageSize);
+      }
+      SetThreadAffinityMask(hThread, dwAffinityMask);
+    }
+  }
+  else {
+    pBase = VirtualAlloc(NULL, cbBytes, MEM_COMMIT, PAGE_READWRITE);
+    if (pBase == NULL)
+      ExitProcess(GetLastError());
+    memset (pBase, 0, cbBytes);
+  }
+  return (void *) pBase;
+}
+
+// Free interleaved memory
+
+void WinFreeInterleaved(void *pMemory, size_t cBytes) {
+  VirtualFree(pMemory,                      // base address of block
+              cBytes,                       // bytes of committed pages
+              MEM_DECOMMIT|MEM_RELEASE);    // decommit the pages
+}
+
+#endif
+
+/*
+********************************************************************************
+*                                                                              *
+*   Linux NUMA support                                                         *
+*                                                                              *
+********************************************************************************
+*/
+
+#if defined(LINUX) && defined(NUMA)
+
+/*
+********************************************************************************
+*                                                                              *
+*   First, discover if we are on a NUMA box.  If not, the normal SMP stuff is  *
+*   primed and ready to go.  If we are on a NUMA machine, we need to know (a)  *
+*   how many processors (nodes in the case of AMD/Intel) we have on the        *
+*   machine and (b) how many processors (threads) the user intends to run.     *
+*   It becomes important for the "smpmt=n" command to be either on the         *
+*   command-line or in the crafty.rc/.craftyrc files, otherwise we might not   *
+*   get things initialized optimally in a NUMA environment.                    *
+*                                                                              *
+********************************************************************************
+*/
+
+void NumaInit (void) {
+  int numa_machine, maxNumaNodes;
+
+  if (!fThreadsInitialized) {
+    Lock(ThreadsLock);
+    if (!fThreadsInitialized) {
+      printf ("\nInitializing multiple threads.\n");
+      fThreadsInitialized = TRUE;
+      numa_machine=numa_available();
+      if (numa_machine >= 0) {
+        maxNumaNodes=numa_max_node();
+        printf ("System is NUMA. %d nodes reported by Linux\n", maxNumaNodes+1);
+      }
+      else {
+        Print(4095,"system is not NUMA, skipping NUMA initialization\n");
+	return;
+      }
+
+      pGetNumaHighestNodeNumber = (void*) GetProcAddress(hModule, "GetNumaHighestNodeNumber");
+      pGetNumaNodeProcessorMask = (void*) GetProcAddress(hModule, "GetNumaNodeProcessorMask");
+      pSetThreadIdealProcessor  = (void*) GetProcAddress(hModule, "SetThreadIdealProcessor");
+      if (pGetNumaHighestNodeNumber && pGetNumaNodeProcessorMask &&
+          pGetNumaHighestNodeNumber(&ulNumaNodes) && (ulNumaNodes > 0)) {
+        fSystemIsNUMA = TRUE;
+        if (ulNumaNodes > 255) ulNumaNodes = 255;
+        printf ("System is NUMA. %d nodes reported by Windows\n", ulNumaNodes+1);
+        for (ulNode = 0; ulNode <= ulNumaNodes; ulNode ++) {
+          pGetNumaNodeProcessorMask((UCHAR) ulNode, &ullProcessorMask[ulNode]);
+          printf ("Node %d CPUs: ", ulNode);
+          ullMask = ullProcessorMask[ulNode];
+          if (0 == ullMask) fSystemIsNUMA = FALSE;
+          else {
+            ulCPU = 0;
+            do {
+              if (ullMask & 1) printf ("%d ", ulCPU);
+              ulCPU ++;
+              ullMask >>= 1;
+            } while (ullMask);
+          }
+          printf ("\n");
+        }
+        // Thread 0 was already started on some CPU. To simplify things further,
+        // exchange ullProcessorMask[0] and ullProcessorMask[node for that CPU],
+        // so ullProcessorMask[0] would always be node for thread 0
+        dwCPU = pSetThreadIdealProcessor(GetCurrentThread(), MAXIMUM_PROCESSORS);
+        printf ("Current ideal CPU is %u\n", dwCPU);
+        pSetThreadIdealProcessor(GetCurrentThread(), dwCPU);
+        if ((((DWORD) -1) != dwCPU) &&
+            (MAXIMUM_PROCESSORS != dwCPU) &&
+            !(ullProcessorMask[0] & (1ui64 << dwCPU))) {
+          for (ulNode = 1; ulNode <= ulNumaNodes; ulNode ++) {
+            if (ullProcessorMask[ulNode] & (1ui64 << dwCPU)) {
+              printf ("Exchanging nodes 0 and %d\n", ulNode);
+              ullMask = ullProcessorMask[ulNode];
+              ullProcessorMask[ulNode] = ullProcessorMask[0];
+              ullProcessorMask[0] = ullMask;
+              break;
+            }
+          }
+        }
+      }
+      else printf ("System is SMP, not NUMA.\n");
+    }
+    Unlock(ThreadsLock);
+  }
+}
+
+// Start thread. For NUMA system set it affinity.
+
+pthread_t NumaStartThread(void * func, void * args) {
   HANDLE hThread;
   ULONGLONG ullMask;
 
