@@ -462,7 +462,6 @@ extern int won_kp_ending;
 extern int split_passed;
 extern int pawn_base[8];
 extern int pawn_advance[8];
-extern int pawn_connected_passed_6th;
 extern int king_king_tropism;
 extern int bishop_trapped;
 extern int bishop_plus_pawns_on_color;

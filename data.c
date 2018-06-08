@@ -224,7 +224,7 @@ unsigned int parallel_splits;
 unsigned int parallel_stops;
 unsigned int max_split_blocks;
 volatile unsigned int splitting;
-# define    VERSION                             "19.17"
+# define    VERSION                             "19.18"
 char      version[6] = { VERSION };
 PLAYING_MODE mode = normal_mode;
 #if defined(SMP)
@@ -432,9 +432,9 @@ int king_tropism[128] = {
   180, 180, 180, 180, 180, 180, 180, 180,
   180, 180, 180, 180, 180, 180, 180, 180
 };
-int connected_passed_pawn_value[8] = { 0, -6, -6, 0, 10, 48, 72, 0 };
+int connected_passed_pawn_value[8] = { 0, -6, -6, 0, 80, 200, 300, 0 };
 int hidden_passed_pawn_value[8] = { 0, 0, 0, 0, 0, 16, 24, 0 };
-int passed_pawn_value[8] = { 0, 12, 20, 26, 32, 64, 96, 0 };
+int passed_pawn_value[8] = { 0, 12, 20, 32, 48, 96, 128, 0 };
 int blockading_passed_pawn_value[8] = { 0, 8, 12, 16, 30, 48, 64, 0 };
 int isolated_pawn_value[9] = { 0, 8, 12, 24, 36, 48, 60, 60, 60 };
 int isolated_pawn_of_value[9] = { 0, 4, 10, 16, 16, 16, 16, 16, 16 };
@@ -751,7 +751,6 @@ int won_kp_ending = 150;
 int split_passed = 50;
 int pawn_base[8] = {0, 3, 6, 9, 9, 6, 3, 0};
 int pawn_advance[8] = {3, 3, 3, 3, 3, 3, 3, 3};
-int pawn_connected_passed_6th = 100;
 int king_king_tropism = 15;
 int bishop_trapped = 175;
 int bishop_plus_pawns_on_color = 4;
@@ -798,13 +797,13 @@ int *evalterm_value[256] =
       &pawn_duo,                   &pawn_protected_passer_wins,
       &pawn_weak_p1,               &pawn_weak_p2,
       &pawn_can_promote,           &won_kp_ending,
-      &split_passed,               &pawn_connected_passed_6th,
-      pval_w,                      connected_passed_pawn_value,
-      hidden_passed_pawn_value,    passed_pawn_value,
-      blockading_passed_pawn_value,isolated_pawn_value,
-      isolated_pawn_of_value,      doubled_pawn_value,
-      pawn_rams_v,                 supported_passer,
-      outside_passed,              majority,
+      &split_passed,               pval_w,                      
+      connected_passed_pawn_value, hidden_passed_pawn_value,
+      passed_pawn_value,           blockading_passed_pawn_value,
+      isolated_pawn_value,         isolated_pawn_of_value,
+      doubled_pawn_value,          pawn_rams_v,
+      supported_passer,            outside_passed,
+      majority,                    NULL,
       NULL,                        NULL,
       NULL,                        NULL,
       NULL,                        NULL,
@@ -864,13 +863,13 @@ char *evalterm_description[256] =
       "pawn duo                        ", "protected passed pawn wins      ",
       "pawn weak (one pawn blocking)   ", "pawn weak (two pawns blocking)  ",
       "pawn can promote                ", "won kp ending                   ",
-      "split passed pawn bonus         ", "pawn connected passers on 6th   ",
-      "pawn piece/square table         ", "connected passed pawn [rank]    ",
-      "hidden passed pawn [rank]       ", "passed pawn [rank]              ",
-      "blockading a passed pawn [rank] ", "isolated pawn [n]               ",
-      "isolated pawn on open file [n]  ", "doubled pawn [n]                ",
-      "pawn ram [n]                    ", "supported passed pawn [rank]    ",
-      "outside passed pawn [matrl]     ", "pawn majority [matrl]           ",
+      "split passed pawn bonus         ", "pawn piece/square table         ",
+      "connected passed pawn [rank]    ", "hidden passed pawn [rank]       ",
+      "passed pawn [rank]              ", "blockading a passed pawn [rank] ",
+      "isolated pawn [n]               ", "isolated pawn on open file [n]  ",
+      "doubled pawn [n]                ", "pawn ram [n]                    ",
+      "supported passed pawn [rank]    ", "outside passed pawn [matrl]     ",
+      "pawn majority [matrl]           ", NULL,
       NULL,                               NULL,
       NULL,                               NULL,
       NULL,                               NULL,

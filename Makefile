@@ -220,7 +220,7 @@ linux-icc-profile:
                         -Ob2 -fno-alias' \
 		CXFLAGS='$(CFLAGS) -D_REENTRANT -O2 \
                         -w -xN -prof_genx -prof_dir ./profdir' \
-		LDFLAGS='$(LDFLAGS) -lpthread' \
+		LDFLAGS='$(LDFLAGS) -lstdc++ -lpthread' \
 		opt='$(opt) -DFUTILITY -DFAST -DINLINE_ASM \
                          -DPOSIX -DSMP -DCPUS=2' \
 		crafty-make
@@ -233,7 +233,7 @@ linux-icc:
                         -Ob2 -fno-alias' \
 		CXFLAGS='$(CFLAGS) -D_REENTRANT -O2 \
                         -w -xN -prof_use -prof_dir ./profdir' \
-		LDFLAGS='$(LDFLAGS) -lpthread' \
+		LDFLAGS='$(LDFLAGS) -lstdc++ -lpthread' \
 		opt='$(opt) -DFUTILITY -DFAST -DINLINE_ASM \
                          -DPOSIX -DSMP -DCPUS=2' \
 		crafty-make

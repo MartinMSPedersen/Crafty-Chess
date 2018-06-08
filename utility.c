@@ -524,7 +524,7 @@ void DisplayPV(TREE * RESTRICT tree, int level, int wtm, int time, int value,
  */
   if (pv->pathh == 1) {
     for (i = pv->pathl + 1; i < MAXPLY; i++) {
-      HashProbe(tree, i, 0, wtm, &dummy, &dummy, &dummy);
+      HashProbe(tree, i, 0, wtm, &dummy, dummy, &dummy);
       if (tree->hash_move[i] && LegalMove(tree, i, wtm, tree->hash_move[i])) {
         pv->path[i] = tree->hash_move[i];
         for (j = 1; j < i; j++)

@@ -11,7 +11,7 @@
 #endif
 #include "epdglue.h"
 
-/* last modified 06/08/04 */
+/* last modified 09/08/04 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -3216,32 +3216,38 @@ int Option(TREE * RESTRICT tree)
       if (output_file)
         fprintf(output_file, "K");
       else
-        sprintf(initial_position + strlen(initial_position), "%c", 'K');
+        sprintf(initial_position + strlen(initial_position), "K");
     }
     if (WhiteCastle(0) & 2) {
       if (output_file)
         fprintf(output_file, "Q");
       else
-        sprintf(initial_position + strlen(initial_position), "%c", 'Q');
+        sprintf(initial_position + strlen(initial_position), "Q");
     }
     if (BlackCastle(0) & 1) {
       if (output_file)
         fprintf(output_file, "k");
       else
-        sprintf(initial_position + strlen(initial_position), "%c", 'k');
+        sprintf(initial_position + strlen(initial_position), "k");
     }
     if (BlackCastle(0) & 2) {
       if (output_file)
         fprintf(output_file, "q");
       else
-        sprintf(initial_position + strlen(initial_position), "%c", 'q');
+        sprintf(initial_position + strlen(initial_position), "q");
+    }
+    if (!WhiteCastle(0) && !BlackCastle(0)) {
+      if (output_file)
+        fprintf(output_file, " -");
+      else
+        sprintf(initial_position + strlen(initial_position), " -");
     }
     if (EnPassant(0)) {
       if (output_file)
         fprintf(output_file, " %c%c", File(EnPassant(0)) + 'a',
             Rank(EnPassant(0)) + '1');
       else
-        sprintf(initial_position + strlen(initial_position), "%c%c",
+        sprintf(initial_position + strlen(initial_position), " %c%c",
             File(EnPassant(0)) + 'a', Rank(EnPassant(0)) + '1');
     }
     if (output_file)

@@ -435,7 +435,7 @@ int Iterate(int wtm, int search_type, int root_list_done)
  ************************************************************
  */
         if (display_options & 256) {
-          unsigned int total_nodes = 0;
+          BITBOARD total_nodes = 0;
 
           Print(128, "       move       nodes      hi/low\n");
           for (i = 0; i < n_root_moves; i++) {

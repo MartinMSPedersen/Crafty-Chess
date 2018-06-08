@@ -3,7 +3,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 01/18/03 */
+/* last modified 09/23/04 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -35,7 +35,7 @@
  *******************************************************************************
  */
 int HashProbe(TREE * RESTRICT tree, int ply, int depth, int wtm, int *alpha,
-    int *beta, int *threat)
+    int beta, int *threat)
 {
   register BITBOARD word1, word2;
   register int type, draft, avoid_null = 0, val, pieces, null_depth, hwhich;
@@ -67,7 +67,7 @@ int HashProbe(TREE * RESTRICT tree, int ply, int depth, int wtm, int *alpha,
  ************************************************************
  */
   pieces = (wtm) ? TotalWhitePieces : TotalBlackPieces;
-  null_depth = (depth > 6 * INCPLY && pieces > 8) ? null_max : null_min;
+  null_depth = (depth > 6 * INCPLY && pieces > 9) ? null_max : null_min;
   temp_hashkey = (wtm) ? HashKey : ~HashKey;
   htable = trans_ref + ((int) temp_hashkey & hash_mask);
   word1 = htable->prefer.word1;
@@ -84,7 +84,7 @@ int HashProbe(TREE * RESTRICT tree, int ply, int depth, int wtm, int *alpha,
       tree->hash_move[ply] = word1l & 07777777;
       *threat = (word1l >> 26) & 01;
       type = (word1l >> 27) & 03;
-      if ((type & UPPER) && depth - null_depth <= draft && val < *beta)
+      if ((type & UPPER) && depth - null_depth <= draft && val < beta)
         avoid_null = AVOID_NULL_MOVE;
       if (depth > draft)
         break;
@@ -112,7 +112,6 @@ int HashProbe(TREE * RESTRICT tree, int ply, int depth, int wtm, int *alpha,
           return (EXACTEGTB);
       case UPPER:
         if (val <= *alpha) {
-          *alpha = val;
 #if !defined(FAST)
           tree->transposition_hits++;
           tree->transposition_good_hits++;
@@ -122,8 +121,7 @@ int HashProbe(TREE * RESTRICT tree, int ply, int depth, int wtm, int *alpha,
         }
         break;
       case LOWER:
-        if (val >= *beta) {
-          *beta = val;
+        if (val >= beta) {
 #if !defined(FAST)
           tree->transposition_hits++;
           tree->transposition_lowers++;
@@ -150,7 +148,7 @@ int HashProbe(TREE * RESTRICT tree, int ply, int depth, int wtm, int *alpha,
       tree->hash_move[ply] = word1l & 07777777;
     *threat = (word1l >> 26) & 01;
     type = (word1l >> 27) & 03;
-    if ((type & UPPER) && depth - null_depth <= draft && val < *beta)
+    if ((type & UPPER) && depth - null_depth <= draft && val < beta)
       avoid_null = AVOID_NULL_MOVE;
     if (depth > draft)
       return (avoid_null);
@@ -178,7 +176,6 @@ int HashProbe(TREE * RESTRICT tree, int ply, int depth, int wtm, int *alpha,
         return (EXACTEGTB);
     case UPPER:
       if (val <= *alpha) {
-        *alpha = val;
 #if !defined(FAST)
         tree->transposition_hits++;
         tree->transposition_good_hits++;
@@ -192,8 +189,7 @@ int HashProbe(TREE * RESTRICT tree, int ply, int depth, int wtm, int *alpha,
 #endif
       return (avoid_null);
     case LOWER:
-      if (val >= *beta) {
-        *beta = val;
+      if (val >= beta) {
 #if !defined(FAST)
         tree->transposition_hits++;
         tree->transposition_good_hits++;

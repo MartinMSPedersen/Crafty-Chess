@@ -3111,6 +3111,14 @@
  *   19.17   changes to pawn evaluation to limit positional scores that could  *
  *           get a bit out of sane boundaries in some positions.               *
  *                                                                             *
+ *   19.18   HashProbe() no longer adjusts alpha/beta bounds if the entry is   *
+ *           not good enough to terminate the search here.  this has helped    *
+ *           speed things up (reduced size of tree) over many test positions   *
+ *           so either it was buggy or not worthwhile.  regardless, it is now  *
+ *           'gone'.  connected passed pawns now scored as a simple pair of    *
+ *           pawns that are better as they are advanced, the old connected     *
+ *           passed pawns on the 6th rank special code has been removed.       *
+ *                                                                             *
  *******************************************************************************
  */
 int main(int argc, char **argv)

@@ -113,7 +113,7 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
  *                                                          *
  ************************************************************
  */
-  switch (HashProbe(tree, ply, depth, wtm, &alpha, &beta, &mate_threat)) {
+  switch (HashProbe(tree, ply, depth, wtm, &alpha, beta, &mate_threat)) {
   case EXACT:
     if (alpha < beta)
       SavePV(tree, ply, 1);

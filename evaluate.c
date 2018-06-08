@@ -1813,23 +1813,6 @@ int EvaluatePassedPawns(TREE * RESTRICT tree)
       square2 = FirstOne(BlackPawns & file_mask[file]);
       score -=
           connected_passed_pawn_value[7 - Max(Rank(square1), Rank(square2))];
-      if (Rank(square1) > RANK3)
-        continue;
-      if (Rank(square2) > RANK3)
-        continue;
-      if (TotalWhitePieces < queen_v && !(SetMask(square1 - 8) & WhitePieces) &&
-          !(SetMask(square2 - 8) & WhitePieces)) {
-        score -= pawn_connected_passed_6th;
-        if (wtm) {
-          if (!(WhiteKing & black_pawn_race_wtm[square1]) &&
-              !(WhiteKing & black_pawn_race_wtm[square2]))
-            score -= pawn_connected_passed_6th;
-        } else {
-          if (!(WhiteKing & black_pawn_race_btm[square1]) &&
-              !(WhiteKing & black_pawn_race_btm[square2]))
-            score -= pawn_connected_passed_6th;
-        }
-      }
     }
   }
 #ifdef DEBUGPP
@@ -1882,23 +1865,6 @@ int EvaluatePassedPawns(TREE * RESTRICT tree)
       square1 = LastOne(WhitePawns & file_mask[file - 1]);
       square2 = LastOne(WhitePawns & file_mask[file]);
       score += connected_passed_pawn_value[Min(Rank(square1), Rank(square2))];
-      if (Rank(square1) < RANK6)
-        continue;
-      if (Rank(square2) < RANK6)
-        continue;
-      if (TotalBlackPieces < queen_v && !(SetMask(square1 + 8) & BlackPieces) &&
-          !(SetMask(square2 + 8) & BlackPieces)) {
-        score += pawn_connected_passed_6th;
-        if (wtm) {
-          if (!(BlackKing & white_pawn_race_wtm[square1]) &&
-              !(BlackKing & white_pawn_race_wtm[square2]))
-            score += pawn_connected_passed_6th;
-        } else {
-          if (!(BlackKing & white_pawn_race_btm[square1]) &&
-              !(BlackKing & white_pawn_race_btm[square2]))
-            score += pawn_connected_passed_6th;
-        }
-      }
     }
   }
 #ifdef DEBUGPP

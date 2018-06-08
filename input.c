@@ -26,7 +26,7 @@ int InputMove(TREE * RESTRICT tree, char *text, int ply, int wtm, int silent,
   int piece = -1, capture, promote, give_check;
   int ffile, frank, tfile, trank;
   int current, i, nleft;
-  char *goodchar;
+  char *goodchar, *tc;
   char movetext[128];
   static const char pieces[17] =
       { ' ', ' ', 'P', 'p', 'N', 'n', 'K', 'k', ' ', ' ',
@@ -37,6 +37,12 @@ int InputMove(TREE * RESTRICT tree, char *text, int ply, int wtm, int silent,
     'B', 'b', 'R', 'r', 'Q', 'q', '\0'
   };
 
+/*
+ first strip off things like !!/??/!? and so forth, to avoid
+ confusing the parsing.
+ */
+  if ((tc=strchr(text,'!'))) *tc=0;
+  if ((tc=strchr(text,'?'))) *tc=0;
 /*
  check for fully-qualified input (f1e1) and handle if needed.
  */

@@ -514,7 +514,7 @@ int       FTbSetCacheSize(void *, unsigned long);
 int      *GenerateCaptures(TREE * RESTRICT, int, int, int *);
 int      *GenerateCheckEvasions(TREE * RESTRICT, int, int, int *);
 int      *GenerateNonCaptures(TREE * RESTRICT, int, int, int *);
-int       HashProbe(TREE * RESTRICT, int, int, int, int *, int *, int *);
+int       HashProbe(TREE * RESTRICT, int, int, int, int *, int, int *);
 void      HashStore(TREE * RESTRICT, int, int, int, int, int, int);
 void      HashStorePV(TREE * RESTRICT, int, int);
 int       HasOpposition(int, int, int);
