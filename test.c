@@ -72,7 +72,7 @@ void Test(char *filename, FILE * unsolved, int screen, int margin) {
   }
   fclose(test_input);
   test_input = fopen(filename, "r");
-  while (1) {
+  while (FOREVER) {
     eof = fgets(buffer, 4096, test_input);
     strcpy(failed[nfailed++], buffer);
     if (eof) {
@@ -191,6 +191,7 @@ void Test(char *filename, FILE * unsolved, int screen, int margin) {
   }
   input_stream = stdin;
   early_exit = 99;
+  fclose(test_input);
 }
 
 /* last modified 06/26/15 */
@@ -263,7 +264,7 @@ void TestEPD(char *filename, FILE * unsolved, int screen, int margin) {
     fclose(books_file);
     books_file = 0;
   }
-  while (1) {
+  while (FOREVER) {
     eof = fgets(buffer, 4096, test_input);
     strcpy(failed, buffer);
     Print(4095, "%s\n", buffer);
@@ -414,4 +415,5 @@ void TestEPD(char *filename, FILE * unsolved, int screen, int margin) {
   }
   input_stream = stdin;
   early_exit = 99;
+  fclose(test_input);
 }

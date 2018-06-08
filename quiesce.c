@@ -1,6 +1,6 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 01/10/16 */
+/* last modified 08/03/16 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -42,7 +42,7 @@
 int Quiesce(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta,
     int checks) {
   unsigned *next, *movep;
-  int original_alpha = alpha, value;
+  int original_alpha = alpha, value, repeat;
 
 /*
  ************************************************************
@@ -75,10 +75,11 @@ int Quiesce(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta,
  ************************************************************
  */
   if (checks) {
-    if (Repeat(tree, ply)) {
+    repeat = Repeat(tree, ply);
+    if (repeat) {
       value = DrawScore(wtm);
       if (value < beta)
-        SavePV(tree, ply, 0);
+        SavePV(tree, ply, repeat);
 #if defined(TRACE)
       if (ply <= trace_level)
         printf("draw by repetition detected, ply=%d.\n", ply);
@@ -100,7 +101,8 @@ int Quiesce(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta,
   value = Evaluate(tree, ply, wtm, alpha, beta);
 #if defined(TRACE)
   if (ply <= trace_level)
-    Trace(tree, ply, value, wtm, alpha, beta, "Quiesce", serial, EVALUATION, 0);
+    Trace(tree, ply, value, wtm, alpha, beta, "Quiesce", serial, EVALUATION,
+        0);
 #endif
   if (value > alpha) {
     if (value >= beta)
@@ -266,15 +268,15 @@ int Quiesce(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta,
   return alpha;
 }
 
-/* last modified 01/10/16 */
+/* last modified 08/03/16 */
 /*
  *******************************************************************************
  *                                                                             *
  *   QuiesceEvasions() is the recursive routine used to implement the alpha/   *
  *   beta negamax quiescence search.  The primary function here is to escape a *
- *   check that was delivered by QuiesceChecks() at the previous ply.  We do   *
- *   not have the usual "stand pat" option because we have to find a legal     *
- *   move to prove we have not been checkmated.                                *
+ *   check that was delivered by Quiesce() at the previous ply.  We do not     *
+ *   have the usual "stand pat" option because we have to find a legal move to *
+ *   prove we have not been checkmated.                                        *
  *                                                                             *
  *   QuiesceEvasions() uses the legal move generator (GenerateCheckEvasions()) *
  *   to produce only the set of legal moves that escape check.  We try those   *
@@ -285,7 +287,7 @@ int Quiesce(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta,
  */
 int QuiesceEvasions(TREE * RESTRICT tree, int ply, int wtm, int alpha,
     int beta) {
-  int original_alpha, value, moves_searched = 0, order;
+  int original_alpha, value, moves_searched = 0, order, repeat;
 
 /*
  ************************************************************
@@ -312,10 +314,11 @@ int QuiesceEvasions(TREE * RESTRICT tree, int ply, int wtm, int alpha,
  *                                                          *
  ************************************************************
  */
-  if (Repeat(tree, ply)) {
+  repeat = Repeat(tree, ply);
+  if (repeat) {
     value = DrawScore(wtm);
     if (value < beta)
-      SavePV(tree, ply, 0);
+      SavePV(tree, ply, repeat);
 #if defined(TRACE)
     if (ply <= trace_level)
       printf("draw by repetition detected, ply=%d.\n", ply);

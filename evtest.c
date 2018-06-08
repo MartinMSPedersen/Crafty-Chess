@@ -49,7 +49,7 @@ void EVTest(char *filename) {
     printf("file %s does not exist.\n", filename);
     return;
   }
-  while (1) {
+  while (FOREVER) {
     eof = fgets(buffer, 4096, test_input);
     if (eof) {
       char *delim;

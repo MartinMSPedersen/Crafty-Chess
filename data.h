@@ -1,5 +1,4 @@
-#if !defined(DATA_INCLUDED)
-#  define DATA_INCLUDED
+#pragma once
 extern int scale;
 extern char version[8];
 extern int presult;
@@ -33,15 +32,13 @@ extern FILE *history_file;
 extern FILE *log_file;
 extern int log_id;
 extern int output_format;
-#  if !defined(NOEGTB)
+#if defined(SYZYGY)
 extern int EGTBlimit;
 extern int EGTB_use;
 extern int EGTB_draw;
 extern int EGTB_depth;
-extern void *EGTB_cache;
-extern size_t EGTB_cache_size;
 extern int EGTB_setup;
-#  endif
+#endif
 extern int last_mate_score;
 extern int last_opponent_move;
 extern int check_depth;
@@ -96,10 +93,13 @@ extern int nargs;
 extern int kibitz;
 extern int game_wtm;
 extern int last_search_value;
-extern int pruning_margin[10];
-extern int pruning_depth;
-extern int movecnt_pruning[4];
-extern int movecnt_depth;
+extern int FP_margin[16];
+extern int FP_depth;
+extern int LMP[16];
+extern int LMP_depth;
+extern int LMP_base;
+extern double LMP_scale;
+extern double LMP_scale;
 extern int failhi_delta, faillo_delta;
 extern int ponder_value;
 extern int move_actually_played;
@@ -163,19 +163,22 @@ extern unsigned program_start_time, program_end_time;
 extern unsigned start_time, end_time;
 extern TREE *block[MAX_BLOCKS + 1];
 extern THREAD thread[CPUS];
-#  if (CPUS > 1)
+#if (CPUS > 1)
 extern lock_t lock_smp, lock_io;
-#    if defined(UNIX)
+#  if defined(UNIX)
 extern pthread_attr_t attributes;
-#    endif
 #  endif
+#endif
+extern unsigned int hardware_processors;
 extern unsigned int smp_max_threads;
 extern unsigned int smp_split_group;
 extern unsigned int smp_split_at_root;
 extern unsigned int smp_min_split_depth;
 extern unsigned int smp_gratuitous_depth;
 extern unsigned int smp_gratuitous_limit;
+extern int smp_nice;
 extern int smp_affinity;
+extern int smp_affinity_increment;
 extern int smp_numa;
 extern int autotune_params;
 extern struct autotune tune[16];
@@ -217,10 +220,9 @@ extern int move_number;
 extern int moves_out_of_book;
 extern int first_nonbook_factor;
 extern int first_nonbook_span;
-extern int smp_nice;
-#  if defined(SKILL)
+#if defined(SKILL)
 extern int skill;
-#  endif
+#endif
 extern int book_learn_eval[LEARN_INTERVAL];
 extern int book_learn_depth[LEARN_INTERVAL];
 extern int learn_seekto[64];
@@ -238,12 +240,9 @@ extern uint64_t mask_clear_entry;
 extern uint64_t hash_path_mask;
 extern size_t pawn_hash_table_size;
 extern uint64_t pawn_hash_mask;
-extern size_t eval_hash_table_size;
-extern uint64_t eval_hash_mask;
 extern HASH_ENTRY *hash_table;
 extern HPATH_ENTRY *hash_path;
 extern PAWN_HASH_ENTRY *pawn_hash_table;
-extern uint64_t *eval_hash_table;
 extern void *segments[MAX_BLOCKS + 32][2];
 extern int nsegments;
 extern const int pcval[7];
@@ -288,8 +287,6 @@ extern POSITION display;
 extern uint64_t king_attacks[64];
 extern uint64_t intervening[64][64];
 extern int history[1024];
-extern KILLER counter_move[4096];
-extern KILLER move_pair[4096];
 extern const uint64_t randoms[2][7][64];
 extern const uint64_t castle_random[2][2];
 extern const uint64_t enpassant_random[65];
@@ -318,10 +315,10 @@ extern uint64_t minus7dir[65];
 extern uint64_t minus8dir[65];
 extern uint64_t minus9dir[65];
 extern uint64_t mask_eptest[64];
-#  if !defined(INLINEASM)
+#if !defined(INLINEASM)
 extern unsigned char msb[65536];
 extern unsigned char lsb[65536];
-#  endif
+#endif
 extern unsigned char msb_8bit[256];
 extern unsigned char lsb_8bit[256];
 extern unsigned char pop_cnt_8bit[256];
@@ -366,9 +363,5 @@ extern const int capleft[2];
 extern const int capright[2];
 extern const int pawnadv1[2];
 extern const int pawnadv2[2];
-#  if !defined(NOEGTB)
-extern int cbEGTBCompBytes;
-#  endif
 extern int piece_values[2][7];
 extern struct personality_term personality_packet[256];
-#endif

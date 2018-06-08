@@ -11,7 +11,7 @@
  *   a draw.  Otherwise, the superior side must have enough material to be     *
  *   able to force a mate.                                                     *
  *                                                                             *
- *   Drawn() has 0 possible return values:                                     *
+ *   Drawn() has 3 possible return values:                                     *
  *                                                                             *
  *   0:  Game is not a draw by rule or drawish in nature.                      *
  *                                                                             *

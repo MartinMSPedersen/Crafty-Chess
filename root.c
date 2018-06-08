@@ -1,7 +1,10 @@
 #include "chess.h"
 #include "data.h"
 #include "epdglue.h"
-/* last modified 04/21/15 */
+#if defined(SYZYGY)
+#  include "tbprobe.h"
+#endif
+/* last modified 07/11/16 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -14,10 +17,11 @@
  */
 void RootMoveList(int wtm) {
   TREE *const tree = block[0];
+  ROOT_MOVE rtemp;
   unsigned mvp, *lastm, rmoves[256];
-  int temp, value;
-#if !defined(NOEGTB)
-  int tb_value;
+  int value, done;
+#if defined(SYZYGY)
+  int tb_result, tb_root = -9;
 #endif
 
 /*
@@ -36,14 +40,24 @@ void RootMoveList(int wtm) {
  *                                                          *
  ************************************************************
  */
-#if !defined(NOEGTB)
+#if defined(SYZYGY)
   EGTB_draw = 0;
-  if (EGTBlimit && TotalAllPieces <= EGTBlimit &&
-      Castle(1, white) + Castle(1, black) == 0 &&
-      EGTBProbe(tree, 1, wtm, &tb_value)) {
-    if (swindle_mode && (tb_value == DrawScore(wtm)))
-      if ((wtm && Material > 0) || (!wtm && Material < 0))
-        EGTB_draw = 1;
+  if (swindle_mode) {
+    if (EGTBlimit && TotalAllPieces <= EGTBlimit &&
+        Castle(1, white) + Castle(1, black) == 0) {
+      tb_result =
+          tb_probe_root(Occupied(white), Occupied(black),
+          Kings(white) | Kings(black), Queens(white) | Queens(black),
+          Rooks(white) | Rooks(black), Bishops(white) | Bishops(black),
+          Knights(white) | Knights(black), Pawns(white) | Pawns(black),
+          Reversible(1), 0, EnPassant(1), wtm, NULL);
+      if (tb_result != TB_RESULT_FAILED) {
+        tb_root = TB_GET_WDL(tb_result);
+        if ((tb_root == TB_DRAW && MaterialSTM(wtm) > 0) ||
+            (tb_root == TB_CURSED_WIN))
+          EGTB_draw = 1;
+      }
+    }
   }
 #endif
 /*
@@ -88,12 +102,20 @@ void RootMoveList(int wtm) {
     if (!Check(wtm))
       do {
         tree->curmv[1] = root_moves[mvp].move;
-#if !defined(NOEGTB)
-        if (TotalAllPieces <= EGTBlimit && EGTB_draw &&
-            Castle(1, white) + Castle(1, black) == 0) {
-          temp = EGTBProbe(tree, 2, Flip(wtm), &tb_value);
-          if (temp && tb_value != DrawScore(Flip(wtm)))
-            break;
+#if defined(SYZYGY)
+        if (EGTB_draw && TotalAllPieces <= EGTBlimit &&
+            Castle(2, white) + Castle(2, black) == 0) {
+          tb_result =
+              tb_probe_root(Occupied(white), Occupied(black),
+              Kings(white) | Kings(black), Queens(white) | Queens(black),
+              Rooks(white) | Rooks(black), Bishops(white) | Bishops(black),
+              Knights(white) | Knights(black), Pawns(white) | Pawns(black),
+              Reversible(2), 0, EnPassant(2), Flip(wtm), NULL);
+          if (tb_result != TB_RESULT_FAILED) {
+            tb_result = 4 - TB_GET_WDL(tb_result);
+            if (tb_result < tb_root)
+              break;
+          }
         }
 #endif
         value = -Quiesce(tree, 2, Flip(wtm), -MATE, MATE, 0);
@@ -138,7 +160,17 @@ void RootMoveList(int wtm) {
  *                                                          *
  ************************************************************
  */
-  SortRootMoves();
+  do {
+    done = 1;
+    for (mvp = 0; mvp < n_root_moves - 1; mvp++) {
+      if (root_moves[mvp].path.pathv < root_moves[mvp + 1].path.pathv) {
+        rtemp = root_moves[mvp];
+        root_moves[mvp] = root_moves[mvp + 1];
+        root_moves[mvp + 1] = rtemp;
+        done = 0;
+      }
+    }
+  } while (!done);
 /*
  ************************************************************
  *                                                          *
@@ -181,6 +213,174 @@ void RootMoveList(int wtm) {
  ************************************************************
  */
   for (mvp = 1; mvp < n_root_moves; mvp++)
-    root_moves[mvp].path.pathv = -99999999;
+    root_moves[mvp].path.pathv = -MATE;
   return;
+}
+
+/* last modified 07/11/16 */
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   RootMoveEGTB() is used to handle the case where we are using syzygy end-  *
+ *   game tablebases and the root position is found in them.  We need to use   *
+ *   the DTZ tables to play the best move we can find since the game outcome   *
+ *   is known for each possible move at this point.  We return it in a manner  *
+ *   similar to Book().                                                        *
+ *                                                                             *
+ *   Note:  This depends on RootMoveList() being called FIRST since it is the  *
+ *   responsible party to note that we are drawn at the root according to EGTB *
+ *   and if appropriate, it will let RootMoveEGTB() know this to activate      *
+ *   "swindle mode" and play on with a search rather than an instant move.     *
+ *                                                                             *
+ *******************************************************************************
+ */
+int RootMoveEGTB(int wtm) {
+#if defined(SYZYGY)
+  TREE *const tree = block[0];
+  int tb_result, result;
+
+/*
+ ************************************************************
+ *                                                          *
+ *  first, we need to find the best TB move.  Simply, this  *
+ *  is the move that gives us the best result, even though  *
+ *  it might be speculative in the case of choosing a       *
+ *  "cursed win" which is still technically a draw if the   *
+ *  opponent makes no errors.                               *
+ *                                                          *
+ ************************************************************
+ */
+  EGTB_use = EGTBlimit;
+  if (EGTB_use <= 0)
+    return 0;
+  if (EGTB_draw && !puzzling && swindle_mode)
+    EGTB_use = 0;
+  if (EGTBlimit && !EGTB_use)
+    Print(32, "Drawn at root, trying for swindle.\n");
+  if (EGTB_use && TotalAllPieces <= EGTBlimit && !Castle(0, white) &&
+      !Castle(0, black)) {
+    tree->egtb_probes++;
+    tb_result =
+        tb_probe_root(Occupied(white), Occupied(black),
+        Kings(white) | Kings(black), Queens(white) | Queens(black),
+        Rooks(white) | Rooks(black), Bishops(white) | Bishops(black),
+        Knights(white) | Knights(black), Pawns(white) | Pawns(black),
+        Reversible(1), 0, EnPassant(1), wtm, NULL);
+    if (tb_result != TB_RESULT_FAILED) {
+      int value, piece, captured;
+      unsigned cmove, omove;
+
+      if (n_root_moves > 0) {
+        tree->egtb_hits++;
+        result = TB_GET_WDL(tb_result);
+        switch (result) {
+          case TB_LOSS:
+            value = -TBWIN;
+            break;
+          case TB_WIN:
+            value = TBWIN;
+            break;
+          case TB_BLESSED_LOSS:
+            value = -3;
+            break;
+          case TB_DRAW:
+            value = 0;
+            break;
+          case TB_CURSED_WIN:
+            value = 3;
+            break;
+          default:
+            value = TB_GET_DTZ(tb_result);;
+            break;
+        }
+        if (result != TB_LOSS && result != TB_WIN) {
+          if (MaterialSTM(wtm) > 0)
+            value += 1;
+          else if (MaterialSTM(wtm) < 0)
+            value -= 1;
+        }
+        piece = abs(PcOnSq(TB_GET_FROM(tb_result)));
+        captured = abs(PcOnSq(TB_GET_TO(tb_result)));
+        cmove =
+            TB_GET_FROM(tb_result) | (TB_GET_TO(tb_result) << 6) | (piece <<
+            12) | (captured << 15);
+        if (TB_GET_PROMOTES(tb_result))
+          cmove |= (6 - TB_GET_PROMOTES(tb_result)) << 18;
+        end_time = ReadClock();
+        tree->pv[0].path[1] = cmove;
+        tree->pv[0].pathl = 2;
+        tree->pv[0].pathh = 4;
+        tree->pv[0].pathd = 0;
+        tree->pv[0].pathv = value;
+        MakeMove(tree, 1, wtm, cmove);
+        result = Mated(tree, 2, Flip(wtm));
+        UnmakeMove(tree, 1, wtm, cmove);
+        if (result == 1)
+          tree->pv[0].pathv = MATE - 2;
+        else if (result == 2)
+          tree->pv[0].pathv = DrawScore(wtm);
+/*
+ ************************************************************
+ *                                                          *
+ *  If we are not mated and did not mate on the move, we    *
+ *  flip the side on move and find the best TB move so that *
+ *  we can show the expected reply in the PV.               *
+ *                                                          *
+ ************************************************************
+ */
+        else {
+          MakeMove(tree, 1, wtm, cmove);
+          tree->egtb_probes++;
+          tb_result =
+              tb_probe_root(Occupied(white), Occupied(black),
+              Kings(white) | Kings(black), Queens(white) | Queens(black),
+              Rooks(white) | Rooks(black), Bishops(white) | Bishops(black),
+              Knights(white) | Knights(black), Pawns(white) | Pawns(black),
+              Reversible(2), 0, EnPassant(2), Flip(wtm), NULL);
+          if (tb_result != TB_RESULT_FAILED) {
+            tree->egtb_hits++;
+            piece = abs(PcOnSq(TB_GET_FROM(tb_result)));
+            captured = abs(PcOnSq(TB_GET_TO(tb_result)));
+            omove =
+                TB_GET_FROM(tb_result) | (TB_GET_TO(tb_result) << 6) | (piece
+                << 12) | (captured << 15);
+            if (TB_GET_PROMOTES(tb_result))
+              omove |= (6 - TB_GET_PROMOTES(tb_result)) << 18;
+            end_time = ReadClock();
+            tree->pv[0].path[2] = omove;
+            tree->pv[0].pathl = 3;
+          }
+          UnmakeMove(tree, 1, wtm, cmove);
+        }
+      }
+/*
+ ************************************************************
+ *                                                          *
+ *  We now know the best move to play, and possibly the     *
+ *  opponent's best response.  Display this info and then   *
+ *  we wait for the next move to pop in.                    *
+ *                                                          *
+ ************************************************************
+ */
+      Print(2, "        depth     time       score   variation\n");
+      if (n_root_moves == 0) {
+        program_end_time = ReadClock();
+        tree->pv[0].pathl = 0;
+        tree->pv[0].pathd = 0;
+        if (Check(wtm))
+          value = -(MATE - 1);
+        else
+          value = DrawScore(wtm);
+        Print(2, "                             Mated   (no moves)\n");
+        tree->nodes_searched = 1;
+        if (!puzzling)
+          last_root_value = value;
+        return 1;
+      }
+      DisplayPV(tree, 5, wtm, end_time - start_time, &tree->pv[0], 1);
+      return 1;
+    }
+  }
+#endif
+  return 0;
 }

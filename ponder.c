@@ -1,6 +1,6 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 02/23/14 */
+/* last modified 08/03/16 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -24,7 +24,7 @@ int Ponder(int wtm) {
   TREE *const tree = block[0];
   int dalpha = -999999, dbeta = 999999, i;
   unsigned *n_ponder_moves, *mv;
-  int save_move_number, tlom, value;
+  int save_move_number, tlom, value, illegal = 0;
 
 /*
  ************************************************************
@@ -95,7 +95,6 @@ int Ponder(int wtm) {
     if (time_limit < 20)
       return 0;
     puzzling = 1;
-    tree->status[1] = tree->status[0];
     Print(32, "              puzzling over a move to ponder.\n");
     last_pv.pathl = 0;
     last_pv.pathd = 0;
@@ -155,11 +154,10 @@ int Ponder(int wtm) {
       GenerateNoncaptures(tree, 0, wtm, n_ponder_moves) - ponder_moves;
   for (mv = ponder_moves; mv < ponder_moves + num_ponder_moves; mv++) {
     MakeMove(tree, 0, wtm, *mv);
-    if (Check(wtm)) {
-      UnmakeMove(tree, 0, wtm, *mv);
+    illegal = Check(wtm);
+    UnmakeMove(tree, 0, wtm, *mv);
+    if (illegal)
       *mv = 0;
-    } else
-      UnmakeMove(tree, 0, wtm, *mv);
   }
 /*
  ************************************************************

@@ -674,6 +674,7 @@ int Book(TREE * RESTRICT tree, int wtm) {
           tree->pv[0].path[1] = book_moves[0];
           tree->pv[0].pathl = 2;
           tree->pv[0].pathd = 0;
+          tree->pv[0].pathv = 0;
         }
         return 1;
       }
@@ -1211,6 +1212,7 @@ void Bookup(TREE * RESTRICT tree, int nargs, char **args) {
             }
             data_read = ReadPGN(book_input, 0);
           }
+          strcpy(initial_position, "");
         } while (0);
     } while (strcmp(buffer, "end") && data_read != -1);
     if (book_input != stdin)
@@ -1268,7 +1270,7 @@ void Bookup(TREE * RESTRICT tree, int nargs, char **args) {
       wins++;
     if (temp.status & 32 && temp.percent_play & 128)
       losses++;
-    while (1) {
+    while (FOREVER) {
       temp = BookupNextPosition(files, 0);
       memcpy((char *) &next.position, temp.position, 8);
       next.status_played = temp.status << 24;

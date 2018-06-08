@@ -1,6 +1,5 @@
-#if !defined(EPDDEFS_INCLUDED)
+#pragma once
 /* *INDENT-OFF* */
-#  define EPDDEFS_INCLUDED
 /*>>> epddefs.h: Extended Position Description definitions */
 /* Revised: 1996.06.23 */
 /*
@@ -635,5 +634,3 @@ typedef struct gamS {
 /* inclusion telltale closure */
 #  endif
 /* *INDENT-ON* */
-#endif
-/*<<< epddefs.h: EOF */

@@ -28,7 +28,6 @@ exit........................... restores STDIN to keyboard.
 force move..................... forces specific move.
 hash n......................... sets transposition table size.
                                  (n bytes, nK bytes or nM bytes).
-hashe n........................ sets eval hash table size.
 hashp n........................ sets pawn hash table size.
 history........................ display game moves.
 import filename................ imports learning data (.lrn files).
@@ -41,6 +40,7 @@ level moves time inc........... sets ICS time controls.
 linelength n................... sets line length to n.  A really large value
                                 will produce 1 line PVs, making parsing easier
 list........................... update/display GM/IM/computer lists.
+lmp base scale................. LMP pruning move counts
 lmr min max depths moves scale. LMR reduction matrix generator
 load file title................ load a position from problem file, starting
                                 with line containing title, ending on exit.
@@ -360,6 +360,21 @@ list SP +name [book=filename] [personality=filename]
 
 <end>
 
+<lmp>
+
+lmp base scale
+
+This commands tunes the LMP move count thresholds.  The array it produces
+is indexed by depth, and defines the number of moves at that remaining
+depth that must be searched before late move pruning can kick in.
+
+The basic formula looks like this:
+
+moves = base + depth ^ scale
+
+Bigger valuse for base and scale make LMP more conservative, smaller values
+make it more aggressive and risky.
+
 <lmr>
 
 lmr min max dscale mscale scale
@@ -610,7 +625,7 @@ yourself, that will work as well, but it is more prone to errors.
 <smp>
 smp commands are used to control the SMP search.  
 
-smpaffinity <off|n> is used to enable or disable processor affinity.  "off"
+smpaffinity <n> <p> is used to enable or disable processor affinity.  "-1"
 disables affinity and lets threads run on any available core.  If you use an
 integer <n> then thread zero will bind itself to cpu <n> and each additional
 thread will bind to the next higher cpu number.  This is useful if you try to
@@ -620,6 +635,15 @@ instance of Crafty, you would use smpaffinity=0, and for the second
 smpaffinity=8, assuming you are running 8 threads per copy on a 16 cpu machine.
 If you get this wrong, you can have more than one thread on the same cpu which
 will significantly impact performance.              
+
+The second parameter is used to help Crafty identify physical vs logical cores.
+On a typical 20 core intel machine, processors 0 - 19 are on physical cores,
+then 20-39 map back to those same physical cores, but different logical
+(hyperthreaded) processors.  "1" is the correct value for this system.  For an
+IBM Power 8 machine with dual 10-core chips, processors 0 through 7 are on
+physical core 0, then 8 through 15 are on physical core 1, etc.  A value of "8"
+will map threads to physical cores correctly as each thread is spaced on the
+current processor core + 8, which is correct.
 
 smpmt <n> sets the total number of allowable threads for the search.  The
 default is one (1) as Crafty does not assume it should use all available

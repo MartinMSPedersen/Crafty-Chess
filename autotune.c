@@ -58,6 +58,7 @@ void AutoTune(int nargs, char *args[]) {
  */
   if (smp_max_threads < 2) {
     Print(4095, "ERROR: smpmt must be set to > 1 for tuning to work\n");
+    fclose(craftyrc);
     return;
   }
   if (nargs > 1)

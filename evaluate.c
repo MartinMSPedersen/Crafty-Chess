@@ -1,7 +1,7 @@
 #include "chess.h"
 #include "evaluate.h"
 #include "data.h"
-/* last modified 12/31/15 */
+/* last modified 08/03/16 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -20,9 +20,6 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta) {
   PAWN_HASH_ENTRY *ptable;
   PXOR *pxtable;
   int score, side, can_win = 3, phase, lscore, cutoff;
-  int full = 0;
-  uint64_t *etable;
-  uint64_t temp_hashkey;
 
 /*
  *************************************************************
@@ -43,24 +40,6 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta) {
       abort_search = 1;
   }
 #endif
-/*
- ************************************************************
- *                                                          *
- *  Next we check to see if this position has been handled  *
- *  before.  If so, we can skip the work saved in the eval  *
- *  hash table and just return the score found there.  Note *
- *  that we only store FULL evaluations in the evaluation   *
- *  hash, if an early (lazy) exit is taken, nothing is      *
- *  stored.                                                 *
- *                                                          *
- ************************************************************
-*/
-  temp_hashkey = (wtm) ? HashKey : ~HashKey;
-  etable = eval_hash_table + (temp_hashkey & eval_hash_mask);
-  if (*etable >> 16 == temp_hashkey >> 16) {
-    score = (*etable & 0xffff) - 32768;
-    return (wtm) ? score : -score;
-  }
 /*
  *************************************************************
  *                                                           *
@@ -296,16 +275,19 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta) {
     tree->tropism[white] = 0;
     tree->tropism[black] = 0;
     for (side = black; side <= white; side++)
-      EvaluateKnights(tree, side);
+      if (Knights(side))
+        EvaluateKnights(tree, side);
     for (side = black; side <= white; side++)
-      EvaluateBishops(tree, side);
+      if (Bishops(side))
+        EvaluateBishops(tree, side);
     for (side = black; side <= white; side++)
-      EvaluateRooks(tree, side);
+      if (Rooks(side))
+        EvaluateRooks(tree, side);
     for (side = black; side <= white; side++)
-      EvaluateQueens(tree, side);
+      if (Queens(side))
+        EvaluateQueens(tree, side);
     for (side = black; side <= white; side++)
       EvaluateKing(tree, ply, side);
-    full = 1;
   }
 /*
  *************************************************************
@@ -328,8 +310,6 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta) {
             skill) * PAWN_VALUE * (uint64_t) Random32() / 0x100000000ull) /
         100;
 #endif
-  if (full)
-    *etable = (temp_hashkey & 0xffffffffffff0000) + score + 32768;
   return (wtm) ? score : -score;
 }
 
@@ -417,18 +397,6 @@ void EvaluateBishops(TREE * RESTRICT tree, int side) {
 /*
  ************************************************************
  *                                                          *
- *  Check for pawns on both wings, which makes a bishop     *
- *  even more valuable against an enemy knight              *
- *                                                          *
- ************************************************************
- */
-    if (tree->all_pawns & mask_fgh && tree->all_pawns & mask_abc) {
-      score_mg += bishop_wing_pawns[mg];
-      score_eg += bishop_wing_pawns[eg];
-    }
-/*
- ************************************************************
- *                                                          *
  *  Adjust the tropism count for this piece.                *
  *                                                          *
  ************************************************************
@@ -452,6 +420,20 @@ void EvaluateBishops(TREE * RESTRICT tree, int side) {
   if (TotalPieces(side, bishop) > 1) {
     score_mg += bishop_pair[mg];
     score_eg += bishop_pair[eg];
+  }
+/*
+ ************************************************************
+ *                                                          *
+ *  Check for pawns on both wings, which makes a bishop     *
+ *  even more valuable against an enemy knight              *
+ *                                                          *
+ ************************************************************
+ */
+  else {
+    if (tree->all_pawns & mask_fgh && tree->all_pawns & mask_abc) {
+      score_mg += bishop_wing_pawns[mg];
+      score_eg += bishop_wing_pawns[eg];
+    }
   }
   tree->score_mg += sign[side] * score_mg;
   tree->score_eg += sign[side] * score_eg;
@@ -1289,8 +1271,7 @@ void EvaluatePawns(TREE * RESTRICT tree, int side) {
  *                                                          *
  ************************************************************
  */
-    score_mg += pval[mg][side][square];
-    score_eg += pval[eg][side][square];
+    score_mg += pval[side][square];
 /*
  ************************************************************
  *                                                          *
@@ -1352,8 +1333,8 @@ void EvaluatePawns(TREE * RESTRICT tree, int side) {
  */
     connected = Pawns(side) & mask_pawn_connected[side][square];
     if (connected) {
-      score_mg += pawn_connected[rank][file];
-      score_eg += pawn_connected[rank][file];
+      score_mg += pawn_connected[mg][rank][file];
+      score_eg += pawn_connected[eg][rank][file];
     }
 /*
  ************************************************************

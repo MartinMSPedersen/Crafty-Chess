@@ -263,7 +263,7 @@ void Annotate() {
         return;
       }
     }
-    do {
+    while (FOREVER) {
       fflush(annotate_out);
       move = ReadNextMove(tree, buffer, 0, wtm);
       if (move <= 0)
@@ -494,7 +494,7 @@ void Annotate() {
         break;
       if (line2 < -1)
         break;
-    } while (1);
+    }
     fprintf(annotate_out, "  %s %s\n\n", pgn_result, html_br);
     if (html_mode == 1) {
       fprintf(annotate_out, "%s\n", html_br);

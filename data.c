@@ -1,6 +1,6 @@
 #include "chess.h"
 /* *INDENT-OFF* */
-int scale = 8;
+int scale = 100;
 FILE *input_stream;
 FILE *book_file;
 FILE *books_file;
@@ -43,15 +43,12 @@ uint64_t book_learn_key;
 HASH_ENTRY *hash_table;
 HPATH_ENTRY *hash_path;
 PAWN_HASH_ENTRY *pawn_hash_table;
-uint64_t *eval_hash_table;
 void * segments[MAX_BLOCKS + 32][2];
 int nsegments = 0;
 PATH last_pv;
 int last_value;
 int8_t directions[64][64];
 int history[1024];
-KILLER counter_move[4096];
-KILLER move_pair[4096];
 const uint64_t randoms[2][7][64] = {
   {
     {0x0000000000000000ull, 0x0000000000000000ull, 0x0000000000000000ull,
@@ -445,7 +442,7 @@ const int OOOsqs[2][3] = {{E8, D8, C8}, {E1, D1, C1}};
 const int OOfrom[2] = {E8, E1};
 const int OOto[2] =   {G8, G1};
 const int OOOto[2] =  {C8, C1};
-#define VERSION      "25.0.1"
+#define VERSION      "25.1"
 char version[8] = {VERSION};
 PLAYING_MODE mode = normal_mode;
 int batch_mode = 0;                  /* no asynch reads */
@@ -454,10 +451,13 @@ int call_flag = 0;
 int crafty_rating = 2500;
 int opponent_rating = 2500;
 int last_search_value = 0;
-int pruning_margin[10] = {0, 100, 150, 200, 250, 300, 400, 500, 600, 700};
-int pruning_depth = 7;
-int movecnt_pruning[4] = {0, 12, 15, 18};
-int movecnt_depth = 3;
+int FP_margin[16] = {  0, 100, 150, 200,  250,  300,  400,  500,
+                     600, 700, 800, 900, 1000, 1100, 1200, 1300 };
+int FP_depth = 7;
+int LMP[16];
+int LMP_depth = 16;
+int LMP_base = 3;
+double LMP_scale = 1.9;
 int pgn_suggested_percent = 0;
 char pgn_event[128] = {"?"};
 char pgn_site[128] = {"?"};
@@ -476,11 +476,11 @@ char *SP_list[128];
 char *SP_opening_filename[128];
 char *SP_personality_filename[128];
 int output_format = 0;
-#if !defined(NOEGTB)
+#if defined(SYZYGY)
 int EGTBlimit = 0;
 int EGTB_use = 0;
 int EGTB_draw = 0;
-int EGTB_depth = 6;
+int EGTB_depth = 0;
 size_t EGTB_cache_size = 4096 * 4096;
 void *EGTB_cache = (void *) 0;
 int EGTB_setup = 0;
@@ -497,7 +497,7 @@ char rc_path[128] = {RCDIR};
 int initialized = 0;
 int kibitz = 0;
 int post = 0;
-int log_id = 0;
+int log_id = 1;
 int game_wtm = 1;
 int last_opponent_move = 0;
 int check_depth = 1;                  /* extend checks one ply                */
@@ -576,13 +576,19 @@ lock_t lock_smp, lock_io;
   pthread_attr_t attributes;
 #endif
 #endif
+unsigned int hardware_processors;
 unsigned int smp_max_threads = 0;
 unsigned int smp_split_group = 8;       /* max threads per group              */
 unsigned int smp_split_at_root = 1;     /* enable split at root               */
 unsigned int smp_min_split_depth = 5;   /* don't split within 5 plies of tips */
 unsigned int smp_gratuitous_depth = 10; /* gratuitous splits if depth > 10    */
 unsigned int smp_gratuitous_limit = 6;  /* max gratuitous splits / thread     */
+int smp_nice = 1;                       /* terminate idle threads             */
 int smp_affinity = 0;                   /* anything >= 0 is enabled           */
+int smp_affinity_increment = 1;         /* if physical cores are zero - N-1 
+                                           use 1, if physical cores are even
+                                           numbers and hyperthreaded cores are
+                                           odd use 2.  For IBM POWER 8 use 8  */
 int smp_numa = 0;                       /* disables NUMA mode by default      */
                                         /* enable if you really have NUMA     */
 /*
@@ -655,7 +661,6 @@ int move_number = 1;
 int moves_out_of_book = 0;
 int first_nonbook_factor = 0;
 int first_nonbook_span = 0;
-int smp_nice = 1;
 #if defined(SKILL)
 int skill = 100;
 #endif
@@ -672,8 +677,6 @@ uint64_t hash_path_mask = ((1ull << 16) - 1) & ~15;
 size_t pawn_hash_table_size = 1ull << 18;
 uint64_t pawn_hash_mask = (1ull << 18) - 1;
 uint64_t mask_clear_entry = 0xff9ffffffffe0000ull;
-size_t eval_hash_table_size = 65536;
-uint64_t eval_hash_mask = 65536 - 1;
 int abs_draw_score = 0;
 int accept_draws = 1;
 const char translate[13] =
@@ -1056,14 +1059,6 @@ struct personality_term personality_packet[256] = {
   {"LMR formula moves searched bias         ", 3, 0, &LMR_mb},
   {"LMR scale factor                        ", 3, 0, &LMR_s},
   {"search options (continued)              ", 0, 0, NULL},        /* 10 */
-  {"prune depth                             ", 1, 0, &pruning_depth},
-  {"prune margin [remain_depth]             ", 4, 8, pruning_margin},
-  {NULL, 0, 0, NULL},
-  {NULL, 0, 0, NULL},
-  {NULL, 0, 0, NULL},
-  {NULL, 0, 0, NULL},
-  {NULL, 0, 0, NULL},
-  {NULL, 0, 0, NULL},
   {NULL, 0, 0, NULL},
 };
 /* *INDENT-ON* */

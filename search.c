@@ -1,6 +1,9 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 01/10/16 */
+#if defined(SYZYGY)
+#  include "tbprobe.h"
+#endif
+/* last modified 08/03/16 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -69,13 +72,14 @@ int Search(TREE * RESTRICT tree, int ply, int depth, int wtm, int alpha,
  */
   if (ply > 1) {
     if ((repeat = Repeat(tree, ply))) {
-      if (repeat == 1 || !in_check) {
+      if (repeat == 2 || !in_check) {
         value = DrawScore(wtm);
         if (value < beta)
-          SavePV(tree, ply, 3);
+          SavePV(tree, ply, repeat);
 #if defined(TRACE)
         if (ply <= trace_level)
-          printf("draw by repetition detected, ply=%d.\n", ply);
+          printf("draw by %s detected, ply=%d.\n",
+              (repeat == 3) ? "50-move" : "repetition", ply);
 #endif
         return value;
       }
@@ -134,13 +138,14 @@ int Search(TREE * RESTRICT tree, int ply, int depth, int wtm, int alpha,
  *                                                          *
  *  EGTBs.  Now it's time to try a probe into the endgame   *
  *  tablebase files.  This is done if we notice that there  *
- *  are 6 or fewer pieces left on the board AND the move at *
- *  the previous ply was a capture.  If it was not, then we *
- *  would have already probed the EGTBs so if it was a miss *
- *  when we probed then, it will also miss here.  EGTB_use  *
- *  tells us how many pieces to probe on.  Note that this   *
- *  can be zero when trying to swindle the opponent, so     *
- *  that no probes are done since we know it is a draw.     *
+ *  are 6 or fewer pieces left on the board AND the 50 move *
+ *  counter is zero which enables probing the WDL EGTBs     *
+ *  correctly.  Probing after a capture won't work as it is *
+ *  possible that there is a necessary pawn push here and   *
+ *  there to reset the 50 move counter, otherwise we could  *
+ *  think we were following a winning path but heading to a *
+ *  draw.                                                   *
+ *                                                          *
  *  This is another way to get out of the search quickly,   *
  *  but not as quickly as the previous steps since this can *
  *  result in an I/O operation.                             *
@@ -153,36 +158,60 @@ int Search(TREE * RESTRICT tree, int ply, int depth, int wtm, int alpha,
  *  to give him a chance to make a mistake.                 *
  *                                                          *
  *  Another special case is that we slightly fudge the      *
- *  score for draws.  In a normal circumstance, draw=0.00   *
- *  since it is "equal".  However, here we add 0.01 if      *
- *  white has more material, or subtract 0.01 if black has  *
- *  more material, since in a drawn KRP vs KR we would      *
- *  prefer to have the KRP side since the opponent can make *
- *  a mistake and convert the draw to a loss.               *
+ *  score for draws.  The scores are -0.03 for a "blessed   *
+ *  loss", 0.0 for a pure draw, and +0.03 for a "cursed     *
+ *  win".  These are then modified by adding 0.01 if the    *
+ *  side on move is ahead in material, and subtracting 0.01 *
+ *  if the side on move is behind material.  This creates   *
+ *  the following inequality:                               *
+ *                                                          *
+ *     BL- < BL= < BL+ < D- < D= < D+ < CW- < CW= <CW+      *
+ *                                                          *
+ *  Where BL=blessed loss, D = draw, and CW = cursed win,   *
+ *  and - means behind in material, = means equal material, *
+ *  and + means ahead in material.                          *
  *                                                          *
  ************************************************************
  */
-#if !defined(NOEGTB)
+#if defined(SYZYGY)
     if (depth > EGTB_depth && TotalAllPieces <= EGTB_use &&
-        !Castle(ply, white) && !Castle(ply, black) &&
-        (Captured(tree->curmv[ply - 1]) || ply < 3)) {
-      int egtb_value;
+        !Castle(ply, white) && !Castle(ply, black) && Reversible(ply) == 0) {
+      int tb_result;
 
       tree->egtb_probes++;
-      if (EGTBProbe(tree, ply, wtm, &egtb_value)) {
+      tb_result =
+          tb_probe_wdl(Occupied(white), Occupied(black),
+          Kings(white) | Kings(black), Queens(white) | Queens(black),
+          Rooks(white) | Rooks(black), Bishops(white) | Bishops(black),
+          Knights(white) | Knights(black), Pawns(white) | Pawns(black),
+          Reversible(ply), 0, EnPassant(ply), wtm, HashKey);
+      if (tb_result != TB_RESULT_FAILED) {
         tree->egtb_hits++;
-        alpha = egtb_value;
-        if (MateScore(alpha))
-          alpha += (alpha > 0) ? -ply + 1 : ply;
-        else if (alpha == 0) {
-          alpha = DrawScore(wtm);
+        switch (tb_result) {
+          case TB_LOSS:
+            alpha = -TBWIN;
+            break;
+          case TB_BLESSED_LOSS:
+            alpha = -3;
+            break;
+          case TB_DRAW:
+            alpha = 0;
+            break;
+          case TB_CURSED_WIN:
+            alpha = 3;
+            break;
+          case TB_WIN:
+            alpha = TBWIN;
+            break;
+        }
+        if (tb_result != TB_LOSS && tb_result != TB_WIN) {
           if (MaterialSTM(wtm) > 0)
             alpha += 1;
           else if (MaterialSTM(wtm) < 0)
             alpha -= 1;
         }
         if (alpha < beta)
-          SavePV(tree, ply, 2);
+          SavePV(tree, ply, 4);
         return alpha;
       }
     }
@@ -229,7 +258,7 @@ int Search(TREE * RESTRICT tree, int ply, int depth, int wtm, int alpha,
 
     tree->last[ply] = tree->last[ply - 1];
     n_depth = (TotalPieces(wtm, occupied) > 9 || n_root_moves > 17 ||
-            depth > 3) ? 1 : 3;
+        depth > 3) ? 1 : 3;
     if (do_null && !pv_node && depth > n_depth && !in_check &&
         TotalPieces(wtm, occupied)) {
       uint64_t save_hash_key;
@@ -317,7 +346,7 @@ int Search(TREE * RESTRICT tree, int ply, int depth, int wtm, int alpha,
   return value;
 }
 
-/* last modified 09/28/15 */
+/* last modified 08/03/16 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -351,8 +380,8 @@ int SearchMoveList(TREE * RESTRICT tree, int ply, int depth, int wtm,
     int alpha, int beta, int searched[], int in_check, int repeat, int mode) {
   TREE *current;
   int extend, reduce, check, original_alpha = alpha, t_beta;
-  int i, value = 0, pv_node = alpha != beta - 1, status, order;
-  int moves_done = 0, phase, bestmove, type;
+  int i, j, value = 0, pv_node = alpha != beta - 1, search_result, order;
+  int moves_done = 0, bestmove, type;
 
 /*
  ************************************************************
@@ -406,28 +435,27 @@ int SearchMoveList(TREE * RESTRICT tree, int ply, int depth, int wtm,
       break;
     if (mode == parallel)
       Lock(current->lock);
-    order = (ply > 1) ? NextMove(current, ply, depth, wtm, in_check) :
-      NextRootMove(current, tree, wtm);
-    phase = current->phase[ply];
+    order = (ply > 1) ? NextMove(current, ply, depth, wtm, in_check)
+        : NextRootMove(current, tree, wtm);
     if (mode == parallel) {
-      tree->curmv[ply] = tree->parent->curmv[ply];
+      tree->curmv[ply] = current->curmv[ply];
       Unlock(current->lock);
     }
     if (!order)
       break;
 #if defined(TRACE)
     if (ply <= trace_level)
-      Trace(tree, ply, depth, wtm, alpha, beta, "SearchMoveList", mode, phase,
-          order);
+      Trace(tree, ply, depth, wtm, alpha, beta, "SearchMoveList", mode,
+          current->phase[ply], order);
 #endif
     MakeMove(tree, ply, wtm, tree->curmv[ply]);
     tree->nodes_searched++;
-    status = ILLEGAL;
+    search_result = ILLEGAL;
     if (in_check || !Check(wtm))
       do {
         searched[0]++;
         moves_done++;
-        status = LEGAL;
+        search_result = LEGAL;
         searched[searched[0]] = tree->curmv[ply];
 /*
  ************************************************************
@@ -499,15 +527,12 @@ int SearchMoveList(TREE * RESTRICT tree, int ply, int depth, int wtm,
  *                                                          *
  *  (3) this is not the first move at this ply.             *
  *                                                          *
- *  (4) we are in the REMAINING phase, which means that a   *
- *      cutoff is not very likely.                          *
- *                                                          *
  ************************************************************
  */
-        if (!in_check && !extend && order > 1 && phase >= HISTORY &&
+        if (!in_check && (!extend || !pv_node) && order > 1 &&
             !(PawnPush(wtm, tree->curmv[ply]))) {
-          if (!pv_node && depth < pruning_depth &&
-              MaterialSTM(wtm) + pruning_margin[depth] <= alpha) {
+          if (depth < FP_depth && !check &&
+              MaterialSTM(wtm) + FP_margin[depth] <= alpha && !pv_node) {
             tree->moves_fpruned++;
             break;
           }
@@ -523,14 +548,16 @@ int SearchMoveList(TREE * RESTRICT tree, int ply, int depth, int wtm,
  *  a cutoff.  If the move appears to be simple (not a      *
  *  check, etc) then we simply skip it, once the move count *
  *  has been satisfied.  At present, we only do this in the *
- *  last two plies although this might be changed in the    *
- *  future.                                                 *
+ *  last 16 plies although this might be changed in the     *
+ *  future.  If you look at the LMP array after it has been *
+ *  initialized, you will notice that it is unlikely that   *
+ *  LMP can be triggered much beyond depth 8 as you have to *
+ *  have a BUNCH of moves to search to reach those limits.  *
  *                                                          *
  ************************************************************
  */
-          if (!pv_node && alpha > -MATE + 300 && depth < movecnt_depth &&
-              !CaptureOrPromote(tree->curmv[ply]) &&
-              order > movecnt_pruning[depth]) {
+          if (order > LMP[depth] && depth < LMP_depth && !pv_node && !check &&
+              alpha > -MATE + 300 && !CaptureOrPromote(tree->curmv[ply])) {
             tree->moves_mpruned++;
             break;
           }
@@ -551,6 +578,8 @@ int SearchMoveList(TREE * RESTRICT tree, int ply, int depth, int wtm,
  ************************************************************
  */
           reduce = LMR[Min(depth, 31)][Min(order, 63)];
+          if (reduce && (pv_node || extend))
+            reduce--;
           tree->LMR_done[reduce]++;
         }
 /*
@@ -565,17 +594,17 @@ int SearchMoveList(TREE * RESTRICT tree, int ply, int depth, int wtm,
  *  one point where this is done, without needing multiple  *
  *  Unmake() calls when there are different exit points.    *
  *                                                          *
- ************************************************************
+ **************************************************************
  */
         value =
             SearchMove(tree, ply, depth, wtm, alpha, t_beta, beta, extend,
             reduce, check);
         if (value > alpha) {
-          status = IN_WINDOW;
+          search_result = IN_WINDOW;
           if (value >= beta)
-            status = FAIL_HIGH;
+            search_result = FAIL_HIGH;
           if (mode == parallel && ply == 1)
-            status = FAIL_HIGH;
+            search_result = FAIL_HIGH;
         }
       } while (0);
     UnmakeMove(tree, ply, wtm, tree->curmv[ply]);
@@ -589,8 +618,8 @@ int SearchMoveList(TREE * RESTRICT tree, int ply, int depth, int wtm,
  *  and the move has been unmade so that the board is in a  *
  *  correct state.                                          *
  *                                                          *
- *  If status = FAIL_HIGH, the search failed high.  The     *
- *  first thing to handle is the case where we are at       *
+ *  If search_result = FAIL_HIGH, the search failed high.   *
+ *  The first thing to handle is the case where we are at   *
  *  ply=1, which is a special case.  If we are going to     *
  *  fail high here and terminate the search immediately, we *
  *  need to build the fail-high PV to back up to Iterate()  *
@@ -610,7 +639,7 @@ int SearchMoveList(TREE * RESTRICT tree, int ply, int depth, int wtm,
  *                                                          *
  ************************************************************
  */
-    if (status == FAIL_HIGH) {
+    if (search_result == FAIL_HIGH) {
       if (ply == 1) {
         if (!tree->stop) {
           tree->pv[1].path[1] = tree->curmv[1];
@@ -634,7 +663,7 @@ int SearchMoveList(TREE * RESTRICT tree, int ply, int depth, int wtm,
         }
         Unlock(tree->parent->lock);
         Unlock(lock_smp);
-        return value;
+        return beta;
       }
 #endif
       tree->fail_highs++;
@@ -646,9 +675,9 @@ int SearchMoveList(TREE * RESTRICT tree, int ply, int depth, int wtm,
 /*
  ************************************************************
  *                                                          *
- *  Test 2.  If status = IN_WINDOW, this is a search that   *
- *  improved alpha without failing high.  We simply update  *
- *  alpha and continue searching moves.                     *
+ *  Test 2.  If search_result = IN_WINDOW, this is a search *
+ *  that improved alpha without failing high.  We simply    *
+ *  update alpha and continue searching moves.              *
  *                                                          *
  *  Special case:  If ply = 1 in a normal search, we have   *
  *  a best move and score that just changed.  We need to    *
@@ -659,30 +688,61 @@ int SearchMoveList(TREE * RESTRICT tree, int ply, int depth, int wtm,
  *  best move and score from the real best move so our      *
  *  search window won't be out of whack, which would let    *
  *  moves with scores in between this bad move and the best *
- *  move fail high, cause re-searches, and waste time.      *
+ *  move fail high, cause re-searches, and waste time.  We  *
+ *  also need to restore the root move list so that the     *
+ *  best move (the one we just used to replace the move     *
+ *  with a worse score) is first so it is searched first on *
+ *  the next iteration.                                     *
  *                                                          *
  *  If this is ply = 1, we display the PV to keep the user  *
  *  informed.                                               *
  *                                                          *
  ************************************************************
  */
-    } else if (status == IN_WINDOW) {
+    } else if (search_result == IN_WINDOW) {
       alpha = value;
       if (ply == 1 && mode == serial) {
+        int best;
+
+       //
+       // update path/score for this move
+       //
         tree->pv[1].pathv = value;
         tree->pv[0] = tree->pv[1];
-        for (i = 0; i < n_root_moves; i++)
-          if (root_moves[i].move == tree->pv[1].path[1]) {
-            root_moves[i].path = tree->pv[1];
-            root_moves[i].path.pathv = alpha;
+        for (best = 0; best < n_root_moves; best++)
+          if (root_moves[best].move == tree->pv[1].path[1]) {
+            root_moves[best].path = tree->pv[1];
+            root_moves[best].path.pathv = alpha;
+            break;
           }
-        for (i = 0; i < n_root_moves; i++)
-          if (value < root_moves[i].path.pathv) {
+       //
+       // if this move is not #1 in root list, move it there
+       //
+        if (best != 0) {
+          ROOT_MOVE t;
+          t = root_moves[best];
+          for (i = best; i > 0; i--)
+            root_moves[i] = root_moves[i - 1];
+          root_moves[0] = t;
+        }
+       //
+       // if a better score has already been found then move that
+       // move to the front of the list and update alpha bound.
+       //
+        for (i = 0; i < n_root_moves; i++) {
+          if (value <= root_moves[i].path.pathv) {
+            ROOT_MOVE t;
             value = root_moves[i].path.pathv;
             alpha = value;
             tree->pv[0] = root_moves[i].path;
             tree->pv[1] = tree->pv[0];
+            t = root_moves[i];
+            for (j = i; j > 0; j--)
+              root_moves[j] = root_moves[j - 1];
+            root_moves[0] = t;
+            break;
           }
+        }
         Output(tree);
         failhi_delta = 16;
         faillo_delta = 16;
@@ -691,13 +751,13 @@ int SearchMoveList(TREE * RESTRICT tree, int ply, int depth, int wtm,
 /*
  ************************************************************
  *                                                          *
- *  Test 3.  If status = ILLEGAL, this search was given an  *
- *  illegal move and no search was done, we skip any        *
- *  updating and simply select the next move to search.     *
+ *  Test 3.  If search_result = ILLEGAL, this search was    *
+ *  given an illegal move and no search was done, we skip   *
+ *  any updating and simply select the next move to search. *
  *                                                          *
  ************************************************************
  */
-    else if (status == ILLEGAL)
+    else if (search_result == ILLEGAL)
       continue;
     t_beta = alpha + 1;
 /*
@@ -756,10 +816,11 @@ int SearchMoveList(TREE * RESTRICT tree, int ply, int depth, int wtm,
  *  to join the thread with the most attractive split point *
  *  rather than just taking pot-luck.  The only limitation  *
  *  on a thread adding a split point here is that if the    *
- *  thread already has enough joinable split points have    *
- *  not been joined yet, we do not incur the overhead of    *
- *  creating another split point until the existing split   *
- *  point is completed or a thread joins at at that point.  *
+ *  thread already has enough joinable split points that    *
+ *  have not been joined yet, we do not incur the overhead  *
+ *  of creating another split point until one of the        *
+ *  existing split points has been completed or a thread    *
+ *  joins at at one of those available split points.        *
  *                                                          *
  *  We do not lock anything here, as the split operation    *
  *  only affects thread-local data.  When the split is done *
@@ -844,7 +905,7 @@ int SearchMoveList(TREE * RESTRICT tree, int ply, int depth, int wtm,
     if (repeat == 2 && alpha != -(MATE - ply - 1)) {
       value = DrawScore(wtm);
       if (value < beta)
-        SavePV(tree, ply, 4);
+        SavePV(tree, ply, 3);
 #if defined(TRACE)
       if (ply <= trace_level)
         printf("draw by 50 move rule detected, ply=%d.\n", ply);
@@ -859,7 +920,7 @@ int SearchMoveList(TREE * RESTRICT tree, int ply, int depth, int wtm,
   }
 }
 
-/* last modified 07/01/15 */
+/* last modified 08/03/16 */
 /*
  *******************************************************************************
  *                                                                             *

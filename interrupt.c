@@ -40,7 +40,7 @@ void Interrupt(int ply) {
  ************************************************************
  */
   else
-    do {
+    while (FOREVER) {
       readstat = Read(0, buffer);
       if (readstat <= 0)
         break;
@@ -195,7 +195,7 @@ void Interrupt(int ply) {
             Print(4095, "unrecognized/illegal command: %s\n", args[0]);
         }
       }
-    } while (1);
+    }
   if (log_file)
     fflush(log_file);
 }

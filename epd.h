@@ -1,6 +1,5 @@
-#if !defined(EPDH_INCLUDED)
+#pragma once
 /* *INDENT-OFF* */
-#  define EPDH_INCLUDED
 /*>>> epd.h: subprogram prototypes for epd.c */
 /* Revised: 1996.06.23 */
 /*
@@ -143,5 +142,3 @@ siT EPDComm(refintptrT refintptr, charptrT pipebase);
 void EPDInit(void);
 void EPDTerm(void);
 /* *INDENT-ON* */
-#endif
-/*<<< epd.h: EOF */

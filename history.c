@@ -63,10 +63,10 @@ void History(TREE * RESTRICT tree, int ply, int depth, int side, int move,
  *                                                          *
  ************************************************************
  */
-    if (counter_move[tree->curmv[ply - 1] & 4095].move1 != move) {
-      counter_move[tree->curmv[ply - 1] & 4095].move2 =
-          counter_move[tree->curmv[ply - 1] & 4095].move1;
-      counter_move[tree->curmv[ply - 1] & 4095].move1 = move;
+    if (tree->counter_move[tree->curmv[ply - 1] & 4095].move1 != move) {
+      tree->counter_move[tree->curmv[ply - 1] & 4095].move2 =
+          tree->counter_move[tree->curmv[ply - 1] & 4095].move1;
+      tree->counter_move[tree->curmv[ply - 1] & 4095].move1 = move;
     }
 /*
  ************************************************************
@@ -78,17 +78,17 @@ void History(TREE * RESTRICT tree, int ply, int depth, int side, int move,
  ************************************************************
  */
     if (ply > 2) {
-      if (move_pair[tree->curmv[ply - 2] & 4095].move1 != move) {
-        move_pair[tree->curmv[ply - 2] & 4095].move2 =
-            move_pair[tree->curmv[ply - 2] & 4095].move1;
-        move_pair[tree->curmv[ply - 2] & 4095].move1 = move;
+      if (tree->move_pair[tree->curmv[ply - 2] & 4095].move1 != move) {
+        tree->move_pair[tree->curmv[ply - 2] & 4095].move2 =
+            tree->move_pair[tree->curmv[ply - 2] & 4095].move1;
+        tree->move_pair[tree->curmv[ply - 2] & 4095].move1 = move;
       }
     }
 /*
  ************************************************************
  *                                                          *
  *  Adjust the history counter for the move that caused the *
- *  fail-high, limiting the max value to +2^20.             *
+ *  fail-high, limiting the max value to 2048.              *
  *                                                          *
  ************************************************************
  */
@@ -100,7 +100,7 @@ void History(TREE * RESTRICT tree, int ply, int depth, int side, int move,
  *                                                          *
  *  Adjust the history counters for the moves that were     *
  *  searched but did not cause a fail-high, limiting the    *
- *  min value to -2^20.                                     *
+ *  min value to 0.                                         *
  *                                                          *
  ************************************************************
  */

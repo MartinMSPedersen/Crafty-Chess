@@ -194,7 +194,7 @@ int NextMove(TREE * RESTRICT tree, int ply, int depth, int side, int in_check) {
  ************************************************************
  */
     case COUNTER_MOVE1:
-      possible = counter_move[tree->curmv[ply - 1] & 4095].move1;
+      possible = tree->counter_move[tree->curmv[ply - 1] & 4095].move1;
       if (!Exclude(tree, ply, possible) &&
           ValidMove(tree, ply, side, possible)) {
         tree->curmv[ply] = possible;
@@ -204,7 +204,7 @@ int NextMove(TREE * RESTRICT tree, int ply, int depth, int side, int in_check) {
         return ++tree->next_status[ply].order;
       }
     case COUNTER_MOVE2:
-      possible = counter_move[tree->curmv[ply - 1] & 4095].move2;
+      possible = tree->counter_move[tree->curmv[ply - 1] & 4095].move2;
       if (!Exclude(tree, ply, possible) &&
           ValidMove(tree, ply, side, possible)) {
         tree->curmv[ply] = possible;
@@ -223,7 +223,7 @@ int NextMove(TREE * RESTRICT tree, int ply, int depth, int side, int in_check) {
  ************************************************************
  */
     case MOVE_PAIR1:
-      possible = move_pair[tree->curmv[ply - 2] & 4095].move1;
+      possible = tree->move_pair[tree->curmv[ply - 2] & 4095].move1;
       if (!Exclude(tree, ply, possible) &&
           ValidMove(tree, ply, side, possible)) {
         tree->curmv[ply] = possible;
@@ -233,7 +233,7 @@ int NextMove(TREE * RESTRICT tree, int ply, int depth, int side, int in_check) {
         return ++tree->next_status[ply].order;
       }
     case MOVE_PAIR2:
-      possible = move_pair[tree->curmv[ply - 2] & 4095].move2;
+      possible = tree->move_pair[tree->curmv[ply - 2] & 4095].move2;
       if (!Exclude(tree, ply, possible) &&
           ValidMove(tree, ply, side, possible)) {
         tree->curmv[ply] = possible;

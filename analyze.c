@@ -43,7 +43,7 @@ void Analyze() {
  *                                                          *
  ************************************************************
  */
-  do {
+  while (FOREVER) {
     do {
       last_pv.pathd = 0;
       last_pv.pathl = 0;
@@ -181,7 +181,7 @@ void Analyze() {
     game_wtm = Flip(game_wtm);
     if (game_wtm)
       move_number++;
-  } while (1);
+  }
   analyze_mode = 0;
   printf("analyze complete.\n");
   pondering = 0;

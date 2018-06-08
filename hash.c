@@ -1,6 +1,6 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 09/16/14 */
+/* last modified 08/28/16 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -110,13 +110,6 @@ int HashProbe(TREE * RESTRICT tree, int ply, int depth, int side, int alpha,
  ************************************************************
  */
   if (entry < 4) {
-    if (word1 >> 55 != transposition_age) {
-      word1 =
-          (word1 & 0x007fffffffffffffull) | ((uint64_t) transposition_age <<
-          55);
-      htable[entry].word1 = word1;
-      htable[entry].word2 = word1 ^ word2;
-    }
     val = (word1 & 0x1ffff) - 65536;
     draft = (word1 >> 17) & 0x7fff;
     tree->hash_move[ply] = (word1 >> 32) & 0x1fffff;
@@ -151,6 +144,12 @@ int HashProbe(TREE * RESTRICT tree, int ply, int depth, int side, int alpha,
       switch (type) {
         case EXACT:
           if (val > alpha && val < beta) {
+            if (word1 >> 55 != transposition_age) {
+              word1 = (word1 & 0x007fffffffffffffull) | ((uint64_t)
+                  transposition_age << 55);
+              htable[entry].word1 = word1;
+              htable[entry].word2 = word1 ^ word2;
+            }
             SavePV(tree, ply, 1);
             ptable = hash_path + (temp_hashkey & hash_path_mask);
             for (entry = 0; entry < 16; entry++)
@@ -169,12 +168,26 @@ int HashProbe(TREE * RESTRICT tree, int ply, int depth, int side, int alpha,
           }
           return HASH_HIT;
         case UPPER:
-          if (val <= alpha)
+          if (val <= alpha) {
+            if (word1 >> 55 != transposition_age) {
+              word1 = (word1 & 0x007fffffffffffffull) | ((uint64_t)
+                  transposition_age << 55);
+              htable[entry].word1 = word1;
+              htable[entry].word2 = word1 ^ word2;
+            }
             return HASH_HIT;
+          }
           break;
         case LOWER:
-          if (val >= beta)
+          if (val >= beta) {
+            if (word1 >> 55 != transposition_age) {
+              word1 = (word1 & 0x007fffffffffffffull) | ((uint64_t)
+                  transposition_age << 55);
+              htable[entry].word1 = word1;
+              htable[entry].word2 = word1 ^ word2;
+            }
             return HASH_HIT;
+          }
           break;
       }
     }
@@ -183,7 +196,7 @@ int HashProbe(TREE * RESTRICT tree, int ply, int depth, int side, int alpha,
   return HASH_MISS;
 }
 
-/* last modified 09/16/14 */
+/* last modified 02/12/16 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -329,7 +342,7 @@ void HashStore(TREE * RESTRICT tree, int ply, int depth, int side, int type,
     ptable = hash_path + (temp_hashkey & hash_path_mask);
     for (i = 0; i < 16; i++, ptable++) {
       if (ptable->path_sig == temp_hashkey ||
-          ((transposition_age - ptable->hash_path_age) > 1)) {
+          transposition_age != ptable->hash_path_age) {
         for (j = ply; j < tree->pv[ply - 1].pathl; j++)
           ptable->hash_path_moves[j - ply] = tree->pv[ply - 1].path[j];
         ptable->hash_pathl = tree->pv[ply - 1].pathl - ply;

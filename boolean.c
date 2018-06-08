@@ -39,8 +39,8 @@ int LSB(uint64_t arg1) {
 int PopCnt(uint64_t arg1) {
   int c;
 
-  for (c = 0; x; c++)
-    x &= x - 1;
+  for (c = 0; arg1; c++)
+    arg1 &= arg1 - 1;
   return c;
 }
 #endif

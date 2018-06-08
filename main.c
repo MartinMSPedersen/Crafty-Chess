@@ -6,21 +6,23 @@
 #  include <sys/types.h>
 #endif
 #include <signal.h>
-/* last modified 02/24/14 */
+#if defined(SYZYGY)
+#  include "tbprobe.h"
+#endif
+/* last modified 08/03/16 */
 /*
  *******************************************************************************
  *                                                                             *
- *  Crafty, copyright 1996-2015 by Robert M. Hyatt, Ph.D., Associate Professor *
- *  of Computer and Information Sciences, University of Alabama at Birmingham. *
+ *  Crafty, copyright 1996-2016 by Robert M. Hyatt, Ph.D.                      *
  *                                                                             *
  *  Crafty is a team project consisting of the following members.  These are   *
  *  the people involved in the continuing development of this program, there   *
  *  are no particular members responsible for any specific aspect of Crafty,   *
  *  although R. Hyatt wrote 99%+ of the existing code, excepting the Magic .   *
- *  move stuff by Pradu Kaanan, egtb.cpp written by Eugene Nalimov, and the    *
+ *  move stuff by Pradu Kaanan, syzygy code written by Ronald de Man, and the  *
  *  epd stuff written by S. Edwards.                                           *
  *                                                                             *
- *     Robert Hyatt, University of Alabama at Birmingham.                      *
+ *     Robert Hyatt, Pelham, AL.                                               *
  *     Mike Byrne, Pen Argyl, PA.                                              *
  *     Tracy Riegle, Hershey, PA.                                              *
  *     Peter Skinner, Edmonton, AB  Canada.                                    *
@@ -4190,7 +4192,7 @@
  *           game move numbers in the PV.  Penalty for pawns on same color as  *
  *           bishop now only applies when there is one bishop.                 *
  *                                                                             *
- *    25.0.1 Cleanup of NextMove() plus a minor ordering bug fix that would    *
+ *    25.1   Cleanup of NextMove() plus a minor ordering bug fix that would    *
  *           skip counter moves at ply = 2. Added NUMA code to force the hash  *
  *           tables to be spread across the numa nodes as equally as possible  *
  *           rather than all of the data sitting on just onenode.  This makes  *
@@ -4204,7 +4206,35 @@
  *           cleared, all the other NUMA code works just fine no matter        *
  *           whether this is enabled or disabled.  Fixed a bug with the xboard *
  *           memory command that could overflow and cause preposterous malloc  *
- *           requests.                                                         *
+ *           requests.  Change to LMP that now enables it in the last 16 plies *
+ *           of search depth, although only the last 8-10 plies really have    *
+ *           a chance for this to kick in unless there are more than 100 legal *
+ *           moves to try.  Minor change to hash path in HashStore() that made *
+ *           it hard to store entries on the first search after the table was  *
+ *           cleared.  Removed Nalimov DTM EGTB code and converted to SYZYGY   *
+ *           WDL/DTC tables instead (courtesy of Ronald de Man).  This         *
+ *           correctly handles the 50 move rule  where the Nalimov tables      *
+ *           would walk into forced draws (by 50 move rule) while convincing   *
+ *           the search it was winning.  Swindle mode now also activates when  *
+ *           in a drawn ending with a material plus for the side on move, as   *
+ *           well as when the best root move is a "cursed win" (forced win,    *
+ *           but drawn because of the 50 move rule).  This gives the non-EGTB  *
+ *           opponent the opportunity to turn that 50 move draw into a loss.   *
+ *           There are some changes in the scoring output as a result of this. *
+ *           The usual +/-MatNN scores show up for real mates, but when in     *
+ *           EGTB endings, the scores are of the form Win or Lose with the     *
+ *           appropriate sign correction (-Win means black is winning, +Lose   *
+ *           means white is losing.)  Basil Falcinelli contributed to the new  *
+ *           syzygy code used in this version.  Minor change to skill code to  *
+ *           avoid altering search parameters since the speed reduction and    *
+ *           randomness in the eval is more than enough to reduce the Elo.     *
+ *           Minor change to HashProbe() where I now only update the AGE of an *
+ *           entry that matches the current hash signature if the entry        *
+ *           actually causes a search termination, rather than updating it     *
+ *           each time there is a signature match.  If the search is not       *
+ *           terminated on the spot, we have to store an entry when the search *
+ *           ends which will also overwrite the current exact match and update *
+ *           the age as well.  Suggested by J. Wesley Cleveland on CCC.        *
  *                                                                             *
  *******************************************************************************
  */
@@ -4219,6 +4249,13 @@ int main(int argc, char **argv) {
   struct passwd *pwd;
 #else
   char crafty_rc_file_spec[FILENAME_MAX];
+  SYSTEM_INFO sysinfo;
+#endif
+#if defined(UNIX)
+  hardware_processors = sysconf(_SC_NPROCESSORS_ONLN);
+#else
+  GetSystemInfo(&sysinfo);
+  hardware_processors = sysinfo.dwNumberOfProcessors;
 #endif
 /* Collect environmental variables */
   char *directory_spec = getenv("CRAFTY_BOOK_PATH");
@@ -4356,10 +4393,10 @@ int main(int argc, char **argv) {
       sprintf(path, "%s/.craftyrc", pwd->pw_dir);
       input_stream = fopen(path, "r");
     }
-  if (input_stream)
+  if (input_stream) {
 #else
   sprintf(crafty_rc_file_spec, "%s/crafty.rc", rc_path);
-  if ((input_stream = fopen(crafty_rc_file_spec, "r")))
+  if ((input_stream = fopen(crafty_rc_file_spec, "r"))) {
 #endif
     while (1) {
       readstat = Read(1, buffer);
@@ -4373,12 +4410,19 @@ int main(int argc, char **argv) {
       if (input_stream == stdin)
         break;
     }
+  }
   input_stream = stdin;
 #if defined(UNIX)
   if (xboard)
     signal(SIGINT, SIG_IGN);
 #endif
-  Print(32, "\nCrafty v%s (%d cpus)\n\n", version, Max(smp_max_threads, 1));
+  if (smp_max_threads)
+    Print(32, "\nCrafty v%s (%d threads)\n\n", version, smp_max_threads);
+  else
+    Print(32, "\nCrafty v%s\n\n", version);
+  if (hardware_processors > 0)
+    Print(32, "machine has %d processors\n\n", hardware_processors);
+
   NewGame(1);
 /*
  ************************************************************
@@ -4566,20 +4610,20 @@ int main(int argc, char **argv) {
             Print(-1, "1/2-1/2 {Drawn by 3-fold repetition}\n");
         }
         if (draw_type == 2) {
-          Print(1, "I claim a draw by the 50 move rule.\n");
-          value = DrawScore(game_wtm);
-          if (xboard)
-            Print(-1, "1/2-1/2 {Drawn by 50-move rule}\n");
+          if (!Mated(tree, 0, game_wtm)) {
+            Print(1, "I claim a draw by the 50 move rule.\n");
+            value = DrawScore(game_wtm);
+            if (xboard)
+              Print(-1, "1/2-1/2 {Drawn by 50-move rule}\n");
+          }
         }
         if (Drawn(tree, last_search_value) == 2) {
           Print(1, "I claim a draw due to insufficient material.\n");
           if (xboard)
             Print(-1, "1/2-1/2 {Insufficient material}\n");
         }
-      } else {
-        tree->status[1] = tree->status[0];
+      } else
         presult = 0;
-      }
 #if defined(DEBUG)
       ValidatePosition(tree, 0, move, "Main(1)");
 #endif
@@ -4612,6 +4656,7 @@ int main(int argc, char **argv) {
       last_pv.pathd = 0;
       last_pv.pathl = 0;
       display = tree->position;
+      tree->status[1] = tree->status[0];
       value = Iterate(game_wtm, think, 0);
     }
 /*
@@ -4686,7 +4731,7 @@ int main(int argc, char **argv) {
       last_mate_score = last_value;
     thinking = 0;
     if (!last_pv.pathl) {
-      if (value == -MATE + 1) {
+      if (Check(game_wtm)) {
         over = 1;
         if (game_wtm) {
           Print(-1, "0-1 {Black mates}\n");

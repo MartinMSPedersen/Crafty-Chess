@@ -29,11 +29,14 @@
  *                                                                             *
  *******************************************************************************
  */
-void AlignedMalloc(void **pointer, int alignment, size_t size) {
+void AlignedMalloc(void **pointer, uint64_t alignment, size_t size) {
+  uint64_t temp;
+
   segments[nsegments][0] = malloc(size + alignment - 1);
-  segments[nsegments][1] =
-      (void *) (((uintptr_t) segments[nsegments][0] + alignment -
-          1) & ~(alignment - 1));
+  segments[nsegments][1] = segments[nsegments][0];
+  temp = (uint64_t) segments[nsegments][0];
+  temp = (temp + alignment - 1) & ~(alignment - 1);
+  segments[nsegments][1] = (void *) temp;
   *pointer = segments[nsegments][1];
   nsegments++;
 }
@@ -69,7 +72,8 @@ uint64_t atoiKMB(char *input) {
  *                                                                             *
  *******************************************************************************
  */
-void AlignedRemalloc(void **pointer, int alignment, size_t size) {
+void AlignedRemalloc(void **pointer, uint64_t alignment, size_t size) {
+  uint64_t temp;
   int i;
 
   for (i = 0; i < nsegments; i++)
@@ -81,9 +85,9 @@ void AlignedRemalloc(void **pointer, int alignment, size_t size) {
   }
   free(segments[i][0]);
   segments[i][0] = malloc(size + alignment - 1);
-  segments[i][1] =
-      (void *) (((uintptr_t) segments[i][0] + alignment - 1) & ~(alignment -
-          1));
+  temp = (uint64_t) segments[i][0];
+  temp = (temp + alignment - 1) & ~(alignment - 1);
+  segments[i][1] = (void *) temp;
   *pointer = segments[i][1];
 }
 
@@ -719,32 +723,49 @@ void DisplayChessMove(char *title, int move) {
  */
 char *DisplayEvaluation(int value, int wtm) {
   int tvalue;
-  static char out[10];
+  static char out[20];
 
   tvalue = (wtm) ? value : -value;
-  if (!MateScore(value))
+  if (!MateScore(value) && !EGTBScore(value))
     sprintf(out, "%7.2f", ((float) tvalue) / 100.0);
   else if (Abs(value) > MATE) {
     if (tvalue < 0)
       sprintf(out, " -infnty");
     else
       sprintf(out, " +infnty");
-  } else if (value == MATE - 2 && wtm)
-    sprintf(out, "   Mate");
-  else if (value == MATE - 2 && !wtm)
-    sprintf(out, "  -Mate");
-  else if (value == -(MATE - 1) && wtm)
-    sprintf(out, "  -Mate");
-  else if (value == -(MATE - 1) && !wtm)
-    sprintf(out, "   Mate");
-  else if (value > 0 && wtm)
-    sprintf(out, "  Mat%.2d", (MATE - value) / 2);
-  else if (value > 0 && !wtm)
-    sprintf(out, " -Mat%.2d", (MATE - value) / 2);
-  else if (wtm)
-    sprintf(out, " -Mat%.2d", (MATE - Abs(value)) / 2);
-  else
-    sprintf(out, "  Mat%.2d", (MATE - Abs(value)) / 2);
+  } else {
+    if (EGTBScore(value)) {
+      if (wtm) {
+        if (value == TBWIN)
+          sprintf(out, "   Won ");
+        else if (value == -TBWIN)
+          sprintf(out, "  Lost ");
+      } else {
+        if (value == TBWIN)
+          sprintf(out, "  -Won ");
+        else if (value == -TBWIN)
+          sprintf(out, " -Lost ");
+      }
+    }
+    if (MateScore(value)) {
+      if (value == MATE - 2 && wtm)
+        sprintf(out, "   Mate");
+      else if (value == MATE - 2 && !wtm)
+        sprintf(out, "  -Mate");
+      else if (value == -(MATE - 1) && wtm)
+        sprintf(out, "  -Mate");
+      else if (value == -(MATE - 1) && !wtm)
+        sprintf(out, "   Mate");
+      else if (value > 0 && wtm)
+        sprintf(out, "  Mat%.2d", (MATE - value) / 2);
+      else if (value > 0 && !wtm)
+        sprintf(out, " -Mat%.2d", (MATE - value) / 2);
+      else if (wtm)
+        sprintf(out, " -Mat%.2d", (MATE - Abs(value)) / 2);
+      else
+        sprintf(out, "  Mat%.2d", (MATE - Abs(value)) / 2);
+    }
+  }
   return out;
 }
 
@@ -821,13 +842,13 @@ char *DisplayPath(TREE * RESTRICT tree, int wtm, PATH * pv) {
       t_move_number++;
   }
   if (pv->pathh == 1)
-    sprintf(buffer + strlen(buffer), " <HT>             ");
+    sprintf(buffer + strlen(buffer), " <HT>");
   else if (pv->pathh == 2)
-    sprintf(buffer + strlen(buffer), " <EGTB>           ");
+    sprintf(buffer + strlen(buffer), " <3-fold>");
   else if (pv->pathh == 3)
-    sprintf(buffer + strlen(buffer), " <3-fold>         ");
+    sprintf(buffer + strlen(buffer), " <50-move>");
   else if (pv->pathh == 4)
-    sprintf(buffer + strlen(buffer), " <50-move>        ");
+    sprintf(buffer + strlen(buffer), " <EGTB>");
   if (strlen(buffer) < 30)
     for (i = 0; i < 30 - strlen(buffer); i++)
       strcat(buffer, " ");
@@ -842,7 +863,8 @@ char *DisplayPath(TREE * RESTRICT tree, int wtm, PATH * pv) {
 /*
  *******************************************************************************
  *                                                                             *
- *   DisplayFail() is used to display a PV (moves only) during the search.     *
+ *   DisplayFail() is used to display a move that fails high or low during     *
+ *   the search.  Normally disabled.                                           *
  *                                                                             *
  *******************************************************************************
  */
@@ -956,11 +978,11 @@ void DisplayPV(TREE * RESTRICT tree, int level, int wtm, int time, PATH * pv,
   if (pv->pathh == 1)
     sprintf(buffer + strlen(buffer), " <HT>");
   else if (pv->pathh == 2)
-    sprintf(buffer + strlen(buffer), " <EGTB>");
-  else if (pv->pathh == 3)
     sprintf(buffer + strlen(buffer), " <3-fold>");
   else if (pv->pathh == 3)
     sprintf(buffer + strlen(buffer), " <50-move>");
+  else if (pv->pathh == 4)
+    sprintf(buffer + strlen(buffer), " <EGTB>");
   if (nskip > 1 && smp_max_threads > 1)
     sprintf(buffer + strlen(buffer), " (s=%d)", nskip);
   if (strlen(buffer) < 30) {
@@ -1148,7 +1170,8 @@ char *Display2Times(unsigned int time) {
     c = strspn(tout, " ");
     strcat(out, "/");
     strcat(out, tout + c);
-  }
+  } else
+    strcat(out, "       ");
   spaces = 13 - strlen(out);
   for (c = 0; c < spaces; c++)
     strcat(out, " ");
@@ -1175,136 +1198,6 @@ char *DisplayTimeKibitz(unsigned int time) {
   }
   return out;
 }
-
-/*
- *******************************************************************************
- *                                                                             *
- *   EGTBPV() is used to display the PV for a known EGTB position.  It simply  *
- *   makes moves, looks up the position to find the shortest mate, then it     *
- *   follows that PV.  It appends a "!" to a move that is the only move to     *
- *   preserve the shortest path to mate (all other moves lead to longer mates  *
- *   or even draws.)                                                           *
- *                                                                             *
- *******************************************************************************
- */
-#if !defined(NOEGTB)
-void EGTBPV(TREE * RESTRICT tree, int wtm) {
-  uint64_t hk[1024], phk[1024], pos[1024];
-  unsigned moves[1024], current[256], *last;
-  int value, ply, i, j, nmoves;
-  int t_move_number, best = 0, bestmv = 0, optimal_mv = 0, legal;
-  char buffer[16384], *next;
-
-/*
- ************************************************************
- *                                                          *
- *  First, see if this is a known EGTB position.  If not,   *
- *  we can bug out right now.                               *
- *                                                          *
- ************************************************************
- */
-  if (!EGTB_setup)
-    return;
-  tree->status[1] = tree->status[0];
-  if (Castle(1, white) + Castle(1, white))
-    return;
-  if (!EGTBProbe(tree, 1, wtm, &value))
-    return;
-  t_move_number = move_number;
-  sprintf(buffer, "%d.", move_number);
-  if (!wtm)
-    sprintf(buffer + strlen(buffer), " ...");
-/*
- ************************************************************
- *                                                          *
- *  The rest is simple, but messy.  Generate all moves,     *
- *  then find the move with the best egtb score and make it *
- *  (note that if there is only one that is optimal, it is  *
- *  flagged as such).  We then repeat this over and over    *
- *  until we reach the end, or until we repeat a move and   *
- *  can call it a repetition.                               *
- *                                                          *
- ************************************************************
- */
-  for (ply = 1; ply < 1024; ply++) {
-    pos[ply] = HashKey;
-    last = GenerateCaptures(tree, 1, wtm, current);
-    last = GenerateNoncaptures(tree, 1, wtm, last);
-    nmoves = last - current;
-    best = -MATE - 1;
-    legal = 0;
-    for (i = 0; i < nmoves; i++) {
-      MakeMove(tree, 1, wtm, current[i]);
-      if (!Check(wtm)) {
-        legal++;
-        if (TotalAllPieces == 2 || EGTBProbe(tree, 2, Flip(wtm), &value)) {
-          if (TotalAllPieces > 2)
-            value = -value;
-          else
-            value = DrawScore(wtm);
-          if (value > best) {
-            best = value;
-            bestmv = current[i];
-            optimal_mv = 1;
-          } else if (value == best)
-            optimal_mv = 0;
-        }
-      }
-      UnmakeMove(tree, 1, wtm, current[i]);
-    }
-    if (best > -MATE - 1) {
-      moves[ply] = bestmv;
-      if (ply > 1 && wtm)
-        sprintf(buffer + strlen(buffer), " %d.", t_move_number);
-      sprintf(buffer + strlen(buffer), " %s", OutputMove(tree, 1, wtm,
-              bestmv));
-      if (!strchr(buffer, '#') && legal > 1 && optimal_mv)
-        sprintf(buffer + strlen(buffer), "!");
-      hk[ply] = HashKey;
-      phk[ply] = PawnHashKey;
-      MakeMove(tree, 1, wtm, bestmv);
-      tree->status[1] = tree->status[2];
-      wtm = Flip(wtm);
-      for (j = 2 - (ply & 1); j < ply; j += 2)
-        if (pos[ply] == pos[j])
-          break;
-      if (j < ply)
-        break;
-      if (wtm)
-        t_move_number++;
-      if (strchr(buffer, '#'))
-        break;
-    } else {
-      ply--;
-      break;
-    }
-  }
-  nmoves = ply;
-  for (; ply > 0; ply--) {
-    wtm = Flip(wtm);
-    tree->save_hash_key[1] = hk[ply];
-    tree->save_pawn_hash_key[1] = phk[ply];
-    UnmakeMove(tree, 1, wtm, moves[ply]);
-    tree->status[2] = tree->status[1];
-  }
-  next = buffer;
-  while (nmoves) {
-    if (strlen(next) > line_length) {
-      int i;
-
-      for (i = 0; i < 16; i++)
-        if (*(next + 64 + i) == ' ')
-          break;
-      *(next + 64 + i) = 0;
-      printf("%s\n", next);
-      next += 64 + i + 1;
-    } else {
-      printf("%s\n", next);
-      break;
-    }
-  }
-}
-#endif
 
 /*
  *******************************************************************************
@@ -1568,6 +1461,70 @@ int KingPawnSquare(int pawn, int king, int queen, int ptm) {
   pdist = Abs(Rank(pawn) - Rank(queen)) + !ptm;
   kdist = Distance(king, queen);
   return pdist >= kdist;
+}
+
+/* last modified 07/13/16 */
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   Mated() is used to determine if the game has ended by checkmate.          *
+ *                                                                             *
+ *   We return 0 if the game doesn't end here, 1 if the side on move is mated  *
+ *   and 2 if the side on move is stalemated.                                  *
+ *                                                                             *
+ *******************************************************************************
+ */
+int Mated(TREE * RESTRICT tree, int ply, int wtm) {
+  unsigned int rmoves[256], *mvp, *lastm;
+  int temp = 0;
+
+/*
+ ************************************************************
+ *                                                          *
+ *   first, use GenerateMoves() to generate the set of      *
+ *   legal moves from the root position, after making the   *
+ *   test move passed in.                                   *
+ *                                                          *
+ ************************************************************
+ */
+  lastm = GenerateCaptures(tree, ply, wtm, rmoves);
+  lastm = GenerateNoncaptures(tree, ply, wtm, lastm);
+/*
+ ************************************************************
+ *                                                          *
+ *   now make each move and use eliminate any that leave    *
+ *   king in check (which makes those moves illegal.)       *
+ *                                                          *
+ ************************************************************
+ */
+  for (mvp = rmoves; mvp < lastm; mvp++) {
+    MakeMove(tree, ply, wtm, *mvp);
+    temp = Check(wtm);
+    UnmakeMove(tree, ply, wtm, *mvp);
+    if (!temp)
+      break;
+  }
+/*
+ ************************************************************
+ *                                                          *
+ *   if there is one move that did not leave us in check,   *
+ *   then it can't be checkmate/stalemate.                  *
+ *                                                          *
+ ************************************************************
+ */
+  if (!temp)
+    return 0;
+/*
+ ************************************************************
+ *                                                          *
+ *   No legal moves.  If we are in check, we have been      *
+ *   checkmated, otherwise we are stalemated.               *
+ *                                                          *
+ ************************************************************
+ */
+  if (Check(wtm))
+    return 1;
+  return 2;
 }
 
 /* last modified 02/26/14 */
@@ -2084,7 +2041,7 @@ int ReadPGN(FILE * input, int option) {
  *                                                          *
  ************************************************************
  */
-  while (1) {
+  while (FOREVER) {
     if (!data) {
       eof = fgets(input_buffer, 4096, input);
       if (!eof)
@@ -2173,7 +2130,7 @@ int ReadPGN(FILE * input, int option) {
       last_good_line = lines_read;
       analysis_move[0] = 0;
       if (strchr(buffer, '{') || strchr(buffer, '('))
-        while (1) {
+        while (FOREVER) {
           char *skip, *ch;
 
           analysis = 1;
@@ -2343,19 +2300,20 @@ void Kibitz(int level, int wtm, int depth, int time, int value,
     switch (level) {
       case 1:
         if ((kibitz & 15) >= 1) {
-          if (value > 0) {
+          if (value > 0)
             printf("%s mate in %d moves.\n\n", prefix, value);
-          }
-          if (value < 0) {
+          if (value < 0)
             printf("%s mated in %d moves.\n\n", prefix, -value);
-          }
         }
         break;
       case 2:
-        if ((kibitz & 15) >= 2)
-          printf("%s ply=%d; eval=%s; nps=%s; time=%s(%d%%); egtb=%d\n",
-              prefix, depth, DisplayEvaluationKibitz(value, wtm),
-              DisplayKMB(nps, 0), DisplayTimeKibitz(time), ip, tb_hits);
+        if ((kibitz & 15) >= 2) {
+          printf("%s ply=%d; eval=%s; nps=%s; time=%s(%d%%)", prefix, depth,
+              DisplayEvaluationKibitz(value, wtm), DisplayKMB(nps, 0),
+              DisplayTimeKibitz(time), ip);
+          printf("; egtb=%s\n", DisplayKMB(tb_hits, 0));
+        }
+        break;
       case 3:
         if ((kibitz & 15) >= 3 && (nodes > 5000 || level == 2))
           printf("%s %s\n", prefix, pv);
@@ -2370,7 +2328,7 @@ void Kibitz(int level, int wtm, int depth, int time, int value,
               DisplayKMB(nps, 0), DisplayTimeKibitz(time), ip,
               DisplayEvaluationKibitz(value, wtm), pv);
           if (tb_hits)
-            printf("egtb=%d", tb_hits);
+            printf("egtb=%s", DisplayKMB(tb_hits, 0));
           printf("\n");
         }
         break;
@@ -2419,37 +2377,6 @@ void Output(TREE * RESTRICT tree) {
     root_moves[i].path = tree->pv[1];
     root_moves[i].bm_age = 4;
   }
-}
-
-/*
- *******************************************************************************
- *                                                                             *
- *   SortRootMoves() is used to sort the root move list based on the value     *
- *   saved for each move.  After a fail high or fail low, we always re-sort    *
- *   the root move list so that the best move found so far is first in the     *
- *   list.  This is primarily intended as a defense against getting a score    *
- *   for the first root move, and then getting a fail-high on the second move, *
- *   which should move this move to the front of the moves.  But if the move   *
- *   then fails low, we want to move it back down since a deeper/less-reduced  *
- *   search did not verify the fail-high.                                      *
- *                                                                             *
- *******************************************************************************
- */
-void SortRootMoves() {
-  ROOT_MOVE rtemp;
-  int mvp, done;
-
-  do {
-    done = 1;
-    for (mvp = 0; mvp < n_root_moves - 1; mvp++) {
-      if (root_moves[mvp].path.pathv < root_moves[mvp + 1].path.pathv) {
-        rtemp = root_moves[mvp];
-        root_moves[mvp] = root_moves[mvp + 1];
-        root_moves[mvp + 1] = rtemp;
-        done = 0;
-      }
-    }
-  } while (!done);
 }
 
 /*
@@ -2576,7 +2503,7 @@ int ValidMove(TREE * RESTRICT tree, int ply, int wtm, int move) {
       if (((wtm) ? To(move) - From(move) : From(move) - To(move)) < 0)
         return 0;
       if (Abs(From(move) - To(move)) == 8)
-        return (PcOnSq(To(move))) ? 0 : 1;
+        return PcOnSq(To(move)) ? 0 : 1;
       if (Abs(From(move) - To(move)) == 16)
         return (PcOnSq(To(move)) || PcOnSq(To(move) + epdir[wtm])) ? 0 : 1;
       if (!Captured(move))
@@ -2720,8 +2647,8 @@ static void WinNumaInit(void) {
           printf("\n");
         }
 // Thread 0 was already started on some CPU. To simplify things further,
-// exchange ullProcessorMask[0] and ullProcessorMask[node for that CPU],
-// so ullProcessorMask[0] would always be node for thread 0
+// exchange ProcessorMask[0] and ProcessorMask[node for that CPU],
+// so ProcessorMask[0] would always be node for thread 0
         dwCPU =
             pSetThreadIdealProcessor(GetCurrentThread(), MAXIMUM_PROCESSORS);
         printf("Current ideal CPU is %u\n", dwCPU);

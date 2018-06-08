@@ -1,128 +1,19 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 02/26/14 */
+/* last modified 09/29/16 */
 /*
  *******************************************************************************
  *                                                                             *
- *   Bench() runs a simple six-position benchmark to gauge Crafty's            *
- *   performance.  The test positons are hard-coded, and the benchmark is      *
- *   calculated much like it would with an external "test" file.  The test     *
- *   is a mix of opening, middlegame, and endgame positions, with both         *
- *   tactical and positional aspects.  (For those interested, the positions    *
- *   chosen are Bratko-Kopec 2, 4, 8, 12, 22 and 23.)  This test is a speed    *
- *   measure only; the actual solutions to the positions are ignored.          *
+ *   Bench() runs a 64 position benchmark during the build process.  The test  *
+ *   positons are hard-coded. This is designed as a stand-alone benchmark to   *
+ *   comper different machines, or as a profile-guided-optimization test that  *
+ *   produces good profile data.                                               *
  *                                                                             *
  *******************************************************************************
  */
 int Bench(int increase, int autotune) {
   uint64_t nodes = 0;
-  int old_do, old_st, old_sd, total_time_used, pos, begin, end;
-  FILE *old_books, *old_book;
-  TREE *const tree = block[0];
-  char fen[6][80] = {
-    {"3r1k2/4npp1/1ppr3p/p6P/P2PPPP1/1NR5/5K2/2R5 w - - 0 1"},
-    {"rnbqkb1r/p3pppp/1p6/2ppP3/3N4/2P5/PPP1QPPP/R1B1KB1R w KQkq - 0 1"},
-    {"4b3/p3kp2/6p1/3pP2p/2pP1P2/4K1P1/P3N2P/8 w - - 0 1"},
-    {"r3r1k1/ppqb1ppp/8/4p1NQ/8/2P5/PP3PPP/R3R1K1 b - - 0 1"},
-    {"2r2rk1/1bqnbpp1/1p1ppn1p/pP6/N1P1P3/P2B1N1P/1B2QPP1/R2R2K1 b - - 0 1"},
-    {"r1bqk2r/pp2bppp/2p5/3pP3/P2Q1P2/2N1B3/1PP3PP/R4RK1 b kq - 0 1"}
-  };
-  int fen_depth[6] = { 24, 20, 25, 21, 18, 19 };
-
-/*
- ************************************************************
- *                                                          *
- *  Initialize.                                             *
- *                                                          *
- ************************************************************
- */
-  begin = ReadClock();
-  total_time_used = 0;
-  old_st = search_time_limit;
-  old_sd = search_depth;
-  old_do = display_options;
-  search_time_limit = 90000;
-  display_options = 1;
-  old_book = book_file;
-  book_file = 0;
-  old_books = books_file;
-  books_file = 0;
-  if (!autotune) {
-    if (increase)
-      Print(4095, "Running benchmark (modifying depth by %d plies). . .\n",
-          increase);
-    else
-      Print(4095, "Running benchmark. . .\n");
-    fflush(stdout);
-  }
-/*
- ************************************************************
- *                                                          *
- *  Now we loop through the six positions.  We use the      *
- *  ReadParse() procedure to break the FEN into tokens and  *
- *  then call SetBoard() to set up the positions.  Then a   *
- *  call to Iterate() and we are done.                      *
- *                                                          *
- ************************************************************
- */
-  for (pos = 0; pos < 6; pos++) {
-    strcpy(buffer, fen[pos]);
-    nargs = ReadParse(buffer, args, " \t;=");
-    SetBoard(tree, nargs, args, 0);
-    search_depth = fen_depth[pos] + increase;
-    last_pv.pathd = 0;
-    thinking = 1;
-    tree->status[1] = tree->status[0];
-    InitializeHashTables(0);
-    Iterate(game_wtm, think, 0);
-    thinking = 0;
-    nodes += tree->nodes_searched;
-    total_time_used += (program_end_time - program_start_time);
-    printf(".");
-    fflush(stdout);
-  }
-/*
- ************************************************************
- *                                                          *
- *  Benchmark done.  Now dump the results.                  *
- *                                                          *
- ************************************************************
- */
-  if (!autotune)
-    printf("\n");
-  if (!autotune) {
-    Print(4095, "Total nodes: %" PRIu64 "\n", nodes);
-    Print(4095, "Raw nodes per second: %d\n",
-        (int) ((double) nodes / ((double) total_time_used / (double) 100.0)));
-    Print(4095, "Total elapsed time: %.2f\n",
-        ((double) total_time_used / (double) 100.0));
-  }
-  input_stream = stdin;
-  early_exit = 99;
-  display_options = old_do;
-  search_time_limit = old_st;
-  search_depth = old_sd;
-  books_file = old_books;
-  book_file = old_book;
-  NewGame(0);
-  end = ReadClock();
-  return end - begin;
-}
-
-/* last modified 02/26/14 */
-/*
- *******************************************************************************
- *                                                                             *
- *   Bench_PGO() runs a 64 position benchmark during the build process.  The   *
- *   test positons are hard-coded, and the benchmark is similiar to the normal *
- *   bench command.  It designed specifically to run with the makefile for     *
- *   profile guided optimizations.                                             *
- *                                                                             *
- *******************************************************************************
- */
-int Bench_PGO(int increase, int autotune) {
-  uint64_t nodes = 0;
-  int old_do, old_st, old_sd, total_time_used, pos, begin, end, old_mt;
+  int old_do, old_st, old_sd, total_time_used, pos, old_mt = smp_max_threads;
   FILE *old_books, *old_book;
   TREE *const tree = block[0];
   char fen[64][80] = {
@@ -135,7 +26,7 @@ int Bench_PGO(int increase, int autotune) {
     {"8/R7/2q5/8/6k1/8/1P5p/K6R w"},
     {"2r3k1/1p2q1pp/2b1pr2/p1pp4/6Q1/1P1PP1R1/P1PN2PP/5RK1 w"},
     {"4rrk1/pp1n3p/3q2pQ/2p1pb2/2PP4/2P3N1/P2B2PP/4RRK1 b"},
-    {"1k1r4/pp1b1R2/3q2pp/4p3/2B5/4Q3/PPP2B2/2K5 b"},
+    {"5r1k/6p/1n2Q2p/4p//7P/PP4PK/R1B1q/ w"},
     {"4b3/p3kp2/6p1/3pP2p/2pP1P2/4K1P1/P3N2P/8 w"},
     {"r1bqkb1r/4npp1/p1p4p/1p1pP1B1/8/1B6/PPPN1PPP/R2Q1RK1 w"},
     {"7k/3p2pp/4q3/8/4Q3/5Kp1/P6b/8 w"},
@@ -200,7 +91,6 @@ int Bench_PGO(int increase, int autotune) {
   *                                                          *
   ************************************************************
   */
-  begin = ReadClock();
   total_time_used = 0;
   old_st = search_time_limit;
   old_sd = search_depth;
@@ -213,10 +103,11 @@ int Bench_PGO(int increase, int autotune) {
   books_file = 0;
   if (!autotune) {
     if (increase)
-      Print(4095, "Running benchmark (modifying depth by %d plies). . .\n",
+      Print(4095,
+          "Running serial benchmark (modifying depth by %d plies). . .\n",
           increase);
     else
-      Print(4095, "Running benchmark. . .\n");
+      Print(4095, "Running serial benchmark. . .\n");
     fflush(stdout);
   }
  /*
@@ -247,13 +138,59 @@ int Bench_PGO(int increase, int autotune) {
         Max((uint64_t) program_end_time - program_start_time, 1);
     if (pos % 7 == 0)
       Print(4095, "pos: ");
-    Print(4095, "%d", pos + 1);
-    Print(4095, "(%s) ", DisplayKMB(nodes_per_second, 0));
+    Print(4095, "%2d(%s) ", pos + 1, DisplayKMB(nodes_per_second, 0));
     if (pos % 7 == 6)
       Print(4095, "\n");
     fflush(stdout);
   }
-  Print(4095, "\n");
+ /*
+  ************************************************************
+  *                                                          *
+  *  Serial benchmark done.  Now dump the results.           *
+  *                                                          *
+  ************************************************************
+  */
+  if (!autotune)
+    printf("\n");
+  if (!autotune) {
+    Print(4095, "\nTotal nodes: %" PRIu64 "\n", nodes);
+    Print(4095, "Raw nodes per second: %d\n",
+        (int) ((double) nodes / ((double) total_time_used / (double) 100.0)));
+    Print(4095, "Total elapsed time: %.2f\n\n",
+        ((double) total_time_used / (double) 100.0));
+  }
+ /*
+  ************************************************************
+  *                                                          *
+  *  Now we repeat for two threads to provide PGO data for   *
+  *  the compiler.                                           *
+  *                                                          *
+  ************************************************************
+  */
+  if (smp_max_threads == 0) {
+    smp_max_threads = 2;
+    Print(4095, "Running SMP benchmark (%d threads)...\n", smp_max_threads);
+    fflush(stdout);
+    Print(4095, "pos: ");
+    for (pos = 0; pos < 2 && old_mt == 0; pos++) {
+      strcpy(buffer, fen[pos]);
+      nargs = ReadParse(buffer, args, " \t;=");
+      SetBoard(tree, nargs, args, 0);
+      search_depth = fen_depth + increase;
+      last_pv.pathd = 0;
+      thinking = 1;
+      tree->status[1] = tree->status[0];
+      InitializeHashTables(0);
+      Iterate(game_wtm, think, 0);
+      thinking = 0;
+      nodes += tree->nodes_searched;
+      total_time_used += (program_end_time - program_start_time);
+      nodes_per_second =
+          (uint64_t) tree->nodes_searched * 100 /
+          Max((uint64_t) program_end_time - program_start_time, 1);
+      Print(4095, "%2d(%s) ", pos + 1, DisplayKMB(nodes_per_second, 0));
+    }
+  }
  /*
   ************************************************************
   *                                                          *
@@ -263,45 +200,21 @@ int Bench_PGO(int increase, int autotune) {
   */
   if (!autotune)
     printf("\n");
-  if (!autotune) {
-    Print(4095, "Total nodes: %" PRIu64 "\n", nodes);
+  if (!autotune && old_mt == 0) {
+    Print(4095, "\nTotal nodes: %" PRIu64 "\n", nodes);
     Print(4095, "Raw nodes per second: %d\n",
         (int) ((double) nodes / ((double) total_time_used / (double) 100.0)));
     Print(4095, "Total elapsed time: %.2f\n\n",
         ((double) total_time_used / (double) 100.0));
-  }
-  Print(4095, "Performing SMP PGO...\n");
-  old_mt = smp_max_threads;
-  smp_max_threads = 2;
-  fflush(stdout);
-  for (pos = 63; pos < 64; pos++) {
-    strcpy(buffer, fen[pos]);
-    nargs = ReadParse(buffer, args, " \t;=");
-    SetBoard(tree, nargs, args, 0);
-    search_depth = fen_depth + increase;
-    last_pv.pathd = 0;
-    thinking = 1;
-    tree->status[1] = tree->status[0];
-    InitializeHashTables(0);
-    Iterate(game_wtm, think, 0);
-    thinking = 0;
-    nodes += tree->nodes_searched;
-    total_time_used += (program_end_time - program_start_time);
-    nodes_per_second =
-        (uint64_t) tree->nodes_searched * 100 /
-        Max((uint64_t) program_end_time - program_start_time, 1);
-    Print(4095, " Running two threads...\n");
-    Print(4095, "pos: %d(%s)\n", pos + 1, DisplayKMB(nodes_per_second, 0));
   }
   input_stream = stdin;
   early_exit = 99;
   display_options = old_do;
   search_time_limit = old_st;
   search_depth = old_sd;
-  smp_max_threads = Max(1, old_mt);
+  smp_max_threads = Max(0, old_mt);
   books_file = old_books;
   book_file = old_book;
   NewGame(0);
-  end = ReadClock();
-  return end - begin;
+  return total_time_used;
 }

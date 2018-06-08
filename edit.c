@@ -44,7 +44,7 @@ void Edit(void) {
  *                                                          *
  ************************************************************
  */
-  while (1) {
+  while (FOREVER) {
     if ((input_stream == stdin) && !xboard) {
       if (wtm)
         printf("edit(white): ");

@@ -30,19 +30,11 @@
 #                  the corresponding position is checked to make sure all of
 #                  the bitboards are set correctly.
 #   -DEPD          If you want full EPD support built in.
-#   -DINLINEASM    Compiles with the Intel assembly code for FirstOne(),
-#                  LastOne() and PopCnt().  This is for gcc-style inlining
-#                  and now works with the Intel C/C++ compiler as well.  It
-#                  also has a MSVC compatible version included.
 #   -DLOGDIR       Path to the directory where Crafty puts the log.nnn and
 #                  game.nnn files.
 #   -DNODES        This enables the sn=x command.  Crafty will search until
 #                  exactly X nodes have been searched, then the search 
 #                  terminates as if time ran out.
-#   -DNOEGTB       Eliminates the egtb code for compilers that can't deal
-#                  with the large egtb.cpp code/templates.
-#   -DPOPCNT       Says this system is a newer Intel/AMD processor with the
-#                  built-in hardware popcnt instruction.
 #   -DPOSITIONS    Causes Crafty to emit FEN strings, one per book line, as
 #                  it creates a book.  I use this to create positions to use
 #                  for cluster testing.
@@ -51,6 +43,7 @@
 #   -DSKILL        Enables the "skill" command which allows you to arbitrarily
 #                  lower Crafty's playing skill so it does not seem so
 #                  invincible to non-GM-level players.
+#   -DSYZYGY       This enables syzygy endgame tables (both WDL and DTC)
 #   -DTBDIR        Path to the directory where the endgame tablebase files
 #                  are found.  default = "./TB"
 #   -DTEST         Displays evaluation table after each move (in the logfile)
@@ -58,13 +51,20 @@
 #                  can be dumped while running.
 #   -DUNIX         This identifies the target O/S as being Unix-based, if this
 #                  option is omitted, windows is assumed.
-
-#	$(MAKE) -j unix-gcc
+#
+#    Note:         If you compile on a machine with the hardware popcnt
+#                  instruction, you should use the -mpopcnt compiler option
+#                  to make the built-in intrinsic use the hardware rather than
+#                  the "folding" approach.  That is the default in this
+#                  Makefile so if you do NOT have hardware popcnt, remove all
+#                  of the -mpopcnt strings in the Makefile lines below.
+#
 default:
 	$(MAKE) -j unix-clang
 help:
 	@echo "You must specify the system which you want to compile for:"
 	@echo ""
+	@echo "make unix-clang       Unix w/clang compiler (MacOS usually)"
 	@echo "make unix-gcc         Unix w/gcc compiler"
 	@echo "make unix-icc         Unix w/icc compiler"
 	@echo "make profile          profile-guided-optimizations"
@@ -72,77 +72,67 @@ help:
 	@echo "                      option use the right compiler)"
 	@echo ""
 
+
 quick:
 	$(MAKE) target=UNIX \
-		CC=gcc CXX=g++ \
-		opt='-DTEST -DTRACE -DINLINEASM -DPOPCNT -DCPUS=4' \
-		CFLAGS='-Wall -Wno-array-bounds -pipe -O3 -pthread' \
-		CXFLAGS='-Wall -Wno-array-bounds -pipe -O3 -pthread' \
+		CC=clang \
+ 		opt='-DSYZYGY -DTEST -DTRACE -DCPUS=4' \
+		CFLAGS='-mpopcnt -Wall -Wno-array-bounds -pipe -O3' \
 		LDFLAGS='$(LDFLAGS) -lstdc++' \
 		crafty-make
 
 unix-gcc:
 	$(MAKE) -j target=UNIX \
-		CC=gcc CXX=g++ \
-		opt='-DTEST -DINLINEASM -DPOPCNT -DCPUS=4' \
+		CC=gcc \
+		opt='-DSYZYGY -DTEST -DCPUS=4' \
 		CFLAGS='-Wall -Wno-array-bounds -pipe -O3 -fprofile-use \
-		-fprofile-correction -pthread' \
-		CXFLAGS='-Wall -Wno-array-bounds -pipe -O3 -fprofile-use \
-		-fprofile-correction -pthread' \
+		-mpopcnt -fprofile-correction -pthread' \
 		LDFLAGS='$(LDFLAGS) -fprofile-use -pthread -lstdc++' \
 		crafty-make
 
 unix-gcc-profile:
 	$(MAKE) -j target=UNIX \
-		CC=gcc CXX=g++ \
-		opt='-DTEST -DINLINEASM -DPOPCNT -DCPUS=4' \
+		CC=gcc \
+		opt='-DSYZYGY -DTEST -DCPUS=4' \
 		CFLAGS='-Wall -Wno-array-bounds -pipe -O3 -fprofile-arcs \
-		-pthread' \
-		CXFLAGS='-Wall -Wno-array-bounds -pipe -O3 -fprofile-arcs \
-		-pthread' \
+		-mpopcnt -pthread' \
 		LDFLAGS='$(LDFLAGS) -fprofile-arcs -pthread -lstdc++ ' \
 		crafty-make
 
 unix-clang:
 	@/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/llvm-profdata merge -output=crafty.profdata *.profraw
 	$(MAKE) -j target=UNIX \
-		CC=clang CXX=clang++ \
-		opt='-DTEST -DINLINEASM -DPOPCNT -DCPUS=4' \
+		CC=clang \
+		opt='-DSYZYGY -DTEST -DCPUS=4' \
 		CFLAGS='-Wall -Wno-array-bounds -pipe -O3 \
-			-fprofile-instr-use=crafty.profdata' \
-		CXFLAGS='-Wall -Wno-array-bounds -pipe -O3 \
-			-fprofile-instr-use=crafty.profdata' \
+			-mpopcnt -fprofile-instr-use=crafty.profdata' \
 		LDFLAGS='$(LDFLAGS) -fprofile-use -lstdc++' \
 		crafty-make
 
 unix-clang-profile:
 	$(MAKE) -j target=UNIX \
-		CC=clang CXX=clang++ \
-		opt='-DTEST -DINLINEASM -DPOPCNT -DCPUS=4' \
+		CC=clang \
+		opt='-DSYZYGY -DTEST -DCPUS=4' \
 		CFLAGS='-Wall -Wno-array-bounds -pipe -O3 \
-			-fprofile-instr-generate' \
-		CXFLAGS='-Wall -Wno-array-bounds -pipe -O3 \
-			-fprofile-instr-generate' \
+			-mpopcnt -fprofile-instr-generate' \
 		LDFLAGS='$(LDFLAGS) -fprofile-instr-generate -lstdc++ ' \
 		crafty-make
 
 unix-icc:
 	$(MAKE) -j target=UNIX \
-		CC=icc CXX=icc \
-		opt='-DTEST -DINLINEASM -DPOPCNT -DCPUS=4' \
+		CC=icc \
+		opt='-DSYZYGY -DTEST -DCPUS=4' \
 		CFLAGS='-Wall -w -O2 -prof_use -prof_dir ./prof -fno-alias \
-                        -pthread' \
-		CXFLAGS='-Wall -w -O2 -prof_use -prof_dir ./prof -pthread' \
+                        -mpopcnt -pthread' \
 		LDFLAGS='$(LDFLAGS) -pthread -lstdc++' \
 		crafty-make
 
 unix-icc-profile:
 	$(MAKE) -j target=UNIX \
-		CC=icc CXX=icc \
-		opt='-DTEST -DINLINEASM -DPOPCNT -DCPUS=4' \
+		CC=icc \
+		opt='-DSYZYGY -DTEST -DCPUS=4' \
 		CFLAGS='-Wall -w -O2 -prof_gen -prof_dir ./prof -fno-alias \
-                        -pthread' \
-		CXFLAGS='-Wall -w -O2 -prof_gen -prof_dir ./prof -pthread' \
+                        -mpopcnt -pthread' \
 		LDFLAGS='$(LDFLAGS) -pthread -lstdc++ ' \
 		crafty-make
 
@@ -153,18 +143,18 @@ profile:
 	@rm -rf prof
 	@rm -rf *.gcda
 	@mkdir prof
-	@touch *.c *.cpp *.h
+	@touch *.c *.h
 	$(MAKE) -j unix-clang-profile
 	@echo "#!/bin/csh" > runprof
 	@echo "./crafty <<EOF" >>runprof
-	@echo "pgo -1" >>runprof
+	@echo "bench" >>runprof
 	@echo "mt=0" >>runprof
 	@echo "quit" >>runprof
 	@echo "EOF" >>runprof
 	@chmod +x runprof
 	@./runprof
 	@rm runprof
-	@touch *.c *.cpp *.h
+	@touch *.c *.h
 	$(MAKE) -j unix-clang
 
 
@@ -178,11 +168,11 @@ profile:
 #
 
 #objects = main.o iterate.o time.o search.o quiesce.o evaluate.o thread.o \
-       repeat.o hash.o next.o history.o movgen.o make.o unmake.o attacks.o \
-       see.o boolean.o utility.o probe.o book.o drawn.o epd.o epdglue.o \
-       init.o input.o autotune.o interrupt.o option.o output.o ponder.o \
-       resign.o root.o learn.o setboard.o test.o validate.o annotate.o \
-       analyze.o evtest.o bench.o edit.o data.o
+        repeat.o hash.o next.o history.o movgen.o make.o unmake.o attacks.o \
+        see.o tbprobe.o boolean.o utility.o book.o drawn.o epd.o \
+        epdglue.o init.o input.o autotune.o interrupt.o option.o output.o \
+        ponder.o resign.o root.o learn.o setboard.o test.o validate.o \
+        annotate.o analyze.o evtest.o bench.o edit.o data.o
 
 objects = crafty.o
 
@@ -190,19 +180,16 @@ objects = crafty.o
 
 opts = $(opt) -D$(target)
 
-#	@$(MAKE) -j opt='$(opt)' CXFLAGS='$(CXFLAGS)' CFLAGS='$(CFLAGS)' crafty
 crafty-make:
-	@$(MAKE) opt='$(opt)' CXFLAGS='$(CXFLAGS)' CFLAGS='$(CFLAGS)' crafty
+	@$(MAKE) opt='$(opt)' CFLAGS='$(CFLAGS)' crafty
 
 crafty.o: *.c *.h
 
-crafty:	$(objects) egtb.o
-	$(CC) $(LDFLAGS) -o crafty $(objects) egtb.o -lm  $(LIBS)
+crafty:	$(objects)
+	$(CC) $(LDFLAGS) -g -o crafty $(objects) -lm  $(LIBS)
 
 evaluate.o: evaluate.h
 
-egtb.o: egtb.cpp
-	$(CXX) -c $(CXFLAGS) $(opts) egtb.cpp
 clean:
 	-rm -f *.o crafty
 

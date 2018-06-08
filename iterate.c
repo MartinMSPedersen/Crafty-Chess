@@ -1,7 +1,8 @@
 #include "chess.h"
 #include "data.h"
 #include "epdglue.h"
-/* last modified 05/12/15 */
+#include "tbprobe.h"
+/* last modified 08/03/16 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -128,18 +129,10 @@ int Iterate(int wtm, int search_type, int root_list_done) {
  */
   if (!root_list_done)
     RootMoveList(wtm);
-  if (booking || !Book(tree, wtm))
+  if (booking || (!Book(tree, wtm) && !RootMoveEGTB(wtm)))
     do {
       if (abort_search)
         break;
-#if !defined(NOEGTB)
-      if (EGTB_draw && !puzzling && swindle_mode)
-        EGTB_use = 0;
-      else
-        EGTB_use = EGTBlimit;
-      if (EGTBlimit && !EGTB_use)
-        Print(32, "Drawn at root, trying for swindle.\n");
-#endif
 /*
  ************************************************************
  *                                                          *
@@ -168,7 +161,7 @@ int Iterate(int wtm, int search_type, int root_list_done) {
         else
           value = DrawScore(wtm);
         Print(2, "        depth     time       score   variation\n");
-        Print(2, "                                     (no moves)\n");
+        Print(2, "                             Mated   (no moves)\n");
         tree->nodes_searched = 1;
         if (!puzzling)
           last_root_value = value;
@@ -248,7 +241,7 @@ int Iterate(int wtm, int search_type, int root_list_done) {
         Print(32, " <done>\n");
       }
       WaitForAllThreadsInitialized();
-      ThreadAffinity(smp_affinity);
+      ThreadAffinity(0);
 #endif
       if (search_nodes)
         nodes_between_time_checks = search_nodes;
@@ -341,7 +334,7 @@ int Iterate(int wtm, int search_type, int root_list_done) {
         faillo_delta = 16;
         for (i = 0; i < n_root_moves; i++) {
           if (i || iteration == 1)
-            root_moves[i].path.pathv = -99999999;
+            root_moves[i].path.pathv = -MATE;
           root_moves[i].status &= 4;
         }
         while (1) {
@@ -443,8 +436,6 @@ int Iterate(int wtm, int search_type, int root_list_done) {
           } else
             break;
         }
-        if (value > alpha && value < beta)
-          last_root_value = value;
 /*
  ************************************************************
  *                                                          *
@@ -455,6 +446,8 @@ int Iterate(int wtm, int search_type, int root_list_done) {
  *                                                          *
  ************************************************************
  */
+        if (value > alpha && value < beta)
+          last_root_value = value;
         correct = solution_type;
         for (i = 0; i < number_of_solutions; i++) {
           if (!solution_type) {
@@ -483,7 +476,6 @@ int Iterate(int wtm, int search_type, int root_list_done) {
           if (root_moves[i].bm_age)
             root_moves[i].status |= 4;
         }
-        SortRootMoves();
         difficulty = ComputeDifficulty(difficulty, 0);
 /*
  ************************************************************
@@ -502,7 +494,8 @@ int Iterate(int wtm, int search_type, int root_list_done) {
           Print(64, "      rmove   score    age  S ! ?\n");
           for (i = 0; i < n_root_moves; i++) {
             Print(64, " %10s ", OutputMove(tree, 1, wtm, root_moves[i].move));
-            if (root_moves[i].path.pathv > -MATE)
+            if (root_moves[i].path.pathv > -MATE &&
+                root_moves[i].path.pathv <= MATE)
               Print(64, "%s", DisplayEvaluation(root_moves[i].path.pathv,
                       wtm));
             else
@@ -566,11 +559,6 @@ int Iterate(int wtm, int search_type, int root_list_done) {
         end_time = ReadClock() - start_time;
         if (correct_count >= early_exit)
           break;
-#if !defined(NOEGTB)
-        if (iteration > EGTB_depth + 10 && TotalAllPieces <= EGTBlimit &&
-            EGTB_use && EGTBProbe(tree, 1, wtm, &i))
-          break;
-#endif
         if (search_nodes && tree->nodes_searched >= search_nodes)
           break;
       }
@@ -626,7 +614,8 @@ int Iterate(int wtm, int search_type, int root_list_done) {
         Print(8, "  qchk=%s", DisplayKMB(tree->qchecks_done, 0));
         Print(8, "  fp=%s", DisplayKMB(tree->moves_fpruned, 0));
         Print(8, "  mcp=%s", DisplayKMB(tree->moves_mpruned, 0));
-        Print(8, "  50move=%d", Reversible(0));
+        Print(8, "  50move=%d",
+            (ReversibleMove(last_pv.path[1]) ? Reversible(0) + 1 : 0));
         if (tree->egtb_hits)
           Print(8, "  egtb=%s", DisplayKMB(tree->egtb_hits, 0));
         Print(8, "\n");
@@ -686,8 +675,8 @@ int Iterate(int wtm, int search_type, int root_list_done) {
  ************************************************************
  */
   else {
-    last_root_value = 0;
-    value = 0;
+    last_root_value = tree->pv[0].pathv;
+    value = tree->pv[0].pathv;
     book_move = 1;
     if (analyze_mode)
       Kibitz(4, wtm, 0, 0, 0, 0, 0, 0, kibitz_text);

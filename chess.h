@@ -37,8 +37,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
-#if !defined(TYPES_INCLUDED)
-#  define TYPES_INCLUDED
+#pragma once
 #  if !defined (UNIX)
 #    define RESTRICT __restrict
 #  else
@@ -69,7 +68,7 @@
 #    define   LOGDIR       "."
 #  endif
 #  if !defined(TBDIR)
-#    define   TBDIR        "./TB"
+#    define   TBDIR        "./syzygy"
 #  endif
 #  if !defined(RCDIR)
 #    define   RCDIR        "."
@@ -85,12 +84,14 @@
 #  define LEARN_COUNTER_BAD                      -80
 #  define LEARN_COUNTER_GOOD                    +100
 #  define MATE                                 32768
+#  define TBWIN                                31000
 #  define PAWN_VALUE                             100
 #  define KNIGHT_VALUE                           305
 #  define BISHOP_VALUE                           305
 #  define ROOK_VALUE                             490
 #  define QUEEN_VALUE                           1000
 #  define KING_VALUE                           40000
+#  define FOREVER                                  1
 #  if !defined(CLOCKS_PER_SEC)
 #    define CLOCKS_PER_SEC 1000000
 #  endif
@@ -124,8 +125,8 @@ typedef struct {
   uint8_t reversible;
 } SEARCH_POSITION;
 typedef struct {
-  int move1;
-  int move2;
+  uint32_t move1;
+  uint32_t move2;
 } KILLER;
 typedef struct {
   uint64_t pieces[7];
@@ -225,6 +226,8 @@ typedef struct tree {
   SEARCH_POSITION status[MAXPLY + 3];
   NEXT_MOVE next_status[MAXPLY];
   KILLER killers[MAXPLY];
+  KILLER counter_move[4096];
+  KILLER move_pair[4096];
   POSITION position;
   uint64_t save_hash_key[MAXPLY + 3];
   uint64_t save_pawn_hash_key[MAXPLY + 3];
@@ -318,13 +321,11 @@ typedef struct thread {
 #  define LEGAL                        1
 #  define IN_WINDOW                    2
 #  define FAIL_HIGH                    3
-#if defined(UNIX) && !defined(INLINEASM)
-int CDECL PopCnt(uint64_t);
-int CDECL MSB(uint64_t);
-int CDECL LSB(uint64_t);
-#endif
-void AlignedMalloc(void **, int, size_t);
-void AlignedRemalloc(void **, int, size_t);
+#define PopCnt(v) __builtin_popcountll(v)
+#define LSB(v)    __builtin_ctzll(v)
+#define MSB(v)    (63 - __builtin_clzll(v))
+void AlignedMalloc(void **, uint64_t, size_t);
+void AlignedRemalloc(void **, uint64_t, size_t);
 void Analyze(void);
 void Annotate(void);
 void AnnotateHeaderHTML(char *, FILE *);
@@ -341,7 +342,6 @@ uint64_t AttacksFrom(TREE *RESTRICT, int, int);
 uint64_t AttacksTo(TREE *RESTRICT, int);
 void AutoTune(int, char **);
 int Bench(int, int);
-int Bench_PGO(int, int);
 int Book(TREE *RESTRICT, int);
 void BookClusterIn(FILE *, int, BOOK_POSITION *);
 void BookClusterOut(FILE *, int, BOOK_POSITION *);
@@ -382,11 +382,8 @@ char *Display2Times(unsigned);
 char *DisplayTimeKibitz(unsigned);
 void DisplayChessMove(char *, int);
 int Drawn(TREE *RESTRICT, int);
+int  DTZtoWDL(int, int);
 void Edit(void);
-#  if !defined(NOEGTB)
-int EGTBProbe(TREE *RESTRICT, int, int, int *);
-void EGTBPV(TREE *RESTRICT, int);
-#  endif
 int Evaluate(TREE *RESTRICT, int, int, int, int);
 void EvaluateBishops(TREE *RESTRICT, int);
 void EvaluateCastling(TREE *RESTRICT, int, int);
@@ -427,7 +424,8 @@ uint64_t InitializeMagicRook(int, uint64_t);
 uint64_t InitializeMagicOccupied(int *, int, uint64_t);
 void InitializeMasks(void);
 void InitializePawnMasks(void);
-void InitializeReductions(void);
+void InitializeLMP(void);
+void InitializeLMR(void);
 void InitializeSMP(void);
 int IInitializeTb(char *);
 int InputMove(TREE *RESTRICT, int, int, int, int, char *);
@@ -446,6 +444,8 @@ int LearnFunction(int, int, int, int);
 void LearnValue(int, int);
 void MakeMove(TREE *RESTRICT, int, int, int);
 void MakeMoveRoot(TREE *RESTRICT, int, int);
+int Mated(TREE *RESTRICT, int, int);
+int RootMoveEGTB(int);
 void NewGame(int);
 int NextMove(TREE *RESTRICT, int, int, int, int);
 int NextRootMove(TREE *RESTRICT, TREE *RESTRICT, int);
@@ -461,6 +461,7 @@ void Pass(void);
 int PinnedOnKing(TREE *RESTRICT, int, int);
 int Ponder(int);
 void Print(int, char *, ...);
+int ProbeDTZ(TREE * RESTRICT tree, int ply, int wtm);
 int HashProbe(TREE *RESTRICT, int, int, int, int, int, int*);
 void HashStore(TREE *RESTRICT, int, int, int, int, int, int);
 void HashStorePV(TREE *RESTRICT, int, int);
@@ -489,7 +490,7 @@ void Trace(TREE *RESTRICT, int, int, int, int, int, const char *, int, int, int)
 void SetBoard(TREE *, int, char **, int);
 void SetChessBitBoards(TREE *);
 void SharedFree(void *address);
-void SortRootMoves(void);
+void SortRootMoves(TREE *RESTRICT, int);
 int Split(TREE *RESTRICT);
 int StrCnt(char *, char);
 int SEE(TREE *RESTRICT, int, int);
@@ -561,6 +562,7 @@ extern void WinFreeInterleaved(void *, size_t);
 #  define KnightAttacks(square) knight_attacks[square]
 #  define PawnAttacks(side, square)   pawn_attacks[side][square]
 #  define Reversible(p)               (tree->status[p].reversible)
+#  define ReversibleMove(m)           (!CaptureOrPromote(m) && Piece(m) != pawn)
 #  define RookAttacks(square, occ) *(magic_rook_indices[square]+((((occ)&magic_rook_mask[square])*magic_rook[square])>>magic_rook_shift[square]))
 #  define RookMobility(square, occ) *(magic_rook_mobility_indices[square]+((((occ)&magic_rook_mask[square])*magic_rook[square])>>magic_rook_shift[square]))
 #  define QueenAttacks(square, occ)   (BishopAttacks(square, occ)|RookAttacks(square, occ))
@@ -613,6 +615,7 @@ extern void WinFreeInterleaved(void *, size_t);
 #  define Material               (tree->position.material_evaluation)
 #  define MaterialSTM(side)      ((side) ? Material : -Material)
 #  define MateScore(s)           (Abs(s) > 32000)
+#  define EGTBScore(s)           (Abs(s) > 30000 && Abs(s) < 32000)
 #  define Castle(ply, c)         (tree->status[ply].castle[c])
 #  define HashKey                (tree->position.hash_key)
 #  define PawnHashKey            (tree->position.pawn_hash_key)
@@ -645,5 +648,4 @@ extern void WinFreeInterleaved(void *, size_t);
 #  if defined(INLINEASM)
 #    include "inline.h"
 #  endif
-#endif
 /* *INDENT-ON* */

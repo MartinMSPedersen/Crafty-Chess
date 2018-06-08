@@ -7,7 +7,8 @@
 #  include <signal.h>
 #endif
 #include "epdglue.h"
-/* last modified 01/16/15 */
+#include "tbprobe.h"
+/* last modified 08/03/16 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -242,31 +243,11 @@ int Option(TREE * RESTRICT tree) {
  ************************************************************
  */
   else if (OptionMatch("bench", *args)) {
-    int mod = 0, time;
+    int mod = 0;
 
     if (nargs > 1)
       mod = atoi(args[1]);
-    time = Bench(mod, 0);
-    Print(32, "time used = %s\n", DisplayTime(time));
-  }
-/*
- ***************************************************************
- *                                                             *
- *  "pgo" runs an internal performance benchmark used for PGO. *
- *  An optional second argument can increase or decrease       *
- *  the time it takes.  "pgo 1" increases the default          *
- *  by one ply, and "pgo -1" reduces the depth to speed        *
- *  it up.                                                     *
- *                                                             *
- ************************************************************
-	 */
-  else if (OptionMatch("pgo", *args)) {
-    int mod = 0, time;
-
-    if (nargs > 1)
-      mod = atoi(args[1]);
-    time = Bench_PGO(mod, 0);
-    Print(32, "time used = %s\n", DisplayTime(time));
+    (void) Bench(mod, 0);
   }
 /*
  ************************************************************
@@ -354,32 +335,6 @@ int Option(TREE * RESTRICT tree) {
       Print(32, "learning (learn)..............%4.2f\n", book_weight_learn);
     }
   }
-/*
- ************************************************************
- *                                                          *
- *  "cache" is used to set the EGTB cache size.  As always  *
- *  bigger is better.  The default is 1mb.  Sizes can be    *
- *  specified in bytes, Kbytes or Mbytes as with the hash   *
- *  commands.                                               *
- *                                                          *
- ************************************************************
- */
-#if !defined(NOEGTB)
-  else if (OptionMatch("cache", *args)) {
-    EGTB_cache_size = atoiKMB(args[1]);
-    if (EGTB_cache)
-      free(EGTB_cache);
-    EGTB_cache = malloc(EGTB_cache_size);
-    if (!EGTB_cache) {
-      Print(2095,
-          "ERROR:  unable to malloc specified cache size, using default\n");
-      EGTB_cache = malloc(4096 * 4096);
-    }
-    Print(32, "EGTB cache memory = %s bytes.\n", DisplayKMB(EGTB_cache_size,
-            1));
-    FTbSetCacheSize(EGTB_cache, EGTB_cache_size);
-  }
-#endif
 /*
  ************************************************************
  *                                                          *
@@ -589,38 +544,29 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *  "egtb" command enables/disables tablebases and sets     *
- *  the number of pieces available for probing.             *
+ *  "egtb" command enables syzygy endgame database tables.  *
  *                                                          *
  ************************************************************
  */
-#if !defined(NOEGTB)
   else if (OptionMatch("egtb", *args)) {
-    if (!EGTB_setup) {
-      Print(32, "EGTB access enabled\n");
-      Print(32, "using tbpath=%s\n", tb_path);
-      EGTBlimit = IInitializeTb(tb_path);
-      Print(32, "%d piece tablebase files found\n", EGTBlimit);
-      if (0 != cbEGTBCompBytes)
-        Print(32,
-            "%dkb of RAM used for TB indices and decompression tables\n",
-            (cbEGTBCompBytes + 1023) / 1024);
-      if (EGTBlimit) {
-        if (!EGTB_cache)
-          EGTB_cache = malloc(EGTB_cache_size);
-        if (!EGTB_cache) {
-          Print(32, "ERROR  EGTB cache malloc failed\n");
-          EGTB_cache = malloc(4096 * 4096);
-        } else
-          FTbSetCacheSize(EGTB_cache, EGTB_cache_size);
+#if defined(SYZYGY)
+    if (!strcmp(args[1], "off"))
+      EGTBlimit = 0;
+    else {
+      if (!EGTB_setup) {
+        tb_init(tb_path);
         EGTB_setup = 1;
       }
-    } else {
-      if (nargs == 1)
-        EGTBPV(tree, game_wtm);
-      else if (nargs == 2)
-        EGTBlimit = Min(atoi(args[1]), 5);
+      EGTBlimit = TB_LARGEST;
     }
+    if (EGTBlimit)
+      Print(32, "SYZYGY EGTB access enabled, %d piece TBs found\n",
+          TB_LARGEST);
+    else
+      Print(32, "SYZYGY EGTB access disabled.\n");
+#else
+    Print(32, "SYZYGY support not included (no -DSYZYGY)\n");
+#endif
   }
 /*
  ************************************************************
@@ -631,6 +577,7 @@ int Option(TREE * RESTRICT tree) {
  *                                                          *
  ************************************************************
  */
+#if defined(SYZYGY)
   else if (OptionMatch("egtbd", *args)) {
     if (nargs > 1)
       EGTB_depth = atoi(args[1]);
@@ -929,7 +876,7 @@ int Option(TREE * RESTRICT tree) {
         return 1;
       }
       hash_table_size = ((1ull) << MSB(new_hash_size)) / 16;
-      AlignedRemalloc((void *) ((void *) &hash_table), 64,
+      AlignedRemalloc((void *) &hash_table, 64,
           hash_table_size * sizeof(HASH_ENTRY));
       if (!hash_table) {
         printf("AlignedRemalloc() failed, not enough memory.\n");
@@ -971,7 +918,7 @@ int Option(TREE * RESTRICT tree) {
         return 1;
       }
       hash_path_size = ((1ull) << MSB(new_hash_size / sizeof(HPATH_ENTRY)));
-      AlignedRemalloc((void *) ((void *) &hash_path), 64,
+      AlignedRemalloc((void *) &hash_path, 64,
           sizeof(HPATH_ENTRY) * hash_path_size);
       if (!hash_path) {
         printf("AlignedRemalloc() failed, not enough memory.\n");
@@ -1008,7 +955,7 @@ int Option(TREE * RESTRICT tree) {
       }
       pawn_hash_table_size =
           1ull << MSB(new_hash_size / sizeof(PAWN_HASH_ENTRY));
-      AlignedRemalloc((void *) ((void *) &pawn_hash_table), 64,
+      AlignedRemalloc((void *) &pawn_hash_table, 64,
           sizeof(PAWN_HASH_ENTRY) * pawn_hash_table_size);
       if (!pawn_hash_table) {
         printf("AlignedRemalloc() failed, not enough memory.\n");
@@ -1020,41 +967,6 @@ int Option(TREE * RESTRICT tree) {
         DisplayKMB(pawn_hash_table_size * sizeof(PAWN_HASH_ENTRY), 1));
     Print(32, " (%s entries).\n", DisplayKMB(pawn_hash_table_size, 1));
     InitializeHashTables(old_hash_size != pawn_hash_table_size);
-  }
-/*
- ************************************************************
- *                                                          *
- *  "hashe" command controls the eval hash table size.      *
- *                                                          *
- ************************************************************
- */
-  else if (OptionMatch("hashe", *args)) {
-    size_t old_hash_size = eval_hash_table_size, new_hash_size;
-
-    if (thinking || pondering)
-      return 2;
-    if (nargs > 1) {
-      allow_memory = 0;
-      if (xboard)
-        Print(4095, "Warning--  xboard 'memory' option disabled\n");
-      new_hash_size = atoiKMB(args[1]);
-      if (new_hash_size < 16 * 1024) {
-        printf("ERROR.  Minimum eval hash table size is 16K bytes.\n");
-        return 1;
-      }
-      eval_hash_table_size = 1ull << MSB(new_hash_size / sizeof(uint64_t));
-      AlignedRemalloc((void *) ((void *) &eval_hash_table), 64,
-          sizeof(uint64_t) * eval_hash_table_size);
-      if (!eval_hash_table) {
-        printf("AlignedRemalloc() failed, not enough memory.\n");
-        exit(1);
-      }
-      eval_hash_mask = eval_hash_table_size - 1;
-    }
-    Print(32, "eval hash table memory = %s bytes",
-        DisplayKMB(eval_hash_table_size * sizeof(uint64_t), 1));
-    Print(32, " (%s entries).\n", DisplayKMB(eval_hash_table_size, 1));
-    InitializeHashTables(old_hash_size != eval_hash_table_size);
   }
 /*
  ************************************************************
@@ -1157,10 +1069,6 @@ int Option(TREE * RESTRICT tree) {
     Print(32, " (%s entries).\n", DisplayKMB(hash_table_size * 5, 0));
     Print(32, "pawn hash table memory = %5s\n",
         DisplayKMB(pawn_hash_table_size * sizeof(PAWN_HASH_ENTRY), 1));
-#if !defined(NOEGTB)
-    Print(32, "EGTB cache memory =      %5s\n", DisplayKMB(EGTB_cache_size,
-            1));
-#endif
     if (!tc_sudden_death) {
       Print(32, "%d moves/%d minutes %d seconds primary time control\n",
           tc_moves, tc_time / 6000, (tc_time / 100) % 60);
@@ -1519,6 +1427,51 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
+ *  "lmp" command sets the formla parameters that produce   *
+ *  LMP pruning bounds array.                               *
+ *                                                          *
+ *     lmp <maxdepth> <base> <scale>                        *
+ *                                                          *
+ *  <maxdepth> is the max depth at which LMP is done.       *
+ *                                                          *
+ *  <base> is the base pruning move count.  The function is *
+ *  an exponential of the form x = base + f(y).  The        *
+ *  default is currently 3.                                 *
+ *                                                          *
+ *  <scale> is the exponent of the exponential function.    *
+ *  larger numbers produce more conservative (larger) move  *
+ *  counts.  Smaller values are more aggressive.  The       *
+ *  default is currently 1.9.                               *
+ *                                                          *
+ ************************************************************
+ */
+  else if (OptionMatch("lmp", *args)) {
+    int i;
+
+    if ((nargs > 1 && nargs < 4) || nargs > 4) {
+      printf("usage:  lmp <maxdepth> <base> <scale>\n");
+      return 1;
+    }
+    if (nargs > 1) {
+      LMP_depth = atoi(args[1]);
+      LMP_base = atoi(args[2]);
+      LMP_scale = atof(args[3]);
+      InitializeLMP();
+    }
+    Print(32, "LMP depth=%d  base=%d  scale=%f\n", LMP_depth, LMP_base,
+        LMP_scale);
+    Print(32, "depth:  ");
+    for (i = 1; i < 16; i++)
+      Print(32, "%4d", i);
+    Print(32, "\n");
+    Print(32, "movcnt: ");
+    for (i = 1; i < 16; i++)
+      Print(32, "%4d", LMP[i]);
+    Print(32, "\n");
+  }
+/*
+ ************************************************************
+ *                                                          *
  *  "lmr" command sets the formla parameters that produce   *
  *  LMR reduction matrix.  The format is:                   *
  *                                                          *
@@ -1564,7 +1517,7 @@ int Option(TREE * RESTRICT tree) {
       LMR_db = atof(args[3]);
       LMR_mb = atof(args[4]);
       LMR_s = atof(args[5]);
-      InitializeReductions();
+      InitializeLMR();
     }
     if (nargs > 6) {
       char *axis = "|||||||||||depth left|||||||||||";
@@ -1585,8 +1538,8 @@ int Option(TREE * RESTRICT tree) {
         Print(32, "\n");
       }
     } else {
-
       char *axis = "||depth left|||";
+
       Print(32,
           "LMR values:  %d(min) %d(max) %.2f(depth) %.2f(moves) %.2f(scale).\n",
           LMR_min, LMR_max, LMR_db, LMR_mb, LMR_s);
@@ -1671,6 +1624,7 @@ int Option(TREE * RESTRICT tree) {
         break;
       }
     }
+    fclose(prob_file);
   }
 /*
  ************************************************************
@@ -1685,8 +1639,7 @@ int Option(TREE * RESTRICT tree) {
  ************************************************************
  */
   else if (OptionMatch("log", *args)) {
-    FILE *output_file;
-    char filename[64], buffer[128];
+    char filename[64];
 
     if (nargs < 2) {
       printf("usage:  log on|off|n [filename]\n");
@@ -1708,66 +1661,8 @@ int Option(TREE * RESTRICT tree) {
       remove(filename);
       sprintf(filename, "%s/game.%03d", log_path, log_id - 1);
       remove(filename);
-    } else if (args[1][0] >= '0' && args[1][0] <= '9') {
-      if (log_id == 0)
-        log_id = atoi(args[1]);
-    } else {
-      char *eof;
-      FILE *log;
-      int nrecs, trecs, lrecs;
-
-      nrecs = atoi(args[1]);
-      output_file = stdout;
-      if (nargs > 2)
-        output_file = fopen(args[2], "w");
-      log = fopen(log_filename, "r");
-      for (trecs = 1; trecs < 99999999; trecs++) {
-        eof = fgets(buffer, 128, log);
-        if (eof) {
-          char *delim;
-
-          delim = strchr(buffer, '\n');
-          if (delim)
-            *delim = 0;
-          delim = strchr(buffer, '\r');
-          if (delim)
-            *delim = ' ';
-        } else
-          break;
-      }
-      fseek(log, 0, SEEK_SET);
-      for (lrecs = 1; lrecs < trecs - nrecs; lrecs++) {
-        eof = fgets(buffer, 128, log);
-        if (eof) {
-          char *delim;
-
-          delim = strchr(buffer, '\n');
-          if (delim)
-            *delim = 0;
-          delim = strchr(buffer, '\r');
-          if (delim)
-            *delim = ' ';
-        } else
-          break;
-      }
-      for (; lrecs < trecs; lrecs++) {
-        eof = fgets(buffer, 128, log);
-        if (eof) {
-          char *delim;
-
-          delim = strchr(buffer, '\n');
-          if (delim)
-            *delim = 0;
-          delim = strchr(buffer, '\r');
-          if (delim)
-            *delim = ' ';
-        } else
-          break;
-        fprintf(output_file, "%s\n", buffer);
-      }
-      if (output_file != stdout)
-        fclose(output_file);
-    }
+    } else if (args[1][0] >= '0' && args[1][0] <= '9')
+      log_id = atoi(args[1]);
   }
 /*
  ************************************************************
@@ -2253,10 +2148,11 @@ int Option(TREE * RESTRICT tree) {
         strcpy(book_path, args[1]);
       else if (strstr(args[0], "logpath"))
         strcpy(log_path, args[1]);
-#if !defined(NOEGTB)
+#if defined(SYZYGY)
       else if (strstr(args[0], "tbpath"))
         strcpy(tb_path, args[1]);
 #endif
+
     } else {
       if (strchr(args[1], ')')) {
         *strchr(args[1], ')') = 0;
@@ -2264,7 +2160,7 @@ int Option(TREE * RESTRICT tree) {
           strcpy(book_path, args[1] + 1);
         else if (strstr(args[0], "logpath"))
           strcpy(log_path, args[1] + 1);
-#if !defined(NOEGTB)
+#if defined(SYZYGY)
         else if (strstr(args[0], "tbpath"))
           strcpy(tb_path, args[1] + 1);
 #endif
@@ -3219,25 +3115,6 @@ int Option(TREE * RESTRICT tree) {
     Print(32, " %s", DisplayEvaluation(tb, 1));
     Print(32, " %s", DisplayEvaluation(mgb, 1));
     Print(32, " %s  |\n", DisplayEvaluation(egb, 1));
-    mgb = tree->score_mg;
-    egb = tree->score_eg;
-    EvaluateCastling(tree, 1, black);
-    mgb = tree->score_mg - mgb;
-    egb = tree->score_eg - egb;
-    mgw = tree->score_mg;
-    egw = tree->score_eg;
-    EvaluateCastling(tree, 1, white);
-    mgw = tree->score_mg - mgw;
-    egw = tree->score_eg - egw;
-    tb = (mgb * phase + egb * (62 - phase)) / 62;
-    tw = (mgw * phase + egw * (62 - phase)) / 62;
-    Print(32, "castling.......%s  |", DisplayEvaluation(tb + tw, 1));
-    Print(32, " %s", DisplayEvaluation(tw, 1));
-    Print(32, " %s", DisplayEvaluation(mgw, 1));
-    Print(32, " %s  |", DisplayEvaluation(egw, 1));
-    Print(32, " %s", DisplayEvaluation(tb, 1));
-    Print(32, " %s", DisplayEvaluation(mgb, 1));
-    Print(32, " %s  |\n", DisplayEvaluation(egb, 1));
     egb = tree->score_eg;
     if ((TotalPieces(white, occupied) == 0 && tree->pawn_score.passed[black])
         || (TotalPieces(black, occupied) == 0 &&
@@ -3420,8 +3297,8 @@ int Option(TREE * RESTRICT tree) {
  *                                                          *
  *  "skill" command sets a value from 1-100 that affects    *
  *  Crafty's playing skill level.  100 => max skill, 1 =>   *
- *  minimal skill.  This is used to reduce the chess        *
- *  knowledge usage, along with other things.               *
+ *  minimal skill.  This is used to slow the search speed   *
+ *  (and depth) significantly.                              *
  *                                                          *
  ************************************************************
  */
@@ -3440,13 +3317,6 @@ int Option(TREE * RESTRICT tree) {
         skill = 100;
       }
       Print(32, "skill level set to %d%%\n", skill);
-      null_depth = (null_depth * skill + 50) / 100;
-      if (skill < 100)
-        null_divisor = null_divisor + 2 * (100 - skill) / 10;
-      check_depth = (check_depth * skill + 50) / 100;
-      LMR_min = (LMR_min * skill + 50) / 100;
-      LMR_max = (LMR_max * skill + 50) / 100;
-      InitializeReductions();
     }
   }
 #endif
@@ -3546,6 +3416,12 @@ int Option(TREE * RESTRICT tree) {
     if (xboard)
       Print(4095, "Warning--  xboard 'cores' option disabled\n");
     smp_max_threads = atoi(args[1]);
+    if (smp_max_threads > hardware_processors) {
+      Print(4095, "ERROR - machine has %d processors.\n",
+          hardware_processors);
+      Print(4095, "ERROR - max threads can not exceed this limit.\n");
+      smp_max_threads = hardware_processors;
+    }
     if (smp_max_threads > CPUS) {
       Print(4095, "ERROR - Crafty was compiled with CPUS=%d.", CPUS);
       Print(4095, "  mt can not exceed this value.\n");

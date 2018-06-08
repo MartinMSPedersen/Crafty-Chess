@@ -1,6 +1,6 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 04/29/15 */
+/* last modified 08/03/16 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -49,7 +49,7 @@ int Repeat(TREE * RESTRICT tree, int ply) {
   if (Reversible(ply) < 4)
     return 0;
   if (Reversible(ply) > 99)
-    return 2;
+    return 3;
 /*
  ************************************************************
  *                                                          *
@@ -68,12 +68,12 @@ int Repeat(TREE * RESTRICT tree, int ply) {
   count = Reversible(ply) / 2 - 1;
   for (where = rep_index + ply - 4; count; where -= 2, count--) {
     if (HashKey == tree->rep_list[where])
-      return 1;
+      return 2;
   }
   return 0;
 }
 
-/* last modified 05/08/14 */
+/* last modified 08/03/16 */
 /*
  *******************************************************************************
  *                                                                             *

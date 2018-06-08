@@ -1,8 +1,7 @@
 #include "chess.h"
 #include "data.h"
 #include "epdglue.h"
-#if (CPUS > 1)
-/* modified 11/04/15 */
+/* modified 08/03/16 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -76,7 +75,7 @@
  *   initialization file.  Here's a concise explanation for each option and an *
  *   occasional suggestion for testing/tuning.                                 *
  *                                                                             *
- *   smp_affinity (command = smpaffinity=<n> is used to enable or disable      *
+ *   smp_affinity (command = smpaffinity=<n> <p> is used to enable or disable  *
  *      processor affinity.  -1 disables affinity and lets threads run on any  *
  *      available core.  If you use an integer <n> then thread zero will bind  *
  *      itself to cpu <n> and each additional thread will bind to the next     *
@@ -242,7 +241,7 @@ int Split(TREE * RESTRICT tree) {
   return 1;
 }
 
-/* modified 12/16/15 */
+/* modified 08/03/16 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -285,6 +284,15 @@ int Join(int64_t tid) {
  *  times before we exit, setting split to 1 to ask other   *
  *  threads to produce more candidate split points.         *
  *                                                          *
+ *  Special case:  We don't want to join a split point that *
+ *  was created by this thread.  While it works, it can add *
+ *  overhead since we can encounter a later split point     *
+ *  that originated at the current split point, and we      *
+ *  would continue searching even though most of the work   *
+ *  has already been completed.  The hash table would help  *
+ *  avoid most (if not all) of this overhead, but there is  *
+ *  no good reason to take the chance of this happening.    *
+ *                                                          *
  ************************************************************
  */
   for (pass = 0; pass < 3; pass++) {
@@ -293,7 +301,7 @@ int Join(int64_t tid) {
     for (current = 0; current <= smp_max_threads * 64; current++) {
       tree = block[current];
       if (tree->joinable && (tree->ply <= tree->depth / 2 ||
-              tree->nprocs < smp_split_group)) {
+              tree->nprocs < smp_split_group) && tree->thread_id != tid) {
         interest = tree->depth * 2 - tree->searched[0];
         if (interest > best_interest) {
           best_interest = interest;
@@ -365,7 +373,34 @@ int Join(int64_t tid) {
   return 0;
 }
 
-/* modified 11/04/15 */
+/* modified 08/03/16 */
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   ThreadAffinity() is called to "pin" a thread to a specific processor.  It *
+ *   is a "noop" (no-operation) if Crafty was not compiled with -DAFFINITY, or *
+ *   if smp_affinity is negative (smpaffinity=-1 disables affinity).  It       *
+ *   simply sets the affinity for the current thread to the requested CPU and  *
+ *   returns.  NOTE:  If hyperthreading is enabled, there is no guarantee that *
+ *   this will work as expected and pin one thread per physical core.  It      *
+ *   depends on how the O/S numbers the SMT cores.                             *
+ *                                                                             *
+ *******************************************************************************
+ */
+void ThreadAffinity(int cpu) {
+#if defined(AFFINITY)
+  cpu_set_t cpuset;
+  pthread_t current_thread = pthread_self();
+
+  if (smp_affinity >= 0) {
+    CPU_ZERO(&cpuset);
+    CPU_SET(smp_affinity_increment * (cpu + smp_affinity), &cpuset);
+    pthread_setaffinity_np(current_thread, sizeof(cpu_set_t), &cpuset);
+  }
+#endif
+}
+
+/* modified 08/03/16 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -382,9 +417,9 @@ void *STDCALL ThreadInit(void *t) {
   int tid = (int64_t) t;
 
   ThreadAffinity(tid);
-#  if !defined(UNIX)
+#if !defined(UNIX)
   ThreadMalloc((uint64_t) tid);
-#  endif
+#endif
   thread[tid].blocks = 0xffffffffffffffffull;
   Lock(lock_smp);
   initialized_threads++;
@@ -397,34 +432,7 @@ void *STDCALL ThreadInit(void *t) {
   return 0;
 }
 
-/* modified 01/08/15 */
-/*
- *******************************************************************************
- *                                                                             *
- *   ThreadAffinity() is called to "pin" a thread to a specific processor.  It *
- *   is a "noop" (no-operation) if Crafty was not compiled with -DAFFINITY, or *
- *   if smp_affinity is negative (smpaffinity=-1 disables affinity).  It       *
- *   simply sets the affinity for the current thread to the requested CPU and  *
- *   returns.  NOTE:  If hyperthreading is enabled, there is no guarantee that *
- *   this will work as expected and pin one thread per physical core.  It      *
- *   depends on how the O/S numbers the SMT cores.                             *
- *                                                                             *
- *******************************************************************************
- */
-void ThreadAffinity(int cpu) {
-#  if defined(AFFINITY)
-  cpu_set_t cpuset;
-  pthread_t current_thread = pthread_self();
-
-  if (smp_affinity >= 0) {
-    CPU_ZERO(&cpuset);
-    CPU_SET(cpu + smp_affinity, &cpuset);
-    pthread_setaffinity_np(current_thread, sizeof(cpu_set_t), &cpuset);
-  }
-#  endif
-}
-
-/* modified 11/04/15 */
+/* modified 08/03/16 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -533,7 +541,7 @@ int ThreadSplit(TREE * tree, int ply, int depth, int alpha, int o_alpha,
   return 1;
 }
 
-/* modified 11/04/15 */
+/* modified 08/03/16 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -559,7 +567,7 @@ void ThreadStop(TREE * RESTRICT tree) {
   Unlock(tree->lock);
 }
 
-/* modified 11/04/15 */
+/* modified 08/03/16 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -624,7 +632,7 @@ void ThreadTrace(TREE * RESTRICT tree, int depth, int brief) {
   Unlock(tree->lock);
 }
 
-/* modified 11/04/15 */
+/* modified 08/03/16 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -669,11 +677,10 @@ int ThreadWait(int tid, TREE * RESTRICT waiting) {
  *                                                          *
  ************************************************************
  */
-  while (1) {
+  while (FOREVER) {
     tstart = ReadClock();
     while (!thread[tid].tree && (!waiting || waiting->nprocs) && !Join(tid) &&
-        !thread[tid].terminate)
-      Pause();
+        !thread[tid].terminate);
     tend = ReadClock();
     if (!thread[tid].tree)
       thread[tid].tree = waiting;
@@ -719,7 +726,7 @@ int ThreadWait(int tid, TREE * RESTRICT waiting) {
   }
 }
 
-/* modified 11/04/15 */
+/* modified 08/03/16 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -749,6 +756,10 @@ void CopyFromParent(TREE * RESTRICT child) {
     child->rep_list[i] = parent->rep_list[i];
   for (i = ply - 1; i < MAXPLY; i++)
     child->killers[i] = parent->killers[i];
+  for (i = 0; i < 4096; i++) {
+    child->counter_move[i] = parent->counter_move[i];
+    child->move_pair[i] = parent->move_pair[i];
+  }
   for (i = ply - 1; i <= ply; i++) {
     child->curmv[i] = parent->curmv[i];
     child->pv[i] = parent->pv[i];
@@ -783,7 +794,7 @@ void CopyFromParent(TREE * RESTRICT child) {
   strcpy(child->remaining_moves_text, parent->remaining_moves_text);
 }
 
-/* modified 11/04/15 */
+/* modified 08/03/16 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -828,6 +839,10 @@ void CopyToParent(TREE * RESTRICT parent, TREE * RESTRICT child, int value) {
     parent->pv[ply] = child->pv[ply];
     parent->value = value;
     parent->cutmove = child->curmv[ply];
+    for (i = 0; i < 4096; i++) {
+      parent->counter_move[i] = child->counter_move[i];
+      parent->move_pair[i] = child->move_pair[i];
+    }
   }
   if (child->stop && ply == 1)
     for (which = 0; which < n_root_moves; which++)
@@ -853,7 +868,7 @@ void CopyToParent(TREE * RESTRICT parent, TREE * RESTRICT child, int value) {
   Set(which, thread[child->thread_id].blocks);
 }
 
-/* modified 11/04/15 */
+/* modified 08/03/16 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -957,8 +972,8 @@ void WaitForAllThreadsInitialized(void) {
   while (initialized_threads < smp_max_threads); /* Do nothing */
 }
 
-#  if !defined (UNIX)
-/* modified 01/17/09 */
+#if !defined (UNIX)
+/* modified 08/03/16 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -981,5 +996,4 @@ void ThreadMalloc(int64_t tid) {
     LockInit(block[i]->lock);
   }
 }
-#  endif
 #endif

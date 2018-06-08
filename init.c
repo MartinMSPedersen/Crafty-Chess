@@ -87,14 +87,12 @@ void Initialize() {
     printf("ERROR, unable to open game history file, exiting\n");
     CraftyExit(1);
   }
-  AlignedMalloc((void *) ((void *) &hash_table), 64,
+  AlignedMalloc((void *) &hash_table, 64,
       sizeof(HASH_ENTRY) * hash_table_size);
-  AlignedMalloc((void *) ((void *) &hash_path), 64,
+  AlignedMalloc((void *) &hash_path, 64,
       sizeof(HPATH_ENTRY) * hash_path_size);
-  AlignedMalloc((void *) ((void *) &pawn_hash_table), 64,
+  AlignedMalloc((void *) &pawn_hash_table, 64,
       sizeof(PAWN_HASH_ENTRY) * pawn_hash_table_size);
-  AlignedMalloc((void *) ((void *) &eval_hash_table), 64,
-      sizeof(uint64_t) * eval_hash_table_size);
   if (!hash_table) {
     Print(2048,
         "AlignedMalloc() failed, not enough memory (primary trans/ref table).\n");
@@ -138,24 +136,25 @@ void Initialize() {
     }
   }
   for (i = 1; i < 64; i++) {
-    memset((void *) block[i], 0, sizeof(TREE));
+    memset((char *) block[i], 0, sizeof(TREE));
     LockInit(block[i]->lock);
   }
   for (node = 1; node < CPUS; node++) {
     ThreadAffinity(node);
     for (i = 0; i < 64; i++) {
-      memset((void *) block[node * 64 + i], 0, sizeof(TREE));
+      memset((char *) block[node * 64 + i], 0, sizeof(TREE));
       LockInit(block[node * 64 + i]->lock);
     }
   }
-  ThreadAffinity(smp_affinity);
+  ThreadAffinity(0);
 #  endif
 #endif
   thread[0].blocks = 0xffffffffffffffffull;
   initialized_threads++;
   InitializeHashTables(1);
   InitializeKingSafety();
-  InitializeReductions();
+  InitializeLMP();
+  InitializeLMR();
 }
 
 /*
@@ -740,20 +739,19 @@ void SetChessBitBoards(TREE * tree) {
  *******************************************************************************
  */
 int InitializeGetLogID(void) {
-  int t;
+  int t, total_files = 0;
 #if defined(UNIX)
   struct stat *fileinfo = malloc(sizeof(struct stat));
 #endif
 
-  if (!log_id) {
-    for (log_id = 1; log_id < 300; log_id++) {
-      sprintf(log_filename, "%s/log.%03d", log_path, log_id);
-      sprintf(history_filename, "%s/game.%03d", log_path, log_id);
-      log_file = fopen(log_filename, "r");
-      if (!log_file)
-        break;
-      fclose(log_file);
-    }
+  for (; total_files < 300; log_id++) {
+    sprintf(log_filename, "%s/log.%03d", log_path, log_id);
+    sprintf(history_filename, "%s/game.%03d", log_path, log_id);
+    log_file = fopen(log_filename, "r");
+    if (!log_file)
+      break;
+    fclose(log_file);
+    total_files++;
   }
 #if defined(UNIX)
 /*  a kludge to work around an xboard 4.2.3 problem.  It sends two "quit"
@@ -801,7 +799,7 @@ int InitializeGetLogID(void) {
  *                                                                             *
  *******************************************************************************
  */
-void InitializeHashTables(fault_in) {
+void InitializeHashTables(int fault_in) {
   uint64_t mem_per_node;
   int node;
 
@@ -820,12 +818,12 @@ void InitializeHashTables(fault_in) {
         hash_table_size * sizeof(HASH_ENTRY) / Max(smp_max_threads, 1);
     for (node = 0; node < smp_max_threads; node++) {
       ThreadAffinity(node);
-      memset((void *) hash_table + node * mem_per_node, 0, mem_per_node);
+      memset((char *) hash_table + node * mem_per_node, 0, mem_per_node);
     }
     ThreadAffinity(0);
     if (mem_per_node * Max(smp_max_threads,
             1) < hash_table_size * sizeof(HASH_ENTRY))
-      memset((void *) hash_table + smp_max_threads * mem_per_node, 0,
+      memset((char *) hash_table + smp_max_threads * mem_per_node, 0,
           hash_table_size * sizeof(HASH_ENTRY) -
           mem_per_node * smp_max_threads);
 /*
@@ -841,18 +839,18 @@ void InitializeHashTables(fault_in) {
         hash_path_size * sizeof(HPATH_ENTRY) / Max(smp_max_threads, 1);
     for (node = 0; node < smp_max_threads; node++) {
       ThreadAffinity(node);
-      memset((void *) hash_path + node * mem_per_node, 0, mem_per_node);
+      memset((char *) hash_path + node * mem_per_node, 0, mem_per_node);
     }
-    ThreadAffinity(1 % Min(1, smp_max_threads));
+    ThreadAffinity(0);
     if (mem_per_node * Max(smp_max_threads,
             1) < hash_path_size * sizeof(HPATH_ENTRY))
-      memset((void *) hash_path + smp_max_threads * mem_per_node, 0,
+      memset((char *) hash_path + smp_max_threads * mem_per_node, 0,
           hash_path_size * sizeof(HPATH_ENTRY) -
           mem_per_node * smp_max_threads);
 /*
  ************************************************************
  *                                                          *
- *  Third, initialize the primary pawn hash table, using    *
+ *  Finally, initialize the primary pawn hash table, using  *
  *  the NUMA trick to place part of the pawn hash table on  *
  *  each node of the NUMA system.                           *
  *                                                          *
@@ -863,34 +861,13 @@ void InitializeHashTables(fault_in) {
         1);
     for (node = 0; node < smp_max_threads; node++) {
       ThreadAffinity(node);
-      memset((void *) pawn_hash_table + node * mem_per_node, 0, mem_per_node);
+      memset((char *) pawn_hash_table + node * mem_per_node, 0, mem_per_node);
     }
-    ThreadAffinity(4 % Min(4, smp_max_threads));
+    ThreadAffinity(0);
     if (mem_per_node * Max(smp_max_threads,
             1) < pawn_hash_table_size * sizeof(PAWN_HASH_ENTRY))
-      memset((void *) pawn_hash_table + smp_max_threads * mem_per_node, 0,
+      memset((char *) pawn_hash_table + smp_max_threads * mem_per_node, 0,
           pawn_hash_table_size * sizeof(PAWN_HASH_ENTRY) -
-          mem_per_node * smp_max_threads);
-/*
- ************************************************************
- *                                                          *
- *  Finally, initialize the eval hash table, using the NUMA *
- *  trick to place part of the eval hash table on each node *
- *  of the NUMA system.                                     *
- *                                                          *
- ************************************************************
- */
-    mem_per_node =
-        eval_hash_table_size * sizeof(uint64_t) / Max(smp_max_threads, 1);
-    for (node = 0; node < smp_max_threads; node++) {
-      ThreadAffinity(node);
-      memset((void *) eval_hash_table + node * mem_per_node, 0, mem_per_node);
-    }
-    ThreadAffinity(4 % Min(4, smp_max_threads));
-    if (mem_per_node * Max(smp_max_threads,
-            1) < eval_hash_table_size * sizeof(uint64_t))
-      memset((void *) eval_hash_table + smp_max_threads * mem_per_node, 0,
-          eval_hash_table_size * sizeof(uint64_t) -
           mem_per_node * smp_max_threads);
 /*
  ************************************************************
@@ -911,12 +888,10 @@ void InitializeHashTables(fault_in) {
  *                                                          *
  ************************************************************
  */
-    memset((void *) hash_table, 0, hash_table_size * sizeof(HASH_ENTRY));
-    memset((void *) hash_path, 0, hash_path_size * sizeof(HPATH_ENTRY));
-    memset((void *) pawn_hash_table, 0,
+    memset((char *) hash_table, 0, hash_table_size * sizeof(HASH_ENTRY));
+    memset((char *) hash_path, 0, hash_path_size * sizeof(HPATH_ENTRY));
+    memset((char *) pawn_hash_table, 0,
         pawn_hash_table_size * sizeof(PAWN_HASH_ENTRY));
-    memset((void *) eval_hash_table, 0,
-        eval_hash_table_size * sizeof(uint64_t));
   }
 }
 
@@ -1149,13 +1124,28 @@ void InitializePawnMasks(void) {
 /*
  *******************************************************************************
  *                                                                             *
- *   InitializeReductions() is used to initialize the reduction matrix used to *
- *   set the reduction value for LMR for each move searched.  It is indexed by *
+ *   InitializeLMP() is used to initialize the LMP thresholds used to decide   *
+ *   when to stop searching additional branches near the tips of the tree.     *
+ *                                                                             *
+ *******************************************************************************
+ */
+void InitializeLMP() {
+  int i;
+
+  for (i = 0; i < LMP_depth; i++)
+    LMP[i] = LMP_base + pow(i + .5, LMP_scale);
+}
+
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   InitializeLMR() is used to initialize the reduction matrix used to set    *
+ *   the reduction value for LMR for each move searched.  It is indexed by     *
  *   depth remaining and # moves searched.                                     *
  *                                                                             *
  *******************************************************************************
  */
-void InitializeReductions() {
+void InitializeLMR() {
   int d, m;
 
   for (d = 0; d < 32; d++)
