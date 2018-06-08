@@ -841,7 +841,7 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
 |                                                          |
  ----------------------------------------------------------
 */
-    if (tree->b_safety > tree->w_safety+3) score+=QUEEN_IS_STRONG;
+    if (tree->b_safety > tree->w_safety+4) score+=QUEEN_IS_STRONG;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -923,7 +923,7 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
 |                                                          |
  ----------------------------------------------------------
 */
-    if (tree->w_safety > tree->b_safety+3) score-=QUEEN_IS_STRONG;
+    if (tree->w_safety > tree->b_safety+4) score-=QUEEN_IS_STRONG;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -1005,7 +1005,7 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
   return((wtm) ? score : -score);
 }
 
-/* last modified 02/11/99 */
+/* last modified 06/07/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -1119,7 +1119,7 @@ int EvaluateDevelopment(TREE *tree, int ply) {
         possible=tree->pawn_score.white_defects_k;
       }
     }
-    if (possible < real) score-=temper[2*(real-possible)];
+    if (possible < real) score-=temper_w[2*(real-possible)];
   }
   if (WhiteCastle(1) > 0) {
     register int bq;
@@ -1153,7 +1153,7 @@ int EvaluateDevelopment(TREE *tree, int ply) {
         possible=tree->pawn_score.black_defects_k;
       }
     }
-    if (possible < real) score+=temper[2*(real-possible)];
+    if (possible < real) score+=temper_b[2*(real-possible)];
   }
   if (BlackCastle(1) > 0) {
     if (BlackCastle(ply) == 0) {
@@ -1326,7 +1326,7 @@ int EvaluateMate(TREE *tree) {
   return(mate_score);
 }
 
-/* last modified 02/10/99 */
+/* last modified 06/10/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -1480,7 +1480,7 @@ int EvaluateKingSafety(TREE *tree, int ply) {
     tree->w_safety=0;
     tree->b_safety=0;
   }
-  score-=temper[tree->w_safety]-temper[tree->b_safety];
+  score-=temper_w[tree->w_safety]-temper_b[tree->b_safety];
   return(score);
 }
 

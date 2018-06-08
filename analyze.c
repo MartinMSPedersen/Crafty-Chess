@@ -27,6 +27,7 @@ void Analyze() {
  ----------------------------------------------------------
 */
   int save_swindle_mode=swindle_mode;
+  int save_asymmetry=king_safety_asymmetry;
   swindle_mode=0;
   ponder_move=0;
   analyze_mode=1;
@@ -161,4 +162,5 @@ void Analyze() {
   printf("analyze complete.\n");
   pondering=0;
   swindle_mode=save_swindle_mode;
+  king_safety_asymmetry=save_asymmetry;
 }

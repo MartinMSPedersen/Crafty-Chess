@@ -360,6 +360,7 @@ int Iterate(int wtm, int search_type, int root_list_done) {
       if (correct_count >= early_exit) break;
       if (iteration_depth>3 && TotalPieces<=5 && TB_use_ok &&
           EGTBlimit && EGTBProbe(tree, 1, wtm, &i) && EGTB_use) break;
+      if (search_nodes && tree->nodes_searched>search_nodes) break;
     }
 /*
  ----------------------------------------------------------

@@ -4,7 +4,7 @@
 #include "data.h"
 #include "evaluate.h"
 
-/* last modified 05/18/96 */
+/* last modified 06/06/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -110,7 +110,7 @@ void PreEvaluate(TREE *tree, int wtm) {
   pval_b[D7]-=CENTER_PAWN_UNMOVED;
   pval_b[E7]-=CENTER_PAWN_UNMOVED;
 /*
- ----------------------------------------------------------
+ 9---------------------------------------------------------
 |                                                          |
 |   kings.                                                 |
 |                                                          |
@@ -137,6 +137,30 @@ void PreEvaluate(TREE *tree, int wtm) {
       kval_w[i]=kval_wq[i];
       kval_b[i]=kval_bq[i];
     }
+  }
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   now we set the king safety values based on the values  |
+|   set by the user, or the default values.                |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  if (wtm) {
+    for (i=0;i<32;i++) {
+      temper_w[i]=temper[i];
+      temper_b[i]=temper[i]+temper[i]*king_safety_asymmetry/100;
+    }
+  }
+  else {
+    for (i=0;i<32;i++) {
+      temper_w[i]=temper[i]+temper[i]*king_safety_asymmetry/100;
+      temper_b[i]=temper[i];
+    }
+  }
+  for (i=0;i<32;i++) {
+    temper_w[i]=temper_w[i]*king_safety_scale/100;
+    temper_b[i]=temper_b[i]*king_safety_scale/100;
   }
 /*
  ----------------------------------------------------------

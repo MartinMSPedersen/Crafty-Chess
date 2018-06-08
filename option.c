@@ -1254,6 +1254,27 @@ int Option(TREE *tree) {
         printf("on square e8\n");
         printf("\n");
       }
+      else if (OptionMatch("ksafety",args[1])) {
+        printf("ksafety asymmetry|scale <value>.  this command can be used\n");
+        printf("to adjust king safety values.\n");
+        printf("\n");
+        printf("asymmetry adjusts the asymmetry in king safety.  A value of\n");
+        printf("zero means 'no asymmetry at all'.  A value of +50 adjusts \n");
+        printf("king safety scores so that the opponent king safety scores\n");
+        printf("are increased by 50%% which will tend to make Crafty play\n");
+        printf("much more aggressively. a value of -50 will adjust the\n");
+        printf("opponent's king safety down by 50%% which will tend to\n");
+        printf("(make Crafty play much more defensively/passively.\n");
+        printf("\n");
+        printf("scale is used to increase/decrease the overall king-safety\n");
+        printf("scores.  +50 will increase the values of all the king-\n");
+        printf("safety scoring terms, and might tend to make crafty try\n");
+        printf("some wild (and often unsound) king-side sacrifices to\n");
+        printf("expose the opponent's king.  scaling king safety down (-50)\n");
+        printf("makes king-safety less important and allows the other \n");
+        printf("positional scores to influence the game more, but probably\n");
+        printf("will make Crafty easier to attack\n");
+      }
       else if (OptionMatch("list",args[1])) {
         printf("list is used to update the GM/IM/computer lists, which are\n");
         printf("used internally to control how crafty uses the opening book.\n");
@@ -1409,6 +1430,7 @@ int Option(TREE *tree) {
       printf("input <filename> [title]..sets STDIN to <filename>.\n");
       printf("                          (and positions to [title] record.)\n");
       printf("kibitz <n>................sets kibitz mode <n> on ICS.\n");
+      printf("ksafety...................adjust king safety values. [help]\n");
       printf("level <m> <t> <i>.........sets ICS time controls.\n");
       printf("learn <n>.................enables/disables learning.\n");
       printf("list                      update/display GM/IM/computer lists.\n");
@@ -1447,6 +1469,7 @@ int Option(TREE *tree) {
       printf("setboard <FEN>............sets board position to FEN position. [help]\n");
       printf("settc.....................set time controls.\n");
       printf("show book.................toggle book statistics.\n");
+      printf("sn n......................sets absolute search node limit.\n");
       printf("st n......................sets absolute search time.\n");
       printf("swindle on|off............enables/disables swindle mode.\n");
       printf("test <file> [N]...........test a suite of problems. [help]\n");
@@ -1594,6 +1617,51 @@ int Option(TREE *tree) {
       return(1);
     }
     kibitz=atoi(args[1]);
+  }
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   "ksafety" command is used to adjust the asymmetry and  |
+|   scale the values used in king safety.  asymmetry can   |
+|   be any value between +/-50, and adjusts the king       |
+|   safety scores up or down by that percent (+=increase   |
+|   asymmetry for crafty so that its king safety is more   |
+|   important, - makes crafty's king safety less important |
+|   than the opponents.  scale can be used to adjust all   |
+|   values up are down proportionally, where 100 is the    |
+|   default.  reducing them will make it less sensitive to |
+|   king safety for both sides.                            |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  else if (OptionMatch("ksafety",*args)) {
+    int i;
+    if (nargs < 3) {
+      printf("usage:  ksafety asymmetry|scale <value>\n");
+      return(1);
+    }
+    if (OptionMatch("asymmetry",args[1])) {
+      king_safety_asymmetry=atoi(args[2]);
+    }
+    else if (OptionMatch("scale",args[1])) {
+      king_safety_scale=atoi(args[2]);
+    }
+    else printf("unknown option %s\n",args[1]);
+    PreEvaluate(tree,!wtm);
+    Print(128,"modified king-safety values:\n");
+    Print(128,"white: ");
+    for (i=0;i<16;i++)
+      Print(128,"%3d ", temper_w[i]);
+    Print(128,"\n       ");
+    for (i=16;i<32;i++)
+      Print(128,"%3d ", temper_w[i]);
+    Print(128,"\n\nblack: ");
+    for (i=0;i<16;i++)
+      Print(128,"%3d ", temper_b[i]);
+    Print(128,"\n       ");
+    for (i=16;i<32;i++)
+      Print(128,"%3d ", temper_b[i]);
+    Print(128,"\n");
   }
 /*
  ----------------------------------------------------------
@@ -3150,6 +3218,22 @@ int Option(TREE *tree) {
       if (show_book) Print(4095,"show book statistics\n");
       else Print(4095,"don't show book statistics\n");
     }
+  }
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   "sn" command sets a specific number of nodes to search |
+|   before stopping.                                       |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  else if (OptionMatch("sn",*args)) {
+    if (nargs < 2) {
+      printf("usage:  sn <nodes>\n");
+      return(1);
+    }
+    search_nodes=atoi(args[1]);
+    Print(4095,"search nodes set to %d.\n",search_nodes);
   }
 /*
  ----------------------------------------------------------

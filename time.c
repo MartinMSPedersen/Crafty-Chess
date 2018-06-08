@@ -46,7 +46,7 @@ void TimeAdjust(int time_used, PLAYER player) {
   }
 }
 
-/* last modified 06/15/98 */
+/* last modified 06/04/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -76,6 +76,7 @@ int TimeCheck(int abort) {
 |                                                          |
  ----------------------------------------------------------
 */
+  if (search_nodes && tree->nodes_searched > search_nodes) return(1);
   if (tree->last[0]==(tree->last[1]-1) && !booking && !annotate_mode &&
       !pondering && iteration_depth>4) return(1);
   ndone=0;
@@ -140,8 +141,8 @@ int TimeCheck(int abort) {
 */
   value=root_value;
   last_value=last_search_value;
-  if ((value>=last_value-33 && !(root_moves[0].status&1)) ||
-      (value>350 && value >= last_value-67)) {
+  if ((value>=last_value-24 && !(root_moves[0].status&1)) ||
+      (value>350 && value >= last_value-50)) {
     if (time_used > time_limit*2) return(1);
     else return(abort);
   }

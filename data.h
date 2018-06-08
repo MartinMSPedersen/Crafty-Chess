@@ -128,6 +128,7 @@
   extern char           book_hint[512];
   extern int            post;
   extern int            search_depth;
+  extern int            search_nodes;
   extern int            search_move;
   extern int            easy_move;
   extern TIME_TYPE      time_type;
@@ -235,7 +236,11 @@
   extern const int      scale_down[128];
   extern const int      scale_up[128];
   extern const int      temper[32];
+  extern int            temper_w[32];
+  extern int            temper_b[32];
   extern const int      ttemper[32];
+  extern int            king_safety_asymmetry;
+  extern int            king_safety_scale;
   extern const int      missing[8];
   extern const int      openf[4];
   extern const int      hopenf[4];

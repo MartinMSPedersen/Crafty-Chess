@@ -2411,6 +2411,13 @@
 *           'outpost' in front of an unmoved D/E pawn is made even stronger   *
 *           since it restrains that pawn and cramps the opponent.             *
 *                                                                             *
+*   16.10   all scores are back to 16.6 values except for king safety, as     *
+*           these values played well.  king safety is quite a bit different   *
+*           and now has two fine-tuning paramaters that can be set in the     *
+*           crafty.rc file (try help ksafety for more details, or see the new *
+*           crafty.doc for more details.  suffice it to say that you can now  *
+*           tune it to be aggressive or passive as you wish.                  *
+*                                                                             *
 *******************************************************************************
 */
 int main(int argc, char **argv) {

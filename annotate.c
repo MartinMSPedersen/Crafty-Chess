@@ -83,7 +83,7 @@ void Annotate() {
   int temp_search_depth;
   TREE * const tree=local[0];
   char html_br[5]={""};
-  int save_swindle_mode;
+  int save_swindle_mode, save_asymmetry;
   int html_mode=0;
 /*
  ----------------------------------------------------------
@@ -94,6 +94,7 @@ void Annotate() {
  ----------------------------------------------------------
 */
   save_swindle_mode=swindle_mode;
+  save_asymmetry=king_safety_asymmetry;
   if (!strcmp(args[0],"annotateh")) {
 	  html_mode = 1;
 	  strcpy(html_br,"<br>");
@@ -419,6 +420,7 @@ void Annotate() {
   search_time_limit=0;
   annotate_mode=0;
   swindle_mode=save_swindle_mode;
+  king_safety_asymmetry=save_asymmetry;
 }
 
 /*
