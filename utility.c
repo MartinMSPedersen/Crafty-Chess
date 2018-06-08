@@ -898,18 +898,14 @@ void NewGame(int save) {
     save_accept_draws=accept_draws;
   }
   else {
-    if (learning&book_learning && moves_out_of_book)
-      LearnBook(tree,crafty_is_white,last_search_value,0,0,1);
+    if (learning&book_learning && moves_out_of_book) {
+      int val=(crafty_is_white)?last_search_value:-last_search_value;
+      LearnBook(tree,crafty_is_white,val,0,0,1);
+    }
     if (ics) printf("*whisper Hello from Crafty v%s !\n",version);
     if (xboard) {
       printf("tellics set 1 Crafty v%s (%d cpus)\n",
              version,Max(1,max_threads));
-#if defined(SMP)
-      printf("kibitz Hello from Crafty v%s! (%d cpus)\n",
-             version,Max(1,max_threads));
-#else
-      printf("kibitz Hello from Crafty v%s!\n",version);
-#endif
     }
     over=0;
     moves_out_of_book=0;

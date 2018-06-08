@@ -37,7 +37,7 @@
 int HashProbe(TREE *tree, int ply, int depth, int wtm, int *alpha,
            int *beta, int *threat) {
   register BITBOARD word1, word2;
-  register int type, draft, avoid_null=0, val;
+  register int type, draft, avoid_null=0, val, pieces, null_depth;
   register unsigned int word1l, word1r;
   BITBOARD temp_hashkey;
   HASH_ENTRY *htable;
@@ -61,6 +61,8 @@ int HashProbe(TREE *tree, int ply, int depth, int wtm, int *alpha,
 |                                                          |
  ----------------------------------------------------------
 */
+  pieces=(wtm) ? TotalWhitePieces : TotalBlackPieces;
+  null_depth=(depth>6*INCPLY && pieces>8) ? null_max : null_min;
   temp_hashkey=(wtm) ? HashKey : ~HashKey;
   htable=trans_ref_a+((int) temp_hashkey&hash_maska);
   word1=htable->word1;
@@ -77,7 +79,7 @@ int HashProbe(TREE *tree, int ply, int depth, int wtm, int *alpha,
     *threat=(word1l>>26) & 01;
     type=(word1l>>27) & 03;
     if ((type & UPPER) &&
-        depth-NULL_MOVE_DEPTH-INCPLY <= draft &&
+        depth-null_depth <= draft &&
         val < *beta) avoid_null=AVOID_NULL_MOVE;
     if (depth > draft) break;
 
@@ -119,7 +121,7 @@ int HashProbe(TREE *tree, int ply, int depth, int wtm, int *alpha,
     *threat=(word1l>>26) & 01;
     type=(word1l>>27) & 03;
     if ((type & UPPER) &&
-        depth-NULL_MOVE_DEPTH-INCPLY <= draft &&
+        depth-null_depth <= draft &&
         val < *beta) avoid_null=AVOID_NULL_MOVE;
     if (depth > draft) return(avoid_null);
 

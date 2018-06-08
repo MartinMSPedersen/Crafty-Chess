@@ -722,8 +722,9 @@ int Option(TREE *tree) {
  ----------------------------------------------------------
 */
   else if (OptionMatch("end",*args) || OptionMatch("quit",*args)) {
+    last_search_value=(crafty_is_white) ? last_search_value:-last_search_value;
     if (moves_out_of_book)
-      LearnBook(tree,crafty_is_white,last_search_value,0,0,1);
+      LearnBook(tree,wtm,last_search_value,0,0,1);
     Print(4095,"execution complete.\n");
     fflush(stdout);
     if (book_file) fclose(book_file);
@@ -908,7 +909,7 @@ int Option(TREE *tree) {
     Print(1,"recapture extension..................%4.2f\n",(float) recap_depth/60.0);
 #endif
     Print(1,"pushpp extension.....................%4.2f\n",(float) pushpp_depth/60.0);
-    Print(1,"mate threat extension................%4.2f\n",(float) mate_depth/60.0);
+    Print(1,"mate thrt extension..................%4.2f\n",(float) mate_depth/60.0);
   }
 /*
  ----------------------------------------------------------
@@ -1570,6 +1571,11 @@ int Option(TREE *tree) {
       printf("log on|off................turn logging on/off.\n");
       printf("mode normal|tournament....toggles tournament mode.\n");
       printf("move......................initiates search (same as go).\n");
+# if defined(SMP)
+      printf("mt n......................sets max parallel threads to use.\n");
+      printf("mtmin n...................don't thread last n plies.\n");
+      printf("mtmax n...................keep threads within n plies.\n");
+# endif
       printf("name......................sets opponent's name.\n");
       printf("new.......................initialize and start new game.\n");
       printf("noise n...................no status until n nodes searched.\n");
@@ -1597,11 +1603,6 @@ int Option(TREE *tree) {
       printf("setboard <FEN>............sets board position to FEN position. [help]\n");
       printf("settc.....................set time controls.\n");
       printf("show book.................toggle book statistics.\n");
-# if defined(SMP)
-      printf("smpmt n...................sets max parallel threads to use.\n");
-      printf("smpmin n..................don't thread last n plies.\n");
-      printf("smpmax n..................keep threads within n plies.\n");
-# endif
       printf("sn n......................sets absolute search node limit.\n");
       printf("st n......................sets absolute search time.\n");
       printf("store <val>...............stores position/score (position.bin).\n");
@@ -2396,6 +2397,12 @@ int Option(TREE *tree) {
           break;
         }
     }
+#if defined(SMP)
+    printf("kibitz Hello from Crafty v%s! (%d cpus)\n",
+           version,Max(1,max_threads));
+#else
+    printf("kibitz Hello from Crafty v%s!\n",version);
+#endif
   }
 /*
  ----------------------------------------------------------
@@ -3054,11 +3061,11 @@ int Option(TREE *tree) {
     if (nargs > 1) {
       if (!strcmp(args[1],"1-0")) {
         strcpy(pgn_result,"1-0");
-        if (!crafty_is_white) LearnBook(tree,crafty_is_white,-300,0,1,2);
+        if (!crafty_is_white) LearnBook(tree,wtm,300,0,1,2);
       }
       else if (!strcmp(args[1],"0-1")) {
         strcpy(pgn_result,"0-1");
-        if (crafty_is_white) LearnBook(tree,crafty_is_white,-300,0,1,2);
+        if (crafty_is_white) LearnBook(tree,wtm,-300,0,1,2);
       }
       else if (!strcmp(args[1],"1/2-1/2")) {
         strcpy(pgn_result,"1/2-1/2");

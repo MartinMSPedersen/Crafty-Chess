@@ -9,7 +9,7 @@
 #  include <unistd.h>
 #endif
 
-/* last modified 02/06/01 */
+/* last modified 02/12/01 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -31,7 +31,6 @@
 */
 void LearnBook(TREE *tree, int wtm, int search_value, int search_depth, int lv,
                int force) {
-  const int t_wtm=wtm;
   int nplies=0, thisply=0;
 /*
  ----------------------------------------------------------
@@ -175,11 +174,13 @@ void LearnBook(TREE *tree, int wtm, int search_value, int search_depth, int lv,
       learn_value/=interval;
       search_depth/=interval;
     }
-    if (!lv) learn_value=LearnFunction(learn_value,search_depth,
-                                       crafty_rating-opponent_rating,
-                                       learn_value<0);
+    if (!lv) {
+      learn_value=LearnFunction(learn_value,search_depth,
+                                crafty_rating-opponent_rating,
+                                learn_value<0);
+      learn_value*=(crafty_is_white)?1:-1;
+    }
     else learn_value=search_value;
-printf("learn_value=%d\n",search_value);
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -283,7 +284,6 @@ printf("learn_value=%d\n",search_value);
  ----------------------------------------------------------
 */
         temp_value=book_learn[i];
-        if (wtm != crafty_is_white) temp_value*=-1;
         LearnBookUpdate(tree, wtm, move, temp_value);
         MakeMoveRoot(tree, move,wtm);
       }
@@ -320,7 +320,7 @@ printf("learn_value=%d\n",search_value);
       }
     }
     fprintf(book_lrn_file,"%s {%d %d %d}\n",
-            buff, (t_wtm) ? learn_value:-learn_value, search_depth,
+            buff, learn_value, search_depth,
             crafty_rating-opponent_rating);
     fflush(book_lrn_file);
 /*

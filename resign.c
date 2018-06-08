@@ -92,7 +92,8 @@ void ResignOrDraw(TREE *tree, int value) {
  ----------------------------------------------------------
 */
   if (returnv == 1) {
-    LearnBook(tree,crafty_is_white,-300,0,1,2);
+    int val=(crafty_is_white)?-300:300;
+    LearnBook(tree,crafty_is_white,val,0,1,2);
     if (xboard) Print(4095,"tellics resign\n");
     if (crafty_is_white) {
       Print(4095,"0-1 {White resigns}\n");

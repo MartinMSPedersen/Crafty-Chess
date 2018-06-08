@@ -2746,6 +2746,12 @@
 *           removed.  LearnBook() is now used to do the same thing, except    *
 *           that a good (or bad) score is used.                               *
 *                                                                             *
+*   18.3    minor bug in "avoid_null_move" test used R=2 for the test rather  *
+*           than testing R=2/3 as the real null-move search uses.  the kibitz *
+*           for "Hello from Crafty Vx.xx" has been moved so that it works     *
+*           with the new xboard/winboard 4.2.2 versions.  book learning was   *
+*           badly broken in the previous version and has been fixed/tested.   *
+*                                                                             *
 *******************************************************************************
 */
 int main(int argc, char **argv) {
@@ -3234,10 +3240,13 @@ int main(int argc, char **argv) {
  ----------------------------------------------------------
 */
     ResignOrDraw(tree,value);
-    if (moves_out_of_book) 
+    if (moves_out_of_book) {
       LearnBook(tree,wtm,last_value,last_pv.pathd+2,0,0);
-    if (value <= -MATE+10)
-      LearnBook(tree,wtm,-300,0,1,2);
+    }
+    if (value <= -MATE+10) {
+      int val=(crafty_is_white)?-300:300;
+      LearnBook(tree,wtm,val,0,1,2);
+    }
     for (i=0;i<4096;i++) {
       history_w[i]=history_w[i]>>8;
       history_b[i]=history_b[i]>>8;

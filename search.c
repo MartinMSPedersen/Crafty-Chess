@@ -193,7 +193,6 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
 |                                                          |
  ----------------------------------------------------------
 */
-# if defined(NULL_MOVE_DEPTH)
   pieces=(wtm) ? TotalWhitePieces : TotalBlackPieces;
   if (do_null && !tree->in_check[ply] && pieces && (pieces>5 || depth<421)) {
     register BITBOARD save_hash_key;
@@ -225,7 +224,6 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
     }
     if (value == -MATE+ply+2) mate_threat=1;
   }
-# endif
 /*
  ----------------------------------------------------------
 |                                                          |

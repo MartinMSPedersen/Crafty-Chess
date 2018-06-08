@@ -231,8 +231,6 @@
 */
 
 #define INCPLY                   60  /* 1.00 */
-#define NULL_MOVE_DEPTH         120  /* 2.00 */
-#define RAZORING_DEPTH           60  /* 1.00 */
 
 #define MATE                  32768
 #define PAWN_VALUE              100

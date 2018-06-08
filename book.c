@@ -8,7 +8,7 @@
 #  include <unistd.h>
 #endif
 
-/* last modified 01/08/01 */
+/* last modified 01/13/01 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -181,6 +181,7 @@ int Book(TREE *tree, int wtm, int root_list_done) {
           book_status[nmoves]=book_buffer[i].status_played>>24;
           bs_played[nmoves]=book_buffer[i].status_played&077777777;
           bs_learn[nmoves]=(int) (book_buffer[i].learn*100.0);
+          if (!wtm) bs_learn[nmoves]*=-1;
           bs_CAP[nmoves]=book_buffer[i].CAP_score;
           if (puzzling) bs_played[nmoves]+=1;
           tree->current_move[1]=root_moves[im].move;
