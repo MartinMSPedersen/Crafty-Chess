@@ -49,7 +49,7 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta)
     if (EvaluateStalemate(tree, wtm))
       can_win = 0;
   }
-  if (can_win == 0 && TotalWhitePawns + TotalBlackPawns)
+  if (can_win == 0 && TotalWhitePawns + TotalBlackPawns == 0)
     return (DrawScore(wtm));
 #if defined(DETECTDRAW)
   if (TotalWhitePawns > 2 && TotalBlackPawns > 2 &&
@@ -122,8 +122,6 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta)
  *        xxxx xx1x   (2) -> white has 2 outside c/p                  *
  *        xxxx x1xx   (4) -> black has outside c/p                    *
  *        xxxx 1xxx   (8) -> black has 2 outside c/p                  *
- *        xxx1 xxxx  (16) -> white has split passers                  *
- *                           black does not                           *
  *                                                                    *
  **********************************************************************
  */
@@ -138,10 +136,6 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta)
   if (tree->pawn_score.outside) {
     int pscore = 0;
 
-    if (tree->pawn_score.outside & 16)
-      pscore += 3 * outside_passed[(int) TotalBlackPieces];
-    else if (tree->pawn_score.outside & 32)
-      pscore -= 3 * outside_passed[(int) TotalWhitePieces];
     if (tree->pawn_score.outside & 2)
       pscore += 2 * outside_passed[(int) TotalBlackPieces];
     else if (tree->pawn_score.outside & 1)
@@ -173,20 +167,23 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta)
     }
     score += pscore * passed_scale / 100;
   } else {
+    int pscore = 0;
+
     if (!TotalBlackPieces) {
       w_spread =
           file_spread[tree->pawn_score.passed_w | tree->pawn_score.
           candidates_w];
       if (w_spread > 1)
-        score += (w_spread - 1) * (outside_passed[0] >> 1);
+        pscore += (w_spread - 1) * SPLIT_PASSED;
     }
     if (!TotalWhitePieces) {
       b_spread =
           file_spread[tree->pawn_score.passed_b | tree->pawn_score.
           candidates_b];
       if (b_spread > 1)
-        score -= (b_spread - 1) * (outside_passed[0] >> 1);
+        pscore -= (b_spread - 1) * SPLIT_PASSED;
     }
+    score += pscore * passed_scale / 100;
   }
 #ifdef DEBUGEV
   if (score != lastsc) {
@@ -2400,7 +2397,7 @@ int EvaluatePawns(TREE * RESTRICT tree)
   register int w_isolated, b_isolated;
   register int w_isolated_of, b_isolated_of;
   register int w_unblocked, b_unblocked;
-  register int wop, bop, w_passers, b_passers;
+  register int wop, bop;
   register int defenders, attackers, weakness, blocked, sq;
   register int kside_open_files, qside_open_files;
   register int kside_half_open_files_b, kside_half_open_files_w;
@@ -3417,10 +3414,6 @@ int EvaluatePawns(TREE * RESTRICT tree)
  *        xxxx xx1x   (2) -> white has 2 outside c/p        *
  *        xxxx x1xx   (4) -> black has outside c/p          *
  *        xxxx 1xxx   (8) -> black has 2 outside c/p        *
- *        xxx1 xxxx  (16) -> white has split passers        *
- *                           black does not                 *
- *        xx1x xxxx  (32) -> black has split passers        *
- *                           white does not                 *
  *                                                          *
  ************************************************************
  */
@@ -3443,13 +3436,6 @@ int EvaluatePawns(TREE * RESTRICT tree)
       else if (bop && TotalBlackPawns > 1)
         tree->pawn_score.outside |= 4;
     }
-  } else {
-    w_passers = tree->pawn_score.passed_w | tree->pawn_score.candidates_w;
-    b_passers = tree->pawn_score.passed_b | tree->pawn_score.candidates_b;
-    if (file_spread[w_passers] > file_spread[b_passers])
-      tree->pawn_score.outside |= 16;
-    else if (file_spread[b_passers] > file_spread[w_passers])
-      tree->pawn_score.outside |= 32;
   }
 /*
  if (tree->pawn_score.outside) {
@@ -3588,11 +3574,11 @@ int EvaluateWinner(TREE * RESTRICT tree)
  */
   if (WhiteMajors == BlackMajors) {
     if (TotalWhitePawns == 0 && WhiteMinors - BlackMinors == 1) {
-      if (mask_not_edge & BlackKing)
+      if ((mask_not_edge & BlackKing) || (WhiteMajors == 0))
         can_win &= 2;
     }
     if (TotalBlackPawns == 0 && BlackMinors - WhiteMinors == 1) {
-      if (mask_not_edge & WhiteKing)
+      if ((mask_not_edge & WhiteKing) || (BlackMajors == 0))
         can_win &= 1;
     }
     if (can_win == 0)

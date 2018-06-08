@@ -2001,7 +2001,7 @@ TREE *CopyToSMP(TREE * RESTRICT p, int thread)
   TREE *c;
   int first = thread * MAX_BLOCKS_PER_CPU + 1;
   int last = first + MAX_BLOCKS_PER_CPU;
-  int maxb = MAX_BLOCKS + 1;
+  int maxb = max_threads * MAX_BLOCKS_PER_CPU + 1;
 
   for (i = first; i < last && local[i]->used; i++);
   if (i >= last) {

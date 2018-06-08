@@ -3038,6 +3038,12 @@
  *           searching many fail-high/fail-low conditions, although it will    *
  *           occasionally cause the search to take a bit longer.               *
  *                                                                             *
+ *   19.13   fix to evaluating split passed pawns.  code is cleaner and is not *
+ *           applied if the opposing side has any pieces at all since a piece  *
+ *           and the king can stop both.  new egtb.cpp that opens the tables   *
+ *           approximately 20-25% faster is included in this version (code by  *
+ *           Eugene Nalimov of course).                                        *
+ *                                                                             *
  *******************************************************************************
  */
 int main(int argc, char **argv)

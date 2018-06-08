@@ -232,7 +232,7 @@ unsigned int parallel_splits;
 unsigned int parallel_stops;
 unsigned int max_split_blocks;
 volatile unsigned int splitting;
-# define    VERSION                             "19.12"
+# define    VERSION                             "19.13"
 char      version[6] = { VERSION };
 PLAYING_MODE mode = normal_mode;
 #if defined(SMP)
@@ -474,9 +474,9 @@ const int king_tropism[128] = {
   180, 180, 180, 180, 180, 180, 180, 180,
   180, 180, 180, 180, 180, 180, 180, 180
 };
-const char connected_passed_pawn_value[8] = { 0, 0, 0, 12, 24, 48, 100, 0 };
+const char connected_passed_pawn_value[8] = { 0, 0, 8, 12, 24, 48, 100, 0 };
 const int hidden_passed_pawn_value[8] = { 0, 0, 0, 0, 0, 16, 24, 0 };
-const int passed_pawn_value[8] = { 0, 8, 16, 32, 60, 120, 160, 0 };
+const int passed_pawn_value[8] = { 0, 24, 32, 48, 60, 120, 160, 0 };
 const char blockading_passed_pawn_value[8] = { 0, 8, 12, 16, 30, 45, 60, 0 };
 const char isolated_pawn_value[9] = { 0, 12, 24, 56, 66, 80, 90, 100, 110 };
 const char isolated_pawn_of_value[9] = { 0, 5, 10, 15, 20, 25, 30, 35, 40 };
