@@ -351,8 +351,8 @@ objects = searchr.o search.o thread.o searchmp.o repeat.o next.o nexte.o      \
        attacks.o swap.o boolean.o utility.o valid.o probe.o book.o data.o     \
        drawn.o edit.o epd.o epdglue.o init.o input.o interupt.o iterate.o     \
        main.o option.o output.o phase.o ponder.o preeval.o resign.o root.o    \
-       learn.o setboard.o test.o time.o validate.o annotate.o analyze.o       \
-       evtest.o bench.o egtb.o dgt.o $(asm)
+       learn.o setboard.o test.o testepd.o time.o validate.o annotate.o       \
+       analyze.o evtest.o bench.o egtb.o dgt.o $(asm)
 
 includes = data.h chess.h
 

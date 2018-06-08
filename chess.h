@@ -230,13 +230,7 @@
 #define         CAP_SCORE_GOOD           +150
 #define          CAP_SCORE_BAD           -100
 
-/*
-  fractional ply extensions.  these should be in units based on the
-  value of INCPLY (default is 60).  a value of 60 means this
-  extension is exactly one ply.
-*/
-
-#define INCPLY                   60  /* 1.00 */
+#define INCPLY                   60
 
 #define MATE                  32768
 #define PAWN_VALUE              100
@@ -447,7 +441,6 @@ struct tree {
   int             move_list[5120];
   int             sort_value[256];
   signed char     in_check[MAXPLY];
-  signed char     extended_reason[MAXPLY];
   signed char     phase[MAXPLY];
   int             search_value;
   int             w_safety, b_safety;
@@ -469,6 +462,8 @@ struct tree {
   int             depth;
   int             ply;
   int             mate_threat;
+  int             lp_extended;
+  int             lp_recapture;
   int             used;
 };
   
@@ -600,13 +595,14 @@ int            EnPrise(int, int);
 int            Evaluate(TREE*, int, int, int, int);
 int            EvaluateDevelopmentB(TREE*, int);
 int            EvaluateDevelopmentW(TREE*, int);
-int            EvaluateDraws(TREE*);
+int            EvaluateWinner(TREE*);
 int            EvaluateKingSafety(TREE*, int);
 int            EvaluateMate(TREE*);
 int            EvaluateMaterial(TREE*);
 int            EvaluatePassedPawns(TREE*);
 int            EvaluatePassedPawnRaces(TREE*, int);
 int            EvaluatePawns(TREE*);
+int            EvaluateWinner(TREE*);
 void           EVTest(char *);
 int            FindBlockID(TREE*);
 char*          FormatPV(TREE*,int,PATH);
@@ -687,10 +683,10 @@ void           ResignOrDraw(TREE*, int);
 void           RestoreGame(void);
 char*          Reverse(void);
 void           RootMoveList(int);
-int            Search(TREE*, int, int, int, int, int, int);
+int            Search(TREE*, int, int, int, int, int, int, int, int);
 void           SearchOutput(TREE*, int, int);
 int            SearchRoot(TREE*, int, int, int, int);
-int            SearchSMP(TREE*, int, int, int, int, int, int, int);
+int            SearchSMP(TREE*, int, int, int, int, int, int, int, int, int);
 void           SearchTrace(TREE*, int, int, int, int, int, char*, int);
 void           SetBoard(SEARCH_POSITION*,int,char**,int);
 void           SetChessBitBoards(SEARCH_POSITION*);
@@ -698,6 +694,7 @@ int            StrCnt(char*, char);
 int            Swap(TREE*, int, int, int);
 BITBOARD       SwapXray(TREE*, BITBOARD, int, int);
 void           Test(char *);
+void           TestEPD(char *);
 int            Thread(TREE*);
 void* STDCALL  ThreadInit(void*);
 void           ThreadStop(TREE*);

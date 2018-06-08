@@ -693,12 +693,14 @@ int Book(TREE *tree, int wtm, int root_list_done) {
     m1_status=book_status[which];
     tree->pv[1].pathl=1;
     tree->pv[1].pathd=0;
-    MakeMove(tree,1,book_moves[which],wtm);
-    if ((book_ponder_move=BookPonderMove(tree,ChangeSide(wtm)))) {
-      tree->pv[1].path[2]=book_ponder_move;
-      tree->pv[1].pathl=2;
+    if (mode != tournament_mode) {
+      MakeMove(tree,1,book_moves[which],wtm);
+      if ((book_ponder_move=BookPonderMove(tree,ChangeSide(wtm)))) {
+        tree->pv[1].path[2]=book_ponder_move;
+        tree->pv[1].pathl=2;
+      }
+      UnMakeMove(tree,1,book_moves[which],wtm);
     }
-    UnMakeMove(tree,1,book_moves[which],wtm);
     Print(128,"               book   0.0s    %3d%%   ", percent_played);
     Print(128," %s",OutputMove(tree,tree->pv[1].path[1],1,wtm));
     st=m1_status & book_accept_mask & (~224);

@@ -4,7 +4,7 @@
 #include "evaluate.h"
 #include "data.h"
 
-/* last modified 08/28/01 */
+/* last modified 10/17/01 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -23,7 +23,7 @@
 int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
   register BITBOARD temp;
   register int square, file, score, tscore, w_tropism=0, b_tropism=0;
-  register int w_spread, b_spread, trop, drawn_ending=0;
+  register int w_spread, b_spread, trop, can_win=3;
 #if defined(DEBUGEV)
   int lastsc;
 #endif
@@ -36,8 +36,8 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
 **********************************************************************
 */
   if (TotalWhitePieces<9 && TotalBlackPieces<9)
-    drawn_ending=EvaluateDraws(tree);
-  if (drawn_ending > 0) return(DrawScore(wtm));
+    can_win=EvaluateWinner(tree);
+  if (can_win == 0) return(DrawScore(wtm));
   score=EvaluateMaterial(tree);
 #ifdef DEBUGEV
   printf("score[material]=                  %4d\n",score);
@@ -62,8 +62,8 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
 #ifdef DEBUGEV
     printf("score[mater]=                     %4d (%+d)\n",score,score-lastsc);
 #endif
-    if (score>DrawScore(1) && drawn_ending==-1) return(DrawScore(wtm));
-    if (score<DrawScore(1) && drawn_ending==-2) return(DrawScore(wtm));
+    if (score>DrawScore(1) && !(can_win&1)) return(DrawScore(wtm));
+    if (score<DrawScore(1) && !(can_win&2)) return(DrawScore(wtm));
     return((wtm) ? score : -score);
   } while(0);
 #if !defined(FAST)
@@ -126,19 +126,19 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
     int bfile=File(BlackKingSQ);
     if (wfile+wtm > bfile+1) {
       if (wfile < first_ones_8bit[tree->pawn_score.allb])
-        pscore=WON_KP_ENDING;
+        pscore+=WON_KP_ENDING;
     }
     else if (wfile-wtm < bfile-1) {
       if (wfile > last_ones_8bit[tree->pawn_score.allb])
-        pscore=WON_KP_ENDING;
+        pscore+=WON_KP_ENDING;
     }
     if (bfile > wfile+1-wtm) {
       if (bfile < first_ones_8bit[tree->pawn_score.allw])
-        pscore=-WON_KP_ENDING;
+        pscore+=-WON_KP_ENDING;
     }
     else if (bfile < wfile-1+wtm) {
       if (bfile > last_ones_8bit[tree->pawn_score.allw])
-        pscore=-WON_KP_ENDING;
+        pscore+=-WON_KP_ENDING;
     }
     score+=pscore*passed_scale/100;
   }
@@ -235,7 +235,7 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
 *                                                                    *
 **********************************************************************
 */
-  if (drawn_ending == 0) {
+  if (can_win) {
     register const int tscore=(wtm)?score:-score;
     if (tscore-largest_positional_score >= beta) return(beta);
     if (tscore+largest_positional_score <= alpha) return(alpha);
@@ -604,9 +604,8 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
  ----------------------------------------------------------
 */
   if (WhiteBishops) {
-    if (WhiteBishops&(WhiteBishops-1)) {
-      score+=BISHOP_PAIR;
-    }
+    if (WhiteBishops&(WhiteBishops-1))
+      score+=bishop_pair[TotalWhitePawns];
     else {
       if (WhiteBishops&light_squares)
         score-=PopCnt(WhitePawns&light_squares)*BISHOP_PLUS_PAWNS_ON_COLOR;
@@ -631,7 +630,7 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
   }
   if (BlackBishops) {
     if (BlackBishops&(BlackBishops-1)) {
-      score-=BISHOP_PAIR;
+      score-=bishop_pair[TotalBlackPawns];
     }
     else {
       if (BlackBishops&light_squares)
@@ -1101,9 +1100,9 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
       }
     }
   }
-  if (drawn_ending < 0) {
-    if (drawn_ending==-1 && score>DrawScore(1)) score=DrawScore(1);
-    else if (drawn_ending==-2 && score<DrawScore(1)) score=DrawScore(1);
+  if (can_win != 3) {
+    if (can_win&2 && score>DrawScore(1)) score=DrawScore(1);
+    else if (can_win&1 && score<DrawScore(1)) score=DrawScore(1);
   }
 #ifdef DEBUGEV
   if (score != lastsc)
@@ -1325,151 +1324,6 @@ int EvaluateDevelopmentW(TREE *tree, int ply) {
   printf("developmentW.3 score=%d\n",score);
 #endif
   return(score);
-}
-
-/* last modified 03/12/01 */
-/*
-********************************************************************************
-*                                                                              *
-*   EvaluateDraws() is used to determine if one side (or both) are in a        *
-*   position where winning is impossible.                                      *
-*                                                                              *
-********************************************************************************
-*/
-int EvaluateDraws(TREE *tree) {
-/*
- ----------------------------------------------------------
-|                                                          |
-|   if lots of material is left, it's not a draw.          |
-|                                                          |
- ----------------------------------------------------------
-*/
-  if (TotalWhitePieces > 8 || TotalBlackPieces >8) return(0);
-  if (TotalWhitePieces==6 && WhiteBishops && TotalWhitePawns) return(0);
-  if (TotalBlackPieces==6 && BlackBishops && TotalBlackPawns) return(0);
-  if (TotalWhitePieces==0 && TotalBlackPieces==0) {
-    if ((WhitePawns|BlackPawns)&not_rook_pawns) return(0);
-  }
-/*
- ----------------------------------------------------------
-|                                                          |
-|   if white has a bishop and pawn(s) then the pawn had    |
-|   better not be only rook pawns, or else the bishop had  |
-|   better be the right color, otherwise its a DRAW if the |
-|   black king can block the pawn.                         |
-|                                                          |
- ----------------------------------------------------------
-*/
-  if (TotalBlackPieces==0 && TotalWhitePawns && TotalWhitePieces<=3 &&
-      !(WhitePawns&not_rook_pawns)) {
-    if (WhiteBishops) {
-      if (WhiteBishops&dark_squares) {
-        if (file_mask[FILEH]&WhitePawns) return(0);
-      }
-      else if (file_mask[FILEA]&WhitePawns) return(0);
-    }
-    else if (TotalWhitePieces==0) {
-      if (file_mask[FILEA]&WhitePawns &&
-          file_mask[FILEH]&WhitePawns) return(0);
-    }
-    else return(0);
-
-    if (!(WhitePawns&file_mask[FILEA]) ||
-        !(WhitePawns&file_mask[FILEH])) {
-      if (WhitePawns&file_mask[FILEA]) {
-        int bkd, wkd, pd;
-        bkd=Distance(BlackKingSQ,A8);
-        wkd=Distance(WhiteKingSQ,A8);
-        if (bkd <= 1) wkd++;
-        pd=Distance(LastOne(WhitePawns&file_mask[FILEA]),A8);
-        if (bkd<(wkd-wtm) && bkd<=(pd-wtm)) return(1);
-        return(0);
-      }
-      else {
-        int bkd, wkd, pd;
-        bkd=Distance(BlackKingSQ,H8);
-        wkd=Distance(WhiteKingSQ,H8);
-        if (bkd <= 1) wkd++;
-        pd=Distance(LastOne(WhitePawns&file_mask[FILEH]),H8);
-        if (bkd<(wkd-wtm) && bkd<=(pd-wtm)) return(1);
-        return(0);
-      }
-    }
-  }
-/*
- ----------------------------------------------------------
-|                                                          |
-|   if black has a bishop and pawn(s) then the pawn had    |
-|   better not be only rook pawns, or else the bishop had  |
-|   better be the right color, otherwise its a DRAW if the |
-|   white king can block the pawn.                         |
-|                                                          |
- ----------------------------------------------------------
-*/
-  if (TotalWhitePieces==0 && TotalBlackPawns && TotalBlackPieces<=3 &&
-      !(BlackPawns&not_rook_pawns) && !(WhitePawns&not_rook_pawns)) {
-    if (BlackBishops) {
-      if (BlackBishops&dark_squares) {
-        if (file_mask[FILEA]&BlackPawns) return(0);
-      }
-      else if (file_mask[FILEH]&BlackPawns) return(0);
-    }
-    else if (TotalBlackPieces==0) {
-      if (file_mask[FILEA]&BlackPawns &&
-          file_mask[FILEH]&BlackPawns) return(0);
-    }
-    else return(0);
-
-    if (!(BlackPawns&file_mask[FILEA]) ||
-        !(BlackPawns&file_mask[FILEH])) {
-      if (BlackPawns&file_mask[FILEA]) {
-        int bkd, wkd, pd;
-        bkd=Distance(BlackKingSQ,A1);
-        wkd=Distance(WhiteKingSQ,A1);
-        if (wkd <= 1) bkd++;
-        pd=Distance(FirstOne(BlackPawns&file_mask[FILEA]),A1);
-        if (wkd<(bkd+wtm) && wkd<=(pd+wtm)) return(1);
-        return(0);
-      }
-      else {
-        int bkd, wkd, pd;
-        bkd=Distance(BlackKingSQ,H1);
-        wkd=Distance(WhiteKingSQ,H1);
-        if (wkd <= 1) bkd++;
-        pd=Distance(FirstOne(BlackPawns&file_mask[FILEH]),H1);
-        if (wkd<(bkd+wtm) && wkd<=(pd+wtm)) return(1);
-        return(0);
-      }
-    }
-  }
-/*
- ----------------------------------------------------------
-|                                                          |
-|   if both sides have pawns, the game is not a draw for   |
-|   lack of material.  also, if one side has at least a    |
-|   B+N, then it's not a drawn position.                   |
-|                                                          |
-|   if one side has a rook, while the other side has a     |
-|   minor + pawns, then the rook can't possibly win.       |
-|                                                          |
- ----------------------------------------------------------
-*/
-  if (TotalWhitePawns && TotalBlackPawns) return(0);
-  if (TotalWhitePawns==0 && TotalWhitePieces==5 &&
-      TotalBlackPieces==3) return(-1);
-  if (TotalWhitePawns==0 && TotalWhitePieces==8 &&
-      TotalBlackPieces==5) return(-1);
-  if (TotalBlackPawns==0 && TotalBlackPieces==5 &&
-      TotalWhitePieces==3) return(-2);
-  if (TotalBlackPawns==0 && TotalBlackPieces==8 &&
-      TotalWhitePieces==5) return(-2);
-  if (TotalWhitePawns==0 && TotalWhitePieces<=6 &&
-      TotalWhitePieces-TotalBlackPieces==3) return(-1);
-  if (TotalBlackPawns==0 && TotalBlackPieces<=6 &&
-      TotalBlackPieces-TotalWhitePieces==3) return(-2);
-  if (TotalWhitePawns==0 && TotalWhitePieces<4) return(-1);
-  else if (TotalBlackPawns==0 && TotalBlackPieces<4) return(-2);
-  return(0);
 }
 
 /* last modified 12/17/99 */
@@ -3305,4 +3159,206 @@ int EvaluatePawns(TREE *tree) {
   tree->pawn_score.p_score=score;
   *ptable=tree->pawn_score;
   return(score);
+}
+
+/* last modified 10/17/01 */
+/*
+********************************************************************************
+*                                                                              *
+*   EvaluateWinner() is used to determine if one side (or both) are in a       *
+*   position where winning is impossible.                                      *
+*                                                                              *
+*   return values:                                                             *
+*        0    ->     neither side can win, this is a dead drawn position.      *
+*        1    ->     white can win, black can not win.                         *
+*        2    ->     white can not win, black can win.                         *
+*        3    ->     both white and black can win.                             *
+*                                                                              *
+********************************************************************************
+*/
+int EvaluateWinner(TREE *tree) {
+  register int can_win=3;
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   if lots of material is left, it's not a draw.          |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  if (TotalWhitePieces > 8 || TotalBlackPieces >8) return(can_win);
+  if (TotalWhitePieces==6 && WhiteBishops && TotalWhitePawns) return(can_win);
+  if (TotalBlackPieces==6 && BlackBishops && TotalBlackPawns) return(can_win);
+  if (TotalWhitePieces==0 && TotalBlackPieces==0) {
+    if ((WhitePawns|BlackPawns)&not_rook_pawns) return(can_win);
+  }
+  if (!TotalBlackPieces) {
+    if (!TotalBlackPawns) can_win&=1;
+    if (TotalBlackPawns==1 && TotalWhitePieces) can_win&=1;
+  }
+  if (!TotalWhitePieces) {
+    if (!TotalWhitePawns) can_win&=2;
+    if (TotalWhitePawns==1 && TotalBlackPieces) can_win&=2;
+  }
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   if white has a pawn, then either the pawn had better   |
+|   not be a rook pawn, or else white had better have the  |
+|   right color bishop or any other piece, otherwise it is |
+|   not winnable if the black king can get to the queening |
+|   square first.                                          |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  if (TotalWhitePawns) do {
+    if (WhitePawns&not_rook_pawns) continue;
+    if (TotalWhitePieces>3 || (TotalWhitePieces==3 && !WhiteBishops)) continue;
+    if (TotalWhitePieces==0) {
+      if (file_mask[FILEA]&WhitePawns &&
+          file_mask[FILEH]&WhitePawns) continue;
+    }
+    if (!(WhitePawns&not_rook_pawns)) {
+      if (WhiteBishops) {
+        if (WhiteBishops&dark_squares) {
+          if (file_mask[FILEH]&WhitePawns) continue;
+        }
+        else if (file_mask[FILEA]&WhitePawns) continue;
+      }
+  
+      if (!(WhitePawns&file_mask[FILEA]) ||
+          !(WhitePawns&file_mask[FILEH])) {
+        if (WhitePawns&file_mask[FILEA]) {
+          int bkd, wkd, pd;
+          bkd=Distance(BlackKingSQ,A8);
+          wkd=Distance(WhiteKingSQ,A8);
+          if (bkd <= 1) can_win&=2;
+          pd=Distance(LastOne(WhitePawns&file_mask[FILEA]),A8);
+          if (bkd<(wkd-wtm) && bkd<=(pd-wtm)) can_win&=2;
+          continue;
+        }
+        else {
+          int bkd, wkd, pd;
+          bkd=Distance(BlackKingSQ,H8);
+          wkd=Distance(WhiteKingSQ,H8);
+          if (bkd <= 1) can_win&=2;
+          pd=Distance(LastOne(BlackPawns&file_mask[FILEH]),H8);
+          if (bkd<(wkd-wtm) && bkd<=(pd-wtm)) can_win&=2;
+          continue;
+        }
+      }
+    }
+  } while (0);
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   if black has a pawn, then either the pawn had better   |
+|   not be a rook pawn, or else black had better have the  |
+|   right color bishop or any other piece, otherwise it is |
+|   not winnable if the white king can get to the queening |
+|   square first.                                          |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  if (TotalBlackPawns) do {
+    if (BlackPawns&not_rook_pawns) continue;
+    if (TotalBlackPieces>3 || (TotalBlackPieces==3 && !BlackBishops)) continue;
+    if (TotalBlackPieces==0) {
+      if (file_mask[FILEA]&BlackPawns &&
+          file_mask[FILEH]&BlackPawns) continue;
+    }
+    if (!(BlackPawns&not_rook_pawns)) {
+      if (BlackBishops) {
+        if (BlackBishops&dark_squares) {
+          if (file_mask[FILEA]&BlackPawns) continue;
+        }
+        else if (file_mask[FILEH]&BlackPawns) continue;
+      }
+  
+      if (!(BlackPawns&file_mask[FILEA]) ||
+          !(BlackPawns&file_mask[FILEH])) {
+        if (BlackPawns&file_mask[FILEA]) {
+          int bkd, wkd, pd;
+          bkd=Distance(BlackKingSQ,A1);
+          wkd=Distance(WhiteKingSQ,A1);
+          if (wkd <= 1) can_win&=1;
+          pd=Distance(LastOne(BlackPawns&file_mask[FILEA]),A1);
+          if (wkd<(bkd+wtm) && wkd<=(pd+wtm)) can_win&=1;
+          continue;
+        }
+        else {
+          int bkd, wkd, pd;
+          bkd=Distance(BlackKingSQ,H1);
+          wkd=Distance(WhiteKingSQ,H1);
+          if (bkd <= 1) can_win&=1;
+          pd=Distance(LastOne(BlackPawns&file_mask[FILEH]),H1);
+          if (wkd<(bkd+wtm) && wkd<=(pd+wtm)) can_win&=1;
+          continue;
+        }
+      }
+    }
+  } while (0);
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   if both sides have pawns, the game is not a draw for   |
+|   lack of material.  also, if one side has at least a    |
+|   B+N, then it's not a drawn position.                   |
+|                                                          |
+|   if one side has a rook, while the other side has a     |
+|   minor + pawns, then the rook can't possibly win.       |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  if (TotalWhitePawns && TotalBlackPawns) return(can_win);
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   if one side has two bishops, and the other side has    |
+|   a single kinght, the two bishops win.                  |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  if (TotalWhitePawns==0 && TotalWhitePieces==6 &&
+      TotalBlackPieces==3) {
+    if (WhiteKnights || !BlackKnights) can_win&=2;
+  }
+  else if (TotalBlackPawns==0 && TotalBlackPieces==6 &&
+      TotalWhitePieces==3) {
+    if (BlackKnights || !WhiteKnights) can_win&=1;
+  }
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   if one side has a rook and piece, while the other side |
+|   has a rook and pawn(s), the rook+piece can not win.    |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  if (TotalWhitePawns==0 && TotalWhitePieces==8 &&
+      TotalBlackPieces==5) can_win&=2;
+  if (TotalBlackPawns==0 && TotalBlackPieces==8 &&
+      TotalWhitePieces==5) can_win&=1;
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   if one side is only a piece ahead and has no pawns,    |
+|   and he only has one or two pieces left, then he can't  |
+|   win.                                                   |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  if (TotalWhitePawns==0 && TotalWhitePieces<=6 &&
+      TotalWhitePieces-TotalBlackPieces==3) can_win&=2;
+  if (TotalBlackPawns==0 && TotalBlackPieces<=6 &&
+      TotalBlackPieces-TotalWhitePieces==3) can_win&=1;
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   if one side is only a piece ahead and has no pawns,    |
+|   and he only has one or two pieces left, then he can't  |
+|   win.                                                   |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  return(can_win);
 }

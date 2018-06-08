@@ -5,7 +5,7 @@
 #include "data.h"
 #include "epdglue.h"
 
-/* last modified 01/03/01 */
+/* last modified 10/10/01 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -19,12 +19,11 @@
 ********************************************************************************
 */
 int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
-           int ply, int do_null) {
+           int ply, int do_null, int lp_extended, int lp_recapture) {
   register int moves_searched=0;
   register int o_alpha, value=0;
-  register int extensions, pieces;
+  register int extensions, extended, recapture, pieces;
   int mate_threat=0;
-  register int full_extension=ply<=2*iteration_depth;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -151,7 +150,6 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
  ----------------------------------------------------------
 */
   tree->in_check[ply+1]=0;
-  tree->extended_reason[ply+1]=no_extension;
   o_alpha=alpha;
   tree->last[ply]=tree->last[ply-1];
 /*
@@ -211,18 +209,20 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
       EnPassant(ply+1)=0;
     }
     null_depth=(depth>6*INCPLY && pieces>8) ? null_max : null_min;
-    if (depth-null_depth >= INCPLY)
-      value=-Search(tree,-beta,1-beta,ChangeSide(wtm),
-                    depth-null_depth,ply+1,NO_NULL);
-    else
-      value=-Quiesce(tree,-beta,1-beta,ChangeSide(wtm),ply+1);
-    HashKey=save_hash_key;
-    if (abort_search || tree->stop) return(0);
-    if (value >= beta) {
-      HashStore(tree,ply,depth,wtm,LOWER,value,mate_threat);
-      return(value);
+    if (null_depth) {
+      if (depth-null_depth >= INCPLY)
+        value=-Search(tree,-beta,1-beta,ChangeSide(wtm),
+                      depth-null_depth,ply+1,NO_NULL,0,0);
+      else
+        value=-Quiesce(tree,-beta,1-beta,ChangeSide(wtm),ply+1);
+      HashKey=save_hash_key;
+      if (abort_search || tree->stop) return(0);
+      if (value >= beta) {
+        HashStore(tree,ply,depth,wtm,LOWER,value,mate_threat);
+        return(value);
+      }
+      if (value == -MATE+ply+2) mate_threat=1;
     }
-    if (value == -MATE+ply+2) mate_threat=1;
   }
 /*
  ----------------------------------------------------------
@@ -249,13 +249,13 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
     }
     tree->current_move[ply]=0;
     if (depth-2*INCPLY >= INCPLY)
-      value=Search(tree,alpha,beta,wtm,depth-2*INCPLY,ply,DO_NULL);
+      value=Search(tree,alpha,beta,wtm,depth-2*INCPLY,ply,DO_NULL,0,0);
     else
       value=Quiesce(tree,alpha,beta,wtm,ply);
     if (abort_search || tree->stop) return(0);
     if (value <= alpha) {
       if (depth-2*INCPLY >= INCPLY)
-        value=Search(tree,-MATE,beta,wtm,depth-2*INCPLY,ply,DO_NULL);
+        value=Search(tree,-MATE,beta,wtm,depth-2*INCPLY,ply,DO_NULL,0,0);
       else
         value=Quiesce(tree,-MATE,beta,wtm,ply);
       if (abort_search || tree->stop) return(0);
@@ -286,61 +286,10 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
 */
   while ((tree->phase[ply]=(tree->in_check[ply]) ?
          NextEvasion(tree,ply,wtm) : NextMove(tree,ply,wtm))) {
-    tree->extended_reason[ply]&=check_extension;
 #if defined(TRACE)
     if (ply <= trace_level)
       SearchTrace(tree,ply,depth,wtm,alpha,beta,"Search",tree->phase[ply]);
 #endif
-/*
- ----------------------------------------------------------
-|                                                          |
-|   if the null move found that the side on move gets      |
-|   mated by not moving, then there must be some strong    |
-|   threat at this position.  extend the search to make    |
-|   sure it is analyzed carefully.                         |
-|                                                          |
- ----------------------------------------------------------
-*/
-    extensions=-60;
-    if (mate_threat) {
-      extensions+=(full_extension) ? mate_depth : mate_depth>>1;
-      tree->mate_extensions_done++;
-    }
-/*
- ----------------------------------------------------------
-|                                                          |
-|   if two successive moves are capture / re-capture so    |
-|   that the material score is restored, extend the search |
-|   by one ply on the re-capture since it is pretty much   |
-|   forced and easy to analyze.                            |
-|                                                          |
- ----------------------------------------------------------
-*/
-    if (Captured(tree->current_move[ply]) &&
-        Captured(tree->current_move[ply-1]) &&
-        To(tree->current_move[ply-1]) == To(tree->current_move[ply]) &&
-        (p_values[Captured(tree->current_move[ply-1])+7] == 
-         p_values[Captured(tree->current_move[ply])+7] ||
-         Promote(tree->current_move[ply-1])) &&
-        !(tree->extended_reason[ply-1]&recapture_extension)) {
-      tree->extended_reason[ply]|=recapture_extension;
-      tree->recapture_extensions_done++;
-      extensions+=(full_extension) ? recap_depth : recap_depth>>1;
-    }
-/*
- ----------------------------------------------------------
-|                                                          |
-|   if we push a passed pawn, we need to look deeper to    |
-|   see if it is a legitimate threat.                      |
-|                                                          |
- ----------------------------------------------------------
-*/
-    if (Piece(tree->current_move[ply])==pawn &&
-      push_extensions[To(tree->current_move[ply])]) {
-      tree->extended_reason[ply]|=passed_pawn_extension;
-      tree->passed_pawn_extensions_done++;
-      extensions+=(full_extension) ? pushpp_depth : pushpp_depth>>1;
-    }
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -363,15 +312,60 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
 |                                                          |
  ----------------------------------------------------------
 */
+      extended=0;
       if (Check(ChangeSide(wtm))) {
         tree->in_check[ply+1]=1;
-        tree->extended_reason[ply+1]=check_extension;
         tree->check_extensions_done++;
-        extensions+=(full_extension) ? incheck_depth : incheck_depth>>1;
+        extended+=incheck_depth;
       }
-      else {
-        tree->in_check[ply+1]=0;
-        tree->extended_reason[ply+1]=no_extension;
+      else tree->in_check[ply+1]=0;
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   if the null move found that the side on move gets      |
+|   mated by not moving, then there must be some strong    |
+|   threat at this position.  extend the search to make    |
+|   sure it is analyzed carefully.                         |
+|                                                          |
+ ----------------------------------------------------------
+*/
+      if (mate_threat) {
+        extended+=mate_depth;
+        tree->mate_extensions_done++;
+      }
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   if two successive moves are capture / re-capture so    |
+|   that the material score is restored, extend the search |
+|   by one ply on the re-capture since it is pretty much   |
+|   forced and easy to analyze.                            |
+|                                                          |
+ ----------------------------------------------------------
+*/
+      recapture=0;
+      if (!extended && Captured(tree->current_move[ply-1]) &&
+          To(tree->current_move[ply-1]) == To(tree->current_move[ply]) &&
+          (p_values[Captured(tree->current_move[ply-1])+7] == 
+           p_values[Captured(tree->current_move[ply])+7] ||
+           Promote(tree->current_move[ply-1])) &&
+          !lp_recapture) {
+        tree->recapture_extensions_done++;
+        extended+=recap_depth;
+        recapture=1;
+      }
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   if we push a passed pawn, we need to look deeper to    |
+|   see if it is a legitimate threat.                      |
+|                                                          |
+ ----------------------------------------------------------
+*/
+      if (Piece(tree->current_move[ply])==pawn &&
+        push_extensions[To(tree->current_move[ply])]) {
+        tree->passed_pawn_extensions_done++;
+        extended+=pushpp_depth;
       }
 /*
  ----------------------------------------------------------
@@ -383,9 +377,8 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
 */
       if (!moves_searched) {
         if (tree->in_check[ply] && tree->last[ply]-tree->last[ply-1] == 1) {
-          tree->extended_reason[ply]|=one_reply_extension;
           tree->one_reply_extensions_done++;
-          extensions+=(full_extension) ? onerep_depth : onerep_depth>>1;
+          extended+=onerep_depth;
         }
 /*
  ----------------------------------------------------------
@@ -395,10 +388,15 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
 |                                                          |
  ----------------------------------------------------------
 */
-        extensions=Min(extensions,0);
+        if (extended+lp_extended) {
+          int total=extended+lp_extended;
+          if (total > 2*INCPLY) extended=2*INCPLY-lp_extended;
+          if (ply > 2*iteration_depth) extended>>=1;
+        }
+        extensions=extended-INCPLY;
         if (depth+extensions >= INCPLY)
           value=-Search(tree,-beta,-alpha,ChangeSide(wtm),
-                        depth+extensions,ply+1,DO_NULL);
+                        depth+extensions,ply+1,DO_NULL,extended,recapture);
         else
           value=-Quiesce(tree,-beta,-alpha,ChangeSide(wtm),ply+1);
         if (abort_search || tree->stop) {
@@ -407,10 +405,15 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
         }
       }
       else {
-        extensions=Min(extensions,0);
+        if (extended+lp_extended) {
+          int total=extended+lp_extended;
+          if (total > 2*INCPLY) extended=2*INCPLY-lp_extended;
+          if (ply > 2*iteration_depth) extended>>=1;
+        }
+        extensions=extended-INCPLY;
         if (depth+extensions >= INCPLY)
           value=-Search(tree,-alpha-1,-alpha,ChangeSide(wtm),
-                        depth+extensions,ply+1,DO_NULL);
+                        depth+extensions,ply+1,DO_NULL,extended,recapture);
         else
           value=-Quiesce(tree,-alpha-1,-alpha,ChangeSide(wtm),ply+1);
         if (abort_search || tree->stop) {
@@ -420,7 +423,7 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
         if (value>alpha && value<beta) {
           if (depth+extensions >= INCPLY)
             value=-Search(tree,-beta,-alpha,ChangeSide(wtm),
-                          depth+extensions,ply+1,DO_NULL);
+                          depth+extensions,ply+1,DO_NULL,extended,recapture);
           else
             value=-Quiesce(tree,-beta,-alpha,ChangeSide(wtm),ply+1);
           if (abort_search || tree->stop) {
@@ -452,6 +455,8 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
       tree->ply=ply;
       tree->depth=depth;
       tree->mate_threat=mate_threat;
+      tree->lp_recapture=lp_recapture;
+      tree->lp_extended=lp_extended;
       if(Thread(tree)) {
         if (abort_search || tree->stop) return(0);
         if (CheckInput()) Interrupt(ply);

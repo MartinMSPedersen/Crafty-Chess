@@ -14,7 +14,7 @@
 /*
 *******************************************************************************
 *                                                                             *
-*  Crafty, copyright 1996-1999 by Robert M. Hyatt, Ph.D., Associate Professor *
+*  Crafty, copyright 1996-2001 by Robert M. Hyatt, Ph.D., Associate Professor *
 *  of Computer and Information Sciences, University of Alabama at Birmingham. *
 *                                                                             *
 *  All rights reserved.  No part of this program may be reproduced in any     *
@@ -2809,6 +2809,27 @@
 *           support was disabled.  it is now enabled as it should be.  some   *
 *           strange adjustements to root_alpha/root_beta were removed from    *
 *           searchr.c.  they were probably left-over from some sort of test.  *
+*                                                                             *
+*   18.12   bug in EvaluateDraws() fixed to not call KBB vs KN a draw if the  *
+*           correct tablebase is not available.  bishop pair scores now vary  *
+*           depending on how many pawns are left on the board.  a pair is not *
+*           worth a lot if there are 7-8 pawns left as most diagonals will be *
+*           blocked by pawns.  Test() modified so that it will now run using  *
+*           an EPD test suite with am/bm and id tags.  the old testfile for-  *
+*           mat will continue to work for a while, but Test() now notices the *
+*           EPD format and processes it correctly.  a new way of handling the *
+*           search extensions is in place.  with the old approach, one ply    *
+*           could not extend more than one full ply.  with the new approach,  *
+*           borrowed from Deep Blue, two consecutive plies can not extend     *
+*           more than two plies total.  It averages out to be the same, of    *
+*           course, but the effect is a bit different.  Now it is possible    *
+*           for a check and recapture to be applied at the same ply, where    *
+*           they could not before (since a check was already a full one-ply   *
+*           extension).  whether this is better or not is not clear yet, but  *
+*           it is worth careful analysis.  EvaluateDraws() has been replaced  *
+*           by EvaluateWinner().  This function returns an indicator that     *
+*           specifices whether white, black, both or neither can win in the   *
+*           present position.                                                 *
 *                                                                             *
 *******************************************************************************
 */

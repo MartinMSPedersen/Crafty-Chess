@@ -5,7 +5,7 @@
 #include "data.h"
 #include "epdglue.h"
 
-/* modified 01/10/01 */
+/* modified 10/10/01 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -21,7 +21,7 @@
 int SearchRoot(TREE *tree, int alpha, int beta, int wtm, int depth) {
   register int first_move=1;
   register int initial_alpha, value;
-  register int extensions, begin_root_nodes;
+  register int extensions, extended, begin_root_nodes;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -31,7 +31,6 @@ int SearchRoot(TREE *tree, int alpha, int beta, int wtm, int depth) {
  ----------------------------------------------------------
 */
   tree->in_check[2]=0;
-  tree->extended_reason[2]=no_extension;
   initial_alpha=alpha;
   tree->in_check[1]=Check(wtm);
   tree->next_status[1].phase=ROOT_MOVES;
@@ -47,26 +46,10 @@ int SearchRoot(TREE *tree, int alpha, int beta, int wtm, int depth) {
  ----------------------------------------------------------
 */
   while ((tree->phase[1]=NextRootMove(tree,tree,wtm))) {
-    tree->extended_reason[1]=0;
 #if defined(TRACE)
     if (1 <= trace_level)
       SearchTrace(tree,1,depth,wtm,alpha,beta,"SearchRoot",tree->phase[1]);
 #endif
-/*
- ----------------------------------------------------------
-|                                                          |
-|   if we push a pawn to the 7th rank, we need to look     |
-|   deeper to see if it can promote.                       |
-|                                                          |
- ----------------------------------------------------------
-*/
-    extensions=-60;
-    if (Piece(tree->current_move[1])==pawn &&
-      push_extensions[To(tree->current_move[1])]) {
-      tree->extended_reason[1]|=passed_pawn_extension;
-      tree->passed_pawn_extensions_done++;
-      extensions+=pushpp_depth;
-    }
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -84,15 +67,25 @@ int SearchRoot(TREE *tree, int alpha, int beta, int wtm, int depth) {
 |                                                          |
  ----------------------------------------------------------
 */
+    extended=0;
     if (Check(ChangeSide(wtm))) {
       tree->in_check[2]=1;
-      tree->extended_reason[2]=check_extension;
       tree->check_extensions_done++;
-      extensions+=incheck_depth;
+      extended+=incheck_depth;
     }
-    else {
-      tree->in_check[2]=0;
-      tree->extended_reason[2]=no_extension;
+    else tree->in_check[2]=0;
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   if we push a pawn to the 7th rank, we need to look     |
+|   deeper to see if it can promote.                       |
+|                                                          |
+ ----------------------------------------------------------
+*/
+    if (Piece(tree->current_move[1])==pawn &&
+      push_extensions[To(tree->current_move[1])]) {
+      tree->passed_pawn_extensions_done++;
+      extended+=pushpp_depth;
     }
 /*
  ----------------------------------------------------------
@@ -102,11 +95,12 @@ int SearchRoot(TREE *tree, int alpha, int beta, int wtm, int depth) {
  ----------------------------------------------------------
 */
     begin_root_nodes=tree->nodes_searched;
-    extensions=Min(extensions,0);
+    if (extended > 2*INCPLY) extended=2*INCPLY;
+    extensions=extended-INCPLY;
     if (first_move) {
       if (depth+extensions >= INCPLY)
         value=-Search(tree,-beta,-alpha,ChangeSide(wtm),
-                      depth+extensions,2,DO_NULL);
+                      depth+extensions,2,DO_NULL,extended,0);
       else
         value=-Quiesce(tree,-beta,-alpha,ChangeSide(wtm),2);
       if (abort_search) {
@@ -118,7 +112,7 @@ int SearchRoot(TREE *tree, int alpha, int beta, int wtm, int depth) {
     else {
       if (depth+extensions >= INCPLY)
         value=-Search(tree,-alpha-1,-alpha,ChangeSide(wtm),
-                      depth+extensions,2,DO_NULL);
+                      depth+extensions,2,DO_NULL,extended,0);
       else
         value=-Quiesce(tree,-alpha-1,-alpha,ChangeSide(wtm),2);
       if (abort_search) {
@@ -128,7 +122,7 @@ int SearchRoot(TREE *tree, int alpha, int beta, int wtm, int depth) {
       if ((value > alpha) && (value < beta)) {
       if (depth+extensions >= INCPLY)
         value=-Search(tree,-beta,-alpha,ChangeSide(wtm),
-                      depth+extensions,2,DO_NULL);
+                      depth+extensions,2,DO_NULL,extended,0);
       else
         value=-Quiesce(tree,-beta,-alpha,ChangeSide(wtm),2);
         if (abort_search) {
@@ -159,6 +153,8 @@ int SearchRoot(TREE *tree, int alpha, int beta, int wtm, int depth) {
       tree->ply=1;
       tree->depth=depth;
       tree->mate_threat=0;
+      tree->lp_recapture=0;
+      tree->lp_extended=0;
       if(Thread(tree)) {
         if (abort_search || tree->stop) return(0);
         if (CheckInput()) Interrupt(1);

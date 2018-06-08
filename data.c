@@ -250,7 +250,7 @@
   unsigned int   max_split_blocks;
   volatile unsigned int   splitting;
 
-# define    VERSION                            "18.11"
+# define    VERSION                            "18.12"
   char      version[6] =                    {VERSION};
   PLAYING_MODE mode =                     normal_mode;
 
@@ -776,6 +776,11 @@
                                0, 30, 30, 30,-10,-30,-50,-70,
                              -10,  0,  0,  0,-20,-30,-50,-70,
                              -30,-30,-30,-30,-30,-50,-70,-90};
+
+/*  score for bishop pair varies depending on how many pawns are
+    on the board (0-8)                                           */
+
+  signed char    bishop_pair[9] = {20, 20, 20, 20, 20, 20, 20, 15, 8};
 
 /* note that black piece/square values are copied from white, but
    reflected */

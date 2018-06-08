@@ -4,7 +4,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 10/20/99 */
+/* last modified 10/17/01 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -63,28 +63,53 @@ int Quiesce(TREE *tree, int alpha, int beta, int wtm, int ply) {
  ----------------------------------------------------------
 */
   tree->last[ply]=GenerateCaptures(tree, ply, wtm, tree->last[ply-1]);
-  delta=alpha-100-(wtm?Material:-Material);
+  delta=alpha-largest_positional_score-(wtm?Material:-Material);
   goodmv=tree->last[ply-1];
   sortv=tree->sort_value;
-  for (movep=tree->last[ply-1];movep<tree->last[ply];movep++)
-    if (p_values[Captured(*movep)+7]+p_values[Promote(*movep)+7] >= delta) {
-      if (Captured(*movep) == king) return(beta);
-      if (p_values[Piece(*movep)+7] < p_values[Captured(*movep)+7] ||
-          (p_values[Piece(*movep)+7] <= p_values[Captured(*movep)+7] &&
-           delta<=0)) {
-        *goodmv++=*movep;
-        *sortv++=p_values[Captured(*movep)+7];
-        moves++;
-      }
-      else {
-        temp=Swap(tree,From(*movep),To(*movep),wtm);
-        if (temp >= 0) {
-          *sortv++=temp;
+  for (movep=tree->last[ply-1];movep<tree->last[ply];movep++) {
+    if (((wtm)?TotalBlackPieces:TotalWhitePieces) > 12) {
+      if (p_values[Captured(*movep)+7]+p_values[Promote(*movep)+7] >= delta) {
+        if (Captured(*movep) == king) return(beta);
+        if (p_values[Piece(*movep)+7] < p_values[Captured(*movep)+7] ||
+            (p_values[Piece(*movep)+7] <= p_values[Captured(*movep)+7] &&
+             delta<=0)) {
           *goodmv++=*movep;
+          *sortv++=p_values[Captured(*movep)+7];
           moves++;
+        }
+        else {
+          temp=Swap(tree,From(*movep),To(*movep),wtm);
+          if (temp >= 0) {
+            *sortv++=temp;
+            *goodmv++=*movep;
+            moves++;
+          }
         }
       }
     }
+    else {
+      int val=(wtm)?TotalBlackPieces:TotalWhitePieces;
+      if (p_values[Captured(*movep)+7]+p_values[Promote(*movep)+7]>=delta ||
+          val-p_values[Captured(*movep)+7]<=bishop_v) {
+        if (Captured(*movep) == king) return(beta);
+        if (p_values[Piece(*movep)+7] < p_values[Captured(*movep)+7] ||
+            (p_values[Piece(*movep)+7] <= p_values[Captured(*movep)+7] &&
+             delta<=0)) {
+          *goodmv++=*movep;
+          *sortv++=p_values[Captured(*movep)+7];
+          moves++;
+        }
+        else {
+          temp=Swap(tree,From(*movep),To(*movep),wtm);
+          if (temp >= 0) {
+            *sortv++=temp;
+            *goodmv++=*movep;
+            moves++;
+          }
+        }
+      }
+    }
+  }
 /*
  ----------------------------------------------------------
 |                                                          |

@@ -5,7 +5,7 @@
 #include "data.h"
 #include "epdglue.h"
 
-/* modified 10/18/99 */
+/* modified 10/10/01 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -20,9 +20,9 @@
 */
 #if defined(SMP)
 int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
-              int depth, int ply, int mate_threat) {
-  register int extensions, begin_root_nodes;
-  register int full_extension=ply<=2*iteration_depth;
+              int depth, int ply, int mate_threat, int lp_extended,
+              int lp_recapture) {
+  register int extensions, extended, recapture, begin_root_nodes;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -47,61 +47,11 @@ int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
     tree->current_move[ply]=tree->parent->current_move[ply];
     UnLock(tree->parent->lock);
     if (!tree->phase[ply]) break;
-    tree->extended_reason[ply]&=check_extension;
+    extended=0;
 #if defined(TRACE)
     if (ply <= trace_level)
       SearchTrace(tree,ply,depth,wtm,alpha,beta,"SearchSMP",tree->phase[ply]);
 #endif
-/*
- ----------------------------------------------------------
-|                                                          |
-|   if the null move found that the side on move gets      |
-|   mated by not moving, then there must be some strong    |
-|   threat at this position.  extend the search to make    |
-|   sure it is analyzed carefully.                         |
-|                                                          |
- ----------------------------------------------------------
-*/
-    extensions=-60;
-    if (mate_threat) {
-      extensions+=mate_depth;
-      tree->mate_extensions_done++;
-    }
-/*
- ----------------------------------------------------------
-|                                                          |
-|   if two successive moves are capture / re-capture so    |
-|   that the material score is restored, extend the search |
-|   by one ply on the re-capture since it is pretty much   |
-|   forced and easy to analyze.                            |
-|                                                          |
- ----------------------------------------------------------
-*/
-    if (ply>1 && Captured(tree->current_move[ply]) &&
-        Captured(tree->current_move[ply-1]) &&
-        To(tree->current_move[ply-1]) == To(tree->current_move[ply]) &&
-        (p_values[Captured(tree->current_move[ply-1])+7] == 
-         p_values[Captured(tree->current_move[ply])+7] ||
-         Promote(tree->current_move[ply-1])) &&
-        !(tree->extended_reason[ply-1]&recapture_extension)) {
-      tree->extended_reason[ply]|=recapture_extension;
-      tree->recapture_extensions_done++;
-      extensions+=(full_extension) ? recap_depth : recap_depth>>1;
-    }
-/*
- ----------------------------------------------------------
-|                                                          |
-|   if we push a passed pawn, we need to look deeper to    |
-|   see if it is a legitimate threat.                      |
-|                                                          |
- ----------------------------------------------------------
-*/
-    if (Piece(tree->current_move[ply])==pawn &&
-      push_extensions[To(tree->current_move[ply])]) {
-      tree->extended_reason[ply]|=passed_pawn_extension;
-      tree->passed_pawn_extensions_done++;
-      extensions+=(full_extension) ? pushpp_depth : pushpp_depth>>1;
-    }
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -126,13 +76,58 @@ int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
 */
       if (Check(ChangeSide(wtm))) {
         tree->in_check[ply+1]=1;
-        tree->extended_reason[ply+1]=check_extension;
         tree->check_extensions_done++;
-        extensions+=(full_extension) ? incheck_depth : incheck_depth>>1;
+        extended+=incheck_depth;
       }
-      else {
-        tree->in_check[ply+1]=0;
-        tree->extended_reason[ply+1]=no_extension;
+      else tree->in_check[ply+1]=0;
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   if the null move found that the side on move gets      |
+|   mated by not moving, then there must be some strong    |
+|   threat at this position.  extend the search to make    |
+|   sure it is analyzed carefully.                         |
+|                                                          |
+ ----------------------------------------------------------
+*/
+      if (mate_threat) {
+        extended+=mate_depth;
+        tree->mate_extensions_done++;
+      }
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   if two successive moves are capture / re-capture so    |
+|   that the material score is restored, extend the search |
+|   by one ply on the re-capture since it is pretty much   |
+|   forced and easy to analyze.                            |
+|                                                          |
+ ----------------------------------------------------------
+*/
+      recapture=0;
+      if (ply>1 && Captured(tree->current_move[ply]) &&
+          Captured(tree->current_move[ply-1]) &&
+          To(tree->current_move[ply-1]) == To(tree->current_move[ply]) &&
+          (p_values[Captured(tree->current_move[ply-1])+7] == 
+           p_values[Captured(tree->current_move[ply])+7] ||
+           Promote(tree->current_move[ply-1])) &&
+          !lp_recapture) {
+        tree->recapture_extensions_done++;
+        extended+=recap_depth;
+        recapture=1;
+      }
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   if we push a passed pawn, we need to look deeper to    |
+|   see if it is a legitimate threat.                      |
+|                                                          |
+ ----------------------------------------------------------
+*/
+      if (Piece(tree->current_move[ply])==pawn &&
+        push_extensions[To(tree->current_move[ply])]) {
+        tree->passed_pawn_extensions_done++;
+        extended+=pushpp_depth;
       }
 /*
  ----------------------------------------------------------
@@ -143,10 +138,15 @@ int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
  ----------------------------------------------------------
 */
       begin_root_nodes=tree->nodes_searched;
-      extensions=Min(extensions,0);
+      if (extended+lp_extended) {
+        int total=extended+lp_extended;
+        if (total > 2*INCPLY) extended=2*INCPLY-lp_extended;
+        if (ply > 2*iteration_depth) extended>>=1;
+      }
+      extensions=extended-INCPLY;
       if (depth+extensions >= INCPLY)
         value=-Search(tree,-alpha-1,-alpha,ChangeSide(wtm),
-                      depth+extensions,ply+1,DO_NULL);
+                      depth+extensions,ply+1,DO_NULL,extended,recapture);
       else
         value=-Quiesce(tree,-alpha-1,-alpha,ChangeSide(wtm),ply+1);
       if (abort_search || tree->stop) {
@@ -156,7 +156,7 @@ int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
       if (value>alpha && value<beta) {
         if (depth+extensions >= INCPLY)
           value=-Search(tree,-beta,-alpha,ChangeSide(wtm),
-                        depth+extensions,ply+1,DO_NULL);
+                        depth+extensions,ply+1,DO_NULL,extended,recapture);
         else
           value=-Quiesce(tree,-beta,-alpha,ChangeSide(wtm),ply+1);
         if (abort_search || tree->stop) {

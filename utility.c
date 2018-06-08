@@ -2236,10 +2236,9 @@ TREE* CopyToSMP(TREE *p) {
     c->replist_b[i]=p->replist_b[i];
   c->last[p->ply]=c->move_list;
   c->hash_move[p->ply]=p->hash_move[p->ply];
-  for (i=1;i<=p->ply;i++) {
+  for (i=1;i<=p->ply+1;i++) {
     c->position[i]=p->position[i];
     c->current_move[i]=p->current_move[i];
-    c->extended_reason[i]=p->extended_reason[i];
     c->in_check[i]=p->in_check[i];
     c->phase[i]=p->phase[i];
   }

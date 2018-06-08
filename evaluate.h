@@ -47,7 +47,6 @@
 #  define           BISHOP_PLUS_PAWNS_ON_COLOR           (4)
 #  define           BISHOP_OVER_KNIGHT_ENDGAME          (30)
 #  define                      BISHOP_MOBILITY           (3)
-#  define                          BISHOP_PAIR          (10)
 #  define                   BISHOP_KING_SAFETY          (10)
   
 #  define                          ROOK_ON_7TH          (30)

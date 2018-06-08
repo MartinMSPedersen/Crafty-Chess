@@ -293,6 +293,8 @@
   extern signed char    king_defects_w[64];
   extern signed char    king_defects_b[64];
 
+  extern signed char    bishop_pair[9];
+
   extern const char     b_n_mate_dark_squares[64];
   extern const char     b_n_mate_light_squares[64];
   extern const char     mate[64];
