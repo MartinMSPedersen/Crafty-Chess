@@ -5,8 +5,8 @@
 
 void ValidatePosition(TREE * RESTRICT tree, int ply, int move, char *caller)
 {
-  BITBOARD temp, temp1, temp_occ, temp_occ_rr90, temp_occ_rl45;
-  BITBOARD temp_occ_rr45, temp_occx;
+  BITBOARD temp, temp1, temp_occ;
+  BITBOARD temp_occx;
   int i, square, error;
   int temp_score;
 
@@ -28,34 +28,6 @@ void ValidatePosition(TREE * RESTRICT tree, int ply, int move, char *caller)
   if (BlackPieces ^ temp_occ) {
     Print(128, "ERROR black occupied squares is bad!\n");
     Display2BitBoards(temp_occ, BlackPieces);
-    error = 1;
-  }
-/*
- now test rotated occupied bitboards.
- */
-  temp_occ_rr90 = 0;
-  temp_occ_rl45 = 0;
-  temp_occ_rr45 = 0;
-  for (i = 0; i < 64; i++) {
-    if (PcOnSq(i)) {
-      temp_occ_rr90 = temp_occ_rr90 | SetMaskRR90(i);
-      temp_occ_rl45 = temp_occ_rl45 | SetMaskRL45(i);
-      temp_occ_rr45 = temp_occ_rr45 | SetMaskRR45(i);
-    }
-  }
-  if (OccupiedRR90 ^ temp_occ_rr90) {
-    Print(128, "ERROR occupied squares (rotated left 90) is bad!\n");
-    Display2BitBoards(temp_occ_rr90, OccupiedRR90);
-    error = 1;
-  }
-  if (OccupiedRL45 ^ temp_occ_rl45) {
-    Print(128, "ERROR occupied squares (rotated left 45) is bad!\n");
-    Display2BitBoards(temp_occ_rl45, OccupiedRL45);
-    error = 1;
-  }
-  if (OccupiedRR45 ^ temp_occ_rr45) {
-    Print(128, "ERROR occupied squares (rotated right 45) is bad!\n");
-    Display2BitBoards(temp_occ_rr45, OccupiedRR45);
     error = 1;
   }
 /*

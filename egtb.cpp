@@ -13,10 +13,6 @@
 #define T_INDEX64
 #define  XX  127
 
-#if !defined(SMP) && !defined(SUN)
-#define  lock_t int
-#endif
-
 #if defined (T_INDEX64) && defined (_MSC_VER)
 typedef unsigned __int64 INDEX;
 #elif defined (T_INDEX64)
@@ -84,12 +80,6 @@ typedef int piece;
 #  define   NDEBUG
 #endif
 #include <assert.h>
-
-// SMP stuff
-
-#if defined (CPUS) && !defined (SMP) && (CPUS > 1)
-#  error Cannot use CPUS > 1 without SMP defined
-#endif
 
 static	lock_t	lockLRU;
 
@@ -4487,7 +4477,7 @@ public:
 #  define   CPUS    1
 #endif
 
-#if defined (SMP)
+#if (CPUS > 1)
   static    lock_t  lockDecode;
 #endif
 extern "C" int TB_CRC_CHECK = 0;
@@ -4519,7 +4509,7 @@ struct CTbCache;
 
 typedef struct      // Hungarian: tbcb
     {
-#if defined (SMP)
+#if (CPUS > 1)
     lock_t                       m_lock;            // Lock on this cache bucket list
 #endif
     volatile CTbCache * volatile m_ptbcFirst;   // Cached file chunks in LRU order
@@ -4536,7 +4526,7 @@ typedef struct      // Hungarian: tbd
     char            m_rgchName[MAX_TOTAL_PIECES+1];
     INDEX           m_rgcbLength[2];
     char            *m_rgpchFileName[2][MAX_EXTENTS];
-#if defined (SMP)
+#if (CPUS > 1)
     lock_t          m_rglockFiles[2];
 #endif
     FILE            *m_rgfpFiles[2][MAX_EXTENTS];
@@ -5455,12 +5445,12 @@ void VTbClearCache (void)
             prgtbcbBuckets = rgtbdDesc[iTb].m_prgtbcbBuckets[sd];
             if (NULL != prgtbcbBuckets)
                 {
-#if defined (SMP)
+#if (CPUS > 1)
                 for (i = 0; i < TB_DIRECTORY_SIZE; i ++)
                     LockFree (prgtbcbBuckets[i].m_lock);
 #endif
                 memset (prgtbcbBuckets, 0, TB_DIRECTORY_SIZE * sizeof (CTbCacheBucket));
-#if defined (SMP)
+#if (CPUS > 1)
                 for (i = 0; i < TB_DIRECTORY_SIZE; i ++)
                     LockInit (prgtbcbBuckets[i].m_lock);
 #endif
@@ -5817,7 +5807,7 @@ static int TB_FASTCALL TbtProbeTable
         color    colorTail;
 
         assert (NULL != ptbcTail);
-#if defined (SMP)
+#if (CPUS > 1)
         // "Optimistic" model - assuming that there is low content
         // (not hundreds of threads)
         for (;;)
@@ -6009,7 +5999,7 @@ static int TB_FASTCALL TbtProbeTable
         decode_block    *block;
         decode_info     *info = ptbd->m_rgpdiDecodeInfo[side][iExtent];
 
-#if defined (SMP)
+#if (CPUS > 1)
         // Find free decode block
         decode_block    **pBlock;
 
@@ -6036,7 +6026,7 @@ static int TB_FASTCALL TbtProbeTable
             fWasError |= (0 != comp_decode_and_check_crc (block, info, block->orig.size, TB_CRC_CHECK));
 
         // Release block
-#if defined (SMP)
+#if (CPUS > 1)
         Lock (lockDecode);
         *pBlock = block;
         Unlock (lockDecode);
@@ -6530,7 +6520,7 @@ static int FCheckExtentExistance
             {
             prgtbcbBuckets = (CTbCacheBucket*) PvMalloc (TB_DIRECTORY_SIZE*sizeof(CTbCacheBucket));
             memset (prgtbcbBuckets, 0, TB_DIRECTORY_SIZE*sizeof(CTbCacheBucket));
-#if defined (SMP)
+#if (CPUS > 1)
             for (int i = 0; i < TB_DIRECTORY_SIZE; i ++)
                 LockInit (prgtbcbBuckets[i].m_lock);
 #endif
@@ -6605,7 +6595,7 @@ extern "C" int IInitializeTb
     cbAllocated = cbEGTBCompBytes = 0;
     // If there are open files, close those
     VTbCloseFiles ();
-#if defined (SMP)
+#if (CPUS > 1)
     // Init all locks
     LockInit (lockLRU);
     LockInit (lockDecode);
@@ -6630,7 +6620,7 @@ extern "C" int IInitializeTb
                 NULL == rgtbdDesc[iTb].m_rgpbRead[sd])
                 {
                 prgtbcbBuckets = rgtbdDesc[iTb].m_prgtbcbBuckets[sd];
-#if defined (SMP)
+#if (CPUS > 1)
                 for (i = 0; i < TB_DIRECTORY_SIZE; i ++)
                     LockFree (prgtbcbBuckets[i].m_lock);
 #endif

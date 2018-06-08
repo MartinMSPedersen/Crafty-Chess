@@ -1733,7 +1733,8 @@ int Read(int wait, char *buffer)
     }
 
   eol = strchr(cmd_buffer, '\n');
-  *eol = 0;
+  if (eol)
+    *eol = 0;
   ret = strchr(cmd_buffer, '\r');
   if (ret)
     *ret = ' ';

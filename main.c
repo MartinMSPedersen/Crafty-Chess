@@ -3510,6 +3510,11 @@
  *           are now recognized and each side is penalized according to the    *
  *           number of islands he has, more being worse.                       *
  *                                                                             *
+ *   21.3    "magic" move generation is now used, which eliminates the rotated *
+ *           bitboard approach completely.  not a significant speed change,    *
+ *           but it is far simpler overall.  Original code by Pradu Kannan as  *
+ *           posted on CCC/Winboard forums, modified to work with Crafty.      *
+ *                                                                             *
  *******************************************************************************
  */
 int main(int argc, char **argv)
@@ -3529,16 +3534,6 @@ int main(int argc, char **argv)
 #endif
 /* Collect environmental variables */
   char *directory_spec = getenv("CRAFTY_BOOK_PATH");
-
-#if defined(NUMA) && defined(LINUX)
-  if (numa_available() >= 0) {
-    unsigned long cpus[8];
-
-    numa_node_to_cpus(0, cpus, 64);
-    printf("\nMachine is NUMA, %d nodes (%d cpus/node)\n\n",
-        numa_max_node() + 1, PopCnt(cpus[0]));
-  }
-#endif
 
   shared = SharedMalloc(sizeof(SHARED), 0);
   if (directory_spec)
@@ -3594,6 +3589,56 @@ int main(int argc, char **argv)
 /*
  ************************************************************
  *                                                          *
+ *   now, read the crafty.rc/.craftyrc initialization file  *
+ *   and process the commands that need to be handled prior *
+ *   to initializing things (path commands).                *
+ *                                                          *
+ ************************************************************
+ */
+#if defined(UNIX)
+  input_stream = fopen(".craftyrc", "r");
+  if (!input_stream)
+    if ((pwd = getpwuid(getuid()))) {
+      sprintf(path, "%s/.craftyrc", pwd->pw_dir);
+      input_stream = fopen(path, "r");
+    }
+  if (input_stream)
+#else
+  sprintf(crafty_rc_file_spec, "%s/crafty.rc", rc_path);
+  if ((input_stream = fopen(crafty_rc_file_spec, "r")))
+#endif
+    while (1) {
+      readstat = Read(1, buffer);
+      if (readstat < 0)
+        break;
+      if (!strstr(buffer, "path"))
+        continue;
+      result = Option(tree);
+      if (result == 0)
+        printf("ERROR \"%s\" is unknown rc-file option\n", buffer);
+      if (input_stream == stdin)
+        break;
+    }
+/*
+ ************************************************************
+ *                                                          *
+ *   if NUMA is enabled, report on the current machine      *
+ *   configuration.                                         *
+ *                                                          *
+ ************************************************************
+ */
+#if defined(NUMA) && defined(LINUX)
+  if (numa_available() >= 0) {
+    unsigned long cpus[8];
+
+    numa_node_to_cpus(0, cpus, 64);
+    printf("\nMachine is NUMA, %d nodes (%d cpus/node)\n\n",
+        numa_max_node() + 1, PopCnt(cpus[0]));
+  }
+#endif
+/*
+ ************************************************************
+ *                                                          *
  *   initialize chess board to starting position.           *
  *                                                          *
  ************************************************************
@@ -3625,7 +3670,8 @@ int main(int argc, char **argv)
  ************************************************************
  *                                                          *
  *   now, read the crafty.rc/.craftyrc initialization file  *
- *   and process the commands.                              *
+ *   and process the commands that need to be handled after *
+ *   engine initialization has been completed.              *
  *                                                          *
  ************************************************************
  */
@@ -3643,18 +3689,10 @@ int main(int argc, char **argv)
 #endif
     while (1) {
       readstat = Read(1, buffer);
-      if (readstat) {
-        char *delim;
-
-        delim = strchr(buffer, '\n');
-        if (delim)
-          *delim = 0;
-        delim = strchr(buffer, '\r');
-        if (delim)
-          *delim = ' ';
-      }
       if (readstat < 0)
         break;
+      if (strstr(buffer, "path"))
+        continue;
       result = Option(tree);
       if (result == 0)
         printf("ERROR \"%s\" is unknown rc-file option\n", buffer);
@@ -3770,7 +3808,7 @@ int main(int argc, char **argv)
  ************************************************************
  *                                                          *
  *   make the move (using internal form returned by         *
- *   InputMove() and then complement wtm (white to move).   *
+ *   InputMove() and then change the side on move (wtm).    *
  *                                                          *
  ************************************************************
  */

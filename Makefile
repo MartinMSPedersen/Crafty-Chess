@@ -61,9 +61,6 @@
 #   -DPOWERPC      N  enables PPC spinlock inline function for SMP boxes only
 #   -DRCDIR        N  path to the directory where we look for the .craftyrc or
 #                     crafty.rc (windows) file.
-#   -DSMP          N  enables SMP support (not clustering).  If you choose
-#                     this option, you need to look closely at the following
-#                     two options as well.
 #   -DTBDIR        N  path to the directory where the endgame tablebase files
 #                     are found.  default = "./TB"
 #   -DTRACE        N  This enables the "trace" command so that the search tree
@@ -136,11 +133,11 @@ darwin:
 darwinG5:
 	$(MAKE) target=LINUX \
 		CC=gcc CXX=g++ \
-		CFLAGS='$(CFLAGS) -Wall -pipe -D_REENTRANT -O3 -mcpu=G5 \
+		CFLAGS='$(CFLAGS) -Wall -pipe -O3 -mcpu=G5 \
 			-mtune=G5 -fomit-frame-pointer -fast' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS='$(LDFLAGS) -lstdc++' \
-		opt='$(opt) -DSMP -DCPUS=4 -DPOWERPC' \
+		opt='$(opt) -DCPUS=4 -DPOWERPC' \
 		crafty-make
 	
 freebsd:
@@ -155,7 +152,7 @@ freebsd:
 freebsd-pgcc:
 	$(MAKE) target=FreeBSD \
 		CC=gcc CXX='$(CC)' \
-		CFLAGS='$(CFLAGS) -pipe -D_REENTRANT -mpentium -O -Wall' \
+		CFLAGS='$(CFLAGS) -pipe -mpentium -O -Wall' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS=$(LDFLAGS) \
 		opt='$(opt) -DINLINE32' \
@@ -172,67 +169,67 @@ hpux:
 linux-amd64-profile:
 	$(MAKE) target=LINUX \
 		CC=gcc CXX=g++ \
-                CFLAGS='$(CFLAGS) -Wall -pipe -D_REENTRANT \
+                CFLAGS='$(CFLAGS) -Wall -pipe \
                         -fprofile-arcs -fomit-frame-pointer -O3 -march=k8' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS='$(LDFLAGS) -lnuma -fprofile-arcs -lstdc++' \
-		opt='$(opt) -DINLINE64 -DSMP -DCPUS=8 -DNUMA -DLIBNUMA' \
+		opt='$(opt) -DINLINE64 -DCPUS=8 -DNUMA -DLIBNUMA' \
 		crafty-make
 
 linux-amd64:
 	$(MAKE) target=LINUX \
 		CC=gcc CXX=g++ \
-                CFLAGS='$(CFLAGS) -Wall -pipe -D_REENTRANT \
+                CFLAGS='$(CFLAGS) -Wall -pipe \
                 -fbranch-probabilities -fomit-frame-pointer -O3 -march=k8' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS='$(LDFLAGS) -lnuma -lstdc++' \
-		opt='$(opt) -DINLINE64 -DSMP -DCPUS=8 -DNUMA -DLIBNUMA' \
+		opt='$(opt) -DINLINE64 -DCPUS=8 -DNUMA -DLIBNUMA' \
 		crafty-make
 
 linux:
 	$(MAKE) target=LINUX \
 		CC=gcc CXX=g++ \
-		CFLAGS='$(CFLAGS) -Wall -pipe -D_REENTRANT -march=i686 -O3 \
+		CFLAGS='$(CFLAGS) -Wall -pipe -march=i686 -O3 \
 			-fbranch-probabilities -fforce-mem -fomit-frame-pointer\
 			-fno-gcse -mpreferred-stack-boundary=2' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS='$(LDFLAGS) -lstdc++' \
-		opt='$(opt) -DINLINE32 -DSMP -DCPUS=2' \
+		opt='$(opt) -DINLINE32 -DCPUS=2' \
 		crafty-make
 
 linux-profile:
 	$(MAKE) target=LINUX \
 		CC=gcc CXX=g++ \
-		CFLAGS='$(CFLAGS) -Wall -pipe -D_REENTRANT -march=i686 -O3 \
+		CFLAGS='$(CFLAGS) -Wall -pipe -march=i686 -O3 \
 			-fprofile-arcs -fforce-mem -fomit-frame-pointer \
 			-fno-gcse -mpreferred-stack-boundary=2' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS='$(LDFLAGS) -fprofile-arcs -lstdc++ ' \
-		opt='$(opt) -DINLINE32 -DSMP -DCPUS=2' \
+		opt='$(opt) -DINLINE32 -DCPUS=2' \
 		crafty-make
 
 linux-icc:
 	$(MAKE) target=LINUX \
 		CC=icc CXX=icc \
-		CFLAGS='$(CFLAGS) -D_REENTRANT -O2 \
+		CFLAGS='$(CFLAGS) -O2 \
 			-xN -prof_use -prof_dir ./profdir \
 			-Ob2 -fno-alias' \
-		CXFLAGS='$(CFLAGS) -D_REENTRANT -O2 \
+		CXFLAGS='$(CFLAGS) -O2 \
 			-w -xN -prof_use -prof_dir ./profdir' \
 		LDFLAGS='$(LDFLAGS) -lstdc++' \
-		opt='$(opt) -DTEST -DINLINE32 -DSMP -DCPUS=2' \
+		opt='$(opt) -DTEST -DINLINE32 -DCPUS=2' \
 		crafty-make
 
 linux-icc-profile:
 	$(MAKE) target=LINUX \
 		CC=icc CXX=icc \
-		CFLAGS='$(CFLAGS) -D_REENTRANT -O2 \
+		CFLAGS='$(CFLAGS) -O2 \
 			-xN -prof_genx -prof_dir ./profdir \
 			-Ob2 -fno-alias' \
-		CXFLAGS='$(CFLAGS) -D_REENTRANT -O2 \
+		CXFLAGS='$(CFLAGS) -O2 \
 			-w -xN -prof_genx -prof_dir ./profdir' \
 		LDFLAGS='$(LDFLAGS) -lstdc++ ' \
-		opt='$(opt) -DTEST -DINLINE32 -DSMP -DCPUS=2' \
+		opt='$(opt) -DTEST -DINLINE32 -DCPUS=2' \
 		crafty-make
 
 linux-alpha:
@@ -248,7 +245,7 @@ linux-alpha:
 netbsd:
 	$(MAKE) target=NetBSD \
 		CC=gcc CXX=g++ \
-		CFLAGS='$(CFLAGS) -D_REENTRANT -O3 -Wall \
+		CFLAGS='$(CFLAGS) -O3 -Wall \
 			-fomit-frame-pointer -funroll-all-loops \
 			-finline-functions -ffast-math' \
 		CXFLAGS=$(CFLAGS) \
@@ -259,7 +256,7 @@ netbsd:
 netbsd-i386:
 	$(MAKE) target=NetBSD \
 		CC=gcc CXX=g++ \
-		CFLAGS='$(CFLAGS) -D_REENTRANT -O3 -Wall -m486 \
+		CFLAGS='$(CFLAGS) -O3 -Wall -m486 \
 			-fomit-frame-pointer -funroll-all-loops \
 			-finline-functions -ffast-math' \
 		CXFLAGS=$(CFLAGS) \
@@ -270,7 +267,7 @@ netbsd-i386:
 netbsd-sparc:
 	$(MAKE) target=NetBSD \
 		CC=gcc CXX=g++ \
-		CFLAGS='$(CFLAGS) -D_REENTRANT -O3 -Wall \
+		CFLAGS='$(CFLAGS) -O3 -Wall \
 			-fomit-frame-pointer -funroll-all-loops \
 			-finline-functions -ffast-math' \
 		CXFLAGS=$(CFLAGS) \
@@ -309,7 +306,7 @@ solaris:
 solaris-gcc:
 	$(MAKE) target=SUN \
 		CC=gcc CXX=g++ \
-		CFLAGS='$(CFLAGS) -Wall -pipe -D_REENTRANT -O2 \
+		CFLAGS='$(CFLAGS) -Wall -pipe -O2 \
 			-fforce-mem -fomit-frame-pointer' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS='$(LDFLAGS) -lstdc++' \

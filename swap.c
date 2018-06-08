@@ -3,7 +3,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 07/19/00 */
+/* last modified 11/15/06 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -17,20 +17,20 @@
  *   we continually "flip" sides taking the lowest piece each time.            *
  *                                                                             *
  *   as a piece is used, if it is a sliding piece (pawn, bishop, rook or queen)*
- *   we "peek" behind it to see if it is attacked by a sliding piece in the    *
- *   direction away from the piece being captured.  if so, and that sliding    *
- *   piece moves in this direction, then it is added to the list of attackers  *
- *   since its attack has been "uncovered" by moving the capturing piece.      *
+ *   we remove the piece, then generate moves of bishop/queen or rook/queen    *
+ *   and then add those in to the attackers, removing any attacks that have    *
+ *   already been used.                                                        *
  *                                                                             *
  *******************************************************************************
  */
 int Swap(TREE * RESTRICT tree, int source, int target, int wtm)
 {
-  register BITBOARD attacks;
+  register BITBOARD attacks, temp = 0, occupied;
   register int attacked_piece;
-  register int square, direction;
+  register int piece;
   register int color, nc = 1;
   int swap_list[32];
+  const int pval[8] = { 0, 100, 300, 9900, 0, 300, 500, 900 };
 
 /*
  ************************************************************
@@ -41,6 +41,7 @@ int Swap(TREE * RESTRICT tree, int source, int target, int wtm)
  *                                                          *
  ************************************************************
  */
+  occupied = Occupied;
   attacks = AttacksTo(tree, target);
   attacked_piece = p_values[PcOnSq(target) + 7];
 /*
@@ -53,69 +54,84 @@ int Swap(TREE * RESTRICT tree, int source, int target, int wtm)
  */
   color = Flip(wtm);
   swap_list[0] = attacked_piece;
-  attacked_piece = p_values[PcOnSq(source) + 7];
-  Clear(source, attacks);
-  direction = directions[target][source];
-  if (direction)
-    attacks = SwapXray(tree, attacks, source, direction);
+  piece = Abs(PcOnSq(source));
+  attacked_piece = pval[piece];
+  Clear(source, occupied);
+  if (piece & 4 || piece == 1) {
+    if (Abs(directions[source][target]) == 7 ||
+        Abs(directions[source][target]) == 9)
+      attacks |= AttacksBishopSpecial(target, occupied) & BishopsQueens;
+    if (Abs(directions[source][target]) == 1 ||
+        Abs(directions[source][target]) == 8)
+      attacks |= AttacksRookSpecial(target, occupied) & RooksQueens;
+  }
+  attacks &= occupied;
 /*
  ************************************************************
  *                                                          *
  *   now pick out the least valuable piece for the correct  *
  *   side that is bearing on <target>.  as we find one, we  *
- *   call SwapXray() to add the piece behind this piece     *
- *   that is indirectly bearing on <target> (if any).       *
+ *   remove it from the board and determine if there is a   *
+ *   piece behind it by using the magic move generator.  to *
+ *   avoid adding pieces back in that we have already used, *
+ *   we eliminate any that are not in the temporary         *
+ *   occupied bitmap since we remove them from this set as  *
+ *   we use them.                                           *
  *                                                          *
  ************************************************************
  */
   while (attacks) {
     if (color) {
-      if (WhitePawns & attacks)
-        square = LSB(WhitePawns & attacks);
-      else if (WhiteKnights & attacks)
-        square = LSB(WhiteKnights & attacks);
-      else if (WhiteBishops & attacks)
-        square = LSB(WhiteBishops & attacks);
-      else if (WhiteRooks & attacks)
-        square = LSB(WhiteRooks & attacks);
-      else if (WhiteQueens & attacks)
-        square = LSB(WhiteQueens & attacks);
-      else if (WhiteKing & attacks)
-        square = WhiteKingSQ;
+      if ((temp = WhitePawns & attacks))
+        piece = pawn;
+      else if ((temp = WhiteKnights & attacks))
+        piece = knight;
+      else if ((temp = WhiteBishops & attacks))
+        piece = bishop;
+      else if ((temp = WhiteRooks & attacks))
+        piece = rook;
+      else if ((temp = WhiteQueens & attacks))
+        piece = queen;
+      else if ((temp = WhiteKing & attacks))
+        piece = king;
       else
         break;
     } else {
-      if (BlackPawns & attacks)
-        square = LSB(BlackPawns & attacks);
-      else if (BlackKnights & attacks)
-        square = LSB(BlackKnights & attacks);
-      else if (BlackBishops & attacks)
-        square = LSB(BlackBishops & attacks);
-      else if (BlackRooks & attacks)
-        square = LSB(BlackRooks & attacks);
-      else if (BlackQueens & attacks)
-        square = LSB(BlackQueens & attacks);
-      else if (BlackKing & attacks)
-        square = BlackKingSQ;
+      if ((temp = BlackPawns & attacks))
+        piece = pawn;
+      else if ((temp = BlackKnights & attacks))
+        piece = knight;
+      else if ((temp = BlackBishops & attacks))
+        piece = bishop;
+      else if ((temp = BlackRooks & attacks))
+        piece = rook;
+      else if ((temp = BlackQueens & attacks))
+        piece = queen;
+      else if ((temp = BlackKing & attacks))
+        piece = king;
       else
         break;
     }
+    temp &= -temp;
+    occupied ^= temp;
+    if (piece & 4 || piece == 1) {
+      if (piece & 1)
+        attacks |= AttacksBishopSpecial(target, occupied) & BishopsQueens;
+      if (piece & 2)
+        attacks |= AttacksRookSpecial(target, occupied) & RooksQueens;
+    }
+    attacks &= occupied;
 /*
- **********************************************
- *                                                *
- *  located the least valuable piece bearing on   *
- *  <target>.  remove it from the list and then   *
- *  find out if a sliding piece behind it attacks *
- *  through this piece.                           *
- *                                                *
- **********************************************
+ ************************************************************
+ *                                                          *
+ *   now we know there is a piece attacking the last        *
+ *   capturing piece.  add it to the swap list and repeat   *
+ *   until one side has no more captures.                   *
+ *                                                          *
+ ************************************************************
  */
     swap_list[nc] = -swap_list[nc - 1] + attacked_piece;
-    attacked_piece = p_values[PcOnSq(square) + 7];
-    Clear(square, attacks);
-    direction = directions[target][square];
-    if (direction)
-      attacks = SwapXray(tree, attacks, square, direction);
+    attacked_piece = pval[piece];
     nc++;
     color = Flip(color);
   }
@@ -132,38 +148,4 @@ int Swap(TREE * RESTRICT tree, int source, int target, int wtm)
     if (swap_list[nc] > -swap_list[nc - 1])
       swap_list[nc - 1] = -swap_list[nc];
   return (swap_list[0]);
-}
-
-/*
- *******************************************************************************
- *                                                                             *
- *   SwapXray() is used to determine if a piece is "behind" the piece on       *
- *   <from>, and this piece would attack <to> if the piece on <from> were moved*
- *   (as in playing out sequences of swaps).  if so, this indirect attacker is *
- *   added to the list of attackers bearing to <to>.                           *
- *                                                                             *
- *******************************************************************************
- */
-BITBOARD SwapXray(TREE * RESTRICT tree, BITBOARD attacks, int from,
-    int direction)
-{
-  switch (direction) {
-  case 1:
-    return (attacks | (AttacksRank(from) & RooksQueens & plus1dir[from]));
-  case 7:
-    return (attacks | (AttacksDiagh1(from) & BishopsQueens & plus7dir[from]));
-  case 8:
-    return (attacks | (AttacksFile(from) & RooksQueens & plus8dir[from]));
-  case 9:
-    return (attacks | (AttacksDiaga1(from) & BishopsQueens & plus9dir[from]));
-  case -1:
-    return (attacks | (AttacksRank(from) & RooksQueens & minus1dir[from]));
-  case -7:
-    return (attacks | (AttacksDiagh1(from) & BishopsQueens & minus7dir[from]));
-  case -8:
-    return (attacks | (AttacksFile(from) & RooksQueens & minus8dir[from]));
-  case -9:
-    return (attacks | (AttacksDiaga1(from) & BishopsQueens & minus9dir[from]));
-  }
-  return (attacks);
 }

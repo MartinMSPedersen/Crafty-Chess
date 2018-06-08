@@ -62,10 +62,6 @@ int Option(TREE * RESTRICT tree)
     }
   }
 #endif
-  if (!strcmp(buffer,"db")) {
-    printf("swap(f7) = %d\n", Swap(tree, 36, 53, 1));
-    return(1);
-  }
 /*
  ************************************************************
  *                                                          *

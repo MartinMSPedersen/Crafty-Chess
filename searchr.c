@@ -129,7 +129,7 @@ int SearchRoot(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth)
     }
     shared->root_value = alpha;
     UnmakeMove(tree, 1, tree->current_move[1], wtm);
-#if defined(SMP)
+#if (CPUS > 1)
     if (shared->split_at_root && shared->smp_idle && NextRootMoveParallel()) {
       tree->alpha = alpha;
       tree->beta = beta;

@@ -209,9 +209,6 @@ typedef struct {
 typedef struct {
   BITBOARD  w_occupied;
   BITBOARD  b_occupied;
-  BITBOARD  occupied_rr90;
-  BITBOARD  occupied_rl45;
-  BITBOARD  occupied_rr45;
   BITBOARD  rooks_queens;
   BITBOARD  bishops_queens;
   BITBOARD  w_pawn;
@@ -523,7 +520,6 @@ unsigned char *BookOut64(BITBOARD val);
 int       BookPonderMove(TREE * RESTRICT, int);
 void      BookUp(TREE * RESTRICT, int, char **);
 void      BookSort(BB_POSITION *, int, int);
-
 #if defined(NT_i386)
 int _cdecl BookUpCompare(const void *, const void *);
 #else
@@ -582,6 +578,7 @@ int       EvaluateStalemate(TREE * RESTRICT, int);
 int       EvaluateWinningChances(TREE * RESTRICT);
 
 // Slider functions.
+/*
 int IsPawnWeakW(TREE * RESTRICT, int);
 int IsPawnWeakB(TREE * RESTRICT, int);
 int SlideW2(TREE * RESTRICT, int, int, int, int);
@@ -598,6 +595,7 @@ int BishopSlideW(TREE * RESTRICT, int);
 int BishopSlideB(TREE * RESTRICT, int);
 int KnightWeakPawnW(TREE * RESTRICT, int);
 int KnightWeakPawnB(TREE * RESTRICT, int);
+*/
 
 int EvaluateAll(TREE * RESTRICT tree);
 void      EVTest(char *);
@@ -623,6 +621,10 @@ int       InitializeGetLogID();
 void      InitializeHashTables(void);
 void      InitializeHistoryKillers(void);
 void      InitializeKingSafety(void);
+void      InitializeMagic(void);
+BITBOARD InitializeMagicBishop(int, BITBOARD);
+BITBOARD InitializeMagicRook(int, BITBOARD);
+BITBOARD  InitializeMagicOccupied(int*, int, BITBOARD);
 void      InitializeMasks(void);
 void      InitializePawnMasks(void);
 void      InitializePieceMasks(void);
@@ -695,7 +697,6 @@ void      SharedFree(void *address);
 void      SignalInterrupt(int);
 int       StrCnt(char *, char);
 int       Swap(TREE * RESTRICT, int, int, int);
-BITBOARD  SwapXray(TREE * RESTRICT, BITBOARD, int, int);
 void      Test(char *);
 void      TestEPD(char *);
 int       Thread(TREE * RESTRICT);
@@ -744,6 +745,7 @@ extern void WinFreeInterleaved(void *, size_t);
 #  define LSB(a)    (63 - _trailz(a))
 #  endif
 #endif
+#define Abs(a)    (((a) > 0) ? (a) : (-a))
 #define Max(a,b)  (((a) > (b)) ? (a) : (b))
 #define Min(a,b)  (((a) < (b)) ? (a) : (b))
 #define FileDistance(a,b) abs(File(a) - File(b))
@@ -753,6 +755,11 @@ extern void WinFreeInterleaved(void *, size_t);
 #define PopCnt8Bit(a) (pop_cnt_8bit[a])
 #define MSB8Bit(a) (msb_8bit[a])
 #define LSB8Bit(a) (lsb_8bit[a])
+
+//TLR
+#define RawFileDistance(a,b) (File(a) - File(b))
+#define RawRankDistance(a,b) (Rank(a) - Rank(b))
+
 /*
    the following macro is used to limit the search extensions based on the
    current iteration depth and current ply in the tree.
@@ -786,7 +793,8 @@ extern void WinFreeInterleaved(void *, size_t);
 #define ScaleMG(s)                                                            \
     ((s) * (Min(TotalWhitePieces + TotalBlackPieces, 62)) / 62)
 #define ScaleEG(s)                                                            \
-    ((s) * (62 - Min(TotalWhitePieces + TotalBlackPieces, 42)) / 62)
+    ((s) * (62 - Min(TotalWhitePieces + TotalBlackPieces, 42)) / 86)
+ //TLR   ((s) * (62 - Min(TotalWhitePieces + TotalBlackPieces, 42)) / 62)
 
 /*
    the following macro is used to determine if one side is in check.  it
@@ -806,9 +814,15 @@ extern void WinFreeInterleaved(void *, size_t);
    two diagonals, and one for the ranks and one for the files.  these can be
    Or'ed together to produce the attack bitmaps for bishops, rooks and queens.
  */
-#  define AttacksRook(a)    (AttacksRank(a)|AttacksFile(a))
-#  define AttacksBishop(a)  (AttacksDiaga1(a)|AttacksDiagh1(a))
-#define AttacksQueen(a)   (AttacksBishop(a)|AttacksRook(a))
+#define AttacksBishop(square) *(magic_bishop_indices[square]+((((tree->pos.w_occupied|tree->pos.b_occupied)&magic_bishop_mask[square])*magic_bishop[square])>>magic_bishop_shift[square]))
+#define AttacksBishopSpecial(square, occupied) *(magic_bishop_indices[square]+((((occupied)&magic_bishop_mask[square])*magic_bishop[square])>>magic_bishop_shift[square]))
+#define AttacksRook(square) *(magic_rook_indices[square]+((((tree->pos.w_occupied|tree->pos.b_occupied)&magic_rook_mask[square])*magic_rook[square])>>magic_rook_shift[square]))
+#define AttacksRookSpecial(square, occupied) *(magic_rook_indices[square]+((((occupied)&magic_rook_mask[square])*magic_rook[square])>>magic_rook_shift[square]))
+#define AttacksQueen(square)   (AttacksBishop(square)|AttacksRook(square))
+#define AttacksQueenSpecial(square, occupied)   (AttacksBishopSpecial(square, occupied)|AttacksRookSpecial(square, occupied))
+#define AttacksBishopNOMASK(square, occupied) *(magic_bishop_indices[square]+(((occupied)*magic_bishop[square])>>magic_bishop_shift[square]))
+#define AttacksRookNOMASK(square, occupied) *(magic_rook_indices[square]+(((occupied)*magic_rook[square])>>magic_rook_shift[square]))
+
 #define Rank(x)       ((x)>>3)
 #define File(x)       ((x)&7)
 #define Flip(x)       ((x)^1)
@@ -823,18 +837,13 @@ extern void WinFreeInterleaved(void *, size_t);
 #define Num_down_left(x)  (Min(Num_down(x),Num_left(x)))
 #define Num_down_right(x) (Min(Num_down(x),Num_right(x)))
 
-#  define AttacksRank(a)                                                   \
-      rook_attacks_r0[(a)][((tree->pos.w_occupied|tree->pos.b_occupied)>>  \
-                           (((a)&56)+1))&63]
-#  define AttacksFile(a)                                                   \
-      rook_attacks_rr90[(a)][(tree->pos.occupied_rr90>>                    \
-                             ((File(a)<<3)+1))&63]
-#  define AttacksDiaga1(a)                                                 \
-      bishop_attacks_rl45[(a)][(tree->pos.occupied_rl45>>                  \
-                                bishop_shift_rl45[(a)])&63]
-#  define AttacksDiagh1(a)                                                 \
-      bishop_attacks_rr45[(a)][(tree->pos.occupied_rr45>>                  \
-                                bishop_shift_rr45[(a)])&63]
+#define WhitePawnAttacks(x)   (b_pawn_attacks[(x)] & WhitePawns)
+#define BlackPawnAttacks(x)   (w_pawn_attacks[(x)] & BlackPawns)
+
+#  define AttacksRank(a) (AttacksRook(a) & rank_mask[Rank(a)])
+#  define AttacksFile(a) (AttacksRook(a) & file_mask[File(a)])
+#  define AttacksDiaga1(a) (AttacksBishop(a) & (plus9dir[a] | minus9dir[a]))
+#  define AttacksDiagh1(a) (AttacksBishop(a) & (plus7dir[a] | minus7dir[a]))
 /*
    the following macros are used to extract the pieces of a move that are
    kept compressed into the rightmost 21 bits of a simple integer.
@@ -846,13 +855,7 @@ extern void WinFreeInterleaved(void *, size_t);
 #define Promote(a)          (((a)>>18)&7)
 #define CaptureOrPromote(a) (((a)>>15)&63)
 #define SetMask(a)          (set_mask[a])
-#define SetMaskRR90(a)      (set_mask_rr90[a])
-#define SetMaskRL45(a)      (set_mask_rl45[a])
-#define SetMaskRR45(a)      (set_mask_rr45[a])
 #define ClearMask(a)        (clear_mask[a])
-#define ClearMaskRR90(a)    (clear_mask_rr90[a])
-#define ClearMaskRL45(a)    (clear_mask_rl45[a])
-#define ClearMaskRR45(a)    (clear_mask_rr45[a])
 /*
    the following macros are used to extract the correct bits for the piece
    type desired.
@@ -894,9 +897,6 @@ extern void WinFreeInterleaved(void *, size_t);
 #define BishopsQueens         (tree->pos.bishops_queens)
 #define RooksQueens           (tree->pos.rooks_queens)
 #define Occupied              (tree->pos.w_occupied|tree->pos.b_occupied)
-#define OccupiedRR90          (tree->pos.occupied_rr90)
-#define OccupiedRL45          (tree->pos.occupied_rl45)
-#define OccupiedRR45          (tree->pos.occupied_rr45)
 #define Sliding(piece)        ((piece) & 4)
 #define SlidingDiag(piece)    (((piece) & 5) == 5)
 #define SlidingRow(piece)     (((piece) & 6) == 6)
@@ -907,13 +907,7 @@ extern void WinFreeInterleaved(void *, size_t);
  */
 #define ClearSet(a,b)       b=((a)^(b))
 #define Clear(a,b)          b=ClearMask(a)&(b)
-#define ClearRR90(a,b)      b=ClearMaskRR90(a)&(b)
-#define ClearRL45(a,b)      b=ClearMaskRL45(a)&(b)
-#define ClearRR45(a,b)      b=ClearMaskRR45(a)&(b)
 #define Set(a,b)            b=SetMask(a)|(b)
-#define SetRR90(a,b)        b=SetMaskRR90(a)|(b)
-#define SetRL45(a,b)        b=SetMaskRL45(a)|(b)
-#define SetRR45(a,b)        b=SetMaskRR45(a)|(b)
 #define HashPB(a,b)         b=b_pawn_random[a]^(b)
 #define HashPW(a,b)         b=w_pawn_random[a]^(b)
 #define HashNB(a,b)         b=b_knight_random[a]^(b)

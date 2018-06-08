@@ -18,7 +18,7 @@
 void MakeMove(TREE * RESTRICT tree, int ply, int move, int wtm)
 {
   register int piece, from, to, captured, promote;
-  BITBOARD bit_move, bit_move_rl45, bit_move_rr45, bit_move_rr90;
+  BITBOARD bit_move;
 
 /*
  ************************************************************
@@ -54,12 +54,6 @@ void MakeMove(TREE * RESTRICT tree, int ply, int move, int wtm)
   promote = Promote(move);
 MakePieceMove:
   bit_move = SetMask(from) | SetMask(to);
-  bit_move_rl45 = SetMaskRL45(from) | SetMaskRL45(to);
-  bit_move_rr45 = SetMaskRR45(from) | SetMaskRR45(to);
-  bit_move_rr90 = SetMaskRR90(from) | SetMaskRR90(to);
-  ClearSet(bit_move_rl45, OccupiedRL45);
-  ClearSet(bit_move_rr45, OccupiedRR45);
-  ClearSet(bit_move_rr90, OccupiedRR90);
   PcOnSq(from) = 0;
   switch (piece) {
 /*
@@ -83,9 +77,6 @@ MakePieceMove:
       HashPW(to, PawnHashKey);
       if (captured == 1) {
         if (!PcOnSq(to)) {
-          ClearRR90(to - 8, OccupiedRR90);
-          ClearRL45(to - 8, OccupiedRL45);
-          ClearRR45(to - 8, OccupiedRR45);
           Clear(to - 8, BlackPawns);
           Clear(to - 8, BlackPieces);
           HashPB(to - 8, HashKey);
@@ -164,9 +155,6 @@ MakePieceMove:
       HashPB(to, PawnHashKey);
       if (captured == 1) {
         if (!PcOnSq(to)) {
-          ClearRR90(to + 8, OccupiedRR90);
-          ClearRL45(to + 8, OccupiedRL45);
-          ClearRR45(to + 8, OccupiedRR45);
           Clear(to + 8, WhitePawns);
           Clear(to + 8, WhitePieces);
           HashPW(to + 8, HashKey);
@@ -441,9 +429,6 @@ MakePieceMove:
     TotalPieces--;
     if (promote)
       piece = promote;
-    SetRL45(to, OccupiedRL45);
-    SetRR45(to, OccupiedRR45);
-    SetRR90(to, OccupiedRR90);
     switch (captured) {
 /*
  ************************************************************
