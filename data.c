@@ -1,7 +1,7 @@
 #include "chess.h"
 /* *INDENT-OFF* */
+int scale = 2;
 FILE *input_stream;
-FILE *dbout;
 FILE *book_file;
 FILE *books_file;
 FILE *normal_bs_file;
@@ -11,8 +11,8 @@ FILE *log_file;
 int done = 0;
 BITBOARD total_moves;
 int last_mate_score;
-char log_filename[64];
-char history_filename[64];
+char log_filename[256];
+char history_filename[256];
 int number_of_solutions;
 int solutions[10];
 int solution_type;
@@ -40,23 +40,12 @@ BITBOARD book_learn_key;
 int hash_mask;
 unsigned int pawn_hash_mask;
 HASH_ENTRY *trans_ref;
-HASH_ENTRY *real_trans_ref;
 PAWN_HASH_ENTRY *pawn_hash_table;
-PAWN_HASH_ENTRY *real_pawn_hash_table;
+void * segments[MAX_BLOCKS + 32][2];
+int nsegments = 0;
 PATH last_pv;
 int last_value;
 int king_safety[16][16];
-//TLR
-/*
-int mob_curve_r[48] = {
-  -27,-23,-21,-19,-15,-10, -9, -8,
-   -7, -6, -5, -4, -3, -2, -1,  0,
-    1,  2,  3,  4,  5,  6,  7,  8,
-    9, 10, 11, 12, 13, 14, 15, 16,
-   17, 18, 19, 20, 21, 22, 23, 24,
-   25, 26, 27, 28, 29, 30, 31, 32
-};
-*/
 int mob_curve_r[48] = {
   -27,-23,-21,-19,-15,-10, -9, -8,
    -7, -6, -5, -4, -3, -2, -1,  0,
@@ -379,8 +368,9 @@ BITBOARD randoms[2][7][64] = {
   },
 };
 BITBOARD castle_random[2][2] = {
-  { 0x557723689550b69bULL, 0xc7bedab779d5361bULL },
-  { 0xa92c541efa336c6cULL, 0x3bb70e80435e60b7ULL }
+  { 0x557723689550b69bULL, 0xa92c541efa336c6cULL },
+  { 0xc7bedab779d5361bULL, 0x3bb70e80435e60b7ULL }
+
 };
 BITBOARD enpassant_random[65] = {
   0x0000000000000000ULL, 0x0000000000000000ULL, 0x0000000000000000ULL,
@@ -451,7 +441,7 @@ signed char is_outside[256][256];
 BITBOARD mask_pawn_connected[64];
 BITBOARD mask_pawn_duo[64];
 BITBOARD mask_pawn_isolated[64];
-BITBOARD mask_pawn_passed[2][64];
+BITBOARD mask_passed[2][64];
 BITBOARD mask_no_pattacks[2][64];
 BITBOARD mask_hidden_left[2][8];
 BITBOARD mask_hidden_right[2][8];
@@ -463,7 +453,7 @@ int OOOsqs[2][3] = {{ E8, D8, C8 }, { E1, D1, C1 }};
 int OOfrom[2] = { E8, E1 };
 int OOto[2] = { G8, G1 };
 int OOOto[2] = { C8, C1 };
-#define    VERSION                             "23.0"
+#define    VERSION                             "23.1"
 char version[8] = { VERSION };
 PLAYING_MODE mode = normal_mode;
 int batch_mode = 0;             /* no asynch reads */
@@ -473,9 +463,9 @@ int crafty_rating = 2500;
 int opponent_rating = 2500;
 int last_search_value = 0;
 int lazy_eval_cutoff = 125;
-int razor_margin = 300;                        /* Heinz = QUEEN    */
-int futility_margin = 125;                     /* Heinz = 2 PAWNS  */
-int extended_futility_margin = 300;            /* Heinz = ROOK     */
+int razor_margin = 300;
+int pruning_margin[8] = {0, 125, 125, 300, 300, 400, 400, 500};
+int pruning_depth = 5;
 int pgn_suggested_percent = 0;
 char pgn_event[128] = { "?" };
 char pgn_site[128] = { "?" };
@@ -494,7 +484,6 @@ char *IM_list[128];
 char *SP_list[128];
 char *SP_opening_filename[128];
 char *SP_personality_filename[128];
-int ics = 0;
 int output_format = 0;
 #if !defined(NOEGTB)
 int EGTBlimit = 0;
@@ -558,7 +547,6 @@ int silent = 0;
 int usage_level = 0;
 char audible_alarm = 0x07;
 char speech = 0;
-int ansi = 1;
 int book_accept_mask = ~03;
 int book_reject_mask = 3;
 int book_random = 1;
@@ -647,8 +635,8 @@ int ponder = 1;
 int trace_level = 0;
 size_t hash_table_size = 65536;
 int log_hash = 16;
-size_t pawn_hash_table_size = 32768;
-int log_pawn_hash = 15;
+size_t pawn_hash_table_size = 16384;
+int log_pawn_hash = 14;
 int abs_draw_score = 1;
 int accept_draws = 1;
 const char translate[13] =
@@ -1253,11 +1241,10 @@ int bishop_value = BISHOP_VALUE;
 int rook_value = ROOK_VALUE;
 int queen_value = QUEEN_VALUE;
 int king_value = KING_VALUE;
-int piece_values[2][7] = {
-  { 0, -PAWN_VALUE, -KNIGHT_VALUE, -BISHOP_VALUE,
-    -ROOK_VALUE, -QUEEN_VALUE, -KING_VALUE },
-  { 0, PAWN_VALUE, KNIGHT_VALUE, BISHOP_VALUE,
-    ROOK_VALUE, QUEEN_VALUE, KING_VALUE }
+int piece_values[7][2] = { {0, 0},
+  {-PAWN_VALUE, PAWN_VALUE},     {-KNIGHT_VALUE, KNIGHT_VALUE},
+  {-BISHOP_VALUE, BISHOP_VALUE}, {-ROOK_VALUE, ROOK_VALUE},
+  {-QUEEN_VALUE, QUEEN_VALUE},   {-KING_VALUE, KING_VALUE}
 };
 int pawn_can_promote = 525;
 int bad_trade = 90;
@@ -1267,13 +1254,12 @@ int pawn_duo[2] = { 4, 8 };
 int pawn_isolated[2] = { 12, 18 };
 int pawn_weak[2] = { 16, 24 };
 int lower_n = 16;
-int knight_pair = 11;
 int mobility_score_n[4] = { 1, 2, 3, 4 };
 int lower_b = 10;
-int bishop_pair = 13;
+int bishop_pair[2] = {30, 30};
 int bishop_trapped = 174;
 int bishop_with_wing_pawns[2] = { 18, 36 };
-int mobility_score_b[2][4] = {{ 1, 2, 3, 4 }, { 2, 3, 4, 5 }};
+int mobility_score_b[4] = { 1, 2, 3, 4 };
 int lower_r = 16;
 int mobility_score_r[4] = { 1, 2, 3, 4 };
 int rook_on_7th[2] = { 20, 40 };
@@ -1304,6 +1290,7 @@ int development_not_castled = 20;
      6 = array[mg][side][8]
      7 = array[mg][small#]
      8 = array[n]
+     9 = btm/wtm two element array
 
    Third term is the "size" of the scoring term, where 0 is a
      scalar value, otherwise it is the actual number of elements in
@@ -1315,19 +1302,19 @@ struct personality_term personality_packet[256] = {
   {"search options                       ", 0, 0, NULL},        /* 0 */
   {"check extension                      ", 1, 0, &check_depth},
   {"null-move reduction                  ", 1, 0, &null_depth},
-  {"razoring margin                      ", 1, 0, &razor_margin},
-  {"futility margin                      ", 1, 0, &futility_margin},
-  {"extended futility margin             ", 1, 0, &extended_futility_margin},
   {"LMR min distance to frontier         ", 1, 0, &LMR_min_depth},
   {"LMR reduction                        ", 1, 0, &LMR_depth},
+  {"prune depth                          ", 1, 0, &pruning_depth},
+  {"prune margin                         ", 8, 8, pruning_margin},
+  {NULL, 0, 0, NULL},
   {NULL, 0, 0, NULL},
   {NULL, 0, 0, NULL},
   {"raw piece values                     ", 0, 0, NULL},        /* 10 */
-  {"pawn value                           ", 1, 0, &pawn_value},
-  {"knight value                         ", 1, 0, &knight_value},
-  {"bishop value                         ", 1, 0, &bishop_value},
-  {"rook value                           ", 1, 0, &rook_value},
-  {"queen value                          ", 1, 0, &queen_value},
+  {"pawn value                           ", 9, 2, piece_values[pawn]},
+  {"knight value                         ", 9, 2, piece_values[knight]},
+  {"bishop value                         ", 9, 2, piece_values[bishop]},
+  {"rook value                           ", 9, 2, piece_values[rook]},
+  {"queen value                          ", 9, 2, piece_values[queen]},
   {NULL, 0, 0, NULL},
   {NULL, 0, 0, NULL},
   {NULL, 0, 0, NULL},
@@ -1377,10 +1364,10 @@ struct personality_term personality_packet[256] = {
   {NULL, 0, 0, NULL},
   {NULL, 0, 0, NULL},
   {"bishop scoring                       ", 0, 0, NULL},        /* 60 */
+  {"bishop pair                          ", 2, 2, bishop_pair},
   {"bishop piece/square table (white)    ", 3, 256, (int *) bval},
   {"bishop king tropism [distance]       ", 8, 8, king_tropism_b},
   {"bishop mobility/square table         ", 8, 4, (int *) mobility_score_b},
-  {"bishop mobility/square (pair)        ", 8, 4, (int *) mobility_score_b},
   {"bishop with wing pawns               ", 2, 2, bishop_with_wing_pawns},
   {"bishop trapped                       ", 1, 0, &bishop_trapped},
   {NULL, 0, 0, NULL},

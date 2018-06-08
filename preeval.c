@@ -85,7 +85,7 @@ void PreEvaluate(TREE * RESTRICT tree) {
  *                                                          *
  ************************************************************
  */
-  if (Rule50Moves(0) > 80) {
+  if (Rule50Moves(0) > 80 && time_limit > 100) {
     ClearHashTableScores();
     Print(128, "              clearing hash tables (50 moves fix)\n");
   }

@@ -73,6 +73,7 @@ void RootMoveList(int wtm) {
     }
 #endif
     MakeMove(tree, 1, *mvp, wtm);
+    tree->nodes_searched++;
     if (!Check(wtm))
       do {
         tree->curmv[1] = *mvp;

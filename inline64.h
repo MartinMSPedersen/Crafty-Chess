@@ -30,6 +30,18 @@ asm("          bsfq    %1, %0     " "\n\t"
 :   "cc");
   return (dummy);
 }
+#if defined(POPCNT)
+int static __inline__ PopCnt(long word)
+{
+  long dummy, dummy2;
+
+asm("          popcnt  %1, %0     " "\n\t"
+:   "=&r"(dummy), "=&r" (dummy2)
+:   "1"((long) (word))
+:   "cc");
+  return (dummy);
+}
+#else
 int static __inline__ PopCnt(long word)
 {
   long dummy, dummy2, dummy3;
@@ -47,4 +59,5 @@ asm("          xorq    %0, %0    " "\n\t"
 :   "cc");
   return (dummy);
 }
+#endif
 /* *INDENT-ON* */

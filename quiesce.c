@@ -1,6 +1,6 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 01/17/09 */
+/* last modified 07/26/09 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -15,17 +15,27 @@
  *   move that leads to some sort of positional or material gain.              *
  *                                                                             *
  *   (2) The first phase is to generate all possible capture moves and then    *
- *   use SEE (Static Exchange Evaluator) to screen out moves that appear to    *
- *   lose material, such as QxN where the N is defended and the resulting      *
- *   trade will lose material.  Any of these moves can improve the stand-pat   *
- *   score.                                                                    *
+ *   sort them into descending using the value                                 *
+ *                                                                             *
+ *        val = 128 * captured_piece_value + capturing_piece_value             *
+ *                                                                             *
+ *   This is the classic MVV/LVA ordering approach that removes heavy pieces   *
+ *   first in an attempt to reduce the size of the sub-tree this capture       *
+ *   produces.                                                                 *
+ *                                                                             *
+ *   (3) When we get ready to actually search each capture, we use Swap() to   *
+ *   compute the SEE score.  If this is less than zero, we do not search this  *
+ *   move at all to avoid wasting time, since a losing capture rarely helps    *
+ *   improve the score in the q-search.  The goal here is to find a capture    *
+ *   that improves on the stand-pat score and get us closer to a position that *
+ *   we would describe as "quiet" or "static".                                 *
  *                                                                             *
  *******************************************************************************
  */
 int Quiesce(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply) {
   register int o_alpha, value;
   register int *next_move;
-  register int *goodmv, *movep, moves = 0, *sortv, temp;
+  register int *movep, *sortv, temp;
 
 /*
  ************************************************************
@@ -36,7 +46,6 @@ int Quiesce(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply) {
  */
   if (ply >= MAXPLY - 1)
     return (beta);
-  tree->nodes_searched++;
 #if defined(NODES)
   temp_search_nodes--;
   if (temp_search_nodes <= 0) {
@@ -76,43 +85,29 @@ int Quiesce(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply) {
 /*
  ************************************************************
  *                                                          *
- *   Generate captures and sort them based on (a) the value *
- *   of the captured piece - the value of the capturing     *
- *   piece if this is > 0; or, (b) the value returned by    *
- *   Swap().  If the capture leaves the opponent with no    *
- *   minor pieces, then we search that capture always since *
- *   the endgame might be won or lost with no pieces left.  *
+ *   Generate captures and sort them based on simple        *
+ *   MVV/LVA order.  We simply try to capture the most      *
+ *   valuable piece possible, using the least valuable      *
+ *   attacker possible, to get rid of heavy pieces quickly  *
+ *   and reduce the overall size of the tree.               *
  *                                                          *
- *   Once we confirm that the capture is not losing any     *
- *   material, we sort these non-losing captures into       *
- *   MVV/LVA order which appears to be a slightly faster    *
- *   move ordering idea.                                    *
+ *   Note that later we use the value of the capturing      *
+ *   piece, the value of the captured piece, and possibly   *
+ *   Swap() to exclude captures that appear to lose         *
+ *   material, but we delay expending this effort as long   *
+ *   as possible, hoping a beta cutoff will avoid most of   *
+ *   the work completely.                                   *
  *                                                          *
  ************************************************************
  */
   tree->last[ply] = GenerateCaptures(tree, ply, wtm, tree->last[ply - 1]);
-  goodmv = tree->last[ply - 1];
   sortv = tree->sort_value;
   for (movep = tree->last[ply - 1]; movep < tree->last[ply]; movep++) {
     if (Captured(*movep) == king)
       return (beta);
-    if (pc_values[Piece(*movep)] < pc_values[Captured(*movep)] ||
-        ((wtm) ? TotalPieces(black, occupied) : TotalPieces(white,
-                occupied)) - p_vals[Captured(*movep)] == 0) {
-      *goodmv++ = *movep;
-      *sortv++ = 128 * pc_values[Captured(*movep)] - pc_values[Piece(*movep)];
-      moves++;
-    } else {
-      temp = Swap(tree, From(*movep), To(*movep), wtm);
-      if (temp >= 0) {
-        *goodmv++ = *movep;
-        *sortv++ =
-            128 * pc_values[Captured(*movep)] - pc_values[Piece(*movep)];
-        moves++;
-      }
-    }
+    *sortv++ = 128 * pc_values[Captured(*movep)] - pc_values[Piece(*movep)];
   }
-  if (!moves) {
+  if (tree->last[ply] == tree->last[ply - 1]) {
     if (alpha != o_alpha) {
       memcpy(&tree->pv[ply - 1].path[ply], &tree->pv[ply].path[ply],
           (tree->pv[ply].pathl - ply + 1) * sizeof(int));
@@ -131,14 +126,14 @@ int Quiesce(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply) {
  *                                                          *
  ************************************************************
  */
-  if (moves > 1) {
+  if (tree->last[ply] > tree->last[ply - 1] + 1) {
     register int done;
-    register int *end = tree->last[ply - 1] + moves - 1;
 
     do {
       done = 1;
       sortv = tree->sort_value;
-      for (movep = tree->last[ply - 1]; movep < end; movep++, sortv++)
+      for (movep = tree->last[ply - 1]; movep < tree->last[ply] - 1;
+          movep++, sortv++)
         if (*sortv < *(sortv + 1)) {
           temp = *sortv;
           *sortv = *(sortv + 1);
@@ -155,17 +150,41 @@ int Quiesce(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply) {
  ************************************************************
  *                                                          *
  *   Iterate through the move list and search the resulting *
- *   positions.                                             *
+ *   positions.  Now that we are ready to actually search   *
+ *   the set of capturing moves, we try three quick tests   *
+ *   to see if the move should be excluded because it       *
+ *   appears to lose material.                              * 
+ *                                                          *
+ *   (1) If the capture removes the last opponent piece, we *
+ *   always search this kind of capture since this can be   *
+ *   the move the allows a passed pawn to promote when the  *
+ *   opponent has no piece to catch it.                     *
+ *                                                          *
+ *   (2) If the capturing piece is not more valuable than   *
+ *   the captured piece, then the move can't lose material  *
+ *   and should be searched.                                *
+ *                                                          *
+ *   (3) Otherwise, If the capturing piece is more valuable *
+ *   than the captured piece, we use Swap() to determine if *
+ *   the capture is losing or not so we don't search        *
+ *   hopeless moves.                                        *
  *                                                          *
  ************************************************************
  */
-  while (moves--) {
+  while (next_move < tree->last[ply]) {
     tree->curmv[ply] = *(next_move++);
+    if ((pc_values[Piece(tree->curmv[ply])] >
+            pc_values[Captured(tree->curmv[ply])]) &&
+        (((wtm) ? TotalPieces(black, occupied) : TotalPieces(white, occupied))
+            - p_vals[Captured(tree->curmv[ply])] > 0) &&
+        (Swap(tree, tree->curmv[ply], wtm) < 0))
+      continue;
 #if defined(TRACE)
     if (ply <= trace_level)
       Trace(tree, ply, 0, wtm, alpha, beta, "Quiesce", CAPTURE_MOVES);
 #endif
     MakeMove(tree, ply, tree->curmv[ply], wtm);
+    tree->nodes_searched++;
     value = -Quiesce(tree, -beta, -alpha, Flip(wtm), ply + 1);
     UnmakeMove(tree, ply, tree->curmv[ply], wtm);
     if (value > alpha) {
@@ -195,7 +214,7 @@ int Quiesce(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply) {
   return (alpha);
 }
 
-/* last modified 01/17/09 */
+/* last modified 07/26/09 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -210,22 +229,45 @@ int Quiesce(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply) {
  *   move that leads to some sort of positional or material gain.              *
  *                                                                             *
  *   (2) The first phase is to generate all possible capture moves and then    *
- *   use SEE (Static Exchange Evaluator) to screen out moves that appear to    *
- *   lose material, such as QxN where the N is defended and the resulting      *
- *   trade will lose material.  Any of these moves can improve the stand-pat   *
- *   score.                                                                    *
+ *   sort them into descending using the value                                 *
  *                                                                             *
- *   (3) After captures have been tried then we will try adding on the non-    *
+ *        val = 128 * captured_piece_value + capturing_piece_value             *
+ *                                                                             *
+ *   This is the classic MVV/LVA ordering approach that removes heavy pieces   *
+ *   first in an attempt to reduce the size of the sub-tree this capture       *
+ *   produces.                                                                 *
+ *                                                                             *
+ *   (3) When we get ready to actually search each capture, we use Swap() to   *
+ *   compute the SEE score.  If this is less than zero, we do not search this  *
+ *   move at all to avoid wasting time, since a losing capture rarely helps    *
+ *   improve the score in the q-search.  The goal here is to find a capture    *
+ *   that improves on the stand-pat score and get us closer to a position that *
+ *   we would describe as "quiet" or "static".                                 *
+ *                                                                             *
+ *   (4) We "stage" the moves in this order, hoping that a normal capture will *
+ *   be good enough to produce a beta cutoff and get us out of here before we  *
+ *   go to the trouble of generating checking moves, which add to the size of  *
+ *   the tree since the effort of legally escaping checks often require more   *
+ *   than just a simple capture move.                                          *
+ *                                                                             *
+ *   (5) After captures have been tried then we will try adding on the non-    *
  *   capture checking moves to see if one of those will improve on the stand-  *
  *   pat score since checking moves often expose dangerous weaknesses that a   *
  *   static evaluation might miss.                                             *
+ *                                                                             *
+ *   If any move searched here checks the opponent, rather than calling        *
+ *   Quiesce() to find a reply, we call QuiesceEvasions() instead, which will  *
+ *   try all moves (without having a stand-pat option) to make sure that we do *
+ *   mate the opponent with our checking move.  This happens whether the move  *
+ *   we try is a capture or not, it just has to give check to trigger this     *
+ *   action.                                                                   *
  *                                                                             *
  *******************************************************************************
  */
 int QuiesceChecks(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply) {
   register int o_alpha, value;
   register int *next_move;
-  register int *goodmv, *movep, moves = 0, *sortv, temp;
+  register int *movep, *sortv, temp;
 
 /*
  ************************************************************
@@ -236,7 +278,6 @@ int QuiesceChecks(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply) {
  */
   if (ply >= MAXPLY - 1)
     return (beta);
-  tree->nodes_searched++;
 #if defined(NODES)
   temp_search_nodes--;
   if (temp_search_nodes <= 0) {
@@ -245,6 +286,9 @@ int QuiesceChecks(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply) {
     return (0);
   }
 #endif
+  if (tree->thread_id == 0)
+    next_time_check--;
+  tree->last[ply] = tree->last[ply - 1];
 /*
  ************************************************************
  *                                                          *
@@ -262,8 +306,6 @@ int QuiesceChecks(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply) {
 #endif
     return (value);
   }
-  if (tree->thread_id == 0)
-    next_time_check--;
   o_alpha = alpha;
 /*
  ************************************************************
@@ -292,41 +334,27 @@ int QuiesceChecks(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply) {
 /*
  ************************************************************
  *                                                          *
- *   Generate captures and sort them based on (a) the value *
- *   of the captured piece - the value of the capturing     *
- *   piece if this is > 0; or, (b) the value returned by    *
- *   Swap().  If the capture leaves the opponent with no    *
- *   minor pieces, then we search that capture always since *
- *   the endgame might be won or lost with no pieces left.  *
+ *   Generate captures and sort them based on simple        *
+ *   MVV/LVA order.  We simply try to capture the most      *
+ *   valuable piece possible, using the least valuable      *
+ *   attacker possible, to get rid of heavy pieces quickly  *
+ *   and reduce the overall size of the tree.               *
  *                                                          *
- *   Once we confirm that the capture is not losing any     *
- *   material, we sort these non-losing captures into       *
- *   MVV/LVA order which appears to be a slightly faster    *
- *   move ordering idea.                                    *
+ *   Note that later we use the value of the capturing      *
+ *   piece, the value of the captured piece, and possibly   *
+ *   Swap() to exclude captures that appear to lose         *
+ *   material, but we delay expending this effort as long   *
+ *   as possible, hoping a beta cutoff will avoid most of   *
+ *   the work completely.                                   *
  *                                                          *
  ************************************************************
  */
   tree->last[ply] = GenerateCaptures(tree, ply, wtm, tree->last[ply - 1]);
-  goodmv = tree->last[ply - 1];
   sortv = tree->sort_value;
   for (movep = tree->last[ply - 1]; movep < tree->last[ply]; movep++) {
     if (Captured(*movep) == king)
       return (beta);
-    if (pc_values[Piece(*movep)] < pc_values[Captured(*movep)] ||
-        ((wtm) ? TotalPieces(black, occupied) : TotalPieces(white,
-                occupied)) - p_vals[Captured(*movep)] == 0) {
-      *goodmv++ = *movep;
-      *sortv++ = 128 * pc_values[Captured(*movep)] - pc_values[Piece(*movep)];
-      moves++;
-    } else {
-      temp = Swap(tree, From(*movep), To(*movep), wtm);
-      if (temp >= 0) {
-        *goodmv++ = *movep;
-        *sortv++ =
-            128 * pc_values[Captured(*movep)] - pc_values[Piece(*movep)];
-        moves++;
-      }
-    }
+    *sortv++ = 128 * pc_values[Captured(*movep)] - pc_values[Piece(*movep)];
   }
 /*
  ************************************************************
@@ -338,14 +366,14 @@ int QuiesceChecks(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply) {
  *                                                          *
  ************************************************************
  */
-  if (moves > 1) {
+  if (tree->last[ply] > tree->last[ply - 1] + 1) {
     register int done;
-    register int *end = tree->last[ply - 1] + moves - 1;
 
     do {
       done = 1;
       sortv = tree->sort_value;
-      for (movep = tree->last[ply - 1]; movep < end; movep++, sortv++)
+      for (movep = tree->last[ply - 1]; movep < tree->last[ply] - 1;
+          movep++, sortv++)
         if (*sortv < *(sortv + 1)) {
           temp = *sortv;
           *sortv = *(sortv + 1);
@@ -361,21 +389,45 @@ int QuiesceChecks(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply) {
 /*
  ************************************************************
  *                                                          *
- *   iterate through the move list and search the resulting *
- *   positions.                                             *
+ *   Iterate through the move list and search the resulting *
+ *   positions.  Now that we are ready to actually search   *
+ *   the set of capturing moves, we try three quick tests   *
+ *   to see if the move should be excluded because it       *
+ *   appears to lose material.                              * 
+ *                                                          *
+ *   (1) If the capture removes the last opponent piece, we *
+ *   always search this kind of capture since this can be   *
+ *   the move the allows a passed pawn to promote when the  *
+ *   opponent has no piece to catch it.                     *
+ *                                                          *
+ *   (2) If the capturing piece is not more valuable than   *
+ *   the captured piece, then the move can't lose material  *
+ *   and should be searched.                                *
+ *                                                          *
+ *   (3) Otherwise, If the capturing piece is more valuable *
+ *   than the captured piece, we use Swap() to determine if *
+ *   the capture is losing or not so we don't search        *
+ *   hopeless moves.                                        *
  *                                                          *
  ************************************************************
  */
-  while (moves--) {
+  while (next_move < tree->last[ply]) {
     tree->curmv[ply] = *(next_move++);
+    if ((pc_values[Piece(tree->curmv[ply])] >
+            pc_values[Captured(tree->curmv[ply])]) &&
+        (((wtm) ? TotalPieces(black, occupied) : TotalPieces(white, occupied))
+            - p_vals[Captured(tree->curmv[ply])] > 0) &&
+        (Swap(tree, tree->curmv[ply], wtm) < 0))
+      continue;
 #if defined(TRACE)
     if (ply <= trace_level)
       Trace(tree, ply, 0, wtm, alpha, beta, "qchecks", CAPTURE_MOVES);
 #endif
     MakeMove(tree, ply, tree->curmv[ply], wtm);
+    tree->nodes_searched++;
     if (!Check(wtm)) {
       if (Check(Flip(wtm))) {
-        tree->qsearch_check_extensions_done++;
+        tree->qchecks_done++;
         value = -QuiesceEvasions(tree, -beta, -alpha, Flip(wtm), ply + 1);
       } else
         value = -Quiesce(tree, -beta, -alpha, Flip(wtm), ply + 1);
@@ -399,7 +451,6 @@ int QuiesceChecks(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply) {
  */
   tree->last[ply] = GenerateChecks(tree, ply, wtm, tree->last[ply - 1]);
   next_move = tree->last[ply - 1];
-  moves = tree->last[ply] - tree->last[ply - 1];
 /*
  ************************************************************
  *                                                          *
@@ -408,16 +459,17 @@ int QuiesceChecks(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply) {
  *                                                          *
  ************************************************************
  */
-  while (moves--) {
+  while (next_move < tree->last[ply]) {
     tree->curmv[ply] = *(next_move++);
-    if (Swap(tree, From(tree->curmv[ply]), To(tree->curmv[ply]), wtm) >= 0) {
+    if (Swap(tree, tree->curmv[ply], wtm) >= 0) {
 #if defined(TRACE)
       if (ply <= trace_level)
         Trace(tree, ply, 0, wtm, alpha, beta, "qchecks", CAPTURE_MOVES);
 #endif
       MakeMove(tree, ply, tree->curmv[ply], wtm);
+      tree->nodes_searched++;
       if (!Check(wtm)) {
-        tree->qsearch_check_extensions_done++;
+        tree->qchecks_done++;
         value = -QuiesceEvasions(tree, -beta, -alpha, Flip(wtm), ply + 1);
       }
       UnmakeMove(tree, ply, tree->curmv[ply], wtm);
@@ -454,11 +506,16 @@ int QuiesceChecks(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply) {
  *******************************************************************************
  *                                                                             *
  *   QuiesceEvasions() is the recursive routine used to implement the alpha/   *
- *   beta negamax search (similar to minimax but simpler to code.)             *
- *   QuiesceChecks() is called at leaf nodes and tries the usual captures,     *
- *   plus any other moves that give check.  If a move searched is a check, the *
- *   next ply will be a full-width search to escape the check.  Once           *
- *   QuiesceChecks() has been called in any path, it will not be called again. *
+ *   beta negamax quiescence search.  The primary function here is to escape a *
+ *   check that was delivered by QuiesceChecks() at the previous ply.  We do   *
+ *   not have the usual "stand pat" option because we have to find a legal     *
+ *   move to prove we have not been checkmated.                                *
+ *                                                                             *
+ *   QuiesceEvasions() uses the legal move generator (GenerateCheckEvasions()) *
+ *   to produce only the set of legal moves that escape check.  We try those   *
+ *   in the the usual MVV/LVA order, except here we do not skip a move just    *
+ *   because it appears to lose material, as we are trying to make sure we do  *
+ *   lose the king instead.                                                    *
  *                                                                             *
  *******************************************************************************
  */
@@ -476,7 +533,6 @@ int QuiesceEvasions(TREE * RESTRICT tree, int alpha, int beta, int wtm,
  */
   if (ply >= MAXPLY - 1)
     return (beta);
-  tree->nodes_searched++;
 #if defined(NODES)
   temp_search_nodes--;
   if (temp_search_nodes <= 0) {
@@ -523,6 +579,7 @@ int QuiesceEvasions(TREE * RESTRICT tree, int alpha, int beta, int wtm,
 #endif
     moves_searched++;
     MakeMove(tree, ply, tree->curmv[ply], wtm);
+    tree->nodes_searched++;
     value = -Quiesce(tree, -beta, -alpha, Flip(wtm), ply + 1);
     UnmakeMove(tree, ply, tree->curmv[ply], wtm);
     if (value > alpha) {

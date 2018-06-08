@@ -23,6 +23,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include <stdlib.h>
+#include <malloc.h>
 #include <string.h>
 #if !defined(TYPES_INCLUDED)
 #  include "lock.h"
@@ -120,28 +121,25 @@
 #  if !defined(NOEGTB)
 #    define     EGTB_CACHE_DEFAULT               1024*1024
 #  endif
-#  define     MAXPLY                                  65
-#  define     MAX_TC_NODES                       3000000
-#  define     MAX_BLOCKS_PER_CPU                      64
-#  define     MAX_BLOCKS         MAX_BLOCKS_PER_CPU*CPUS
-#  define      BOOK_CLUSTER_SIZE           8000
-#  define     BOOK_POSITION_SIZE             16
-#  define            MERGE_BLOCK           1000
-#  define             SORT_BLOCK        4000000
-#  define         LEARN_INTERVAL             10
-#  define        LEARN_WINDOW_LB            -40
-#  define        LEARN_WINDOW_UB            +40
-#  define      LEARN_COUNTER_BAD            -80
-#  define     LEARN_COUNTER_GOOD           +100
-#  define MATE                  32768
-#  define PAWN_VALUE              100
-#  define KNIGHT_VALUE            325
-#  define BISHOP_VALUE            325
-#  define ROOK_VALUE              500
-#  define QUEEN_VALUE             970
-#  define KING_VALUE            40000
-#  define EG_MAT                   14
-#  define MAX_DRAFT               256
+#  define MAXPLY                                  65
+#  define MAX_TC_NODES                       3000000
+#  define MAX_BLOCKS_PER_CPU                      64
+#  define MAX_BLOCKS         MAX_BLOCKS_PER_CPU*CPUS
+#  define BOOK_CLUSTER_SIZE                     8000
+#  define BOOK_POSITION_SIZE                      16
+#  define MERGE_BLOCK                           1000
+#  define SORT_BLOCK                         4000000
+#  define LEARN_INTERVAL                          10
+#  define LEARN_COUNTER_BAD                      -80
+#  define LEARN_COUNTER_GOOD                    +100
+#  define MATE                                 32768
+#  define PAWN_VALUE                             100
+#  define KNIGHT_VALUE                           325
+#  define BISHOP_VALUE                           325
+#  define ROOK_VALUE                             500
+#  define QUEEN_VALUE                           1050
+#  define KING_VALUE                           40000
+#  define MAX_DRAFT                              256
 #  if defined(HAS_64BITS)
 typedef unsigned long BITBOARD;
 #  elif defined(NT_i386)
@@ -186,12 +184,8 @@ typedef enum { mg = 0, eg = 1 } PHASE;
 typedef enum { empty_v = 0, pawn_v = 1, knight_v = 3,
   bishop_v = 3, rook_v = 5, queen_v = 9, king_v = 99
 } PIECE_V;
-typedef enum { no_extension = 0, check_extension = 1,
-  one_reply_extension = 2, mate_extension = 4
-} EXTENSIONS;
 typedef enum { think = 1, puzzle = 2, book = 3, annotate = 4 } SEARCH_TYPE;
 typedef enum { normal_mode, tournament_mode } PLAYING_MODE;
-typedef enum { crafty, opponent } PLAYER;
 typedef struct {
   unsigned char enpassant_target;
   signed char castle[2];
@@ -206,8 +200,6 @@ typedef struct {
 } BB_PIECES;
 typedef struct {
   BB_PIECES color[2];
-  BITBOARD rooks_queens;
-  BITBOARD bishops_queens;
   BITBOARD hash_key;
   BITBOARD pawn_hash_key;
   int material_evaluation;
@@ -239,7 +231,6 @@ typedef struct {
 typedef struct {
   BITBOARD entry[4];
 } PXOR;
-
 typedef struct {
   int path[MAXPLY];
   unsigned char pathh;
@@ -267,7 +258,6 @@ typedef struct {
  */
   unsigned int status;
 } ROOT_MOVE;
-
 #  if defined(NT_i386)
 #    pragma pack(4)
 #  endif
@@ -276,7 +266,6 @@ typedef struct {
   unsigned int status_played;
   float learn;
 } BOOK_POSITION;
-
 #  if defined(NT_i386)
 #    pragma pack()
 #  endif
@@ -299,8 +288,8 @@ struct tree {
   BITBOARD nodes_searched;
   BITBOARD save_pawn_hash_key[MAXPLY + 2];
   BITBOARD cache_n[64];
-  BITBOARD cache_b_friendly[2][64];
-  BITBOARD cache_b_enemy[2][64];
+  BITBOARD cache_b_friendly[64];
+  BITBOARD cache_b_enemy[64];
   BITBOARD cache_r_friendly[64];
   BITBOARD cache_r_enemy[64];
   PAWN_HASH_ENTRY pawn_score;
@@ -308,7 +297,7 @@ struct tree {
   NEXT_MOVE next_status[MAXPLY];
   PATH pv[MAXPLY];
   int cache_n_mobility[64];
-  int cache_b_mobility[2][64];
+  int cache_b_mobility[64];
   int cache_r_mobility_mg[64];
   int cache_r_mobility_eg[64];
   int rep_index[2];
@@ -318,14 +307,12 @@ struct tree {
   unsigned int fail_high;
   unsigned int fail_high_first;
   unsigned int evaluations;
-  unsigned int transposition_probes;
-  unsigned int transposition_hits;
   unsigned int egtb_probes;
   unsigned int egtb_probes_successful;
-  unsigned int check_extensions_done;
-  unsigned int qsearch_check_extensions_done;
-  unsigned int reductions_attempted;
+  unsigned int extensions_done;
+  unsigned int qchecks_done;
   unsigned int reductions_done;
+  unsigned int moves_pruned;
   KILLER killers[MAXPLY];
   int move_list[5120];
   int sort_value[256];
@@ -355,7 +342,6 @@ struct tree {
   volatile int used;
 };
 typedef struct tree TREE;
-
 /*
    DO NOT modify these.  these are constants, used in multiple modules.
    modification may corrupt the search in any number of ways, all bad.
@@ -389,6 +375,8 @@ int CDECL MSB(BITBOARD);
 int CDECL LSB(BITBOARD);
 #    endif
 #  endif
+void AlignedMalloc(void **, int, size_t);
+void AlignedRemalloc(void **, int, size_t);
 void Analyze(void);
 void Annotate(void);
 void AnnotateHeaderHTML(char *, FILE *);
@@ -414,7 +402,6 @@ unsigned char *BookOut64(BITBOARD val);
 int BookPonderMove(TREE * RESTRICT, int);
 void BookUp(TREE * RESTRICT, int, char **);
 void BookSort(BB_POSITION *, int, int);
-
 #  if defined(NT_i386)
 int _cdecl BookUpCompare(const void *, const void *);
 #  else
@@ -448,10 +435,9 @@ void DisplayType4(int *, int *);
 void DisplayType5(int *, int *, int);
 void DisplayType6(int *, int *);
 void DisplayType7(int *, int *);
-void DisplayType8(int *);
+void DisplayType8(int *, int);
 void DisplayType9(int *, int *);
 void Edit(void);
-
 #  if !defined(NOEGTB)
 int EGTBProbe(TREE * RESTRICT, int, int, int *);
 void EGTBPV(TREE * RESTRICT, int);
@@ -470,7 +456,7 @@ void EvaluatePassedPawnRaces(TREE * RESTRICT, int);
 void EvaluatePawns(TREE * RESTRICT, int);
 void EvaluateQueens(TREE * RESTRICT, int);
 void EvaluateRooks(TREE * RESTRICT, int);
-int EvaluateWinningChances(TREE * RESTRICT, int);
+int EvaluateWinningChances(TREE * RESTRICT, int, int);
 void EVTest(char *);
 int FindBlockID(TREE * RESTRICT);
 char *FormatPV(TREE * RESTRICT, int, PATH);
@@ -482,7 +468,7 @@ int *GenerateChecks(TREE * RESTRICT, int, int, int *);
 int *GenerateNoncaptures(TREE * RESTRICT, int, int, int *);
 int HashProbe(TREE * RESTRICT, int, int, int, int *, int);
 void HashStore(TREE * RESTRICT, int, int, int, int, int, int);
-void HashStorePV(TREE * RESTRICT, int, int, int);
+void HashStorePV(TREE * RESTRICT, int, int);
 int EvaluateHasOpposition(int, int, int);
 int IInitializeTb(char *);
 void Initialize(void);
@@ -505,6 +491,7 @@ BITBOARD InterposeSquares(int, int, int);
 void Interrupt(int);
 int InvalidPosition(TREE * RESTRICT);
 int Iterate(int, int, int);
+void Kibitz(int, int, int, int, int, BITBOARD, int, char *);
 void Killer(TREE * RESTRICT, int, int);
 int KingPawnSquare(int, int, int, int);
 void LearnBook(void);
@@ -517,7 +504,6 @@ int NextEvasion(TREE * RESTRICT, int, int);
 int NextMove(TREE * RESTRICT, int, int);
 int NextRootMove(TREE * RESTRICT, TREE * RESTRICT, int);
 int NextRootMoveParallel(void);
-char *Normal(void);
 int Option(TREE * RESTRICT);
 int OptionMatch(char *, char *);
 void OptionPerft(TREE * RESTRICT, int, int, int);
@@ -550,10 +536,8 @@ int RepetitionCheckBook(TREE * RESTRICT, int, int);
 int RepetitionDraw(TREE * RESTRICT, int, int);
 void ResignOrDraw(TREE * RESTRICT, int);
 void RestoreGame(void);
-char *Reverse(void);
 void RootMoveList(int);
 int Search(TREE * RESTRICT, int, int, int, int, int, int);
-int SearchExtensions(TREE * RESTRICT, int, int, int);
 int SearchRoot(TREE * RESTRICT, int, int, int, int);
 int SearchParallel(TREE * RESTRICT, int, int, int, int, int, int);
 void Trace(TREE * RESTRICT, int, int, int, int, int, char *, int);
@@ -561,16 +545,14 @@ void SetBoard(TREE *, int, char **, int);
 void SetChessBitBoards(TREE *);
 int SetRootAlpha(unsigned char, int);
 int SetRootBeta(unsigned char, int);
-void *SharedMalloc(size_t, int);
 void SharedFree(void *address);
 int StrCnt(char *, char);
-int Swap(TREE * RESTRICT, int, int, int);
+int Swap(TREE * RESTRICT, int, int);
 void Test(char *);
 void TestEPD(char *);
 int Thread(TREE * RESTRICT);
 void WaitForAllThreadsInitialized(void);
 void *STDCALL ThreadInit(void *);
-
 #  if defined(_WIN32) || defined(_WIN64)
 void ThreadMalloc(int);
 #  endif
@@ -578,17 +560,14 @@ void ThreadStop(TREE * RESTRICT);
 int ThreadWait(long, TREE * RESTRICT);
 void TimeAdjust(int, int);
 int TimeCheck(TREE * RESTRICT, int);
-void TimeSet(int);
+void TimeSet(TREE * RESTRICT, int);
 void UnmakeMove(TREE * RESTRICT, int, int, int);
 int ValidMove(TREE * RESTRICT, int, int, int);
 int VerifyMove(TREE * RESTRICT, int, int, int);
 void ValidatePosition(TREE * RESTRICT, int, int, char *);
-void Kibitz(int, int, int, int, int, BITBOARD, int, char *);
-
 #  if defined(_WIN32) || defined(_WIN64)
 extern void *WinMallocInterleaved(size_t, int);
 extern void WinFreeInterleaved(void *, size_t);
-
 #    define MallocInterleaved(cBytes, cThreads)\
     WinMallocInterleaved(cBytes, cThreads)
 #    define FreeInterleaved(pMemory, cBytes)\
@@ -619,10 +598,9 @@ extern void WinFreeInterleaved(void *, size_t);
   t = pre-computed from + moving piece
  */
 #  define Unpack(side, mptr, m, t)                                         \
-  while (m) {                                                              \
-    int to = Advanced(side, moves);                                        \
+  for ( ; m ; Clear(to, m)) {                                              \
+    to = Advanced(side, m);                                                \
     *mptr++ = t | (to << 6) | (Abs(PcOnSq(to)) << 15);                     \
-    Clear(to, m);                                                          \
   }
 #  define Check(side) Attacks(tree, KingSQ(side), Flip(side))
 #  define Attack(from,to) (!(obstructed[from][to] & OccupiedSquares))
@@ -646,12 +624,12 @@ extern void WinFreeInterleaved(void *, size_t);
    the following macros are used to extract the pieces of a move that are
    kept compressed into the rightmost 21 bits of a simple integer.
  */
-#  define From(a)               ((a)&63)
-#  define To(a)                 (((a)>>6)&63)
-#  define Piece(a)              (((a)>>12)&7)
-#  define Captured(a)           (((a)>>15)&7)
-#  define Promote(a)            (((a)>>18)&7)
-#  define CaptureOrPromote(a)   (((a)>>15)&63)
+#  define From(a)               ((a) & 63)
+#  define To(a)                 (((a)>>6) & 63)
+#  define Piece(a)              (((a)>>12) & 7)
+#  define Captured(a)           (((a)>>15) & 7)
+#  define Promote(a)            (((a)>>18) & 7)
+#  define CaptureOrPromote(a)   (((a)>>15) & 63)
 #  define SetMask(a)            (set_mask[a])
 #  define ClearMask(a)          (clear_mask[a])
 #  define Pawns(c)              (tree->pos.color[c].pieces[pawn])
@@ -664,7 +642,7 @@ extern void WinFreeInterleaved(void *, size_t);
 #  define Occupied(c)           (tree->pos.color[c].pieces[occupied])
 #  define Pieces(c, p)          (tree->pos.color[c].pieces[p])
 #  define TotalPieces(c, p)     (tree->pos.pieces[c][p])
-#  define PieceValues(c, p)     (piece_values[c][p])
+#  define PieceValues(c, p)     (piece_values[p][c])
 #  define TotalAllPieces        (tree->pos.total_all_pieces)
 #  define Material              (tree->pos.material_evaluation)
 #  define MaterialSTM(side)     ((side) ? Material : -Material)
@@ -676,26 +654,24 @@ extern void WinFreeInterleaved(void *, size_t);
 #  define EnPassant(ply)        (tree->position[ply].enpassant_target)
 #  define EnPassantTarget(ply)  (EnPassant(ply) ? SetMask(EnPassant(ply)) : 0)
 #  define PcOnSq(sq)            (tree->pos.board[sq])
-#  define BishopsQueens         (tree->pos.bishops_queens)
-#  define RooksQueens           (tree->pos.rooks_queens)
 #  define OccupiedSquares       (Occupied(white) | Occupied(black))
 #  define Color(square)         (square_color[square] ? dark_squares : ~dark_squares)
+#  define SideToMove(c)         ((c) ? "White" : "Black")
 /*
    the following macros are used to Set and Clear a specific bit in the
    second argument.  this is done to make the code more readable, rather
    than to make it faster.
  */
-#  define ClearSet(a,b)         b=((a)^(b))
-#  define Clear(a,b)            b=ClearMask(a)&(b)
-#  define Set(a,b)              b=SetMask(a)|(b)
+#  define ClearSet(a,b)         b=((a) ^ (b))
+#  define Clear(a,b)            b=ClearMask(a) & (b)
+#  define Set(a,b)              b=SetMask(a) | (b)
 /*
    the following macros are used to update the hash signatures.
  */
-/* a=wtm, b=piece c=square */
-#  define Hash(a,b,c)           (HashKey^=randoms[a][b][c])
-#  define HashP(a,c)            (PawnHashKey^=randoms[a][pawn][c])
-#  define HashCastle(a,b,c)     (b^=castle_random[c][a])
-#  define HashEP(a,b)           (b^=enpassant_random[a])
+#  define Hash(stm,piece,square)     (HashKey^=randoms[stm][piece][square])
+#  define HashP(stm,square)          (PawnHashKey^=randoms[stm][pawn][square])
+#  define HashCastle(stm,direction)  (HashKey^=castle_random[stm][direction])
+#  define HashEP(stm)                (HashKey^=enpassant_random[stm])
 #  define SavePV(tree,ply,ph)   do {                                        \
         tree->pv[ply-1].path[ply-1]=tree->curmv[ply-1];                     \
         tree->pv[ply-1].pathl=ply-1;                                        \

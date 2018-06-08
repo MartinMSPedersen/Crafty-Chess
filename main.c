@@ -953,7 +953,7 @@
  *           the complete xboard interface, including hint, show thinking,     *
  *           taking back moves, "move now" and so forth.  Additionally, Crafty *
  *           now works with standard xboard.  Notice that this means that a    *
- *           ^C (interrupt) will no long terminate crafty, because xboard uses *
+ *           ^C (interrupt) will no long terminate Crafty, because xboard uses *
  *           this to implement the "move now" facility.  This should also      *
  *           work with winboard and allow pondering, since there is now a      *
  *           special windows version of CheckInput() that knows how to check   *
@@ -971,7 +971,7 @@
  *           as "mate in n plies from current position".  Trivial, really, but *
  *           I overlooked one important fact:  mate scores can also be upper   *
  *           or lower search bounds, and I was correcting them in the same way *
- *           which is an error.  The effect was that crafty would often find a *
+ *           which is an error.  The effect was that Crafty would often find a *
  *           mate in 2, fail high on a move that should not fail high, and end *
  *           up making a move that would mate in 3.  In particularly bad cases *
  *           this would make the search oscillate back and forth and draw a    *
@@ -1012,7 +1012,7 @@
  *           move fails high.  Minor repetition bug fixed.  When running test  *
  *           suites of problems, SetBoard() neglected to put the starting      *
  *           position in the repetition list, which would occasionally waste   *
- *           time.  One notable case was Win At Chess #8, where crafty would   *
+ *           time.  One notable case was Win At Chess #8, where Crafty would   *
  *           find Nf7+ Kg8 Nh6+ Kh8 (repeating the original position) followed *
  *           by Rf7 (the correct move, but 4 tempi behind.)  Display() bug     *
  *           fixed.  Crafty now displays the current board position, rather    *
@@ -1062,7 +1062,7 @@
  *           now defaulting to "book random 0" to use a short search to help   *
  *           avoid some ugly book lines on occasion.  In this version, *all*   *
  *           positional scores were divided by 2 to reduce the liklihood that  *
- *           crafty would sacrifice material and make up the loss with some    *
+ *           Crafty would sacrifice material and make up the loss with some    *
  *           sort of positional gain that was often only temporary.  Note that *
  *           king safety scores were not reduced while doing this.  New book   *
  *           random options:  0=search, 1=most popular move, 2=move that       *
@@ -1087,7 +1087,7 @@
  *           redundant at times and often misleading.  The queen's mobility    *
  *           is so variable it is nearly like introducing a few random points  *
  *           at various places in the search.  Minor Xboard compatibility bug  *
- *           fixed where you could not load a game file, then have crafty play *
+ *           fixed where you could not load a game file, then have Crafty play *
  *           by clicking the "machine white" or "machine black" options.       *
  *                                                                             *
  *    9.24   Minor bug in Quiesce() repaired.  When several mate-in-1 moves    *
@@ -1109,7 +1109,7 @@
  *           resulted in significant speedup on the sparc, but a more modest   *
  *           improvement on the pentium.                                       *
  *                                                                             *
- *    9.25   Minor bug in Book() fixed where it was possible for crafty to     *
+ *    9.25   Minor bug in Book() fixed where it was possible for Crafty to     *
  *           play a book move that was hardly ever played.  Minor change to    *
  *           time utilization to use a little more time "up front".  Tuned     *
  *           piece/square tables to improve development some.  Saw Crafty lose *
@@ -1167,7 +1167,7 @@
  *           One exception is if the previous ply was in check, we simply look *
  *           for any safe-looking capture just in case it leads to mate.  Bad  *
  *           book bug with book random=1 or 2 fixed (this is set when playing  *
- *           a computer).  This bug would cause crafty to play an illegal move *
+ *           a computer).  This bug would cause Crafty to play an illegal move *
  *           and bust wide open with illegal move errors, bad move hashed, and *
  *           other things.  Book randomness also quite a bit better now.       *
  *                                                                             *
@@ -1182,7 +1182,7 @@
  *           the size of the hash table has been modified.  This command is    *
  *           now "hash n", "hash nK" or "hash nM" to set the hash table to one *
  *           of bytes, Kbytes, or Mbytes.  Note that if the size is not an     *
- *           exact multiple of what crafty needs, it silently reduces the size *
+ *           exact multiple of what Crafty needs, it silently reduces the size *
  *           to an optimum value as close to the suggested size as possible.   *
  *           Trade bonus/penalty is now back in, after having been removed     *
  *           when the new UnmakeMove() code was added.  Crafty tries to trade  *
@@ -1215,16 +1215,16 @@
  *           speeded the code up with no visible penalty, other than it will   *
  *           occasionally find a win of material rather than a mate score, but *
  *           this has not affected the problem suite results in a measurable   *
- *           way, other than crafty is now about 10% faster in average type    *
+ *           way, other than Crafty is now about 10% faster in average type    *
  *           position, and much faster in others.  The latest epd code from    *
  *           Steven Edwards is a part of this version, which includes updated  *
  *           tablebase access code.                                            *
  *                                                                             *
  *   10.0    New time.c with a "monitoring feature" that has two distinct      *
- *           functions:  (1) monitor crafty's time remaining and if it is too  *
+ *           functions:  (1) monitor Crafty's time remaining and if it is too  *
  *           far behind the opponent, force it to speed up, or if it is well   *
  *           ahead on time, slow down some;  (2) if opponent starts moving     *
- *           quickly, crafty will speed up as well to avoid getting too far    *
+ *           quickly, Crafty will speed up as well to avoid getting too far    *
  *           behind.  EvaluateDraws() modified to detect that if one side has  *
  *           insufficient material to win, the score can never favor that side *
  *           which will make Crafty avoid trading into an ending where it has  *
@@ -1312,7 +1312,7 @@
  *           concept from "My System".                                         *
  *                                                                             *
  *   10.11   Lazy evaluation implemented.  Now as the Evaluate() code is ex-   *
- *           ecuted, crafty will "bail out" when it becomes obvious that the   *
+ *           ecuted, Crafty will "bail out" when it becomes obvious that the   *
  *           remainder of the evaluation can't bring the score back inside the *
  *           alpha/beta window, saving time.                                   *
  *                                                                             *
@@ -1335,7 +1335,7 @@
  *                                                                             *
  *   10.14   Final timing modifications.  Puzzling/booking searches now take   *
  *           1/30th of the normal time, rather than 1/10th.  New command       *
- *           "mode=tournament" makes crafty assess DRAW as "0" and also makes  *
+ *           "mode=tournament" makes Crafty assess DRAW as "0" and also makes  *
  *           it prompt the operator for time corrections as required by WMCCC  *
  *           rules.                                                            *
  *                                                                             *
@@ -1370,7 +1370,7 @@
  *           depth by < 1 ply, so that it takes two such things before the     *
  *           search actually extends one ply deeper.  Crafty now has full PGN  *
  *           support.  A series of pgn commands (pgn Event 14th WMCCC) allow   *
- *           the PGN tags to be defined, when crafty reads or annotates a PGN  *
+ *           the PGN tags to be defined, when Crafty reads or annotates a PGN  *
  *           file it reads and parses the headers and will display the info    *
  *           in the annotation (.can) file or in the file you specify when you *
  *           execute a "savegame <filename>" command.                          *
@@ -1408,7 +1408,7 @@
  *   11.4    Tuning on outside passed pawn code.  Values were not large enough *
  *           and didn't emphasize how strong such a pawn is.  General passed   *
  *           pawn value increased as well.  Minor bug in edit that would let   *
- *           crafty flag in some wild games was fixed.  Basically, edit has no *
+ *           Crafty flag in some wild games was fixed.  Basically, edit has no *
  *           way to know if castling is legal, and has to assume if a rook and *
  *           king are on the original squares, castling is o.k.  For wild2     *
  *           games in particular, this can fail because castling is illegal    *
@@ -1470,7 +1470,7 @@
  *           percentage.  (See learn.c for more details).  These values are    *
  *           used by Book() to help in selecting/avoiding book lines.  Crafty  *
  *           produces a "book.lrn" file that synthesizes this information into *
- *           a portable format that will be used by other crafty programs,     *
+ *           a portable format that will be used by other Crafty programs,     *
  *           once the necessary code is added later on.                        *
  *                                                                             *
  *   11.9    An age-old problem caused by null-move searching was eliminated   *
@@ -1498,7 +1498,7 @@
  *           does is to encourage Crafty to follow opening lines that have     *
  *           been good, even if the learn count hasn't reached the current     *
  *           threshold of 1,000.  This makes learning "activate" faster.  This *
- *           has one hole in it, in that once crafty learns that one move has  *
+ *           has one hole in it, in that once Crafty learns that one move has  *
  *           produced a positive learn value, it will keep playing that move   *
  *           (since no others will yet have a positive value) until it finally *
  *           loses enough to take the learn value below zero.  This will be    *
@@ -1582,12 +1582,12 @@
  *           that Crafty won't make an outright blunder very often) and        *
  *           "untrusted" values (positive values often caused by the opponent  *
  *           hanging a piece.  Trusted values are scaled up if the opponent is *
- *           weaker than crafty since a weaker opponent forcing a negative     *
+ *           weaker than Crafty since a weaker opponent forcing a negative     *
  *           eval means the position must really be bad, and are scaled down   *
- *           somewhat if the opponent is stronger than crafty (from the rating *
+ *           somewhat if the opponent is stronger than Crafty (from the rating *
  *           information from ICC or the operator using the rating command.)   *
  *           Untrusted values are scaled down harshly, unless the opponent is  *
- *           much stronger than crafty, since it is unlikely such an opponent  *
+ *           much stronger than Crafty, since it is unlikely such an opponent  *
  *           would really blunder, while weaker opponents drastically scale    *
  *           untrusted value (which is positive, remember) down.  minor depth  *
  *           problem fixed in learning code.  The depth used in LearnFunction  *
@@ -1606,7 +1606,7 @@
  *           Crafty overlook the above mate also fixed.  The search value was  *
  *           not correct if Crafty got mated, which would avoid learning in    *
  *           that case.  This has been fixed, although it was obviously a rare *
- *           problem anyway.  Minor draw bug fixed, where crafty would offer   *
+ *           problem anyway.  Minor draw bug fixed, where Crafty would offer   *
  *           a draw when time was way low, caused by the resolution change a   *
  *           few months back, and also it would offer a draw after the         *
  *           opponent moved, even if he made a blunder.  It now only offers a  *
@@ -1759,7 +1759,7 @@
  *           "force", caused when the opponent makes a move and loses on time, *
  *           or makes a move and resigns.  This would leave the engine state   *
  *           somewhat confused, and would result in the "new" command not      *
- *           reinitializing things at all, which would hang crafty on xboard   *
+ *           reinitializing things at all, which would hang Crafty on xboard   *
  *           or winboard.                                                      *
  *                                                                             *
  *   12.3    Modified piece values somewhat to increase their worth relative   *
@@ -1887,7 +1887,7 @@
  *           adequate randomness.  If the least frequently played move in the  *
  *           set of book moves was played fewer times than this, then a search *
  *           over all the book moves is done.  If the best one doesn't look    *
- *           so hot, crafty drops out of book and searches *all* legal moves   *
+ *           so hot, Crafty drops out of book and searches *all* legal moves   *
  *           instead.                                                          *
  *                                                                             *
  *   13.10   Minor adjustments.  This is the gold Paris version that is going  *
@@ -1999,7 +1999,7 @@
  *           one other player) found.                                          *
  *                                                                             *
  *   14.10   New "bench" command runs a test and gives a benchmark comparison  *
- *           for crafty and compares this to a P6/200 base machine.  Minor bug *
+ *           for Crafty and compares this to a P6/200 base machine.  Minor bug *
  *           disabled the "dynamic draw score" and fixed it at zero, even if   *
  *           the opponent was much weaker (rating) or behind on time.  Also    *
  *           draw_score was not reset to 0 at start of each new game, possibly *
@@ -2100,7 +2100,7 @@
  *           the king to come out and fight rather than stay back and get      *
  *           squeezed to death.  Minor change to queen/king tropism to only    *
  *           conside the file distance, not ranks also.  Bug in interupt.c     *
- *           fixed.  This bug would, on very rare occasion, let crafty read in *
+ *           fixed.  This bug would, on very rare occasion, let Crafty read in *
  *           a move, but another thread could read on top of this and lose the *
  *           move.  Xboard would then watch the game end with a <flag>.        *
  *                                                                             *
@@ -2132,7 +2132,7 @@
  *                                                                             *
  *   15.10   Fixed "draw" command to reject draw offers if opponent has < ten  *
  *           seconds left and no increment is being used.  Fixed glitch in     *
- *           LearnResult() that would crash crafty if no book was being used,  *
+ *           LearnResult() that would crash Crafty if no book was being used,  *
  *           and it decides to resign.  Modified trade bonus code to eliminate *
  *           a hashing inconsistency.  Minor glitch in "show thinking" would   *
  *           show bad value if score was mate.  Added Tim Mann's new xboard/   *
@@ -2166,8 +2166,8 @@
  *           so that games end when they should.  DrawScore() had a quirk that *
  *           caused some problems, in that it didn't know what to do with non- *
  *           zero draw scores, and could return a value with the wrong sign at *
- *           times.  It is now passed a flag, "crafty_is_white" to fix this.   *
- *           Modification so that crafty can handle the "FEN" PGN tag and set  *
+ *           times.  It is now passed a flag, "Crafty_is_white" to fix this.   *
+ *           Modification so that Crafty can handle the "FEN" PGN tag and set  *
  *           the board to the correct position when it is found.  Xboard       *
  *           options "hard" and "easy" now enable and disable pondering.       *
  *                                                                             *
@@ -2281,7 +2281,7 @@
  *           120 (2*PLY) as planned.  Crafty now *only* supports               *
  *           winboard/xboard 4.0 or higher, by sending the string "move xxx"   *
  *           to indicate its move.  This was done to eliminate older xboard    *
- *           versions that had some incompatibilities with crafty that were    *
+ *           versions that had some incompatibilities with Crafty that were    *
  *           causing lots of questions/problems.  Xboard 4.0 works perfectly   *
  *           and is the only recommended GUI now.                              *
  *                                                                             *
@@ -2339,7 +2339,7 @@
  *           wrong address 50% of the time (thanks to J. Wesley Cleveland).    *
  *                                                                             *
  *   16.3    Performance tweaks plus a few evaluation changes.  An oversight   *
- *           would let crafty play a move like exd5 when cxd5 was playable.    *
+ *           would let Crafty play a move like exd5 when cxd5 was playable.    *
  *           IE it didn't follow the general rule "capture toward the center." *
  *           this has been fixed.  King safety ramped up just a bit.           *
  *                                                                             *
@@ -2349,7 +2349,7 @@
  *           some "space" problems caused by not wanting to advance pawns at   *
  *           all, plus some piece/square pawn values that were too large near  *
  *           the opponent's king position.  New swindle on*off command allows  *
- *           the user to disable "swindle mode" so that crafty will report     *
+ *           the user to disable "swindle mode" so that Crafty will report     *
  *           tablebase draws as draws.  Swindle mode is now disabled auto-     *
  *           matically in analysis or annotate modes.  DrawScore() now returns *
  *           a draw score that is not nearly so negative when playing humans.  *
@@ -2409,7 +2409,7 @@
  *                                                                             *
  *   16.7    Minor bug in 'book create' command would produce wrong line num-  *
  *           bers if you used two book create commands without restarting      *
- *           crafty between uses.  Replaced "ls" command with a !cmd shell     *
+ *           Crafty between uses.  Replaced "ls" command with a !cmd shell     *
  *           escape to allow _any_ command to be executed by a shell. Change   *
  *           to bishop scoring to avoid a bonus for a bishop pair _and_ a good *
  *           bishop sitting at g2/g7/etc to fill a pawn hole.  If the bishop   *
@@ -2557,7 +2557,7 @@
  *   17.0    Connected passed pawn scoring modified so that connected passers  *
  *           don't get any sort of bonus, except for those cases where the     *
  *           opponent has a rook or more.  This will avoid liking positions    *
- *           where crafty has two connected passers on the d/e files, and the  *
+ *           where Crafty has two connected passers on the d/e files, and the  *
  *           opponent has passers on the b/g files.  The split passers win if  *
  *           all pieces are traded, while the connected passers are better     *
  *           when pieces are present.  A new scoring term evaluates the        *
@@ -2570,7 +2570,7 @@
  *           opponents was written for this version.  Crafty now supports two  *
  *           "books.bin" type files, books.bin and bookc.bin (the bookc create *
  *           command can be used to make bookc.bin).  Bookc will only be used  *
- *           when crafty is playing a computer.  This is supplied by xboard or *
+ *           when Crafty is playing a computer.  This is supplied by xboard or *
  *           winboard when playing on a server, or can be included int the     *
  *           crafty.rc/.craftyrc file when playing directly.  Bookc.bin will   *
  *           be used when playing a computer only, and should be used to avoid *
@@ -2613,7 +2613,7 @@
  *           not.  This has been fixed.  New "store <val>" command can be used *
  *           to make "position learning" remember the current position and the *
  *           score (val) you supply.  This is useful in analyze mode to move   *
- *           into the game, then let crafty know that the current position is  *
+ *           into the game, then let Crafty know that the current position is  *
  *           either lost or won (with a specific score).                       *
  *                                                                             *
  *   17.1    Book structure fixed, since compilers can't quite agree on how    *
@@ -2678,7 +2678,7 @@
  *           Minor change to RepetitionCheck() to not count two-fold repeats   *
  *           as draws in the first two plies, which prevents some odd-looking  *
  *           repeats at the expense of a little inefficiency.  Ugly repetition *
- *           bug fixed.  Rephead was off by one for whatever side crafty was   *
+ *           bug fixed.  Rephead was off by one for whatever side Crafty was   *
  *           playing which would screw up repetition detection in some cases.  *
  *           Minor bug in main() that would report stalemate on some mates     *
  *           when the ponder score was forgotten.                              *
@@ -2747,7 +2747,7 @@
  *           longer seen at the root.  Bug in BookUp() would break if a FEN    *
  *           string was included in a game used for input.  SetBoard() was     *
  *           setting castling status incorrectly.  Internal iterative          *
- *           deepening bug could (on very rare occasions) cause crafty to try  *
+ *           deepening bug could (on very rare occasions) cause Crafty to try  *
  *           to search an illegal move that would bomb the search.  This       *
  *           version fully supports the new xboard protocol version 2.  One    *
  *           other major change is that the eval is now consistently displayed *
@@ -2756,7 +2756,7 @@
  *           server.  This should eliminate _all_ confusion about the values   *
  *           that are displayed as there are now no exceptions to the above    *
  *           policy of any kind.  Book() was changed so that if it notices     *
- *           that the opponent has a "stonewall pattern" set up (IE crafty     *
+ *           that the opponent has a "stonewall pattern" set up (IE Crafty     *
  *           is black, has a pawn at e7 or e6, and the opponent has pawns at   *
  *           d4/f4) then it won't play a castle move from book.  It will do a  *
  *           normal search instead and let the evaluation guide it on whether  *
@@ -2825,7 +2825,7 @@
  *           now make Crafty learn very aggressively and repeat good opening   *
  *           lines and avoid bad ones.                                         *
  *                                                                             *
- *   18.10   Minor bug in book.c would let crafty play lines that were very    *
+ *   18.10   Minor bug in book.c would let Crafty play lines that were very    *
  *           rarely played even though there were others that had been played  *
  *           far more times and were more reliable.  King safety scores ramped *
  *           up a bit and made more "responsive".                              *
@@ -2894,13 +2894,13 @@
  *           now evaluates such positions as "DrawScore()" instead.  The code  *
  *           to accept/decline draws has been modified.  When a draw offer is  *
  *           received, a global variable "draw_offer_pending" is set to 1.     *
- *           When the search for a move for crafty terminates, crafty then     *
+ *           When the search for a move for Crafty terminates, Crafty then     *
  *           uses this value to decide whether to accept or decline the draw.  *
  *           This means that the accept/decline won't happen until _after_ the *
  *           search has a chance to see if something good is happening that    *
  *           should cause the draw to be declined, closing a timing hole that  *
  *           used to exist that let a few "suspects" get away with draws that  *
- *           should not have happened (ie crafty has - scores for a long time, *
+ *           should not have happened (ie Crafty has - scores for a long time, *
  *           the opponent suddenly fails low and sees he is losing and offers  *
  *           a draw quickly.  Crafty would accept before doing a search and    *
  *           noticing that it was suddenly winning.)  minor evaluation change  *
@@ -2934,7 +2934,7 @@
  *           to make them identical in "look" where possible, for consistency  *
  *           in source reading if nothing else.  If the first argument on the  *
  *           command-line is "xboard" or if the environment variable           *
- *           "CRAFTY_XBOARD" is set, crafty sends a "feature done=0" command   *
+ *           "CRAFTY_XBOARD" is set, Crafty sends a "feature done=0" command   *
  *           to tell xboard it has not yet initialized things.  Significant    *
  *           changes to EvaluateWinner() to recognize new cases of draws such  *
  *           as Q+minor+nopawns vs Q+pawns as unwinnable by the Q+minor side.  *
@@ -3013,7 +3013,7 @@
  *           invalidate traffic).                                              *
  *                                                                             *
  *   19.9    Two new pieces of code submitted by Alexander Wagner.  The first  *
- *           adds speech to crafty for unix users.  /opt/chess/sounds needs to *
+ *           adds speech to Crafty for unix users.  /opt/chess/sounds needs to *
  *           exist and the common/sounds.tar.gz file needs to be untarred in   *
  *           directory.  "Speech on*off" controls it.  A new annotatet command *
  *           outputs the annotated file in LaTeX format for those that prefer  *
@@ -3094,7 +3094,7 @@
  *           on some results from the new annealing code, although all of the  *
  *           annealed values are not yet fully understood nor utilized yet.    *
  *           LearnBook() is now used to learn good and bad game results.  IE   *
- *           if crafty wins with a particular opening, it will remember it as  *
+ *           if Crafty wins with a particular opening, it will remember it as  *
  *           good and try it again, in addition to the previous method that    *
  *           would remember bad openings and avoid them.  It also now handles  *
  *           draws as well which can make slightly bad openings appear better. *
@@ -3288,7 +3288,7 @@
  *           has been completely removed, while the check extension has been   *
  *           left at 1.0 as in the past.  The mate threat and one-legal-reply  *
  *           extensions are now both set to .75 after extensive testing.  This *
- *           is the CCT8 version of crafty.                                    *
+ *           is the CCT8 version of Crafty.                                    *
  *                                                                             *
  *   20.4    History counters changed.  There is now one large history[8192]   *
  *           array to simplify indexing.  More importantly, these values are   *
@@ -3401,7 +3401,7 @@
  *           on one-reply extensions only.  New lock.h submitted by Andreas    *
  *           Guettinger to support spinlocks on the PPC architecture (Linux).  *
  *           Some -D configuration options were changed so that none are       *
- *           needed to compile the "standard" crafty.  Futility is normally on *
+ *           needed to compile the "standard" Crafty.  Futility is normally on *
  *           now, and -DNOFUTILITY is required to compile it out.  The new     *
  *           Makefile gives the configuration options, but the only ones that  *
  *           would normally need setting are the SMP and CPUS= options if you  *
@@ -3437,7 +3437,7 @@
  *           learn mechanism no longer touches the real chess board which      *
  *           could cause problems in certain xboard/winboard timing            *
  *           situations.  One major learning change is that we now only learn  *
- *           things from "crafty's perspective".  That is, if Crafty loses a   *
+ *           things from "Crafty's perspective".  That is, if Crafty loses a   *
  *           game as black, it won't think that opening is good when it plays  *
  *           white since it might well not understand how to win using that    *
  *           particular opening.  It will only "learn" on the actual moves it  *
@@ -3523,7 +3523,7 @@
  *           was summarily removed (not summarily executed, it has had that    *
  *           done far too many times already).                                 *
  *                                                                             *
- *   22.0    Redesign of the data structures completed so that crafty will no  *
+ *   22.0    Redesign of the data structures completed so that Crafty will no  *
  *           longer have duplicated code for wtm and btm cases.  This has      *
  *           already resulted in a rewrite of movgen(), swap(), make() and     *
  *           Unmake() and cut that code size by almost exactly 50%. The result *
@@ -3543,7 +3543,7 @@
  *                                                                             *
  *   22.1    Minor fix for CPUS=1, which would cause compile errors.  Other    *
  *           eval tweaks to improve scoring.  New "skill" command that can be  *
- *           used to "dumb down" crafty.  "Skill <n>" where n is a number      *
+ *           used to "dumb down" Crafty.  "Skill <n>" where n is a number      *
  *           between 1 and 100.  100 is max (default) skill.  Skill 70 will    *
  *           drop the playing Elo by about 200 points.  Skill 50 will drop it  *
  *           about 400 points.  The curve is not linear, and the closer you    *
@@ -3712,13 +3712,87 @@
  *           difficult to develop the queen-side.  We now enable this code     *
  *           always and never disable it.  This disable was done years ago     *
  *           when the castling evaluation of Crafty would scan the move list   *
- *           to see if crafty had castled, when it noticed castling was no     *
+ *           to see if Crafty had castled, when it noticed castling was no     *
  *           longer possible.  Once it had castled, we disabled this to avoid  *
  *           the lengthy loop and the overhead it caused.  Today the test is   *
  *           quite cheap anyway, and I measured no speed difference with it on *
  *           or off, to speak of.  Now we realize that the knight in front of  *
  *           the C-pawn is bad and needs to either not go there, or else move  *
  *           out of the way.                                                   *
+ *                                                                             *
+ *    23.1   Xboard protocol support slightly modified so that draw results    *
+ *           are now sent after the move that causes the draw.  They were      *
+ *           always sent before a move if the position prior to the move was   *
+ *           drawn, but they were also sent just before playing a move to work *
+ *           around a xboard protocol race condition where I can send a move,  *
+ *           and then a draw claim (xboard 'result string') and the GUI sees   *
+ *           my move, relays it to my opponent, and gets an instant reply that *
+ *           it then sees before my draw claim.  After making this move and    *
+ *           forwarding it to me, it now thinks the draw claim is invalid.     *
+ *           slight tweak to queen material value and the way our bishop pair  *
+ *           scoring is done.  The old razoring code has been removed.  It is  *
+ *           redundant with LMR, and it had the unwanted side-effect of        *
+ *           reducing a few of the moves two plies.  The futility pruning has  *
+ *           been modified to work at the last N plies.  We have an array of   *
+ *           pruning margins (tuned on the cluster) where anytime the depth is *
+ *           less than "pruning_depth" we try the futility test.  If the test  *
+ *           succeeds, that move is discarded and not searched at all.  Move   *
+ *           ordering code modified slightly to call Swap() fewer times if the *
+ *           goodness of the capture can still be accurately assessed without  *
+ *           the call.  Hash table has been changed to use a bucket of 4       *
+ *           entries similar to a 4-way set associative cache.  When a store   *
+ *           is attempted, we replace the least useful entry (see hash.c for   *
+ *           details).  Additionally the hash table is forced to a 64 byte     *
+ *           boundary alignment so that a bucket aligns on the start of a      *
+ *           cache line for efficiency.  The old approach used 3 entries per   *
+ *           bucket, the Belle two-table approach, which caused 1/2 of the     *
+ *           cache probes to result in two cache line reads rather than just   *
+ *           one.  Slight modification to "time overflow" logic.  Now, if the  *
+ *           score drops on the iteration where we reach the normal time       *
+ *           allocation, Crafty will continue to search.  Previously the score *
+ *           had to drop by 1/4 pawn, but cluster testing has shown that this  *
+ *           change is better.  Final bit of old rotated bitboard logic        *
+ *           removed.  We had two bitboards, RooksQueens and BishopsQueens     *
+ *           that were updated in MakeMove() and UnmakeMove().  It turned out  *
+ *           to be faster to just OR the needed piece bitboards together since *
+ *           they were infrequently used in the new "magic" approach, which    *
+ *           allowed me to remove them completely from the position structure  *
+ *           and make/unmake.  Net result was a percent or two faster search   *
+ *           overall.  Old bug fixed related to EGTB usage.  The Edwards       *
+ *           format did not include en passant pawn captures, so it was        *
+ *           necessary to avoid probing any position where both sides had a    *
+ *           pawn and there was any possibility of an en passant capture (one  *
+ *           pawn on original square, enemy pawn anywhere on either adjacent   *
+ *           file).  The Nalimov tables consider en passant correctly, but     *
+ *           somehow this old code was either left in iterate.c or else added  *
+ *           back in by accident.  It is now no longer present.  Minor changes *
+ *           (suggested by J. Cleveland on CCC) that avoids trying a null-move *
+ *           search when remaining depth == 1, and which saves some effort by  *
+ *           remembering, when a node fails low, the first move searched.      *
+ *           This move then gets stored in the hash table as the "best move".  *
+ *           While this might be wrong, it has a chance of being right and     *
+ *           when it is good enough to cause a cutoff, we can avoid a move     *
+ *           generation which saves a bit of time.  Fixed a significant bug in *
+ *           EvaluateWinningChances() where it was using a global variable     *
+ *           "wtm" which tells who is to move in the real game, not at the     *
+ *           current position in the treee.  This value  is used for tempo     *
+ *           calculations to determine if the losing king (in a K + rook-pawn  *
+ *           ending (with or without wrong bishop)) can reach the queening     *
+ *           square before the winning side's king can block acccess.  This    *
+ *           would randomly make the tempo calculation off by one, so that the *
+ *           score could bounce from draw to win and back as the game          *
+ *           progresses, since about 1/2 the time the wtm  value is wrong.  I  *
+ *           simply passed the current wtm in as a formal parameter to solve   *
+ *           this (a good example of why having a global variable and a formal *
+ *           argument paramenter using the same name is a bad idea.)  In this  *
+ *           same general area, EvaluateDraws() could set the score to         *
+ *           DrawScore, which was somewhat "iffy".  I changed this to simply   *
+ *           determine if the side that ahead is score has any realistic       *
+ *           winning chances.  If not, I divide the score by 10 rather than    *
+ *           setting it to the absolute drawscore.  This has the same effect,  *
+ *           but does let the evaluation guide the search to better moves when *
+ *           it is convinced all of them lead to draws.  This version is about *
+ *           +100 Elo stronger than 23.0 based on cluster testing results.     *
  *                                                                             *
  *******************************************************************************
  */
@@ -3766,9 +3840,7 @@ int main(int argc, char **argv) {
  *                                                          *
  ************************************************************
  */
-  block[0] =
-      (TREE *) ((~(size_t) 127) & (127 + (size_t) malloc(sizeof(TREE) +
-              127)));
+  AlignedMalloc((void **) &block[0], 2048, (size_t) sizeof(TREE));
   block[0]->used = 1;
   block[0]->stop = 0;
   block[0]->ply = 1;
@@ -3872,6 +3944,15 @@ int main(int argc, char **argv) {
 /*
  ************************************************************
  *                                                          *
+ *   From this point forward, we are in a state where it is *
+ *                                                          *
+ *              O P P O N E N T ' S turn to move.           *
+ *                                                          *
+ ************************************************************
+ */
+/*
+ ************************************************************
+ *                                                          *
  *   Next, read the crafty.rc/.craftyrc initialization file *
  *   and process the commands that need to be handled after *
  *   engine initialization has been completed.              *
@@ -3908,9 +3989,6 @@ int main(int argc, char **argv) {
     signal(SIGINT, SIG_IGN);
 #endif
   Print(128, "\nCrafty v%s (%d cpus)\n\n", version, Max(smp_max_threads, 1));
-  if (ics)
-    printf("*whisper Hello from Crafty v%s! (%d cpus)\n", version,
-        Max(smp_max_threads, 1));
   NewGame(1);
 /*
  ************************************************************
@@ -3930,11 +4008,50 @@ int main(int argc, char **argv) {
 /*
  ************************************************************
  *                                                          *
+ *   This is the "main loop" that never ends unless the     *
+ *   user tells Crafty to "quit".  We read commands/moves   *
+ *   execute them, and when a move is entered we change     *
+ *   sides and execute a search to find a reply.  We repeat *
+ *   this until the game ends or the opponent gets tired    *
+ *   and tells us to terminate the engine.                  *
+ *                                                          *
  *   Prompt user and read input string for processing.  As  *
  *   long as Option() returns a non-zero value, continue    *
  *   reading lines and calling Option().  When Option()     *
  *   fails to recogize a command, then try InputMove() to   *
  *   determine if this is a legal move.                     *
+ *                                                          *
+ *   While we are waiting on a move, we call Ponder() which *
+ *   will find a move that it assumes the opponent will     *
+ *   make, and then it will call Iterate() to find a reply  *
+ *   for that move while we are waiting to see what is      *
+ *   actually played in the game.  Ponder() will return one *
+ *   of the following "results" (stored in "presult"):      *
+ *                                                          *
+ *   (0) This indicates that Ponder() did not run, either   *
+ *       because pondering is disabled, or we are not in a  *
+ *       state where pondering is allowed, such as using    *
+ *       the xboard "force" command to set up a game that   *
+ *       will be continued.                                 *
+ *                                                          *
+ *   (1) This indicates that we pondered a move, the        *
+ *       opponent actually played this move, and we were    *
+ *       able to complete a normal search for the proper    *
+ *       amount of time and have a move ready to use.       *
+ *                                                          *
+ *   (2) This indicates that we pondered a move, but that   *
+ *       for some reason, we did not need to continue until *
+ *       time ran out.  For example, we found a forced mate *
+ *       and further searching is not needed.  The search   *
+ *       is not "in progress" but we still have a valid     *
+ *       move to play here.                                 *
+ *                                                          *
+ *   (3) We pondered, but the opponent either played a      *
+ *       different move, or else entered a command that     *
+ *       forces us to unwind the search so that the command *
+ *       can be executed.  In this case, we will re-start   *
+ *       pondering, otherwise we make the correct move and  *
+ *       then start a normal search.                        *
  *                                                          *
  ************************************************************
  */
@@ -3968,20 +4085,14 @@ int main(int argc, char **argv) {
         else if (presult == 2)
           value = ponder_value;
         if (presult == 0 || presult == 2) {
-          if (!ics && !xboard) {
-            if (wtm)
-              printf("White(%d): ", move_number);
-            else
-              printf("Black(%d): ", move_number);
+          if (!xboard) {
+            printf("%s(%d): ", SideToMove(wtm), move_number);
             fflush(stdout);
           }
           readstat = Read(1, buffer);
-          if (log_file) {
-            if (wtm)
-              fprintf(log_file, "White(%d): %s\n", move_number, buffer);
-            else
-              fprintf(log_file, "Black(%d): %s\n", move_number, buffer);
-          }
+          if (log_file)
+            fprintf(log_file, "%s(%d): %s\n", SideToMove(wtm), move_number,
+                buffer);
           if (readstat < 0 && input_stream == stdin) {
             strcpy(buffer, "end");
             (void) Option(tree);
@@ -4017,28 +4128,6 @@ int main(int argc, char **argv) {
         fseek(history_file, ((move_number - 1) * 2 + 1 - wtm) * 10, SEEK_SET);
         fprintf(history_file, "%9s\n", OutputMove(tree, move, 0, wtm));
         MakeMoveRoot(tree, move, wtm);
-        move_actually_played = 1;
-        last_opponent_move = move;
-        if ((draw_type = RepetitionDraw(tree, 0, Flip(wtm))) == 1) {
-          Print(128, "%sI claim a draw by 3-fold repetition.%s\n", Reverse(),
-              Normal());
-          value = DrawScore(wtm);
-          if (xboard)
-            Print(4095, "1/2-1/2 {Drawn by 3-fold repetition}\n");
-        }
-        if (draw_type == 2) {
-          Print(128, "%sI claim a draw by the 50 move rule.%s\n", Reverse(),
-              Normal());
-          value = DrawScore(wtm);
-          if (xboard)
-            Print(4095, "1/2-1/2 {Drawn by 50-move rule}\n");
-        }
-        if (Drawn(tree, last_search_value) == 2) {
-          Print(128, "%sI claim a draw due to insufficient material.%s\n",
-              Reverse(), Normal());
-          if (xboard)
-            Print(4095, "1/2-1/2 {Insufficient material}\n");
-        }
         time_used_opponent = opponent_end_time - opponent_start_time;
         if (!force)
           Print(1, "              time used: %s\n",
@@ -4047,6 +4136,45 @@ int main(int argc, char **argv) {
         wtm = Flip(wtm);
         if (wtm)
           move_number++;
+        move_actually_played = 1;
+        last_opponent_move = move;
+/*
+ ************************************************************
+ *                                                          *
+ *   From this point forward, we are in a state where it is *
+ *                                                          *
+ *               C R A F T Y ' S turn to move.              *
+ *                                                          *
+ ************************************************************
+ */
+/*
+ ************************************************************
+ *                                                          *
+ *   We have made the indicated move, before we do a search *
+ *   we need to determine if the present position is a draw *
+ *   by rule.  If so, Crafty allowed it to happen and must  *
+ *   be satisfied with a draw, so we will claim it and end  *
+ *   the current game.                                      *
+ *                                                          *
+ ************************************************************
+ */
+        if ((draw_type = RepetitionDraw(tree, 0, wtm)) == 1) {
+          Print(128, "I claim a draw by 3-fold repetition.\n");
+          value = DrawScore(wtm);
+          if (xboard)
+            Print(4095, "1/2-1/2 {Drawn by 3-fold repetition}\n");
+        }
+        if (draw_type == 2) {
+          Print(128, "I claim a draw by the 50 move rule.\n");
+          value = DrawScore(wtm);
+          if (xboard)
+            Print(4095, "1/2-1/2 {Drawn by 50-move rule}\n");
+        }
+        if (Drawn(tree, last_search_value) == 2) {
+          Print(128, "I claim a draw due to insufficient material.\n");
+          if (xboard)
+            Print(4095, "1/2-1/2 {Insufficient material}\n");
+        }
       } else {
         tree->position[1] = tree->position[0];
         presult = 0;
@@ -4058,7 +4186,7 @@ int main(int argc, char **argv) {
  *                                                          *
  *   Now call Iterate() to compute a move for the current   *
  *   position.  (Note this is not done if Ponder() has al-  *
- *   computed a move.)                                      *
+ *   ready computed a move.)                                *
  *                                                          *
  ************************************************************
  */
@@ -4140,6 +4268,18 @@ int main(int argc, char **argv) {
     if (abs(last_value) > (MATE - 300))
       last_mate_score = last_value;
     thinking = 0;
+/*
+ ************************************************************
+ *                                                          *
+ *   If the last_pv.path is null, then we were either       *
+ *   checkmated or stalemated.  We need to determine which  *
+ *   and end the game appropriately.                        *
+ *                                                          *
+ *   If we do have a PV, we will also check to see if it    *
+ *   leads to mate and make the proper announcement if so.  *
+ *                                                          *
+ ************************************************************
+ */
     if (!last_pv.pathl) {
       if (value == -MATE + 1) {
         over = 1;
@@ -4160,7 +4300,6 @@ int main(int argc, char **argv) {
       } else {
         over = 1;
         if (!xboard) {
-          printf("%s", Reverse());
           Print(128, "stalemate\n");
           if (speech) {
             char announce[128];
@@ -4169,7 +4308,6 @@ int main(int argc, char **argv) {
             strcat(announce, " Stalemate");
             system(announce);
           }
-          printf("%s", Normal());
         } else
           Print(4095, "1/2-1/2 {stalemate}\n");
       }
@@ -4186,98 +4324,38 @@ int main(int argc, char **argv) {
 /*
  ************************************************************
  *                                                          *
- *   See if we need to claim a draw due to either the 50    *
- *   move rule, 3-fold repetition, or insufficient material *
- *   as the case may be.  If so, we should make the claim   *
- *   before making the move that results in the draw to     *
- *   comply with the official rules of chess.               *
+ *   See if we want to offer a draw based on the recent     *
+ *   scores that have been returned.  See resign.c for more *
+ *   details, but this is where we offer a draw, or resign, *
+ *   if appropriate.  This has nothing to do with claiming  *
+ *   a draw by rule, which is done later.                   *
  *                                                          *
  ************************************************************
  */
       tree->position[MAXPLY] = tree->position[0];
-      MakeMove(tree, MAXPLY, last_pv.path[1], wtm);
-      if ((draw_type = RepetitionDraw(tree, MAXPLY + 1, Flip(wtm))) == 1) {
-        Print(128, "%sI claim a draw by 3-fold repetition after my move.%s\n",
-            Reverse(), Normal());
-        if (xboard)
-          Print(4095, "1/2-1/2 {Drawn by 3-fold repetition}\n");
-        value = DrawScore(wtm);
-      }
-      if (draw_type == 2) {
-        Print(128, "%sI claim a draw by the 50 move rule after my move.%s\n",
-            Reverse(), Normal());
-        if (xboard)
-          Print(4095, "1/2-1/2 {Drawn by 50-move rule}\n");
-        value = DrawScore(wtm);
-      }
-      if (Drawn(tree, last_search_value) == 2) {
-        Print(128,
-            "%sI claim a draw due to insufficient material after my move.%s\n",
-            Reverse(), Normal());
-        if (xboard)
-          Print(4095, "1/2-1/2 {Insufficient material}\n");
-      }
-      UnmakeMove(tree, MAXPLY, last_pv.path[1], wtm);
       ResignOrDraw(tree, value);
 /*
  ************************************************************
  *                                                          *
  *   Now output the move chosen by the search, and the      *
- *   "result" string if necessary.                          *
+ *   "result" string if this move checkmates our opponent.  *
  *                                                          *
  ************************************************************
  */
-      if (wtm) {
-        if (!xboard && !ics) {
-          Print(128, "\n");
-          printf("%s", Reverse());
-          if (audible_alarm)
-            printf("%c", audible_alarm);
-          if (speech) {
-            char announce[128];
-            char *moveptr = OutputMove(tree, last_pv.path[1], 0, wtm);
+      if (speech) {
+        char announce[128];
+        char *moveptr = OutputMove(tree, last_pv.path[1], 0, wtm);
 
-            strcpy(announce, SPEAK);
-            strcat(announce, moveptr);
-            system(announce);
-          }
-          Print(128, "White(%d): %s ", move_number, OutputMove(tree,
-                  last_pv.path[1], 0, wtm));
-          printf("%s", Normal());
-          Print(128, "\n");
-        } else if (xboard) {
-          if (log_file)
-            fprintf(log_file, "White(%d): %s\n", move_number, OutputMove(tree,
-                    last_pv.path[1], 0, wtm));
-          printf("move %s\n", OutputMove(tree, last_pv.path[1], 0, wtm));
-        } else
-          Print(128, "*%s\n", OutputMove(tree, last_pv.path[1], 0, wtm));
-      } else {
-        if (!xboard && !ics) {
-          Print(128, "\n");
-          printf("%s", Reverse());
-          if (audible_alarm)
-            printf("%c", audible_alarm);
-          if (speech) {
-            char announce[128];
-            char *moveptr = OutputMove(tree, last_pv.path[1], 0, wtm);
-
-            strcpy(announce, SPEAK);
-            strcat(announce, moveptr);
-            system(announce);
-          }
-          Print(128, "Black(%d): %s ", move_number, OutputMove(tree,
-                  last_pv.path[1], 0, wtm));
-          printf("%s", Normal());
-          Print(128, "\n");
-        } else if (xboard) {
-          if (log_file)
-            fprintf(log_file, "Black(%d): %s\n", move_number, OutputMove(tree,
-                    last_pv.path[1], 0, wtm));
-          printf("move %s\n", OutputMove(tree, last_pv.path[1], 0, wtm));
-        } else
-          Print(128, "*%s\n", OutputMove(tree, last_pv.path[1], 0, wtm));
+        strcpy(announce, SPEAK);
+        strcat(announce, moveptr);
+        system(announce);
       }
+      if (!xboard && audible_alarm)
+        printf("%c", audible_alarm);
+      Print(128, "%s(%d): %s\n", SideToMove(wtm), move_number,
+          OutputMove(tree, last_pv.path[1], 0, wtm));
+      if (xboard)
+        printf("move %s\n", OutputMove(tree, last_pv.path[1], 0, wtm));
       if (value == MATE - 2) {
         if (wtm) {
           Print(4095, "1-0 {White mates}\n");
@@ -4294,8 +4372,47 @@ int main(int argc, char **argv) {
       fprintf(history_file, "%9s\n", OutputMove(tree, last_pv.path[1], 0,
               wtm));
       last_search_value = value;
+      if (kibitz) {
+        if (kibitz_depth)
+          Kibitz(2, wtm, kibitz_depth, end_time - start_time, value,
+              tree->nodes_searched, tree->egtb_probes_successful,
+              kibitz_text);
+        else
+          Kibitz(4, wtm, 0, 0, 0, 0, 0, kibitz_text);
+      }
       MakeMoveRoot(tree, last_pv.path[1], wtm);
+      wtm = Flip(wtm);
+      if (wtm)
+        move_number++;
       move_actually_played = 1;
+/*
+ ************************************************************
+ *                                                          *
+ *   We have made the indicated move, before we do a search *
+ *   we need to determine if the present position is a draw *
+ *   by rule.  If so, we need to send the appropriate game  *
+ *   result to xboard and/or inform the operator/opponent.  *
+ *                                                          *
+ ************************************************************
+ */
+      if ((draw_type = RepetitionDraw(tree, 0, wtm)) == 1) {
+        Print(128, "I claim a draw by 3-fold repetition after my move.\n");
+        if (xboard)
+          Print(4095, "1/2-1/2 {Drawn by 3-fold repetition}\n");
+        value = DrawScore(wtm);
+      }
+      if (draw_type == 2) {
+        Print(128, "I claim a draw by the 50 move rule after my move.\n");
+        if (xboard)
+          Print(4095, "1/2-1/2 {Drawn by 50-move rule}\n");
+        value = DrawScore(wtm);
+      }
+      if (Drawn(tree, last_search_value) == 2) {
+        Print(128,
+            "I claim a draw due to insufficient material after my move.\n");
+        if (xboard)
+          Print(4095, "1/2-1/2 {Insufficient material}\n");
+      }
 #if !defined(TEST)
       if (time_limit > 300)
 #endif
@@ -4311,8 +4428,7 @@ int main(int argc, char **argv) {
  *                                                          *
  ************************************************************
  */
-      if (last_pv.pathl > 1 &&
-          VerifyMove(tree, 0, Flip(wtm), last_pv.path[2])) {
+      if (last_pv.pathl > 1 && VerifyMove(tree, 0, wtm, last_pv.path[2])) {
         ponder_move = last_pv.path[2];
         for (i = 1; i <= (int) last_pv.pathl - 2; i++)
           last_pv.path[i] = last_pv.path[i + 2];
@@ -4328,7 +4444,6 @@ int main(int argc, char **argv) {
         ponder_move = 0;
       }
     }
-    wtm = Flip(wtm);
 #if defined(TEST)
     strcpy(buffer, "score");
     Option(tree);
@@ -4344,22 +4459,13 @@ int main(int argc, char **argv) {
         sprintf(book_hint, "%s", OutputMove(tree, ponder_move, 0, wtm));
     } else
       moves_out_of_book++;
-    if (wtm)
-      move_number++;
     ValidatePosition(tree, 0, last_pv.path[1], "Main(2)");
-    if (kibitz) {
-      if (kibitz_depth)
-        Kibitz(2, !wtm, kibitz_depth, end_time - start_time, value,
-            tree->nodes_searched, tree->egtb_probes_successful, kibitz_text);
-      else
-        Kibitz(4, !wtm, 0, 0, 0, 0, 0, kibitz_text);
-    }
 /*
  ************************************************************
  *                                                          *
  *   Now execute LearnValue() to record the scores for the  *
- *   first N searches out of book.  If we get a MATE-type   *
- *   score we can set learn-value immediately.              *
+ *   first N searches out of book.  see learn.c for details *
+ *   on how this is used and when.                          *
  *                                                          *
  ************************************************************
  */

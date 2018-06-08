@@ -54,6 +54,53 @@
 #  define INCL_KBD
 #  include <os2.h>
 #endif
+
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   AlignedMalloc() is used to allocate memory on a precise boundary,         *
+ *   primarily to optimize cache performance by forcing the start of the       *
+ *   memory region being allocated to match up so that a structure will lie    *
+ *   on a single cache line rather than being split across two, assuming the   *
+ *   structure is 64 bytes or less of course.                                  *
+ *                                                                             *
+ *******************************************************************************
+ */
+
+void AlignedMalloc(void **pointer, int alignment, size_t size) {
+  segments[nsegments][0] = malloc(size + alignment - 1);
+  segments[nsegments][1] =
+      (void *) (((long) segments[nsegments][0] + alignment -
+          1) & ~(alignment - 1));
+  *pointer = segments[nsegments][1];
+  nsegments++;
+}
+
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   AlignedRemalloc() is used to change the size of a memory block that has   *
+ *   previously been allocated using AlignedMalloc().                          *
+ *                                                                             *
+ *******************************************************************************
+ */
+
+void AlignedRemalloc(void **pointer, int alignment, size_t size) {
+  int i;
+  for (i = 0; i < nsegments; i++)
+    if (segments[i][1] == *pointer)
+      break;
+  if (i == nsegments) {
+    Print(4095, "ERROR  AlignedRemalloc() given an invalid pointer\n");
+    exit(1);
+  }
+  free(segments[i][0]);
+  segments[i][0] = malloc(size + alignment - 1);
+  segments[i][1] =
+      (void *) (((long) segments[i][0] + alignment - 1) & ~(alignment - 1));
+  *pointer = segments[i][1];
+}
+
 /*
  *******************************************************************************
  *                                                                             *
@@ -150,7 +197,8 @@ BITBOARD BookIn64(unsigned char *ch) {
       (((BITBOARD)
               ch[5]) << 40) | (((BITBOARD) ch[4]) << 32) | (((BITBOARD) ch[3])
           << 24) | (((BITBOARD) ch[2]) << 16) | (((BITBOARD) ch[1]) << 8) |
-      ((BITBOARD) ch[0]));
+      ((BITBOARD)
+          ch[0]));
 }
 
 /*
@@ -234,7 +282,7 @@ int CheckInput(void) {
   static HANDLE inh;
   DWORD dw;
 
-  if (!xboard && !ics && !isatty(fileno(stdin)))
+  if (!xboard && !isatty(fileno(stdin)))
     return (0);
   if (batch_mode)
     return (0);
@@ -276,7 +324,7 @@ int CheckInput(void) {
   struct timeval tv;
   int data;
 
-  if (!xboard && !ics && !isatty(fileno(stdin)))
+  if (!xboard && !isatty(fileno(stdin)))
     return (0);
   if (batch_mode)
     return (0);
@@ -306,7 +354,7 @@ void ClearHashTableScores(void) {
   int i;
 
   if (trans_ref)
-    for (i = 0; i < 3 * hash_table_size; i++) {
+    for (i = 0; i < hash_table_size; i++) {
       (trans_ref + i)->word2 ^= (trans_ref + i)->word1;
       (trans_ref + i)->word1 =
           ((trans_ref + i)->word1 & mask_clear_entry) | (BITBOARD) 65536;
@@ -712,7 +760,7 @@ void DisplayPV(TREE * RESTRICT tree, int level, int wtm, int time, int value,
     }
     sprintf(buffer + strlen(buffer), " <HT>");
   } else if (pv->pathh == 2)
-    sprintf(buffer + strlen(buffer), " <EGTB>");
+    sprintf(buffer + strlen(buffer), " <EGTB>         ");
   strcpy(kibitz_text, buffer);
   if (nskip > 1 && smp_max_threads > 1)
     sprintf(buffer + strlen(buffer), " (s=%d)", nskip);
@@ -1035,10 +1083,11 @@ void DisplayType7(int *array, int *array2) {
  *                                                                             *
  *******************************************************************************
  */
-void DisplayType8(int *array) {
+void DisplayType8(int *array, int size) {
   int i;
 
-  for (i = 0; i < 4; i++)
+  printf("   ");
+  for (i = 0; i < size; i++)
     printf("%3d ", array[i]);
   printf("\n");
 }
@@ -1518,8 +1567,6 @@ void NewGame(int save) {
           (crafty_is_white) ? last_search_value : -last_search_value;
       LearnBook();
     }
-    if (ics)
-      printf("*whisper Hello from Crafty v%s !\n", version);
     if (xboard) {
       printf("tellicsnoalias set 1 Crafty v%s (%d cpus)\n", version, Max(1,
               smp_max_threads));
@@ -1548,18 +1595,18 @@ void NewGame(int save) {
     tc_moves_remaining[white] = tc_moves;
     tc_moves_remaining[black] = tc_moves;
     if (move_actually_played) {
-      if (log_file)
+      if (log_file) {
         fclose(log_file);
-      if (history_file)
         fclose(history_file);
-      id = InitializeGetLogID();
-      sprintf(log_filename, "%s/log.%03d", log_path, id);
-      sprintf(history_filename, "%s/game.%03d", log_path, id);
-      log_file = fopen(log_filename, "w");
-      history_file = fopen(history_filename, "w+");
-      if (!history_file) {
-        printf("ERROR, unable to open game history file, exiting\n");
-        CraftyExit(1);
+        id = InitializeGetLogID();
+        sprintf(log_filename, "%s/log.%03d", log_path, id);
+        sprintf(history_filename, "%s/game.%03d", log_path, id);
+        log_file = fopen(log_filename, "w");
+        history_file = fopen(history_filename, "w+");
+        if (!history_file) {
+          printf("ERROR, unable to open game history file, exiting\n");
+          CraftyExit(1);
+        }
       }
     }
     move_actually_played = 0;
@@ -1586,37 +1633,8 @@ void NewGame(int save) {
 /*
  *******************************************************************************
  *                                                                             *
- *   Normal() uses the ANSI character string to turn off reverse video.  This  *
- *   is used so that all normal output (in text/console mode) shows up as      *
- *   normal text, while moves made by Crafty are highlighted in reverse video. *
- *                                                                             *
- *******************************************************************************
- */
-char *Normal(void) {
-#if defined(NT_i386)
-  HANDLE std_console;
-
-  std_console = GetStdHandle(STD_OUTPUT_HANDLE);
-#endif
-  if (ansi) {
-#if defined(UNIX) || defined(AMIGA)
-    return ("\033[0m");
-#elif defined(NT_i386)
-    SetConsoleTextAttribute(std_console,
-        FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
-    return ("");
-#else
-    return ("\033[1;44;37m");
-#endif
-  }
-  return ("");
-}
-
-/*
- *******************************************************************************
- *                                                                             *
  *   ParseTime() is used to parse a time value that could be entered as s.ss,  *
- *   mm:ss, or hh:mm:ss.  It is converted to crafty's internal 1/100th second  *
+ *   mm:ss, or hh:mm:ss.  It is converted to Crafty's internal 1/100th second  *
  *   time resolution.                                                          *
  *                                                                             *
  *******************************************************************************
@@ -2237,8 +2255,10 @@ int ReadPGN(FILE * input, int option) {
         if ((skip = strspn(buffer, "0123456789."))) {
           char temp[4096];
 
-          strcpy(temp, buffer + skip);
-          strcpy(buffer, temp);
+          if (skip > 1) {
+            strcpy(temp, buffer + skip);
+            strcpy(buffer, temp);
+          }
         }
         if (isalpha(buffer[0]) || strchr(buffer, '-')) {
           char *first, *last, *percent;
@@ -2300,42 +2320,8 @@ void RestoreGame(void) {
 /*
  *******************************************************************************
  *                                                                             *
- *   Reverse() uses an ANSI escape sequence to turn on reverse video to high-  *
- *   light a move when Crafty displays it, so it does not get lost in all the  *
- *   other output it produces when playing in a tournament in console mode.    *
- *                                                                             *
- *******************************************************************************
- */
-char *Reverse(void) {
-#if defined(NT_i386)
-  HANDLE std_console;
-
-  std_console = GetStdHandle(STD_OUTPUT_HANDLE);
-#endif
-  if (ansi) {
-#if defined(UNIX) || defined(AMIGA)
-    return ("\033[7m");
-#elif defined(NT_i386)
-    SetConsoleTextAttribute(std_console,
-        BACKGROUND_RED | BACKGROUND_GREEN | BACKGROUND_BLUE |
-        BACKGROUND_INTENSITY);
-    return ("");
-#else
-    return ("\033[7;47;33m");
-#endif
-  }
-  return ("");
-}
-
-/*
- *******************************************************************************
- *                                                                             *
  *   Kibitz() is used to whisper/kibitz information to a chess server.  It has *
- *   to handle the xboard whisper/kibitz interface as well as the custom ics   *
- *   interface for Crafty.  There are two main issues:  (a) presenting only the*
- *   information specified by the current value of whisper or kibitz variables;*
- *   (b) if using the custom ICS interface, preceeding the commands with a "*" *
- *   so the interface will direct them to the server rather than the operator. *
+ *   to handle the xboard whisper/kibitz interface.                            *
  *                                                                             *
  *******************************************************************************
  */
@@ -2359,43 +2345,31 @@ void Kibitz(int level, int wtm, int depth, int time, int value,
       case 1:
         if ((kibitz & 15) >= 1) {
           if (value > 0) {
-            if (ics)
-              printf("*");
             printf("%s mate in %d moves.\n\n", prefix, value);
           }
           if (value < 0) {
-            if (ics)
-              printf("*");
             printf("%s mated in %d moves.\n\n", prefix, -value);
           }
         }
         break;
       case 2:
         if ((kibitz & 15) >= 2) {
-          if (ics)
-            printf("*");
           printf("%s ply=%d; eval=%s; nps=%s; time=%s; egtb=%d\n", prefix,
               depth, DisplayEvaluationKibitz(value, wtm), DisplayKM(nps),
               DisplayTimeKibitz(time), tb_hits);
         }
       case 3:
         if ((kibitz & 15) >= 3 && (nodes > 5000 || level == 2)) {
-          if (ics)
-            printf("*");
           printf("%s %s\n", prefix, pv);
         }
         break;
       case 4:
         if ((kibitz & 15) >= 4) {
-          if (ics)
-            printf("*");
           printf("%s %s\n", prefix, pv);
         }
         break;
       case 5:
         if ((kibitz & 15) >= 5 && nodes > 5000) {
-          if (ics)
-            printf("*");
           printf("%s d%d-> %s/s %s %s %s ", prefix, depth, DisplayKM(nps),
               DisplayTimeKibitz(time), DisplayEvaluationKibitz(value, wtm),
               pv);
@@ -2406,8 +2380,6 @@ void Kibitz(int level, int wtm, int depth, int time, int value,
         break;
       case 6:
         if ((kibitz & 15) >= 6 && nodes > 5000) {
-          if (ics)
-            printf("*");
           if (wtm)
             printf("%s d%d+ %s/s %s >(%s) %s <re-searching>\n", prefix, depth,
                 DisplayKM(nps), DisplayTimeKibitz(time),

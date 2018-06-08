@@ -23,7 +23,6 @@
 void Initialize() {
   int i, major, minor, id;
   TREE *tree;
-  void *mem;
   int j;
 
   tree = block[0];
@@ -91,26 +90,20 @@ void Initialize() {
     printf("ERROR, unable to open game history file, exiting\n");
     CraftyExit(1);
   }
-  real_trans_ref =
-      (HASH_ENTRY *) malloc(3 * sizeof(HASH_ENTRY) * hash_table_size + 15);
-  trans_ref =
-      (HASH_ENTRY *) (((unsigned long) real_trans_ref +
-          (unsigned long) 15) & ~(unsigned long) 15);
-  real_pawn_hash_table =
-      (PAWN_HASH_ENTRY *) malloc(sizeof(PAWN_HASH_ENTRY) *
-      pawn_hash_table_size + 31);
-  pawn_hash_table =
-      (PAWN_HASH_ENTRY *) (((unsigned long) real_pawn_hash_table +
-          (unsigned long) 31) & ~(unsigned long) 31);
+  AlignedMalloc((void **) &trans_ref, 64,
+      sizeof(HASH_ENTRY) * hash_table_size);
+  AlignedMalloc((void **) &pawn_hash_table, 32,
+      sizeof(PAWN_HASH_ENTRY) * pawn_hash_table_size);
   if (!trans_ref) {
     Print(128,
-        "malloc() failed, not enough memory (primary trans/ref table).\n");
+        "AlignedMalloc() failed, not enough memory (primary trans/ref table).\n");
     hash_table_size = 0;
     log_hash = 0;
     trans_ref = 0;
   }
   if (!pawn_hash_table) {
-    Print(128, "malloc() failed, not enough memory (pawn hash table).\n");
+    Print(128,
+        "AlignedMalloc() failed, not enough memory (pawn hash table).\n");
     pawn_hash_table_size = 0;
     log_pawn_hash = 0;
     pawn_hash_table = 0;
@@ -134,10 +127,9 @@ void Initialize() {
   ThreadMalloc((int) 0);
 #else
   for (i = 0; i < CPUS; i++) {
-    mem = malloc(MAX_BLOCKS_PER_CPU * ((sizeof(TREE) + 2047)) & ~2047);
     for (j = 0; j < MAX_BLOCKS_PER_CPU; j++) {
-      block[i * MAX_BLOCKS_PER_CPU + j + 1] =
-          (TREE *) ((long) mem + j * ((sizeof(TREE) + 2047) & ~2047));
+      AlignedMalloc((void **) &block[i * MAX_BLOCKS_PER_CPU + j + 1], 2048,
+          (size_t) sizeof(TREE));
     }
   }
   for (i = 0; i < MAX_BLOCKS_PER_CPU; i++) {
@@ -149,7 +141,7 @@ void Initialize() {
 #endif
   initialized_threads++;
   InitializeHashTables();
-  hash_mask = (1 << log_hash) - 1;
+  hash_mask = (1 << (log_hash - 2)) - 1;
   pawn_hash_mask = (1 << (log_pawn_hash)) - 1;
   InitializeKingSafety();
 }
@@ -559,7 +551,7 @@ BITBOARD InitializeMagicRook(int square, BITBOARD occupied) {
  *******************************************************************************
  */
 void InitializeChessBoard(TREE * tree) {
-  int i, j;
+  int i;
 
   if (strlen(initial_position)) {
     int nargs;
@@ -619,8 +611,7 @@ void InitializeChessBoard(TREE * tree) {
 /*
  initialize 50 move counter.
  */
-    Rule50Moves(black) = 0;
-    Rule50Moves(white) = 0;
+    Rule50Moves(0) = 0;
 /*
  initialize enpassant status.
  */
@@ -633,12 +624,9 @@ void InitializeChessBoard(TREE * tree) {
 /*
  clear the caches.
  */
-  for (i = 0; i < 65; i++) {
+  for (i = 0; i < 64; i++) {
     tree->cache_n[i] = ~0ULL;
-    for (j = 0; j <= 1; j++) {
-      tree->cache_b_friendly[j][i] = ~0ULL;
-      tree->cache_b_enemy[j][i] = ~0ULL;
-    }
+    tree->cache_b_friendly[i] = ~0ULL;
     tree->cache_r_friendly[i] = ~0ULL;
     tree->cache_r_enemy[i] = ~0ULL;
   }
@@ -671,26 +659,20 @@ void SetChessBitBoards(TREE * tree) {
     Hash(side, Abs(piece), square);
     if (Abs(piece) == pawn)
       HashP(side, square);
-    Material += piece_values[side][Abs(piece)];
+    Material += PieceValues(side, Abs(piece));
   }
   KingSQ(white) = LSB(Pieces(white, king));
   KingSQ(black) = LSB(Pieces(black, king));
   if (EnPassant(0))
-    HashEP(EnPassant(0), tree->pos.hash_key);
+    HashEP(EnPassant(0));
   if (!(Castle(0, white) & 1))
-    HashCastle(0, HashKey, white);
+    HashCastle(0, white);
   if (!(Castle(0, white) & 2))
-    HashCastle(1, HashKey, white);
+    HashCastle(1, white);
   if (!(Castle(0, black) & 1))
-    HashCastle(0, HashKey, black);
+    HashCastle(0, black);
   if (!(Castle(0, black) & 2))
-    HashCastle(1, HashKey, black);
-/*
- initialize combination boards that show multiple pieces.
- */
-  BishopsQueens =
-      Bishops(white) | Bishops(black) | Queens(white) | Queens(black);
-  RooksQueens = Rooks(white) | Rooks(black) | Queens(white) | Queens(black);
+    HashCastle(1, black);
 /*
  initialize black/white piece counts.
  */
@@ -784,7 +766,7 @@ void InitializeHashTables(void) {
   transposition_id = 0;
   if (!trans_ref)
     return;
-  for (i = 0; i < 3 * hash_table_size; i++) {
+  for (i = 0; i < hash_table_size; i++) {
     (trans_ref + i)->word1 = 0;
     (trans_ref + i)->word2 = 0;
   }
@@ -996,15 +978,14 @@ void InitializePawnMasks(void) {
  */
   for (i = 0; i < 64; i++) {
     if (!File(i)) {
-      mask_pawn_passed[white][i] = plus8dir[i] | plus8dir[i + 1];
-      mask_pawn_passed[black][i] = minus8dir[i] | minus8dir[i + 1];
+      mask_passed[white][i] = plus8dir[i] | plus8dir[i + 1];
+      mask_passed[black][i] = minus8dir[i] | minus8dir[i + 1];
     } else if (File(i) == 7) {
-      mask_pawn_passed[white][i] = plus8dir[i - 1] | plus8dir[i];
-      mask_pawn_passed[black][i] = minus8dir[i - 1] | minus8dir[i];
+      mask_passed[white][i] = plus8dir[i - 1] | plus8dir[i];
+      mask_passed[black][i] = minus8dir[i - 1] | minus8dir[i];
     } else {
-      mask_pawn_passed[white][i] =
-          plus8dir[i - 1] | plus8dir[i] | plus8dir[i + 1];
-      mask_pawn_passed[black][i] =
+      mask_passed[white][i] = plus8dir[i - 1] | plus8dir[i] | plus8dir[i + 1];
+      mask_passed[black][i] =
           minus8dir[i - 1] | minus8dir[i] | minus8dir[i + 1];
     }
   }

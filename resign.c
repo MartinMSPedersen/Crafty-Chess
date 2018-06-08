@@ -41,7 +41,7 @@ void ResignOrDraw(TREE * RESTRICT tree, int value) {
  *   or win out.                                            *
  *                                                          *
  *   If the value is below the resignation threshold, then  *
- *   crafty should resign and get on to the next game. Note *
+ *   Crafty should resign and get on to the next game. Note *
  *   that it is necessary to have a bad score for           *
  *   <resign_count> moves in a row before resigning.        *
  *                                                          *
@@ -63,7 +63,7 @@ void ResignOrDraw(TREE * RESTRICT tree, int value) {
  ************************************************************
  *                                                          *
  *   If the value is almost equal to the draw score, then   *
- *   crafty should offer the opponent a draw.  Note that  . *
+ *   Crafty should offer the opponent a draw.  Note that  . *
  *   it is necessary that the draw score occur on exactly   *
  *   <draw_count> moves in a row before making the offer.   *
  *   Note also that the draw offer will be repeated every   *
@@ -86,7 +86,7 @@ void ResignOrDraw(TREE * RESTRICT tree, int value) {
  *                                                          *
  *   Now print the draw offer or resignation if appropriate *
  *   but be sure and do it in a form that ICC/FICS will     *
- *   understand if the "ics" or "xboard" flag is set.       *
+ *   understand if the "xboard" flag is set.                *
  *                                                          *
  *   Note that we also use the "speak" facility to verbally *
  *   offer draws or resign if the "speech" variable has     *
@@ -118,7 +118,7 @@ void ResignOrDraw(TREE * RESTRICT tree, int value) {
   }
   if (offer_draws && result == 2) {
     draw_offered = 1;
-    if (!ics && !xboard) {
+    if (!xboard) {
       Print(128, "\nI offer a draw.\n\n");
       if (audible_alarm)
         printf("%c", audible_alarm);

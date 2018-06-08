@@ -7,7 +7,7 @@
 #  include <signal.h>
 #endif
 #include "epdglue.h"
-/* last modified 02/26/09 */
+/* last modified 08/13/09 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -203,21 +203,6 @@ int Option(TREE * RESTRICT tree) {
     if (thinking || pondering)
       return (2);
     Annotate();
-  }
-/*
- ************************************************************
- *                                                          *
- *   "ansi" command turns video highlight on/off.           *
- *                                                          *
- ************************************************************
- */
-  else if (OptionMatch("ansi", *args)) {
-    if (nargs < 2)
-      printf("usage:  ansi on|off\n");
-    if (!strcmp(args[1], "on"))
-      ansi = 1;
-    else if (!strcmp(args[1], "off"))
-      ansi = 0;
   }
 /*
  ************************************************************
@@ -579,7 +564,7 @@ int Option(TREE * RESTRICT tree) {
   else if (OptionMatch("debug", *args)) {
     int *mv;
 
-    tree->last[1] = GenerateChecks(tree, 1, wtm, tree->last[0]);
+    tree->last[1] = GenerateCheckEvasions(tree, 1, wtm, tree->last[0]);
     for (mv = tree->last[0]; mv < tree->last[1]; mv++)
       printf("%s\n", OutputMove(tree, *mv, 1, wtm));
   }
@@ -912,7 +897,7 @@ int Option(TREE * RESTRICT tree) {
  ************************************************************
  */
   else if (OptionMatch("go", *args) || OptionMatch("move", *args)) {
-    char temp[64];
+    char temp[128];
 
     if (thinking || pondering)
       return (2);
@@ -1008,28 +993,21 @@ int Option(TREE * RESTRICT tree) {
         return (1);
       }
       if (new_hash_size > 0) {
-        if (hash_table_size) {
-          free(real_trans_ref);
-        }
-        new_hash_size /= 16 * 3;
+        new_hash_size /= 16;
         for (log_hash = 0; log_hash < (int) (8 * sizeof(int)); log_hash++)
           if ((1 << (log_hash + 1)) > new_hash_size)
             break;
         if (log_hash) {
           hash_table_size = 1 << log_hash;
-          real_trans_ref =
-              (HASH_ENTRY *) malloc(3 * sizeof(HASH_ENTRY) * hash_table_size +
-              15);
-          trans_ref =
-              (HASH_ENTRY *) (((unsigned long) real_trans_ref +
-                  (unsigned long) 15) & ~(unsigned long) 15);
+          AlignedRemalloc((void **) &trans_ref, 64,
+              sizeof(HASH_ENTRY) * hash_table_size);
           if (!trans_ref) {
-            printf("malloc() failed, not enough memory.\n");
+            printf("AlignedRemalloc() failed, not enough memory.\n");
             hash_table_size = 0;
             log_hash = 0;
             trans_ref = 0;
           }
-          hash_mask = (1 << log_hash) - 1;
+          hash_mask = (1 << (log_hash - 2)) - 1;
           ClearHashTableScores();
         } else {
           trans_ref = 0;
@@ -1040,7 +1018,7 @@ int Option(TREE * RESTRICT tree) {
         Print(4095, "ERROR:  hash table size must be > 0\n");
     }
     Print(128, "hash table memory = %s bytes.\n",
-        PrintKM(hash_table_size * 3 * sizeof(HASH_ENTRY), 1));
+        PrintKM(hash_table_size * sizeof(HASH_ENTRY), 1));
   }
 /*
  ************************************************************
@@ -1065,26 +1043,16 @@ int Option(TREE * RESTRICT tree) {
         printf("ERROR.  Minimum pawn hash table size is 16K bytes.\n");
         return (1);
       }
-      if (pawn_hash_table) {
-        free(real_pawn_hash_table);
-        pawn_hash_table_size = 0;
-        log_pawn_hash = 0;
-        pawn_hash_table = 0;
-      }
       new_hash_size /= sizeof(PAWN_HASH_ENTRY);
       for (log_pawn_hash = 0; log_pawn_hash < (int) (8 * sizeof(int));
           log_pawn_hash++)
         if ((1 << (log_pawn_hash + 1)) > new_hash_size)
           break;
       pawn_hash_table_size = 1 << log_pawn_hash;
-      real_pawn_hash_table =
-          (PAWN_HASH_ENTRY *) malloc(sizeof(PAWN_HASH_ENTRY) *
-          pawn_hash_table_size + 31);
-      pawn_hash_table =
-          (PAWN_HASH_ENTRY *) (((unsigned long) real_pawn_hash_table +
-              (unsigned long) 31) & ~(unsigned long) 31);
+      AlignedRemalloc((void **) &pawn_hash_table, 32,
+          sizeof(PAWN_HASH_ENTRY) * pawn_hash_table_size);
       if (!pawn_hash_table) {
-        printf("malloc() failed, not enough memory.\n");
+        printf("AlignedRemalloc() failed, not enough memory.\n");
         pawn_hash_table_size = 0;
         log_pawn_hash = 0;
         pawn_hash_table = 0;
@@ -1174,19 +1142,6 @@ int Option(TREE * RESTRICT tree) {
       printf("Hint: %s\n", hint);
       fflush(stdout);
     }
-  }
-/*
- ************************************************************
- *                                                          *
- *  "ics" command is normally invoked from main() via the   *
- *  ics command-line option.  It sets proper defaults for   *
- *  defaults for the custom Crafty/ics interface program.   *
- *                                                          *
- ************************************************************
- */
-  else if (OptionMatch("ics", *args)) {
-    ics = 1;
-    display_options &= 4095 - 32;
   }
 /*
  ************************************************************
@@ -1314,8 +1269,8 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "level" command sets time controls [ics/xboard         *
- *   compatibility.]                                        *
+ *   "level" command sets time controls [xboard compati-    *
+ *   bility.]                                               *
  *                                                          *
  ************************************************************
  */
@@ -1362,7 +1317,7 @@ int Option(TREE * RESTRICT tree) {
       int optimal_hash_size;
       BITBOARD positions_per_move;
 
-      TimeSet(think);
+      TimeSet(tree, think);
       time_limit /= 100;
       positions_per_move = time_limit * adaptive_hash / 16;
       optimal_hash_size = positions_per_move * 16 * 2;
@@ -1465,7 +1420,7 @@ int Option(TREE * RESTRICT tree) {
       IM_list, SP_list
     };
     targs = args;
-    for (list = 0; list < 7; list++) {
+    for (list = 0; list < 6; list++) {
       if (!strcmp(listname[list], args[1]))
         break;
     }
@@ -2151,7 +2106,14 @@ int Option(TREE * RESTRICT tree) {
               break;
             case 8:
               printf("%3d  %s\n", i, personality_packet[i].description);
-              DisplayType8(personality_packet[i].value);
+              DisplayType8(personality_packet[i].value,
+                  personality_packet[i].size);
+              break;
+            case 9:
+              printf("%3d  %s %7d (btm) %7d (wtm)\n", i,
+                  personality_packet[i].description,
+                  personality_packet[i].value[mg],
+                  personality_packet[i].value[eg]);
               break;
           }
         } else {
@@ -2261,10 +2223,6 @@ int Option(TREE * RESTRICT tree) {
         printf("this eval term requires exactly 1 value.\n");
         return (1);
       }
-      if (!silent)
-        Print(128, "%s old:%d  new:%d\n",
-            personality_packet[param].description,
-            *personality_packet[param].value, value);
       *personality_packet[param].value = value;
     }
 /*
@@ -3078,7 +3036,12 @@ int Option(TREE * RESTRICT tree) {
  ************************************************************
  */
   else if (!strcmp("scale", *args)) {
+    scale = atoi(args[1]);
 /*
+    pruning_depth = atoi(args[1]);
+    int v = atoi(args[1]);
+    bishop_pair[mg] = v;
+    bishop_pair[eg] = v;
     int v = atoi(args[1]);
     development_losing_castle = v / 1000;
     development_not_castled = v % 1000;
@@ -3360,14 +3323,12 @@ int Option(TREE * RESTRICT tree) {
     Print(128, " %s  |\n", DisplayEvaluation(egb, 1));
     mgb = tree->score_mg;
     egb = tree->score_eg;
-    if (Castle(1, black))
-      EvaluateDevelopment(tree, 1, black);
+    EvaluateDevelopment(tree, 1, black);
     mgb = tree->score_mg - mgb;
     egb = tree->score_eg - egb;
     mgw = tree->score_mg;
     egw = tree->score_eg;
-    if (Castle(1, white))
-      EvaluateDevelopment(tree, 1, white);
+    EvaluateDevelopment(tree, 1, white);
     mgw = tree->score_mg - mgw;
     egw = tree->score_eg - egw;
     tb = (mgb * phase + egb * (62 - phase)) / 62;
@@ -3621,7 +3582,7 @@ int Option(TREE * RESTRICT tree) {
  ************************************************************
  */
   else if (OptionMatch("time", *args)) {
-    if (ics || xboard) {
+    if (xboard) {
       tc_time_remaining[root_wtm] = atoi(args[1]);
       if (log_file && time_limit > 99)
         fprintf(log_file, "time remaining: %s (Crafty).\n",
@@ -3784,7 +3745,7 @@ int Option(TREE * RESTRICT tree) {
     int time_used;
 
     do {
-      TimeSet(think);
+      TimeSet(tree, think);
       printf("time used? ");
       fflush(stdout);
       fgets(buffer, 128, stdin);
@@ -3926,7 +3887,7 @@ int Option(TREE * RESTRICT tree) {
  *                                                          *
  *  "xboard" command is normally invoked from main() via    *
  *  the xboard command-line option.  It sets proper         *
- *  defaults for ics/Xboard interface requirements.         *
+ *  defaults for Xboard interface requirements.             *
  *                                                          *
  ************************************************************
  */
@@ -3935,7 +3896,6 @@ int Option(TREE * RESTRICT tree) {
       signal(SIGINT, SIG_IGN);
       xboard = 1;
       display_options &= 4095 - 1 - 2 - 4 - 8 - 16 - 32 - 128;
-      ansi = 0;
       printf("\n");
       printf("tellicsnoalias set 1 Crafty v%s (%d cpus)\n", version, Max(1,
               smp_max_threads));

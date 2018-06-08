@@ -1,6 +1,6 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 01/16/09 */
+/* last modified 09/23/09 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -59,7 +59,7 @@ void MakeMove(TREE * RESTRICT tree, int ply, int move, int wtm) {
   tree->save_hash_key[ply] = HashKey;
   tree->save_pawn_hash_key[ply] = PawnHashKey;
   if (EnPassant(ply + 1)) {
-    HashEP(EnPassant(ply + 1), HashKey);
+    HashEP(EnPassant(ply + 1));
     EnPassant(ply + 1) = 0;
   }
   Rule50Moves(ply + 1)++;
@@ -96,6 +96,7 @@ void MakeMove(TREE * RESTRICT tree, int ply, int move, int wtm) {
     case pawn:
       HashP(wtm, from);
       HashP(wtm, to);
+      Rule50Moves(ply + 1) = 0;
       if (captured == 1 && !cpiece) {
         Clear(to + epsq[wtm], Pawns(btm));
         Clear(to + epsq[wtm], Occupied(btm));
@@ -125,56 +126,43 @@ void MakeMove(TREE * RESTRICT tree, int ply, int move, int wtm) {
             break;
           case bishop:
             tree->pos.minors[wtm]++;
-            Set(to, BishopsQueens);
             break;
           case rook:
-            Set(to, RooksQueens);
             tree->pos.majors[wtm]++;
             break;
           case queen:
-            Set(to, BishopsQueens);
-            Set(to, RooksQueens);
             tree->pos.majors[wtm] += 2;
             break;
         }
       } else if ((Abs(to - from) == 16) && (mask_eptest[to] & Pawns(btm))) {
         EnPassant(ply + 1) = to + epsq[wtm];
-        HashEP(to + epsq[wtm], HashKey);
+        HashEP(to + epsq[wtm]);
       }
-      Rule50Moves(ply + 1) = 0;
       break;
     case knight:
       break;
     case bishop:
-      Clear(from, BishopsQueens);
-      Set(to, BishopsQueens);
       break;
     case rook:
-      Clear(from, RooksQueens);
-      Set(to, RooksQueens);
       if (Castle(ply + 1, wtm) > 0) {
         if ((from == rook_A[wtm]) && (Castle(ply + 1, wtm) & 2)) {
           Castle(ply + 1, wtm) &= 1;
-          HashCastle(1, HashKey, wtm);
+          HashCastle(1, wtm);
         } else if ((from == rook_H[wtm]) && (Castle(ply + 1, wtm) & 1)) {
           Castle(ply + 1, wtm) &= 2;
-          HashCastle(0, HashKey, wtm);
+          HashCastle(0, wtm);
         }
       }
       break;
     case queen:
-      Clear(from, BishopsQueens);
-      Set(to, BishopsQueens);
-      Clear(from, RooksQueens);
-      Set(to, RooksQueens);
       break;
     case king:
       KingSQ(wtm) = to;
       if (Castle(ply + 1, wtm) > 0) {
         if (Castle(ply + 1, wtm) & 2)
-          HashCastle(1, HashKey, wtm);
+          HashCastle(1, wtm);
         if (Castle(ply + 1, wtm) & 1)
-          HashCastle(0, HashKey, wtm);
+          HashCastle(0, wtm);
         if (abs(to - from) == 2) {
           Castle(ply + 1, wtm) = -ply;
           piece = rook;
@@ -185,8 +173,6 @@ void MakeMove(TREE * RESTRICT tree, int ply, int move, int wtm) {
             from = rook_A[wtm];
             to = rook_D[wtm];
           }
-          Clear(from, RooksQueens);
-          Set(to, RooksQueens);
           bit_move = SetMask(from) | SetMask(to);
           ClearSet(bit_move, Rooks(wtm));
           ClearSet(bit_move, Occupied(wtm));
@@ -228,31 +214,21 @@ void MakeMove(TREE * RESTRICT tree, int ply, int move, int wtm) {
         tree->pos.minors[btm]--;
         break;
       case bishop:
-        if (piece != bishop && piece != queen)
-          Clear(to, BishopsQueens);
         tree->pos.minors[btm]--;
         break;
       case rook:
-        if (piece != rook && piece != queen)
-          Clear(to, RooksQueens);
         if (Castle(ply + 1, btm) > 0) {
           if ((to == rook_A[btm]) && (Castle(ply + 1, btm) & 2)) {
             Castle(ply + 1, btm) &= 1;
-            HashCastle(1, HashKey, btm);
+            HashCastle(1, btm);
           } else if ((to == rook_H[btm]) && (Castle(ply + 1, btm) & 1)) {
             Castle(ply + 1, btm) &= 2;
-            HashCastle(0, HashKey, btm);
+            HashCastle(0, btm);
           }
         }
         tree->pos.majors[btm]--;
         break;
       case queen:
-        if (piece != queen) {
-          if (piece != bishop)
-            Clear(to, BishopsQueens);
-          if (piece != rook)
-            Clear(to, RooksQueens);
-        }
         tree->pos.majors[btm] -= 2;
         break;
       case king:
@@ -289,7 +265,7 @@ void MakeMove(TREE * RESTRICT tree, int ply, int move, int wtm) {
  *******************************************************************************
  */
 void MakeMoveRoot(TREE * RESTRICT tree, int move, int wtm) {
-  int i;
+  int side;
 
 /*
  ************************************************************
@@ -313,10 +289,10 @@ void MakeMoveRoot(TREE * RESTRICT tree, int move, int wtm) {
  *                                                          *
  ************************************************************
  */
-  if (Rule50Moves(1) == 0)
-    for (i = 0; i < 2; i++)
-      tree->rep_index[i] = 0;
-  Castle(1, black) = Max(0, Castle(1, black));
-  Castle(1, white) = Max(0, Castle(1, white));
+  for (side = black; side <= white; side++) {
+    Castle(1, side) = Max(0, Castle(1, side));
+    if (Rule50Moves(1) == 0)
+      tree->rep_index[side] = 0;
+  }
   tree->position[0] = tree->position[1];
 }

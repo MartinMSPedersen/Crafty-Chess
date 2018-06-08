@@ -291,6 +291,8 @@ void TestEPD(char *filename) {
       solution_type = 1;
     Print(4095, "solution ");
     for (i = 1; i < nargs; i++) {
+      if (!strcmp(args[i], "c0"))
+        break;
       move = InputMove(tree, args[i], 0, wtm, 0, 0);
       if (move) {
         solutions[number_of_solutions] = move;

@@ -1,6 +1,6 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 01/16/09 */
+/* last modified 09/23/09 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -13,10 +13,6 @@
  */
 void UnmakeMove(TREE * RESTRICT tree, int ply, int move, int wtm) {
   register int piece, from, to, captured, promote, btm = Flip(wtm);
-
-#if defined(DEBUG)
-  register int i;
-#endif
   BITBOARD bit_move;
 
 /*
@@ -84,16 +80,12 @@ void UnmakeMove(TREE * RESTRICT tree, int ply, int move, int wtm) {
             tree->pos.minors[wtm]--;
             break;
           case bishop:
-            Clear(to, BishopsQueens);
             tree->pos.minors[wtm]--;
             break;
           case rook:
-            Clear(to, RooksQueens);
             tree->pos.majors[wtm]--;
             break;
           case queen:
-            Clear(to, BishopsQueens);
-            Clear(to, RooksQueens);
             tree->pos.majors[wtm] -= 2;
             break;
         }
@@ -102,14 +94,10 @@ void UnmakeMove(TREE * RESTRICT tree, int ply, int move, int wtm) {
     case knight:
       break;
     case bishop:
-      ClearSet(bit_move, BishopsQueens);
       break;
     case rook:
-      ClearSet(bit_move, RooksQueens);
       break;
     case queen:
-      ClearSet(bit_move, BishopsQueens);
-      ClearSet(bit_move, RooksQueens);
       break;
     case king:
       KingSQ(wtm) = from;
@@ -122,7 +110,6 @@ void UnmakeMove(TREE * RESTRICT tree, int ply, int move, int wtm) {
           to = rook_D[wtm];
         }
         bit_move = SetMask(from) | SetMask(to);
-        ClearSet(bit_move, RooksQueens);
         ClearSet(bit_move, Rooks(wtm));
         ClearSet(bit_move, Occupied(wtm));
         PcOnSq(to) = 0;
@@ -154,30 +141,15 @@ void UnmakeMove(TREE * RESTRICT tree, int ply, int move, int wtm) {
         tree->pos.minors[btm]++;
         break;
       case bishop:
-        Set(to, BishopsQueens);
         tree->pos.minors[btm]++;
         break;
       case rook:
-        Set(to, RooksQueens);
         tree->pos.majors[btm]++;
         break;
       case queen:
-        Set(to, BishopsQueens);
-        Set(to, RooksQueens);
         tree->pos.majors[btm] += 2;
         break;
       case king:
-#if defined(DEBUG)
-        Print(128, "captured a king (Unmake)\n");
-        for (i = 1; i <= ply; i++)
-          Print(128, "ply=%2d, piece=%2d,from=%2d,to=%2d,captured=%2d\n", i,
-              Piece(tree->curmv[i]), From(tree->curmv[i]), To(tree->curmv[i]),
-              Captured(tree->curmv[i]));
-        Print(128, "ply=%2d, piece=%2d,from=%2d,to=%2d,captured=%2d\n", i,
-            piece, from, to, captured);
-        if (log_file)
-          DisplayChessBoard(log_file, tree->pos);
-#endif
         break;
     }
   }

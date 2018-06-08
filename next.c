@@ -65,11 +65,11 @@ int NextEvasion(TREE * RESTRICT tree, int ply, int wtm) {
           *sortv = -999999;
           *movep = 0;
         } else {
-          if (pc_values[Piece(*movep)] < pc_values[Captured(*movep)])
+          if (pc_values[Piece(*movep)] <= pc_values[Captured(*movep)])
             *sortv =
                 128 * pc_values[Captured(*movep)] - pc_values[Piece(*movep)];
           else {
-            *sortv = Swap(tree, From(*movep), To(*movep), wtm);
+            *sortv = Swap(tree, *movep, wtm);
             if (*sortv >= 0)
               *sortv =
                   128 * pc_values[Captured(*movep)] -
@@ -128,7 +128,7 @@ int NextEvasion(TREE * RESTRICT tree, int ply, int wtm) {
   return (NONE);
 }
 
-/* last modified 01/14/09 */
+/* last modified 07/24/09 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -163,14 +163,12 @@ int NextMove(TREE * RESTRICT tree, int ply, int wtm) {
 /*
  ************************************************************
  *                                                          *
- *   Generate captures and sort them based on whether they  *
- *   are safe according to SEE (swap()) analysis or not.    *
- *   If they are unsafe, they are sorted to the bottom of   *
- *   the capture list, otherwise moves are sorted by using  *
- *   MVV/LVA ordering so that we capture the most valuable  *
- *   piece first, which reduces the size of the tree below  *
- *   this node when a piece (often the queen) with lots of  *
- *   potential moves is removed.                            *
+ *   Generate captures and sort them based on the simple    *
+ *   MVV/LVA ordering where we try to capture the most      *
+ *   valuable victim piece possible, using the least        *
+ *   valuable attacking piece possible.  Later we will test *
+ *   to see if the capture appears to lose material and we  *
+ *   will defer searching it until later.                   *
  *                                                          *
  ************************************************************
  */
@@ -185,19 +183,9 @@ int NextMove(TREE * RESTRICT tree, int ply, int wtm) {
           *movep = 0;
           tree->hash_move[ply] = 0;
         } else {
-          if (pc_values[Piece(*movep)] < pc_values[Captured(*movep)]) {
-            *sortv =
-                128 * pc_values[Captured(*movep)] - pc_values[Piece(*movep)];
-            tree->next_status[ply].remaining++;
-          } else {
-            *sortv = Swap(tree, From(*movep), To(*movep), wtm);
-            if (*sortv >= 0) {
-              *sortv =
-                  128 * pc_values[Captured(*movep)] -
-                  pc_values[Piece(*movep)];
-              tree->next_status[ply].remaining++;
-            }
-          }
+          *sortv =
+              128 * pc_values[Captured(*movep)] - pc_values[Piece(*movep)];
+          tree->next_status[ply].remaining++;
         }
 /*
  ************************************************************
@@ -240,12 +228,16 @@ int NextMove(TREE * RESTRICT tree, int ply, int wtm) {
  ************************************************************
  */
     case CAPTURE_MOVES:
-      if (tree->next_status[ply].remaining) {
-        tree->curmv[ply] = *(tree->next_status[ply].last);
-        *tree->next_status[ply].last++ = 0;
+      while (tree->next_status[ply].remaining) {
+        tree->curmv[ply] = *(tree->next_status[ply].last++);
         tree->next_status[ply].remaining--;
         if (!tree->next_status[ply].remaining)
           tree->next_status[ply].phase = KILLER_MOVE_1;
+        if (pc_values[Piece(tree->curmv[ply])] >
+            pc_values[Captured(tree->curmv[ply])] &&
+            Swap(tree, tree->curmv[ply], wtm) < 0)
+          continue;
+        *(tree->next_status[ply].last - 1) = 0;
         return (CAPTURE_MOVES);
       }
       tree->next_status[ply].phase = KILLER_MOVE_1;

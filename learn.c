@@ -230,7 +230,6 @@ void LearnValue(int search_value, int search_depth) {
           best_after_worst_eval = book_learn_eval[i];
     } else
       best_after_worst_eval = book_learn_eval[interval - 1];
-#define DEBUG
 #if defined(DEBUG)
     Print(128, "Learning analysis ...\n");
     Print(128, "worst=%d  best=%d  baw=%d  wab=%d\n", worst_eval, best_eval,

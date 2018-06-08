@@ -52,7 +52,7 @@ int Ponder(int wtm) {
  */
   strcpy(hint, "none");
   if (ponder_move) {
-    if (!ValidMove(tree, 1, wtm, ponder_move)) {
+    if (!VerifyMove(tree, 1, wtm, ponder_move)) {
       ponder_move = 0;
       Print(4095, "ERROR.  ponder_move is illegal (1).\n");
       Print(4095, "ERROR.  PV pathl=%d\n", last_pv.pathl);
@@ -64,16 +64,15 @@ int Ponder(int wtm) {
     if (tree->hash_move[0])
       ponder_move = tree->hash_move[0];
     if (ponder_move) {
-      if (!ValidMove(tree, 1, wtm, ponder_move)) {
-        ponder_move = 0;
+      if (!VerifyMove(tree, 1, wtm, ponder_move)) {
         Print(4095, "ERROR.  ponder_move is illegal (2).\n");
-        Print(4095, "ERROR.  PV pathl=%d\n", last_pv.pathl);
         Print(4095, "ERROR.  move=%d  %x\n", ponder_move, ponder_move);
+        ponder_move = 0;
       }
     }
   }
   if (!ponder_move) {
-    TimeSet(puzzle);
+    TimeSet(tree, puzzle);
     if (time_limit < 20)
       return (0);
     puzzling = 1;
@@ -99,7 +98,7 @@ int Ponder(int wtm) {
       last_pv.path[i] = tree->pv[0].path[i + 1];
     last_pv.pathl = tree->pv[0].pathl - 1;
     last_pv.pathd = 0;
-    if (!ValidMove(tree, 1, wtm, ponder_move)) {
+    if (!VerifyMove(tree, 1, wtm, ponder_move)) {
       ponder_move = 0;
       Print(4095, "ERROR.  ponder_move is illegal (3).\n");
       Print(4095, "ERROR.  PV pathl=%d\n", last_pv.pathl);

@@ -26,16 +26,21 @@
  *******************************************************************************
  */
 int RepetitionCheck(TREE * RESTRICT tree, int ply, int wtm) {
-  register int where, loops;
+  register int where;
 
 /*
  ************************************************************
  *                                                          *
  *   If the 50-move rule has been reached, then adjust the  *
- *   score to reflect the impending draw.                   *
+ *   score to reflect the impending draw.  If we have not   *
+ *   made 2 moves for each side (or more) since the last    *
+ *   irreversible move, there is no way to repeat a prior   *
+ *   position.                                              *
  *                                                          *
  ************************************************************
  */
+  if (Rule50Moves(ply) < 4)
+    return (0);
   if (Rule50Moves(ply) > 99)
     return (1);
 /*
@@ -50,13 +55,9 @@ int RepetitionCheck(TREE * RESTRICT tree, int ply, int wtm) {
  *                                                          *
  ************************************************************
  */
-  loops = (Rule50Moves(ply) + 1) >> 1;
-  for (where = tree->rep_index[wtm] - 1; where >= 0; where--) {
-    if (loops-- <= 0)
-      break;
+  for (where = tree->rep_index[wtm] - 2; where >= 0; where--)
     if (HashKey == tree->rep_list[wtm][where])
       return (1);
-  }
   return (0);
 }
 

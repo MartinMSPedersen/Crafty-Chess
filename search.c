@@ -1,6 +1,6 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 01/17/09 */
+/* last modified 07/04/09 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -15,10 +15,9 @@
 int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
     int ply, int do_null) {
   register BITBOARD start_nodes = tree->nodes_searched;
-  register int moves_searched = 0;
-  register int o_alpha, value = 0, t_beta = beta;
-  register int extensions, extended, pieces;
-  register int fprune;
+  register int first_tried, moves_searched = 0;
+  register int o_alpha = alpha, value = 0, t_beta = beta;
+  register int extensions, pieces;
 
 /*
  ************************************************************
@@ -37,7 +36,6 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
  *                                                          *
  ************************************************************
  */
-  tree->nodes_searched++;
 #if defined(NODES)
   temp_search_nodes--;
   if (temp_search_nodes <= 0) {
@@ -171,8 +169,8 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
  *                                                          *
  *  We now know there is no easy way out via a hash hit, a  *
  *  repetition hit, or an EGTB hit.  Which leaves us one    *
- *  more way of getting out with minimal effort, where, we  *
- *  try a null move to see if we can get a quick  cutoff    *
+ *  more way of getting out with minimal effort, where we   *
+ *  try a null move to see if we can get a quick cutoff     *
  *  with only a little work.  this operates as follows.     *
  *  Instead of making a legal move, the side on move        *
  *  "passes" and does nothing.  The resulting position is   *
@@ -194,17 +192,14 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
  *  4.  The transposition table probe found an entry that   *
  *      indicates that a null-move search will not fail     *
  *      high, so we avoid the wasted effort.                *
- *  5.  If the alpha/beta window is non-null, this is a PV  *
- *      node where the null move should be avoided.         *
  *                                                          *
  ************************************************************
  */
   tree->inchk[ply + 1] = 0;
-  o_alpha = alpha;
   tree->last[ply] = tree->last[ply - 1];
   pieces =
       (wtm) ? TotalPieces(white, occupied) : TotalPieces(black, occupied);
-  if (do_null && alpha == beta - 1) {
+  if (do_null && alpha == beta - 1 && depth > 1) {
     if (!tree->inchk[ply] && pieces && (pieces > 9 || depth < 7)) {
       register BITBOARD save_hash_key;
 
@@ -218,15 +213,15 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
       Rule50Moves(ply + 1) = 0;
       save_hash_key = HashKey;
       if (EnPassant(ply)) {
-        HashEP(EnPassant(ply + 1), HashKey);
+        HashEP(EnPassant(ply + 1));
         EnPassant(ply + 1) = 0;
       }
       if (depth - null_depth - 1 > 0)
         value =
-            -Search(tree, -beta, 1 - beta, Flip(wtm), depth - null_depth - 1,
+            -Search(tree, -beta, -beta + 1, Flip(wtm), depth - null_depth - 1,
             ply + 1, NO_NULL);
       else
-        value = -QuiesceChecks(tree, -beta, 1 - beta, Flip(wtm), ply + 1);
+        value = -QuiesceChecks(tree, -beta, -beta + 1, Flip(wtm), ply + 1);
       HashKey = save_hash_key;
       if (abort_search || tree->stop)
         return (0);
@@ -236,7 +231,7 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
       }
     }
   }
-/*
+/*  
  ************************************************************
  *                                                          *
  *   Now iterate through the move list and search the       *
@@ -244,16 +239,6 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
  *   move that is not legal by using Check().  The special  *
  *   case is that we must find one legal move to search to  *
  *   confirm that it's not a mate or draw.                  *
- *                                                          *
- *   First step is to see if we need to extend this move    *
- *   for some tactical reason.  If not, we check to see if  *
- *   we can reduce the depth (LMR) to save time.  A final   *
- *   case is to determine if we can use AEL pruning         *
- *   (Heinz 2000) near the search frontier.  Note for those *
- *   that have read Heinz's paper.  Frontier nodes in       *
- *   crafty have a depth = 2.  Pre-frontier nodes  have a   *
- *   depth = 3.  And finally, pre-pre-frontier nodes have a *
- *   depth = 4.                                             *
  *                                                          *
  ************************************************************
  */
@@ -266,29 +251,112 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
       Trace(tree, ply, depth, wtm, alpha, beta, "Search2", tree->phase[ply]);
 #endif
     MakeMove(tree, ply, tree->curmv[ply], wtm);
+    if (moves_searched == 0)
+      first_tried = tree->curmv[ply];
+    tree->nodes_searched++;
     if (tree->inchk[ply] || !Check(wtm))
       do {
-        extended = SearchExtensions(tree, wtm, ply, depth);
-        extensions = extended - 1;
-        fprune = 0;
-        if (moves_searched && extended <= 0 && !tree->inchk[ply] &&
-            !tree->inchk[ply + 1] && abs(alpha) < (MATE - 500)) {
-          if (depth < 5) {
-            if (depth == 2) {
-              if (MaterialSTM(wtm) + futility_margin <= alpha)
-                fprune = 1;
-            } else if (depth == 3 &&
-                MaterialSTM(wtm) + extended_futility_margin <= alpha)
-              fprune = 1;
-            else if (depth == 4 && MaterialSTM(wtm) + razor_margin <= alpha)
-              extensions -= 1;
+/*
+ ************************************************************
+ *                                                          *
+ *   If the move to be made checks the opponent, then we    *
+ *   need to remember that he's in check and also extend    *
+ *   the depth by one ply for him to get out.  Note that if *
+ *   the move gives check, it is not a candidate for either *
+ *   depth reduction or forward-pruning.                    *
+ *                                                          *
+ ************************************************************
+ */
+        extensions = 0;
+        if (Check(Flip(wtm))) {
+          tree->inchk[ply + 1] = 1;
+          tree->extensions_done++;
+          extensions = check_depth;
+        } else
+          tree->inchk[ply + 1] = 0;
+/*
+ ************************************************************
+ *                                                          *
+ *   Now it's time to try to reduce the search depth if the *
+ *   move appears to be "poor".  To reduce the search, the  *
+ *   following requirements must be met:                    *
+ *                                                          *
+ *   (1) We must be in the REMAINING_MOVES part of the move *
+ *       ordering, so that we have nearly given up on       *
+ *       failing high on any move.                          *
+ *   (2) We must not be too close to the horizon (this is   *
+ *       the LMR_min_depth value).                          *
+ *   (3) The current move must not be a checking move and   *
+ *       the side to move can not be in check.              *
+ *   (4) The moving piece is not a passed pawn.             *
+ *   (5) The current move can not affect the material       *
+ *       balance, that is it can not be a capture or pawn   *
+ *       promotion.                                         *
+ *                                                          *
+ ************************************************************
+ */
+        if (tree->phase[ply] == REMAINING_MOVES && !tree->inchk[ply] &&
+            !tree->inchk[ply + 1] && !CaptureOrPromote(tree->curmv[ply])) {
+          if (depth - 1 - LMR_depth >= LMR_min_depth &&
+              (Piece(tree->curmv[ply]) != pawn ||
+                  mask_passed[wtm][To(tree->
+                          curmv[ply])] & Pawns(Flip(wtm)))) {
+            extensions -= LMR_depth;
+            tree->reductions_done++;
+          }
+/*
+ ************************************************************
+ *                                                          *
+ *   Now for the forward-pruning stuff.  The idea here is   *
+ *   based on the old FUTILITY idea, where if the current   *
+ *   material + a fudge factor is lower than alpha, then    *
+ *   there is little promise in searching this move to make *
+ *   up for the material deficit.                           *
+ *                                                          *
+ *   We have an array of pruning margin values that are     *
+ *   indexed by depth (remaining plies left until we drop   *
+ *   into the quiescence search) and which increase with    *
+ *   depth since more depth means a greater chance of       *
+ *   bringing the score back up to alpha or beyond.  If the *
+ *   current material + the bonus is less than alpha, we    *
+ *   simply avoid searching this move at all, and skip to   *
+ *   the next move without expending any more effort.  Note *
+ *   that this is classic forward-pruning and can certainly *
+ *   introduce errors into the search.  However, cluster    *
+ *   testing has shown that this improves play in real      *
+ *   games.  The current implementation only prunes in the  *
+ *   last 4 plies before quiescence, although this can be   *
+ *   tuned with the "eval" command changing the "pruning    *
+ *   depth" value to something other than 5 (test is for    *
+ *   depth < pruning depth, current value is 5 which prunes *
+ *   in last 4 plies only).  Testing shows no benefit in    *
+ *   larger values than 5, although this might change in    *
+ *   future versions as other things are modified.          *
+ *                                                          *
+ ************************************************************
+ */
+          if (depth < pruning_depth && moves_searched &&
+              MaterialSTM(wtm) + pruning_margin[depth] <= alpha) {
+            tree->moves_pruned++;
+            continue;
           }
         }
-        if (depth + extensions > 0 && !fprune) {
+/*  
+ ************************************************************
+ *                                                          *
+ *   We have determined whether the depth is to be changed  *
+ *   by an extension or a reduction.  If we get to this     *
+ *   point, then the move is not being pruned.  So off we   *
+ *   go to a recursive search/quiescence call to work our   *
+ *   way toward a terminal node.                            *
+ *                                                          *
+ ************************************************************
+ */
+        if (depth + extensions - 1 > 0) {
           value =
-              -Search(tree, -t_beta, -alpha, Flip(wtm), depth + extensions,
-              ply + 1, DO_NULL);
-          if (value > alpha && extended < 0)
+              -Search(tree, -t_beta, -alpha, Flip(wtm),
+              depth + extensions - 1, ply + 1, DO_NULL);
+          if (value > alpha && extensions < 0)
             value =
                 -Search(tree, -t_beta, -alpha, Flip(wtm), depth - 1, ply + 1,
                 DO_NULL);
@@ -297,16 +365,25 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
         if (abort_search || tree->stop)
           break;
         if (value > alpha && value < beta && moves_searched) {
-          extensions = Max(extensions, -1);
-          if (depth + extensions > 0)
+          extensions = Max(extensions, 0);
+          if (depth + extensions - 1 > 0)
             value =
-                -Search(tree, -beta, -alpha, Flip(wtm), depth + extensions,
-                ply + 1, DO_NULL);
+                -Search(tree, -beta, -alpha, Flip(wtm),
+                depth + extensions - 1, ply + 1, DO_NULL);
           else
             value = -QuiesceChecks(tree, -beta, -alpha, Flip(wtm), ply + 1);
           if (abort_search || tree->stop)
             break;
         }
+/*  
+ ************************************************************
+ *                                                          *
+ *   Search (and/or re-search) has been completed.  Now we  *
+ *   check for a fail high which terminates the search      *
+ *   immediately as no further searching is required.       *
+ *                                                          *
+ ************************************************************
+ */
         if (value > alpha) {
           if (value >= beta) {
             Killer(tree, ply, tree->curmv[ply]);
@@ -322,8 +399,6 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
         t_beta = alpha + 1;
         moves_searched++;
       } while (0);
-    else
-      tree->nodes_searched++;
     UnmakeMove(tree, ply, tree->curmv[ply], wtm);
     if (abort_search || tree->stop)
       return (0);
@@ -375,6 +450,7 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
     }
 #endif
   }
+  while (0);
 /*
  ************************************************************
  *                                                          *
@@ -395,9 +471,8 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
     }
     return (value);
   } else {
-    int bestmove = (alpha == o_alpha) ? 0 : tree->pv[ply].path[ply];
+    int bestmove = (alpha == o_alpha) ? first_tried : tree->pv[ply].path[ply];
     int type = (alpha == o_alpha) ? UPPER : EXACT;
-
     if (alpha != o_alpha) {
       memcpy(&tree->pv[ply - 1].path[ply], &tree->pv[ply].path[ply],
           (tree->pv[ply].pathl - ply + 1) * sizeof(int));
@@ -410,119 +485,7 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
   }
 }
 
-/* last modified 01/17/09 */
-/*
- *******************************************************************************
- *                                                                             *
- *   SearchExtensions() is used to adjust the search depth for the tree below  *
- *   this node.  Checking moves are problematic as they sometimes lead to a    *
- *   deep win of material or a checkmate, or sometimes they are used to delay  *
- *   something (push it beyond the search horizon) so that it is not even      *
- *   found by the search.                                                      *
- *                                                                             *
- *   Additionally, the opposite is also true.  Some moves do not deserve as    *
- *   much effort as others, and we try to recognize that here and rather than  *
- *   extending the search depth (and effort) we actually reduce the search     *
- *   depth to save time that can be better spent on other moves.  Any move     *
- *   tactical in nature (captures, checks, passed pawn pushes, and so forth)   *
- *   are not reduced.  normal moves that appear to be "good" are also not      *
- *   reduced, including the hash table "best move", killer moves, and other    *
- *   such moves.  that leaves moves that have not been identified as good to   *
- *   be searched with reduced depth.
- *                                                                             *
- *   In reality, what we are doing is extending the obvious moves (checks) to  *
- *   search them deeper, reducing the moves that appear to be bad, to search   *
- *   those shallowly, and searching the normal-looking moves to the usual      *
- *   depth.                                                                    *
- *                                                                             *
- *******************************************************************************
- */
-int SearchExtensions(TREE * RESTRICT tree, int wtm, int ply, int depth) {
-  register int move, square;
-
-/*
- ************************************************************
- *                                                          *
- *   If the move to be made checks the opponent, then we    *
- *   need to remember that he's in check and also extend    *
- *   the depth by one ply for him to get out.               *
- *                                                          *
- ************************************************************
- */
-  if (Check(Flip(wtm))) {
-    tree->inchk[ply + 1] = 1;
-    tree->check_extensions_done++;
-    return (check_depth);
-  }
-  tree->inchk[ply + 1] = 0;
-/*
- ************************************************************
- *                                                          *
- *   The current move is not a check or we would have       *
- *   already extended it and exited.                        *
- *                                                          *
- *   Now it's time to try to reduce the search depth if the *
- *   move appears to be "poor".  To reduce the search, the  *
- *   following requirements must be met:                    *
- *                                                          *
- *   (1) We must be in the REMAINING_MOVES part of the move *
- *       ordering, so that we have nearly given up on       *
- *       failing high on any move.  This means that we have *
- *       tried all the "usual suspects" including the hash  *
- *       move, reasonable captures and finally killer       *
- *       moves.  Now we are left with a random collection   *
- *       of moves that are in no particular order and we    *
- *       don't really have any high expectation that we are *
- *       going to fail high on any of them, so we just      *
- *       plunge into the search to finish the node and move *
- *       on.                                                *
- *                                                          *
- *   (2) The remaining search depth left must satisfy the   *
- *       following inequality:                              *
- *                                                          *
- *         depth - 1 - LMR_depth <= LMR_min_depth           *
- *                                                          *
- *       Simply stated, for default settings, there must    *
- *       be at least 3 plies of depth left or we won't      *
- *       reduce since we are too close to the frontier and  *
- *       that leads to tactical mistakes.                   *
- *                                                          *
- *   (3) The current move must not be a checking move.      *
- *                                                          *
- *   (4) The side to move can not be in check;              *
- *                                                          *
- *   (5) The moving piece is not a passed pawn;             *
- *                                                          *
- *   (6) The current move can not affect the material       *
- *       balance, that is it can not be a capture or pawn   *
- *       promotion;                                         *
- *                                                          *
- ************************************************************
- */
-  if (tree->phase[ply] != REMAINING_MOVES)
-    return (0);
-  tree->reductions_attempted++;
-  move = tree->curmv[ply];
-  square = To(move);
-  if (depth - 1 - LMR_depth < LMR_min_depth || tree->inchk[ply] ||
-      CaptureOrPromote(move))
-    return (0);
-  if (Piece(move) == pawn) {
-    if (!(mask_pawn_passed[wtm][square] & Pawns(Flip(wtm))))
-      return (0);
-  }
-/*
- ************************************************************
- *                                                          *
- *   Move is safe to reduce.                                *
- *                                                          *
- ************************************************************
- */
-  tree->reductions_done++;
-  return (-LMR_depth);
-}
-
-/* modified 03/13/09 */
+/* last modified 07/04/09 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -539,28 +502,20 @@ int SearchExtensions(TREE * RESTRICT tree, int wtm, int ply, int depth) {
  */
 int SearchParallel(TREE * RESTRICT tree, int alpha, int beta, int value,
     int wtm, int depth, int ply) {
-  register int fprune, extended, extensions;
+  register int extensions;
   BITBOARD begin_root_nodes;
-
 /*  
  ************************************************************
  *                                                          *
  *   Now iterate through the move list and search the       *
  *   resulting positions.  Note that Search() culls any     *
- *   move that is not legal by using Check().               *
- *                                                          *
- *   First step is to see if we need to extend this move    *
- *   for some tactical reason.  If not, we check to see if  *
- *   we can reduce the depth (LMR) to save time.  A final   *
- *   case is to determine if we can use AEL pruning         *
- *   (Heinz 2000) near the search frontier.  Note for those *
- *   that have read Heinz's paper.  Frontier nodes in       *
- *   crafty have a depth = 2.  pre-frontier nodes  have a   *
- *   depth = 3.  And finally, pre-pre-frontier nodes have a *
- *   depth = 4.                                             *
+ *   move that is not legal by using Check().  The special  *
+ *   case is that we must find one legal move to search to  *
+ *   confirm that it's not a mate or draw.                  *
  *                                                          *
  ************************************************************
  */
+
   while (1) {
     Lock(tree->parent->lock);
     if (ply == 1) {
@@ -569,7 +524,8 @@ int SearchParallel(TREE * RESTRICT tree, int alpha, int beta, int value,
     } else
       tree->phase[ply] =
           (tree->inchk[ply]) ? NextEvasion((TREE *) tree->parent, ply,
-          wtm) : NextMove((TREE *) tree->parent, ply, wtm);
+          wtm) : NextMove((TREE *)
+          tree->parent, ply, wtm);
     tree->curmv[ply] = tree->parent->curmv[ply];
     Unlock(tree->parent->lock);
     if (!tree->phase[ply])
@@ -580,30 +536,112 @@ int SearchParallel(TREE * RESTRICT tree, int alpha, int beta, int value,
           tree->phase[ply]);
 #endif
     MakeMove(tree, ply, tree->curmv[ply], wtm);
+    tree->nodes_searched++;
     if (tree->inchk[ply] || !Check(wtm))
       do {
-        extended = SearchExtensions(tree, wtm, ply, depth);
-        extensions = extended - 1;
+/*
+ ************************************************************
+ *                                                          *
+ *   If the move to be made checks the opponent, then we    *
+ *   need to remember that he's in check and also extend    *
+ *   the depth by one ply for him to get out.  Note that if *
+ *   the move gives check, it is not a candidate for either *
+ *   depth reduction or forward-pruning.                    *
+ *                                                          *
+ ************************************************************
+ */
+
         begin_root_nodes = tree->nodes_searched;
-        fprune = 0;
-        if (extended <= 0 && !tree->inchk[ply] && !tree->inchk[ply + 1] &&
-            abs(alpha) < (MATE - 500)) {
-          if (depth < 5) {
-            if (depth == 2) {
-              if (MaterialSTM(wtm) + futility_margin <= alpha)
-                fprune = 1;
-            } else if (depth == 3 &&
-                MaterialSTM(wtm) + extended_futility_margin <= alpha)
-              fprune = 1;
-            else if (depth == 4 && MaterialSTM(wtm) + razor_margin <= alpha)
-              extensions -= 1;
+        extensions = 0;
+        if (Check(Flip(wtm))) {
+          tree->inchk[ply + 1] = 1;
+          tree->extensions_done++;
+          extensions = check_depth;
+        } else
+          tree->inchk[ply + 1] = 0;
+/*
+ ************************************************************
+ *                                                          *
+ *   Now it's time to try to reduce the search depth if the *
+ *   move appears to be "poor".  To reduce the search, the  *
+ *   following requirements must be met:                    *
+ *                                                          *
+ *   (1) We must be in the REMAINING_MOVES part of the move *
+ *       ordering, so that we have nearly given up on       *
+ *       failing high on any move.                          *
+ *   (2) We must not be too close to the horizon (this is   *
+ *       the LMR_min_depth value).                          *
+ *   (3) The current move must not be a checking move and   *
+ *       the side to move can not be in check;              *
+ *   (4) The moving piece is not a passed pawn;             *
+ *   (5) The current move can not affect the material       *
+ *       balance, that is it can not be a capture or pawn   *
+ *       promotion;                                         *
+ *                                                          *
+ ************************************************************
+ */
+        if (tree->phase[ply] == REMAINING_MOVES && !tree->inchk[ply] &&
+            !tree->inchk[ply + 1] && !CaptureOrPromote(tree->curmv[ply])) {
+          if (depth - 1 - LMR_depth >= LMR_min_depth &&
+              (Piece(tree->curmv[ply]) != pawn ||
+                  mask_passed[wtm][To(tree->
+                          curmv[ply])] & Pawns(Flip(wtm)))) {
+            extensions -= LMR_depth;
+            tree->reductions_done++;
+          }
+/*
+ ************************************************************
+ *                                                          *
+ *   Now for the forward-pruning stuff.  The idea here is   *
+ *   based on the old FUTILITY idea, where if the current   *
+ *   material + a fudge factor is lower than alpha, then    *
+ *   there is little promise in searching this move to make *
+ *   up for the material deficit.                           *
+ *                                                          *
+ *   We have an array of pruning margin values that are     *
+ *   indexed by depth (remaining plies left until we drop   *
+ *   into the quiescence search) and which increase with    *
+ *   depth since more depth means a greater chance of       *
+ *   bringing the score back up to alpha or beyond.  If the *
+ *   current material + the bonus is less than alpha, we    *
+ *   simply avoid searching this move at all, and skip to   *
+ *   the next move without expending any more effort.  Note *
+ *   that this is classic forward-pruning and can certainly *
+ *   introduce errors into the search.  However, cluster    *
+ *   testing has shown that this improves play in real      *
+ *   games.  The current implementation only prunes in the  *
+ *   last 4 plies before quiescence, although this can be   *
+ *   tuned with the "eval" command changing the "pruning    *
+ *   depth" value to something other than 5 (test is for    *
+ *   depth < pruning depth, current value is 5 which prunes *
+ *   in last 4 plies only).  Testing shows no benefit in    *
+ *   larger values than 5, although this might change in    *
+ *   future versions as other things are modified.          *
+ *                                                          *
+ ************************************************************
+ */
+          if (depth < pruning_depth &&
+              MaterialSTM(wtm) + pruning_margin[depth] <= alpha) {
+            tree->moves_pruned++;
+            continue;
           }
         }
-        if (depth + extensions > 0 && !fprune) {
+/*  
+ ************************************************************
+ *                                                          *
+ *   We have determined whether the depth is to be changed  *
+ *   by an extension or a reduction.  If we get to this     *
+ *   point, then the move is not being pruned.  So off we   *
+ *   go to a recursive search/quiescence call to work our   *
+ *   way toward a terminal node.                            *
+ *                                                          *
+ ************************************************************
+ */
+        if (depth + extensions - 1 > 0) {
           value =
-              -Search(tree, -alpha - 1, -alpha, Flip(wtm), depth + extensions,
-              ply + 1, DO_NULL);
-          if (value > alpha && extensions < -1)
+              -Search(tree, -alpha - 1, -alpha, Flip(wtm),
+              depth + extensions - 1, ply + 1, DO_NULL);
+          if (value > alpha && extensions < 0)
             value =
                 -Search(tree, -alpha - 1, -alpha, Flip(wtm), depth - 1,
                 ply + 1, DO_NULL);
@@ -613,11 +651,11 @@ int SearchParallel(TREE * RESTRICT tree, int alpha, int beta, int value,
         if (abort_search || tree->stop)
           break;
         if (value > alpha && value < beta) {
-          extensions = Max(extensions, -1);
-          if (depth + extensions > 0)
+          extensions = Max(extensions, 0);
+          if (depth + extensions - 1 > 0)
             value =
-                -Search(tree, -beta, -alpha, Flip(wtm), depth + extensions,
-                ply + 1, DO_NULL);
+                -Search(tree, -beta, -alpha, Flip(wtm),
+                depth + extensions - 1, ply + 1, DO_NULL);
           else
             value = -QuiesceChecks(tree, -beta, -alpha, Flip(wtm), ply + 1);
           if (abort_search || tree->stop)
@@ -690,7 +728,7 @@ int SearchParallel(TREE * RESTRICT tree, int alpha, int beta, int value,
   return (alpha);
 }
 
-/* modified 01/17/09 */
+/* last modified 07/04/09 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -708,7 +746,6 @@ int SearchRoot(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth) {
   register int value;
   register int extensions;
   BITBOARD begin_root_nodes;
-
 /*
  ************************************************************
  *                                                          *
@@ -727,9 +764,46 @@ int SearchRoot(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth) {
       Trace(tree, 1, depth, wtm, alpha, beta, "SearchRoot", tree->phase[1]);
 #endif
     MakeMove(tree, 1, tree->curmv[1], wtm);
+    tree->nodes_searched++;
     do {
-      extensions = SearchExtensions(tree, wtm, 1, depth);
       begin_root_nodes = tree->nodes_searched;
+      extensions = 0;
+      if (Check(Flip(wtm))) {
+        tree->inchk[2] = 1;
+        tree->extensions_done++;
+        extensions = check_depth;
+      } else
+        tree->inchk[2] = 0;
+/*
+ ************************************************************
+ *                                                          *
+ *   Now it's time to try to reduce the search depth if the *
+ *   move appears to be "poor".  To reduce the search, the  *
+ *   following requirements must be met:                    *
+ *                                                          *
+ *   (1) We must be in the REMAINING_MOVES part of the move *
+ *       ordering, so that we have nearly given up on       *
+ *       failing high on any move.                          *
+ *   (2) We must not be too close to the horizon (this is   *
+ *       the LMR_min_depth value).                          *
+ *   (3) The current move must not be a checking move and   *
+ *       the side to move can not be in check;              *
+ *   (4) The moving piece is not a passed pawn;             *
+ *   (5) The current move can not affect the material       *
+ *       balance, that is it can not be a capture or pawn   *
+ *       promotion;                                         *
+ *                                                          *
+ ************************************************************
+ */
+      if (tree->phase[1] == REMAINING_MOVES && !tree->inchk[1] &&
+          !tree->inchk[2] && !CaptureOrPromote(tree->curmv[1])) {
+        if (depth - 1 - LMR_depth >= LMR_min_depth &&
+            (Piece(tree->curmv[1]) != pawn ||
+                mask_passed[wtm][To(tree->curmv[1])] & Pawns(Flip(wtm)))) {
+          extensions -= LMR_depth;
+          tree->reductions_done++;
+        }
+      }
 /*
  ************************************************************
  *                                                          *
@@ -751,18 +825,18 @@ int SearchRoot(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth) {
  ************************************************************
  */
       if (first_move) {
-        if (depth - 1 + extensions > 0)
+        if (depth + extensions - 1 > 0)
           value =
-              -Search(tree, -beta, -alpha, Flip(wtm), depth - 1 + extensions,
+              -Search(tree, -beta, -alpha, Flip(wtm), depth + extensions - 1,
               2, DO_NULL);
         else
           value = -QuiesceChecks(tree, -beta, -alpha, Flip(wtm), 2);
         first_move = 0;
       } else {
-        if (depth - 1 + extensions > 0) {
+        if (depth + extensions - 1 > 0) {
           value =
               -Search(tree, -alpha - 1, -alpha, Flip(wtm),
-              depth - 1 + extensions, 2, DO_NULL);
+              depth + extensions - 1, 2, DO_NULL);
           if (value > alpha && extensions < 0)
             value =
                 -Search(tree, -alpha - 1, -alpha, Flip(wtm), depth - 1, 2,
@@ -773,10 +847,10 @@ int SearchRoot(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth) {
           break;
         if ((value > alpha) && (value < beta)) {
           extensions = Max(extensions, 0);
-          if (depth - 1 + extensions > 0)
+          if (depth + extensions - 1 > 0)
             value =
                 -Search(tree, -beta, -alpha, Flip(wtm),
-                depth - 1 + extensions, 2, DO_NULL);
+                depth + extensions - 1, 2, DO_NULL);
           else
             value = -QuiesceChecks(tree, -beta, -alpha, Flip(wtm), 2);
         }
@@ -798,6 +872,15 @@ int SearchRoot(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth) {
         break;
       root_moves[tree->root_move].nodes =
           tree->nodes_searched - begin_root_nodes;
+/*  
+ ************************************************************
+ *                                                          *
+ *   Search (and/or re-search) has been completed.  Now we  *
+ *   check for a fail high which terminates the search      *
+ *   immediately as no further searching is required.       *
+ *                                                          *
+ ************************************************************
+ */
       if (value > alpha) {
         Output(tree, value, beta);
         root_value = alpha;

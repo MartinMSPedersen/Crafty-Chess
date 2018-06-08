@@ -27,16 +27,6 @@ int Drawn(TREE * RESTRICT tree, int value) {
 /*
  ************************************************************
  *                                                          *
- *   The search result must indicate a draw also, otherwise *
- *   it could be a tactical win or loss.                    *
- *                                                          *
- ************************************************************
- */
-  if (value != DrawScore(wtm))
-    return (0);
-/*
- ************************************************************
- *                                                          *
  *   If neither side has pawns, and one side has some sort  *
  *   of material superiority, then determine if the winning *
  *   side has enough material to win.                       *
@@ -56,12 +46,19 @@ int Drawn(TREE * RESTRICT tree, int value) {
 /*
  ************************************************************
  *                                                          *
+ *   The search result must indicate a draw also, otherwise *
+ *   it could be a tactical win or loss, so we will skip    *
+ *   calling an equal material (no pawns) position a draw   *
+ *   to make sure there is no mate that the search sees.    *
+ *                                                          *
  *   If neither side has pawns, then one side must have     *
  *   some sort of material superiority, otherwise it is a   *
  *   draw.                                                  *
  *                                                          *
  ************************************************************
  */
+  if (value != DrawScore(wtm))
+    return (0);
   if (TotalPieces(white, occupied) == TotalPieces(black, occupied))
     return (1);
   return (0);

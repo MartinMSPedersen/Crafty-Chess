@@ -64,7 +64,7 @@
 #                     can be dumped while running.
 
 default:
-	$(MAKE) linux-icc
+	$(MAKE) linux
 help:
 	@echo "You must specify the system which you want to compile for:"
 	@echo ""
@@ -166,11 +166,11 @@ linux-amd64:
 linux:
 	$(MAKE) target=LINUX \
 		CC=gcc CXX=g++ \
-		CFLAGS='$(CFLAGS) -g -Wall -pipe -march=i686 -O3 \
+		CFLAGS='$(CFLAGS) -Wall -pipe -march=i686 -O3 \
 			-fno-gcse -mpreferred-stack-boundary=2' \
 		CXFLAGS=$(CFLAGS) \
-		LDFLAGS='$(LDFLAGS) -g -lpthread -lstdc++' \
-		opt='$(opt) -DDEBUG -DTRACE -DINLINE32 -DCPUS=2' \
+		LDFLAGS='$(LDFLAGS) -lpthread -lstdc++' \
+		opt='$(opt) -DTRACE -DINLINE32 -DCPUS=2' \
 		crafty-make
 
 linux-profile:
@@ -180,7 +180,7 @@ linux-profile:
 			-fprofile-arcs -fforce-mem -fomit-frame-pointer \
 			-fno-gcse -mpreferred-stack-boundary=2' \
 		CXFLAGS=$(CFLAGS) \
-		LDFLAGS='$(LDFLAGS) -lpthread -fprofile-arcs -lstdc++ ' \
+		LDFLAGS='$(LDFLAGS) -lpthread -lstdc++ ' \
 		opt='$(opt) -DINLINE32 -DCPUS=2' \
 		crafty-make
 
@@ -188,10 +188,10 @@ linux-icc:
 	$(MAKE) target=LINUX \
 		CC=icc CXX=icc \
 		CFLAGS='$(CFLAGS) -O2 \
-			-prof_use -prof_dir ./profdir \
+			-xN -prof_use -prof_dir ./profdir \
 			-Ob2 -fno-alias' \
 		CXFLAGS='$(CFLAGS) -O2 \
-			-w -prof_use -prof_dir ./profdir' \
+			-w -xN -prof_use -prof_dir ./profdir' \
 		LDFLAGS='$(LDFLAGS) -lpthread -lstdc++' \
 		opt='$(opt) -DTEST -DINLINE32 -DCPUS=4' \
 		crafty-make
@@ -284,7 +284,7 @@ profile:
 	@rm -rf position.bin
 	@mkdir profdir
 	@touch *.c *.cpp *.h
-	$(MAKE) linux-icc-profile
+	$(MAKE) linux-profile
 	@echo "#!/bin/csh" > runprof
 	@echo "./crafty <<EOF" >>runprof
 	@echo "st=10" >>runprof
@@ -366,7 +366,7 @@ profile:
 	@./runprof
 	@rm runprof
 	@touch *.c *.cpp *.h
-	$(MAKE) linux-icc
+	$(MAKE) linux
 
 #
 #  one of the two following definitions for "objects" should be used.  The
@@ -377,14 +377,14 @@ profile:
 #  compiling both ways to see which way produces the fastest code.
 #
 
-#objects = search.o thread.o repeat.o next.o killer.o   \
+objects = search.o thread.o repeat.o next.o killer.o   \
        quiesce.o evaluate.o movgen.o make.o unmake.o hash.o      \
        attacks.o swap.o boolean.o utility.o probe.o book.o data.o drawn.o    \
        edit.o epd.o epdglue.o init.o input.o interupt.o iterate.o main.o     \
        option.o output.o ponder.o preeval.o resign.o root.o learn.o          \
        setboard.o test.o time.o validate.o annotate.o analyze.o evtest.o     \
        bench.o
-objects = crafty.o
+#objects = crafty.o
 
 # Do not change anything below this line!
 

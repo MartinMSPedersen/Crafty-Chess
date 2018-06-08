@@ -4,7 +4,7 @@
 /*
  *******************************************************************************
  *                                                                             *
- *   Bench() runs a simple six-position benchmark to gauge crafty's            *
+ *   Bench() runs a simple six-position benchmark to gauge Crafty's            *
  *   performance.  The test positons are hard-coded, and the benchmark is      *
  *   calculated much like it would with an external "test" file.  The test     *
  *   is a mix of opening, middlegame, and endgame positions, with both tactical*

@@ -18,7 +18,7 @@
  *  move was the move played, no output is produced.  If a different move is   *
  *  considered best, then the actual move played is searched to the same depth *
  *  and if the best move and actual move scores are within <margin> of each    *
- *  other, no comment is produced, otherwise crafty inserts the evaluation for *
+ *  other, no comment is produced, otherwise Crafty inserts the evaluation for *
  *  the move played, followed by the eval and PV for the best continuation it  *
  *  found.  You can enter suggested moves for Crafty to analyze at any point   *
  *  by simply entering a move as an analysis-type comment using (move) or      *
@@ -54,7 +54,7 @@
  *  which indicates a range of move (1-999 gets the whole game.)               *
  *                                                                             *
  *  Margin is the difference between Crafty's evaluation for the move actually *
- *  played and for the move Crafty thinks is best, before crafty will generate *
+ *  played and for the move Crafty thinks is best, before Crafty will generate *
  *  a comment in the annotation file.  1.0 is a pawn, and will only generate   *
  *  comments if the move played is 1.000 (1 pawn) worse than the best move     *
  *  found by doing a complete search.                                          *
@@ -149,7 +149,7 @@ void Annotate() {
     sscanf(args[3], "%d", &line1);
     line2 = 999;
   }
-  annotate_margin = atof(args[4]) * pawn_value;
+  annotate_margin = atof(args[4]) * PieceValues(white, pawn);
   annotate_search_time_limit = atof(args[5]) * 100;
   if (nargs > 6)
     best_moves = atoi(args[6]);

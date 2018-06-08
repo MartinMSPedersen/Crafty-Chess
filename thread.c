@@ -1,7 +1,7 @@
 #include "chess.h"
 #include "data.h"
 #include "epdglue.h"
-/* modified 01/17/09 */
+/* modified 06/07/09 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -128,6 +128,7 @@ int Thread(TREE * RESTRICT tree) {
   return (1);
 }
 
+/* modified 06/07/09 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -151,17 +152,16 @@ void CopyFromChild(TREE * RESTRICT p, TREE * RESTRICT c, int value) {
   p->fail_high += c->fail_high;
   p->fail_high_first += c->fail_high_first;
   p->evaluations += c->evaluations;
-  p->transposition_probes += c->transposition_probes;
-  p->transposition_hits += c->transposition_hits;
   p->egtb_probes += c->egtb_probes;
   p->egtb_probes_successful += c->egtb_probes_successful;
-  p->check_extensions_done += c->check_extensions_done;
-  p->qsearch_check_extensions_done += c->qsearch_check_extensions_done;
-  p->reductions_attempted += c->reductions_attempted;
+  p->extensions_done += c->extensions_done;
+  p->qchecks_done += c->qchecks_done;
   p->reductions_done += c->reductions_done;
+  p->moves_pruned += c->moves_pruned;
   c->used = 0;
 }
 
+/* modified 06/07/09 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -227,14 +227,12 @@ TREE *CopyToChild(TREE * RESTRICT p, int thread) {
   c->fail_high = 0;
   c->fail_high_first = 0;
   c->evaluations = 0;
-  c->transposition_probes = 0;
-  c->transposition_hits = 0;
   c->egtb_probes = 0;
   c->egtb_probes_successful = 0;
-  c->check_extensions_done = 0;
-  c->qsearch_check_extensions_done = 0;
-  c->reductions_attempted = 0;
+  c->extensions_done = 0;
+  c->qchecks_done = 0;
   c->reductions_done = 0;
+  c->moves_pruned = 0;
   c->alpha = p->alpha;
   c->beta = p->beta;
   c->value = p->value;
@@ -261,7 +259,7 @@ void WaitForAllThreadsInitialized(void) {
   while (initialized_threads < smp_max_threads);        /* Do nothing */
 }
 
-/* modified 01/17/09 */
+/* modified 06/07/09 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -275,7 +273,7 @@ void WaitForAllThreadsInitialized(void) {
  *******************************************************************************
  */
 void *STDCALL ThreadInit(void *tid) {
-  int i, j, p;
+  int i, j;
 
 #if defined(_WIN32) || defined(_WIN64)
   ThreadMalloc((int) tid);
@@ -288,12 +286,8 @@ void *STDCALL ThreadInit(void *tid) {
     LockInit(block[(long) tid * MAX_BLOCKS_PER_CPU + i + 1]->lock);
     for (j = 0; j < 64; j++) {
       block[(long) tid * MAX_BLOCKS_PER_CPU + i + 1]->cache_n[j] = ~0ULL;
-      for (p = 0; p < 2; p++) {
-        block[(long) tid * MAX_BLOCKS_PER_CPU + i +
-            1]->cache_b_friendly[p][j] = ~0ULL;
-        block[(long) tid * MAX_BLOCKS_PER_CPU + i + 1]->cache_b_enemy[p][j] =
-            ~0ULL;
-      }
+      block[(long) tid * MAX_BLOCKS_PER_CPU + i + 1]->cache_b_friendly[j] =
+          ~0ULL;
       block[(long) tid * MAX_BLOCKS_PER_CPU + i + 1]->cache_r_friendly[j] =
           ~0ULL;
       block[(long) tid * MAX_BLOCKS_PER_CPU + i + 1]->cache_r_enemy[j] =

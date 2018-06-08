@@ -24,7 +24,6 @@
   (rgCtr)[(piece)]=cPieces;                                      \
 }
 #  define  T_INDEX64
-#  define  XX  127
 #  define  C_PIECES  3  /* Maximum # of pieces of one color OTB */
 #  if defined (T_INDEX64) && defined (_MSC_VER)
 typedef unsigned __int64 INDEX;
@@ -147,7 +146,7 @@ int EGTBProbe(TREE * RESTRICT tree, int ply, int wtm, int *score) {
  */
   if (!FRegistered(iTb, side))
     return (0);
-  sqEnP = EnPassant(ply) ? EnPassant(ply) : XX;
+  sqEnP = EnPassant(ply) ? EnPassant(ply) : 127;
   ind = PfnIndCalc(iTb, side) (psqW, psqB, sqEnP, fInvert);
   tbValue = L_TbtProbeTable(iTb, side, ind);
   if (bev_broken == tbValue)

@@ -5,7 +5,7 @@
 #  include <unistd.h>
 #  include <sys/types.h>
 #endif
-/* last modified 01/30/09 */
+/* last modified 06/07/09 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -18,11 +18,9 @@
  */
 int Iterate(int wtm, int search_type, int root_list_done) {
   ROOT_MOVE temp;
-  static int prev_time = 0;
-  int extended = 0, i;
-  register int wpawn, bpawn, TB_use_ok, value = 0, twtm, used;
+  int i;
+  register int value = 0, twtm, used;
   register int correct, correct_count, material = 0, sorted;
-  register unsigned int time_used;
   char *fh_indicator, *fl_indicator;
   TREE *const tree = block[0];
 
@@ -64,16 +62,6 @@ int Iterate(int wtm, int search_type, int root_list_done) {
   parallel_splits = 0;
   parallel_aborts = 0;
   max_split_blocks = 0;
-  TB_use_ok = 1;
-  if (TotalPieces(white, pawn) && TotalPieces(black, pawn)) {
-    wpawn = MSB(Pawns(white));
-    bpawn = MSB(Pawns(black));
-    if (FileDistance(wpawn, bpawn) == 1) {
-      if (((Rank(wpawn) == RANK2) && (Rank(bpawn) > RANK3)) ||
-          ((Rank(bpawn) == RANK7) && (Rank(wpawn) < RANK6)) || EnPassant(1))
-        TB_use_ok = 0;
-    }
-  }
   if (booking || !Book(tree, wtm, root_list_done))
     do {
       if (abort_search)
@@ -95,10 +83,10 @@ int Iterate(int wtm, int search_type, int root_list_done) {
       tree->evaluations = 0;
       tree->egtb_probes = 0;
       tree->egtb_probes_successful = 0;
-      tree->check_extensions_done = 0;
-      tree->qsearch_check_extensions_done = 0;
-      tree->reductions_attempted = 0;
+      tree->extensions_done = 0;
+      tree->qchecks_done = 0;
       tree->reductions_done = 0;
+      tree->moves_pruned = 0;
       root_wtm = wtm;
 /*
  ************************************************************
@@ -142,7 +130,7 @@ int Iterate(int wtm, int search_type, int root_list_done) {
  *                                                          *
  ************************************************************
  */
-      TimeSet(search_type);
+      TimeSet(tree, search_type);
       iteration_depth = 1;
       if (last_pv.pathd > 1)
         iteration_depth = last_pv.pathd + 1;
@@ -219,7 +207,7 @@ int Iterate(int wtm, int search_type, int root_list_done) {
             Print(4095, "pathlen=%d\n", tree->pv[0].pathl);
             break;
           }
-          HashStorePV(tree, i, twtm, tree->pv[0].path[i]);
+          HashStorePV(tree, twtm, tree->pv[0].path[i]);
           MakeMove(tree, i, tree->pv[0].path[i], twtm);
           twtm = Flip(twtm);
         }
@@ -272,45 +260,6 @@ int Iterate(int wtm, int search_type, int root_list_done) {
           root_print_ok = tree->nodes_searched > noise_level;
           if (abort_search || time_abort)
             break;
-/*
- ************************************************************
- *                                                          *
- *   Keep track of the time used for the last ply.  If the  *
- *   next ply doesn't have at least as much time as the     *
- *   previous ply, then it is likely that the last ply will *
- *   be the last complete ply searched, and the next ply    *
- *   will only be a partial search.  In this case, extend   *
- *   the search time giving the next ply the same amount of *
- *   time as the previous ply.  This should be enough time  *
- *   to get a good search on the best move and allow for a  *
- *   fail-low.  If the next ply actually finishes before    *
- *   the timeout, then allow for a second extension (limit  *
- *   2 times) and search again.                             *
- *                                                          *
- ************************************************************
- */
-/*
-          if (iteration_depth > 3) {
-            int time_left, prev_ply;
-
-            time_used = ReadClock() - start_time;
-            time_left = time_limit - time_used;
-            prev_ply = ReadClock() - prev_time;
-
-            if (time_left < prev_ply) {
-              if (extended++ < 2) {
-                time_limit = time_used + prev_ply;
-                if (time_limit > absolute_time_limit)
-                  time_limit = absolute_time_limit;
-              } else
-                time_limit = time_used;
-            }
-          } else
-            extended = 0;
-          prev_time = ReadClock();
-          if (time_limit > absolute_time_limit)
-            time_limit = absolute_time_limit;
-*/
 /*
  ************************************************************
  *                                                          *
@@ -539,8 +488,8 @@ int Iterate(int wtm, int search_type, int root_list_done) {
         if (correct_count >= early_exit)
           break;
 #if !defined(NOEGTB)
-        if (iteration_depth > 3 && TotalAllPieces <= EGTBlimit && TB_use_ok &&
-            EGTB_use && !EGTB_search && EGTBProbe(tree, 1, wtm, &i))
+        if (iteration_depth > 3 && TotalAllPieces <= EGTBlimit && EGTB_use &&
+            !EGTB_search && EGTBProbe(tree, 1, wtm, &i))
           break;
 #endif
         if (search_nodes && tree->nodes_searched >= search_nodes)
@@ -564,7 +513,7 @@ int Iterate(int wtm, int search_type, int root_list_done) {
       if ((!abort_search || time_abort) && !puzzling) {
         tree->fail_high++;
         tree->fail_high_first++;
-        material = Material / pawn_value;
+        material = Material / PieceValues(white, pawn);
         Print(8, "              time=%s  mat=%d",
             DisplayTimeKibitz(end_time - start_time), material);
         Print(8, "  n=" BMF, tree->nodes_searched);
@@ -572,12 +521,11 @@ int Iterate(int wtm, int search_type, int root_list_done) {
             (int) ((BITBOARD) tree->fail_high_first * 100 /
                 (BITBOARD) tree->fail_high));
         Print(8, "  nps=%s\n", DisplayKM(nodes_per_second));
-        Print(16, "              ext-> check=%s ",
-            DisplayKM(tree->check_extensions_done));
-        Print(16, "qcheck=%s ",
-            DisplayKM(tree->qsearch_check_extensions_done));
-        Print(16, "reduce=%s", DisplayKM(tree->reductions_attempted));
-        Print(16, "/%s\n", DisplayKM(tree->reductions_done));
+        Print(16, "              extensions=%s ",
+            DisplayKM(tree->extensions_done));
+        Print(16, "qchecks=%s ", DisplayKM(tree->qchecks_done));
+        Print(16, "reduced=%s ", DisplayKM(tree->reductions_done));
+        Print(16, "pruned=%s\n", DisplayKM(tree->moves_pruned));
         Print(16, "              predicted=%d  evals=%s  50move=%d",
             predicted, DisplayKM(tree->evaluations), Rule50Moves(0));
         Print(16, "  EGTBprobes=%s  hits=%s\n", DisplayKM(tree->egtb_probes),

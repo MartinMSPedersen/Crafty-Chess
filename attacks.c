@@ -1,6 +1,6 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 01/14/09 */
+/* last modified 09/23/09 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -15,17 +15,23 @@
  *******************************************************************************
  */
 BITBOARD AttacksTo(TREE * RESTRICT tree, int square) {
-  return ((pawn_attacks[white][square] & Pawns(black)) |
-      (pawn_attacks[black][square]
-          & Pawns(white)) | (knight_attacks[square] & (Knights(black) |
-              Knights(white)))
-      | (AttacksBishop(square,
-              OccupiedSquares) & BishopsQueens) | (AttacksRook(square,
-              OccupiedSquares) & RooksQueens) | (king_attacks[square] &
-          (Kings(black) | Kings(white))));
+  BITBOARD attacks =
+      (pawn_attacks[white][square] & Pawns(black)) |
+      (pawn_attacks[black][square] & Pawns(white));
+  BITBOARD bsliders =
+      Bishops(white) | Bishops(black) | Queens(white) | Queens(black);
+  BITBOARD rsliders =
+      Rooks(white) | Rooks(black) | Queens(white) | Queens(black);
+  attacks |= knight_attacks[square] & (Knights(black) | Knights(white));
+  if (bishop_attacks[square] & bsliders)
+    attacks |= AttacksBishop(square, OccupiedSquares) & bsliders;
+  if (rook_attacks[square] & rsliders)
+    attacks |= AttacksRook(square, OccupiedSquares) & rsliders;
+  attacks |= king_attacks[square] & (Kings(black) | Kings(white));
+  return (attacks);
 }
 
-/* last modified 01/14/09 */
+/* last modified 09/23/09 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -41,9 +47,15 @@ int Attacks(TREE * RESTRICT tree, int square, int side) {
     return (1);
   if (knight_attacks[square] & Knights(side))
     return (1);
-  if (AttacksBishop(square, OccupiedSquares) & BishopsQueens & Occupied(side))
+  if ((bishop_attacks[square] & (Bishops(side) | Queens(side))) &&
+      (AttacksBishop(square,
+              OccupiedSquares) & (Bishops(side) | Queens(side)) &
+          Occupied(side)))
     return (1);
-  if (AttacksRook(square, OccupiedSquares) & RooksQueens & Occupied(side))
+  if ((rook_attacks[square] & (Rooks(side) | Queens(side)))
+      && (AttacksRook(square,
+              OccupiedSquares) & (Rooks(side) | Queens(side)) &
+          Occupied(side)))
     return (1);
   if (king_attacks[square] & Kings(side))
     return (1);

@@ -1,6 +1,6 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 02/18/08 */
+/* last modified 09/23/09 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -20,11 +20,17 @@
  *                                                                             *
  *******************************************************************************
  */
-int Swap(TREE * RESTRICT tree, int source, int target, int wtm) {
+int Swap(TREE * RESTRICT tree, int move, int wtm) {
   register BITBOARD attacks, temp = 0, toccupied;
+  register BITBOARD bsliders =
+      Bishops(white) | Bishops(black) | Queens(white) | Queens(black);
+  register BITBOARD rsliders =
+      Rooks(white) | Rooks(black) | Queens(white) | Queens(black);
   register int attacked_piece;
   register int piece;
   register int color, nc = 1;
+  register int source = From(move);
+  register int target = To(move);
   int swap_list[32];
 
 /*
@@ -38,7 +44,7 @@ int Swap(TREE * RESTRICT tree, int source, int target, int wtm) {
  */
   toccupied = OccupiedSquares;
   attacks = AttacksTo(tree, target);
-  attacked_piece = p_values[PcOnSq(target) + 6];
+  attacked_piece = pc_values[Captured(move)];
 /*
  ************************************************************
  *                                                          *
@@ -49,16 +55,15 @@ int Swap(TREE * RESTRICT tree, int source, int target, int wtm) {
  */
   color = Flip(wtm);
   swap_list[0] = attacked_piece;
-  piece = Abs(PcOnSq(source));
+  piece = Piece(move);
   attacked_piece = pc_values[piece];
   Clear(source, toccupied);
   if (piece != knight && piece != king) {
     if (piece & 1)
-      attacks |= AttacksBishop(target, toccupied) & BishopsQueens;
+      attacks |= AttacksBishop(target, toccupied) & bsliders;
     if (piece == pawn || piece & 4)
-      attacks |= AttacksRook(target, toccupied) & RooksQueens;
+      attacks |= AttacksRook(target, toccupied) & rsliders;
   }
-  attacks &= toccupied;
 /*
  ************************************************************
  *                                                          *
@@ -74,7 +79,7 @@ int Swap(TREE * RESTRICT tree, int source, int target, int wtm) {
  *                                                          *
  ************************************************************
  */
-  while (attacks) {
+  for (attacks &= toccupied; attacks; attacks &= toccupied) {
     for (piece = pawn; piece <= king; piece++)
       if ((temp = Pieces(color, piece) & attacks))
         break;
@@ -83,11 +88,10 @@ int Swap(TREE * RESTRICT tree, int source, int target, int wtm) {
     toccupied ^= (temp & -temp);
     if (piece != knight && piece != king) {
       if (piece & 1)
-        attacks |= AttacksBishop(target, toccupied) & BishopsQueens;
+        attacks |= AttacksBishop(target, toccupied) & bsliders;
       if (piece & 4)
-        attacks |= AttacksRook(target, toccupied) & RooksQueens;
+        attacks |= AttacksRook(target, toccupied) & rsliders;
     }
-    attacks &= toccupied;
     swap_list[nc] = -swap_list[nc - 1] + attacked_piece;
     attacked_piece = pc_values[piece];
     nc++;

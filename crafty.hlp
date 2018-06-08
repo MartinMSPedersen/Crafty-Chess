@@ -5,7 +5,6 @@ adaptive NPS a b c d........... enables adaptive hash mode.
 alarm on|off................... turns audible alarm on/off.
 analyze........................ analyze a game in progress.
 annotate....................... annotate game
-ansi........................... toggles reverse video highlighting.
 bench.......................... runs performance benchmark.
 black.......................... sets black to move.
 book........................... controls book

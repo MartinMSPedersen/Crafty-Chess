@@ -50,26 +50,6 @@ void ValidatePosition(TREE * RESTRICT tree, int ply, int move, char *caller) {
 /*
  ************************************************************
  *                                                          *
- *  Then test the bishops&queens and rooks&queens bitmaps   *
- *  by ORing all of the correct piece type bitmaps.         *
- *                                                          *
- ************************************************************
- */
-  temp_occ = Bishops(white) | Queens(white) | Bishops(black) | Queens(black);
-  if (BishopsQueens ^ temp_occ) {
-    Print(128, "ERROR bishops_queens is bad!\n");
-    Display2BitBoards(temp_occ, BishopsQueens);
-    error = 1;
-  }
-  temp_occ = Rooks(white) | Queens(white) | Rooks(black) | Queens(black);
-  if (RooksQueens ^ temp_occ) {
-    Print(128, "ERROR rooks_queens is bad!\n");
-    Display2BitBoards(temp_occ, RooksQueens);
-    error = 1;
-  }
-/*
- ************************************************************
- *                                                          *
  *  Now we do some sanity tests on the actual chess board   *
  *  information.  The first test is to make sure that no    *
  *  bitmap square is set in more than one bitmap, which     *
@@ -100,9 +80,9 @@ void ValidatePosition(TREE * RESTRICT tree, int ply, int move, char *caller) {
   temp_score = 0;
   for (side = black; side <= white; side++)
     for (piece = pawn; piece < king; piece++)
-      temp_score += PopCnt(Pieces(side, piece)) * piece_values[side][piece];
+      temp_score += PopCnt(Pieces(side, piece)) * PieceValues(side, piece);
   if (temp_score != Material) {
-    Print(128, "ERROR  material_evaluation is wrong, good=%d, bad=%d\n",
+    Print(128, "ERROR  material evaluation is wrong, good=%d, bad=%d\n",
         temp_score, Material);
     error = 1;
   }
@@ -217,12 +197,12 @@ void ValidatePosition(TREE * RESTRICT tree, int ply, int move, char *caller) {
       temp1 ^= randoms[side][Abs(PcOnSq(i))][i];
   }
   if (EnPassant(ply))
-    HashEP(EnPassant(ply), temp);
+    temp ^= enpassant_random[EnPassant(ply)];
   for (side = black; side <= white; side++) {
     if (Castle(ply, side) < 0 || !(Castle(ply, side) & 1))
-      HashCastle(0, temp, side);
+      temp ^= castle_random[0][side];
     if (Castle(ply, side) < 0 || !(Castle(ply, side) & 2))
-      HashCastle(1, temp, side);
+      temp ^= castle_random[1][side];
   }
   if (temp ^ HashKey) {
     Print(128, "ERROR!  hash_key is bad.\n");
