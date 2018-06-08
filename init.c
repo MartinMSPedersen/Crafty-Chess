@@ -122,6 +122,7 @@ void Initialize(int continuing)
   InitializePawnMasks();
   InitializePieceMasks();
   InitializeChessBoard(&tree->position[0]);
+  InitializeHistoryKillers();
 #if defined(NT_i386)
   _fmode = _O_BINARY;   /* set file mode binary to avoid text translation */
 #endif
@@ -647,15 +648,6 @@ void InitializeAttackBoards(void)
       }
     }
   }
-  {
-    int mobility_index[8] = {0, 0, 0, 1, 1, 1, 2, 2};
-    for (i = 0; i < 64; i++) {
-      for (j = 0; j < 64; j++) {
-        bishop_mobility_rl45[i][j] = mobility_index[bishop_mobility_rl45[i][j]];
-        bishop_mobility_rr45[i][j] = mobility_index[bishop_mobility_rr45[i][j]];
-      }
-    }
-  }
 }
 
 void InitializeChessBoard(SEARCH_POSITION * new_pos)
@@ -890,13 +882,11 @@ void SetChessBitBoards(SEARCH_POSITION * new_pos)
  initialize black/white piece counts.
  */
   tree->pos.white_pieces = 0;
-  tree->pos.white_majors = 0;
-  tree->pos.white_minors = 0;
   tree->pos.white_pawns = 0;
   tree->pos.black_pieces = 0;
-  tree->pos.black_majors = 0;
-  tree->pos.black_minors = 0;
   tree->pos.black_pawns = 0;
+  tree->pos.majors = 0;
+  tree->pos.minors = 0;
   tree->pos.material_evaluation = 0;
   for (i = 0; i < 64; i++) {
     switch (tree->pos.board[i]) {
@@ -907,22 +897,22 @@ void SetChessBitBoards(SEARCH_POSITION * new_pos)
     case knight:
       tree->pos.material_evaluation += knight_value;
       tree->pos.white_pieces += knight_v;
-      tree->pos.white_minors++;
+      tree->pos.minors++;
       break;
     case bishop:
       tree->pos.material_evaluation += bishop_value;
       tree->pos.white_pieces += bishop_v;
-      tree->pos.white_minors++;
+      tree->pos.minors++;
       break;
     case rook:
       tree->pos.material_evaluation += rook_value;
       tree->pos.white_pieces += rook_v;
-      tree->pos.white_majors++;
+      tree->pos.majors++;
       break;
     case queen:
       tree->pos.material_evaluation += queen_value;
       tree->pos.white_pieces += queen_v;
-      tree->pos.white_majors += 2;
+      tree->pos.majors += 2;
       break;
     case -pawn:
       tree->pos.material_evaluation -= pawn_value;
@@ -931,30 +921,32 @@ void SetChessBitBoards(SEARCH_POSITION * new_pos)
     case -knight:
       tree->pos.material_evaluation -= knight_value;
       tree->pos.black_pieces += knight_v;
-      tree->pos.black_minors++;
+      tree->pos.minors--;
       break;
     case -bishop:
       tree->pos.material_evaluation -= bishop_value;
       tree->pos.black_pieces += bishop_v;
-      tree->pos.black_minors++;
+      tree->pos.minors--;
       break;
     case -rook:
       tree->pos.material_evaluation -= rook_value;
       tree->pos.black_pieces += rook_v;
-      tree->pos.black_majors++;
+      tree->pos.majors--;
       break;
     case -queen:
       tree->pos.material_evaluation -= queen_value;
       tree->pos.black_pieces += queen_v;
-      tree->pos.black_majors += 2;
+      tree->pos.majors -= 2;
       break;
     default:
       ;
     }
   }
   TotalPieces = PopCnt(Occupied);
-  if (new_pos == &tree->position[0])
-    tree->rep_game = -1;
+  if (new_pos == &tree->position[0]) {
+    tree->rep_game = 0;
+    tree->rep_list[tree->rep_game] = HashKey;
+  }
 }
 
 void InitializeEvaluation(void)
@@ -1066,6 +1058,8 @@ void InitializeHistoryKillers(void)
     shared->local[0]->killers[i].move1 = 0;
     shared->local[0]->killers[i].move2 = 0;
   }
+  for (i = 0; i < 256; i++) 
+    shared->local[0]->rep_list[i] = 0;
 }
 
 void InitializeMasks(void)

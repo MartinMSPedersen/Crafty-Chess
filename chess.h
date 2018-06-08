@@ -167,7 +167,7 @@
 #define     LEARN_COUNTER_GOOD           +100
 #define         CAP_SCORE_GOOD           +150
 #define          CAP_SCORE_BAD           -100
-#define INCPLY                   60
+#define PLY                       4
 #define MATE                  32768
 #define PAWN_VALUE              100
 #define KNIGHT_VALUE            300
@@ -215,9 +215,8 @@ typedef enum { none = 0, pawn = 1, knight = 2, king = 3,
 typedef enum { empty_v = 0, pawn_v = 1, knight_v = 3,
   bishop_v = 3, rook_v = 5, queen_v = 9
 } PIECE_V;
-typedef enum { no_extension = 0, check_extension = 1, recapture_extension = 2,
-  passed_pawn_extension = 4, one_reply_extension = 8,
-  mate_extension = 16
+typedef enum { no_extension = 0, check_extension = 1, 
+  one_reply_extension = 2, mate_extension = 4
 } EXTENSIONS;
 typedef enum { think = 1, puzzle = 2, book = 3, annotate = 4 } SEARCH_TYPE;
 typedef enum { normal_mode, tournament_mode } PLAYING_MODE;
@@ -260,14 +259,12 @@ typedef struct {
   signed char black_king;
   signed char board[64];
   signed char white_pieces;
-  signed char white_minors;
-  signed char white_majors;
   signed char white_pawns;
   signed char black_pieces;
-  signed char black_minors;
-  signed char black_majors;
   signed char black_pawns;
   signed char total_pieces;
+  signed char minors;
+  signed char majors;
 } POSITION;
 typedef struct {
   BITBOARD  word1;
@@ -353,6 +350,7 @@ struct tree {
   BITBOARD  rep_list[256];
   BITBOARD  all_pawns;
   BITBOARD  nodes_searched;
+  BITBOARD  last_history_age_nodes;
   BITBOARD  save_pawn_hash_key[MAXPLY + 2];
   PAWN_HASH_ENTRY pawn_score;
   SEARCH_POSITION position[MAXPLY + 2];
@@ -375,7 +373,6 @@ struct tree {
   unsigned int egtb_probes;
   unsigned int egtb_probes_successful;
   unsigned int check_extensions_done;
-  unsigned int recapture_extensions_done;
   unsigned int one_reply_extensions_done;
   unsigned int mate_extensions_done;
   KILLER    killers[MAXPLY];
@@ -403,7 +400,6 @@ struct tree {
   int       depth;
   int       ply;
   int       mate_threat;
-  int       lp_recapture;
   volatile int used;
 };
 
@@ -586,7 +582,7 @@ int       EvaluateBishops(TREE * RESTRICT);
 int       EvaluateDevelopmentB(TREE * RESTRICT, int);
 int       EvaluateDevelopmentW(TREE * RESTRICT, int);
 int       EvaluateDraws(TREE * RESTRICT, int, int, int);
-int       EvaluateKings(TREE * RESTRICT, int);
+int       EvaluateKings(TREE * RESTRICT, int, int);
 int       EvaluateKnights(TREE * RESTRICT);
 int       EvaluateMate(TREE * RESTRICT);
 int       EvaluateMaterial(TREE * RESTRICT);
@@ -610,6 +606,7 @@ void      HashStore(TREE * RESTRICT, int, int, int, int, int, int);
 void      HashStorePV(TREE * RESTRICT, int, int);
 int       HasOpposition(int, int, int);
 void      History(TREE * RESTRICT, int, int, int, int);
+void      HistoryAge(TREE * RESTRICT);
 int       IInitializeTb(char *);
 void      Initialize(int);
 void      InitializeAttackBoards(void);
@@ -680,10 +677,11 @@ void      ResignOrDraw(TREE * RESTRICT, int);
 void      RestoreGame(void);
 char     *Reverse(void);
 void      RootMoveList(int);
-int       Search(TREE * RESTRICT, int, int, int, int, int, int, int);
+int       Search(TREE * RESTRICT, int, int, int, int, int, int);
+int       SearchControl(TREE * RESTRICT, int, int, int, int);
 void      SearchOutput(TREE * RESTRICT, int, int);
 int       SearchRoot(TREE * RESTRICT, int, int, int, int);
-int       SearchSMP(TREE * RESTRICT, int, int, int, int, int, int, int, int);
+int       SearchSMP(TREE * RESTRICT, int, int, int, int, int, int, int);
 void      SearchTrace(TREE * RESTRICT, int, int, int, int, int, char *, int);
 void      SetBoard(SEARCH_POSITION *, int, char **, int);
 void      SetChessBitBoards(SEARCH_POSITION *);
@@ -887,10 +885,11 @@ extern void WinFreeInterleaved(void *, size_t);
    current iteration depth and current ply in the tree.
  */
 #define LimitExtensions(extended,ply)                                        \
-      extended=Min(extended,INCPLY);                                         \
-      if (ply > 2*shared->iteration_depth) {                                         \
-        if (ply <= 4*shared->iteration_depth)                                        \
-          extended=extended*(4*shared->iteration_depth-ply)/(2*shared->iteration_depth);     \
+      extended=Min(extended,PLY);                                            \
+      if (ply > 2*shared->iteration_depth) {                                 \
+        if (ply <= 4*shared->iteration_depth)                                \
+          extended=extended*(4*shared->iteration_depth-ply)/                 \
+                   (2*shared->iteration_depth);                              \
         else                                                                 \
           extended=0;                                                        \
       }
@@ -985,8 +984,8 @@ extern void WinFreeInterleaved(void *, size_t);
 #define TotalBlackPieces      (tree->pos.black_pieces)
 #define TotalBlackMaterial    (tree->pos.black_pieces+tree->black_pawns)
 #define BlackPieces           (tree->pos.b_occupied)
-#define BlackMinors           (tree->pos.black_minors)
-#define BlackMajors           (tree->pos.black_majors)
+#define Minors                (tree->pos.minors)
+#define Majors                (tree->pos.majors)
 #define WhitePawns            (tree->pos.w_pawn)
 #define WhiteKnights          (tree->pos.w_knight)
 #define WhiteBishops          (tree->pos.w_bishop)
@@ -999,8 +998,6 @@ extern void WinFreeInterleaved(void *, size_t);
 #define TotalWhitePieces      (tree->pos.white_pieces)
 #define TotalWhiteMaterial    (tree->pos.white_pieces+tree->white_pawns)
 #define WhitePieces           (tree->pos.w_occupied)
-#define WhiteMinors           (tree->pos.white_minors)
-#define WhiteMajors           (tree->pos.white_majors)
 #define TotalPieces           (tree->pos.total_pieces)
 #define Material              (tree->pos.material_evaluation)
 #define Rule50Moves(ply)      (tree->position[ply].rule_50_moves)

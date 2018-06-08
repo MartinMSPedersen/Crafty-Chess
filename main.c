@@ -2244,7 +2244,7 @@
  *           mtmin command that adjusts this correctly multiplied it by 60,    *
  *           but in data.c, it was left at "2" which lets the search split way *
  *           too deeply and can cause thrashing.  it now correctly defaults to *
- *           120 (2*INCPLY) as planned.  Crafty now *only* supports     *
+ *           120 (2*PLY) as planned.  Crafty now *only* supports               *
  *           winboard/xboard 4.0 or higher, by sending the string "move xxx"   *
  *           to indicate its move.  this was done to eliminate older xboard    *
  *           versions that had some incompatibilities with crafty that were    *
@@ -3213,6 +3213,48 @@
  *           followed by 90% extra on the next move, 80% on the next, until    *
  *           after 10 moves we are back to the normal time average.            *
  *                                                                             *
+ *   20.2    significant evaluation changes to try to limit positional scores  *
+ *           so that new tuning can be accomplished.  in particular, the king  *
+ *           safety code has been greatly simplified, now having two separate  *
+ *           components, one for pawn structure, one for piece tropism.  a new *
+ *           SearchControl() procedure now handles all the search extensions   *
+ *           in one centralized place, shared by normal and parallel search    *
+ *           code.  the plan is that eventually this piece of code will also   *
+ *           be able to recommend search reductions as well as extensions to   *
+ *           speed the tree traversal process significantly with a form of     *
+ *           of forward pruning that is commonly called "search reductions".   *
+ *                                                                             *
+ *   20.3    search reduction code added.  part of this dates back to 1997     *
+ *           when Bruce Moreland and I played with the idea of reducing the    *
+ *           depth on the last part of the move list when it seemed to become  *
+ *           fairly certain that no fail-high was going to happen.  that was a *
+ *           big search speed improvement, but also risky.  recently, several  *
+ *           started to do this again, except they added one fairly useful     *
+ *           constraint, that the "history value" for a specific move has to   *
+ *           be below some threshold before a reduction can happen.  the idea  *
+ *           is that we don't want to reduce the depth of moves that have      *
+ *           failed high in the past, because they might fail high again if    *
+ *           they are not reduced too much.  Tord Romstad suggested an         *
+ *           additional improvement, namely that if a reduced move does fail   *
+ *           high, re-search with the proper (non-reduced) depth to verify     *
+ *           that it will fail high there as well.  all of this is included    *
+ *           in version 20.3, but the values (reduction amount, history        *
+ *           threshold, min depth to do a reduction) need serious testing and  *
+ *           tuning.  the current values are simply "legal" but hardly could   *
+ *           be considered optimal without substantial testing.  new code to   *
+ *           "age" history counters added.  after each iteration, this code    *
+ *           divides each counter by 2, to scale the values back, so that      *
+ *           moves that are no longer causing fail highs will have a history   *
+ *           value that won't prevent reduction pruning.  the "minimum depth"  *
+ *           value indicates how much search to leave after doing a reduction  *
+ *           in the tree.  A value of 1 ply guarantees that after a reduction  *
+ *           is done, there will always be one full-width ply of search done   *
+ *           after such reductions to avoid gross tactical oversights.  tuning *
+ *           to extensions to reduce the tree size.  the recapture extension   *
+ *           has been completely removed, while the check extension has been   *
+ *           left at 1.0 as in the past.  the mate threat and one-legal-reply  *
+ *           extensions are now both set to .75 after extensive testing.       *
+ *                                                                             *
  *******************************************************************************
  */
 int main(int argc, char **argv)
@@ -3256,10 +3298,11 @@ int main(int argc, char **argv)
   shared->pondering = 0;
   shared->puzzling = 0;
   shared->booking = 0;
+  shared->time_limit = 100;
   shared->trojan_check = 0;
   shared->computer_opponent = 0;
   shared->max_threads = 0;
-  shared->min_thread_depth = 3 * INCPLY;
+  shared->min_thread_depth = 3 * PLY;
   shared->max_thread_group = 4;
   shared->split_at_root = 1;
   shared->noise_level = 200000;
@@ -3894,10 +3937,6 @@ int main(int argc, char **argv)
       if (value < 0)
         val = -val;
       LearnBook(tree, wtm, val, 0, 1, 2);
-    }
-    for (i = 0; i < 4096; i++) {
-      tree->history_w[i] = tree->history_w[i] >> 8;
-      tree->history_b[i] = tree->history_b[i] >> 8;
     }
     if (mode == tournament_mode) {
       strcpy(buffer, "clock");

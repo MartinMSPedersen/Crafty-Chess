@@ -18,7 +18,7 @@
  *                                                                             *
  *******************************************************************************
  */
-void History(TREE * RESTRICT tree, int ply, int depth, int wtm, int move)
+void History(TREE * RESTRICT tree, int ply, int histval, int wtm, int move)
 {
   register int index;
 
@@ -43,9 +43,9 @@ void History(TREE * RESTRICT tree, int ply, int depth, int wtm, int move)
  */
   index = move & 4095;
   if (wtm)
-    tree->history_w[index] += depth * depth;
+    tree->history_w[index] += histval;
   else
-    tree->history_b[index] += depth * depth;
+    tree->history_b[index] += histval;
 /*
  ************************************************************
  *                                                          *
@@ -57,5 +57,31 @@ void History(TREE * RESTRICT tree, int ply, int depth, int wtm, int move)
   if (tree->killers[ply].move1 != move) {
     tree->killers[ply].move2 = tree->killers[ply].move1;
     tree->killers[ply].move1 = move;
+  }
+}
+
+/* last modified 02/09/06 */
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   HistoryAge() is called to "age" the history values over time.  this idea  *
+ *   is similar to the way the Unix operating system "ages" priorities by      *
+ *   basing them on accumulated CPU time that is periodically divided by two   *
+ *   to cause unused values to drift toward zero while values that are being   *
+ *   updated regularly recover from the aging as they are used.                *
+ *                                                                             *
+ *   this is called from search whenever a "time check" is done, although it   *
+ *   is never done more than once per second to avoid collapsing all values    *
+ *   toward zero too quickly.                                                  *
+ *                                                                             *
+ *******************************************************************************
+ */
+void HistoryAge(TREE * RESTRICT tree)
+{
+  int i;
+
+  for (i = 0; i < 4096; i++) {
+    tree->history_w[i] = tree->history_w[i] >> 1;
+    tree->history_b[i] = tree->history_b[i] >> 1;
   }
 }

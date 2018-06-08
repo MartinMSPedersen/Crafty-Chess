@@ -605,7 +605,7 @@ void DisplayPV(TREE * RESTRICT tree, int level, int wtm, int time, int value,
     PATH * pv)
 {
   char buffer[512], *buffp, *bufftemp;
-  int i, t_move_number, type, j, dummy;
+  int i, t_move_number, type, j, dummy = 0;
   int nskip = 0, twtm = wtm;
 
   shared->root_print_ok = shared->root_print_ok ||
@@ -1349,6 +1349,7 @@ void NewGame(int save)
     predicted = 0;
     shared->kibitz_depth = 0;
     tree->nodes_searched = 0;
+    tree->last_history_age_nodes = 0;
     tree->fail_high = 0;
     tree->fail_high_first = 0;
     shared->kibitz_text[0] = 0;
@@ -2210,7 +2211,6 @@ void CopyFromSMP(TREE * RESTRICT p, TREE * RESTRICT c, int value)
   p->egtb_probes += c->egtb_probes;
   p->egtb_probes_successful += c->egtb_probes_successful;
   p->check_extensions_done += c->check_extensions_done;
-  p->recapture_extensions_done += c->recapture_extensions_done;
   p->one_reply_extensions_done += c->one_reply_extensions_done;
   p->mate_extensions_done += c->mate_extensions_done;
   strcpy(c->root_move_text, p->root_move_text);
@@ -2273,6 +2273,7 @@ TREE *CopyToSMP(TREE * RESTRICT p, int thread)
     c->killers[i] = p->killers[i];
   memcpy(c->history_w, p->history_w, 2 * sizeof(c->history_w));
   c->nodes_searched = 0;
+  c->last_history_age_nodes = 0;
   c->fail_high = 0;
   c->fail_high_first = 0;
   c->evaluations = 0;
@@ -2286,7 +2287,6 @@ TREE *CopyToSMP(TREE * RESTRICT p, int thread)
   c->egtb_probes_successful = 0;
   c->check_extensions_done = 0;
   c->mate_extensions_done = 0;
-  c->recapture_extensions_done = 0;
   c->one_reply_extensions_done = 0;
   c->alpha = p->alpha;
   c->beta = p->beta;

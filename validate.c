@@ -116,18 +116,18 @@ void ValidatePosition(TREE * RESTRICT tree, int ply, int move, char *caller)
         TotalWhitePieces);
     error = 1;
   }
-  temp_score = PopCnt(WhiteKnights);
-  temp_score += PopCnt(WhiteBishops);
-  if (temp_score != WhiteMinors) {
-    Print(128, "ERROR  white_minors is wrong, good=%d, bad=%d\n", temp_score,
-        WhiteMinors);
+  temp_score = PopCnt(WhiteKnights) - PopCnt(BlackKnights);
+  temp_score += PopCnt(WhiteBishops) - PopCnt(BlackBishops);
+  if (temp_score != Minors) {
+    Print(128, "ERROR  minors is wrong, good=%d, bad=%d\n", temp_score,
+        Minors);
     error = 1;
   }
-  temp_score = PopCnt(WhiteRooks);
-  temp_score += PopCnt(WhiteQueens) * 2;
-  if (temp_score != WhiteMajors) {
-    Print(128, "ERROR  white_majors is wrong, good=%d, bad=%d\n", temp_score,
-        WhiteMajors);
+  temp_score = PopCnt(WhiteRooks) - PopCnt(BlackRooks);
+  temp_score += PopCnt(WhiteQueens) * 2 - PopCnt(BlackQueens) * 2;
+  if (temp_score != Majors) {
+    Print(128, "ERROR  majors is wrong, good=%d, bad=%d\n", temp_score,
+        Majors);
     error = 1;
   }
   temp_score = PopCnt(WhitePawns);
@@ -143,20 +143,6 @@ void ValidatePosition(TREE * RESTRICT tree, int ply, int move, char *caller)
   if (temp_score != TotalBlackPieces) {
     Print(128, "ERROR  black_pieces is wrong, good=%d, bad=%d\n", temp_score,
         TotalBlackPieces);
-    error = 1;
-  }
-  temp_score = PopCnt(BlackKnights);
-  temp_score += PopCnt(BlackBishops);
-  if (temp_score != BlackMinors) {
-    Print(128, "ERROR  black_minors is wrong, good=%d, bad=%d\n", temp_score,
-        BlackMinors);
-    error = 1;
-  }
-  temp_score = PopCnt(BlackRooks);
-  temp_score += PopCnt(BlackQueens) * 2;
-  if (temp_score != BlackMajors) {
-    Print(128, "ERROR  black_majors is wrong, good=%d, bad=%d\n", temp_score,
-        BlackMajors);
     error = 1;
   }
   temp_score = PopCnt(BlackPawns);

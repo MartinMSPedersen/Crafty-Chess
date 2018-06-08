@@ -35,7 +35,7 @@ int SearchRoot(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth)
  */
   tree->in_check[2] = 0;
   tree->in_check[1] = Check(wtm);
-  tree->next_status[1].phase = ROOT_MOVES;
+  tree->next_status[1].phase = HASH_MOVE;
 /*
  ************************************************************
  *                                                          *
@@ -64,19 +64,12 @@ int SearchRoot(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth)
 /*
  ************************************************************
  *                                                          *
- *   if the move to be made checks the opponent, then we    *
- *   need to remember that he's in check and also extend    *
- *   the depth by one ply for him to get out.               *
+ *   now it is time to call SearchControl() to adjust the   *
+ *   search depth for this move.                            *
  *                                                          *
  ************************************************************
  */
-    extended = 0;
-    if (Check(Flip(wtm))) {
-      tree->in_check[2] = 1;
-      tree->check_extensions_done++;
-      extended += incheck_depth;
-    } else
-      tree->in_check[2] = 0;
+    extended = SearchControl(tree, wtm, 1, depth, 0);
 /*
  ************************************************************
  *                                                          *
@@ -85,13 +78,12 @@ int SearchRoot(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth)
  ************************************************************
  */
     begin_root_nodes = tree->nodes_searched;
-    LimitExtensions(extended, 1);
-    extensions = extended - INCPLY;
+    extensions = extended - PLY;
     if (first_move) {
-      if (depth + extensions >= INCPLY)
+      if (depth + extensions >= PLY)
         value =
             -Search(tree, -beta, -alpha, Flip(wtm), depth + extensions, 2,
-            DO_NULL, 0);
+            DO_NULL);
       else
         value = -Quiesce(tree, -beta, -alpha, Flip(wtm), 2);
       if (shared->abort_search) {
@@ -100,10 +92,10 @@ int SearchRoot(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth)
       }
       first_move = 0;
     } else {
-      if (depth + extensions >= INCPLY)
+      if (depth + extensions >= PLY)
         value =
             -Search(tree, -alpha - 1, -alpha, Flip(wtm), depth + extensions, 2,
-            DO_NULL, 0);
+            DO_NULL);
       else
         value = -Quiesce(tree, -alpha - 1, -alpha, Flip(wtm), 2);
       if (shared->abort_search) {
@@ -111,10 +103,10 @@ int SearchRoot(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth)
         return (alpha);
       }
       if ((value > alpha) && (value < beta)) {
-        if (depth + extensions >= INCPLY)
+        if (depth + extensions >= PLY)
           value =
               -Search(tree, -beta, -alpha, Flip(wtm), depth + extensions, 2,
-              DO_NULL, 0);
+              DO_NULL);
         else
           value = -Quiesce(tree, -beta, -alpha, Flip(wtm), 2);
         if (shared->abort_search) {
@@ -129,7 +121,7 @@ int SearchRoot(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth)
       SearchOutput(tree, value, beta);
       shared->root_value = alpha;
       if (value >= beta) {
-        History(tree, 1, depth, wtm, tree->current_move[1]);
+        History(tree, 1, reduce_hist_threshold * 2, wtm, tree->current_move[1]);
         UnmakeMove(tree, 1, tree->current_move[1], wtm);
         return (value);
       }
@@ -146,7 +138,6 @@ int SearchRoot(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth)
       tree->ply = 1;
       tree->depth = depth;
       tree->mate_threat = 0;
-      tree->lp_recapture = 0;
       if (Thread(tree)) {
         if (shared->abort_search || tree->stop)
           return (0);
@@ -155,7 +146,7 @@ int SearchRoot(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth)
         value = tree->search_value;
         if (value > alpha) {
           if (value >= beta) {
-            History(tree, 1, depth, wtm, tree->current_move[1]);
+            History(tree, 1, reduce_hist_threshold * 2, wtm, tree->current_move[1]);
             tree->fail_high++;
             return (value);
           }
@@ -191,7 +182,7 @@ int SearchRoot(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth)
     }
     return (value);
   } else {
-    History(tree, 1, depth, wtm, tree->pv[1].path[1]);
+    History(tree, 1, reduce_hist_threshold * 2, wtm, tree->pv[1].path[1]);
     return (alpha);
   }
 }
@@ -284,7 +275,7 @@ void SearchTrace(TREE * RESTRICT tree, int ply, int depth, int wtm, int alpha,
   for (i = 1; i < ply; i++)
     printf("  ");
   printf("%d  %s d:%5.2f [%s,", ply, OutputMove(tree, tree->current_move[ply],
-          ply, wtm), (float) depth / (float) INCPLY, DisplayEvaluation(alpha,
+          ply, wtm), (float) depth / (float) PLY, DisplayEvaluation(alpha,
           1));
   printf("%s] n:" BMF " %s(%d)", DisplayEvaluation(beta, 1),
       (tree->nodes_searched), name, phase);

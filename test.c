@@ -183,6 +183,7 @@ void Test(char *filename)
     Print(4095, "average search depth..............%12.1f\n",
         avg_depth / (right + wrong));
     Print(4095, "nodes per second..................%12d\n", nodes * 100 / time);
+    Print(4095, "total time........................%12s\n", DisplayTime(time));
   }
   input_stream = stdin;
   early_exit = 99;
@@ -359,6 +360,7 @@ void TestEPD(char *filename)
     Print(4095, "average search depth..............%12.1f\n",
         avg_depth / (right + wrong));
     Print(4095, "nodes per second..................%12d\n", nodes * 100 / time);
+    Print(4095, "total time........................%12s\n", DisplayTime(time));
   }
   input_stream = stdin;
   early_exit = 99;

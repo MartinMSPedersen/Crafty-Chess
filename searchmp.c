@@ -4,10 +4,6 @@
 #include "chess.h"
 #include "data.h"
 #include "epdglue.h"
-#if defined(FUTILITY)
-#  define RAZOR_MARGIN (queen_value+1)
-#  define F_MARGIN (bishop_value+1)
-#endif
 
 /* modified 08/07/05 */
 /*
@@ -25,14 +21,10 @@
 #if defined(SMP)
 
 int SearchSMP(TREE * RESTRICT tree, int alpha, int beta, int value, int wtm,
-    int depth, int ply, int mate_threat, int lp_recapture)
+    int depth, int ply, int mate_threat)
 {
-  register int extensions, extended, recapture;
+  register int extensions, extended;
   BITBOARD begin_root_nodes;
-
-#  if defined(FUTILITY)
-  int fprune;
-#  endif
 
 /*
  ************************************************************
@@ -79,53 +71,12 @@ int SearchSMP(TREE * RESTRICT tree, int alpha, int beta, int value, int wtm,
 /*
  ************************************************************
  *                                                          *
- *   if the null move found that the side on move gets      *
- *   mated by not moving, then there must be some strong    *
- *   threat at this position.  extend the search to make    *
- *   sure it is analyzed carefully.                         *
+ *   now it is time to call SearchControl() to adjust the   *
+ *   search depth for this move.                            *
  *                                                          *
  ************************************************************
  */
-      extended = 0;
-      if (mate_threat) {
-        extended += mate_depth;
-        tree->mate_extensions_done++;
-      }
-/*
- ************************************************************
- *                                                          *
- *   if the move to be made checks the opponent, then we    *
- *   need to remember that he's in check and also extend    *
- *   the depth by one ply for him to get out.               *
- *                                                          *
- ************************************************************
- */
-      if (Check(Flip(wtm))) {
-        tree->in_check[ply + 1] = 1;
-        tree->check_extensions_done++;
-        extended += incheck_depth;
-      } else
-        tree->in_check[ply + 1] = 0;
-/*
- ************************************************************
- *                                                          *
- *   if two successive moves are capture / re-capture so    *
- *   that the material score is restored, extend the search *
- *   by one ply on the re-capture since it is pretty much   *
- *   forced and easy to analyze.                            *
- *                                                          *
- ************************************************************
- */
-      recapture = 0;
-      if (ply > 1 && !extended && Captured(tree->current_move[ply - 1]) &&
-          To(tree->current_move[ply - 1]) == To(tree->current_move[ply]) &&
-          (p_values[Captured(tree->current_move[ply - 1]) + 7] ==
-              p_values[Captured(tree->current_move[ply]) + 7] ||
-              Promote(tree->current_move[ply - 1])) && !lp_recapture) {
-        tree->recapture_extensions_done++;
-        extended += recap_depth;
-        recapture = 1;
-      }
+      extended = SearchControl(tree, wtm, ply, depth, mate_threat);
 /*
  ************************************************************
  *                                                          *
@@ -134,41 +85,17 @@ int SearchSMP(TREE * RESTRICT tree, int alpha, int beta, int value, int wtm,
  *                                                          *
  ************************************************************
  */
-#  if defined(FUTILITY)
-      fprune = 0;
-#  endif
       begin_root_nodes = tree->nodes_searched;
-      if (extended) {
-        LimitExtensions(extended, ply);
-      }
-#  if defined(FUTILITY)
-      else {
-        if (abs(alpha) < (MATE - 500) && ply > 4 && !tree->in_check[ply]) {
-          if (wtm) {
-            if (depth < 3 * INCPLY && (Material + F_MARGIN) <= alpha)
-              fprune = 1;
-            else if (depth >= 3 * INCPLY && depth < 5 * INCPLY &&
-                (Material + RAZOR_MARGIN) <= alpha)
-              extended -= 60;
-          } else {
-            if (depth < 3 * INCPLY && (-Material + F_MARGIN) <= alpha)
-              fprune = 1;
-            else if (depth >= 3 * INCPLY && depth < 5 * INCPLY &&
-                (-Material + RAZOR_MARGIN) <= alpha)
-              extended -= 60;
-          }
-        }
-      }
-#  endif
-      extensions = extended - INCPLY;
-#  if defined(FUTILITY)
-      if ((depth + extensions >= INCPLY || tree->in_check[ply + 1]) && !fprune)
-#  else
-      if (depth + extensions >= INCPLY || tree->in_check[ply + 1])
-#  endif
+      extensions = extended - PLY;
+      if (depth + extensions >= PLY) {
         value =
             -Search(tree, -alpha - 1, -alpha, Flip(wtm), depth + extensions,
-            ply + 1, DO_NULL, recapture);
+            ply + 1, DO_NULL);
+          if (value > alpha && extensions < -PLY)
+            value =
+                -Search(tree, -alpha - 1, -alpha, Flip(wtm), depth - PLY,
+                ply + 1, DO_NULL);
+      }
       else
         value = -Quiesce(tree, -alpha - 1, -alpha, Flip(wtm), ply + 1);
       if (shared->abort_search || tree->stop) {
@@ -176,10 +103,11 @@ int SearchSMP(TREE * RESTRICT tree, int alpha, int beta, int value, int wtm,
         break;
       }
       if (value > alpha && value < beta) {
-        if (depth + extensions >= INCPLY || tree->in_check[ply + 1])
+        extensions = Max(extensions, -PLY);
+        if (depth + extensions >= PLY)
           value =
               -Search(tree, -beta, -alpha, Flip(wtm), depth + extensions,
-              ply + 1, DO_NULL, recapture);
+              ply + 1, DO_NULL);
         else
           value = -Quiesce(tree, -beta, -alpha, Flip(wtm), ply + 1);
         if (shared->abort_search || tree->stop) {

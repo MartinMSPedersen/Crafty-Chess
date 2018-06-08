@@ -182,7 +182,7 @@ BITBOARD black_pawn_race_btm[64];
 BOOK_POSITION book_buffer[BOOK_CLUSTER_SIZE];
 BOOK_POSITION book_buffer_char[BOOK_CLUSTER_SIZE];
 
-#define    VERSION                             "20.2"
+#define    VERSION                             "20.3"
 char version[6] = { VERSION };
 PLAYING_MODE mode = normal_mode;
 int batch_mode = 0;             /* no asynch reads */
@@ -241,12 +241,14 @@ int post = 0;
 int log_id = 1;
 int wtm = 1;
 int last_opponent_move = 0;
-int incheck_depth = 60;
-int onerep_depth = 45;
-int recap_depth = 45;
-int mate_depth = 30;
-int null_min = 3 * INCPLY;      /* R=2 */
-int null_max = 4 * INCPLY;      /* R=3 */
+int incheck_depth = 4;
+int onerep_depth = 3;
+int mate_depth = 3;
+int null_min = 3 * PLY;             /* R=2 */
+int null_max = 4 * PLY;             /* R=3 */
+int reduce_min_depth = PLY;         /* leave 1 good ply after reductions */
+int reduce_value = PLY;             /* reduce 1 ply */
+int reduce_hist_threshold = 1000;   /* reduce if history val < 1000 */
 int search_depth = 0;
 unsigned int search_nodes = 0;
 int search_move = 0;
@@ -326,42 +328,23 @@ const char xlate[15] =
 const char empty[9] = { 0, '1', '2', '3', '4', '5', '6', '7', '8' };
 int king_tropism_n[8] = { 3, 3, 3, 2, 1, 0, 0, 0 };
 int king_tropism_b[8] = { 3, 3, 3, 2, 1, 0, 0, 0 };
-int king_tropism_r[8] = { 3, 3, 3, 2, 1, 0, 0, 0 };
-int king_tropism_at_r[8] = { 4, 3, 1, 0, 0, 0, 0, 0 };
-int king_tropism_q[8] = { 4, 4, 4, 2, 1, 0, 0, 0 };
-int king_tropism_at_q[8] = { 5, 5, 3, 0, 0, 0, 0, 0 };
-int king_tropism[128] = {
-  0, 2, 5, 12, 15, 20, 30, 40,
-  50, 60, 70, 80, 90, 100, 110, 120,
-  125, 125, 130, 130, 135, 135, 140, 145,
-  150, 160, 170, 180, 180, 180, 180, 180,
-  180, 180, 180, 180, 180, 180, 180, 180,
-  180, 180, 180, 180, 180, 180, 180, 180,
-  180, 180, 180, 180, 180, 180, 180, 180,
-  180, 180, 180, 180, 180, 180, 180, 180,
-  180, 180, 180, 180, 180, 180, 180, 180,
-  180, 180, 180, 180, 180, 180, 180, 180,
-  180, 180, 180, 180, 180, 180, 180, 180,
-  180, 180, 180, 180, 180, 180, 180, 180,
-  180, 180, 180, 180, 180, 180, 180, 180,
-  180, 180, 180, 180, 180, 180, 180, 180,
-  180, 180, 180, 180, 180, 180, 180, 180,
-  180, 180, 180, 180, 180, 180, 180, 180
-};
-int connected_passed_pawn_value[8] = { 0, -6, -6, 0, 100, 200, 300, 0 };
+int king_tropism_r[8] = { 3, 3, 2, 1, 0, 0, 0, 0 };
+int king_tropism_at_r[8] = { 5, 4, 2, 0, 0, 0, 0, 0 };
+int king_tropism_q[8] = { 7, 7, 5, 3, 1, 0, 0, 0 };
+int connected_passed_pawn_value[8] = { 0, 0, 10, 20, 40, 100, 200, 0 };
 int hidden_passed_pawn_value[8] = { 0, 0, 0, 0, 20, 40, 0, 0 };
-int passed_pawn_value[8] = { 0, 12, 20, 32, 48, 96, 150, 0 };
-int blockading_passed_pawn_value[8] = { 0, 4, 7, 10, 16, 32, 50, 0 };
+int passed_pawn_value[8] =            { 0, 12, 20, 48, 72, 120, 150, 0 };
+int blockading_passed_pawn_value[8] = { 0,  6, 10, 24, 36,  60,  75, 0 };
 int isolated_pawn_value[9] = { 0, 8, 20, 40, 60, 70, 80, 80, 80 };
 int isolated_pawn_of_value[9] = { 0, 4, 10, 16, 24, 24, 24, 24, 24 };
 int doubled_pawn_value[9] = { 0, 0, 4, 7, 10, 10, 10, 10, 10 };
 int pawn_rams_v[9] = { 0, 0, 4, 8, 16, 24, 32, 40, 48 };
 int pawn_space[8] = { 0, 0, 0, 0, 1, 2, 2, 2 };
-int supported_passer[8] = { 0, 0, 0, 10, 40, 60, 100, 0 };
+int supported_passer[8] = { 0, 0, 0, 20, 40, 60, 100, 0 };
 int outside_passed[128] = {
-  72, 64, 64, 64, 56, 56, 52, 52,
-  48, 48, 44, 44, 42, 42, 40, 40,
-  36, 36, 30, 30, 24, 24, 24, 12,
+ 100, 64, 64, 64, 48, 48, 40, 40,
+  36, 34, 32, 30, 28, 26, 24, 22,
+  20, 19, 18, 17, 16, 15, 14, 12,
   12, 12, 12, 12, 12, 12, 12, 12,
   12, 12, 12, 12, 12, 12, 12, 12,
   12, 12, 12, 12, 12, 12, 12, 12,
@@ -401,14 +384,14 @@ int majority[128] = {
  more pieces join the action.
  */
 int king_safety[64] = {
-    0,   4,   8,  12,  18,  24,  30,  40,       /*   0-   7 */
-   52,  64,  72,  84,  96, 112, 128, 144,       /*   8-  15 */
-  148, 152, 156, 160, 164, 168, 172, 175,       /*  16-  23 */
-  180, 180, 180, 180, 180, 180, 180, 180,       /*  24-  31 */
-  180, 180, 180, 180, 180, 180, 180, 180,       /*  32-  39 */
-  180, 180, 180, 180, 180, 180, 180, 180,       /*  47-  47 */
-  180, 180, 180, 180, 180, 180, 180, 180,       /*  48-  55 */
-  180, 180, 180, 180, 180, 180, 180, 180        /*  56-  63 */
+  -30, -30, -20,   0,   4,  10,  16,  24,
+   30,  40,  50,  60,  70,  80,  90, 100,
+  120, 120, 120, 120, 120, 120, 120, 120,
+  120, 120, 120, 120, 120, 120, 120, 120,
+  120, 120, 120, 120, 120, 120, 120, 120,
+  120, 120, 120, 120, 120, 120, 120, 120,
+  120, 120, 120, 120, 120, 120, 120, 120,
+  120, 120, 120, 120, 120, 120, 120, 120
 };
 
 /*
@@ -417,9 +400,9 @@ int king_safety[64] = {
  the state of the king-side pawn structure.
  */
 int king_safety_p[32] = {
-   0,  0, 10, 16, 24, 32, 40, 45,       /*   0-   7 */
-  50, 55, 60, 65, 70, 75, 80, 85,       /*   8-  15 */
-  90, 95,100,100,100,100,100,100,       /*  16-  23 */
+   0, 20, 40, 48, 56, 64, 72, 80,       /*   0-   7 */
+  85, 90, 95,100,100,100,100,100,       /*   8-  15 */
+ 100,105,100,100,100,100,100,100,       /*  16-  23 */
  100,100,100,100,100,100,100,100,       /*  24-  31 */
 };
 
@@ -441,8 +424,8 @@ int hopenf[3] = { 1, 2, 0 };
  the board.
  */
 int king_defects_w[64] = {
-  1, 0, 2, 3, 3, 2, 0, 1,
-  1, 1, 2, 3, 3, 2, 1, 1,
+  1, 0, 1, 2, 2, 1, 0, 1,
+  1, 1, 2, 2, 2, 2, 1, 1,
   3, 3, 3, 3, 3, 3, 3, 3,
   4, 4, 4, 4, 4, 4, 4, 4,
   5, 5, 5, 5, 5, 5, 5, 5,
@@ -490,98 +473,96 @@ const char mate[64] = {
   96, 80, 70, 60, 60, 70, 80, 96,
   100, 96, 93, 90, 90, 93, 96, 100
 };
-int white_outpost[64] = {
-  0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0,
-  0, 1, 2, 4, 4, 2, 1, 0,
-  0, 1, 2, 4, 4, 2, 1, 0,
-  0, 0, 2, 1, 1, 2, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0
+int white_outpost[64] =  {
+  0,  0,  0,  0,  0,  0,  0,  0,
+  0,  0,  0,  0,  0,  0,  0,  0,
+  0,  0,  0,  0,  0,  0,  0,  0,
+  0,  5, 10, 20, 20, 10,  5,  0,
+  0,  5, 10, 24, 24, 10,  5,  0,
+  0,  0, 10, 24, 24, 10,  0,  0,
+  0,  0,  0,  0,  0,  0,  0,  0,
+  0,  0,  0,  0,  0,  0,  0,  0
 };
 int pval_w[64] = {
-  0, 0, 0, 0, 0, 0, 0, 0,
-  -0, -0, -0, -20, -20, -0, -0, -0,
-  -6, -6, -6, -6, -6, -6, -6, -6,
-  0, 0, 0, 0, 0, 0, 0, 0,
-  6, 6, 6, 6, 6, 6, 6, 6,
-  12, 12, 12, 12, 12, 12, 12, 12,
-  18, 18, 18, 18, 18, 18, 18, 18,
-  0, 0, 0, 0, 0, 0, 0, 0
+   0,  0,  0,   0,   0,  0,  0,  0,
+   0,  0,  0, -10, -10,  0,  0,  0,
+   1,  1,  1,   1,   1,  1,  1,  1,
+   3,  3,  3,   3,   3,  3,  3,  3,
+   6,  6,  6,   6,   6,  6,  6,  6,
+  10, 10, 10,  10,  10, 10, 10, 10,
+  40, 40, 40,  40,  40, 40, 40, 40,
+   0,  0,  0,   0,   0,  0,  0,  0
 };
 int nval[64] = {
-   0,  1,  1,  1,  1,  1,  1,  0,
-   1,  2,  2,  2,  2,  2,  2,  1,
-   1,  2,  4,  4,  4,  4,  2,  1,
-   1,  2,  4,  8,  8,  4,  2,  1,
-   1,  2,  4,  8,  8,  4,  2,  1,
-   1,  2,  4,  4,  4,  4,  2,  1,
-   1,  2,  2,  2,  2,  2,  2,  1,
-   0,  1,  1,  1,  1,  1,  1,  0,
+ -60,-30,-30,-30,-30,-30,-30,-60,
+ -30,-24,  8,  8,  8,  8,-24,-30,
+ -30,  8, 12, 12, 12, 12,  8,-30,
+ -30,  8, 12, 16, 16, 12,  8,-30,
+ -30,  8, 12, 16, 16, 12,  8,-30,
+ -30,  8, 12, 12, 12, 12,  8,-30,
+ -30,-24,  8,  8,  8,  8,-24,-30,
+ -60,-30,-30,-30,-30,-30,-30,-60,
 };
 int bval[64] = {
-   0,  0,  0,  0,  0,  0,  0,  0,
-   0,  2,  2,  1,  1,  2,  2,  0,
-   0,  2,  3,  2,  2,  3,  2,  0,
-   0,  1,  2,  4,  4,  2,  1,  0,
-   0,  1,  2,  4,  4,  2,  1,  0,
-   0,  2,  3,  2,  2,  3,  2,  0,
-   0,  2,  2,  1,  1,  2,  2,  0,
-   0,  0,  0,  0,  0,  0,  0,  0,
+ -20,-20,-20,-20,-20,-20,-20,-20,
+ -20,  6,  6,  3,  3,  6,  6,-20,
+ -20,  6,  8,  6,  6,  8,  6,-20,
+ -20,  3,  6, 10, 10,  6,  3,-20,
+ -20,  3,  6, 10, 10,  6,  3,-20,
+ -20,  6,  8,  6,  6,  8,  6,-20,
+ -20,  6,  6,  3,  3,  6,  6,-20,
+ -20,-20,-20,-20,-20,-20,-20,-20,
 };
 int rval[64] = {
-   0,  0, 1, 2, 2, 1,  0,  0,
-   0,  0, 1, 2, 2, 1,  0,  0,
-   0,  0, 1, 2, 2, 1,  0,  0,
-   0,  0, 1, 2, 2, 1,  0,  0,
-   0,  0, 1, 2, 2, 1,  0,  0,
-   0,  0, 1, 2, 2, 1,  0,  0,
-   0,  0, 1, 2, 2, 1,  0,  0,
-   0,  0, 1, 2, 2, 1,  0,  0
+   0,  0, 4, 8, 8, 4,  0,  0,
+   0,  0, 4, 8, 8, 4,  0,  0,
+   0,  0, 4, 8, 8, 4,  0,  0,
+   0,  0, 4, 8, 8, 4,  0,  0,
+   0,  0, 4, 8, 8, 4,  0,  0,
+   0,  0, 4, 8, 8, 4,  0,  0,
+   0,  0, 4, 8, 8, 4,  0,  0,
+   0,  0, 4, 8, 8, 4,  0,  0
 };
 int qval[64] = {
-   0,  0,  0,  0,  0,  0,  0,  0,
-   0,  0,  1,  1,  1,  1,  0,  0,
-   0,  1,  1,  2,  2,  1,  1,  0,
-   0,  1,  2,  3,  3,  2,  1,  0,
-   0,  1,  2,  3,  3,  2,  1,  0,
-   0,  1,  1,  2,  2,  1,  1,  0,
-   0,  0,  1,  1,  1,  1,  0,  0,
-   0,  0,  0,  0,  0,  0,  0,  0,
+ -20,-20,  0,  0,  0,  0,-20,-20,
+ -20,  0,  8,  8,  8,  8,  0,-20,
+   0,  8,  8, 12, 12,  8,  8,  0,
+   0,  8, 12, 16, 16, 12,  8,  0,
+   0,  8, 12, 16, 16, 12,  8,  0,
+   0,  8,  8, 12, 12,  8,  8,  0,
+ -20,  0,  8,  8,  8,  8,  0,-20,
+ -20,-20,  0,  0,  0,  0,-20,-20,
 };
 int kval_wn[64] = {
-  -20, -10, -10, -10, -10, -10, -10, -20,
-  -10, 0, 0, 0, 0, 0, 0, -10,
-  -10, 10, 10, 10, 10, 10, 10, -10,
-  -10, 10, 20, 20, 20, 20, 10, -10,
-  -10, 10, 20, 30, 30, 20, 10, -10,
-  -10, 10, 20, 30, 30, 20, 10, -10,
-  -10, 10, 20, 20, 20, 20, 10, -10,
-  -20, -10, -10, -10, -10, -10, -10, -20
+  -40, -20, -20, -20, -20, -20, -20, -40,
+  -20,   0,   0,   0,   0,   0,   0, -20,
+  -20,  20,  20,  20,  20,  20,  20, -20,
+  -20,  20,  40,  40,  40,  40,  20, -20,
+  -20,  30,  60,  60,  60,  60,  30, -20,
+  -20,  30,  60,  60,  60,  60,  30, -20,
+  -20,  30,  40,  40,  40,  40,  30, -20,
+  -40, -20, -20, -20, -20, -20, -20, -40
 };
 int kval_wk[64] = {
-  -30, -20, -10, -10, -10, -10, -10, -10,
-  -30, -20, -10, 0, 0, 0, 0, 0,
-  -30, -20, -10, 10, 10, 10, 10, 10,
-  -30, -20, -10, 10, 20, 20, 20, 20,
-  -30, -20, -10, 10, 20, 30, 30, 20,
-  -30, -20, -10, 10, 20, 30, 30, 20,
-  -30, -20, -10, 10, 20, 20, 20, 20,
-  -30, -20, -10, -10, -10, -10, -10, -10
+  -60, -40, -20, -20, -20, -20, -20, -20,
+  -60, -40, -20,   0,   0,   0,   0,   0,
+  -60, -40, -20,  20,  20,  20,  20,  20,
+  -60, -40, -20,  20,  40,  40,  40,  40,
+  -60, -40, -20,  20,  60,  60,  60,  40,
+  -60, -40, -20,  20,  60,  60,  60,  40,
+  -60, -40, -20,  20,  40,  40,  40,  40,
+  -60, -40, -20, -20, -20, -20, -20, -20
 };
 int kval_wq[64] = {
-  -10, -10, -10, -10, -10, -10, -20, -30,
-  0, 0, 0, 0, 0, -10, -20, -30,
-  10, 10, 10, 10, 10, -10, -20, -30,
-  20, 20, 20, 20, 10, -10, -20, -30,
-  20, 30, 30, 20, 10, -10, -20, -30,
-  20, 30, 30, 20, 10, -10, -20, -30,
-  20, 20, 20, 20, 10, -10, -20, -30,
-  -10, -10, -10, -10, -10, -10, -20, -30
+  -20, -20, -20, -20, -20, -20, -40, -60,
+    0,   0,   0,   0,   0, -20, -40, -60,
+   20,  20,  20,  20,  20, -20, -40, -60,
+   40,  40,  40,  40,  20, -20, -40, -60,
+   40,  60,  60,  60,  20, -20, -40, -60,
+   40,  60,  60,  60,  20, -20, -40, -60,
+   40,  40,  40,  40,  20, -20, -40, -60,
+  -20, -20, -20, -20, -20, -20, -40, -60
 };
-
-
 /* note that black piece/square values are copied from white, but
    reflected */
 const int p_values[15] = { QUEEN_VALUE, ROOK_VALUE, BISHOP_VALUE, 0,
@@ -606,31 +587,28 @@ int won_kp_ending = 150;
 int split_passed = 50;
 int king_king_tropism = 15;
 int bishop_trapped = 174;
-int bishop_over_knight_endgame = 2;
-int bishop_pair = 4;
-int rook_on_7th = 4;
-int rook_connected_7th_rank = 3;
-int rook_open_file = 4;
-int rook_reaches_open_file = 2;
-int rook_half_open_file = 2;
-int rook_behind_passed_pawn = 4;
-int rook_trapped = 30;
-int rook_not_limited = 3;
-int queen_rook_on_7th_rank = 5;
-int queen_king_safety = 6;
-int queen_vs_2_rooks = 40;
-int queen_is_strong = 5;
-int queen_offside_tropism = 8;
+int bishop_over_knight_endgame = 36;
+int bishop_pair = 50;
+int rook_on_7th = 30;
+int rook_connected_7th_rank = 20;
+int rook_open_file[9] = {0, 40, 30, 20, 16, 16, 16, 16, 16};
+int rook_reaches_open_file = 16;
+int rook_half_open_file = 10;
+int rook_behind_passed_pawn = 24;
+int rook_trapped = 40;
+int queen_rook_on_7th_rank = 50;
+int queen_vs_2_rooks = 100;
+int queen_is_strong = 30;
+int queen_offside_tropism = 3;
 int king_safety_mate_g2g7 = 3;
 int king_safety_mate_threat = 600;
 int king_safety_open_file = 4;
-int development_thematic = 6;
+int development_thematic = 12;
 int development_unmoved = 7;
-int blocked_center_pawn = 3;
-int development_losing_castle = 10;
-int development_not_castled = 6;
-int development_queen_early = 10;
-int development_castle_bonus = 10;
+int blocked_center_pawn = 24;
+int development_losing_castle = 30;
+int development_not_castled = 30;
+int development_queen_early = 30;
 
 struct eval_term eval_packet[256] = {
 {"raw piece values----------------",    0, NULL},                /* 0 */
@@ -709,10 +687,9 @@ struct eval_term eval_packet[256] = {
 {"rook on 7th                     ",    0, &rook_on_7th},
 {"rook connected 7th rank         ",    0, &rook_connected_7th_rank},
 {"rook trapped                    ",    0, &rook_trapped},
-{"rook mobility not limited       ",    0, &rook_not_limited},
 {"rook behind passed pawn         ",    0, &rook_behind_passed_pawn},
 {"rook half open file             ",    0, &rook_half_open_file},
-{"rook open file                  ",    0, &rook_open_file},
+{"rook open file                  ",    9, rook_open_file},
 {"rook reaches open file          ",    0, &rook_reaches_open_file},
 {"king tropism [distance]         ",    8, king_tropism_r},
 {"king file tropism [distance]    ",    8, king_tropism_at_r},
@@ -725,16 +702,17 @@ struct eval_term eval_packet[256] = {
 {NULL,                                  0, NULL},
 {NULL,                                  0, NULL},
 {NULL,                                  0, NULL},
+{NULL,                                  0, NULL},
 
 {"queen scoring-------------------",    0, NULL},                /* 90 */
 {"queen rook on 7th rank          ",    0, &queen_rook_on_7th_rank},
-{"queen king tropism              ",    0, &queen_king_safety},
 {"queen vs 2 rooks                ",    0, &queen_vs_2_rooks},
 {"queen is strong                 ",    0, &queen_is_strong},
 {"queen offside tropism           ",    0, &queen_offside_tropism},
 {"king tropism [distance]         ",    8, king_tropism_q},
-{"king file tropism [distance]    ",    8, king_tropism_at_q},
 {"queen piece/square table        ",  -64, qval},
+{NULL,                                  0, NULL},
+{NULL,                                  0, NULL},
 {NULL,                                  0, NULL},
 
 {"king scoring--------------------",    0, NULL},                /* 100 */
@@ -742,7 +720,6 @@ struct eval_term eval_packet[256] = {
 {"king safety mate g2g7           ",    0, &king_safety_mate_g2g7},
 {"king safety trojan horse threat ",    0, &king_safety_mate_threat},
 {"king safety open file           ",    0, &king_safety_open_file},
-{"king tropism [defects]          ",  128, king_tropism},
 {"king defects (white - mirror B) ",  -64, king_defects_w},
 {"king piece/square normal        ",  -64, kval_wn},
 {"king piece/square kside pawns   ",  -64, kval_wk},
@@ -757,6 +734,7 @@ struct eval_term eval_packet[256] = {
 {NULL,                                  0, NULL},
 {NULL,                                  0, NULL},
 {NULL,                                  0, NULL},
+{NULL,                                  0, NULL},
 
 {"development scoring-------------",    0, NULL},                /* 120 */
 {"development thematic            ",    0, &development_thematic},
@@ -764,6 +742,5 @@ struct eval_term eval_packet[256] = {
 {"development blocked center pawn ",    0, &blocked_center_pawn},
 {"development losing castle       ",    0, &development_losing_castle},
 {"development not castled         ",    0, &development_not_castled},
-{"development moved queen early   ",    0, &development_queen_early},
-{"development castle bonus        ",    0, &development_castle_bonus}};
+{"development moved queen early   ",    0, &development_queen_early}};
 

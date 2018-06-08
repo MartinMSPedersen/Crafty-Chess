@@ -1162,7 +1162,7 @@ void LearnPosition(TREE * RESTRICT tree, int wtm, int last_value, int value)
  */
   Print(128, "learning position, wtm=%d  value=%d\n", wtm, value);
   word1 = (BITBOARD) (value + 65536);
-  word1 |= ((BITBOARD) (tree->pv[0].pathd * INCPLY)) << 17;
+  word1 |= ((BITBOARD) (tree->pv[0].pathd * PLY)) << 17;
   word1 |= ((BITBOARD) tree->pv[0].path[1]) << 32;
   word1 |= ((BITBOARD) EXACT) << 59;
   word2 = (wtm) ? HashKey : ~HashKey;
@@ -1225,7 +1225,7 @@ void LearnPosition(TREE * RESTRICT tree, int wtm, int last_value, int value)
     fprintf(position_lrn_file, " %c%c", File(EnPassant(0)) + 'a',
         Rank(EnPassant(0)) + '1');
   fprintf(position_lrn_file, "\n{%d %d %d}\n", value, tree->pv[0].path[1],
-      tree->pv[0].pathd * INCPLY);
+      tree->pv[0].pathd * PLY);
   fflush(position_lrn_file);
 }
 

@@ -52,8 +52,6 @@
 #   -DEPD             if you want full EPD support built in.
 #   -DFAST            This option compiles out some of the statistics 
 #                     gathering to slightly speed up the code.
-#   -DFUTILITY        enables "futility pruning" a forward-pruning algorithm
-#                     that seems to be relatively safe.
 #   -DLOGDIR          path to the directory where Crafty puts the log.nnn and
 #                     game.nnn files.
 #   -DRCDIR           path to the directory where we look for the .craftyrc or
@@ -104,7 +102,7 @@ aix:
 		CC=cc CXX=$(CC) \
 		CFLAGS='$(CFLAGS) -O2' \
 		CXFLAGS=$(CFLAGS) \
-		opt='$(opt) -DFUTILITY' \
+		opt='$(opt)' \
 		crafty-make
 
 alpha:
@@ -114,7 +112,7 @@ alpha:
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS='$(LDFLAGS) $(CFLAGS)' \
 		LIBS='-lexc' \
-		opt='$(opt) -DFUTILITY -DSMP -DCPUS=8 -DFAST' \
+		opt='$(opt) -DSMP -DCPUS=8 -DFAST' \
 		crafty-make
 
 alpha-host:
@@ -124,7 +122,7 @@ alpha-host:
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS='$(LDFLAGS) $(CFLAGS)' \
 		LIBS='-lexc' \
-		opt='$(opt) -DFUTILITY -DSMP -DCPUS=8 -DFAST' \
+		opt='$(opt) -DSMP -DCPUS=8 -DFAST' \
 		crafty-make
 
 alpha-host-nocix:
@@ -134,7 +132,7 @@ alpha-host-nocix:
 		CXFLAGS='$(CFLAGS) -arch ev56 -tune host' \
 		LDFLAGS='$(LDFLAGS) $(CFLAGS)' \
 		LIBS='-lexc' \
-		opt='$(opt) -DFUTILITY -DSMP -DCPUS=8 -DFAST' \
+		opt='$(opt) -DSMP -DCPUS=8 -DFAST' \
 		crafty-make
 
 darwin:
@@ -144,7 +142,7 @@ darwin:
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS=$(LDFLAGS) \
 		LIBS='-lstdc++' \
-		opt='$(opt) -DFUTILITY -DFAST' \
+		opt='$(opt) -DFAST' \
 		crafty-make
 		
 freebsd:
@@ -153,7 +151,7 @@ freebsd:
 		CFLAGS='$(CFLAGS) -fomit-frame-pointer -m486 -O3 -Wall' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS=$(LDFLAGS) \
-		opt='$(opt) -DFUTILITY -DUSE_ASSEMBLY -DFAST' \
+		opt='$(opt) -DUSE_ASSEMBLY -DFAST' \
 		crafty-make
 
 freebsd-pgcc:
@@ -162,7 +160,7 @@ freebsd-pgcc:
 		CFLAGS='$(CFLAGS) -pipe -D_REENTRANT -mpentium -O -Wall' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS=$(LDFLAGS) \
-		opt='$(opt) -DFUTILITY -DUSE_ASSEMBLY -DFAST' \
+		opt='$(opt) -DUSE_ASSEMBLY -DFAST' \
 		crafty-make
 
 hpux:
@@ -181,7 +179,7 @@ linux:
 			-g -fno-gcse -mpreferred-stack-boundary=2' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS='$(LDFLAGS) -g -lstdc++' \
-		opt='$(opt) -DFUTILITY -DFAST -DINLINE_ASM \
+		opt='$(opt) -DFAST -DINLINE_ASM \
 			-DTRACE -DSMP -DCPUS=2' \
 		crafty-make
 
@@ -193,7 +191,7 @@ linux-amd64-profile:
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS='$(LDFLAGS) -lnuma -lstdc++' \
 		opt='$(opt)-DFAST -DSMP -DNUMA -DLIBNUMA -DCPUS=8 \
-			-DFUTILITY -DUSE_ASSEMBLY -DINLINE_AMD' \
+			-DUSE_ASSEMBLY -DINLINE_AMD' \
 		crafty-make
 
 linux-amd64:
@@ -204,7 +202,7 @@ linux-amd64:
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS='$(LDFLAGS) -lnuma -lstdc++' \
 		opt='$(opt) -DFAST -DSMP -DNUMA -DLIBNUMA -DCPUS=8 \
-			-DFUTILITY -DUSE_ASSEMBLY -DINLINE_AMD' \
+			-DUSE_ASSEMBLY -DINLINE_AMD' \
 		crafty-make
 
 linux-profile:
@@ -215,7 +213,7 @@ linux-profile:
 			-fno-gcse -mpreferred-stack-boundary=2' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS='$(LDFLAGS) -fprofile-arcs -lstdc++ ' \
-		opt='$(opt) -DFUTILITY -DINLINE_ASM -DFAST \
+		opt='$(opt) -DINLINE_ASM -DFAST \
 			-DSMP -DCPUS=2' \
 		crafty-make
 
@@ -228,7 +226,7 @@ linux-icc-profile:
 		CXFLAGS='$(CFLAGS) -D_REENTRANT -O2 \
 			-w -xN -prof_genx -prof_dir ./profdir' \
 		LDFLAGS='$(LDFLAGS) -lstdc++ ' \
-		opt='$(opt) -DFUTILITY -DFAST -DINLINE_ASM \
+		opt='$(opt) -DFAST -DINLINE_ASM \
 			-DSMP -DCPUS=2' \
 		crafty-make
 
@@ -241,7 +239,7 @@ linux-icc:
 		CXFLAGS='$(CFLAGS) -D_REENTRANT -O2 \
 			-w -xN -prof_use -prof_dir ./profdir' \
 		LDFLAGS='$(LDFLAGS) -lstdc++' \
-		opt='$(opt) -DFUTILITY -DFAST -DINLINE_ASM \
+		opt='$(opt) -DFAST -DINLINE_ASM \
 			-DSMP -DCPUS=2' \
 		crafty-make
 
@@ -252,7 +250,7 @@ linux-alpha:
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS='$(LDFLAGS) $(CFLAGS)' \
 		LIBS='' \
-		opt='$(opt) -DFUTILITY -DSMP -DCPUS=8 -DFAST\
+		opt='$(opt) -DSMP -DCPUS=8 -DFAST\
 			-DNOBUILTINS' \
 		crafty-make
 
@@ -264,7 +262,7 @@ netbsd:
 			-finline-functions -ffast-math' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS=$(LDFLAGS) \
-		opt='$(opt) -DFUTILITY -DFAST' \
+		opt='$(opt) -DFAST' \
 		crafty-make
 
 netbsd-i386:
@@ -275,7 +273,7 @@ netbsd-i386:
 			-finline-functions -ffast-math' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS=$(LDFLAGS) \
-		opt='$(opt) -DFUTILITY -DFAST -DUSE_ASSEMBLY' \
+		opt='$(opt) -DFAST -DUSE_ASSEMBLY' \
 		crafty-make
 
 netbsd-sparc:
@@ -286,7 +284,7 @@ netbsd-sparc:
 			-finline-functions -ffast-math' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS=$(LDFLAGS) \
-		opt='$(opt) -DFUTILITY -DFAST' \
+		opt='$(opt) -DFAST' \
 		crafty-make
 
 next:
@@ -295,7 +293,7 @@ next:
 		CFLAGS='$(CFLAGS) -O2' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS='$(LDFLAGS) $(CFLAGS)'
-		opt='$(opt) -DFUTILITY' \
+		opt='$(opt)' \
 		crafty-make
 
 os2:
@@ -304,7 +302,7 @@ os2:
 		CFLAGS='$(CFLAGS) -fomit-frame-pointer -m486 -O3 -Wall' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS='$(LDFLAGS) -Zexe -Zcrtdll -s' \
-		opt='$(opt) -DFUTILITY -DUSE_ASSEMBLY -DFAST' \
+		opt='$(opt) -DUSE_ASSEMBLY -DFAST' \
 		crafty-make
 
 sgi:
@@ -314,7 +312,7 @@ sgi:
 		CFLAGS='$(CFLAGS) -32 -mips2 -cckr' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS=$(LDFLAGS) \
-		opt='$(opt) -DFUTILITY' \
+		opt='$(opt)' \
 		crafty-make
 
 solaris:
@@ -323,7 +321,7 @@ solaris:
 		CFLAGS='$(CFLAGS) -fast -xO5 -xunroll=20' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS='$(LDFLAGS)' \
-		opt='$(opt) -DFUTILITY -DSMP -DCPUS=4' \
+		opt='$(opt) -DSMP -DCPUS=4' \
 		crafty-make
 
 solaris-gcc:
@@ -333,7 +331,7 @@ solaris-gcc:
 			-fforce-mem -fomit-frame-pointer' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS='$(LDFLAGS) -lstdc++' \
-		opt='$(opt) -DFUTILITY -DFAST' \
+		opt='$(opt) -DFAST' \
 		crafty-make
 
 generic:

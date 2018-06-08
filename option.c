@@ -451,7 +451,8 @@ int Option(TREE * RESTRICT tree)
     Print(128, "playing a computer!\n");
     shared->computer_opponent = 1;
     accept_draws = 1;
-    resign = 9;
+    resign = 5;
+    resign_counter = 4;
     book_selection_width = 1;
     usage_level = 0;
     books_file = (computer_bs_file) ? computer_bs_file : normal_bs_file;
@@ -888,7 +889,8 @@ int Option(TREE * RESTRICT tree)
       index = nargs - 2;
       if (index != abs(eval_packet[param].size)) {
         printf("this eval term (%s [%d]) requires exactly %d values.\n",
-            eval_packet[param].description, param, abs(eval_packet[param].size));
+            eval_packet[param].description, param,
+            abs(eval_packet[param].size));
         return (1);
       }
       if (!silent)
@@ -903,7 +905,8 @@ int Option(TREE * RESTRICT tree)
       } else
         for (i = 0; i < 8; i++)
           for (j = 0; j < 8; j++)
-            eval_packet[param].value[(7 - i) * 8 + j] = atoi(args[i * 8 + j + 2]);
+            eval_packet[param].value[(7 - i) * 8 + j] =
+                atoi(args[i * 8 + j + 2]);
       if (!silent) {
         printf("new:\n");
         DisplayArray(eval_packet[param].value, eval_packet[param].size);
@@ -957,51 +960,42 @@ int Option(TREE * RESTRICT tree)
  ************************************************************
  */
   else if (OptionMatch("extensions", *args)) {
-    if (OptionMatch("check", args[1])) {
-      float ext = atof(args[2]);
-      incheck_depth = (float) INCPLY *ext;
-
-      if (incheck_depth < 0)
-        incheck_depth = 0;
-      if (incheck_depth > INCPLY)
-        incheck_depth = INCPLY;
-    }
-    if (OptionMatch("onerep", args[1])) {
-      float ext = atof(args[2]);
-      onerep_depth = (float) INCPLY *ext;
-
-      if (onerep_depth < 0)
-        onerep_depth = 0;
-      if (onerep_depth > INCPLY)
-        onerep_depth = INCPLY;
-    }
-    if (OptionMatch("recapture", args[1])) {
-      float ext = atof(args[2]);
-      recap_depth = (float) INCPLY *ext;
-
-      if (recap_depth < 0)
-        recap_depth = 0;
-      if (recap_depth > INCPLY)
-        recap_depth = INCPLY;
-    }
-    if (OptionMatch("mate", args[1])) {
-      float ext = atof(args[2]);
-      mate_depth = (float) INCPLY *ext;
-
-      if (mate_depth < 0)
-        mate_depth = 0;
-      if (mate_depth > INCPLY)
-        mate_depth = INCPLY;
+    if (nargs > 1) {
+      if (OptionMatch("check", args[1])) {
+        float ext = atof(args[2]);
+        incheck_depth = (float) PLY *ext;
+  
+        if (incheck_depth < 0)
+          incheck_depth = 0;
+        if (incheck_depth > PLY)
+          incheck_depth = PLY;
+      }
+      if (OptionMatch("onerep", args[1])) {
+        float ext = atof(args[2]);
+        onerep_depth = (float) PLY *ext;
+  
+        if (onerep_depth < 0)
+          onerep_depth = 0;
+        if (onerep_depth > PLY)
+          onerep_depth = PLY;
+      }
+      if (OptionMatch("mate", args[1])) {
+        float ext = atof(args[2]);
+        mate_depth = (float) PLY *ext;
+  
+        if (mate_depth < 0)
+          mate_depth = 0;
+        if (mate_depth > PLY)
+          mate_depth = PLY;
+      }
     }
     if (!silent) {
       Print(1, "one-reply extension..................%4.2f\n",
-          (float) onerep_depth / INCPLY);
+          (float) onerep_depth / PLY);
       Print(1, "in-check extension...................%4.2f\n",
-          (float) incheck_depth / INCPLY);
-      Print(1, "recapture extension..................%4.2f\n",
-          (float) recap_depth / INCPLY);
+          (float) incheck_depth / PLY);
       Print(1, "mate thrt extension..................%4.2f\n",
-          (float) mate_depth / INCPLY);
+          (float) mate_depth / PLY);
     }
   }
 /*
@@ -2018,7 +2012,7 @@ int Option(TREE * RESTRICT tree)
       printf("usage:  smpmin <plies>\n");
       return (1);
     }
-    shared->min_thread_depth = INCPLY * atoi(args[1]);
+    shared->min_thread_depth = PLY * atoi(args[1]);
     Print(128, "minimum thread depth set to %d\n", shared->min_thread_depth);
   } else if (OptionMatch("smpmt", *args) || OptionMatch("mt", *args)) {
     int proc;
@@ -2523,15 +2517,13 @@ int Option(TREE * RESTRICT tree)
       printf("saving personality to file \"%s\"\n", filename);
       fprintf(file, "# Crafty v%s personality file\n", version);
       fprintf(file, "extension/onerep      %4.2f\n",
-          (float) onerep_depth / INCPLY);
+          (float) onerep_depth / PLY);
       fprintf(file, "extension/check       %4.2f\n",
-          (float) incheck_depth / INCPLY);
-      fprintf(file, "extension/recapture   %4.2f\n",
-          (float) recap_depth / INCPLY);
+          (float) incheck_depth / PLY);
       fprintf(file, "extension/mate        %4.2f\n",
-          (float) mate_depth / INCPLY);
-      fprintf(file, "selective             %d %d\n", null_min / INCPLY - 1,
-          null_max / INCPLY - 1);
+          (float) mate_depth / PLY);
+      fprintf(file, "selective             %d %d\n", null_min / PLY - 1,
+          null_max / PLY - 1);
       for (i = 0; i < 256; i++) {
         if (!eval_packet[i].description)
           continue;
@@ -2774,6 +2766,49 @@ int Option(TREE * RESTRICT tree)
       fprintf(log_file, "Crafty's rating: %d.\n", crafty_rating);
       fprintf(log_file, "opponent's rating: %d.\n", opponent_rating);
     }
+  }
+/*
+ ************************************************************
+ *                                                          *
+ *   "reduce" command is used to set the various search     *
+ *   reduction parameters.                                  *
+ *                                                          *
+ *   "mindepth" sub-option sets the min depth remaining     *
+ *   required before a search depth reduction can be used.  *
+ *                                                          *
+ *   "history" sub-option sets the history value threshold. *
+ *   if a history value is less than this threshold, then a *
+ *   search reduction on this move is allowed, otherwose    *
+ *   a reduction can not be done.                           *
+ *                                                          *
+ *   "value" sets the actual reduction depth, which is the  *
+ *   amount the search depth will be decreased by, if the   *
+ *   various reduction criteria are met.  this should be    *
+ *   entered in units of 1/60th of a ply, which means that  *
+ *   "fractional values" are allowed (value=30 is .5 plies, *
+ *   for example.)                                          *
+ *                                                          *
+ ************************************************************
+ */
+  else if (OptionMatch("reduce", *args)) {
+    if (nargs < 3) {
+      printf("usage:  reduce option value\n");
+      printf("current values are:\n");
+      printf("reduce mindepth %d (/%d)\n", reduce_min_depth, PLY);
+      printf("reduce history  %d\n", reduce_hist_threshold);
+      printf("reduce value    %d (/%d)\n", reduce_value, PLY);
+      return (1);
+    }
+    if (OptionMatch("mindepth", args[1]))
+      reduce_min_depth = atoi(args[2]);
+    else if (OptionMatch("history", args[1]))
+      reduce_hist_threshold = atoi(args[2]);
+    else if (OptionMatch("value", args[1]))
+      reduce_value = atoi(args[2]);
+    printf("current values are:\n");
+    printf("reduce mindepth %d (/%d)\n", reduce_min_depth, PLY);
+    printf("reduce histval  %d\n", reduce_hist_threshold);
+    printf("reduce value    %d (/%d)\n", reduce_value, PLY);
   }
 /*
  ************************************************************
@@ -3261,17 +3296,17 @@ int Option(TREE * RESTRICT tree)
     if (nargs < 3) {
       Print(128, "usage: selective min max\n");
     } else {
-      null_min = (atoi(args[1]) + 1) * INCPLY;
-      null_max = (atoi(args[2]) + 1) * INCPLY;
-      if (null_min == INCPLY)
+      null_min = (atoi(args[1]) + 1) * PLY;
+      null_max = (atoi(args[2]) + 1) * PLY;
+      if (null_min == PLY)
         null_min = 0;
-      if (null_max == INCPLY)
+      if (null_max == PLY)
         null_max = 0;
     }
     if (!silent) {
       if (null_min + null_max)
-        Print(128, "null depth set to %d/%d (min/max)\n", null_min / INCPLY - 1,
-            null_max / INCPLY - 1);
+        Print(128, "null depth set to %d/%d (min/max)\n", null_min / PLY - 1,
+            null_max / PLY - 1);
       else
         Print(128, "null move disabled.\n");
     }
@@ -3361,6 +3396,7 @@ int Option(TREE * RESTRICT tree)
  */
   else if (OptionMatch("score", *args)) {
     int s1, s2 = 0, s3 = 0, s4 = 0, s5 = 0, s6 = 0;
+    int n, b, r, q, k;
 
     if (shared->thinking || shared->pondering)
       return (2);
@@ -3377,11 +3413,20 @@ int Option(TREE * RESTRICT tree)
       s2 += EvaluateDevelopmentW(tree, 1);
     if (TotalWhitePawns + TotalBlackPawns) {
       s3 = EvaluatePawns(tree);
-      s4 = EvaluatePassedPawns(tree, wtm);
-      s5 = EvaluatePassedPawnRaces(tree, wtm);
+      if (tree->pawn_score.passed_b || tree->pawn_score.passed_w ||
+          tree->pawn_score.candidates_b || tree->pawn_score.candidates_w) {
+        s4 = EvaluatePassedPawns(tree, wtm);
+        s5 = EvaluatePassedPawnRaces(tree, wtm);
+      }
     }
-    if (!tree->endgame)
-      Print(128, "note: scores are for the white side\n");
+    tree->w_tropism = 0;
+    tree->b_tropism = 0;
+    n = EvaluateKnights(tree);
+    b = EvaluateBishops(tree);
+    r = EvaluateRooks(tree);
+    q = EvaluateQueens(tree);
+    k = EvaluateKings(tree, wtm, 1);
+    Print(128, "note: scores are for the white side\n");
     Print(128, "material evaluation.................%s\n", DisplayEvaluation(s1,
             1));
     Print(128, "development.........................%s\n", DisplayEvaluation(s2,
@@ -3392,8 +3437,16 @@ int Option(TREE * RESTRICT tree)
             1));
     Print(128, "passed pawn race evaluation.........%s\n", DisplayEvaluation(s5,
             1));
-    Print(128, "interactive piece evaluation........%s\n",
-        DisplayEvaluation(s6 - s1 - s2 - s3 - s4 - s5, 1));
+    Print(128, "knight evaluation...................%s\n", DisplayEvaluation(n,
+            1));
+    Print(128, "bishop evaluation...................%s\n", DisplayEvaluation(b,
+            1));
+    Print(128, "rook evaluation.....................%s\n", DisplayEvaluation(r,
+            1));
+    Print(128, "queen evaluation....................%s\n", DisplayEvaluation(q,
+            1));
+    Print(128, "king evaluation.....................%s\n", DisplayEvaluation(k,
+            1));
     Print(128, "total evaluation....................%s\n", DisplayEvaluation(s6,
             1));
   }
@@ -3519,7 +3572,7 @@ int Option(TREE * RESTRICT tree)
     temp2 = tree->pv[0].path[1];
     temp3 = shared->moves_out_of_book;
     shared->moves_out_of_book = 0;
-    tree->pv[0].pathd = INCPLY - 5;
+    tree->pv[0].pathd = PLY - 5;
     tree->pv[0].path[1] = 0;
     LearnPosition(tree, wtm, Max(score + 100, 0), score);
     tree->pv[0].pathd = temp1;
@@ -3721,7 +3774,7 @@ int Option(TREE * RESTRICT tree)
  *                                                          *
  *   "timebook" command is used to adjust Crafty's time     *
  *   usage after it leaves the opening book.  the first     *
- *   value specifies the multiplier for the time used on    *
+ *   value specifies the multiplier for the time added to   *
  *   the first move out of book expressed as a percentage   *
  *   (100 is 100% for example).  the second value specifies *
  *   the "span" (number of moves) that this multiplier      *

@@ -80,7 +80,7 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
  *                                                          *
  ************************************************************
  */
-  if (shared->moves_out_of_book > 3)
+  if (shared->moves_out_of_book > 6)
     return (0);
 /*
  ************************************************************

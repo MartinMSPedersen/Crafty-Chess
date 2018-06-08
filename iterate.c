@@ -40,6 +40,7 @@ int Iterate(int wtm, int search_type, int root_list_done)
  *                                                          *
  ************************************************************
  */
+  tree->current_move[0] = 0;
   shared->largest_positional_score =
       Max(shared->largest_positional_score * 3 / 4, 300);
   if (shared->average_nps == 0)
@@ -61,6 +62,7 @@ int Iterate(int wtm, int search_type, int root_list_done)
   PreEvaluate(tree, wtm);
   shared->kibitz_depth = 0;
   tree->nodes_searched = 0;
+  tree->last_history_age_nodes = 0;
   tree->fail_high = 0;
   tree->fail_high_first = 0;
   shared->parallel_splits = 0;
@@ -113,7 +115,6 @@ int Iterate(int wtm, int search_type, int root_list_done)
       tree->egtb_probes_successful = 0;
       tree->check_extensions_done = 0;
       tree->mate_extensions_done = 0;
-      tree->recapture_extensions_done = 0;
       tree->one_reply_extensions_done = 0;
       shared->root_wtm = wtm;
 /*
@@ -275,7 +276,8 @@ int Iterate(int wtm, int search_type, int root_list_done)
 #endif
           value =
               SearchRoot(tree, shared->root_alpha, shared->root_beta, wtm,
-              shared->iteration_depth * INCPLY + INCPLY / 2);
+              shared->iteration_depth * PLY + PLY / 2);
+          HistoryAge(tree);
           shared->root_print_ok = tree->nodes_searched > shared->noise_level;
           if (shared->abort_search || shared->time_abort)
             break;
@@ -476,7 +478,7 @@ int Iterate(int wtm, int search_type, int root_list_done)
               tree->nodes_searched * 100 / (BITBOARD) (shared->end_time -
               shared->start_time);
         else
-          shared->nodes_per_second = 10000;
+          shared->nodes_per_second = 1000000;
         if (!shared->time_abort && !shared->abort_search &&
             (shared->root_print_ok || correct_count >= early_exit ||
                 value > MATE - 300 || tree->pv[0].pathh == 2)) {
@@ -559,9 +561,9 @@ int Iterate(int wtm, int search_type, int root_list_done)
         else
           Print(8, "  nps=%.2fM\n",
               (float) shared->nodes_per_second / 1000000.0);
-        Print(16, "              ext-> chk=%d cap=%d 1rep=%d mate=%d\n",
-            tree->check_extensions_done, tree->recapture_extensions_done,
-            tree->one_reply_extensions_done, tree->mate_extensions_done);
+        Print(16, "              ext-> chk=%d 1rep=%d mate=%d\n",
+            tree->check_extensions_done, tree->one_reply_extensions_done,
+            tree->mate_extensions_done);
         Print(16,
             "              predicted=%d  nodes=" BMF "  evals=%u  50move=%d\n",
             predicted, tree->nodes_searched, tree->evaluations, Rule50Moves(0));

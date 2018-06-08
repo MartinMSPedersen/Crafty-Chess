@@ -357,8 +357,7 @@ int ThreadWait(int tid, TREE * RESTRICT waiting)
         SearchSMP(shared->thread[tid], shared->thread[tid]->alpha,
         shared->thread[tid]->beta, shared->thread[tid]->value,
         shared->thread[tid]->wtm, shared->thread[tid]->depth,
-        shared->thread[tid]->ply, shared->thread[tid]->mate_threat,
-        shared->thread[tid]->lp_recapture);
+        shared->thread[tid]->ply, shared->thread[tid]->mate_threat);
     Lock(shared->lock_smp);
     Lock(shared->thread[tid]->parent->lock);
 #  if defined(DEBUGSMP)
