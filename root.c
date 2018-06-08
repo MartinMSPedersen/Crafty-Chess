@@ -10,19 +10,14 @@
 *                                                                              *
 *   RootMoveList() is used to set up the ply one move list.  it is a  more     *
 *   accurate ordering of the move list than that done for plies deeper than    *
-*   one.  briefly, Evaluate() is used to evaluate the positional/material      *
-*   score for each move and then the status of friendly pieces is added in.    *
-*   EnPrise() evaluates the safety of each friendly piece by noticing          *
-*   attackers and defenders and returning the expected loss. Root_Moves()      *
-*   is only called once before the iterated search is started.  as the         *
-*   iterations progress, the moves in the root move list are continually       *
-*   re-arranged as scores are backed up to the root of the tree.               *
+*   one.  briefly, Quiesce() is used to obtain the positional score plus the   *
+*   expected gain/loss for pieces that can be captured.                        *
 *                                                                              *
 ********************************************************************************
 */
 void RootMoveList(int wtm) {
-  int *mvp, *lastm, rmoves[256];
-  int square, i, side, done, temp, value;
+  int *mvp, *lastm, rmoves[256], sort_value[256];
+  int i, done, temp, value;
   TREE * const tree=local[0];
   int tb_value;
   int mating_via_tb=0;
@@ -77,23 +72,12 @@ void RootMoveList(int wtm) {
       }
       if (mating_via_tb && TotalPieces<=EGTBlimit) {
         i=EGTBProbe(tree, 2, ChangeSide(wtm), &tb_value);
-        if (i && ((mating_via_tb > DrawScore(ChangeSide(wtm)) && tb_value < mating_via_tb) ||
-                  (mating_via_tb < DrawScore(ChangeSide(wtm)) && tb_value > mating_via_tb))) break;
+        if (i && ((mating_via_tb > DrawScore(ChangeSide(wtm)) &&
+            tb_value < mating_via_tb) ||
+                  (mating_via_tb < DrawScore(ChangeSide(wtm)) &&
+            tb_value > mating_via_tb))) break;
       }
-      value=-Evaluate(tree,2,ChangeSide(wtm),-99999,99999);
-/*
- ----------------------------------------------------------
-|                                                          |
-|   now use EnPrise() to analyze the state of all the      |
-|   friendly pieces to see what appears to be hanging when |
-|   we try the current move.                               |
-|                                                          |
- ----------------------------------------------------------
-*/
-      side=(wtm) ? 1 : -1;
-      for (square=0;square<64;square++) 
-        if (PcOnSq(square)*side > 0)
-          value-=Max(EnPrise(square,ChangeSide(wtm)),0);
+      value=-Quiesce(tree,-MATE,MATE,ChangeSide(wtm),2);
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -108,9 +92,8 @@ void RootMoveList(int wtm) {
          (From(*mvp)     == From(last_pv.path[1])) &&
          (To(*mvp)       == To(last_pv.path[1])) &&
          (Captured(*mvp) == Captured(last_pv.path[1])) &&
-         (Promote(*mvp)  == Promote(last_pv.path[1]))) {
+         (Promote(*mvp)  == Promote(last_pv.path[1])))
         value+=2000000;
-    }
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -123,7 +106,7 @@ void RootMoveList(int wtm) {
 */
       if (Promote(*mvp) && (Promote(*mvp) != queen)) value-=50;
     } while(0);
-    tree->sort_value[mvp-rmoves]=value;
+    sort_value[mvp-rmoves]=value;
     UnMakeMove(tree, 1, *mvp, wtm);
   }
 /*
@@ -138,10 +121,10 @@ void RootMoveList(int wtm) {
   do {
     done=1;
     for (i=0;i<lastm-rmoves-1;i++) {
-      if (tree->sort_value[i] < tree->sort_value[i+1]) {
-        temp=tree->sort_value[i];
-        tree->sort_value[i]=tree->sort_value[i+1];
-        tree->sort_value[i+1]=temp;
+      if (sort_value[i] < sort_value[i+1]) {
+        temp=sort_value[i];
+        sort_value[i]=sort_value[i+1];
+        sort_value[i+1]=temp;
         temp=rmoves[i];
         rmoves[i]=rmoves[i+1];
         rmoves[i+1]=temp;
@@ -158,12 +141,12 @@ void RootMoveList(int wtm) {
  ----------------------------------------------------------
 */
   for (;n_root_moves;n_root_moves--)
-    if (tree->sort_value[n_root_moves-1] > -3000000) break;
-  if (tree->sort_value[0] > 1000000) tree->sort_value[0]-=2000000;
-  if (tree->sort_value[0] > tree->sort_value[1]+200 &&
+    if (sort_value[n_root_moves-1] > -3000000) break;
+  if (sort_value[0] > 1000000) sort_value[0]-=2000000;
+  if (sort_value[0] > sort_value[1]+200 &&
       ((To(rmoves[0]) == To(last_opponent_move) &&
         Captured(rmoves[0]) == Piece(last_opponent_move)) || 
-      tree->sort_value[0] < PAWN_VALUE)) easy_move=1;
+      sort_value[0] < PAWN_VALUE)) easy_move=1;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -173,18 +156,12 @@ void RootMoveList(int wtm) {
  ----------------------------------------------------------
 */
   if (display_options & 512) {
-    int score;
-    int orig_score=Evaluate(tree,1,wtm,-99999,99999)-Material;
     Print(512,"%d moves at root\n",n_root_moves);
-    Print(512,"        move   score      eval     (+/-)\n");
+    Print(512,"        move   score\n");
     for (i=0;i<n_root_moves;i++) {
       tree->current_move[1]=rmoves[i];
       Print(512,"%12s",OutputMove(tree,rmoves[i],1,wtm));
-      MakeMove(tree, 1, rmoves[i], wtm);
-      score=-Evaluate(tree,2,ChangeSide(wtm),-99999,99999);
-      Print(512,"%8d  %8d  %8d\n",tree->sort_value[i], score,
-            score-orig_score-Material);
-      UnMakeMove(tree, 1, rmoves[i], wtm);
+      Print(512,"%8d\n",sort_value[i]);
     }
   }
 /*

@@ -2761,6 +2761,14 @@
 *           changes to make +=white all the time.  opposite bishop scoring    *
 *           has been beefed up a bit to avoid these drawish endings.          *
 *                                                                             *
+*   18.5    minor change to RootMove() to use Quiesce() rather than the more  *
+*           complicated was it was ordering with Evaluate()/EnPrise().  this  *
+*           is no faster, but it is simpler and eliminated the need for the   *
+*           EnPrise() function totally, making the code a bit smaller.  bug   *
+*           in EvaluateDraws() would let it think that the bishop+wrong rook  *
+*           pawn endings were winnable if both kings were very close to the   *
+*           queening square, even with the wrong bishop.                      *
+*                                                                             *
 *******************************************************************************
 */
 int main(int argc, char **argv) {

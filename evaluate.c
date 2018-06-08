@@ -1350,6 +1350,7 @@ int EvaluateDraws(TREE *tree) {
         int bkd, wkd, pd;
         bkd=Distance(BlackKingSQ,A8);
         wkd=Distance(WhiteKingSQ,A8);
+        if (bkd <= 1) wkd++;
         pd=Distance(LastOne(WhitePawns&file_mask[FILEA]),A8);
         if (bkd<(wkd-wtm) && bkd<=(pd-wtm)) return(1);
         return(0);
@@ -1358,6 +1359,7 @@ int EvaluateDraws(TREE *tree) {
         int bkd, wkd, pd;
         bkd=Distance(BlackKingSQ,H8);
         wkd=Distance(WhiteKingSQ,H8);
+        if (bkd <= 1) wkd++;
         pd=Distance(LastOne(WhitePawns&file_mask[FILEH]),H8);
         if (bkd<(wkd-wtm) && bkd<=(pd-wtm)) return(1);
         return(0);
@@ -1394,6 +1396,7 @@ int EvaluateDraws(TREE *tree) {
         int bkd, wkd, pd;
         bkd=Distance(BlackKingSQ,A1);
         wkd=Distance(WhiteKingSQ,A1);
+        if (wkd <= 1) bkd++;
         pd=Distance(FirstOne(BlackPawns&file_mask[FILEA]),A1);
         if (wkd<(bkd+wtm) && wkd<=(pd+wtm)) return(1);
         return(0);
@@ -1402,6 +1405,7 @@ int EvaluateDraws(TREE *tree) {
         int bkd, wkd, pd;
         bkd=Distance(BlackKingSQ,H1);
         wkd=Distance(WhiteKingSQ,H1);
+        if (wkd <= 1) bkd++;
         pd=Distance(FirstOne(BlackPawns&file_mask[FILEH]),H1);
         if (wkd<(bkd+wtm) && wkd<=(pd+wtm)) return(1);
         return(0);

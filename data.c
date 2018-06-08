@@ -246,7 +246,7 @@
   unsigned int   max_split_blocks;
   volatile unsigned int   splitting;
 
-# define    VERSION                             "18.4"
+# define    VERSION                             "18.5"
   char      version[6] =                    {VERSION};
   PLAYING_MODE mode =                     normal_mode;
 
@@ -490,7 +490,7 @@
   const int passed_pawn_value[8] ={ 0, 8, 16, 32, 60, 120, 160, 0};
   const char blockading_passed_pawn_value[8] = { 0, 8, 12, 16, 30, 45, 60, 0};
 
-  const char isolated_pawn_value[9] = {0, 10, 20, 40, 60, 80, 90, 100, 110};
+  const char isolated_pawn_value[9] = {0, 12, 24, 56, 66, 80, 90, 100, 110};
   const char isolated_pawn_of_value[9] = {0, 5, 10, 15, 20, 25, 30, 35, 40};
 
   const char doubled_pawn_value[7] ={ 0,
