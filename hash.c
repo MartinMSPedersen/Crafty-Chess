@@ -5,341 +5,362 @@
 
 /* last modified 01/18/03 */
 /*
-********************************************************************************
-*                                                                              *
-*   HashProbe() is used to retrieve entries from the transposition table so    *
-*   this sub-tree won't have to be searched again if we reach a position that  *
-*   has been searched previously.  a transposition table position contains the *
-*   following data packed into 128 bits with each item taking the number of    *
-*   bits given in the table below:                                             *
-*                                                                              *
-*     bits     name  SL  description                                           *
-*       3       age  61  search id to identify old trans/ref entries.          *
-*       2      type  59  0->value is worthless; 1-> value represents a fail-   *
-*                        low bound; 2-> value represents a fail-high bound;    *
-*                        3-> value is an exact score.                          *
-*       1    threat  58  threat extension flag, 1 -> extend this position.     *
-*       5    unused  53  unused at present time.                               *
-*      21      move  32  best move from the current position, according to the *
-*                        search at the time this position was stored.          *
-*      15     draft  17  the depth of the search below this position, which is *
-*                        used to see if we can use this entry at the current   *
-*                        position.  note that this is in units of 1/60th of a  *
-*                        ply.                                                  *
-*      17     value   0  unsigned integer value of this position + 65536.      *
-*                        this might be a good score or search bound.           *
-*                                                                              *
-*      64       key   0  64 bit hash signature, used to verify that this entry *
-*                        goes with the current board position.                 *
-*                                                                              *
-********************************************************************************
-*/
+ *******************************************************************************
+ *                                                                             *
+ *   HashProbe() is used to retrieve entries from the transposition table so   *
+ *   this sub-tree won't have to be searched again if we reach a position that *
+ *   has been searched previously.  a transposition table position contains the*
+ *   following data packed into 128 bits with each item taking the number of   *
+ *   bits given in the table below:                                            *
+ *                                                                             *
+ *     bits     name  SL  description                                          *
+ *       3       age  61  search id to identify old trans/ref entries.         *
+ *       2      type  59  0->value is worthless; 1-> value represents a fail-  *
+ *                        low bound; 2-> value represents a fail-high bound;   *
+ *                        3-> value is an exact score.                         *
+ *       1    threat  58  threat extension flag, 1 -> extend this position.    *
+ *       5    unused  53  unused at present time.                              *
+ *      21      move  32  best move from the current position, according to the*
+ *                        search at the time this position was stored.         *
+ *      15     draft  17  the depth of the search below this position, which is*
+ *                        used to see if we can use this entry at the current  *
+ *                        position.  note that this is in units of 1/60th of a *
+ *                        ply.                                                 *
+ *      17     value   0  unsigned integer value of this position + 65536.     *
+ *                        this might be a good score or search bound.          *
+ *                                                                             *
+ *      64       key   0  64 bit hash signature, used to verify that this entry*
+ *                        goes with the current board position.                *
+ *                                                                             *
+ *******************************************************************************
+ */
 int HashProbe(TREE * RESTRICT tree, int ply, int depth, int wtm, int *alpha,
-           int *beta, int *threat) {
+    int *beta, int *threat)
+{
   register BITBOARD word1, word2;
-  register int type, draft, avoid_null=0, val, pieces, null_depth, hwhich;
+  register int type, draft, avoid_null = 0, val, pieces, null_depth, hwhich;
   register unsigned int word1l, word1r;
   BITBOARD temp_hashkey;
   HASH_ENTRY *htable;
+
 #if !defined(FAST)
-  int local_hits=0, local_good_hits=0;
+  int local_hits = 0, local_good_hits = 0;
 #endif
 /*
- ----------------------------------------------------------
-|                                                          |
-|   first, compute the initial hash address and choose     |
-|   which hash table (based on color) to probe.            |
-|                                                          |
- ----------------------------------------------------------
-*/
-  tree->hash_move[ply]=0;
+ ************************************************************
+ *                                                          *
+ *   first, compute the initial hash address and choose     *
+ *   which hash table (based on color) to probe.            *
+ *                                                          *
+ ************************************************************
+ */
+  tree->hash_move[ply] = 0;
 #if !defined(FAST)
   tree->transposition_probes++;
 #endif
 /*
- ----------------------------------------------------------
-|                                                          |
-|   now, check both "parts" of the hash table to see if    |
-|   this position is in either one.                        |
-|                                                          |
- ----------------------------------------------------------
-*/
-  pieces=(wtm) ? TotalWhitePieces : TotalBlackPieces;
-  null_depth=(depth>6*INCPLY && pieces>8) ? null_max : null_min;
-  temp_hashkey=(wtm) ? HashKey : ~HashKey;
-  htable=trans_ref+((int) temp_hashkey&hash_mask);
-  word1=htable->prefer.word1;
-  word2=word1^htable->prefer.word2;
-  if (word2 == temp_hashkey) do {
+ ************************************************************
+ *                                                          *
+ *   now, check both "parts" of the hash table to see if    *
+ *   this position is in either one.                        *
+ *                                                          *
+ ************************************************************
+ */
+  pieces = (wtm) ? TotalWhitePieces : TotalBlackPieces;
+  null_depth = (depth > 6 * INCPLY && pieces > 8) ? null_max : null_min;
+  temp_hashkey = (wtm) ? HashKey : ~HashKey;
+  htable = trans_ref + ((int) temp_hashkey & hash_mask);
+  word1 = htable->prefer.word1;
+  word2 = word1 ^ htable->prefer.word2;
+  if (word2 == temp_hashkey)
+    do {
 #if !defined(FAST)
-    local_hits++;
+      local_hits++;
 #endif
-    word1l=word1>>32;
-    word1r=word1;
-    val=(word1r & 0377777)-65536;
-    draft=word1r>>17;
-    tree->hash_move[ply]=word1l & 07777777;
-    *threat=(word1l>>26) & 01;
-    type=(word1l>>27) & 03;
-    if ((type & UPPER) &&
-        depth-null_depth <= draft &&
-        val < *beta) avoid_null=AVOID_NULL_MOVE;
-    if (depth > draft) break;
-    if (abs(val) > MATE-300) {
-      if (val > 0) val-=(ply-1);
-      else val+=(ply-1);
-    }
+      word1l = word1 >> 32;
+      word1r = word1;
+      val = (word1r & 0377777) - 65536;
+      draft = word1r >> 17;
+      tree->hash_move[ply] = word1l & 07777777;
+      *threat = (word1l >> 26) & 01;
+      type = (word1l >> 27) & 03;
+      if ((type & UPPER) && depth - null_depth <= draft && val < *beta)
+        avoid_null = AVOID_NULL_MOVE;
+      if (depth > draft)
+        break;
+      if (abs(val) > MATE - 300) {
+        if (val > 0)
+          val -= (ply - 1);
+        else
+          val += (ply - 1);
+      }
 #if !defined(FAST)
-    local_good_hits++;
+      local_good_hits++;
 #endif
 
-    switch (type) {
+      switch (type) {
       case EXACT:
-        *alpha=val;
+        *alpha = val;
 #if !defined(FAST)
         tree->transposition_hits++;
         tree->transposition_good_hits++;
         tree->transposition_exacts++;
 #endif
-        if (draft != MAX_DRAFT) return(EXACT);
-        else return(EXACTEGTB);
+        if (draft != MAX_DRAFT)
+          return (EXACT);
+        else
+          return (EXACTEGTB);
       case UPPER:
         if (val <= *alpha) {
-          *alpha=val;
+          *alpha = val;
 #if !defined(FAST)
           tree->transposition_hits++;
           tree->transposition_good_hits++;
           tree->transposition_uppers++;
 #endif
-          return(UPPER);
+          return (UPPER);
         }
         break;
       case LOWER:
         if (val >= *beta) {
-          *beta=val;
+          *beta = val;
 #if !defined(FAST)
           tree->transposition_hits++;
           tree->transposition_lowers++;
           tree->transposition_good_hits++;
 #endif
-          return(LOWER);
+          return (LOWER);
         }
         break;
-    }
-  } while(0);
+      }
+    } while (0);
 
-  hwhich=((int)temp_hashkey>>log_hash)&1;
-  word1=htable->always[hwhich].word1;
-  word2=word1^htable->always[hwhich].word2;
+  hwhich = ((int) temp_hashkey >> log_hash) & 1;
+  word1 = htable->always[hwhich].word1;
+  word2 = word1 ^ htable->always[hwhich].word2;
   if (word2 == temp_hashkey) {
 #if !defined(FAST)
     local_hits++;
 #endif
-    word1l=word1>>32;
-    word1r=word1;
-    val=(word1r & 0377777)-65536;
-    draft=word1r>>17;
-    if (tree->hash_move[ply]==0) tree->hash_move[ply]=word1l & 07777777;
-    *threat=(word1l>>26) & 01;
-    type=(word1l>>27) & 03;
-    if ((type & UPPER) &&
-        depth-null_depth <= draft &&
-        val < *beta) avoid_null=AVOID_NULL_MOVE;
-    if (depth > draft) return(avoid_null);
-    if (abs(val) > MATE-300) {
-      if (val > 0) val-=(ply-1);
-      else val+=(ply-1);
+    word1l = word1 >> 32;
+    word1r = word1;
+    val = (word1r & 0377777) - 65536;
+    draft = word1r >> 17;
+    if (tree->hash_move[ply] == 0)
+      tree->hash_move[ply] = word1l & 07777777;
+    *threat = (word1l >> 26) & 01;
+    type = (word1l >> 27) & 03;
+    if ((type & UPPER) && depth - null_depth <= draft && val < *beta)
+      avoid_null = AVOID_NULL_MOVE;
+    if (depth > draft)
+      return (avoid_null);
+    if (abs(val) > MATE - 300) {
+      if (val > 0)
+        val -= (ply - 1);
+      else
+        val += (ply - 1);
     }
 #if !defined(FAST)
     local_good_hits++;
 #endif
 
     switch (type) {
-      case EXACT:
-        *alpha=val;
+    case EXACT:
+      *alpha = val;
+#if !defined(FAST)
+      tree->transposition_hits++;
+      tree->transposition_good_hits++;
+      tree->transposition_exacts++;
+#endif
+      if (draft != MAX_DRAFT)
+        return (EXACT);
+      else
+        return (EXACTEGTB);
+    case UPPER:
+      if (val <= *alpha) {
+        *alpha = val;
 #if !defined(FAST)
         tree->transposition_hits++;
         tree->transposition_good_hits++;
-        tree->transposition_exacts++;
+        tree->transposition_uppers++;
 #endif
-        if (draft != MAX_DRAFT) return(EXACT);
-        else return(EXACTEGTB);
-      case UPPER:
-        if (val <= *alpha) {
-          *alpha=val;
+        return (UPPER);
+      }
 #if !defined(FAST)
-          tree->transposition_hits++;
-          tree->transposition_good_hits++;
-          tree->transposition_uppers++;
+      tree->transposition_hits++;
+      tree->transposition_good_hits++;
 #endif
-          return(UPPER);
-        }
+      return (avoid_null);
+    case LOWER:
+      if (val >= *beta) {
+        *beta = val;
 #if !defined(FAST)
         tree->transposition_hits++;
         tree->transposition_good_hits++;
+        tree->transposition_lowers++;
 #endif
-        return(avoid_null);
-      case LOWER:
-        if (val >= *beta) {
-          *beta=val;
-#if !defined(FAST)
-          tree->transposition_hits++;
-          tree->transposition_good_hits++;
-          tree->transposition_lowers++;
-#endif
-          return(LOWER);
-        }
-        tree->transposition_hits++;
-        tree->transposition_good_hits++;
-        return(avoid_null);
+        return (LOWER);
+      }
+      tree->transposition_hits++;
+      tree->transposition_good_hits++;
+      return (avoid_null);
     }
   }
 #if !defined(FAST)
-  if (local_hits) tree->transposition_hits++;
-  if (local_good_hits) tree->transposition_good_hits++;
+  if (local_hits)
+    tree->transposition_hits++;
+  if (local_good_hits)
+    tree->transposition_good_hits++;
 #endif
-  return(avoid_null);
+  return (avoid_null);
 }
 
 /* last modified 01/18/03 */
 /*
-********************************************************************************
-*                                                                              *
-*   HashStore() is used to store entries into the transposition table so that  *
-*   this sub-tree won't have to be searched again if the same position is      *
-*   reached.  a transposition/refutation table position contains the following *
-*   data packed into 128 bits, with each item taking the number of bits given  *
-*   in the table below.                                                        *
-*                                                                              *
-*     bits     name  SL  description                                           *
-*       3       age  61  search id to identify old trans/ref entried.          *
-*       2      type  59  0->value is worthless; 1-> value represents a fail-   *
-*                        low bound; 2-> value represents a fail-high bound;    *
-*                        3-> value is an exact score.                          *
-*       1    threat  58  threat extension flag, 1 -> extend this position.     *
-*       5    unused  53  unused at present time.                               *
-*      21      move  32  best move from the current position, according to the *
-*                        search at the time this position was stored.          *
-*      15     draft  17  the depth of the search below this position, which is *
-*                        used to see if we can use this entry at the current   *
-*                        position.  note that this is in units of 1/60th of a  *
-*                        ply.                                                  *
-*      17     value   0  unsigned integer value of this position + 65536.      *
-*                        this might be a good score or search bound.           *
-*                                                                              *
-*      64       key   0  64 bit hash signature, used to verify that this entry *
-*                        goes with the current board position.                 *
-*                                                                              *
-********************************************************************************
-*/
+ *******************************************************************************
+ *                                                                             *
+ *   HashStore() is used to store entries into the transposition table so that *
+ *   this sub-tree won't have to be searched again if the same position is     *
+ *   reached.  a transposition/refutation table position contains the following*
+ *   data packed into 128 bits, with each item taking the number of bits given *
+ *   in the table below.                                                       *
+ *                                                                             *
+ *     bits     name  SL  description                                          *
+ *       3       age  61  search id to identify old trans/ref entried.         *
+ *       2      type  59  0->value is worthless; 1-> value represents a fail-  *
+ *                        low bound; 2-> value represents a fail-high bound;   *
+ *                        3-> value is an exact score.                         *
+ *       1    threat  58  threat extension flag, 1 -> extend this position.    *
+ *       5    unused  53  unused at present time.                              *
+ *      21      move  32  best move from the current position, according to the*
+ *                        search at the time this position was stored.         *
+ *      15     draft  17  the depth of the search below this position, which is*
+ *                        used to see if we can use this entry at the current  *
+ *                        position.  note that this is in units of 1/60th of a *
+ *                        ply.                                                 *
+ *      17     value   0  unsigned integer value of this position + 65536.     *
+ *                        this might be a good score or search bound.          *
+ *                                                                             *
+ *      64       key   0  64 bit hash signature, used to verify that this entry*
+ *                        goes with the current board position.                *
+ *                                                                             *
+ *******************************************************************************
+ */
 void HashStore(TREE * RESTRICT tree, int ply, int depth, int wtm, int type,
-               int value, int threat) {
+    int value, int threat)
+{
   register BITBOARD word1, word2;
   register HASH_ENTRY *htable;
   register int draft, age, hwhich;
   register unsigned int word1l, word1r;
+
 /*
- ----------------------------------------------------------
-|                                                          |
-|   "fill in the blank" and build a table entry from       |
-|   current search information.                            |
-|                                                          |
- ----------------------------------------------------------
-*/
-  word1l=((((transposition_id<<2)+type)<<1)+threat)<<26;
-  if (value > MATE-300) value=value+ply-1;
-  else if (value < -MATE+300) value=value-ply+1;
+ ************************************************************
+ *                                                          *
+ *   "fill in the blank" and build a table entry from       *
+ *   current search information.                            *
+ *                                                          *
+ ************************************************************
+ */
+  word1l = ((((transposition_id << 2) + type) << 1) + threat) << 26;
+  if (value > MATE - 300)
+    value = value + ply - 1;
+  else if (value < -MATE + 300)
+    value = value - ply + 1;
   if (type == EXACT) {
-    if ((int) tree->pv[ply].pathl >= ply) 
-      word1l|=tree->pv[ply].path[ply];
+    if ((int) tree->pv[ply].pathl >= ply)
+      word1l |= tree->pv[ply].path[ply];
+  } else if (type == LOWER) {
+    word1l |= tree->current_move[ply];
   }
-  else if (type == LOWER) {
-    word1l|=tree->current_move[ply];
-  }
-  word1r=(depth<<17)+value+65536;
-  word1=word1r+((BITBOARD)word1l<<32);
-  word2=(wtm) ? HashKey : ~HashKey;
+  word1r = (depth << 17) + value + 65536;
+  word1 = word1r + ((BITBOARD) word1l << 32);
+  word2 = (wtm) ? HashKey : ~HashKey;
 /*
- ----------------------------------------------------------
-|                                                          |
-|   if the draft of this entry is greater than the draft   |
-|   of the entry in the "depth-priority" table, or if the  |
-|   entry in the depth-priority table is from an old       |
-|   search, move that entry to the always-store table and  |
-|   then replace the depth-priority table entry by the new |
-|   hash result.                                           |
-|                                                          |
- ----------------------------------------------------------
-*/
-  htable=trans_ref+((int) word2&hash_mask);
-  draft=(int) htable->prefer.word1>>17 & 077777;
-  age=htable->prefer.word1>>61;
-  age=age && (age!=transposition_id);
+ ************************************************************
+ *                                                          *
+ *   if the draft of this entry is greater than the draft   *
+ *   of the entry in the "depth-priority" table, or if the  *
+ *   entry in the depth-priority table is from an old       *
+ *   search, move that entry to the always-store table and  *
+ *   then replace the depth-priority table entry by the new *
+ *   hash result.                                           *
+ *                                                          *
+ ************************************************************
+ */
+  htable = trans_ref + ((int) word2 & hash_mask);
+  draft = (int) htable->prefer.word1 >> 17 & 077777;
+  age = htable->prefer.word1 >> 61;
+  age = age && (age != transposition_id);
   if (age || (depth >= draft)) {
-    if ((word1^word2) != htable->prefer.word2) {
-      hwhich=((int)(htable->prefer.word2^htable->prefer.word1)>>log_hash)&1;
-      htable->always[hwhich].word1=htable->prefer.word1;
-      htable->always[hwhich].word2=htable->prefer.word2;
+    if ((word1 ^ word2) != htable->prefer.word2) {
+      hwhich =
+          ((int) (htable->prefer.word2 ^ htable->prefer.word1) >> log_hash) & 1;
+      htable->always[hwhich].word1 = htable->prefer.word1;
+      htable->always[hwhich].word2 = htable->prefer.word2;
     }
-    htable->prefer.word1=word1;
-    htable->prefer.word2=word1^word2;
-  }
-  else {
-    hwhich=((int) word2>>log_hash)&1;
-    htable->always[hwhich].word1=word1;
-    htable->always[hwhich].word2=word1^word2;
+    htable->prefer.word1 = word1;
+    htable->prefer.word2 = word1 ^ word2;
+  } else {
+    hwhich = ((int) word2 >> log_hash) & 1;
+    htable->always[hwhich].word1 = word1;
+    htable->always[hwhich].word2 = word1 ^ word2;
   }
 }
 
 /* last modified 12/16/02 */
 /*
-********************************************************************************
-*                                                                              *
-*   HashStorePV() is called by Iterate() to insert the PV moves so they will   *
-*   be searched before any other moves.                                        *
-*                                                                              *
-********************************************************************************
-*/
-void HashStorePV(TREE * RESTRICT tree, int ply, int wtm) {
+ *******************************************************************************
+ *                                                                             *
+ *   HashStorePV() is called by Iterate() to insert the PV moves so they will  *
+ *   be searched before any other moves.                                       *
+ *                                                                             *
+ *******************************************************************************
+ */
+void HashStorePV(TREE * RESTRICT tree, int ply, int wtm)
+{
   register int hwhich;
   register HASH_ENTRY *htable;
   register BITBOARD temp_hashkey;
+
 /*
- ----------------------------------------------------------
-|                                                          |
-|   first, compute the initial hash address and choose     |
-|   which hash table (based on color) to probe.            |
-|                                                          |
- ----------------------------------------------------------
-*/
-  temp_hashkey=(wtm) ? HashKey : ~HashKey;
-  htable=trans_ref+((int) temp_hashkey&hash_mask);
-  hwhich=((int)temp_hashkey>>log_hash)&1;
+ ************************************************************
+ *                                                          *
+ *   first, compute the initial hash address and choose     *
+ *   which hash table (based on color) to probe.            *
+ *                                                          *
+ ************************************************************
+ */
+  temp_hashkey = (wtm) ? HashKey : ~HashKey;
+  htable = trans_ref + ((int) temp_hashkey & hash_mask);
+  hwhich = ((int) temp_hashkey >> log_hash) & 1;
 /*
- ----------------------------------------------------------
-|                                                          |
-|   now "fill in the blank" and build a table entry from   |
-|   current search information.                            |
-|                                                          |
- ----------------------------------------------------------
-*/
-  if ((htable->prefer.word2^htable->prefer.word1) == temp_hashkey &&
-      (htable->prefer.word1>>61)) {
-    htable->prefer.word2=htable->prefer.word2^htable->prefer.word1;
-    htable->prefer.word1&=~((BITBOARD) 07777777<<32);
-    htable->prefer.word1|=(BITBOARD) tree->pv[ply].path[ply]<<32;
-    htable->prefer.word2=htable->prefer.word2^htable->prefer.word1;
-  }
-  else if ((htable->always[hwhich].word2^htable->always[hwhich].word1) == temp_hashkey) {
-    htable->always[hwhich].word2=htable->always[hwhich].word2^htable->always[hwhich].word1;
-    htable->always[hwhich].word1&=~((BITBOARD) 07777777<<32);
-    htable->always[hwhich].word1|=(BITBOARD) tree->pv[ply].path[ply]<<32;
-    htable->always[hwhich].word2=htable->always[hwhich].word2^htable->always[hwhich].word1;
-  }
-  else {
-    htable->always[hwhich].word1=(BITBOARD) 65536;
-    htable->always[hwhich].word1|=((BITBOARD) ((transposition_id<<2)+WORTHLESS))<<59;
-    htable->always[hwhich].word1|=(BITBOARD) tree->pv[ply].path[ply]<<32;
-    htable->always[hwhich].word2=temp_hashkey^htable->always[hwhich].word1;
+ ************************************************************
+ *                                                          *
+ *   now "fill in the blank" and build a table entry from   *
+ *   current search information.                            *
+ *                                                          *
+ ************************************************************
+ */
+  if ((htable->prefer.word2 ^ htable->prefer.word1) == temp_hashkey &&
+      (htable->prefer.word1 >> 61)) {
+    htable->prefer.word2 = htable->prefer.word2 ^ htable->prefer.word1;
+    htable->prefer.word1 &= ~((BITBOARD) 07777777 << 32);
+    htable->prefer.word1 |= (BITBOARD) tree->pv[ply].path[ply] << 32;
+    htable->prefer.word2 = htable->prefer.word2 ^ htable->prefer.word1;
+  } else if ((htable->always[hwhich].word2 ^ htable->always[hwhich].word1) ==
+      temp_hashkey) {
+    htable->always[hwhich].word2 =
+        htable->always[hwhich].word2 ^ htable->always[hwhich].word1;
+    htable->always[hwhich].word1 &= ~((BITBOARD) 07777777 << 32);
+    htable->always[hwhich].word1 |= (BITBOARD) tree->pv[ply].path[ply] << 32;
+    htable->always[hwhich].word2 =
+        htable->always[hwhich].word2 ^ htable->always[hwhich].word1;
+  } else {
+    htable->always[hwhich].word1 = (BITBOARD) 65536;
+    htable->always[hwhich].word1 |=
+        ((BITBOARD) ((transposition_id << 2) + WORTHLESS)) << 59;
+    htable->always[hwhich].word1 |= (BITBOARD) tree->pv[ply].path[ply] << 32;
+    htable->always[hwhich].word2 = temp_hashkey ^ htable->always[hwhich].word1;
   }
 }

@@ -1,50 +1,43 @@
 /*
-********************************************************************************
-*                                                                              *
-*   configuration information:  the following variables need to be set to      *
-*   indicate the machine configuration/capabilities.                           *
-*                                                                              *
-*   HAS_64BITS:  define this for a machine that has true 64-bit hardware       *
-*   including leading-zero hardware, population count, etc.  ie, a Cray-like   *
-*   machine.                                                                   *
-*                                                                              *
-*   HAS_LONGLONG:  define this for a 32-bit machine with a compiler that       *
-*   supports the long long (64-bit) integer data and allows bitwise operations *
-*   on this data type.  this provides significantly faster execution time as   *
-*   the bitwise operators are done by the compiler rather than by procedure    *
-*   calls.                                                                     *
-*                                                                              *
-*   UNIX:  define this if the program is being run on a unix-based system,     *
-*   which causes the executable to use unix-specific runtime utilities.        *
-*                                                                              *
-*   SMP:  this enables the symmetric multiprocessing code that allows Crafty   *
-*   to spawn threads and execute a parallel search.  Note that if this is set, *
-*   then the next variable must be defined as well.                            *
-*                                                                              *
-*   CPUS=N:  this sets up data structures to the appropriate size to support   *
-*   up to N simultaneous search engines.  note that you can set this to a      *
-*   value larger than the max processors you currently have, because the mt=n  *
-*   command (added to the command line or your crafty.rc/.craftyrc file) will  *
-*   control how many threads are actually spawned.                             *
-*                                                                              *
-********************************************************************************
-*/
+ *******************************************************************************
+ *                                                                             *
+ *   configuration information:  the following variables need to be set to     *
+ *   indicate the machine configuration/capabilities.                          *
+ *                                                                             *
+ *   HAS_64BITS:  define this for a machine that has true 64-bit hardware      *
+ *   including leading-zero hardware, population count, etc.  ie, a Cray-like  *
+ *   machine.                                                                  *
+ *                                                                             *
+ *   HAS_LONGLONG:  define this for a 32-bit machine with a compiler that      *
+ *   supports the long long (64-bit) integer data and allows bitwise operations*
+ *   on this data type.  this provides significantly faster execution time as  *
+ *   the bitwise operators are done by the compiler rather than by procedure   *
+ *   calls.                                                                    *
+ *                                                                             *
+ *   UNIX:  define this if the program is being run on a unix-based system,    *
+ *   which causes the executable to use unix-specific runtime utilities.       *
+ *                                                                             *
+ *   SMP:  this enables the symmetric multiprocessing code that allows Crafty  *
+ *   to spawn threads and execute a parallel search.  Note that if this is set,*
+ *   then the next variable must be defined as well.                           *
+ *                                                                             *
+ *   CPUS=N:  this sets up data structures to the appropriate size to support  *
+ *   up to N simultaneous search engines.  note that you can set this to a     *
+ *   value larger than the max processors you currently have, because the mt=n *
+ *   command (added to the command line or your crafty.rc/.craftyrc file) will *
+ *   control how many threads are actually spawned.                            *
+ *                                                                             *
+ *******************************************************************************
+ */
 #if !defined(TYPES_INCLUDED)
-
-#if defined(AMD_INLINE)
-#  include "inlineasm.h"
-#endif
-
 #if defined (_MSC_VER) && (_MSC_VER >= 1300) && (!defined(_M_IX86) || (_MSC_VER >= 1400))
 #  define RESTRICT __restrict
 #else
 #  define RESTRICT
 #endif
-
 #if !defined(CPUS)
 #  define CPUS 1
 #endif
-
 #if defined(SMP)
 #  if defined(NT_i386)
 #    include <windows.h>
@@ -53,146 +46,111 @@
 #    include <pthread.h>
 #  endif
 #endif
-
 #define TYPES_INCLUDED
-
 #define CDECL
 #define STDCALL
-
 /* Provide reasonable defaults for UNIX systems. */
-#undef  HAS_64BITS             /* machine has 64-bit integers / operators     */
-#define HAS_LONGLONG           /* machine has 32-bit/64-bit integers          */
-#define UNIX                   /* system is unix-based                        */
-
+#undef  HAS_64BITS      /* machine has 64-bit integers / operators    */
+#define HAS_LONGLONG    /* machine has 32-bit/64-bit integers         */
+#define UNIX            /* system is unix-based                       */
 /* Architecture-specific definitions */
 #if defined(AIX)
-#  undef  HAS_64BITS           /* machine has 64-bit integers / operators     */
-#  define HAS_LONGLONG         /* machine has 32-bit/64-bit integers          */
-#  define UNIX                 /* system is unix-based                        */
+#  undef  HAS_64BITS    /* machine has 64-bit integers / operators    */
+#  define HAS_LONGLONG  /* machine has 32-bit/64-bit integers         */
+#  define UNIX          /* system is unix-based                       */
 #endif
 #if defined(ALPHA)
-#  define HAS_64BITS           /* machine has 64-bit integers / operators     */
-#  undef  HAS_LONGLONG         /* machine has 32-bit/64-bit integers          */
-#  define UNIX                 /* system is unix-based                        */
+#  define HAS_64BITS    /* machine has 64-bit integers / operators    */
+#  undef  HAS_LONGLONG  /* machine has 32-bit/64-bit integers         */
+#  define UNIX          /* system is unix-based                       */
 #endif
 #if defined(AMIGA)
-#  undef  HAS_64BITS           /* machine has 64-bit integers / operators     */
-#  define HAS_LONGLONG         /* machine has 32-bit/64-bit integers          */
-#  undef  UNIX                 /* system is unix-based                        */
+#  undef  HAS_64BITS    /* machine has 64-bit integers / operators    */
+#  define HAS_LONGLONG  /* machine has 32-bit/64-bit integers         */
+#  undef  UNIX          /* system is unix-based                       */
 #endif
 #if defined(FreeBSD)
-#  undef  HAS_64BITS           /* machine has 64-bit integers / operators     */
-#  define HAS_LONGLONG         /* machine has 32-bit/64-bit integers          */
-#  define UNIX                 /* system is unix-based                        */
+#  undef  HAS_64BITS    /* machine has 64-bit integers / operators    */
+#  define HAS_LONGLONG  /* machine has 32-bit/64-bit integers         */
+#  define UNIX          /* system is unix-based                       */
 #endif
 #if defined(HP)
-#  undef  HAS_64BITS           /* machine has 64-bit integers / operators     */
-#  define HAS_LONGLONG         /* machine has 32-bit/64-bit integers          */
-#  define UNIX                 /* system is unix-based                        */
+#  undef  HAS_64BITS    /* machine has 64-bit integers / operators    */
+#  define HAS_LONGLONG  /* machine has 32-bit/64-bit integers         */
+#  define UNIX          /* system is unix-based                       */
 #endif
 #if defined(LINUX)
-#  undef  HAS_64BITS           /* machine has 64-bit integers / operators     */
-#  define HAS_LONGLONG         /* machine has 32-bit/64-bit integers          */
-#  define UNIX                 /* system is unix-based                        */
+#  undef  HAS_64BITS    /* machine has 64-bit integers / operators    */
+#  define HAS_LONGLONG  /* machine has 32-bit/64-bit integers         */
+#  define UNIX          /* system is unix-based                       */
 #endif
 #if defined(MIPS)
-#  undef  HAS_64BITS           /* machine has 64-bit integers / operators     */
-#  define HAS_LONGLONG         /* machine has 32-bit/64-bit integers          */
-#  define UNIX                 /* system is unix-based                        */
+#  undef  HAS_64BITS    /* machine has 64-bit integers / operators    */
+#  define HAS_LONGLONG  /* machine has 32-bit/64-bit integers         */
+#  define UNIX          /* system is unix-based                       */
 #endif
 #if defined(NetBSD)
 #  if defined(__alpha__)
-#    define HAS_64BITS         /* machine has 64-bit integers / operators     */
-#    undef  HAS_LONGLONG       /* machine has 32-bit/64-bit integers          */
-#    define UNIX               /* system is unix-based                        */
+#    define HAS_64BITS   /* machine has 64-bit integers / operators   */
+#    undef  HAS_LONGLONG /* machine has 32-bit/64-bit integers        */
+#    define UNIX         /* system is unix-based                      */
 #  else
-#    undef  HAS_64BITS         /* machine has 64-bit integers / operators     */
-#    define HAS_LONGLONG       /* machine has 32-bit/64-bit integers          */
-#    define UNIX               /* system is unix-based                        */
+#    undef  HAS_64BITS   /* machine has 64-bit integers / operators   */
+#    define HAS_LONGLONG /* machine has 32-bit/64-bit integers        */
+#    define UNIX         /* system is unix-based                      */
 #  endif
 #endif
 #if defined(NEXT)
-#  undef  HAS_64BITS          /* machine has 64-bit integers / operators     */
-#  define HAS_LONGLONG        /* machine has 32-bit/64-bit integers          */
-#  define UNIX                /* system is unix-based                        */
+#  undef  HAS_64BITS    /* machine has 64-bit integers / operators    */
+#  define HAS_LONGLONG  /* machine has 32-bit/64-bit integers         */
+#  define UNIX          /* system is unix-based                       */
 #endif
 #if defined(NT_i386)
-#  undef  HAS_64BITS           /* machine has 64-bit integers / operators     */
-#  define HAS_LONGLONG         /* machine has 32-bit/64-bit integers          */
-#  undef  UNIX                 /* system is unix-based                        */
+#  undef  HAS_64BITS    /* machine has 64-bit integers / operators    */
+#  define HAS_LONGLONG  /* machine has 32-bit/64-bit integers         */
+#  undef  UNIX          /* system is unix-based                       */
 #  undef  STDCALL
 #  define STDCALL __stdcall
 #  ifdef  VC_INLINE_ASM
 #    undef  CDECL
 #    define CDECL __cdecl
-#    define COMPACT_ATTACKS
-#    define USE_ATTACK_FUNCTIONS
-#    define USE_ASSEMBLY_A
-#    define USE_ASSEMBLY_B
 #  endif
 #endif
 #if defined(OS2)
-#  undef  HAS_64BITS           /* machine has 64-bit integers / operators     */
-#  define HAS_LONGLONG         /* machine has 32-bit/64-bit integers          */
-#  define UNIX                 /* system is unix-based                        */
+#  undef  HAS_64BITS    /* machine has 64-bit integers / operators    */
+#  define HAS_LONGLONG  /* machine has 32-bit/64-bit integers         */
+#  define UNIX          /* system is unix-based                       */
 #endif
 #if defined(SGI)
-#  undef  HAS_64BITS           /* machine has 64-bit integers / operators     */
-#  define HAS_LONGLONG         /* machine has 32-bit/64-bit integers          */
-#  define UNIX                 /* system is unix-based                        */
+#  undef  HAS_64BITS    /* machine has 64-bit integers / operators    */
+#  define HAS_LONGLONG  /* machine has 32-bit/64-bit integers         */
+#  define UNIX          /* system is unix-based                       */
 #endif
 #if defined(SUN)
-#  undef  HAS_64BITS           /* machine has 64-bit integers / operators     */
-#  define HAS_LONGLONG         /* machine has 32-bit/64-bit integers          */
-#  define UNIX                 /* system is unix-based                        */
+#  undef  HAS_64BITS    /* machine has 64-bit integers / operators    */
+#  define HAS_LONGLONG  /* machine has 32-bit/64-bit integers         */
+#  define UNIX          /* system is unix-based                       */
 #endif
-#if defined(__MWERKS__)
-#  define MACOS
+#if !defined(BOOKDIR)
+#  define     BOOKDIR        "."
 #endif
-#if defined(MACOS)
-#  undef  HAS_64BITS           /* machine has 64-bit integers / operators     */
-#  define HAS_LONGLONG         /* machine has 32-bit/64-bit integers          */
-#  undef  UNIX                 /* system is unix-based                        */
+#if !defined(LOGDIR)
+#  define      LOGDIR        "."
 #endif
-
-#if defined(MACOS)
-#  if !defined(BOOKDIR)
-#    define     BOOKDIR    "Books"
-#  endif
-#  if !defined(LOGDIR)
-#    define      LOGDIR     "Logs"
-#  endif
-#  if !defined(TBDIR)
-#    define       TBDIR       "TB"
-#  endif
-#  if !defined(RCDIR)
-#    define       RCDIR        "."
-#  endif
-#else
-#  if !defined(BOOKDIR)
-#    define     BOOKDIR        "."
-#  endif
-#  if !defined(LOGDIR)
-#    define      LOGDIR        "."
-#  endif
-#  if !defined(TBDIR)
-#    define       TBDIR     "./TB"
-#  endif
-#  if !defined(RCDIR)
-#    define       RCDIR        "."
-#  endif
+#if !defined(TBDIR)
+#  define       TBDIR     "./TB"
 #endif
-
+#if !defined(RCDIR)
+#  define       RCDIR        "."
+#endif
 #define     EGTB_CACHE_DEFAULT 1024*1024
 #define     MAXPLY             65
-#define     MAX_BLOCKS         16*CPUS
+#define     MAX_BLOCKS         8*CPUS*CPUS
 #define     MAX_TC_NODES       30000
-
 #if !defined(SMP) && !defined(SUN)
 #  define lock_t volatile int
 #endif
 #include "lock.h"
-
 #define      BOOK_CLUSTER_SIZE           2000
 #define            MERGE_BLOCK           1000
 #define             SORT_BLOCK        4000000
@@ -203,9 +161,7 @@
 #define     LEARN_COUNTER_GOOD           +100
 #define         CAP_SCORE_GOOD           +150
 #define          CAP_SCORE_BAD           -100
-
 #define INCPLY                   60
-
 #define MATE                  32768
 #define PAWN_VALUE              100
 #define KNIGHT_VALUE            300
@@ -215,15 +171,13 @@
 #define KING_VALUE            40000
 #define EG_MAT                   14
 #define MAX_DRAFT             32000
-  
 #if defined(HAS_64BITS)
-  typedef unsigned long BITBOARD;
+typedef unsigned long BITBOARD;
 #elif defined(NT_i386)
-  typedef unsigned __int64 BITBOARD;
+typedef unsigned __int64 BITBOARD;
 #else
-  typedef unsigned long long BITBOARD;
+typedef unsigned long long BITBOARD;
 #endif
-
 #if defined(NT_i386)
 #   define BMF   "%I64u"
 #   define BMF6  "%6I64u"
@@ -233,146 +187,128 @@
 #   define BMF6  "%6llu"
 #   define BMF10 "%10llu"
 #endif
-
 #include <time.h>
 #if !defined(CLOCKS_PER_SEC)
 #  define CLOCKS_PER_SEC 1000000
 #endif
-typedef enum { A1,B1,C1,D1,E1,F1,G1,H1,
-               A2,B2,C2,D2,E2,F2,G2,H2,
-               A3,B3,C3,D3,E3,F3,G3,H3,
-               A4,B4,C4,D4,E4,F4,G4,H4,
-               A5,B5,C5,D5,E5,F5,G5,H5,
-               A6,B6,C6,D6,E6,F6,G6,H6,
-               A7,B7,C7,D7,E7,F7,G7,H7,
-               A8,B8,C8,D8,E8,F8,G8,H8,
-               BAD_SQUARE } squares;
-
-typedef enum {FILEA, FILEB, FILEC, FILED, FILEE, FILEF, FILEG, FILEH} files;
-
-typedef enum {RANK1, RANK2, RANK3, RANK4, RANK5, RANK6, RANK7, RANK8} ranks;
-
-typedef enum {none=0, pawn=1, knight=2, king=3, 
-              bishop=5, rook=6, queen=7} PIECE;
-  
-typedef enum {empty_v=0, pawn_v=1, knight_v=3, 
-              bishop_v=3, rook_v=5, queen_v=9} PIECE_V;
-  
-typedef enum {no_extension=0, check_extension=1, recapture_extension=2,
-              passed_pawn_extension=4, one_reply_extension=8,
-              mate_extension=16} EXTENSIONS;
-  
-typedef enum {cpu, elapsed, microseconds} TIME_TYPE;
-
-typedef enum {think=1, puzzle=2, book=3, annotate=4} SEARCH_TYPE;
-
-typedef enum {normal_mode, tournament_mode} PLAYING_MODE;
-
-typedef enum {crafty, opponent} PLAYER;
-
-typedef enum {book_learning=1, position_learning=2,
-              result_learning=4} LEARNING_MODE;
-  
+typedef enum { A1, B1, C1, D1, E1, F1, G1, H1,
+  A2, B2, C2, D2, E2, F2, G2, H2,
+  A3, B3, C3, D3, E3, F3, G3, H3,
+  A4, B4, C4, D4, E4, F4, G4, H4,
+  A5, B5, C5, D5, E5, F5, G5, H5,
+  A6, B6, C6, D6, E6, F6, G6, H6,
+  A7, B7, C7, D7, E7, F7, G7, H7,
+  A8, B8, C8, D8, E8, F8, G8, H8,
+  BAD_SQUARE
+} squares;
+typedef enum { FILEA, FILEB, FILEC, FILED, FILEE, FILEF, FILEG, FILEH } files;
+typedef enum { RANK1, RANK2, RANK3, RANK4, RANK5, RANK6, RANK7, RANK8 } ranks;
+typedef enum { none = 0, pawn = 1, knight = 2, king = 3,
+  bishop = 5, rook = 6, queen = 7
+} PIECE;
+typedef enum { empty_v = 0, pawn_v = 1, knight_v = 3,
+  bishop_v = 3, rook_v = 5, queen_v = 9
+} PIECE_V;
+typedef enum { no_extension = 0, check_extension = 1, recapture_extension = 2,
+  passed_pawn_extension = 4, one_reply_extension = 8,
+  mate_extension = 16
+} EXTENSIONS;
+typedef enum { cpu, elapsed, microseconds } TIME_TYPE;
+typedef enum { think = 1, puzzle = 2, book = 3, annotate = 4 } SEARCH_TYPE;
+typedef enum { normal_mode, tournament_mode } PLAYING_MODE;
+typedef enum { crafty, opponent } PLAYER;
+typedef enum { book_learning = 1, position_learning = 2,
+  result_learning = 4
+} LEARNING_MODE;
 typedef struct {
   unsigned char enpassant_target;
-  signed   char w_castle;
-  signed   char b_castle;
+  signed char w_castle;
+  signed char b_castle;
   unsigned char rule_50_moves;
 } SEARCH_POSITION;
-  
 typedef struct {
-  int             move1;
-  int             move2;
+  int       move1;
+  int       move2;
 } KILLER;
-
-typedef  struct {
-  BITBOARD       w_occupied;
-  BITBOARD       b_occupied;
-  BITBOARD       occupied_rl90;
-  BITBOARD       occupied_rl45;
-  BITBOARD       occupied_rr45;
-  BITBOARD       rooks_queens;
-  BITBOARD       bishops_queens;
-  BITBOARD       w_pawn;
-  BITBOARD       w_knight;
-  BITBOARD       w_bishop;
-  BITBOARD       w_rook;
-  BITBOARD       w_queen;
-  BITBOARD       b_pawn;
-  BITBOARD       b_knight;
-  BITBOARD       b_bishop;
-  BITBOARD       b_rook;
-  BITBOARD       b_queen;
-  BITBOARD       hash_key;
-  BITBOARD       pawn_hash_key;
-  int            material_evaluation;
-  signed char    white_king;
-  signed char    black_king;
-  signed char    board[64];
-  signed char    white_pieces;
-  signed char    white_minors;
-  signed char    white_majors;
-  signed char    white_pawns;
-  signed char    black_pieces;
-  signed char    black_minors;
-  signed char    black_majors;
-  signed char    black_pawns;
-  signed char    total_pieces;
-} POSITION;
-  
 typedef struct {
-  BITBOARD word1;
-  BITBOARD word2;
+  BITBOARD  w_occupied;
+  BITBOARD  b_occupied;
+  BITBOARD  occupied_rl90;
+  BITBOARD  occupied_rl45;
+  BITBOARD  occupied_rr45;
+  BITBOARD  rooks_queens;
+  BITBOARD  bishops_queens;
+  BITBOARD  w_pawn;
+  BITBOARD  w_knight;
+  BITBOARD  w_bishop;
+  BITBOARD  w_rook;
+  BITBOARD  w_queen;
+  BITBOARD  b_pawn;
+  BITBOARD  b_knight;
+  BITBOARD  b_bishop;
+  BITBOARD  b_rook;
+  BITBOARD  b_queen;
+  BITBOARD  hash_key;
+  BITBOARD  pawn_hash_key;
+  int       material_evaluation;
+  signed char white_king;
+  signed char black_king;
+  signed char board[64];
+  signed char white_pieces;
+  signed char white_minors;
+  signed char white_majors;
+  signed char white_pawns;
+  signed char black_pieces;
+  signed char black_minors;
+  signed char black_majors;
+  signed char black_pawns;
+  signed char total_pieces;
+} POSITION;
+typedef struct {
+  BITBOARD  word1;
+  BITBOARD  word2;
 } TABLE_ENTRY;
-
 typedef struct {
   TABLE_ENTRY prefer;
   TABLE_ENTRY always[2];
 } HASH_ENTRY;
-
 typedef struct {
-  BITBOARD key;
-  short    p_score;
-
+  BITBOARD  key;
+  short     p_score;
   unsigned char allb;
   unsigned char black_defects_k;
   unsigned char black_defects_q;
   unsigned char passed_b;
   unsigned char candidates_b;
-
   unsigned char allw;
   unsigned char white_defects_k;
   unsigned char white_defects_q;
   unsigned char passed_w;
   unsigned char candidates_w;
-
   unsigned char protected;
   unsigned char outside;
   unsigned char open_files;
 } PAWN_HASH_ENTRY;
-
 typedef struct {
-  int path[MAXPLY];
+  int       path[MAXPLY];
   unsigned char pathh;
   unsigned char pathl;
   unsigned char pathd;
 } PATH;
-  
 typedef struct {
-  int phase;
-  int remaining;
-  int *last;
+  int       phase;
+  int       remaining;
+  int      *last;
 } NEXT_MOVE;
-  
 typedef struct {
-  BITBOARD nodes;
-  int move;
-/* 
-  xxxx xxx1 = failed low
-  xxxx xx1x = failed high
-  1xxx xxxx = done (searched)
-  x1xx xxxx = don't search in parallel
-*/
+  BITBOARD  nodes;
+  int       move;
+ /* 
+    xxxx xxx1 = failed low
+    xxxx xx1x = failed high
+    1xxx xxxx = done (searched)
+    x1xx xxxx = don't search in parallel
+  */
   unsigned char status;
 } ROOT_MOVE;
 
@@ -380,135 +316,97 @@ typedef struct {
 #pragma pack(4)
 #endif
 typedef struct {
-  BITBOARD position;
+  BITBOARD  position;
   unsigned int status_played;
-  float learn;
-  int CAP_score;
+  float     learn;
+  int       CAP_score;
 } BOOK_POSITION;
+
 #if defined(NT_i386)
 #pragma pack()
 #endif
-
 typedef struct {
   unsigned char position[8];
   unsigned char status;
   unsigned char percent_play;
 } BB_POSITION;
-
 struct tree {
-  POSITION        pos;
-  BITBOARD        save_hash_key[MAXPLY+2];
-  BITBOARD        rep_list[256];
-  BITBOARD        all_pawns;
-  BITBOARD        nodes_searched;
-  BITBOARD        save_pawn_hash_key[MAXPLY+2];
+  POSITION  pos;
+  BITBOARD  save_hash_key[MAXPLY + 2];
+  BITBOARD  rep_list[256];
+  BITBOARD  all_pawns;
+  BITBOARD  nodes_searched;
+  BITBOARD  save_pawn_hash_key[MAXPLY + 2];
   PAWN_HASH_ENTRY pawn_score;
-  SEARCH_POSITION position[MAXPLY+2];
-  NEXT_MOVE       next_status[MAXPLY];
-  PATH            pv[MAXPLY];
-  int             rep_game;
-  int             current_move[MAXPLY];
-  int             hash_move[MAXPLY];
-  int             *last[MAXPLY];
-  int             next_time_check;
-  unsigned int    fail_high;
-  unsigned int    fail_high_first;
-  unsigned int    evaluations;
-  unsigned int    transposition_probes;
-  unsigned int    transposition_hits;
-  unsigned int    transposition_good_hits;
-  unsigned int    transposition_uppers;
-  unsigned int    transposition_lowers;
-  unsigned int    transposition_exacts;
-  unsigned int    pawn_probes;
-  unsigned int    pawn_hits;
-  unsigned int    egtb_probes;
-  unsigned int    egtb_probes_successful;
-  unsigned int    check_extensions_done;
-  unsigned int    recapture_extensions_done;
-  unsigned int    passed_pawn_extensions_done;
-  unsigned int    one_reply_extensions_done;
-  unsigned int    mate_extensions_done;
-  KILLER          killers[MAXPLY];
-  unsigned int    history_w[4096], history_b[4096];
-  int             move_list[5120];
-  int             sort_value[256];
-  signed char     in_check[MAXPLY];
-  signed char     phase[MAXPLY];
-  int             search_value;
-  int             w_safety, b_safety;
-  int             w_kingsq, b_kingsq;
-  int             endgame;
-  int             root_move;
-  lock_t          lock;
-  int             thread_id;
-  volatile char   stop;
-  char            root_move_text[16];
-  char            remaining_moves_text[16];
-  struct tree     *volatile siblings[CPUS], *parent;
-  volatile int    nprocs;
-  int             alpha;
-  int             beta;
-  int             value;
-  int             wtm;
-  int             depth;
-  int             ply;
-  int             mate_threat;
-  int             lp_recapture;
-  volatile int    used;
+  SEARCH_POSITION position[MAXPLY + 2];
+  NEXT_MOVE next_status[MAXPLY];
+  PATH      pv[MAXPLY];
+  int       rep_game;
+  int       current_move[MAXPLY];
+  int       hash_move[MAXPLY];
+  int      *last[MAXPLY];
+  int       next_time_check;
+  unsigned int fail_high;
+  unsigned int fail_high_first;
+  unsigned int evaluations;
+  unsigned int transposition_probes;
+  unsigned int transposition_hits;
+  unsigned int transposition_good_hits;
+  unsigned int transposition_uppers;
+  unsigned int transposition_lowers;
+  unsigned int transposition_exacts;
+  unsigned int pawn_probes;
+  unsigned int pawn_hits;
+  unsigned int egtb_probes;
+  unsigned int egtb_probes_successful;
+  unsigned int check_extensions_done;
+  unsigned int recapture_extensions_done;
+  unsigned int passed_pawn_extensions_done;
+  unsigned int one_reply_extensions_done;
+  unsigned int mate_extensions_done;
+  KILLER    killers[MAXPLY];
+  unsigned int history_w[4096], history_b[4096];
+  int       move_list[5120];
+  int       sort_value[256];
+  signed char in_check[MAXPLY];
+  signed char phase[MAXPLY];
+  int       search_value;
+  int       w_safety, b_safety;
+  int       w_kingsq, b_kingsq;
+  int       endgame;
+  int       root_move;
+  lock_t    lock;
+  int       thread_id;
+  volatile char stop;
+  char      root_move_text[16];
+  char      remaining_moves_text[16];
+  struct tree *volatile siblings[CPUS], *parent;
+  volatile int nprocs;
+  int       alpha;
+  int       beta;
+  int       value;
+  int       wtm;
+  int       depth;
+  int       ply;
+  int       mate_threat;
+  int       lp_recapture;
+  int       s_move;
+  volatile int used;
 };
-  
 typedef struct tree TREE;
-
-#if defined(COMPACT_ATTACKS)
-#  define NDIAG_ATTACKS   296
-#  define NRANK_ATTACKS    70
-#  define NFILE_ATTACKS    70
-
-#  define NSHORT_MOBILITY  116
-
-#  define MAX_ATTACKS_FROM_SQUARE 12
-
-  struct at {
-    unsigned char which_attack[8][64];
-    BITBOARD      file_attack_bitboards[8][MAX_ATTACKS_FROM_SQUARE];
-    unsigned char rank_attack_bitboards[8][MAX_ATTACKS_FROM_SQUARE];
-    unsigned char length8_mobility[8][MAX_ATTACKS_FROM_SQUARE];
-    unsigned char short_mobility[NSHORT_MOBILITY];
-  };
-  typedef struct {
-/* Fields for the diagonal */
-    BITBOARD *d_attacks;
-    unsigned char *d_mobility;
-    unsigned char *d_which_attack;
-    unsigned char d_shift;
-    unsigned char d_mask;
-
-/* Fields for the anti diagonal */
-    unsigned char ad_shift;
-    unsigned char ad_mask;
-    unsigned char *ad_which_attack;
-    unsigned char *ad_mobility;
-    BITBOARD *ad_attacks;
-  } DIAG_INFO;
-#endif  
-
 /*  
-    DO NOT modify these.  these are constants, used in multiple modules.
-    modification may corrupt the search in any number of ways, all bad.
-*/
-
+   DO NOT modify these.  these are constants, used in multiple modules.
+   modification may corrupt the search in any number of ways, all bad.
+ */
 #define WORTHLESS                 0
 #define LOWER                     1
 #define UPPER                     2
 #define EXACT                     3
 #define AVOID_NULL_MOVE           4
 #define EXACTEGTB                 5
-
 #define NULL_MOVE                 0
 #define DO_NULL                   1
 #define NO_NULL                   0
-
 #define NONE                      0
 #define HASH_MOVE                 1
 #define GENERATE_CAPTURE_MOVES    2
@@ -516,194 +414,200 @@ typedef struct tree TREE;
 #define KILLER_MOVE_1             4
 #define KILLER_MOVE_2             5
 #define GENERATE_ALL_MOVES        6
-#define SORT_ALL_MOVES            7  
+#define SORT_ALL_MOVES            7
 #define HISTORY_MOVES_1           8
 #define HISTORY_MOVES_2           9
 #define REMAINING_MOVES          10
 #define ROOT_MOVES               11
- 
-  BITBOARD     Mask(int);
+BITBOARD  Mask(int);
+
 #if defined(VC_INLINE_ASM)
 #  include "vcinline.h"
 #else
-#  if !defined(AMD_INLINE)
-     int CDECL PopCnt(BITBOARD);
-     int CDECL FirstOne(BITBOARD);
-     int CDECL LastOne(BITBOARD);
+#  if !defined(INLINE_AMD)
+int CDECL PopCnt(BITBOARD);
+int CDECL FirstOne(BITBOARD);
+int CDECL LastOne(BITBOARD);
 #  endif
 #endif
-  
-void           Analyze(void);
-void           Annotate(void);
-void           AnnotateHeaderHTML(char*, FILE*);
-void           AnnotateFooterHTML(FILE*);
-void           AnnotatePositionHTML(TREE*, int, FILE*);
-char           *AnnotateValueToNAG(int, int, int);
-int            Attacked(TREE*RESTRICT, int, int);
-BITBOARD       AttacksTo(TREE*RESTRICT, int);
-void           Bench(void);
-int            Book(TREE*,int,int);
-int            BookMask(char*);
-int            BookPonderMove(TREE*,int);
-int            BookRejectMove(TREE*,int,int);
-void           BookUp(TREE*, int, char**);
-void           BookSort(BB_POSITION*, int, int);
+void      Analyze(void);
+void      Annotate(void);
+void      AnnotateHeaderHTML(char *, FILE *);
+void      AnnotateFooterHTML(FILE *);
+void      AnnotatePositionHTML(TREE * RESTRICT, int, FILE *);
+char     *AnnotateVtoNAG(int, int, int, int);
+void      AnnotateHeaderTeX(char *, FILE *);
+void      AnnotateFooterTeX(FILE *);
+void      AnnotatePositionTeX(TREE *, int, FILE *);
+int       Attacked(TREE * RESTRICT, int, int);
+BITBOARD  AttacksTo(TREE * RESTRICT, int);
+void      Bench(void);
+int       Book(TREE * RESTRICT, int, int);
+int       BookMask(char *);
+int       BookPonderMove(TREE * RESTRICT, int);
+int       BookRejectMove(TREE * RESTRICT, int, int);
+void      BookUp(TREE * RESTRICT, int, char **);
+void      BookSort(BB_POSITION *, int, int);
+
 #if defined(NT_i386)
-  int _cdecl     BookUpCompare(const void *, const void *);
+int _cdecl BookUpCompare(const void *, const void *);
 #else
-  int            BookUpCompare(const void *, const void *);
+int       BookUpCompare(const void *, const void *);
 #endif
-BB_POSITION    BookUpNextPosition(int, int);
-int            CheckInput(void);
-void           ClearHashTableScores(int);
-void           ComputeAttacksAndMobility(void);
-void           CopyFromSMP(TREE*, TREE*);
-TREE*          CopyToSMP(TREE*,int);
-void           DGTInit(int,char**);
-int            DGTCheckInput(void);
-void           DGTRead(void);
-void           DisplayBitBoard(BITBOARD);
-void           Display64BitWord(BITBOARD);
-void           DisplayChessBoard(FILE*, POSITION);
-char*          DisplayEvaluation(int,int);
-char*          DisplayEvaluationKibitz(int,int);
-void           DisplayFT(int, int, int);
-char*          DisplayHHMM(unsigned int);
-void           DisplayPieceBoards(signed char*, signed char*);
-void           DisplayPV(TREE*, int, int, int, int, PATH*);
-char*          DisplaySQ(unsigned int);
-char*          DisplayTime(unsigned int);
-char*          DisplayTimeKibitz(unsigned int);
-void           DisplayTreeState(TREE*, int, int, int);
-void           Display2BitBoards(BITBOARD, BITBOARD);
-void           DisplayChessMove(char*, int);
-int            Drawn(TREE*RESTRICT, int);
-void           Edit(void);
-int            EGTBProbe(TREE*, int, int, int*);
-void           EGTBPV(TREE*, int);
-int            EnPrise(int, int);
-int            Evaluate(TREE*RESTRICT, int, int, int, int);
-int            EvaluateDevelopmentB(TREE*RESTRICT, int);
-int            EvaluateDevelopmentW(TREE*RESTRICT, int);
-int            EvaluateDraws(TREE*RESTRICT, int);
-int            EvaluateKingSafety(TREE*RESTRICT, int);
-int            EvaluateMate(TREE*RESTRICT);
-int            EvaluateMaterial(TREE*RESTRICT);
-int            EvaluatePassedPawns(TREE*RESTRICT);
-int            EvaluatePassedPawnRaces(TREE*RESTRICT, int);
-int            EvaluatePawns(TREE*RESTRICT);
-int            EvaluateStalemate(TREE*RESTRICT,int);
-int            EvaluateWinner(TREE*RESTRICT);
-void           EVTest(char *);
-int            FindBlockID(TREE*);
-char*          FormatPV(TREE*,int,PATH);
-int            FTbSetCacheSize(void*,unsigned long);
-int*           GenerateCaptures(TREE*RESTRICT, int, int, int*);
-int*           GenerateCheckEvasions(TREE*RESTRICT, int, int, int*);
-int*           GenerateNonCaptures(TREE*RESTRICT, int, int, int*);
-int            HashProbe(TREE*RESTRICT, int, int, int, int*, int*, int*);
-void           HashStore(TREE*RESTRICT, int, int, int, int, int, int);
-void           HashStorePV(TREE*RESTRICT, int,int);
-int            HasOpposition(int, int, int);
-void           History(TREE*RESTRICT, int, int, int, int);
-int            IInitializeTb(char*);
-void           Initialize(int);
-void           InitializeAttackBoards(void);
-void           InitializeChessBoard(SEARCH_POSITION*);
-int            InitializeFindAttacks(int, int, int);
-void           InitializeHashTables(void);
-void           InitializeHistoryKillers(void);
-void           InitializeMasks(void);
-void           InitializePawnMasks(void);
-void           InitializePieceMasks(void);
-void           InitializeRandomHash(void);
-void           InitializeSMP(void);
-void           InitializeZeroMasks(void);
-int            InputMove(TREE*, char*, int, int, int, int);
-int            InputMoveICS(TREE*, char*, int, int, int, int);
-BITBOARD       InterposeSquares(int, int, int);
-void           Interrupt(int);
-int            Iterate(int, int, int);
-int            KingPawnSquare(int, int, int, int);
-void           LearnBook(TREE*, int, int, int, int, int);
-void           LearnBookUpdate(TREE*, int, int, float);
-int            LearnFunction(int, int, int, int);
-void           LearnImport(TREE*, int, char**);
-void           LearnImportBook(TREE*, int, char**);
-void           LearnImportCAP(TREE*, int, char**);
-void           LearnImportPosition(TREE*, int, char**);
-void           LearnPosition(TREE*, int, int, int);
-void           LearnPositionLoad(void);
-int            LegalMove(TREE*RESTRICT, int, int, int);
-void           MakeMove(TREE*RESTRICT, int, int, int);
-void           MakeMoveRoot(TREE*RESTRICT, int, int);
-void           NewGame(int);
-int            NextEvasion(TREE*RESTRICT, int, int);
-int            NextMove(TREE*RESTRICT, int, int);
-int            NextRootMove(TREE*, TREE*, int);
-int            NextRootMoveParallel(void);
-char*          Normal(void);
-int            Option(TREE*);
-int            OptionMatch(char*, char*);
-void           OptionPerft(TREE*, int, int, int);
-char*          OutputMove(TREE*, int, int, int);
-char*          OutputMoveICS(int);
-int            OutputGood(TREE*, char*, int, int);
-int            ParseTime(char*);
-void           Pass(void);
-void           Phase(void);
-int            PinnedOnKing(TREE*RESTRICT, int, int);
-int            Ponder(int);
-void           PreEvaluate(TREE*RESTRICT,int);
-void           Print(int, char*, ...);
-char*          PrintKM(int, int);
-int            Quiesce(TREE*RESTRICT, int, int, int, int);
-unsigned int   Random32(void);
-BITBOARD       Random64(void);
-int            Read(int, char*);
-int            ReadChessMove(TREE*, FILE*, int, int);
-void           ReadClear(void);
-unsigned int   ReadClock(TIME_TYPE);
-int            ReadPGN(FILE*,int);
-int            ReadNextMove(TREE*, char*, int, int);
-int            ReadParse(char*, char *args[], char*);
-int            ReadInput(void);
-int            RepetitionCheck(TREE*RESTRICT, int);
-int            RepetitionCheckBook(TREE*RESTRICT, int);
-int            RepetitionDraw(TREE*RESTRICT);
-void           ResignOrDraw(TREE*, int);
-void           RestoreGame(void);
-char*          Reverse(void);
-void           RootMoveList(int);
-int            Search(TREE*RESTRICT, int, int, int, int, int, int, int);
-void           SearchOutput(TREE*, int, int);
-int            SearchRoot(TREE*RESTRICT, int, int, int, int);
-int            SearchSMP(TREE*, int, int, int, int, int, int, int, int);
-void           SearchTrace(TREE*, int, int, int, int, int, char*, int);
-void           SetBoard(SEARCH_POSITION*,int,char**,int);
-void           SetChessBitBoards(SEARCH_POSITION*);
-int            StrCnt(char*, char);
-int            Swap(TREE*RESTRICT, int, int, int);
-BITBOARD       SwapXray(TREE*RESTRICT, BITBOARD, int, int);
-void           Test(char *);
-void           TestEPD(char *);
-int            Thread(TREE*);
-void           WaitForAllThreadsInitialized(void);
-void* STDCALL  ThreadInit(void*);
-void           ThreadMalloc(int);
-void           ThreadStop(TREE*);
-int            ThreadWait(int, TREE*);
-int            Threat(TREE*, int, int, int, int, int, int);
-void           TimeAdjust(int,PLAYER);
-int            TimeCheck(TREE*,int);
-void           TimeSet(int);
-void           UnmakeMove(TREE*RESTRICT, int, int, int);
-int            ValidMove(TREE*, int, int, int);
-void           ValidatePosition(TREE*, int, int, char*);
-void           Kibitz(int, int, int, int, int, BITBOARD , int, int, char*);
+BB_POSITION BookUpNextPosition(int, int);
+int       CheckInput(void);
+void      ClearHashTableScores(int);
+void      ComputeAttacksAndMobility(void);
+void      CopyFromSMP(TREE * RESTRICT, TREE * RESTRICT);
+TREE     *CopyToSMP(TREE * RESTRICT, int);
+void      DGTInit(int, char **);
+int       DGTCheckInput(void);
+void      DGTRead(void);
+void      DisplayBitBoard(BITBOARD);
+void      Display64BitWord(BITBOARD);
+void      DisplayChessBoard(FILE *, POSITION);
+char     *DisplayEvaluation(int, int);
+char     *DisplayEvaluationKibitz(int, int);
+void      DisplayFT(int, int, int);
+char     *DisplayHHMM(unsigned int);
+void      DisplayPieceBoards(signed char *, signed char *);
+void      DisplayPV(TREE * RESTRICT, int, int, int, int, PATH *);
+char     *DisplaySQ(unsigned int);
+char     *DisplayTime(unsigned int);
+char     *DisplayTimeKibitz(unsigned int);
+void      DisplayTreeState(TREE * RESTRICT, int, int, int);
+void      Display2BitBoards(BITBOARD, BITBOARD);
+void      DisplayChessMove(char *, int);
+int       Drawn(TREE * RESTRICT, int);
+void      Edit(void);
+int       EGTBProbe(TREE * RESTRICT, int, int, int *);
+void      EGTBPV(TREE * RESTRICT, int);
+int       EnPrise(int, int);
+int       Evaluate(TREE * RESTRICT, int, int, int, int);
+int       EvaluateDevelopmentB(TREE * RESTRICT, int);
+int       EvaluateDevelopmentW(TREE * RESTRICT, int);
+int       EvaluateDraws(TREE * RESTRICT, int);
+int       EvaluateKingSafety(TREE * RESTRICT, int);
+int       EvaluateMate(TREE * RESTRICT);
+int       EvaluateMaterial(TREE * RESTRICT);
+int       EvaluatePassedPawns(TREE * RESTRICT);
+int       EvaluatePassedPawnRaces(TREE * RESTRICT, int);
+int       EvaluatePawns(TREE * RESTRICT);
+int       EvaluateStalemate(TREE * RESTRICT, int);
+int       EvaluateWinner(TREE * RESTRICT);
+void      EVTest(char *);
+int       FindBlockID(TREE * RESTRICT);
+char     *FormatPV(TREE * RESTRICT, int, PATH);
+int       FTbSetCacheSize(void *, unsigned long);
+int      *GenerateCaptures(TREE * RESTRICT, int, int, int *);
+int      *GenerateCheckEvasions(TREE * RESTRICT, int, int, int *);
+int      *GenerateNonCaptures(TREE * RESTRICT, int, int, int *);
+int       HashProbe(TREE * RESTRICT, int, int, int, int *, int *, int *);
+void      HashStore(TREE * RESTRICT, int, int, int, int, int, int);
+void      HashStorePV(TREE * RESTRICT, int, int);
+int       HasOpposition(int, int, int);
+void      History(TREE * RESTRICT, int, int, int, int);
+int       IInitializeTb(char *);
+void      Initialize(int);
+void      InitializeAttackBoards(void);
+void      InitializeChessBoard(SEARCH_POSITION *);
+int       InitializeFindAttacks(int, int, int);
+void      InitializeHashTables(void);
+void      InitializeHistoryKillers(void);
+void      InitializeMasks(void);
+void      InitializePawnMasks(void);
+void      InitializePieceMasks(void);
+void      InitializeRandomHash(void);
+void      InitializeSMP(void);
+void      InitializeZeroMasks(void);
+int       InputMove(TREE * RESTRICT, char *, int, int, int, int);
+int       InputMoveICS(TREE * RESTRICT, char *, int, int, int, int);
+BITBOARD  InterposeSquares(int, int, int);
+void      Interrupt(int);
+int       Iterate(int, int, int);
+int       KingPawnSquare(int, int, int, int);
+void      LearnBook(TREE * RESTRICT, int, int, int, int, int);
+void      LearnBookUpdate(TREE * RESTRICT, int, int, float);
+int       LearnFunction(int, int, int, int);
+void      LearnImport(TREE * RESTRICT, int, char **);
+void      LearnImportBook(TREE * RESTRICT, int, char **);
+void      LearnImportCAP(TREE * RESTRICT, int, char **);
+void      LearnImportPosition(TREE * RESTRICT, int, char **);
+void      LearnPosition(TREE * RESTRICT, int, int, int);
+void      LearnPositionLoad(void);
+int       LegalMove(TREE * RESTRICT, int, int, int);
+void      MakeMove(TREE * RESTRICT, int, int, int);
+void      MakeMoveRoot(TREE * RESTRICT, int, int);
+void      NewGame(int);
+int       NextEvasion(TREE * RESTRICT, int, int);
+int       NextMove(TREE * RESTRICT, int, int);
+int       NextRootMove(TREE * RESTRICT, TREE * RESTRICT, int);
+int       NextRootMoveParallel(void);
+char     *Normal(void);
+int       Option(TREE * RESTRICT);
+int       OptionMatch(char *, char *);
+void      OptionPerft(TREE * RESTRICT, int, int, int);
+char     *OutputMove(TREE * RESTRICT, int, int, int);
+char     *OutputMoveICS(int);
+int       OutputGood(TREE * RESTRICT, char *, int, int);
+int       ParseTime(char *);
+void      Pass(void);
+void      Phase(void);
+int       PinnedOnKing(TREE * RESTRICT, int, int);
+int       Ponder(int);
+void      PreEvaluate(TREE * RESTRICT, int);
+void      Print(int, char *, ...);
+char     *PrintKM(int, int);
+int       Quiesce(TREE * RESTRICT, int, int, int, int);
+unsigned int Random32(void);
+BITBOARD  Random64(void);
+int       Read(int, char *);
+int       ReadChessMove(TREE * RESTRICT, FILE *, int, int);
+void      ReadClear(void);
+unsigned int ReadClock(TIME_TYPE);
+int       ReadPGN(FILE *, int);
+int       ReadNextMove(TREE * RESTRICT, char *, int, int);
+int       ReadParse(char *, char *args[], char *);
+int       ReadInput(void);
+int       RepetitionCheck(TREE * RESTRICT, int);
+int       RepetitionCheckBook(TREE * RESTRICT, int);
+int       RepetitionDraw(TREE * RESTRICT);
+void      ResignOrDraw(TREE * RESTRICT, int);
+void      RestoreGame(void);
+char     *Reverse(void);
+void      RootMoveList(int);
+int       Search(TREE * RESTRICT, int, int, int, int, int, int, int);
+void      SearchOutput(TREE * RESTRICT, int, int);
+int       SearchRoot(TREE * RESTRICT, int, int, int, int);
+int       SearchSMP(TREE * RESTRICT, int, int, int, int, int, int, int, int,
+                    int);
+void      SearchTrace(TREE *, int, int, int, int, int, char *, int);
+void      SetBoard(SEARCH_POSITION *, int, char **, int);
+void      SetChessBitBoards(SEARCH_POSITION *);
+#if defined(SINGULAR)
+int       Singular(TREE*, int, int, int, int);
+#endif
+int       StrCnt(char *, char);
+int       Swap(TREE * RESTRICT, int, int, int);
+BITBOARD  SwapXray(TREE * RESTRICT, BITBOARD, int, int);
+void      Test(char *);
+void      TestEPD(char *);
+int       Thread(TREE * RESTRICT);
+void      WaitForAllThreadsInitialized(void);
+void     *STDCALL ThreadInit(void *);
+void      ThreadMalloc(int);
+void      ThreadStop(TREE * RESTRICT);
+int       ThreadWait(int, TREE * RESTRICT);
+int       Threat(TREE * RESTRICT, int, int, int, int, int, int);
+void      TimeAdjust(int, PLAYER);
+int       TimeCheck(TREE * RESTRICT, int);
+void      TimeSet(int);
+void      UnmakeMove(TREE * RESTRICT, int, int, int);
+int       ValidMove(TREE * RESTRICT, int, int, int);
+void      ValidatePosition(TREE * RESTRICT, int, int, char *);
+void      Kibitz(int, int, int, int, int, BITBOARD, int, int, char *);
 
 #if (defined(_WIN32) || defined(_WIN64)) && defined(SMP)
-
 extern void *WinMallocInterleaved(size_t, int);
 extern void WinFreeInterleaved(void *, size_t);
 
@@ -711,20 +615,15 @@ extern void WinFreeInterleaved(void *, size_t);
     WinMallocInterleaved(cBytes, cThreads)
 #define FreeInterleaved(pMemory, cBytes)\
     WinFreeInterleaved(pMemory, cBytes)
-
 #else
-
 #define MallocInterleaved(cBytes, cThreads) malloc(cBytes)
 #define FreeInterleaved(pMemory, cBytes)    free(pMemory)
-
 #endif
-  
 #if defined(HAS_64BITS) || defined(HAS_LONGLONG)
 #  if defined(ALPHA)
 #    include <machine/builtins.h>
 #    define MaskL(a)      (((unsigned long)(-1L))<<(a))
 #    define MaskR(a)      (((unsigned long)(-1L))>>(a))
-
 #    define mask_0        0
 #    define mask_1        MaskL(63)
 #    define mask_2        MaskL(62)
@@ -855,14 +754,13 @@ extern void WinFreeInterleaved(void *, size_t);
 #    define mask_127      MaskR(63)
 #    define mask_128      0
 /* The following are defined only on Unix 4.0E and later. */
-#    ifdef _int_mult_upper /* kludge to identify version of builtins.h */
+#    ifdef _int_mult_upper      /* kludge to identify version of builtins.h */
 #      define PopCnt(a)     _popcnt(a)
 #      define FirstOne(a)   _leadz(a)
 #      define LastOne(a)    (63 - _trailz(a))
 #    endif
 #  endif
 #endif
-
 #define Max(a,b)  (((a) > (b)) ? (a) : (b))
 #define Min(a,b)  (((a) < (b)) ? (a) : (b))
 #define FileDistance(a,b) abs(File(a) - File(b))
@@ -872,11 +770,10 @@ extern void WinFreeInterleaved(void *, size_t);
 #define PopCnt8Bit(a) (pop_cnt_8bit[a])
 #define FirstOne8Bit(a) (first_one_8bit[a])
 #define LastOne8Bit(a) (last_one_8bit[a])
-
 /*  
-    the following macro is used to limit the search extensions based on the
-    current iteration depth and current ply in the tree.
-*/
+   the following macro is used to limit the search extensions based on the
+   current iteration depth and current ply in the tree.
+ */
 #define LimitExtensions(extended,ply)                                        \
       extended=Min(extended,INCPLY);                                         \
       if (ply > 2*iteration_depth) {                                         \
@@ -885,175 +782,67 @@ extern void WinFreeInterleaved(void *, size_t);
         else                                                                 \
           extended=0;                                                        \
       }
-
 /*  
-    the following macro is used to determine if one side is in check.  it
-    simply returns the result of Attacked().
-*/
+   the following macro is used to determine if one side is in check.  it
+   simply returns the result of Attacked().
+ */
 #define Check(wtm)                                                     \
   Attacked(tree, (wtm)?WhiteKingSQ:BlackKingSQ,Flip(wtm))
 /*  
-    Attack() is used to determine if a sliding piece on 'from' can reach
-    'to'.  the only requirement is that there be no pieces along the pathway
-    connecting from and to.
-*/
+   Attack() is used to determine if a sliding piece on 'from' can reach
+   'to'.  the only requirement is that there be no pieces along the pathway
+   connecting from and to.
+ */
 #define Attack(from,to) (!(obstructed[from][to] & Occupied))
 /*  
-    the following macros are used to construct the attacks from a square.
-    the attacks are computed as four separate bit vectors, one for each of the
-    two diagonals, and one for the ranks and one for the files.  these can be
-    Or'ed together to produce the attack bitmaps for bishops, rooks and queens.
-*/
-#if defined(COMPACT_ATTACKS) && defined(USE_ATTACK_FUNCTIONS)
-  extern BITBOARD CDECL AttacksRookFunc(int, POSITION *);
-  extern BITBOARD CDECL AttacksBishopFunc(DIAG_INFO *, POSITION *);
-#  define AttacksRook(a) AttacksRookFunc(a,&tree->pos)
-#  define AttacksBishop(a) AttacksBishopFunc(&diag_info[a],&tree->pos)
-#else
+   the following macros are used to construct the attacks from a square.
+   the attacks are computed as four separate bit vectors, one for each of the
+   two diagonals, and one for the ranks and one for the files.  these can be
+   Or'ed together to produce the attack bitmaps for bishops, rooks and queens.
+ */
 #  define AttacksRook(a)    (AttacksRank(a)|AttacksFile(a))
 #  define AttacksBishop(a)  (AttacksDiaga1(a)|AttacksDiagh1(a))
-#endif
-
 #define AttacksQueen(a)   (AttacksBishop(a)|AttacksRook(a))
 #define Rank(x)       ((x)>>3)
 #define File(x)       ((x)&7)
 #define Flip(x)       ((x)^1)
-
-#if defined(COMPACT_ATTACKS)
-#  define AttacksDiaga1Int(diagp,boardp)                                  \
-     (diagp)->ad_attacks[(diagp)->ad_which_attack[                        \
-      ((boardp)->occupied_rl45>>(diagp)->ad_shift) & (diagp)->ad_mask]]
-
-#  define AttacksDiagh1Int(diagp,boardp)                                  \
-     (diagp)->d_attacks[(diagp)->d_which_attack[                          \
-      ((boardp)->occupied_rr45>>(diagp)->d_shift) & (diagp)->d_mask]]
-
-/*
-  The length of the following macro is a little excessive as the
-  rank_attacks lookup is duplicated.  Making it a function, or passing
-  in a temporary variable would simplify it significantly, although
-  hopefully the compiler recognizes the common subexpression.
-*/
-#  define AttacksRankInt(a,boardp)                          \
-     ((BITBOARD)(at.rank_attack_bitboards[File(a)]          \
-     [at.which_attack[File(a)]                              \
-     [((((boardp)->w_occupied|(boardp)->b_occupied)>>       \
-     ((Rank(~(a))<<3)+1))&0x3f)]])<<(Rank(~(a))<<3))
-
-/* 
-  The final left shift in this is optimizable, but the optimization is
-  a little ugly to express.  There is no information that crosses the
-  word boundary in the shift so it can be implemented as two separate
-  word shifts that are joined together in a long long.
-*/
-#  define AttacksFileInt(a,boardp)                          \
-     ((BITBOARD)(at.file_attack_bitboards[Rank(a)]          \
-     [at.which_attack[Rank(a)]                              \
-     [(((boardp)->occupied_rl90>>                           \
-     ((File(~(a))<<3)+1))&0x3f)]])<<(File(~(a))))
-
-#  if defined(USE_ATTACK_FUNCTIONS)
-    extern BITBOARD CDECL AttacksRankFunc(int, POSITION *);
-    extern BITBOARD CDECL AttacksFileFunc(int, POSITION *);
-    extern BITBOARD CDECL AttacksDiaga1Func(DIAG_INFO *, POSITION *);
-    extern BITBOARD CDECL AttacksDiagh1Func(DIAG_INFO *, POSITION *);
-
-#    define AttacksRank(a) AttacksRankFunc(a,&tree->pos)
-#    define AttacksFile(a) AttacksFileFunc(a,&tree->pos)
-#    define AttacksDiaga1(a) AttacksDiaga1Func(&diag_info[a],&tree->pos)
-#    define AttacksDiagh1(a) AttacksDiagh1Func(&diag_info[a],&tree->pos)
-#  else
-#    define AttacksRank(a) AttacksRankInt(a,&tree->pos)
-#    define AttacksFile(a) AttacksFileInt(a,&tree->pos)
-#    define AttacksDiaga1(a) AttacksDiaga1Int(&diag_info[a],&tree->pos)
-#    define AttacksDiagh1(a) AttacksDiagh1Int(&diag_info[a],&tree->pos)
-#  endif
-
-#else
-
-#  define AttacksRank(a)                                                  \
-      rook_attacks_r0[(a)][((tree->pos.w_occupied|tree->pos.b_occupied)>> \
-                           (56-((a)&56)))&255]
-#  define AttacksFile(a)                                                  \
-      rook_attacks_rl90[(a)][(tree->pos.occupied_rl90>>                   \
-                             (56-(File(a)<<3)))&255]
-#  define AttacksDiaga1(a)                                                \
-      bishop_attacks_rl45[(a)][(tree->pos.occupied_rl45>>                 \
-                                bishop_shift_rl45[(a)])&255]
-#  define AttacksDiagh1(a)                                                \
-      bishop_attacks_rr45[(a)][(tree->pos.occupied_rr45>>                 \
-                                bishop_shift_rr45[(a)])&255]
-#endif /* defined(COMPACT_ATTACKS) */
+#  define AttacksRank(a)                                                   \
+      rook_attacks_r0[(a)][((tree->pos.w_occupied|tree->pos.b_occupied)>>  \
+                           (57-((a)&56)))&63]
+#  define AttacksFile(a)                                                   \
+      rook_attacks_rl90[(a)][(tree->pos.occupied_rl90>>                    \
+                             (57-(File(a)<<3)))&63]
+#  define AttacksDiaga1(a)                                                 \
+      bishop_attacks_rl45[(a)][(tree->pos.occupied_rl45>>                  \
+                                bishop_shift_rl45[(a)])&63]
+#  define AttacksDiagh1(a)                                                 \
+      bishop_attacks_rr45[(a)][(tree->pos.occupied_rr45>>                  \
+                                bishop_shift_rr45[(a)])&63]
 /*  
-    the following macros are used to compute the mobility for a sliding piece.
-    The basic idea is the same as the attack vectors above, but the result is 
-    an integer mobility factor rather than a bitboard.  this saves having to 
-    do a PopCnt() on the attack bit vector, which is much slower.
-*/
+   the following macros are used to compute the mobility for a sliding piece.
+   The basic idea is the same as the attack vectors above, but the result is 
+   an integer mobility factor rather than a bitboard.  this saves having to 
+   do a PopCnt() on the attack bit vector, which is much slower.
+ */
 #define MobilityRook(a)   (MobilityRank(a)+MobilityFile(a))
-
 #define MobilityBishop(a) (MobilityDiaga1(a)+MobilityDiagh1(a))
-
 #define MobilityQueen(a)  (MobilityBishop(a)+MobilityRook(a))
-
-#if defined(COMPACT_ATTACKS)
-
-#  define MobilityDiaga1Int(diagp,boardp)                                   \
-     (diagp)->ad_mobility[(diagp)->ad_which_attack[                         \
-     ((boardp)->occupied_rl45>> (diagp)->ad_shift)&(diagp)->ad_mask]]
-
-#  define MobilityDiagh1Int(diagp,boardp)                                   \
-     (diagp)->d_mobility[(diagp)->d_which_attack [                          \
-     ((boardp)->occupied_rr45>> (diagp)->d_shift)&(diagp)->d_mask]]
-
-#  define MobilityRankInt(a,boardp)                                         \
-     at.length8_mobility[File(a)][                                          \
-     at.which_attack[File(a)][                                              \
-     ((boardp)->w_occupied|(boardp)->b_occupied>>((Rank(~(a))<<3)+1))&0x3f]]
-
-#  define MobilityFileInt(a,boardp)                                         \
-     at.length8_mobility[Rank(a)][                                          \
-     at.which_attack[Rank(a)] [                                             \
-     ((boardp)->occupied_rl90>>((File(~(a))<<3)+1))&0x3f]]
-
-#  if defined(USE_ATTACK_FUNCTIONS)
-    extern unsigned CDECL MobilityRankFunc(int, POSITION *);
-    extern unsigned CDECL MobilityFileFunc(int, POSITION *);
-    extern unsigned CDECL MobilityDiaga1Func(DIAG_INFO *, POSITION *);
-    extern unsigned CDECL MobilityDiagh1Func(DIAG_INFO *, POSITION *);
-
-#    define MobilityRank(a) MobilityRankFunc(a,&tree->pos)
-#    define MobilityFile(a) MobilityFileFunc(a,&tree->pos)
-#    define MobilityDiaga1(a) MobilityDiaga1Func(&diag_info[a],&tree->pos)
-#    define MobilityDiagh1(a) MobilityDiagh1Func(&diag_info[a],&tree->pos)
-#  else
-#    define MobilityRank(a) (MobilityRankInt(a,&tree->pos))
-#    define MobilityFile(a) (MobilityFileInt(a,&tree->pos))
-#    define MobilityDiaga1(a) (MobilityDiaga1Int(&diag_info[a],&tree->pos))
-#    define MobilityDiagh1(a) (MobilityDiagh1Int(&diag_info[a],&tree->pos))
-#  endif
-
-#else
-
 #  define MobilityRank(a)                                                   \
      (rook_mobility_r0[(a)][(tree->pos.w_occupied|tree->pos.b_occupied)>>   \
-                            (56-((a)&56))&255])
+                            (57-((a)&56))&63])
 #  define MobilityFile(a)                                                   \
      (rook_mobility_rl90[(a)][tree->pos.occupied_rl90>>                     \
-                             (56-(File(a)<<3))&255])
+                             (57-(File(a)<<3))&63])
 #  define MobilityDiaga1(a)                                                 \
-     (bishop_mobility_rl45[(a)][tree->pos.occupied_rl45>>                   \
-                               bishop_shift_rl45[(a)]&255])
+     (bishop_mobility_rl45[(a)][(tree->pos.occupied_rl45>>                  \
+                                bishop_shift_rl45[(a)])&63])
 #  define MobilityDiagh1(a)                                                 \
-     (bishop_mobility_rr45[(a)][tree->pos.occupied_rr45>>                   \
-                               bishop_shift_rr45[(a)]&255])
-#endif
-
+     (bishop_mobility_rr45[(a)][(tree->pos.occupied_rr45>>                  \
+                                bishop_shift_rr45[(a)])&63])
 /*  
-    the following macros are used to extract the pieces of a move that are
-    kept compressed into the rightmost 21 bits of a simple integer.
-*/
-
+   the following macros are used to extract the pieces of a move that are
+   kept compressed into the rightmost 21 bits of a simple integer.
+ */
 #define From(a)             ((a)&63)
 #define To(a)               (((a)>>6)&63)
 #define Piece(a)            (((a)>>12)&7)
@@ -1068,12 +857,10 @@ extern void WinFreeInterleaved(void *, size_t);
 #define ClearMaskRL90(a)    (clear_mask_rl90[a])
 #define ClearMaskRL45(a)    (clear_mask_rl45[a])
 #define ClearMaskRR45(a)    (clear_mask_rr45[a])
-
 /*  
-    the following macros are used to extract the correct bits for the piece
-    type desired.
-*/
-
+   the following macros are used to extract the correct bits for the piece
+   type desired.
+ */
 #define BlackPawns            (tree->pos.b_pawn)
 #define BlackKnights          (tree->pos.b_knight)
 #define BlackBishops          (tree->pos.b_bishop)
@@ -1088,7 +875,6 @@ extern void WinFreeInterleaved(void *, size_t);
 #define BlackPieces           (tree->pos.b_occupied)
 #define BlackMinors           (tree->pos.black_minors)
 #define BlackMajors           (tree->pos.black_majors)
-
 #define WhitePawns            (tree->pos.w_pawn)
 #define WhiteKnights          (tree->pos.w_knight)
 #define WhiteBishops          (tree->pos.w_bishop)
@@ -1103,9 +889,7 @@ extern void WinFreeInterleaved(void *, size_t);
 #define WhitePieces           (tree->pos.w_occupied)
 #define WhiteMinors           (tree->pos.white_minors)
 #define WhiteMajors           (tree->pos.white_majors)
-
 #define TotalPieces           (tree->pos.total_pieces)
-
 #define Material              (tree->pos.material_evaluation)
 #define Rule50Moves(ply)      (tree->position[ply].rule_50_moves)
 #define HashKey               (tree->pos.hash_key)
@@ -1119,15 +903,14 @@ extern void WinFreeInterleaved(void *, size_t);
 #define OccupiedRL90          (tree->pos.occupied_rl90)
 #define OccupiedRL45          (tree->pos.occupied_rl45)
 #define OccupiedRR45          (tree->pos.occupied_rr45)
-
 #define Sliding(piece)        ((piece) & 4)
 #define SlidingDiag(piece)    (((piece) & 5) == 5)
 #define SlidingRow(piece)     (((piece) & 6) == 6)
 /*  
-    the following macros are used to Set and Clear a specific bit in the
-    second argument.  this is done to make the code more readable, rather
-    than to make it faster.
-*/
+   the following macros are used to Set and Clear a specific bit in the
+   second argument.  this is done to make the code more readable, rather
+   than to make it faster.
+ */
 #define ClearSet(a,b)       b=((a)^(b))
 #define Clear(a,b)          b=ClearMask(a)&(b)
 #define ClearRL90(a,b)      b=ClearMaskRL90(a)&(b)
@@ -1137,7 +920,6 @@ extern void WinFreeInterleaved(void *, size_t);
 #define SetRL90(a,b)        b=SetMaskRL90(a)|(b)
 #define SetRL45(a,b)        b=SetMaskRL45(a)|(b)
 #define SetRR45(a,b)        b=SetMaskRR45(a)|(b)
-
 #define HashPB(a,b)         b=b_pawn_random[a]^(b)
 #define HashPW(a,b)         b=w_pawn_random[a]^(b)
 #define HashNB(a,b)         b=b_knight_random[a]^(b)
@@ -1153,19 +935,17 @@ extern void WinFreeInterleaved(void *, size_t);
 #define HashEP(a,b)         b=enpassant_random[a]^(b)
 #define HashCastleW(a,b)    b=castle_random_w[a]^(b)
 #define HashCastleB(a,b)    b=castle_random_b[a]^(b)
-#define SavePV(tree,ply,ph) do {                                      \
+#define SavePV(tree,ply,ph) do {                                            \
           tree->pv[ply-1].path[ply-1]=tree->current_move[ply-1];            \
           tree->pv[ply-1].pathl=ply-1;                                      \
           tree->pv[ply-1].pathh=ph;                                         \
           tree->pv[ply-1].pathd=iteration_depth;} while(0)
-
 /*
-  Service macro - initialize squares of the particular piece as well as
-  counter for that piece. Note: dual initialization saves some time when
-  TB is present, but waste for non-present TB. If we often will call
-  probing function for an absent TB, maybe we shall split that code.
-*/
-
+   Service macro - initialize squares of the particular piece as well as
+   counter for that piece. Note: dual initialization saves some time when
+   TB is present, but waste for non-present TB. If we often will call
+   probing function for an absent TB, maybe we shall split that code.
+ */
 #define  VInitSqCtr(rgCtr, rgSquares, piece, bitboard) {         \
   int  cPieces=0;                                                \
   BITBOARD bbTemp=(bitboard);                                    \
@@ -1177,5 +957,15 @@ extern void WinFreeInterleaved(void *, size_t);
   }                                                              \
   (rgCtr)[(piece)]=cPieces;                                      \
 }
-
-#endif /* if defined(TYPES_INCLUDED) */
+#if defined(INLINE_AMD)
+#  include "inlineamd.h"
+#endif
+#if defined(INLINE_ASM)
+#  include "inlinex86.h"
+#endif
+#if defined(UNIX)
+#  define SPEAK "./speak "
+#else
+#  define SPEAK ".\\Speak.exe "
+#endif
+#endif                          /* if defined(TYPES_INCLUDED) */

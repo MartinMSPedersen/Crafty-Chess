@@ -10,44 +10,45 @@
 
 /* last modified 03/27/01 */
 /*
-********************************************************************************
-*                                                                              *
-*   Book() is used to determine if the current position is in the book data-   *
-*   base.  it simply takes the set of moves produced by root_moves() and then  *
-*   tries each position's hash key to see if it can be found in the data-      *
-*   base.  if so, such a move represents a "book move."  the set of flags is   *
-*   used to decide on a sub-set of moves to be used as the "book move pool"    *
-*   from which a move is chosen randomly.                                      *
-*                                                                              *
-*   the format of a book position is as follows:                               *
-*                                                                              *
-*   64 bits:  hash key for this position.                                      *
-*                                                                              *
-*    8 bits:  flag bits defined as  follows:                                   *
-*                                                                              *
-*      0000 0001  ?? flagged move                (0001) (0x01)                 *
-*      0000 0010   ? flagged move                (0002) (0x02)                 *
-*      0000 0100   = flagged move                (0004) (0x04)                 *
-*      0000 1000   ! flagged move                (0010) (0x08)                 *
-*      0001 0000  !! flagged move                (0020) (0x10)                 *
-*      0010 0000     black won at least 1 game   (0040) (0x20)                 *
-*      0100 0000     at least one game was drawn (0100) (0x40)                 *
-*      1000 0000     white won at least 1 game   (0200) (0x80)                 *
-*                                                                              *
-*   24 bits:  number of games this move was played.                            *
-*                                                                              *
-*   32 bits:  learned value (floating point).                                  *
-*                                                                              *
-*   32 bits:  CAP score for this move (integer).                               *
-*                                                                              *
-*     (note:  counts are normalized to a max of 255.                           *
-*                                                                              *
-********************************************************************************
-*/
+ *******************************************************************************
+ *                                                                             *
+ *   Book() is used to determine if the current position is in the book data-  *
+ *   base.  it simply takes the set of moves produced by root_moves() and then *
+ *   tries each position's hash key to see if it can be found in the data-     *
+ *   base.  if so, such a move represents a "book move."  the set of flags is  *
+ *   used to decide on a sub-set of moves to be used as the "book move pool"   *
+ *   from which a move is chosen randomly.                                     *
+ *                                                                             *
+ *   the format of a book position is as follows:                              *
+ *                                                                             *
+ *   64 bits:  hash key for this position.                                     *
+ *                                                                             *
+ *    8 bits:  flag bits defined as  follows:                                  *
+ *                                                                             *
+ *      0000 0001  ?? flagged move                (0001) (0x01)                *
+ *      0000 0010   ? flagged move                (0002) (0x02)                *
+ *      0000 0100   = flagged move                (0004) (0x04)                *
+ *      0000 1000   ! flagged move                (0010) (0x08)                *
+ *      0001 0000  !! flagged move                (0020) (0x10)                *
+ *      0010 0000     black won at least 1 game   (0040) (0x20)                *
+ *      0100 0000     at least one game was drawn (0100) (0x40)                *
+ *      1000 0000     white won at least 1 game   (0200) (0x80)                *
+ *                                                                             *
+ *   24 bits:  number of games this move was played.                           *
+ *                                                                             *
+ *   32 bits:  learned value (floating point).                                 *
+ *                                                                             *
+ *   32 bits:  CAP score for this move (integer).                              *
+ *                                                                             *
+ *     (note:  counts are normalized to a max of 255.                          *
+ *                                                                             *
+ *******************************************************************************
+ */
 #define BAD_MOVE  002
 #define GOOD_MOVE 010
 
-int Book(TREE *tree, int wtm, int root_list_done) {
+int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
+{
   static int book_moves[200];
   static BOOK_POSITION start_moves[200];
   static int selected[200];
@@ -56,10 +57,11 @@ int Book(TREE *tree, int wtm, int root_list_done) {
   static int bs_played[200], bs_percent[200];
   static int book_status[200], evaluations[200], bs_learn[200], bs_CAP[200];
   static float bs_value[200], total_value;
-  int m1_status, forced=0, total_percent;
+  int m1_status, forced = 0, total_percent;
   float tempr;
-  int done, i, j, last_move, temp, which, minlv=999999, maxlv=-999999, cap;
-  int mincap=999999, maxcap=-999999, maxp=-999999, minev=999999, maxev=-999999;
+  int done, i, j, last_move, temp, which, minlv = 999999, maxlv = -999999, cap;
+  int mincap = 999999, maxcap = -999999, maxp = -999999, minev = 999999, maxev =
+      -999999;
   int nflagged, im, value, np, book_ponder_move;
   int cluster, scluster, test;
   BITBOARD temp_hash_key, common;
@@ -68,1041 +70,1107 @@ int Book(TREE *tree, int wtm, int root_list_done) {
   int distribution;
   int initial_development;
   char *kibitz_p;
+
 /*
- ----------------------------------------------------------
-|                                                          |
-|   if we have been out of book for several moves, return  |
-|   and start the normal tree search.                      |
-|                                                          |
- ----------------------------------------------------------
-*/
-  if (moves_out_of_book > 3) return(0);
+ ************************************************************
+ *                                                          *
+ *   if we have been out of book for several moves, return  *
+ *   and start the normal tree search.                      *
+ *                                                          *
+ ************************************************************
+ */
+  if (moves_out_of_book > 3)
+    return (0);
 /*
- ----------------------------------------------------------
-|                                                          |
-|   position is known, read the start book file and save   |
-|   each move found.  these will be used later to augment  |
-|   the flags in the normal book to offer better control.  |
-|                                                          |
- ----------------------------------------------------------
-*/
-  if (!root_list_done) RootMoveList(wtm);
-  test=HashKey>>49;
-  smoves=0;
+ ************************************************************
+ *                                                          *
+ *   position is known, read the start book file and save   *
+ *   each move found.  these will be used later to augment  *
+ *   the flags in the normal book to offer better control.  *
+ *                                                          *
+ ************************************************************
+ */
+  if (!root_list_done)
+    RootMoveList(wtm);
+  test = HashKey >> 49;
+  smoves = 0;
   if (books_file) {
-    fseek(books_file,test*sizeof(int),SEEK_SET);
-    fread(&key,sizeof(int),1,books_file);
+    fseek(books_file, test * sizeof(int), SEEK_SET);
+    fread(&key, sizeof(int), 1, books_file);
     if (key > 0) {
-      fseek(books_file,key,SEEK_SET);
-      fread(&scluster,sizeof(int),1,books_file);
-      fread(books_buffer,sizeof(BOOK_POSITION),scluster,books_file);
-      for (im=0;im<n_root_moves;im++) {
-        common=HashKey & mask_16;
-        MakeMove(tree,1,root_moves[im].move,wtm);
-        if (RepetitionCheckBook(tree,2)) {
-          UnmakeMove(tree,1,root_moves[im].move,wtm);
-          return(0);
+      fseek(books_file, key, SEEK_SET);
+      fread(&scluster, sizeof(int), 1, books_file);
+      fread(books_buffer, sizeof(BOOK_POSITION), scluster, books_file);
+      for (im = 0; im < n_root_moves; im++) {
+        common = HashKey & mask_16;
+        MakeMove(tree, 1, root_moves[im].move, wtm);
+        if (RepetitionCheckBook(tree, 2)) {
+          UnmakeMove(tree, 1, root_moves[im].move, wtm);
+          return (0);
         }
-        temp_hash_key=HashKey ^ wtm_random[wtm];
-        temp_hash_key=(temp_hash_key & ~mask_16) | common;
-        for (i=0;i<scluster;i++)
+        temp_hash_key = HashKey ^ wtm_random[wtm];
+        temp_hash_key = (temp_hash_key & ~mask_16) | common;
+        for (i = 0; i < scluster; i++)
           if (!(temp_hash_key ^ books_buffer[i].position)) {
-            start_moves[smoves++]=books_buffer[i];
+            start_moves[smoves++] = books_buffer[i];
             break;
           }
-        UnmakeMove(tree,1,root_moves[im].move,wtm);
+        UnmakeMove(tree, 1, root_moves[im].move, wtm);
       }
     }
   }
 /*
- ----------------------------------------------------------
-|                                                          |
-|   position is known, read in the appropriate cluster.    |
-|   note that this cluster will have all possible book     |
-|   moves from current position in it (as well as others   |
-|   of course.)                                            |
-|                                                          |
- ----------------------------------------------------------
-*/
-  test=HashKey>>49;
+ ************************************************************
+ *                                                          *
+ *   position is known, read in the appropriate cluster.    *
+ *   note that this cluster will have all possible book     *
+ *   moves from current position in it (as well as others   *
+ *   of course.)                                            *
+ *                                                          *
+ ************************************************************
+ */
+  test = HashKey >> 49;
   if (book_file) {
-    fseek(book_file,test*sizeof(int),SEEK_SET);
-    fread(&key,sizeof(int),1,book_file);
+    fseek(book_file, test * sizeof(int), SEEK_SET);
+    fread(&key, sizeof(int), 1, book_file);
     if (key > 0) {
-      fseek(book_file,key,SEEK_SET);
-      fread(&cluster,sizeof(int),1,book_file);
-      fread(book_buffer,sizeof(BOOK_POSITION),cluster,book_file);
-    }
-    else cluster=0;
-    if (!cluster) return(0);
+      fseek(book_file, key, SEEK_SET);
+      fread(&cluster, sizeof(int), 1, book_file);
+      fread(book_buffer, sizeof(BOOK_POSITION), cluster, book_file);
+    } else
+      cluster = 0;
+    if (!cluster)
+      return (0);
 /*
- ----------------------------------------------------------
-|                                                          |
-|   now add any moves from books.bin to the end of the     |
-|   cluster so that they will be played even if not in the |
-|   regular database of moves.                             |
-|                                                          |
- ----------------------------------------------------------
-*/
-    for (i=0;i<smoves;i++) {
-      for (j=0;j<cluster;j++) 
-        if (!(book_buffer[j].position ^ start_moves[i].position)) break;
+ ************************************************************
+ *                                                          *
+ *   now add any moves from books.bin to the end of the     *
+ *   cluster so that they will be played even if not in the *
+ *   regular database of moves.                             *
+ *                                                          *
+ ************************************************************
+ */
+    for (i = 0; i < smoves; i++) {
+      for (j = 0; j < cluster; j++)
+        if (!(book_buffer[j].position ^ start_moves[i].position))
+          break;
       if (j >= cluster) {
-        book_buffer[cluster]=start_moves[i];
-        book_buffer[cluster].status_played=
-          book_buffer[cluster].status_played&037700000000;
+        book_buffer[cluster] = start_moves[i];
+        book_buffer[cluster].status_played =
+            book_buffer[cluster].status_played & 037700000000;
         cluster++;
       }
     }
 /*
- ----------------------------------------------------------
-|                                                          |
-|   first cycle through the root move list, make each      |
-|   move, and see if the resulting hash key is in the book |
-|   database.                                              |
-|                                                          |
- ----------------------------------------------------------
-*/
-    initial_development=(wtm) ? EvaluateDevelopmentW(tree,1) : 
-                                EvaluateDevelopmentB(tree,1);
-    total_moves=0;
-    nmoves=0;
-    for (im=0;im<n_root_moves;im++) {
-      common=HashKey & mask_16;
-      MakeMove(tree,1,root_moves[im].move,wtm);
-      if (RepetitionCheckBook(tree,2)) {
-        UnmakeMove(tree,1,root_moves[im].move,wtm);
-        return(0);
+ ************************************************************
+ *                                                          *
+ *   first cycle through the root move list, make each      *
+ *   move, and see if the resulting hash key is in the book *
+ *   database.                                              *
+ *                                                          *
+ ************************************************************
+ */
+    initial_development =
+        (wtm) ? EvaluateDevelopmentW(tree, 1) : EvaluateDevelopmentB(tree, 1);
+    total_moves = 0;
+    nmoves = 0;
+    for (im = 0; im < n_root_moves; im++) {
+      common = HashKey & mask_16;
+      MakeMove(tree, 1, root_moves[im].move, wtm);
+      if (RepetitionCheckBook(tree, 2)) {
+        UnmakeMove(tree, 1, root_moves[im].move, wtm);
+        return (0);
       }
-      temp_hash_key=HashKey ^ wtm_random[wtm];
-      temp_hash_key=(temp_hash_key & ~mask_16) | common;
-      for (i=0;i<cluster;i++) {
+      temp_hash_key = HashKey ^ wtm_random[wtm];
+      temp_hash_key = (temp_hash_key & ~mask_16) | common;
+      for (i = 0; i < cluster; i++) {
         if (!(temp_hash_key ^ book_buffer[i].position)) {
-          book_status[nmoves]=book_buffer[i].status_played>>24;
-          bs_played[nmoves]=book_buffer[i].status_played&077777777;
-          bs_learn[nmoves]=(int) (book_buffer[i].learn*100.0);
-          if (!wtm) bs_learn[nmoves]*=-1;
-          bs_CAP[nmoves]=book_buffer[i].CAP_score;
-          if (puzzling) bs_played[nmoves]+=1;
-          tree->current_move[1]=root_moves[im].move;
-          if (!Captured(root_moves[im].move)) 
-            book_development[nmoves]=((wtm) ? EvaluateDevelopmentW(tree,2) : 
-                  EvaluateDevelopmentB(tree,2))-initial_development;
-          else book_development[nmoves]=0;
-          total_moves+=bs_played[nmoves];
-          evaluations[nmoves]=Evaluate(tree,2,wtm,-999999,999999);
-          evaluations[nmoves]-=(wtm) ? Material : -Material;
-          bs_percent[nmoves]=0;
-          for (j=0;j<smoves;j++) {
+          book_status[nmoves] = book_buffer[i].status_played >> 24;
+          bs_played[nmoves] = book_buffer[i].status_played & 077777777;
+          bs_learn[nmoves] = (int) (book_buffer[i].learn * 100.0);
+          if (!wtm)
+            bs_learn[nmoves] *= -1;
+          bs_CAP[nmoves] = book_buffer[i].CAP_score;
+          if (puzzling)
+            bs_played[nmoves] += 1;
+          tree->current_move[1] = root_moves[im].move;
+          if (!Captured(root_moves[im].move))
+            book_development[nmoves] =
+                ((wtm) ? EvaluateDevelopmentW(tree,
+                    2) : EvaluateDevelopmentB(tree, 2)) - initial_development;
+          else
+            book_development[nmoves] = 0;
+          total_moves += bs_played[nmoves];
+          evaluations[nmoves] = Evaluate(tree, 2, wtm, -999999, 999999);
+          evaluations[nmoves] -= (wtm) ? Material : -Material;
+          bs_percent[nmoves] = 0;
+          for (j = 0; j < smoves; j++) {
             if (!(book_buffer[i].position ^ start_moves[j].position)) {
-              book_status[nmoves]|=start_moves[j].status_played>>24;
-              bs_percent[nmoves]=start_moves[j].status_played&077777777;
+              book_status[nmoves] |= start_moves[j].status_played >> 24;
+              bs_percent[nmoves] = start_moves[j].status_played & 077777777;
               break;
             }
           }
-          book_moves[nmoves]=root_moves[im].move;
+          book_moves[nmoves] = root_moves[im].move;
           nmoves++;
           break;
         }
       }
-      UnmakeMove(tree,1,root_moves[im].move,wtm);
+      UnmakeMove(tree, 1, root_moves[im].move, wtm);
     }
-    if (!nmoves) return(0);
+    if (!nmoves)
+      return (0);
 /*
- ----------------------------------------------------------
-|                                                          |
-|   if any moves have a very bad or a very good learn      |
-|   value, set the appropriate ? or ! flag so the move     |
-|   be played or avoided as appropriate.                   |
-|                                                          |
- ----------------------------------------------------------
-*/
-    for (i=0;i<nmoves;i++)
-      if (!(book_status[i]&BAD_MOVE)) maxp=Max(maxp,bs_played[i]);
-    for (i=0;i<nmoves;i++) {
+ ************************************************************
+ *                                                          *
+ *   if any moves have a very bad or a very good learn      *
+ *   value, set the appropriate ? or ! flag so the move     *
+ *   be played or avoided as appropriate.                   *
+ *                                                          *
+ ************************************************************
+ */
+    for (i = 0; i < nmoves; i++)
+      if (!(book_status[i] & BAD_MOVE))
+        maxp = Max(maxp, bs_played[i]);
+    for (i = 0; i < nmoves; i++) {
       if (bs_learn[i] <= LEARN_COUNTER_BAD && !bs_percent[i] &&
-          !(book_status[i] & 030)) book_status[i]|=BAD_MOVE;
-      if (wtm && !(book_status[i]&0200) && !bs_percent[i] &&
-          !(book_status[i] & 030)) book_status[i]|=BAD_MOVE;
-      if (!wtm && !(book_status[i]&040) && !bs_percent[i] &&
-          !(book_status[i] & 030)) book_status[i]|=BAD_MOVE;
-      if (bs_played[i] < maxp/10 && !bs_percent[i] && book_random &&
-          !(book_status[i] & 030) && bs_CAP[i]==-2*MATE)
-        book_status[i]|=BAD_MOVE;
-      if (bs_learn[i] >= LEARN_COUNTER_GOOD &&
-          !(book_status[i] & 003)) book_status[i]|=GOOD_MOVE;
-      if (bs_CAP[i]>=CAP_SCORE_GOOD &&
-          !(book_status[i] & 003)) book_status[i]|=GOOD_MOVE;
-      if (bs_CAP[i]<=CAP_SCORE_BAD && bs_CAP[i]!=-2*MATE &&
-          !(book_status[i]&003)) book_status[i]|=BAD_MOVE;
-      if (bs_percent[i]) book_status[i]|=GOOD_MOVE;
-      if (!(book_status[i]&GOOD_MOVE) &&
-          BookRejectMove(tree,wtm,book_moves[i]))
-                                   book_status[i]|=BAD_MOVE;
+          !(book_status[i] & 030))
+        book_status[i] |= BAD_MOVE;
+      if (wtm && !(book_status[i] & 0200) && !bs_percent[i] &&
+          !(book_status[i] & 030))
+        book_status[i] |= BAD_MOVE;
+      if (!wtm && !(book_status[i] & 040) && !bs_percent[i] &&
+          !(book_status[i] & 030))
+        book_status[i] |= BAD_MOVE;
+      if (bs_played[i] < maxp / 10 && !bs_percent[i] && book_random &&
+          !(book_status[i] & 030) && bs_CAP[i] == -2 * MATE)
+        book_status[i] |= BAD_MOVE;
+      if (bs_learn[i] >= LEARN_COUNTER_GOOD && !(book_status[i] & 003))
+        book_status[i] |= GOOD_MOVE;
+      if (bs_CAP[i] >= CAP_SCORE_GOOD && !(book_status[i] & 003))
+        book_status[i] |= GOOD_MOVE;
+      if (bs_CAP[i] <= CAP_SCORE_BAD && bs_CAP[i] != -2 * MATE &&
+          !(book_status[i] & 003))
+        book_status[i] |= BAD_MOVE;
+      if (bs_percent[i])
+        book_status[i] |= GOOD_MOVE;
+      if (!(book_status[i] & GOOD_MOVE) &&
+          BookRejectMove(tree, wtm, book_moves[i]))
+        book_status[i] |= BAD_MOVE;
     }
 /*
- ----------------------------------------------------------
-|                                                          |
-|   we have the book moves, now it's time to decide how    |
-|   they are supposed to be sorted and compute the sort    |
-|   index.                                                 |
-|                                                          |
- ----------------------------------------------------------
-*/
-    for (i=0;i<nmoves;i++) {
-      if (!(book_status[i]&BAD_MOVE)) {
-        minlv=Min(minlv,bs_learn[i]);
-        maxlv=Max(maxlv,bs_learn[i]);
-        if (bs_CAP[i] != -2*MATE) mincap=Min(mincap,bs_CAP[i]);
-        if (bs_CAP[i] != -2*MATE) maxcap=Max(maxcap,bs_CAP[i]);
-        minev=Min(minev,evaluations[i]);
-        maxev=Max(maxev,evaluations[i]);
-        maxp=Max(maxp,bs_played[i]);
+ ************************************************************
+ *                                                          *
+ *   we have the book moves, now it's time to decide how    *
+ *   they are supposed to be sorted and compute the sort    *
+ *   index.                                                 *
+ *                                                          *
+ ************************************************************
+ */
+    for (i = 0; i < nmoves; i++) {
+      if (!(book_status[i] & BAD_MOVE)) {
+        minlv = Min(minlv, bs_learn[i]);
+        maxlv = Max(maxlv, bs_learn[i]);
+        if (bs_CAP[i] != -2 * MATE)
+          mincap = Min(mincap, bs_CAP[i]);
+        if (bs_CAP[i] != -2 * MATE)
+          maxcap = Max(maxcap, bs_CAP[i]);
+        minev = Min(minev, evaluations[i]);
+        maxev = Max(maxev, evaluations[i]);
+        maxp = Max(maxp, bs_played[i]);
       }
     }
-    if (mincap == -2*MATE) mincap=0;
-    if (maxcap < 0) maxcap=0;
+    if (mincap == -2 * MATE)
+      mincap = 0;
+    if (maxcap < 0)
+      maxcap = 0;
     maxp++;
-    for (i=0;i<nmoves;i++) {
-      cap=0;
-      bs_value[i]=1;
-      bs_value[i]+=bs_played[i]/(float) maxp*1000.0*book_weight_freq;
+    for (i = 0; i < nmoves; i++) {
+      cap = 0;
+      bs_value[i] = 1;
+      bs_value[i] += bs_played[i] / (float) maxp *1000.0 * book_weight_freq;
+
       if (minlv < maxlv)
-        bs_value[i]+=(bs_learn[i]-minlv)/
-                     (float) (maxlv-minlv)*1000.0*book_weight_learn;
-      if (bs_CAP[i]!=-2*MATE) {
-        cap=bs_CAP[i];
-        bs_value[i]+=(cap-mincap)/
-                     (float) (Max(maxcap-mincap,50))*1000.0*book_weight_CAP;
+        bs_value[i] +=
+            (bs_learn[i] - minlv) / (float) (maxlv -
+            minlv) * 1000.0 * book_weight_learn;
+      if (bs_CAP[i] != -2 * MATE) {
+        cap = bs_CAP[i];
+        bs_value[i] +=
+            (cap - mincap) / (float) (Max(maxcap - mincap,
+                50)) * 1000.0 * book_weight_CAP;
       }
       if (minev < maxev)
-        bs_value[i]+=(evaluations[i]-minev)/(float)(Max(maxev-minev,50))*
-                     1000.0*book_weight_eval;
+        bs_value[i] +=
+            (evaluations[i] - minev) / (float) (Max(maxev - minev,
+                50)) * 1000.0 * book_weight_eval;
     }
-    total_played=total_moves;
+    total_played = total_moves;
 /*
- ----------------------------------------------------------
-|                                                          |
-|   if there are any ! moves, make their popularity count  |
-|   huge since they have to be considered.                 |
-|                                                          |
- ----------------------------------------------------------
-*/
-    for (i=0;i<nmoves;i++) 
-      if (book_status[i] & 030) break;
+ ************************************************************
+ *                                                          *
+ *   if there are any ! moves, make their popularity count  *
+ *   huge since they have to be considered.                 *
+ *                                                          *
+ ************************************************************
+ */
+    for (i = 0; i < nmoves; i++)
+      if (book_status[i] & 030)
+        break;
     if (i < nmoves) {
-      for (i=0;i<nmoves;i++) {
-        if (book_status[i] & 030) bs_value[i]+=8000.0;
-        if (!(book_status[i] & 003)) bs_value[i]+=4000.0;
+      for (i = 0; i < nmoves; i++) {
+        if (book_status[i] & 030)
+          bs_value[i] += 8000.0;
+        if (!(book_status[i] & 003))
+          bs_value[i] += 4000.0;
       }
     }
 /*
- ----------------------------------------------------------
-|                                                          |
-|   now sort the moves based on the complete sort value.   |
-|                                                          |
- ----------------------------------------------------------
-*/
-    if (nmoves) 
+ ************************************************************
+ *                                                          *
+ *   now sort the moves based on the complete sort value.   *
+ *                                                          *
+ ************************************************************
+ */
+    if (nmoves)
       do {
-        done=1;
-        for (i=0;i<nmoves-1;i++) {
-          if (bs_percent[i]<bs_percent[i+1] ||
-              (bs_percent[i]==bs_percent[i+1] && bs_value[i]<bs_value[i+1])) {
-            tempr=bs_played[i];
-            bs_played[i]=bs_played[i+1];
-            bs_played[i+1]=tempr;
-            tempr=bs_value[i];
-            bs_value[i]=bs_value[i+1];
-            bs_value[i+1]=tempr;
-            temp=evaluations[i];
-            evaluations[i]=evaluations[i+1];
-            evaluations[i+1]=temp;
-            temp=bs_learn[i];
-            bs_learn[i]=bs_learn[i+1];
-            bs_learn[i+1]=temp;
-            temp=bs_CAP[i];
-            bs_CAP[i]=bs_CAP[i+1];
-            bs_CAP[i+1]=temp;
-            temp=book_development[i];
-            book_development[i]=book_development[i+1];
-            book_development[i+1]=temp;
-            temp=book_moves[i];
-            book_moves[i]=book_moves[i+1];
-            book_moves[i+1]=temp;
-            temp=book_status[i];
-            book_status[i]=book_status[i+1];
-            book_status[i+1]=temp;
-            temp=bs_percent[i];
-            bs_percent[i]=bs_percent[i+1];
-            bs_percent[i+1]=temp;
-            done=0;
+        done = 1;
+        for (i = 0; i < nmoves - 1; i++) {
+          if (bs_percent[i] < bs_percent[i + 1] ||
+              (bs_percent[i] == bs_percent[i + 1]
+                  && bs_value[i] < bs_value[i + 1])) {
+            tempr = bs_played[i];
+            bs_played[i] = bs_played[i + 1];
+            bs_played[i + 1] = tempr;
+            tempr = bs_value[i];
+            bs_value[i] = bs_value[i + 1];
+            bs_value[i + 1] = tempr;
+            temp = evaluations[i];
+            evaluations[i] = evaluations[i + 1];
+            evaluations[i + 1] = temp;
+            temp = bs_learn[i];
+            bs_learn[i] = bs_learn[i + 1];
+            bs_learn[i + 1] = temp;
+            temp = bs_CAP[i];
+            bs_CAP[i] = bs_CAP[i + 1];
+            bs_CAP[i + 1] = temp;
+            temp = book_development[i];
+            book_development[i] = book_development[i + 1];
+            book_development[i + 1] = temp;
+            temp = book_moves[i];
+            book_moves[i] = book_moves[i + 1];
+            book_moves[i + 1] = temp;
+            temp = book_status[i];
+            book_status[i] = book_status[i + 1];
+            book_status[i + 1] = temp;
+            temp = bs_percent[i];
+            bs_percent[i] = bs_percent[i + 1];
+            bs_percent[i + 1] = temp;
+            done = 0;
           }
         }
       } while (!done);
 /*
- ----------------------------------------------------------
-|                                                          |
-|   display the book moves, and total counts, etc. if the  |
-|   operator has requested it.                             |
-|                                                          |
- ----------------------------------------------------------
-*/
+ ************************************************************
+ *                                                          *
+ *   display the book moves, and total counts, etc. if the  *
+ *   operator has requested it.                             *
+ *                                                          *
+ ************************************************************
+ */
     if (show_book) {
-      Print(128,"  after screening, the following moves can be played\n");
-      Print(128,"  move     played    %%  score    learn     CAP     sortv   P%%  P\n");
-      for (i=0;i<nmoves;i++) {
-        Print(128,"%6s", OutputMove(tree,book_moves[i],1,wtm));
-        st=book_status[i];
+      Print(128, "  after screening, the following moves can be played\n");
+      Print(128,
+          "  move     played    %%  score    learn     CAP     sortv   P%%  P\n");
+      for (i = 0; i < nmoves; i++) {
+        Print(128, "%6s", OutputMove(tree, book_moves[i], 1, wtm));
+        st = book_status[i];
         if (st & 037) {
-          if (st & 1) Print(128,"??");
-          else if (st & 2) Print(128,"? ");
-          else if (st & 4) Print(128,"= ");
-          else if (st & 8) Print(128,"! ");
-          else if (st & 16) Print(128,"!!");
-        }
-        else Print(128,"  ");
-        Print(128,"   %6d",bs_played[i]);
-        Print(128,"  %3d",100*bs_played[i]/Max(total_moves,1));
-        Print(128,"%s",DisplayEvaluation(evaluations[i],wtm));
-        Print(128,"%9.2f",(float)bs_learn[i]/100.0);
-        Print(128,"%9.2f",(float)bs_CAP[i]/100.0);
-        Print(128," %9.1f",bs_value[i]);
-        Print(128," %3d",bs_percent[i]);
-        if ((book_status[i]&book_accept_mask &&
-             !(book_status[i]&book_reject_mask)) || 
-              (!(book_status[i]&book_reject_mask) && 
-              (bs_percent[i] || book_status[i]&030 ||
-               (wtm && book_status[i]&0200) ||
-               (!wtm && book_status[i]&040))))
-          Print(128,"  Y");
-        else Print(128,"  N");
-        Print(128,"\n");
+          if (st & 1)
+            Print(128, "??");
+          else if (st & 2)
+            Print(128, "? ");
+          else if (st & 4)
+            Print(128, "= ");
+          else if (st & 8)
+            Print(128, "! ");
+          else if (st & 16)
+            Print(128, "!!");
+        } else
+          Print(128, "  ");
+        Print(128, "   %6d", bs_played[i]);
+        Print(128, "  %3d", 100 * bs_played[i] / Max(total_moves, 1));
+        Print(128, "%s", DisplayEvaluation(evaluations[i], wtm));
+        Print(128, "%9.2f", (float) bs_learn[i] / 100.0);
+        Print(128, "%9.2f", (float) bs_CAP[i] / 100.0);
+        Print(128, " %9.1f", bs_value[i]);
+        Print(128, " %3d", bs_percent[i]);
+        if ((book_status[i] & book_accept_mask &&
+                !(book_status[i] & book_reject_mask)) ||
+            (!(book_status[i] & book_reject_mask) && (bs_percent[i] ||
+                    book_status[i] & 030 || (wtm && book_status[i] & 0200) ||
+                    (!wtm && book_status[i] & 040))))
+          Print(128, "  Y");
+        else
+          Print(128, "  N");
+        Print(128, "\n");
       }
     }
 /*
- ----------------------------------------------------------
-|                                                          |
-|   delete ? and ?? moves first, which includes those      |
-|   moves with bad learned results.                        |
-|                                                          |
- ----------------------------------------------------------
-*/
-    num_selected=0;
-    for (i=0;i<nmoves;i++)
+ ************************************************************
+ *                                                          *
+ *   delete ? and ?? moves first, which includes those      *
+ *   moves with bad learned results.                        *
+ *                                                          *
+ ************************************************************
+ */
+    num_selected = 0;
+    for (i = 0; i < nmoves; i++)
       if (!(book_status[i] & 003) || bs_percent[i]) {
-        selected_status[num_selected]=book_status[i];
-        selected_order_played[num_selected]=bs_played[i];
-        selected_value[num_selected]=bs_value[i];
-        selected_percent[num_selected]=bs_percent[i];
-        selected[num_selected++]=book_moves[i];
+        selected_status[num_selected] = book_status[i];
+        selected_order_played[num_selected] = bs_played[i];
+        selected_value[num_selected] = bs_value[i];
+        selected_percent[num_selected] = bs_percent[i];
+        selected[num_selected++] = book_moves[i];
       }
-    for (i=0;i<num_selected;i++) {
-      book_status[i]=selected_status[i];
-      bs_played[i]=selected_order_played[i];
-      bs_value[i]=selected_value[i];
-      bs_percent[i]=selected_percent[i];
-      book_moves[i]=selected[i];
+    for (i = 0; i < num_selected; i++) {
+      book_status[i] = selected_status[i];
+      bs_played[i] = selected_order_played[i];
+      bs_value[i] = selected_value[i];
+      bs_percent[i] = selected_percent[i];
+      book_moves[i] = selected[i];
     }
-    nmoves=num_selected;
+    nmoves = num_selected;
 /*
- ----------------------------------------------------------
-|                                                          |
-|   if this is a real search (not a puzzling search to     |
-|   find a move by the opponent to ponder) then we need to |
-|   set up the whisper info for later.                     |
-|                                                          |
- ----------------------------------------------------------
-*/
-    if (!puzzling) do {
-      kibitz_text[0]='\0';
-      if (!nmoves) break;
-      sprintf(kibitz_text,"book moves (");
-      kibitz_p=kibitz_text+strlen(kibitz_text);
-      for (i=0;i<nmoves;i++) {
-        sprintf(kibitz_p,"%s %d%%",OutputMove(tree,book_moves[i],1,wtm),
-                                    100*bs_played[i]/Max(total_played,1));
-        kibitz_p=kibitz_text+strlen(kibitz_text);
-        if (i < nmoves-1) {
-          sprintf(kibitz_p,", ");
-          kibitz_p=kibitz_text+strlen(kibitz_text);
+ ************************************************************
+ *                                                          *
+ *   if this is a real search (not a puzzling search to     *
+ *   find a move by the opponent to ponder) then we need to *
+ *   set up the whisper info for later.                     *
+ *                                                          *
+ ************************************************************
+ */
+    if (!puzzling)
+      do {
+        kibitz_text[0] = '\0';
+        if (!nmoves)
+          break;
+        sprintf(kibitz_text, "book moves (");
+        kibitz_p = kibitz_text + strlen(kibitz_text);
+        for (i = 0; i < nmoves; i++) {
+          sprintf(kibitz_p, "%s %d%%", OutputMove(tree, book_moves[i], 1, wtm),
+              100 * bs_played[i] / Max(total_played, 1));
+          kibitz_p = kibitz_text + strlen(kibitz_text);
+          if (i < nmoves - 1) {
+            sprintf(kibitz_p, ", ");
+            kibitz_p = kibitz_text + strlen(kibitz_text);
+          }
         }
-      }
-      sprintf(kibitz_p,")\n");
-    } while(0);
+        sprintf(kibitz_p, ")\n");
+      } while (0);
 /*
- ----------------------------------------------------------
-|                                                          |
-|   now select a move from the set of moves just found. do |
-|   this in four distinct passes:  (2) look for !! moves;  |
-|   (2) look for ! moves;  (3) look for any other moves.   |
-|   note: book_accept_mask *should* have a bit set for any |
-|   move that is selected, including !! and ! type moves   |
-|   so that they *can* be excluded if desired.  note also  |
-|   that book_reject_mask should have ?? and ? set (at a   |
-|   minimum) to exclude these types of moves.              |
-|                                                          |
- ----------------------------------------------------------
-*/
+ ************************************************************
+ *                                                          *
+ *   now select a move from the set of moves just found. do *
+ *   this in four distinct passes:  (2) look for !! moves;  *
+ *   (2) look for ! moves;  (3) look for any other moves.   *
+ *   note: book_accept_mask *should* have a bit set for any *
+ *   move that is selected, including !! and ! type moves   *
+ *   so that they *can* be excluded if desired.  note also  *
+ *   that book_reject_mask should have ?? and ? set (at a   *
+ *   minimum) to exclude these types of moves.              *
+ *                                                          *
+ ************************************************************
+ */
 /*
-   first, check for !! moves
-*/
-    num_selected=0;
+ first, check for !! moves
+ */
+    num_selected = 0;
     if (!num_selected && !puzzling)
       if (book_accept_mask & 16)
-        for (i=0;i<nmoves;i++)
+        for (i = 0; i < nmoves; i++)
           if (book_status[i] & 16) {
-            forced=1;
-            selected_status[num_selected]=book_status[i];
-            selected_order_played[num_selected]=bs_played[i];
-            selected_value[num_selected]=bs_value[i];
-            selected[num_selected++]=book_moves[i];
+            forced = 1;
+            selected_status[num_selected] = book_status[i];
+            selected_order_played[num_selected] = bs_played[i];
+            selected_value[num_selected] = bs_value[i];
+            selected[num_selected++] = book_moves[i];
           }
 /*
-   if none, then check for ! moves
-*/
+ if none, then check for ! moves
+ */
     if (!num_selected && !puzzling)
       if (book_accept_mask & 8)
-        for (i=0;i<nmoves;i++)
+        for (i = 0; i < nmoves; i++)
           if (book_status[i] & 8) {
-            forced=1;
-            selected_status[num_selected]=book_status[i];
-            selected_order_played[num_selected]=bs_played[i];
-            selected_value[num_selected]=bs_value[i];
-            selected[num_selected++]=book_moves[i];
+            forced = 1;
+            selected_status[num_selected] = book_status[i];
+            selected_order_played[num_selected] = bs_played[i];
+            selected_value[num_selected] = bs_value[i];
+            selected[num_selected++] = book_moves[i];
           }
 /*
-   if none, then check for = moves
-*/
+ if none, then check for = moves
+ */
     if (!num_selected && !puzzling)
       if (book_accept_mask & 4)
-        for (i=0;i<nmoves;i++)
+        for (i = 0; i < nmoves; i++)
           if (book_status[i] & 4) {
-            selected_status[num_selected]=book_status[i];
-            selected_order_played[num_selected]=bs_played[i];
-            selected_value[num_selected]=bs_value[i];
-            selected[num_selected++]=book_moves[i];
+            selected_status[num_selected] = book_status[i];
+            selected_order_played[num_selected] = bs_played[i];
+            selected_value[num_selected] = bs_value[i];
+            selected[num_selected++] = book_moves[i];
           }
 /*
-   if none, then check for any flagged moves
-*/
+ if none, then check for any flagged moves
+ */
     if (!num_selected && !puzzling)
-      for (i=0;i<nmoves;i++)
+      for (i = 0; i < nmoves; i++)
         if (book_status[i] & book_accept_mask) {
-          selected_status[num_selected]=book_status[i];
-          selected_order_played[num_selected]=bs_played[i];
-          selected_value[num_selected]=bs_value[i];
-          selected[num_selected++]=book_moves[i];
+          selected_status[num_selected] = book_status[i];
+          selected_order_played[num_selected] = bs_played[i];
+          selected_value[num_selected] = bs_value[i];
+          selected[num_selected++] = book_moves[i];
         }
 /*
-   if none, then any book move is acceptable
-*/
+ if none, then any book move is acceptable
+ */
     if (!num_selected)
-      for (i=0;i<nmoves;i++) {
-        selected_status[num_selected]=book_status[i];
-        selected_order_played[num_selected]=bs_played[i];
-        selected_value[num_selected]=bs_value[i];
-        selected[num_selected++]=book_moves[i];
+      for (i = 0; i < nmoves; i++) {
+        selected_status[num_selected] = book_status[i];
+        selected_order_played[num_selected] = bs_played[i];
+        selected_value[num_selected] = bs_value[i];
+        selected[num_selected++] = book_moves[i];
       }
-    if (!num_selected) return(0);
+    if (!num_selected)
+      return (0);
 /*
-   now copy moves to the right place.
-*/
-    for (i=0;i<num_selected;i++) {
-      book_status[i]=selected_status[i];
-      book_moves[i]=selected[i];
-      bs_played[i]=selected_order_played[i];
-      bs_value[i]=selected_value[i];
+ now copy moves to the right place.
+ */
+    for (i = 0; i < num_selected; i++) {
+      book_status[i] = selected_status[i];
+      book_moves[i] = selected[i];
+      bs_played[i] = selected_order_played[i];
+      bs_value[i] = selected_value[i];
     }
-    nmoves=num_selected;
-    if (nmoves == 0) return(0);
+    nmoves = num_selected;
+    if (nmoves == 0)
+      return (0);
 
-    Print(128,"               book moves {");
-    for (i=0;i<nmoves;i++) {
-      Print(128,"%s", OutputMove(tree,book_moves[i],1,wtm));
-      if (i < nmoves-1) Print(128,", ");
+    Print(128, "               book moves {");
+    for (i = 0; i < nmoves; i++) {
+      Print(128, "%s", OutputMove(tree, book_moves[i], 1, wtm));
+      if (i < nmoves - 1)
+        Print(128, ", ");
     }
-    Print(128,"}\n");
-    nflagged=0;
-    for (i=0;i<nmoves;i++)
-      if (book_status[i] & 8) nflagged++;
-    nmoves=Max(Min(nmoves,book_selection_width),nflagged);
+    Print(128, "}\n");
+    nflagged = 0;
+    for (i = 0; i < nmoves; i++)
+      if (book_status[i] & 8)
+        nflagged++;
+    nmoves = Max(Min(nmoves, book_selection_width), nflagged);
     if (show_book) {
-      Print(128,"               moves considered {");
-      for (i=0;i<nmoves;i++) {
-        Print(128,"%s", OutputMove(tree,book_moves[i],1,wtm));
-        if (i < nmoves-1) Print(128,", ");
+      Print(128, "               moves considered {");
+      for (i = 0; i < nmoves; i++) {
+        Print(128, "%s", OutputMove(tree, book_moves[i], 1, wtm));
+        if (i < nmoves - 1)
+          Print(128, ", ");
       }
-      Print(128,"}\n");
+      Print(128, "}\n");
     }
 /*
- ----------------------------------------------------------
-|                                                          |
-|   we have the book moves, if any have specified percents |
-|   for play, then adjust the bs_value[] to reflect this   |
-|   percentage.                                            |
-|                                                          |
- ----------------------------------------------------------
-*/
-    total_value=0.0;
-    total_percent=0;
-    for (i=0;i<nmoves;i++) {
-      if (!bs_percent[i]) total_value+=bs_value[i];
-      total_percent+=bs_percent[i];
+ ************************************************************
+ *                                                          *
+ *   we have the book moves, if any have specified percents *
+ *   for play, then adjust the bs_value[] to reflect this   *
+ *   percentage.                                            *
+ *                                                          *
+ ************************************************************
+ */
+    total_value = 0.0;
+    total_percent = 0;
+    for (i = 0; i < nmoves; i++) {
+      if (!bs_percent[i])
+        total_value += bs_value[i];
+      total_percent += bs_percent[i];
     }
-    if (total_value == 0.0) total_value=1000.0;
-    total_percent=(total_percent>99) ? 99 : total_percent;
-    for (i=0;i<nmoves;i++) 
+    if (total_value == 0.0)
+      total_value = 1000.0;
+    total_percent = (total_percent > 99) ? 99 : total_percent;
+    for (i = 0; i < nmoves; i++)
       if (bs_percent[i])
-        bs_value[i]=total_value/(1.0-(float)total_percent/100.0)*
-                                     (float)bs_percent[i]/100.0;
+        bs_value[i] =
+            total_value / (1.0 -
+            (float) total_percent / 100.0) * (float) bs_percent[i] / 100.0;
 /*
- ----------------------------------------------------------
-|                                                          |
-|   display the book moves, and total counts, etc. if the  |
-|   operator has requested it.                             |
-|                                                          |
- ----------------------------------------------------------
-*/
+ ************************************************************
+ *                                                          *
+ *   display the book moves, and total counts, etc. if the  *
+ *   operator has requested it.                             *
+ *                                                          *
+ ************************************************************
+ */
     if (show_book) {
-      Print(128,"  move     played    %%  score     sortv  P%%  P\n");
-      for (i=0;i<nmoves;i++) {
-        Print(128,"%6s", OutputMove(tree,book_moves[i],1,wtm));
-        st=book_status[i];
+      Print(128, "  move     played    %%  score     sortv  P%%  P\n");
+      for (i = 0; i < nmoves; i++) {
+        Print(128, "%6s", OutputMove(tree, book_moves[i], 1, wtm));
+        st = book_status[i];
         if (st & 037) {
-          if (st & 1) Print(128,"??");
-          else if (st & 2) Print(128,"? ");
-          else if (st & 4) Print(128,"= ");
-          else if (st & 8) Print(128,"! ");
-          else if (st & 16) Print(128,"!!");
-        }
-        else Print(128,"  ");
-        Print(128,"   %6d",bs_played[i]);
-        Print(128,"  %3d",100*bs_played[i]/Max(total_moves,1));
-        Print(128,"%s",DisplayEvaluation(evaluations[i],wtm));
-        Print(128," %9.1f",bs_value[i]);
-        Print(128," %3d",bs_percent[i]);
-        if ((book_status[i]&book_accept_mask &&
-             !(book_status[i]&book_reject_mask)) || 
-              (!(book_status[i]&book_reject_mask) && 
-              ((wtm && book_status[i]&0200) ||
-               (!wtm && book_status[i]&040))))
-          Print(128,"  Y");
-        else Print(128,"  N");
-        Print(128,"\n");
+          if (st & 1)
+            Print(128, "??");
+          else if (st & 2)
+            Print(128, "? ");
+          else if (st & 4)
+            Print(128, "= ");
+          else if (st & 8)
+            Print(128, "! ");
+          else if (st & 16)
+            Print(128, "!!");
+        } else
+          Print(128, "  ");
+        Print(128, "   %6d", bs_played[i]);
+        Print(128, "  %3d", 100 * bs_played[i] / Max(total_moves, 1));
+        Print(128, "%s", DisplayEvaluation(evaluations[i], wtm));
+        Print(128, " %9.1f", bs_value[i]);
+        Print(128, " %3d", bs_percent[i]);
+        if ((book_status[i] & book_accept_mask &&
+                !(book_status[i] & book_reject_mask)) ||
+            (!(book_status[i] & book_reject_mask) && ((wtm &&
+                        book_status[i] & 0200) || (!wtm &&
+                        book_status[i] & 040))))
+          Print(128, "  Y");
+        else
+          Print(128, "  N");
+        Print(128, "\n");
       }
     }
 /*
- ----------------------------------------------------------
-|                                                          |
-|   if random=0, then we search the set of legal book      |
-|   moves with the normal search engine (but with a short  |
-|   time limit) to choose among them.                      |
-|                                                          |
- ----------------------------------------------------------
-*/
-    if (nmoves && (!puzzling || mode!=tournament_mode)) {
-      np=bs_played[nmoves-1];
-      if (!puzzling && (!book_random ||
-                       (mode==tournament_mode && np<book_search_trigger))) {
+ ************************************************************
+ *                                                          *
+ *   if random=0, then we search the set of legal book      *
+ *   moves with the normal search engine (but with a short  *
+ *   time limit) to choose among them.                      *
+ *                                                          *
+ ************************************************************
+ */
+    if (nmoves && (!puzzling || mode != tournament_mode)) {
+      np = bs_played[nmoves - 1];
+      if (!puzzling && (!book_random || (mode == tournament_mode &&
+                  np < book_search_trigger))) {
         if (!forced) {
-          n_root_moves=nmoves;
-          for (i=0;i<n_root_moves;i++) {
-            root_moves[i].move=book_moves[i];
-            root_moves[i].nodes=0;
-            root_moves[i].status=0;
+          n_root_moves = nmoves;
+          for (i = 0; i < n_root_moves; i++) {
+            root_moves[i].move = book_moves[i];
+            root_moves[i].nodes = 0;
+            root_moves[i].status = 0;
           }
-          last_pv.pathd=0;
-          booking=1;
-          value=Iterate(wtm,booking,1);
-          booking=0;
-          abort_search=0;
+          last_pv.pathd = 0;
+          booking = 1;
+          value = Iterate(wtm, booking, 1);
+          booking = 0;
+          abort_search = 0;
           if (value < -50) {
-            last_pv.pathd=0;
-            return(0);
+            last_pv.pathd = 0;
+            return (0);
           }
+        } else {
+          tree->pv[1].path[1] = book_moves[0];
+          tree->pv[1].pathl = 1;
+          tree->pv[1].pathd = 0;
         }
-        else {
-          tree->pv[1].path[1]=book_moves[0];
-          tree->pv[1].pathl=1;
-          tree->pv[1].pathd=0;
-        }
-        return(1);
+        return (1);
       }
     }
 /*
- ----------------------------------------------------------
-|                                                          |
-|   if puzzling, in tournament mode we try to find the     |
-|   best non-book move, because a book move will produce   |
-|   a quick move anyway.  we therefore would rather search |
-|   for a non-book move, just in case the opponent goes    |
-|   out of book here.                                      |
-|                                                          |
- ----------------------------------------------------------
-*/
-    else if (mode==tournament_mode && puzzling) {
+ ************************************************************
+ *                                                          *
+ *   if puzzling, in tournament mode we try to find the     *
+ *   best non-book move, because a book move will produce   *
+ *   a quick move anyway.  we therefore would rather search *
+ *   for a non-book move, just in case the opponent goes    *
+ *   out of book here.                                      *
+ *                                                          *
+ ************************************************************
+ */
+    else if (mode == tournament_mode && puzzling) {
       RootMoveList(wtm);
-      for (i=0;i<n_root_moves;i++)
-        for (j=0;j<nmoves;j++)
-          if (root_moves[i].move==book_moves[j]) root_moves[i].move=0;
-      for (i=0,j=0;i<n_root_moves;i++)
-        if (root_moves[i].move != 0) root_moves[j++]=root_moves[i];
-      n_root_moves=j;
-      Print(128,"               moves considered {only non-book moves}\n");
-      nmoves=j;
+      for (i = 0; i < n_root_moves; i++)
+        for (j = 0; j < nmoves; j++)
+          if (root_moves[i].move == book_moves[j])
+            root_moves[i].move = 0;
+      for (i = 0, j = 0; i < n_root_moves; i++)
+        if (root_moves[i].move != 0)
+          root_moves[j++] = root_moves[i];
+      n_root_moves = j;
+      Print(128, "               moves considered {only non-book moves}\n");
+      nmoves = j;
       if (nmoves > 1) {
-        last_pv.pathd=0;
-        booking=1;
-        (void) Iterate(wtm,booking,1);
-        booking=0;
+        last_pv.pathd = 0;
+        booking = 1;
+        (void) Iterate(wtm, booking, 1);
+        booking = 0;
+      } else {
+        tree->pv[1].path[1] = book_moves[0];
+        tree->pv[1].pathl = 1;
+        tree->pv[1].pathd = 0;
       }
-      else {
-        tree->pv[1].path[1]=book_moves[0];
-        tree->pv[1].pathl=1;
-        tree->pv[1].pathd=0;
-      }
-      return(1);
+      return (1);
     }
-    last_move=nmoves;
+    last_move = nmoves;
 /*
- ----------------------------------------------------------
-|                                                          |
-|   compute a random value and use this to generate a      |
-|   book move based on a probability distribution of       |
-|   the number of games won by each book move.             |
-|                                                          |
- ----------------------------------------------------------
-*/
-    which=Random32();
-    j=ReadClock(microseconds)/100 % 13;
-    for (i=0;i<j;i++) which=Random32();
-    total_moves=0;
-    for (i=0;i<last_move;i++) {
-      if (bs_percent[0]) total_moves+=bs_value[i];
-      else total_moves+=bs_value[i]*bs_value[i];
+ ************************************************************
+ *                                                          *
+ *   compute a random value and use this to generate a      *
+ *   book move based on a probability distribution of       *
+ *   the number of games won by each book move.             *
+ *                                                          *
+ ************************************************************
+ */
+    which = Random32();
+    j = ReadClock(microseconds) / 100 % 13;
+    for (i = 0; i < j; i++)
+      which = Random32();
+    total_moves = 0;
+    for (i = 0; i < last_move; i++) {
+      if (bs_percent[0])
+        total_moves += bs_value[i];
+      else
+        total_moves += bs_value[i] * bs_value[i];
     }
-    distribution=abs(which) % Max(total_moves,1);
-    for (which=0;which<last_move;which++) {
-      if (bs_percent[0]) distribution-=bs_value[which];
-      else distribution-=bs_value[which]*bs_value[which];
-      if (distribution < 0) break;
+    distribution = abs(which) % Max(total_moves, 1);
+    for (which = 0; which < last_move; which++) {
+      if (bs_percent[0])
+        distribution -= bs_value[which];
+      else
+        distribution -= bs_value[which] * bs_value[which];
+      if (distribution < 0)
+        break;
     }
-    which=Min(which,last_move-1);
-    tree->pv[1].path[1]=book_moves[which];
-    percent_played=100*bs_played[which]/Max(total_played,1);
-    total_played=bs_played[which];
-    m1_status=book_status[which];
-    tree->pv[1].pathl=1;
-    tree->pv[1].pathd=0;
+    which = Min(which, last_move - 1);
+    tree->pv[1].path[1] = book_moves[which];
+    percent_played = 100 * bs_played[which] / Max(total_played, 1);
+    total_played = bs_played[which];
+    m1_status = book_status[which];
+    tree->pv[1].pathl = 1;
+    tree->pv[1].pathd = 0;
     if (mode != tournament_mode) {
-      MakeMove(tree,1,book_moves[which],wtm);
-      if ((book_ponder_move=BookPonderMove(tree,Flip(wtm)))) {
-        tree->pv[1].path[2]=book_ponder_move;
-        tree->pv[1].pathl=2;
+      MakeMove(tree, 1, book_moves[which], wtm);
+      if ((book_ponder_move = BookPonderMove(tree, Flip(wtm)))) {
+        tree->pv[1].path[2] = book_ponder_move;
+        tree->pv[1].pathl = 2;
       }
-      UnmakeMove(tree,1,book_moves[which],wtm);
+      UnmakeMove(tree, 1, book_moves[which], wtm);
     }
-    Print(128,"               book   0.0s    %3d%%   ", percent_played);
-    Print(128," %s",OutputMove(tree,tree->pv[1].path[1],1,wtm));
-    st=m1_status & book_accept_mask & (~224);
+    Print(128, "               book   0.0s    %3d%%   ", percent_played);
+    Print(128, " %s", OutputMove(tree, tree->pv[1].path[1], 1, wtm));
+    st = m1_status & book_accept_mask & (~224);
     if (st) {
-      if (st & 1) Print(128,"??");
-      else if (st & 2) Print(128,"?");
-      else if (st & 4) Print(128,"=");
-      else if (st & 8) Print(128,"!");
-      else if (st & 16) Print(128,"!!");
+      if (st & 1)
+        Print(128, "??");
+      else if (st & 2)
+        Print(128, "?");
+      else if (st & 4)
+        Print(128, "=");
+      else if (st & 8)
+        Print(128, "!");
+      else if (st & 16)
+        Print(128, "!!");
     }
-    MakeMove(tree,1,tree->pv[1].path[1],wtm);
-    if (tree->pv[1].pathl>1)
-      Print(128," %s",OutputMove(tree,tree->pv[1].path[2],2,Flip(wtm)));
-    UnmakeMove(tree,1,tree->pv[1].path[1],wtm);
-    Print(128,"\n");
-    return(1);
+    MakeMove(tree, 1, tree->pv[1].path[1], wtm);
+    if (tree->pv[1].pathl > 1)
+      Print(128, " %s", OutputMove(tree, tree->pv[1].path[2], 2, Flip(wtm)));
+    UnmakeMove(tree, 1, tree->pv[1].path[1], wtm);
+    Print(128, "\n");
+    return (1);
   }
-  return(0);
+  return (0);
 }
 
 /* last modified 09/27/99 */
 /*
-********************************************************************************
-*                                                                              *
-*   BookPonderMove() is used to find a move to ponder, to avoid the overhead   *
-*   of a "puzzling" search early in the game (unless there are no book moves   *
-*   found, of course.)  the algorithm is much simpler than the normal book     *
-*   move code...  just find the move with the largest frequency counter and    *
-*   assume that will be played.                                                *
-*                                                                              *
-********************************************************************************
-*/
-int BookPonderMove(TREE *tree, int wtm) {
+ *******************************************************************************
+ *                                                                             *
+ *   BookPonderMove() is used to find a move to ponder, to avoid the overhead  *
+ *   of a "puzzling" search early in the game (unless there are no book moves  *
+ *   found, of course.)  the algorithm is much simpler than the normal book    *
+ *   move code...  just find the move with the largest frequency counter and   *
+ *   assume that will be played.                                               *
+ *                                                                             *
+ *******************************************************************************
+ */
+int BookPonderMove(TREE * RESTRICT tree, int wtm)
+{
 
   BITBOARD temp_hash_key, common;
   static int book_moves[200];
   int i, key, *lastm, cluster, n_moves, im, played, tplayed;
-  int book_ponder_move=0, test;
+  int book_ponder_move = 0, test;
+
 /*
- ----------------------------------------------------------
-|                                                          |
-|   position is known, read in the appropriate cluster.    |
-|   note that this cluster will have all possible book     |
-|   moves from current position in it (as well as others   |
-|   of course.)                                            |
-|                                                          |
- ----------------------------------------------------------
-*/
+ ************************************************************
+ *                                                          *
+ *   position is known, read in the appropriate cluster.    *
+ *   note that this cluster will have all possible book     *
+ *   moves from current position in it (as well as others   *
+ *   of course.)                                            *
+ *                                                          *
+ ************************************************************
+ */
   if (book_file) {
-    test=HashKey>>49;
-    fseek(book_file,test*sizeof(int),SEEK_SET);
-    fread(&key,sizeof(int),1,book_file);
+    test = HashKey >> 49;
+    fseek(book_file, test * sizeof(int), SEEK_SET);
+    fread(&key, sizeof(int), 1, book_file);
     if (key > 0) {
-      fseek(book_file,key,SEEK_SET);
-      fread(&cluster,sizeof(int),1,book_file);
-      fread(book_buffer,sizeof(BOOK_POSITION),cluster,book_file);
-    }
-    else cluster=0;
-    if (!cluster) return(0);
-    lastm=GenerateCaptures(tree, 2, wtm, book_moves);
-    lastm=GenerateNonCaptures(tree, 2, wtm, lastm);
-    n_moves=lastm-book_moves;
+      fseek(book_file, key, SEEK_SET);
+      fread(&cluster, sizeof(int), 1, book_file);
+      fread(book_buffer, sizeof(BOOK_POSITION), cluster, book_file);
+    } else
+      cluster = 0;
+    if (!cluster)
+      return (0);
+    lastm = GenerateCaptures(tree, 2, wtm, book_moves);
+    lastm = GenerateNonCaptures(tree, 2, wtm, lastm);
+    n_moves = lastm - book_moves;
 /*
- ----------------------------------------------------------
-|                                                          |
-|   first cycle through the root move list, make each      |
-|   move, and see if the resulting hash key is in the book |
-|   database.                                              |
-|                                                          |
- ----------------------------------------------------------
-*/
-    played=-1;
-    for (im=0;im<n_moves;im++) {
-      common=HashKey & mask_16;
-      MakeMove(tree,2,book_moves[im],wtm);
-      temp_hash_key=HashKey ^ wtm_random[wtm];
-      temp_hash_key=(temp_hash_key & ~mask_16) | common;
-      for (i=0;i<cluster;i++) {
+ ************************************************************
+ *                                                          *
+ *   first cycle through the root move list, make each      *
+ *   move, and see if the resulting hash key is in the book *
+ *   database.                                              *
+ *                                                          *
+ ************************************************************
+ */
+    played = -1;
+    for (im = 0; im < n_moves; im++) {
+      common = HashKey & mask_16;
+      MakeMove(tree, 2, book_moves[im], wtm);
+      temp_hash_key = HashKey ^ wtm_random[wtm];
+      temp_hash_key = (temp_hash_key & ~mask_16) | common;
+      for (i = 0; i < cluster; i++) {
         if (!(temp_hash_key ^ book_buffer[i].position)) {
-          tplayed=book_buffer[i].status_played&077777777;
+          tplayed = book_buffer[i].status_played & 077777777;
           if (tplayed > played) {
-            played=tplayed;
-            book_ponder_move=book_moves[im];
+            played = tplayed;
+            book_ponder_move = book_moves[im];
           }
           break;
         }
       }
-      UnmakeMove(tree,2,book_moves[im],wtm);
+      UnmakeMove(tree, 2, book_moves[im], wtm);
     }
   }
-  return(book_ponder_move);
+  return (book_ponder_move);
 }
 
 /* last modified 09/11/02 */
 /*
-********************************************************************************
-*                                                                              *
-*   BookUp() is used to create/add to the opening book file.  typing "<file>   *
-*   create" will erase the old book file and start from scratch,               *
-*                                                                              *
-*   the format of the input data is a left bracket ("[") followed by any title *
-*   information desired, followed by a right bracket ("]") followed by a       *
-*   sequence of moves.  the sequence of moves is assumed to start at ply=1,    *
-*   with white-to-move (normal opening position) and can contain as many moves *
-*   as desired (no limit on the depth of each variation.)  the file *must* be  *
-*   terminated with a line that begins with "end", since handling the EOF      *
-*   condition makes portable code difficult.                                   *
-*                                                                              *
-*   book moves can either be typed in by hand, directly into book_add(), by    *
-*   using the "book create/add" command.  using the command "book add/create   *
-*   filename" will cause book_add() to read its opening text moves from        *
-*   filename rather than from the key                                    *
-*                                                                              *
-*   in addition to the normal text for a move (reduced or full algebraic is    *
-*   accepted, ie, e4, ed, exd4, e3d4, etc. are all acceptable) some special    *
-*   characters can be appended to a move.                                      *
-*                                                                              *
-*      ?? ->  never play this move.  since the same book is used for both      *
-*             black and white, you can enter moves in that white might play,   *
-*             but prevent the program from choosing them on its own.           *
-*      ?  ->  avoid this move except for non-important games.  these openings  *
-*             are historically those that the program doesn't play very well,  *
-*             but which aren't outright losing.                                *
-*      =  ->  drawish move, only play this move if drawish moves are allowed   *
-*             by the operator.  this is used to encourage the program to play  *
-*             drawish openings (Petrov's comes to mind) when the program needs *
-*             to draw or is facing a formidable opponent (deep thought comes   *
-*             to mind.)                                                        *
-*      !  ->  always play this move, if there isn't a move with the !! flag    *
-*             set also.  this is a strong move, but not as strong as a !!      *
-*             moveing traps.                                                   *
-*      !! ->  always play this move.  this can be used to make the program     *
-*             favor particular lines, or to mark a strong move for certain     *
-*             opening traps.                                                   *
-*                                                                              *
-*  {play nn%} is used to force this specific book move to be played a specific *
-*             percentage of the time, and override the frequency of play that  *
-*             comes from the large pgn database.                               *
-*                                                                              *
-********************************************************************************
-*/
-void BookUp(TREE *tree, int nargs, char **args) {
+ *******************************************************************************
+ *                                                                             *
+ *   BookUp() is used to create/add to the opening book file.  typing "<file>  *
+ *   create" will erase the old book file and start from scratch,              *
+ *                                                                             *
+ *   the format of the input data is a left bracket ("[") followed by any title*
+ *   information desired, followed by a right bracket ("]") followed by a      *
+ *   sequence of moves.  the sequence of moves is assumed to start at ply=1,   *
+ *   with white-to-move (normal opening position) and can contain as many moves*
+ *   as desired (no limit on the depth of each variation.)  the file *must* be *
+ *   terminated with a line that begins with "end", since handling the EOF     *
+ *   condition makes portable code difficult.                                  *
+ *                                                                             *
+ *   book moves can either be typed in by hand, directly into book_add(), by   *
+ *   using the "book create/add" command.  using the command "book add/create  *
+ *   filename" will cause book_add() to read its opening text moves from       *
+ *   filename rather than from the keyboard                                    *
+ *                                                                             *
+ *   in addition to the normal text for a move (reduced or full algebraic is   *
+ *   accepted, ie, e4, ed, exd4, e3d4, etc. are all acceptable) some special   *
+ *   characters can be appended to a move.                                     *
+ *                                                                             *
+ *      ?? ->  never play this move.  since the same book is used for both     *
+ *             black and white, you can enter moves in that white might play,  *
+ *             but prevent the program from choosing them on its own.          *
+ *      ?  ->  avoid this move except for non-important games.  these openings *
+ *             are historically those that the program doesn't play very well, *
+ *             but which aren't outright losing.                               *
+ *      =  ->  drawish move, only play this move if drawish moves are allowed  *
+ *             by the operator.  this is used to encourage the program to play *
+ *             drawish openings (Petrov's comes to mind) when the program needs*
+ *             to draw or is facing a formidable opponent (deep thought comes  *
+ *             to mind.)                                                       *
+ *      !  ->  always play this move, if there isn't a move with the !! flag   *
+ *             set also.  this is a strong move, but not as strong as a !!     *
+ *             moveing traps.                                                  *
+ *      !! ->  always play this move.  this can be used to make the program    *
+ *             favor particular lines, or to mark a strong move for certain    *
+ *             opening traps.                                                  *
+ *                                                                             *
+ *  {play nn%} is used to force this specific book move to be played a specific*
+ *             percentage of the time, and override the frequency of play that *
+ *             comes from the large pgn database.                              *
+ *                                                                             *
+ *******************************************************************************
+ */
+void BookUp(TREE * RESTRICT tree, int nargs, char **args)
+{
   BB_POSITION *bbuffer;
   BITBOARD temp_hash_key, common;
   FILE *book_input;
   char fname[128], start, *ch, output_filename[128];
-  static char schar[2]={"."};
-  int result=0, played, i, mask_word, total_moves;
+  static char schar[2] = { "." };
+  int result = 0, played, i, mask_word, total_moves;
   int move, move_num, wtm, book_positions, major, minor;
-  int cluster, max_cluster, discarded=0, discarded_mp=0, discarded_lose=0;
+  int cluster, max_cluster, discarded = 0, discarded_mp = 0, discarded_lose = 0;
   int errors, data_read;
-  int start_cpu_time, start_elapsed_time, ply, max_ply=256;
-  int stat, files=0, buffered=0, min_played=0, games_parsed=0;
+  int start_cpu_time, start_elapsed_time, ply, max_ply = 256;
+  int stat, files = 0, buffered = 0, min_played = 0, games_parsed = 0;
   int wins, losses;
   BOOK_POSITION current, next;
   BB_POSITION temp;
   int last, cluster_seek, next_cluster;
   int counter, *index, max_search_depth;
-  double wl_percent=0.0;
+  double wl_percent = 0.0;
 
 /*
- ----------------------------------------------------------
-|                                                          |
-|   open the correct book file for writing/reading         |
-|                                                          |
- ----------------------------------------------------------
-*/
-  if (!strcmp(args[1],"create")) {
+ ************************************************************
+ *                                                          *
+ *   open the correct book file for writing/reading         *
+ *                                                          *
+ ************************************************************
+ */
+  if (!strcmp(args[1], "create")) {
     if (nargs < 4) {
-      Print(4095,"usage:  <binfile> create <pgn-filename> ");
-      Print(4095,"maxply [minplay] [win/lose %]\n");
+      Print(4095, "usage:  <binfile> create <pgn-filename> ");
+      Print(4095, "maxply [minplay] [win/lose %]\n");
       return;
     }
-    max_ply=atoi(args[3]);
+    max_ply = atoi(args[3]);
     if (nargs >= 5) {
-      min_played=atoi(args[4]);
+      min_played = atoi(args[4]);
     }
     if (nargs > 5) {
-      wl_percent=atof(args[5])/100.0;
+      wl_percent = atof(args[5]) / 100.0;
     }
-    strcpy(output_filename,args[0]);
-    if (!strstr(output_filename,".bin")) {
-      strcat(output_filename,".bin");
+    strcpy(output_filename, args[0]);
+    if (!strstr(output_filename, ".bin")) {
+      strcat(output_filename, ".bin");
     }
-  }
-  else if (!strcmp(args[1],"off")) {
-    if (book_file) fclose(book_file);
-    if (books_file) fclose(normal_bs_file);
-    if (computer_bs_file) fclose(computer_bs_file);
-    book_file=0;
-    books_file=0;
-    computer_bs_file=0;
-    normal_bs_file=0;
-    Print(4095,"book file disabled.\n");
+  } else if (!strcmp(args[1], "off")) {
+    if (book_file)
+      fclose(book_file);
+    if (books_file)
+      fclose(normal_bs_file);
+    if (computer_bs_file)
+      fclose(computer_bs_file);
+    book_file = 0;
+    books_file = 0;
+    computer_bs_file = 0;
+    normal_bs_file = 0;
+    Print(4095, "book file disabled.\n");
     return;
-  }
-  else if (!strcmp(args[1],"on")) {
+  } else if (!strcmp(args[1], "on")) {
     if (!book_file) {
-#if defined (MACOS)
-      sprintf(fname,":%s:book.bin",book_path);
-      book_file=fopen(fname,"rb+");
-      sprintf(fname,":%s:books.bin",book_path);
-      books_file=fopen(fname,"rb+");
-#else
-      sprintf(fname,"%s/book.bin",book_path);
-      book_file=fopen(fname,"rb+");
-      sprintf(fname,"%s/books.bin",book_path);
-      books_file=fopen(fname,"rb+");
-#endif
-      Print(4095,"book file enabled.\n");
+      sprintf(fname, "%s/book.bin", book_path);
+      book_file = fopen(fname, "rb+");
+      sprintf(fname, "%s/books.bin", book_path);
+      books_file = fopen(fname, "rb+");
+      Print(4095, "book file enabled.\n");
     }
     return;
-  }
-  else if (!strcmp(args[1],"mask")) {
+  } else if (!strcmp(args[1], "mask")) {
     if (nargs < 4) {
-      Print(4095,"usage:  book mask accept|reject value\n");
+      Print(4095, "usage:  book mask accept|reject value\n");
+      return;
+    } else if (!strcmp(args[2], "accept")) {
+      book_accept_mask = BookMask(args[3]);
+      book_reject_mask = book_reject_mask & ~book_accept_mask;
+      return;
+    } else if (!strcmp(args[2], "reject")) {
+      book_reject_mask = BookMask(args[3]);
+      book_accept_mask = book_accept_mask & ~book_reject_mask;
       return;
     }
-    else if (!strcmp(args[2],"accept")) {
-      book_accept_mask=BookMask(args[3]);
-      book_reject_mask=book_reject_mask & ~book_accept_mask;
-      return;
-    }
-    else if (!strcmp(args[2],"reject")) {
-      book_reject_mask=BookMask(args[3]);
-      book_accept_mask=book_accept_mask & ~book_reject_mask;
-      return;
-    }
-  }
-  else if (!strcmp(args[1],"random")) {
+  } else if (!strcmp(args[1], "random")) {
     if (nargs < 3) {
-      Print(4095,"usage:  book random <n>\n");
+      Print(4095, "usage:  book random <n>\n");
       return;
     }
-    book_random=atoi(args[2]);
+    book_random = atoi(args[2]);
     switch (book_random) {
-      case 0:
-        Print(4095,"play best book line after search.\n");
-        break;
-      case 1: 
-        Print(4095,"choose from book moves randomly (using weights.)\n");
-        break;
-      default:
-        Print(4095,"valid options are 0-1.\n");
-        break;
+    case 0:
+      Print(4095, "play best book line after search.\n");
+      break;
+    case 1:
+      Print(4095, "choose from book moves randomly (using weights.)\n");
+      break;
+    default:
+      Print(4095, "valid options are 0-1.\n");
+      break;
     }
     return;
-  }
-  else if (!strcmp(args[1],"trigger")) {
+  } else if (!strcmp(args[1], "trigger")) {
     if (nargs < 3) {
-      Print(4095,"usage:  book trigger <n>\n");
+      Print(4095, "usage:  book trigger <n>\n");
       return;
     }
-    book_search_trigger=atoi(args[2]);
-    Print(4095,"search book moves if the most popular was not played\n");
-    Print(4095,"at least %d times.\n", book_search_trigger);
+    book_search_trigger = atoi(args[2]);
+    Print(4095, "search book moves if the most popular was not played\n");
+    Print(4095, "at least %d times.\n", book_search_trigger);
     return;
-  }
-  else if (!strcmp(args[1],"width")) {
+  } else if (!strcmp(args[1], "width")) {
     if (nargs < 3) {
-      Print(4095,"usage:  book width <n>\n");
+      Print(4095, "usage:  book width <n>\n");
       return;
     }
-    book_selection_width=atoi(args[2]);
-    Print(4095,"choose from %d best moves.\n", book_selection_width);
+    book_selection_width = atoi(args[2]);
+    Print(4095, "choose from %d best moves.\n", book_selection_width);
+    return;
+  } else {
+    Print(4095, "usage:  book [option] [filename] [maxply] [minplay]\n");
     return;
   }
-  else {
-    Print(4095,"usage:  book [option] [filename] [maxply] [minplay]\n");
+  if (!(book_input = fopen(args[2], "r"))) {
+    printf("file %s does not exist.\n", args[2]);
     return;
   }
-  if (!(book_input=fopen(args[2],"r"))) {
-    printf("file %s does not exist.\n",args[2]);
-    return;
-  }
-  ReadPGN(0,0);
-  if (book_file) fclose(book_file);
-  book_file=fopen(output_filename,"wb+");
-  bbuffer=(BB_POSITION *) malloc(sizeof(BB_POSITION)*SORT_BLOCK);
+  ReadPGN(0, 0);
+  if (book_file)
+    fclose(book_file);
+  book_file = fopen(output_filename, "wb+");
+  bbuffer = (BB_POSITION *) malloc(sizeof(BB_POSITION) * SORT_BLOCK);
   if (!bbuffer) {
-    Print(4095,"Unable to malloc() sort buffer, aborting\n");
+    Print(4095, "Unable to malloc() sort buffer, aborting\n");
     exit(1);
   }
-  fseek(book_file,0,SEEK_SET);
+  fseek(book_file, 0, SEEK_SET);
 /*
- ----------------------------------------------------------
-|                                                          |
-|   now, read in a series of moves (terminated by the "["  |
-|   of the next title or by "end" for end of the file)     |
-|   and make them.  after each MakeMove(), we can grab     |
-|   the hash key, and use it to access the book data file  |
-|   to add this position.  note that we have to check the  |
-|   last character of a move for the special flags and     |
-|   set the correct bit in the status for this position.   |
-|   when we reach the end of a book line, we back up to    |
-|   the starting position and start over.                  |
-|                                                          |
- ----------------------------------------------------------
-*/
-  start=!strstr(output_filename,"book.bin");
+ ************************************************************
+ *                                                          *
+ *   now, read in a series of moves (terminated by the "["  *
+ *   of the next title or by "end" for end of the file)     *
+ *   and make them.  after each MakeMove(), we can grab     *
+ *   the hash key, and use it to access the book data file  *
+ *   to add this position.  note that we have to check the  *
+ *   last character of a move for the special flags and     *
+ *   set the correct bit in the status for this position.   *
+ *   when we reach the end of a book line, we back up to    *
+ *   the starting position and start over.                  *
+ *                                                          *
+ ************************************************************
+ */
+  start = !strstr(output_filename, "book.bin");
   printf("parsing pgn move file (100k moves/dot)\n");
-  start_cpu_time=ReadClock(cpu);
-  start_elapsed_time=ReadClock(elapsed);
+  start_cpu_time = ReadClock(cpu);
+  start_elapsed_time = ReadClock(elapsed);
   if (book_file) {
-    total_moves=0;
-    max_search_depth=0;
-    errors=0;
+    total_moves = 0;
+    max_search_depth = 0;
+    errors = 0;
     do {
-      data_read=ReadPGN(book_input,0);
-      if (data_read == -1) Print(4095,"end-of-file reached\n");
+      data_read = ReadPGN(book_input, 0);
+      if (data_read == -1)
+        Print(4095, "end-of-file reached\n");
     } while (data_read == 0);
     do {
       if (data_read < 0) {
-        Print(4095,"end-of-file reached\n");
+        Print(4095, "end-of-file reached\n");
         break;
       }
       if (data_read == 1) {
-        if (strstr(buffer,"Site")) {
+        if (strstr(buffer, "Site")) {
           games_parsed++;
-          result=3;
+          result = 3;
+        } else if (strstr(buffer, "esult")) {
+          if (strstr(buffer, "1-0"))
+            result = 2;
+          else if (strstr(buffer, "0-1"))
+            result = 1;
+          else if (strstr(buffer, "1/2-1/2"))
+            result = 0;
+          else if (strstr(buffer, "*"))
+            result = 3;
         }
-        else if (strstr(buffer,"esult")) {
-          if (strstr(buffer,"1-0")) result=2;
-          else if (strstr(buffer,"0-1")) result=1;
-          else if (strstr(buffer,"1/2-1/2")) result=0;
-          else if (strstr(buffer,"*")) result=3;
-        }
-        data_read=ReadPGN(book_input,0);
-      }
-      else do {
-        wtm=1;
-        InitializeChessBoard(&tree->position[1]);
-        move_num=1;
-        tree->position[2]=tree->position[1];
-        ply=0;
-        data_read=0;
-        while (data_read==0) {
-          mask_word=0;
-          if ((ch=strpbrk(buffer,"?!"))) {
-            mask_word=BookMask(ch);
-            *ch=0;
-          }
-          if (!strchr(buffer,'$') && !strchr(buffer,'*')) {
-            if (ply < max_ply)
-              move=ReadNextMove(tree,buffer,2,wtm);
-            else move=0;
-            if (move) {
-              ply++;
-              max_search_depth=Max(max_search_depth,ply);
-              total_moves++;
-              common=HashKey & mask_16;
-              MakeMove(tree,2,move,wtm);
-              tree->position[2]=tree->position[3];
-              if (ply <= max_ply) {
-                temp_hash_key=HashKey ^ wtm_random[wtm];
-                temp_hash_key=(temp_hash_key & ~mask_16) | common;
-                memcpy(bbuffer[buffered].position,(char*)&temp_hash_key,8);
-                if (result == 0) mask_word|=0100;
-                else if (result&2) mask_word|=0200;
-                else if (result&1) mask_word|=040;
-                bbuffer[buffered].status=mask_word;
-                bbuffer[buffered++].percent_play=pgn_suggested_percent+(wtm<<7);
-                if (buffered >= SORT_BLOCK) {
-                  BookSort(bbuffer,buffered,++files);
-                  buffered=0;
-                  strcpy(schar,"S");
+        data_read = ReadPGN(book_input, 0);
+      } else
+        do {
+          wtm = 1;
+          InitializeChessBoard(&tree->position[1]);
+          move_num = 1;
+          tree->position[2] = tree->position[1];
+          ply = 0;
+          data_read = 0;
+          while (data_read == 0) {
+            mask_word = 0;
+            if ((ch = strpbrk(buffer, "?!"))) {
+              mask_word = BookMask(ch);
+              *ch = 0;
+            }
+            if (!strchr(buffer, '$') && !strchr(buffer, '*')) {
+              if (ply < max_ply)
+                move = ReadNextMove(tree, buffer, 2, wtm);
+              else
+                move = 0;
+              if (move) {
+                ply++;
+                max_search_depth = Max(max_search_depth, ply);
+                total_moves++;
+                common = HashKey & mask_16;
+                MakeMove(tree, 2, move, wtm);
+                tree->position[2] = tree->position[3];
+                if (ply <= max_ply) {
+                  temp_hash_key = HashKey ^ wtm_random[wtm];
+                  temp_hash_key = (temp_hash_key & ~mask_16) | common;
+                  memcpy(bbuffer[buffered].position, (char *) &temp_hash_key,
+                      8);
+                  if (result == 0)
+                    mask_word |= 0100;
+                  else if (result & 2)
+                    mask_word |= 0200;
+                  else if (result & 1)
+                    mask_word |= 040;
+                  bbuffer[buffered].status = mask_word;
+                  bbuffer[buffered++].percent_play =
+                      pgn_suggested_percent + (wtm << 7);
+                  if (buffered >= SORT_BLOCK) {
+                    BookSort(bbuffer, buffered, ++files);
+                    buffered = 0;
+                    strcpy(schar, "S");
+                  }
+                } else {
+                  discarded++;
                 }
+                if (!(total_moves % 100000)) {
+                  printf(schar);
+                  strcpy(schar, ".");
+                  if (!(total_moves % 6000000))
+                    printf(" (%dk)\n", total_moves / 1000);
+                  fflush(stdout);
+                }
+                wtm = Flip(wtm);
+                if (wtm)
+                  move_num++;
+              } else if (strspn(buffer, "0123456789/-.*") != strlen(buffer) &&
+                  ply < max_ply) {
+                errors++;
+                Print(4095, "ERROR!  move %d: %s is illegal (line %d)\n",
+                    move_num, buffer, ReadPGN(book_input, -2));
+                ReadPGN(book_input, -1);
+                DisplayChessBoard(stdout, tree->pos);
+                do {
+                  data_read = ReadPGN(book_input, 0);
+                  if (data_read == -1)
+                    Print(4095, "end-of-file reached\n");
+                } while (data_read == 0);
+                break;
               }
-              else {
-                discarded++;
-              }
-              if (!(total_moves % 100000)) {
-                printf(schar);
-                strcpy(schar,".");
-                if (!(total_moves % 6000000)) printf(" (%dk)\n",total_moves/1000);
-                fflush(stdout);
-              }
-              wtm=Flip(wtm);
-              if (wtm) move_num++;
             }
-            else if (strspn(buffer,"0123456789/-.*") != strlen(buffer) &&
-                     ply < max_ply) {
-              errors++;
-              Print(4095,"ERROR!  move %d: %s is illegal (line %d)\n",
-                    move_num,buffer,ReadPGN(book_input,-2));
-              ReadPGN(book_input,-1);
-              DisplayChessBoard(stdout,tree->pos);
-              do {
-                data_read=ReadPGN(book_input,0);
-                if (data_read == -1) Print(4095,"end-of-file reached\n");
-              } while (data_read == 0);
-              break;
-            }
+            data_read = ReadPGN(book_input, 0);
           }
-          data_read=ReadPGN(book_input,0);
-        }
-      } while(0);
-    } while (strcmp(buffer,"end") && data_read!=-1);
-    if (book_input != stdin) fclose(book_input);
-    if (buffered) BookSort(bbuffer,buffered,++files);
+        } while (0);
+    } while (strcmp(buffer, "end") && data_read != -1);
+    if (book_input != stdin)
+      fclose(book_input);
+    if (buffered)
+      BookSort(bbuffer, buffered, ++files);
     free(bbuffer);
     printf("S  <done>\n");
     if (total_moves == 0) {
@@ -1110,316 +1178,346 @@ void BookUp(TREE *tree, int nargs, char **args) {
       return;
     }
 /*
- ----------------------------------------------------------
-|                                                          |
-|   now merge these "chunks" into book.bin, keeping all of |
-|   the "flags" as well as counting the number of times    |
-|   that each move was played.                             |
-|                                                          |
- ----------------------------------------------------------
-*/
-    printf("merging sorted files (%d) (100k/dot)\n",files);
-    counter=0;
-    index=(int *) malloc(32768*sizeof(int));
+ ************************************************************
+ *                                                          *
+ *   now merge these "chunks" into book.bin, keeping all of *
+ *   the "flags" as well as counting the number of times    *
+ *   that each move was played.                             *
+ *                                                          *
+ ************************************************************
+ */
+    printf("merging sorted files (%d) (100k/dot)\n", files);
+    counter = 0;
+    index = (int *) malloc(32768 * sizeof(int));
     if (!index) {
-      Print(4095,"Unable to malloc() index block, aborting\n");
+      Print(4095, "Unable to malloc() index block, aborting\n");
       exit(1);
     }
-    for (i=0;i<32768;i++) index[i]=-1;
-    temp=BookUpNextPosition(files,1);
-    memcpy((char*)&current.position,temp.position,8);
-    current.status_played=temp.status<<24;
-    if (start) current.status_played+=temp.percent_play;
-    current.learn=0.0;
-    played=1;
+    for (i = 0; i < 32768; i++)
+      index[i] = -1;
+    temp = BookUpNextPosition(files, 1);
+    memcpy((char *) &current.position, temp.position, 8);
+    current.status_played = temp.status << 24;
+    if (start)
+      current.status_played += temp.percent_play;
+    current.learn = 0.0;
+    played = 1;
     fclose(book_file);
-    book_file=fopen(output_filename,"wb+");
-    fseek(book_file,sizeof(int)*32768,SEEK_SET);
-    last=current.position>>49;
-    index[last]=ftell(book_file);
-    book_positions=0;
-    cluster=0;
-    cluster_seek=sizeof(int)*32768;
-    fseek(book_file,cluster_seek+sizeof(int),SEEK_SET);
-    max_cluster=0;
-    wins=0;
-    losses=0;
-    if (temp.status&128  && temp.percent_play&128) wins++;
-    if (temp.status&128  && !(temp.percent_play&128)) losses++;
-    if (temp.status&32  && !(temp.percent_play&128)) wins++;
-    if (temp.status&32  && temp.percent_play&128) losses++;
+    book_file = fopen(output_filename, "wb+");
+    fseek(book_file, sizeof(int) * 32768, SEEK_SET);
+    last = current.position >> 49;
+    index[last] = ftell(book_file);
+    book_positions = 0;
+    cluster = 0;
+    cluster_seek = sizeof(int) * 32768;
+    fseek(book_file, cluster_seek + sizeof(int), SEEK_SET);
+    max_cluster = 0;
+    wins = 0;
+    losses = 0;
+    if (temp.status & 128 && temp.percent_play & 128)
+      wins++;
+    if (temp.status & 128 && !(temp.percent_play & 128))
+      losses++;
+    if (temp.status & 32 && !(temp.percent_play & 128))
+      wins++;
+    if (temp.status & 32 && temp.percent_play & 128)
+      losses++;
     while (1) {
-      temp=BookUpNextPosition(files,0);
-      memcpy((char*)&next.position,temp.position,8);
-      next.status_played=temp.status<<24;
-      if (start) next.status_played+=temp.percent_play&127;
-      next.learn=0.0;
-      next.CAP_score=-MATE*2;
+      temp = BookUpNextPosition(files, 0);
+      memcpy((char *) &next.position, temp.position, 8);
+      next.status_played = temp.status << 24;
+      if (start)
+        next.status_played += temp.percent_play & 127;
+      next.learn = 0.0;
+      next.CAP_score = -MATE * 2;
       counter++;
-      if (counter%100000 == 0) {
+      if (counter % 100000 == 0) {
         printf(".");
-        if (counter%6000000 == 0) printf(" (%dk)\n",counter/1000);
+        if (counter % 6000000 == 0)
+          printf(" (%dk)\n", counter / 1000);
         fflush(stdout);
       }
       if (current.position == next.position) {
-        current.status_played=current.status_played|next.status_played;
+        current.status_played = current.status_played | next.status_played;
         played++;
-        if (temp.status&128  && temp.percent_play&128) wins++;
-        if (temp.status&128  && !(temp.percent_play&128)) losses++;
-        if (temp.status&32  && !(temp.percent_play&128)) wins++;
-        if (temp.status&32  && temp.percent_play&128) losses++;
-      }
-      else {
-        if (played>=min_played && wins>=(losses*wl_percent)) {
+        if (temp.status & 128 && temp.percent_play & 128)
+          wins++;
+        if (temp.status & 128 && !(temp.percent_play & 128))
+          losses++;
+        if (temp.status & 32 && !(temp.percent_play & 128))
+          wins++;
+        if (temp.status & 32 && temp.percent_play & 128)
+          losses++;
+      } else {
+        if (played >= min_played && wins >= (losses * wl_percent)) {
           book_positions++;
           cluster++;
-          max_cluster=Max(max_cluster,cluster);
-          if (!start) current.status_played+=played;
-          current.learn=0.0;
-          current.CAP_score=-MATE*2;
-          stat=fwrite(&current,sizeof(BOOK_POSITION),1,book_file);
+          max_cluster = Max(max_cluster, cluster);
+          if (!start)
+            current.status_played += played;
+          current.learn = 0.0;
+          current.CAP_score = -MATE * 2;
+          stat = fwrite(&current, sizeof(BOOK_POSITION), 1, book_file);
           if (stat != 1)
-            Print(4095,"ERROR!  write failed, disk probably full.\n");
-        }
-        else if (played < min_played) discarded_mp++;
-        else discarded_lose++;
-        if (last != (int) (next.position>>49)) {
-          next_cluster=ftell(book_file);
-          fseek(book_file,cluster_seek,SEEK_SET);
-          stat=fwrite(&cluster,sizeof(int),1,book_file);
+            Print(4095, "ERROR!  write failed, disk probably full.\n");
+        } else if (played < min_played)
+          discarded_mp++;
+        else
+          discarded_lose++;
+        if (last != (int) (next.position >> 49)) {
+          next_cluster = ftell(book_file);
+          fseek(book_file, cluster_seek, SEEK_SET);
+          stat = fwrite(&cluster, sizeof(int), 1, book_file);
           if (stat != 1)
-            Print(4095,"ERROR!  write failed, disk probably full.\n");
-          if (next.position == 0) break;
-          fseek(book_file,next_cluster+sizeof(int),SEEK_SET);
-          cluster_seek=next_cluster;
-          last=next.position>>49;
-          index[last]=next_cluster;
-          cluster=0;
+            Print(4095, "ERROR!  write failed, disk probably full.\n");
+          if (next.position == 0)
+            break;
+          fseek(book_file, next_cluster + sizeof(int), SEEK_SET);
+          cluster_seek = next_cluster;
+          last = next.position >> 49;
+          index[last] = next_cluster;
+          cluster = 0;
         }
-        wins=0;
-        losses=0;
-        if (temp.status&128  && temp.percent_play&128) wins++;
-        if (temp.status&128  && !(temp.percent_play&128)) losses++;
-        if (temp.status&32  && !(temp.percent_play&128)) wins++;
-        if (temp.status&32  && temp.percent_play&128) losses++;
-        current=next;
-        played=1;
-        if (next.position == 0) break;
+        wins = 0;
+        losses = 0;
+        if (temp.status & 128 && temp.percent_play & 128)
+          wins++;
+        if (temp.status & 128 && !(temp.percent_play & 128))
+          losses++;
+        if (temp.status & 32 && !(temp.percent_play & 128))
+          wins++;
+        if (temp.status & 32 && temp.percent_play & 128)
+          losses++;
+        current = next;
+        played = 1;
+        if (next.position == 0)
+          break;
       }
     }
-    fseek(book_file,0,SEEK_SET);
-    fwrite(index,sizeof(int),32768,book_file);
-    fseek(book_file,0,SEEK_END);
-    major=atoi(version);
-    minor=atoi(strchr(version,'.')+1);
-    major=(major<<16)+minor;
-    fwrite(&major,sizeof(int),1,book_file);
+    fseek(book_file, 0, SEEK_SET);
+    fwrite(index, sizeof(int), 32768, book_file);
+    fseek(book_file, 0, SEEK_END);
+    major = atoi(version);
+    minor = atoi(strchr(version, '.') + 1);
+    major = (major << 16) + minor;
+    fwrite(&major, sizeof(int), 1, book_file);
 /*
- ----------------------------------------------------------
-|                                                          |
-|   now clean up, remove the sort.n files, and print the   |
-|   statistics for building the book.                      |
-|                                                          |
- ----------------------------------------------------------
-*/
-    for (i=1;i<=files;i++) {
-      sprintf(fname,"sort.%d",i);
+ ************************************************************
+ *                                                          *
+ *   now clean up, remove the sort.n files, and print the   *
+ *   statistics for building the book.                      *
+ *                                                          *
+ ************************************************************
+ */
+    for (i = 1; i <= files; i++) {
+      sprintf(fname, "sort.%d", i);
       remove(fname);
     }
     free(index);
-    start_cpu_time=ReadClock(cpu)-start_cpu_time;
-    start_elapsed_time=ReadClock(elapsed)-start_elapsed_time;
-    Print(4095,"\n\nparsed %d moves (%d games).\n",total_moves,games_parsed);
-    Print(4095,"found %d errors during parsing.\n",errors);
-    Print(4095,"discarded %d moves (maxply=%d).\n",discarded,max_ply);
-    Print(4095,"discarded %d moves (minplayed=%d).\n",discarded_mp,min_played);
-    Print(4095,"discarded %d moves (win/lose=%.1f%%).\n",discarded_lose,
-          wl_percent*100);
-    Print(4095,"book contains %d unique positions.\n",book_positions);
-    Print(4095,"deepest book line was %d plies.\n",max_search_depth);
-    Print(4095,"longest cluster of moves was %d.\n",max_cluster);
-    Print(4095,"time used:  %s cpu  ", DisplayTime(start_cpu_time));
-    Print(4095,"  %s elapsed.\n", DisplayTime(start_elapsed_time));
+    start_cpu_time = ReadClock(cpu) - start_cpu_time;
+    start_elapsed_time = ReadClock(elapsed) - start_elapsed_time;
+    Print(4095, "\n\nparsed %d moves (%d games).\n", total_moves, games_parsed);
+    Print(4095, "found %d errors during parsing.\n", errors);
+    Print(4095, "discarded %d moves (maxply=%d).\n", discarded, max_ply);
+    Print(4095, "discarded %d moves (minplayed=%d).\n", discarded_mp,
+        min_played);
+    Print(4095, "discarded %d moves (win/lose=%.1f%%).\n", discarded_lose,
+        wl_percent * 100);
+    Print(4095, "book contains %d unique positions.\n", book_positions);
+    Print(4095, "deepest book line was %d plies.\n", max_search_depth);
+    Print(4095, "longest cluster of moves was %d.\n", max_cluster);
+    Print(4095, "time used:  %s cpu  ", DisplayTime(start_cpu_time));
+    Print(4095, "  %s elapsed.\n", DisplayTime(start_elapsed_time));
   }
-  strcpy(initial_position,"");
+  strcpy(initial_position, "");
   InitializeChessBoard(&tree->position[1]);
 }
 
 /* last modified 06/18/98 */
 /*
-********************************************************************************
-*                                                                              *
-*   BookMask() is used to convert the flags for a book move into an 8 bit      *
-*   mask that is either kept in the file, or is set by the operator to select  *
-*   which opening(s) the program is allowed to play.                           *
-*                                                                              *
-********************************************************************************
-*/
-int BookMask(char *flags) {
+ *******************************************************************************
+ *                                                                             *
+ *   BookMask() is used to convert the flags for a book move into an 8 bit     *
+ *   mask that is either kept in the file, or is set by the operator to select *
+ *   which opening(s) the program is allowed to play.                          *
+ *                                                                             *
+ *******************************************************************************
+ */
+int BookMask(char *flags)
+{
   int i, mask;
-  mask=0;
-  for (i=0;i<(int) strlen(flags);i++) {
+
+  mask = 0;
+  for (i = 0; i < (int) strlen(flags); i++) {
     if (flags[i] == '?') {
-      if (flags[i+1] == '?') {
-        mask=mask | 1;
+      if (flags[i + 1] == '?') {
+        mask = mask | 1;
         i++;
-      }
-      else
-        mask=mask | 2;
-    }
-    else if (flags[i] == '=') {
-      mask=mask | 4;
-    }
-    else if (flags[i] == '!') {
-      if (flags[i+1] == '!') {
-        mask=mask | 16;
+      } else
+        mask = mask | 2;
+    } else if (flags[i] == '=') {
+      mask = mask | 4;
+    } else if (flags[i] == '!') {
+      if (flags[i + 1] == '!') {
+        mask = mask | 16;
         i++;
-      }
-      else
-        mask=mask | 8;
+      } else
+        mask = mask | 8;
     }
   }
-  return(mask);
+  return (mask);
 }
-
 
 /* last modified 08/29/02 */
 /*
-********************************************************************************
-*                                                                              *
-*   BookRejectMove() is called to test a move to see if it should be excluded  *
-*   for some reason.  One example is a kingside castling move that castles     *
-*   a stonewall attack type formation.                                         *
-*                                                                              *
-********************************************************************************
-*/
-int BookRejectMove(TREE *tree, int wtm, int move) {
+ *******************************************************************************
+ *                                                                             *
+ *   BookRejectMove() is called to test a move to see if it should be excluded *
+ *   for some reason.  One example is a kingside castling move that castles    *
+ *   a stonewall attack type formation.                                        *
+ *                                                                             *
+ *******************************************************************************
+ */
+int BookRejectMove(TREE * RESTRICT tree, int wtm, int move)
+{
 /*
- ----------------------------------------------------------
-|                                                          |
-|   look for the "stonewall" formation in the pawns and    |
-|   reject this move if it castles into the attack.        |
-|                                                          |
- ----------------------------------------------------------
-*/
-  if (Piece(move) != king) return(0);
+ ************************************************************
+ *                                                          *
+ *   look for the "stonewall" formation in the pawns and    *
+ *   reject this move if it castles into the attack.        *
+ *                                                          *
+ ************************************************************
+ */
+  if (Piece(move) != king)
+    return (0);
   if (wtm) {
-    if (From(move)!=E1 || (To(move)!=C1 && To(move)!=G1)) return(0);
-    if (PopCnt(BlackPawns&stonewall_black)==2 &&
-        (WhitePawns&SetMask(E2) || WhitePawns&SetMask(E3)))
-      return(1);
+    if (From(move) != E1 || (To(move) != C1 && To(move) != G1))
+      return (0);
+    if (PopCnt(BlackPawns & stonewall_black) == 2 && (WhitePawns & SetMask(E2)
+            || WhitePawns & SetMask(E3)))
+      return (1);
+  } else {
+    if (From(move) != E8 || (To(move) != C8 && To(move) != G8))
+      return (0);
+    if (PopCnt(WhitePawns & stonewall_white) == 2 && (BlackPawns & SetMask(E7)
+            || BlackPawns & SetMask(E6)))
+      return (1);
   }
-  else {
-    if (From(move)!=E8 || (To(move)!=C8 && To(move)!=G8)) return(0);
-    if (PopCnt(WhitePawns&stonewall_white)==2 &&
-        (BlackPawns&SetMask(E7) || BlackPawns&SetMask(E6)))
-      return(1);
-  }
-  return(0);
+  return (0);
 }
 
 /* last modified 06/19/98 */
 /*
-********************************************************************************
-*                                                                              *
-*   BookSort() is called to sort a block of moves after they have been parsed  *
-*   and converted to hash keys.                                                *
-*                                                                              *
-********************************************************************************
-*/
-void BookSort(BB_POSITION *buffer, int number, int fileno) {
+ *******************************************************************************
+ *                                                                             *
+ *   BookSort() is called to sort a block of moves after they have been parsed *
+ *   and converted to hash keys.                                               *
+ *                                                                             *
+ *******************************************************************************
+ */
+void BookSort(BB_POSITION * buffer, int number, int fileno)
+{
   char fname[16];
   FILE *output_file;
   int stat;
 
-  qsort((char *) buffer,number,sizeof(BB_POSITION),BookUpCompare);
-  sprintf(fname,"sort.%d",fileno);
-  if(!(output_file=fopen(fname,"wb+"))) 
+  qsort((char *) buffer, number, sizeof(BB_POSITION), BookUpCompare);
+  sprintf(fname, "sort.%d", fileno);
+  if (!(output_file = fopen(fname, "wb+")))
     printf("ERROR.  unable to open sort output file\n");
-  stat=fwrite(buffer,sizeof(BB_POSITION),number,output_file);
+  stat = fwrite(buffer, sizeof(BB_POSITION), number, output_file);
   if (stat != number)
-    Print(4095,"ERROR!  write failed, disk probably full.\n");
+    Print(4095, "ERROR!  write failed, disk probably full.\n");
   fclose(output_file);
 }
 
 /* last modified 06/19/98 */
 /*
-********************************************************************************
-*                                                                              *
-*   BookUpNextPosition() is the heart of the "merge" operation that is done    *
-*   after the chunks of the parsed/hashed move file are sorted.  this code     *
-*   opens the sort.n files, and returns the least (lexically) position key to  *
-*   counted/merged into the main book database.                                *
-*                                                                              *
-********************************************************************************
-*/
-BB_POSITION BookUpNextPosition(int files, int init) {
+ *******************************************************************************
+ *                                                                             *
+ *   BookUpNextPosition() is the heart of the "merge" operation that is done   *
+ *   after the chunks of the parsed/hashed move file are sorted.  this code    *
+ *   opens the sort.n files, and returns the least (lexically) position key to *
+ *   counted/merged into the main book database.                               *
+ *                                                                             *
+ *******************************************************************************
+ */
+BB_POSITION BookUpNextPosition(int files, int init)
+{
   char fname[20];
   static FILE *input_file[100];
   static BB_POSITION *buffer[100];
   static int data_read[100], next[100];
   int i, used;
   BB_POSITION least;
+
   if (init) {
-    for (i=1;i<=files;i++) {
-      sprintf(fname,"sort.%d",i);
-      if (!(input_file[i]=fopen(fname,"rb"))) {
-        printf("unable to open sort.%d file, may be too many files open.\n",i);
+    for (i = 1; i <= files; i++) {
+      sprintf(fname, "sort.%d", i);
+      if (!(input_file[i] = fopen(fname, "rb"))) {
+        printf("unable to open sort.%d file, may be too many files open.\n", i);
         exit(1);
       }
-      buffer[i]=(BB_POSITION *) malloc(sizeof(BB_POSITION)*MERGE_BLOCK);
+      buffer[i] = (BB_POSITION *) malloc(sizeof(BB_POSITION) * MERGE_BLOCK);
       if (!buffer[i]) {
         printf("out of memory.  aborting. \n");
         exit(1);
       }
-      fseek(input_file[i],0,SEEK_SET);
-      data_read[i]=fread(buffer[i],sizeof(BB_POSITION),MERGE_BLOCK,
-                         input_file[i]);
-      next[i]=0;
+      fseek(input_file[i], 0, SEEK_SET);
+      data_read[i] =
+          fread(buffer[i], sizeof(BB_POSITION), MERGE_BLOCK, input_file[i]);
+      next[i] = 0;
     }
   }
-  for (i=0;i<8;i++) least.position[i]=0;
-  used=-1;
-  for (i=1;i<=files;i++)
+  for (i = 0; i < 8; i++)
+    least.position[i] = 0;
+  used = -1;
+  for (i = 1; i <= files; i++)
     if (data_read[i]) {
-      least=buffer[i][next[i]];
-      used=i;
+      least = buffer[i][next[i]];
+      used = i;
       break;
     }
   if (i > files) {
-    for (i=1;i<=files;i++) fclose(input_file[i]);
-    return(least);
+    for (i = 1; i <= files; i++)
+      fclose(input_file[i]);
+    return (least);
   }
-  for (i++;i<=files;i++) {
+  for (i++; i <= files; i++) {
     if (data_read[i]) {
       BITBOARD p1, p2;
-      memcpy((char*)&p1,least.position,8);
-      memcpy((char*)&p2,buffer[i][next[i]].position,8);
+
+      memcpy((char *) &p1, least.position, 8);
+      memcpy((char *) &p2, buffer[i][next[i]].position, 8);
       if (p1 > p2) {
-        least=buffer[i][next[i]];
-        used=i;
+        least = buffer[i][next[i]];
+        used = i;
       }
     }
   }
   if (--data_read[used] == 0) {
-    data_read[used]=fread(buffer[used],sizeof(BB_POSITION),
-                          MERGE_BLOCK,input_file[used]);
-    next[used]=0;
-  }
-  else
+    data_read[used] =
+        fread(buffer[used], sizeof(BB_POSITION), MERGE_BLOCK, input_file[used]);
+    next[used] = 0;
+  } else
     next[used]++;
-  return(least);
+  return (least);
 }
 
 #if defined(NT_i386)
-int _cdecl BookUpCompare(const void *pos1, const void *pos2) {
+int _cdecl BookUpCompare(const void *pos1, const void *pos2)
+{
 #else
-int BookUpCompare(const void *pos1, const void *pos2) {
+int BookUpCompare(const void *pos1, const void *pos2)
+{
 #endif
   static BITBOARD p1, p2;
-  memcpy((char*)&p1,((BB_POSITION *)pos1)->position,8);
-  memcpy((char*)&p2,((BB_POSITION *)pos2)->position,8);
-  if (p1 < p2) return(-1);
-  if (p1 > p2) return(+1);
-  return(0);
+
+  memcpy((char *) &p1, ((BB_POSITION *) pos1)->position, 8);
+  memcpy((char *) &p2, ((BB_POSITION *) pos2)->position, 8);
+  if (p1 < p2)
+    return (-1);
+  if (p1 > p2)
+    return (+1);
+  return (0);
 }

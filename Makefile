@@ -158,7 +158,6 @@ freebsd:
 		LDFLAGS=$(LDFLAGS) \
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
 		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST' \
-		asm=X86.o \
 		crafty-make
 
 freebsd-pgcc:
@@ -169,7 +168,6 @@ freebsd-pgcc:
 		LDFLAGS=$(LDFLAGS) \
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
 		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST' \
-		asm=X86.o \
 		crafty-make
 
 hpux:
@@ -183,15 +181,12 @@ hpux:
 linux:
 	$(MAKE) target=LINUX \
 		CC=gcc CXX=g++ \
-		CFLAGS='$(CFLAGS) -Wall -pipe -D_REENTRANT -march=i686 -O3 \
-			-fforce-mem -fomit-frame-pointer \
-			-fno-gcse -mpreferred-stack-boundary=2' \
+		CFLAGS='$(CFLAGS) -Wall -pipe -D_REENTRANT -O3 \
+			-fomit-frame-pointer' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS='$(LDFLAGS) -lpthread -lstdc++' \
-		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
-		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST \
-		     -DPOSIX -DSMP -DCPUS=4 -DDGT -DTRACE' \
-		asm=X86.o \
+		opt='$(opt) -DFAST \
+		     -DPOSIX -DSMP -DCPUS=4 -DTRACE' \
 		crafty-make
 
 linux-amd64:
@@ -216,7 +211,6 @@ linux-profile:
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
 		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST \
 		     -DPOSIX -DSMP -DCPUS=4 -DDGT' \
-		asm=X86.o \
 		crafty-make
 
 linux-icc-profile:
@@ -232,7 +226,6 @@ linux-icc-profile:
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
 		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST \
 		     -DPOSIX -DSMP -DCPUS=4 -DDGT' \
-		asm=X86.o \
 		crafty-make
 
 linux-icc:
@@ -248,7 +241,6 @@ linux-icc:
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
 		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST \
 		     -DPOSIX -DSMP -DCPUS=4 -DDGT' \
-		asm=X86.o \
 		crafty-make
 
 linux-alpha:
@@ -282,7 +274,6 @@ netbsd-i386:
 		LDFLAGS=$(LDFLAGS) \
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS -DFAST \
 		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B' \
-		asm=X86.o \
 		crafty-make
 
 netbsd-sparc:
@@ -315,7 +306,6 @@ os2:
 		LDFLAGS='$(LDFLAGS) -Zexe -Zcrtdll -s' \
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
 		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST' \
-		asm=X86.o \
 		crafty-make
 
 sgi:
@@ -462,7 +452,7 @@ objects = searchr.o search.o thread.o searchmp.o repeat.o next.o nexte.o      \
        attacks.o swap.o boolean.o utility.o valid.o probe.o book.o data.o     \
        drawn.o edit.o epd.o epdglue.o init.o input.o interupt.o iterate.o     \
        main.o option.o output.o phase.o ponder.o preeval.o resign.o root.o    \
-       learn.o setboard.o test.o testepd.o time.o validate.o annotate.o       \
+       learn.o setboard.o test.o time.o validate.o annotate.o       \
        analyze.o evtest.o bench.o egtb.o dgt.o $(asm)
 #objects = crafty.o egtb.o $(asm)
 
