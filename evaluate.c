@@ -2337,7 +2337,7 @@ int EvaluatePassedPawnRaces(TREE * RESTRICT tree, int wtm)
   return (0);
 }
 
-/* last modified 01/16/04 */
+/* last modified 09/01/04 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -3123,9 +3123,9 @@ int EvaluatePawns(TREE * RESTRICT tree)
  ************************************************************
  */
   if (TotalWhitePawns > 4 && TotalBlackPawns > 4) {
-    if (w_unblocked <= 2)
+    if (w_unblocked <= 2 && w_isolated < 2)
       score -= pawns_blocked * (3 - w_unblocked) * blocked_scale / 100;
-    if (b_unblocked <= 2)
+    if (b_unblocked <= 2 && b_isolated < 2)
       score += pawns_blocked * (3 - b_unblocked) * blocked_scale / 100;
   }
 #ifdef DEBUGP

@@ -224,7 +224,7 @@ unsigned int parallel_splits;
 unsigned int parallel_stops;
 unsigned int max_split_blocks;
 volatile unsigned int splitting;
-# define    VERSION                             "19.16"
+# define    VERSION                             "19.17"
 char      version[6] = { VERSION };
 PLAYING_MODE mode = normal_mode;
 #if defined(SMP)
@@ -436,8 +436,8 @@ int connected_passed_pawn_value[8] = { 0, -6, -6, 0, 10, 48, 72, 0 };
 int hidden_passed_pawn_value[8] = { 0, 0, 0, 0, 0, 16, 24, 0 };
 int passed_pawn_value[8] = { 0, 12, 20, 26, 32, 64, 96, 0 };
 int blockading_passed_pawn_value[8] = { 0, 8, 12, 16, 30, 48, 64, 0 };
-int isolated_pawn_value[9] = { 0, 12, 24, 30, 38, 52, 80, 80, 80 };
-int isolated_pawn_of_value[9] = { 0, 7, 20, 30, 40, 50, 60, 60, 60 };
+int isolated_pawn_value[9] = { 0, 8, 12, 24, 36, 48, 60, 60, 60 };
+int isolated_pawn_of_value[9] = { 0, 4, 10, 16, 16, 16, 16, 16, 16 };
 int doubled_pawn_value[9] = { 0, 0, 8, 20, 40, 40, 40, 40, 40};
 int pawn_rams_v[9] = { 0, 0, 6, 24, 40, 64, 80, 94, 96 };
 int supported_passer[8] = { 0, 0, 0, 0, 12, 60, 100, 0 };
@@ -644,12 +644,12 @@ const char push_extensions[64] = {
 };
 int pval_w[64] = {
  0,  0,  0,  0,  0,  0,  0,  0,
--4, -4, -8,-16,-16, -8, -4, -4,
--4, -4, -8,  0,  0, -8, -4, -4,
- 0,  0,  0, 16, 16,  0,  0,  0,
- 4,  4,  8, 20, 20,  8,  4,  4,
-14, 14, 18, 24, 24, 18, 14, 14,
-30, 30, 30, 30, 30, 30, 30, 30,
+ 0,  0,  0, -4, -4,  0,  0,  0,
+ 0,  0,  0,  0,  0,  0,  0,  0,
+ 0,  0,  0,  6,  6,  0,  0,  0,
+ 2,  2,  2,  8,  8,  2,  2,  2,
+ 4,  4,  4, 10, 10,  4,  4,  4,
+10, 10, 10, 12, 12, 10, 10, 10,
  0,  0,  0,  0,  0,  0,  0,  0
 };
 int nval_w[64] = {
@@ -724,7 +724,7 @@ int kval_wq[64] = {
 };
 /*  score for bishop pair varies depending on how many pawns are
    on the board (0-8)                                           */
-int bishop_pair[9] = { 10, 10, 10, 10, 10, 10, 10, 5, -2 };
+int bishop_pair[9] = { 30, 30, 30, 30, 30, 30, 30, 12, 0 };
 /* note that black piece/square values are copied from white, but
    reflected */
 const int p_values[15] = { QUEEN_VALUE, ROOK_VALUE, BISHOP_VALUE, 0,
@@ -741,7 +741,7 @@ int king_value = KING_VALUE;
 int pawn_can_promote = 525;
 int bad_trade = 120;
 int eight_pawns = 10;
-int pawns_blocked = 12;
+int pawns_blocked = 6;
 int center_pawn_unmoved = 16;
 int pawn_duo = 2;
 int pawn_weak_p1 = 12;

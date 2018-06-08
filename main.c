@@ -3108,6 +3108,9 @@
  *           threads (they will be re-started when needed) so that we don't    *
  *           burn CPU time when not actually playing a game.                   *
  *                                                                             *
+ *   19.17   changes to pawn evaluation to limit positional scores that could  *
+ *           get a bit out of sane boundaries in some positions.               *
+ *                                                                             *
  *******************************************************************************
  */
 int main(int argc, char **argv)
