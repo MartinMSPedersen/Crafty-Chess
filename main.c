@@ -13,7 +13,7 @@
 /*
  *******************************************************************************
  *                                                                             *
- *  Crafty, copyright 1996-2011 by Robert M. Hyatt, Ph.D., Associate Professor *
+ *  Crafty, copyright 1996-2015 by Robert M. Hyatt, Ph.D., Associate Professor *
  *  of Computer and Information Sciences, University of Alabama at Birmingham. *
  *                                                                             *
  *  Crafty is a team project consisting of the following members.  These are   *
@@ -24,6 +24,7 @@
  *  epd stuff written by S. Edwards.                                           *
  *                                                                             *
  *     Robert Hyatt, University of Alabama at Birmingham.                      *
+ *     Mike Byrne, Pen Argyl, PA.                                              *
  *     Tracy Riegle, Hershey, PA.                                              *
  *     Peter Skinner, Edmonton, AB  Canada.                                    *
  *                                                                             *
@@ -278,7 +279,7 @@
  *                                                                             *
  *    3.4    "Threat extensions" added.  Simply, this is a null-move search    *
  *           used to determine if a move is good only because it is a horizon  *
- *           effect type move.  we do a null move search after a move fails    *
+ *           effect type move.  We do a null move search after a move fails    *
  *           high anywhere in the tree.  The window is normally lowered by 1.5 *
  *           pawns, the idea being that if the fail-high move happens in a     *
  *           position that fails "really low" with a null move, then this move *
@@ -487,7 +488,7 @@
  *           remainder of Evaluate() can't possible accomplish this either.    *
  *           Gross error in EvaluatePawns() fixed, which would "forget" all    *
  *           of the pawn scoring done up to the point where doubled white      *
- *           pawns were found.  error was xx=+ rather than xx+=, which had     *
+ *           pawns were found.  Error was xx=+ rather than xx+=, which had     *
  *           an extremely harmful effect on pawn structure evaluation.         *
  *                                                                             *
  *    7.4    Performance improvements produced by elimination of bit-fields.   *
@@ -723,9 +724,9 @@
  *           in Crafty.  For porting, I'll provide a small test run which can  *
  *           be used to validate Crafty once it's been compiled.               *
  *                                                                             *
- *    8.23   Cleanup/speedup in hashing.  HashProbe() and HashStore() now      *
- *           carefully cast the boolean operations to the most efficient size  *
- *           to avoid 64bit operations when only the right 32 bits are         *
+ *    8.23   Cleanup/speedup in hashing.  ProbeTransRef() and StoreTransRef()  *
+ *           now carefully cast the boolean operations to the most efficient   *
+ *           size to avoid 64bit operations when only the right 32 bits are    *
  *           significant. Repeat() code completely re-written to maintain two  *
  *           repetition lists, one for each side.  Quiesce() now handles the   *
  *           repetition check a little different, being careful to not call it *
@@ -779,8 +780,8 @@
  *           won't extend if the side on move is a rook behind, since it's     *
  *           already lost anyway.  We don't extend on passed pawn pushes if    *
  *           the side on move is ahead a rook, since he's already winning.     *
- *           minor adjustments for efficiency as well.  The next few           *
- *           versions in this series will have module names in these comments  *
+ *           minor adjustments for efficiency as well.  The next few versions  *
+ *           in this series will have module names in these comments           *
  *           indicating which modules have been "cleaned" up.  This is an      *
  *           effort at optimizing, although it is currently directed at a line *
  *           by line analysis within modules, rather than major changes that   *
@@ -1525,7 +1526,7 @@
  *           dangerous to the king for example, or two rooks and a bishop.     *
  *           Learning "curve" modified.  It was accidentally left in a sort    *
  *           of "geometric" shape, with the last move getting the full learn   *
- *           value, the next one back getting 1/2, the next 1/3, etc.   Now    *
+ *           value, the next one back getting 1/2, the next 1/3, etc.  Now     *
  *           it is uniformly distributed from front to back.  If there are 20  *
  *           moves, the last gets the full value, the next gets 19/20, etc..   *
  *           Also the "percentage played" was hosed and is fixed.              *
@@ -2296,26 +2297,26 @@
  *           when the B's are on opposite colors, but to also consider other   *
  *           positons like RB vs RB drawish with opposite B's.                 *
  *                                                                             *
- *   16.0    Hash functions renamed to HashProbe() and HashStore().  The store *
- *           functions (2) were combined to eliminate some duplicate code and  *
- *           shrink the cache footprint a bit.  Adjustment to "losing the      *
- *           right to castle" so that the penalty is much less if this is done *
- *           when trading queens, since a king in the center becomes less of a *
- *           problem there. Several eval tweaks.  Support for Eugene Nalimov's *
- *           new endgame databases that reduce the size by 50%.  Added a new   *
- *           cache=xxx command to set the tablebase cache (more memory means   *
- *           less I/O of course).  The "egtb" command now has two uses.  If    *
- *           use egtb=0, you can disable tablebases for testing.  Otherwise,   *
- *           you just add "egtb" to your command line or .craftyrc file and    *
- *           Crafty automatically recognizes the files that are present and    *
- *           sets up to probe them properly.  Added an eval term to catch a    *
- *           closed position with pawns at e4/d3/c4 and then avoiding the      *
- *           temptation to castle into an attack.  Most of the evaluation      *
- *           discontinuities have been removed, using the two new macros       *
- *           ScaleToMaterial() and InverseScaleToMaterial().  Scale() is used  *
- *           to reduce scores as material is removed from the board, while     *
- *           InverseScale() is used to increase the score as material is       *
- *           removed.  This removed a few ugly effects of things happening     *
+ *   16.0    Hash functions renamed to ProbeTransRef() and StoreTransRef().    *
+ *           The store functions (2) were combined to eliminate some duplicate *
+ *           code and shrink the cache footprint a bit.  Adjustment to "losing *
+ *           the right to castle" so that the penalty is much less if this is  *
+ *           done when trading queens, since a king in the center becomes less *
+ *           of a problem there. Several eval tweaks.  Support for Eugene      *
+ *           Nalimov's new endgame databases that reduce the size by 50%.      *
+ *           Added a new cache=xxx command to set the tablebase cache (more    *
+ *           memory means less I/O of course).  The "egtb" command now has two *
+ *           uses.  If you enter egtb=0, you can disable tablebases for        *
+ *           testing.  Otherwise, you just add "egtb" to your command line or  *
+ *           .craftyrc file and Crafty automatically recognizes the files that *
+ *           are present and sets up to probe them properly.  Added an eval    *
+ *           term to catch a closed position with pawns at e4/d3/c4 and then   *
+ *           avoiding the temptation to castle into an attack.  Most of the    *
+ *           evaluation discontinuities have been removed, using the two new   *
+ *           macros ScaleToMaterial() and InverseScaleToMaterial().  Scale()   *
+ *           is used to reduce scores as material is removed from the board,   *
+ *           while InverseScale() is used to increase the score as material    *
+ *           is removed.  This removed a few ugly effects of things happening  *
  *           right around the EG_MAT threshold.                                *
  *                                                                             *
  *   16.1    Bug in EGTBProbe() which used the wrong variable to access the    *
@@ -2329,8 +2330,8 @@
  *   16.2    More evaluation changes, specifically to bring king safety down   *
  *           to reasonable levels.  Support for the DGT electronic chess board *
  *           is now included (but only works in text mode, not in conjunction  *
- *           with xboard/winboard yet.  Fix to HashStore() that corrected a    *
- *           problem with moving an entry from tablea to tableb, but to the    *
+ *           with xboard/winboard yet.  Fix to StoreTransRef() that corrected  *
+ *           a problem with moving an entry from tablea to tableb, but to the  *
  *           wrong address 50% of the time (thanks to J. Wesley Cleveland).    *
  *                                                                             *
  *   16.3    Performance tweaks plus a few evaluation changes.  An oversight   *
@@ -2362,12 +2363,13 @@
  *           New code submitted by George Barrett, which adds a new command    *
  *           "html on".  Using this will cause the annotate command to produce *
  *           a game.html file (rather than game.can) which includes nice board *
- *           displays (bitmapped images) everywhere Crafty suggests a different*
- *           move.  You will need to download the bitmaps directory files to   *
- *           make this work.  Note that html on enables this or you will get   *
- *           normal annotation output in the .can file.  Final hashing changes *
- *           made.  Now crafty has only two hash tables, the 'depth preferred' *
- *           and 'always store' tables, but not one for each side.             *
+ *           displays (bitmapped images) everywhere Crafty suggests a          *
+ *           different move.  You will need to download the bitmaps directory  *
+ *           files to make this work.  Note that html on enables this or you   *
+ *           will get normal annotation output in the .can file.  Final        *
+ *           hashing changes made.  Now crafty has only two hash tables, the   *
+ *           'depth preferred' and 'always store' tables, but not one for each *
+ *           side.                                                             *
  *                                                                             *
  *   16.5    Minor glitch in internal iterative deepening code (in search.c)   *
  *           could sometimes produce an invalid move.  Crafty now probes the   *
@@ -2375,7 +2377,8 @@
  *           Interesting tablebase bug fixed.  By probing at ply=2, the        *
  *           search could overlook a repetition/50 move draw, and turn a won   *
  *           position into a draw.  Crafty now only probes at ply > 2, to      *
- *           let the Repeat() function have a chance.  Added code by Dan       * *           Corbitt to add environment variables for the tablebases, books,   *
+ *           let the Repeat() function have a chance.  Added code by Dan       *
+ *           Corbitt to add environment variables for the tablebases, books,   *
  *           logfiles and the .craftyrc file paths.  The environment variables *
  *           CRAFTY_TB_PATH, CRAFTY_BOOK_PATH, CRAFTY_LOG_PATH and             *
  *           CRAFTY_RC_PATH should point to where these files are located and  *
@@ -2429,7 +2432,7 @@
  *           bring the scores back closer to something reasonable.             *
  *                                                                             *
  *   16.8    Bug in evaluate.c (improper editing) broke the scoring for white  *
- *           rooks on open files (among other things.)  new twist on null-     *
+ *           rooks on open files (among other things.)  New twist on null-     *
  *           move search...  Crafty now uses R=3 near the root of the tree,    *
  *           and R=2 near the top.  It also uses null-move so long as there is *
  *           a single piece on the board, but when material drops to a rook or *
@@ -2494,7 +2497,7 @@
  *           were removed.                                                     *
  *                                                                             *
  *   16.17   Minor "hole" in SMP code fixed.  It was possible that a move      *
- *           displayed as the best in Output() would not get played.     *
+ *           displayed as the best in Output() would not get played.           *
  *           Very subtle timing issue dealing with the search timing out and   *
  *           forgetting to copy the best move back to the right data area.     *
  *           Minor fixes to the modified -USE_ATTACK_FUNCTIONS option that     *
@@ -2507,16 +2510,16 @@
  *           was not working well which would also cause attacking problems.   *
  *           Razoring code has been disabled, as it neither helps or hurts on  *
  *           tactical tests, and it creates a few hashing problems that are    *
- *           annoying.  Bug in HashStorePV() that would store the PV into the  *
- *           hash table, but possibly in the wrong table entry, which could    *
- *           stuff a bad move in a hash entry, or overwrite a key entry that   *
- *           could have been useful later.  Book random 0 was slightly wrong   *
- *           as it could not ignore book moves if the search said that the     *
- *           score was bad.  Also the search would not time-out properly on a  *
- *           forced move, it would use the entire time alotted which was a big *
- *           waste of time when there was only one legal move to make. A very  *
- *           interesting bug was found in storing mate bounds in the hash      *
- *           table, one I had not heard of before.  Another change to          *
+ *           annoying.  Bug in StoreTransRefPV() that would store the PV into  *
+ *           the hash table, but possibly in the wrong table entry, which      *
+ *           could stuff a bad move in a hash entry, or overwrite a key entry  *
+ *           that could have been useful later.  Book random 0 was slightly    *
+ *           wrong as it could not ignore book moves if the search said that   *
+ *           the score was bad.  Also the search would not time-out properly   *
+ *           on a forced move, it would use the entire time alotted which was  *
+ *           a big waste of time when there was only one legal move to make.   *
+ *           A very interesting bug was found in storing mate bounds in the    *
+ *           hash table, one I had not heard of before.  Another change to     *
  *           Iterate() to make it avoid exiting as soon as a mate is found, so *
  *           that it can find the shortest mate possible.                      *
  *                                                                             *
@@ -2777,13 +2780,13 @@
  *           with the new xboard/winboard 4.2.2 versions.  Book learning was   *
  *           badly broken in the previous version and has been fixed/tested.   *
  *                                                                             *
- *   18.4    Recapture extension was left in SearchParallel() by mistake.  This*
- *           has now been protected by a #ifdef just like it was in Search().  *
- *           Bug in Repeat() was causing problems in SMP versions.  The entire *
- *           repetition list code was modified to clean this up.  The problem  *
- *           was most noticable on things like fine #70.  Bug in               *
+ *   18.4    Recapture extension was left in SearchParallel() by mistake.      *
+ *           This has now been protected by a #ifdef just like it was in       *
+ *           Search().  Bug in Repeat() was causing problems in SMP versions.  *
+ *           The entire repetition list code was modified to clean this up.    *
+ *           The problem was most noticable on things like fine #70.  Bug in   *
  *           LearnImportBook() confused the learn value sign, due to the other *
- *           changes to make +=white all the time.  opposite bishop scoring    *
+ *           changes to make +=white all the time.  Opposite bishop scoring    *
  *           has been beefed up a bit to avoid these drawish endings.          *
  *                                                                             *
  *   18.5    Minor change to RootMove() to use Quiesce() rather than the more  *
@@ -2960,7 +2963,7 @@
  *           is also likely a "bad trade."  Adaptive hash table size code was  *
  *           added so that the hash size is set automatically based on the     *
  *           estimated NPS and time per move values for a specific "level"     *
- *           command setting.   Repeat() rewritten.  The old code had an       *
+ *           command setting.  Repeat() rewritten.  The old code had an        *
  *           unexplained bug that would overlook repetitions in a parallel     *
  *           search in rare cases.  The old cold was complex enough that it    *
  *           was time to rewrite it and simplify it significantly.             *
@@ -2991,7 +2994,7 @@
  *           then play the move, to avoid any confusion in whether the draw    *
  *           was made according to FIDE rules or not.  Minor bug in evaluate() *
  *           dealing with candidate passed pawns fixed.  A few additions to    *
- *           support my AMD Opteron inline assembly for MSB(), LSB()  *
+ *           support my AMD Opteron inline assembly for MSB(), LSB()           *
  *           and PopCnt() procedures.                                          *
  *                                                                             *
  *   19.8    Changes to lock.h to (a) eliminate NT/alpha, since Microsoft no   *
@@ -3140,8 +3143,8 @@
  *   19.17   Changes to pawn evaluation to limit positional scores that could  *
  *           get a bit out of sane boundaries in some positions.               *
  *                                                                             *
- *   19.18   HashProbe() no longer adjusts alpha/beta bounds if the entry is   *
- *           not good enough to terminate the search here.  This has helped    *
+ *   19.18   ProbeTransRef() no longer adjusts alpha/beta bounds if the entry  *
+ *           is not good enough to terminate the search here.  This has helped *
  *           speed things up (reduced size of tree) over many test positions   *
  *           so either it was buggy or not worthwhile.  Regardless, it is now  *
  *           'gone'.  Connected passed pawns now scored as a simple pair of    *
@@ -3371,7 +3374,7 @@
  *           3,2 or 2,3 worse than 4,1 or 1,4 and 0,5 or 5,0, as the latter    *
  *           mean "unsafe king but no piece pressure" or "piece pressure but   *
  *           king pawn shelter is safe" whereas the middle values mean both    *
- *           components of an attack are present, unsafe king position and the
+ *           components of an attack are present, unsafe king position and the *
  *           pieces are closing in.                                            *
  *                                                                             *
  *   20.11   Minor fix to late move reduction code.  Turns out it is possible  *
@@ -3864,29 +3867,29 @@
  *           incomplete/bogus search result to the root in rare occasions,     *
  *           which would / could result in Crafty kibitzing one move but       *
  *           playing a different move.  On occasion, the move played could be  *
- *           a horrible blunder.  Minor bug caused HashStore() to lose a best  *
- *           move when overwriting an old position with a null-move search     *
- *           result.  Minor change by Tracy to lazy evaluation cutoff to speed *
- *           up evaluation somewhat.  Old "Trojan Horse" attack detection was  *
- *           removed.  At today's depths, it was no longer needed.  New hash   *
- *           idea stores the PV for an EXACT hash entry in a separate hash     *
- *           table.  When an EXACT hit happens, this PV can be added to the    *
- *           incomplete PV we have so far so that we have the exact path that  *
- *           leads to the backed up score.  New "phash" (path hash) command to *
- *           set the number of entries in this path hash table.  For longer    *
- *           searches, a larger table avoids path table collisions which will  *
- *           produce those short paths that end in <HT>.  If <HT> appears in   *
- *           too many PVs, phash should be increased.  The "Trojan Horse" code *
- *           has been completely removed, which also resulted in the removal   *
- *           of the last bit of "pre-processing code" in preeval.c, so it has  *
- *           been completely removed as well.  Current search depths are such  *
- *           that the Trojan Horse code is simply not needed any longer.  A    *
- *           minor bug in TimeSet() fixed where on rare occasions, near the    *
- *           end of a time control, time_limit could be larger than the max    *
- *           time allowed (absolute_time_limit).  We never check against this  *
- *           limit until we exceed the nominal time limit.  Cleanup on the     *
- *           draw by repetition code to greatly simplify the code as well as   *
- *           speed it up.                                                      *
+ *           a horrible blunder.  Minor bug caused StoreTransRef() to lose a   *
+ *           best move when overwriting an old position with a null-move       *
+ *           search result.  Minor change by Tracy to lazy evaluation cutoff   *
+ *           to speed up evaluation somewhat.  Old "Trojan Horse" attack       *
+ *           detection was removed.  At today's depths, it was no longer       *
+ *           needed.  New hash idea stores the PV for an EXACT hash entry in a *
+ *           separate hash table.  When an EXACT hit happens, this PV can be   *
+ *           added to the incomplete PV we have so far so that we have the     *
+ *           exact path that leads to the backed up score.  New "phash" (path  *
+ *           hash) command to set the number of entries in this path hash      *
+ *           table.  For longer searches, a larger table avoids path table     *
+ *           collisions which will produce those short paths that end in <HT>. *
+ *           If <HT> appears in too many PVs, phash should be increased.  The  *
+ *           "Trojan Horse" code has been completely removed, which also       *
+ *           resulted in the removal of the last bit of "pre-processing code"  *
+ *           in preeval.c, so it has been completely removed as well.  Current *
+ *           search depths are such that the Trojan Horse code is simply not   *
+ *           needed any longer.  A minor bug in TimeSet() fixed where on rare  *
+ *           occasions, near the end of a time control, time_limit could be    *
+ *           larger than the max time allowed (absolute_time_limit).  We never *
+ *           check against this limit until we exceed the nominal time limit.  *
+ *           Cleanup on the draw by repetition code to greatly simplify the    *
+ *           code as well as speed it up.                                      *
  *                                                                             *
  *    23.5   Several pieces of code cleanup, both for readability and speed.   *
  *           We are now using stdint.h, which lets us specific the exact size  *
@@ -4056,14 +4059,146 @@
  *           ramped down so that by the time skill drops below 10, there are   *
  *           no reductions left.                                               *
  *                                                                             *
+ *    24.2   Bug in SetTime() fixed.  The absolute time limit was set way too  *
+ *           large in sudden death games (games with no secondary time control *
+ *           to add time on the clock) with an increment.  It was intended to  *
+ *           allow the search to use up to 5x the normal target time, unless   *
+ *           that was larger than 1/2 of the total time remaining, but some-   *
+ *           where along the way that 5x was removed and it always set the     *
+ *           absolute time limit to 1/2 the remaining clock, which would burn  *
+ *           clock time way too quickly.  Complete re-factor of Search() to    *
+ *           take the main loop and move that to a new procedure               *
+ *           SearchMoveList() to eliminate the duplicated search code between  *
+ *           Search() and SearchParallel() which has been replaced by          *
+ *           SearchMoveList().  New addition to NextMove().  It was cleaned up *
+ *           to eliminate the old NextEvasion() code since one was a sub-set   *
+ *           of the other.  A minor change to limit the NPS impact on history  *
+ *           ordering.  We do not do history ordering within 6 plies of a      *
+ *           terminal node, and we only try to order 1/2 of the moves before   *
+ *           giving up and assuming this is an ALL node where ordering does    *
+ *           not matter.                                                       *
+ *                                                                             *
+ *    25.0   Complete re-factor of pawn evaluation code.  There were too many  *
+ *           overlapping terms that made tuning difficult.  Now a pawn is      *
+ *           classified as one specific class, there is no overlap between     *
+ *           classes, which simplifies the code significantly.  The code is    *
+ *           now easier to understand and modify.  In addition, the passed     *
+ *           pawn evaluation was rewritten and consolidates all the passed     *
+ *           pawn evaluation in one place.  The evaluation used to add a bonus *
+ *           for rooks behind passed pawns in rook scoring, blockading some-   *
+ *           where else, etc.  All of this was moved to the passed pawn code   *
+ *           to make it easier to understand and modify.  A limited version of *
+ *           late move pruning (LMP) is used in the last two plies.  Once a    *
+ *           set number of moves have been searched with no fail high, non-    *
+ *           interesting moves are simply skipped in a way similar to futility *
+ *           pruning.  This version also contains a major rewrite of the       *
+ *           parallel search code, now referred to as Generation II.  It has a *
+ *           more lightweight split algorithm, that costs the parent MUCH less *
+ *           effort to split the search.  The key is that now the individual   *
+ *           "helper" threads do all the work, allocating a split block,       *
+ *           copying the data from the parent, etc., rather than the parent    *
+ *           doing it all.  Gen II based on the DTS "late-join" idea so that a *
+ *           thread will try to join existing split points before it goes to   *
+ *           the idle wait loop waiting for some other thread to split with    *
+ *           it.  In fact, this is now the basis for the new split method      *
+ *           where the parent simply creates a split point by allocating a     *
+ *           split block for itself, and then continuing the search, after the *
+ *           parent split block is marked as "joinable".  Now any idle threads *
+ *           just "jump in" without the parent doing anything else, which      *
+ *           means that currently idle threads will "join" this split block if *
+ *           they are in the "wait-for-work" spin loop, and threads that be-   *
+ *           come idle also join in exactly the same way.  This is MUCH more   *
+ *           efficient, and also significantly reduces the number of split     *
+ *           blocks needed during the search.  We also now pre-split the       *
+ *           search when we are reasonably close to the root of the tree,      *
+ *           which is called a "gratuitous split.  This leaves joinable split  *
+ *           points laying around so that whenever a thread becomes idle, it   *
+ *           can join in at these pre-existing split points immediately.  We   *
+ *           now use a much more conservative approach when dealing with fail  *
+ *           highs at the root.  Since LMR and such have introduced greater    *
+ *           levels of search instability, we no longer trust a fail-high at   *
+ *           the root if it fails low on the re-search.  We maintain the last  *
+ *           score returned for every root move, along with the PV.  Either an *
+ *           exact score or the bound score that was returned.  At the end of  *
+ *           the iteration, we sort the root move list using the backed-up     *
+ *           score as the sort key, and we play the move with the best score.  *
+ *           This solves a particularly ugly issue where we get a score for    *
+ *           the first move, then another move fails high, but then fails low  *
+ *           and the re-search produces a score that is actually WORSE than    *
+ *           the original best move.  We still see that, but we always play    *
+ *           the best move now.  One other efficiency trick is that when the   *
+ *           above happens, the search would tend to be less efficient since   *
+ *           the best score for that fail-high/fail-low move is actually worse *
+ *           than the best move/score found so far.  If this happens, the      *
+ *           score is restored to the original best move score (in Search())   *
+ *           so that we continue searching with a good lower bound, not having *
+ *           to deal with moves that would fail high with this worse value,    *
+ *           but not with the original best move's value.  Minor change to     *
+ *           history counters that now rely on a "saturating counter" idea.  I *
+ *           wanted to avoid the aging idea, and it seemed to not be so clear  *
+ *           that preferring history moves by the depth at which they were     *
+ *           good was the way to go.  I returned to a history counter idea I   *
+ *           tested around 2005 but discarded, namely using a saturating       *
+ *           counter.  The idea is that a center value (at present 1024)       *
+ *           represents a zero score.  Decrementing it makes it worse,         *
+ *           incrementing it makes it better.  But to make it saturate at      *
+ *           either end, I only reduce the counter by a fraction of its        *
+ *           distance from the saturation point so that once it gets to either *
+ *           extreme value, it will not be modified further avoiding wrap-     *
+ *           around.  This basic idea was originally reported by Mark Winands  *
+ *           in 2005.  It seems to provide better results (slightly) on very   *
+ *           deep searches.  One impetus for this was an intent to fold this   *
+ *           into a move so that I could sort the moves rather than doing the  *
+ *           selection approach I currently use.  However, this had a bad      *
+ *           effect on testing, since history information is dynamic and is    *
+ *           constantly changing, between two moves at the same ply in fact.   *
+ *           The sort fixed the history counters to the value at the start of  *
+ *           that ply.  This was discarded after testing, but the history      *
+ *           counter based on the saturating counter idea seemed to be OK and  *
+ *           was left in even though it produced minimal Elo gain during       *
+ *           testing.  Change to the way moves are counted, to add a little    *
+ *           more consistency to LMR.  Now Next*() returns an order number     *
+ *           that starts with 1 and monotonically increases, this order number *
+ *           is used for LMR and such decisions that vary things based on how  *
+ *           far down the move list something occurs.  Root move counting was  *
+ *           particularly problematic with parallel searching, now things are  *
+ *           at least "more consistent".  The only negative impact is that now *
+ *           the move counter gets incremented even for illegal moves, but     *
+ *           testing showed this was a no-change change with one thread, and   *
+ *           the consistency with multiple threads made it useful.  New method *
+ *           to automatically tune SMP parameters.  The command is autotune    *
+ *           and "help autotune" will explain how to run it.  Added the        *
+ *           "counter-move" heuristic for move ordering (Jos Uiterwijk, JICCA) *
+ *           which simply remembers a fail high move and the move at the       *
+ *           previous ply.  If the hash, captures or killer moves don't result *
+ *           in a fail high, this move is tried next.  No significant cost,    *
+ *           seems to reduce tree size noticeably.  Added a follow-up idea     *
+ *           based on the same idea, except we pair a move that fails high     *
+ *           with the move two plies back, introducing a sort of "connection"  *
+ *           between them.  This is a sort of "plan" idea where the first move *
+ *           of the pair enables the second move to fail high.  The benefit is *
+ *           that this introduces yet another pair of good moves that get      *
+ *           ordered before history moves, and is therefore not subject to     *
+ *           reduction.  I have been unable to come up with a reference for    *
+ *           this idea, but I believe I first saw it somewhere around the time *
+ *           Fruit showed up, I am thinking perhaps in the JICCA/JICGA.  Any   *
+ *           reference would be appreciated.  Minor change to the way the PV   *
+ *           and fail-hi/fail-low moves are displayed when pondering.  Crafty  *
+ *           now adds the ponder move to the front of the PV enclosed in ( )   *
+ *           so that it is always visible in console mode.  The depths are     *
+ *           reaching such extreme numbers the ponder move scrolls off the top *
+ *           of the screen when running in console mode or when "tail -f" is   *
+ *           used to watch the log file while a game is in progress.  This is  *
+ *           a bit trickier than you might think since Crafty displays the     *
+ *           game move numbers in the PV.  Penalty for pawns on same color as  *
+ *           bishop now only applies when there is one bishop.                 *
+ *                                                                             *
  *******************************************************************************
  */
 int main(int argc, char **argv) {
-  int move, readstat;
-  int value = 0, i, result;
-  int draw_type;
   TREE *tree;
   FILE *personality;
+  int move, readstat, value = 0, i, v, result, draw_type;
   char announce[128];
 
 #if defined(UNIX)
@@ -4087,11 +4222,11 @@ int main(int argc, char **argv) {
   if (directory_spec)
     strncpy(rc_path, directory_spec, sizeof rc_path);
   if (getenv("CRAFTY_XBOARD")) {
-    Print(4095, "feature done=0\n");
-    done = 0;
+    Print(-1, "feature done=0\n");
+    xboard_done = 0;
   } else if (argc > 1 && !strcmp(argv[1], "xboard")) {
-    Print(4095, "feature done=0\n");
-    done = 0;
+    Print(-1, "feature done=0\n");
+    xboard_done = 0;
   }
 /*
  ************************************************************
@@ -4105,8 +4240,8 @@ int main(int argc, char **argv) {
   AlignedMalloc((void *) ((void *) &tree), 2048, (size_t) sizeof(TREE));
   block[0] = tree;
   tree->parent = 0;
-  tree->used = 1;
   tree->stop = 0;
+  tree->joinable = 0;
   tree->ply = 1;
   tree->nprocs = 0;
   tree->thread_id = 0;
@@ -4115,11 +4250,13 @@ int main(int argc, char **argv) {
     args[i] = (char *) malloc(256);
   if (argc > 1) {
     for (i = 1; i < argc; i++) {
-      if (strstr(argv[i], "path") || strstr(argv[i], "log")) {
+      if (strstr(argv[i], "path") || strstr(argv[i], "log") ||
+          strstr(argv[1], "affinity")) {
         strcpy(buffer, argv[i]);
         result = Option(tree);
         if (result == 0)
-          printf("ERROR \"%s\" is unknown command-line option\n", buffer);
+          Print(2048, "ERROR \"%s\" is unknown command-line option\n",
+              buffer);
         display = tree->position;
       }
     }
@@ -4153,7 +4290,7 @@ int main(int argc, char **argv) {
         continue;
       result = Option(tree);
       if (result == 0)
-        printf("ERROR \"%s\" is unknown rc-file option\n", buffer);
+        Print(2048, "ERROR \"%s\" is unknown rc-file option\n", buffer);
       if (input_stream == stdin)
         break;
     }
@@ -4170,7 +4307,7 @@ int main(int argc, char **argv) {
     unsigned long cpus[8];
 
     numa_node_to_cpus(0, cpus, 64);
-    printf("\nMachine is NUMA, %d nodes (%d cpus/node)\n\n",
+    Print(32, "\nMachine is NUMA, %d nodes (%d cpus/node)\n\n",
         numa_max_node() + 1, PopCnt(cpus[0]));
   }
 #endif
@@ -4196,14 +4333,15 @@ int main(int argc, char **argv) {
       if (strcmp(argv[i], "c"))
         if (!strstr(argv[i], "path")) {
           if (strlen(argv[i]) > 255)
-            Print(4095, "ERROR ignoring token %s, 255 character max\n",
+            Print(-1, "ERROR ignoring token %s, 255 character max\n",
                 argv[i]);
           else {
             strcpy(buffer, argv[i]);
-            Print(128, "(info) command line option \"%s\"\n", buffer);
+            Print(32, "(info) command line option \"%s\"\n", buffer);
             result = Option(tree);
             if (result == 0)
-              printf("ERROR \"%s\" is unknown command-line option\n", buffer);
+              Print(2048, "ERROR \"%s\" is unknown command-line option\n",
+                  buffer);
           }
         }
   }
@@ -4239,7 +4377,7 @@ int main(int argc, char **argv) {
         continue;
       result = Option(tree);
       if (result == 0)
-        printf("ERROR \"%s\" is unknown rc-file option\n", buffer);
+        Print(2048, "ERROR \"%s\" is unknown rc-file option\n", buffer);
       if (input_stream == stdin)
         break;
     }
@@ -4248,7 +4386,7 @@ int main(int argc, char **argv) {
   if (xboard)
     signal(SIGINT, SIG_IGN);
 #endif
-  Print(128, "\nCrafty v%s (%d cpus)\n\n", version, Max(smp_max_threads, 1));
+  Print(32, "\nCrafty v%s (%d cpus)\n\n", version, Max(smp_max_threads, 1));
   NewGame(1);
 /*
  ************************************************************
@@ -4261,7 +4399,7 @@ int main(int argc, char **argv) {
  */
   if ((personality = fopen("crafty.cpf", "r"))) {
     fclose(personality);
-    Print(4095, "using default personality file \"crafty.cpf\"\n");
+    Print(-1, "using default personality file \"crafty.cpf\"\n");
     sprintf(buffer, "personality load crafty.cpf");
     Option(tree);
   }
@@ -4334,16 +4472,16 @@ int main(int argc, char **argv) {
       display = tree->position;
       move = 0;
       presult = 0;
-      if (done == 0 && xboard) {
-        done = 1;
-        Print(128, "feature done=1\n");
+      if (xboard_done == 0 && xboard) {
+        xboard_done = 1;
+        Print(-1, "feature done=1\n");
       }
       do {
         if (presult != 2)
           presult = 0;
         result = 0;
         if (pong) {
-          Print(4095, "pong %d\n", pong);
+          Print(-1, "pong %d\n", pong);
           pong = 0;
         }
         display = tree->position;
@@ -4372,8 +4510,8 @@ int main(int argc, char **argv) {
         opponent_end_time = ReadClock();
         result = Option(tree);
         if (result == 0) {
-          nargs = ReadParse(buffer, args, " 	;");
-          move = InputMove(tree, args[0], 0, game_wtm, 0, 0);
+          nargs = ReadParse(buffer, args, " \t;");
+          move = InputMove(tree, 0, game_wtm, 0, 0, args[0]);
           result = !move;
           if (move)
             last_pv.path[1] = 0;
@@ -4396,13 +4534,14 @@ int main(int argc, char **argv) {
       if (result == 0) {
         fseek(history_file, ((move_number - 1) * 2 + 1 - game_wtm) * 10,
             SEEK_SET);
-        fprintf(history_file, "%9s\n", OutputMove(tree, move, 0, game_wtm));
-        MakeMoveRoot(tree, move, game_wtm);
+        fprintf(history_file, "%9s\n", OutputMove(tree, 0, game_wtm, move));
+        MakeMoveRoot(tree, game_wtm, move);
+        tree->curmv[0] = move;
         time_used_opponent = opponent_end_time - opponent_start_time;
         if (!force)
           Print(1, "              time used: %s\n",
               DisplayTime(time_used_opponent));
-        TimeAdjust(time_used_opponent, game_wtm);
+        TimeAdjust(game_wtm, time_used_opponent);
         game_wtm = Flip(game_wtm);
         if (game_wtm)
           move_number++;
@@ -4429,21 +4568,21 @@ int main(int argc, char **argv) {
  ************************************************************
  */
         if ((draw_type = Repeat3x(tree)) == 1) {
-          Print(128, "I claim a draw by 3-fold repetition.\n");
+          Print(1, "I claim a draw by 3-fold repetition.\n");
           value = DrawScore(game_wtm);
           if (xboard)
-            Print(4095, "1/2-1/2 {Drawn by 3-fold repetition}\n");
+            Print(-1, "1/2-1/2 {Drawn by 3-fold repetition}\n");
         }
         if (draw_type == 2) {
-          Print(128, "I claim a draw by the 50 move rule.\n");
+          Print(1, "I claim a draw by the 50 move rule.\n");
           value = DrawScore(game_wtm);
           if (xboard)
-            Print(4095, "1/2-1/2 {Drawn by 50-move rule}\n");
+            Print(-1, "1/2-1/2 {Drawn by 50-move rule}\n");
         }
         if (Drawn(tree, last_search_value) == 2) {
-          Print(128, "I claim a draw due to insufficient material.\n");
+          Print(1, "I claim a draw due to insufficient material.\n");
           if (xboard)
-            Print(4095, "1/2-1/2 {Insufficient material}\n");
+            Print(-1, "1/2-1/2 {Insufficient material}\n");
         }
       } else {
         tree->status[1] = tree->status[0];
@@ -4509,22 +4648,32 @@ int main(int argc, char **argv) {
       if (value <= drawsc && (tc_increment != 0 ||
               tc_time_remaining[Flip(game_wtm)] >= 1000)) {
         if (xboard)
-          Print(4095, "offer draw\n");
+          Print(-1, "offer draw\n");
         else {
-          Print(128, "Draw accepted.\n");
+          Print(1, "Draw accepted.\n");
           if (audible_alarm)
             printf("%c", audible_alarm);
           if (speech) {
-            strcpy(announce, SPEAK);
-            strcat(announce, " Drawaccept");
-            system(announce);
+            strcpy(announce, "./speak ");
+            strcat(announce, "Drawaccept");
+            v = system(announce);
+            if (v != 0)
+              perror("main() system() error: ");
           }
         }
-        Print(4095, "1/2-1/2 {Draw agreed}\n");
+        Print(-1, "1/2-1/2 {Draw agreed}\n");
         strcpy(pgn_result, "1/2-1/2");
       } else {
-        if (!xboard)
-          Print(4095, "Draw declined.\n");
+        if (!xboard) {
+          Print(1, "Draw declined.\n");
+          if (speech) {
+            strcpy(announce, "./speak ");
+            strcat(announce, "Drawdecline");
+            v = system(announce);
+            if (v != 0)
+              perror("main() system() error: ");
+          }
+        }
       }
     }
 /*
@@ -4548,36 +4697,40 @@ int main(int argc, char **argv) {
       if (value == -MATE + 1) {
         over = 1;
         if (game_wtm) {
-          Print(4095, "0-1 {Black mates}\n");
+          Print(-1, "0-1 {Black mates}\n");
           strcpy(pgn_result, "0-1");
         } else {
-          Print(4095, "1-0 {White mates}\n");
+          Print(-1, "1-0 {White mates}\n");
           strcpy(pgn_result, "1-0");
         }
         if (speech) {
-          strcpy(announce, SPEAK);
-          strcat(announce, " Checkmate");
-          system(announce);
+          strcpy(announce, "./speak ");
+          strcat(announce, "Checkmate");
+          v = system(announce);
+          if (v != 0)
+            perror("main() system() error: ");
         }
       } else {
         over = 1;
         if (!xboard) {
-          Print(128, "stalemate\n");
+          Print(1, "stalemate\n");
           if (speech) {
-            strcpy(announce, SPEAK);
-            strcat(announce, " Stalemate");
-            system(announce);
+            strcpy(announce, "./speak ");
+            strcat(announce, "Stalemate");
+            v = system(announce);
+            if (v != 0)
+              perror("main() system() error: ");
           }
         } else
-          Print(4095, "1/2-1/2 {stalemate}\n");
+          Print(-1, "1/2-1/2 {stalemate}\n");
       }
     } else {
       if (value > 32000 && value < MATE - 2) {
-        Print(128, "\nmate in %d moves.\n\n", (MATE - value) / 2);
+        Print(1, "\nmate in %d moves.\n\n", (MATE - value) / 2);
         Kibitz(1, game_wtm, 0, 0, (MATE - value) / 2, tree->nodes_searched, 0,
             0, " ");
       } else if (-value > 32000 && -value < MATE - 1) {
-        Print(128, "\nmated in %d moves.\n\n", (MATE + value) / 2);
+        Print(1, "\nmated in %d moves.\n\n", (MATE + value) / 2);
         Kibitz(1, game_wtm, 0, 0, -(MATE + value) / 2, tree->nodes_searched,
             0, 0, " ");
       }
@@ -4603,44 +4756,49 @@ int main(int argc, char **argv) {
  ************************************************************
  */
       if (speech) {
-        char *moveptr = OutputMove(tree, last_pv.path[1], 0, game_wtm);
+        char *moveptr = OutputMove(tree, 0, game_wtm, last_pv.path[1]);
 
-        strcpy(announce, SPEAK);
+        strcpy(announce, "./speak ");
         strcat(announce, moveptr);
-        system(announce);
+        strcat(announce, " &");
+        v = system(announce);
+        if (v != 0)
+          perror("main() system() error: ");
       }
       if (!xboard && audible_alarm)
         printf("%c", audible_alarm);
       Print(1, "%s(%d): %s\n", SideToMove(game_wtm), move_number,
-          OutputMove(tree, last_pv.path[1], 0, game_wtm));
+          OutputMove(tree, 0, game_wtm, last_pv.path[1]));
       if (xboard)
-        printf("move %s\n", OutputMove(tree, last_pv.path[1], 0, game_wtm));
+        printf("move %s\n", OutputMove(tree, 0, game_wtm, last_pv.path[1]));
+      fflush(stdout);
       if (value == MATE - 2) {
         if (game_wtm) {
-          Print(4095, "1-0 {White mates}\n");
+          Print(-1, "1-0 {White mates}\n");
           strcpy(pgn_result, "1-0");
         } else {
-          Print(4095, "0-1 {Black mates}\n");
+          Print(-1, "0-1 {Black mates}\n");
           strcpy(pgn_result, "0-1");
         }
       }
       time_used = program_end_time - program_start_time;
       Print(1, "              time used: %s\n", DisplayTime(time_used));
-      TimeAdjust(time_used, game_wtm);
+      TimeAdjust(game_wtm, time_used);
       fseek(history_file, ((move_number - 1) * 2 + 1 - game_wtm) * 10,
           SEEK_SET);
-      fprintf(history_file, "%9s\n", OutputMove(tree, last_pv.path[1], 0,
-              game_wtm));
+      fprintf(history_file, "%9s\n", OutputMove(tree, 0, game_wtm,
+              last_pv.path[1]));
       last_search_value = value;
       if (kibitz) {
         if (kibitz_depth)
           Kibitz(2, game_wtm, kibitz_depth, end_time - start_time, value,
-              tree->nodes_searched, idle_percent,
-              tree->egtb_probes_successful, kibitz_text);
+              tree->nodes_searched, busy_percent, tree->egtb_hits,
+              kibitz_text);
         else
           Kibitz(4, game_wtm, 0, 0, 0, 0, 0, 0, kibitz_text);
       }
-      MakeMoveRoot(tree, last_pv.path[1], game_wtm);
+      MakeMoveRoot(tree, game_wtm, last_pv.path[1]);
+      tree->curmv[0] = move;
 /*
  ************************************************************
  *                                                          *
@@ -4660,22 +4818,22 @@ int main(int argc, char **argv) {
         move_number++;
       move_actually_played = 1;
       if ((draw_type = Repeat3x(tree)) == 1) {
-        Print(128, "I claim a draw by 3-fold repetition after my move.\n");
+        Print(1, "I claim a draw by 3-fold repetition after my move.\n");
         if (xboard)
-          Print(4095, "1/2-1/2 {Drawn by 3-fold repetition}\n");
+          Print(-1, "1/2-1/2 {Drawn by 3-fold repetition}\n");
         value = DrawScore(game_wtm);
       }
       if (draw_type == 2 && last_search_value < 32000) {
-        Print(128, "I claim a draw by the 50 move rule after my move.\n");
+        Print(1, "I claim a draw by the 50 move rule after my move.\n");
         if (xboard)
-          Print(4095, "1/2-1/2 {Drawn by 50-move rule}\n");
+          Print(-1, "1/2-1/2 {Drawn by 50-move rule}\n");
         value = DrawScore(game_wtm);
       }
       if (Drawn(tree, last_search_value) == 2) {
-        Print(128,
+        Print(1,
             "I claim a draw due to insufficient material after my move.\n");
         if (xboard)
-          Print(4095, "1/2-1/2 {Insufficient material}\n");
+          Print(-1, "1/2-1/2 {Insufficient material}\n");
       }
 #if !defined(TEST)
       if (time_limit > 300)
@@ -4702,10 +4860,12 @@ int main(int argc, char **argv) {
           last_pv.pathd = last_pv.pathl;
         if (last_pv.pathl == 0)
           last_pv.pathd = 0;
+        tree->pv[0] = last_pv;
       } else {
         last_pv.pathd = 0;
         last_pv.pathl = 0;
         ponder_move = 0;
+        tree->pv[0] = last_pv;
       }
     }
 #if defined(TEST)
@@ -4714,13 +4874,13 @@ int main(int argc, char **argv) {
 #endif
     if ((i = GameOver(game_wtm))) {
       if (i == 1)
-        Print(4095, "1/2-1/2 {stalemate}\n");
+        Print(-1, "1/2-1/2 {stalemate}\n");
     }
     if (book_move) {
       moves_out_of_book = 0;
       predicted++;
       if (ponder_move)
-        sprintf(book_hint, "%s", OutputMove(tree, ponder_move, 0, game_wtm));
+        sprintf(book_hint, "%s", OutputMove(tree, 0, game_wtm, ponder_move));
     } else
       moves_out_of_book++;
 #if defined(DEBUG)
@@ -4745,7 +4905,7 @@ int main(int argc, char **argv) {
     if (mode == tournament_mode) {
       strcpy(buffer, "clock");
       Option(tree);
-      Print(128, "if clocks are wrong, use 'settc' command to adjust them\n");
+      Print(32, "if clocks are wrong, use 'settc' command to adjust them\n");
     }
   }
 }

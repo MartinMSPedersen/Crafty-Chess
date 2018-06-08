@@ -24,7 +24,7 @@
 void ValidatePosition(TREE * RESTRICT tree, int ply, int move, char *caller) {
   uint64_t temp, temp1, temp_occ;
   uint64_t temp_occx;
-  int i, square, error;
+  int i, square, error = 0;
   int side, piece, temp_score;
 
 /*
@@ -35,14 +35,15 @@ void ValidatePosition(TREE * RESTRICT tree, int ply, int move, char *caller) {
  *                                                          *
  ************************************************************
  */
-  error = 0;
   for (side = black; side <= white; side++) {
     temp_occ =
         Pawns(side) | Knights(side) | Bishops(side) | Rooks(side) |
         Queens(side)
         | Kings(side);
     if (Occupied(side) ^ temp_occ) {
-      Print(128, "ERROR %s occupied squares is bad!\n",
+      if (!error)
+        Print(2048, "\n");
+      Print(2048, "ERROR %s occupied squares is bad!\n",
           (side) ? "white" : "black");
       Display2BitBoards(temp_occ, Occupied(white));
       error = 1;
@@ -67,7 +68,9 @@ void ValidatePosition(TREE * RESTRICT tree, int ply, int move, char *caller) {
       Queens(white) | Pawns(black) | Knights(black) | Bishops(black) |
       Rooks(black) | Queens(black) | Kings(white) | Kings(black);
   if (temp_occ ^ temp_occx) {
-    Print(128, "ERROR two pieces on same square\n");
+    if (!error)
+      Print(2048, "\n");
+    Print(2048, "ERROR two pieces on same square\n");
     error = 1;
   }
 /*
@@ -83,7 +86,9 @@ void ValidatePosition(TREE * RESTRICT tree, int ply, int move, char *caller) {
     for (piece = pawn; piece < king; piece++)
       temp_score += PopCnt(Pieces(side, piece)) * PieceValues(side, piece);
   if (temp_score != Material) {
-    Print(128, "ERROR  material evaluation is wrong, good=%d, bad=%d\n",
+    if (!error)
+      Print(2048, "\n");
+    Print(2048, "ERROR  material evaluation is wrong, good=%d, bad=%d\n",
         temp_score, Material);
     error = 1;
   }
@@ -100,7 +105,9 @@ void ValidatePosition(TREE * RESTRICT tree, int ply, int move, char *caller) {
     for (piece = knight; piece < king; piece++)
       temp_score += PopCnt(Pieces(side, piece)) * p_vals[piece];
     if (temp_score != TotalPieces(side, occupied)) {
-      Print(128, "ERROR  %s pieces is wrong, good=%d, bad=%d\n",
+      if (!error)
+        Print(2048, "\n");
+      Print(2048, "ERROR  %s pieces is wrong, good=%d, bad=%d\n",
           (side) ? "white" : "black", temp_score, TotalPieces(side,
               occupied));
       error = 1;
@@ -109,14 +116,18 @@ void ValidatePosition(TREE * RESTRICT tree, int ply, int move, char *caller) {
   for (side = black; side <= white; side++) {
     temp_score = PopCnt(Pawns(side));
     if (temp_score != TotalPieces(side, pawn)) {
-      Print(128, "ERROR  %s pawns is wrong, good=%d, bad=%d\n",
+      if (!error)
+        Print(2048, "\n");
+      Print(2048, "ERROR  %s pawns is wrong, good=%d, bad=%d\n",
           (side) ? "white" : "black", temp_score, TotalPieces(side, pawn));
       error = 1;
     }
   }
   i = PopCnt(OccupiedSquares);
   if (i != TotalAllPieces) {
-    Print(128, "ERROR!  TotalAllPieces is wrong, correct=%d  bad=%d\n", i,
+    if (!error)
+      Print(2048, "\n");
+    Print(2048, "ERROR!  TotalAllPieces is wrong, correct=%d  bad=%d\n", i,
         TotalAllPieces);
     error = 1;
   }
@@ -135,7 +146,9 @@ void ValidatePosition(TREE * RESTRICT tree, int ply, int move, char *caller) {
       while (temp) {
         square = LSB(temp);
         if (PcOnSq(square) != pieces[side][piece]) {
-          Print(128, "ERROR!  board[%d]=%d, should be %d\n", square,
+          if (!error)
+            Print(2048, "\n");
+          Print(2048, "ERROR!  board[%d]=%d, should be %d\n", square,
               PcOnSq(square), pieces[side][piece]);
           error = 1;
         }
@@ -157,7 +170,9 @@ void ValidatePosition(TREE * RESTRICT tree, int ply, int move, char *caller) {
     side = (PcOnSq(i) > 0) ? 1 : 0;
     if (SetMask(i) & Pieces(side, Abs(PcOnSq(i))))
       continue;
-    Print(128, "ERROR!  bitboards/board[%d] don't agree!\n", i);
+    if (!error)
+      Print(2048, "\n");
+    Print(2048, "ERROR!  bitboards/board[%d] don't agree!\n", i);
     error = 1;
     break;
   }
@@ -174,7 +189,9 @@ void ValidatePosition(TREE * RESTRICT tree, int ply, int move, char *caller) {
   while (temp) {
     square = LSB(temp);
     if (PcOnSq(square)) {
-      Print(128, "ERROR!  board[%d]=%d, should be 0\n", square,
+      if (!error)
+        Print(2048, "\n");
+      Print(2048, "ERROR!  board[%d]=%d, should be 0\n", square,
           PcOnSq(square));
       error = 1;
     }
@@ -206,11 +223,15 @@ void ValidatePosition(TREE * RESTRICT tree, int ply, int move, char *caller) {
       temp ^= castle_random[1][side];
   }
   if (temp ^ HashKey) {
-    Print(128, "ERROR!  hash_key is bad.\n");
+    if (!error)
+      Print(2048, "\n");
+    Print(2048, "ERROR!  hash_key is bad.\n");
     error = 1;
   }
   if (temp1 ^ PawnHashKey) {
-    Print(128, "ERROR!  pawn_hash_key is bad.\n");
+    if (!error)
+      Print(2048, "\n");
+    Print(2048, "ERROR!  pawn_hash_key is bad.\n");
     error = 1;
   }
 /*
@@ -223,15 +244,19 @@ void ValidatePosition(TREE * RESTRICT tree, int ply, int move, char *caller) {
  ************************************************************
  */
   if (error) {
-    Print(4095, "processor id: cpu-%d\n", tree->thread_id);
-    Print(4095, "current move:\n");
+    Lock(lock_smp);
+    Unlock(lock_smp);
+    Print(2048, "ply=%d\n", tree->ply);
+    Print(2048, "phase[%d]=%d  current move:\n", ply, tree->phase[ply]);
     DisplayChessMove("move=", move);
     DisplayChessBoard(stdout, tree->position);
-    Print(4095, "called from %s, ply=%d\n", caller, ply);
-    Print(4095, "node=%" PRIu64 "\n", tree->nodes_searched);
-    Print(4095, "active path:\n");
-    for (i = 1; i <= ply; i++)
+    Print(2048, "called from %s, ply=%d\n", caller, ply);
+    Print(2048, "node=%" PRIu64 "\n", tree->nodes_searched);
+    Print(2048, "active path:\n");
+    for (i = 1; i <= ply; i++) {
+      Print(2048, "ply=%d  ", i);
       DisplayChessMove("move=", tree->curmv[i]);
+    }
     CraftyExit(1);
   }
 }

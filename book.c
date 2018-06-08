@@ -21,14 +21,14 @@
  *                                                                             *
  *    8 bits:  flag bits defined as  follows:                                  *
  *                                                                             *
- *      0000 0001  ?? flagged move                       (0x01)                *
- *      0000 0010   ? flagged move                       (0x02)                *
- *      0000 0100   = flagged move                       (0x04)                *
- *      0000 1000   ! flagged move                       (0x08)                *
- *      0001 0000  !! flagged move                       (0x10)                *
- *      0010 0000     black won at least 1 game          (0x20)                *
- *      0100 0000     at least one game was drawn        (0x40)                *
- *      1000 0000     white won at least 1 game          (0x80)                *
+ *        0000 0001  ?? flagged move                         (0x01)            *
+ *        0000 0010   ? flagged move                         (0x02)            *
+ *        0000 0100   = flagged move                         (0x04)            *
+ *        0000 1000   ! flagged move                         (0x08)            *
+ *        0001 0000  !! flagged move                         (0x10)            *
+ *        0010 0000     black won at least 1 game            (0x20)            *
+ *        0100 0000     at least one game was drawn          (0x40)            *
+ *        1000 0000     white won at least 1 game            (0x80)            *
  *                                                                             *
  *   24 bits:  number of games this move was played.                           *
  *                                                                             *
@@ -40,7 +40,7 @@
  */
 #define BAD_MOVE  0x02
 #define GOOD_MOVE 0x08
-int Book(TREE * RESTRICT tree, int wtm, int root_list_done) {
+int Book(TREE * RESTRICT tree, int wtm) {
   static int book_moves[200];
   static BOOK_POSITION start_moves[200];
   static uint64_t selected_key[200];
@@ -57,7 +57,7 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done) {
   int done, i, j, last_move, temp, which, minlv = 999999, maxlv = -999999;
   int maxp = -999999, minev = 999999, maxev = -999999;
   int nflagged, im, value, np, book_ponder_move;
-  int cluster, scluster, test;
+  int cluster, scluster, test, v;
   unsigned char buf32[4];
   uint64_t temp_hash_key, common, tempk;
   int key, nmoves, num_selected, st;
@@ -85,24 +85,27 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done) {
  *                                                          *
  ************************************************************
  */
-  if (!root_list_done)
-    RootMoveList(wtm);
   test = HashKey >> 49;
   smoves = 0;
   if (books_file) {
     fseek(books_file, test * sizeof(int), SEEK_SET);
-    fread(buf32, 4, 1, books_file);
+    v = fread(buf32, 4, 1, books_file);
+    if (v <= 0)
+      perror("Book() fread error: ");
     key = BookIn32(buf32);
     if (key > 0) {
       fseek(books_file, key, SEEK_SET);
-      fread(buf32, 4, 1, books_file);
+      v = fread(buf32, 4, 1, books_file);
+      if (v <= 0)
+        perror("Book() fread error: ");
       scluster = BookIn32(buf32);
-      BookClusterIn(books_file, scluster, book_buffer);
+      if (scluster)
+        BookClusterIn(books_file, scluster, book_buffer);
       for (im = 0; im < n_root_moves; im++) {
         common = HashKey & ((uint64_t) 65535 << 48);
-        MakeMove(tree, 1, root_moves[im].move, wtm);
+        MakeMove(tree, 1, wtm, root_moves[im].move);
         if (Repeat(tree, 2)) {
-          UnmakeMove(tree, 1, root_moves[im].move, wtm);
+          UnmakeMove(tree, 1, wtm, root_moves[im].move);
           return 0;
         }
         temp_hash_key = (wtm) ? HashKey : ~HashKey;
@@ -112,7 +115,7 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done) {
             start_moves[smoves++] = book_buffer[i];
             break;
           }
-        UnmakeMove(tree, 1, root_moves[im].move, wtm);
+        UnmakeMove(tree, 1, wtm, root_moves[im].move);
       }
     }
   }
@@ -129,14 +132,19 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done) {
   test = HashKey >> 49;
   if (book_file) {
     fseek(book_file, test * sizeof(int), SEEK_SET);
-    fread(buf32, 4, 1, book_file);
+    v = fread(buf32, 4, 1, book_file);
+    if (v <= 0)
+      perror("Book() fread error: ");
     key = BookIn32(buf32);
     if (key > 0) {
       book_learn_seekto = key;
       fseek(book_file, key, SEEK_SET);
-      fread(buf32, 4, 1, book_file);
+      v = fread(buf32, 4, 1, book_file);
+      if (v <= 0)
+        perror("Book() fread error: ");
       cluster = BookIn32(buf32);
-      BookClusterIn(book_file, cluster, book_buffer);
+      if (cluster)
+        BookClusterIn(book_file, cluster, book_buffer);
     } else
       cluster = 0;
     if (!cluster && !smoves)
@@ -177,9 +185,9 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done) {
     nmoves = 0;
     for (im = 0; im < n_root_moves; im++) {
       common = HashKey & ((uint64_t) 65535 << 48);
-      MakeMove(tree, 1, root_moves[im].move, wtm);
+      MakeMove(tree, 1, wtm, root_moves[im].move);
       if (Repeat(tree, 2)) {
-        UnmakeMove(tree, 1, root_moves[im].move, wtm);
+        UnmakeMove(tree, 1, wtm, root_moves[im].move);
         return 0;
       }
       temp_hash_key = (wtm) ? HashKey : ~HashKey;
@@ -216,7 +224,7 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done) {
           break;
         }
       }
-      UnmakeMove(tree, 1, root_moves[im].move, wtm);
+      UnmakeMove(tree, 1, wtm, root_moves[im].move);
     }
     if (!nmoves)
       return 0;
@@ -357,40 +365,40 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done) {
  ************************************************************
  */
     if (show_book) {
-      Print(128, "  after screening, the following moves can be played\n");
-      Print(128,
+      Print(32, "  after screening, the following moves can be played\n");
+      Print(32,
           "  move     played    %%  score    learn    " "sortv   P%%  P\n");
       for (i = 0; i < nmoves; i++) {
-        Print(128, "%6s", OutputMove(tree, book_moves[i], 1, wtm));
+        Print(32, "%6s", OutputMove(tree, 1, wtm, book_moves[i]));
         st = book_status[i];
         if (st & 0x1f) {
           if (st & 0x01)
-            Print(128, "??");
+            Print(32, "??");
           else if (st & 0x02)
-            Print(128, "? ");
+            Print(32, "? ");
           else if (st & 0x04)
-            Print(128, "= ");
+            Print(32, "= ");
           else if (st & 0x08)
-            Print(128, "! ");
+            Print(32, "! ");
           else if (st & 0x10)
-            Print(128, "!!");
+            Print(32, "!!");
         } else
-          Print(128, "  ");
-        Print(128, "   %6d", bs_played[i]);
-        Print(128, "  %3d", 100 * bs_played[i] / Max(total_moves, 1));
-        Print(128, "%s", DisplayEvaluation(evaluations[i], wtm));
-        Print(128, "%9.2f", (float) bs_learn[i] / 100.0);
-        Print(128, " %9.1f", bs_value[i]);
-        Print(128, " %3d", bs_percent[i]);
+          Print(32, "  ");
+        Print(32, "   %6d", bs_played[i]);
+        Print(32, "  %3d", 100 * bs_played[i] / Max(total_moves, 1));
+        Print(32, "%s", DisplayEvaluation(evaluations[i], wtm));
+        Print(32, "%9.2f", (float) bs_learn[i] / 100.0);
+        Print(32, " %9.1f", bs_value[i]);
+        Print(32, " %3d", bs_percent[i]);
         if ((book_status[i] & book_accept_mask &&
                 !(book_status[i] & book_reject_mask))
             || (!(book_status[i] & book_reject_mask) && (bs_percent[i]
                     || book_status[i] & 0x18 || (wtm && book_status[i] & 0x80)
                     || (!wtm && book_status[i] & 0x20))))
-          Print(128, "  Y");
+          Print(32, "  Y");
         else
-          Print(128, "  N");
-        Print(128, "\n");
+          Print(32, "  N");
+        Print(32, "\n");
       }
     }
 /*
@@ -462,8 +470,8 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done) {
         sprintf(kibitz_text, "book moves (");
         kibitz_p = kibitz_text + strlen(kibitz_text);
         for (i = 0; i < nmoves; i++) {
-          sprintf(kibitz_p, "%s %d%%", OutputMove(tree, book_moves[i], 1,
-                  wtm), 100 * bs_played[i] / Max(total_played, 1));
+          sprintf(kibitz_p, "%s %d%%", OutputMove(tree, 1, wtm,
+                  book_moves[i]), 100 * bs_played[i] / Max(total_played, 1));
           kibitz_p = kibitz_text + strlen(kibitz_text);
           if (i < nmoves - 1) {
             sprintf(kibitz_p, ", ");
@@ -548,26 +556,26 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done) {
     nmoves = num_selected;
     if (nmoves == 0)
       return 0;
-    Print(128, "               book moves {");
+    Print(32, "               book moves {");
     for (i = 0; i < nmoves; i++) {
-      Print(128, "%s", OutputMove(tree, book_moves[i], 1, wtm));
+      Print(32, "%s", OutputMove(tree, 1, wtm, book_moves[i]));
       if (i < nmoves - 1)
-        Print(128, ", ");
+        Print(32, ", ");
     }
-    Print(128, "}\n");
+    Print(32, "}\n");
     nflagged = 0;
     for (i = 0; i < nmoves; i++)
       if (book_status[i] & 8)
         nflagged++;
     nmoves = Max(Min(nmoves, book_selection_width), nflagged);
     if (show_book) {
-      Print(128, "               moves considered {");
+      Print(32, "               moves considered {");
       for (i = 0; i < nmoves; i++) {
-        Print(128, "%s", OutputMove(tree, book_moves[i], 1, wtm));
+        Print(32, "%s", OutputMove(tree, 1, wtm, book_moves[i]));
         if (i < nmoves - 1)
-          Print(128, ", ");
+          Print(32, ", ");
       }
-      Print(128, "}\n");
+      Print(32, "}\n");
     }
 /*
  ************************************************************
@@ -602,37 +610,37 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done) {
  ************************************************************
  */
     if (show_book) {
-      Print(128, "  move     played    %%  score     sortv  P%%  P\n");
+      Print(32, "  move     played    %%  score     sortv  P%%  P\n");
       for (i = 0; i < nmoves; i++) {
-        Print(128, "%6s", OutputMove(tree, book_moves[i], 1, wtm));
+        Print(32, "%6s", OutputMove(tree, 1, wtm, book_moves[i]));
         st = book_status[i];
         if (st & 0x1f) {
           if (st & 0x01)
-            Print(128, "??");
+            Print(32, "??");
           else if (st & 0x02)
-            Print(128, "? ");
+            Print(32, "? ");
           else if (st & 0x04)
-            Print(128, "= ");
+            Print(32, "= ");
           else if (st & 0x08)
-            Print(128, "! ");
+            Print(32, "! ");
           else if (st & 0x10)
-            Print(128, "!!");
+            Print(32, "!!");
         } else
-          Print(128, "  ");
-        Print(128, "   %6d", bs_played[i]);
-        Print(128, "  %3d", 100 * bs_played[i] / Max(total_moves, 1));
-        Print(128, "%s", DisplayEvaluation(evaluations[i], wtm));
-        Print(128, " %9.1f", bs_value[i]);
-        Print(128, " %3d", bs_percent[i]);
+          Print(32, "  ");
+        Print(32, "   %6d", bs_played[i]);
+        Print(32, "  %3d", 100 * bs_played[i] / Max(total_moves, 1));
+        Print(32, "%s", DisplayEvaluation(evaluations[i], wtm));
+        Print(32, " %9.1f", bs_value[i]);
+        Print(32, " %3d", bs_percent[i]);
         if ((book_status[i] & book_accept_mask &&
                 !(book_status[i] & book_reject_mask))
             || (!(book_status[i] & book_reject_mask) && ((wtm &&
                         book_status[i] & 0x80) || (!wtm &&
                         book_status[i] & 0x20))))
-          Print(128, "  Y");
+          Print(32, "  Y");
         else
-          Print(128, "  N");
-        Print(128, "\n");
+          Print(32, "  N");
+        Print(32, "\n");
       }
     }
 /*
@@ -663,9 +671,9 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done) {
             return 0;
           }
         } else {
-          tree->pv[1].path[1] = book_moves[0];
-          tree->pv[1].pathl = 2;
-          tree->pv[1].pathd = 0;
+          tree->pv[0].path[1] = book_moves[0];
+          tree->pv[0].pathl = 2;
+          tree->pv[0].pathd = 0;
         }
         return 1;
       }
@@ -691,7 +699,7 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done) {
         if (root_moves[i].move != 0)
           root_moves[j++] = root_moves[i];
       n_root_moves = j;
-      Print(128, "               moves considered {only non-book moves}\n");
+      Print(32, "               moves considered {only non-book moves}\n");
       nmoves = j;
       if (nmoves > 1) {
         last_pv.pathd = 0;
@@ -699,9 +707,9 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done) {
         Iterate(wtm, booking, 1);
         booking = 0;
       } else {
-        tree->pv[1].path[1] = book_moves[0];
-        tree->pv[1].pathl = 2;
-        tree->pv[1].pathd = 0;
+        tree->pv[0].path[1] = book_moves[0];
+        tree->pv[0].pathl = 2;
+        tree->pv[0].pathd = 0;
       }
       return 1;
     }
@@ -736,41 +744,41 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done) {
         break;
     }
     which = Min(which, last_move - 1);
-    tree->pv[1].path[1] = book_moves[which];
+    tree->pv[0].path[1] = book_moves[which];
     percent_played = 100 * bs_played[which] / Max(total_played, 1);
     total_played = bs_played[which];
     m1_status = book_status[which];
-    tree->pv[1].pathl = 2;
-    tree->pv[1].pathd = 0;
+    tree->pv[0].pathl = 2;
+    tree->pv[0].pathd = 0;
     if (mode != tournament_mode) {
-      MakeMove(tree, 1, book_moves[which], wtm);
+      MakeMove(tree, 1, wtm, book_moves[which]);
       if ((book_ponder_move = BookPonderMove(tree, Flip(wtm)))) {
-        tree->pv[1].path[2] = book_ponder_move;
-        tree->pv[1].pathl = 3;
+        tree->pv[0].path[2] = book_ponder_move;
+        tree->pv[0].pathl = 3;
       }
-      UnmakeMove(tree, 1, book_moves[which], wtm);
+      UnmakeMove(tree, 1, wtm, book_moves[which]);
     }
     book_learn_key = bs_key[which];
-    Print(128, "               book   0.0s    %3d%%   ", percent_played);
-    Print(128, " %s", OutputMove(tree, tree->pv[1].path[1], 1, wtm));
+    Print(32, "               book   0.0s    %3d%%   ", percent_played);
+    Print(32, " %s", OutputMove(tree, 1, wtm, tree->pv[0].path[1]));
     st = m1_status & book_accept_mask & (~224);
     if (st) {
       if (st & 1)
-        Print(128, "??");
+        Print(32, "??");
       else if (st & 2)
-        Print(128, "?");
+        Print(32, "?");
       else if (st & 4)
-        Print(128, "=");
+        Print(32, "=");
       else if (st & 8)
-        Print(128, "!");
+        Print(32, "!");
       else if (st & 16)
-        Print(128, "!!");
+        Print(32, "!!");
     }
-    MakeMove(tree, 1, tree->pv[1].path[1], wtm);
-    if (tree->pv[1].pathl > 2)
-      Print(128, " %s", OutputMove(tree, tree->pv[1].path[2], 2, Flip(wtm)));
-    UnmakeMove(tree, 1, tree->pv[1].path[1], wtm);
-    Print(128, "\n");
+    MakeMove(tree, 1, wtm, tree->pv[0].path[1]);
+    if (tree->pv[0].pathl > 2)
+      Print(32, " %s", OutputMove(tree, 2, Flip(wtm), tree->pv[0].path[2]));
+    UnmakeMove(tree, 1, wtm, tree->pv[0].path[1]);
+    Print(32, "\n");
     return 1;
   }
   return 0;
@@ -790,8 +798,9 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done) {
  */
 int BookPonderMove(TREE * RESTRICT tree, int wtm) {
   uint64_t temp_hash_key, common;
-  static int book_moves[200];
-  int i, key, *lastm, cluster, n_moves, im, played, tplayed;
+  static unsigned book_moves[200];
+  int i, v, key, cluster, n_moves, im, played, tplayed;
+  unsigned *lastm;
   int book_ponder_move = 0, test;
   unsigned char buf32[4];
 
@@ -808,13 +817,18 @@ int BookPonderMove(TREE * RESTRICT tree, int wtm) {
   if (book_file) {
     test = HashKey >> 49;
     fseek(book_file, test * sizeof(int), SEEK_SET);
-    fread(buf32, 4, 1, book_file);
+    v = fread(buf32, 4, 1, book_file);
+    if (v <= 0)
+      perror("Book() fread error: ");
     key = BookIn32(buf32);
     if (key > 0) {
       fseek(book_file, key, SEEK_SET);
-      fread(buf32, 4, 1, book_file);
+      v = fread(buf32, 4, 1, book_file);
+      if (v <= 0)
+        perror("Book() fread error: ");
       cluster = BookIn32(buf32);
-      BookClusterIn(book_file, cluster, book_buffer);
+      if (cluster)
+        BookClusterIn(book_file, cluster, book_buffer);
     } else
       cluster = 0;
     if (!cluster)
@@ -834,7 +848,7 @@ int BookPonderMove(TREE * RESTRICT tree, int wtm) {
     played = -1;
     for (im = 0; im < n_moves; im++) {
       common = HashKey & ((uint64_t) 65535 << 48);
-      MakeMove(tree, 2, book_moves[im], wtm);
+      MakeMove(tree, 2, wtm, book_moves[im]);
       temp_hash_key = (wtm) ? HashKey : ~HashKey;
       temp_hash_key = (temp_hash_key & ~((uint64_t) 65535 << 48)) | common;
       for (i = 0; i < cluster; i++) {
@@ -847,7 +861,7 @@ int BookPonderMove(TREE * RESTRICT tree, int wtm) {
           break;
         }
       }
-      UnmakeMove(tree, 2, book_moves[im], wtm);
+      UnmakeMove(tree, 2, wtm, book_moves[im]);
     }
   }
   return book_ponder_move;
@@ -860,13 +874,13 @@ int BookPonderMove(TREE * RESTRICT tree, int wtm) {
  *   Bookup() is used to create/add to the opening book file.  typing "<file>  *
  *   create" will erase the old book file and start from scratch,              *
  *                                                                             *
- *   The format of the input data is a left bracket ("[") followed by any title*
- *   information desired, followed by a right bracket ("]") followed by a      *
- *   sequence of moves.  The sequence of moves is assumed to start at ply=1,   *
- *   with white-to-move (normal opening position) and can contain as many moves*
- *   as desired (no limit on the depth of each variation.)  The file *must* be *
- *   terminated with a line that begins with "end", since handling the EOF     *
- *   condition makes portable code difficult.                                  *
+ *   The format of the input data is a left bracket ("[") followed by any      *
+ *   title information desired, followed by a right bracket ("]") followed by  *
+ *   a sequence of moves.  The sequence of moves is assumed to start at ply=1, *
+ *   with white-to-move (normal opening position) and can contain as many      *
+ *   moves as desired (no limit on the depth of each variation.)  The file     *
+ *   *must* be terminated with a line that begins with "end", since handling   *
+ *   the EOF condition makes portable code difficult.                          *
  *                                                                             *
  *   Book moves can either be typed in by hand, directly into book_add(), by   *
  *   using the "book create/add" command.  Using the command "book add/create  *
@@ -877,27 +891,27 @@ int BookPonderMove(TREE * RESTRICT tree, int wtm) {
  *   accepted, ie, e4, ed, exd4, e3d4, etc. are all acceptable) some special   *
  *   characters can be appended to a move.                                     *
  *                                                                             *
- *      ?? ->  Never play this move.  since the same book is used for both     *
- *             black and white, you can enter moves in that white might play,  *
- *             but prevent the program from choosing them on its own.          *
- *      ?  ->  Avoid this move except for non-important games.  These openings *
- *             are historically those that the program doesn't play very well, *
- *             but which aren't outright losing.                               *
- *      =  ->  Drawish move, only play this move if drawish moves are allowed  *
- *             by the operator.  This is used to encourage the program to play *
- *             drawish openings (Petrov's comes to mind) when the program needs*
- *             to draw or is facing a formidable opponent (deep thought comes  *
- *             to mind.)                                                       *
- *      !  ->  Always play this move, if there isn't a move with the !! flag   *
- *             set also.  This is a strong move, but not as strong as a !!     *
- *             move.                                                           *
- *      !! ->  Always play this move.  This can be used to make the program    *
- *             favor particular lines, or to mark a strong move for certain    *
- *             opening traps.                                                  *
+ *        ?? ->  Never play this move.  since the same book is used for both   *
+ *               black and white, you can enter moves in that white might      *
+ *               play, but prevent the program from choosing them on its own.  *
+ *        ?  ->  Avoid this move except for non-important games.  These        *
+ *               openings are historically those that the program doesn't play *
+ *               very well, but which aren't outright losing.                  *
+ *        =  ->  Drawish move, only play this move if drawish moves are        *
+ *               allowed by the operator.  This is used to encourage the       *
+ *               program to play drawish openings (Petrov's comes to mind)     *
+ *               when the program needs to draw or is facing a formidable      *
+ *               opponent (deep thought comes to mind.)                        *
+ *        !  ->  Always play this move, if there isn't a move with the !! flag *
+ *               set also.  This is a strong move, but not as strong as a !!   *
+ *               move.                                                         *
+ *        !! ->  Always play this move.  This can be used to make the program  *
+ *               favor particular lines, or to mark a strong move for certain  *
+ *               opening traps.                                                *
  *                                                                             *
- *  {Play nn%} is used to force this specific book move to be played a specific*
- *             percentage of the time, and override the frequency of play that *
- *             comes from the large pgn database.                              *
+ *  {Play nn%} is used to force this specific book move to be played a         *
+ *  specific percentage of the time, and override the frequency of play that   *
+ *               comes from the large pgn database.                            *
  *                                                                             *
  *******************************************************************************
  */
@@ -1124,7 +1138,7 @@ void Bookup(TREE * RESTRICT tree, int nargs, char **args) {
                 max_search_depth = Max(max_search_depth, ply);
                 total_moves++;
                 common = HashKey & ((uint64_t) 65535 << 48);
-                MakeMove(tree, 2, move, wtm);
+                MakeMove(tree, 2, wtm, move);
                 tree->status[2] = tree->status[3];
                 if (ply <= max_ply) {
                   temp_hash_key = (wtm) ? HashKey : ~HashKey;

@@ -16,7 +16,7 @@
 #                  with -DAFFINITY, even a single-cpu execution will lock led
 #                  itself onto processor zero (since it only has thread #0)  
 #                  which is probably NOT what you want.  This is intended to 
-#                  be used when you run Crafty using a complete dedicated    
+#                  be used when you run Crafty using a complete dedicated
 #                  machine with nothing else running at the same time.
 #   -DBOOKDIR      Path to the directory containing the book binary files.
 #                  The default for all such path values is "." if you don't
@@ -63,8 +63,9 @@
 #   -DUNIX         This identifies the target O/S as being Unix-based, if this
 #                  option is omitted, windows is assumed.
 
+#	$(MAKE) -j unix-gcc
 default:
-	$(MAKE) -j unix-gcc
+	$(MAKE) -j unix-clang
 help:
 	@echo "You must specify the system which you want to compile for:"
 	@echo ""
@@ -78,36 +79,61 @@ help:
 quick:
 	$(MAKE) target=UNIX \
 		CC=gcc CXX=g++ \
-		opt='-DPOSITIONS -DTEST -DTRACE -DINLINEASM -DPOPCNT -DCPUS=8' \
-		CFLAGS='-g -Wall -O3 -pipe -pthread' \
-		CXFLAGS='-Wall -pipe -O3 -pthread' \
-		LDFLAGS='$(LDFLAGS) -g -pthread -lstdc++' \
+		opt='-DTEST -DTRACE -DINLINEASM -DPOPCNT -DCPUS=4' \
+		CFLAGS='-Wall -Wno-array-bounds -pipe -O3 -pthread' \
+		CXFLAGS='-Wall -Wno-array-bounds -pipe -O3 -pthread' \
+		LDFLAGS='$(LDFLAGS) -lstdc++' \
 		crafty-make
 
 unix-gcc:
-	$(MAKE) target=UNIX \
+	$(MAKE) -j target=UNIX \
 		CC=gcc CXX=g++ \
-		opt='-DTEST -DINLINEASM -DPOPCNT -DCPUS=8' \
-		CFLAGS='-Wall -pipe -O3 -fprofile-use -fprofile-correction \
-                        -pthread' \
-		CXFLAGS='-Wall -pipe -O3 -fprofile-use -fprofile-correction \
-                         -pthread' \
+		opt='-DTEST -DINLINEASM -DPOPCNT -DCPUS=4' \
+		CFLAGS='-Wall -Wno-array-bounds -pipe -O3 -fprofile-use \
+		-fprofile-correction -pthread' \
+		CXFLAGS='-Wall -Wno-array-bounds -pipe -O3 -fprofile-use \
+		-fprofile-correction -pthread' \
 		LDFLAGS='$(LDFLAGS) -fprofile-use -pthread -lstdc++' \
 		crafty-make
 
 unix-gcc-profile:
-	$(MAKE) target=UNIX \
+	$(MAKE) -j target=UNIX \
 		CC=gcc CXX=g++ \
-		opt='-DTEST -DINLINEASM -DPOPCNT -DCPUS=8' \
-		CFLAGS='-Wall -pipe -O3 -fprofile-arcs -pthread' \
-		CXFLAGS='-Wall -pipe -O3 -fprofile-arcs -pthread' \
+		opt='-DTEST -DINLINEASM -DPOPCNT -DCPUS=4' \
+		CFLAGS='-Wall -Wno-array-bounds -pipe -O3 -fprofile-arcs \
+		-pthread' \
+		CXFLAGS='-Wall -Wno-array-bounds -pipe -O3 -fprofile-arcs \
+		-pthread' \
 		LDFLAGS='$(LDFLAGS) -fprofile-arcs -pthread -lstdc++ ' \
 		crafty-make
 
+unix-clang:
+	@/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/llvm-profdata merge -output=crafty.profdata *.profraw
+	$(MAKE) -j target=UNIX \
+		CC=clang CXX=clang++ \
+		opt='-DTEST -DINLINEASM -DPOPCNT -DCPUS=4' \
+		CFLAGS='-Wall -Wno-array-bounds -pipe -O3 \
+			-fprofile-instr-use=crafty.profdata' \
+		CXFLAGS='-Wall -Wno-array-bounds -pipe -O3 \
+			-fprofile-instr-use=crafty.profdata' \
+		LDFLAGS='$(LDFLAGS) -fprofile-use -lstdc++' \
+		crafty-make
+
+unix-clang-profile:
+	$(MAKE) -j target=UNIX \
+		CC=clang CXX=clang++ \
+		opt='-DTEST -DINLINEASM -DPOPCNT -DCPUS=4' \
+		CFLAGS='-Wall -Wno-array-bounds -pipe -O3 \
+			-fprofile-instr-generate' \
+		CXFLAGS='-Wall -Wno-array-bounds -pipe -O3 \
+			-fprofile-instr-generate' \
+		LDFLAGS='$(LDFLAGS) -fprofile-instr-generate -lstdc++ ' \
+		crafty-make
+
 unix-icc:
-	$(MAKE) target=UNIX \
+	$(MAKE) -j target=UNIX \
 		CC=icc CXX=icc \
-		opt='-DTEST -DINLINEASM -DPOPCNT -DCPUS=8' \
+		opt='-DTEST -DINLINEASM -DPOPCNT -DCPUS=4' \
 		CFLAGS='-Wall -w -O2 -prof_use -prof_dir ./prof -fno-alias \
                         -pthread' \
 		CXFLAGS='-Wall -w -O2 -prof_use -prof_dir ./prof -pthread' \
@@ -115,104 +141,36 @@ unix-icc:
 		crafty-make
 
 unix-icc-profile:
-	$(MAKE) target=UNIX \
+	$(MAKE) -j target=UNIX \
 		CC=icc CXX=icc \
-		opt='-DTEST -DINLINEASM -DPOPCNT -DCPUS=8' \
-		CFLAGS='-Wall -w -O2 -prof_genx -prof_dir ./prof -fno-alias \
+		opt='-DTEST -DINLINEASM -DPOPCNT -DCPUS=4' \
+		CFLAGS='-Wall -w -O2 -prof_gen -prof_dir ./prof -fno-alias \
                         -pthread' \
-		CXFLAGS='-Wall -w -O2 -prof_genx -prof_dir ./prof -pthread' \
+		CXFLAGS='-Wall -w -O2 -prof_gen -prof_dir ./prof -pthread' \
 		LDFLAGS='$(LDFLAGS) -pthread -lstdc++ ' \
 		crafty-make
 
 profile:
+	@rm -rf *.o
+	@rm -rf log.*
+	@rm -rf game.*
 	@rm -rf prof
 	@rm -rf *.gcda
 	@mkdir prof
 	@touch *.c *.cpp *.h
-	$(MAKE) unix-gcc-profile
+	$(MAKE) -j unix-clang-profile
 	@echo "#!/bin/csh" > runprof
 	@echo "./crafty <<EOF" >>runprof
-	@echo "st=10" >>runprof
+	@echo "pgo -1" >>runprof
 	@echo "mt=0" >>runprof
-	@echo "ponder=off" >>runprof
-	@echo "display nomoves" >>runprof
-	@echo "setboard rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq" >>runprof
-	@echo "move" >>runprof
-	@echo "book off" >>runprof
-	@echo "setboard rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq" >>runprof
-	@echo "move" >>runprof
-	@echo "setboard 1k1r4/pp1b1R2/3q2pp/4p3/2B5/4Q3/PPP2B2/2K5 b" >>runprof
-	@echo "move" >>runprof
-	@echo "setboard 3r1k2/4npp1/1ppr3p/p6P/P2PPPP1/1NR5/5K2/2R5 w" >>runprof
-	@echo "move" >>runprof
-	@echo "setboard 2q1rr1k/3bbnnp/p2p1pp1/2pPp3/PpP1P1P1/1P2BNNP/2BQ1PRK/7R b" >>runprof
-	@echo "move" >>runprof
-	@echo "setboard rnbqkb1r/p3pppp/1p6/2ppP3/3N4/2P5/PPP1QPPP/R1B1KB1R w KQkq" >>runprof
-	@echo "move" >>runprof
-	@echo "setboard r1b2rk1/2q1b1pp/p2ppn2/1p6/3QP3/1BN1B3/PPP3PP/R4RK1 w" >>runprof
-	@echo "move" >>runprof
-	@echo "setboard 2r3k1/pppR1pp1/4p3/4P1P1/5P2/1P4K1/P1P5/8 w" >>runprof
-	@echo "move" >>runprof
-	@echo "setboard 1nk1r1r1/pp2n1pp/4p3/q2pPp1N/b1pP1P2/B1P2R2/2P1B1PP/R2Q2K1 w" >>runprof
-	@echo "move" >>runprof
-	@echo "setboard 4b3/p3kp2/6p1/3pP2p/2pP1P2/4K1P1/P3N2P/8 w" >>runprof
-	@echo "move" >>runprof
-	@echo "setboard 2kr1bnr/pbpq4/2n1pp2/3p3p/3P1P1B/2N2N1Q/PPP3PP/2KR1B1R w" >>runprof
-	@echo "move" >>runprof
-	@echo "setboard 3rr1k1/pp3pp1/1qn2np1/8/3p4/PP1R1P2/2P1NQPP/R1B3K1 b" >>runprof
-	@echo "move" >>runprof
-	@echo "setboard 2r1nrk1/p2q1ppp/bp1p4/n1pPp3/P1P1P3/2PBB1N1/4QPPP/R4RK1 w" >>runprof
-	@echo "move" >>runprof
-	@echo "setboard r3r1k1/ppqb1ppp/8/4p1NQ/8/2P5/PP3PPP/R3R1K1 b" >>runprof
-	@echo "move" >>runprof
-	@echo "setboard r2q1rk1/4bppp/p2p4/2pP4/3pP3/3Q4/PP1B1PPP/R3R1K1 w" >>runprof
-	@echo "move" >>runprof
-	@echo "setboard rnb2r1k/pp2p2p/2pp2p1/q2P1p2/8/1Pb2NP1/PB2PPBP/R2Q1RK1 w" >>runprof
-	@echo "move" >>runprof
-	@echo "setboard 2r3k1/1p2q1pp/2b1pr2/p1pp4/6Q1/1P1PP1R1/P1PN2PP/5RK1 w" >>runprof
-	@echo "move" >>runprof
-	@echo "setboard r1bqkb1r/4npp1/p1p4p/1p1pP1B1/8/1B6/PPPN1PPP/R2Q1RK1 w kq" >>runprof
-	@echo "move" >>runprof
-	@echo "setboard r2q1rk1/1ppnbppp/p2p1nb1/3Pp3/2P1P1P1/2N2N1P/PPB1QP2/R1B2RK1 b" >>runprof
-	@echo "move" >>runprof
-	@echo "setboard r1bq1rk1/pp2ppbp/2np2p1/2n5/P3PP2/N1P2N2/1PB3PP/R1B1QRK1 b" >>runprof
-	@echo "move" >>runprof
-	@echo "setboard 3rr3/2pq2pk/p2p1pnp/8/2QBPP2/1P6/P5PP/4RRK1 b" >>runprof
-	@echo "move" >>runprof
-	@echo "setboard r4k2/pb2bp1r/1p1qp2p/3pNp2/3P1P2/2N3P1/PPP1Q2P/2KRR3 w" >>runprof
-	@echo "move" >>runprof
-	@echo "setboard 3rn2k/ppb2rpp/2ppqp2/5N2/2P1P3/1P5Q/PB3PPP/3RR1K1 w" >>runprof
-	@echo "move" >>runprof
-	@echo "setboard 2r2rk1/1bqnbpp1/1p1ppn1p/pP6/N1P1P3/P2B1N1P/1B2QPP1/R2R2K1 b" >>runprof
-	@echo "move" >>runprof
-	@echo "setboard r1bqk2r/pp2bppp/2p5/3pP3/P2Q1P2/2N1B3/1PP3PP/R4RK1 b kq" >>runprof
-	@echo "move" >>runprof
-	@echo "setboard r2qnrnk/p2b2b1/1p1p2pp/2pPpp2/1PP1P3/PRNBB3/3QNPPP/5RK1 w" >>runprof
-	@echo "move" >>runprof
-	@echo "setboard /k/3p/p2P1p/P2P1P///K/ w" >>runprof
-	@echo "move" >>runprof
-	@echo "egtb" >>runprof
-	@echo "setboard /k/rnn////5RBB/K/ w" >>runprof
-	@echo "move" >>runprof
-	@echo "mt=0" >>runprof
-	@echo "quit" >>runprof
-	@echo "EOF" >>runprof
-	@chmod +x runprof
-	@./runprof
-	@echo "#!/bin/csh" > runprof
-	@echo "./crafty <<EOF" >>runprof
-	@echo "st=10" >>runprof
-	@echo "ponder=off" >>runprof
-	@echo "mt=2" >>runprof
-	@echo "setboard 2r2rk1/1bqnbpp1/1p1ppn1p/pP6/N1P1P3/P2B1N1P/1B2QPP1/R2R2K1 b" >>runprof
-	@echo "move" >>runprof
 	@echo "quit" >>runprof
 	@echo "EOF" >>runprof
 	@chmod +x runprof
 	@./runprof
 	@rm runprof
 	@touch *.c *.cpp *.h
-	$(MAKE) unix-gcc
+	$(MAKE) -j unix-clang
+
 
 #
 #  one of the two following definitions for "objects" should be used.  The
@@ -223,34 +181,36 @@ profile:
 #  compiling both ways to see which way produces the fastest code.
 #
 
-#objects = search.o thread.o repeat.o next.o history.o quiesce.o evaluate.o    \
-       movgen.o make.o unmake.o hash.o  attacks.o swap.o boolean.o  utility.o  \
-       probe.o book.o data.o drawn.o edit.o epd.o epdglue.o init.o input.o     \
-       interrupt.o iterate.o main.o option.o output.o ponder.o resign.o root.o \
-       learn.o setboard.o test.o time.o validate.o annotate.o analyze.o        \
-       evtest.o bench.o
+#objects = main.o iterate.o time.o search.o quiesce.o evaluate.o thread.o \
+       repeat.o hash.o next.o history.o movgen.o make.o unmake.o attacks.o \
+       swap.o boolean.o utility.o probe.o book.o drawn.o epd.o epdglue.o \
+       init.o input.o autotune.o interrupt.o option.o output.o ponder.o \
+       resign.o root.o learn.o setboard.o test.o validate.o annotate.o \
+       analyze.o evtest.o bench.o edit.o data.o
+
 objects = crafty.o
 
 # Do not change anything below this line!
 
 opts = $(opt) -D$(target)
 
-includes = data.h chess.h
-
+#	@$(MAKE) -j opt='$(opt)' CXFLAGS='$(CXFLAGS)' CFLAGS='$(CFLAGS)' crafty
 crafty-make:
-	@$(MAKE) -j opt='$(opt)' CXFLAGS='$(CXFLAGS)' CFLAGS='$(CFLAGS)' crafty
+	@$(MAKE) opt='$(opt)' CXFLAGS='$(CXFLAGS)' CFLAGS='$(CFLAGS)' crafty
 
 crafty.o: *.c *.h
 
 crafty:	$(objects) egtb.o
 	$(CC) $(LDFLAGS) -o crafty $(objects) egtb.o -lm  $(LIBS)
 
+evaluate.o: evaluate.h
+
 egtb.o: egtb.cpp
 	$(CXX) -c $(CXFLAGS) $(opts) egtb.cpp
 clean:
 	-rm -f *.o crafty
 
-$(objects): $(includes)
+$(objects): chess.h data.h
 
 .c.o:
 	$(CC) $(CFLAGS) $(opts) -c $*.c

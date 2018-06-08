@@ -1,7 +1,7 @@
 #include "chess.h"
 #include "data.h"
 #include "epdglue.h"
-/* last modified 04/24/14 */
+/* last modified 05/12/15 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -42,9 +42,15 @@
  */
 int Iterate(int wtm, int search_type, int root_list_done) {
   TREE *const tree = block[0];
-  int i, root_alpha, old_root_alpha, old_root_beta;
-  int value = 0, twtm, correct, correct_count;
-  char *fl_indicator, *fh_indicator;
+#if defined(AFFINITY)
+  cpu_set_t cpuset;
+  pthread_t current_thread = pthread_self();
+#endif
+  ROOT_MOVE temp_rm;
+  int i, alpha, beta, current_rm = 0, force_print = 0;
+  int value = 0, twtm, correct, correct_count, npc, cpl, max;
+  unsigned int idle_time;
+  char buff[32];
 #if (CPUS > 1)
   pthread_t pt;
 #endif
@@ -58,13 +64,8 @@ int Iterate(int wtm, int search_type, int root_list_done) {
  *                                                          *
  ************************************************************
  */
-  if (wtm) {
-    draw_score[0] = -abs_draw_score;
-    draw_score[1] = abs_draw_score;
-  } else {
-    draw_score[0] = abs_draw_score;
-    draw_score[1] = -abs_draw_score;
-  }
+  draw_score[black] = (wtm) ? -abs_draw_score : abs_draw_score;
+  draw_score[white] = (wtm) ? abs_draw_score : -abs_draw_score;
 #if defined(NODES)
   temp_search_nodes = search_nodes;
 #endif
@@ -75,8 +76,6 @@ int Iterate(int wtm, int search_type, int root_list_done) {
  *                                                          *
  ************************************************************
  */
-  idle_time = 0;
-  tree->curmv[0] = 0;
   abort_search = 0;
   book_move = 0;
   program_start_time = ReadClock();
@@ -87,22 +86,31 @@ int Iterate(int wtm, int search_type, int root_list_done) {
   tree->fail_highs = 0;
   tree->fail_high_first_move = 0;
   parallel_splits = 0;
+  parallel_splits_wasted = 0;
   parallel_aborts = 0;
+  parallel_joins = 0;
+  for (i = 0; i < smp_max_threads; i++) {
+    thread[i].max_blocks = 0;
+    thread[i].tree = 0;
+    thread[i].idle = 0;
+    thread[i].terminate = 0;
+  }
+  thread[0].tree = block[0];
   correct_count = 0;
   burp = 15 * 100;
   transposition_age = (transposition_age + 1) & 0x1ff;
   next_time_check = nodes_between_time_checks;
   tree->evaluations = 0;
   tree->egtb_probes = 0;
-  tree->egtb_probes_successful = 0;
+  tree->egtb_hits = 0;
   tree->extensions_done = 0;
   tree->qchecks_done = 0;
   tree->moves_fpruned = 0;
-  for (i = 0; i < 16; i++)
+  tree->moves_mpruned = 0;
+  for (i = 0; i < 16; i++) {
     tree->LMR_done[i] = 0;
-  for (i = 0; i < 32; i++)
     tree->null_done[i] = 0;
-  HistoryAge();
+  }
   root_wtm = wtm;
 /*
  ************************************************************
@@ -122,7 +130,9 @@ int Iterate(int wtm, int search_type, int root_list_done) {
  *                                                          *
  ************************************************************
  */
-  if (booking || !Book(tree, wtm, root_list_done))
+  if (!root_list_done)
+    RootMoveList(wtm);
+  if (booking || !Book(tree, wtm))
     do {
       if (abort_search)
         break;
@@ -132,7 +142,7 @@ int Iterate(int wtm, int search_type, int root_list_done) {
       else
         EGTB_use = EGTBlimit;
       if (EGTBlimit && !EGTB_use)
-        Print(128, "Drawn at root, trying for swindle.\n");
+        Print(32, "Drawn at root, trying for swindle.\n");
 #endif
 /*
  ************************************************************
@@ -153,8 +163,6 @@ int Iterate(int wtm, int search_type, int root_list_done) {
  *                                                          *
  ************************************************************
  */
-      if (!root_list_done)
-        RootMoveList(wtm);
       if (n_root_moves == 0) {
         program_end_time = ReadClock();
         tree->pv[0].pathl = 0;
@@ -163,8 +171,8 @@ int Iterate(int wtm, int search_type, int root_list_done) {
           value = -(MATE - 1);
         else
           value = DrawScore(wtm);
-        Print(6, "        depth     time       score   variation\n");
-        Print(6, "                                     (no moves)\n");
+        Print(2, "        depth     time       score   variation\n");
+        Print(2, "                                     (no moves)\n");
         tree->nodes_searched = 1;
         if (!puzzling)
           last_root_value = value;
@@ -182,17 +190,20 @@ int Iterate(int wtm, int search_type, int root_list_done) {
  ************************************************************
  */
       TimeSet(search_type);
-      iteration_depth = 1;
+      iteration = 1;
       noise_block = 0;
+      force_print = 0;
       if (last_pv.pathd > 1) {
-        iteration_depth = last_pv.pathd + 1;
+        iteration = last_pv.pathd + 1;
         value = last_root_value;
         tree->pv[0] = last_pv;
+        root_moves[0].path = tree->pv[0];
         noise_block = 1;
+        force_print = 1;
       } else
         difficulty = 100;
-      Print(6, "        depth     time       score   variation (%d)\n",
-          iteration_depth);
+      Print(2, "        depth     time       score   variation (%d)\n",
+          iteration);
       abort_search = 0;
 /*
  ************************************************************
@@ -203,12 +214,12 @@ int Iterate(int wtm, int search_type, int root_list_done) {
  ************************************************************
  */
       tree->pv[0] = last_pv;
-      if (iteration_depth > 1) {
-        root_alpha = Max(-MATE, last_value - 16);
-        root_beta = Min(MATE, last_value + 16);
+      if (iteration > 1) {
+        alpha = Max(-MATE, last_value - 16);
+        beta = Min(MATE, last_value + 16);
       } else {
-        root_alpha = -MATE;
-        root_beta = MATE;
+        alpha = -MATE;
+        beta = MATE;
       }
 /*
  ************************************************************
@@ -217,17 +228,20 @@ int Iterate(int wtm, int search_type, int root_list_done) {
  *  been started yet, then start them now as the search is  *
  *  ready to begin.                                         *
  *                                                          *
+ *  If we are using CPU affinity, we need to set this up    *
+ *  for thread 0 since it could have changed since we       *
+ *  initialized everything.                                 *
+ *                                                          *
  ************************************************************
  */
 #if (CPUS > 1)
-      if (smp_max_threads > smp_idle + 1) {
+      if (smp_max_threads > smp_threads + 1) {
         long proc;
 
         initialized_threads = 1;
-        Print(128, "starting thread");
+        Print(32, "starting thread");
         for (proc = smp_threads + 1; proc < smp_max_threads; proc++) {
-          Print(128, " %d", proc);
-          thread[proc].tree = 0;
+          Print(32, " %d", proc);
 #  if defined(UNIX)
           pthread_create(&pt, &attributes, ThreadInit, (void *) proc);
 #  else
@@ -235,40 +249,52 @@ int Iterate(int wtm, int search_type, int root_list_done) {
 #  endif
           smp_threads++;
         }
-        Print(128, " <done>\n");
+        Print(32, " <done>\n");
       }
       WaitForAllThreadsInitialized();
+#  if defined(AFFINITY)
+      if (smp_affinity >= 0) {
+        CPU_ZERO(&cpuset);
+        CPU_SET(smp_affinity, &cpuset);
+        pthread_setaffinity_np(current_thread, sizeof(cpu_set_t), &cpuset);
+      }
+#  endif
 #endif
       if (search_nodes)
         nodes_between_time_checks = search_nodes;
-      for (; iteration_depth <= MAXPLY - 5; iteration_depth++) {
 /*
  ************************************************************
  *                                                          *
- *  Now install the old PV into the hash table so that      *
- *  these moves will be followed first.  We do this since   *
+ *  Main iterative-deepening loop starts here.  We either   *
+ *  start at depth = 1, or if we are pondering and have a   *
+ *  PV from the previous search, we use that to set the     *
+ *  starting depth.                                         *
+ *                                                          *
+ *  First install the old PV into the hash table so that    *
+ *  these moves will be searched first.  We do this since   *
  *  the last iteration done could have overwritten the PV   *
  *  as the last few root moves were searched.               *
  *                                                          *
  ************************************************************
  */
+      for (; iteration <= MAXPLY - 5; iteration++) {
         twtm = wtm;
         for (i = 1; i < (int) tree->pv[0].pathl; i++) {
           if (!VerifyMove(tree, i, twtm, tree->pv[0].path[i])) {
-            Print(4095, "ERROR, not installing bogus pv info at ply=%d\n", i);
-            Print(4095, "not installing from=%d  to=%d  piece=%d\n",
+            Print(2048, "ERROR, not installing bogus pv info at ply=%d\n", i);
+            Print(2048, "not installing from=%d  to=%d  piece=%d\n",
                 From(tree->pv[0].path[i]), To(tree->pv[0].path[i]),
                 Piece(tree->pv[0].path[i]));
-            Print(4095, "pathlen=%d\n", tree->pv[0].pathl);
+            Print(2048, "pathlen=%d\n", tree->pv[0].pathl);
             break;
           }
           HashStorePV(tree, twtm, i);
-          MakeMove(tree, i, tree->pv[0].path[i], twtm);
+          MakeMove(tree, i, twtm, tree->pv[0].path[i]);
           twtm = Flip(twtm);
         }
         for (i--; i > 0; i--) {
           twtm = Flip(twtm);
-          UnmakeMove(tree, i, tree->pv[0].path[i], twtm);
+          UnmakeMove(tree, i, twtm, tree->pv[0].path[i]);
         }
 /*
  ************************************************************
@@ -289,18 +315,18 @@ int Iterate(int wtm, int search_type, int root_list_done) {
  ************************************************************
  */
         if (trace_level) {
-          printf("==================================\n");
-          printf("=      search iteration %2d       =\n", iteration_depth);
-          printf("==================================\n");
+          Print(32, "==================================\n");
+          Print(32, "=      search iteration %2d       =\n", iteration);
+          Print(32, "==================================\n");
         }
         if (tree->nodes_searched) {
-          nodes_between_time_checks = nodes_per_second / 10;
+          nodes_between_time_checks =
+              nodes_per_second / (10 * Max(smp_max_threads, 1));
           if (!analyze_mode) {
-            if (time_limit > 300);
-            else if (time_limit > 50)
+            if (time_limit < 1000)
               nodes_between_time_checks /= 10;
-            else
-              nodes_between_time_checks /= 100;
+            if (time_limit < 100)
+              nodes_between_time_checks /= 10;
           } else
             nodes_between_time_checks = Min(nodes_per_second, 1000000);
         }
@@ -323,20 +349,23 @@ int Iterate(int wtm, int search_type, int root_list_done) {
  */
         failhi_delta = 16;
         faillo_delta = 16;
+        for (i = 0; i < n_root_moves; i++) {
+          if (i || iteration == 1)
+            root_moves[i].path.pathv = -99999999;
+          root_moves[i].status &= 4;
+        }
         while (1) {
-          thread[0].tree = block[0];
           if (smp_max_threads > 1)
             smp_split = 1;
-          tree->rep_index--;
-          value =
-              Search(tree, root_alpha, root_beta, wtm, iteration_depth, 1,
-              Check(wtm), 0);
-          tree->rep_index++;
+          rep_index--;
+          value = Search(tree, 1, iteration, wtm, alpha, beta, Check(wtm), 0);
+          rep_index++;
           end_time = ReadClock();
           if (abort_search)
             break;
-          old_root_alpha = root_alpha;
-          old_root_beta = root_beta;
+          for (current_rm = 0; current_rm < n_root_moves; current_rm++)
+            if (tree->pv[0].path[1] == root_moves[current_rm].move)
+              break;
 /*
  ************************************************************
  *                                                          *
@@ -365,41 +394,23 @@ int Iterate(int wtm, int search_type, int root_list_done) {
  *                                                          *
  ************************************************************
  */
-          if (value >= root_beta) {
-            root_beta = Min(old_root_beta + failhi_delta, MATE);
+          if (value >= beta) {
+            beta = Min(beta + failhi_delta, MATE);
             failhi_delta *= 2;
             if (failhi_delta > 10 * PAWN_VALUE)
               failhi_delta = 99999;
-            root_moves[0].status &= 0xf7;
-            if ((root_moves[0].status & 2) == 0)
+            root_moves[current_rm].status &= 7;
+            root_moves[current_rm].bm_age = 4;
+            if ((root_moves[current_rm].status & 2) == 0)
               difficulty = ComputeDifficulty(difficulty, +1);
-            root_moves[0].status |= 2;
-            if (end_time - start_time >= noise_level) {
-              fh_indicator = (wtm) ? "++" : "--";
-              Print(2, "         %2i   %s     %2s   ", iteration_depth,
-                  Display2Times(end_time - start_time), fh_indicator);
-              if (display_options & 64)
-                Print(2, "%d. ", move_number);
-              if ((display_options & 64) && !wtm)
-                Print(2, "... ");
-              Print(2, "%s! ", OutputMove(tree, tree->pv[1].path[1], 1, wtm));
-              Print(2, "(%c%s)                  \n", (wtm) ? '>' : '<',
-                  DisplayEvaluationKibitz(old_root_beta, wtm));
-              kibitz_text[0] = 0;
-              if (display_options & 64)
-                sprintf(kibitz_text, " %d.", move_number);
-              if ((display_options & 64) && !wtm)
-                sprintf(kibitz_text + strlen(kibitz_text), " ...");
-              sprintf(kibitz_text + strlen(kibitz_text), " %s!",
-                  OutputMove(tree, tree->pv[1].path[1], 1, wtm));
-              idle_percent =
-                  100 - Min(100,
-                  100 * idle_time / (smp_max_threads * (end_time -
-                          start_time) + 1));
-              Kibitz(6, wtm, iteration_depth, end_time - start_time, value,
-                  tree->nodes_searched, idle_percent,
-                  tree->egtb_probes_successful, kibitz_text);
-            }
+            root_moves[current_rm].status |= 2;
+            DisplayFail(tree, 1, 5, wtm, end_time - start_time,
+                root_moves[current_rm].move, value, force_print);
+            temp_rm = root_moves[current_rm];
+            for (i = current_rm; i > 0; i--)
+              root_moves[i] = root_moves[i - 1];
+            root_moves[0] = temp_rm;
+          }
 /*
  ************************************************************
  *                                                          *
@@ -428,31 +439,21 @@ int Iterate(int wtm, int search_type, int root_list_done) {
  *                                                          *
  ************************************************************
  */
-          } else if (value <= root_alpha) {
-            root_alpha = Max(old_root_alpha - faillo_delta, -MATE);
+          else if (value <= alpha) {
+            alpha = Max(alpha - faillo_delta, -MATE);
             faillo_delta *= 2;
             if (faillo_delta > 10 * PAWN_VALUE)
               faillo_delta = 99999;
-            root_moves[0].status &= 0xf7;
-            if ((root_moves[0].status & 1) == 0)
+            root_moves[current_rm].status &= 7;
+            if ((root_moves[current_rm].status & 1) == 0)
               difficulty = ComputeDifficulty(Max(100, difficulty), -1);
-            root_moves[0].status |= 1;
-            if (ReadClock() - start_time >= noise_level && !abort_search) {
-              fl_indicator = (wtm) ? "--" : "++";
-              Print(4, "         %2i   %s     %2s   ", iteration_depth,
-                  Display2Times(ReadClock() - start_time), fl_indicator);
-              if (display_options & 64)
-                Print(4, "%d. ", move_number);
-              if ((display_options & 64) && !wtm)
-                Print(4, "... ");
-              Print(4, "%s? ", OutputMove(tree, root_moves[0].move, 1, wtm));
-              Print(4, "(%c%s)                  \n", (Flip(wtm)) ? '>' : '<',
-                  DisplayEvaluationKibitz(old_root_alpha, wtm));
-            }
+            root_moves[current_rm].status |= 1;
+            DisplayFail(tree, 2, 5, wtm, end_time - start_time,
+                root_moves[current_rm].move, value, force_print);
           } else
             break;
         }
-        if (value > root_alpha && value < root_beta)
+        if (value > alpha && value < beta)
           last_root_value = value;
 /*
  ************************************************************
@@ -469,7 +470,7 @@ int Iterate(int wtm, int search_type, int root_list_done) {
           if (!solution_type) {
             if (solutions[i] == tree->pv[0].path[1])
               correct = 1;
-          } else if (solutions[i] == tree->pv[0].path[1])
+          } else if (solutions[i] == root_moves[current_rm].move)
             correct = 0;
         }
         if (correct)
@@ -486,13 +487,13 @@ int Iterate(int wtm, int search_type, int root_list_done) {
  ************************************************************
  */
         for (i = 0; i < n_root_moves; i++) {
+          root_moves[i].status &= 3;
           if (root_moves[i].bm_age)
             root_moves[i].bm_age--;
           if (root_moves[i].bm_age)
-            root_moves[i].status &= 0xfb;
-          else
             root_moves[i].status |= 4;
         }
+        SortRootMoves();
         difficulty = ComputeDifficulty(difficulty, 0);
 /*
  ************************************************************
@@ -500,25 +501,28 @@ int Iterate(int wtm, int search_type, int root_list_done) {
  *  If requested, print the ply=1 move list along with the  *
  *  flags for each move.  Once we print this (if requested) *
  *  we can then clear all of the status flags (except the   *
- *  "ok to search in parallel or reduce" flag) to prepare   *
+ *  "do not search in parallel or reduce" flag) to prepare  *
  *  for the start of the next iteration, since that is the  *
  *  only flag that needs to be carried forward to the next  *
  *  iteration.                                              *
  *                                                          *
  ************************************************************
  */
-        if (display_options & 256) {
-          Print(128, "       move  age  R ! ?\n");
+        if (display_options & 64) {
+          Print(64, "      rmove   score    age  S ! ?\n");
           for (i = 0; i < n_root_moves; i++) {
-            Print(128, " %10s   %d   %d %d %d\n", OutputMove(tree,
-                    root_moves[i].move, 1, wtm), root_moves[i].bm_age,
+            Print(64, " %10s ", OutputMove(tree, 1, wtm, root_moves[i].move));
+            if (root_moves[i].path.pathv > -MATE)
+              Print(64, "%s", DisplayEvaluation(root_moves[i].path.pathv,
+                      wtm));
+            else
+              Print(64, "  -----");
+            Print(64, "     %d   %d %d %d\n", root_moves[i].bm_age,
                 (root_moves[i].status & 4) != 0,
                 (root_moves[i].status & 2) != 0,
                 (root_moves[i].status & 1) != 0);
           }
         }
-        for (i = 0; i < n_root_moves; i++)
-          root_moves[i].status &= 4;
 /*
  ************************************************************
  *                                                          *
@@ -533,15 +537,17 @@ int Iterate(int wtm, int search_type, int root_list_done) {
               tree->nodes_searched * 100 / (uint64_t) (end_time - start_time);
         else
           nodes_per_second = 1000000;
+        tree->pv[0] = root_moves[0].path;
         if (!abort_search && value != -(MATE - 1)) {
-          if (end_time - start_time > noise_level) {
-            DisplayPV(tree, 5, wtm, end_time - start_time, &tree->pv[0], 0);
+          if (end_time - start_time >= noise_level) {
+            DisplayPV(tree, 5, wtm, end_time - start_time, &tree->pv[0],
+                force_print);
             noise_block = 0;
           } else
             noise_block = 1;
         }
-        root_alpha = Max(-MATE, value - 16);
-        root_beta = Min(MATE, value + 16);
+        alpha = Max(-MATE, value - 16);
+        beta = Min(MATE, value + 16);
 /*
  ************************************************************
  *                                                          *
@@ -560,11 +566,10 @@ int Iterate(int wtm, int search_type, int root_list_done) {
  */
         if (TimeCheck(tree, 0))
           break;
-        if (iteration_depth > 3 && value > 32000 &&
-            value >= (MATE - iteration_depth + 3)
+        if (iteration > 3 && value > 32000 && value >= (MATE - iteration + 3)
             && value > last_mate_score)
           break;
-        if ((iteration_depth >= search_depth) && search_depth)
+        if ((iteration >= search_depth) && search_depth)
           break;
         if (abort_search)
           break;
@@ -572,8 +577,8 @@ int Iterate(int wtm, int search_type, int root_list_done) {
         if (correct_count >= early_exit)
           break;
 #if !defined(NOEGTB)
-        if (iteration_depth > 10 && TotalAllPieces <= EGTBlimit && EGTB_use &&
-            !EGTB_search && EGTBProbe(tree, 1, wtm, &i))
+        if (iteration > EGTB_depth + 10 && TotalAllPieces <= EGTBlimit &&
+            EGTB_use && EGTBProbe(tree, 1, wtm, &i))
           break;
 #endif
         if (search_nodes && tree->nodes_searched >= search_nodes)
@@ -612,37 +617,73 @@ int Iterate(int wtm, int search_type, int root_list_done) {
         tree->evaluations = (tree->evaluations) ? tree->evaluations : 1;
         tree->fail_highs++;
         tree->fail_high_first_move++;
-        idle_percent =
+        idle_time = 0;
+        for (i = 0; i < smp_max_threads; i++)
+          idle_time += thread[i].idle;
+        busy_percent =
             100 - Min(100,
             100 * idle_time / (smp_max_threads * (end_time - start_time) +
                 1));
         Print(8, "        time=%s(%d%%)",
-            DisplayTimeKibitz(end_time - start_time), idle_percent);
-        Print(8, "  n=%" PRIu64 "(%s)", tree->nodes_searched,
+            DisplayTimeKibitz(end_time - start_time), busy_percent);
+        Print(8, "  nodes=%" PRIu64 "(%s)", tree->nodes_searched,
             DisplayKMB(tree->nodes_searched, 0));
         Print(8, "  fh1=%d%%",
             tree->fail_high_first_move * 100 / tree->fail_highs);
-        Print(8, "  50move=%d", Reversible(0));
+        Print(8, "  pred=%d", predicted);
         Print(8, "  nps=%s\n", DisplayKMB(nodes_per_second, 0));
-        Print(16, "        ext=%s", DisplayKMB(tree->extensions_done, 0));
-        Print(16, "  pruned=%s", DisplayKMB(tree->moves_fpruned, 0));
-        Print(16, "  qchks=%s", DisplayKMB(tree->qchecks_done, 0));
-        Print(16, "  predicted=%d\n", predicted);
-        Print(16, "        LMReductions: ");
+        Print(8, "        chk=%s", DisplayKMB(tree->extensions_done, 0));
+        Print(8, "  qchk=%s", DisplayKMB(tree->qchecks_done, 0));
+        Print(8, "  fp=%s", DisplayKMB(tree->moves_fpruned, 0));
+        Print(8, "  mcp=%s", DisplayKMB(tree->moves_mpruned, 0));
+        Print(8, "  50move=%d", Reversible(0));
+        if (tree->egtb_hits)
+          Print(8, "  egtb=%s", DisplayKMB(tree->egtb_hits, 0));
+        Print(8, "\n");
+        Print(8, "        LMReductions:");
+        npc = 21;
+        cpl = 75;
         for (i = 1; i < 16; i++)
-          if (tree->LMR_done[i])
-            Print(16, "%d/%s  ", i, DisplayKMB(tree->LMR_done[i], 0));
-        Print(16, "\n");
-        Print(16, "        null searches (R): ");
-        for (i = 1; i < 32; i++)
-          if (tree->null_done[i])
-            Print(16, "%d/%s  ", i, DisplayKMB(tree->null_done[i], 0));
-        Print(16, "\n");
-        Print(16, "        splits=%s", DisplayKMB(parallel_splits, 0));
-        Print(16, "  aborts=%s", DisplayKMB(parallel_aborts, 0));
-        Print(16, "  data=%d%%", 100 * max_split_blocks / Max(MAX_BLOCKS, 1));
-        Print(16, "  probes=%s", DisplayKMB(tree->egtb_probes, 0));
-        Print(16, "  hits=%s\n", DisplayKMB(tree->egtb_probes_successful, 0));
+          if (tree->LMR_done[i]) {
+            sprintf(buff, "%d/%s", i, DisplayKMB(tree->LMR_done[i], 0));
+            if (npc + strlen(buff) > cpl) {
+              Print(8, "\n            ");
+              npc = 12;
+            }
+            Print(8, "  %s", buff);
+            npc += strlen(buff) + 2;
+          }
+        if (npc)
+          Print(8, "\n");
+        npc = 24;
+        cpl = 75;
+        if (tree->null_done[null_depth])
+          Print(8, "        null-move (R):");
+        for (i = null_depth; i < 16; i++)
+          if (tree->null_done[i]) {
+            sprintf(buff, "%d/%s", i, DisplayKMB(tree->null_done[i], 0));
+            if (npc + strlen(buff) > cpl) {
+              Print(8, "\n            ");
+              npc = 12;
+            }
+            Print(8, "  %s", buff);
+            npc += strlen(buff) + 2;
+          }
+        if (npc)
+          Print(8, "\n");
+        if (parallel_splits) {
+          max = 0;
+          for (i = 0; i < smp_max_threads; i++) {
+            max = Max(max, PopCnt(thread[i].max_blocks));
+            game_max_blocks |= thread[i].max_blocks;
+          }
+          Print(8, "        splits=%s", DisplayKMB(parallel_splits, 0));
+          Print(8, "(%s)", DisplayKMB(parallel_splits_wasted, 0));
+          Print(8, "  aborts=%s", DisplayKMB(parallel_aborts, 0));
+          Print(8, "  joins=%s", DisplayKMB(parallel_joins, 0));
+          Print(8, "  data=%d%%(%d%%)\n", 100 * max / 64,
+              100 * PopCnt(game_max_blocks) / 64);
+        }
       }
     } while (0);
 /*
@@ -658,7 +699,6 @@ int Iterate(int wtm, int search_type, int root_list_done) {
     last_root_value = 0;
     value = 0;
     book_move = 1;
-    tree->pv[0] = tree->pv[1];
     if (analyze_mode)
       Kibitz(4, wtm, 0, 0, 0, 0, 0, 0, kibitz_text);
   }
@@ -677,11 +717,11 @@ int Iterate(int wtm, int search_type, int root_list_done) {
  */
   if (smp_nice && ponder == 0 && smp_threads) {
     int proc;
-    Print(128, "terminating SMP processes.\n");
+
+    Print(64, "terminating SMP processes.\n");
     for (proc = 1; proc < CPUS; proc++)
-      thread[proc].tree = (TREE *) - 1;
+      thread[proc].terminate = 1;
     while (smp_threads);
-    smp_idle = 0;
     smp_split = 0;
   }
   program_end_time = ReadClock();

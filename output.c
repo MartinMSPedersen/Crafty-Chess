@@ -13,12 +13,11 @@
  *                                                                             *
  *******************************************************************************
  */
-char *OutputMove(TREE * RESTRICT tree, int move, int ply, int wtm) {
+char *OutputMove(TREE * RESTRICT tree, int ply, int wtm, int move) {
   static char text_move[10], new_text[10];
-  int *mvp;
-  char *text;
+  unsigned *mvp;
+  char *text = text_move;
   static const char piece_names[7] = { ' ', 'P', 'N', 'B', 'R', 'Q', 'K' };
-  text = text_move;
 /*
  ************************************************************
  *                                                          *
@@ -91,7 +90,7 @@ char *OutputMove(TREE * RESTRICT tree, int move, int ply, int wtm) {
     if (Piece(move) == pawn) {
       if (!Captured(move)) {
         strcpy(text_move, new_text + 2);
-        if (InputMove(tree, text_move, ply, wtm, 1, 0))
+        if (InputMove(tree, ply, wtm, 1, 0, text_move))
           break;
       }
 /*
@@ -104,7 +103,7 @@ char *OutputMove(TREE * RESTRICT tree, int move, int ply, int wtm) {
  */
       text_move[0] = new_text[0];
       strcpy(text_move + 1, new_text + 2);
-      if (InputMove(tree, text_move, ply, wtm, 1, 0))
+      if (InputMove(tree, ply, wtm, 1, 0, text_move))
         break;
 /*
  ************************************************************
@@ -130,7 +129,7 @@ char *OutputMove(TREE * RESTRICT tree, int move, int ply, int wtm) {
     if (!Captured(move)) {
       text_move[0] = new_text[0];
       strcpy(text_move + 1, new_text + 3);
-      if (InputMove(tree, text_move, ply, wtm, 1, 0))
+      if (InputMove(tree, ply, wtm, 1, 0, text_move))
         break;
 /*
  ************************************************************
@@ -144,11 +143,11 @@ char *OutputMove(TREE * RESTRICT tree, int move, int ply, int wtm) {
       text_move[0] = new_text[0];
       text_move[1] = new_text[1];
       strcpy(text_move + 2, new_text + 3);
-      if (InputMove(tree, text_move, ply, wtm, 1, 0))
+      if (InputMove(tree, ply, wtm, 1, 0, text_move))
         break;
       text_move[0] = new_text[0];
       strcpy(text_move + 1, new_text + 2);
-      if (InputMove(tree, text_move, ply, wtm, 1, 0))
+      if (InputMove(tree, ply, wtm, 1, 0, text_move))
         break;
 /*
  ************************************************************
@@ -170,7 +169,7 @@ char *OutputMove(TREE * RESTRICT tree, int move, int ply, int wtm) {
  */
       text_move[0] = new_text[0];
       strcpy(text_move + 1, new_text + 3);
-      if (InputMove(tree, text_move, ply, wtm, 1, 0))
+      if (InputMove(tree, ply, wtm, 1, 0, text_move))
         break;
 /*
  ************************************************************
@@ -183,11 +182,11 @@ char *OutputMove(TREE * RESTRICT tree, int move, int ply, int wtm) {
       text_move[0] = new_text[0];
       text_move[1] = new_text[1];
       strcpy(text_move + 2, new_text + 3);
-      if (InputMove(tree, text_move, ply, wtm, 1, 0))
+      if (InputMove(tree, ply, wtm, 1, 0, text_move))
         break;
       text_move[0] = new_text[0];
       strcpy(text_move + 1, new_text + 2);
-      if (InputMove(tree, text_move, ply, wtm, 1, 0))
+      if (InputMove(tree, ply, wtm, 1, 0, text_move))
         break;
 /*
  ************************************************************
@@ -211,7 +210,7 @@ char *OutputMove(TREE * RESTRICT tree, int move, int ply, int wtm) {
   if (output_format == 0) {
     text = text_move + strlen(text_move);
     tree->status[MAXPLY] = tree->status[ply];
-    MakeMove(tree, MAXPLY, move, wtm);
+    MakeMove(tree, MAXPLY, wtm, move);
     if (Check(Flip(wtm))) {
       mvp =
           GenerateCheckEvasions(tree, MAXPLY + 1, Flip(wtm),
@@ -221,7 +220,7 @@ char *OutputMove(TREE * RESTRICT tree, int move, int ply, int wtm) {
       else
         *text++ = '+';
     }
-    UnmakeMove(tree, MAXPLY, move, wtm);
+    UnmakeMove(tree, MAXPLY, wtm, move);
     *text = 0;
   }
   return text_move;

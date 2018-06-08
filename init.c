@@ -5,9 +5,8 @@
 #if defined(UNIX)
 #  include <unistd.h>
 #  include <sys/types.h>
-#  include <sys/stat.h>
 #else
-#  include <fcntl.h>    /* needed for definition of "_O_BINARY" */
+#  include <fcntl.h> /* needed for definition of "_O_BINARY" */
 #endif
 /*
  *******************************************************************************
@@ -19,12 +18,11 @@
  *******************************************************************************
  */
 void Initialize() {
-  int i, major, id;
   TREE *tree;
-  int j;
+  int i, j, v, major, id;
 
   tree = block[0];
-  for (j = 1; j < MAX_BLOCKS + 1; j++)
+  for (j = 1; j <= MAX_BLOCKS; j++)
     block[j] = NULL;
   InitializeMasks();
   InitializeMagic();
@@ -34,7 +32,7 @@ void Initialize() {
   InitializeChessBoard(tree);
   InitializeKillers();
 #if !defined(UNIX)
-  _fmode = _O_BINARY;   /* set file mode binary to avoid text translation */
+  _fmode = _O_BINARY; /* set file mode binary to avoid text translation */
 #endif
 #if defined(EPD)
   EGInit();
@@ -46,28 +44,30 @@ void Initialize() {
   if (!book_file) {
     book_file = fopen(log_filename, "rb");
     if (!book_file) {
-      Print(128, "unable to open book file [%s/book.bin].\n", book_path);
-      Print(128, "book is disabled\n");
+      Print(2048, "unable to open book file [%s/book.bin].\n", book_path);
+      Print(32, "book is disabled\n");
     } else {
-      Print(128, "unable to open book file [%s/book.bin] for \"write\".\n",
+      Print(2048, "unable to open book file [%s/book.bin] for \"write\".\n",
           book_path);
-      Print(128, "learning is disabled\n");
+      Print(32, "learning is disabled\n");
     }
   }
   sprintf(log_filename, "%s/books.bin", book_path);
   normal_bs_file = fopen(log_filename, "rb");
   books_file = normal_bs_file;
   if (!normal_bs_file)
-    Print(128, "unable to open book file [%s/books.bin].\n", book_path);
+    Print(32, "unable to open book file [%s/books.bin].\n", book_path);
   sprintf(log_filename, "%s/bookc.bin", book_path);
   computer_bs_file = fopen(log_filename, "rb");
   if (computer_bs_file)
-    Print(128, "found computer opening book file [%s/bookc.bin].\n",
+    Print(32, "found computer opening book file [%s/bookc.bin].\n",
         book_path);
   if (book_file) {
     int maj_min;
     fseek(book_file, -sizeof(int), SEEK_END);
-    fread(&maj_min, 4, 1, book_file);
+    v = fread(&maj_min, 4, 1, book_file);
+    if (v <= 0)
+      perror("Initialize() fread error: ");
     major = BookIn32((unsigned char *) &maj_min);
     major = major >> 16;
     if (major < 23) {
@@ -93,14 +93,16 @@ void Initialize() {
       sizeof(HPATH_ENTRY) * hash_path_size);
   AlignedMalloc((void *) ((void *) &pawn_hash_table), 64,
       sizeof(PAWN_HASH_ENTRY) * pawn_hash_table_size);
+  AlignedMalloc((void *) ((void *) &eval_hash_table), 64,
+      sizeof(EVAL_HASH_ENTRY) * eval_hash_table_size);
   if (!trans_ref) {
-    Print(128,
+    Print(2048,
         "AlignedMalloc() failed, not enough memory (primary trans/ref table).\n");
     hash_table_size = 0;
     trans_ref = 0;
   }
   if (!pawn_hash_table) {
-    Print(128,
+    Print(2048,
         "AlignedMalloc() failed, not enough memory (pawn hash table).\n");
     pawn_hash_table_size = 0;
     pawn_hash_table = 0;
@@ -120,31 +122,35 @@ void Initialize() {
  *                                                          *
  *  If we are using CPU affinity, we need to set this up    *
  *  for thread 0 BEFORE we initialize the split blocks so   *
- *  that they will fault in on the correct node.            *
+ *  that they will page fault in on the correct NUMA node.  *
  *                                                          *
  ************************************************************
  */
-#if defined(AFFINITY)
+#if (CPUS > 1)
+#  if defined(AFFINITY)
   cpu_set_t cpuset;
   pthread_t current_thread = pthread_self();
-
-  CPU_ZERO(&cpuset);
-  CPU_SET(0, &cpuset);
-  pthread_setaffinity_np(current_thread, sizeof(cpu_set_t), &cpuset);
-#endif
-#if !defined(UNIX)
+  if (smp_affinity >= 0) {
+    CPU_ZERO(&cpuset);
+    CPU_SET(smp_affinity, &cpuset);
+    pthread_setaffinity_np(current_thread, sizeof(cpu_set_t), &cpuset);
+  }
+#  endif
+#  if !defined(UNIX)
   ThreadMalloc((int) 0);
-#else
+#  else
   for (i = 0; i < CPUS; i++) {
-    for (j = 0; j < MAX_BLOCKS_PER_CPU; j++) {
-      AlignedMalloc((void **) &block[i * MAX_BLOCKS_PER_CPU + j + 1], 2048,
+    for (j = 0; j < 64; j++) {
+      AlignedMalloc((void **) &block[i * 64 + j + 1], 2048,
           (size_t) sizeof(TREE));
     }
   }
-  for (i = 1; i < MAX_BLOCKS_PER_CPU; i++) {
+  thread[0].blocks = 0xffffffffffffffffull;
+  for (i = 1; i < 64; i++) {
     memset((void *) block[i], 0, sizeof(TREE));
     LockInit(block[i]->lock);
   }
+#  endif
 #endif
   initialized_threads++;
   InitializeHashTables();
@@ -161,8 +167,8 @@ void Initialize() {
  *******************************************************************************
  */
 void InitializeAttackBoards(void) {
-  int i, j, frank, ffile, trank, tfile;
-  int sq, lastsq, nmobility;
+  int i, j, d, s, t, frank, ffile, trank, tfile;
+  int sq, lastsq;
   static const int knightsq[8] = { -17, -15, -10, -6, 6, 10, 15, 17 };
   static const int bishopsq[4] = { -9, -7, 7, 9 };
   static const int rooksq[4] = { -8, -1, 1, 8 };
@@ -208,12 +214,6 @@ void InitializeAttackBoards(void) {
         continue;
       knight_attacks[i] = knight_attacks[i] | (uint64_t) 1 << sq;
     }
-    nmobility = -lower_n;
-    for (j = 0; j < 4; j++)
-      nmobility +=
-          PopCnt(knight_attacks[i] & mobility_mask_n[j]) *
-          mobility_score_n[j];
-    knight_mobility_table[i] = nmobility;
   }
 /*
  initialize bishop/queen attack boards and masks
@@ -295,10 +295,10 @@ void InitializeAttackBoards(void) {
     }
   }
 /*
- direction[sq1][sq2] gives the "move direction" to move from
+ directions[sq1][sq2] gives the "move direction" to move from
  sq1 to sq2.  intervening[sq1][sq2] gives a bit vector that indicates
  which squares must be unoccupied in order for <sq1> to attack <sq2>,
- assuming a sliding piece is involved.  to use this, you simply have
+ assuming a sliding piece is involved.  To use this, you simply have
  to Or(intervening[sq1][sq2],occupied_squares) and if the result is
  "0" then a sliding piece on sq1 would attack sq2 and vice-versa.
  */
@@ -360,6 +360,22 @@ void InitializeAttackBoards(void) {
       directions[i][j] = -9;
       intervening[i][j] = minus9dir[i] ^ minus9dir[j + 9];
       sqs &= sqs - 1;
+    }
+  }
+/*
+  distance_ring[square][distance] has a ring of 1's around "square" with a
+  distance of "distance".  IE for e4, we have a ring of adjacent squares
+  [e4][1], the next ring (2 squares away) for [e4][2], etc.  In this code,
+  s = square being set up, d = distance from square to "ring" and t = target
+  square that is on the ring if distance is correct.
+ */
+  for (s = 0; s < 64; s++) {
+    distance_ring[s][0] = SetMask(s);
+    for (d = 1; d < 8; d++) {
+      distance_ring[s][d] = 0;
+      for (t = 0; t < 64; t++)
+        if (Distance(s, t) == d)
+          distance_ring[s][d] |= SetMask(t);
     }
   }
 }
@@ -575,7 +591,7 @@ uint64_t InitializeMagicRook(int square, uint64_t occupied) {
  *******************************************************************************
  *                                                                             *
  *   InitializeChessBoard() initializes the chess board to the normal starting *
- *   position.   It then calls SetChessBitboards() to correctly set the usual  *
+ *   position.  It then calls SetChessBitboards() to correctly set the usual   *
  *   occupied-square bitboards to correspond to the starting position.         *
  *                                                                             *
  *******************************************************************************
@@ -586,7 +602,7 @@ void InitializeChessBoard(TREE * tree) {
   if (strlen(initial_position)) {
     int nargs;
 
-    nargs = ReadParse(initial_position, args, " ;");
+    nargs = ReadParse(initial_position, args, " \t;");
     SetBoard(tree, nargs, args, 1);
   } else {
     for (i = 0; i < 64; i++)
@@ -648,7 +664,7 @@ void InitializeChessBoard(TREE * tree) {
  initialize 50 move counter and repetition list/index.
  */
   Reversible(0) = 0;
-  tree->rep_index = 0;
+  rep_index = 0;
   tree->rep_list[0] = HashKey;
 }
 
@@ -708,16 +724,7 @@ void SetChessBitBoards(TREE * tree) {
           PopCnt(Pieces(side, piece)) * p_vals[piece];
   }
   TotalAllPieces = PopCnt(OccupiedSquares);
-/*
- initialize major/minor counts.
- */
-  for (side = black; side <= white; side++) {
-    TotalMajors(side) = TotalPieces(side, rook)
-        + 2 * TotalPieces(side, queen);
-    TotalMinors(side) = TotalPieces(side, knight)
-        + TotalPieces(side, bishop);
-  }
-  tree->rep_index = 0;
+  rep_index = 0;
   tree->rep_list[0] = HashKey;
 }
 
@@ -733,10 +740,10 @@ void SetChessBitBoards(TREE * tree) {
  *******************************************************************************
  */
 int InitializeGetLogID(void) {
+  int t;
 #if defined(UNIX)
   struct stat *fileinfo = malloc(sizeof(struct stat));
 #endif
-  int t;
 
   if (!log_id) {
     for (log_id = 1; log_id < 300; log_id++) {
@@ -747,27 +754,27 @@ int InitializeGetLogID(void) {
         break;
       fclose(log_file);
     }
+  }
 #if defined(UNIX)
 /*  a kludge to work around an xboard 4.2.3 problem.  It sends two "quit"
    commands, which causes every other log.nnn file to be empty.  this code
    looks for a very small log.nnn file as the last one, and if it is small,
    then we simply overwrite it to solve this problem temporarily.  this will
    be removed when the nexto xboard version comes out to fix this extra quit
-   problem.                                                               */
-    {
-      char tfn[128];
-      FILE *tlog;
+   problem.                                                                  */
+  {
+    char tfn[128];
+    FILE *tlog;
 
-      sprintf(tfn, "%s/log.%03d", log_path, log_id - 1);
-      tlog = fopen(tfn, "r+");
-      if (tlog) {
-        fstat(fileno(tlog), fileinfo);
-        if (fileinfo->st_size < 1700)
-          log_id--;
-      }
+    sprintf(tfn, "%s/log.%03d", log_path, log_id - 1);
+    tlog = fopen(tfn, "r+");
+    if (tlog) {
+      fstat(fileno(tlog), fileinfo);
+      if (fileinfo->st_size < 2000)
+        log_id--;
     }
-#endif
   }
+#endif
   t = log_id++;
   return t;
 }
@@ -800,12 +807,10 @@ void InitializeHashTables(void) {
     (pawn_hash_table + i)->score_mg = 0;
     (pawn_hash_table + i)->score_eg = 0;
     for (side = black; side <= white; side++) {
-      (pawn_hash_table + i)->defects_k[side] = 0;
-      (pawn_hash_table + i)->defects_e[side] = 0;
-      (pawn_hash_table + i)->defects_d[side] = 0;
-      (pawn_hash_table + i)->defects_q[side] = 0;
-      (pawn_hash_table + i)->all[side] = 0;
       (pawn_hash_table + i)->passed[side] = 0;
+      (pawn_hash_table + i)->defects_k[side] = 0;
+      (pawn_hash_table + i)->defects_m[side] = 0;
+      (pawn_hash_table + i)->defects_q[side] = 0;
     }
   }
 }
@@ -820,63 +825,14 @@ void InitializeHashTables(void) {
  *******************************************************************************
  */
 void InitializeKillers(void) {
-  int i, j;
+  int i;
 
   for (i = 0; i < MAXPLY; i++) {
     block[0]->killers[i].move1 = 0;
     block[0]->killers[i].move2 = 0;
   }
-  for (i = 0; i < 2; i++)
-    for (j = 0; j < 512; j++)
-      history[i][j] = 0;
-}
-
-/*
- *******************************************************************************
- *                                                                             *
- *   InitializeKingSafety() is used to initialize the king safety matrix.      *
- *   This is set so that the matrix, indexed by king safety pawn structure     *
- *   index and by king safety piece tropism, combines the two indices to       *
- *   produce a single score.  As either index rises, the king safety score     *
- *   tracks along, but as both rise, the king safety score rises much more     *
- *   quickly.                                                                  *
- *                                                                             *
- *******************************************************************************
- */
-void InitializeKingSafety() {
-  int safety, tropism;
-
-  for (safety = 0; safety < 16; safety++) {
-    for (tropism = 0; tropism < 16; tropism++) {
-      king_safety[safety][tropism] =
-          180 * ((safety_vector[safety] + 100) * (tropism_vector[tropism] +
-              100) / 100 - 100) / 100;
-    }
-  }
-}
-
-/*
- *******************************************************************************
- *                                                                             *
- *   InitializeReductions() is used to initialize the reduction matrix used to *
- *   set the reduction value for LMR for each move searched.  It is indexed by *
- *   depth remaining and # moves searched.                                     *
- *   produce a single score.  As either index rises, the king safety score     *
- *   tracks along, but as both rise, the king safety score rises much more     *
- *   quickly.                                                                  *
- *                                                                             *
- *******************************************************************************
- */
-void InitializeReductions() {
-  int depth, moves;
-
-  for (depth = 3; depth < 32; ++depth)
-    for (moves = 2; moves < 64; ++moves)
-      LMR[depth][moves] =
-          Min(Max(Min(log((double) depth * LMR_depth_bias / 100.0) *
-                  log((double) moves * LMR_moves_bias / 100.0) / (LMR_scale /
-                      100.0), LMR_max_reduction), LMR_min_reduction),
-          Max(depth - 1 - LMR_remaining_depth, 0));
+  for (i = 0; i < 1024; i++)
+    history[i] = 1024;
 }
 
 /*
@@ -913,18 +869,6 @@ void InitializeMasks(void) {
 /*
  masks to determine if a pawn has nearby neighbors or not.
  */
-  for (i = 8; i < 56; i++) {
-    if (File(i) > 0 && File(i) < 7)
-      mask_pawn_connected[i] =
-          SetMask(i - 1) | SetMask(i + 1) | SetMask(i - 9) | SetMask(i - 7)
-          | SetMask(i + 7) | SetMask(i + 9);
-    else if (File(i) == 0)
-      mask_pawn_connected[i] =
-          SetMask(i + 1) | SetMask(i - 7) | SetMask(i + 9);
-    else if (File(i) == 7)
-      mask_pawn_connected[i] =
-          SetMask(i - 1) | SetMask(i - 9) | SetMask(i + 7);
-  }
 #if !defined(INLINEASM)
   msb[0] = 64;
   lsb[0] = 16;
@@ -999,32 +943,20 @@ void InitializePawnMasks(void) {
     }
   }
 /*
- initialize hidden passed pawn masks, which are nothing more than 1's on
- squares where the opponent can't have pawns so that our "hidden" passed
- will work (say we have pawns on h6 and g5, and our opponent has a pawn on
- h7.  he can't have pawns at g6 or f7 or we can't play g6 and free up our h
- pawn.
+ masks to determine if a pawn has supporting contact with friendly pawns.
  */
-  for (i = 0; i < 8; i++) {
-    mask_hidden_left[black][i] = 0;
-    mask_hidden_right[black][i] = 0;
-    mask_hidden_left[white][i] = 0;
-    mask_hidden_right[white][i] = 0;
-    if (i > 0) {
-      mask_hidden_left[white][i] |= SetMask(39 + i) | SetMask(47 + i);
-      mask_hidden_left[black][i] |= SetMask(15 + i) | SetMask(7 + i);
-    }
-    if (i > 1) {
-      mask_hidden_left[white][i] |= SetMask(46 + i) | SetMask(38 + i);
-      mask_hidden_left[black][i] |= SetMask(6 + i) | SetMask(14 + i);
-    }
-    if (i < 6) {
-      mask_hidden_right[white][i] |= SetMask(50 + i) | SetMask(42 + i);
-      mask_hidden_right[black][i] |= SetMask(10 + i) | SetMask(18 + i);
-    }
-    if (i < 7) {
-      mask_hidden_right[white][i] |= SetMask(41 + i) | SetMask(49 + i);
-      mask_hidden_right[black][i] |= SetMask(17 + i) | SetMask(9 + i);
+  for (i = 8; i < 56; i++) {
+    if (File(i) > 0 && File(i) < 7) {
+      mask_pawn_connected[white][i] =
+          SetMask(i - 1) | SetMask(i + 1) | SetMask(i - 9) | SetMask(i - 7);
+      mask_pawn_connected[black][i] =
+          SetMask(i - 1) | SetMask(i + 1) | SetMask(i + 9) | SetMask(i + 7);
+    } else if (File(i) == 0) {
+      mask_pawn_connected[white][i] = SetMask(i + 1) | SetMask(i - 7);
+      mask_pawn_connected[black][i] = SetMask(i + 1) | SetMask(i + 9);
+    } else if (File(i) == 7) {
+      mask_pawn_connected[white][i] = SetMask(i - 1) | SetMask(i - 9);
+      mask_pawn_connected[black][i] = SetMask(i - 1) | SetMask(i + 7);
     }
   }
 /*
@@ -1033,14 +965,14 @@ void InitializePawnMasks(void) {
  */
   for (i = 8; i < 56; i++) {
     if (!File(i)) {
-      mask_no_pattacks[white][i] = minus8dir[i + 1];
-      mask_no_pattacks[black][i] = plus8dir[i + 1];
+      mask_pattacks[white][i] = minus8dir[i + 1];
+      mask_pattacks[black][i] = plus8dir[i + 1];
     } else if (File(i) == 7) {
-      mask_no_pattacks[white][i] = minus8dir[i - 1];
-      mask_no_pattacks[black][i] = plus8dir[i - 1];
+      mask_pattacks[white][i] = minus8dir[i - 1];
+      mask_pattacks[black][i] = plus8dir[i - 1];
     } else {
-      mask_no_pattacks[white][i] = minus8dir[i - 1] | minus8dir[i + 1];
-      mask_no_pattacks[black][i] = plus8dir[i + 1] | plus8dir[i - 1];
+      mask_pattacks[white][i] = minus8dir[i - 1] | minus8dir[i + 1];
+      mask_pattacks[black][i] = plus8dir[i + 1] | plus8dir[i - 1];
     }
   }
 /*
@@ -1058,11 +990,11 @@ void InitializePawnMasks(void) {
   mask_eptest[A5] = SetMask(B5);
   mask_eptest[H5] = SetMask(G5);
 /*
- initialize masks used to evaluate pawn races.  these masks are
+ Initialize masks used to evaluate pawn races.  These masks are
  used to determine if the opposing king is in a position to stop a
- passed pawn from racing down and queening.  the data is organized
+ passed pawn from racing down and queening.  The data is organized
  as pawn_race[side][onmove][square], where side is black or white,
- and onmove indicates which side is to move for proper tempo 
+ and onmove indicates which side is to move for proper tempo
  evaluation.
  */
   for (i = 0; i < 64; i++) {
@@ -1107,42 +1039,30 @@ void InitializePawnMasks(void) {
       }
     }
   }
-/*
- is_outside[p][a]
- p=8 bit mask for passed pawns
- a=8 bit mask for all pawns on board
- p must have left-most or right-most bit set when compared to
- mask 'a'.  and this bit must be separated from the next bit
- by at least one file (ie the outside passed pawn is 2 files
- from the rest of the pawns, at least.
- ppsq = square that contains a (potential) passed pawn.
- psql = leftmost pawn, period.
- psqr = rightmost pawn, period.
- 0 -> passed pawn is not 'outside'
- 1 -> passed pawn is 'outside'
- 2 -> passed pawn is 'outside' on both sides of board
- */
-  for (i = 0; i < 256; i++) {
-    for (j = 0; j < 256; j++) {
-      int ppsq1, ppsq2, psql, psqr;
+}
 
-      is_outside[i][j] = 0;
-      ppsq1 = lsb_8bit[i];
-      if (ppsq1 < 8) {
-        psql = lsb_8bit[j];
-        if (ppsq1 < psql - 1 || psql == 8)
-          is_outside[i][j] += 1;
-      }
-      ppsq2 = msb_8bit[i];
-      if (ppsq2 < 8) {
-        psqr = msb_8bit[j];
-        if (ppsq2 > psqr + 1 || psqr == 8)
-          is_outside[i][j] += 1;
-      }
-      if (ppsq1 == ppsq2 && is_outside[i][j] > 0)
-        is_outside[i][j] = 1;
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   InitializeReductions() is used to initialize the reduction matrix used to *
+ *   set the reduction value for LMR for each move searched.  It is indexed by *
+ *   depth remaining and # moves searched.                                     *
+ *                                                                             *
+ *******************************************************************************
+ */
+void InitializeReductions() {
+  int d, m;
+
+  for (d = 0; d < 32; d++)
+    for (m = 0; m < 64; m++)
+      LMR[d][m] = 0;
+  for (d = 3; d < 32; d++)
+    for (m = 1; m < 64; m++) {
+      LMR[d][m] =
+          Max(Min(log(d * LMR_db) * log(m * LMR_mb) / LMR_s, LMR_max),
+          LMR_min);
+      LMR[d][m] = Min(LMR[d][m], Max(d - 1 - LMR_rdepth, 0));
     }
-  }
 }
 
 /*
@@ -1154,9 +1074,7 @@ void InitializePawnMasks(void) {
  */
 void InitializeSMP(void) {
   LockInit(lock_smp);
-  LockInit(lock_split);
   LockInit(lock_io);
-  LockInit(lock_root);
   LockInit(block[0]->lock);
 #if defined(UNIX) && (CPUS > 1)
   pthread_attr_init(&attributes);

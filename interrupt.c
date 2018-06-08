@@ -9,15 +9,14 @@
  *   while a search is in progress (during pondering as one example.)  This    *
  *   routine reads in a command (move) and then makes two attempts to use this *
  *   input:  (1) call Option() to see if the command can be executed;  (2) try *
- *   InputMove() to see if this input is a legal move;  If so, and we are      *
+ *   InputMove() to see if this input is a legal move; If so, and we are       *
  *   pondering see if it matches the move we are pondering.                    *
  *                                                                             *
  *******************************************************************************
  */
 void Interrupt(int ply) {
-  int temp, i, left = 0, readstat, result, time_used;
-  int save_move_number;
   TREE *const tree = block[0];
+  int temp, i, left = 0, readstat, result, time_used, save_move_number;
 
 /*
  ************************************************************
@@ -45,9 +44,9 @@ void Interrupt(int ply) {
       readstat = Read(0, buffer);
       if (readstat <= 0)
         break;
-      nargs = ReadParse(buffer, args, " 	;");
+      nargs = ReadParse(buffer, args, " \t;");
       if (nargs == 0) {
-        Print(128, "ok.\n");
+        Print(32, "ok.\n");
         break;
       }
       if (strcmp(args[0], ".")) {
@@ -55,9 +54,9 @@ void Interrupt(int ply) {
         if (!game_wtm)
           move_number--;
         if (root_wtm)
-          Print(128, "Black(%d): %s\n", move_number, buffer);
+          Print(32, "Black(%d): %s\n", move_number, buffer);
         else
-          Print(128, "White(%d): %s\n", move_number, buffer);
+          Print(32, "White(%d): %s\n", move_number, buffer);
         move_number = save_move_number;
       }
 /*
@@ -74,7 +73,7 @@ void Interrupt(int ply) {
           time_used = (end_time - start_time);
           printf("stat01: %d ", time_used);
           printf("%" PRIu64 " ", tree->nodes_searched);
-          printf("%d ", iteration_depth);
+          printf("%d ", iteration);
           for (i = 0; i < n_root_moves; i++)
             if (!(root_moves[i].status & 8))
               left++;
@@ -86,7 +85,9 @@ void Interrupt(int ply) {
           time_used = (end_time - start_time);
           printf("time:%s ", DisplayTime(time_used));
           printf("nodes:%" PRIu64 "\n", tree->nodes_searched);
-          DisplayTreeState(block[0], 1, 0, ply);
+#if (CPUS > 1)
+          ThreadTrace(block[0], 0, 1);
+#endif
         }
       }
 /*
@@ -99,6 +100,24 @@ void Interrupt(int ply) {
       else if (!strcmp(args[0], "?")) {
         if (thinking) {
           abort_search = 1;
+        }
+      }
+/*
+ ************************************************************
+ *                                                          *
+ *  "@" command says "assume ponder move was played."       *
+ *                                                          *
+ ************************************************************
+ */
+      else if (!strcmp(args[0], "@")) {
+        if (pondering) {
+          predicted++;
+          input_status = 1;
+          pondering = 0;
+          thinking = 1;
+          opponent_end_time = ReadClock();
+          program_start_time = ReadClock();
+          Print(32, "predicted move made.\n");
         }
       }
 /*
@@ -121,7 +140,7 @@ void Interrupt(int ply) {
         move_number = save_move_number;
         if (result >= 2) {
           if (thinking && result != 3)
-            Print(128, "command not legal now.\n");
+            Print(32, "command not legal now.\n");
           else {
             abort_search = 2;
             input_status = 2;
@@ -146,8 +165,8 @@ void Interrupt(int ply) {
  */
         else if (!result) {
           if (pondering) {
-            nargs = ReadParse(buffer, args, " 	;");
-            temp = InputMove(tree, args[0], 0, Flip(root_wtm), 1, 1);
+            nargs = ReadParse(buffer, args, " \t;");
+            temp = InputMove(tree, 0, Flip(root_wtm), 1, 1, args[0]);
             if (temp) {
               if ((From(temp) == From(ponder_move))
                   && (To(temp) == To(ponder_move))
@@ -160,7 +179,7 @@ void Interrupt(int ply) {
                 thinking = 1;
                 opponent_end_time = ReadClock();
                 program_start_time = ReadClock();
-                Print(128, "predicted move made.\n");
+                Print(32, "predicted move made.\n");
               } else {
                 input_status = 2;
                 abort_search = 2;

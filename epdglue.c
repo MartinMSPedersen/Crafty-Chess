@@ -44,32 +44,32 @@ typedef siT egcommT, *egcommptrT;
 
 #  define egcommL 26
 #  define egcomm_nil (-1)
-#  define egcomm_epdapgn  0     /* append a PGN game to a file */
-#  define egcomm_epdbfix  1     /* fix file for Bookup import */
-#  define egcomm_epdcert  2     /* display certain evaluation (if possible) */
-#  define egcomm_epdcics  3     /* slave to an Internet Chess Server */
-#  define egcomm_epdcomm  4     /* slave to the Duplex referee program */
-#  define egcomm_epddpgn  5     /* display the current game in PGN */
-#  define egcomm_epddsml  6     /* display SAN move list */
-#  define egcomm_epddstr  7     /* display PGN Seven Tag Roster */
-#  define egcomm_epddtpv  8     /* display PGN tag pair value */
-#  define egcomm_epdenum  9     /* enumerate EPD file */
-#  define egcomm_epdhelp 10     /* display EPD help */
-#  define egcomm_epdlink 11     /* slave to the Argus referee program */
-#  define egcomm_epdlpgn 12     /* load a PGN game from a file */
-#  define egcomm_epdlrec 13     /* load an EPD record form a file */
-#  define egcomm_epdmore 14     /* more help */
-#  define egcomm_epdnoop 15     /* no operation */
-#  define egcomm_epdpfdn 16     /* process file: data normalization */
-#  define egcomm_epdpfdr 17     /* process file: data repair */
-#  define egcomm_epdpfga 18     /* process file: general analysis */
-#  define egcomm_epdpflc 19     /* process file: locate cooks */
-#  define egcomm_epdpfop 20     /* process file: operation purge */
-#  define egcomm_epdscor 21     /* score EPD benchmark result file */
-#  define egcomm_epdshow 22     /* show EPD four fields for current position */
-#  define egcomm_epdspgn 23     /* save a PGN game to a file */
-#  define egcomm_epdstpv 24     /* set PGN tag pair value */
-#  define egcomm_epdtest 25     /* developer testing */
+#  define egcomm_epdapgn  0 /* append a PGN game to a file */
+#  define egcomm_epdbfix  1 /* fix file for Bookup import */
+#  define egcomm_epdcert  2 /* display certain evaluation (if possible) */
+#  define egcomm_epdcics  3 /* slave to an Internet Chess Server */
+#  define egcomm_epdcomm  4 /* slave to the Duplex referee program */
+#  define egcomm_epddpgn  5 /* display the current game in PGN */
+#  define egcomm_epddsml  6 /* display SAN move list */
+#  define egcomm_epddstr  7 /* display PGN Seven Tag Roster */
+#  define egcomm_epddtpv  8 /* display PGN tag pair value */
+#  define egcomm_epdenum  9 /* enumerate EPD file */
+#  define egcomm_epdhelp 10 /* display EPD help */
+#  define egcomm_epdlink 11 /* slave to the Argus referee program */
+#  define egcomm_epdlpgn 12 /* load a PGN game from a file */
+#  define egcomm_epdlrec 13 /* load an EPD record form a file */
+#  define egcomm_epdmore 14 /* more help */
+#  define egcomm_epdnoop 15 /* no operation */
+#  define egcomm_epdpfdn 16 /* process file: data normalization */
+#  define egcomm_epdpfdr 17 /* process file: data repair */
+#  define egcomm_epdpfga 18 /* process file: general analysis */
+#  define egcomm_epdpflc 19 /* process file: locate cooks */
+#  define egcomm_epdpfop 20 /* process file: operation purge */
+#  define egcomm_epdscor 21 /* score EPD benchmark result file */
+#  define egcomm_epdshow 22 /* show EPD four fields for current position */
+#  define egcomm_epdspgn 23 /* save a PGN game to a file */
+#  define egcomm_epdstpv 24 /* set PGN tag pair value */
+#  define egcomm_epdtest 25 /* developer testing */
 /* output text buffer */
 #  define tbufL 256
 static char tbufv[tbufL];
@@ -512,7 +512,7 @@ void EGPutHostPosition(void) {
   move_number = fmvn;
 /* set secondary host data items */
   SetChessBitBoards(tree);
-  tree->rep_index = 0;
+  rep_index = 0;
   tree->rep_list[0] = HashKey;
   moves_out_of_book = 0;
   last_mate_score = 0;
@@ -697,13 +697,13 @@ static epdptrT EGCommHandler(epdptrT epdptr0, siptrT flagptr) {
     case refcom_execute:
 /* execute the supplied move */
       eopptr = EPDLocateEOPCode(epdptr0, epdso_sm);
-      move = InputMove(tree, eopptr->eop_headeov->eov_str, 0, game_wtm, 0, 0);
+      move = InputMove(tree, 0, game_wtm, 0, 0, eopptr->eop_headeov->eov_str);
       if (history_file) {
         fseek(history_file, ((((move_number - 1) * 2) + 1 - game_wtm) * 10),
             SEEK_SET);
         fprintf(history_file, "%9s\n", eopptr->eop_headeov->eov_str);
       }
-      MakeMoveRoot(tree, move, game_wtm);
+      MakeMoveRoot(tree, game_wtm, move);
       game_wtm = Flip(game_wtm);
       if (game_wtm)
         move_number++;
@@ -739,13 +739,13 @@ static epdptrT EGCommHandler(epdptrT epdptr0, siptrT flagptr) {
       eopptr = EPDLocateEOPCode(epdptr0, epdso_sm);
       if (eopptr != NULL) {
         move =
-            InputMove(tree, eopptr->eop_headeov->eov_str, 0, game_wtm, 0, 0);
+            InputMove(tree, 0, game_wtm, 0, 0, eopptr->eop_headeov->eov_str);
         if (history_file) {
           fseek(history_file, ((((move_number - 1) * 2) + 1 - game_wtm) * 10),
               SEEK_SET);
           fprintf(history_file, "%9s\n", eopptr->eop_headeov->eov_str);
         }
-        MakeMoveRoot(tree, move, game_wtm);
+        MakeMoveRoot(tree, game_wtm, move);
         game_wtm = Flip(game_wtm);
         if (game_wtm)
           move_number++;
@@ -769,7 +769,7 @@ static epdptrT EGCommHandler(epdptrT epdptr0, siptrT flagptr) {
 /* search */
         EGIterate((siT) game_wtm, (siT) think);
 /* process search result */
-        strcpy(tv, OutputMove(tree, last_pv.path[1], 0, game_wtm));
+        strcpy(tv, OutputMove(tree, 0, game_wtm, last_pv.path[1]));
         move = last_pv.path[1];
 /* locate SAN move */
         mptr = EPDSANDecodeAux(tv, 0);
@@ -782,7 +782,7 @@ static epdptrT EGCommHandler(epdptrT epdptr0, siptrT flagptr) {
           fprintf(history_file, "%9s\n", san);
         }
 /* update host position */
-        MakeMoveRoot(tree, move, game_wtm);
+        MakeMoveRoot(tree, game_wtm, move);
         game_wtm = Flip(game_wtm);
         if (game_wtm)
           move_number++;
@@ -1489,7 +1489,7 @@ static siT EGProcessMORE(void) {
         EGPL("development purposes.");
         break;
       case egcomm_epdpfdn:
-        EGPL("epdpfdn:  Process file: data normalization");
+        EGPL("epdpfdn: Process file: data normalization");
         EGPL("");
         EGPL("This command takes two parameters.  The first is the name of");
         EGPL("an input EPD data file.  The second is the name of the EPD");
@@ -1498,7 +1498,7 @@ static siT EGProcessMORE(void) {
         EGPL("representation for each EPD input record.");
         break;
       case egcomm_epdpfdr:
-        EGPL("epdpfdr:  Process file: data repair");
+        EGPL("epdpfdr: Process file: data repair");
         EGPL("");
         EGPL("This command takes two parameters.  The first is the name of");
         EGPL("an input EPD data file.  The second is the name of the EPD");
@@ -1508,7 +1508,7 @@ static siT EGProcessMORE(void) {
         EGPL("effort affects the am, bm, pm, pv, sm, and sv operations.");
         break;
       case egcomm_epdpfga:
-        EGPL("epdpfga:  Process file: general analysis");
+        EGPL("epdpfga: Process file: general analysis");
         EGPL("");
         EGPL("This command takes two parameters.  The first is the name of");
         EGPL("an input EPD data file.  The second is the name of the EPD");
@@ -1517,7 +1517,7 @@ static siT EGProcessMORE(void) {
         EGPL("contained in the acd, acn, acs, ce, and pv operations.");
         break;
       case egcomm_epdpflc:
-        EGPL("epdpflc:  Process file: locate cooks");
+        EGPL("epdpflc: Process file: locate cooks");
         EGPL("");
         EGPL("This command is used to scan an EPD file and report on any");
         EGPL("checkmating cooks.  The signle parameter is the name of the");
@@ -1529,7 +1529,7 @@ static siT EGProcessMORE(void) {
         EGPL("then the record is reported as a cook.");
         break;
       case egcomm_epdpfop:
-        EGPL("epdpfop:  Process file: operation purge");
+        EGPL("epdpfop: Process file: operation purge");
         EGPL("");
         EGPL("This command takes threee parameters.  The first is the name");
         EGPL("of an EPD operation mnemonic to be purged.  The second is the");
@@ -1538,7 +1538,7 @@ static siT EGProcessMORE(void) {
         EGPL("from the input file.");
         break;
       case egcomm_epdscor:
-        EGPL("epdscor:  Score EPD analysis file");
+        EGPL("epdscor: Score EPD analysis file");
         EGPL("");
         EGPL("This command takes one parameter.  It is the name of an input");
         EGPL("EPD data file containing analysis result data.  The input");
@@ -1546,7 +1546,7 @@ static siT EGProcessMORE(void) {
         EGPL("displayed.");
         break;
       case egcomm_epdshow:
-        EGPL("epdshow:  Show EPD four fields for the current position");
+        EGPL("epdshow: Show EPD four fields for the current position");
         EGPL("");
         EGPL("This command takes no parameters.  It causes the EPD four");
         EGPL("data fields for the current position to be displayed.");
@@ -1572,7 +1572,7 @@ static siT EGProcessMORE(void) {
         EGPL("received value.");
         break;
       case egcomm_epdtest:
-        EGPL("epdtest:  Developer testing");
+        EGPL("epdtest: Developer testing");
         EGPL("");
         EGPL("This command takes no parameters.  It is used for developer");
         EGPL("testing purposes.");
@@ -1705,7 +1705,7 @@ static siT EGProcessPFGA(void) {
           if (((eopptr = EPDLocateEOPCode(epdptr, epdso_id)) != NULL)
               && ((eovptr = eopptr->eop_headeov) != NULL)
               && ((s = eovptr->eov_str) != NULL)) {
-            EGPrint("   ID: ");
+            EGPrint(" ID: ");
             EGPrint(s);
           };
           EGPrint("\n");
@@ -1722,7 +1722,7 @@ static siT EGProcessPFGA(void) {
           EGPutHostPosition();
 /* set host search parameters */
           tree->status[1] = tree->status[0];
-          iteration_depth = 0;
+          iteration = 0;
           ponder = 0;
 /* get the starting time */
           start_time = time(NULL);
@@ -1731,7 +1731,7 @@ static siT EGProcessPFGA(void) {
 /* refresh the EPD Kit current position */
           EGGetHostPosition();
 /* extract analysis count: depth */
-          host_acd = iteration_depth;
+          host_acd = iteration;
           if (host_acd == 0)
             host_acd = 1;
 /* insert analysis count: depth */

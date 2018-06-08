@@ -45,27 +45,27 @@ void Pause() {
 static void __inline__ LockX86(volatile int *lock) {
   int dummy;
   asm __volatile__(
-      "1:          movl    $1, %0"   "\n\t"
-      "            xchgl   (%1), %0" "\n\t"
-      "            testl   %0, %0"   "\n\t"
-      "            jz      3f"       "\n\t"
-      "2:          pause"            "\n\t"
-      "            movl    (%1), %0" "\n\t"
-      "            testl   %0, %0"   "\n\t"
-      "            jnz     2b"       "\n\t"
-      "            jmp     1b"       "\n\t"
-      "3:"                           "\n\t"
+      "1:          movl    $1, %0"          "\n\t"
+      "            xchgl   (%1), %0"        "\n\t"
+      "            testl   %0, %0"          "\n\t"
+      "            jz      3f"              "\n\t"
+      "2:          pause"                   "\n\t"
+      "            movl    (%1), %0"        "\n\t"
+      "            testl   %0, %0"          "\n\t"
+      "            jnz     2b"              "\n\t"
+      "            jmp     1b"              "\n\t"
+      "3:"                                  "\n\t"
       :"=&q"(dummy)
       :"q"(lock)
       :"cc", "memory");
 }
 static void __inline__ Pause() {
   asm __volatile__(
-      "            pause"            "\n\t");
+      "            pause"                   "\n\t");
 }
 static void __inline__ UnlockX86(volatile int *lock) {
   asm __volatile__(
-      "movl    $0, (%0)"
+      "movl        $0, (%0)"
       :
       :"q"(lock)
       :"memory");
@@ -82,6 +82,6 @@ static void __inline__ UnlockX86(volatile int *lock) {
 #  define LockFree(p)
 #  define Lock(p)
 #  define Unlock(p)
-#  define lock_t volatile int
-#endif                          /*  SMP code */
+#  define lock_t                volatile int
+#endif /*  SMP code */
 /* *INDENT-ON* */

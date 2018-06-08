@@ -1,33 +1,29 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 06/23/14 */
+/* last modified 08/15/15 */
 /*
  *******************************************************************************
  *                                                                             *
  *   History() is used to maintain the two killer moves for each ply.  The     *
  *   most recently used killer is always first in the list.                    *
  *                                                                             *
+ *   History() also maintains two counter-moves.  These are moves that are     *
+ *   directly used to refute a specific move at the previous ply, rather than  *
+ *   just a plain killer that has caused cutoffs previously.                   *
+ *                                                                             *
+ *   History() finally remembers two moves that were played after a specific   *
+ *   move at ply-2 (ie the two moves together create some sort of "plan".)     *
+ *                                                                             *
  *   History() also maintains the history counters.  Each time a move fails    *
- *   high, it's history count is incremented by depth * depth.  All the moves  *
- *   prior to that move have their history counters decremented by the 2x that *
- *   amount, so that likely fail-high moves get searched first.                *
+ *   high, it's history count is increased, while all other moves that were    *
+ *   searched will have their counts reduced.  The current counter is a        *
+ *   saturating counter in the range 0 <= N <= 2047.                           *
  *                                                                             *
  *******************************************************************************
  */
 void History(TREE * RESTRICT tree, int ply, int depth, int side, int move,
-    int searched[], int count) {
-  int i, index, age = 0;
-/*
- ************************************************************
- *                                                          *
- *  If the best move so far is a capture or a promotion,    *
- *  return, since we try good captures and promotions       *
- *  before searching killer heuristic moves anyway.         *
- *                                                          *
- ************************************************************
- */
-  if (CaptureOrPromote(move))
-    return;
+    int searched[]) {
+  int i, index, mindex;
 /*
  ************************************************************
  *                                                          *
@@ -36,25 +32,69 @@ void History(TREE * RESTRICT tree, int ply, int depth, int side, int move,
  *  list, leave it there, otherwise move the first one down *
  *  to slot two and insert this move into slot one.         *
  *                                                          *
+ *  If the best move so far is a capture or a promotion,    *
+ *  we skip updating the killers (but still update history  *
+ *  information) since we search good captures first, which *
+ *  happens before killers are tried, making capture moves  *
+ *  useless here.                                           *
+ *                                                          *
+ *  The update value does not depend on depth.  I used a    *
+ *  function of depth for years, but as I examined more and *
+ *  more trees, that seemed to be lacking because it gives  *
+ *  a really large bias towards moves that work near the    *
+ *  root, while most of the nodes searched are near the     *
+ *  tips.  One unusual characteristic of this counter is    *
+ *  that it is a software-based saturating counter.  That   *
+ *  is, it can never exceed 2047, nor can it ever drop      *
+ *  below zero.                                             *
+ *                                                          *
  ************************************************************
  */
-  if (tree->killers[ply].move1 != move) {
-    tree->killers[ply].move2 = tree->killers[ply].move1;
-    tree->killers[ply].move1 = move;
-  }
+  if (!CaptureOrPromote(move)) {
+    if (tree->killers[ply].move1 != move) {
+      tree->killers[ply].move2 = tree->killers[ply].move1;
+      tree->killers[ply].move1 = move;
+    }
+/*
+ ************************************************************
+ *                                                          *
+ *  Set the counter-move for the move at the previous ply   *
+ *  to be this move that caused the fail-high.              *
+ *                                                          *
+ ************************************************************
+ */
+    if (counter_move[tree->curmv[ply - 1] & 4095].move1 != move) {
+      counter_move[tree->curmv[ply - 1] & 4095].move2 =
+          counter_move[tree->curmv[ply - 1] & 4095].move1;
+      counter_move[tree->curmv[ply - 1] & 4095].move1 = move;
+    }
+/*
+ ************************************************************
+ *                                                          *
+ *  Set the move-pair for the move two plies back so that   *
+ *  if we play that move again, we will follow up with this *
+ *  move to continue the "plan".                            *
+ *                                                          *
+ ************************************************************
+ */
+    if (ply > 2) {
+      if (move_pair[tree->curmv[ply - 2] & 4095].move1 != move) {
+        move_pair[tree->curmv[ply - 2] & 4095].move2 =
+            move_pair[tree->curmv[ply - 2] & 4095].move1;
+        move_pair[tree->curmv[ply - 2] & 4095].move1 = move;
+      }
+    }
 /*
  ************************************************************
  *                                                          *
  *  Adjust the history counter for the move that caused the *
- *  fail-high, limiting the max value to 2^20.              *
+ *  fail-high, limiting the max value to +2^20.             *
  *                                                          *
  ************************************************************
  */
-  if (depth > 5) {
-    index = HistoryIndex(move);
-    history[side][index] += depth * depth;
-    if (history[side][index] > (1 << 20))
-      age = 1;
+    if (depth > 5) {
+      mindex = HistoryIndex(side, move);
+      history[mindex] += (2048 - history[mindex]) >> 5;
 /*
  ************************************************************
  *                                                          *
@@ -64,44 +104,11 @@ void History(TREE * RESTRICT tree, int ply, int depth, int side, int move,
  *                                                          *
  ************************************************************
  */
-    for (i = 0; i < count; i++) {
-      index = HistoryIndex(searched[i]);
-      history[side][index] -= depth * depth * 2;
-      if (history[side][index] <= (-1 << 20))
-        age = 1;
+      for (i = 1; i <= searched[0]; i++) {
+        index = HistoryIndex(side, searched[i]);
+        if (index != mindex)
+          history[index] -= history[index] >> 5;
+      }
     }
-/*
- ************************************************************
- *                                                          *
- *  If any value reached +/-2^20, we divide all entries for *
- *  this side by 4 so that they don't threaten to wrap      *
- *  around which would wreck the counters.                  *
- *                                                          *
- ************************************************************
- */
-    if (age)
-      for (i = 0; i < 512; i++)
-        history[side][i] = history[side][i] >> 4;
   }
-}
-
-/* last modified 06/23/14 */
-/*
- *******************************************************************************
- *                                                                             *
- *   HistoryAge() is used to age the history data.  Since we use saturating    *
- *   counters (counters reach 2^16 and stop increasing, or -2^16 and stop      *
- *   decreasing, we want to prevent counters from reaching some high value     *
- *   and being accessed rarely, but then giving a bogus impression about how   *
- *   good or bad the move is.  We do this at the start of a new search (not a  *
- *   new iteration) and we divide every value by 256.                          *
- *                                                                             *
- *******************************************************************************
- */
-void HistoryAge() {
-  int side, i;
-
-  for (side = black; side <= white; side++)
-    for (i = 0; i < 512; i++)
-      history[side][i] = history[side][i] / 256;
 }

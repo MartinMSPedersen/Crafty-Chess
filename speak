@@ -3,27 +3,33 @@
 # Announce a move from Crafty using some soundfiles
 #
 
-# The program used for Sound Output
-my $playprg   = "/usr/bin/esdplay";
-
-# Where the sound files are located
-#my $soundpath = "/opt/chess/sound";
-my $soundpath = "/home/hyatt/crafty/sound";
-# Which language to use (each supported language is in a separate
-# subdir of $soundpath)
-my $language  = "english";
-
 # The move sent by crafty
 my $move      = $ARGV[0];
 
-# Set soundpath to the correct language
-$soundpath = $soundpath . "/" . $language;
-
 # First check some specials
-if (($move =~ /O-O/) || ($move eq "Stalemate") ||
-    ($move eq "Drawaccept") || ($move eq "Drawoffer") ||
-    ($move eq "Resign") || ($move eq "Checkmate")) {
-  system("$playprg $soundpath/$move.wav");
+if ($move eq "O-O") {
+  system("say castle king side");
+}
+elsif ($move eq "O-O-O") {
+  system("say castle queen side");
+}
+elsif ($move eq "Stalemate") {
+  system("say stalemate");
+}
+elsif ($move eq "Drawaccept") {
+  system("say I accept your draw offer");
+}
+elsif ($move eq "Drawdecline") {
+  system("say I decline your draw offer");
+}
+elsif ($move eq "Drawoffer") {
+  system("say I offer a draw");
+}
+elsif ($move eq "Resign") {
+  system("say I resign");
+}
+elsif ($move eq "Checkmate") {
+  system("say checkmate");
 }
 # Handle all normal moves. All that needs to be done is announce
 # each character sent by crafty alone. Set some pause beteween each
@@ -45,17 +51,34 @@ else {
     my $char = substr $move, $i, 1;
     if ($char =~ /[^=]/) {
       if ($char =~ /x/) {
-        system("$playprg $soundpath/x.wav");
-        system("usleep 400000");
+        system("say takes");
       }
       elsif ($char =~ /#/) {
-        system("$playprg $soundpath/Checkmate.wav");
+        system("say checkmate");
       }
       elsif ($char =~ /\+/) {
-        system("$playprg $soundpath/Check.wav");
+        system("say check");
+      }
+      elsif ($char eq "B") {
+        system("say bishop");
+      }
+      elsif ($char eq "K") {
+        system("say king");
+      }
+      elsif ($char eq "N") {
+        system("say knight");
+      }
+      elsif ($char eq "P") {
+        system("say pawn");
+      }
+      elsif ($char eq "Q") {
+        system("say queen");
+      }
+      elsif ($char eq "R") {
+        system("say rook");
       }
       else {
-        system("$playprg $soundpath/$char".".wav");
+        system("say $char");
       }
     }
   }

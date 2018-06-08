@@ -5,6 +5,7 @@ adaptive NPS a b c d........... enables adaptive hash mode.
 alarm on|off................... turns audible alarm on/off.
 analyze........................ analyze a game in progress.
 annotate....................... annotate game
+autotune....................... SMP search tuning (help autotune for details)
 batch on|off................... on disables async I/O for batch file usage
 bench.......................... runs performance benchmark.
 black.......................... sets black to move.
@@ -15,9 +16,11 @@ display........................ displays chess board.
 display [n].................... sets display options
 draw accept|decline............ decline always declines.
 draw offer|nooffer............. nooffer never offers a draw.
+draw dynamic <0|1>............. enables/disables dynamic draw scores.
 echo........................... echos output to display.
 edit........................... edit board position.
 egtb........................... enables endgame database probes.
+egtbd.......................... set min remaining depth to allow probes.
 epdhelp........................ info about EPD facility.
 end............................ terminates program.
 evaluation..................... adjust evaluation terms.
@@ -25,6 +28,7 @@ exit........................... restores STDIN to keyboard.
 force move..................... forces specific move.
 hash n......................... sets transposition table size.
                                  (n bytes, nK bytes or nM bytes).
+hashe n........................ sets eval hash table size.
 hashp n........................ sets pawn hash table size.
 history........................ display game moves.
 import filename................ imports learning data (.lrn files).
@@ -45,6 +49,7 @@ mode normal|tournament......... toggles tournament mode.
 move........................... initiates search (same as go).
 name........................... sets opponent's name.
 new............................ initialize and start new game.
+null m n....................... null move R = M + depth / n.
 noise n........................ no status until n nodes searched.
 operator seconds............... sets operator time per move.
 output long|short.............. sets move display format to long or SAN
@@ -67,6 +72,9 @@ resign m n..................... set resign threshold to m pawns.
 savegame [filename]............ saves game in PGN format (to filename).
 savepos [filename]............. saves position in FEN string (to filename).
 score.......................... print evaluation of position.
+screen [filename] margin....... screen a file of EPD positions by searching them
+                                and culling positions with score outside the
+                                window {-margin, margin} (use st=n to set time)
 sd n........................... sets absolute search depth.
 search move.................... search specified move only.
 selective min max.............. set null move depths.
@@ -74,12 +82,7 @@ setboard FEN................... sets board position to FEN position.
 settc.......................... set time controls.
 show book...................... toggle book statistics.
 skill n........................ set skill level to n
-smpgroup....................... sets max threads allowed at one node.
-smpmin......................... sets min remaining depth to split search.
-smpmt.......................... sets number of thread (CPUS) to use.
-smpnice........................ sets kill or keep threads.
-smproot........................ sets whether or not to split at root.
-smpsn.......................... sets min nodes before a new thread can split
+smp............................ sets SMP parameters (help smp for details)
 sn n........................... sets absolute search node limit.
 speech on|off.................. enables (disables) audio output.
 st n........................... sets absolute search time.
@@ -144,6 +147,47 @@ where analysis was displayed.
 
 Using "annotatet" will cause the output to be written in a LaTex (.tex)
 format.
+<end>
+
+<autotune>
+The autotune command can be used to configure various SMP search parameters 
+for your specific hardware and target time limit.  Note that before you run
+this command, you MUST set the max number of threads you want to use (most
+likely the number of physical processor cores on your machine.)  Crafty 
+actually runs a parallel search over a small set of positions repeatedly, and
+to properly tune things, it needs to use the max configuration you will ever
+want to use.  If you forget, autotune will refuse to run.  The command is:
+
+autotune <time> <accuracy>
+
+The <time> argument tunes the parallel search stuff for this time limit.  The
+only real place where this might be useful is for very fast vs very slow time
+limits, since a fast search probably needs to be a bit more aggressive if it
+is going to have any hope of using multiple threads.  Once you get to a time
+limit of 30 - 60 seconds, going further wont help at all and can GREATLY
+increase the run-time of the automatic tuning code.
+
+<accuracy> is simply a number that tells Crafty how many times to run a test
+for a specific tuning option.  It will run this many tests and then use the
+average of the run times for the timing value.  Four (4) provides pretty
+good accuracy, anything less than four often runs afoul of SMP non-determinism
+and it can make wrong decisions.  8-16 are better but these will take some time
+to run so be prepared.  Crafty will give you an estimate of the expected run-
+time once it calibrates the benchmark to the time limit you specified.
+
+Once AutoTune() finishes, it will append the necessary commands to the .craftyrc
+file to set the optimal values for each option.  If you run this multiple times,
+you will accumulate cruft at the bottom of the .craftyrc file.  Since the last
+commands override the earlier ones, it will work, but if you do run it more than
+once you might consider an edit to clean it up.
+
+This can burn some time so it is an ideal command to run overnight where you can
+crank up accuracy and get pretty optimal settings.
+
+Note:  This is more effective for larger numbers of threads/cores.  On a machine
+with 8 or fewer cores, the default values are probably as good as anything.  But
+as the number of cores climbs, autotune can find better settings depending on 
+the hardware.
 <end>
 
 <book>
@@ -253,17 +297,32 @@ yourself, that will work as well, but it is more prone to errors.
 
 
 <display>
-display changes   -> display variation when it changes.
-display extstats  -> display search extension statistics.
-display general   -> display general info messages.
-display hashstats -> display search hashing statistics.
-display movenum   -> display move numbers in PV.
-display moves     -> display moves as they are searched.
-display movelist  -> display move list after each iteration.
+display moveinfo  -> display move time/results/etc.
+display pv        -> display principal variation.
+display fail      -> display fail high / low moves.
+display stats     -> display search statistics.
+display moves     -> display root moves as they are searched.
+display info      -> display general information messages.
 display ply1      -> display ply-1 move list/sorting info.
-display stats     -> display basic search statistics.
-display time      -> display time for moves.
-display variation -> display variation at end of iteration.
+display movelist  -> display move list after each iteration.
+
+For the above options, they can be preceded by a "no" to disable them, or
+omit the "no" to enable them.  "display all" will show all current display
+settings
+<end>
+
+<draw>
+draw offer|nooffer determines whether Crafty will automatically offer
+draws when it believes that result is appropriate.
+
+draw accept|decline determines whether Crafty will automatically accept
+draw offers when they are made, or if it will automatically decline them
+no matter what the current score is.
+
+draw dynamic 1|0 enables(disables) dynamic draw score computation based on
+the rating difference between Crafty and the opponent (usually obtained by
+the "rating" command from xboard.  If set to 0, this is disabled and the
+default draw score (aka contempt factor) is set to zero (0).
 <end>
 
 <lists>
@@ -370,6 +429,22 @@ the opponent out of book, and he spends a significant amount of time
 thinking and plays a pretty obvious move.  Since we ponder the best move
 of his that we don't have a book move for, we have a good chance of 
 pondering the right move and saving time on our clock.
+<end>
+
+<mode>
+null <min> <divisor>
+
+This command allows you to customize the null-move search parameters.  The
+formula Crafty uses is as follows:
+
+  R = <min> + depth / <divisor>
+
+The default values are 3 and 10.  When remaining depth is < 10, the R value
+is 3.  If remaining depth is > 10 and < 19, R=4, and so forth.  Smaller
+divisor values make R ramp up quicker and the null-move pruning will become
+more aggressive.  Overall depth will increase pretty quickly, but this can
+also hide certain types of tactics as well, so going too far turns out to
+be dangerous.
 <end>
 
 <personality>
@@ -532,26 +607,107 @@ if you choose to not use the operator time and fudge the chess clock time
 yourself, that will work as well, but it is more prone to errors.
 <end>
 
-<test>
-test filename [N]
+<smp>
+smp commands are used to control the SMP search.  
 
-Test is used to run a suite of "crafty format" test positions in a batch
-run.  filename is the name of the file in crafty test format.  [N] is
-an optional parameter that is used to shorten the test time.  If crafty
-likes the solution move for [N] consecutive iterations, it will stop
-searching that position and consider it correct.  This makes a Win At
-Chess 60 second run take under 1/2 hour, for example.  The "crafty format"
-requires three lines per position.  The first line must be a "title" line
-and is used to identify each position.  The second line is a "setboard"
-command to set the position.  The third line is a line that begins with
-"solution", and then is followed by one or more solution moves.  If a
-position is correct only if a particular move or moves is *not* played,
-enter the move followed by a "?", as in Nf3?, which means that this
-position will be counted as correct only if Nf3 is not played.
+smpaffinity <off|n> is used to enable or disable processor affinity.  "off"
+disables affinity and lets threads run on any available core.  If you use an
+integer <n> then thread zero will bind itself to cpu <n> and each additional
+thread will bind to the next higher cpu number.  This is useful if you try to
+run two copies of crafty on the same machine, now you can cause one to bind
+to the first <n> cores, and the second to the last <n> cores.  For the first
+instance of Crafty, you would use smpaffinity=0, and for the second
+smpaffinity=8, assuming you are running 8 threads per copy on a 16 cpu machine.
+If you get this wrong, you can have more than one thread on the same cpu which
+will significantly impact performance.              
+
+smpmt <n> sets the total number of allowable threads for the search.  The
+default is one (1) as Crafty does not assume it should use all available
+resources.  For optimal performance this should be set to the number of
+physical cores your machine has, which does NOT include hyperthreaded cores.
+                            
+smpgroup <n> sets the maximum number of threads at any single split point to
+<n>, with the exception of split points fairly close to the root  where ALL
+threads are allowed to split together ignoring this limit.  Note that this is
+ignored in the first 1/2 of the tree (the nodes closer to the root).  There
+it is actually good to split and get all active threads involved.
+
+smpmin <n> avoids splitting when remaining depth < n.  This is used to balance
+splitting overhead cost against the speed gain the parallel search produces.
+The default is currently 5 (which could change with future generations of
+Intel hardware) but values between 4 and 8 will work.  Larger values allow
+somewhat fewer splits, which reduces overhead, but it also increases the
+percentage of the time where a thread is waiting on work.
+                   
+smproot <n> enables (1) or disables (0) splitting the tree at the root.  This
+defaults to 1 which produces the best performance by a signficiant margin. 
+But it can be disabled if you are playing with code changes.
+
+smpnice <1/0> enables or disables the "nice facility".  With smpnice=1, at the
+end of a search (non-pondering) the extra threads will terminate rather than sit
+in a busy spin loop burning cpu cycles.  smpnice=0 is slightly more efficient
+but will result in 100% of the machine being used whether the search is running
+or waiting on input.
+
+smpnodes <n> sets the number of NUMA nodes on your hardware.  This is used to
+try to split with threads on the same node when practical, to improve memory
+access time.
+
+smpgsd sets the minimum depth required to allow a gratuitous split.  A
+gratuitous split is a split done when no threads are idle, and is a sort of
+preemptive attempt to have work ready for processors as they become idle.  If
+this value is set too small, overhead will climb, if it is set too large, then
+gratuitous splits will be rare and thread wait time will climb.
+
+smpgsl sets the maximum number of gratuitous splits allowed per thread.  There
+is little point in having many split points that are not really being used, it
+adds to overhead without any real benefit.  If you are running on 32 cores, 
+then setting this beyond 4 will really be massive overkill since any of the 32
+threads will be able to spontaneously split up to N times each, for a total of
+32 * N gratuitous splits.  That's probably excessive.
+<end>
+
+<test>
+test filename [N] [unsolved_file]
+
+Test is used to run a suite of test positions in a batch run.  filename is
+the name of the file in crafty test format.  [N] is an optional parameter
+that is used to shorten the test time.  If crafty likes the solution move
+for [N] consecutive iterations, it will stop searching that position and
+consider it correct.  This makes a Win At Chess 60 second run take just a few
+minutes, for example.  
+
+The "crafty format" requires three lines per position.  The first line must
+be a "title" line and is used to identify each position.  The second line is
+a "setboard" command to set the position.  The third line is a line that
+begins with "solution", and then is followed by one or more solution moves.
+If a position is correct only if a particular move or moves is *not* played,
+enter the move followed by a "?", as in Nf3?, which means that this position
+will be counted as correct only if Nf3 is not played.
 
 Note that this command may refer to a normal EPD test file as well and 
 Crafty will run that test in the same way, but Crafty will notice it is an
 EPD test file rather than a "crafty" test file and handle it appropriately.
+
+A new option to this command is of the form "test filename <margin>" where
+<margin> is greater than 10 (which means it will not be an early exit counter.)
+In this case, Crafty takes that value as a score margin.  It will read in the
+FEN/EPD records silently, do a search, and if the absolute value of the final
+score is less than <margin>, the FEN/EPD is written to a new file,
+"filename.screened".  I use this to create an opening position file for
+cluster testing where I can create a set of positions using the -DPOSITIONS
+compile option, and then test the resulting "openings.epd" file that creates
+to cull those that are too unbalanced so that the same side wins no matter
+what the skill level.
+
+The [unsolved_file] parameter is optional.  If specified, any position that is
+not solved is written to this file so that you can extract "hard" positions and
+use just those for testing later to save time.  At one second per move on a
+slow machine, the WAC test positions (300) will produce maybe 15 unsolved
+positions.  On good hardware, it might miss five or less.  At 5 seconds per 
+move, it will usually miss maybe 2-3.  At 60 seconds per move, it will 
+generally only miss #230 which appears to have no solution after much computer
+analysis (the supposed winning move also draws).
 <end>
 
 <time>

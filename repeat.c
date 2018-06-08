@@ -1,6 +1,6 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 05/08/14 */
+/* last modified 04/29/15 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -32,7 +32,7 @@
  *******************************************************************************
  */
 int Repeat(TREE * RESTRICT tree, int ply) {
-  int where;
+  int where, count;
 
 /*
  ************************************************************
@@ -45,7 +45,7 @@ int Repeat(TREE * RESTRICT tree, int ply) {
  *                                                          *
  ************************************************************
  */
-  tree->rep_list[tree->rep_index + ply] = HashKey;
+  tree->rep_list[rep_index + ply] = HashKey;
   if (Reversible(ply) < 4)
     return 0;
   if (Reversible(ply) > 99)
@@ -65,10 +65,11 @@ int Repeat(TREE * RESTRICT tree, int ply) {
  *                                                          *
  ************************************************************
  */
-  for (where = tree->rep_index + ply - 2; where >= ply - Reversible(ply) - 2;
-      where -= 2)
+  count = Reversible(ply) / 2 - 1;
+  for (where = rep_index + ply - 4; count; where -= 2, count--) {
     if (HashKey == tree->rep_list[where])
       return 1;
+  }
   return 0;
 }
 
@@ -85,7 +86,7 @@ int Repeat(TREE * RESTRICT tree, int ply) {
  *******************************************************************************
  */
 int Repeat3x(TREE * RESTRICT tree) {
-  int reps, where;
+  int reps = 0, where;
 
 /*
  ************************************************************
@@ -108,8 +109,7 @@ int Repeat3x(TREE * RESTRICT tree) {
  *                                                          *
  ************************************************************
  */
-  reps = 0;
-  for (where = tree->rep_index % 2; where < tree->rep_index; where += 2)
+  for (where = rep_index % 2; where < rep_index; where += 2)
     if (HashKey == tree->rep_list[where])
       reps++;
   return reps == 2;

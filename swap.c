@@ -5,30 +5,29 @@
  *******************************************************************************
  *                                                                             *
  *   Swap() is used to analyze capture moves to see whether or not they appear *
- *   to be profitable.  The basic algorithm is extremely fast since it uses the*
- *   bitmaps to determine which squares are attacking the [target] square.     *
+ *   to be profitable.  The basic algorithm is extremely fast since it uses    *
+ *   the bitmaps to determine which squares are attacking the [target] square. *
  *                                                                             *
- *   The algorithm is quite simple.  Using the attack bitmaps, we enumerate all*
- *   the pieces that are attacking [target] for either side.  Then we simply   *
- *   use the lowest piece (value) for the correct side to capture on [target]. *
- *   we continually "flip" sides taking the lowest piece each time.            *
+ *   The algorithm is quite simple.  Using the attack bitmaps, we enumerate    *
+ *   all the pieces that are attacking [target] for either side.  Then we      *
+ *   simply use the lowest piece (value) for the correct side to capture on    *
+ *   [target]. we continually "flip" sides taking the lowest piece each time.  *
  *                                                                             *
- *   As a piece is used, if it is a sliding piece (pawn, bishop, rook or queen)*
- *   we remove the piece, then generate moves of bishop/queen or rook/queen    *
- *   and then add those in to the attackers, removing any attacks that have    *
- *   already been used.                                                        *
+ *   As a piece is used, if it is a sliding piece (pawn, bishop, rook or       *
+ *   queen) we remove the piece, then generate moves of bishop/queen or        *
+ *   rook/queen and then add those in to the attackers, removing any attacks   *
+ *   that have already been used.                                              *
  *                                                                             *
  *******************************************************************************
  */
-int Swap(TREE * RESTRICT tree, int move, int wtm) {
+int Swap(TREE * RESTRICT tree, int wtm, int move) {
   uint64_t attacks, temp = 0, toccupied = OccupiedSquares;
   uint64_t bsliders =
       Bishops(white) | Bishops(black) | Queens(white) | Queens(black);
   uint64_t rsliders =
       Rooks(white) | Rooks(black) | Queens(white) | Queens(black);
   int attacked_piece, piece, nc = 1, swap_list[32];
-  int source = From(move);
-  int target = To(move);
+  int source = From(move), target = To(move);
 
 /*
  ************************************************************
@@ -115,14 +114,13 @@ int Swap(TREE * RESTRICT tree, int move, int wtm) {
  *                                                                             *
  *******************************************************************************
  */
-int SwapO(TREE * RESTRICT tree, int move, int wtm) {
+int SwapO(TREE * RESTRICT tree, int wtm, int move) {
   uint64_t attacks, temp = 0, toccupied = OccupiedSquares;
   uint64_t bsliders =
       Bishops(white) | Bishops(black) | Queens(white) | Queens(black);
   uint64_t rsliders =
       Rooks(white) | Rooks(black) | Queens(white) | Queens(black);
-  int attacked_piece, piece, nc = 1, swap_list[32];
-  int target = To(move);
+  int attacked_piece, piece, nc = 1, swap_list[32], target = To(move);
 
 /*
  ************************************************************

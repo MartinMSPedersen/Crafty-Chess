@@ -1,6 +1,7 @@
 #include "chess.h"
+#include "evaluate.h"
 #include "data.h"
-/* last modified 08/17/14 */
+/* last modified 11/27/15 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -18,17 +19,19 @@
 int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta) {
   PAWN_HASH_ENTRY *ptable;
   PXOR *pxtable;
-  int score, side, can_win = 3;
-  int phase, lscore, cutoff;
+  int score, side, can_win = 3, phase, lscore, cutoff;
+  int full = 0;
+  EVAL_HASH_ENTRY *etable;
+  uint64_t temp_hashkey;
 
 /*
- **********************************************************************
- *                                                                    *
- *  First thing we do is if -DSKILL was passed in as to the compiler, *
- *  we burn some time to slow the search down, then we fall into the  *
- *  normal evaluation code.                                           *
- *                                                                    *
- **********************************************************************
+ *************************************************************
+ *                                                           *
+ *  First thing we do is if -DSKILL was passed in to the     *
+ *  compiler, we burn some time to slow the search down,     *
+ *  then we fall into the normal evaluation code.            *
+ *                                                           *
+ *************************************************************
  */
 #if defined(SKILL)
   if (skill < 100) {
@@ -41,16 +44,33 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta) {
   }
 #endif
 /*
- **********************************************************************
- *                                                                    *
- *  Initialize.  If the meterial score is way below alpha or way      *
- *  above beta (way above means so far above it is very unlikely the  *
- *  positional score can bring the total score back into the alpha /  *
- *  beta window) then we take what is known as a "lazy evaluation     *
- *  exit" and avoid the computational cost of a full evaluation in a  *
- *  position where one side is way ahead or behind in material.       *
- *                                                                    *
- **********************************************************************
+ ************************************************************
+ *                                                          *
+ *  Next we check to see if this position has been handled  *
+ *  before.  If so, we can skip the work saved in the eval  *
+ *  hash table and just return the score found there.  Note *
+ *  that we only store FULL evaluations in the evaluation   *
+ *  hash, if an early (lazy) exit is taken, nothing is      *
+ *  stored.                                                 *
+ *                                                          *
+ ************************************************************
+*/
+  temp_hashkey = (wtm) ? HashKey : ~HashKey;
+  etable = eval_hash_table + (temp_hashkey & eval_hash_mask);
+  if (etable->key == temp_hashkey >> 32)
+    return etable->score;
+/*
+ *************************************************************
+ *                                                           *
+ *  Initialize.  If the meterial score is way below alpha or *
+ *  way above beta (way above means so far above it is very  *
+ *  unlikely the positional score can bring the total score  *
+ *  back into the alpha / beta window) then we take what is  *
+ *  known as a "lazy evaluation exit" and avoid the          *
+ *  computational cost of a full evaluation in a position    *
+ *  where one side is way ahead or behind in material.       *
+ *                                                           *
+ *************************************************************
  */
   cutoff = (TotalPieces(white, occupied) && TotalPieces(black, occupied))
       ? KNIGHT_VALUE : ROOK_VALUE;
@@ -64,44 +84,49 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta) {
   tree->score_eg = 0;
   EvaluateMaterial(tree, wtm);
 /*
- **********************************************************************
- *                                                                    *
- *  Check for draws where one side seems to be ahead, but has no      *
- *  actual winning chances.  One simple example is a king, bishop and *
- *  rook pawn, with the wrong colored bishop and the enemy king too   *
- *  close to the promotion square.                                    *
- *                                                                    *
- *  The variable "can_win" uses 2 bits.  If White can actually win in *
- *  this position, bit 1 is set.  If Black can actually win in this   *
- *  position, bit 0 is set.  If both sides can win, both bits are     *
- *  set.  This is used later to drag the score closer to a draw score *
- *  if the side with the better score can't actually win.             *
- *                                                                    *
- *  Note that we only set these bits in minimal material positions    *
- *  (both sides have < 13 points of material total).  Otherwise we    *
- *  assume normal scoring should apply.                               *
- *                                                                    *
- **********************************************************************
+ *************************************************************
+ *                                                           *
+ *  Check for draws where one side seems to be ahead, but    *
+ *  has no actual winning chances.  One simple example is a  *
+ *  king, bishop and rook pawn, with the wrong colored       *
+ *  bishop and the enemy king too close to the promotion     *
+ *  square.                                                  *
+ *                                                           *
+ *  The variable "can_win" uses 2 bits.  If White can        *
+ *  actually win in this position, bit 1 is set.  If Black   *
+ *  can actually win in this position, bit 0 is set.  If     *
+ *  both sides can win, both bits are set.  This is used     *
+ *  later to drag the score closer to a draw score if the    *
+ *  side with the better score can't actually win.           *
+ *                                                           *
+ *  Note that we only set these bits in minimal material     *
+ *  positions (both sides have < 13 points of material       *
+ *  total).  Otherwise we assume normal scoring should       *
+ *  apply.                                                   *
+ *                                                           *
+ *************************************************************
  */
   if (TotalPieces(white, occupied) < 13 && TotalPieces(black, occupied) < 13)
     for (side = black; side <= white; side++)
       if (!EvaluateWinningChances(tree, side, wtm))
         can_win ^= (1 << side);
 /*
- **********************************************************************
- *                                                                    *
- *  Determine if this position should be evaluated to force mate      *
- *  (neither side has pawns) or if it should be evaluated normally.   *
- *                                                                    *
- *  Note the special case of no pawns, one side is ahead in total     *
- *  material, but the game is a hopeless draw.  KRN vs KR is one      *
- *  example.  If EvaluateWinningChances() determines that the side    *
- *  with extra material can not win, the score is pulled closer to a  *
- *  draw although it can not collapse completely to the drawscore as  *
- *  it is possible to lose KRB vs KR if the KR side lets the king get *
- *  trapped on the edge of the board.                                 *
- *                                                                    *
- **********************************************************************
+ *************************************************************
+ *                                                           *
+ *  Determine if this position should be evaluated to force  *
+ *  mate (neither side has pawns) or if it should be         *
+ *  evaluated normally.                                      *
+ *                                                           *
+ *  Note the special case of no pawns, one side is ahead in  *
+ *  total material, but the game is a hopeless draw.  KRN vs *
+ *  KR is one example.  If EvaluateWinningChances()          *
+ *  determines that the side with extra material can not     *
+ *  win, the score is pulled closer to a draw although it    *
+ *  can not collapse completely to the drawscore as it is    *
+ *  possible to lose KRB vs KR if the KR side lets the king  *
+ *  get trapped on the edge of the board.                    *
+ *                                                           *
+ *************************************************************
  */
   tree->all_pawns = Pawns(black) | Pawns(white);
   if (!tree->all_pawns) {
@@ -125,22 +150,26 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta) {
     }
   }
 /*
- **********************************************************************
- *                                                                    *
- *  Now evaluate pawns.  If the pawn hash signature has not changed   *
- *  from the last entry to Evaluate() then we already have everything *
- *  we need in the pawn hash entry.  In this case, we do not need to  *
- *  call EvaluatePawns() at all.  EvaluatePawns() does all of the     *
- *  analysis for information specifically regarding only pawns.  In   *
- *  many cases, it merely records the presence/absence of positional  *
- *  pawn features because those features also depends on pieces.      *
- *  Note that anything put into EvaluatePawns() can only consider the *
- *  placement of pawns.  Kings or other pieces can not influence the  *
- *  score because those pieces are not hashed into the pawn hash      *
- *  signature.  Violating this principle leads to lots of very        *
- *  difficult and challenging debugging problems.                     *
- *                                                                    *
- **********************************************************************
+ *************************************************************
+ *                                                           *
+ *  Now evaluate pawns.  If the pawn hash signature has not  *
+ *  changed from the last entry to Evaluate() then we        *
+ *  already have everything we need in the pawn hash entry.  *
+ *  In this case, we do not need to call EvaluatePawns() at  *
+ *  all.  EvaluatePawns() does all of the analysis for       *
+ *  information specifically regarding only pawns.  In many  *
+ *  cases, it merely records the presence/absence of         *
+ *  positional pawn features because those features also     *
+ *  depends on pieces.                                       *
+ *                                                           *
+ *  Note that anything put into EvaluatePawns() can only     *
+ *  consider the placement of pawns.  Kings or other pieces  *
+ *  can not influence the score because those pieces are not *
+ *  hashed into the pawn hash signature.  Violating this     *
+ *  principle leads to lots of very difficult and            *
+ *  challenging debugging problems.                          *
+ *                                                           *
+ *************************************************************
  */
   else {
     if (PawnHashKey == tree->pawn_score.key) {
@@ -148,20 +177,19 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta) {
       tree->score_eg += tree->pawn_score.score_eg;
     }
 /*
- ************************************************************
- *                                                          *
- *  First check to see if this position has been handled    *
- *  before.  If so, we can skip the work saved in the pawn  *
- *  hash table.                                             *
- *                                                          *
- ************************************************************
+ *************************************************************
+ *                                                           *
+ *  First check to see if this position has been handled     *
+ *  before.  If so, we can skip the work saved in the pawn   *
+ *  hash table.                                              *
+ *                                                           *
+ *************************************************************
  */
     else {
       ptable = pawn_hash_table + (PawnHashKey & pawn_hash_mask);
       pxtable = (PXOR *) & (tree->pawn_score);
       tree->pawn_score = *ptable;
-      tree->pawn_score.key ^=
-          pxtable->entry[1] ^ pxtable->entry[2] ^ pxtable->entry[3];
+      tree->pawn_score.key ^= pxtable->entry[1] ^ pxtable->entry[2];
       if (tree->pawn_score.key != PawnHashKey) {
         tree->pawn_score.key = PawnHashKey;
         tree->pawn_score.score_mg = 0;
@@ -169,22 +197,23 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta) {
         for (side = black; side <= white; side++)
           EvaluatePawns(tree, side);
         ptable->key =
-            pxtable->entry[0] ^ pxtable->entry[1] ^ pxtable->
-            entry[2] ^ pxtable->entry[3];
-        memcpy((char *) ptable + 8, (char *) &(tree->pawn_score) + 8, 20);
+            pxtable->entry[0] ^ pxtable->entry[1] ^ pxtable->entry[2];
+        memcpy((char *) ptable + 8, (char *) &(tree->pawn_score) + 8,
+            sizeof(PAWN_HASH_ENTRY) - 8);
       }
       tree->score_mg += tree->pawn_score.score_mg;
       tree->score_eg += tree->pawn_score.score_eg;
     }
 /*
- **********************************************************************
- *                                                                    *
- *  If there are any passed pawns, first call EvaluatePassedPawns()   *
- *  to evaluate them.  Then, if one side has a passed pawn and the    *
- *  other side has no pieces, call EvaluatePassedPawnRaces() to see   *
- *  if the passed pawn can be stopped from promoting.                 *
- *                                                                    *
- **********************************************************************
+ *************************************************************
+ *                                                           *
+ *  If there are any passed pawns, first call                *
+ *  EvaluatePassedPawns() to evaluate them.  Then, if one    *
+ *  side has a passed pawn and the other side has no pieces, *
+ *  call EvaluatePassedPawnRaces() to see if the passed pawn *
+ *  can be stopped from promoting.                           *
+ *                                                           *
+ *************************************************************
  */
     if (tree->pawn_score.passed[black] || tree->pawn_score.passed[white]) {
       for (side = black; side <= white; side++)
@@ -198,49 +227,58 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta) {
     }
   }
 /*
- **********************************************************************
- *                                                                    *
- *  Call EvaluateCastling() to evaluate castling potential.  Note we  *
- *  only do this when that side has not castled at the root.          *
- *                                                                    *
- **********************************************************************
+ *************************************************************
+ *                                                           *
+ *  Call EvaluateCastling() to evaluate castling potential.  *
+ *   Note we  only do this when that side has not castled at *
+ *  the root.                                                *
+ *                                                           *
+ *************************************************************
  */
   for (side = black; side <= white; side++)
     if (Castle(1, side) > 0)
       EvaluateCastling(tree, ply, side);
 /*
- **********************************************************************
- *                                                                    *
- *  The "dangerous" flag simply indicates whether that side has       *
- *  enough material to whip up a mating attack if the other side is   *
- *  careless (Q + minor or better, or RR + R or better).              *
- *                                                                    *
- **********************************************************************
+ *************************************************************
+ *                                                           *
+ *  The "dangerous" flag simply indicates whether that side  *
+ *  has enough material to whip up a mating attack if the    *
+ *  other side is careless (Q + minor or better, or RR + R   *
+ *  or better).                                              *
+ *                                                           *
+ *************************************************************
  */
   tree->dangerous[white] = (Queens(white) && TotalPieces(white, occupied) > 9)
       || (TotalPieces(white, rook) > 1 && TotalPieces(white, occupied) > 15);
   tree->dangerous[black] = (Queens(black) && TotalPieces(black, occupied) > 9)
       || (TotalPieces(black, rook) > 1 && TotalPieces(black, occupied) > 15);
 /*
- **********************************************************************
- *                                                                    *
- *  Then evaluate pieces.                                             *
- *                                                                    *
- *  Note 1:  if the current score is way below alpha or way above     *
- *  beta, there is no point in doing the piece scoring, so we take a  *
- *  "lazy" approach and skip pieces in that case.                     *
- *                                                                    *
- *  Note 2:  We MUST evaluate kings last, since their scoring depends *
- *  on the tropism scores computed by the other piece evaluations.    *
- *                                                                    *
- **********************************************************************
+ *************************************************************
+ *                                                           *
+ *  Then evaluate pieces.                                    *
+ *                                                           *
+ *  Note 1:  if the current score is way below alpha or way  *
+ *  above beta, there is no point in doing the piece         *
+ *  scoring, so we take a "lazy" approach and skip pieces in *
+ *  that case.                                               *
+ *                                                           *
+ *  Note 2:  We MUST evaluate kings last, since their        *
+ *  scoring depends on the tropism scores computed by the    *
+ *  other piece evaluators.                                  *
+ *                                                           *
+ *************************************************************
  */
   phase =
       Min(62, TotalPieces(white, occupied) + TotalPieces(black, occupied));
   score = ((tree->score_mg * phase) + (tree->score_eg * (62 - phase))) / 62;
   lscore = (wtm) ? score : -score;
-  cutoff = (tree->dangerous[white]
-      || tree->dangerous[black]) ? 114 + phase : 102;
+  int w_mat = (2 * TotalPieces(white, rook)) + TotalPieces(white,
+      knight) + TotalPieces(white, bishop);
+  int b_mat = (2 * TotalPieces(black, rook)) + TotalPieces(black,
+      knight) + TotalPieces(black, bishop);
+  cutoff = 72 + (w_mat + b_mat) * 8 + abs(w_mat - b_mat) * 16;
+  if (tree->dangerous[white] || tree->dangerous[black])
+    cutoff += 35;
   if (lscore + cutoff > alpha && lscore - cutoff < beta) {
     tree->tropism[white] = 0;
     tree->tropism[black] = 0;
@@ -254,18 +292,19 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta) {
       EvaluateQueens(tree, side);
     for (side = black; side <= white; side++)
       EvaluateKing(tree, ply, side);
+    full = 1;
   }
 /*
- **********************************************************************
- *                                                                    *
- *  Caclulate the final score, which is interpolated between the      *
- *  middlegame score and endgame score based on the material left on  *
- *  the board.                                                        *
- *                                                                    *
- *  Adjust the score if one side can't win, but the score actually    *
- *  favors that side significantly.                                   *
- *                                                                    *
- **********************************************************************
+ *************************************************************
+ *                                                           *
+ *  Caclulate the final score, which is interpolated between *
+ *  the middlegame score and endgame score based on the      *
+ *  material left on the board.                              *
+ *                                                           *
+ *  Adjust the score if one side can't win, but the score    *
+ *  actually favors that side significantly.                 *
+ *                                                           *
+ *************************************************************
  */
   score = ((tree->score_mg * phase) + (tree->score_eg * (62 - phase))) / 62;
   score = EvaluateDraws(tree, ply, can_win, score);
@@ -276,10 +315,14 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta) {
             skill) * PAWN_VALUE * (uint64_t) Random32() / 0x100000000ull) /
         100;
 #endif
+  if (full) {
+    etable->key = temp_hashkey >> 32;
+    etable->score = (wtm) ? score : -score;
+  }
   return (wtm) ? score : -score;
 }
 
-/* last modified 08/17/14 */
+/* last modified 10/19/15 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -290,7 +333,7 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta) {
 void EvaluateBishops(TREE * RESTRICT tree, int side) {
   uint64_t temp, moves;
   int square, special, i, mobility;
-  int score_eg = 0, score_mg = 0, enemy = Flip(side);
+  int score_eg = 0, score_mg = 0, enemy = Flip(side), tpawns;
 /*
  ************************************************************
  *                                                          *
@@ -313,47 +356,37 @@ void EvaluateBishops(TREE * RESTRICT tree, int side) {
  *  If the enemy has NO minor to take this bishop, then     *
  *  increase the bonus.                                     *
  *                                                          *
- *  Note that the bishop_outpost array is overloaded to     *
- *  serve a dual prupose.  A negative value is used to flag *
- *  squares A7 and H7 to test for a trapped bishop.  This   *
- *  is done for speed.                                      *
- *                                                          *
  ************************************************************
  */
     special = bishop_outpost[side][square];
     if (special) {
-      if (special > 0) {
-        if (!(mask_no_pattacks[enemy][square] & Pawns(enemy))) {
-          if (pawn_attacks[enemy][square] & Pawns(side)) {
-            special += special / 2;
-            if (!Knights(enemy) && !(Color(square) & Bishops(enemy)))
-              special += bishop_outpost[side][square];
-          }
-          score_eg += special;
-          score_mg += special;
+      if (!(mask_pattacks[enemy][square] & Pawns(enemy))) {
+        if (pawn_attacks[enemy][square] & Pawns(side)) {
+          special += special / 2;
+          if (!Knights(enemy) && !(Color(square) & Bishops(enemy)))
+            special += bishop_outpost[side][square];
         }
+        score_eg += special;
+        score_mg += special;
       }
+    }
 /*
  ************************************************************
  *                                                          *
- *  Check to see if the bishop is trapped at a7 or h7 with  *
- *  a pawn at b6 or g6 that has trapped the bishop.         *
+ *  Next we count the number of friendly pawns on the same  *
+ *  color squares as the bishop.  This is a bad thing since *
+ *  it restricts the bishop's ability to move.  We only do  *
+ *  this if there is only one bishop for this side.         *
  *                                                          *
  ************************************************************
  */
-      else {
-        if (square == sqflip[side][A7]) {
-          if (SetMask(sqflip[side][B6]) & Pawns(enemy)) {
-            score_eg -= bishop_trapped;
-            score_mg -= bishop_trapped;
-          }
-        } else if (square == sqflip[side][H7]) {
-          if (SetMask(sqflip[side][G6]) & Pawns(enemy)) {
-            score_eg -= bishop_trapped;
-            score_mg -= bishop_trapped;
-          }
-        }
-      }
+    if (TotalPieces(side, bishop) == 1) {
+      if (dark_squares & SetMask(square))
+        tpawns = PopCnt(dark_squares & Pawns(side));
+      else
+        tpawns = PopCnt(~dark_squares & Pawns(side));
+      score_mg -= tpawns * bishop_pawns_on_color[mg];
+      score_eg -= tpawns * bishop_pawns_on_color[eg];
     }
 /*
  ************************************************************
@@ -379,8 +412,8 @@ void EvaluateBishops(TREE * RESTRICT tree, int side) {
  ************************************************************
  */
     if (tree->all_pawns & mask_fgh && tree->all_pawns & mask_abc) {
-      score_mg += bishop_with_wing_pawns[mg];
-      score_eg += bishop_with_wing_pawns[eg];
+      score_mg += bishop_wing_pawns[mg];
+      score_eg += bishop_wing_pawns[eg];
     }
 /*
  ************************************************************
@@ -397,11 +430,23 @@ void EvaluateBishops(TREE * RESTRICT tree, int side) {
       tree->tropism[side] += king_tropism_b[i];
     }
   }
+/*
+ ************************************************************
+ *                                                          *
+ *  Add a bonus if this side has a pair of bishops, which   *
+ *  can become very strong in open positions.               *
+ *                                                          *
+ ************************************************************
+ */
+  if (TotalPieces(side, bishop) > 1) {
+    score_mg += bishop_pair[mg];
+    score_eg += bishop_pair[eg];
+  }
   tree->score_mg += sign[side] * score_mg;
   tree->score_eg += sign[side] * score_eg;
 }
 
-/* last modified 08/06/14 */
+/* last modified 01/03/15 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -419,8 +464,8 @@ void EvaluateCastling(TREE * RESTRICT tree, int ply, int side) {
  ************************************************************
  *                                                          *
  *  If the king castled during the search, we are done and  *
- *  we leave it to EvaluateKings() to figure out how safe   *
- *  it is.  If it has not castled, we give a significant    *
+ *  we leave it to EvaluateKing() to figure out how safe it *
+ *  is.  If it has not castled, we give a significant       *
  *  penalty if the king moves since that loses all castling *
  *  rights, otherwise we give a smaller penalty for moving  *
  *  a rook and giving up castling rights to that side of    *
@@ -441,7 +486,7 @@ void EvaluateCastling(TREE * RESTRICT tree, int ply, int side) {
   tree->score_mg += sign[side] * score_mg;
 }
 
-/* last modified 08/18/14 */
+/* last modified 01/03/15 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -481,7 +526,6 @@ int EvaluateDraws(TREE * RESTRICT tree, int ply, int can_win, int score) {
  *    (b) pieces are equal, then score is reduced by 25%    *
  *    with draw score added in.                             *
  *                                                          *
- *                                                          *
  ************************************************************
  */
   if (TotalPieces(white, occupied) <= 8 && TotalPieces(black, occupied) <= 8) {
@@ -507,12 +551,6 @@ int EvaluateDraws(TREE * RESTRICT tree, int ply, int can_win, int score) {
  *  not win, then we divide the score by 16, and then add   *
  *  in the draw score.  If the can_win says neither side    *
  *  can win, we just set the score to draw score and exit.  *
- *                                                          *
- *  We introduce a "weariness factor" when the irreversible *
- *  move counter approaches 50 moves, and drag the score    *
- *  toward zero to encourage making progress by a non-      *
- *  reversible move to reset the counter and get us away    *
- *  from the impending draw.                                *
  *                                                          *
  ************************************************************
  */
@@ -548,7 +586,7 @@ int EvaluateDraws(TREE * RESTRICT tree, int ply, int can_win, int score) {
   return score;
 }
 
-/* last modified 02/23/14 */
+/* last modified 01/03/15 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -577,7 +615,7 @@ int EvaluateHasOpposition(int on_move, int king, int enemy_king) {
   return 0;
 }
 
-/* last modified 06/12/14 */
+/* last modified 01/03/15 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -593,20 +631,12 @@ void EvaluateKing(TREE * RESTRICT tree, int ply, int side) {
  ************************************************************
  *                                                          *
  *  First, check for where the king should be if this is an *
- *  endgame.  Ie with pawns on one wing, the king needs to  *
- *  be on that wing.  With pawns on both wings, the king    *
- *  belongs in the center.                                  *
+ *  endgame.  The basic idea is to centralize unless the    *
+ *  king is needed to deal with a passed enemy pawn.        *
  *                                                          *
  ************************************************************
  */
-  if (tree->all_pawns) {
-    if (tree->all_pawns & mask_efgh && tree->all_pawns & mask_abcd)
-      score_eg += kval_n[side][ksq];
-    else if (tree->all_pawns & mask_efgh)
-      score_eg += kval_k[side][ksq];
-    else
-      score_eg += kval_q[side][ksq];
-  }
+  score_eg += kval[side][ksq];
 /*
  ************************************************************
  *                                                          *
@@ -619,31 +649,26 @@ void EvaluateKing(TREE * RESTRICT tree, int ply, int side) {
   if (tree->dangerous[enemy]) {
     defects = 0;
     if (Castle(ply, side) <= 0) {
-      if (File(ksq) >= FILEE) {
-        if (File(ksq) > FILEE)
-          defects = tree->pawn_score.defects_k[side];
-        else
-          defects = tree->pawn_score.defects_e[side];
-      } else {
-        if (File(ksq) < FILED)
-          defects = tree->pawn_score.defects_q[side];
-        else
-          defects = tree->pawn_score.defects_d[side];
-      }
+      if (File(ksq) > FILEE)
+        defects = tree->pawn_score.defects_k[side];
+      else if (File(ksq) < FILED)
+        defects = tree->pawn_score.defects_q[side];
+      else
+        defects = tree->pawn_score.defects_m[side];
     } else {
       if (Castle(ply, side) == 3)
         defects =
             Min(Min(tree->pawn_score.defects_k[side],
-                tree->pawn_score.defects_e[side]),
+                tree->pawn_score.defects_m[side]),
             tree->pawn_score.defects_q[side]);
       else if (Castle(ply, side) == 1)
         defects =
             Min(tree->pawn_score.defects_k[side],
-            tree->pawn_score.defects_e[side]);
+            tree->pawn_score.defects_m[side]);
       else
         defects =
             Min(tree->pawn_score.defects_q[side],
-            tree->pawn_score.defects_e[side]);
+            tree->pawn_score.defects_m[side]);
       if (defects < 3)
         defects = 3;
     }
@@ -667,7 +692,7 @@ void EvaluateKing(TREE * RESTRICT tree, int ply, int side) {
   tree->score_eg += sign[side] * score_eg;
 }
 
-/* last modified 02/23/14 */
+/* last modified 01/03/15 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -677,11 +702,10 @@ void EvaluateKing(TREE * RESTRICT tree, int ply, int side) {
  *                                                                             *
  *******************************************************************************
  */
-int EvaluateKingsFile(TREE * RESTRICT tree, int whichfile, int side) {
-  int defects = 0, file;
-  int enemy = Flip(side);
+int EvaluateKingsFile(TREE * RESTRICT tree, int side, int first, int last) {
+  int defects = 0, file, enemy = Flip(side);
 
-  for (file = whichfile - 1; file <= whichfile + 1; file++)
+  for (file = first; file <= last; file++)
     if (!(file_mask[file] & tree->all_pawns))
       defects += open_file[file];
     else {
@@ -689,7 +713,7 @@ int EvaluateKingsFile(TREE * RESTRICT tree, int whichfile, int side) {
         defects += half_open_file[file] / 2;
       else
         defects +=
-            pawn_defects[side][Rank(Advanced(enemy,
+            pawn_defects[side][Rank(MostAdvanced(enemy,
                     file_mask[file] & Pawns(enemy)))];
       if (!(file_mask[file] & Pawns(side)))
         defects += half_open_file[file];
@@ -702,7 +726,7 @@ int EvaluateKingsFile(TREE * RESTRICT tree, int whichfile, int side) {
   return defects;
 }
 
-/* last modified 07/20/14 */
+/* last modified 10/19/15 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -712,8 +736,7 @@ int EvaluateKingsFile(TREE * RESTRICT tree, int whichfile, int side) {
  */
 void EvaluateKnights(TREE * RESTRICT tree, int side) {
   uint64_t temp;
-  int square, special, i, score_eg = 0, score_mg = 0;
-  int enemy = Flip(side);
+  int square, special, i, score_eg = 0, score_mg = 0, enemy = Flip(side);
 
 /*
  ************************************************************
@@ -740,7 +763,7 @@ void EvaluateKnights(TREE * RESTRICT tree, int side) {
  ************************************************************
  */
     special = knight_outpost[side][square];
-    if (special && !(mask_no_pattacks[enemy][square] & Pawns(enemy))) {
+    if (special && !(mask_pattacks[enemy][square] & Pawns(enemy))) {
       if (pawn_attacks[enemy][square] & Pawns(side)) {
         special += special / 2;
         if (!Knights(enemy) && !(Color(square) & Bishops(enemy)))
@@ -749,17 +772,6 @@ void EvaluateKnights(TREE * RESTRICT tree, int side) {
       score_eg += special;
       score_mg += special;
     }
-/*
- ************************************************************
- *                                                          *
- *  Mobility counts the number of squares the knight        *
- *  attacks, excluding squares with friendly pieces, and    *
- *  weighs each square according to centralization.         *
- *                                                          *
- ************************************************************
- */
-    score_mg += knight_mobility_table[square];
-    score_eg += knight_mobility_table[square];
 /*
  ************************************************************
  *                                                          *
@@ -776,7 +788,7 @@ void EvaluateKnights(TREE * RESTRICT tree, int side) {
   tree->score_eg += sign[side] * score_eg;
 }
 
-/* last modified 08/07/14 */
+/* last modified 03/30/15 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -788,21 +800,20 @@ void EvaluateKnights(TREE * RESTRICT tree, int side) {
  *******************************************************************************
  */
 void EvaluateMate(TREE * RESTRICT tree, int side) {
-  int mate_score = 0;
-  int enemy = Flip(side);
+  int mate_score = 0, enemy = Flip(side);
 
 /*
  ************************************************************
  *                                                          *
- *  If one side has a bishop+knight and the other side has  *
- *  no pieces or pawns, then use the special bishop_knight  *
- *  scoring board for the losing king to force it to the    *
- *  right corner for mate.                                  *
+ *  If the winning side has a bishop + knight and the other *
+ *  side has no pieces or pawns, then use the special       *
+ *  bishop_knight scoring board for the losing king to      *
+ *  force it to the right corner for mate.                  *
  *                                                          *
  ************************************************************
  */
-  if (!TotalPieces(enemy, occupied) && TotalMinors(side) == 2 &&
-      TotalPieces(side, bishop) == 1) {
+  if (!TotalPieces(enemy, occupied) && TotalPieces(side, bishop) == 1 &&
+      TotalPieces(side, knight) == 1) {
     if (dark_squares & Bishops(side))
       mate_score = b_n_mate_dark_squares[KingSQ(enemy)];
     else
@@ -811,20 +822,26 @@ void EvaluateMate(TREE * RESTRICT tree, int side) {
 /*
  ************************************************************
  *                                                          *
- *  If one side is winning, force the enemy king to the     *
+ *  The winning side has to force the losing king to the    *
  *  edge of the board.                                      *
  *                                                          *
  ************************************************************
  */
-  else {
+  else
     mate_score = mate[KingSQ(enemy)];
-    mate_score -=
-        (Distance(KingSQ(side), KingSQ(enemy)) - 3) * king_king_tropism;
-  }
+/*
+ ************************************************************
+ *                                                          *
+ *  And for either, it is important to bring the winning    *
+ *  king to help force mate.                                *
+ *                                                          *
+ ************************************************************
+ */
+  mate_score -= Distance(KingSQ(side), KingSQ(enemy)) * king_king_tropism;
   tree->score_eg += sign[side] * mate_score;
 }
 
-/* last modified 02/23/14 */
+/* last modified 10/19/15 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -836,31 +853,33 @@ void EvaluateMate(TREE * RESTRICT tree, int side) {
  */
 void EvaluateMaterial(TREE * RESTRICT tree, int wtm) {
   int score_mg, score_eg, majors, minors;
-  const int bad_trade = 90;
 
 /*
- **********************************************************************
- *                                                                    *
- *  We start with the raw Material balance for the current position,  *
- *  then adjust this with a small bonus for the side on move.         *
- *                                                                    *
- **********************************************************************
+ *************************************************************
+ *                                                           *
+ *  We start with the raw Material balance for the current   *
+ *  position, then adjust this with a small bonus for the    *
+ *  side on move.                                            *
+ *                                                           *
+ *************************************************************
  */
   score_mg = Material + ((wtm) ? wtm_bonus[mg] : -wtm_bonus[mg]);
   score_eg = Material + ((wtm) ? wtm_bonus[eg] : -wtm_bonus[eg]);
 /*
- **********************************************************************
- *                                                                    *
- *   test 1.  if Majors or Minors are not balanced, then if one side  *
- *   is only an exchange up or down, we do not give any sort of bad   *
- *   trade penalty/bonus.                                             *
- *                                                                    *
- *   test 2.  if Majors or Minors are not balanced, then if one side  *
- *   has more piece material points than the other (using normal      *
- *   piece values of 3, 3, 5, 9 for N, B, R and Q) then the side that *
- *   is behind in piece material gets a penalty.                      *
- *                                                                    *
- **********************************************************************
+ *************************************************************
+ *                                                           *
+ *  test 1.  if Majors or Minors are not balanced, then if   *
+ *  one side is only an exchange up or down, we give a       *
+ *  penalty to the side that is an exchange down, but not as *
+ *  big a penalty as the bad trade case below.               *
+ *                                                           *
+ *  test 2.  if Majors or Minors are not balanced, then if   *
+ *  one side has more piece material points than the other   *
+ *  (using normal piece values of 3, 3, 5, 9 for N, B, R     *
+ *  and Q) then the side that is behind in piece material    *
+ *  gets a penalty.                                          *
+ *                                                           *
+ *************************************************************
  */
   majors =
       TotalPieces(white, rook) + 2 * TotalPieces(white,
@@ -868,7 +887,7 @@ void EvaluateMaterial(TREE * RESTRICT tree, int wtm) {
   minors =
       TotalPieces(white, knight) + TotalPieces(white,
       bishop) - TotalPieces(black, knight) - TotalPieces(black, bishop);
-  if (majors || minors)
+  if (majors || minors) {
     if (Abs(TotalPieces(white, occupied) - TotalPieces(black, occupied)) != 2
         && TotalPieces(white, occupied) - TotalPieces(black, occupied) != 0) {
       score_mg +=
@@ -878,184 +897,183 @@ void EvaluateMaterial(TREE * RESTRICT tree, int wtm) {
           Sign(TotalPieces(white, occupied) - TotalPieces(black,
               occupied)) * bad_trade;
     }
-/*
- ************************************************************
- *                                                          *
- *  Add a bonus per side if side has a pair of bishops,     *
- *  which can become very strong in open positions.         *
- *                                                          *
- ************************************************************
- */
-  if (TotalPieces(white, bishop) > 1) {
-    score_mg += bishop_pair[mg];
-    score_eg += bishop_pair[eg];
-  }
-  if (TotalPieces(black, bishop) > 1) {
-    score_mg -= bishop_pair[mg];
-    score_eg -= bishop_pair[eg];
   }
   tree->score_mg += score_mg;
   tree->score_eg += score_eg;
 }
 
-/* last modified 02/23/14 */
+/* last modified 11/27/15 */
 /*
  *******************************************************************************
  *                                                                             *
  *   EvaluatePassedPawns() is used to evaluate passed pawns and the danger     *
- *   they produce.  This code considers pieces as well, so it has been         *
- *   separated from the normal EvaluatePawns() code that hashes information    *
- *   based only on pawn positions.                                             *
+ *   they produce.  This code considers pieces as well, so it MUST NOT be done *
+ *   in the normal EvaluatePawns() code since that hashes information based    *
+ *   only on the position of pawns.                                            *
+ *                                                                             *
+ *   This is a significant rewrite of passed pawn evaluation, with the primary *
+ *   change being to collect the passed pawn scoring into one place, rather    *
+ *   than have it scattered around all over the place.  One example is the old *
+ *   rook_behind_passed_pawn scoring term that was done in rook scoring.  It   *
+ *   is now done here along with other passed pawn terms such as blockaded and *
+ *   the ability to advance or not.                                            *
  *                                                                             *
  *******************************************************************************
  */
 void EvaluatePassedPawns(TREE * RESTRICT tree, int side, int wtm) {
-  uint64_t behind;
-  int file, square, score_mg = 0, score_eg = 0;
-  int pawns, rank;
-  int enemy = Flip(side);
+  uint64_t behind, forward, backward, attacked, defended, thispawn;
+  int file, square, score, score_mg = 0, score_eg = 0, next_sq;
+  int pawns, rank, mg_base, eg_base, bonus, enemy = Flip(side);
+  uint64_t fsliders = Queens(side) | Rooks(side);
+  uint64_t esliders = Queens(enemy) | Rooks(enemy);
 
 /*
  ************************************************************
  *                                                          *
- *  Initialize.                                             *
+ *  Initialize.  The base value "passed_pawn[rank]" is      *
+ *  almost the "square" of the rank.  That got a bit too    *
+ *  big, so a hand-tuned set of values, one per rank,       *
+ *  proved to be a better value.                            *
  *                                                          *
  ************************************************************
  */
   for (pawns = tree->pawn_score.passed[side]; pawns; pawns &= pawns - 1) {
     file = LSB8Bit(pawns);
-    square = Advanced(side, Pawns(side) & file_mask[file]);
-    rank = rankflip[side][Rank(square)];
+    thispawn = Pawns(side) & file_mask[file];
+    if (thispawn) {
+      square = MostAdvanced(side, thispawn);
+      rank = rankflip[side][Rank(square)];
+      score = passed_pawn[rank];
 /*
  ************************************************************
  *                                                          *
- *  We have located the most advanced pawn on this file,    *
- *  which is the only one that will get any sort of bonus.  *
- *  Add in the MG/EG scores first.                          *
+ *  For endgame only, we add in a bonus based on how close  *
+ *  our king is to this pawn and a penalty based on how     *
+ *  close the enemy king is.  We also try to keep our king  *
+ *  ahead of the pawn so it can escort it to promotion.  We *
+ *  only do this for passed pawns whose base score value is *
+ *  greater than zero (ie pawns on ranks 4-7 since those    *
+ *  are the ones threatening to become a major problem.)    *
+ *  Also, if you happen to think that a small bonus for a   *
+ *  passed pawn on the 3rd rank might be useful, consider   *
+ *  speed.  If the 3rd rank score is non-zero, that will    *
+ *  trigger a significant amount of work below.  In testing *
+ *  the additional cost more than offset the gain and so it *
+ *  is basically ignored unless rank > 3.                   *
+ *                                                          *
  ************************************************************
  */
-    score_mg += passed_pawn_value[mg][rank];
-    score_eg += passed_pawn_value[eg][rank];
+      if (score) {
+        mg_base = score * passed_pawn_base[mg];
+        eg_base = score * passed_pawn_base[eg];
+        next_sq = square + direction[side];
+        eg_base +=
+            Distance(KingSQ(enemy),
+            next_sq) * 2 * score - Distance(KingSQ(side), next_sq) * score;
+        if (rank < RANK7)
+          eg_base -=
+              Distance(KingSQ(side), next_sq + direction[side]) * score / 2;
 /*
  ************************************************************
  *                                                          *
- *  Add in a bonus if the passed pawn is connected with     *
- *  another pawn for support.                               *
+ *  If the pawn is not blockaded, we need to see whether it *
+ *  can actually advance or not.  Note that this directly   *
+ *  gives a bonus for blockading a passed pawn since the    *
+ *  mobility evaluation below will not be applied when the  *
+ *  pawn is blockaded by any piece.                         *
+ *                                                          *
+ *  Step one is to determine if the squares in front of the *
+ *  pawn are attacked by the enemy.  If not, we add in a    *
+ *  significant score bonus.  If some are attacked, we look *
+ *  to see if at least the square directly in front of the  *
+ *  pawn is not attacked so that we can advance one square, *
+ *  anyway.  This gets a smaller score bonus.               *
  *                                                          *
  ************************************************************
  */
-    if (mask_pawn_connected[square] & Pawns(side)) {
-      score_mg += passed_pawn_connected[mg][rank];
-      score_eg += passed_pawn_connected[eg][rank];
-    }
+        if (!(OccupiedSquares & SetMask(next_sq))) {
+          bonus = 0;
+          if (Pawns(side) & pawn_attacks[enemy][next_sq])
+            bonus = passed_pawn_free_advance;
+          else {
+            attacked = 0;
+            forward = (side) ? plus8dir[square] : minus8dir[square];
+            backward = (side) ? minus8dir[square] : plus8dir[square];
+            if ((behind = backward & esliders) &&
+                (FileAttacks(square) & behind))
+              attacked = forward;
+            else
+              attacked = Attacked(tree, enemy, forward);
+            if (!attacked)
+              bonus = passed_pawn_free_advance;
+            else if (!(attacked & SetMask(next_sq)))
+              bonus = passed_pawn_free_advance_1;
 /*
  ************************************************************
  *                                                          *
- *  See if this pawn is either supported by a friendly rook *
- *  from behind, or is attacked by an enemy rook from       *
- *  behind.  Note that doubled rooks will not get this      *
- *  bonus added in twice since only one directly attacks    *
- *  the pawn in question.                                   *
+ *  Step two is to determine if the squares in front of the *
+ *  pawn are are defended by the friendly side.  If all are *
+ *  defended (such as with a rook or queen behind the pawn  *
+ *  or the king in front and to one side of the pawn, then  *
+ *  we give a bonus (but smaller than the previous cases).  *
+ *  As a last resort, if we at least defend the square in   *
+ *  front of the pawn, we give a small bonus.               *
  *                                                          *
  ************************************************************
  */
-    if (Rooks(white) | Rooks(black)) {
-      behind =
-          ((side) ? minus8dir[square] : plus8dir[square]) &
-          RookAttacks(square, OccupiedSquares);
-      if (behind) {
-        if (behind & Rooks(side)) {
-          score_mg += rook_behind_passed_pawn[mg][rank];
-          score_eg += rook_behind_passed_pawn[eg][rank];
-        } else if (behind & Rooks(enemy)) {
-          score_mg -= rook_behind_passed_pawn[mg][rank];
-          score_eg -= rook_behind_passed_pawn[eg][rank];
+            if ((behind = backward & fsliders) &&
+                (FileAttacks(square) & behind))
+              defended = forward;
+            else
+              defended = Attacked(tree, side, forward);
+            if (defended == forward)
+              bonus += passed_pawn_defended;
+            else if (defended & SetMask(next_sq))
+              bonus += passed_pawn_defended_1;
+          }
+/*
+ ************************************************************
+ *                                                          *
+ *  Fold in the bonus for this pawn and move on to the next *
+ *  (if there is one).  Note that the bonus computed above  *
+ *  is multiplied by the base passed pawn score for this    *
+ *  particular rank.                                        *
+ *                                                          *
+ ************************************************************
+ */
+          mg_base += bonus * score;
+          eg_base += bonus * score;
         }
-      }
+        score_mg += mg_base;
+        score_eg += eg_base;
+      } else
+        score_eg += 4;
     }
-/*
- ************************************************************
- *                                                          *
- *  If the pawn is blockaded by an enemy piece, it cannot   *
- *  move and is therefore not nearly as valuable as if it   *
- *  were free to advance.  If it is blocked by a friendly   *
- *  piece, it is penalized 1/2 the normal blockade amount   *
- *  to encourage the blocking piece to move so the pawn can *
- *  advance.                                                *
- *                                                          *
- ************************************************************
- */
-    if (OccupiedSquares & ((side) ? plus8dir[square] : minus8dir[square])) {
-      score_eg -= passed_pawn_obstructed[rank];
-      if (SetMask(square + direction[side]) & Occupied(enemy)) {
-        score_mg -= passed_pawn_blockaded_by_enemy[mg][rank];
-        score_eg -= passed_pawn_blockaded_by_enemy[eg][rank];
-      } else if (SetMask(square + direction[side]) & Occupied(side)) {
-        score_mg -= passed_pawn_blockaded_by_friendly[mg][rank];
-        score_eg -= passed_pawn_blockaded_by_friendly[eg][rank];
-      }
-/*
- ************************************************************
- *                                                          *
- *  If the pawn has nothing blocking its progress to the    *
- *  promotion square, then we give a bonus.  If the pawn is *
- *  outside the square of the enemy king, this bonus is     *
- *  increased, because this makes it more difficult for the *
- *  opponent to trade pieces which might let this pawn run. *
- *                                                          *
- ************************************************************
- */
-    } else {
-      if (!(pawn_race[side][wtm][square] & Kings(enemy)))
-        score_eg += passed_pawn_far_away[rank];
-      else
-        score_eg += passed_pawn_not_far_away[rank];
-    }
-/*
- ************************************************************
- *                                                          *
- *  Add in a bonus based on how close the friendly king is, *
- *  and a penalty based on how close the enemy king is.     *
- *  The bonus/penalty is based on how advanced the pawn is  *
- *  to attract the kings toward the most advanced (and most *
- *  dangerous) passed pawn.                                 *
- *                                                          *
- ************************************************************
- */
-    square += direction[side];
-    score_eg -=
-        (Distance(square, KingSQ(side)) - Distance(square,
-            KingSQ(enemy))) * pp_dist_bonus[rank];
   }
 /*
  ************************************************************
  *                                                          *
- *  Check to see if side has an outside passed pawn.        *
+ *  All pawns done, add score to the two evaluation values  *
+ *  and return.                                             *
  *                                                          *
  ************************************************************
  */
-  if (tree->pawn_score.passed[side]
-      && is_outside[tree->pawn_score.passed[side]]
-      [tree->pawn_score.all[enemy]]) {
-    score_mg += outside_passed[mg];
-    score_eg += outside_passed[eg];
-  }
   tree->score_mg += sign[side] * score_mg;
   tree->score_eg += sign[side] * score_eg;
 }
 
-/* last modified 02/23/14 */
+/* last modified 11/27/15 */
 /*
  *******************************************************************************
  *                                                                             *
  *   EvaluatePassedPawnRaces() is used to evaluate passed pawns when one       *
  *   side has passed pawns and the other side (or neither) has pieces.  In     *
- *   such a case, the critical question is can the defending king stop the pawn*
- *   from queening or is it too far away?  If only one side has pawns that can *
- *   "run" then the situation is simple.  When both sides have pawns that can  *
- *   "run" it becomes more complex as it then becomes necessary to see if      *
- *   one side can use a forced king move to stop the other side, while the     *
- *   other side doesn't have the same ability to stop ours.                    *
+ *   such a case, the critical question is can the defending king stop the     *
+ *   pawn from queening or is it too far away?  If only one side has pawns     *
+ *   that can "run" then the situation is simple.  When both sides have pawns  *
+ *   that can "run" it becomes more complex as it then becomes necessary to    *
+ *   see if one side can use a forced king move to stop the other side, while  *
+ *   the other side doesn't have the same ability to stop ours.                *
  *                                                                             *
  *   In the case of king and pawn endings with exactly one pawn, the simple    *
  *   evaluation rules are used:  if the king is two squares in front of the    *
@@ -1068,14 +1086,9 @@ void EvaluatePassedPawns(TREE * RESTRICT tree, int side, int wtm) {
  *******************************************************************************
  */
 void EvaluatePassedPawnRaces(TREE * RESTRICT tree, int wtm) {
-  int file, square;
-  int queen_distance;
-  int pawnsq;
-  uint64_t pawns;
-  int passed;
-  int side, enemy;
+  uint64_t pawns, thispawn;
+  int file, square, queen_distance, pawnsq, passed, side, enemy;
   int queener[2] = { 8, 8 };
-  int forced_km[2] = { 0, 0 };
 /*
  ************************************************************
  *                                                          *
@@ -1178,69 +1191,44 @@ void EvaluatePassedPawnRaces(TREE * RESTRICT tree, int wtm) {
       passed = tree->pawn_score.passed[side];
       for (; passed; passed &= passed - 1) {
         file = LSB8Bit(passed);
-        square = Advanced(side, Pawns(side) & file_mask[file]);
-        forced_km[enemy] =
-            (pawn_race[side][wtm][square] & Kings(enemy)) !=
-            (pawn_race[side][Flip(wtm)][square] & Kings(enemy));
-        if (!(pawn_race[side][wtm][square] & Kings(enemy))) {
-          queen_distance = Abs(rank8[side] - Rank(square));
-          if (Kings(side) & ((side) ? plus8dir[square] : minus8dir[square])) {
-            if (file == FILEA || file == FILEH)
-              queen_distance = 99;
-            queen_distance++;
+        thispawn = Pawns(side) & file_mask[file];
+        if (thispawn) {
+          square = MostAdvanced(side, thispawn);
+          if (!(pawn_race[side][wtm][square] & Kings(enemy))) {
+            queen_distance = Abs(rank8[side] - Rank(square));
+            if (Kings(side) & ((side) ? plus8dir[square] : minus8dir[square])) {
+              if (file == FILEA || file == FILEH)
+                queen_distance = 99;
+              queen_distance++;
+            }
+            if (Rank(square) == rank2[side])
+              queen_distance--;
+            if (queen_distance < queener[side])
+              queener[side] = queen_distance;
           }
-          if (Rank(square) == rank2[side])
-            queen_distance--;
-          if (queen_distance < queener[side])
-            queener[side] = queen_distance;
         }
       }
     }
   }
-  if (queener[white] == 8 && queener[black] == 8)
-    return;
 /*
  ************************************************************
  *                                                          *
  *  Now that we know which pawns can outrun the kings for   *
- *  each side, we need to do the following:                 *
- *                                                          *
- *    (1) If both sides are forced to move their king to    *
- *        prevent the opponent from promoting, we let the   *
- *        search resolve this as the depth increases.       *
- *                                                          *
- *    (2) If white can run while black can not, then white  *
- *        wins, or vice-versa.                              *
- *                                                          *
- *    (3) If white queens and black's king can't stop it    *
- *        no matter who moves first, while black has a pawn *
- *        that white can stop if a king move is made        *
- *        immediately, then white wins, and vice-versa.     *
- *                                                          *
- *    (4) Other situations are left to the search to        *
- *        resolve.                                          *
+ *  each side, we need to do determine if one side queens   *
+ *  before the other.  If so, that side wins.  If they      *
+ *  queen at the same time, then we will have to rely on    *
+ *  the search to handle queening with check or queening    *
+ *  and attacking the opponent's queening square.           *
  *                                                          *
  ************************************************************
  */
-  if (forced_km[white] & forced_km[black])
-    return;
-  if (queener[white] < 8 && queener[black] == 8) {
+  if (queener[white] < queener[black])
     tree->score_eg += pawn_can_promote + (5 - queener[white]) * 10;
-    return;
-  } else if (queener[black] < 8 && queener[white] == 8) {
-    tree->score_eg += -(pawn_can_promote + (5 - queener[black]) * 10);
-    return;
-  }
-  if (queener[white] < queener[black] && forced_km[white]) {
-    tree->score_eg += pawn_can_promote + (5 - queener[white]) * 10;
-    return;
-  } else if (queener[black] < queener[white] && forced_km[white]) {
-    tree->score_eg += -(pawn_can_promote + (5 - queener[black]) * 10);
-    return;
-  }
+  else if (queener[black] < queener[white])
+    tree->score_eg -= pawn_can_promote + (5 - queener[black]) * 10;
 }
 
-/* last modified 02/23/14 */
+/* last modified 11/27/15 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -1249,53 +1237,24 @@ void EvaluatePassedPawnRaces(TREE * RESTRICT tree, int wtm) {
  *   calls to evaluate all pawns on the board.  Comments below indicate the    *
  *   particular pawn structure features that are evaluated.                    *
  *                                                                             *
- *   This procedure also fills in information (without scoring) that other     *
- *   evaluation procedures use, such as which pawns are passed or candidates,  *
- *   which pawns are weak, which files are open, and so forth.                 *
+ *   This procedure also flags which pawns are passed, since this is scored in *
+ *   another part of the evaluation because that includes piece information    *
+ *   which can not be used here since the pawn hash signature does not include *
+ *   piece information of any kind.                                            *
+ *                                                                             *
+ *   Note that a pawn is not penalized for two different reasons.  If it is    *
+ *   isolated, it is not backward.  Etc.  This simplifies evaluation tuning    *
+ *   not to mention eliminating the overlap and interaction that was happening *
+ *   previously when multiple penalties could be applied.                      *
  *                                                                             *
  *******************************************************************************
  */
 void EvaluatePawns(TREE * RESTRICT tree, int side) {
-  uint64_t pawns;
-  uint64_t temp;
-  uint64_t p_moves[2];
-  int square, file, rank, score_eg = 0, score_mg = 0;
-  int defenders, attackers, sq;
-  int enemy = Flip(side);
+  uint64_t pawns, attackers, defenders;
+  uint64_t doubled, supported, connected, passed, backward;
+  int square, file, rank, score_eg = 0, score_mg = 0, enemy = Flip(side);
+  unsigned int isolated, pawn_files = 0;
 
-/*
- ************************************************************
- *                                                          *
- *  Initialize.                                             *
- *                                                          *
- ************************************************************
- */
-  tree->pawn_score.all[side] = 0;
-  tree->pawn_score.passed[side] = 0;
-/*
- ************************************************************
- *                                                          *
- *  First, determine which squares pawns can reach.         *
- *                                                          *
- ************************************************************
- */
-  p_moves[side] = 0;
-  for (pawns = Pawns(side); pawns; pawns &= pawns - 1) {
-    square = LSB(pawns);
-    tree->pawn_score.all[side] |= 1 << File(square);
-    for (sq = square; sq != File(square) + (rank7[side] << 3);
-        sq += direction[side]) {
-      p_moves[side] |= SetMask(sq);
-      if (SetMask(sq + direction[side]) & tree->all_pawns)
-        break;
-      defenders =
-          PopCnt(pawn_attacks[enemy][sq + direction[side]] & Pawns(side));
-      attackers =
-          PopCnt(pawn_attacks[side][sq + direction[side]] & Pawns(enemy));
-      if (attackers - defenders > 0)
-        break;
-    }
-  }
 /*
  ************************************************************
  *                                                          *
@@ -1303,16 +1262,19 @@ void EvaluatePawns(TREE * RESTRICT tree, int side) {
  *                                                          *
  ************************************************************
  */
+  tree->pawn_score.passed[side] = 0;
   for (pawns = Pawns(side); pawns; pawns &= pawns - 1) {
     square = LSB(pawns);
     file = File(square);
     rank = rankflip[side][Rank(square)];
+    pawn_files |= 1 << file;
 /*
  ************************************************************
  *                                                          *
  *  Evaluate pawn advances.  Center pawns are encouraged to *
- *  advance, while wing pawns are pretty much neutral.      *
- *  This is a simple piece/square value.                    *
+ *  occupy central squares, edge pawns are penalized on all *
+ *  edge squares to encourage capture toward the center,    *
+ *  the rest are neutral.                                   *
  *                                                          *
  ************************************************************
  */
@@ -1322,170 +1284,137 @@ void EvaluatePawns(TREE * RESTRICT tree, int side) {
  ************************************************************
  *                                                          *
  *  Evaluate isolated pawns, which are penalized based on   *
- *  whether they are isolated, and whether they are on a    *
- *  half-open file making them easier to attack.            *
+ *  which file they occupy.                                 *
  *                                                          *
  ************************************************************
  */
-    if (!(mask_pawn_isolated[square] & Pawns(side))) {
-      score_mg -= pawn_isolated[mg];
-      score_eg -= pawn_isolated[eg];
-      if (!(Pawns(enemy) & file_mask[file])) {
-        score_mg -= pawn_isolated[mg] / 2;
-        score_eg -= pawn_isolated[eg] / 2;
-      }
+    isolated = !(Pawns(side) & mask_pawn_isolated[square]);
+    if (isolated) {
+      score_mg -= pawn_isolated[mg][file];
+      score_eg -= pawn_isolated[eg][file];
     }
 /*
  ************************************************************
  *                                                          *
- *  Evaluate weak pawns.  Weak pawns are evaluated by the   *
- *  following rules:  (1) if a pawn is defended by a pawn,  *
- *  it isn't weak;  (2) if a pawn is undefended by a pawn   *
- *  and advances one (or two if it hasn't moved yet) ranks  *
- *  and is defended fewer times than it is attacked, it is  *
- *  weak.  Note that the penalty is greater if the pawn is  *
- *  on an open file.  Note that an isolated pawn is just    *
- *  another case of a weak pawn, since it can never be      *
- *  defended by a pawn.                                     *
- *                                                          *
- *  First, test the pawn where it sits to determine if it   *
- *  is defended more times than attacked.  If so, it is not *
- *  weak and we are done.  If it is weak where it sits, can *
- *  it advance one square and become not weak.  If so we    *
- *  are again finished with this pawn.  Otherwise we fall   *
- *  into the next test.                                     *
+ *  Evaluate unsupported pawns, which provide a target      *
+ *  since they are undefended by a pawn.  We exclude pawns  *
+ *  that are isolated since they have already been given a  *
+ *  penalty.                                                *
  *                                                          *
  ************************************************************
  */
-    else {
-      do {
-        attackers = 0;
-        defenders = 0;
-        temp =
-            p_moves[side] & ((side) ? plus8dir[square] : minus8dir[square]);
-        for (; temp; temp &= temp - 1) {
-          sq = LSB(temp);
-          defenders = PopCnt(pawn_attacks[enemy][sq] & Pawns(side));
-          attackers = PopCnt(pawn_attacks[side][sq] & Pawns(enemy));
-          if (defenders && defenders >= attackers)
-            break;
-        }
-        if (defenders && defenders >= attackers)
-          break;
-/*
- ************************************************************
- *                                                          *
- *  If the pawn can be defended by a pawn, and that pawn    *
- *  can safely advance to actually defend this pawn, then   *
- *  this pawn is not weak.                                  *
- *                                                          *
- ************************************************************
- */
-        if (!(pawn_attacks[enemy][square] & p_moves[side])) {
-          score_mg -= pawn_weak[mg];
-          score_eg -= pawn_weak[eg];
-          if (!(Pawns(enemy) & file_mask[file]))
-            score_mg -= pawn_weak[mg] / 2;
-        }
-      } while (0);
+    supported = Pawns(side) & pawn_attacks[enemy][square];
+    if (!isolated && !supported) {
+      score_mg += pawn_unsupported[mg];
+      score_eg += pawn_unsupported[eg];
+    }
 /*
  ************************************************************
  *                                                          *
  *  Evaluate doubled pawns.  If there are other pawns on    *
- *  this file, penalize this pawn.                          *
+ *  this file in front of this pawn, penalize this pawn.    *
+ *  Note that this will NOT penalize both pawns, just the   *
+ *  most rearward one that is really almost worthless.      *
+ *                                                          *
+ *  The farther apart two doubled pawns (same file) are,    *
+ *  the less weak they are, so the penalty is reduced as    *
+ *  this distance increases.                                *
  *                                                          *
  ************************************************************
  */
-      if (PopCnt(file_mask[file] & Pawns(side)) > 1) {
-        score_mg -= doubled_pawn_value[mg];
-        score_eg -= doubled_pawn_value[eg];
-      }
-/*
- ************************************************************
- *                                                          *
- *  Test the pawn to see if it is connected with a neighbor *
- *  which makes it more mobile.                             *
- *                                                          *
- ************************************************************
- */
-      if (mask_pawn_connected[square] & Pawns(side)) {
-        score_mg += pawn_connected[mg];
-        score_eg += pawn_connected[eg];
-      }
+    doubled = Pawns(side) & ((side) ? plus8dir[square] : minus8dir[square]);
+    if (doubled) {
+      score_mg -=
+          pawn_doubled[mg][file] / RankDistance(square, MostAdvanced(side,
+              doubled));
+      score_eg -=
+          pawn_doubled[eg][file] / RankDistance(square, MostAdvanced(side,
+              doubled));
     }
 /*
  ************************************************************
  *                                                          *
- *  Discover and flag passed pawns for use later.           *
+ *  Test the pawn to see if it is connected to a neighbor   *
+ *  which makes it easier to defend.                        *
  *                                                          *
  ************************************************************
  */
-    if (!(mask_passed[side][square] & Pawns(enemy)))
+    connected = Pawns(side) & mask_pawn_connected[side][square];
+    if (connected) {
+      score_mg += pawn_connected[rank][file];
+      score_eg += pawn_connected[rank][file];
+    }
+/*
+ ************************************************************
+ *                                                          *
+ *  Flag passed pawns for use later when we finally call    *
+ *  EvaluatePassedPawns.                                    *
+ *                                                          *
+ ************************************************************
+ */
+    passed = !(Pawns(enemy) & mask_passed[side][square]);
+    if (passed)
       tree->pawn_score.passed[side] |= 1 << file;
 /*
  ************************************************************
  *                                                          *
- *  Determine if this pawn is a candidate passer, since we  *
- *  now know it isn't passed.  A candidate is a pawn on a   *
- *  file with no enemy pawns in front of it, and if it      *
- *  advances until it contacts an enemy pawn, and it is     *
- *  defended as many times as it is attacked when it        *
- *  reaches that pawn, then all that is left is to see if   *
- *  it is passed when the attacker(s) get removed.          *
+ *  Test the pawn to see if it is backward which makes it a *
+ *  target that ties down pieces to defend it.              *
  *                                                          *
  ************************************************************
  */
-    else if (!(file_mask[File(square)] & Pawns(enemy))
-        && mask_pawn_isolated[square] & Pawns(side)
-        && !(pawn_attacks[side][square] & Pawns(enemy))) {
-      attackers = 1;
-      defenders = 0;
-      for (sq = square; sq != File(square) + (rank7[side] << 3);
-          sq += direction[side]) {
-        if (SetMask(sq + direction[side]) & tree->all_pawns)
-          break;
-        defenders = PopCnt(pawn_attacks[enemy][sq] & p_moves[side]);
-        attackers = PopCnt(pawn_attacks[side][sq] & Pawns(enemy));
-        if (attackers)
-          break;
-      }
-      if (attackers <= defenders) {
-        if (!(mask_passed[side][sq + direction[side]] & Pawns(enemy))) {
-          score_mg += passed_pawn_candidate[mg][rank];
-          score_eg += passed_pawn_candidate[eg][rank];
-        }
-      }
+    backward = 0;
+    if (!(passed | isolated | connected | (Pawns(side) &
+                mask_pattacks[side][square]) | (Pawns(enemy) &
+                PawnAttacks(side, square))))
+      backward = Pawns(enemy) & PawnAttacks(side, square + direction[side]);
+    if (backward) {
+      score_mg -= pawn_backward[mg][file];
+      score_eg -= pawn_backward[eg][file];
     }
 /*
  ************************************************************
  *                                                          *
- *  Evaluate "hidden" passed pawns.  Simple case is a pawn  *
- *  chain (white) at b5, a6, with a black pawn at a7.       *
- *  It appears the b-pawn is backward, with a ram at a6/a7  *
- *  but this is misleading, because the pawn at a6 is       *
- *  really passed when white plays b6.                      *
+ *  Determine if this pawn is a candidate passed pawn,      *
+ *  which is a pawn on a file with no enemy pawns in front  *
+ *  of it, and if it advances until it contacts an enemy    *
+ *  pawn, and it is defended at least as many times as it   *
+ *  is attacked when it reaches that pawn, then it will end *
+ *  up passed.                                              *
  *                                                          *
  ************************************************************
  */
-    if (Rank(square) == rank6[side]
-        && SetMask(square + direction[side]) & Pawns(enemy)
-        && ((File(square) < FILEH &&
-                SetMask(square + 9 - 16 * side) & Pawns(side)
-                && !(mask_hidden_right[side][File(square)] & Pawns(enemy)))
-            || (File(square) > FILEA &&
-                SetMask(square + 7 - 16 * side) & Pawns(side)
-                && !(mask_hidden_left[side][File(square)] & Pawns(enemy))))) {
-      score_mg += passed_pawn_hidden[mg];
-      score_eg += passed_pawn_hidden[eg];
+    if (!(passed | backward | isolated) &&
+        !(Pawns(enemy) & ((side) ? plus8dir[square] : minus8dir[square]))) {
+      defenders = mask_pattacks[side][square + direction[side]] & Pawns(side);
+      attackers = mask_pattacks[enemy][square] & Pawns(enemy);
+      if (PopCnt(defenders) >= PopCnt(attackers)) {
+        score_mg += passed_pawn_candidate[mg][rank];
+        score_eg += passed_pawn_candidate[eg][rank];
+      }
     }
   }
+/*
+ ************************************************************
+ *                                                          *
+ *  Give a bonus for distance between left-most pawn and    *
+ *  right-most pawn.  The idea is that the wider the gap    *
+ *  between the pawns, the harder they are for a lone king  *
+ *  to control in the endgame.  Botvinnik referred to this  *
+ *  concept as "trousers" (pants with two legs, the farther *
+ *  the legs are apart, the better for the side with those  *
+ *  pawns).                                                 *
+ *                                                          *
+ ************************************************************
+ */
+  score_eg += pawn_file_width * (MSB8Bit(pawn_files) - LSB8Bit(pawn_files));
 /*
  ************************************************************
  *                                                          *
  *  Evaluate king safety.                                   *
  *                                                          *
  *  This uses the function EvaluateKingsFile() and looks at *
- *  four possible positions for the king, either castled    *
+ *  three possible positions for the king, either castled   *
  *  kingside, queenside or else standing on the d or e file *
  *  stuck in the middle.  This essentially is about the     *
  *  pawns in front of the king and what kind of "shelter"   *
@@ -1493,15 +1422,25 @@ void EvaluatePawns(TREE * RESTRICT tree, int side) {
  *                                                          *
  ************************************************************
  */
-  tree->pawn_score.defects_q[side] = EvaluateKingsFile(tree, FILEB, side);
-  tree->pawn_score.defects_d[side] = EvaluateKingsFile(tree, FILED, side);
-  tree->pawn_score.defects_e[side] = EvaluateKingsFile(tree, FILEE, side);
-  tree->pawn_score.defects_k[side] = EvaluateKingsFile(tree, FILEG, side);
+  tree->pawn_score.defects_q[side] =
+      EvaluateKingsFile(tree, side, FILEA, FILEC);
+  tree->pawn_score.defects_m[side] =
+      EvaluateKingsFile(tree, side, FILEC, FILEF);
+  tree->pawn_score.defects_k[side] =
+      EvaluateKingsFile(tree, side, FILEF, FILEH);
+/*
+ ************************************************************
+ *                                                          *
+ *  Done.  Add mg/eg scores to final result (sign-corrected *
+ *  so that black = -, white = +) and return.               *
+ *                                                          *
+ ************************************************************
+ */
   tree->pawn_score.score_mg += sign[side] * score_mg;
   tree->pawn_score.score_eg += sign[side] * score_eg;
 }
 
-/* last modified 02/23/14 */
+/* last modified 10/19/15 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -1511,8 +1450,7 @@ void EvaluatePawns(TREE * RESTRICT tree, int side) {
  */
 void EvaluateQueens(TREE * RESTRICT tree, int side) {
   uint64_t temp;
-  int square, i, score_mg = 0, score_eg = 0;
-  int enemy = Flip(side);
+  int square, i, score_mg = 0, score_eg = 0, enemy = Flip(side);
 
 /*
  ************************************************************
@@ -1553,7 +1491,7 @@ void EvaluateQueens(TREE * RESTRICT tree, int side) {
   tree->score_eg += sign[side] * score_eg;
 }
 
-/* last modified 08/20/14 */
+/* last modified 10/19/15 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -1563,8 +1501,7 @@ void EvaluateQueens(TREE * RESTRICT tree, int side) {
  */
 void EvaluateRooks(TREE * RESTRICT tree, int side) {
   uint64_t temp, moves;
-  int square, rank, file, i, mobility;
-  int score_mg = 0, score_eg = 0;
+  int square, rank, file, i, mobility, score_mg = 0, score_eg = 0;
   int enemy = Flip(side);
 
 /*
@@ -1599,48 +1536,6 @@ void EvaluateRooks(TREE * RESTRICT tree, int side) {
 /*
  ************************************************************
  *                                                          *
- *  Check to see if the king has been forced to move and    *
- *  has trapped a rook at a1/b1/g1/h1, if so, then penalize *
- *  the trapped rook to help extricate it.                  *
- *                                                          *
- ************************************************************
- */
-    if (rank == rank1[side] && rank == Rank(KingSQ(side))) {
-      i = File(KingSQ(side));
-      if (i > FILEE) {
-        if (file > i) {
-          score_mg -= rook_trapped;
-          score_eg -= rook_trapped;
-        }
-      } else if (i < FILED && file < i) {
-        score_mg -= rook_trapped;
-        score_eg -= rook_trapped;
-      }
-    }
-/*
- ************************************************************
- *                                                          *
- *   finally check to see if any rooks are on the 7th rank, *
- *   with the opponent having pawns on that rank or the     *
- *   opponent's king being hemmed in on the 7th/8th rank.   *
- *   If so, we give a bonus for the strong rook.  If there  *
- *   is another rook on the 7th that is connected with this *
- *   one, then the positional advantage is even stronger.   *
- *                                                          *
- ************************************************************
- */
-    else if (rank == rank7[side] && (Rank(KingSQ(enemy)) == rank8[side]
-            || Pawns(enemy) & rank_mask[rank7[side]])) {
-      score_mg += rook_on_7th[mg];
-      score_eg += rook_on_7th[eg];
-      if (RankAttacks(square) & Rooks(side)) {
-        score_mg += rook_connected_7th[mg];
-        score_eg += rook_connected_7th[eg];
-      }
-    }
-/*
- ************************************************************
- *                                                          *
  *  Mobility counts the number of squares the rook attacks, *
  *  excluding squares with friendly pieces, and weighs each *
  *  square according to a complex formula that includes     *
@@ -1651,7 +1546,50 @@ void EvaluateRooks(TREE * RESTRICT tree, int side) {
     mobility = RookMobility(square, OccupiedSquares);
     score_mg += mobility;
     score_eg += mobility;
-
+/*
+ ************************************************************
+ *                                                          *
+ *  Check to see if the king has been forced to move and    *
+ *  has trapped a rook at a1/b1/g1/h1, if so, then penalize *
+ *  the trapped rook to help extricate it.  We only need to *
+ *  check this if the rooks mobility is very low.           *
+ *                                                          *
+ ************************************************************
+ */
+    if (mobility < 0 && rank == rank1[side] && rank == Rank(KingSQ(side))) {
+      i = File(KingSQ(side));
+      if (i > FILEE) {
+        if (file > i) {
+          score_mg += mobility * 3;
+          score_eg += mobility * 3;
+        }
+      } else if (i < FILED && file < i) {
+        score_mg += mobility * 3;
+        score_eg += mobility * 3;
+      }
+    }
+/*
+ ************************************************************
+ *                                                          *
+ *   finally check to see if any rooks are on the 7th rank, *
+ *   with the opponent having pawns on that rank or the     *
+ *   opponent's king being hemmed in on the 7th/8th rank.   *
+ *   If so, we give a bonus for the strong rook.  If there  *
+ *   is another rook or queen on the 7th that is connected  *
+ *   with this one, then the positional advantage is even   *
+ *   stronger.                                              *
+ *                                                          *
+ ************************************************************
+ */
+    else if (rank == rank7[side] && (Rank(KingSQ(enemy)) == rank8[side]
+            || Pawns(enemy) & rank_mask[rank])) {
+      score_mg += rook_on_7th[mg];
+      score_eg += rook_on_7th[eg];
+      if (RankAttacks(square) & (Queens(side) | Rooks(side))) {
+        score_mg += rook_connected_7th[mg];
+        score_eg += rook_connected_7th[eg];
+      }
+    }
 /*
  ************************************************************
  *                                                          *
@@ -1672,7 +1610,7 @@ void EvaluateRooks(TREE * RESTRICT tree, int side) {
   tree->score_eg += sign[side] * score_eg;
 }
 
-/* last modified 08/20/14 */
+/* last modified 01/03/15 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -1681,41 +1619,15 @@ void EvaluateRooks(TREE * RESTRICT tree, int side) {
  *   material in some way.                                                     *
  *                                                                             *
  *   Return values:                                                            *
- *        0    ->     side on move can not win.                                *
- *        1    ->     side on move can win.                                    *
+ *          0    ->     side on move can not win.                              *
+ *          1    ->     side on move can win.                                  *
  *                                                                             *
  *******************************************************************************
  */
 int EvaluateWinningChances(TREE * RESTRICT tree, int side, int wtm) {
-  int square, ekd, promote, majors, minors;
-  int enemy = Flip(side);
+  int square, ekd, promote, majors, minors, enemy = Flip(side);
 
-/*
- ************************************************************
- *                                                          *
- *  If neither side has any pieces, and both sides have     *
- *  non-rookpawns, then either side can win.                *
- *                                                          *
- ************************************************************
- */
-  if (TotalPieces(white, occupied) == 0 && TotalPieces(black, occupied) == 0
-      && Pawns(white) & not_rook_pawns && Pawns(black) & not_rook_pawns)
-    return 1;
-/*
- ************************************************************
- *                                                          *
- *  If one side is an exchange up, but has no pawns, then   *
- *  that side can not possibly win.                         *
- *                                                          *
- ************************************************************
- */
-  majors = TotalMajors(side) - TotalMajors(enemy);
-  if (Abs(majors) == 1) {
-    minors = TotalMinors(enemy) - TotalMinors(side);
-    if (majors == minors)
-      if (TotalPieces(side, pawn) == 0)
-        return 0;
-  }
+  if (!Pawns(side)) {
 /*
  ************************************************************
  *                                                          *
@@ -1727,12 +1639,41 @@ int EvaluateWinningChances(TREE * RESTRICT tree, int side, int wtm) {
  *                                                          *
  ************************************************************
  */
-  if (TotalPieces(side, pawn) == 0) {
     if (TotalPieces(side, occupied) <= 3)
       return 0;
     if (TotalPieces(side, occupied) - TotalPieces(enemy, occupied) <= 3 &&
         mask_not_edge & Kings(enemy))
       return 0;
+/*
+ ************************************************************
+ *                                                          *
+ *  If one side is an exchange up, but has no pawns, then   *
+ *  that side can not possibly win.                         *
+ *                                                          *
+ ************************************************************
+ */
+    majors =
+        TotalPieces(white, rook) + 2 * TotalPieces(white,
+        queen) - TotalPieces(black, rook) - 2 * TotalPieces(black, queen);
+    if (Abs(majors) == 1) {
+      minors =
+          TotalPieces(black, knight) + TotalPieces(black,
+          bishop) - TotalPieces(white, knight) - TotalPieces(white, bishop);
+      if (majors == minors)
+        return 0;
+    }
+  } else {
+/*
+ ************************************************************
+ *                                                          *
+ *  If neither side has any pieces, and both sides have     *
+ *  non-rookpawns, then either side can win.                *
+ *                                                          *
+ ************************************************************
+ */
+    if (TotalPieces(white, occupied) == 0 && TotalPieces(black, occupied) == 0
+        && Pawns(white) & not_rook_pawns && Pawns(black) & not_rook_pawns)
+      return 1;
   }
 /*
  ************************************************************
@@ -1745,7 +1686,7 @@ int EvaluateWinningChances(TREE * RESTRICT tree, int side, int wtm) {
  *                                                          *
  ************************************************************
  */
-  else if (!(Pawns(side) & not_rook_pawns))
+  if (!(Pawns(side) & not_rook_pawns))
     do {
       if (TotalPieces(side, occupied) > 3 || (TotalPieces(side, occupied) == 3
               && Knights(side)))
@@ -1820,9 +1761,33 @@ int EvaluateWinningChances(TREE * RESTRICT tree, int side, int wtm) {
  ************************************************************
  *                                                          *
  *  If we make it through all the above tests, then "side"  *
- *  can win so we return 1;                                 *
+ *  can win so we return 1.                                 *
  *                                                          *
  ************************************************************
  */
   return 1;
+}
+
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   InitializeKingSafety() is used to initialize the king safety matrix.      *
+ *   This is set so that the matrix, indexed by king safety pawn structure     *
+ *   index and by king safety piece tropism, combines the two indices to       *
+ *   produce a single score.  As either index rises, the king safety score     *
+ *   tracks along, but as both rise, the king safety score rises much more     *
+ *   quickly.                                                                  *
+ *                                                                             *
+ *******************************************************************************
+ */
+void InitializeKingSafety() {
+  int safety, tropism;
+
+  for (safety = 0; safety < 16; safety++) {
+    for (tropism = 0; tropism < 16; tropism++) {
+      king_safety[safety][tropism] =
+          180 * ((safety_vector[safety] + 100) * (tropism_vector[tropism] +
+              100) / 100 - 100) / 100;
+    }
+  }
 }

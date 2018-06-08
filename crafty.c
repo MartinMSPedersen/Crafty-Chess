@@ -10,6 +10,7 @@
  *                                                                             *
  *******************************************************************************
  */
+#include "iterate.c"
 #include "search.c"
 #include "movgen.c"
 #include "make.c"
@@ -27,6 +28,7 @@
 #include "utility.c"
 #include "probe.c"
 #include "book.c"
+#include "autotune.c"
 #include "analyze.c"
 #include "annotate.c"
 #include "bench.c"
@@ -39,7 +41,6 @@
 #include "init.c"
 #include "input.c"
 #include "interrupt.c"
-#include "iterate.c"
 #include "learn.c"
 #include "main.c"
 #include "option.c"

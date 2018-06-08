@@ -13,9 +13,9 @@
  *                                                                             *
  *******************************************************************************
  */
-int *GenerateCaptures(TREE * RESTRICT tree, int ply, int side, int *move) {
-  uint64_t target, piecebd, moves;
-  uint64_t promotions, pcapturesl, pcapturesr;
+unsigned *GenerateCaptures(TREE * RESTRICT tree, int ply, int side,
+    unsigned *move) {
+  uint64_t target, piecebd, moves, promotions, pcapturesl, pcapturesr;
   int from, to, temp, common, enemy = Flip(side);
 
 /*
@@ -29,7 +29,7 @@ int *GenerateCaptures(TREE * RESTRICT tree, int ply, int side, int *move) {
  ************************************************************
  */
   for (piecebd = Knights(side); piecebd; Clear(from, piecebd)) {
-    from = Advanced(side, piecebd);
+    from = MostAdvanced(side, piecebd);
     moves = knight_attacks[from] & Occupied(enemy);
     temp = from + (knight << 12);
     Extract(side, move, moves, temp);
@@ -45,7 +45,7 @@ int *GenerateCaptures(TREE * RESTRICT tree, int ply, int side, int *move) {
  ************************************************************
  */
   for (piecebd = Bishops(side); piecebd; Clear(from, piecebd)) {
-    from = Advanced(side, piecebd);
+    from = MostAdvanced(side, piecebd);
     moves = BishopAttacks(from, OccupiedSquares) & Occupied(enemy);
     temp = from + (bishop << 12);
     Extract(side, move, moves, temp);
@@ -61,7 +61,7 @@ int *GenerateCaptures(TREE * RESTRICT tree, int ply, int side, int *move) {
  ************************************************************
  */
   for (piecebd = Rooks(side); piecebd; Clear(from, piecebd)) {
-    from = Advanced(side, piecebd);
+    from = MostAdvanced(side, piecebd);
     moves = RookAttacks(from, OccupiedSquares) & Occupied(enemy);
     temp = from + (rook << 12);
     Extract(side, move, moves, temp);
@@ -77,7 +77,7 @@ int *GenerateCaptures(TREE * RESTRICT tree, int ply, int side, int *move) {
  ************************************************************
  */
   for (piecebd = Queens(side); piecebd; Clear(from, piecebd)) {
-    from = Advanced(side, piecebd);
+    from = MostAdvanced(side, piecebd);
     moves = QueenAttacks(from, OccupiedSquares) & Occupied(enemy);
     temp = from + (queen << 12);
     Extract(side, move, moves, temp);
@@ -121,7 +121,7 @@ int *GenerateCaptures(TREE * RESTRICT tree, int ply, int side, int *move) {
       ((side) ? (Pawns(white) & mask_left_edge) << 7 : (Pawns(black) &
           mask_left_edge) >> 9) & target;
   for (; pcapturesl; Clear(to, pcapturesl)) {
-    to = Advanced(side, pcapturesl);
+    to = MostAdvanced(side, pcapturesl);
     common = (to + capleft[side]) | (to << 6) | (pawn << 12);
     if ((side) ? to < 56 : to > 7)
       *move++ = common | (((PcOnSq(to)) ? Abs(PcOnSq(to)) : pawn) << 15);
@@ -132,7 +132,7 @@ int *GenerateCaptures(TREE * RESTRICT tree, int ply, int side, int *move) {
       ((side) ? (Pawns(white) & mask_right_edge) << 9 : (Pawns(black) &
           mask_right_edge) >> 7) & target;
   for (; pcapturesr; Clear(to, pcapturesr)) {
-    to = Advanced(side, pcapturesr);
+    to = MostAdvanced(side, pcapturesr);
     common = (to + capright[side]) | (to << 6) | (pawn << 12);
     if ((side) ? to < 56 : to > 7)
       *move++ = common | (((PcOnSq(to)) ? Abs(PcOnSq(to)) : pawn) << 15);
@@ -179,22 +179,23 @@ int *GenerateCaptures(TREE * RESTRICT tree, int ply, int side, int *move) {
  *                                                                             *
  *******************************************************************************
  */
-int *GenerateChecks(TREE * RESTRICT tree, int side, int *move) {
+unsigned *GenerateChecks(TREE * RESTRICT tree, int side, unsigned *move) {
   uint64_t temp_target, target, piecebd, moves;
   uint64_t padvances1, blockers, checkers;
   int from, to, promote, temp, enemy = Flip(side);
 
 /*
- *********************************************************************
- *                                                                   *
- *  First pass:  produce direct checks.  For each piece type, we     *
- *  pretend that a piece of that type stands on the square of the    *
- *  king and we generate attacks from that square for that piece.    *
- *  Now, if we can find any piece of that type that attacks one of   *
- *  those squares, then that piece move would deliver a direct       *
- *  check to the enemy king.  Easy, wasn't it?                       *
- *                                                                   *
- *********************************************************************
+ ************************************************************
+ *                                                          *
+ *  First pass:  produce direct checks.  For each piece     *
+ *  type, we pretend that a piece of that type stands on    *
+ *  the square of the king and we generate attacks from     *
+ *  that square for that piece.  Now, if we can find any    *
+ *  piece of that type that attacks one of those squares,   *
+ *  then that piece move would deliver a direct check to    *
+ *  the enemy king.  Easy, wasn't it?                       *
+ *                                                          *
+ ************************************************************
  */
   target = ~OccupiedSquares;
 /*
@@ -206,7 +207,7 @@ int *GenerateChecks(TREE * RESTRICT tree, int side, int *move) {
  */
   temp_target = target & knight_attacks[KingSQ(enemy)];
   for (piecebd = Knights(side); piecebd; Clear(from, piecebd)) {
-    from = Advanced(side, piecebd);
+    from = MostAdvanced(side, piecebd);
     moves = knight_attacks[from] & temp_target;
     temp = from + (knight << 12);
     Extract(side, move, moves, temp);
@@ -220,7 +221,7 @@ int *GenerateChecks(TREE * RESTRICT tree, int side, int *move) {
  */
   temp_target = target & BishopAttacks(KingSQ(enemy), OccupiedSquares);
   for (piecebd = Bishops(side); piecebd; Clear(from, piecebd)) {
-    from = Advanced(side, piecebd);
+    from = MostAdvanced(side, piecebd);
     moves = BishopAttacks(from, OccupiedSquares) & temp_target;
     temp = from + (bishop << 12);
     Extract(side, move, moves, temp);
@@ -234,7 +235,7 @@ int *GenerateChecks(TREE * RESTRICT tree, int side, int *move) {
  */
   temp_target = target & RookAttacks(KingSQ(enemy), OccupiedSquares);
   for (piecebd = Rooks(side); piecebd; Clear(from, piecebd)) {
-    from = Advanced(side, piecebd);
+    from = MostAdvanced(side, piecebd);
     moves = RookAttacks(from, OccupiedSquares) & temp_target;
     temp = from + (rook << 12);
     Extract(side, move, moves, temp);
@@ -248,7 +249,7 @@ int *GenerateChecks(TREE * RESTRICT tree, int side, int *move) {
  */
   temp_target = target & QueenAttacks(KingSQ(enemy), OccupiedSquares);
   for (piecebd = Queens(side); piecebd; Clear(from, piecebd)) {
-    from = Advanced(side, piecebd);
+    from = MostAdvanced(side, piecebd);
     moves = QueenAttacks(from, OccupiedSquares) & temp_target;
     temp = from + (queen << 12);
     Extract(side, move, moves, temp);
@@ -263,25 +264,27 @@ int *GenerateChecks(TREE * RESTRICT tree, int side, int *move) {
   temp_target = target & pawn_attacks[enemy][KingSQ(enemy)];
   padvances1 = ((side) ? Pawns(white) << 8 : Pawns(black) >> 8) & temp_target;
   for (; padvances1; Clear(to, padvances1)) {
-    to = Advanced(side, padvances1);
+    to = MostAdvanced(side, padvances1);
     *move++ = (to + pawnadv1[side]) | (to << 6) | (pawn << 12);
   }
 /*
- *********************************************************************
- *                                                                   *
- *  Second pass:  produce discovered checks.  Here we do things a    *
- *  bit differently.  We first take diagonal movers.  From the enemy *
- *  king's position, we generate diagonal moves to see if any of     *
- *  them end at one of our pieces that does not slide diagonally,    *
- *  such as a rook, knight or pawn.  If we find one, we look further *
- *  down that diagonal to see if we now find a diagonal moves (queen *
- *  or bishop).  If so, any legal move by the blocking piece (except *
- *  captures which have already been generated) will be a discovered *
- *  check that needs to be searched.  We do the same for vertical /  *
- *  horizontal rays that are blocked by bishops, knights or pawns    *
- *  that would hide a discovered check by a rook or queen.           *
- *                                                                   *
- *********************************************************************
+ ************************************************************
+ *                                                          *
+ *  Second pass:  produce discovered checks.  Here we do    *
+ *  things a bit differently.  We first take diagonal       *
+ *  movers.  From the enemy king's position, we generate    *
+ *  diagonal moves to see if any of them end at one of our  *
+ *  pieces that does not slide diagonally, such as a rook,  *
+ *  knight or pawn.  If we find one, we look further down   *
+ *  that diagonal to see if we now find a diagonal moves    *
+ *  (queen or bishop).  If so, any legal move by the        *
+ *  blocking piece (except captures which have already been *
+ *  generated) will be a discovered check that needs to be  *
+ *  searched.  We do the same for vertical / horizontal     *
+ *  rays that are blocked by bishops, knights or pawns that *
+ *  would hide a discovered check by a rook or queen.       *
+ *                                                          *
+ ************************************************************
  */
 /*
  ************************************************************
@@ -323,7 +326,7 @@ int *GenerateChecks(TREE * RESTRICT tree, int side, int *move) {
  */
       temp_target = target & ~knight_attacks[KingSQ(enemy)];
       for (piecebd = Knights(side) & blockers; piecebd; Clear(from, piecebd)) {
-        from = Advanced(side, piecebd);
+        from = MostAdvanced(side, piecebd);
         moves = knight_attacks[from] & temp_target;
         temp = from + (knight << 12);
         Extract(side, move, moves, temp);
@@ -338,7 +341,7 @@ int *GenerateChecks(TREE * RESTRICT tree, int side, int *move) {
       target = ~OccupiedSquares;
       temp_target = target & ~RookAttacks(KingSQ(enemy), OccupiedSquares);
       for (piecebd = Rooks(side) & blockers; piecebd; Clear(from, piecebd)) {
-        from = Advanced(side, piecebd);
+        from = MostAdvanced(side, piecebd);
         moves = RookAttacks(from, OccupiedSquares) & temp_target;
         temp = from + (rook << 12);
         Extract(side, move, moves, temp);
@@ -354,7 +357,7 @@ int *GenerateChecks(TREE * RESTRICT tree, int side, int *move) {
           Pawns(side) & blockers & ((side) ? ~OccupiedSquares >> 8 :
           ~OccupiedSquares << 8);
       for (; piecebd; Clear(from, piecebd)) {
-        from = Advanced(side, piecebd);
+        from = MostAdvanced(side, piecebd);
         to = from + pawnadv1[enemy];
         if ((side) ? to > 55 : to < 8)
           promote = queen;
@@ -405,7 +408,7 @@ int *GenerateChecks(TREE * RESTRICT tree, int side, int *move) {
  */
       temp_target = target & ~knight_attacks[KingSQ(enemy)];
       for (piecebd = Knights(side) & blockers; piecebd; Clear(from, piecebd)) {
-        from = Advanced(side, piecebd);
+        from = MostAdvanced(side, piecebd);
         moves = knight_attacks[from] & temp_target;
         temp = from + (knight << 12);
         Extract(side, move, moves, temp);
@@ -420,7 +423,7 @@ int *GenerateChecks(TREE * RESTRICT tree, int side, int *move) {
       target = ~OccupiedSquares;
       temp_target = target & ~BishopAttacks(KingSQ(enemy), OccupiedSquares);
       for (piecebd = Bishops(side) & blockers; piecebd; Clear(from, piecebd)) {
-        from = Advanced(side, piecebd);
+        from = MostAdvanced(side, piecebd);
         moves = BishopAttacks(from, OccupiedSquares) & temp_target;
         temp = from + (bishop << 12);
         Extract(side, move, moves, temp);
@@ -436,7 +439,7 @@ int *GenerateChecks(TREE * RESTRICT tree, int side, int *move) {
           Pawns(side) & blockers & ((side) ? ~OccupiedSquares >> 8 :
           ~OccupiedSquares << 8);
       for (; piecebd; Clear(from, piecebd)) {
-        from = Advanced(side, piecebd);
+        from = MostAdvanced(side, piecebd);
         to = from + pawnadv1[enemy];
         if ((side) ? to > 55 : to < 8)
           promote = queen;
@@ -473,13 +476,12 @@ int *GenerateChecks(TREE * RESTRICT tree, int side, int *move) {
  *                                                                             *
  *******************************************************************************
  */
-int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int side, int *move) {
-  uint64_t target, targetc, targetp, piecebd, moves;
-  uint64_t padvances1, padvances2, pcapturesl, pcapturesr;
-  uint64_t padvances1_all, empty, checksqs;
-  int from, to, temp, common, enemy = Flip(side);
-  int king_square, checkers, checking_square;
-  int check_direction1 = 0, check_direction2 = 0;
+unsigned *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int side,
+    unsigned *move) {
+  uint64_t target, targetc, targetp, piecebd, moves, empty, checksqs;
+  uint64_t padvances1, padvances2, pcapturesl, pcapturesr, padvances1_all;
+  int from, to, temp, common, enemy = Flip(side), king_square, checkers;
+  int checking_square, check_direction1 = 0, check_direction2 = 0;
 
 /*
  ************************************************************
@@ -530,7 +532,7 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int side, int *move) {
   from = king_square;
   temp = from + (king << 12);
   for (moves = king_attacks[from] & ~Occupied(side); moves; Clear(to, moves)) {
-    to = Advanced(side, moves);
+    to = MostAdvanced(side, moves);
     if (!Attacks(tree, enemy, to)
         && directions[from][to] != check_direction1 &&
         directions[from][to] != check_direction2)
@@ -548,7 +550,7 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int side, int *move) {
  */
   if (checkers == 1) {
     for (piecebd = Knights(side); piecebd; Clear(from, piecebd)) {
-      from = Advanced(side, piecebd);
+      from = MostAdvanced(side, piecebd);
       if (!PinnedOnKing(tree, side, from)) {
         moves = knight_attacks[from] & target;
         temp = from + (knight << 12);
@@ -566,7 +568,7 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int side, int *move) {
  ************************************************************
  */
     for (piecebd = Bishops(side); piecebd; Clear(from, piecebd)) {
-      from = Advanced(side, piecebd);
+      from = MostAdvanced(side, piecebd);
       if (!PinnedOnKing(tree, side, from)) {
         moves = BishopAttacks(from, OccupiedSquares) & target;
         temp = from + (bishop << 12);
@@ -584,7 +586,7 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int side, int *move) {
  ************************************************************
  */
     for (piecebd = Rooks(side); piecebd; Clear(from, piecebd)) {
-      from = Advanced(side, piecebd);
+      from = MostAdvanced(side, piecebd);
       if (!PinnedOnKing(tree, side, from)) {
         moves = RookAttacks(from, OccupiedSquares) & target;
         temp = from + (rook << 12);
@@ -602,7 +604,7 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int side, int *move) {
  ************************************************************
  */
     for (piecebd = Queens(side); piecebd; Clear(from, piecebd)) {
-      from = Advanced(side, piecebd);
+      from = MostAdvanced(side, piecebd);
       if (!PinnedOnKing(tree, side, from)) {
         moves = QueenAttacks(from, OccupiedSquares) & target;
         temp = from + (queen << 12);
@@ -644,12 +646,12 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int side, int *move) {
  ************************************************************
  */
     for (; padvances2; Clear(to, padvances2)) {
-      to = Advanced(side, padvances2);
+      to = MostAdvanced(side, padvances2);
       if (!PinnedOnKing(tree, side, to + pawnadv2[side]))
         *move++ = (to + pawnadv2[side]) | (to << 6) | (pawn << 12);
     }
     for (; padvances1; Clear(to, padvances1)) {
-      to = Advanced(side, padvances1);
+      to = MostAdvanced(side, padvances1);
       if (!PinnedOnKing(tree, side, to + pawnadv1[side])) {
         common = (to + pawnadv1[side]) | (to << 6) | (pawn << 12);
         if ((side) ? to < 56 : to > 7)
@@ -673,7 +675,7 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int side, int *move) {
       pcapturesr = (Pawns(black) & mask_right_edge) >> 7 & targetc;
     }
     for (; pcapturesl; Clear(to, pcapturesl)) {
-      to = Advanced(side, pcapturesl);
+      to = MostAdvanced(side, pcapturesl);
       if (!PinnedOnKing(tree, side, to + capleft[side])) {
         common = (to + capleft[side]) | (to << 6) | (pawn << 12);
         if ((side) ? to < 56 : to > 7)
@@ -685,7 +687,7 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int side, int *move) {
       }
     }
     for (; pcapturesr; Clear(to, pcapturesr)) {
-      to = Advanced(side, pcapturesr);
+      to = MostAdvanced(side, pcapturesr);
       if (!PinnedOnKing(tree, side, to + capright[side])) {
         common = (to + capright[side]) | (to << 6) | (pawn << 12);
         if ((side) ? to < 56 : to > 7)
@@ -714,7 +716,7 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int side, int *move) {
  *                                                                             *
  *   Pawns are handled differently.  Regular pawn moves are produced by        *
  *   shifting the pawn bitmap 8 bits "forward" and anding this with the        *
- *   complement of the occupied squares bitmap  double advances are then       *
+ *   complement of the occupied squares bitmap double advances are then        *
  *   produced by anding the pawn bitmap with a mask containing 1's on the      *
  *   second rank, shifting this 16 bits "forward" and then anding this with    *
  *   the complement of the occupied squares bitmap as before.  If [to] reaches *
@@ -723,7 +725,8 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int side, int *move) {
  *                                                                             *
  *******************************************************************************
  */
-int *GenerateNoncaptures(TREE * RESTRICT tree, int ply, int side, int *move) {
+unsigned *GenerateNoncaptures(TREE * RESTRICT tree, int ply, int side,
+    unsigned *move) {
   uint64_t target, piecebd, moves;
   uint64_t padvances1, padvances2, pcapturesl, pcapturesr;
   int from, to, temp, common, enemy = Flip(side);
@@ -761,7 +764,7 @@ int *GenerateNoncaptures(TREE * RESTRICT tree, int ply, int side, int *move) {
  ************************************************************
  */
   for (piecebd = Knights(side); piecebd; Clear(from, piecebd)) {
-    from = Advanced(side, piecebd);
+    from = MostAdvanced(side, piecebd);
     moves = knight_attacks[from] & target;
     temp = from + (knight << 12);
     Extract(side, move, moves, temp);
@@ -777,7 +780,7 @@ int *GenerateNoncaptures(TREE * RESTRICT tree, int ply, int side, int *move) {
  ************************************************************
  */
   for (piecebd = Bishops(side); piecebd; Clear(from, piecebd)) {
-    from = Advanced(side, piecebd);
+    from = MostAdvanced(side, piecebd);
     moves = BishopAttacks(from, OccupiedSquares) & target;
     temp = from + (bishop << 12);
     Extract(side, move, moves, temp);
@@ -793,7 +796,7 @@ int *GenerateNoncaptures(TREE * RESTRICT tree, int ply, int side, int *move) {
  ************************************************************
  */
   for (piecebd = Rooks(side); piecebd; Clear(from, piecebd)) {
-    from = Advanced(side, piecebd);
+    from = MostAdvanced(side, piecebd);
     moves = RookAttacks(from, OccupiedSquares) & target;
     temp = from + (rook << 12);
     Extract(side, move, moves, temp);
@@ -809,7 +812,7 @@ int *GenerateNoncaptures(TREE * RESTRICT tree, int ply, int side, int *move) {
  ************************************************************
  */
   for (piecebd = Queens(side); piecebd; Clear(from, piecebd)) {
-    from = Advanced(side, piecebd);
+    from = MostAdvanced(side, piecebd);
     moves = QueenAttacks(from, OccupiedSquares) & target;
     temp = from + (queen << 12);
     Extract(side, move, moves, temp);
@@ -860,11 +863,11 @@ int *GenerateNoncaptures(TREE * RESTRICT tree, int ply, int side, int *move) {
  ************************************************************
  */
   for (; padvances2; Clear(to, padvances2)) {
-    to = Advanced(side, padvances2);
+    to = MostAdvanced(side, padvances2);
     *move++ = (to + pawnadv2[side]) | (to << 6) | (pawn << 12);
   }
   for (; padvances1; Clear(to, padvances1)) {
-    to = Advanced(side, padvances1);
+    to = MostAdvanced(side, padvances1);
     common = (to + pawnadv1[side]) | (to << 6) | (pawn << 12);
     if ((side) ? to < 56 : to > 7)
       *move++ = common;
@@ -888,7 +891,7 @@ int *GenerateNoncaptures(TREE * RESTRICT tree, int ply, int side, int *move) {
       ((side) ? (Pawns(white) & mask_left_edge) << 7 : (Pawns(black) &
           mask_left_edge) >> 9) & target;
   for (; pcapturesl; Clear(to, pcapturesl)) {
-    to = Advanced(side, pcapturesl);
+    to = MostAdvanced(side, pcapturesl);
     common = (to + capleft[side]) | (to << 6) | (pawn << 12);
     *move++ = common | (Abs(PcOnSq(to)) << 15) | (rook << 18);
     *move++ = common | (Abs(PcOnSq(to)) << 15) | (bishop << 18);
@@ -898,7 +901,7 @@ int *GenerateNoncaptures(TREE * RESTRICT tree, int ply, int side, int *move) {
       ((side) ? (Pawns(white) & mask_right_edge) << 9 : (Pawns(black) &
           mask_right_edge) >> 7) & target;
   for (; pcapturesr; Clear(to, pcapturesr)) {
-    to = Advanced(side, pcapturesr);
+    to = MostAdvanced(side, pcapturesr);
     common = (to + capright[side]) | (to << 6) | (pawn << 12);
     *move++ = common | (Abs(PcOnSq(to)) << 15) | (rook << 18);
     *move++ = common | (Abs(PcOnSq(to)) << 15) | (bishop << 18);
@@ -919,8 +922,7 @@ int *GenerateNoncaptures(TREE * RESTRICT tree, int ply, int side, int *move) {
  *******************************************************************************
  */
 int PinnedOnKing(TREE * RESTRICT tree, int side, int square) {
-  int ray;
-  int enemy = Flip(side);
+  int ray, enemy = Flip(side);
 
 /*
  ************************************************************

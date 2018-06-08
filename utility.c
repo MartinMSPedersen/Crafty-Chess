@@ -29,7 +29,6 @@
  *                                                                             *
  *******************************************************************************
  */
-
 void AlignedMalloc(void **pointer, int alignment, size_t size) {
   segments[nsegments][0] = malloc(size + alignment - 1);
   segments[nsegments][1] =
@@ -48,7 +47,6 @@ void AlignedMalloc(void **pointer, int alignment, size_t size) {
  *                                                                             *
  *******************************************************************************
  */
-
 uint64_t atoiKMB(char *input) {
   uint64_t size;
 
@@ -71,9 +69,9 @@ uint64_t atoiKMB(char *input) {
  *                                                                             *
  *******************************************************************************
  */
-
 void AlignedRemalloc(void **pointer, int alignment, size_t size) {
   int i;
+
   for (i = 0; i < nsegments; i++)
     if (segments[i][1] == *pointer)
       break;
@@ -99,10 +97,12 @@ void AlignedRemalloc(void **pointer, int alignment, size_t size) {
  *******************************************************************************
  */
 void BookClusterIn(FILE * file, int positions, BOOK_POSITION * buffer) {
-  char file_buffer[BOOK_CLUSTER_SIZE * sizeof(BOOK_POSITION)];
   int i;
+  char file_buffer[BOOK_CLUSTER_SIZE * sizeof(BOOK_POSITION)];
 
-  fread(file_buffer, positions, sizeof(BOOK_POSITION), file);
+  i = fread(file_buffer, positions, sizeof(BOOK_POSITION), file);
+  if (i <= 0)
+    perror("BookClusterIn fread error: ");
   for (i = 0; i < positions; i++) {
     buffer[i].position =
         BookIn64((unsigned char *) (file_buffer + i * sizeof(BOOK_POSITION)));
@@ -125,8 +125,8 @@ void BookClusterIn(FILE * file, int positions, BOOK_POSITION * buffer) {
  *******************************************************************************
  */
 void BookClusterOut(FILE * file, int positions, BOOK_POSITION * buffer) {
-  char file_buffer[BOOK_CLUSTER_SIZE * sizeof(BOOK_POSITION)];
   int i;
+  char file_buffer[BOOK_CLUSTER_SIZE * sizeof(BOOK_POSITION)];
 
   for (i = 0; i < positions; i++) {
     memcpy(file_buffer + i * sizeof(BOOK_POSITION),
@@ -143,7 +143,7 @@ void BookClusterOut(FILE * file, int positions, BOOK_POSITION * buffer) {
  *******************************************************************************
  *                                                                             *
  *   BookIn32f() is used to convert 4 bytes from the book file into a valid 32 *
- *   bit binary value.  this eliminates endian worries that make the binary    *
+ *   bit binary value.  This eliminates endian worries that make the binary    *
  *   book non-portable across many architectures.                              *
  *                                                                             *
  *******************************************************************************
@@ -472,7 +472,7 @@ void CraftyExit(int exit_type) {
   int proc;
 
   for (proc = 1; proc < CPUS; proc++)
-    thread[proc].tree = (TREE *) - 1;
+    thread[proc].terminate = 1;
   while (smp_threads);
   exit(exit_type);
 }
@@ -606,10 +606,10 @@ void DisplayBitBoard(uint64_t board) {
     x = (board >> i) & 255;
     for (j = 1; j < 256; j = j << 1)
       if (x & j)
-        printf("X ");
+        Print(4095, "X ");
       else
-        printf("- ");
-    printf("\n");
+        Print(4095, "- ");
+    Print(4095, "\n");
   }
 }
 
@@ -654,12 +654,11 @@ void Display2BitBoards(uint64_t board1, uint64_t board2) {
  *******************************************************************************
  */
 void DisplayChessBoard(FILE * display_file, POSITION pos) {
-  int display_board[64];
+  int display_board[64], i, j;
   static const char display_string[16][4] =
       { "<K>", "<Q>", "<R>", "<B>", "<N>", "<P>", "   ",
     "-P-", "-N-", "-B-", "-R-", "-Q-", "-K-", " . "
   };
-  int i, j;
 
 /*
  ************************************************************
@@ -698,6 +697,20 @@ void DisplayChessBoard(FILE * display_file, POSITION pos) {
 /*
  *******************************************************************************
  *                                                                             *
+ *   DisplayChessMove() is a debugging function that displays a chess move in  *
+ *   a very simple (non-algebraic) form.                                       *
+ *                                                                             *
+ *******************************************************************************
+ */
+void DisplayChessMove(char *title, int move) {
+  Print(4095, "%s  piece=%d, from=%d, to=%d, captured=%d, promote=%d\n",
+      title, Piece(move), From(move), To(move), Captured(move),
+      Promote(move));
+}
+
+/*
+ *******************************************************************************
+ *                                                                             *
  *   DisplayEvaluation() is used to convert the evaluation to a string that    *
  *   can be displayed.  The length is fixed so that screen formatting will     *
  *   look nice and aligned.                                                    *
@@ -705,8 +718,8 @@ void DisplayChessBoard(FILE * display_file, POSITION pos) {
  *******************************************************************************
  */
 char *DisplayEvaluation(int value, int wtm) {
-  static char out[10];
   int tvalue;
+  static char out[10];
 
   tvalue = (wtm) ? value : -value;
   if (!MateScore(value))
@@ -745,8 +758,8 @@ char *DisplayEvaluation(int value, int wtm) {
  *******************************************************************************
  */
 char *DisplayEvaluationKibitz(int value, int wtm) {
-  static char out[10];
   int tvalue;
+  static char out[10];
 
   tvalue = (wtm) ? value : -value;
   if (!MateScore(value))
@@ -778,6 +791,123 @@ char *DisplayEvaluationKibitz(int value, int wtm) {
 /*
  *******************************************************************************
  *                                                                             *
+ *   DisplayPath() is used to display a PV during the root move search.        *
+ *                                                                             *
+ *******************************************************************************
+ */
+char *DisplayPath(TREE * RESTRICT tree, int wtm, PATH * pv) {
+  static char buffer[4096];
+  int i, t_move_number;
+
+/*
+ ************************************************************
+ *                                                          *
+ *  Initialize.                                             *
+ *                                                          *
+ ************************************************************
+ */
+  t_move_number = move_number;
+  sprintf(buffer, " %d.", move_number);
+  if (!wtm)
+    sprintf(buffer + strlen(buffer), " ...");
+  for (i = 1; i < (int) pv->pathl; i++) {
+    if (i > 1 && wtm)
+      sprintf(buffer + strlen(buffer), " %d.", t_move_number);
+    sprintf(buffer + strlen(buffer), " %s", OutputMove(tree, i, wtm,
+            pv->path[i]));
+    MakeMove(tree, i, wtm, pv->path[i]);
+    wtm = Flip(wtm);
+    if (wtm)
+      t_move_number++;
+  }
+  if (pv->pathh == 1)
+    sprintf(buffer + strlen(buffer), " <HT>             ");
+  else if (pv->pathh == 2)
+    sprintf(buffer + strlen(buffer), " <EGTB>           ");
+  else if (pv->pathh == 3)
+    sprintf(buffer + strlen(buffer), " <3-fold>         ");
+  else if (pv->pathh == 4)
+    sprintf(buffer + strlen(buffer), " <50-move>        ");
+  if (strlen(buffer) < 30)
+    for (i = 0; i < 30 - strlen(buffer); i++)
+      strcat(buffer, " ");
+  strcpy(kibitz_text, buffer);
+  for (i = pv->pathl - 1; i > 0; i--) {
+    wtm = Flip(wtm);
+    UnmakeMove(tree, i, wtm, pv->path[i]);
+  }
+  return buffer;
+}
+
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   DisplayFail() is used to display a PV (moves only) during the search.     *
+ *                                                                             *
+ *******************************************************************************
+ */
+void DisplayFail(TREE * RESTRICT tree, int type, int level, int wtm, int time,
+    int move, int value, int force) {
+  char buffer[4096], *fh_indicator;
+
+/*
+ ************************************************************
+ *                                                          *
+ *  If we have not used "noise_level" units of time, we     *
+ *  return immediately.  Otherwise we add the fail high/low *
+ *  indicator (++/--) and then display the times.           *
+ *                                                          *
+ ************************************************************
+ */
+  if (time < noise_level)
+    return;
+  if (type == 1)
+    fh_indicator = (wtm) ? "++" : "--";
+  else
+    fh_indicator = (wtm) ? "--" : "++";
+  Print(4, "         %2i   %s     %2s   ", iteration,
+      Display2Times(end_time - start_time), fh_indicator);
+/*
+ ************************************************************
+ *                                                          *
+ *  If we are pondering, we need to add the (ponder-move)   *
+ *  to the front of the buffer, correcting the move number  *
+ *  if necessary.  Then fill in the move number and the     *
+ *  fail high/low bound.                                    *
+ *                                                          *
+ ************************************************************
+ */
+  if (!pondering) {
+    sprintf(buffer, "%d.", move_number);
+    if (!wtm)
+      sprintf(buffer + strlen(buffer), " ...");
+  } else {
+    if (wtm)
+      sprintf(buffer, "%d. ... (%s) %d.", move_number - 1, ponder_text,
+          move_number);
+    else
+      sprintf(buffer, "%d. (%s)", move_number, ponder_text);
+  }
+  sprintf(buffer + strlen(buffer), " %s%c", OutputMove(tree, 1, wtm, move),
+      (type == 1) ? '!' : '?');
+  strcpy(kibitz_text, buffer);
+  if (time >= noise_level || force) {
+    noise_block = 0;
+    Lock(lock_io);
+    Print(4, "%s", buffer);
+    Unlock(lock_io);
+    if (type == 1)
+      Print(4, " (%c%s)                   \n", (wtm) ? '>' : '<',
+          DisplayEvaluationKibitz(value, wtm));
+    else
+      Print(4, " (%c%s)                   \n", (wtm) ? '<' : '>',
+          DisplayEvaluationKibitz(value, wtm));
+  }
+}
+
+/*
+ *******************************************************************************
+ *                                                                             *
  *   DisplayPV() is used to display a PV during the search.                    *
  *                                                                             *
  *******************************************************************************
@@ -785,8 +915,9 @@ char *DisplayEvaluationKibitz(int value, int wtm) {
 void DisplayPV(TREE * RESTRICT tree, int level, int wtm, int time, PATH * pv,
     int force) {
   char buffer[4096], *buffp, *bufftemp;
-  int i, t_move_number, type;
-  int nskip = 0, twtm = wtm, pv_depth = pv->pathd;;
+  char blanks[40] = { "                                        " };
+  int i, len, t_move_number, nskip = 0, twtm = wtm, pv_depth = pv->pathd;;
+  unsigned int idle_time;
 
 /*
  ************************************************************
@@ -796,73 +927,91 @@ void DisplayPV(TREE * RESTRICT tree, int level, int wtm, int time, PATH * pv,
  ************************************************************
  */
   for (i = 0; i < n_root_moves; i++)
-    if (!(root_moves[i].status & 8) && !(root_moves[i].status & 4))
+    if (root_moves[i].status & 4)
       nskip++;
-  if (level == 5)
-    type = 4;
-  else
-    type = 2;
+  for (i = 0; i < 4096; i++)
+    buffer[i] = ' ';
   t_move_number = move_number;
-  if (display_options & 64)
-    sprintf(buffer, " %d.", move_number);
-  else
-    buffer[0] = 0;
-  if ((display_options & 64) && !wtm)
-    sprintf(buffer + strlen(buffer), " ...");
+  if (!pondering) {
+    sprintf(buffer, "%d.", move_number);
+    if (!wtm)
+      sprintf(buffer + strlen(buffer), " ...");
+  } else {
+    if (wtm)
+      sprintf(buffer, "%d. ... (%s) %d.", move_number - 1, ponder_text,
+          move_number);
+    else
+      sprintf(buffer, "%d. (%s)", move_number, ponder_text);
+  }
   for (i = 1; i < (int) pv->pathl; i++) {
-    if ((display_options & 64) && i > 1 && wtm)
+    if (i > 1 && wtm)
       sprintf(buffer + strlen(buffer), " %d.", t_move_number);
-    sprintf(buffer + strlen(buffer), " %s", OutputMove(tree, pv->path[i], i,
-            wtm));
-    MakeMove(tree, i, pv->path[i], wtm);
+    sprintf(buffer + strlen(buffer), " %s", OutputMove(tree, i, wtm,
+            pv->path[i]));
+    MakeMove(tree, i, wtm, pv->path[i]);
     wtm = Flip(wtm);
     if (wtm)
       t_move_number++;
   }
   if (pv->pathh == 1)
-    sprintf(buffer + strlen(buffer), " <HT>           ");
+    sprintf(buffer + strlen(buffer), " <HT>");
   else if (pv->pathh == 2)
-    sprintf(buffer + strlen(buffer), " <EGTB>         ");
-  if (strlen(buffer) < 30)
-    for (i = 0; i < 30 - strlen(buffer); i++)
-      strcat(buffer, " ");
-  strcpy(kibitz_text, buffer);
+    sprintf(buffer + strlen(buffer), " <EGTB>");
+  else if (pv->pathh == 3)
+    sprintf(buffer + strlen(buffer), " <3-fold>");
+  else if (pv->pathh == 3)
+    sprintf(buffer + strlen(buffer), " <50-move>");
   if (nskip > 1 && smp_max_threads > 1)
     sprintf(buffer + strlen(buffer), " (s=%d)", nskip);
-  if (time > noise_level || force) {
+  if (strlen(buffer) < 30) {
+    len = 30 - strlen(buffer);
+    for (i = 0; i < len; i++)
+      strcat(buffer, " ");
+  }
+  strcpy(kibitz_text, buffer);
+  if (time >= noise_level || force) {
     noise_block = 0;
     Lock(lock_io);
-    Print(type, "         ");
+    Print(2, "         ");
     if (level == 6)
-      Print(type, "%2i   %s%s   ", pv_depth, Display2Times(time),
+      Print(2, "%2i   %s%s   ", pv_depth, Display2Times(time),
           DisplayEvaluation(pv->pathv, twtm));
     else
-      Print(type, "%2i-> %s%s   ", pv_depth, Display2Times(time)
+      Print(2, "%2i-> %s%s   ", pv_depth, Display2Times(time)
           , DisplayEvaluation(pv->pathv, twtm));
-    buffp = buffer + 1;
+    buffp = buffer;
     do {
-      if ((int) strlen(buffp) > line_length - 42)
-        bufftemp = strchr(buffp + line_length - 42, ' ');
-      else
+      if ((int) strlen(buffp) > line_length - 38) {
+        bufftemp = buffp + line_length - 38;
+        while (*bufftemp != ' ')
+          bufftemp--;
+        if (*(bufftemp - 1) == '.')
+          while (*(--bufftemp) != ' ');
+      } else
         bufftemp = 0;
       if (bufftemp)
         *bufftemp = 0;
-      Print(type, "%s\n", buffp);
+      Print(2, "%s\n", buffp);
       buffp = bufftemp + 1;
       if (bufftemp)
-        Print(type, "                                     ");
+        if (!strncmp(buffp, blanks, strlen(buffp)))
+          bufftemp = 0;
+      if (bufftemp)
+        Print(2, "                                     ");
     } while (bufftemp);
-    idle_percent =
+    idle_time = 0;
+    for (i = 0; i < smp_max_threads; i++)
+      idle_time += thread[i].idle;
+    busy_percent =
         100 - Min(100,
         100 * idle_time / (smp_max_threads * (end_time - start_time) + 1));
     Kibitz(level, twtm, pv_depth, end_time - start_time, pv->pathv,
-        tree->nodes_searched, idle_percent, tree->egtb_probes_successful,
-        kibitz_text);
+        tree->nodes_searched, busy_percent, tree->egtb_hits, kibitz_text);
     Unlock(lock_io);
   }
   for (i = pv->pathl - 1; i > 0; i--) {
     wtm = Flip(wtm);
-    UnmakeMove(tree, i, pv->path[i], wtm);
+    UnmakeMove(tree, i, wtm, pv->path[i]);
   }
 }
 
@@ -876,10 +1025,10 @@ void DisplayPV(TREE * RESTRICT tree, int level, int wtm, int time, PATH * pv,
  *******************************************************************************
  */
 char *DisplayHHMMSS(unsigned int time) {
-  static char out[10];
+  static char out[32];
 
   time = time / 100;
-  sprintf(out, "%3u:%02u:%02u", time / 3600, time / 60, time % 60);
+  sprintf(out, "%3u:%02u:%02u", time / 3600, (time % 3600) / 60, time % 60);
   return out;
 }
 
@@ -976,9 +1125,8 @@ char *DisplayTime(unsigned int time) {
  *******************************************************************************
  */
 char *Display2Times(unsigned int time) {
+  int ttime, c, spaces;
   static char out[20], tout[10];
-  int ttime;
-  int c, spaces;
 
   if (time < 6000)
     sprintf(out, "%6.2f", (float) time / 100.0);
@@ -1031,154 +1179,6 @@ char *DisplayTimeKibitz(unsigned int time) {
 /*
  *******************************************************************************
  *                                                                             *
- *   DisplayTreeState() is a debugging procedure used to provide some basic    *
- *   information about how the parallel search is progressing.  It is invoked  *
- *   by typing a "." (no quotes) while in console mode.                        *
- *                                                                             *
- *******************************************************************************
- */
-void DisplayTreeState(TREE * RESTRICT tree, int sply, int spos, int maxply) {
-  int left, i, *mvp, parallel = 0;
-  char buf[1024];
-
-  buf[0] = 0;
-  if (sply == 1) {
-    left = 0;
-    for (i = 0; i < n_root_moves; i++)
-      if (!(root_moves[i].status & 8))
-        left++;
-    sprintf(buf, "%d:%d/%d  ", 1, left, n_root_moves);
-  } else {
-    for (i = 0; i < spos - 6; i++)
-      sprintf(buf + strlen(buf), " ");
-    sprintf(buf + strlen(buf), "[p%2d] ", tree->thread_id);
-  }
-  for (i = Max(sply, 2); i <= maxply; i++) {
-    left = 0;
-    for (mvp = tree->last[i - 1]; mvp < tree->last[i]; mvp++)
-      if (*mvp)
-        left++;
-    sprintf(buf + strlen(buf), "%d:%d/%d  ", i, left,
-        (int) (tree->last[i] - tree->last[i - 1]));
-    if (!(i % 8))
-      sprintf(buf + strlen(buf), "\n");
-    if (tree->nprocs > 1 && tree->ply == i) {
-      parallel = strlen(buf);
-      break;
-    }
-    if (sply > 1)
-      break;
-  }
-  printf("%s\n", buf);
-  if (sply == 1 && tree->nprocs) {
-    for (i = 0; i < smp_max_threads; i++)
-      if (tree->siblings[i])
-        DisplayTreeState(tree->siblings[i], tree->ply + 1, parallel, maxply);
-  }
-}
-
-/*
- *******************************************************************************
- *                                                                             *
- *   DisplayType3() prints personality parameters that use an 8x8 board for    *
- *   their base values.  This prints them side by side with rank/file labels   *
- *   to make it easier to read.                                                *
- *                                                                             *
- *******************************************************************************
- */
-void DisplayType3(int *array, int *array2) {
-  int i, j;
-
-  printf("    ----------- Middlegame -----------   ");
-  printf("    ------------- Endgame -----------\n");
-  for (i = 0; i < 8; i++) {
-    printf("    ");
-    for (j = 0; j < 8; j++)
-      printf("%3d ", array[64 + (7 - i) * 8 + j]);
-    printf("  |  %d  |", 8 - i);
-    printf("  ");
-    for (j = 0; j < 8; j++)
-      printf("%3d ", array2[64 + (7 - i) * 8 + j]);
-    printf("\n");
-  }
-  printf
-      ("    ----------------------------------       ---------------------------------\n");
-  printf("      a   b   c   d   e   f   g   h        ");
-  printf("      a   b   c   d   e   f   g   h\n");
-}
-
-/*
- *******************************************************************************
- *                                                                             *
- *   DisplayType4() prints personality parameters that use an 8x8 board for    *
- *   their base values.  This prints them side by side with rank/file labels   *
- *   to make it easier to read.                                                *
- *                                                                             *
- *******************************************************************************
- */
-void DisplayType4(int *array, int *array2) {
-  int i, j;
-
-  printf("    ----------- Middlegame -----------   ");
-  printf("    ------------- Endgame -----------\n");
-  for (i = 0; i < 8; i++) {
-    printf("    ");
-    for (j = 0; j < 8; j++)
-      printf("%3d ", array[(7 - i) * 8 + j]);
-    printf("  |  %d  |", 8 - i);
-    printf("  ");
-    for (j = 0; j < 8; j++)
-      printf("%3d ", array2[(7 - i) * 8 + j]);
-    printf("\n");
-  }
-  printf
-      ("    ----------------------------------       ---------------------------------\n");
-  printf("      a   b   c   d   e   f   g   h        ");
-  printf("      a   b   c   d   e   f   g   h\n");
-}
-
-/*
- *******************************************************************************
- *                                                                             *
- *   DisplayType5() prints personality parameters that use an array[size].     *
- *                                                                             *
- *******************************************************************************
- */
-void DisplayType5(int *array, int size) {
-  int i;
-
-  printf("   ");
-  for (i = 0; i < size; i++)
-    printf("%4d ", array[i]);
-  printf("\n");
-}
-
-/*
- *******************************************************************************
- *                                                                             *
- *   DisplayType6() prints personality parameters that use an array[mg][8]     *
- *   format.                                                                   *
- *                                                                             *
- *******************************************************************************
- */
-void DisplayType6(int *array) {
-  int i;
-
-  printf("    ----------- Middlegame ------------ ");
-  printf("    ------------- Endgame ------------\n");
-  printf("    ");
-  for (i = 0; i < 8; i++)
-    printf("%3d ", array[i]);
-  printf("  |     |");
-  printf("  ");
-  for (i = 8; i < 16; i++)
-    printf("%3d ", array[i]);
-  printf("\n");
-}
-
-/*
- *******************************************************************************
- *                                                                             *
  *   EGTBPV() is used to display the PV for a known EGTB position.  It simply  *
  *   makes moves, looks up the position to find the shortest mate, then it     *
  *   follows that PV.  It appends a "!" to a move that is the only move to     *
@@ -1189,14 +1189,11 @@ void DisplayType6(int *array) {
  */
 #if !defined(NOEGTB)
 void EGTBPV(TREE * RESTRICT tree, int wtm) {
-  int moves[1024], current[256];
-  uint64_t hk[1024], phk[1024];
+  uint64_t hk[1024], phk[1024], pos[1024];
+  unsigned moves[1024], current[256], *last;
+  int value, ply, i, j, nmoves;
+  int t_move_number, best = 0, bestmv = 0, optimal_mv = 0, legal;
   char buffer[16384], *next;
-  uint64_t pos[1024];
-  int value;
-  int ply, i, j, nmoves, *last, t_move_number;
-  int best = 0, bestmv = 0, optimal_mv = 0;
-  int legal;
 
 /*
  ************************************************************
@@ -1214,11 +1211,8 @@ void EGTBPV(TREE * RESTRICT tree, int wtm) {
   if (!EGTBProbe(tree, 1, wtm, &value))
     return;
   t_move_number = move_number;
-  if (display_options & 64)
-    sprintf(buffer, "%d.", move_number);
-  else
-    buffer[0] = 0;
-  if ((display_options & 64) && !wtm)
+  sprintf(buffer, "%d.", move_number);
+  if (!wtm)
     sprintf(buffer + strlen(buffer), " ...");
 /*
  ************************************************************
@@ -1240,7 +1234,7 @@ void EGTBPV(TREE * RESTRICT tree, int wtm) {
     best = -MATE - 1;
     legal = 0;
     for (i = 0; i < nmoves; i++) {
-      MakeMove(tree, 1, current[i], wtm);
+      MakeMove(tree, 1, wtm, current[i]);
       if (!Check(wtm)) {
         legal++;
         if (TotalAllPieces == 2 || EGTBProbe(tree, 2, Flip(wtm), &value)) {
@@ -1256,19 +1250,19 @@ void EGTBPV(TREE * RESTRICT tree, int wtm) {
             optimal_mv = 0;
         }
       }
-      UnmakeMove(tree, 1, current[i], wtm);
+      UnmakeMove(tree, 1, wtm, current[i]);
     }
     if (best > -MATE - 1) {
       moves[ply] = bestmv;
-      if ((display_options & 64) && ply > 1 && wtm)
+      if (ply > 1 && wtm)
         sprintf(buffer + strlen(buffer), " %d.", t_move_number);
-      sprintf(buffer + strlen(buffer), " %s", OutputMove(tree, bestmv, 1,
-              wtm));
+      sprintf(buffer + strlen(buffer), " %s", OutputMove(tree, 1, wtm,
+              bestmv));
       if (!strchr(buffer, '#') && legal > 1 && optimal_mv)
         sprintf(buffer + strlen(buffer), "!");
       hk[ply] = HashKey;
       phk[ply] = PawnHashKey;
-      MakeMove(tree, 1, bestmv, wtm);
+      MakeMove(tree, 1, wtm, bestmv);
       tree->status[1] = tree->status[2];
       wtm = Flip(wtm);
       for (j = 2 - (ply & 1); j < ply; j += 2)
@@ -1290,7 +1284,7 @@ void EGTBPV(TREE * RESTRICT tree, int wtm) {
     wtm = Flip(wtm);
     tree->save_hash_key[1] = hk[ply];
     tree->save_pawn_hash_key[1] = phk[ply];
-    UnmakeMove(tree, 1, moves[ply], wtm);
+    UnmakeMove(tree, 1, wtm, moves[ply]);
     tree->status[2] = tree->status[1];
   }
   next = buffer;
@@ -1311,19 +1305,6 @@ void EGTBPV(TREE * RESTRICT tree, int wtm) {
   }
 }
 #endif
-/*
- *******************************************************************************
- *                                                                             *
- *   DisplayChessMove() is a debugging function that displays a chess move in  *
- *   a very simple (non-algebraic) form.                                       *
- *                                                                             *
- *******************************************************************************
- */
-void DisplayChessMove(char *title, int move) {
-  Print(4095, "%s  piece=%d, from=%d, to=%d, captured=%d, promote=%d\n",
-      title, Piece(move), From(move), To(move), Captured(move),
-      Promote(move));
-}
 
 /*
  *******************************************************************************
@@ -1334,8 +1315,8 @@ void DisplayChessMove(char *title, int move) {
  *******************************************************************************
  */
 char *FormatPV(TREE * RESTRICT tree, int wtm, PATH pv) {
-  static char buffer[4096];
   int i, t_move_number;
+  static char buffer[4096];
 
 /*
  ************************************************************
@@ -1345,25 +1326,22 @@ char *FormatPV(TREE * RESTRICT tree, int wtm, PATH pv) {
  ************************************************************
  */
   t_move_number = move_number;
-  if (display_options & 64)
-    sprintf(buffer, " %d.", move_number);
-  else
-    buffer[0] = 0;
-  if ((display_options & 64) && !wtm)
+  sprintf(buffer, " %d.", move_number);
+  if (!wtm)
     sprintf(buffer + strlen(buffer), " ...");
   for (i = 1; i < (int) pv.pathl; i++) {
-    if ((display_options & 64) && i > 1 && wtm)
+    if (i > 1 && wtm)
       sprintf(buffer + strlen(buffer), " %d.", t_move_number);
-    sprintf(buffer + strlen(buffer), " %s", OutputMove(tree, pv.path[i], i,
-            wtm));
-    MakeMove(tree, i, pv.path[i], wtm);
+    sprintf(buffer + strlen(buffer), " %s", OutputMove(tree, i, wtm,
+            pv.path[i]));
+    MakeMove(tree, i, wtm, pv.path[i]);
     wtm = Flip(wtm);
     if (wtm)
       t_move_number++;
   }
   for (i = pv.pathl - 1; i > 0; i--) {
     wtm = Flip(wtm);
-    UnmakeMove(tree, i, pv.path[i], wtm);
+    UnmakeMove(tree, i, wtm, pv.path[i]);
   }
   return buffer;
 }
@@ -1380,9 +1358,8 @@ char *FormatPV(TREE * RESTRICT tree, int wtm, PATH pv) {
  *******************************************************************************
  */
 int GameOver(int wtm) {
-  int *mvp, *lastm, rmoves[256];
   TREE *const tree = block[0];
-  int over = 1;
+  unsigned *mvp, *lastm, rmoves[256], over = 1;
 
 /*
  ************************************************************
@@ -1405,10 +1382,10 @@ int GameOver(int wtm) {
  ************************************************************
  */
   for (mvp = rmoves; mvp < lastm; mvp++) {
-    MakeMove(tree, 1, *mvp, wtm);
+    MakeMove(tree, 1, wtm, *mvp);
     if (!Check(wtm))
       over = 0;
-    UnmakeMove(tree, 1, *mvp, wtm);
+    UnmakeMove(tree, 1, wtm, *mvp);
   }
 /*
  ************************************************************
@@ -1458,15 +1435,15 @@ unsigned int ReadClock(void) {
 /*
  *******************************************************************************
  *                                                                             *
- *   FindBlockID() converts a thread block pointer into an ID that is easier to*
- *   understand when debugging.                                                *
+ *   FindBlockID() converts a thread block pointer into an ID that is easier   *
+ *   to understand when debugging.                                             *
  *                                                                             *
  *******************************************************************************
  */
 int FindBlockID(TREE * RESTRICT which) {
   int i;
 
-  for (i = 0; i < MAX_BLOCKS + 1; i++)
+  for (i = 0; i <= smp_max_threads * 64; i++)
     if (which == block[i])
       return i;
   return -1;
@@ -1483,44 +1460,49 @@ int FindBlockID(TREE * RESTRICT which) {
  *******************************************************************************
  */
 int InvalidPosition(TREE * RESTRICT tree) {
-  int error = 0;
-  int wp, wn, wb, wr, wq, bp, bn, bb, br, bq;
+  int error = 0, wp, wn, wb, wr, wq, wk, bp, bn, bb, br, bq, bk;
 
   wp = PopCnt(Pawns(white));
   wn = PopCnt(Knights(white));
   wb = PopCnt(Bishops(white));
   wr = PopCnt(Rooks(white));
   wq = PopCnt(Queens(white));
+  wk = PopCnt(Kings(white));
   bp = PopCnt(Pawns(black));
   bn = PopCnt(Knights(black));
   bb = PopCnt(Bishops(black));
   br = PopCnt(Rooks(black));
   bq = PopCnt(Queens(black));
+  bk = PopCnt(Kings(black));
   if (wp > 8) {
     Print(4095, "illegal position, too many white pawns\n");
     error = 1;
   }
-  if (wp + wn > 10) {
+  if (wn && wp + wn > 10) {
     Print(4095, "illegal position, too many white knights\n");
     error = 1;
   }
-  if (wp + wb > 10) {
+  if (wb && wp + wb > 10) {
     Print(4095, "illegal position, too many white bishops\n");
     error = 1;
   }
-  if (wp + wr > 10) {
+  if (wr && wp + wr > 10) {
     Print(4095, "illegal position, too many white rooks\n");
     error = 1;
   }
-  if (wp + wq > 10) {
+  if (wq && wp + wq > 10) {
     Print(4095, "illegal position, too many white queens\n");
     error = 1;
   }
-  if (KingSQ(white) > 63) {
+  if (wk == 0) {
     Print(4095, "illegal position, no white king\n");
     error = 1;
   }
-  if (wp + wn + wb + wr + wq > 15) {
+  if (wk > 1) {
+    Print(4095, "illegal position, multiple white kings\n");
+    error = 1;
+  }
+  if ((wn + wb + wr + wq) && wp + wn + wb + wr + wq > 15) {
     Print(4095, "illegal position, too many white pieces\n");
     error = 1;
   }
@@ -1532,27 +1514,31 @@ int InvalidPosition(TREE * RESTRICT tree) {
     Print(4095, "illegal position, too many black pawns\n");
     error = 1;
   }
-  if (bp + bn > 10) {
+  if (bn && bp + bn > 10) {
     Print(4095, "illegal position, too many black knights\n");
     error = 1;
   }
-  if (bp + bb > 10) {
+  if (bb && bp + bb > 10) {
     Print(4095, "illegal position, too many black bishops\n");
     error = 1;
   }
-  if (bp + br > 10) {
+  if (br && bp + br > 10) {
     Print(4095, "illegal position, too many black rooks\n");
     error = 1;
   }
-  if (bp + bq > 10) {
+  if (bq && bp + bq > 10) {
     Print(4095, "illegal position, too many black queens\n");
     error = 1;
   }
-  if (KingSQ(black) > 63) {
+  if (bk == 0) {
     Print(4095, "illegal position, no black king\n");
     error = 1;
   }
-  if (bp + bn + bb + br + bq > 15) {
+  if (bk > 1) {
+    Print(4095, "illegal position, multiple black kings\n");
+    error = 1;
+  }
+  if ((bn + bb + br + bq) && bp + bn + bb + br + bq > 15) {
     Print(4095, "illegal position, too many black pieces\n");
     error = 1;
   }
@@ -1594,14 +1580,11 @@ int KingPawnSquare(int pawn, int king, int queen, int ptm) {
  *******************************************************************************
  */
 void NewGame(int save) {
-  static int save_book_selection_width = 5;
-  static int save_kibitz = 0;
-  static int save_resign = 0, save_resign_count = 0, save_draw_count = 0;
-  static int save_learning = 0;
-  static int save_learn = 0;
-  static int save_accept_draws = 0;
-  int id;
   TREE *const tree = block[0];
+  static int save_book_selection_width = 5, save_kibitz = 0;
+  static int save_resign = 0, save_resign_count = 0, save_draw_count = 0;
+  static int save_learning = 0, save_learn = 0, save_accept_draws = 0;
+  int id;
 
   new_game = 0;
   if (save) {
@@ -1688,8 +1671,7 @@ void NewGame(int save) {
  *******************************************************************************
  */
 int ParseTime(char *string) {
-  int time = 0;
-  int minutes = 0;
+  int time = 0, minutes = 0;
 
   while (*string) {
     switch (*string) {
@@ -1729,9 +1711,9 @@ int ParseTime(char *string) {
  *******************************************************************************
  */
 void Pass(void) {
-  char buffer[128];
   const int halfmoves_done = 2 * (move_number - 1) + (1 - game_wtm);
   int prev_pass = 0;
+  char buffer[128];
 
 /* Was previous move a pass? */
   if (halfmoves_done > 0) {
@@ -1777,15 +1759,16 @@ void Print(int vb, char *fmt, ...) {
   va_list ap;
 
   va_start(ap, fmt);
-  if (vb & display_options)
+  if (vb == 4095 || vb & display_options) {
     vprintf(fmt, ap);
-  fflush(stdout);
-  if (time_limit > -99 || tc_time_remaining[root_wtm] > 6000 || vb == 4095) {
+    fflush(stdout);
+  }
+  if (time_limit > 5 || tc_time_remaining[root_wtm] > 1000 || vb == 4095) {
     va_start(ap, fmt);
-    if (log_file)
+    if (log_file) {
       vfprintf(log_file, fmt, ap);
-    if (log_file)
       fflush(log_file);
+    }
   }
   va_end(ap);
 }
@@ -1920,8 +1903,8 @@ int Read(int wait, char *buffer) {
 /*
  *******************************************************************************
  *                                                                             *
- *   ReadClear() clears the input buffer when input_stream is being switched to*
- *   a file, since we have info buffered up from a different input stream.     *
+ *   ReadClear() clears the input buffer when input_stream is being switched   *
+ *   to a file, since we have info buffered up from a different input stream.  *
  *                                                                             *
  *******************************************************************************
  */
@@ -1939,8 +1922,8 @@ void ReadClear() {
  *******************************************************************************
  */
 int ReadParse(char *buffer, char *args[], char *delims) {
-  char *next, tbuffer[4096];
   int nargs;
+  char *next, tbuffer[4096];
 
   strcpy(tbuffer, buffer);
   for (nargs = 0; nargs < 512; nargs++)
@@ -1974,8 +1957,8 @@ int ReadParse(char *buffer, char *args[], char *delims) {
  *******************************************************************************
  */
 int ReadInput(void) {
-  char buffer[4096], *end;
   int bytes;
+  char buffer[4096], *end;
 
   do
     bytes = read(fileno(input_stream), buffer, 2048);
@@ -1998,16 +1981,16 @@ int ReadInput(void) {
 /*
  *******************************************************************************
  *                                                                             *
- *   ReadChessMove() is used to read a move from an input file.  The main issue*
- *   is to skip over "trash" like move numbers, times, comments, and so forth, *
- *   and find the next actual move.                                            *
+ *   ReadChessMove() is used to read a move from an input file.  The main      *
+ *   issue is to skip over "trash" like move numbers, times, comments, and so  *
+ *   forth, and find the next actual move.                                     *
  *                                                                             *
  *******************************************************************************
  */
 int ReadChessMove(TREE * RESTRICT tree, FILE * input, int wtm, int one_move) {
+  int move = 0, status;
   static char text[128];
   char *tmove;
-  int move = 0, status;
 
   while (move == 0) {
     status = fscanf(input, "%s", text);
@@ -2022,7 +2005,7 @@ int ReadChessMove(TREE * RESTRICT tree, FILE * input, int wtm, int one_move) {
         || !strcmp(tmove, "0-0-0")) {
       if (!strcmp(tmove, "exit"))
         return -1;
-      move = InputMove(tree, tmove, 0, wtm, 1, 0);
+      move = InputMove(tree, 0, wtm, 1, 0, tmove);
     }
     if (one_move)
       break;
@@ -2052,7 +2035,7 @@ int ReadNextMove(TREE * RESTRICT tree, char *text, int ply, int wtm) {
       || !strcmp(tmove, "0-0-0")) {
     if (!strcmp(tmove, "exit"))
       return -1;
-    move = InputMove(tree, tmove, ply, wtm, 1, 0);
+    move = InputMove(tree, ply, wtm, 1, 0, tmove);
   }
   return move;
 }
@@ -2070,9 +2053,9 @@ int ReadNextMove(TREE * RESTRICT tree, char *text, int ply, int wtm) {
  */
 int ReadPGN(FILE * input, int option) {
   static int data = 0, lines_read = 0;
+  int braces = 0, parens = 0, brackets = 0, analysis = 0, last_good_line;
   static char input_buffer[4096];
   char *eof, analysis_move[64];
-  int braces = 0, parens = 0, brackets = 0, analysis = 0, last_good_line;
 
 /*
  ************************************************************
@@ -2180,10 +2163,10 @@ int ReadPGN(FILE * input, int option) {
 /*
  ************************************************************
  *                                                          *
- *  This skips over nested {} or () characters and finds the*
- *  'mate', before returning any more moves.  It also stops *
- *  if a PGN header is encountered, probably due to an      *
- *  incorrectly bracketed analysis variation.               *
+ *  This skips over nested {} or () characters and finds    *
+ *  the 'mate', before returning any more moves.  It also   *
+ *  stops if a PGN header is encountered, probably due to   *
+ *  an incorrectly bracketed analysis variation.            *
  *                                                          *
  ************************************************************
  */
@@ -2274,7 +2257,7 @@ int ReadPGN(FILE * input, int option) {
       } else {
         int skip;
 
-        if ((skip = strspn(buffer, "0123456789."))) {
+        if ((skip = strspn(buffer, "0123456789./-"))) {
           if (skip > 1)
             memmove(buffer, buffer + skip, strlen(buffer + skip) + 1);
         }
@@ -2307,13 +2290,13 @@ int ReadPGN(FILE * input, int option) {
  *******************************************************************************
  *                                                                             *
  *   RestoreGame() resets the position to the beginning of the game, and then  *
- *   reads in the game.nnn history file to set the position up so that the game*
- *   position matches the position at the end of the history file.             *
+ *   reads in the game.nnn history file to set the position up so that the     *
+ *   game position matches the position at the end of the history file.        *
  *                                                                             *
  *******************************************************************************
  */
 void RestoreGame(void) {
-  int i, move;
+  int i, v, move;
   char cmd[16];
 
   if (!history_file)
@@ -2323,11 +2306,13 @@ void RestoreGame(void) {
   for (i = 0; i < 500; i++) {
     fseek(history_file, i * 10, SEEK_SET);
     strcpy(cmd, "");
-    fscanf(history_file, "%s", cmd);
+    v = fscanf(history_file, "%s", cmd);
+    if (v < 0)
+      perror("RestoreGame fscanf error: ");
     if (strcmp(cmd, "pass")) {
-      move = InputMove(block[0], cmd, 0, game_wtm, 1, 0);
+      move = InputMove(block[0], 0, game_wtm, 1, 0, cmd);
       if (move)
-        MakeMoveRoot(block[0], move, game_wtm);
+        MakeMoveRoot(block[0], game_wtm, move);
       else
         break;
     }
@@ -2367,20 +2352,17 @@ void Kibitz(int level, int wtm, int depth, int time, int value,
         }
         break;
       case 2:
-        if ((kibitz & 15) >= 2) {
+        if ((kibitz & 15) >= 2)
           printf("%s ply=%d; eval=%s; nps=%s; time=%s(%d%%); egtb=%d\n",
               prefix, depth, DisplayEvaluationKibitz(value, wtm),
               DisplayKMB(nps, 0), DisplayTimeKibitz(time), ip, tb_hits);
-        }
       case 3:
-        if ((kibitz & 15) >= 3 && (nodes > 5000 || level == 2)) {
+        if ((kibitz & 15) >= 3 && (nodes > 5000 || level == 2))
           printf("%s %s\n", prefix, pv);
-        }
         break;
       case 4:
-        if ((kibitz & 15) >= 4) {
+        if ((kibitz & 15) >= 4)
           printf("%s %s\n", prefix, pv);
-        }
         break;
       case 5:
         if ((kibitz & 15) >= 5 && nodes > 5000) {
@@ -2392,26 +2374,14 @@ void Kibitz(int level, int wtm, int depth, int time, int value,
           printf("\n");
         }
         break;
-      case 6:
-        if ((kibitz & 15) >= 6 && nodes > 5000) {
-          if (wtm)
-            printf("%s d%d+ %s/s %s(%d%%) >(%s) %s <re-searching>\n", prefix,
-                depth, DisplayKMB(nps, 0), DisplayTimeKibitz(time), ip,
-                DisplayEvaluationKibitz(value, wtm), pv);
-          else
-            printf("%s d%d+ %s/s %s(%d%%) <(%s) %s <re-searching>\n", prefix,
-                depth, DisplayKMB(nps, 0), DisplayTimeKibitz(time), ip,
-                DisplayEvaluationKibitz(value, wtm), pv);
-        }
-        break;
     }
     value = (wtm) ? value : -value;
     if (post && level > 1) {
       if (strstr(pv, "book"))
-        printf("	%2d  %5d %7d %" PRIu64 " %s\n", depth, value, time,
+        printf("      %2d  %5d %7d %" PRIu64 " %s\n", depth, value, time,
             nodes, pv + 10);
       else
-        printf("	%2d  %5d %7d %" PRIu64 " %s\n", depth, value, time,
+        printf("      %2d  %5d %7d %" PRIu64 " %s\n", depth, value, time,
             nodes, pv);
     }
     fflush(stdout);
@@ -2422,93 +2392,92 @@ void Kibitz(int level, int wtm, int depth, int time, int value,
  *******************************************************************************
  *                                                                             *
  *   Output() is used to print the principal variation whenever it changes.    *
- *   One additional feature is that Output() will try to do something about    *
- *   variations truncated by the transposition table.  If the variation was    *
- *   cut short by a transposition table hit, then we can make the last move,   *
- *   add it to the end of the variation and extend the depth of the variation  *
- *   to cover it.                                                              *
  *                                                                             *
  *******************************************************************************
  */
-void Output(TREE * RESTRICT tree, int bound) {
-  int wtm;
-  int i;
-  ROOT_MOVE temp_rm;
+void Output(TREE * RESTRICT tree) {
+  int wtm, i;
 
 /*
  ************************************************************
  *                                                          *
- *  First, move the best move to the top of the ply-1 move  *
- *  list if it's not already there, so that it will be the  *
- *  first move tried in the next iteration.                 *
+ *  Output the PV by walking down the path being backed up. *
+ *  We do set the "age" for this move to "4" which will     *
+ *  keep it in the group of "search with all threads" moves *
+ *  so that it will be searched faster.                     *
  *                                                          *
  ************************************************************
  */
   wtm = root_wtm;
   if (!abort_search) {
-    kibitz_depth = iteration_depth;
-    for (i = 0; i < n_root_moves; i++)
-      if (tree->curmv[1] == root_moves[i].move)
-        break;
-    if (i && i < n_root_moves) {
-      temp_rm = root_moves[i];
-      for (; i > 0; i--)
-        root_moves[i] = root_moves[i - 1];
-      root_moves[0] = temp_rm;
-    }
-    root_moves[0].bm_age = 4;
+    kibitz_depth = iteration;
     end_time = ReadClock();
-/*
- ************************************************************
- *                                                          *
- *  If this is not a fail-high move, then output the PV by  *
- *  walking down the path being backed up.                  *
- *                                                          *
- ************************************************************
- */
-    if (tree->pv[1].pathv < bound) {
-      UnmakeMove(tree, 1, tree->pv[1].path[1], root_wtm);
-      DisplayPV(tree, 6, wtm, end_time - start_time, &tree->pv[1], 0);
-      MakeMove(tree, 1, tree->pv[1].path[1], root_wtm);
-    } else {
-      if (tree->curmv[1] != tree->pv[1].path[1]) {
-        tree->pv[1].path[1] = tree->curmv[1];
-        tree->pv[1].pathl = 2;
-        tree->pv[1].pathh = 0;
-        tree->pv[1].pathd = iteration_depth;
-      }
-    }
+    DisplayPV(tree, 6, wtm, end_time - start_time, &tree->pv[1], 0);
+    for (i = 0; i < n_root_moves; i++)
+      if (tree->pv[1].path[1] == root_moves[i].move)
+        break;
+    root_moves[i].path = tree->pv[1];
+    root_moves[i].bm_age = 4;
   }
 }
 
 /*
  *******************************************************************************
  *                                                                             *
- *   Trace() is used to print the search trace output each time a node is*
+ *   SortRootMoves() is used to sort the root move list based on the value     *
+ *   saved for each move.  After a fail high or fail low, we always re-sort    *
+ *   the root move list so that the best move found so far is first in the     *
+ *   list.  This is primarily intended as a defense against getting a score    *
+ *   for the first root move, and then getting a fail-high on the second move, *
+ *   which should move this move to the front of the moves.  But if the move   *
+ *   then fails low, we want to move it back down since a deeper/less-reduced  *
+ *   search did not verify the fail-high.                                      *
+ *                                                                             *
+ *******************************************************************************
+ */
+void SortRootMoves() {
+  ROOT_MOVE rtemp;
+  int mvp, done;
+
+  do {
+    done = 1;
+    for (mvp = 0; mvp < n_root_moves - 1; mvp++) {
+      if (root_moves[mvp].path.pathv < root_moves[mvp + 1].path.pathv) {
+        rtemp = root_moves[mvp];
+        root_moves[mvp] = root_moves[mvp + 1];
+        root_moves[mvp + 1] = rtemp;
+        done = 0;
+      }
+    }
+  } while (!done);
+}
+
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   Trace() is used to print the search trace output each time a node is      *
  *   traversed in the tree.                                                    *
  *                                                                             *
  *******************************************************************************
  */
 void Trace(TREE * RESTRICT tree, int ply, int depth, int wtm, int alpha,
-    int beta, const char *name, int phase) {
+    int beta, const char *name, int mode, int phase, int order) {
   int i;
 
   Lock(lock_io);
   for (i = 1; i < ply; i++)
-    printf("  ");
+    Print(-1, "  ");
   if (phase != EVALUATION) {
-    printf("%d  %s d:%2d [%s,", ply, OutputMove(tree, tree->curmv[ply], ply,
-            wtm), depth, DisplayEvaluation(alpha, 1));
-    printf("%s] n:%" PRIu64 " %s(%d)", DisplayEvaluation(beta, 1),
-        (tree->nodes_searched), name, phase);
-    if (smp_max_threads > 1)
-      printf(" (t=%d) ", tree->thread_id);
-    printf("\n");
+    Print(-1, "%d  %s(%d) d:%2d [%s,", ply, OutputMove(tree, ply, wtm,
+            tree->curmv[ply]), order, depth, DisplayEvaluation(alpha, 1));
+    Print(-1, "%s] n:%" PRIu64 " %s(%c:%d)", DisplayEvaluation(beta, 1),
+        tree->nodes_searched, name, (mode) ? 'P' : 'S', phase);
+    Print(-1, " (t=%d)\n", tree->thread_id);
   } else {
-    printf("%d window/eval(%s) = {", ply, name);
-    printf("%s, ", DisplayEvaluation(alpha, 1));
-    printf("%s, ", DisplayEvaluation(depth, 1));
-    printf("%s}\n", DisplayEvaluation(beta, 1));
+    Print(-1, "%d window/eval(%s) = {", ply, name);
+    Print(-1, "%s, ", DisplayEvaluation(alpha, 1));
+    Print(-1, "%s, ", DisplayEvaluation(depth, 1));
+    Print(-1, "%s}\n", DisplayEvaluation(beta, 1));
   }
   fflush(0);
   Unlock(lock_io);
@@ -2541,12 +2510,6 @@ int StrCnt(char *string, char testchar) {
  *******************************************************************************
  */
 int ValidMove(TREE * RESTRICT tree, int ply, int wtm, int move) {
-  static int epdir[2] = { 8, -8 };
-  static int csq[2] = { C8, C1 };
-  static int dsq[2] = { D8, D1 };
-  static int esq[2] = { E8, E1 };
-  static int fsq[2] = { F8, F1 };
-  static int gsq[2] = { G8, G1 };
   int btm = Flip(wtm);
 
 /*
@@ -2612,16 +2575,10 @@ int ValidMove(TREE * RESTRICT tree, int ply, int wtm, int move) {
     case pawn:
       if (((wtm) ? To(move) - From(move) : From(move) - To(move)) < 0)
         return 0;
-      if (Abs(From(move) - To(move)) == 8) {
-        if (!PcOnSq(To(move)))
-          return 1;
-        return 0;
-      }
-      if (Abs(From(move) - To(move)) == 16) {
-        if (!PcOnSq(To(move)) && !PcOnSq(To(move) + epdir[wtm]))
-          return 1;
-        return 0;
-      }
+      if (Abs(From(move) - To(move)) == 8)
+        return (PcOnSq(To(move))) ? 0 : 1;
+      if (Abs(From(move) - To(move)) == 16)
+        return (PcOnSq(To(move)) || PcOnSq(To(move) + epdir[wtm])) ? 0 : 1;
       if (!Captured(move))
         return 0;
 /*
@@ -2664,10 +2621,8 @@ int ValidMove(TREE * RESTRICT tree, int ply, int wtm, int move) {
  *                                                          *
  ************************************************************
  */
-  if ((Captured(move) == ((wtm) ? -PcOnSq(To(move)) : PcOnSq(To(move))))
-      && Captured(move) != king)
-    return 1;
-  return 0;
+  return ((Captured(move) == ((wtm) ? -PcOnSq(To(move)) : PcOnSq(To(move))))
+      && Captured(move) != king) ? 1 : 0;
 }
 
 /* last modified 02/26/14 */
@@ -2681,7 +2636,7 @@ int ValidMove(TREE * RESTRICT tree, int ply, int wtm, int move) {
  *******************************************************************************
  */
 int VerifyMove(TREE * RESTRICT tree, int ply, int wtm, int move) {
-  int moves[220], *mv, *mvp;
+  unsigned moves[256], *mv, *mvp;
 
 /*
  Generate moves, then eliminate any that are illegal.
@@ -2692,12 +2647,12 @@ int VerifyMove(TREE * RESTRICT tree, int ply, int wtm, int move) {
   mvp = GenerateCaptures(tree, MAXPLY, wtm, moves);
   mvp = GenerateNoncaptures(tree, MAXPLY, wtm, mvp);
   for (mv = &moves[0]; mv < mvp; mv++) {
-    MakeMove(tree, MAXPLY, *mv, wtm);
+    MakeMove(tree, MAXPLY, wtm, *mv);
     if (!Check(wtm) && move == *mv) {
-      UnmakeMove(tree, MAXPLY, *mv, wtm);
+      UnmakeMove(tree, MAXPLY, wtm, *mv);
       return 1;
     }
-    UnmakeMove(tree, MAXPLY, *mv, wtm);
+    UnmakeMove(tree, MAXPLY, wtm, *mv);
   }
   return 0;
 }
@@ -2710,7 +2665,6 @@ int VerifyMove(TREE * RESTRICT tree, int ply, int wtm, int move) {
  *******************************************************************************
  */
 #if !defined(UNIX)
-lock_t ThreadsLock;
 static BOOL(WINAPI * pGetNumaHighestNodeNumber) (PULONG);
 static BOOL(WINAPI * pGetNumaNodeProcessorMask) (UCHAR, PULONGLONG);
 static DWORD(WINAPI * pSetThreadIdealProcessor) (HANDLE, DWORD);
@@ -2729,7 +2683,7 @@ static void WinNumaInit(void) {
   DWORD dwCPU;
 
   if (!fThreadsInitialized) {
-    Lock(ThreadsLock);
+    Lock(lock_smp);
     if (!fThreadsInitialized) {
       printf("\nInitializing multiple threads.\n");
       fThreadsInitialized = TRUE;
@@ -2787,7 +2741,7 @@ static void WinNumaInit(void) {
       } else
         printf("System is SMP, not NUMA.\n");
     }
-    Unlock(ThreadsLock);
+    Unlock(lock_smp);
   }
 }
 
@@ -2858,7 +2812,7 @@ void *WinMallocInterleaved(size_t cbBytes, int cThreads) {
 
   WinNumaInit();
   if (fSystemIsNUMA && (cThreads > 1)) {
-    GetSystemInfo(&sSysInfo);   // populate the system information structure
+    GetSystemInfo(&sSysInfo); // populate the system information structure
     dwPageSize = sSysInfo.dwPageSize;
 // Reserve pages in the process's virtual address space.
     pBase = (char *) VirtualAlloc(NULL, cbBytes, MEM_RESERVE, PAGE_NOACCESS);
@@ -2875,10 +2829,10 @@ void *WinMallocInterleaved(size_t cbBytes, int cThreads) {
       dwAffinityMask =
           SetThreadAffinityMask(hThread, ullProcessorMask[ulNode]);
       for (pch = pBase + iThread * dwPageSize; pch < pEnd; pch += dwStep) {
-        lpvResult = VirtualAlloc(pch,   // next page to commit
+        lpvResult = VirtualAlloc(pch, // next page to commit
             dwPageSize, // page size, in bytes
             MEM_COMMIT, // allocate a committed page
-            PAGE_READWRITE);    // read/write access
+            PAGE_READWRITE); // read/write access
         if (lpvResult == NULL)
           ExitProcess(GetLastError());
         memset(lpvResult, 0, dwPageSize);

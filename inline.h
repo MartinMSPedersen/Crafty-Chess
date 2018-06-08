@@ -8,7 +8,7 @@
 static __inline__ int MSB(uint64_t word) {
   uint64_t dummy, dummy2;
 
-  asm("          bsrq    %1, %0     " "\n\t"
+  asm(" 	 bsrq	 %1, %0     " "\n\t"
       :   "=&r"(dummy), "=&r" (dummy2)
       :   "1"((uint64_t) (word))
       :   "cc");
@@ -17,7 +17,7 @@ static __inline__ int MSB(uint64_t word) {
 static __inline__ int LSB(uint64_t word) {
   uint64_t dummy, dummy2;
 
-  asm("          bsfq    %1, %0     " "\n\t"
+  asm(" 	 bsfq	 %1, %0     " "\n\t"
       :   "=&r"(dummy), "=&r" (dummy2)
       :   "1"((uint64_t) (word))
       :   "cc");
@@ -27,7 +27,7 @@ static __inline__ int LSB(uint64_t word) {
 static __inline__ int PopCnt(uint64_t word) {
   uint64_t dummy, dummy2;
 
-  asm("          popcnt  %1, %0     " "\n\t"
+  asm(" 	 popcnt  %1, %0     " "\n\t"
       :   "=&r"(dummy), "=&r" (dummy2)
       :   "1"((uint64_t) (word))
       :   "cc");
@@ -37,14 +37,14 @@ static __inline__ int PopCnt(uint64_t word) {
 static __inline__ int PopCnt(uint64_t word) {
   uint64_t dummy, dummy2, dummy3;
 
-asm("          xorq    %0, %0    " "\n\t"
-    "          testq   %1, %1    " "\n\t"
-    "          jz      2f        " "\n\t"
+asm("	       xorq    %0, %0	 " "\n\t"
+    "	       testq   %1, %1	 " "\n\t"
+    "	       jz      2f	 " "\n\t"
     "1:        leaq    -1(%1),%2 " "\n\t"
-    "          incq    %0        " "\n\t"
-    "          andq    %2, %1    " "\n\t"
-    "          jnz     1b        " "\n\t"
-    "2:                          " "\n\t"
+    "	       incq    %0	 " "\n\t"
+    "	       andq    %2, %1	 " "\n\t"
+    "	       jnz     1b	 " "\n\t"
+    "2: 			 " "\n\t"
 :   "=&r"(dummy), "=&r"(dummy2), "=&r"(dummy3)
 :   "1"((uint64_t) (word))
 :   "cc");

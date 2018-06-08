@@ -17,7 +17,7 @@
  *******************************************************************************
  */
 void Analyze() {
-  int i, move, back_number, readstat = 1;
+  int i, v, move, back_number, readstat = 1;
   TREE *const tree = block[0];
 
 /*
@@ -76,8 +76,8 @@ void Analyze() {
           readstat = Read(1, buffer);
           if (readstat < 0)
             break;
-          nargs = ReadParse(buffer, args, " 	;");
-          Print(128, "%s\n", buffer);
+          nargs = ReadParse(buffer, args, " \t;");
+          Print(32, "%s\n", buffer);
           if (strstr(args[0], "timeleft") && !xboard) {
             if (game_wtm)
               printf("analyze.White(%d): ", move_number);
@@ -87,7 +87,7 @@ void Analyze() {
           }
         } while (strstr(args[0], "timeleft"));
       else
-        nargs = ReadParse(buffer, args, " 	;");
+        nargs = ReadParse(buffer, args, " \t;");
       if (readstat < 0)
         break;
       move = 0;
@@ -131,8 +131,8 @@ void Analyze() {
  *                                                          *
  ************************************************************
  */
-      else if ((move = InputMove(tree, buffer, 0, game_wtm, 1, 0))) {
-        char *outmove = OutputMove(tree, move, 0, game_wtm);
+      else if ((move = InputMove(tree, 0, game_wtm, 1, 0, buffer))) {
+        char *outmove = OutputMove(tree, 0, game_wtm, move);
 
         if (history_file) {
           fseek(history_file, ((move_number - 1) * 2 + 1 - game_wtm) * 10,
@@ -140,18 +140,21 @@ void Analyze() {
           fprintf(history_file, "%9s\n", outmove);
         }
         if (game_wtm)
-          Print(128, "White(%d): ", move_number);
+          Print(32, "White(%d): ", move_number);
         else
-          Print(128, "Black(%d): ", move_number);
-        Print(128, "%s\n", outmove);
+          Print(32, "Black(%d): ", move_number);
+        Print(32, "%s\n", outmove);
         if (speech) {
           char announce[64];
 
-          strcpy(announce, SPEAK);
+          strcpy(announce, "./speak ");
           strcat(announce, outmove);
-          system(announce);
+          strcat(announce, " &");
+          v = system(announce);
+          if (v != 0)
+            perror("Analyze() system() error: ");
         }
-        MakeMoveRoot(tree, move, game_wtm);
+        MakeMoveRoot(tree, game_wtm, move);
         display = tree->position;
         last_mate_score = 0;
         if (log_file)

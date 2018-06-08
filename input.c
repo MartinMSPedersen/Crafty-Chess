@@ -15,9 +15,9 @@
  *                                                                             *
  *******************************************************************************
  */
-int InputMove(TREE * RESTRICT tree, char *text, int ply, int wtm, int silent,
-    int ponder_list) {
-  int moves[220], *mv, *mvp, *goodmove = 0;
+int InputMove(TREE * RESTRICT tree, int ply, int wtm, int silent,
+    int ponder_list, char *text) {
+  unsigned moves[220], *mv, *mvp, *goodmove = 0;
   int piece = -1, capture, promote, give_check;
   int ffile, frank, tfile, trank;
   int current, i, nleft;
@@ -57,7 +57,7 @@ int InputMove(TREE * RESTRICT tree, char *text, int ply, int wtm, int silent,
   if ((text[0] >= 'a') && (text[0] <= 'h') && (text[1] >= '1')
       && (text[1] <= '8') && (text[2] >= 'a') && (text[2] <= 'h')
       && (text[3] >= '1') && (text[3] <= '8'))
-    return InputMoveICS(tree, text, ply, wtm, silent, ponder_list);
+    return InputMoveICS(tree, ply, wtm, silent, ponder_list, text);
 /*
  ************************************************************
  *                                                          *
@@ -298,12 +298,12 @@ int InputMove(TREE * RESTRICT tree, char *text, int ply, int wtm, int silent,
     if ((trank >= 0) && (Rank(To(*mv)) != trank))
       *mv = 0;
     if (!ponder_list && *mv) {
-      MakeMove(tree, MAXPLY, *mv, wtm);
+      MakeMove(tree, MAXPLY, wtm, *mv);
       if (Check(wtm) || (give_check && !Check(Flip(wtm)))) {
-        UnmakeMove(tree, MAXPLY, *mv, wtm);
+        UnmakeMove(tree, MAXPLY, wtm, *mv);
         *mv = 0;
       } else
-        UnmakeMove(tree, MAXPLY, *mv, wtm);
+        UnmakeMove(tree, MAXPLY, wtm, *mv);
     }
   }
 /*
@@ -346,9 +346,9 @@ int InputMove(TREE * RESTRICT tree, char *text, int ply, int wtm, int silent,
  *                                                                             *
  *******************************************************************************
  */
-int InputMoveICS(TREE * RESTRICT tree, char *text, int ply, int wtm,
-    int silent, int ponder_list) {
-  int moves[220], *mv, *mvp, *goodmove = 0;
+int InputMoveICS(TREE * RESTRICT tree, int ply, int wtm, int silent,
+    int ponder_list, char *text) {
+  unsigned moves[220], *mv, *mvp, *goodmove = 0;
   int piece = -1, promote;
   int ffile, frank, tfile, trank;
   int i, nleft;
@@ -471,12 +471,12 @@ int InputMoveICS(TREE * RESTRICT tree, char *text, int ply, int wtm,
     if (File(To(*mv)) != tfile)
       *mv = 0;
     if (!ponder_list && *mv) {
-      MakeMove(tree, MAXPLY, *mv, wtm);
+      MakeMove(tree, MAXPLY, wtm, *mv);
       if (Check(wtm)) {
-        UnmakeMove(tree, MAXPLY, *mv, wtm);
+        UnmakeMove(tree, MAXPLY, wtm, *mv);
         *mv = 0;
       } else
-        UnmakeMove(tree, MAXPLY, *mv, wtm);
+        UnmakeMove(tree, MAXPLY, wtm, *mv);
     }
   }
 /*

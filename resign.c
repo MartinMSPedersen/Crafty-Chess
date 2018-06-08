@@ -18,7 +18,7 @@
  *******************************************************************************
  */
 void ResignOrDraw(TREE * RESTRICT tree, int value) {
-  int result = 0;
+  int v, result = 0;
 
 /*
  ************************************************************
@@ -109,9 +109,11 @@ void ResignOrDraw(TREE * RESTRICT tree, int value) {
     if (speech) {
       char announce[128];
 
-      strcpy(announce, SPEAK);
+      strcpy(announce, "./speak ");
       strcat(announce, "Resign");
-      system(announce);
+      v = system(announce);
+      if (v <= 0)
+        perror("ResignOrDraw() system() error: ");
     }
     if (crafty_is_white) {
       Print(4095, "0-1 {White resigns}\n");
@@ -124,15 +126,17 @@ void ResignOrDraw(TREE * RESTRICT tree, int value) {
   if (offer_draws && result == 2) {
     draw_offered = 1;
     if (!xboard) {
-      Print(128, "\nI offer a draw.\n\n");
+      Print(1, "\nI offer a draw.\n\n");
       if (audible_alarm)
         printf("%c", audible_alarm);
       if (speech) {
         char announce[128];
 
-        strcpy(announce, SPEAK);
+        strcpy(announce, "./speak ");
         strcat(announce, "Drawoffer");
-        system(announce);
+        v = system(announce);
+        if (v <= 0)
+          perror("ResignOrDraw() system() error: ");
       }
     } else if (xboard)
       Print(4095, "offer draw\n");

@@ -28,25 +28,25 @@
  *   double pawn move and there was an enemy pawn that could capture it.  The  *
  *   square is the square the capturing pawn ends up on.                       *
  *                                                                             *
- *         K2R/PPP////q/5ppp/7k/ b - -                                         *
+ *           K2R/PPP////q/5ppp/7k/ b - -                                       *
  *                                                                             *
  *   this assumes that k represents a white king and -q represents a black     *
  *   queen.                                                                    *
  *                                                                             *
- *                          k  *  *  r  *  *  *  *                             *
- *                          p  p  p  *  *  *  *  *                             *
- *                          *  *  *  *  *  *  *  *                             *
- *                          *  *  *  *  *  *  *  *                             *
- *                          *  *  *  *  *  *  *  *                             *
- *                         -q  *  *  *  *  *  *  *                             *
- *                          *  *  *  *  * -p -p -p                             *
- *                          *  *  *  *  *  *  * -k                             *
+ *                            k  *  *  r  *  *  *  *                           *
+ *                            p  p  p  *  *  *  *  *                           *
+ *                            *  *  *  *  *  *  *  *                           *
+ *                            *  *  *  *  *  *  *  *                           *
+ *                            *  *  *  *  *  *  *  *                           *
+ *                           -q  *  *  *  *  *  *  *                           *
+ *                            *  *  *  *  * -p -p -p                           *
+ *                            *  *  *  *  *  *  * -k                           *
  *                                                                             *
  *******************************************************************************
  */
 void SetBoard(TREE * tree, int nargs, char *args[], int special) {
   int twtm, i, match, num, pos, square, tboard[64];
-  int bcastle, ep, wcastle, error = 0;
+  int bcastle, ep, wcastle, error = 0, whichsq;
   char input[80];
   static const char bdinfo[] =
       { 'k', 'q', 'r', 'b', 'n', 'p', '*', 'P', 'N', 'B',
@@ -57,8 +57,8 @@ void SetBoard(TREE * tree, int nargs, char *args[], int special) {
       { 'K', 'Q', 'k', 'q', 'a', 'b', 'c', 'd', 'e', 'f', 'g',
     'h', ' '
   };
-  int whichsq;
   static const int firstsq[8] = { 56, 48, 40, 32, 24, 16, 8, 0 };
+
   if (special)
     strcpy(input, initial_position);
   else
@@ -247,7 +247,7 @@ void SetBoard(TREE * tree, int nargs, char *args[], int special) {
   if (!error) {
     if (log_file)
       DisplayChessBoard(log_file, tree->position);
-    tree->rep_index = 0;
+    rep_index = 0;
     tree->rep_list[0] = HashKey;
     Reversible(0) = 0;
     if (!special) {

@@ -1,6 +1,6 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 09/21/14 */
+/* last modified 10/09/15 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -15,13 +15,10 @@
  *   move that leads to some sort of positional or material gain.              *
  *                                                                             *
  *   (2) The first phase is to generate all possible capture moves and then    *
- *   sort them into descending using the value                                 *
- *                                                                             *
- *        val = 1024 * captured_piece_value + capturing_piece_value            *
- *                                                                             *
- *   This is the classic MVV/LVA ordering approach that removes heavy pieces   *
- *   first in an attempt to reduce the size of the sub-tree these pieces       *
- *   produce.                                                                  *
+ *   sort them into descending using the value of the captured piece and the   *
+ *   complemented value of the capturing piece.  This is the classic MVV/LVA   *
+ *   ordering approach that removes heavy pieces first in an attempt to reduce *
+ *   the size of the sub-tree these pieces produce.                            *
  *                                                                             *
  *   (3) When we get ready to actually search each capture, we analyze each    *
  *   move to see if it appears reasonable.  Small pieces can capture larger    *
@@ -32,7 +29,7 @@
  *   that improves on the stand-pat score and gets us closer to a position     *
  *   that we would describe as "quiet" or "static".                            *
  *                                                                             *
- *   (4) If the parameter "checks" is non-zero then after searching the        *
+ *   (4) If the parameter "checks" is non-zero, then after searching the       *
  *   captures, we generate checking moves and search those.  This value also   *
  *   slightly changes the way captures are searched, since those that are also *
  *   checks result in calling QuiesceEvasions() which evades checks to see if  *
@@ -42,11 +39,10 @@
  *                                                                             *
  *******************************************************************************
  */
-int Quiesce(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply,
+int Quiesce(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta,
     int checks) {
+  unsigned *next, *movep;
   int original_alpha = alpha, value;
-  int *next;
-  int *movep, *sortv;
 
 /*
  ************************************************************
@@ -103,8 +99,14 @@ int Quiesce(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply,
  */
   value = Evaluate(tree, ply, wtm, alpha, beta);
 #if defined(TRACE)
-  if (ply <= trace_level)
-    Trace(tree, ply, value, wtm, alpha, beta, "Quiesce", EVALUATION);
+  if (ply <= trace_level) {
+    if (!checks)
+      Trace(tree, ply, value, wtm, alpha, beta, "Quiesce", serial, EVALUATION,
+          0);
+    else
+      Trace(tree, ply, value, wtm, alpha, beta, "Quiesce+checks", serial,
+          EVALUATION, 0);
+  }
 #endif
   if (value > alpha) {
     if (value >= beta)
@@ -112,7 +114,7 @@ int Quiesce(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply,
     alpha = value;
     tree->pv[ply].pathl = ply;
     tree->pv[ply].pathh = 0;
-    tree->pv[ply].pathd = iteration_depth;
+    tree->pv[ply].pathd = iteration;
   }
 /*
  ************************************************************
@@ -133,11 +135,10 @@ int Quiesce(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply,
  ************************************************************
  */
   tree->last[ply] = GenerateCaptures(tree, ply, wtm, tree->last[ply - 1]);
-  sortv = tree->sort_value;
   for (movep = tree->last[ply - 1]; movep < tree->last[ply]; movep++) {
     if (Captured(*movep) == king)
       return beta;
-    *sortv++ = 1024 * pcval[Captured(*movep)] - pcval[Piece(*movep)];
+    *movep += MVV_LVA[Captured(*movep)][Piece(*movep)];
   }
   if (!checks && tree->last[ply] == tree->last[ply - 1]) {
     if (alpha != original_alpha) {
@@ -146,35 +147,7 @@ int Quiesce(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply,
     }
     return value;
   }
-/*
- ************************************************************
- *                                                          *
- *  This is a simple insertion sort algorithm.  It seems be *
- *  be no faster than a normal bubble sort, but using this  *
- *  eliminated a lot of explaining about "why?". :)         *
- *                                                          *
- ************************************************************
- */
-  if (tree->last[ply] > tree->last[ply - 1] + 1) {
-    int temp1, temp2, *tmovep, *tsortv, *end;
-
-    sortv = tree->sort_value + 1;
-    end = tree->last[ply];
-    for (movep = tree->last[ply - 1] + 1; movep < end; movep++, sortv++) {
-      temp1 = *movep;
-      temp2 = *sortv;
-      tmovep = movep - 1;
-      tsortv = sortv - 1;
-      while (tmovep >= tree->last[ply - 1] && *tsortv < temp2) {
-        *(tsortv + 1) = *tsortv;
-        *(tmovep + 1) = *tmovep;
-        tmovep--;
-        tsortv--;
-      }
-      *(tmovep + 1) = temp1;
-      *(tsortv + 1) = temp2;
-    }
-  }
+  NextSort(tree, ply);
   tree->next_status[ply].last = tree->last[ply - 1];
 /*
  ************************************************************
@@ -183,7 +156,7 @@ int Quiesce(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply,
  *  positions.  Now that we are ready to actually search    *
  *  the set of capturing moves, we try three quick tests to *
  *  see if the move should be excluded because it appears   *
- *  to lose material.                                       * 
+ *  to lose material.                                       *
  *                                                          *
  *  (1) If the capturing piece is not more valuable than    *
  *  the captured piece, then the move can't lose material   *
@@ -202,28 +175,34 @@ int Quiesce(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply,
  ************************************************************
  */
   for (next = tree->last[ply - 1]; next < tree->last[ply]; next++) {
-    tree->curmv[ply] = *next;
+    tree->curmv[ply] = Move(*next);
     if (pcval[Piece(tree->curmv[ply])] > pcval[Captured(tree->curmv[ply])] &&
-        TotalPieces(wtm, occupied)
+        TotalPieces(Flip(wtm), occupied)
         - p_vals[Captured(tree->curmv[ply])] > 0 &&
-        Swap(tree, tree->curmv[ply], wtm) < 0)
+        Swap(tree, wtm, tree->curmv[ply]) < 0)
       continue;
 #if defined(TRACE)
-    if (ply <= trace_level)
-      Trace(tree, ply, 0, wtm, alpha, beta, "Quiesce", CAPTURE_MOVES);
+    if (ply <= trace_level) {
+      if (!checks)
+        Trace(tree, ply, 0, wtm, alpha, beta, "Quiesce", serial, CAPTURES,
+            next - tree->last[ply - 1] + 1);
+      else
+        Trace(tree, ply, 0, wtm, alpha, beta, "Quiesce+checks", serial,
+            CAPTURES, next - tree->last[ply - 1] + 1);
+    }
 #endif
-    MakeMove(tree, ply, tree->curmv[ply], wtm);
+    MakeMove(tree, ply, wtm, tree->curmv[ply]);
     tree->nodes_searched++;
     if (!checks)
-      value = -Quiesce(tree, -beta, -alpha, Flip(wtm), ply + 1, 0);
+      value = -Quiesce(tree, ply + 1, Flip(wtm), -beta, -alpha, 0);
     else if (!Check(wtm)) {
       if (Check(Flip(wtm))) {
         tree->qchecks_done++;
-        value = -QuiesceEvasions(tree, -beta, -alpha, Flip(wtm), ply + 1);
+        value = -QuiesceEvasions(tree, ply + 1, Flip(wtm), -beta, -alpha);
       } else
-        value = -Quiesce(tree, -beta, -alpha, Flip(wtm), ply + 1, 0);
+        value = -Quiesce(tree, ply + 1, Flip(wtm), -beta, -alpha, 0);
     }
-    UnmakeMove(tree, ply, tree->curmv[ply], wtm);
+    UnmakeMove(tree, ply, wtm, tree->curmv[ply]);
     if (abort_search || tree->stop)
       return 0;
     if (value > alpha) {
@@ -258,19 +237,20 @@ int Quiesce(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply,
  ************************************************************
  */
     for (next = tree->last[ply - 1]; next < tree->last[ply]; next++) {
-      tree->curmv[ply] = *next;
-      if (Swap(tree, tree->curmv[ply], wtm) >= 0) {
+      tree->curmv[ply] = Move(*next);
+      if (Swap(tree, wtm, tree->curmv[ply]) >= 0) {
 #if defined(TRACE)
         if (ply <= trace_level)
-          Trace(tree, ply, 0, wtm, alpha, beta, "Quiesce", REMAINING_MOVES);
+          Trace(tree, ply, 0, wtm, alpha, beta, "Quiesce+checks", serial,
+              REMAINING, next - tree->last[ply - 1] + 1);
 #endif
-        MakeMove(tree, ply, tree->curmv[ply], wtm);
+        MakeMove(tree, ply, wtm, tree->curmv[ply]);
         tree->nodes_searched++;
         if (!Check(wtm)) {
           tree->qchecks_done++;
-          value = -QuiesceEvasions(tree, -beta, -alpha, Flip(wtm), ply + 1);
+          value = -QuiesceEvasions(tree, ply + 1, Flip(wtm), -beta, -alpha);
         }
-        UnmakeMove(tree, ply, tree->curmv[ply], wtm);
+        UnmakeMove(tree, ply, wtm, tree->curmv[ply]);
         if (abort_search || tree->stop)
           return 0;
         if (value > alpha) {
@@ -315,10 +295,9 @@ int Quiesce(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply,
  *                                                                             *
  *******************************************************************************
  */
-int QuiesceEvasions(TREE * RESTRICT tree, int alpha, int beta, int wtm,
-    int ply) {
-  int original_alpha, value;
-  int moves_searched = 0;
+int QuiesceEvasions(TREE * RESTRICT tree, int ply, int wtm, int alpha,
+    int beta) {
+  int original_alpha, value, moves_searched = 0, order;
 
 /*
  ************************************************************
@@ -370,18 +349,18 @@ int QuiesceEvasions(TREE * RESTRICT tree, int alpha, int beta, int wtm,
  ************************************************************
  */
   tree->hash_move[ply] = 0;
-  tree->next_status[ply].phase = HASH_MOVE;
-  while ((tree->phase[ply] = NextEvasion(tree, ply, wtm))) {
+  tree->next_status[ply].phase = HASH;
+  while ((order = NextMove(tree, ply, 0, wtm, 1))) {
 #if defined(TRACE)
     if (ply <= trace_level)
-      Trace(tree, ply, 0, wtm, alpha, beta, "QuiesceEvasions",
-          tree->phase[ply]);
+      Trace(tree, ply, 0, wtm, alpha, beta, "QuiesceEvasions", serial,
+          tree->phase[ply], order);
 #endif
     moves_searched++;
-    MakeMove(tree, ply, tree->curmv[ply], wtm);
+    MakeMove(tree, ply, wtm, tree->curmv[ply]);
     tree->nodes_searched++;
-    value = -Quiesce(tree, -beta, -alpha, Flip(wtm), ply + 1, 0);
-    UnmakeMove(tree, ply, tree->curmv[ply], wtm);
+    value = -Quiesce(tree, ply + 1, Flip(wtm), -beta, -alpha, 0);
+    UnmakeMove(tree, ply, wtm, tree->curmv[ply]);
     if (abort_search || tree->stop)
       return 0;
     if (value > alpha) {

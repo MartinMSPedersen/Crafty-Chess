@@ -87,3 +87,38 @@ uint64_t AttacksFrom(TREE * RESTRICT tree, int side, int source) {
   }
   return 0;
 }
+
+/* last modified 01/07/14 */
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   Attacked() is used to determine if <square> is attacked.  It returns a    *
+ *   two bit value, 01 if <square> is attacked by <side>, 10 if <square> is    *
+ *   attacked by <enemy> and 11 if <square> is attacked by both sides.         *
+ *                                                                             *
+ *******************************************************************************
+ */
+uint64_t Attacked(TREE * RESTRICT tree, int side, uint64_t squares) {
+  uint64_t bsliders, rsliders, set;
+  int square;
+
+  bsliders = Bishops(side) | Queens(side);
+  rsliders = Rooks(side) | Queens(side);
+  for (set = squares; set; set &= set - 1) {
+    square = LSB(set);
+    do {
+      if (KingAttacks(square) & Kings(side))
+        break;
+      if (KnightAttacks(square) & Knights(side))
+        break;
+      if (bishop_attacks[square] & bsliders &&
+          BishopAttacks(square, OccupiedSquares) & bsliders)
+        break;
+      if (rook_attacks[square] & rsliders &&
+          RookAttacks(square, OccupiedSquares) & rsliders)
+        break;
+      Clear(square, squares);
+    } while (0);
+  }
+  return squares;
+}

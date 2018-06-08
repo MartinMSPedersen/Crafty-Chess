@@ -12,18 +12,19 @@
  *   things can happen:  (1) A move is entered, and it matches the predicted   *
  *   move.  We then switch from pondering to thinking and search as normal;    *
  *   (2) A move is entered, but it does not match the predicted move.  We then *
- *   abort the search, unmake the pondered move, and then restart with the move*
- *   entered.  (3) A command is entered.  If it is a simple command, it can be *
- *   done without aborting the search or losing time.  If not, we abort the    *
- *   search, execute the command, and then attempt to restart pondering if the *
- *   command didn't make that impossible.                                      *
+ *   abort the search, unmake the pondered move, and then restart with the     *
+ *   move entered.  (3) A command is entered.  If it is a simple command, it   *
+ *   can be done without aborting the search or losing time.  If not, we abort *
+ *   the search, execute the command, and then attempt to restart pondering if *
+ *   the command didn't make that impossible.                                  *
  *                                                                             *
  *******************************************************************************
  */
 int Ponder(int wtm) {
-  int dalpha = -999999, dbeta = 999999, i, *n_ponder_moves, *mv;
-  int save_move_number, tlom, value;
   TREE *const tree = block[0];
+  int dalpha = -999999, dbeta = 999999, i;
+  unsigned *n_ponder_moves, *mv;
+  int save_move_number, tlom, value;
 
 /*
  ************************************************************
@@ -48,7 +49,7 @@ int Ponder(int wtm) {
  *                                                          *
  ************************************************************
  */
-  strcpy(hint, "none");
+  strcpy(ponder_text, "none");
   if (ponder_move) {
     if (!VerifyMove(tree, 1, wtm, ponder_move)) {
       ponder_move = 0;
@@ -95,7 +96,7 @@ int Ponder(int wtm) {
       return 0;
     puzzling = 1;
     tree->status[1] = tree->status[0];
-    Print(128, "              puzzling over a move to ponder.\n");
+    Print(32, "              puzzling over a move to ponder.\n");
     last_pv.pathl = 0;
     last_pv.pathd = 0;
     for (i = 0; i < MAXPLY; i++) {
@@ -131,14 +132,14 @@ int Ponder(int wtm) {
  ************************************************************
  */
   if (wtm)
-    Print(128, "White(%d): %s [pondering]\n", move_number, OutputMove(tree,
-            ponder_move, 0, wtm));
+    Print(32, "White(%d): %s [pondering]\n", move_number, OutputMove(tree, 0,
+            wtm, ponder_move));
   else
-    Print(128, "Black(%d): %s [pondering]\n", move_number, OutputMove(tree,
-            ponder_move, 0, wtm));
-  sprintf(hint, "%s", OutputMove(tree, ponder_move, 0, wtm));
+    Print(32, "Black(%d): %s [pondering]\n", move_number, OutputMove(tree, 0,
+            wtm, ponder_move));
+  sprintf(ponder_text, "%s", OutputMove(tree, 0, wtm, ponder_move));
   if (post)
-    printf("Hint: %s\n", hint);
+    printf("Hint: %s\n", ponder_text);
 /*
  ************************************************************
  *                                                          *
@@ -153,12 +154,12 @@ int Ponder(int wtm) {
   num_ponder_moves =
       GenerateNoncaptures(tree, 0, wtm, n_ponder_moves) - ponder_moves;
   for (mv = ponder_moves; mv < ponder_moves + num_ponder_moves; mv++) {
-    MakeMove(tree, 0, *mv, wtm);
+    MakeMove(tree, 0, wtm, *mv);
     if (Check(wtm)) {
-      UnmakeMove(tree, 0, *mv, wtm);
+      UnmakeMove(tree, 0, wtm, *mv);
       *mv = 0;
     } else
-      UnmakeMove(tree, 0, *mv, wtm);
+      UnmakeMove(tree, 0, wtm, *mv);
   }
 /*
  ************************************************************
@@ -170,8 +171,9 @@ int Ponder(int wtm) {
  *                                                          *
  ************************************************************
  */
-  MakeMove(tree, 0, ponder_move, wtm);
-  tree->rep_list[++(tree->rep_index)] = HashKey;
+  MakeMove(tree, 0, wtm, ponder_move);
+  tree->curmv[0] = ponder_move;
+  tree->rep_list[++rep_index] = HashKey;
   tlom = last_opponent_move;
   last_opponent_move = ponder_move;
   if (kibitz)
@@ -181,12 +183,12 @@ int Ponder(int wtm) {
   if (!wtm)
     move_number++;
   ponder_value = Iterate(Flip(wtm), think, 0);
-  tree->rep_index--;
+  rep_index--;
   move_number = save_move_number;
   pondering = 0;
   thinking = 0;
   last_opponent_move = tlom;
-  UnmakeMove(tree, 0, ponder_move, wtm);
+  UnmakeMove(tree, 0, wtm, ponder_move);
 /*
  ************************************************************
  *                                                          *
@@ -204,8 +206,8 @@ int Ponder(int wtm) {
  *      this ponder search are valid, but only if the       *
  *      opponent makes the correct (predicted) move.        *
  *                                                          *
- *  (3) Pondering was done, but the opponent either made    *
- *      a different move, or entered a command that has to  *
+ *  (3) Pondering was done, but the opponent either made a  *
+ *      different move, or entered a command that has to    *
  *      interrupt the pondering search before the command   *
  *      (or move) can be processed.  This forces Main() to  *
  *      avoid reading in a move/command since one has been  *

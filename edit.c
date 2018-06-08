@@ -55,9 +55,9 @@ void Edit(void) {
     readstat = Read(1, buffer);
     if (readstat < 0)
       return;
-    nargs = ReadParse(buffer, args, " 	;");
+    nargs = ReadParse(buffer, args, " \t;");
     if (xboard)
-      Print(128, "edit.command:%s\n", args[0]);
+      Print(32, "edit.command:%s\n", args[0]);
     if (!strcmp(args[0], "white"))
       wtm = 1;
     else if (!strcmp(args[0], "black"))
@@ -153,7 +153,7 @@ void Edit(void) {
       DisplayChessBoard(log_file, tree->position);
     wtm = 1;
     move_number = 1;
-    tree->rep_index = 0;
+    rep_index = 0;
     tree->rep_list[0] = HashKey;
     Reversible(0) = 0;
     moves_out_of_book = 0;

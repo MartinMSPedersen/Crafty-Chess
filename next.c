@@ -1,133 +1,6 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 09/21/14 */
-/*
- *******************************************************************************
- *                                                                             *
- *   NextEvasion() is used to select the next move from the current move list  *
- *   when the king is in check.  We use GenerateEvasions() (in movgen.c) to    *
- *   generate a list of moves that get us out of check.  The only unusual      *
- *   feature is that these moves are all legal and do not need to be vetted    *
- *   with the usual Check() function to test for legality.                     *
- *                                                                             *
- *******************************************************************************
- */
-int NextEvasion(TREE * RESTRICT tree, int ply, int side) {
-  int *movep, *sortv;
-
-  switch (tree->next_status[ply].phase) {
-/*
- ************************************************************
- *                                                          *
- *  First try the transposition table move (which might be  *
- *  the principal variation move as we first move down the  *
- *  tree).  If it is good enough to cause a cutoff, we      *
- *  avoided the overhead of generating legal moves.         *
- *                                                          *
- ************************************************************
- */
-    case HASH_MOVE:
-      if (tree->hash_move[ply]) {
-        tree->next_status[ply].phase = GENERATE_ALL_MOVES;
-        tree->curmv[ply] = tree->hash_move[ply];
-        if (ValidMove(tree, ply, side, tree->curmv[ply]))
-          return HASH_MOVE;
-#if defined(DEBUG)
-        else
-          Print(128, "bad move from hash table, ply=%d\n", ply);
-#endif
-      }
-/*
- ************************************************************
- *                                                          *
- *  Now generate all legal moves by using the special       *
- *  GenerateCheckEvasions() procedure.  Then sort the moves *
- *  based on the expected gain or loss.  this is deferred   *
- *  until now to see if the hash move is good enough to     *
- *  produce a cutoff and avoid this effort.                 *
- *                                                          *
- *  Once we confirm that the move does not lose any         *
- *  material, we sort these non-losing moves into MVV/LVA   *
- *  order which appears to be a slightly faster move        *
- *  ordering idea.  Unsafe evasion moves are sorted using   *
- *  the original Swap() score to keep them last in the move *
- *  list.  Note that this move list contains both captures  *
- *  and non-captures.  We try the safe captures first due   *
- *  to the way the sort score is computed.                  *
- *                                                          *
- ************************************************************
- */
-    case GENERATE_ALL_MOVES:
-      tree->last[ply] =
-          GenerateCheckEvasions(tree, ply, side, tree->last[ply - 1]);
-      tree->next_status[ply].phase = REMAINING_MOVES;
-      for (movep = tree->last[ply - 1], sortv = tree->sort_value;
-          movep < tree->last[ply]; movep++, sortv++)
-        if (tree->hash_move[ply] && *movep == tree->hash_move[ply]) {
-          *sortv = -999999;
-          *movep = 0;
-        } else {
-          if (pcval[Piece(*movep)] <= pcval[Captured(*movep)])
-            *sortv = 1024 * pcval[Captured(*movep)] - pcval[Piece(*movep)];
-          else {
-            *sortv = Swap(tree, *movep, side);
-            if (*sortv >= 0)
-              *sortv = 1024 * pcval[Captured(*movep)] - pcval[Piece(*movep)];
-          }
-        }
-/*
- ************************************************************
- *                                                          *
- *  This is a simple insertion sort algorithm.  It seems be *
- *  be no faster than a normal bubble sort, but using this  *
- *  eliminated a lot of explaining about "why?". :)         *
- *                                                          *
- ************************************************************
- */
-      if (tree->last[ply] > tree->last[ply - 1] + 1) {
-        int temp1, temp2, *tmovep, *tsortv, *end;
-
-        sortv = tree->sort_value + 1;
-        end = tree->last[ply];
-        for (movep = tree->last[ply - 1] + 1; movep < end; movep++, sortv++) {
-          temp1 = *movep;
-          temp2 = *sortv;
-          tmovep = movep - 1;
-          tsortv = sortv - 1;
-          while (tmovep >= tree->last[ply - 1] && *tsortv < temp2) {
-            *(tsortv + 1) = *tsortv;
-            *(tmovep + 1) = *tmovep;
-            tmovep--;
-            tsortv--;
-          }
-          *(tmovep + 1) = temp1;
-          *(tsortv + 1) = temp2;
-        }
-      }
-      tree->next_status[ply].last = tree->last[ply - 1];
-/*
- ************************************************************
- *                                                          *
- *  Now try the moves in sorted order.                      *
- *                                                          *
- ************************************************************
- */
-    case REMAINING_MOVES:
-      for (; tree->next_status[ply].last < tree->last[ply];
-          tree->next_status[ply].last++)
-        if (*tree->next_status[ply].last) {
-          tree->curmv[ply] = *tree->next_status[ply].last++;
-          return REMAINING_MOVES;
-        }
-      return NONE;
-    default:
-      printf("oops!  next_status.phase is bad! [evasion %d]\n",
-          tree->next_status[ply].phase);
-  }
-  return NONE;
-}
-
-/* last modified 09/21/14 */
+/* last modified 10/09/15 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -140,8 +13,9 @@ int NextEvasion(TREE * RESTRICT tree, int ply, int side) {
  *                                                                             *
  *******************************************************************************
  */
-int NextMove(TREE * RESTRICT tree, int ply, int depth, int side) {
-  int *movep, *sortv, *bestp, bestval, hvalue;
+int NextMove(TREE * RESTRICT tree, int ply, int depth, int side, int in_check) {
+  unsigned *movep, *bestp;
+  int hist, bestval, possible;
 
   switch (tree->next_status[ply].phase) {
 /*
@@ -149,22 +23,26 @@ int NextMove(TREE * RESTRICT tree, int ply, int depth, int side) {
  *                                                          *
  *  First, try the transposition table move (which will be  *
  *  the principal variation move as we first move down the  *
- *  tree).                                                  *
+ *  tree) or the best move found in this position during a  *
+ *  prior search.                                           *
  *                                                          *
  ************************************************************
  */
-    case HASH_MOVE:
+    case HASH:
+      tree->next_status[ply].order = 0;
       tree->next_status[ply].excluded = 0;
-      tree->next_status[ply].phase = GENERATE_CAPTURE_MOVES;
+      tree->next_status[ply].phase = GENERATE_CAPTURES;
       if (tree->hash_move[ply]) {
         tree->curmv[ply] = tree->hash_move[ply];
         tree->next_status[ply].done[tree->next_status[ply].excluded++]
             = tree->curmv[ply];
-        if (ValidMove(tree, ply, side, tree->curmv[ply]))
-          return HASH_MOVE;
+        if (ValidMove(tree, ply, side, tree->curmv[ply])) {
+          tree->phase[ply] = HASH;
+          return ++tree->next_status[ply].order;
+        }
 #if defined(DEBUG)
         else
-          Print(128, "bad move from hash table, ply=%d\n", ply);
+          Print(2048, "ERROR:  bad move from hash table, ply=%d\n", ply);
 #endif
       }
 /*
@@ -177,53 +55,42 @@ int NextMove(TREE * RESTRICT tree, int ply, int depth, int side) {
  *  to see if the capture appears to lose material and we   *
  *  will defer searching it until later.                    *
  *                                                          *
+ *  Or, if in check, generate all the legal moves that      *
+ *  escape check by using GenerateCheckEvasions().  After   *
+ *  we do this, we sort them using MVV/LVA to move captures *
+ *  to the front of the list in the correct order.          *
+ *                                                          *
  ************************************************************
  */
-    case GENERATE_CAPTURE_MOVES:
-      tree->next_status[ply].phase = CAPTURE_MOVES;
-      tree->last[ply] =
-          GenerateCaptures(tree, ply, side, tree->last[ply - 1]);
-      tree->next_status[ply].remaining = 0;
-      for (movep = tree->last[ply - 1], sortv = tree->sort_value;
-          movep < tree->last[ply]; movep++, sortv++)
-        if (*movep == tree->hash_move[ply]) {
-          *sortv = -999999;
-          *movep = 0;
-          tree->next_status[ply].excluded = 0;
-        } else {
-          *sortv = 1024 * pcval[Captured(*movep)] - pcval[Piece(*movep)];
-          tree->next_status[ply].remaining++;
-        }
+    case GENERATE_CAPTURES:
+      tree->next_status[ply].phase = CAPTURES;
+      if (!in_check)
+        tree->last[ply] =
+            GenerateCaptures(tree, ply, side, tree->last[ply - 1]);
+      else
+        tree->last[ply] =
+            GenerateCheckEvasions(tree, ply, side, tree->last[ply - 1]);
 /*
  ************************************************************
  *                                                          *
- *  This is a simple insertion sort algorithm.  It seems to *
- *  be no faster than a normal bubble sort, but using this  *
- *  eliminated a lot of explaining about "why?". :)         *
+ *  Now make a pass over the moves to assign the sort value *
+ *  for each.  We simply use MVV/LVA move order here.       *
  *                                                          *
  ************************************************************
  */
-      if (tree->last[ply] > tree->last[ply - 1] + 1) {
-        int temp1, temp2, *tmovep, *tsortv, *end;
-
-        sortv = tree->sort_value + 1;
-        end = tree->last[ply];
-        for (movep = tree->last[ply - 1] + 1; movep < end; movep++, sortv++) {
-          temp1 = *movep;
-          temp2 = *sortv;
-          tmovep = movep - 1;
-          tsortv = sortv - 1;
-          while (tmovep >= tree->last[ply - 1] && *tsortv < temp2) {
-            *(tsortv + 1) = *tsortv;
-            *(tmovep + 1) = *tmovep;
-            tmovep--;
-            tsortv--;
-          }
-          *(tmovep + 1) = temp1;
-          *(tsortv + 1) = temp2;
+      tree->next_status[ply].remaining = 0;
+      for (movep = tree->last[ply - 1]; movep < tree->last[ply]; movep++)
+        if (*movep == tree->hash_move[ply]) {
+          *movep = 0;
+          tree->next_status[ply].excluded = 0;
+        } else {
+          *movep += MVV_LVA[Captured(*movep)][Piece(*movep)];
+          tree->next_status[ply].remaining++;
         }
-      }
+      NextSort(tree, ply);
       tree->next_status[ply].last = tree->last[ply - 1];
+      if (in_check)
+        goto remaining_moves;
 /*
  ************************************************************
  *                                                          *
@@ -232,18 +99,24 @@ int NextMove(TREE * RESTRICT tree, int ply, int depth, int side) {
  *  lesser-valued piece, and Swap() says it loses material, *
  *  this capture will be deferred until later.              *
  *                                                          *
+ *  If we are in check, we jump down to the history moves   *
+ *  phase (we don't need to generate any more moves as      *
+ *  GenerateCheckEvasions has already generated all legal   *
+ *  moves.                                                  *
+ *                                                          *
  ************************************************************
  */
-    case CAPTURE_MOVES:
+    case CAPTURES:
       while (tree->next_status[ply].remaining) {
-        tree->curmv[ply] = *(tree->next_status[ply].last++);
+        tree->curmv[ply] = Move(*(tree->next_status[ply].last++));
         if (!--tree->next_status[ply].remaining)
-          tree->next_status[ply].phase = KILLER_MOVE_1;
+          tree->next_status[ply].phase = KILLER1;
         if (pcval[Piece(tree->curmv[ply])] > pcval[Captured(tree->curmv[ply])]
-            && Swap(tree, tree->curmv[ply], side) < 0)
+            && Swap(tree, side, tree->curmv[ply]) < 0)
           continue;
         *(tree->next_status[ply].last - 1) = 0;
-        return CAPTURE_MOVES;
+        tree->phase[ply] = CAPTURES;
+        return ++tree->next_status[ply].order;
       }
 /*
  ************************************************************
@@ -257,44 +130,110 @@ int NextMove(TREE * RESTRICT tree, int ply, int depth, int side) {
  *                                                          *
  ************************************************************
  */
-    case KILLER_MOVE_1:
+    case KILLER1:
       if (!Exclude(tree, ply, tree->killers[ply].move1) &&
           ValidMove(tree, ply, side, tree->killers[ply].move1)) {
         tree->curmv[ply] = tree->killers[ply].move1;
         tree->next_status[ply].done[tree->next_status[ply].excluded++]
             = tree->curmv[ply];
-        tree->next_status[ply].phase = KILLER_MOVE_2;
-        return KILLER_MOVE_1;
+        tree->next_status[ply].phase = KILLER2;
+        tree->phase[ply] = KILLER1;
+        return ++tree->next_status[ply].order;
       }
-    case KILLER_MOVE_2:
+    case KILLER2:
       if (!Exclude(tree, ply, tree->killers[ply].move2) &&
           ValidMove(tree, ply, side, tree->killers[ply].move2)) {
         tree->curmv[ply] = tree->killers[ply].move2;
         tree->next_status[ply].done[tree->next_status[ply].excluded++]
             = tree->curmv[ply];
         if (ply < 3) {
-          tree->next_status[ply].phase = GENERATE_ALL_MOVES;
+          tree->next_status[ply].phase = GENERATE_QUIET;
         } else
-          tree->next_status[ply].phase = KILLER_MOVE_3;
-        return KILLER_MOVE_2;
+          tree->next_status[ply].phase = KILLER3;
+        tree->phase[ply] = KILLER2;
+        return ++tree->next_status[ply].order;
       }
-    case KILLER_MOVE_3:
+    case KILLER3:
       if (!Exclude(tree, ply, tree->killers[ply - 2].move1) &&
           ValidMove(tree, ply, side, tree->killers[ply - 2].move1)) {
         tree->curmv[ply] = tree->killers[ply - 2].move1;
         tree->next_status[ply].done[tree->next_status[ply].excluded++]
             = tree->curmv[ply];
-        tree->next_status[ply].phase = KILLER_MOVE_4;
-        return KILLER_MOVE_3;
+        tree->next_status[ply].phase = KILLER4;
+        tree->phase[ply] = KILLER3;
+        return ++tree->next_status[ply].order;
       }
-    case KILLER_MOVE_4:
+    case KILLER4:
       if (!Exclude(tree, ply, tree->killers[ply - 2].move2) &&
           ValidMove(tree, ply, side, tree->killers[ply - 2].move2)) {
         tree->curmv[ply] = tree->killers[ply - 2].move2;
         tree->next_status[ply].done[tree->next_status[ply].excluded++]
             = tree->curmv[ply];
-        tree->next_status[ply].phase = GENERATE_ALL_MOVES;
-        return KILLER_MOVE_4;
+        tree->next_status[ply].phase = COUNTER_MOVE1;
+        tree->phase[ply] = KILLER4;
+        return ++tree->next_status[ply].order;
+      }
+/*
+ ************************************************************
+ *                                                          *
+ *  Now, before we give up and generate moves, try the      *
+ *  counter-move which was a move that failed high in the   *
+ *  past when the move at the previous ply was played.      *
+ *                                                          *
+ ************************************************************
+ */
+    case COUNTER_MOVE1:
+      possible = counter_move[tree->curmv[ply - 1] & 4095].move1;
+      if (!Exclude(tree, ply, possible) &&
+          ValidMove(tree, ply, side, possible)) {
+        tree->curmv[ply] = possible;
+        tree->next_status[ply].done[tree->next_status[ply].excluded++]
+            = tree->curmv[ply];
+        tree->next_status[ply].phase = COUNTER_MOVE2;
+        tree->phase[ply] = COUNTER_MOVE1;
+        return ++tree->next_status[ply].order;
+      }
+    case COUNTER_MOVE2:
+      possible = counter_move[tree->curmv[ply - 1] & 4095].move2;
+      if (!Exclude(tree, ply, possible) &&
+          ValidMove(tree, ply, side, possible)) {
+        tree->curmv[ply] = possible;
+        tree->next_status[ply].done[tree->next_status[ply].excluded++]
+            = tree->curmv[ply];
+        tree->next_status[ply].phase = MOVE_PAIR1;
+        tree->phase[ply] = COUNTER_MOVE2;
+        return ++tree->next_status[ply].order;
+      }
+/*
+ ************************************************************
+ *                                                          *
+ *  Finally we try paired moves, which are simply moves     *
+ *  that were good when played after the other move in the  *
+ *  pair was played two plies back.                         *
+ *                                                          *
+ ************************************************************
+ */
+    case MOVE_PAIR1:
+      possible = move_pair[tree->curmv[ply - 2] & 4095].move1;
+      if (!Exclude(tree, ply, possible) &&
+          ValidMove(tree, ply, side, possible)) {
+        tree->curmv[ply] = possible;
+        tree->next_status[ply].done[tree->next_status[ply].excluded++]
+            = tree->curmv[ply];
+        tree->next_status[ply].phase = MOVE_PAIR2;
+        tree->phase[ply] = MOVE_PAIR1;
+        return ++tree->next_status[ply].order;
+      }
+    case MOVE_PAIR2:
+      possible = move_pair[tree->curmv[ply - 2] & 4095].move2;
+      if (!Exclude(tree, ply, possible) &&
+          ValidMove(tree, ply, side, possible)) {
+        tree->curmv[ply] = possible;
+        tree->next_status[ply].done[tree->next_status[ply].excluded++]
+            = tree->curmv[ply];
+        tree->next_status[ply].phase = GENERATE_QUIET;
+        tree->phase[ply] = MOVE_PAIR2;
+        return ++tree->next_status[ply].order;
       }
 /*
  ************************************************************
@@ -304,8 +243,10 @@ int NextMove(TREE * RESTRICT tree, int ply, int depth, int side) {
  *                                                          *
  ************************************************************
  */
-    case GENERATE_ALL_MOVES:
-      tree->last[ply] = GenerateNoncaptures(tree, ply, side, tree->last[ply]);
+    case GENERATE_QUIET:
+      if (!in_check)
+        tree->last[ply] =
+            GenerateNoncaptures(tree, ply, side, tree->last[ply]);
       tree->next_status[ply].last = tree->last[ply - 1];
 /*
  ************************************************************
@@ -314,32 +255,34 @@ int NextMove(TREE * RESTRICT tree, int ply, int depth, int side) {
  *  complete move list, and passes over them in a classic   *
  *  selection-sort, choosing the move with the highest      *
  *  history score.  This phase is only done one time, as it *
- *  also purges the hash and killer moves from the list.    *
+ *  also purges the hashi, killer, counter and paired       *
+ *   moves from the list.                                   *
  *                                                          *
  ************************************************************
  */
-      tree->next_status[ply].remaining = 1;
-      tree->next_status[ply].phase = HISTORY_MOVES;
+      tree->next_status[ply].remaining = 0;
+      tree->next_status[ply].phase = HISTORY;
       bestval = -99999999;
       bestp = 0;
       for (movep = tree->last[ply - 1]; movep < tree->last[ply]; movep++)
         if (*movep) {
           if (Exclude(tree, ply, *movep))
             *movep = 0;
-          else {
-            hvalue = history[side][HistoryIndex(*movep)];
-            if (hvalue > bestval) {
-              bestval = hvalue;
+          else if (depth >= 6) {
+            tree->next_status[ply].remaining++;
+            hist = history[HistoryIndex(side, *movep)];
+            if (hist > bestval) {
+              bestval = hist;
               bestp = movep;
             }
           }
         }
+      tree->next_status[ply].remaining /= 2;
       if (bestp) {
-        tree->curmv[ply] = *bestp;
+        tree->curmv[ply] = Move(*bestp);
         *bestp = 0;
-        if (bestval < -1000)
-          tree->phase[ply] = REMAINING_MOVES;
-        return (HISTORY_MOVES);
+        tree->phase[ply] = HISTORY;
+        return ++tree->next_status[ply].order;
       }
       goto remaining_moves;
 /*
@@ -352,34 +295,29 @@ int NextMove(TREE * RESTRICT tree, int ply, int depth, int side) {
  *                                                          *
  ************************************************************
  */
-    case HISTORY_MOVES:
+    case HISTORY:
       if (depth >= 6) {
         bestval = -99999999;
         bestp = 0;
         for (movep = tree->last[ply - 1]; movep < tree->last[ply]; movep++)
           if (*movep) {
-            hvalue = history[side][HistoryIndex(*movep)];
-            if (hvalue > bestval) {
-              bestval = hvalue;
+            hist = history[HistoryIndex(side, *movep)];
+            if (hist > bestval) {
+              bestval = hist;
               bestp = movep;
             }
           }
         if (bestp) {
-          tree->curmv[ply] = *bestp;
+          tree->curmv[ply] = Move(*bestp);
           *bestp = 0;
-          if (bestval < -1000)
-            tree->phase[ply] = REMAINING_MOVES;
-          tree->next_status[ply].remaining++;
-          if (tree->next_status[ply].remaining > 10) {
-            tree->next_status[ply].phase = REMAINING_MOVES;
+          if (--(tree->next_status[ply].remaining) <= 0) {
+            tree->next_status[ply].phase = REMAINING;
             tree->next_status[ply].last = tree->last[ply - 1];
           }
-          return (HISTORY_MOVES);
+          tree->phase[ply] = HISTORY;
+          return ++tree->next_status[ply].order;
         }
       }
-    remaining_moves:
-      tree->next_status[ply].phase = REMAINING_MOVES;
-      tree->next_status[ply].last = tree->last[ply - 1];
 /*
  ************************************************************
  *                                                          *
@@ -390,12 +328,16 @@ int NextMove(TREE * RESTRICT tree, int ply, int depth, int side) {
  *                                                          *
  ************************************************************
  */
-    case REMAINING_MOVES:
+    remaining_moves:
+      tree->next_status[ply].phase = REMAINING;
+      tree->next_status[ply].last = tree->last[ply - 1];
+    case REMAINING:
       for (; tree->next_status[ply].last < tree->last[ply];
           tree->next_status[ply].last++)
         if (*tree->next_status[ply].last) {
-          tree->curmv[ply] = *tree->next_status[ply].last++;
-          return REMAINING_MOVES;
+          tree->curmv[ply] = Move(*tree->next_status[ply].last++);
+          tree->phase[ply] = REMAINING;
+          return ++tree->next_status[ply].order;
         }
       return NONE;
     default:
@@ -405,17 +347,43 @@ int NextMove(TREE * RESTRICT tree, int ply, int depth, int side) {
   return NONE;
 }
 
-/* last modified 09/21/14 */
+/* last modified 07/03/14 */
 /*
  *******************************************************************************
  *                                                                             *
  *   NextRootMove() is used to select the next move from the root move list.   *
  *                                                                             *
+ *   There is one subtle trick here that must not be broken.  Crafty does LMR  *
+ *   at the root, and the reduction amount is dependent on the order in which  *
+ *   a specific move is searched.  With the recent changes dealing with this   *
+ *   issue in non-root moves, NextRootMove() now simply returns the move's     *
+ *   order within the move list.  This might be a problem if the last move in  *
+ *   the list fails high, because it would be reduced on the re-search, which  *
+ *   is something we definitely don't want.  The solution is found in the code *
+ *   inside Iterate().  When a move fails high, it is moved to the top of the  *
+ *   move list so that (a) it is searched first on the re-search (more on this *
+ *   in a moment) and (b) since its position in the move list is now #1, it    *
+ *   will get an order value of 1 which is never reduced.  The only warning is *
+ *   that Iterate() MUST re-sort the ply-1 move list after a fail high, even   *
+ *   though it seems like a very tiny computational waste.                     *
+ *                                                                             *
+ *   The other reason for doing the re-sort has to do with the parallel search *
+ *   algorithm.  When one thread fails high at the root, it stops the others.  *
+ *   they have to carefully undo the "this move has been searched" flag since  *
+ *   these incomplete searches need to be re-done after the fail-high move is  *
+ *   finished.  But it is possible some of those interrupted moves appear      *
+ *   before the fail high move in the move list.  Which would lead Crafty to   *
+ *   fail high, then produce a different best move's PV.  By re-sorting, now   *
+ *   the fail-high move is always searched first since here we just start at   *
+ *   the top of the move list and look for the first "not yet searched" move   *
+ *   to return.  It solves several problems, but if that re-sort is not done,  *
+ *   things go south quickly.  The voice of experience is all I will say here. *
+ *                                                                             *
  *******************************************************************************
  */
 int NextRootMove(TREE * RESTRICT tree, TREE * RESTRICT mytree, int side) {
-  int which, i;
   uint64_t total_nodes;
+  int which, i, t;
 
 /*
  ************************************************************
@@ -428,7 +396,7 @@ int NextRootMove(TREE * RESTRICT tree, TREE * RESTRICT mytree, int side) {
  ************************************************************
  */
   if (!annotate_mode && !pondering && !booking && n_root_moves == 1 &&
-      iteration_depth > 4) {
+      iteration > 10) {
     abort_search = 1;
     return NONE;
   }
@@ -446,7 +414,7 @@ int NextRootMove(TREE * RESTRICT tree, TREE * RESTRICT mytree, int side) {
  *                                                          *
  ************************************************************
  */
-  for (which = 0; which < n_root_moves; which++)
+  for (which = 0; which < n_root_moves; which++) {
     if (!(root_moves[which].status & 8)) {
       if (search_move) {
         if (root_moves[which].move != search_move) {
@@ -472,29 +440,29 @@ int NextRootMove(TREE * RESTRICT tree, TREE * RESTRICT mytree, int side) {
  *                                                          *
  ************************************************************
  */
-      if (ReadClock() - start_time > noise_level && display_options & 32) {
-        Lock(lock_io);
+      if (ReadClock() - start_time > noise_level && display_options & 16) {
         sprintf(mytree->remaining_moves_text, "%d/%d", which + 1,
             n_root_moves);
         end_time = ReadClock();
+        Lock(lock_io);
         if (pondering)
-          printf("         %2i   %s%7s?  ", iteration_depth,
+          printf("         %2i   %s%7s?  ", iteration,
               Display2Times(end_time - start_time),
               mytree->remaining_moves_text);
         else
-          printf("         %2i   %s%7s*  ", iteration_depth,
+          printf("         %2i   %s%7s*  ", iteration,
               Display2Times(end_time - start_time),
               mytree->remaining_moves_text);
-        if (display_options & 32 && display_options & 64)
-          printf("%d. ", move_number);
-        if (display_options & 32 && display_options & 64 && Flip(side))
+        printf("%d. ", move_number);
+        if (Flip(side))
           printf("... ");
-        strcpy(mytree->root_move_text, OutputMove(tree, tree->curmv[1], 1,
-                side));
+        strcpy(mytree->root_move_text, OutputMove(tree, 1, side,
+                tree->curmv[1]));
         total_nodes = block[0]->nodes_searched;
-        for (i = 1; i < MAX_BLOCKS; i++)
-          if (block[i] && block[i]->used)
-            total_nodes += block[i]->nodes_searched;
+        for (t = 0; t < smp_max_threads; t++)
+          for (i = 0; i < 64; i++)
+            if (!(thread[t].blocks & SetMask(i)))
+              total_nodes += block[t * 64 + 1 + i]->nodes_searched;
         nodes_per_second = total_nodes * 100 / Max(end_time - start_time, 1);
         i = strlen(mytree->root_move_text);
         i = (i < 8) ? i : 8;
@@ -509,22 +477,24 @@ int NextRootMove(TREE * RESTRICT tree, TREE * RESTRICT mytree, int side) {
  *                                                          *
  *  Bit of a tricky exit.  If the move is not flagged as    *
  *  "OK to search in parallel or reduce" then we return     *
- *  "HASH_MOVE" which will prevent Search() from reducing   *
- *  the move (LMR).  Otherwise we return the more common    *
- *  "REMAINING_MOVES" value which allows LMR to be used on  *
+ *  "DO_NOT_REDUCE" which will prevent Search() from        *
+ *  reducing the move (LMR).  Otherwise we return the more  *
+ *  common "REMAINING" value which allows LMR to be used on *
  *  those root moves.                                       *
  *                                                          *
  ************************************************************
  */
-      if ((root_moves[which].status & 4) == 0)
-        return HASH_MOVE;
+      if (root_moves[which].status & 4)
+        tree->phase[1] = DO_NOT_REDUCE;
       else
-        return REMAINING_MOVES;
+        tree->phase[1] = REMAINING;
+      return which + 1;
     }
+  }
   return NONE;
 }
 
-/* last modified 09/21/14 */
+/* last modified 11/13/14 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -533,10 +503,10 @@ int NextRootMove(TREE * RESTRICT tree, TREE * RESTRICT mytree, int side) {
  *   following the first move might become the best move, the 'no parallel'    *
  *   flag is set to speed up finding the new best move.  This flag is set if   *
  *   this root move has an "age" value > 0 which indicates this move was the   *
- *   "best move" within the previous 3 search depths.  We want to search such  *
- *   moves as quickly as possible, prior to starting a parallel search at the  *
- *   root, in case this move once again becomes the best move and provides a   *
- *   better alpha bound.                                                       *
+ *   "best move" within the previous 3 search iterations.  We want to search   *
+ *   such moves as quickly as possible, prior to starting a parallel search at *
+ *   the root, in case this move once again becomes the best move and provides *
+ *   a better alpha bound.                                                     *
  *                                                                             *
  *******************************************************************************
  */
@@ -549,20 +519,28 @@ int NextRootMoveParallel(void) {
  *  Here we simply check the root_move status flag that is  *
  *  set in Iterate() after each iteration is completed.  A  *
  *  value of "1" indicates this move has to be searched by  *
- *  all processors, splitting must wait until after all     *
- *  such moves have been searched individually.             *
+ *  all processors together, splitting at the root must     *
+ *  wait until we have searched all moves that have been    *
+ *  "best" during the previous three plies.                 *
+ *                                                          *
+ *  The root move list has a flag, bit 3, used to indicate  *
+ *  that this move has been best recently.  If this bit is  *
+ *  set, we are forced to use all processors to search this *
+ *  move so that it is completed quickly rather than being  *
+ *  searched by just one processor, and taking much longer  *
+ *  to get a score back.                                    *
  *                                                          *
  ************************************************************
  */
   for (which = 0; which < n_root_moves; which++)
     if (!(root_moves[which].status & 8))
       break;
-  if (which < n_root_moves && root_moves[which].status & 4)
+  if (which < n_root_moves && !(root_moves[which].status & 4))
     return 1;
   return 0;
 }
 
-/* last modified 09/21/14 */
+/* last modified 09/11/15 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -583,9 +561,40 @@ int Exclude(TREE * RESTRICT tree, int ply, int move) {
 
   if (tree->next_status[ply].excluded)
     for (i = 0; i < tree->next_status[ply].excluded; i++)
-      if (move == tree->next_status[ply].done[i]) {
-        tree->next_status[ply].remaining--;
+      if (move == tree->next_status[ply].done[i])
         return 1;
-      }
   return 0;
+}
+
+/* last modified 05/20/15 */
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   NextSort() is used to sort the move list.  This is a list of 32 bit       *
+ *   values where the rightmost 21 bits is the compressed move, and the left-  *
+ *   most 11 bits are the sort key (MVV/LVA values).                           *
+ *                                                                             *
+ *******************************************************************************
+ */
+void NextSort(TREE * RESTRICT tree, int ply) {
+  unsigned temp, *movep, *tmovep;
+
+/*
+ ************************************************************
+ *                                                          *
+ *  This is a simple insertion sort algorithm.              *
+ *                                                          *
+ ************************************************************
+ */
+  if (tree->last[ply] > tree->last[ply - 1] + 1) {
+    for (movep = tree->last[ply - 1] + 1; movep < tree->last[ply]; movep++) {
+      temp = *movep;
+      tmovep = movep - 1;
+      while (tmovep >= tree->last[ply - 1] && SortV(*tmovep) < SortV(temp)) {
+        *(tmovep + 1) = *tmovep;
+        tmovep--;
+      }
+      *(tmovep + 1) = temp;
+    }
+  }
 }

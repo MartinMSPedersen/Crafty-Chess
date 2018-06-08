@@ -43,10 +43,9 @@ int LearnAdjust(int value) {
  *******************************************************************************
  */
 void LearnBook() {
-  int nplies = 0, thisply = 0;
-  unsigned char buf32[4];
-  int i, j, cluster;
   float book_learn[64], t_learn_value;
+  int nplies = 0, thisply = 0, i, j, v, cluster;
+  unsigned char buf32[4];
 
 /*
  ************************************************************
@@ -65,7 +64,7 @@ void LearnBook() {
   if (Abs(learn_value) != learning)
     learn_value = LearnAdjust(learn_value);
   learn = 0;
-  Print(128, "LearnBook() updating book database\n");
+  Print(32, "LearnBook() updating book database\n");
 /*
  ************************************************************
  *                                                          *
@@ -102,9 +101,12 @@ void LearnBook() {
   for (i = 0; i < 64 && learn_seekto[i]; i++) {
     if (learn_seekto[i] > 0) {
       fseek(book_file, learn_seekto[i], SEEK_SET);
-      fread(buf32, 4, 1, book_file);
+      v = fread(buf32, 4, 1, book_file);
+      if (v <= 0)
+        perror("Learn() fread error: ");
       cluster = BookIn32(buf32);
-      BookClusterIn(book_file, cluster, book_buffer);
+      if (cluster)
+        BookClusterIn(book_file, cluster, book_buffer);
       for (j = 0; j < cluster; j++)
         if (!(learn_key[i] ^ book_buffer[j].position))
           break;
@@ -115,7 +117,8 @@ void LearnBook() {
       else
         book_buffer[j].learn = (book_buffer[j].learn + book_learn[i]) / 2.0;
       fseek(book_file, learn_seekto[i] + 4, SEEK_SET);
-      BookClusterOut(book_file, cluster, book_buffer);
+      if (cluster)
+        BookClusterOut(book_file, cluster, book_buffer);
       fflush(book_file);
     }
   }
@@ -136,13 +139,13 @@ void LearnBook() {
  */
 int LearnFunction(int sv, int search_depth, int rating_difference,
     int trusted_value) {
+  float multiplier;
   static const float rating_mult_t[11] = { .00625, .0125, .025, .05, .075, .1,
     0.15, 0.2, 0.25, 0.3, 0.35
   };
   static const float rating_mult_ut[11] = { .25, .2, .15, .1, .05, .025, .012,
     .006, .003, .001
   };
-  float multiplier;
   int sd, rd, value;
 
   sd = Max(Min(search_depth - 10, 19), 0);
@@ -187,8 +190,7 @@ int LearnFunction(int sv, int search_depth, int rating_difference,
  *******************************************************************************
  */
 void LearnValue(int search_value, int search_depth) {
-  int i;
-  int interval;
+  int i, interval;
   int best_eval = -999999, best_eval_p = 0;
   int worst_eval = 999999, worst_eval_p = 0;
   int best_after_worst_eval = -999999, worst_after_best_eval = 999999;

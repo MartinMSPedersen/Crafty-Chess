@@ -63,7 +63,7 @@ void EVTest(char *filename) {
     } else
       break;
     strcpy(buff, buffer);
-    nargs = ReadParse(buffer, args, " ;");
+    nargs = ReadParse(buffer, args, " \t;");
     if (!strcmp(args[0], "end"))
       break;
 /*
@@ -89,18 +89,22 @@ void EVTest(char *filename) {
       Castle(0, black) = 0;
       Castle(1, black) = 0;
       tree->pawn_score.key = 0;
+      root_wtm = game_wtm;
       s1 = Evaluate(tree, 0, game_wtm, -99999, 99999);
       strcpy(buffer, "flop");
       Option(tree);
       tree->pawn_score.key = 0;
+      root_wtm = game_wtm;
       s2 = Evaluate(tree, 0, game_wtm, -99999, 99999);
       strcpy(buffer, "flip");
       Option(tree);
       tree->pawn_score.key = 0;
+      root_wtm = game_wtm;
       s3 = Evaluate(tree, 0, game_wtm, -99999, 99999);
       strcpy(buffer, "flop");
       Option(tree);
       tree->pawn_score.key = 0;
+      root_wtm = game_wtm;
       s4 = Evaluate(tree, 0, game_wtm, -99999, 99999);
 /*
  ************************************************************

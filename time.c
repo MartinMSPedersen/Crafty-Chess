@@ -12,7 +12,7 @@
  *                                                                             *
  *******************************************************************************
  */
-void TimeAdjust(int time_used, int side) {
+void TimeAdjust(int side, int time_used) {
 /*
  ************************************************************
  *                                                          *
@@ -37,7 +37,7 @@ void TimeAdjust(int time_used, int side) {
     tc_time_remaining[side] += tc_increment;
 }
 
-/* last modified 02/23/14 */
+/* last modified 10/01/14 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -115,17 +115,17 @@ int TimeCheck(TREE * RESTRICT tree, int busy) {
  ************************************************************
  */
   time_used = (ReadClock() - start_time);
-  if (time_used > noise_level && display_options & 32 && time_used > burp) {
+  if (time_used >= noise_level && display_options & 16 && time_used > burp) {
     Lock(lock_io);
     if (pondering)
-      printf("         %2i   %s%7s?  ", iteration_depth,
-          Display2Times(time_used), tree->remaining_moves_text);
+      printf("         %2i   %s%7s?  ", iteration, Display2Times(time_used),
+          tree->remaining_moves_text);
     else
-      printf("         %2i   %s%7s*  ", iteration_depth,
-          Display2Times(time_used), tree->remaining_moves_text);
-    if (display_options & 32 && display_options & 64)
+      printf("         %2i   %s%7s*  ", iteration, Display2Times(time_used),
+          tree->remaining_moves_text);
+    if (display_options & 16)
       printf("%d. ", move_number);
-    if ((display_options & 32) && (display_options & 64) && Flip(root_wtm))
+    if ((display_options & 16) && Flip(root_wtm))
       printf("... ");
     printf("%s(%snps)             \r", tree->root_move_text,
         DisplayKMB(nodes_per_second, 0));
@@ -145,9 +145,9 @@ int TimeCheck(TREE * RESTRICT tree, int busy) {
  ************************************************************
  */
   if (n_root_moves == 1 && !booking && !annotate_mode && !pondering &&
-      iteration_depth > 1)
+      iteration > 1 && (time_used > time_limit || time_used > 100))
     return 1;
-  if (iteration_depth <= 2)
+  if (iteration <= 2)
     return 0;
 /*
  ************************************************************
@@ -232,7 +232,7 @@ int TimeCheck(TREE * RESTRICT tree, int busy) {
   return 0;
 }
 
-/* last modified 02/23/14 */
+/* last modified 09/30/14 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -258,53 +258,22 @@ void TimeSet(int search_type) {
  *  control.  If so, we have a fixed amount of time         *
  *  remaining.  Set the search time accordingly and exit.   *
  *                                                          *
- *  If we have less than 5 seconds on the clock prior to    *
- *  the increment, then limit our search to the increment.  *
+ *  The basic algorithm is to divide the remaining time     *
+ *  left on the clock by a constant (that is larger for     *
+ *  ponder=off games since we don't get to ponder and save  *
+ *  time as the game progresses) and add the increment.     *
  *                                                          *
- *  If we have less than 2.5 seconds on the clock prior to  *
- *  the increment, then limit our search to half the        *
- *  increment in an attempt to add some time to our buffer. *
- *                                                          *
- *  Set our MAX search time to half the remaining time.     *
- *                                                          *
- *  If our search time will drop the clock below 1 second,  *
- *  then limit our MAX search time to the normal search     *
- *  time.  This is done to stop any extensions from         *
- *  dropping us too low.                                    *
+ *  Set our MAX search time to the smaller of 5 * the time  *
+ *  limit or 1/2 of the time left on the clock.             *
  *                                                          *
  ************************************************************
  */
   if (tc_sudden_death == 1) {
-    if (tc_increment) {
-      time_limit =
-          (tc_time_remaining[root_wtm] -
-          tc_operator_time * tc_moves_remaining[root_wtm]) /
-          (ponder ? 20 : 26) + tc_increment;
-      if (tc_time_remaining[root_wtm] < 500 + tc_increment) {
-        time_limit = tc_increment;
-        if (tc_time_remaining[root_wtm] < 250 + tc_increment)
-          time_limit /= 2;
-      }
-      absolute_time_limit = tc_time_remaining[root_wtm] / 2 + tc_increment;
-      if (absolute_time_limit < time_limit ||
-          tc_time_remaining[root_wtm] - time_limit < 100)
-        absolute_time_limit = time_limit;
-      if (tc_time_remaining[root_wtm] - time_limit < 50) {
-        time_limit = tc_time_remaining[root_wtm] - 50;
-        if (time_limit < 5)
-          time_limit = 5;
-      }
-      if (tc_time_remaining[root_wtm] - absolute_time_limit < 25) {
-        absolute_time_limit = tc_time_remaining[root_wtm] - 25;
-        if (absolute_time_limit < 5)
-          absolute_time_limit = 5;
-      }
-
-    } else {
-      time_limit = tc_time_remaining[root_wtm] / (ponder ? 20 : 26);
-      absolute_time_limit =
-          Min(time_limit * 5, tc_time_remaining[root_wtm] / 2);
-    }
+    time_limit =
+        (tc_time_remaining[root_wtm] -
+        tc_safety_margin) / (ponder ? 20 : 26) + tc_increment;
+    absolute_time_limit =
+        Min(time_limit * 5, tc_time_remaining[root_wtm] / 2);
   }
 /*
  ************************************************************
@@ -313,30 +282,24 @@ void TimeSet(int search_type) {
  *  two choices:  If the program has saved enough time to   *
  *  meet the surplus requirement, then we simply divide     *
  *  the time left evenly among the moves left.  If we       *
- *  haven't yet saved up a cushion so that "fail-lows"      *
- *  have extra time to find a solution, we simply take the  *
- *  number of moves divided into the total time less the    *
- *  necessary operator time as the target.                  *
+ *  haven't yet saved up a cushion so that "hard-moves"     *
+ *  can be searched more thoroughly, we simply take the     *
+ *  number of moves divided into the total time as the      *
+ *  target.                                                 *
  *                                                          *
  ************************************************************
  */
   else {
     if (move_number <= tc_moves)
-      simple_average =
-          (tc_time -
-          (tc_operator_time * tc_moves_remaining[root_wtm])) / tc_moves;
+      simple_average = (tc_time - tc_safety_margin) / tc_moves;
     else
       simple_average =
-          (tc_secondary_time -
-          (tc_operator_time * tc_moves_remaining[root_wtm])) /
-          tc_secondary_moves;
+          (tc_secondary_time - tc_safety_margin) / tc_secondary_moves;
     surplus =
-        Max(tc_time_remaining[root_wtm] -
-        (tc_operator_time * tc_moves_remaining[root_wtm]) -
+        Max(tc_time_remaining[root_wtm] - tc_safety_margin -
         simple_average * tc_moves_remaining[root_wtm], 0);
     average =
-        (tc_time_remaining[root_wtm] -
-        (tc_operator_time * tc_moves_remaining[root_wtm]) +
+        (tc_time_remaining[root_wtm] - tc_safety_margin +
         tc_moves_remaining[root_wtm] * tc_increment)
         / tc_moves_remaining[root_wtm];
     if (surplus < tc_safety_margin)
@@ -345,17 +308,15 @@ void TimeSet(int search_type) {
       time_limit =
           (average < 2.0 * simple_average) ? average : 2.0 * simple_average;
   }
-  if (surplus < 0)
-    surplus = 0;
   if (tc_increment > 200 && moves_out_of_book < 2)
     time_limit *= 1.2;
   if (time_limit <= 0)
     time_limit = 5;
   absolute_time_limit =
-      time_limit + surplus / 2 + ((tc_time_remaining[root_wtm] -
-          tc_operator_time * tc_moves_remaining[root_wtm]) / 4);
-  if (absolute_time_limit > 6 * time_limit)
-    absolute_time_limit = 6 * time_limit;
+      time_limit + surplus / 2 + (tc_time_remaining[root_wtm] -
+      tc_safety_margin) / 4;
+  if (absolute_time_limit > 5 * time_limit)
+    absolute_time_limit = 5 * time_limit;
   if (absolute_time_limit > tc_time_remaining[root_wtm] / 2)
     absolute_time_limit = tc_time_remaining[root_wtm] / 2;
 /*
@@ -400,11 +361,11 @@ void TimeSet(int search_type) {
   time_limit = Min(time_limit, absolute_time_limit);
   if (search_type != puzzle) {
     if (!tc_sudden_death)
-      Print(128, "        time surplus %s  ", DisplayTime(surplus));
+      Print(32, "        time surplus %s  ", DisplayTime(surplus));
     else
-      Print(128, "        ");
-    Print(128, "time limit %s", DisplayTimeKibitz(time_limit));
-    Print(128, " (%s)\n", DisplayTimeKibitz(absolute_time_limit));
+      Print(32, "        ");
+    Print(32, "time limit %s", DisplayTimeKibitz(time_limit));
+    Print(32, " (%s)\n", DisplayTimeKibitz(absolute_time_limit));
   }
   if (time_limit <= 1) {
     time_limit = 1;

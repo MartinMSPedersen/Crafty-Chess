@@ -27,18 +27,18 @@
  *                                                                             *
  *   The format of the command is as follows:                                  *
  *                                                                             *
- *       annotate filename b|w|bw|name moves margin time [n]                   *
+ *        annotate filename b|w|bw|name moves margin time [n]                  *
  *                                                                             *
  *   Filename is the input file where Crafty will obtain the moves to          *
  *   annotate, and output will be written to file "filename.can".              *
  *                                                                             *
- *       annotateh filename b|w|bw|name moves margin time [n]                  *
+ *        annotateh filename b|w|bw|name moves margin time [n]                 *
  *                                                                             *
  *   Can be used to produce an HTML-compatible file that includes bitmapped    *
  *   diagrams of the positions where Crafty provides analysis.  This file can  *
  *   be opened by a browser to provide much easier 'reading'.                  *
  *                                                                             *
- *       annotatet filename b|w|bw|name moves margin time [n]                  *
+ *        annotatet filename b|w|bw|name moves margin time [n]                 *
  *                                                                             *
  *   Can be used to produce a LaTeX-compatible file that includes LaTeX chess  *
  *   fonts.  This file can be read/printed by any program that can handle      *
@@ -107,7 +107,7 @@ void Annotate() {
     strcpy(html_br, "\\\\");
   }
   strcpy(tbuffer, buffer);
-  nargs = ReadParse(tbuffer, args, " 	;");
+  nargs = ReadParse(tbuffer, args, " \t;");
   if (nargs < 6) {
     printf
         ("usage: annotate <file> <color> <moves> <margin> <time> [nmoves]\n");
@@ -118,7 +118,7 @@ void Annotate() {
     Print(4095, "unable to open %s for input\n", args[1]);
     return;
   }
-  nargs = ReadParse(tbuffer, args, " 	;");
+  nargs = ReadParse(tbuffer, args, " \t;");
   strcpy(text, args[1]);
   if (html_mode == 1)
     strcpy(text + strlen(text), ".html");
@@ -268,7 +268,7 @@ void Annotate() {
       move = ReadNextMove(tree, buffer, 0, wtm);
       if (move <= 0)
         break;
-      strcpy(text, OutputMove(tree, move, 0, wtm));
+      strcpy(text, OutputMove(tree, 0, wtm, move));
       if (history_file) {
         fseek(history_file, ((move_number - 1) * 2 + 1 - wtm) * 10, SEEK_SET);
         fprintf(history_file, "%9s\n", text);
@@ -440,7 +440,7 @@ void Annotate() {
  */
       read_status = ReadPGN(annotate_in, 1);
       while (read_status == 2) {
-        suggested = InputMove(tree, buffer, 0, wtm, 1, 0);
+        suggested = InputMove(tree, 0, wtm, 1, 0, buffer);
         if (suggested > 0) {
           thinking = 1;
           Print(4095, "\n              Searching only the move suggested.");
@@ -466,14 +466,14 @@ void Annotate() {
                 tree->pv[0].pathd, DisplayEvaluationKibitz(annotate_score[0],
                     wtm));
             for (i = 1; i <= path_len; i++) {
-              fprintf(annotate_out, " %s", OutputMove(tree,
-                      tree->pv[0].path[i], i, twtm));
-              MakeMove(tree, i, tree->pv[0].path[i], twtm);
+              fprintf(annotate_out, " %s", OutputMove(tree, i, twtm,
+                      tree->pv[0].path[i]));
+              MakeMove(tree, i, twtm, tree->pv[0].path[i]);
               twtm = Flip(twtm);
             }
             for (i = path_len; i > 0; i--) {
               twtm = Flip(twtm);
-              UnmakeMove(tree, i, tree->pv[0].path[i], twtm);
+              UnmakeMove(tree, i, twtm, tree->pv[0].path[i]);
             }
             fprintf(annotate_out, " %s)%s\n",
                 AnnotateVtoNAG(annotate_score[0], wtm, html_mode, latex),
@@ -486,7 +486,7 @@ void Annotate() {
       }
       if ((analysis_printed) && (latex == 0))
         fprintf(annotate_out, "%s\n", html_br);
-      MakeMoveRoot(tree, move, wtm);
+      MakeMoveRoot(tree, wtm, move);
       wtm = Flip(wtm);
       if (wtm)
         move_number++;
@@ -495,7 +495,7 @@ void Annotate() {
       if (line2 < -1)
         break;
     } while (1);
-    fprintf(annotate_out, "\n       %s %s\n", pgn_result, html_br);
+    fprintf(annotate_out, "  %s %s\n\n", pgn_result, html_br);
     if (html_mode == 1) {
       fprintf(annotate_out, "%s\n", html_br);
       AnnotateFooterHTML(annotate_out);
@@ -644,7 +644,7 @@ void AnnotatePositionHTML(TREE * RESTRICT tree, int wtm, FILE * annotate_out) {
 /*
  *******************************************************************************
  * Author         : Alexander Wagner                                           *
- *                                      University of Michigan                 *
+ *                  University of Michigan                                     *
  * Date           : 03.01.04                                                   *
  *                                                                             *
  * Last Modified  : 03.01.04                                                   *

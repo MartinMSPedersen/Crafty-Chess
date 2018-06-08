@@ -11,7 +11,7 @@
  *                                                                             *
  *******************************************************************************
  */
-void UnmakeMove(TREE * RESTRICT tree, int ply, int move, int side) {
+void UnmakeMove(TREE * RESTRICT tree, int ply, int side, int move) {
   uint64_t bit_move;
   int piece, from, to, captured, promote, enemy = Flip(side);
 
@@ -74,18 +74,6 @@ void UnmakeMove(TREE * RESTRICT tree, int ply, int move, int side) {
         Material += PieceValues(side, pawn);
         TotalPieces(side, occupied) -= p_vals[promote];
         TotalPieces(side, promote)--;
-        switch (promote) {
-          case knight:
-          case bishop:
-            TotalMinors(side)--;
-            break;
-          case rook:
-            TotalMajors(side)--;
-            break;
-          case queen:
-            TotalMajors(side) -= 2;
-            break;
-        }
       }
       break;
     case knight:
@@ -128,22 +116,6 @@ void UnmakeMove(TREE * RESTRICT tree, int ply, int move, int side) {
     TotalPieces(enemy, captured)++;
     if (captured != pawn)
       TotalPieces(enemy, occupied) += p_vals[captured];
-    switch (captured) {
-      case pawn:
-        break;
-      case knight:
-      case bishop:
-        TotalMinors(enemy)++;
-        break;
-      case rook:
-        TotalMajors(enemy)++;
-        break;
-      case queen:
-        TotalMajors(enemy) += 2;
-        break;
-      case king:
-        break;
-    }
   }
 #if defined(DEBUG)
   ValidatePosition(tree, ply, move, "UnmakeMove(1)");

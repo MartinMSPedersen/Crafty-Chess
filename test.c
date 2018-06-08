@@ -1,6 +1,6 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 02/26/14 */
+/* last modified 01/09/15 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -33,14 +33,13 @@
  *                                                                             *
  *******************************************************************************
  */
-void Test(char *filename) {
-  FILE *test_input;
-  int i, move, right = 0, wrong = 0, correct;
-  int time = 0, len;
-  uint64_t nodes = 0;
-  char *eof, *delim;
-  float avg_depth = 0.0;
+void Test(char *filename, FILE * unsolved, int screen, int margin) {
   TREE *const tree = block[0];
+  FILE *test_input;
+  uint64_t nodes = 0;
+  int i, move, right = 0, wrong = 0, correct, time = 0, len, nfailed = 0;
+  float avg_depth = 0.0;
+  char failed[8][4096], *eof, *delim;
 
 /*
  ************************************************************
@@ -58,10 +57,9 @@ void Test(char *filename) {
   }
   Print(4095, "\n");
   eof = fgets(buffer, 4096, test_input);
-  if (strstr(buffer, "title"));
-  else {
+  if (!strstr(buffer, "title")) {
     fclose(test_input);
-    TestEPD(filename);
+    TestEPD(filename, unsolved, screen, margin);
     return;
   }
   if (book_file) {
@@ -72,7 +70,11 @@ void Test(char *filename) {
     fclose(books_file);
     books_file = 0;
   }
+  fclose(test_input);
+  test_input = fopen(filename, "r");
   while (1) {
+    eof = fgets(buffer, 4096, test_input);
+    strcpy(failed[nfailed++], buffer);
     if (eof) {
       delim = strchr(buffer, '\n');
       if (delim)
@@ -82,7 +84,7 @@ void Test(char *filename) {
         *delim = ' ';
     } else
       break;
-    nargs = ReadParse(buffer, args, " ;");
+    nargs = ReadParse(buffer, args, " \t;");
     if (!strcmp(args[0], "end"))
       break;
     else if (!strcmp(args[0], "title")) {
@@ -117,11 +119,11 @@ void Test(char *filename) {
           solution_type = 0;
           args[i][strlen(args[i]) - 1] = '\0';
         }
-        move = InputMove(tree, args[i], 0, game_wtm, 0, 0);
+        move = InputMove(tree, 0, game_wtm, 0, 0, args[i]);
         if (move) {
           solutions[number_of_solutions] = move;
           Print(4095, "%d. %s", (number_of_solutions++) + 1, OutputMove(tree,
-                  move, 0, game_wtm));
+                  0, game_wtm, move));
           if (solution_type == 1)
             Print(4095, "? ");
           else
@@ -137,14 +139,14 @@ void Test(char *filename) {
       Iterate(game_wtm, think, 0);
       thinking = 0;
       nodes += tree->nodes_searched;
-      avg_depth += (float) iteration_depth;
+      avg_depth += (float) iteration;
       time += (end_time - start_time);
       correct = solution_type;
       for (i = 0; i < number_of_solutions; i++) {
         if (!solution_type) {
-          if (solutions[i] == tree->pv[1].path[1])
+          if (solutions[i] == (tree->pv[1].path[1] & 0x001fffff))
             correct = 1;
-        } else if (solutions[i] == tree->pv[1].path[1])
+        } else if (solutions[i] == (tree->pv[1].path[1] & 0x001fffff))
           correct = 0;
       }
       if (correct) {
@@ -155,9 +157,12 @@ void Test(char *filename) {
         wrong++;
         Print(4095, "----------------------> solution incorrect (%d/%d).\n",
             right, right + wrong);
+        if (unsolved)
+          for (i = 0; i < nfailed; i++)
+            fputs(failed[i], unsolved);
       }
+      nfailed = 0;
     }
-    eof = fgets(buffer, 4096, test_input);
   }
 /*
  ************************************************************
@@ -188,7 +193,7 @@ void Test(char *filename) {
   early_exit = 99;
 }
 
-/* last modified 02/26/14 */
+/* last modified 06/26/15 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -209,16 +214,22 @@ void Test(char *filename) {
  *   The title is just a comment that is given in the program output to make   *
  *   it easier to match output to specific positions.                          *
  *                                                                             *
+ *   One new addition is the ability to take a set of EPD records and run a    *
+ *   search on each one.  If the final evaluation is within some window, then  *
+ *   the input record is written out to a second file.  This is used to screen *
+ *   cluster-testing starting positions to weed out those that are so badly    *
+ *   unbalanced that one side always wins.                                     *
+ *                                                                             *
  *******************************************************************************
  */
-void TestEPD(char *filename) {
-  FILE *test_input;
-  int i, move, right = 0, wrong = 0, correct;
-  int time = 0, len;
-  uint64_t nodes = 0;
-  char *eof, *mvs, *title;
-  float avg_depth = 0.0;
+void TestEPD(char *filename, FILE * unsolved, int screen, int margin) {
   TREE *const tree = block[0];
+  FILE *test_input, *test_output = 0;
+  uint64_t nodes = 0;
+  int i, move, right = 0, wrong = 0, correct, time = 0, len, culled = 0, r =
+      0;
+  float avg_depth = 0.0;
+  char *eof, *mvs, *title, tbuffer[512], failed[4096];
 
 /*
  ************************************************************
@@ -234,6 +245,16 @@ void TestEPD(char *filename) {
     printf("file %s does not exist.\n", filename);
     return;
   }
+  if (screen) {
+    char outfile[256];
+
+    strcpy(outfile, filename);
+    strcat(outfile, ".screened");
+    if (!(test_output = fopen(outfile, "w"))) {
+      printf("file %s cannot be opened for write.\n", filename);
+      return;
+    }
+  }
   if (book_file) {
     fclose(book_file);
     book_file = 0;
@@ -244,6 +265,9 @@ void TestEPD(char *filename) {
   }
   while (1) {
     eof = fgets(buffer, 4096, test_input);
+    strcpy(failed, buffer);
+    Print(4095, "%s\n", buffer);
+    strcpy(tbuffer, buffer);
     if (eof) {
       char *delim;
 
@@ -255,10 +279,17 @@ void TestEPD(char *filename) {
         *delim = ' ';
     } else
       break;
+    r++;
+    mvs = strstr(buffer, " sd ");
+    if (mvs) {
+      search_depth = atoi(mvs + 3);
+      *(mvs - 1) = 0;
+      Print(4095, "search depth %d\n", search_depth);
+    }
     mvs = strstr(buffer, " bm ");
     if (!mvs)
       mvs = strstr(buffer, " am ");
-    if (!mvs)
+    if (!mvs && !screen)
       Print(4095, "Warning. am/bm field missing, input string follows\n%s\n",
           buffer);
     if (mvs)
@@ -290,7 +321,7 @@ void TestEPD(char *filename) {
     }
     Option(tree);
     if (mvs) {
-      nargs = ReadParse(mvs, args, " ;");
+      nargs = ReadParse(mvs, args, " \t;");
       number_of_solutions = 0;
       solution_type = 0;
       if (!strcmp(args[0], "am"))
@@ -299,11 +330,11 @@ void TestEPD(char *filename) {
       for (i = 1; i < nargs; i++) {
         if (!strcmp(args[i], "c0"))
           break;
-        move = InputMove(tree, args[i], 0, game_wtm, 0, 0);
+        move = InputMove(tree, 0, game_wtm, 0, 0, args[i]);
         if (move) {
           solutions[number_of_solutions] = move;
           Print(4095, "%d. %s", (number_of_solutions++) + 1, OutputMove(tree,
-                  move, 0, game_wtm));
+                  0, game_wtm, move));
           if (solution_type == 1)
             Print(4095, "? ");
           else
@@ -318,26 +349,39 @@ void TestEPD(char *filename) {
     thinking = 1;
     tree->status[1] = tree->status[0];
     Iterate(game_wtm, think, 0);
+    if (screen) {
+      if (Abs(last_root_value) < margin)
+        fwrite(tbuffer, 1, strlen(tbuffer), test_output);
+      else
+        culled++;
+      printf("record #%d,  culled %d, score=%s          \r", r, culled,
+          DisplayEvaluation(last_root_value, game_wtm));
+      fflush(stdout);
+    }
     thinking = 0;
     nodes += tree->nodes_searched;
-    avg_depth += (float) iteration_depth;
+    avg_depth += (float) iteration;
     time += (end_time - start_time);
-    correct = solution_type;
-    for (i = 0; i < number_of_solutions; i++) {
-      if (!solution_type) {
-        if (solutions[i] == tree->pv[1].path[1])
-          correct = 1;
-      } else if (solutions[i] == tree->pv[1].path[1])
-        correct = 0;
-    }
-    if (correct) {
-      right++;
-      Print(4095, "----------------------> solution correct (%d/%d).\n",
-          right, right + wrong);
-    } else {
-      wrong++;
-      Print(4095, "----------------------> solution incorrect (%d/%d).\n",
-          right, right + wrong);
+    if (!screen) {
+      correct = solution_type;
+      for (i = 0; i < number_of_solutions; i++) {
+        if (!solution_type) {
+          if (solutions[i] == (tree->pv[1].path[1] & 0x001fffff))
+            correct = 1;
+        } else if (solutions[i] == (tree->pv[1].path[1] & 0x001fffff))
+          correct = 0;
+      }
+      if (correct) {
+        right++;
+        Print(4095, "----------------------> solution correct (%d/%d).\n",
+            right, right + wrong);
+      } else {
+        wrong++;
+        Print(4095, "----------------------> solution incorrect (%d/%d).\n",
+            right, right + wrong);
+        if (unsolved)
+          fputs(failed, unsolved);
+      }
     }
   }
 /*
@@ -347,19 +391,22 @@ void TestEPD(char *filename) {
  *                                                          *
  ************************************************************
  */
-  if (right + wrong) {
+  if (r) {
     Print(4095, "\n\n\n");
     Print(4095, "test results summary:\n\n");
-    Print(4095, "total positions searched..........%12d\n", right + wrong);
-    Print(4095, "number right......................%12d\n", right);
-    Print(4095, "number wrong......................%12d\n", wrong);
-    Print(4095, "percentage right..................%12d\n",
-        right * 100 / (right + wrong));
-    Print(4095, "percentage wrong..................%12d\n",
-        wrong * 100 / (right + wrong));
+    Print(4095, "total positions searched..........%12d\n", r);
+    if (!screen) {
+      Print(4095, "number right......................%12d\n", right);
+      Print(4095, "number wrong......................%12d\n", wrong);
+      Print(4095, "percentage right..................%12d\n",
+          right * 100 / (right + wrong));
+      Print(4095, "percentage wrong..................%12d\n",
+          wrong * 100 / (right + wrong));
+    } else
+      Print(4095, "records excluded..................%12d\n", culled);
+
     Print(4095, "total nodes searched..............%12" PRIu64 "\n", nodes);
-    Print(4095, "average search depth..............%12.1f\n",
-        avg_depth / (right + wrong));
+    Print(4095, "average search depth..............%12.1f\n", avg_depth / r);
     Print(4095, "nodes per second..................%12" PRIu64 "\n",
         nodes * 100 / Max(1, time));
     Print(4095, "total time........................%12s\n",

@@ -1,6 +1,6 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 09/24/14 */
+/* last modified 07/01/15 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -12,20 +12,15 @@
  *                                                                             *
  *******************************************************************************
  */
-int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
-    int ply, int in_check, int do_null) {
-  ROOT_MOVE temp_rm;
-  uint64_t start_nodes = tree->nodes_searched;
-  int first_tried = 0, moves_searched = 0, repeat = 0;
-  int original_alpha = alpha, value = 0, t_beta = beta;
-  int extend, reduce, i, check;
-  int pv_node = alpha != beta - 1;
+int Search(TREE * RESTRICT tree, int ply, int depth, int wtm, int alpha,
+    int beta, int in_check, int do_null) {
+  int repeat = 0, value = 0, pv_node = alpha != beta - 1, n_depth;
   int searched[256];
 
 /*
  ************************************************************
  *                                                          *
- *  Step 1.  Check to see if we have searched enough nodes  *
+ *  Timeout.  Check to see if we have searched enough nodes *
  *  that it is time to peek at how much time has been used, *
  *  or if is time to check for operator keyboard input.     *
  *  This is usually enough nodes to force a time/input      *
@@ -64,10 +59,10 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
 /*
  ************************************************************
  *                                                          *
- *  Step 2.  Check for draw by repetition, which includes   *
+ *  Draws.  Check for draw by repetition, which includes    *
  *  50 move draws also.  This is the quickest way to get    *
  *  out of further searching, with minimal effort.  This    *
- *  and the next two steps are skipped for moves at the     *
+ *  and the next four steps are skipped for moves at the    *
  *  root (ply = 1).                                         *
  *                                                          *
  ************************************************************
@@ -77,7 +72,7 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
       if (repeat == 1 || !in_check) {
         value = DrawScore(wtm);
         if (value < beta)
-          SavePV(tree, ply, 0);
+          SavePV(tree, ply, 3);
 #if defined(TRACE)
         if (ply <= trace_level)
           printf("draw by repetition detected, ply=%d.\n", ply);
@@ -88,26 +83,41 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
 /*
  ************************************************************
  *                                                          *
- *  Step 3.  Check the transposition/refutation (hash)      *
+ *  Mate distance pruning.  If we have found a mate, we can *
+ *  stop if we are too deep to find a shorter mate.  This   *
+ *  only affects the size of the tree in positions where    *
+ *  there are forced mates.  It does not change the outcome *
+ *  of the search at all, just the time it takes.           *
+ *                                                          *
+ ************************************************************
+ */
+    alpha = Max(alpha, -MATE + ply - 1);
+    beta = Min(beta, MATE - ply);
+    if (alpha >= beta)
+      return alpha;
+/*
+ ************************************************************
+ *                                                          *
+ *  Trans/Ref.  Check the transposition/refutation (hash)   *
  *  table to see if we have searched this position          *
  *  previously and still have the results available.  We    *
  *  might get a real score, or a bound, or perhaps only a   *
  *  good move to try first.  The possible results are:      *
  *                                                          *
- *  1. HashProbe() returns "HASH_HIT".  This terminates     *
- *  the search instantly and we simply return the value     *
- *  found in the hash table.  This value is simply the      *
- *  value we found when we did a real search in this        *
- *  position previously, and HashProbe() verifies that the  *
- *  value is useful based on draft and current bounds.      *
+ *  1. HashProbe() returns "HASH_HIT".  This terminates the *
+ *  search instantly and we simply return the value found   *
+ *  in the hash table.  This value is simply the value we   *
+ *  found when we did a real search in this position        *
+ *  previously, and ProbeTransRef() verifies that the value *
+ *  is useful based on draft and current bounds.            *
  *                                                          *
  *  2. HashProbe() returns "AVOID_NULL_MOVE" which means    *
  *  the hashed score/bound was no good, but it indicated    *
  *  that trying a null-move in this position would be a     *
  *  waste of time since it will likely fail low, not high.  *
  *                                                          *
- *  3. HashProbe() returns "HASH_MISS" when forces us to    *
- *  do a normal search to resolve this node.                *
+ *  3. HashProbe() returns "HASH_MISS" when forces us to do *
+ *  a normal search to resolve this node.                   *
  *                                                          *
  ************************************************************
  */
@@ -122,7 +132,7 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
 /*
  ************************************************************
  *                                                          *
- *  Step 4.  Now it's time to try a probe into the endgame  *
+ *  EGTBs.  Now it's time to try a probe into the endgame   *
  *  tablebase files.  This is done if we notice that there  *
  *  are 6 or fewer pieces left on the board.  EGTB_use      *
  *  tells us how many pieces to probe on.  Note that this   *
@@ -150,23 +160,23 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
  ************************************************************
  */
 #if !defined(NOEGTB)
-    if (depth > 6 && TotalAllPieces <= EGTB_use && !Castle(ply, white) &&
-        !Castle(ply, black) && (CaptureOrPromote(tree->curmv[ply - 1]) ||
-            ply < 3)) {
+    if (depth > EGTB_depth && TotalAllPieces <= EGTB_use &&
+        !Castle(ply, white) && !Castle(ply, black) &&
+        (CaptureOrPromote(tree->curmv[ply - 1]) || ply < 3)) {
       int egtb_value;
 
       tree->egtb_probes++;
       if (EGTBProbe(tree, ply, wtm, &egtb_value)) {
-        tree->egtb_probes_successful++;
+        tree->egtb_hits++;
         alpha = egtb_value;
         if (MateScore(alpha))
           alpha += (alpha > 0) ? -ply + 1 : ply;
         else if (alpha == 0) {
           alpha = DrawScore(wtm);
-          if (Material > 0)
-            alpha += (wtm) ? 1 : -1;
-          else if (Material < 0)
-            alpha -= (wtm) ? 1 : -1;
+          if (MaterialSTM(wtm) > 0)
+            alpha += 1;
+          else if (MaterialSTM(wtm) < 0)
+            alpha -= 1;
         }
         if (alpha < beta)
           SavePV(tree, ply, 2);
@@ -177,53 +187,56 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
 /*
  ************************************************************
  *                                                          *
- *  Step 5.  We now know there is no quick way to get out   *
- *  of here, which leaves one more possibility, although it *
- *  does require a search, but to a reduced depth.  We      *
- *  try a null move to see if we can get a quick cutoff     *
- *  with only a little work.  This operates as follows.     *
- *  Instead of making a legal move, the side on move passes *
- *  and does nothing.  The resulting position is searched   *
- *  to a shallower depth than normal (see below).  This     *
- *  will result in a cutoff if our position is very good,   *
- *  but it produces the cutoff much quicker since the       *
- *  search is far shallower than a normal search that would *
- *  also be likely to fail  high.                           *
+ *  Null-move.  We now know there is no quick way to get    *
+ *  out of here, which leaves one more possibility,         *
+ *  although it does require a search, but to a reduced     *
+ *  depth.  We try a null move to see if we can get a quick *
+ *  cutoff with only a little work.  This operates as       *
+ *  follows.  Instead of making a legal move, the side on   *
+ *  move passes and does nothing.  The resulting position   *
+ *  is searched to a shallower depth than normal (see       *
+ *  below).  This will result in a cutoff if our position   *
+ *  is very good, but it produces the cutoff much quicker   *
+ *  since the search is far shallower than a normal search  *
+ *  that would also be likely to fail high.                 *
  *                                                          *
  *  The reduction amount starts off at null_depth (normally *
  *  set to 3 but the user can change this via the crafty    *
  *  personality command) but is then increased as follows:  *
  *                                                          *
- *     null_reduction = null_depth + depth / null_divisor   *
+ *     R = null_depth + depth / null_divisor                *
  *                                                          *
- *  null_divisor defaults to 10, but this can also be set   *
+ *  null_divisor defaults to 6, but this can also be set    *
  *  by the user to try more/less aggressive settings.       *
  *                                                          *
  *  This is skipped for any of the following reasons:       *
  *                                                          *
- *  1.  The side on move is in check.  The null move        *
- *      results in an illegal position.                     *
- *  2.  No more than one null move can appear in succession *
- *      as all this does is burn 6 plies of depth.          *
- *  3.  The side on move has only pawns left, which makes   *
- *      zugzwang positions more likely.                     *
- *  4.  The transposition table probe found an entry that   *
- *      indicates that a null-move search will not fail     *
- *      high, so we avoid the wasted effort.                *
+ *  1. The side on move is in check.  The null move         *
+ *     results in an illegal position.                      *
+ *  2. No more than one null move can appear in succession  *
+ *     as all this does is burn 2x plies of depth.          *
+ *  3. The side on move has only pawns left, which makes    *
+ *     zugzwang positions more likely.                      *
+ *  4. The transposition table probe found an entry that    *
+ *     indicates that a null-move search will not fail      *
+ *     high, so we avoid the wasted effort.                 *
  *                                                          *
  ************************************************************
  */
+
     tree->last[ply] = tree->last[ply - 1];
-    if (do_null && !pv_node && depth > 1 && !in_check &&
+    n_depth = 1 + ((TotalPieces(wtm, occupied) > 9 || n_root_moves > 17 ||
+            depth > 3) ? 0 : 2);
+    if (do_null && !pv_node && depth > n_depth && !in_check &&
         TotalPieces(wtm, occupied)) {
       uint64_t save_hash_key;
-      int tdepth = null_depth;
+      int R = null_depth + depth / null_divisor;
 
       tree->curmv[ply] = 0;
-      tree->phase[ply] = NULL_MOVE;
 #if defined(TRACE)
       if (ply <= trace_level)
-        Trace(tree, ply, depth, wtm, beta - 1, beta, "Search1", NULL_MOVE);
+        Trace(tree, ply, depth, wtm, value - 1, value, "SearchNull", serial,
+            NULL_MOVE, 0);
 #endif
       tree->status[ply + 1] = tree->status[ply];
       Reversible(ply + 1) = 0;
@@ -232,14 +245,13 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
         HashEP(EnPassant(ply + 1));
         EnPassant(ply + 1) = 0;
       }
-      tdepth += depth / null_divisor;
-      tree->null_done[tdepth]++;
-      if (depth - tdepth - 1 > 0)
+      tree->null_done[Min(R, 15)]++;
+      if (depth - R - 1 > 0)
         value =
-            -Search(tree, -beta, -beta + 1, Flip(wtm), depth - tdepth - 1,
-            ply + 1, 0, NO_NULL);
+            -Search(tree, ply + 1, depth - R - 1, Flip(wtm), -beta, -beta + 1,
+            0, NO_NULL);
       else
-        value = -Quiesce(tree, -beta, -beta + 1, Flip(wtm), ply + 1, 1);
+        value = -Quiesce(tree, ply + 1, Flip(wtm), -beta, -beta + 1, 1);
       HashKey = save_hash_key;
       if (abort_search || tree->stop)
         return 0;
@@ -251,7 +263,7 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
 /*
  ************************************************************
  *                                                          *
- *  Step 6.  This step is rarely executed.  It is used when *
+ *  IID.  This step is rarely executed.  It is used when    *
  *  there is no best move from the hash table, and this is  *
  *  a PV node, since we need a good move to search first.   *
  *  While killers moves are good, they are not quite good   *
@@ -263,14 +275,14 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
  *                                                          *
  ************************************************************
  */
-    tree->next_status[ply].phase = HASH_MOVE;
+    tree->next_status[ply].phase = HASH;
     if (!tree->hash_move[ply] && depth >= 6 && do_null && ply > 1 && pv_node) {
       tree->curmv[ply] = 0;
       if (depth - 2 > 0)
         value =
-            Search(tree, alpha, beta, wtm, depth - 2, ply, in_check, DO_NULL);
+            Search(tree, ply, depth - 2, wtm, alpha, beta, in_check, DO_NULL);
       else
-        value = Quiesce(tree, alpha, beta, wtm, ply, 1);
+        value = Quiesce(tree, ply, wtm, alpha, beta, 1);
       if (abort_search || tree->stop)
         return 0;
       if (value > alpha) {
@@ -280,65 +292,147 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
         } else
           tree->hash_move[ply] = tree->curmv[ply];
         tree->last[ply] = tree->last[ply - 1];
-        tree->next_status[ply].phase = HASH_MOVE;
+        tree->next_status[ply].phase = HASH;
       }
     }
   }
-/*  
+/*
  ************************************************************
  *                                                          *
- *  Step 7.  Now iterate through the move list and search   *
+ *  Search moves.  Now we call SearchMoveList() to interate *
+ *  through the move list and search each new position.     *
+ *                                                          *
+ ************************************************************
+ */
+  searched[0] = 0;
+  value =
+      SearchMoveList(tree, ply, depth, wtm, alpha, beta, searched, in_check,
+      repeat, serial);
+  return value;
+}
+
+/* last modified 09/28/15 */
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   SearchMoveList() is the recursive routine used to implement the main      *
+ *   search loop.  This code is responsible for iterating through the move     *
+ *   list until it encounters a condition that ends the search at this ply.    *
+ *   At that point it simply returns the current negamax value to the caller   *
+ *   to handle as necessary.                                                   *
+ *                                                                             *
+ *   The "mode" flag indicates which of the following conditions apply here    *
+ *   which directly controls parts of the search.                              *
+ *                                                                             *
+ *      mode = serial   ->  this is a serial search.                           *
+ *                                                                             *
+ *      mode = parallel ->  this is a parallel search, which implies that this *
+ *                          is a partial search which means we do NOT want to  *
+ *                          do any trans/ref updating and we also need to take *
+ *                          care about locking things that are being updated   *
+ *                          by more than one thread in parallel.               *
+ *                                                                             *
+ *   When mode = parallel, this code performs the same function as the old     *
+ *   SearchParallel() code, except that it is the main search loop for the     *
+ *   program, there is no longer any duplicated code.  This is called by the   *
+ *   normal Search() function and by ThreadWait() where idle processes wait    *
+ *   for work and then call this procedure to search a subset of the moves at  *
+ *   this ply (in parallel with other threads).                                *
+ *                                                                             *
+ *******************************************************************************
+ */
+int SearchMoveList(TREE * RESTRICT tree, int ply, int depth, int wtm,
+    int alpha, int beta, int searched[], int in_check, int repeat, int mode) {
+  TREE *current;
+  int extend, reduce, check, original_alpha = alpha, t_beta;
+  int i, value = 0, pv_node = alpha != beta - 1, status, order;
+  int moves_done = 0, phase;
+
+/*
+ ************************************************************
+ *                                                          *
+ *  Basic initialization before we begin the loop through   *
+ *  the move list.  If this is a parallel search, we have   *
+ *  already searched one move, so we set t_beta to alpha+1  *
+ *  to set up for a normal PVS search (for moves 2-n)       *
+ *  instead of using alpha,beta for the first move as we do *
+ *  in a normal search.  Also, if this is a serial search,  *
+ *  we are fixing to search the first move so we set the    *
+ *  searched move counter to zero, where in a parallel      *
+ *  search this has already been done and we leave it alone *
+ *  here.                                                   *
+ *                                                          *
+ *  We also set <current> to tree for a serial search, and  *
+ *  to tree->parent for a parallel search since we need to  *
+ *  share the move list at split nodes.                     *
+ *                                                          *
+ ************************************************************
+ */
+  tree->next_status[ply].phase = HASH;
+  if (mode == parallel) {
+    current = tree->parent;
+    t_beta = alpha + 1;
+  } else {
+    current = tree;
+    t_beta = beta;
+  }
+/*
+ ************************************************************
+ *                                                          *
+ *  Iterate.  Now iterate through the move list and search  *
  *  the resulting positions.  Note that Search() culls any  *
  *  move that is not legal by using Check().  The special   *
  *  case is that we must find one legal move to search to   *
  *  confirm that it's not a mate or draw.                   *
  *                                                          *
- *  We have three possible procedures we call here, one is  *
- *  specific to ply=1 (NextRootMove()), the second is a     *
- *  specific routine to escape check (NextEvasion()) and    *
- *  the last is the normal NextMove() procedure that does   *
- *  the usual move ordering stuff.                          *
- *                                                          *
- *  Special case:  if we have searched one move at root,    *
- *  and the returned score == alpha, we want to get out of  *
- *  here and return to Iterate() where the search bounds    *
- *  will be adjusted.  Otherwise we would search all root   *
- *  moves and possibly fail low after expending a sig-      *
- *  nificant amount of time.                                *
+ *  We call NextMove() which will generate moves in the     *
+ *  normal way (captures, killers, etc) or it will use the  *
+ *  GenerateEvasions() generator if we are in check.  For   *
+ *  the special case of ply=1, we use NextRootMove() since  *
+ *  the ply=1 move list has been generated and the order is *
+ *  updated as each search iteration is executed.           *
  *                                                          *
  ************************************************************
  */
-  tree->next_status[ply].phase = HASH_MOVE;
   while (1) {
-    if (ply > 1)
-      tree->phase[ply] =
-          (in_check) ? NextEvasion(tree, ply, wtm) : NextMove(tree, ply,
-          depth, wtm);
-    else if (moves_searched == 1 && alpha == original_alpha)
+    if (ply == 1 && moves_done == 1 && alpha == original_alpha &&
+        mode == serial)
       break;
+    if (mode == parallel)
+      Lock(current->lock);
+    if (ply > 1)
+      order = NextMove(current, ply, depth, wtm, in_check);
     else
-      tree->phase[ply] = NextRootMove(tree, tree, wtm);
-    if (!tree->phase[ply])
+      order = NextRootMove(current, tree, wtm);
+    phase = current->phase[ply];
+    if (mode == parallel) {
+      tree->curmv[ply] = tree->parent->curmv[ply];
+      Unlock(current->lock);
+    }
+    if (!order)
       break;
 #if defined(TRACE)
     if (ply <= trace_level)
-      Trace(tree, ply, depth, wtm, alpha, beta, "Search2", tree->phase[ply]);
+      Trace(tree, ply, depth, wtm, alpha, beta, "SearchMoveList", mode, phase,
+          order);
 #endif
-    MakeMove(tree, ply, tree->curmv[ply], wtm);
+    MakeMove(tree, ply, wtm, tree->curmv[ply]);
     tree->nodes_searched++;
+    status = ILLEGAL;
     if (in_check || !Check(wtm))
       do {
-        searched[moves_searched] = tree->curmv[ply];
-        if (++moves_searched == 1)
-          first_tried = tree->curmv[ply];
+        searched[0]++;
+        moves_done++;
+        status = LEGAL;
+        if (moves_done == 1)
+          tree->first_move[ply] = tree->curmv[ply];
+        searched[searched[0]] = tree->curmv[ply];
 /*
  ************************************************************
  *                                                          *
- *  Step 7a.  If the move to be made checks the opponent,   *
+ *  Check.  If the move to be made checks the opponent,     *
  *  then we need to remember that he's in check and also    *
- *  extend the depth by one ply for him to get out.  Note   *
- *  that if the move gives check, it is not a candidate for *
- *  either depth reduction or forward-pruning.              *
+ *  extend the depth by one ply for him to get out.         *
  *                                                          *
  *  We do not extend unsafe checking moves (as indicated by *
  *  Swap(), a SEE algorithm, since these are usually a      *
@@ -353,7 +447,8 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
         reduce = 0;
         if (Check(Flip(wtm))) {
           check = 1;
-          if (SwapO(tree, tree->curmv[ply], wtm) <= 0) {
+          if (SwapO(tree, wtm, tree->curmv[ply]) -
+              pcval[Captured(tree->curmv[ply])] <= 0) {
             extend = check_depth;
             tree->extensions_done++;
           }
@@ -362,19 +457,8 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
 /*
  ************************************************************
  *                                                          *
- *  Step 7b.  Now for the forward-pruning stuff.  The idea  *
- *  here is based on the old FUTILITY idea, where if the    *
- *  current material + a fudge factor is lower than alpha,  *
- *  then there is little promise in searching this move to  *
- *  make up for the material deficit.  This is not done if  *
- *  we chose to extend this move in the previous step.      *
- *                                                          *
- *  This is a useful idea in today's 20+ ply searches, as   *
- *  when we near the tips, if we are too far behind in      *
- *  material, there is little time left to recover it and   *
- *  moves that don't bring us closer to a reasonable        *
- *  material balance can safely be skipped.  It is much     *
- *  more dangerous in shallow searches.                     *
+ *  Futility.  First attempt at forward pruning based on    *
+ *  the futility idea.                                      *
  *                                                          *
  *  We have an array of pruning margin values that are      *
  *  indexed by depth (remaining plies left until we drop    *
@@ -388,12 +472,12 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
  *  introduce errors into the search.  However, cluster     *
  *  testing has shown that this improves play in real       *
  *  games.  The current implementation only prunes in the   *
- *  last 5 plies before quiescence, although this can be    *
+ *  last 6 plies before quiescence, although this can be    *
  *  tuned with the "eval" command changing the "pruning     *
- *  depth" value to something other than 6 (test is for     *
- *  depth < pruning depth, current value is 6 which prunes  *
- *  in last 5 plies only).  Testing shows no benefit in     *
- *  larger values than 6, although this might change in     *
+ *  depth" value to something other than 7 (test is for     *
+ *  depth < pruning depth, current value is 7 which prunes  *
+ *  in last 6 plies only).  Testing shows no benefit in     *
+ *  larger values than 7, although this might change in     *
  *  future versions as other things are modified.           *
  *                                                          *
  *  Exception:                                              *
@@ -402,36 +486,58 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
  *    pawn to the 6th rank, where it becomes very dangerous *
  *    since it can promote in two more moves.               *
  *                                                          *
+ *  All pruning and reduction code is skipped if any of the *
+ *  following are true:                                     *
+ *                                                          *
+ *  (1) side on move is in check.                           *
+ *                                                          *
+ *  (2) move has not already been flagged for a search      *
+ *      extension.                                          *
+ *                                                          *
+ *  (3) this is not the first move at this ply.             *
+ *                                                          *
+ *  (4) we are in the REMAINING phase, which means that a   *
+ *      cutoff is not very likely.                          *
+ *                                                          *
  ************************************************************
  */
-        if (!in_check && !extend && moves_searched > 1 &&
-            tree->phase[ply] >= HISTORY_MOVES) {
-          if (depth < pruning_depth &&
-              MaterialSTM(wtm) + pruning_margin[depth] <= alpha)
-            if (Piece(tree->curmv[ply]) != pawn ||
-                !Passed(To(tree->curmv[ply]), wtm)
-                || rankflip[wtm][Rank(To(tree->curmv[ply]))] < RANK6) {
-              tree->moves_fpruned++;
-              continue;
-            }
+        if (!in_check && !extend && order > 1 && phase >= HISTORY &&
+            !(PawnPush(wtm, tree->curmv[ply]))) {
+          if (!pv_node && depth < pruning_depth &&
+              MaterialSTM(wtm) + pruning_margin[depth] <= alpha) {
+            tree->moves_fpruned++;
+            break;
+          }
 /*
  ************************************************************
  *                                                          *
- *  Step 7c.  Now it's time to try to reduce the search     *
- *  depth if the move appears to be "poor".  To reduce the  *
- *  search, the following requirements must be met:         *
+ *  LMP.  Final attempt at forward pruning based on the     *
+ *  "late move pruning" idea (a take-off on LMR).           *
  *                                                          *
- *  (1) We must be in the HISTORY_MOVES (or later) part of  *
- *      the move ordering, so that we have nearly given up  *
- *      on failing high on any move.                        *
+ *  The basic idea here is that once we have searched a     *
+ *  significant number of moves at a ply, it becomes less   *
+ *  and less likely that any of the moves left will produce *
+ *  a cutoff.  If the move appears to be simple (not a      *
+ *  check, etc) then we simply skip it, once the move count *
+ *  has been satisfied.  At present, we only do this in the *
+ *  last two plies although this might be changed in the    *
+ *  future.                                                 *
  *                                                          *
- *  (2) We must not be too close to the horizon (this is    *
- *      the LMR_remaining_depth value).                     *
+ ************************************************************
+ */
+          if (!pv_node && alpha > -MATE + 300 && depth < movecnt_depth &&
+              !CaptureOrPromote(tree->curmv[ply]) &&
+              order > movecnt_pruning[depth]) {
+            tree->moves_mpruned++;
+            break;
+          }
+/*
+ ************************************************************
  *                                                          *
- *  (3) The current move must not be a checking move and    *
- *      the side to move can not be in check.               *
+ *  LMR.  Now it's time to try to reduce the search depth   *
+ *  if the move appears to be "poor" because it appears     *
+ *  later in the move list.                                 *
  *                                                          *
- *  If we meet those criteria, then we reduce the search.   *
  *  The reduction is variable and is done via a table look- *
  *  up that uses a function based on remaining depth (more  *
  *  depth remaining, the larger the reduction) and the      *
@@ -441,156 +547,170 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
  *                                                          *
  ************************************************************
  */
-          if (Piece(tree->curmv[ply]) != pawn ||
-              !Passed(To(tree->curmv[ply]), wtm)
-              || rankflip[wtm][Rank(To(tree->curmv[ply]))] < RANK6) {
-            reduce = LMR[Min(depth, 31)][Min(moves_searched, 63)];
-            tree->LMR_done[reduce]++;
-          }
+          reduce = LMR[Min(depth, 31)][Min(order, 63)];
+          tree->LMR_done[reduce]++;
         }
-/*  
- ************************************************************
- *                                                          *
- *  Step 7d.  We have determined whether the depth is to    *
- *  be changed by an extension or a reduction.  If we get   *
- *  to this point, then the move is not being pruned.  So   *
- *  off we go to a recursive search/quiescence call to work *
- *  our way toward a terminal node.                         *
- *                                                          *
- *  There is one special-case to handle.  If the depth was  *
- *  reduced, and Search() returns a value >= beta then      *
- *  accepting that is risky (we reduced the move as we      *
- *  thought it was bad and expected it to fail low) so we   *
- *  repeat the search using the original (non-reduced)      *
- *  depth to see if the fail-high happens again.            *
- *                                                          *
- ************************************************************
- */
-        if (depth + extend - reduce - 1 > 0) {
-          value =
-              -Search(tree, -t_beta, -alpha, Flip(wtm),
-              depth + extend - reduce - 1, ply + 1, check, DO_NULL);
-          if (value > alpha && reduce)
-            value =
-                -Search(tree, -t_beta, -alpha, Flip(wtm), depth - 1, ply + 1,
-                check, DO_NULL);
-        } else
-          value = -Quiesce(tree, -t_beta, -alpha, Flip(wtm), ply + 1, 1);
-        if (abort_search || tree->stop)
-          break;
 /*
  ************************************************************
  *                                                          *
- *  Step 7e.  This is the PVS re-search code.  If we reach  *
- *  this point and value > alpha and value < beta, then     *
- *  this can not be a null-window search.  We have to re-   *
- *  search the position with the original beta value (not   *
- *  alpha+1 as is the usual case in PVS) to see if it still *
- *  fails high before we treat this as a real fail-high and *
- *  back up the value to the previous ply.                  *
+ *  Now do the PVS search on the current move.              *
  *                                                          *
- *  Special case:  ply == 1.                                *
- *                                                          *
- *  In this case, we need to clean up and then move the     *
- *  best move to the top of the root move list, and return  *
- *  back to Iterate() to let it produce the usual informa-  *
- *  tive output and re-start the search with a new beta     *
- *  value.  We also reset the failhi_delta back to 16,      *
- *  since an earlier fail-high or fail low in this          *
- *  iteration could have left it at a large value.          *
- *                                                          *
- *  Last step is to build a usable PV in case this move     *
- *  fails low on the re-search, because we do want to play  *
- *  this move no matter what happens.                       *
+ *  Note that we do the usual alpha/beta cutoff tests here  *
+ *  but we only set an indicator that is used after we have *
+ *  called Unmake().  This cleaned up the exit from search  *
+ *  and makes it easier to understand when there is only    *
+ *  one point where this is done, without needing multiple  *
+ *  Unmake() calls when there are different exit points.    *
  *                                                          *
  ************************************************************
  */
-        if (value > alpha && value < beta && moves_searched > 1) {
-          if (ply == 1) {
-            alpha = value;
-            UnmakeMove(tree, ply, tree->curmv[ply], wtm);
-            root_beta = alpha;
-            failhi_delta = 16;
-            for (i = 0; i < n_root_moves; i++)
-              if (tree->curmv[1] == root_moves[i].move)
-                break;
-            if (i < n_root_moves) {
-              temp_rm = root_moves[i];
-              for (; i > 0; i--)
-                root_moves[i] = root_moves[i - 1];
-              root_moves[0] = temp_rm;
-            }
-            root_moves[0].bm_age = 4;
-            tree->pv[1].path[1] = tree->curmv[1];
-            tree->pv[1].pathl = 2;
-            tree->pv[1].pathh = 0;
-            tree->pv[1].pathd = iteration_depth;
-            tree->pv[0] = tree->pv[1];
-            return alpha;
-          }
-          if (depth + extend - 1 > 0)
-            value =
-                -Search(tree, -beta, -alpha, Flip(wtm), depth + extend - 1,
-                ply + 1, check, DO_NULL);
-          else
-            value = -Quiesce(tree, -beta, -alpha, Flip(wtm), ply + 1, 1);
-          if (abort_search || tree->stop)
-            break;
-        }
-/*  
- ************************************************************
- *                                                          *
- *  Step 7f.  We have completed the search/re-search and we *
- *  we have the final score.  Now we need to check for a    *
- *  fail-high which terminates this search instantly since  *
- *  no further searching is required.  On a fail high, we   *
- *  need to update the killer moves, and hash table before  *
- *  we return.                                              *
- *                                                          *
- *  If ply == 1, we call Output() which will dump the new   *
- *  PV.  But but we need to back up the PV to ply=0 so that *
- *  it will be available to tell main() which move to make. *
- *                                                          *
- ************************************************************
- */
+        value =
+            SearchMove(tree, ply, depth, wtm, alpha, t_beta, beta, extend,
+            reduce, check);
         if (value > alpha) {
-          alpha = value;
-          if (ply == 1) {
-            tree->pv[1].pathv = value;
-            Output(tree, beta);
-            tree->pv[0] = tree->pv[1];
-          }
-          if (value >= beta) {
-            History(tree, ply, depth, wtm, tree->curmv[ply], searched,
-                moves_searched - 1);
-            UnmakeMove(tree, ply, tree->curmv[ply], wtm);
-            HashStore(tree, ply, depth, wtm, LOWER, value, tree->curmv[ply]);
-            tree->fail_highs++;
-            if (moves_searched == 1)
-              tree->fail_high_first_move++;
-            return value;
-          }
+          status = IN_WINDOW;
+          if (value >= beta)
+            status = FAIL_HIGH;
+          if (mode == parallel && ply == 1)
+            status = FAIL_HIGH;
         }
-        t_beta = alpha + 1;
-      }
-      while (0);
-    UnmakeMove(tree, ply, tree->curmv[ply], wtm);
+      } while (0);
+    UnmakeMove(tree, ply, wtm, tree->curmv[ply]);
     if (abort_search || tree->stop)
-      return 0;
+      break;
 /*
  ************************************************************
  *                                                          *
- *  Step 7g.  If are doing an SMP search, and we have idle  *
+ *  Test 1.  When we get here, we have made a move,         *
+ *  searched it (and re-searched if necessary/appropriate), *
+ *  and the move has been unmade so that the board is in a  *
+ *  correct state.                                          *
+ *                                                          *
+ *  If status = FAIL_HIGH, the search failed high.  The     *
+ *  first thing to handle is the case where we are at       *
+ *  ply=1, which is a special case.  If we are going to     *
+ *  fail high here and terminate the search immediately, we *
+ *  need to build the fail-high PV to back up to Iterate()  *
+ *  so it will produce the correct output and widen the     *
+ *  alpha/beta window.                                      *
+ *                                                          *
+ *  We then check to see if this is a parallel search.  If  *
+ *  so then we are done here, but we need to tell all of    *
+ *  the siblings that are helping at this split point that  *
+ *  they should immediately stop searching here since we    *
+ *  don't need their results.                               *
+ *                                                          *
+ *  Otherwise we update the killer moves and history        *
+ *  counters and store the fail-high information in the     *
+ *  trans/ref table for future use if we happen to reach    *
+ *  this position again.                                    *
+ *                                                          *
+ ************************************************************
+ */
+    if (status == FAIL_HIGH) {
+      if (ply == 1) {
+        if (!tree->stop) {
+          tree->pv[1].path[1] = tree->curmv[1];
+          tree->pv[1].pathl = 2;
+          tree->pv[1].pathh = 0;
+          tree->pv[1].pathd = iteration;
+          tree->pv[0] = tree->pv[1];
+        }
+      }
+#if (CPUS > 1)
+      if (mode == parallel) {
+        Lock(lock_smp);
+        Lock(tree->parent->lock);
+        if (!tree->stop) {
+          int proc;
+
+          parallel_aborts++;
+          for (proc = 0; proc < smp_max_threads; proc++)
+            if (tree->parent->siblings[proc] && proc != tree->thread_id)
+              ThreadStop(tree->parent->siblings[proc]);
+        }
+        Unlock(tree->parent->lock);
+        Unlock(lock_smp);
+        return value;
+      }
+#endif
+      tree->fail_highs++;
+      if (order == 1)
+        tree->fail_high_first_move++;
+      HashStore(tree, ply, depth, wtm, LOWER, value, tree->curmv[ply]);
+      History(tree, ply, depth, wtm, tree->curmv[ply], searched);
+      return beta;
+/*
+ ************************************************************
+ *                                                          *
+ *  Test 2.  If status = IN_WINDOW, this is a search that   *
+ *  improved alpha without failing high.  We simply update  *
+ *  alpha and continue searching moves.                     *
+ *                                                          *
+ *  Special case:  If ply = 1 in a normal search, we have   *
+ *  a best move and score that just changed.  We need to    *
+ *  update the root move list by adding the PV and the      *
+ *  score, and then we look to make sure this new "best     *
+ *  move" is not actually worse than the best we have found *
+ *  so far this iteration.  If it is worse, we restore the  *
+ *  best move and score from the real best move so our      *
+ *  search window won't be out of whack, which would let    *
+ *  moves with scores in between this bad move and the best *
+ *  move fail high, cause re-searches, and waste time.      *
+ *                                                          *
+ *  If this is ply = 1, we display the PV to keep the user  *
+ *  informed.                                               *
+ *                                                          *
+ ************************************************************
+ */
+    } else if (status == IN_WINDOW) {
+      alpha = value;
+      if (ply == 1 && mode == serial) {
+        tree->pv[1].pathv = value;
+        tree->pv[0] = tree->pv[1];
+        for (i = 0; i < n_root_moves; i++)
+          if (root_moves[i].move == tree->pv[1].path[1]) {
+            root_moves[i].path = tree->pv[1];
+            root_moves[i].path.pathv = alpha;
+          }
+        for (i = 0; i < n_root_moves; i++)
+          if (value < root_moves[i].path.pathv) {
+            value = root_moves[i].path.pathv;
+            alpha = value;
+            tree->pv[0] = root_moves[i].path;
+            tree->pv[1] = tree->pv[0];
+          }
+        Output(tree);
+        failhi_delta = 16;
+        faillo_delta = 16;
+      }
+    }
+/*
+ ************************************************************
+ *                                                          *
+ *  Test 3.  If status = ILLEGAL, this search was given an  *
+ *  illegal move and no search was done, we skip any        *
+ *  updating and simply select the next move to search.     *
+ *                                                          *
+ ************************************************************
+ */
+    else if (status == ILLEGAL)
+      continue;
+    t_beta = alpha + 1;
+/*
+ ************************************************************
+ *                                                          *
+ *  SMP.  If are doing an SMP search, and we have idle      *
  *  processors, now is the time to get them involved.  We   *
  *  have now satisfied the "young brothers wait" condition  *
- *  since we have searched one move.  All that is left is   *
- *  to check the split constraints to see if we are an      *
- *  acceptable split point.                                 *
+ *  since we have searched at least one move.  All that is  *
+ *  left is to check the split constraints to see if this   *
+ *  is an acceptable split point.                           *
  *                                                          *
  *    (1) We can't split within N plies of the frontier     *
  *        nodes to avoid excessive split overhead.          *
  *                                                          *
- *    (2) We can't split until at least M nodes have been   *
+ *    (2) We can't split until at least N nodes have been   *
  *        searched since this thread was last split, to     *
  *        avoid splitting too often, mainly in endgames.    *
  *                                                          *
@@ -607,63 +727,49 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
  *        searches and we want all processors on it at once *
  *        to get a score back quicker.                      *
  *                                                          *
- *    (5) if the variable smp_split is > 0, we have idle    *
- *        threads that can help, however if smp_split < 0,  *
- *        we are already doing a split on another thread    *
- *        so there is no point in waiting to try one here.  *
+ *    (5) if the variable smp_split is != 0, we have idle   *
+ *        threads that can help, which means we want to get *
+ *        them involved quickly, OR if this node is an      *
+ *        acceptable "gratuitous-split" point by being far  *
+ *        enough from the tips of the tree to avoid         *
+ *        excessive overhead.                               *
  *                                                          *
- *  SearchParallel() primarily contains steps 7 through 7f  *
- *  which is the main search loop.  We do the final clean-  *
- *  up below when either we finish the search normally or   *
- *  a parallel search completes and returns to this point.  *
+ *  We use this code recursively to perform a parallel      *
+ *  search at this ply.  But when we finish a partial piece *
+ *  of the search in parallel, we don't need to update any  *
+ *  search data structures, we will defer that until all of *
+ *  parallel threads complete and return back into this     *
+ *  code after the parallel search has been collapsed back  *
+ *  to one instance of search at this ply.                  *
  *                                                          *
  *  Special case:  we do not split if we are at ply=1 and   *
  *  alpha == original_alpha.  That means the first move     *
  *  failed low, and we are going to exit search and return  *
  *  to Iterate() to report this.                            *
  *                                                          *
- *  One potential problem is that multiple threads can get  *
- *  to this point at the same time, and they all stack up   *
- *  waiting to grab the lock_smp lock that protects the     *
- *  split operation.  I now have a new lock, lock_split,    *
- *  to try to limit this wasted time.  A thread now has to  *
- *  acquire that lock, and then it tests the smp_split      *
- *  to see if a split STILL needs to be done.  If not, we   *
- *  release the lock and move on, rather than waiting on    *
- *  main lock_smp lock.                                     *
+ *  In Generation II, multiple threads can reach this point *
+ *  at the same time.  We allow multiple threads to split   *
+ *  at the same time, but then the idle threads will choose *
+ *  to join the thread with the most attractive split point *
+ *  rather than just taking pot-luck.  The only limitation  *
+ *  on a thread adding a split point here is that if the    *
+ *  thread already has enough joinable split points have    *
+ *  not been joined yet, we do not incur the overhead of    *
+ *  creating another split point until the existing split   *
+ *  point is completed or a thread joins at at that point.  *
  *                                                          *
- *  If we acquire the lock_split lock AND we notice that    *
- *  smp_split is still set to 1, we quickly set smp_split   *
- *  to zero (-1) so that other threads will bug out rather  *
- *  than trying to split and end up in a queue behind us,   *
- *  waiting while we split and they try to split and fail.  *
- *  We release lock_split to eliminate the log-jam of       *
- *  threads waiting to split and get them back into their   *
- *  normal searches, and jump right into Thread().          *
- *                                                          *
- *  The smp_split = -1 has a complex meaning, but simply    *
- *  stated it means "split currently in progress".  Here,   *
- *  that means "do not attempt a split since we are already *
- *  in the middle of one."  It also tells individual        *
- *  threads to not change smp_split to 1 when they become   *
- *  idle, because with a split in progress, it is likely we *
- *  will pick them up automatically.                        *
+ *  We do not lock anything here, as the split operation    *
+ *  only affects thread-local data.  When the split is done *
+ *  then the ThreadJoin() function will acquire the lock    *
+ *  needed to avoid race conditions during the join op-     *
+ *  eration.                                                *
  *                                                          *
  ************************************************************
  */
 #if (CPUS > 1)
-    if (smp_split > 0 && depth >= smp_min_split_depth && moves_searched &&
-        tree->nodes_searched - start_nodes > smp_split_nodes && (ply > 1 ||
-            (smp_split_at_root && NextRootMoveParallel() &&
-                alpha != original_alpha)))
+    if (mode == serial && moves_done && smp_threads &&
+        ThreadSplit(tree, ply, depth, alpha, original_alpha, moves_done))
       do {
-        Lock(lock_split);
-        if (smp_split <= 0) {
-          Unlock(lock_split);
-          break;
-        }
-        smp_split = -1;
-        Unlock(lock_split);
         tree->alpha = alpha;
         tree->beta = beta;
         tree->value = alpha;
@@ -671,12 +777,14 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
         tree->ply = ply;
         tree->depth = depth;
         tree->in_check = in_check;
-        tree->moves_searched = moves_searched;
-        if (Thread(tree)) {
+        tree->searched = searched;
+        if (Split(tree)) {
           if (abort_search || tree->stop)
             return 0;
           value = tree->value;
           if (value > alpha) {
+            if (ply == 1)
+              tree->pv[0] = tree->pv[1];
             if (value >= beta) {
               HashStore(tree, ply, depth, wtm, LOWER, value, tree->cutmove);
               return value;
@@ -691,15 +799,31 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
 /*
  ************************************************************
  *                                                          *
- *  Step 8.  All moves have been searched.  If none were    *
- *  legal, return either MATE or DRAW depending on whether  *
- *  the side to move is in check or not.                    *
+ *  SMP Cleanup.  If we are doing an SMP search, there are  *
+ *  no "end-of-search" things to do.  We have searched all  *
+ *  the remaining moves at this ply in parallel, and now    *
+ *  return and let the original search that started this    *
+ *  sub-tree clean up, do the tests for mate/stalemate,     *
+ *  update the hash table, etc.                             *
+ *                                                          *
+ *  As we return, we end back up in Thread() where we       *
+ *  started, which then copies the best score/etc back to   *
+ *  the parent thread.                                      *
  *                                                          *
  ************************************************************
  */
-  if (abort_search || tree->stop)
-    return 0;
-  if (moves_searched == 0) {
+  if (abort_search || tree->stop || mode == parallel)
+    return alpha;
+/*
+ ************************************************************
+ *                                                          *
+ *  Search completed.  All moves have been searched.  If    *
+ *  none were legal, return either MATE or DRAW depending   *
+ *  on whether the side to move is in check or not.         *
+ *                                                          *
+ ************************************************************
+ */
+  if (moves_done == 0) {
     value = (Check(wtm)) ? -(MATE - ply) : DrawScore(wtm);
     if (value >= alpha && value < beta) {
       SavePV(tree, ply, 0);
@@ -712,12 +836,13 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
   } else {
     int bestmove, type;
     bestmove =
-        (alpha == original_alpha) ? first_tried : tree->pv[ply].path[ply];
+        (alpha ==
+        original_alpha) ? tree->first_move[ply] : tree->pv[ply].path[ply];
     type = (alpha == original_alpha) ? UPPER : EXACT;
     if (repeat == 2 && alpha != -(MATE - ply - 1)) {
       value = DrawScore(wtm);
       if (value < beta)
-        SavePV(tree, ply, 0);
+        SavePV(tree, ply, 4);
 #if defined(TRACE)
       if (ply <= trace_level)
         printf("draw by 50 move rule detected, ply=%d.\n", ply);
@@ -726,199 +851,36 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
     } else if (alpha != original_alpha) {
       tree->pv[ply - 1] = tree->pv[ply];
       tree->pv[ply - 1].path[ply - 1] = tree->curmv[ply - 1];
-      History(tree, ply, depth, wtm, tree->pv[ply].path[ply], searched,
-          moves_searched - 1);
     }
     HashStore(tree, ply, depth, wtm, type, alpha, bestmove);
     return alpha;
   }
 }
 
-/* last modified 09/16/14 */
+/* last modified 07/01/15 */
 /*
  *******************************************************************************
  *                                                                             *
- *   SearchParallel() is the recursive routine used to implement alpha/beta    *
- *   negamax search using parallel threads.  When this code is called, the     *
- *   first move has already been searched, so all that is left is to search    *
- *   the remainder of the moves and then return.  Note that the hash table and *
- *   such can't be modified here since this only represents a part of the      *
- *   search at this ply.  All of that is deferred until we return and reach    *
- *   the original instance of Search() where we have the complete results from *
- *   all the threads that are helping here.                                    *
+ *   SearchMove() implements the PVS search and returns the value.  We do a    *
+ *   null-window search with the window (alpha, t_beta) and if that fails high *
+ *   we repeat the search with the window {alpha, beta} assuming that beta !=  *
+ *   t_beta.                                                                   *
  *                                                                             *
  *******************************************************************************
  */
-int SearchParallel(TREE * RESTRICT tree, int alpha, int beta, int value,
-    int wtm, int depth, int ply, int in_check) {
-  ROOT_MOVE temp_rm;
-  int extend, reduce, i, check;
-  TREE *parent = tree->parent;
-
+int SearchMove(TREE * RESTRICT tree, int ply, int depth, int wtm, int alpha,
+    int t_beta, int beta, int extend, int reduce, int check) {
+  int value;
 /*
  ************************************************************
  *                                                          *
- *  Step 7.  Now we continue to iterate through the move    *
- *  list and search the resulting positions.  Note that     *
- *  SearchParallel() culls any move that is not legal by    *
- *  using Check().  The special case mentioned in Search()  *
- *  is not an issue here as we don't do a parallel split    *
- *  until we have searched one legal move.                  *
- *                                                          *
- *  We have three possible procedures we call here, one is  *
- *  specific to ply=1 (NextRootMove()), the second is a     *
- *  specific routine to escape check (NextEvasion()) and    *
- *  the last is the normal NextMove() procedure that does   *
- *  the usual move ordering stuff.                          *
- *                                                          *
- ************************************************************
- */
-  while (1) {
-    Lock(parent->lock);
-    if (ply > 1)
-      tree->phase[ply] =
-          (in_check) ? NextEvasion(parent, ply, wtm) : NextMove(parent, ply,
-          depth, wtm);
-    else
-      tree->phase[ply] = NextRootMove(parent, tree, wtm);
-    tree->curmv[ply] = parent->curmv[ply];
-    Unlock(parent->lock);
-    if (!tree->phase[ply])
-      break;
-#if defined(TRACE)
-    if (ply <= trace_level)
-      Trace(tree, ply, depth, wtm, alpha, beta, "SearchParallel",
-          tree->phase[ply]);
-#endif
-    MakeMove(tree, ply, tree->curmv[ply], wtm);
-    tree->nodes_searched++;
-    if (in_check || !Check(wtm))
-      do {
-        parent->moves_searched++;
-/*
- ************************************************************
- *                                                          *
- *  Step 7a.  If the move to be made checks the opponent,   *
- *  then we need to remember that he's in check and also    *
- *  extend the depth by one ply for him to get out.  Note   *
- *  that if the move gives check, it is not a candidate for *
- *  either depth reduction or forward-pruning.              *
- *                                                          *
- *  We do not extend unsafe checking moves (as indicated by *
- *  Swap(), a SEE algorithm, since these are usually a      *
- *  waste of time and simply blow up the tree search space. *
- *                                                          *
- ************************************************************
- */
-        extend = 0;
-        reduce = 0;
-        if (Check(Flip(wtm))) {
-          check = 1;
-          if (SwapO(tree, tree->curmv[ply], wtm) <= 0) {
-            extend = check_depth;
-            tree->extensions_done++;
-          }
-        } else
-          check = 0;
-/*
- ************************************************************
- *                                                          *
- *  Step 7b.  Now for the forward-pruning stuff.  The idea  *
- *  here is based on the old FUTILITY idea, where if the    *
- *  current material + a fudge factor is lower than alpha,  *
- *  then there is little promise in searching this move to  *
- *  make up for the material deficit.  This is not done if  *
- *  we chose to extend this move in the previous step.      *
- *                                                          *
- *  This is a useful idea in today's 20+ ply searches, as   *
- *  when we near the tips, if we are too far behind in      *
- *  material, there is little time left to recover it and   *
- *  moves that don't bring us closer to a reasonable        *
- *  material balance can safely be skipped.  It is much     *
- *  more dangerous in shallow searches.                     *
- *                                                          *
- *  We have an array of pruning margin values that are      *
- *  indexed by depth (remaining plies left until we drop    *
- *  into the quiescence search) and which increase with     *
- *  depth since more depth means a greater chance of        *
- *  bringing the score back up to alpha or beyond.  If the  *
- *  current material + the bonus is less than alpha, we     *
- *  simply avoid searching this move at all, and skip to    *
- *  the next move without expending any more effort.  Note  *
- *  that this is classic forward-pruning and can certainly  *
- *  introduce errors into the search.  However, cluster     *
- *  testing has shown that this improves play in real       *
- *  games.  The current implementation only prunes in the   *
- *  last 5 plies before quiescence, although this can be    *
- *  tuned with the "eval" command changing the "pruning     *
- *  depth" value to something other than 6 (test is for     *
- *  depth < pruning depth, current value is 6 which prunes  *
- *  in last 5 plies only).  Testing shows no benefit in     *
- *  larger values than 6, although this might change in     *
- *  future versions as other things are modified.           *
- *                                                          *
- *  Exception:                                              *
- *                                                          *
- *    We do not prune if we are safely pushing a passed     *
- *    pawn to the 6th rank, where it becomes very dangerous *
- *    since it can promote in two more moves.               *
- *                                                          *
- ************************************************************
- */
-        if (!in_check && !extend && parent->moves_searched > 1 &&
-            tree->phase[ply] >= HISTORY_MOVES) {
-          if (depth < pruning_depth &&
-              MaterialSTM(wtm) + pruning_margin[depth] <= alpha)
-            if (Piece(tree->curmv[ply]) != pawn ||
-                !Passed(To(tree->curmv[ply]), wtm)
-                || rankflip[wtm][Rank(To(tree->curmv[ply]))] < RANK6) {
-              tree->moves_fpruned++;
-              continue;
-            }
-/*
- ************************************************************
- *                                                          *
- *  Step 7c.  Now it's time to try to reduce the search     *
- *  depth if the move appears to be "poor".  To reduce the  *
- *  search, the following requirements must be met:         *
- *                                                          *
- *  (1) We must be in the HISTORY_MOVES (or later) part of  *
- *      the move ordering, so that we have nearly given up  *
- *      on failing high on any move.                        *
- *                                                          *
- *  (2) We must not be too close to the horizon (this is    *
- *      the LMR_remaining_depth value).                     *
- *                                                          *
- *  (3) The current move must not be a checking move and    *
- *      the side to move can not be in check.               *
- *                                                          *
- *  If we meet those criteria, then we reduce the search.   *
- *  The reduction is variable and is done via a table look- *
- *  up that uses a function based on remaining depth (more  *
- *  depth remaining, the larger the reduction) and the      *
- *  number of moves searched (more moves searched, the      *
- *  larger the reduction).  The "shape" of this reduction   *
- *  formula is user-settable via the "lmr" command.         *
- *                                                          *
- ************************************************************
- */
-          if (Piece(tree->curmv[ply]) != pawn ||
-              !Passed(To(tree->curmv[ply]), wtm)
-              || rankflip[wtm][Rank(To(tree->curmv[ply]))] < RANK6) {
-            reduce = LMR[Min(depth, 31)][Min(parent->moves_searched, 63)];
-            tree->LMR_done[reduce]++;
-          }
-        }
-/*
- ************************************************************
- *                                                          *
- *  Step 7d.  We have determined whether the depth is to    *
+ *  PVS search.  We have determined whether the depth is to *
  *  be changed by an extension or a reduction.  If we get   *
  *  to this point, then the move is not being pruned.  So   *
  *  off we go to a recursive search/quiescence call to work *
  *  our way toward a terminal node.                         *
  *                                                          *
- *  There is one special-cases to handle.  If the depth was *
+ *  There is one special-case to handle.  If the depth was  *
  *  reduced, and Search() returns a value >= beta then      *
  *  accepting that is risky (we reduced the move as we      *
  *  thought it was bad and expected it to fail low) so we   *
@@ -927,176 +889,43 @@ int SearchParallel(TREE * RESTRICT tree, int alpha, int beta, int value,
  *                                                          *
  ************************************************************
  */
-        if (depth + extend - reduce - 1 > 0) {
-          value =
-              -Search(tree, -alpha - 1, -alpha, Flip(wtm),
-              depth + extend - reduce - 1, ply + 1, check, DO_NULL);
-          if (value > alpha && reduce)
-            value =
-                -Search(tree, -alpha - 1, -alpha, Flip(wtm), depth - 1,
-                ply + 1, check, DO_NULL);
-        } else
-          value = -Quiesce(tree, -alpha - 1, -alpha, Flip(wtm), ply + 1, 1);
-        if (abort_search || tree->stop)
-          break;
+  if (depth + extend - reduce - 1 > 0) {
+    value =
+        -Search(tree, ply + 1, depth + extend - reduce - 1, Flip(wtm),
+        -t_beta, -alpha, check, DO_NULL);
+    if (value > alpha && reduce) {
+      value =
+          -Search(tree, ply + 1, depth - 1, Flip(wtm), -t_beta, -alpha, check,
+          DO_NULL);
+    }
+  } else
+    value = -Quiesce(tree, ply + 1, Flip(wtm), -t_beta, -alpha, 1);
+  if (abort_search || tree->stop)
+    return 0;
 /*
  ************************************************************
  *                                                          *
- *  Step 7e.  This is the PVS re-search code.  If we reach  *
- *  this point and value > alpha and value < beta, then     *
- *  this can not be a null-window search.  We have to re-   *
- *  search the position with the original beta value (not   *
- *  alpha+1 as is the usual case in PVS) to see if it still *
- *  fails high before we treat this as a real fail-high and *
- *  back up the value to the previous ply.                  *
- *                                                          *
- *  Special case:  ply == 1.                                *
- *                                                          *
- *  In this case, we need to clean up and then move the     *
- *  best move to the top of the root move list, and then    *
- *  return back to the normal Search(), which will then     *
- *  return back to Iterate() to let it produce the usual    *
- *  informative output and re-start the search with a new   *
- *  beta value.  We also reset the failhi_delta back to 16, *
- *  since an earlier fail-high or fail low in this          *
- *  iteration could have left it at a large value.          *
- *                                                          *
- *  Last step is to build a usable PV in case this move     *
- *  fails low on the re-search, because we do want to play  *
- *  this move no matter what happens.                       *
+ *  PVS re-search.  This is the PVS re-search code.  If we  *
+ *  reach this point and value > alpha and value < beta,    *
+ *  then this can not be a null-window search.  We have to  *
+ *  re-search the position with the original beta value     *
+ *  to see if it still fails high before we treat this as a *
+ *  real fail-high and back up the value to the previous    *
+ *  ply.                                                    *
  *                                                          *
  ************************************************************
  */
-        if (value > alpha && value < beta) {
-          if (ply == 1) {
-            int proc;
-
-            alpha = value;
-            parallel_aborts++;
-            UnmakeMove(tree, ply, tree->curmv[ply], wtm);
-            Lock(lock_smp);
-            Lock(parent->lock);
-            if (!tree->stop) {
-              for (proc = 0; proc < smp_max_threads; proc++)
-                if (parent->siblings[proc] && proc != tree->thread_id)
-                  ThreadStop(parent->siblings[proc]);
-              root_beta = alpha;
-              failhi_delta = 16;
-              Lock(lock_root);
-              for (i = 0; i < n_root_moves; i++)
-                if (tree->curmv[1] == root_moves[i].move)
-                  break;
-              if (i < n_root_moves) {
-                temp_rm = root_moves[i];
-                for (; i > 0; i--)
-                  root_moves[i] = root_moves[i - 1];
-                root_moves[0] = temp_rm;
-              }
-              root_moves[0].bm_age = 4;
-              Unlock(lock_root);
-              tree->pv[1].path[1] = tree->curmv[1];
-              tree->pv[1].pathl = 2;
-              tree->pv[1].pathh = 0;
-              tree->pv[1].pathd = iteration_depth;
-              tree->pv[0] = tree->pv[1];
-            }
-            Unlock(parent->lock);
-            Unlock(lock_smp);
-            return alpha;
-          }
-          if (depth + extend - 1 > 0)
-            value =
-                -Search(tree, -beta, -alpha, Flip(wtm), depth + extend - 1,
-                ply + 1, check, DO_NULL);
-          else
-            value = -Quiesce(tree, -beta, -alpha, Flip(wtm), ply + 1, 1);
-          if (abort_search || tree->stop)
-            break;
-        }
-/*
- ************************************************************
- *                                                          *
- *  Step 7f.  We have completed the search/re-search and we *
- *  we have the final score.  Now we need to check for a    *
- *  fail-high which terminates this search instantly since  *
- *  no further searching is required.  On a fail high, we   *
- *  need to update the killer moves, and hash table before  *
- *  we return.                                              *
- *                                                          *
- *  Note that we can not produce a new PV here.  At best,   *
- *  we can produce a fail-high which will abort other       *
- *  threads at this node (wasting time).                    *
- *                                                          *
- *  Special case:  If ply == 1, and we fail high on the     *
- *  null-window search, we simply abort the search and then *
- *  return to the normal search, which will back us out to  *
- *  Iterate() and inform the user and re-start the search.  *
- *                                                          *
- *  We then stop all threads (except the current thread     *
- *  that is dealing with the fail high) since we are going  *
- *  to back out quickly and then start a new search from    *
- *  the root position.  The split-block sibling ids lets us *
- *  know which threads should be stopped, and since we are  *
- *  at the root (ply == 1) that essentially means "all      *
- *  threads except for this one."                           *
- *                                                          *
- ************************************************************
- */
-        if (value > alpha) {
-          alpha = value;
-          if (value >= beta) {
-            int proc;
-
-            parallel_aborts++;
-            UnmakeMove(tree, ply, tree->curmv[ply], wtm);
-            Lock(lock_smp);
-            Lock(parent->lock);
-            if (!tree->stop)
-              for (proc = 0; proc < smp_max_threads; proc++)
-                if (parent->siblings[proc] && proc != tree->thread_id)
-                  ThreadStop(parent->siblings[proc]);
-            Unlock(parent->lock);
-            Unlock(lock_smp);
-            return alpha;
-          }
-        }
-      } while (0);
-    UnmakeMove(tree, ply, tree->curmv[ply], wtm);
+  if (value > alpha && value < beta && t_beta < beta) {
+    if (ply == 1)
+      return beta;
+    if (depth + extend - 1 > 0)
+      value =
+          -Search(tree, ply + 1, depth + extend - 1, Flip(wtm), -beta, -alpha,
+          check, DO_NULL);
+    else
+      value = -Quiesce(tree, ply + 1, Flip(wtm), -beta, -alpha, 1);
     if (abort_search || tree->stop)
-      break;
+      return 0;
   }
-/*
- ************************************************************
- *                                                          *
- *  Step 8.  We are doing an SMP search, so there are no    *
- *  "end-of-search" things to do.  We have searched all the *
- *  remaining moves at this ply in parallel, and now return *
- *  and let the original search that started this sub-tree) *
- *  clean up, and do the tests for mate/stalemate, update   *
- *  the hash table, etc.                                    *
- *                                                          *
- *  As we return, we end back up in Thread() where we       *
- *  started, which then copies the best score/etc back to   *
- *  the parent thread.                                      *
- *                                                          *
- *  We do need to flag the root move we tried to search, if *
- *  we were stopped early due to another root move failing  *
- *  high.  Otherwise this move appears to have been         *
- *  searched already and will not be searched again until   *
- *  the next iteration.                                     *
- *                                                          *
- ************************************************************
- */
-  if (tree->stop && ply == 1) {
-    int which;
-
-    Lock(lock_root);
-    for (which = 0; which < n_root_moves; which++)
-      if (root_moves[which].move == tree->curmv[ply]) {
-        root_moves[which].status &= 0xf7;
-        break;
-      }
-    Unlock(lock_root);
-  }
-  return alpha;
+  return value;
 }

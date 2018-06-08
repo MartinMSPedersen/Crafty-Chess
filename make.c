@@ -21,10 +21,9 @@
  *                                                                             *
  *******************************************************************************
  */
-void MakeMove(TREE * RESTRICT tree, int ply, int move, int side) {
+void MakeMove(TREE * RESTRICT tree, int ply, int side, int move) {
   uint64_t bit_move;
-  int piece, from, to, captured, promote, enemy = Flip(side);
-  int cpiece;
+  int piece, from, to, captured, promote, enemy = Flip(side), cpiece;
 #if defined(DEBUG)
   int i;
 #endif
@@ -118,18 +117,6 @@ void MakeMove(TREE * RESTRICT tree, int ply, int move, int side) {
         TotalPieces(side, promote)++;
         Material += PieceValues(side, promote);
         Set(to, Pieces(side, promote));
-        switch (promote) {
-          case knight:
-          case bishop:
-            TotalMinors(side)++;
-            break;
-          case rook:
-            TotalMajors(side)++;
-            break;
-          case queen:
-            TotalMajors(side) += 2;
-            break;
-        }
       } else if ((Abs(to - from) == 16) && (mask_eptest[to] & Pawns(enemy))) {
         EnPassant(ply + 1) = to + epsq[side];
         HashEP(to + epsq[side]);
@@ -206,7 +193,7 @@ void MakeMove(TREE * RESTRICT tree, int ply, int move, int side) {
         break;
       case knight:
       case bishop:
-        TotalMinors(enemy)--;
+      case queen:
         break;
       case rook:
         if (Castle(ply + 1, enemy) > 0) {
@@ -218,19 +205,16 @@ void MakeMove(TREE * RESTRICT tree, int ply, int move, int side) {
             HashCastle(0, enemy);
           }
         }
-        TotalMajors(enemy)--;
-        break;
-      case queen:
-        TotalMajors(enemy) -= 2;
         break;
       case king:
 #if defined(DEBUG)
-        Print(128, "captured a king (Make)\n");
+        Print(2048, "captured a king (Make)\n");
         for (i = 1; i <= ply; i++)
-          Print(128, "ply=%2d, piece=%2d,from=%2d,to=%2d,captured=%2d\n", i,
-              Piece(tree->curmv[i]), From(tree->curmv[i]), To(tree->curmv[i]),
-              Captured(tree->curmv[i]));
-        Print(128, "ply=%2d, piece=%2d,from=%2d,to=%2d,captured=%2d\n", i,
+          Print(2048,
+              "ply=%2d, phase=%d, piece=%2d,from=%2d,to=%2d,captured=%2d\n",
+              i, tree->phase[i], Piece(tree->curmv[i]), From(tree->curmv[i]),
+              To(tree->curmv[i]), Captured(tree->curmv[i]));
+        Print(2048, "ply=%2d, piece=%2d,from=%2d,to=%2d,captured=%2d\n", i,
             piece, from, to, captured);
         if (log_file)
           DisplayChessBoard(log_file, tree->position);
@@ -257,7 +241,7 @@ void MakeMove(TREE * RESTRICT tree, int ply, int move, int side) {
  *                                                                             *
  *******************************************************************************
  */
-void MakeMoveRoot(TREE * RESTRICT tree, int move, int side) {
+void MakeMoveRoot(TREE * RESTRICT tree, int side, int move) {
   int player;
 
 /*
@@ -268,10 +252,10 @@ void MakeMoveRoot(TREE * RESTRICT tree, int move, int side) {
  *                                                          *
  ************************************************************
  */
-  MakeMove(tree, 0, move, side);
+  MakeMove(tree, 0, side, move);
   if (Reversible(1) == 0)
-    tree->rep_index = -1;
-  tree->rep_list[++(tree->rep_index)] = HashKey;
+    rep_index = -1;
+  tree->rep_list[++rep_index] = HashKey;
 /*
  ************************************************************
  *                                                          *

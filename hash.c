@@ -1,6 +1,6 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 02/22/14 */
+/* last modified 09/16/14 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -10,19 +10,19 @@
  *   the following data packed into 128 bits with each item taking the number  *
  *   of bits given in the table below:                                         *
  *                                                                             *
- *     shr  bits     name description                                          *
- *      55   9       age  search id to identify old trans/ref entries.         *
- *      53   2      type  0->value is worthless; 1-> value represents a        *
+ *     shr  bits   name   description                                          *
+ *      55    9    age    search id to identify old trans/ref entries.         *
+ *      53    2    type   0->value is worthless; 1-> value represents a        *
  *                        fail-low bound; 2-> value represents a fail-high     *
  *                        bound; 3-> value is an exact score.                  *
- *      32  21      move  best move from the current position, according to    *
+ *      32   21    move   best move from the current position, according to    *
  *                        the search at the time this position was stored.     *
- *      17  15     draft  the depth of the search below this position, which   *
+ *      17   15    draft  the depth of the search below this position, which   *
  *                        is used to see if we can use this entry at the       *
  *                        current position.                                    *
- *       0  17     value  unsigned integer value of this position + 65536.     *
+ *       0   17    value  unsigned integer value of this position + 65536.     *
  *                        this might be a good score or search bound.          *
- *       0  64       key  64 bit hash signature, used to verify that this      *
+ *       0   64    key    64 bit hash signature, used to verify that this      *
  *                        entry goes with the current board position.          *
  *                                                                             *
  *   The underlying scheme here is that we use a "bucket" of N entries.  In    *
@@ -62,7 +62,7 @@ int HashProbe(TREE * RESTRICT tree, int ply, int depth, int side, int alpha,
   HASH_ENTRY *htable;
   HPATH_ENTRY *ptable;
   uint64_t word1, word2, temp_hashkey;
-  int type, draft, avoid_null = 0, val, entry, i, j;
+  int type, draft, avoid_null = 0, val, entry, i;
 
 /*
  ************************************************************
@@ -77,9 +77,9 @@ int HashProbe(TREE * RESTRICT tree, int ply, int depth, int side, int alpha,
   tree->hash_move[ply] = 0;
   temp_hashkey = (side) ? HashKey : ~HashKey;
   htable = trans_ref + (temp_hashkey & hash_mask);
-  for (entry = 0; entry < 4; entry++, htable++) {
-    word1 = htable->word1;
-    word2 = htable->word2 ^ word1;
+  for (entry = 0; entry < 4; entry++) {
+    word1 = htable[entry].word1;
+    word2 = htable[entry].word2 ^ word1;
     if (word2 == temp_hashkey)
       break;
   }
@@ -114,8 +114,8 @@ int HashProbe(TREE * RESTRICT tree, int ply, int depth, int side, int alpha,
       word1 =
           (word1 & 0x007fffffffffffffull) | ((uint64_t) transposition_age <<
           55);
-      htable->word1 = word1;
-      htable->word2 = word1 ^ word2;
+      htable[entry].word1 = word1;
+      htable[entry].word2 = word1 ^ word2;
     }
     val = (word1 & 0x1ffff) - 65536;
     draft = (word1 >> 17) & 0x7fff;
@@ -153,17 +153,17 @@ int HashProbe(TREE * RESTRICT tree, int ply, int depth, int side, int alpha,
           if (val > alpha && val < beta) {
             SavePV(tree, ply, 1);
             ptable = hash_path + (temp_hashkey & hash_path_mask);
-            for (i = 0; i < 16; i++, ptable++)
-              if (ptable->path_sig == temp_hashkey) {
-                for (j = ply; j < Min(MAXPLY - 1, ptable->hash_pathl + ply);
-                    j++)
-                  tree->pv[ply - 1].path[j] =
-                      ptable->hash_path_moves[j - ply];
-                if (ptable->hash_pathl + ply < MAXPLY - 1)
+            for (entry = 0; entry < 16; entry++)
+              if (ptable[entry].path_sig == temp_hashkey) {
+                for (i = ply;
+                    i < Min(MAXPLY - 1, ptable[entry].hash_pathl + ply); i++)
+                  tree->pv[ply - 1].path[i] =
+                      ptable[entry].hash_path_moves[i - ply];
+                if (ptable[entry].hash_pathl + ply < MAXPLY - 1)
                   tree->pv[ply - 1].pathh = 0;
                 tree->pv[ply - 1].pathl =
-                    Min(MAXPLY - 1, ply + ptable->hash_pathl);
-                ptable->hash_path_age = transposition_age;
+                    Min(MAXPLY - 1, ply + ptable[entry].hash_pathl);
+                ptable[entry].hash_path_age = transposition_age;
                 break;
               }
           }
@@ -183,7 +183,7 @@ int HashProbe(TREE * RESTRICT tree, int ply, int depth, int side, int alpha,
   return HASH_MISS;
 }
 
-/* last modified 02/22/14 */
+/* last modified 09/16/14 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -192,25 +192,25 @@ int HashProbe(TREE * RESTRICT tree, int ply, int depth, int side, int alpha,
  *   reached.  We basically store three types of entries:                      *
  *                                                                             *
  *     (1) EXACT.  This entry is stored when we complete a search at some ply  *
- *        and end up with a score that is greater than alpha and less than     *
- *        beta, which is an exact score, which also has a best move to try if  *
- *        we encounter this position again.                                    *
+ *          and end up with a score that is greater than alpha and less than   *
+ *          beta, which is an exact score, which also has a best move to try   *
+ *          if we encounter this position again.                               *
  *                                                                             *
  *     (2) LOWER.  This entry is stored when we complete a search at some ply  *
- *        and end up with a score that is greater than or equal to beta.  We   *
- *        know know that this score should be at least equal to beta and may   *
- *        well be even higher.  So this entry represents a lower bound on the  *
- *        score for this node, and we also have a good move to try since it    *
- *        caused the cutoff, although we do not know if it is the best move or *
- *        not since not all moves were search.                                 *
+ *          and end up with a score that is greater than or equal to beta.  We *
+ *          know know that this score should be at least equal to beta and may *
+ *          well be even higher.  So this entry represents a lower bound on    *
+ *          the score for this node, and we also have a good move to try since *
+ *          it caused the cutoff, although we do not know if it is the best    *
+ *          move or not since not all moves were search.                       *
  *                                                                             *
  *     (3) UPPER.  This entry is stored when we complete a search at some ply  *
- *        and end up with a score that is less than or equal to alpha.  We     *
- *        know know that this score should be at least equal to alpha and may  *
- *        well be even lower.  So this entry represents an upper bound on the  *
- *        score for this node.  We have no idea about which move is best in    *
- *        this position since they all failed low, so we store a best move of  *
- *        zero.                                                                *
+ *          and end up with a score that is less than or equal to alpha.  We   *
+ *          know know that this score should be at least equal to alpha and    *
+ *          may well be even lower.  So this entry represents an upper bound   *
+ *          on the score for this node.  We have no idea about which move is   *
+ *          best in this position since they all failed low, so we store a     *
+ *          best move of zero.                                                 *
  *                                                                             *
  *   For storing, we may require three passes.  We make our first pass looking *
  *   for an entry that matches the current hash signature.  If we find a match *
@@ -277,29 +277,27 @@ void HashStore(TREE * RESTRICT tree, int ply, int depth, int side, int type,
  ************************************************************
  */
   htable = trans_ref + (temp_hashkey & hash_mask);
-  for (entry = 0; entry < 4; entry++, htable++) {
-    if (temp_hashkey == (htable->word1 ^ htable->word2)) {
-      replace = htable;
+  for (entry = 0; entry < 4; entry++) {
+    if (temp_hashkey == (htable[entry].word1 ^ htable[entry].word2)) {
+      replace = htable + entry;
       break;
     }
   }
   if (!replace) {
     replace_draft = 99999;
-    htable = trans_ref + (temp_hashkey & hash_mask);
-    for (entry = 0; entry < 4; entry++, htable++) {
-      age = htable->word1 >> 55;
-      draft = (htable->word1 >> 17) & 0x7fff;
+    for (entry = 0; entry < 4; entry++) {
+      age = htable[entry].word1 >> 55;
+      draft = (htable[entry].word1 >> 17) & 0x7fff;
       if (age != transposition_age && replace_draft > draft) {
-        replace = htable;
+        replace = htable + entry;
         replace_draft = draft;
       }
     }
     if (!replace) {
-      htable = trans_ref + (temp_hashkey & hash_mask);
-      for (entry = 0; entry < 4; entry++, htable++) {
-        draft = (htable->word1 >> 17) & 0x7fff;
+      for (entry = 0; entry < 4; entry++) {
+        draft = (htable[entry].word1 >> 17) & 0x7fff;
         if (replace_draft > draft) {
-          replace = htable;
+          replace = htable + entry;
           replace_draft = draft;
         }
       }
@@ -343,7 +341,7 @@ void HashStore(TREE * RESTRICT tree, int ply, int depth, int side, int type,
   }
 }
 
-/* last modified 02/22/14 */
+/* last modified 09/16/14 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -404,32 +402,30 @@ void HashStorePV(TREE * RESTRICT tree, int side, int ply) {
  ************************************************************
  */
   htable = trans_ref + (temp_hashkey & hash_mask);
-  for (entry = 0; entry < 4; entry++, htable++) {
-    if ((htable->word2 ^ htable->word1) == temp_hashkey) {
-      htable->word1 &= ~((uint64_t) 0x1fffff << 32);
-      htable->word1 |= (uint64_t) tree->pv[0].path[ply] << 32;
-      htable->word2 = temp_hashkey ^ htable->word1;
+  for (entry = 0; entry < 4; entry++) {
+    if ((htable[entry].word2 ^ htable[entry].word1) == temp_hashkey) {
+      htable[entry].word1 &= ~((uint64_t) 0x1fffff << 32);
+      htable[entry].word1 |= (uint64_t) tree->pv[0].path[ply] << 32;
+      htable[entry].word2 = temp_hashkey ^ htable[entry].word1;
       break;
     }
   }
   if (entry == 4) {
-    htable = trans_ref + (temp_hashkey & hash_mask);
     replace = 0;
     replace_draft = 99999;
-    for (entry = 0; entry < 4; entry++, htable++) {
-      age = htable->word1 >> 55;
-      draft = (htable->word1 >> 17) & 0x7fff;
+    for (entry = 0; entry < 4; entry++) {
+      age = htable[entry].word1 >> 55;
+      draft = (htable[entry].word1 >> 17) & 0x7fff;
       if (age != transposition_age && replace_draft > draft) {
-        replace = htable;
+        replace = htable + entry;
         replace_draft = draft;
       }
     }
     if (!replace) {
-      htable = trans_ref + (temp_hashkey & hash_mask);
-      for (entry = 0; entry < 4; entry++, htable++) {
-        draft = (htable->word1 >> 17) & 0x7fff;
+      for (entry = 0; entry < 4; entry++) {
+        draft = (htable[entry].word1 >> 17) & 0x7fff;
         if (replace_draft > draft) {
-          replace = htable;
+          replace = htable + entry;
           replace_draft = draft;
         }
       }

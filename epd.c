@@ -119,7 +119,7 @@ static siT count_cpv[rcL][rpL];
 /* the current board */
 static rbT EPDboard;
 
-/* the current environment stack entry  */
+/* the current environment stack entry */
 static eseT ese;
 
 /* the current tree stack entry */
