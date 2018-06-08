@@ -84,7 +84,7 @@ int Repeat(TREE * RESTRICT tree, int ply) {
  *                                                                             *
  *******************************************************************************
  */
-int Repeat3x(TREE * RESTRICT tree, int wtm) {
+int Repeat3x(TREE * RESTRICT tree) {
   int reps, where;
 
 /*

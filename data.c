@@ -1,6 +1,6 @@
 #include "chess.h"
 /* *INDENT-OFF* */
-int scale = 90;
+int scale = 500;
 FILE *input_stream;
 FILE *book_file;
 FILE *books_file;
@@ -11,7 +11,7 @@ FILE *log_file;
 int presult = 0;
 int done = 0;
 uint64_t burner[10] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
-int burnc[10] = {40000, 20000, 10000, 5000, 2500, 1250, 625, 312, 156, 0};
+int burnc[10] = {128000, 64000, 32400, 15200, 7600, 3800, 1960, 1040, 480, 140};
 uint64_t total_moves;
 int allow_cores = 1;
 int allow_memory = 1;
@@ -422,6 +422,7 @@ uint64_t mask_advance_2_b = 0x0000ff0000000000ull;
 uint64_t mask_left_edge = 0xfefefefefefefefeull;
 uint64_t mask_right_edge = 0x7f7f7f7f7f7f7f7full;
 uint64_t mask_not_edge = 0x007e7e7e7e7e7e00ull;
+uint64_t mask_rook_files = 0x8181818181818181ull;
 uint64_t dark_squares = 0xaa55aa55aa55aa55ull;
 uint64_t not_rook_pawns = 0x007e7e7e7e7e7e00ull;
 uint64_t plus1dir[65];
@@ -457,7 +458,7 @@ int OOOsqs[2][3] = {{ E8, D8, C8 }, { E1, D1, C1 }};
 int OOfrom[2] = { E8, E1 };
 int OOto[2] = { G8, G1 };
 int OOOto[2] = { C8, C1 };
-#define    VERSION                             "24.0"
+#define    VERSION                             "24.1"
 char version[8] = { VERSION };
 PLAYING_MODE mode = normal_mode;
 int batch_mode = 0;             /* no asynch reads */
@@ -466,8 +467,8 @@ int call_flag = 0;
 int crafty_rating = 2500;
 int opponent_rating = 2500;
 int last_search_value = 0;
-int pruning_margin[10] = {0, 100, 100, 200, 200, 300, 300, 400};
-int pruning_depth = 6;
+int pruning_margin[10] = {0, 100, 150, 200, 250, 300, 400, 500, 600, 700};
+int pruning_depth = 7;
 int pgn_suggested_percent = 0;
 char pgn_event[128] = { "?" };
 char pgn_site[128] = { "?" };
@@ -510,10 +511,16 @@ int log_id = 0;
 int game_wtm = 1;
 int last_opponent_move = 0;
 int check_depth = 1;
-int null_depth = 3;               /* R=3 */
-int LMR_remaining_depth = 1;      /* leave 1 full ply after reductions */
-int LMR_min_reduction = 1;        /* minimum reduction 1 ply */
-int LMR_max_reduction = 2;        /* maximum reduction 2 plies */
+int null_depth = 3;               /* R=3 + (next line) */
+int null_divisor = 6;             /* R = null_depth + depth / 6 */
+int LMR_remaining_depth = 1;      /* leave 1 full ply after reductions    */
+int LMR_min_reduction = 1;        /* minimum reduction 1 ply              */
+int LMR_max_reduction = 7;        /* maximum reduction 7 plies            */
+                                  /* next 3 values, 100 = 1.0, 200 = 2.0  */
+int LMR_depth_bias = 200;         /* depth is 2x as important as          */
+int LMR_moves_bias = 100;         /* moves in the formula.                */
+int LMR_scale = 252;              /* smaller numbers increase reductions. */
+uint8_t LMR[32][64];
 int search_depth = 0;
 uint64_t search_nodes = 0;
 uint64_t temp_search_nodes = 0;
@@ -603,7 +610,7 @@ int pondering = 0;
 int puzzling = 0;
 int booking = 0;
 int display_options = 4095 - 256 - 512;
-unsigned int noise_level = 200000;
+unsigned int noise_level = 100;
 int noise_block = 0;
 int tc_moves = 60;
 int tc_time = 180000;
@@ -899,6 +906,7 @@ unsigned int magic_rook_shift[64] = {
   53, 54, 54, 54, 54, 54, 54, 53,
   53, 54, 54, 53, 53, 53, 53, 53
 };
+int history[2][512];
 uint64_t mobility_mask_n[4] = {
   0xFF818181818181FFull, 0x007E424242427E00ull,
   0x00003C24243C0000ull, 0x0000001818000000ull
@@ -918,6 +926,14 @@ const int rankflip[2][8] = {
   { RANK8, RANK7, RANK6, RANK5, RANK4, RANK3, RANK2, RANK1 },
   { RANK1, RANK2, RANK3, RANK4, RANK5, RANK6, RANK7, RANK8 }
 };
+const int rank1[2] = {RANK8, RANK1};
+const int rank2[2] = {RANK7, RANK2};
+const int rank3[2] = {RANK6, RANK3};
+const int rank4[2] = {RANK5, RANK4};
+const int rank5[2] = {RANK4, RANK5};
+const int rank6[2] = {RANK3, RANK6};
+const int rank7[2] = {RANK2, RANK7};
+const int rank8[2] = {RANK1, RANK8};
 const int sqflip[2][64] = {
  { A8, B8, C8, D8, E8, F8, G8, H8,
    A7, B7, C7, D7, E7, F7, G7, H7,
@@ -952,28 +968,6 @@ int pawnadv2[2] = { +16, -16 };
 int capleft[2] = { +9, -7 };
 int capright[2] = { +7, -9 };
 const char empty_sqs[9] = { 0, '1', '2', '3', '4', '5', '6', '7', '8' };
-/*
-   This array is indexed by rook advantage and minor piece advantage.
-   rook advantage is 4 + white rook equivalents - black rook equivalents 
-   where a rook equivalent is number of rooks + 2 * number of queens.
-   minor piece advantage is 4 + white minors - black minors.  
-
-   The classic bad trade case is two minors for a rook.  If white trades
-   two minors for a rook, rook advantage is +5 and minor advantage is +2.
-   imbalance[5][2] gives a penalty of -42 for this trade.
-*/
-int imbalance[9][9] = {
-/* M=-4  M=-3  M=-2  M=-1   M=0  M=+1  M=+2  M=+3  M=+4 */
-  {-126, -126, -126, -126, -126, -126, -126, -126,  -42 }, /* R=-4 */
-  {-126, -126, -126, -126, -126, -126, -126,  -42,   42 }, /* R=-3 */
-  {-126, -126, -126, -126, -126, -126,  -42,   84,   84 }, /* R=-2 */
-  {-126, -126, -126, -126, -104,  -42,   84,  126,  126 }, /* R=-1 */
-  {-126, -126, -126,  -88,    0,   88,  126,  126,  126 }, /*  R=0 */
-  {-126, -126,  -84,   42,  104,  126,  126,  126,  126 }, /* R=+1 */
-  { -84,  -84,   42,  126,  126,  126,  126,  126,  126 }, /* R=+2 */
-  { -42,   42,  126,  126,  126,  126,  126,  126,  126 }, /* R=+3 */
-  {  42,  126,  126,  126,  126,  126,  126,  126,  126 }  /* R=+4 */
-};
 int pp_dist_bonus[8] = { 0, 0, 0, 2, 7, 19, 31, 0 };
 int king_tropism_n[8] = { 0, 3, 3, 2, 1, 0, 0, 0 };
 int king_tropism_b[8] = { 0, 2, 2, 1, 0, 0, 0, 0 };
@@ -1332,6 +1326,7 @@ int bishop_pair[2] = { 38, 56 };
 int mobility_score_b[4] = { 1, 2, 3, 4 };
 int mobility_score_r[4] = { 1, 2, 3, 4 };
 int rook_on_7th[2] = { 25, 35 };
+int rook_connected_7th[2] = { 6, 10 };
 int rook_open_file[2] = { 35, 20 };
 int rook_half_open_file[2] = { 10, 10 };
 int rook_trapped = 60;
@@ -1364,17 +1359,27 @@ int development_not_castled = 20;
    Fourth term is a pointer to the data value(s).
 */
 struct personality_term personality_packet[256] = {
-  {"search options                       ", 0, 0, NULL},        /* 0 */
+  {"search options                       ", 0, 0, NULL},        /*  0 */
   {"check extension                      ", 1, 0, &check_depth},
   {"null-move reduction                  ", 1, 0, &null_depth},
+  {"null-move adaptive divisor           ", 1, 0, &null_divisor},
   {"LMR min distance to frontier         ", 1, 0, &LMR_remaining_depth},
   {"LMR min reduction                    ", 1, 0, &LMR_min_reduction},
   {"LMR max reduction                    ", 1, 0, &LMR_max_reduction},
+  {"LMR formula depth bias               ", 7, 0, &LMR_depth_bias},
+  {"LMR formula moves searched bias      ", 7, 0, &LMR_moves_bias},
+  {"LMR scale factor                     ", 7, 0, &LMR_scale},
+  {"search options (continued)           ", 0, 0, NULL},        /* 10 */
   {"prune depth                          ", 1, 0, &pruning_depth},
   {"prune margin [remain_depth]          ", 5, 8, pruning_margin},
   {NULL, 0, 0, NULL},
   {NULL, 0, 0, NULL},
-  {"raw piece values                     ", 0, 0, NULL},        /* 10 */
+  {NULL, 0, 0, NULL},
+  {NULL, 0, 0, NULL},
+  {NULL, 0, 0, NULL},
+  {NULL, 0, 0, NULL},
+  {NULL, 0, 0, NULL},
+  {"raw piece values                     ", 0, 0, NULL},        /* 20 */
   {"pawn value                           ", 2, 2, piece_values[pawn]},
   {"knight value                         ", 2, 2, piece_values[knight]},
   {"bishop value                         ", 2, 2, piece_values[bishop]},
@@ -1384,7 +1389,7 @@ struct personality_term personality_packet[256] = {
   {NULL, 0, 0, NULL},
   {NULL, 0, 0, NULL},
   {NULL, 0, 0, NULL},
-  {"miscellaneous scoring values         ", 0, 0, NULL},        /* 20 */
+  {"miscellaneous scoring values         ", 0, 0, NULL},        /* 30 */
   {"wtm bonus                            ", 2, 2, wtm_bonus},
   {"draw score                           ", 1, 0, &abs_draw_score},
 #if defined(SKILL)
@@ -1398,7 +1403,7 @@ struct personality_term personality_packet[256] = {
   {NULL, 0, 0, NULL},
   {NULL, 0, 0, NULL},
   {NULL, 0, 0, NULL},
-  {"pawn evaluation                      ", 0, 0, NULL},        /* 30 */
+  {"pawn evaluation                      ", 0, 0, NULL},        /* 40 */
   {"pawn piece/square table (white)      ", 3, 256, (int *) pval},
   {"pawn connected                       ", 2, 2, pawn_connected},
   {"pawn isolated                        ", 2, 2, pawn_isolated},
@@ -1408,6 +1413,7 @@ struct personality_term personality_packet[256] = {
   {"doubled pawn                         ", 2, 2, doubled_pawn_value},
   {"candidate passed pawn [rank]         ", 6, 16, (int *) passed_pawn_candidate},
   {"passed pawn [rank]                   ", 6, 16, (int *) passed_pawn_value},
+  {"pawn evaluation (continued)          ", 0, 0, NULL},        /* 50 */
   {"passed pawn blocked by enemy [rank]  ", 6, 16, (int *) passed_pawn_blockaded_by_enemy},
   {"passed pawn blocked by friend [rank] ", 6, 16, (int *) passed_pawn_blockaded_by_friendly},
   {"passed pawn connected [rank]         ", 6, 16, (int *) passed_pawn_connected},
@@ -1417,8 +1423,7 @@ struct personality_term personality_packet[256] = {
   {"pawn can promote                     ", 1, 0, &pawn_can_promote},
   {NULL, 0, 0, NULL},
   {NULL, 0, 0, NULL},
-  {NULL, 0, 0, NULL},
-  {"knight scoring                       ", 0, 0, NULL},        /* 50 */
+  {"knight scoring                       ", 0, 0, NULL},        /* 60 */
   {"knight piece/square table (white)    ", 3, 256, (int *) nval},
   {"knight outpost [square]              ", 4, 128, (int *) knight_outpost},
   {"knight king tropism [distance]       ", 5, 8, king_tropism_n},
@@ -1428,27 +1433,27 @@ struct personality_term personality_packet[256] = {
   {NULL, 0, 0, NULL},
   {NULL, 0, 0, NULL},
   {NULL, 0, 0, NULL},
-  {"bishop scoring                       ", 0, 0, NULL},        /* 60 */
+  {"bishop scoring                       ", 0, 0, NULL},        /* 70 */
   {"bishop piece/square table (white)    ", 3, 256, (int *) bval},
   {"bishop king tropism [distance]       ", 5, 8, king_tropism_b},
   {"bishop mobility/square table         ", 5, 4, mobility_score_b},
   {"bishop outpost [square]              ", 4, 128, (int *) bishop_outpost},
-  {"bishop with wing pawns               ", 2, 2, bishop_with_wing_pawns},
   {"bishop pair                          ", 2, 2, bishop_pair},
   {"bishop trapped                       ", 1, 0, &bishop_trapped},
+  {"bishop with pawns on both wings      ", 2, 2, bishop_with_wing_pawns},
   {NULL, 0, 0, NULL},
   {NULL, 0, 0, NULL},
-  {"rook scoring                         ", 0, 0, NULL},        /* 70 */
+  {"rook scoring                         ", 0, 0, NULL},        /* 80 */
   {"rook half open file                  ", 2, 2, rook_half_open_file},
   {"rook open file                       ", 2, 2, rook_open_file},
   {"rook king tropism [distance]         ", 5, 8, king_tropism_r},
   {"rook mobility/square table           ", 5, 4, mobility_score_r},
   {"rook on 7th                          ", 2, 2, rook_on_7th},
+  {"rook connected on 7th                ", 2, 2, rook_connected_7th},
   {"rook behind passed pawn              ", 6, 16, &rook_behind_passed_pawn[0][0]},
   {"rook trapped                         ", 1, 0, &rook_trapped},
   {NULL, 0, 0, NULL},
-  {NULL, 0, 0, NULL},
-  {"queen scoring                        ", 0, 0, NULL},        /* 80 */
+  {"queen scoring                        ", 0, 0, NULL},        /* 90 */
   {"queen piece/square table (white)     ", 3, 256, (int *) qval},
   {"queen king tropism [distance]        ", 5, 8, king_tropism_q},
   {NULL, 0, 0, NULL},
@@ -1458,7 +1463,7 @@ struct personality_term personality_packet[256] = {
   {NULL, 0, 0, NULL},
   {NULL, 0, 0, NULL},
   {NULL, 0, 0, NULL},
-  {"king scoring                         ", 0, 0, NULL},        /* 90 */
+  {"king scoring                         ", 0, 0, NULL},       /* 100 */
   {"king piece/square normal             ", 4, 128, (int *)kval_n},
   {"king piece/square kside pawns        ", 4, 128, (int *)kval_k},
   {"king piece/square qside pawns        ", 4, 128, (int *)kval_q},
@@ -1468,7 +1473,7 @@ struct personality_term personality_packet[256] = {
   {"king safe half-open file [file]      ", 5, 8, half_open_file},
   {"king king tropism (endgame)          ", 1, 0, &king_king_tropism},
   {NULL, 0, 0, NULL},
-  {"development scoring                  ", 0, 0, NULL},        /* 100 */
+  {"development scoring                  ", 0, 0, NULL},       /* 110 */
   {"development thematic                 ", 1, 0, &development_thematic},
   {"development losing castle rights     ", 1, 0, &development_losing_castle},
   {"development not castled              ", 1, 0, &development_not_castled},

@@ -134,7 +134,7 @@ void Test(char *filename) {
       last_pv.pathd = 0;
       thinking = 1;
       tree->status[1] = tree->status[0];
-      (void) Iterate(game_wtm, think, 0);
+      Iterate(game_wtm, think, 0);
       thinking = 0;
       nodes += tree->nodes_searched;
       avg_depth += (float) iteration_depth;
@@ -317,7 +317,7 @@ void TestEPD(char *filename) {
     last_pv.pathd = 0;
     thinking = 1;
     tree->status[1] = tree->status[0];
-    (void) Iterate(game_wtm, think, 0);
+    Iterate(game_wtm, think, 0);
     thinking = 0;
     nodes += tree->nodes_searched;
     avg_depth += (float) iteration_depth;

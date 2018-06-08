@@ -1,4 +1,5 @@
 #include <stddef.h>
+#include <math.h>
 #include "chess.h"
 #include "data.h"
 #if defined(UNIX)
@@ -86,11 +87,11 @@ void Initialize() {
     printf("ERROR, unable to open game history file, exiting\n");
     CraftyExit(1);
   }
-  AlignedMalloc((void **) &trans_ref, 64,
+  AlignedMalloc((void *) ((void *) &trans_ref), 64,
       sizeof(HASH_ENTRY) * hash_table_size);
-  AlignedMalloc((void **) &hash_path, 64,
+  AlignedMalloc((void *) ((void *) &hash_path), 64,
       sizeof(HPATH_ENTRY) * hash_path_size);
-  AlignedMalloc((void **) &pawn_hash_table, 32,
+  AlignedMalloc((void *) ((void *) &pawn_hash_table), 64,
       sizeof(PAWN_HASH_ENTRY) * pawn_hash_table_size);
   if (!trans_ref) {
     Print(128,
@@ -148,6 +149,7 @@ void Initialize() {
   initialized_threads++;
   InitializeHashTables();
   InitializeKingSafety();
+  InitializeReductions();
 }
 
 /*
@@ -159,8 +161,8 @@ void Initialize() {
  *******************************************************************************
  */
 void InitializeAttackBoards(void) {
-  int i, j, frank, ffile, trank, tfile, nmobility;
-  int sq, lastsq;
+  int i, j, frank, ffile, trank, tfile;
+  int sq, lastsq, nmobility;
   static const int knightsq[8] = { -17, -15, -10, -6, 6, 10, 15, 17 };
   static const int bishopsq[4] = { -9, -7, 7, 9 };
   static const int rooksq[4] = { -8, -1, 1, 8 };
@@ -374,7 +376,7 @@ void InitializeAttackBoards(void) {
  *******************************************************************************
  */
 void InitializeMagic(void) {
-  int i, j;
+  int i, j, m;
   int initmagicmoves_bitpos64_database[64] = {
     63, 0, 58, 1, 59, 47, 53, 2,
     60, 39, 48, 27, 54, 33, 42, 3,
@@ -403,19 +405,19 @@ void InitializeMagic(void) {
     }
     for (temp = 0; temp < (uint64_t) 1 << numsquares; temp++) {
       uint64_t moves;
-      int t = -lower_b;
       uint64_t tempoccupied =
           InitializeMagicOccupied(squares, numsquares, temp);
       moves = InitializeMagicBishop(i, tempoccupied);
       *(magic_bishop_indices[i] +
           (tempoccupied * magic_bishop[i] >> magic_bishop_shift[i])) = moves;
       moves |= SetMask(i);
+      m = -lower_b;
       for (j = 0; j < 4; j++)
-        t += PopCnt(moves & mobility_mask_b[j]) * mobility_score_b[j];
-      if (t < 0)
-        t *= 2;
+        m += PopCnt(moves & mobility_mask_b[j]) * mobility_score_b[j];
+      if (m < 0)
+        m *= 2;
       *(magic_bishop_mobility_indices[i] +
-          (tempoccupied * magic_bishop[i] >> magic_bishop_shift[i])) = t;
+          (tempoccupied * magic_bishop[i] >> magic_bishop_shift[i])) = m;
     }
   }
 /*
@@ -424,7 +426,6 @@ void InitializeMagic(void) {
   for (i = 0; i < 64; i++) {
     int squares[64];
     int numsquares = 0;
-    int t;
     uint64_t temp = magic_rook_mask[i];
 
     while (temp) {
@@ -442,13 +443,12 @@ void InitializeMagic(void) {
       *(magic_rook_indices[i] +
           (tempoccupied * magic_rook[i] >> magic_rook_shift[i])) = moves;
       moves |= SetMask(i);
-      t = -1;
+      m = -1;
       for (j = 0; j < 4; j++)
-        t += PopCnt(moves & mobility_mask_r[j]) * mobility_score_r[j];
+        m += PopCnt(moves & mobility_mask_r[j]) * mobility_score_r[j];
       *(magic_rook_mobility_indices[i] +
           (tempoccupied * magic_rook[i] >> magic_rook_shift[i])) =
-          mob_curve_r[t];
-
+          mob_curve_r[m];
     }
   }
 }
@@ -645,11 +645,6 @@ void InitializeChessBoard(TREE * tree) {
     SetChessBitBoards(tree);
   }
 /*
- clear the caches.
- */
-  for (i = 0; i < 64; i++)
-    tree->cache_n[i] = ~0ull;
-/*
  initialize 50 move counter and repetition list/index.
  */
   Reversible(0) = 0;
@@ -819,17 +814,21 @@ void InitializeHashTables(void) {
  *******************************************************************************
  *                                                                             *
  *   InitializeKillers() is used to zero the killer moves so that old killers  *
- *   don't screw up ordering while processing test suites.                     *
+ *   don't screw up ordering while processing test suites.  Ditto for history  *
+ *   counters.                                                                 *
  *                                                                             *
  *******************************************************************************
  */
 void InitializeKillers(void) {
-  int i;
+  int i, j;
 
   for (i = 0; i < MAXPLY; i++) {
     block[0]->killers[i].move1 = 0;
     block[0]->killers[i].move2 = 0;
   }
+  for (i = 0; i < 2; i++)
+    for (j = 0; j < 512; j++)
+      history[i][j] = 0;
 }
 
 /*
@@ -854,14 +853,30 @@ void InitializeKingSafety() {
               100) / 100 - 100) / 100;
     }
   }
+}
+
 /*
-  for (safety = 0; safety < 16; safety++) {
-    for (tropism = 0; tropism < 16; tropism++) {
-      printf("%4d", king_safety[safety][tropism]);
-    }
-    printf("\n");
-  }
-*/
+ *******************************************************************************
+ *                                                                             *
+ *   InitializeReductions() is used to initialize the reduction matrix used to *
+ *   set the reduction value for LMR for each move searched.  It is indexed by *
+ *   depth remaining and # moves searched.                                     *
+ *   produce a single score.  As either index rises, the king safety score     *
+ *   tracks along, but as both rise, the king safety score rises much more     *
+ *   quickly.                                                                  *
+ *                                                                             *
+ *******************************************************************************
+ */
+void InitializeReductions() {
+  int depth, moves;
+
+  for (depth = 3; depth < 32; ++depth)
+    for (moves = 2; moves < 64; ++moves)
+      LMR[depth][moves] =
+          Min(Max(Min(log((double) depth * LMR_depth_bias / 100.0) *
+                  log((double) moves * LMR_moves_bias / 100.0) / (LMR_scale /
+                      100.0), LMR_max_reduction), LMR_min_reduction),
+          Max(depth - 1 - LMR_remaining_depth, 0));
 }
 
 /*

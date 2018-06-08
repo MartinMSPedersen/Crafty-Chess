@@ -171,7 +171,7 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done) {
  ************************************************************
  */
     initial_development = tree->score_mg;
-    EvaluateDevelopment(tree, 1, wtm);
+    EvaluateCastling(tree, 1, wtm);
     initial_development = tree->score_mg - initial_development;
     total_moves = 0;
     nmoves = 0;
@@ -194,7 +194,7 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done) {
           tree->curmv[1] = root_moves[im].move;
           if (!Captured(root_moves[im].move)) {
             book_development[nmoves] = tree->score_mg;
-            EvaluateDevelopment(tree, 2, wtm);
+            EvaluateCastling(tree, 2, wtm);
             book_development[nmoves] =
                 tree->score_mg - book_development[nmoves];
           } else
@@ -696,7 +696,7 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done) {
       if (nmoves > 1) {
         last_pv.pathd = 0;
         booking = 1;
-        (void) Iterate(wtm, booking, 1);
+        Iterate(wtm, booking, 1);
         booking = 0;
       } else {
         tree->pv[1].path[1] = book_moves[0];
@@ -857,7 +857,7 @@ int BookPonderMove(TREE * RESTRICT tree, int wtm) {
 /*
  *******************************************************************************
  *                                                                             *
- *   BookUp() is used to create/add to the opening book file.  typing "<file>  *
+ *   Bookup() is used to create/add to the opening book file.  typing "<file>  *
  *   create" will erase the old book file and start from scratch,              *
  *                                                                             *
  *   The format of the input data is a left bracket ("[") followed by any title*
@@ -901,7 +901,7 @@ int BookPonderMove(TREE * RESTRICT tree, int wtm) {
  *                                                                             *
  *******************************************************************************
  */
-void BookUp(TREE * RESTRICT tree, int nargs, char **args) {
+void Bookup(TREE * RESTRICT tree, int nargs, char **args) {
   BB_POSITION *bbuffer;
   uint64_t temp_hash_key, common;
   FILE *book_input;
@@ -1173,7 +1173,7 @@ void BookUp(TREE * RESTRICT tree, int nargs, char **args) {
                   strcpy(buffer, "savepos *");
                   twtm = game_wtm;
                   game_wtm = wtm;
-                  (void) Option(tree);
+                  Option(tree);
                   game_wtm = twtm;
                   fprintf(pout, "%s\n", initial_position);
                   strcpy(initial_position, t_initial_position);
@@ -1227,7 +1227,7 @@ void BookUp(TREE * RESTRICT tree, int nargs, char **args) {
     }
     for (i = 0; i < 32768; i++)
       index[i] = -1;
-    temp = BookUpNextPosition(files, 1);
+    temp = BookupNextPosition(files, 1);
     memcpy((char *) &current.position, temp.position, 8);
     current.status_played = temp.status << 24;
     if (start)
@@ -1255,7 +1255,7 @@ void BookUp(TREE * RESTRICT tree, int nargs, char **args) {
     if (temp.status & 32 && temp.percent_play & 128)
       losses++;
     while (1) {
-      temp = BookUpNextPosition(files, 0);
+      temp = BookupNextPosition(files, 0);
       memcpy((char *) &next.position, temp.position, 8);
       next.status_played = temp.status << 24;
       if (start)
@@ -1293,7 +1293,8 @@ void BookUp(TREE * RESTRICT tree, int nargs, char **args) {
               (void *) BookOut32(current.status_played), 4);
           memcpy((void *) &book_buffer_char[0].learn,
               (void *) BookOut32(current.learn), 4);
-          stat = fwrite(book_buffer_char, BOOK_POSITION_SIZE, 1, book_file);
+          stat =
+              fwrite(book_buffer_char, sizeof(BOOK_POSITION), 1, book_file);
           if (stat != 1)
             Print(4095, "ERROR!  write failed, disk probably full.\n");
         } else if (played < min_played)
@@ -1418,7 +1419,7 @@ void BookSort(BB_POSITION * buffer, int number, int fileno) {
   FILE *output_file;
   int stat;
 
-  qsort((char *) buffer, number, sizeof(BB_POSITION), BookUpCompare);
+  qsort((char *) buffer, number, sizeof(BB_POSITION), BookupCompare);
   sprintf(fname, "sort.%d", fileno);
   if (!(output_file = fopen(fname, "wb+")))
     printf("ERROR.  unable to open sort output file\n");
@@ -1432,14 +1433,14 @@ void BookSort(BB_POSITION * buffer, int number, int fileno) {
 /*
  *******************************************************************************
  *                                                                             *
- *   BookUpNextPosition() is the heart of the "merge" operation that is done   *
+ *   BookupNextPosition() is the heart of the "merge" operation that is done   *
  *   after the chunks of the parsed/hashed move file are sorted.  This code    *
  *   opens the sort.n files, and returns the least (lexically) position key to *
  *   counted/merged into the main book database.                               *
  *                                                                             *
  *******************************************************************************
  */
-BB_POSITION BookUpNextPosition(int files, int init) {
+BB_POSITION BookupNextPosition(int files, int init) {
   char fname[20];
   static FILE *input_file[100];
   static BB_POSITION *buffer[100];
@@ -1504,7 +1505,7 @@ BB_POSITION BookUpNextPosition(int files, int init) {
   return least;
 }
 
-int BookUpCompare(const void *pos1, const void *pos2) {
+int BookupCompare(const void *pos1, const void *pos2) {
   static uint64_t p1, p2;
 
   memcpy((char *) &p1, ((BB_POSITION *) pos1)->position, 8);

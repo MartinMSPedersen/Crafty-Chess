@@ -767,7 +767,7 @@ static epdptrT EGCommHandler(epdptrT epdptr0, siptrT flagptr) {
         last_pv.pathl = 0;
         tree->status[1] = tree->status[0];
 /* search */
-        (void) EGIterate((siT) game_wtm, (siT) think);
+        EGIterate((siT) game_wtm, (siT) think);
 /* process search result */
         strcpy(tv, OutputMove(tree, last_pv.path[1], 0, game_wtm));
         move = last_pv.path[1];
@@ -1194,7 +1194,7 @@ static siT EGProcessHELP(void) {
 /* process the epdhelp command */
   if (flag) {
 /* it is not clear exactly why the next statment is needed */
-    (void) getchar();
+    getchar();
 /* list all the commands */
     egcomm = 0;
     while (egcomm < egcommL) {
@@ -1210,7 +1210,7 @@ static siT EGProcessHELP(void) {
       if (egcomm < egcommL) {
         EGPL("");
         EGPL("Press <return> for more command help");
-        (void) getchar();
+        getchar();
         EGPL("");
       };
     };

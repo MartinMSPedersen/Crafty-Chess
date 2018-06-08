@@ -108,9 +108,9 @@ int *GenerateCaptures(TREE * RESTRICT tree, int ply, int side, int *move) {
  *                                                          *
  ************************************************************
  */
+  promotions = Pawns(side) & rank_mask[rank7[side]];
   promotions =
-      ((side) ? (Pawns(white) & rank_mask[RANK7]) << 8 : (Pawns(black) &
-          rank_mask[RANK2]) >> 8) & ~OccupiedSquares;
+      ((side) ? promotions << 8 : promotions >> 8) & ~OccupiedSquares;
   for (; promotions; Clear(to, promotions)) {
     to = LSB(promotions);
     *move++ =
@@ -883,7 +883,7 @@ int *GenerateNoncaptures(TREE * RESTRICT tree, int ply, int side, int *move) {
  *                                                          *
  ************************************************************
  */
-  target = Occupied(enemy) & rank_mask[RANK1 + side * 7];
+  target = Occupied(enemy) & rank_mask[rank8[side]];
   pcapturesl =
       ((side) ? (Pawns(white) & mask_left_edge) << 7 : (Pawns(black) &
           mask_left_edge) >> 9) & target;

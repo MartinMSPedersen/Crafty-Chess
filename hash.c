@@ -121,7 +121,8 @@ int HashProbe(TREE * RESTRICT tree, int ply, int depth, int side, int alpha,
     draft = (word1 >> 17) & 0x7fff;
     tree->hash_move[ply] = (word1 >> 32) & 0x1fffff;
     type = (word1 >> 53) & 3;
-    if ((type & UPPER) && depth - null_depth - 1 <= draft && val < beta)
+    if ((type & UPPER) &&
+        depth - null_depth - depth / null_divisor - 1 <= draft && val < beta)
       avoid_null = AVOID_NULL_MOVE;
     if (depth <= draft) {
       if (val > 32000)
@@ -150,7 +151,7 @@ int HashProbe(TREE * RESTRICT tree, int ply, int depth, int side, int alpha,
       switch (type) {
         case EXACT:
           if (val > alpha && val < beta) {
-            SavePV(tree, ply, 1 + (draft == MAX_DRAFT));
+            SavePV(tree, ply, 1);
             ptable = hash_path + (temp_hashkey & hash_path_mask);
             for (i = 0; i < 16; i++, ptable++)
               if (ptable->path_sig == temp_hashkey) {
@@ -158,8 +159,7 @@ int HashProbe(TREE * RESTRICT tree, int ply, int depth, int side, int alpha,
                     j++)
                   tree->pv[ply - 1].path[j] =
                       ptable->hash_path_moves[j - ply];
-                if (draft != MAX_DRAFT &&
-                    ptable->hash_pathl + ply < MAXPLY - 1)
+                if (ptable->hash_pathl + ply < MAXPLY - 1)
                   tree->pv[ply - 1].pathh = 0;
                 tree->pv[ply - 1].pathl =
                     Min(MAXPLY - 1, ply + ptable->hash_pathl);

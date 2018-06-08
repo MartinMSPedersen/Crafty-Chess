@@ -17,7 +17,7 @@
 #include "thread.c"
 #include "repeat.c"
 #include "next.c"
-#include "killer.c"
+#include "history.c"
 #include "quiesce.c"
 #include "evaluate.c"
 #include "hash.c"

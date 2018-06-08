@@ -7,7 +7,7 @@
 #  include <signal.h>
 #endif
 #include "epdglue.h"
-/* last modified 02/26/14 */
+/* last modified 08/10/14 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -50,7 +50,7 @@ int Option(TREE * RESTRICT tree) {
       if (thinking || pondering)
         return 2;
       else {
-        (void) EGCommand(buffer);
+        EGCommand(buffer);
         return 1;
       }
     }
@@ -120,21 +120,22 @@ int Option(TREE * RESTRICT tree) {
       return 1;
     }
     if (nargs > 1) {
-      adaptive_hash = atoiKM(args[1]);
-      adaptive_hash_min = atoiKM(args[2]);
-      adaptive_hash_max = atoiKM(args[3]);
-      adaptive_hashp_min = atoiKM(args[4]);
-      adaptive_hashp_max = atoiKM(args[5]);
+      adaptive_hash = atoiKMB(args[1]);
+      adaptive_hash_min = atoiKMB(args[2]);
+      adaptive_hash_max = atoiKMB(args[3]);
+      adaptive_hashp_min = atoiKMB(args[4]);
+      adaptive_hashp_max = atoiKMB(args[5]);
     }
-    Print(128, "adaptive estimated NPS =  %s\n", PrintKM(adaptive_hash, 1));
-    Print(128, "adaptive minimum hsize =  %s\n", PrintKM(adaptive_hash_min,
+    Print(128, "adaptive estimated NPS =  %s\n", DisplayKMB(adaptive_hash,
             1));
-    Print(128, "adaptive maximum hsize =  %s\n", PrintKM(adaptive_hash_max,
+    Print(128, "adaptive minimum hsize =  %s\n", DisplayKMB(adaptive_hash_min,
             1));
-    Print(128, "adaptive minimum psize =  %s\n", PrintKM(adaptive_hashp_min,
+    Print(128, "adaptive maximum hsize =  %s\n", DisplayKMB(adaptive_hash_max,
             1));
-    Print(128, "adaptive maximum psize =  %s\n", PrintKM(adaptive_hashp_max,
-            1));
+    Print(128, "adaptive minimum psize =  %s\n",
+        DisplayKMB(adaptive_hashp_min, 1));
+    Print(128, "adaptive maximum psize =  %s\n",
+        DisplayKMB(adaptive_hashp_max, 1));
   }
 /*
  ************************************************************
@@ -313,10 +314,10 @@ int Option(TREE * RESTRICT tree) {
  */
   else if (!strcmp("book", *args)) {
     nargs = ReadParse(buffer, args, " \t;");
-    BookUp(tree, nargs, args);
+    Bookup(tree, nargs, args);
   } else if (!strcmp("create", *(args + 1))) {
     nargs = ReadParse(buffer, args, " \t;");
-    BookUp(tree, nargs, args);
+    Bookup(tree, nargs, args);
   }
 /*
  ************************************************************
@@ -330,7 +331,7 @@ int Option(TREE * RESTRICT tree) {
  */
 #if !defined(NOEGTB)
   else if (OptionMatch("cache", *args)) {
-    EGTB_cache_size = atoiKM(args[1]);
+    EGTB_cache_size = atoiKMB(args[1]);
     if (EGTB_cache)
       free(EGTB_cache);
     EGTB_cache = malloc(EGTB_cache_size);
@@ -339,7 +340,7 @@ int Option(TREE * RESTRICT tree) {
           "ERROR:  unable to malloc specified cache size, using default\n");
       EGTB_cache = malloc(4096 * 4096);
     }
-    Print(128, "EGTB cache memory = %s bytes.\n", PrintKM(EGTB_cache_size,
+    Print(128, "EGTB cache memory = %s bytes.\n", DisplayKMB(EGTB_cache_size,
             1));
     FTbSetCacheSize(EGTB_cache, EGTB_cache_size);
   }
@@ -603,7 +604,7 @@ int Option(TREE * RESTRICT tree) {
     last_pv.pathd = 0;
     last_pv.pathl = 0;
     strcpy(buffer, "savepos *");
-    (void) Option(tree);
+    Option(tree);
   }
 /*
  ************************************************************
@@ -807,7 +808,7 @@ int Option(TREE * RESTRICT tree) {
     strcpy(text, args[1]);
     sprintf(buffer, "reset %d", movenum);
     game_wtm = Flip(game_wtm);
-    (void) Option(tree);
+    Option(tree);
     move = InputMove(tree, text, 0, game_wtm, 0, 0);
     if (move) {
       if (input_stream != stdin)
@@ -917,13 +918,13 @@ int Option(TREE * RESTRICT tree) {
     if (nargs > 1) {
       allow_memory = 0;
       Print(4095, "Warning--  xboard 'memory' option disabled\n");
-      new_hash_size = atoiKM(args[1]);
+      new_hash_size = atoiKMB(args[1]);
       if (new_hash_size < 64 * 1024) {
         printf("ERROR.  Minimum hash table size is 64K bytes.\n");
         return 1;
       }
       hash_table_size = ((1ull) << MSB(new_hash_size)) / sizeof(HASH_ENTRY);
-      AlignedRemalloc((void **) &trans_ref, 64,
+      AlignedRemalloc((void *) ((void *) &trans_ref), 64,
           sizeof(HASH_ENTRY) * hash_table_size);
       if (!trans_ref) {
         printf("AlignedRemalloc() failed, not enough memory.\n");
@@ -933,8 +934,8 @@ int Option(TREE * RESTRICT tree) {
       InitializeHashTables();
     }
     Print(128, "hash table memory = %s bytes",
-        PrintKM(hash_table_size * sizeof(HASH_ENTRY), 1));
-    Print(128, " (%s entries).\n", PrintKM(hash_table_size, 1));
+        DisplayKMB(hash_table_size * sizeof(HASH_ENTRY), 1));
+    Print(128, " (%s entries).\n", DisplayKMB(hash_table_size, 1));
   }
 /*
  ************************************************************
@@ -959,13 +960,13 @@ int Option(TREE * RESTRICT tree) {
     if (thinking || pondering)
       return 2;
     if (nargs > 1) {
-      new_hash_size = atoiKM(args[1]);
+      new_hash_size = atoiKMB(args[1]);
       if (new_hash_size < 64 * 1024) {
         printf("ERROR.  Minimum phash table size is 64K bytes.\n");
         return 1;
       }
       hash_path_size = ((1ull) << MSB(new_hash_size / sizeof(HPATH_ENTRY)));
-      AlignedRemalloc((void **) &hash_path, 64,
+      AlignedRemalloc((void *) ((void *) &hash_path), 64,
           sizeof(HPATH_ENTRY) * hash_path_size);
       if (!hash_path) {
         printf("AlignedRemalloc() failed, not enough memory.\n");
@@ -977,8 +978,8 @@ int Option(TREE * RESTRICT tree) {
         (hash_path + i)->hash_path_age = -99;
     }
     Print(128, "hash path table memory = %s bytes",
-        PrintKM(hash_path_size * sizeof(HPATH_ENTRY), 1));
-    Print(128, " (%s entries).\n", PrintKM(hash_path_size, 1));
+        DisplayKMB(hash_path_size * sizeof(HPATH_ENTRY), 1));
+    Print(128, " (%s entries).\n", DisplayKMB(hash_path_size, 1));
   }
 /*
  ************************************************************
@@ -996,14 +997,14 @@ int Option(TREE * RESTRICT tree) {
     if (nargs > 1) {
       allow_memory = 0;
       Print(4095, "Warning--  xboard 'memory' option disabled\n");
-      new_hash_size = atoiKM(args[1]);
+      new_hash_size = atoiKMB(args[1]);
       if (new_hash_size < 16 * 1024) {
         printf("ERROR.  Minimum pawn hash table size is 16K bytes.\n");
         return 1;
       }
       pawn_hash_table_size =
           (1ull << MSB(new_hash_size)) / sizeof(PAWN_HASH_ENTRY);
-      AlignedRemalloc((void **) &pawn_hash_table, 32,
+      AlignedRemalloc((void *) ((void *) &pawn_hash_table), 64,
           sizeof(PAWN_HASH_ENTRY) * pawn_hash_table_size);
       if (!pawn_hash_table) {
         printf("AlignedRemalloc() failed, not enough memory.\n");
@@ -1029,8 +1030,8 @@ int Option(TREE * RESTRICT tree) {
       }
     }
     Print(128, "pawn hash table memory = %s bytes",
-        PrintKM(pawn_hash_table_size * sizeof(PAWN_HASH_ENTRY), 1));
-    Print(128, " (%s entries).\n", PrintKM(pawn_hash_table_size, 1));
+        DisplayKMB(pawn_hash_table_size * sizeof(PAWN_HASH_ENTRY), 1));
+    Print(128, " (%s entries).\n", DisplayKMB(pawn_hash_table_size, 1));
   }
 /*
  ************************************************************
@@ -1077,7 +1078,7 @@ int Option(TREE * RESTRICT tree) {
         lines = 0;
         printf("<return> for more...");
         fflush(stdout);
-        (void) Read(1, buffer);
+        Read(1, buffer);
       }
     }
     fclose(helpfile);
@@ -1129,11 +1130,12 @@ int Option(TREE * RESTRICT tree) {
     Print(128, "Crafty version %s\n", version);
     Print(128, "number of threads =         %2d\n", smp_max_threads);
     Print(128, "hash table memory =      %5s\n",
-        PrintKM(hash_table_size * sizeof(HASH_ENTRY), 1));
+        DisplayKMB(hash_table_size * sizeof(HASH_ENTRY), 1));
     Print(128, "pawn hash table memory = %5s\n",
-        PrintKM(pawn_hash_table_size * sizeof(PAWN_HASH_ENTRY), 1));
+        DisplayKMB(pawn_hash_table_size * sizeof(PAWN_HASH_ENTRY), 1));
 #if !defined(NOEGTB)
-    Print(128, "EGTB cache memory =      %5s\n", PrintKM(EGTB_cache_size, 1));
+    Print(128, "EGTB cache memory =      %5s\n", DisplayKMB(EGTB_cache_size,
+            1));
 #endif
     if (!tc_sudden_death) {
       Print(128, "%d moves/%d minutes %d seconds primary time control\n",
@@ -1286,7 +1288,7 @@ int Option(TREE * RESTRICT tree) {
       optimal_hash_size = Max(optimal_hash_size, adaptive_hash_min);
       optimal_hash_size = Min(optimal_hash_size, adaptive_hash_max);
       sprintf(buffer, "hash=%d\n", optimal_hash_size);
-      (void) Option(tree);
+      Option(tree);
       percent =
           (float) (optimal_hash_size -
           adaptive_hash_min) / (float) (adaptive_hash_max -
@@ -1296,7 +1298,7 @@ int Option(TREE * RESTRICT tree) {
           adaptive_hashp_min);
       optimal_hash_size = Max(optimal_hash_size, adaptive_hashp_min);
       sprintf(buffer, "hashp=%d\n", optimal_hash_size);
-      (void) Option(tree);
+      Option(tree);
     }
   }
 /*
@@ -1490,6 +1492,77 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
+ *  "lmr" command sets the formla parameters that produce   *
+ *  LMR reduction matrix.  The format is:                   *
+ *                                                          *
+ *     lmr <min> <max> <depth bias> <moves bias> <scale>    *
+ *                                                          *
+ *  <min> is the minimum LMR reduction.  This probably      *
+ *  should not be changed from 1, the default.              *
+ *                                                          *
+ *  <max> is the maximum LMR reduction.  If you adjust the  *
+ *  following values, you might need to increase this as it *
+ *  is an absolute clamp and no value can exceed this no    *
+ *  matter what the formula produces.                       *
+ *                                                          *
+ *  <depth_bias> is simply a multiplier that causes depth   *
+ *  to influence the reduction amount more or less (as the  *
+ *  value drops below the value used for <moves bias> below *
+ *  or as it is increased above <moves bias>.  The default  *
+ *  is 2.0.                                                 *
+ *                                                          *
+ *  <moves bias> is simply a multiplier that causes the     *
+ *  number of moves already searched to become more or less *
+ *  important than the remaining depth as above.  The       *
+ *  default is 1.0.                                         *
+ *                                                          *
+ *  <scale> is used to scale the formula back since it uses *
+ *  a logarithmic expression.  The basic idea is to adjust  *
+ *  the above two values to produce the desired "shape" of  *
+ *  the reduction matrix, then adjust this to change the    *
+ *  reduction amounts overall.  The default is 2.9.         *
+ *                                                          *
+ ************************************************************
+ */
+  else if (!strcmp("lmr", *args)) {
+    int i, j;
+    char *axis = "||depth left||||||";
+
+    if (nargs != 1 && nargs != 6) {
+      printf("usage:  lmr <min> <max> <depth bias> <move bias> <scale>\n");
+      return 1;
+    }
+    if (nargs > 1) {
+      LMR_min_reduction = atoi(args[1]);
+      LMR_max_reduction = atoi(args[2]);
+      LMR_depth_bias = atof(args[3]) * 100;
+      LMR_moves_bias = atof(args[4]) * 100;
+      LMR_scale = atof(args[5]) * 100;
+      InitializeReductions();
+    }
+    Print(128,
+        "LMR values:  %d(min) %d(max) %.2f(depth) %.2f(moves) %.2f(scale).\n",
+        LMR_min_reduction, LMR_max_reduction,
+        ((double) LMR_depth_bias) / 100.0, ((double) LMR_moves_bias) / 100.0,
+        ((double) LMR_scale) / 100.0);
+    Print(128, "\n                 LMR reductions[depth][moves]\n");
+    Print(128, "  ----------------------moves searched-----------------\n");
+    Print(128, " |     ");
+    for (i = 2; i < 64; i += 4)
+      Print(128, "%3d", i);
+    Print(128, "\n");
+    for (i = 3; i < 32; i += 2) {
+      Print(128, " %c %2d: ", axis[(i - 3) / 2], i);
+      for (j = 2; j < 64; j += 4)
+        Print(128, " %2d", LMR[i][j]);
+      Print(128, "\n");
+    }
+    Print(128, "    note:  table is shown compressed, each index is in\n");
+    Print(128, "    units of 1, all rows/columns are not shown above\n");
+  }
+/*
+ ************************************************************
+ *                                                          *
  *   "load" command directs the program to read input from  *
  *   a file until a "setboard" command is found  this       *
  *   command is then executed, setting up the position for  *
@@ -1548,7 +1621,7 @@ int Option(TREE * RESTRICT tree) {
         break;
       nargs = ReadParse(buffer, args, " \t;\n");
       if (!strcmp(args[0], "setboard")) {
-        (void) Option(tree);
+        Option(tree);
         break;
       }
     }
@@ -1677,10 +1750,10 @@ int Option(TREE * RESTRICT tree) {
     if (pmemory < 1024 * 1024)
       pmemory = 0;
     sprintf(buffer, "hash %" PRIu64 "\n", (uint64_t) hmemory);
-    (void) Option(tree);
+    Option(tree);
     if (pmemory) {
       sprintf(buffer, "hashp %" PRIu64 "\n", (uint64_t) pmemory);
-      (void) Option(tree);
+      Option(tree);
     }
   }
 /*
@@ -1801,7 +1874,7 @@ int Option(TREE * RESTRICT tree) {
           if (SP_personality_filename[i]) {
             sprintf(buffer, "personality load %s\n",
                 SP_personality_filename[i]);
-            (void) Option(tree);
+            Option(tree);
           }
           break;
         }
@@ -1833,12 +1906,12 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *  "noise" command sets a minimum limit on nodes searched  *
- *  such that until this number of nodes has been searched  *
- *  no program output will occur.  This is used to prevent  *
- *  simple endgames from swamping the display device since  *
- *  30+ ply searches are possible, which can produce 100's  *
- *  of lines of output.                                     *
+ *  "noise" command sets a minimum limit on time searched   *
+ *  before we start to display the normal search output.    *
+ *  With today's hardware and deep searches, it is easy to  *
+ *  get "swamped" with output.  Using "noise" you can say   *
+ *  "hold the output until you have searched for <x> time   *
+ *  (where time can be x.xx seconds or just x seconds.)     *
  *                                                          *
  ************************************************************
  */
@@ -1847,8 +1920,43 @@ int Option(TREE * RESTRICT tree) {
       printf("usage:  noise <n>\n");
       return 1;
     }
-    noise_level = atoi(args[1]);
-    Print(128, "noise level set to %d.\n", noise_level);
+    noise_level = atof(args[1]) * 100;
+    Print(128, "noise level set to %.2f seconds.\n",
+        (float) noise_level / 100.0);
+  }
+/*
+ ************************************************************
+ *                                                          *
+ *  "null" command sets the minimum null-move reduction and *
+ *  a value that is used to compute the max reduction.      *
+ *                                                          *
+ *     null <min> <divisor>                                 *
+ *                                                          *
+ *  <min> is the minimum null move reduction.  The default  *
+ *  is 3 which is pretty reliable.                          *
+ *                                                          *
+ *  <divisor> increases the null move by the following      *
+ *  simple formula:                                         *
+ *                                                          *
+ *    null_reduction = min + depth / divisor                *
+ *                                                          *
+ *  The default value is currently 10, which will increase  *
+ *  R (null-move reduction) by one at any position where    *
+ *  depth >= 10 and < 20.  Or by two when depth > 20.  Etc. *
+ *                                                          *
+ ************************************************************
+ */
+  else if (!strcmp("null", *args)) {
+
+    if (nargs > 3) {
+      printf("usage:  null <min> <divisor>\n");
+      return 1;
+    }
+    if (nargs > 1) {
+      null_depth = atoi(args[1]);
+      null_divisor = atoi(args[2]);
+    }
+    Print(128, "null move:  R = %d + depth / %d\n", null_depth, null_divisor);
   }
 /*
  ************************************************************
@@ -1973,6 +2081,10 @@ int Option(TREE * RESTRICT tree) {
               printf("%3d  %s\n", i, personality_packet[i].description);
               DisplayType6(personality_packet[i].value);
               break;
+            case 7:
+              printf("%3d  %s %7.2f\n", i, personality_packet[i].description,
+                  (double) (*personality_packet[i].value) / 100.0);
+              break;
           }
         } else {
           printf("==================================================\n");
@@ -2012,7 +2124,7 @@ int Option(TREE * RESTRICT tree) {
           delim = strchr(buffer, '\r');
           if (delim)
             *delim = ' ';
-          (void) Option(tree);
+          Option(tree);
         }
         fclose(file);
       }
@@ -2427,7 +2539,7 @@ int Option(TREE * RESTRICT tree) {
       return 2;
     move_number--;
     sprintf(buffer, "reset %d", move_number);
-    (void) Option(tree);
+    Option(tree);
   }
 /*
  ************************************************************
@@ -2976,7 +3088,7 @@ int Option(TREE * RESTRICT tree) {
     last_pv.pathl = 0;
     over = 0;
     strcpy(buffer, "savepos *");
-    (void) Option(tree);
+    Option(tree);
   } else if (StrCnt(*args, '/') > 3) {
     if (thinking || pondering)
       return 2;
@@ -2992,7 +3104,7 @@ int Option(TREE * RESTRICT tree) {
     last_pv.pathl = 0;
     over = 0;
     strcpy(buffer, "savepos *");
-    (void) Option(tree);
+    Option(tree);
   }
 /*
  ************************************************************
@@ -3149,12 +3261,12 @@ int Option(TREE * RESTRICT tree) {
     Print(128, " %s  |\n", DisplayEvaluation(egb, 1));
     mgb = tree->score_mg;
     egb = tree->score_eg;
-    EvaluateKings(tree, 1, black);
+    EvaluateKing(tree, 1, black);
     mgb = tree->score_mg - mgb;
     egb = tree->score_eg - egb;
     mgw = tree->score_mg;
     egw = tree->score_eg;
-    EvaluateKings(tree, 1, white);
+    EvaluateKing(tree, 1, white);
     mgw = tree->score_mg - mgw;
     egw = tree->score_eg - egw;
     tb = (mgb * phase + egb * (62 - phase)) / 62;
@@ -3168,12 +3280,12 @@ int Option(TREE * RESTRICT tree) {
     Print(128, " %s  |\n", DisplayEvaluation(egb, 1));
     mgb = tree->score_mg;
     egb = tree->score_eg;
-    EvaluateDevelopment(tree, 1, black);
+    EvaluateCastling(tree, 1, black);
     mgb = tree->score_mg - mgb;
     egb = tree->score_eg - egb;
     mgw = tree->score_mg;
     egw = tree->score_eg;
-    EvaluateDevelopment(tree, 1, white);
+    EvaluateCastling(tree, 1, white);
     mgw = tree->score_mg - mgw;
     egw = tree->score_eg - egw;
     tb = (mgb * phase + egb * (62 - phase)) / 62;
@@ -3257,10 +3369,13 @@ int Option(TREE * RESTRICT tree) {
         skill = 100;
       }
       Print(128, "skill level set to %d%%\n", skill);
-      null_depth = null_depth * skill / 100;
-      check_depth = check_depth * skill / 100;
-      LMR_min_reduction = LMR_min_reduction * skill / 100;
-      LMR_max_reduction = LMR_max_reduction * skill / 100;
+      null_depth = (null_depth * skill + 50) / 100;
+      if (skill < 100)
+        null_divisor = null_divisor + 2 * (100 - skill) / 10;
+      check_depth = (check_depth * skill + 50) / 100;
+      LMR_min_reduction = (LMR_min_reduction * skill + 50) / 100;
+      LMR_max_reduction = (LMR_max_reduction * skill + 50) / 100;
+      InitializeReductions();
     }
   }
 #endif
@@ -3674,7 +3789,7 @@ int Option(TREE * RESTRICT tree) {
       if (Flip(game_wtm))
         move_number--;
       sprintf(buffer, "reset %d", move_number);
-      (void) Option(tree);
+      Option(tree);
     }
   }
 /*
@@ -3757,7 +3872,7 @@ int Option(TREE * RESTRICT tree) {
     switch (i) {
       case 7:
         strcpy(buffer, "setboard 4k/5ppp/////PPP/3K/ w");
-        (void) Option(tree);
+        Option(tree);
         break;
       default:
         printf("sorry, only wild7 implemented at present\n");

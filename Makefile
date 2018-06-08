@@ -10,6 +10,14 @@
 #   -DAFFINITY     Include code to set processor/thread affinity on Unix
 #                  systems.  Note this will not work on Apple OS X as it does
 #                  not support any sort of processor affinity mechanism.
+#                  WARNING:  know what you are doing before using this.  If
+#                  you test multiple copies of Crafty (each copy using just
+#                  one thread) you can have bogus results because if compiled
+#                  with -DAFFINITY, even a single-cpu execution will lock led
+#                  itself onto processor zero (since it only has thread #0)  
+#                  which is probably NOT what you want.  This is intended to 
+#                  be used when you run Crafty using a complete dedicated    
+#                  machine with nothing else running at the same time.
 #   -DBOOKDIR      Path to the directory containing the book binary files.
 #                  The default for all such path values is "." if you don't
 #                  specify a path with this macro definition.
@@ -70,25 +78,27 @@ help:
 quick:
 	$(MAKE) target=UNIX \
 		CC=gcc CXX=g++ \
-		opt='-DTEST -DTRACE -DINLINEASM -DCPUS=8' \
-		CFLAGS='-Wall -O3 -pipe -pthread' \
+		opt='-DPOSITIONS -DTEST -DTRACE -DINLINEASM -DPOPCNT -DCPUS=8' \
+		CFLAGS='-g -Wall -O3 -pipe -pthread' \
 		CXFLAGS='-Wall -pipe -O3 -pthread' \
-		LDFLAGS='$(LDFLAGS) -pthread -lstdc++' \
+		LDFLAGS='$(LDFLAGS) -g -pthread -lstdc++' \
 		crafty-make
 
 unix-gcc:
 	$(MAKE) target=UNIX \
 		CC=gcc CXX=g++ \
-		opt='-DTEST -DINLINEASM -DCPUS=8' \
-		CFLAGS='-Wall -pipe -O3 -fprofile-use -fprofile-correction -pthread' \
-		CXFLAGS='-Wall -pipe -O3 -fprofile-use -fprofile-correction -pthread' \
+		opt='-DTEST -DINLINEASM -DPOPCNT -DCPUS=8' \
+		CFLAGS='-Wall -pipe -O3 -fprofile-use -fprofile-correction \
+                        -pthread' \
+		CXFLAGS='-Wall -pipe -O3 -fprofile-use -fprofile-correction \
+                         -pthread' \
 		LDFLAGS='$(LDFLAGS) -fprofile-use -pthread -lstdc++' \
 		crafty-make
 
 unix-gcc-profile:
 	$(MAKE) target=UNIX \
 		CC=gcc CXX=g++ \
-		opt='-DTEST -DINLINEASM -DCPUS=8' \
+		opt='-DTEST -DINLINEASM -DPOPCNT -DCPUS=8' \
 		CFLAGS='-Wall -pipe -O3 -fprofile-arcs -pthread' \
 		CXFLAGS='-Wall -pipe -O3 -fprofile-arcs -pthread' \
 		LDFLAGS='$(LDFLAGS) -fprofile-arcs -pthread -lstdc++ ' \
@@ -97,8 +107,9 @@ unix-gcc-profile:
 unix-icc:
 	$(MAKE) target=UNIX \
 		CC=icc CXX=icc \
-		opt='-DTEST -DINLINEASM -DCPUS=8' \
-		CFLAGS='-Wall -w -O2 -prof_use -prof_dir ./prof -fno-alias -pthread' \
+		opt='-DTEST -DINLINEASM -DPOPCNT -DCPUS=8' \
+		CFLAGS='-Wall -w -O2 -prof_use -prof_dir ./prof -fno-alias \
+                        -pthread' \
 		CXFLAGS='-Wall -w -O2 -prof_use -prof_dir ./prof -pthread' \
 		LDFLAGS='$(LDFLAGS) -pthread -lstdc++' \
 		crafty-make
@@ -106,8 +117,9 @@ unix-icc:
 unix-icc-profile:
 	$(MAKE) target=UNIX \
 		CC=icc CXX=icc \
-		opt='-DTEST -DINLINEASM -DCPUS=8' \
-		CFLAGS='-Wall -w -O2 -prof_genx -prof_dir ./prof -fno-alias -pthread' \
+		opt='-DTEST -DINLINEASM -DPOPCNT -DCPUS=8' \
+		CFLAGS='-Wall -w -O2 -prof_genx -prof_dir ./prof -fno-alias \
+                        -pthread' \
 		CXFLAGS='-Wall -w -O2 -prof_genx -prof_dir ./prof -pthread' \
 		LDFLAGS='$(LDFLAGS) -pthread -lstdc++ ' \
 		crafty-make
@@ -194,7 +206,6 @@ profile:
 	@echo "mt=2" >>runprof
 	@echo "setboard 2r2rk1/1bqnbpp1/1p1ppn1p/pP6/N1P1P3/P2B1N1P/1B2QPP1/R2R2K1 b" >>runprof
 	@echo "move" >>runprof
-	@echo "mt=2" >>runprof
 	@echo "quit" >>runprof
 	@echo "EOF" >>runprof
 	@chmod +x runprof
@@ -212,7 +223,7 @@ profile:
 #  compiling both ways to see which way produces the fastest code.
 #
 
-#objects = search.o thread.o repeat.o next.o killer.o quiesce.o evaluate.o     \
+#objects = search.o thread.o repeat.o next.o history.o quiesce.o evaluate.o    \
        movgen.o make.o unmake.o hash.o  attacks.o swap.o boolean.o  utility.o  \
        probe.o book.o data.o drawn.o edit.o epd.o epdglue.o init.o input.o     \
        interrupt.o iterate.o main.o option.o output.o ponder.o resign.o root.o \

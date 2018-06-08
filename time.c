@@ -115,8 +115,7 @@ int TimeCheck(TREE * RESTRICT tree, int busy) {
  ************************************************************
  */
   time_used = (ReadClock() - start_time);
-  if (tree->nodes_searched > noise_level && display_options & 32 &&
-      time_used > burp) {
+  if (time_used > noise_level && display_options & 32 && time_used > burp) {
     Lock(lock_io);
     if (pondering)
       printf("         %2i   %s%7s?  ", iteration_depth,
@@ -129,7 +128,7 @@ int TimeCheck(TREE * RESTRICT tree, int busy) {
     if ((display_options & 32) && (display_options & 64) && Flip(root_wtm))
       printf("... ");
     printf("%s(%snps)             \r", tree->root_move_text,
-        DisplayKMB(nodes_per_second));
+        DisplayKMB(nodes_per_second, 0));
     burp = (time_used / 1500) * 1500 + 1500;
     fflush(stdout);
     Unlock(lock_io);
@@ -403,15 +402,9 @@ void TimeSet(int search_type) {
     if (!tc_sudden_death)
       Print(128, "        time surplus %s  ", DisplayTime(surplus));
     else
-      Print(128, "         ");
+      Print(128, "        ");
     Print(128, "time limit %s", DisplayTimeKibitz(time_limit));
-    Print(128, " (+%s)", DisplayTimeKibitz(extra));
-    Print(128, " (%s)", DisplayTimeKibitz(absolute_time_limit));
-    if (fabs(usage_level) > 0.0001) {
-      Print(128, "/");
-      Print(128, "(%d)", usage_level);
-    }
-    Print(128, "\n");
+    Print(128, " (%s)\n", DisplayTimeKibitz(absolute_time_limit));
   }
   if (time_limit <= 1) {
     time_limit = 1;

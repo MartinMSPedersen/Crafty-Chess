@@ -27,7 +27,7 @@ void Bench(int increase) {
     {"2r2rk1/1bqnbpp1/1p1ppn1p/pP6/N1P1P3/P2B1N1P/1B2QPP1/R2R2K1 b - - 0 1"},
     {"r1bqk2r/pp2bppp/2p5/3pP3/P2Q1P2/2N1B3/1PP3PP/R4RK1 b kq - 0 1"}
   };
-  int fen_depth[6] = { 21, 19, 25, 19, 19, 18 };
+  int fen_depth[6] = { 22, 20, 26, 21, 22, 19 };
 
 /*
  ************************************************************
@@ -71,7 +71,7 @@ void Bench(int increase) {
     last_pv.pathd = 0;
     thinking = 1;
     tree->status[1] = tree->status[0];
-    (void) Iterate(game_wtm, think, 0);
+    Iterate(game_wtm, think, 0);
     thinking = 0;
     nodes += tree->nodes_searched;
     total_time_used += (program_end_time - program_start_time);

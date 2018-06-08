@@ -97,8 +97,12 @@ int Iterate(int wtm, int search_type, int root_list_done) {
   tree->egtb_probes_successful = 0;
   tree->extensions_done = 0;
   tree->qchecks_done = 0;
-  tree->reductions_done = 0;
   tree->moves_fpruned = 0;
+  for (i = 0; i < 16; i++)
+    tree->LMR_done[i] = 0;
+  for (i = 0; i < 32; i++)
+    tree->null_done[i] = 0;
+  HistoryAge();
   root_wtm = wtm;
 /*
  ************************************************************
@@ -299,10 +303,6 @@ int Iterate(int wtm, int search_type, int root_list_done) {
               nodes_between_time_checks /= 100;
           } else
             nodes_between_time_checks = Min(nodes_per_second, 1000000);
-#if defined(SKILL)
-          if (skill > 50)
-            nodes_between_time_checks = Max(nodes_between_time_checks, 10000);
-#endif
         }
         if (search_nodes)
           nodes_between_time_checks = search_nodes - tree->nodes_searched;
@@ -325,12 +325,12 @@ int Iterate(int wtm, int search_type, int root_list_done) {
         faillo_delta = 16;
         while (1) {
           thread[0].tree = block[0];
-          tree->inchk[1] = Check(wtm);
           if (smp_max_threads > 1)
             smp_split = 1;
           tree->rep_index--;
           value =
-              Search(tree, root_alpha, root_beta, wtm, iteration_depth, 1, 0);
+              Search(tree, root_alpha, root_beta, wtm, iteration_depth, 1,
+              Check(wtm), 0);
           tree->rep_index++;
           end_time = ReadClock();
           if (abort_search)
@@ -374,7 +374,7 @@ int Iterate(int wtm, int search_type, int root_list_done) {
             if ((root_moves[0].status & 2) == 0)
               difficulty = ComputeDifficulty(difficulty, +1);
             root_moves[0].status |= 2;
-            if (tree->nodes_searched > noise_level) {
+            if (end_time - start_time >= noise_level) {
               fh_indicator = (wtm) ? "++" : "--";
               Print(2, "         %2i   %s     %2s   ", iteration_depth,
                   Display2Times(end_time - start_time), fh_indicator);
@@ -437,7 +437,7 @@ int Iterate(int wtm, int search_type, int root_list_done) {
             if ((root_moves[0].status & 1) == 0)
               difficulty = ComputeDifficulty(Max(100, difficulty), -1);
             root_moves[0].status |= 1;
-            if (tree->nodes_searched > noise_level && !abort_search) {
+            if (ReadClock() - start_time >= noise_level && !abort_search) {
               fl_indicator = (wtm) ? "--" : "++";
               Print(4, "         %2i   %s     %2s   ", iteration_depth,
                   Display2Times(ReadClock() - start_time), fl_indicator);
@@ -534,10 +534,11 @@ int Iterate(int wtm, int search_type, int root_list_done) {
         else
           nodes_per_second = 1000000;
         if (!abort_search && value != -(MATE - 1)) {
-          if (tree->nodes_searched > noise_level) {
-            DisplayPV(tree, 5, wtm, end_time - start_time, &tree->pv[0]);
+          if (end_time - start_time > noise_level) {
+            DisplayPV(tree, 5, wtm, end_time - start_time, &tree->pv[0], 0);
             noise_block = 0;
-          }
+          } else
+            noise_block = 1;
         }
         root_alpha = Max(-MATE, value - 16);
         root_beta = Min(MATE, value + 16);
@@ -603,11 +604,11 @@ int Iterate(int wtm, int search_type, int root_list_done) {
       end_time = ReadClock();
       if (end_time > 10)
         nodes_per_second =
-            (uint64_t) tree->nodes_searched * 100 / ((uint64_t) end_time -
-            start_time + 1);
+            (uint64_t) tree->nodes_searched * 100 / Max((uint64_t) end_time -
+            start_time, 1);
       if (abort_search != 2 && !puzzling) {
         if (noise_block)
-          DisplayPV(tree, 5, wtm, end_time - start_time, &tree->pv[0]);
+          DisplayPV(tree, 5, wtm, end_time - start_time, &tree->pv[0], 1);
         tree->evaluations = (tree->evaluations) ? tree->evaluations : 1;
         tree->fail_highs++;
         tree->fail_high_first_move++;
@@ -617,21 +618,31 @@ int Iterate(int wtm, int search_type, int root_list_done) {
                 1));
         Print(8, "        time=%s(%d%%)",
             DisplayTimeKibitz(end_time - start_time), idle_percent);
-        Print(8, "  n=%" PRIu64, tree->nodes_searched);
+        Print(8, "  n=%" PRIu64 "(%s)", tree->nodes_searched,
+            DisplayKMB(tree->nodes_searched, 0));
         Print(8, "  fh1=%d%%",
             tree->fail_high_first_move * 100 / tree->fail_highs);
         Print(8, "  50move=%d", Reversible(0));
-        Print(8, "  nps=%s\n", DisplayKMB(nodes_per_second));
-        Print(16, "        ext=%s", DisplayKMB(tree->extensions_done));
-        Print(16, "  red=%s", DisplayKMB(tree->reductions_done));
-        Print(16, "  pruned=%s", DisplayKMB(tree->moves_fpruned));
-        Print(16, "  qchks=%s", DisplayKMB(tree->qchecks_done));
-        Print(16, "  pred=%d\n", predicted);
-        Print(16, "        splits=%s", DisplayKMB(parallel_splits));
-        Print(16, "  aborts=%s", DisplayKMB(parallel_aborts));
+        Print(8, "  nps=%s\n", DisplayKMB(nodes_per_second, 0));
+        Print(16, "        ext=%s", DisplayKMB(tree->extensions_done, 0));
+        Print(16, "  pruned=%s", DisplayKMB(tree->moves_fpruned, 0));
+        Print(16, "  qchks=%s", DisplayKMB(tree->qchecks_done, 0));
+        Print(16, "  predicted=%d\n", predicted);
+        Print(16, "        LMReductions: ");
+        for (i = 1; i < 16; i++)
+          if (tree->LMR_done[i])
+            Print(16, "%d/%s  ", i, DisplayKMB(tree->LMR_done[i], 0));
+        Print(16, "\n");
+        Print(16, "        null searches (R): ");
+        for (i = 1; i < 32; i++)
+          if (tree->null_done[i])
+            Print(16, "%d/%s  ", i, DisplayKMB(tree->null_done[i], 0));
+        Print(16, "\n");
+        Print(16, "        splits=%s", DisplayKMB(parallel_splits, 0));
+        Print(16, "  aborts=%s", DisplayKMB(parallel_aborts, 0));
         Print(16, "  data=%d%%", 100 * max_split_blocks / Max(MAX_BLOCKS, 1));
-        Print(16, "  probes=%s", DisplayKMB(tree->egtb_probes));
-        Print(16, "  hits=%s\n", DisplayKMB(tree->egtb_probes_successful));
+        Print(16, "  probes=%s", DisplayKMB(tree->egtb_probes, 0));
+        Print(16, "  hits=%s\n", DisplayKMB(tree->egtb_probes_successful, 0));
       }
     } while (0);
 /*

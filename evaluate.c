@@ -1,6 +1,6 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 02/23/14 */
+/* last modified 08/17/14 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -18,96 +18,75 @@
 int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta) {
   PAWN_HASH_ENTRY *ptable;
   PXOR *pxtable;
-  int score, side, majors, minors, can_win = 3;
+  int score, side, can_win = 3;
   int phase, lscore, cutoff;
 
 /*
  **********************************************************************
  *                                                                    *
- *  Initialize.                                                       *
+ *  First thing we do is if -DSKILL was passed in as to the compiler, *
+ *  we burn some time to slow the search down, then we fall into the  *
+ *  normal evaluation code.                                           *
  *                                                                    *
  **********************************************************************
  */
-  cutoff = (TotalPieces(white, occupied) && TotalPieces(black, occupied))
-      ? KNIGHT_VALUE : ROOK_VALUE;
-  lscore = (wtm) ? Material : -Material;
-  if (lscore + cutoff < alpha || lscore - cutoff > beta)
-    return lscore;
-  tree->dangerous[white] = (Queens(white) && TotalPieces(white, occupied) > 9)
-      || (TotalPieces(white, rook) > 1 && TotalPieces(white, occupied) > 15);
-  tree->dangerous[black] = (Queens(black) && TotalPieces(black, occupied) > 9)
-      || (TotalPieces(black, rook) > 1 && TotalPieces(black, occupied) > 15);
-  tree->evaluations++;
-  tree->score_mg = 0;
-  tree->score_eg = 0;
-  EvaluateMaterial(tree, wtm);
 #if defined(SKILL)
   if (skill < 100) {
     int i, j;
-    for (i = 0; i < burnc[skill / 10]; i++)
-      for (j = 1; j < 10; j++)
+    for (i = 0; i < burnc[skill / 10] && !abort_search; i++)
+      for (j = 1; j < 10 && !abort_search; j++)
         burner[j - 1] = burner[j - 1] * burner[j];
+    if (TimeCheck(tree, 1))
+      abort_search = 1;
   }
 #endif
 /*
  **********************************************************************
  *                                                                    *
- *  Check for draws due to insufficient material and adjust the score *
- *  as necessary.  This code also handles a special endgame case      *
- *  where one side has only a lone king, and the king has no legal    *
- *  moves.  This has been shown to break a few evaluation terms such  *
- *  as bishop + wrong color rook pawn.  If this case is detected, a   *
- *  drawscore is returned.                                            *
+ *  Initialize.  If the meterial score is way below alpha or way      *
+ *  above beta (way above means so far above it is very unlikely the  *
+ *  positional score can bring the total score back into the alpha /  *
+ *  beta window) then we take what is known as a "lazy evaluation     *
+ *  exit" and avoid the computational cost of a full evaluation in a  *
+ *  position where one side is way ahead or behind in material.       *
+ *                                                                    *
+ **********************************************************************
+ */
+  cutoff = (TotalPieces(white, occupied) && TotalPieces(black, occupied))
+      ? KNIGHT_VALUE : ROOK_VALUE;
+  lscore = MaterialSTM(wtm);
+  if (lscore + cutoff < alpha)
+    return alpha;
+  if (lscore - cutoff > beta)
+    return beta;
+  tree->evaluations++;
+  tree->score_mg = 0;
+  tree->score_eg = 0;
+  EvaluateMaterial(tree, wtm);
+/*
+ **********************************************************************
+ *                                                                    *
+ *  Check for draws where one side seems to be ahead, but has no      *
+ *  actual winning chances.  One simple example is a king, bishop and *
+ *  rook pawn, with the wrong colored bishop and the enemy king too   *
+ *  close to the promotion square.                                    *
+ *                                                                    *
+ *  The variable "can_win" uses 2 bits.  If White can actually win in *
+ *  this position, bit 1 is set.  If Black can actually win in this   *
+ *  position, bit 0 is set.  If both sides can win, both bits are     *
+ *  set.  This is used later to drag the score closer to a draw score *
+ *  if the side with the better score can't actually win.             *
+ *                                                                    *
+ *  Note that we only set these bits in minimal material positions    *
+ *  (both sides have < 13 points of material total).  Otherwise we    *
+ *  assume normal scoring should apply.                               *
  *                                                                    *
  **********************************************************************
  */
   if (TotalPieces(white, occupied) < 13 && TotalPieces(black, occupied) < 13)
-    do {
-/*
- ************************************************************
- *                                                          *
- *  If neither side has any pieces, and both sides have     *
- *  non-rookpawns, then either side can win.                *
- *                                                          *
- ************************************************************
- */
-      if (TotalPieces(white, occupied) == 0 &&
-          TotalPieces(black, occupied) == 0 && (Pawns(white) & not_rook_pawns
-              && Pawns(black) & not_rook_pawns))
-        break;
-/*
- ************************************************************
- *                                                          *
- *  If one side is an exchange up, but has no pawns, then   *
- *  that side can not possibly win.                         *
- *                                                          *
- ************************************************************
- */
-      majors = TotalMajors(white) - TotalMajors(black);
-      if (Abs(majors) == 1) {
-        minors = TotalMinors(white) - TotalMinors(black);
-        if (majors == -minors) {
-          if (TotalPieces(black, pawn) == 0)
-            can_win &= 1;
-          if (TotalPieces(white, pawn) == 0)
-            can_win &= 2;
-        }
-        if (can_win == 0)
-          break;
-      }
-/*
- ************************************************************
- *                                                          *
- *  check several special cases, such as bishop + the wrong *
- *  rook pawn and adjust can_win accordingly.               *
- *                                                          *
- ************************************************************
- */
-      if (!EvaluateWinningChances(tree, white, wtm))
-        can_win &= 2;
-      if (!EvaluateWinningChances(tree, black, wtm))
-        can_win &= 1;
-    } while (0);
+    for (side = black; side <= white; side++)
+      if (!EvaluateWinningChances(tree, side, wtm))
+        can_win ^= (1 << side);
 /*
  **********************************************************************
  *                                                                    *
@@ -131,10 +110,10 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta) {
         EvaluateMate(tree, white);
       else if (Material < 0)
         EvaluateMate(tree, black);
-      if (tree->score_eg > DrawScore(1) && !(can_win & 1))
-        tree->score_eg = tree->score_eg / 4;
-      if (tree->score_eg < DrawScore(1) && !(can_win & 2))
-        tree->score_eg = tree->score_eg / 4;
+      if (tree->score_eg > DrawScore(1) && !(can_win & 2))
+        tree->score_eg = tree->score_eg / 16;
+      if (tree->score_eg < DrawScore(1) && !(can_win & 1))
+        tree->score_eg = tree->score_eg / 16;
 #if defined(SKILL)
       if (skill < 100)
         tree->score_eg =
@@ -221,17 +200,38 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta) {
 /*
  **********************************************************************
  *                                                                    *
- *  Call EvaluateDevelopment() to evaluate development.  Note that we *
- *  only do this when either side has not castled at the root.        *
+ *  Call EvaluateCastling() to evaluate castling potential.  Note we  *
+ *  only do this when that side has not castled at the root.          *
  *                                                                    *
  **********************************************************************
  */
   for (side = black; side <= white; side++)
-    EvaluateDevelopment(tree, ply, side);
+    if (Castle(1, side) > 0)
+      EvaluateCastling(tree, ply, side);
+/*
+ **********************************************************************
+ *                                                                    *
+ *  The "dangerous" flag simply indicates whether that side has       *
+ *  enough material to whip up a mating attack if the other side is   *
+ *  careless (Q + minor or better, or RR + R or better).              *
+ *                                                                    *
+ **********************************************************************
+ */
+  tree->dangerous[white] = (Queens(white) && TotalPieces(white, occupied) > 9)
+      || (TotalPieces(white, rook) > 1 && TotalPieces(white, occupied) > 15);
+  tree->dangerous[black] = (Queens(black) && TotalPieces(black, occupied) > 9)
+      || (TotalPieces(black, rook) > 1 && TotalPieces(black, occupied) > 15);
 /*
  **********************************************************************
  *                                                                    *
  *  Then evaluate pieces.                                             *
+ *                                                                    *
+ *  Note 1:  if the current score is way below alpha or way above     *
+ *  beta, there is no point in doing the piece scoring, so we take a  *
+ *  "lazy" approach and skip pieces in that case.                     *
+ *                                                                    *
+ *  Note 2:  We MUST evaluate kings last, since their scoring depends *
+ *  on the tropism scores computed by the other piece evaluations.    *
  *                                                                    *
  **********************************************************************
  */
@@ -253,13 +253,17 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta) {
     for (side = black; side <= white; side++)
       EvaluateQueens(tree, side);
     for (side = black; side <= white; side++)
-      EvaluateKings(tree, ply, side);
+      EvaluateKing(tree, ply, side);
   }
 /*
  **********************************************************************
  *                                                                    *
- *  Adjust the score if the game is drawish but one side appears to   *
- *  be significantly better according to the computed score.          *
+ *  Caclulate the final score, which is interpolated between the      *
+ *  middlegame score and endgame score based on the material left on  *
+ *  the board.                                                        *
+ *                                                                    *
+ *  Adjust the score if one side can't win, but the score actually    *
+ *  favors that side significantly.                                   *
  *                                                                    *
  **********************************************************************
  */
@@ -275,7 +279,7 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta) {
   return (wtm) ? score : -score;
 }
 
-/* last modified 02/23/14 */
+/* last modified 08/17/14 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -285,7 +289,7 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta) {
  */
 void EvaluateBishops(TREE * RESTRICT tree, int side) {
   uint64_t temp, moves;
-  int square, t, mobility;
+  int square, special, i, mobility;
   int score_eg = 0, score_mg = 0, enemy = Flip(side);
 /*
  ************************************************************
@@ -316,17 +320,17 @@ void EvaluateBishops(TREE * RESTRICT tree, int side) {
  *                                                          *
  ************************************************************
  */
-    t = bishop_outpost[side][square];
-    if (t) {
-      if (t > 0) {
+    special = bishop_outpost[side][square];
+    if (special) {
+      if (special > 0) {
         if (!(mask_no_pattacks[enemy][square] & Pawns(enemy))) {
           if (pawn_attacks[enemy][square] & Pawns(side)) {
-            t += t / 2;
+            special += special / 2;
             if (!Knights(enemy) && !(Color(square) & Bishops(enemy)))
-              t += bishop_outpost[side][square];
+              special += bishop_outpost[side][square];
           }
-          score_eg += t;
-          score_mg += t;
+          score_eg += special;
+          score_mg += special;
         }
       }
 /*
@@ -354,9 +358,9 @@ void EvaluateBishops(TREE * RESTRICT tree, int side) {
 /*
  ************************************************************
  *                                                          *
- *  Mobility counts the number of squares the piece         *
- *  attacks, and weighs each square according to            *
- *  centralization.                                         *
+ *  Mobility counts the number of squares the bishop        *
+ *  attacks, excluding squares with friendly pieces, and    *
+ *  weighs each square according to centralization.         *
  *                                                          *
  ************************************************************
  */
@@ -387,84 +391,57 @@ void EvaluateBishops(TREE * RESTRICT tree, int side) {
  */
     if (tree->dangerous[side]) {
       moves = king_attacks[KingSQ(enemy)];
-      t = ((bishop_attacks[square] & moves)
-          && ((BishopAttacks(square,
-                      OccupiedSquares & ~(Queens(side)))) & moves)) ? 1 :
-          Distance(square, KingSQ(enemy));
-      tree->tropism[side] += king_tropism_b[t];
+      i = ((bishop_attacks[square] & moves) &&
+          ((BishopAttacks(square, OccupiedSquares & ~Queens(side))) & moves))
+          ? 1 : Distance(square, KingSQ(enemy));
+      tree->tropism[side] += king_tropism_b[i];
     }
   }
   tree->score_mg += sign[side] * score_mg;
   tree->score_eg += sign[side] * score_eg;
 }
 
-/* last modified 02/23/14 */
+/* last modified 08/06/14 */
 /*
  *******************************************************************************
  *                                                                             *
- *   EvaluateDevelopment() is used to encourage the program to develop its     *
- *   pieces before moving its queen.  Standard developmental principles are    *
- *   applied.  They include:  (1) don't move the queen until minor pieces are  *
- *   developed;  (2) advance the center pawns as soon as possible;  (3) don't  *
- *   move the king unless its a castling move.                                 *
+ *   EvaluateCastling() is called when "side" has not castled at the root.     *
+ *   Its main purpose is to determine if it has either castled somewhere in    *
+ *   the tree, or else has lost all (or some) castling rights, which reduces   *
+ *   options significantly.                                                    *
  *                                                                             *
  *******************************************************************************
  */
-void EvaluateDevelopment(TREE * RESTRICT tree, int ply, int side) {
-  int score_mg = 0;
-  int enemy = Flip(side);
+void EvaluateCastling(TREE * RESTRICT tree, int ply, int side) {
+  int enemy = Flip(side), oq, score_mg = 0;;
 
 /*
  ************************************************************
  *                                                          *
- *  First, some "thematic" things, which includes don't     *
- *  block the c-pawn in queen-pawn openings.                *
+ *  If the king castled during the search, we are done and  *
+ *  we leave it to EvaluateKings() to figure out how safe   *
+ *  it is.  If it has not castled, we give a significant    *
+ *  penalty if the king moves since that loses all castling *
+ *  rights, otherwise we give a smaller penalty for moving  *
+ *  a rook and giving up castling rights to that side of    *
+ *  the board.  The penalty is always increased if the      *
+ *  opponent has a queen since the position is much more    *
+ *  dangerous.                                              *
  *                                                          *
  ************************************************************
  */
-  if (!(SetMask(sqflip[side][E4]) & Pawns(side))
-      && SetMask(sqflip[side][D4]) & Pawns(side)
-      && SetMask(sqflip[side][C2]) & Pawns(side)
-      && SetMask(sqflip[side][C3]) & (Knights(side) | Bishops(side)))
-    score_mg -= development_thematic;
-/*
- ************************************************************
- *                                                          *
- *  If the king hasn't moved at the beginning of the        *
- *  search, but it has moved somewhere in the current       *
- *  search path, make *sure* it's a castle move or else     *
- *  penalize the loss of castling privilege.                *
- *                                                          *
- ************************************************************
- */
-  if (Castle(1, side) > 0) {
-    int oq = (Queens(enemy)) ? 3 : 1;
-
-    if (Castle(ply, side) != Castle(1, side)) {
-      if (Castle(ply, side) == 0)
-        score_mg -= oq * development_losing_castle;
-      else if (Castle(ply, side) > 0)
-        score_mg -= (oq * development_losing_castle) / 2;
-    } else
-      score_mg -= oq * development_not_castled;
-  }
-/*
- ************************************************************
- *                                                          *
- *  Check for an undeveloped knight/rook combo              *
- *                                                          *
- ************************************************************
- */
-  if (PcOnSq(sqflip[side][B1]) == pieces[side][knight]
-      && PcOnSq(sqflip[side][A1]) == pieces[side][rook])
-    score_mg -= undeveloped_piece;
-  if (PcOnSq(sqflip[side][G1]) == pieces[side][knight]
-      && PcOnSq(sqflip[side][H1]) == pieces[side][rook])
-    score_mg -= undeveloped_piece;
+  oq = (Queens(enemy)) ? 3 : 1;
+  if (Castle(ply, side) != Castle(1, side)) {
+    if (Castle(ply, side) == 0)
+      score_mg -= oq * development_losing_castle;
+    else if (Castle(ply, side) > 0)
+      score_mg -= (oq * development_losing_castle) / 2;
+  } else
+    score_mg -= oq * development_not_castled;
   tree->score_mg += sign[side] * score_mg;
 }
 
-/* last modified 02/23/14 */
+/* last modified 08/18/14 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -480,15 +457,30 @@ int EvaluateDraws(TREE * RESTRICT tree, int ply, int can_win, int score) {
  ************************************************************
  *                                                          *
  *  If the ending has only bishops of opposite colors, the  *
- *  score is pulled closer to a draw.  If the score says    *
- *  one side is winning, but that side doesn't have enough  *
- *  material to win, the score is also pulled closer to a   *
- *  draw.                                                   *
+ *  score is pulled closer to a draw.                       *
  *                                                          *
  *  If this is a pure BOC ending, it is very drawish unless *
  *  one side has at least 4 pawns.  More pawns makes it     *
  *  harder for a bishop and king to stop them all from      *
  *  advancing.                                              *
+ *                                                          *
+ *  If the following are both true:                         *
+ *                                                          *
+ *    black and white have less than a queen left (pieces   *
+ *    only).                                                *
+ *                                                          *
+ *    both have one bishop and they are opposite colored.   *
+ *                                                          *
+ *  then either                                             *
+ *                                                          *
+ *    (a) both have just one bishop, both have less than 4  *
+ *    pawns or one side has only one more pawn than the     *
+ *    other side then score is divided by 2 with draw score *
+ *    added in; or                                          *
+ *                                                          *
+ *    (b) pieces are equal, then score is reduced by 25%    *
+ *    with draw score added in.                             *
+ *                                                          *
  *                                                          *
  ************************************************************
  */
@@ -506,11 +498,33 @@ int EvaluateDraws(TREE * RESTRICT tree, int ply, int can_win, int score) {
           score = 3 * score / 4 + DrawScore(1);
       }
   }
+/*
+ ************************************************************
+ *                                                          *
+ *  Final score adjustment.  If the score says white is     *
+ *  better, but can_win says white can not win, or if the   *
+ *  score says black is better, but can_win says black can  *
+ *  not win, then we divide the score by 16, and then add   *
+ *  in the draw score.  If the can_win says neither side    *
+ *  can win, we just set the score to draw score and exit.  *
+ *                                                          *
+ *  We introduce a "weariness factor" when the irreversible *
+ *  move counter approaches 50 moves, and drag the score    *
+ *  toward zero to encourage making progress by a non-      *
+ *  reversible move to reset the counter and get us away    *
+ *  from the impending draw.                                *
+ *                                                          *
+ ************************************************************
+ */
   if (can_win != 3) {
-    if (can_win != 1 && score > DrawScore(1))
-      score = score / 4 + DrawScore(1);
-    else if (can_win != 2 && score < DrawScore(1))
-      score = score / 4 + DrawScore(1);
+    if (can_win & 1) {
+      if (score > DrawScore(1))
+        score = score / 16 + DrawScore(1);
+    } else if (can_win & 2) {
+      if (score < DrawScore(1))
+        score = score / 16 + DrawScore(1);
+    } else
+      score = DrawScore(1);
   }
 /*
  ************************************************************
@@ -527,9 +541,9 @@ int EvaluateDraws(TREE * RESTRICT tree, int ply, int can_win, int score) {
  ************************************************************
  */
   if (Reversible(ply) > 80) {
-    int iscale = 101 - Reversible(ply);
+    int closeness = 101 - Reversible(ply);
 
-    score = DrawScore(1) + score * iscale / 20;
+    score = DrawScore(1) + score * closeness / 20;
   }
   return score;
 }
@@ -563,15 +577,15 @@ int EvaluateHasOpposition(int on_move, int king, int enemy_king) {
   return 0;
 }
 
-/* last modified 02/23/14 */
+/* last modified 06/12/14 */
 /*
  *******************************************************************************
  *                                                                             *
- *   EvaluateKings() is used to evaluate kings.                                *
+ *   EvaluateKing() is used to evaluate a king.                                *
  *                                                                             *
  *******************************************************************************
  */
-void EvaluateKings(TREE * RESTRICT tree, int ply, int side) {
+void EvaluateKing(TREE * RESTRICT tree, int ply, int side) {
   int score_eg = 0, score_mg = 0, defects;
   int ksq = KingSQ(side), enemy = Flip(side);
 
@@ -688,7 +702,7 @@ int EvaluateKingsFile(TREE * RESTRICT tree, int whichfile, int side) {
   return defects;
 }
 
-/* last modified 02/23/14 */
+/* last modified 07/20/14 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -698,7 +712,7 @@ int EvaluateKingsFile(TREE * RESTRICT tree, int whichfile, int side) {
  */
 void EvaluateKnights(TREE * RESTRICT tree, int side) {
   uint64_t temp;
-  int square, t, score_eg = 0, score_mg = 0;
+  int square, special, i, score_eg = 0, score_mg = 0;
   int enemy = Flip(side);
 
 /*
@@ -725,21 +739,21 @@ void EvaluateKnights(TREE * RESTRICT tree, int side) {
  *                                                          *
  ************************************************************
  */
-    t = knight_outpost[side][square];
-    if (t && !(mask_no_pattacks[enemy][square] & Pawns(enemy))) {
+    special = knight_outpost[side][square];
+    if (special && !(mask_no_pattacks[enemy][square] & Pawns(enemy))) {
       if (pawn_attacks[enemy][square] & Pawns(side)) {
-        t += t / 2;
+        special += special / 2;
         if (!Knights(enemy) && !(Color(square) & Bishops(enemy)))
-          t += knight_outpost[side][square];
+          special += knight_outpost[side][square];
       }
-      score_eg += t;
-      score_mg += t;
+      score_eg += special;
+      score_mg += special;
     }
 /*
  ************************************************************
  *                                                          *
- *  Mobility counts the number of squares the piece         *
- *  attacks, including squares with friendly pieces, and    *
+ *  Mobility counts the number of squares the knight        *
+ *  attacks, excluding squares with friendly pieces, and    *
  *  weighs each square according to centralization.         *
  *                                                          *
  ************************************************************
@@ -754,15 +768,15 @@ void EvaluateKnights(TREE * RESTRICT tree, int side) {
  ************************************************************
  */
     if (tree->dangerous[side]) {
-      t = Distance(square, KingSQ(enemy));
-      tree->tropism[side] += king_tropism_n[t];
+      i = Distance(square, KingSQ(enemy));
+      tree->tropism[side] += king_tropism_n[i];
     }
   }
   tree->score_mg += sign[side] * score_mg;
   tree->score_eg += sign[side] * score_eg;
 }
 
-/* last modified 02/23/14 */
+/* last modified 08/07/14 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -807,7 +821,6 @@ void EvaluateMate(TREE * RESTRICT tree, int side) {
     mate_score -=
         (Distance(KingSQ(side), KingSQ(enemy)) - 3) * king_king_tropism;
   }
-  tree->score_mg += sign[side] * mate_score;
   tree->score_eg += sign[side] * mate_score;
 }
 
@@ -822,9 +835,8 @@ void EvaluateMate(TREE * RESTRICT tree, int side) {
  *******************************************************************************
  */
 void EvaluateMaterial(TREE * RESTRICT tree, int wtm) {
-  int score_mg, score_eg, majors, minors, imbal;
-  static int bon[17] =
-      { 0, 40, 40, 35, 30, 24, 16, 12, 10, 8, 7, 6, 5, 4, 3, 2, 1 };
+  int score_mg, score_eg, majors, minors;
+  const int bad_trade = 90;
 
 /*
  **********************************************************************
@@ -839,18 +851,33 @@ void EvaluateMaterial(TREE * RESTRICT tree, int wtm) {
 /*
  **********************************************************************
  *                                                                    *
- *  If Majors or Minors are not balanced, then apply the appropriate  *
- *  bonus/penatly from our imbalance table.                           *
+ *   test 1.  if Majors or Minors are not balanced, then if one side  *
+ *   is only an exchange up or down, we do not give any sort of bad   *
+ *   trade penalty/bonus.                                             *
+ *                                                                    *
+ *   test 2.  if Majors or Minors are not balanced, then if one side  *
+ *   has more piece material points than the other (using normal      *
+ *   piece values of 3, 3, 5, 9 for N, B, R and Q) then the side that *
+ *   is behind in piece material gets a penalty.                      *
  *                                                                    *
  **********************************************************************
  */
-  majors = 4 + TotalMajors(white) - TotalMajors(black);
-  minors = 4 + TotalMinors(white) - TotalMinors(black);
-  majors = Max(Min(majors, 8), 0);
-  minors = Max(Min(minors, 8), 0);
-  imbal = imbalance[majors][minors];
-  score_mg += imbal;
-  score_eg += imbal;
+  majors =
+      TotalPieces(white, rook) + 2 * TotalPieces(white,
+      queen) - TotalPieces(black, rook) - 2 * TotalPieces(black, queen);
+  minors =
+      TotalPieces(white, knight) + TotalPieces(white,
+      bishop) - TotalPieces(black, knight) - TotalPieces(black, bishop);
+  if (majors || minors)
+    if (Abs(TotalPieces(white, occupied) - TotalPieces(black, occupied)) != 2
+        && TotalPieces(white, occupied) - TotalPieces(black, occupied) != 0) {
+      score_mg +=
+          Sign(TotalPieces(white, occupied) - TotalPieces(black,
+              occupied)) * bad_trade;
+      score_eg +=
+          Sign(TotalPieces(white, occupied) - TotalPieces(black,
+              occupied)) * bad_trade;
+    }
 /*
  ************************************************************
  *                                                          *
@@ -866,26 +893,6 @@ void EvaluateMaterial(TREE * RESTRICT tree, int wtm) {
   if (TotalPieces(black, bishop) > 1) {
     score_mg -= bishop_pair[mg];
     score_eg -= bishop_pair[eg];
-  }
-/*
- ************************************************************
- *                                                          *
- *  Check for pawns on both wings, which makes a bishop     *
- *  even more valuable against an enemy knight (knight vs.  *
- *  bishop in endgame)                                      *
- *                                                          *
- ************************************************************
- */
-  if (!imbal && !TotalMajors(white) && TotalMinors(white) == 1) {
-    imbal = bon[(TotalPieces(white, pawn) + TotalPieces(black, pawn))];
-    if (Bishops(white)) {
-      score_mg += imbal;
-      score_eg += imbal;
-    }
-    if (Bishops(black)) {
-      score_mg -= imbal;
-      score_eg -= imbal;
-    }
   }
   tree->score_mg += score_mg;
   tree->score_eg += score_eg;
@@ -946,7 +953,9 @@ void EvaluatePassedPawns(TREE * RESTRICT tree, int side, int wtm) {
  *                                                          *
  *  See if this pawn is either supported by a friendly rook *
  *  from behind, or is attacked by an enemy rook from       *
- *  behind.                                                 *
+ *  behind.  Note that doubled rooks will not get this      *
+ *  bonus added in twice since only one directly attacks    *
+ *  the pawn in question.                                   *
  *                                                          *
  ************************************************************
  */
@@ -1135,7 +1144,7 @@ void EvaluatePassedPawnRaces(TREE * RESTRICT tree, int wtm) {
             tree->score_eg += sign[side] * pawn_can_promote;
             return;
           }
-          if (Rank(KingSQ(side)) == rankflip[side][RANK6]) {
+          if (Rank(KingSQ(side)) == rank6[side]) {
             tree->score_eg += sign[side] * pawn_can_promote;
             return;
           }
@@ -1174,13 +1183,13 @@ void EvaluatePassedPawnRaces(TREE * RESTRICT tree, int wtm) {
             (pawn_race[side][wtm][square] & Kings(enemy)) !=
             (pawn_race[side][Flip(wtm)][square] & Kings(enemy));
         if (!(pawn_race[side][wtm][square] & Kings(enemy))) {
-          queen_distance = Abs(rankflip[side][RANK8] - Rank(square));
+          queen_distance = Abs(rank8[side] - Rank(square));
           if (Kings(side) & ((side) ? plus8dir[square] : minus8dir[square])) {
             if (file == FILEA || file == FILEH)
               queen_distance = 99;
             queen_distance++;
           }
-          if (Rank(square) == rankflip[side][RANK2])
+          if (Rank(square) == rank2[side])
             queen_distance--;
           if (queen_distance < queener[side])
             queener[side] = queen_distance;
@@ -1274,7 +1283,7 @@ void EvaluatePawns(TREE * RESTRICT tree, int side) {
   for (pawns = Pawns(side); pawns; pawns &= pawns - 1) {
     square = LSB(pawns);
     tree->pawn_score.all[side] |= 1 << File(square);
-    for (sq = square; sq != File(square) + ((side) ? RANK7 << 3 : RANK2 << 3);
+    for (sq = square; sq != File(square) + (rank7[side] << 3);
         sq += direction[side]) {
       p_moves[side] |= SetMask(sq);
       if (SetMask(sq + direction[side]) & tree->all_pawns)
@@ -1312,9 +1321,9 @@ void EvaluatePawns(TREE * RESTRICT tree, int side) {
 /*
  ************************************************************
  *                                                          *
- *  Evaluate isolated pawns, which  are penalized based on  *
- *  the file, with central isolani being worse than when on *
- *  the wings.                                              *
+ *  Evaluate isolated pawns, which are penalized based on   *
+ *  whether they are isolated, and whether they are on a    *
+ *  half-open file making them easier to attack.            *
  *                                                          *
  ************************************************************
  */
@@ -1431,8 +1440,7 @@ void EvaluatePawns(TREE * RESTRICT tree, int side) {
         && !(pawn_attacks[side][square] & Pawns(enemy))) {
       attackers = 1;
       defenders = 0;
-      for (sq = square;
-          sq != File(square) + ((side) ? RANK7 << 3 : RANK2 << 3);
+      for (sq = square; sq != File(square) + (rank7[side] << 3);
           sq += direction[side]) {
         if (SetMask(sq + direction[side]) & tree->all_pawns)
           break;
@@ -1459,7 +1467,7 @@ void EvaluatePawns(TREE * RESTRICT tree, int side) {
  *                                                          *
  ************************************************************
  */
-    if (Rank(square) == ((side) ? RANK6 : RANK3)
+    if (Rank(square) == rank6[side]
         && SetMask(square + direction[side]) & Pawns(enemy)
         && ((File(square) < FILEH &&
                 SetMask(square + 9 - 16 * side) & Pawns(side)
@@ -1476,8 +1484,8 @@ void EvaluatePawns(TREE * RESTRICT tree, int side) {
  *                                                          *
  *  Evaluate king safety.                                   *
  *                                                          *
- *  This uses the function EvaluateKingsFile() which looks  *
- *  at four possible positions for the king, either castled *
+ *  This uses the function EvaluateKingsFile() and looks at *
+ *  four possible positions for the king, either castled    *
  *  kingside, queenside or else standing on the d or e file *
  *  stuck in the middle.  This essentially is about the     *
  *  pawns in front of the king and what kind of "shelter"   *
@@ -1503,7 +1511,7 @@ void EvaluatePawns(TREE * RESTRICT tree, int side) {
  */
 void EvaluateQueens(TREE * RESTRICT tree, int side) {
   uint64_t temp;
-  int square, t, score_mg = 0, score_eg = 0;
+  int square, i, score_mg = 0, score_eg = 0;
   int enemy = Flip(side);
 
 /*
@@ -1534,18 +1542,18 @@ void EvaluateQueens(TREE * RESTRICT tree, int side) {
  ************************************************************
  */
     if (tree->dangerous[side]) {
-      t = KingSQ(enemy);
-      tree->tropism[side] += king_tropism_q[Distance(square, t)];
-      t = 8 - (RankDistance(square, t) + FileDistance(square, t));
-      score_mg += t;
-      score_eg += t;
+      i = KingSQ(enemy);
+      tree->tropism[side] += king_tropism_q[Distance(square, i)];
+      i = 8 - (RankDistance(square, i) + FileDistance(square, i));
+      score_mg += i;
+      score_eg += i;
     }
   }
   tree->score_mg += sign[side] * score_mg;
   tree->score_eg += sign[side] * score_eg;
 }
 
-/* last modified 02/23/14 */
+/* last modified 08/20/14 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -1555,7 +1563,7 @@ void EvaluateQueens(TREE * RESTRICT tree, int side) {
  */
 void EvaluateRooks(TREE * RESTRICT tree, int side) {
   uint64_t temp, moves;
-  int square, rank, fRank, file, i, t, mobility;
+  int square, rank, file, i, mobility;
   int score_mg = 0, score_eg = 0;
   int enemy = Flip(side);
 
@@ -1570,7 +1578,6 @@ void EvaluateRooks(TREE * RESTRICT tree, int side) {
     square = LSB(temp);
     file = File(square);
     rank = Rank(square);
-    fRank = rankflip[side][rank];
 /*
  ************************************************************
  *                                                          *
@@ -1598,48 +1605,53 @@ void EvaluateRooks(TREE * RESTRICT tree, int side) {
  *                                                          *
  ************************************************************
  */
-    if (fRank == RANK1) {
-      if (rank == Rank(KingSQ(side))) {
-        i = File(KingSQ(side));
-        if (i > FILEE) {
-          if (file > i) {
-            score_mg -= rook_trapped;
-            score_eg -= rook_trapped;
-          }
-        } else if (i < FILED && file < i) {
+    if (rank == rank1[side] && rank == Rank(KingSQ(side))) {
+      i = File(KingSQ(side));
+      if (i > FILEE) {
+        if (file > i) {
           score_mg -= rook_trapped;
           score_eg -= rook_trapped;
         }
+      } else if (i < FILED && file < i) {
+        score_mg -= rook_trapped;
+        score_eg -= rook_trapped;
       }
     }
 /*
  ************************************************************
  *                                                          *
- *  Determine if the rook is on the 7th rank.  If so the    *
- *  rook exerts a "cramping" effect that is valuable.       *
+ *   finally check to see if any rooks are on the 7th rank, *
+ *   with the opponent having pawns on that rank or the     *
+ *   opponent's king being hemmed in on the 7th/8th rank.   *
+ *   If so, we give a bonus for the strong rook.  If there  *
+ *   is another rook on the 7th that is connected with this *
+ *   one, then the positional advantage is even stronger.   *
  *                                                          *
  ************************************************************
  */
-    else if (fRank == RANK7) {
+    else if (rank == rank7[side] && (Rank(KingSQ(enemy)) == rank8[side]
+            || Pawns(enemy) & rank_mask[rank7[side]])) {
       score_mg += rook_on_7th[mg];
       score_eg += rook_on_7th[eg];
+      if (RankAttacks(square) & Rooks(side)) {
+        score_mg += rook_connected_7th[mg];
+        score_eg += rook_connected_7th[eg];
+      }
     }
 /*
  ************************************************************
  *                                                          *
- *  Mobility counts the number of squares the piece         *
- *  attacks, and weighs each square according to a complex  *
- *  formula that includes files as well as total number of  *
- *  squares attacked.                                       *
- *                                                          *
- *  For efficiency, we use a pre-computed mobility score    *
- *  that is accessed just like a magic attack generation.   *
+ *  Mobility counts the number of squares the rook attacks, *
+ *  excluding squares with friendly pieces, and weighs each *
+ *  square according to a complex formula that includes     *
+ *  files as well as total number of squares attacked.      *
  *                                                          *
  ************************************************************
  */
     mobility = RookMobility(square, OccupiedSquares);
     score_mg += mobility;
     score_eg += mobility;
+
 /*
  ************************************************************
  *                                                          *
@@ -1649,18 +1661,18 @@ void EvaluateRooks(TREE * RESTRICT tree, int side) {
  */
     if (tree->dangerous[side]) {
       moves = king_attacks[KingSQ(enemy)];
-      t = (rook_attacks[square] & moves &&
+      i = (rook_attacks[square] & moves &&
           RookAttacks(square,
-              OccupiedSquares & ~(Queens(side) | (Rooks(side)))) & moves) ? 1
-          : Distance(square, KingSQ(enemy));
-      tree->tropism[side] += king_tropism_r[t];
+              OccupiedSquares & ~(Queens(side) | Rooks(side))) & moves) ? 1 :
+          Distance(square, KingSQ(enemy));
+      tree->tropism[side] += king_tropism_r[i];
     }
   }
   tree->score_mg += sign[side] * score_mg;
   tree->score_eg += sign[side] * score_eg;
 }
 
-/* last modified 02/23/14 */
+/* last modified 08/20/14 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -1675,9 +1687,35 @@ void EvaluateRooks(TREE * RESTRICT tree, int side) {
  *******************************************************************************
  */
 int EvaluateWinningChances(TREE * RESTRICT tree, int side, int wtm) {
-  int square, ekd, promote;
+  int square, ekd, promote, majors, minors;
   int enemy = Flip(side);
 
+/*
+ ************************************************************
+ *                                                          *
+ *  If neither side has any pieces, and both sides have     *
+ *  non-rookpawns, then either side can win.                *
+ *                                                          *
+ ************************************************************
+ */
+  if (TotalPieces(white, occupied) == 0 && TotalPieces(black, occupied) == 0
+      && Pawns(white) & not_rook_pawns && Pawns(black) & not_rook_pawns)
+    return 1;
+/*
+ ************************************************************
+ *                                                          *
+ *  If one side is an exchange up, but has no pawns, then   *
+ *  that side can not possibly win.                         *
+ *                                                          *
+ ************************************************************
+ */
+  majors = TotalMajors(side) - TotalMajors(enemy);
+  if (Abs(majors) == 1) {
+    minors = TotalMinors(enemy) - TotalMinors(side);
+    if (majors == minors)
+      if (TotalPieces(side, pawn) == 0)
+        return 0;
+  }
 /*
  ************************************************************
  *                                                          *
@@ -1700,7 +1738,7 @@ int EvaluateWinningChances(TREE * RESTRICT tree, int side, int wtm) {
  ************************************************************
  *                                                          *
  *  If "side" has a pawn, then either the pawn had better   *
- *  not be a rook pawn, or else white had better have the   *
+ *  not be a rook pawn, or else side had better have the    *
  *  right color bishop or any other piece, otherwise it is  *
  *  not winnable if the enemy king can get to the queening  *
  *  square first.                                           *
@@ -1732,16 +1770,14 @@ int EvaluateWinningChances(TREE * RESTRICT tree, int side, int wtm) {
 /*
  ************************************************************
  *                                                          *
- *  Check to see if this is a KRP vs KR or KQP vs KQ type   *
- *  ending.  If so, and the losing king is in front of the  *
- *  passer, then this is a drawish ending.                  *
+ *  Check to see if this is a KRP vs KR ending.  If so, and *
+ *  the losing king is in front of the passer, then this is *
+ *  a drawish ending.                                       *
  *                                                          *
  ************************************************************
  */
   if (TotalPieces(side, pawn) == 1 && TotalPieces(enemy, pawn) == 0 &&
-      ((TotalPieces(side, occupied) == 5 && TotalPieces(enemy, occupied) == 5)
-          || (TotalPieces(side, occupied) == 9 &&
-              TotalPieces(enemy, occupied) == 9))) {
+      TotalPieces(side, occupied) == 5 && TotalPieces(enemy, occupied) == 5) {
     square = LSB(Pawns(side));
     if (FileDistance(KingSQ(enemy), square) <= 1 &&
         InFront(side, Rank(KingSQ(enemy)), Rank(square)))
@@ -1780,5 +1816,13 @@ int EvaluateWinningChances(TREE * RESTRICT tree, int side, int wtm) {
   if (TotalPieces(side, occupied) == 6 && !Bishops(side)
       && TotalPieces(enemy, occupied) + TotalPieces(enemy, pawn) == 0)
     return 0;
+/*
+ ************************************************************
+ *                                                          *
+ *  If we make it through all the above tests, then "side"  *
+ *  can win so we return 1;                                 *
+ *                                                          *
+ ************************************************************
+ */
   return 1;
 }

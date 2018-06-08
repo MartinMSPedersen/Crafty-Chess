@@ -88,19 +88,18 @@ void EVTest(char *filename) {
       Castle(1, white) = 0;
       Castle(0, black) = 0;
       Castle(1, black) = 0;
-      root_wtm = game_wtm;
       tree->pawn_score.key = 0;
       s1 = Evaluate(tree, 0, game_wtm, -99999, 99999);
       strcpy(buffer, "flop");
-      (void) Option(tree);
+      Option(tree);
       tree->pawn_score.key = 0;
       s2 = Evaluate(tree, 0, game_wtm, -99999, 99999);
       strcpy(buffer, "flip");
-      (void) Option(tree);
+      Option(tree);
       tree->pawn_score.key = 0;
       s3 = Evaluate(tree, 0, game_wtm, -99999, 99999);
       strcpy(buffer, "flop");
-      (void) Option(tree);
+      Option(tree);
       tree->pawn_score.key = 0;
       s4 = Evaluate(tree, 0, game_wtm, -99999, 99999);
 /*
@@ -116,7 +115,7 @@ void EVTest(char *filename) {
       if (s1 != s2 || s1 != s3 || s1 != s4 || s2 != s3 || s2 != s4 ||
           s3 != s4) {
         strcpy(buffer, "flip");
-        (void) Option(tree);
+        Option(tree);
         printf("FEN = %s\n", buff);
         DisplayChessBoard(stdout, tree->position);
         if (id)

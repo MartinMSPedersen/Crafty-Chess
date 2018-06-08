@@ -1,6 +1,6 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 05/15/14 */
+/* last modified 09/21/14 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -12,7 +12,7 @@
  *                                                                             *
  *******************************************************************************
  */
-int NextEvasion(TREE * RESTRICT tree, int ply, int wtm) {
+int NextEvasion(TREE * RESTRICT tree, int ply, int side) {
   int *movep, *sortv;
 
   switch (tree->next_status[ply].phase) {
@@ -30,7 +30,7 @@ int NextEvasion(TREE * RESTRICT tree, int ply, int wtm) {
       if (tree->hash_move[ply]) {
         tree->next_status[ply].phase = GENERATE_ALL_MOVES;
         tree->curmv[ply] = tree->hash_move[ply];
-        if (ValidMove(tree, ply, wtm, tree->curmv[ply]))
+        if (ValidMove(tree, ply, side, tree->curmv[ply]))
           return HASH_MOVE;
 #if defined(DEBUG)
         else
@@ -59,7 +59,7 @@ int NextEvasion(TREE * RESTRICT tree, int ply, int wtm) {
  */
     case GENERATE_ALL_MOVES:
       tree->last[ply] =
-          GenerateCheckEvasions(tree, ply, wtm, tree->last[ply - 1]);
+          GenerateCheckEvasions(tree, ply, side, tree->last[ply - 1]);
       tree->next_status[ply].phase = REMAINING_MOVES;
       for (movep = tree->last[ply - 1], sortv = tree->sort_value;
           movep < tree->last[ply]; movep++, sortv++)
@@ -68,11 +68,11 @@ int NextEvasion(TREE * RESTRICT tree, int ply, int wtm) {
           *movep = 0;
         } else {
           if (pcval[Piece(*movep)] <= pcval[Captured(*movep)])
-            *sortv = 128 * pcval[Captured(*movep)] - pcval[Piece(*movep)];
+            *sortv = 1024 * pcval[Captured(*movep)] - pcval[Piece(*movep)];
           else {
-            *sortv = Swap(tree, *movep, wtm);
+            *sortv = Swap(tree, *movep, side);
             if (*sortv >= 0)
-              *sortv = 128 * pcval[Captured(*movep)] - pcval[Piece(*movep)];
+              *sortv = 1024 * pcval[Captured(*movep)] - pcval[Piece(*movep)];
           }
         }
 /*
@@ -127,7 +127,7 @@ int NextEvasion(TREE * RESTRICT tree, int ply, int wtm) {
   return NONE;
 }
 
-/* last modified 05/15/14 */
+/* last modified 09/21/14 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -140,8 +140,8 @@ int NextEvasion(TREE * RESTRICT tree, int ply, int wtm) {
  *                                                                             *
  *******************************************************************************
  */
-int NextMove(TREE * RESTRICT tree, int ply, int wtm) {
-  int *movep, *sortv;
+int NextMove(TREE * RESTRICT tree, int ply, int depth, int side) {
+  int *movep, *sortv, *bestp, bestval, hvalue;
 
   switch (tree->next_status[ply].phase) {
 /*
@@ -154,14 +154,13 @@ int NextMove(TREE * RESTRICT tree, int ply, int wtm) {
  ************************************************************
  */
     case HASH_MOVE:
-      tree->next_status[ply].num_excluded = 0;
+      tree->next_status[ply].excluded = 0;
       tree->next_status[ply].phase = GENERATE_CAPTURE_MOVES;
       if (tree->hash_move[ply]) {
         tree->curmv[ply] = tree->hash_move[ply];
-        tree->next_status[ply].excluded_moves[tree->next_status[ply].
-            num_excluded++]
+        tree->next_status[ply].done[tree->next_status[ply].excluded++]
             = tree->curmv[ply];
-        if (ValidMove(tree, ply, wtm, tree->curmv[ply]))
+        if (ValidMove(tree, ply, side, tree->curmv[ply]))
           return HASH_MOVE;
 #if defined(DEBUG)
         else
@@ -182,16 +181,17 @@ int NextMove(TREE * RESTRICT tree, int ply, int wtm) {
  */
     case GENERATE_CAPTURE_MOVES:
       tree->next_status[ply].phase = CAPTURE_MOVES;
-      tree->last[ply] = GenerateCaptures(tree, ply, wtm, tree->last[ply - 1]);
+      tree->last[ply] =
+          GenerateCaptures(tree, ply, side, tree->last[ply - 1]);
       tree->next_status[ply].remaining = 0;
       for (movep = tree->last[ply - 1], sortv = tree->sort_value;
           movep < tree->last[ply]; movep++, sortv++)
         if (*movep == tree->hash_move[ply]) {
           *sortv = -999999;
           *movep = 0;
-          tree->next_status[ply].num_excluded = 0;
+          tree->next_status[ply].excluded = 0;
         } else {
-          *sortv = 128 * pcval[Captured(*movep)] - pcval[Piece(*movep)];
+          *sortv = 1024 * pcval[Captured(*movep)] - pcval[Piece(*movep)];
           tree->next_status[ply].remaining++;
         }
 /*
@@ -240,7 +240,7 @@ int NextMove(TREE * RESTRICT tree, int ply, int wtm) {
         if (!--tree->next_status[ply].remaining)
           tree->next_status[ply].phase = KILLER_MOVE_1;
         if (pcval[Piece(tree->curmv[ply])] > pcval[Captured(tree->curmv[ply])]
-            && Swap(tree, tree->curmv[ply], wtm) < 0)
+            && Swap(tree, tree->curmv[ply], side) < 0)
           continue;
         *(tree->next_status[ply].last - 1) = 0;
         return CAPTURE_MOVES;
@@ -259,20 +259,18 @@ int NextMove(TREE * RESTRICT tree, int ply, int wtm) {
  */
     case KILLER_MOVE_1:
       if (!Exclude(tree, ply, tree->killers[ply].move1) &&
-          ValidMove(tree, ply, wtm, tree->killers[ply].move1)) {
+          ValidMove(tree, ply, side, tree->killers[ply].move1)) {
         tree->curmv[ply] = tree->killers[ply].move1;
-        tree->next_status[ply].excluded_moves[tree->next_status[ply].
-            num_excluded++]
+        tree->next_status[ply].done[tree->next_status[ply].excluded++]
             = tree->curmv[ply];
         tree->next_status[ply].phase = KILLER_MOVE_2;
         return KILLER_MOVE_1;
       }
     case KILLER_MOVE_2:
       if (!Exclude(tree, ply, tree->killers[ply].move2) &&
-          ValidMove(tree, ply, wtm, tree->killers[ply].move2)) {
+          ValidMove(tree, ply, side, tree->killers[ply].move2)) {
         tree->curmv[ply] = tree->killers[ply].move2;
-        tree->next_status[ply].excluded_moves[tree->next_status[ply].
-            num_excluded++]
+        tree->next_status[ply].done[tree->next_status[ply].excluded++]
             = tree->curmv[ply];
         if (ply < 3) {
           tree->next_status[ply].phase = GENERATE_ALL_MOVES;
@@ -282,20 +280,18 @@ int NextMove(TREE * RESTRICT tree, int ply, int wtm) {
       }
     case KILLER_MOVE_3:
       if (!Exclude(tree, ply, tree->killers[ply - 2].move1) &&
-          ValidMove(tree, ply, wtm, tree->killers[ply - 2].move1)) {
+          ValidMove(tree, ply, side, tree->killers[ply - 2].move1)) {
         tree->curmv[ply] = tree->killers[ply - 2].move1;
-        tree->next_status[ply].excluded_moves[tree->next_status[ply].
-            num_excluded++]
+        tree->next_status[ply].done[tree->next_status[ply].excluded++]
             = tree->curmv[ply];
         tree->next_status[ply].phase = KILLER_MOVE_4;
         return KILLER_MOVE_3;
       }
     case KILLER_MOVE_4:
       if (!Exclude(tree, ply, tree->killers[ply - 2].move2) &&
-          ValidMove(tree, ply, wtm, tree->killers[ply - 2].move2)) {
+          ValidMove(tree, ply, side, tree->killers[ply - 2].move2)) {
         tree->curmv[ply] = tree->killers[ply - 2].move2;
-        tree->next_status[ply].excluded_moves[tree->next_status[ply].
-            num_excluded++]
+        tree->next_status[ply].done[tree->next_status[ply].excluded++]
             = tree->curmv[ply];
         tree->next_status[ply].phase = GENERATE_ALL_MOVES;
         return KILLER_MOVE_4;
@@ -309,15 +305,88 @@ int NextMove(TREE * RESTRICT tree, int ply, int wtm) {
  ************************************************************
  */
     case GENERATE_ALL_MOVES:
-      tree->last[ply] = GenerateNoncaptures(tree, ply, wtm, tree->last[ply]);
+      tree->last[ply] = GenerateNoncaptures(tree, ply, side, tree->last[ply]);
+      tree->next_status[ply].last = tree->last[ply - 1];
+/*
+ ************************************************************
+ *                                                          *
+ *  Now, try the history moves.  This phase takes the       *
+ *  complete move list, and passes over them in a classic   *
+ *  selection-sort, choosing the move with the highest      *
+ *  history score.  This phase is only done one time, as it *
+ *  also purges the hash and killer moves from the list.    *
+ *                                                          *
+ ************************************************************
+ */
+      tree->next_status[ply].remaining = 1;
+      tree->next_status[ply].phase = HISTORY_MOVES;
+      bestval = -99999999;
+      bestp = 0;
+      for (movep = tree->last[ply - 1]; movep < tree->last[ply]; movep++)
+        if (*movep) {
+          if (Exclude(tree, ply, *movep))
+            *movep = 0;
+          else {
+            hvalue = history[side][HistoryIndex(*movep)];
+            if (hvalue > bestval) {
+              bestval = hvalue;
+              bestp = movep;
+            }
+          }
+        }
+      if (bestp) {
+        tree->curmv[ply] = *bestp;
+        *bestp = 0;
+        if (bestval < -1000)
+          tree->phase[ply] = REMAINING_MOVES;
+        return (HISTORY_MOVES);
+      }
+      goto remaining_moves;
+/*
+ ************************************************************
+ *                                                          *
+ *  Now, continue with the history moves, but since one     *
+ *  pass has been made over the complete move list, there   *
+ *  are no hash/killer moves left in the list, so the tests *
+ *  for these can be avoided.                               *
+ *                                                          *
+ ************************************************************
+ */
+    case HISTORY_MOVES:
+      if (depth >= 6) {
+        bestval = -99999999;
+        bestp = 0;
+        for (movep = tree->last[ply - 1]; movep < tree->last[ply]; movep++)
+          if (*movep) {
+            hvalue = history[side][HistoryIndex(*movep)];
+            if (hvalue > bestval) {
+              bestval = hvalue;
+              bestp = movep;
+            }
+          }
+        if (bestp) {
+          tree->curmv[ply] = *bestp;
+          *bestp = 0;
+          if (bestval < -1000)
+            tree->phase[ply] = REMAINING_MOVES;
+          tree->next_status[ply].remaining++;
+          if (tree->next_status[ply].remaining > 10) {
+            tree->next_status[ply].phase = REMAINING_MOVES;
+            tree->next_status[ply].last = tree->last[ply - 1];
+          }
+          return (HISTORY_MOVES);
+        }
+      }
+    remaining_moves:
       tree->next_status[ply].phase = REMAINING_MOVES;
       tree->next_status[ply].last = tree->last[ply - 1];
 /*
  ************************************************************
  *                                                          *
- *  Then we try the rest of the set of moves, but we use    *
- *  Exclude() function to skip any moves we have already    *
- *  searched (hash or killers).                             *
+ *  Then we try the rest of the set of moves, and we do not *
+ *  use Exclude() function to skip any moves we have        *
+ *  already searched (hash or killers) since the history    *
+ *  phase above has already done that.                      *
  *                                                          *
  ************************************************************
  */
@@ -325,20 +394,18 @@ int NextMove(TREE * RESTRICT tree, int ply, int wtm) {
       for (; tree->next_status[ply].last < tree->last[ply];
           tree->next_status[ply].last++)
         if (*tree->next_status[ply].last) {
-          if (!Exclude(tree, ply, *tree->next_status[ply].last)) {
-            tree->curmv[ply] = *tree->next_status[ply].last++;
-            return REMAINING_MOVES;
-          }
+          tree->curmv[ply] = *tree->next_status[ply].last++;
+          return REMAINING_MOVES;
         }
       return NONE;
     default:
-      Print(4095, "oops!  next_status.phase is bad! [normal %d]\n",
+      Print(4095, "oops!  next_status.phase is bad! [phase=%d]\n",
           tree->next_status[ply].phase);
   }
   return NONE;
 }
 
-/* last modified 05/15/14 */
+/* last modified 09/21/14 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -346,7 +413,7 @@ int NextMove(TREE * RESTRICT tree, int ply, int wtm) {
  *                                                                             *
  *******************************************************************************
  */
-int NextRootMove(TREE * RESTRICT tree, TREE * RESTRICT mytree, int wtm) {
+int NextRootMove(TREE * RESTRICT tree, TREE * RESTRICT mytree, int side) {
   int which, i;
   uint64_t total_nodes;
 
@@ -405,7 +472,7 @@ int NextRootMove(TREE * RESTRICT tree, TREE * RESTRICT mytree, int wtm) {
  *                                                          *
  ************************************************************
  */
-      if (tree->nodes_searched > noise_level && display_options & 32) {
+      if (ReadClock() - start_time > noise_level && display_options & 32) {
         Lock(lock_io);
         sprintf(mytree->remaining_moves_text, "%d/%d", which + 1,
             n_root_moves);
@@ -420,10 +487,10 @@ int NextRootMove(TREE * RESTRICT tree, TREE * RESTRICT mytree, int wtm) {
               mytree->remaining_moves_text);
         if (display_options & 32 && display_options & 64)
           printf("%d. ", move_number);
-        if (display_options & 32 && display_options & 64 && Flip(wtm))
+        if (display_options & 32 && display_options & 64 && Flip(side))
           printf("... ");
         strcpy(mytree->root_move_text, OutputMove(tree, tree->curmv[1], 1,
-                wtm));
+                side));
         total_nodes = block[0]->nodes_searched;
         for (i = 1; i < MAX_BLOCKS; i++)
           if (block[i] && block[i]->used)
@@ -433,7 +500,7 @@ int NextRootMove(TREE * RESTRICT tree, TREE * RESTRICT mytree, int wtm) {
         i = (i < 8) ? i : 8;
         strncat(mytree->root_move_text, "          ", 8 - i);
         printf("%s", mytree->root_move_text);
-        printf("(%snps)             \r", DisplayKMB(nodes_per_second));
+        printf("(%snps)             \r", DisplayKMB(nodes_per_second, 0));
         fflush(stdout);
         Unlock(lock_io);
       }
@@ -457,7 +524,7 @@ int NextRootMove(TREE * RESTRICT tree, TREE * RESTRICT mytree, int wtm) {
   return NONE;
 }
 
-/* last modified 05/15/14 */
+/* last modified 09/21/14 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -495,7 +562,7 @@ int NextRootMoveParallel(void) {
   return 0;
 }
 
-/* last modified 05/15/14 */
+/* last modified 09/21/14 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -503,20 +570,20 @@ int NextRootMoveParallel(void) {
  *   list to exclude those that were searched via a hash table best move or    *
  *   through the killer moves for the current ply and two plies back.          *
  *                                                                             *
- *   The variable next_status[].num_excluded is the total number of non-       *
- *   generated moves we searched.  next_status[].remaining is initially set to *
- *   num_excluded, but each time an excluded move is found, the counter is     *
- *   decremented.  Once all excluded moves have been found, we avoid running   *
- *   through the list of excluded moves on each call and simply return.        *
+ *   The variable next_status[].excluded is the total number of non-generated  *
+ *   moves we searched.  next_status[].remaining is initially set to excluded, *
+ *   but each time an excluded move is found, the counter is decremented.      *
+ *   Once all excluded moves have been found, we avoid running through the     *
+ *   list of excluded moves on each call and simply return.                    *
  *                                                                             *
  *******************************************************************************
  */
 int Exclude(TREE * RESTRICT tree, int ply, int move) {
   int i;
 
-  if (tree->next_status[ply].num_excluded)
-    for (i = 0; i < tree->next_status[ply].num_excluded; i++)
-      if (move == tree->next_status[ply].excluded_moves[i]) {
+  if (tree->next_status[ply].excluded)
+    for (i = 0; i < tree->next_status[ply].excluded; i++)
+      if (move == tree->next_status[ply].done[i]) {
         tree->next_status[ply].remaining--;
         return 1;
       }

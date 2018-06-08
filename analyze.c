@@ -50,7 +50,7 @@ void Analyze() {
       input_status = 0;
       pondering = 1;
       tree->status[1] = tree->status[0];
-      (void) Iterate(game_wtm, think, 0);
+      Iterate(game_wtm, think, 0);
       pondering = 0;
       if (book_move)
         moves_out_of_book = 0;
@@ -117,7 +117,7 @@ void Analyze() {
           game_wtm = 1;
         }
         sprintf(buffer, "reset %d", move_number);
-        (void) Option(tree);
+        Option(tree);
         display = tree->position;
       } else if (Option(tree)) {
         display = tree->position;

@@ -20,8 +20,8 @@
  *  the people involved in the continuing development of this program, there   *
  *  are no particular members responsible for any specific aspect of Crafty,   *
  *  although R. Hyatt wrote 99%+ of the existing code, excepting the Magic .   *
- *  move stuff by Pradu Kanan, egtb.cpp written by Eugene Nalimov, and the epd *
- *  stuff written by S. Edwards.                                               *
+ *  move stuff by Pradu Kaanan, egtb.cpp written by Eugene Nalimov, and the    *
+ *  epd stuff written by S. Edwards.                                           *
  *                                                                             *
  *     Robert Hyatt, University of Alabama at Birmingham.                      *
  *     Tracy Riegle, Hershey, PA.                                              *
@@ -737,7 +737,7 @@
  *           modification to Evaluate() to address the problem where Crafty    *
  *           is forced to play Kf1 or Kf8, blocking the rook in and getting    *
  *           into tactical difficulties as a result.  Book problem fixed where *
- *           BookUp was attempting to group moves with a common ancestor       *
+ *           Bookup was attempting to group moves with a common ancestor       *
  *           position together.  Unfortunately, captures were separated from   *
  *           this group, meaning capture moves in the book could never be      *
  *           played.  If a capture was the only move in book, it sort of       *
@@ -1445,7 +1445,7 @@
  *           at least two pieces left on the board.  Another bug in the move   *
  *           generator produced pawn promotions twice, once when captures were *
  *           generated, then again when the rest of the moves are produced.    *
- *           this was also repaired.  Small book now will work.  The BookUp()  *
+ *           this was also repaired.  Small book now will work.  The Bookup()  *
  *           code now assumes white *and* black won in the absence of a valid  *
  *           PGN Result tag, so that the small book will work correctly.       *
  *                                                                             *
@@ -1666,7 +1666,7 @@
  *           this let ValidateMove() fail to correctly detect that a castling  *
  *           move from the hash table might be invalid, which could wreck the  *
  *           search easily.  This was an oversight from the new status code.   *
- *           Serious book bug fixed.  BookUp() was not counting wins and       *
+ *           Serious book bug fixed.  Bookup() was not counting wins and       *
  *           losses correctly, a bug introduced to make small.pgn work. Minor  *
  *           bug in the "trapped bishop" (a2/h2/a7/h7) code fixed.  Minor bug  *
  *           in Swap() also fixed (early exit that was not safe in rare cases.)*
@@ -1954,11 +1954,11 @@
  *           more quickly.                                                     *
  *                                                                             *
  *   14.5    annotate bug fixed where if there was only one legal move, the    *
- *           annotation would stop with no warning.  BookUp() now produces a   *
+ *           annotation would stop with no warning.  Bookup() now produces a   *
  *           more useful error message, giving the exact line number in the    *
  *           input file where the error occurred, to make fixing them easier.  *
  *           If you are playing without a book.bin, 14.4 would crash in the    *
- *           book learning code.  This is now caught and avoided.  BookUp()    *
+ *           book learning code.  This is now caught and avoided.  Bookup()    *
  *           now knows how to skip analysis in PGN files, so you can use such  *
  *           files to create your opening book, without having problems.  It   *
  *           understands that nesting () {} characters "hides" the stuff in-   *
@@ -2181,7 +2181,7 @@
  *           space and this should work under any system to let you know when  *
  *           you run out of space.                                             *
  *                                                                             *
- *   15.15   Major modifications to Book() and BookUp().  BookUp() now needs   *
+ *   15.15   Major modifications to Book() and Bookup().  Bookup() now needs   *
  *           1/2 the temp space to build a book that it used to need (even     *
  *           less under windows).  Also, a book position is now 16 bytes in-   *
  *           stead of 20 (or 24 under windows) further reducing the space      *
@@ -2691,7 +2691,7 @@
  *           the code would not notice black had an outside passer candidate   *
  *           since pawns were 'equal' in number.                               *
  *                                                                             *
- *   17.12   BookUp() will now create a book with all sorts of games in it, so *
+ *   17.12   Bookup() will now create a book with all sorts of games in it, so *
  *           long as the various games have the FEN string to properly set the *
  *           initial chess board position.                                     *
  *                                                                             *
@@ -2736,7 +2736,7 @@
  *           off in endings.  S list removed.  The trojan horse check is now   *
  *           automatically enabled when the key position is recognized at the  *
  *           root of the tree.  It is disabled once the key position is no     *
- *           longer seen at the root.  Bug in BookUp() would break if a FEN    *
+ *           longer seen at the root.  Bug in Bookup() would break if a FEN    *
  *           string was included in a game used for input.  SetBoard() was     *
  *           setting castling status incorrectly.  Internal iterative          *
  *           deepening bug could (on very rare occasions) cause Crafty to try  *
@@ -4011,6 +4011,51 @@
  *           repetition-detection code while chasing a parallel search bug     *
  *           was missing repetitions.                                          *
  *                                                                             *
+ *    24.1   LMR reductions changed to allow a more dynamic reduction amount   *
+ *           rather than just 1 or 2.  An array LMR_reductions[depth][moves]   *
+ *           is initialized at start-up and sets the reduction amount for a    *
+ *           specific depth remaining (larger reduction with more depth left)  *
+ *           and the total moves searched at this node (again a larger         *
+ *           reduction as more moves are searched.)  This can easily be        *
+ *           changed with the new "lmr" command (help lmr for details).  The   *
+ *           old "noise" stuff has been changed.  Now, rather than noise       *
+ *           specifying the number of nodes that have to be searched before    *
+ *           any output is displayed (PV, fail high, etc) it now specifies a   *
+ *           time that must pass before the first output is produced.  This    *
+ *           can still be displayed with noise=0, otherwise noise=n says no    *
+ *           output until n seconds have passed (n can be a fraction of a      *
+ *           second if wanted.)  I restored the old adaptive null-move code,   *
+ *           but changed the reduction (used to be 2 to 3 depending on the     *
+ *           depth remaining) so that it is 3 + depth / 6.  For each 6 plies   *
+ *           of remaining depth, we reduce by another ply, with no real bound  *
+ *           other than the max depth we can reasonably reach.  The "6" in     *
+ *           the above can be changed with the personality command or the new  *
+ *           null m n command.  When the changes to noise were made, Iterate() *
+ *           was also changed so that if the search terminates for any reason  *
+ *           and no PV was displayed, whether because the noise limit was not  *
+ *           satisfied or this search did not produce a PV because it started  *
+ *           at an excessively deep search depth, Crafty now always displays   *
+ *           at least one PV in the log file to show how the game is going to  *
+ *           continue.  One case where this was an issue was where Crafty did  *
+ *           a LONG ponder search because the opponent took an excessive       *
+ *           amount of time to make a move.  If it finishes (say) a 30 ply     *
+ *           search while pondering, when the opponent moves, Crafty will move *
+ *           instantly, but when it starts the next search, we start pondering *
+ *           at iteration 29, which might take a long time to finish.  But we  *
+ *           do still have the PV from the last search (the 30 ply one) and    *
+ *           main() thoughtfully removed the first two moves (the move played  *
+ *           and the move we are now pondering, so we always have something to *
+ *           display, and now we no longer terminate a search with no output   *
+ *           (PV, time, etc) at all.  Generation II of the parallel split code *
+ *           (see Thread() in the thread.c source file comments for specifics) *
+ *           that is a lighter-weight split/copy plus the individual threads   *
+ *           do most of the copying rather than the thread that initiates the  *
+ *           split.  More work on the skill command.  For each 10 units the    *
+ *           skill level is reduced, the search speed is reduced by 50%.       *
+ *           Additionally the null-move and LMR reduction values are also      *
+ *           ramped down so that by the time skill drops below 10, there are   *
+ *           no reductions left.                                               *
+ *                                                                             *
  *******************************************************************************
  */
 int main(int argc, char **argv) {
@@ -4057,7 +4102,7 @@ int main(int argc, char **argv) {
  *                                                          *
  ************************************************************
  */
-  AlignedMalloc((void **) &tree, 2048, (size_t) sizeof(TREE));
+  AlignedMalloc((void *) ((void *) &tree), 2048, (size_t) sizeof(TREE));
   block[0] = tree;
   tree->parent = 0;
   tree->used = 1;
@@ -4218,7 +4263,7 @@ int main(int argc, char **argv) {
     fclose(personality);
     Print(4095, "using default personality file \"crafty.cpf\"\n");
     sprintf(buffer, "personality load crafty.cpf");
-    (void) Option(tree);
+    Option(tree);
   }
 /*
  ************************************************************
@@ -4319,7 +4364,7 @@ int main(int argc, char **argv) {
                 move_number, buffer);
           if (readstat < 0 && input_stream == stdin) {
             strcpy(buffer, "end");
-            (void) Option(tree);
+            Option(tree);
           }
         }
         if (presult == 1)
@@ -4383,7 +4428,7 @@ int main(int argc, char **argv) {
  *                                                          *
  ************************************************************
  */
-        if ((draw_type = Repeat3x(tree, game_wtm)) == 1) {
+        if ((draw_type = Repeat3x(tree)) == 1) {
           Print(128, "I claim a draw by 3-fold repetition.\n");
           value = DrawScore(game_wtm);
           if (xboard)
@@ -4614,7 +4659,7 @@ int main(int argc, char **argv) {
       if (game_wtm)
         move_number++;
       move_actually_played = 1;
-      if ((draw_type = Repeat3x(tree, game_wtm)) == 1) {
+      if ((draw_type = Repeat3x(tree)) == 1) {
         Print(128, "I claim a draw by 3-fold repetition after my move.\n");
         if (xboard)
           Print(4095, "1/2-1/2 {Drawn by 3-fold repetition}\n");

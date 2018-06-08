@@ -37,6 +37,7 @@ level moves time inc........... sets ICS time controls.
 linelength n................... sets line length to n.  A really large value
                                 will produce 1 line PVs, making parsing easier
 list........................... update/display GM/IM/computer lists.
+lmr min max depths moves scale. LMR reduction matrix generator
 load file title................ load a position from problem file, starting
                                 with line containing title, ending on exit.
 log on|off..................... turn logging on/off.
@@ -265,84 +266,6 @@ display time      -> display time for moves.
 display variation -> display variation at end of iteration.
 <end>
 
-<evaluation>
-evaluation item# value [value ... value]
-
-The evaluation command allows you to change specific evaluation
-numbers when you want.  The first thing you should do is type
-"evaluation list" to show all the possible values.  The format
-looks like this when displayed:
-
-White(1): evaluation list
-------------piece values--------------------
-  1  pawn value                           100
-  2  knight value                         300
-  3  bishop value                         300
-  4  rook value                           500
-  5  queen value                          900
-------------evaluation scale factors--------
- 11  blocked pawn scale factor            100
- 12  king safety asymmetry                -20
- 13  king safety scale factor             100
- 14  king safety tropism scale factor     100
- 15  passed pawn scoring scale factor     100
- 16  pawn scoring scale factor            100
- 17  bad trade bonus/penalty              120
-------------pawn evaluation-----------------
- 21  eight pawns penalty                   10
- 22  center pawn blocked                   12
- 23  center pawn unmoved                   16
- 24  pawn duo                               2
- 25  protected passed pawn wins            50
- 26  pawn weak (one pawn blocking)         12
- 27  pawn weak (two pawns blocking)        20
-
-The first number is the evaluation term ID #.  To change the
-value of a pawn from the default 100 to 50, you would type
-the following command:
-
-eval 1 50
-
-Crafty will display this:
-
-White(1): eval 1 50
-pawn value                       old:100  new:50
-
-And now pawns are worth 1/2 of what they were prior to the
-command.  Note that unless you specifically save the setting
-with the "personality save" command, once you exit Crafty
-the pawn value will return to 100 the next time you start it
-up.  You can, of course, put such commands in the .craftyrc/
-crafty.rc file, but it is simpler to use the personality
-command instead (type "help personality" for more information).
-
-Note that some evaluation terms have a list of numbers as they
-are indexed by something.  When you change one of these terms,
-you must give _exactly_ the correct number of values, or the
-command will produce an error without changing anything. 
-
-Some of the values are 8 X 8 matrices of values, where the
-values correspond to the chess board as viewed with square
-a1 on the bottom left.  You must type the values in in order
-as they appear on the screen.  Crafty will shift things as
-needed.  IE for a piece/square table for knights, the first
-value displayed is for a8, so the first value you enter must
-also be for a8.  Many of these matrices have black/white 
-counter-parts.  You enter the white values, Crafty will
-mirror those to reflect the _same_ values but from the black
-side of the board.  This will be done automatically.
-
-Non 8 X 8 matrices are just dumped in order from element zero
-to N.  You enter those the same way.  IE the way it prints them
-out is the way you enter them, reading from top-to-bottom, and
-left-to-right.
-
-If you come up with an interesting personality, feel free to make
-it available to everyone, and if it is particularly attractive, it
-can become part of the "distributed" crafty personalities once this
-has been released.
-<end>
-
 <lists>
 list name +name -name ...
 
@@ -378,6 +301,55 @@ list SP +name [book=filename] [personality=filename]
 
 <end>
 
+<lmr>
+
+lmr min max dscale mscale scale
+
+This command tunes the LMR reduction matrix.  The values are used to
+set the reduction matrix, which is indexed by depth remaining and moves
+searched so far at this ply.  This is an array of 32 rows, 64 columns, 
+where the rows correspond to remaining depth and the columns correspond
+to total moves searched so far at this ply.
+
+The basic calculation looks like this:
+
+  r[depth][moves] = (log(depth) * dscale + log(moves) * mscale) / scale
+
+Increasing dscale makes the reduction amount favor depth more, increasing
+mscale makes the reduction amount favor moves searched more.  The "scale"
+value is used to limit the speed at which the reductions grow.
+
+Note that NO reduction can be less than min nor greater than max, from
+the lmr command.  When you use this command, it will display a compressed
+version of the 32x64 array like this:
+
+
+
+                 LMR reductions[depth][moves]
+  ----------------------moves searched-----------------
+ |       2  6 10 14 18 22 26 30 34 38 42 46 50 54 58 62
+ |  3:   1  1  1  1  1  2  2  2  2  2  2  2  2  2  2  2
+ |  5:   1  1  2  2  2  2  2  2  3  3  3  3  3  3  3  3
+ d  7:   1  1  2  2  2  3  3  3  3  3  3  3  3  3  4  4
+ e  9:   1  1  2  2  3  3  3  3  3  3  4  4  4  4  4  4
+ p 11:   1  2  2  3  3  3  3  3  4  4  4  4  4  4  4  4
+ t 13:   1  2  2  3  3  3  4  4  4  4  4  4  4  4  4  5
+ h 15:   1  2  2  3  3  3  4  4  4  4  4  4  5  5  5  5
+   17:   1  2  3  3  3  4  4  4  4  4  4  5  5  5  5  5
+ l 19:   1  2  3  3  3  4  4  4  4  4  5  5  5  5  5  5
+ e 21:   1  2  3  3  4  4  4  4  4  5  5  5  5  5  5  5
+ f 23:   1  2  3  3  4  4  4  4  5  5  5  5  5  5  5  5
+ t 25:   1  2  3  3  4  4  4  5  5  5  5  5  5  5  5  6
+ | 27:   1  2  3  3  4  4  4  5  5  5  5  5  5  6  6  6
+ | 29:   1  2  3  4  4  4  4  5  5  5  5  5  5  6  6  6
+ | 31:   1  2  3  4  4  4  5  5  5  5  5  5  6  6  6  6
+
+Notice that the depth (# of rows) only displays every other row to make
+the display fit on a normal screen.  The moves searched show every fourth
+value since there are 2x as many columns as rows.  However, even though
+you don't see the missing rows/columns, the values are there.
+<end>
+
 <mode>
 
 This command influences how the book is used.
@@ -401,7 +373,7 @@ pondering the right move and saving time on our clock.
 <end>
 
 <personality>
-personality load|save filename
+personality load|save filename <or> personality n v
 
 perspath path-to-personality-directory
 
@@ -438,6 +410,90 @@ You can have as many different personality files as you want, and to
 keep them from getting jumbled up, you can put them in a separate
 directory and add the "perspath" to your .craftyrc/crafty.rc file to
 point Crafty to the directory where the personality files belong.
+
+personality item# value [value ... value]
+
+The personality command allows you to change specific evaluation
+or search numbers when you want.  The first thing you should do is
+type "personality list" to show all the possible values.  The format
+looks like this when displayed:
+
+White(1): personality list
+
+
+==================================================
+=         search options                         =
+==================================================
+  1  check extension                             1
+  2  null-move reduction                         3
+  3  null-move adaptive divisor                 10
+  4  LMR min distance to frontier                1
+  5  LMR min reduction                           1
+  6  LMR max reduction                           7
+  7  LMR formula depth bias                   2.00
+  8  LMR formula moves searched bias          1.00
+  9  LMR scale factor                         2.65
+==================================================
+=         search options (continued)             =
+==================================================
+ 11  prune depth                                 6
+ 12  prune margin [remain_depth]          
+      0  100  100  200  200  300  300  400 
+==================================================
+=         raw piece values                       =
+==================================================
+ 21  pawn value                               -100 (mg)     100 (eg)
+ 22  knight value                             -325 (mg)     325 (eg)
+ 23  bishop value                             -325 (mg)     325 (eg)
+ 24  rook value                               -500 (mg)     500 (eg)
+ 25  queen value                             -1050 (mg)    1050 (eg)
+==================================================
+=         miscellaneous scoring values           =
+==================================================
+ 31  wtm bonus                                   5 (mg)       8 (eg)
+ 32  draw score                                  1
+ ... etc
+
+The first number is the personality term ID #.  To change the
+value of a pawn from the default 100 to 50, you would type
+the following command:
+
+pers 21 50 50
+
+
+And now pawns are worth 1/2 of what they were prior to the
+command.  Note that unless you specifically save the setting
+with the "personality save" command, once you exit Crafty
+the pawn value will return to 100 the next time you start it
+up.  You can, of course, put such commands in the .craftyrc/
+crafty.rc file, but it is simpler to use the personality
+command instead (type "help personality" for more information).
+
+Note that some evaluation terms have a list of numbers as they
+are indexed by something.  When you change one of these terms,
+you must give _exactly_ the correct number of values, or the
+command will produce an error without changing anything. 
+
+Some of the values are 8 X 8 matrices of values, where the
+values correspond to the chess board as viewed with square
+a1 on the bottom left.  You must type the values in in order
+as they appear on the screen.  Crafty will shift things as
+needed.  IE for a piece/square table for knights, the first
+value displayed is for a8, so the first value you enter must
+also be for a8.  Many of these matrices have black/white 
+counter-parts.  You enter the white values, Crafty will
+mirror those to reflect the _same_ values but from the black
+side of the board.  This will be done automatically.
+
+Non 8 X 8 matrices are just dumped in order from element zero
+to N.  You enter those the same way.  IE the way it prints them
+out is the way you enter them, reading from top-to-bottom, and
+left-to-right.
+
+If you come up with an interesting personality, feel free to make
+it available to everyone, and if it is particularly attractive, it
+can become part of the "distributed" crafty personalities once this
+has been released.
 <end>
 
 <settc>

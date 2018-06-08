@@ -567,11 +567,11 @@ void AnnotatePositionHTML(TREE * RESTRICT tree, int wtm, FILE * annotate_out) {
   for (rank = RANK8; rank >= RANK1; rank--) {
     fprintf(annotate_out, "<TR>\n");
     for (file = FILEA; file <= FILEH; file++) {
-      (void) strcpy(filename, "bitmaps/");
+      strcpy(filename, "bitmaps/");
       if ((rank + file) % 2)
-        (void) strcat(filename, "w");
+        strcat(filename, "w");
       else
-        (void) strcat(filename, "b");
+        strcat(filename, "b");
       html_piece = translate[PcOnSq((rank << 3) + file) + 6];
       switch (html_piece) {
         case 'p':
@@ -700,9 +700,9 @@ void AnnotatePositionTeX(TREE * tree, int wtm, FILE * annotate_out) {
     fprintf(annotate_out, "   {");
     for (file = FILEA; file <= FILEH; file++) {
       if ((rank + file) % 2)
-        (void) strcpy(filename, " ");
+        strcpy(filename, " ");
       else
-        (void) strcpy(filename, "*");
+        strcpy(filename, "*");
       html_piece = translate[PcOnSq((rank << 3) + file) + 6];
       switch (html_piece) {
         case 'p':

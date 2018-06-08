@@ -1,6 +1,6 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 05/07/14 */
+/* last modified 09/21/14 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -17,7 +17,7 @@
  *   (2) The first phase is to generate all possible capture moves and then    *
  *   sort them into descending using the value                                 *
  *                                                                             *
- *        val = 128 * captured_piece_value + capturing_piece_value             *
+ *        val = 1024 * captured_piece_value + capturing_piece_value            *
  *                                                                             *
  *   This is the classic MVV/LVA ordering approach that removes heavy pieces   *
  *   first in an attempt to reduce the size of the sub-tree these pieces       *
@@ -101,7 +101,6 @@ int Quiesce(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply,
  *                                                          *
  ************************************************************
  */
-  tree->curmv[ply] = 0;
   value = Evaluate(tree, ply, wtm, alpha, beta);
 #if defined(TRACE)
   if (ply <= trace_level)
@@ -138,7 +137,7 @@ int Quiesce(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply,
   for (movep = tree->last[ply - 1]; movep < tree->last[ply]; movep++) {
     if (Captured(*movep) == king)
       return beta;
-    *sortv++ = 128 * pcval[Captured(*movep)] - pcval[Piece(*movep)];
+    *sortv++ = 1024 * pcval[Captured(*movep)] - pcval[Piece(*movep)];
   }
   if (!checks && tree->last[ply] == tree->last[ply - 1]) {
     if (alpha != original_alpha) {
@@ -299,7 +298,7 @@ int Quiesce(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply,
   return alpha;
 }
 
-/* last modified 05/07/14 */
+/* last modified 09/21/14 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -394,14 +393,14 @@ int QuiesceEvasions(TREE * RESTRICT tree, int alpha, int beta, int wtm,
 /*
  ************************************************************
  *                                                          *
- *  All moves have been searched.  If none were legal,      *
- *  return either MATE or DRAW depending on whether the     *
- *  side to move is in check or not.                        *
+ *  All moves have been searched.  If none were legal, it   *
+ *  must be a mate since we have to be in check to reach    *
+ *  QuiesceEvasions().                                      *
  *                                                          *
  ************************************************************
  */
   if (moves_searched == 0) {
-    value = (Check(wtm)) ? -(MATE - ply) : DrawScore(wtm);
+    value = -(MATE - ply);
     if (value >= alpha && value < beta) {
       SavePV(tree, ply, 0);
 #if defined(TRACE)

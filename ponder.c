@@ -68,7 +68,7 @@ int Ponder(int wtm) {
  ************************************************************
  */
   if (!ponder_move) {
-    (void) HashProbe(tree, 0, 0, wtm, dalpha, dbeta, &value);
+    HashProbe(tree, 0, 0, wtm, dalpha, dbeta, &value);
     if (tree->hash_move[0])
       ponder_move = tree->hash_move[0];
     if (ponder_move) {
@@ -102,7 +102,7 @@ int Ponder(int wtm) {
       tree->killers[i].move1 = 0;
       tree->killers[i].move2 = 0;
     }
-    (void) Iterate(wtm, puzzle, 0);
+    Iterate(wtm, puzzle, 0);
     for (i = 0; i < MAXPLY; i++) {
       tree->killers[i].move1 = 0;
       tree->killers[i].move2 = 0;

@@ -42,14 +42,14 @@ void AlignedMalloc(void **pointer, int alignment, size_t size) {
 /*
  *******************************************************************************
  *                                                                             *
- *   atoiKM() is used to read in an integer value that can have a "K" or "M"   *
+ *   atoiKMB() is used to read in an integer value that can have a "K" or "M"  *
  *   appended to it to multiply by 1024 or 1024*1024.  It returns a 64 bit     *
  *   value since memory sizes can exceed 4gb on modern hardware.               *
  *                                                                             *
  *******************************************************************************
  */
 
-uint64_t atoiKM(char *input) {
+uint64_t atoiKMB(char *input) {
   uint64_t size;
 
   size = atoi(input);
@@ -57,6 +57,9 @@ uint64_t atoiKM(char *input) {
     size *= 1 << 10;
   if (strchr(input, 'M') || strchr(input, 'm'))
     size *= 1 << 20;
+  if (strchr(input, 'B') || strchr(input, 'b') || strchr(input, 'G') ||
+      strchr(input, 'g'))
+    size *= 1 << 30;
   return size;
 }
 
@@ -96,18 +99,18 @@ void AlignedRemalloc(void **pointer, int alignment, size_t size) {
  *******************************************************************************
  */
 void BookClusterIn(FILE * file, int positions, BOOK_POSITION * buffer) {
-  char file_buffer[BOOK_CLUSTER_SIZE * BOOK_POSITION_SIZE];
+  char file_buffer[BOOK_CLUSTER_SIZE * sizeof(BOOK_POSITION)];
   int i;
 
-  fread(file_buffer, positions, BOOK_POSITION_SIZE, file);
+  fread(file_buffer, positions, sizeof(BOOK_POSITION), file);
   for (i = 0; i < positions; i++) {
     buffer[i].position =
-        BookIn64((unsigned char *) (file_buffer + i * BOOK_POSITION_SIZE));
+        BookIn64((unsigned char *) (file_buffer + i * sizeof(BOOK_POSITION)));
     buffer[i].status_played =
-        BookIn32((unsigned char *) (file_buffer + i * BOOK_POSITION_SIZE +
+        BookIn32((unsigned char *) (file_buffer + i * sizeof(BOOK_POSITION) +
             8));
     buffer[i].learn =
-        BookIn32f((unsigned char *) (file_buffer + i * BOOK_POSITION_SIZE +
+        BookIn32f((unsigned char *) (file_buffer + i * sizeof(BOOK_POSITION) +
             12));
   }
 }
@@ -122,18 +125,18 @@ void BookClusterIn(FILE * file, int positions, BOOK_POSITION * buffer) {
  *******************************************************************************
  */
 void BookClusterOut(FILE * file, int positions, BOOK_POSITION * buffer) {
-  char file_buffer[BOOK_CLUSTER_SIZE * BOOK_POSITION_SIZE];
+  char file_buffer[BOOK_CLUSTER_SIZE * sizeof(BOOK_POSITION)];
   int i;
 
   for (i = 0; i < positions; i++) {
-    memcpy(file_buffer + i * BOOK_POSITION_SIZE,
+    memcpy(file_buffer + i * sizeof(BOOK_POSITION),
         BookOut64(buffer[i].position), 8);
-    memcpy(file_buffer + i * BOOK_POSITION_SIZE + 8,
+    memcpy(file_buffer + i * sizeof(BOOK_POSITION) + 8,
         BookOut32(buffer[i].status_played), 4);
-    memcpy(file_buffer + i * BOOK_POSITION_SIZE + 12,
+    memcpy(file_buffer + i * sizeof(BOOK_POSITION) + 12,
         BookOut32f(buffer[i].learn), 4);
   }
-  fwrite(file_buffer, positions, BOOK_POSITION_SIZE, file);
+  fwrite(file_buffer, positions, sizeof(BOOK_POSITION), file);
 }
 
 /*
@@ -779,7 +782,8 @@ char *DisplayEvaluationKibitz(int value, int wtm) {
  *                                                                             *
  *******************************************************************************
  */
-void DisplayPV(TREE * RESTRICT tree, int level, int wtm, int time, PATH * pv) {
+void DisplayPV(TREE * RESTRICT tree, int level, int wtm, int time, PATH * pv,
+    int force) {
   char buffer[4096], *buffp, *bufftemp;
   int i, t_move_number, type;
   int nskip = 0, twtm = wtm, pv_depth = pv->pathd;;
@@ -825,7 +829,7 @@ void DisplayPV(TREE * RESTRICT tree, int level, int wtm, int time, PATH * pv) {
   strcpy(kibitz_text, buffer);
   if (nskip > 1 && smp_max_threads > 1)
     sprintf(buffer + strlen(buffer), " (s=%d)", nskip);
-  if (tree->nodes_searched > noise_level) {
+  if (time > noise_level || force) {
     noise_block = 0;
     Lock(lock_io);
     Print(type, "         ");
@@ -901,21 +905,33 @@ char *DisplayHHMM(unsigned int time) {
  *                                                                             *
  *   DisplayKMB() takes an integer value that represents nodes per second, or  *
  *   just total nodes, and converts it into a more compact form, so that       *
- *   instead of nps=57200931, we get nps=57M.                                  *
+ *   instead of nps=57200931, we get nps=57.2M.  We use units of "K", "M",     *
+ *   "B" and "T".  If type==0, K=1000, etc.  If type=1, K=1024, etc.           *
  *                                                                             *
  *******************************************************************************
  */
-char *DisplayKMB(uint64_t val) {
+char *DisplayKMB(uint64_t val, int type) {
   static char out[10];
 
-  if (val < 1000)
-    sprintf(out, "%" PRIu64, val);
-  else if (val < 1000000)
-    sprintf(out, "%.1fK", (double) (val + 500) / 1000);
-  else if (val < 1000000000)
-    sprintf(out, "%.1fM", (double) (val + 500000) / 1000000);
-  else
-    sprintf(out, "%.1fB", (double) (val + 500000000) / 1000000000);
+  if (type == 0) {
+    if (val < 1000)
+      sprintf(out, "%" PRIu64, val);
+    else if (val < 1000000)
+      sprintf(out, "%.1fK", (double) val / 1000);
+    else if (val < 1000000000)
+      sprintf(out, "%.1fM", (double) val / 1000000);
+    else
+      sprintf(out, "%.1fB", (double) val / 1000000000);
+  } else {
+    if (val > 0 && !(val & 0x000000003fffffffULL))
+      sprintf(out, "%dG", (int) (val / (1 << 30)));
+    else if (val > 0 && !(val & 0x00000000000fffffULL))
+      sprintf(out, "%dM", (int) (val / (1 << 20)));
+    else if (val > 0 && !(val & 0x00000000000003ffULL))
+      sprintf(out, "%dK", (int) (val / (1 << 10)));
+    else
+      sprintf(out, "%" PRIu64, val);
+  }
   return out;
 }
 
@@ -1777,37 +1793,6 @@ void Print(int vb, char *fmt, ...) {
 /*
  *******************************************************************************
  *                                                                             *
- *   PrintKM() converts a binary value to a real K/M type value, rather than   *
- *   the more common K=1000, M=1000000 type output.  This is used for info     *
- *   about the hash table sizes for one thing.                                 *
- *                                                                             *
- *******************************************************************************
- */
-char *PrintKM(size_t val, int realK) {
-  static char buf[32];
-
-  if (realK) {
-    if (val >= 1 << 20 && !(val & ((1 << 20) - 1)))
-      sprintf(buf, "%dM", (int) (val / (1 << 20)));
-    else if (val >= 1 << 10)
-      sprintf(buf, "%dK", (int) (val / (1 << 10)));
-    else
-      sprintf(buf, "%d", (int) val);
-    return buf;
-  } else {
-    if (val >= 1000000 && !(val % 1000000))
-      sprintf(buf, "%dM", (int) (val / 1000000));
-    else if (val >= 1000)
-      sprintf(buf, "%dK", (int) (val / 1000));
-    else
-      sprintf(buf, "%d", (int) val);
-    return buf;
-  }
-}
-
-/*
- *******************************************************************************
- *                                                                             *
  *  A 32 bit random number generator. An implementation in C of the algorithm  *
  *  given by Knuth, the art of computer programming, vol. 2, pp. 26-27. We use *
  *  e=32, so we have to evaluate y(n) = y(n - 24) + y(n - 55) mod 2^32, which  *
@@ -2162,7 +2147,7 @@ int ReadPGN(FILE * input, int option) {
             strcpy(pgn_result, value);
           else if (strstr(input_buffer, "FEN")) {
             sprintf(buffer, "setboard %s", value);
-            (void) Option(block[0]);
+            Option(block[0]);
             continue;
           }
           return 1;
@@ -2385,7 +2370,7 @@ void Kibitz(int level, int wtm, int depth, int time, int value,
         if ((kibitz & 15) >= 2) {
           printf("%s ply=%d; eval=%s; nps=%s; time=%s(%d%%); egtb=%d\n",
               prefix, depth, DisplayEvaluationKibitz(value, wtm),
-              DisplayKMB(nps), DisplayTimeKibitz(time), ip, tb_hits);
+              DisplayKMB(nps, 0), DisplayTimeKibitz(time), ip, tb_hits);
         }
       case 3:
         if ((kibitz & 15) >= 3 && (nodes > 5000 || level == 2)) {
@@ -2400,7 +2385,7 @@ void Kibitz(int level, int wtm, int depth, int time, int value,
       case 5:
         if ((kibitz & 15) >= 5 && nodes > 5000) {
           printf("%s d%d-> %s/s %s(%d%%) %s %s ", prefix, depth,
-              DisplayKMB(nps), DisplayTimeKibitz(time), ip,
+              DisplayKMB(nps, 0), DisplayTimeKibitz(time), ip,
               DisplayEvaluationKibitz(value, wtm), pv);
           if (tb_hits)
             printf("egtb=%d", tb_hits);
@@ -2411,11 +2396,11 @@ void Kibitz(int level, int wtm, int depth, int time, int value,
         if ((kibitz & 15) >= 6 && nodes > 5000) {
           if (wtm)
             printf("%s d%d+ %s/s %s(%d%%) >(%s) %s <re-searching>\n", prefix,
-                depth, DisplayKMB(nps), DisplayTimeKibitz(time), ip,
+                depth, DisplayKMB(nps, 0), DisplayTimeKibitz(time), ip,
                 DisplayEvaluationKibitz(value, wtm), pv);
           else
             printf("%s d%d+ %s/s %s(%d%%) <(%s) %s <re-searching>\n", prefix,
-                depth, DisplayKMB(nps), DisplayTimeKibitz(time), ip,
+                depth, DisplayKMB(nps, 0), DisplayTimeKibitz(time), ip,
                 DisplayEvaluationKibitz(value, wtm), pv);
         }
         break;
@@ -2483,7 +2468,7 @@ void Output(TREE * RESTRICT tree, int bound) {
  */
     if (tree->pv[1].pathv < bound) {
       UnmakeMove(tree, 1, tree->pv[1].path[1], root_wtm);
-      DisplayPV(tree, 6, wtm, end_time - start_time, &tree->pv[1]);
+      DisplayPV(tree, 6, wtm, end_time - start_time, &tree->pv[1], 0);
       MakeMove(tree, 1, tree->pv[1].path[1], root_wtm);
     } else {
       if (tree->curmv[1] != tree->pv[1].path[1]) {

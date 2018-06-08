@@ -20,7 +20,7 @@
  *                                                                             *
  *******************************************************************************
  */
-int Swap(TREE * RESTRICT tree, int move, int side) {
+int Swap(TREE * RESTRICT tree, int move, int wtm) {
   uint64_t attacks, temp = 0, toccupied = OccupiedSquares;
   uint64_t bsliders =
       Bishops(white) | Bishops(black) | Queens(white) | Queens(black);
@@ -49,7 +49,7 @@ int Swap(TREE * RESTRICT tree, int move, int side) {
  *                                                          *
  ************************************************************
  */
-  side = Flip(side);
+  wtm = Flip(wtm);
   swap_list[0] = attacked_piece;
   piece = Piece(move);
   attacked_piece = pcval[piece];
@@ -75,7 +75,7 @@ int Swap(TREE * RESTRICT tree, int move, int side) {
  */
   for (attacks &= toccupied; attacks; attacks &= toccupied) {
     for (piece = pawn; piece <= king; piece++)
-      if ((temp = Pieces(side, piece) & attacks))
+      if ((temp = Pieces(wtm, piece) & attacks))
         break;
     if (piece > king)
       break;
@@ -88,7 +88,7 @@ int Swap(TREE * RESTRICT tree, int move, int side) {
     attacked_piece = pcval[piece];
     if (swap_list[nc++] - attacked_piece > 0)
       break;
-    side = Flip(side);
+    wtm = Flip(wtm);
   }
 /*
  ************************************************************
@@ -115,7 +115,7 @@ int Swap(TREE * RESTRICT tree, int move, int side) {
  *                                                                             *
  *******************************************************************************
  */
-int SwapO(TREE * RESTRICT tree, int move, int side) {
+int SwapO(TREE * RESTRICT tree, int move, int wtm) {
   uint64_t attacks, temp = 0, toccupied = OccupiedSquares;
   uint64_t bsliders =
       Bishops(white) | Bishops(black) | Queens(white) | Queens(black);
@@ -144,10 +144,10 @@ int SwapO(TREE * RESTRICT tree, int move, int side) {
  *                                                          *
  ************************************************************
  */
-  side = Flip(side);
+  wtm = Flip(wtm);
   swap_list[0] = attacked_piece;
   for (piece = pawn; piece <= king; piece++)
-    if ((temp = Pieces(side, piece) & attacks))
+    if ((temp = Pieces(wtm, piece) & attacks))
       break;
   if (piece > king)
     return 0;
@@ -157,7 +157,7 @@ int SwapO(TREE * RESTRICT tree, int move, int side) {
   if (piece != king && piece & 4)
     attacks |= RookAttacks(target, toccupied) & rsliders;
   attacked_piece = pcval[piece];
-  side = Flip(side);
+  wtm = Flip(wtm);
 /*
  ************************************************************
  *                                                          *
@@ -175,7 +175,7 @@ int SwapO(TREE * RESTRICT tree, int move, int side) {
  */
   for (attacks &= toccupied; attacks; attacks &= toccupied) {
     for (piece = pawn; piece <= king; piece++)
-      if ((temp = Pieces(side, piece) & attacks))
+      if ((temp = Pieces(wtm, piece) & attacks))
         break;
     if (piece > king)
       break;
@@ -188,7 +188,7 @@ int SwapO(TREE * RESTRICT tree, int move, int side) {
     attacked_piece = pcval[piece];
     if (swap_list[nc++] - attacked_piece > 0)
       break;
-    side = Flip(side);
+    wtm = Flip(wtm);
   }
 /*
  ************************************************************
