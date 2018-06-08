@@ -1123,6 +1123,7 @@ void InitializeMasks(void)
   mask_abc = file_mask[FILEA] | file_mask[FILEB] | file_mask[FILEC];
   mask_abcd =
       file_mask[FILEA] | file_mask[FILEB] | file_mask[FILEC] | file_mask[FILED];
+  virgin_center_pawns = SetMask(D2) | SetMask(E2) | SetMask(D7) | SetMask(E7);
   mask_kr_trapped_w[0] = SetMask(H2);
   mask_kr_trapped_w[1] = SetMask(H1) | SetMask(H2);
   mask_kr_trapped_w[2] = SetMask(G1) | SetMask(H1) | SetMask(H2);

@@ -3,7 +3,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 08/24/06 */
+/* last modified 08/25/06 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -171,6 +171,7 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta)
       full_eval = 0;
   }
   if (full_eval) {
+    score += EvaluateAll(tree);
     score += EvaluateKnights(tree);
     score += EvaluateBishops(tree);
     score += EvaluateRooks(tree);
@@ -189,7 +190,304 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta)
   return ((wtm) ? score : -score);
 }
 
-/* last modified 08/07/06 */
+/*
+ **********************************************************************
+ * Slide functions.                                                   *
+ **********************************************************************
+ */
+int inline IsPawnWeakW(TREE * RESTRICT tree, int square)
+{
+  register int pc = 0;
+  if (!(b_pawn_attacks[square] & WhitePawns))
+  {
+    pc = unprotected_pawn; // The white pawn is unprotected.
+    if (!(mask_no_pattacks_w[square] & WhitePawns)) ++pc; // It can NOT be protected.
+    if (PcOnSq(square - 8)) pc += 2; // It is blocked.
+  }
+  return pc;
+}
+
+int inline IsPawnWeakB(TREE * RESTRICT tree, int square)
+{
+  register int pc = 0;
+  if (!(w_pawn_attacks[square] & BlackPawns))
+  {
+    pc = unprotected_pawn; // The black pawn is unprotected.
+    if (!(mask_no_pattacks_b[square] & BlackPawns)) ++pc; // It can NOT be protected.
+    if (PcOnSq(square + 8)) pc += 2; // It is blocked.
+  }
+  return -pc;
+}
+
+int inline SlideW2(TREE * RESTRICT tree, int square, int dir, int num, int ignore)
+{
+  register int pc;
+
+  while (num--)
+  {
+    square += dir;
+    pc = PcOnSq(square);
+    if (pc && pc != queen && pc != ignore) return pc;
+  } // While
+
+  return 0;
+}
+
+int inline SlideB2(TREE * RESTRICT tree, int square, int dir, int num, int ignore)
+{
+  register int pc;
+
+  while (num--)
+  {
+    square += dir;
+    pc = PcOnSq(square);
+    if (pc && pc != -queen && pc != ignore) return pc;
+  } // While
+
+  return 0;
+}
+
+int inline SlideW(TREE * RESTRICT tree, int square, int dir, int num, int *sqrVal, int *hit1, int *hit2, int ignore)
+{
+  register int pc, score=0;
+  *hit1=0, *hit2=0;
+
+  while (num--)
+  {
+    square += dir;
+    pc = PcOnSq(square);
+
+    if (pc && pc != queen && pc != ignore)
+    {
+      // Blocked by piece.
+      if (pc == -pawn)
+      {
+        // BLACK PAWN.
+        *hit1 = IsPawnWeakB(tree, square);
+        break;
+      }
+
+      if (pc == pawn) break;
+
+      *hit1 = pc;
+      *hit2 = SlideW2(tree, square, dir, num, ignore);
+      break;
+    } // Blocked by piece.
+    
+    score += sqrVal[square];
+  } // While
+
+  return score;
+}
+
+
+int inline SlideB(TREE * RESTRICT tree, int square, int dir, int num, int *sqrVal, int *hit1, int *hit2, int ignore)
+{
+  register int pc, score=0;
+  *hit1=0, *hit2=0;
+
+  while (num--)
+  {
+    square += dir;
+    pc = PcOnSq(square);
+
+    if (pc && pc != -queen && pc != ignore)
+    {
+      // Blocked by piece.
+      if (pc == pawn)
+      {
+        // WHITE PAWN.
+        *hit1 = IsPawnWeakW(tree, square);
+        break;
+      }
+
+      if (pc == -pawn) break;
+
+      *hit1 = pc;
+      *hit2 = SlideB2(tree, square, dir, num, ignore);
+      break;
+    } // Blocked by piece.
+    
+    score += sqrVal[square];
+  } // While
+
+  return score;
+}
+
+int inline BishopSlideEvalW(TREE * RESTRICT tree, int square, int dir, int num)
+{
+  int hit1, hit2;
+
+  register int score = SlideW(tree, square, dir, num, sqrvalB, &hit1, &hit2, bishop);
+  if (hit1 <= -unprotected_pawn) score += weakPawnScore[-hit1-unprotected_pawn];
+  if (hit2 == -king) score += pinOrDiscoveredCheck;
+  
+  return score;
+}
+
+int inline BishopSlideEvalB(TREE * RESTRICT tree, int square, int dir, int num)
+{
+  int hit1, hit2;
+
+  register int score = SlideB(tree, square, dir, num, sqrvalB, &hit1, &hit2, -bishop);
+  if (hit1 >= unprotected_pawn) score += weakPawnScore[hit1-unprotected_pawn];
+  if (hit2 == king) score += pinOrDiscoveredCheck;
+  
+  return score;
+}
+
+int inline RookSlideEvalW(TREE * RESTRICT tree, int square, int dir, int num, int *weakPawnScoreArray)
+{
+  int hit1, hit2;
+
+  register int score = SlideW(tree, square, dir, num, sqrvalR, &hit1, &hit2, rook);
+  if (hit1 <= -unprotected_pawn) score += weakPawnScoreArray[-hit1-unprotected_pawn];
+  if (hit2 == -king) score += pinOrDiscoveredCheck;
+  
+  return score;
+}
+
+int inline RookSlideEvalB(TREE * RESTRICT tree, int square, int dir, int num, int *weakPawnScoreArray)
+{
+  int hit1, hit2;
+
+  register int score = SlideB(tree, square, dir, num, sqrvalR, &hit1, &hit2, -rook);
+  if (hit1 >= unprotected_pawn) score += weakPawnScoreArray[hit1-unprotected_pawn];
+  if (hit2 == king) score += pinOrDiscoveredCheck;
+  
+  return score;
+}
+
+int inline BishopSlideW(TREE * RESTRICT tree, int square)
+{
+  register int score = sqrvalB[square];
+
+  score += BishopSlideEvalW(tree, square, UP_RIGHT, Num_up_right(square));
+  score += BishopSlideEvalW(tree, square, DOWN_RIGHT, Num_down_right(square));
+  score += BishopSlideEvalW(tree, square, DOWN_LEFT, Num_down_left(square));
+  score += BishopSlideEvalW(tree, square, UP_LEFT, Num_up_left(square));
+
+  return score;
+}
+
+int inline BishopSlideB(TREE * RESTRICT tree, int square)
+{
+  register int score = sqrvalB[square];
+
+  score += BishopSlideEvalB(tree, square, UP_RIGHT, Num_up_right(square));
+  score += BishopSlideEvalB(tree, square, DOWN_RIGHT, Num_down_right(square));
+  score += BishopSlideEvalB(tree, square, DOWN_LEFT, Num_down_left(square));
+  score += BishopSlideEvalB(tree, square, UP_LEFT, Num_up_left(square));
+
+  return score;
+}
+
+int inline RookSlideW(TREE * RESTRICT tree, int square)
+{
+  register int score = sqrvalR[square];
+
+  score += RookSlideEvalW(tree, square, RIGHT, Num_right(square), weakPawnScore);
+  score += RookSlideEvalW(tree, square, LEFT, Num_left(square), weakPawnScore);
+  score += RookSlideEvalW(tree, square, UP, Num_up(square), weakPawnScoreVert);
+  score += RookSlideEvalW(tree, square, DOWN, Num_down(square), weakPawnScoreVert);
+
+  return score;
+}
+
+int inline RookSlideB(TREE * RESTRICT tree, int square)
+{
+  register int score = sqrvalR[square];
+
+  score += RookSlideEvalB(tree, square, RIGHT, Num_right(square), weakPawnScore);
+  score += RookSlideEvalB(tree, square, LEFT, Num_left(square), weakPawnScore);
+  score += RookSlideEvalB(tree, square, UP, Num_up(square), weakPawnScoreVert);
+  score += RookSlideEvalB(tree, square, DOWN, Num_down(square), weakPawnScoreVert);
+
+  return score;
+}
+
+int inline KnightWeakPawnW(TREE * RESTRICT tree, int sqr)
+{
+  register BITBOARD knightPawnAttacks = knight_attacks[sqr] & BlackPawns;
+  register int score=0, square;
+  while (knightPawnAttacks)
+  {
+    square = LSB(knightPawnAttacks);
+    square = IsPawnWeakB(tree, square);
+    if (square) score += weakPawnScore[ -square-unprotected_pawn ];
+    knightPawnAttacks &= knightPawnAttacks - 1;
+  }
+  return score;
+}
+
+int inline KnightWeakPawnB(TREE * RESTRICT tree, int sqr)
+{
+  register BITBOARD knightPawnAttacks = knight_attacks[sqr] & WhitePawns;
+  register int score=0, square;
+  while (knightPawnAttacks)
+  {
+    square = LSB(knightPawnAttacks);
+    square = IsPawnWeakW(tree, square);
+    if (square) score += weakPawnScore[ square-unprotected_pawn ];
+    knightPawnAttacks &= knightPawnAttacks - 1;
+  }
+  return score;
+}
+
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   EvaluateAll() is used to evaluate general board dynamics involving        *
+ *   multiple pieces.                                                          *
+ *                                                                             *
+ *******************************************************************************
+ */
+
+int EvaluateAll(TREE * RESTRICT tree)
+{
+  register int score = 0;
+
+/*
+ ************************************************************
+ *                                                          *
+ *   check for blocked center pawns at D2, E2, D7, or E7    *
+ *   as that is very cramping regardless of what piece      *
+ *   is blocking it.                                        *
+ *                                                          *
+ ************************************************************
+ */
+
+  if (tree->all_pawns & virgin_center_pawns)
+  {
+    if (PcOnSq(D7) == -pawn && PcOnSq(D6)) score += blocked_center_pawn;
+    if (PcOnSq(E7) == -pawn && PcOnSq(E6)) score += blocked_center_pawn;
+    if (PcOnSq(D2) == pawn && PcOnSq(D3)) score -= blocked_center_pawn;
+    if (PcOnSq(E2) == pawn && PcOnSq(E3)) score -= blocked_center_pawn;
+  }
+
+/*
+ ************************************************************
+ *                                                          *
+ *   check for the existance of a slider when pawns are     *
+ *   present on both wings.                                 *
+ *                                                          *
+ ************************************************************
+ */
+
+//TODO - This should be fine tuned to check distance between the left-most
+// and right-most pawns and the bonus scaled accordingly.
+  if (tree->all_pawns & mask_fgh && tree->all_pawns & mask_abc)
+  {
+    if (WhiteRooks || WhiteBishops)
+      score += slider_with_wing_pawns;
+    if (BlackRooks || BlackBishops)
+      score -= slider_with_wing_pawns;
+  }
+
+  return score;
+}
+
+/* last modified 08/25/06 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -207,37 +505,15 @@ int EvaluateBishops(TREE * RESTRICT tree)
  *                                                          *
  *   white bishops                                          *
  *                                                          *
- *   first, locate each bishop and add in its static score  *
- *   from the bishop piece/square table.                    *
+ *   first, locate each bishop and add in its mobility/     *
+ *   square score.                                          *
  *                                                          *
  ************************************************************
  */
   temp = WhiteBishops;
   while (temp) {
     square = LSB(temp);
-    score += bval[square];
-/*
- ************************************************************
- *                                                          *
- *   now add in a bonus for a bishop blocking a center pawn *
- *   at D6/E6 as that is very cramping.                     *
- *                                                          *
- ************************************************************
- */
-    if ((square == D6 || square == E6) && PcOnSq(square + 8) == -pawn)
-      score += blocked_center_pawn;
-/*
- ************************************************************
- *                                                          *
- *   also add in a bonus for a bishop, if there are pawns   *
- *   on both sides of the board in an endgame, because a    *
- *   bishop is much more valuable there.                    *
- *                                                          *
- ************************************************************
- */
-    if (TotalWhitePieces < 7 && !BlackBishops && tree->all_pawns & mask_fgh &&
-        tree->all_pawns & mask_abc)
-      score += bishop_over_knight_endgame;
+    score += BishopSlideW(tree, square)-24;
 /*
  ************************************************************
  *                                                          *
@@ -257,20 +533,6 @@ int EvaluateBishops(TREE * RESTRICT tree)
       score -= bishop_trapped;
     else if (square == G8 && SetMask(F7) & BlackPawns)
       score -= bishop_trapped;
-/*
- ************************************************************
- *                                                          *
- *   check to see if the bishop is bad, which in this very  *
- *   simple case simply means that it is attacking one or   *
- *   two friendly pawns from the rear, one or two squares   *
- *   away.                                                  *
- *                                                          *
- ************************************************************
- */
-    if (SetMask(square) & mask_corner_a1)
-      score -= PopCnt(plus9dir[square] & WhitePawns) * bishop_bad;
-    else if (SetMask(square) & mask_corner_h1)
-      score -= PopCnt(plus7dir[square] & WhitePawns) * bishop_bad;
 /*
  ************************************************************
  *                                                          *
@@ -299,37 +561,15 @@ int EvaluateBishops(TREE * RESTRICT tree)
  *                                                          *
  *   black bishops                                          *
  *                                                          *
- *   first, locate each bishop and add in its static score  *
- *   from the bishop piece/square table.                    *
+ *   first, locate each bishop and add in its mobility/     *
+ *   square score.                                          *
  *                                                          *
  ************************************************************
  */
   temp = BlackBishops;
   while (temp) {
     square = LSB(temp);
-    score -= bval[square];
-/*
- ************************************************************
- *                                                          *
- *   now add in a bonus for a bishop blocking a center pawn *
- *   at D3/E3 as that is very cramping.                     *
- *                                                          *
- ************************************************************
- */
-    if ((square == D3 || square == E3) && PcOnSq(square - 8) == pawn)
-      score -= blocked_center_pawn;
-/*
- ************************************************************
- *                                                          *
- *   add in a bonus for a bishop, if there are pawns on     *
- *   both sides of the board in an endgame, because a       *
- *   bishop is much more valuable there.                    *
- *                                                          *
- ************************************************************
- */
-    if (TotalBlackPieces < 7 && !WhiteBishops && tree->all_pawns & mask_fgh &&
-        tree->all_pawns & mask_abc)
-      score -= bishop_over_knight_endgame;
+    score -= BishopSlideB(tree, square)-24;
 /*
  ************************************************************
  *                                                          *
@@ -349,20 +589,6 @@ int EvaluateBishops(TREE * RESTRICT tree)
       score += bishop_trapped;
     else if (square == G1 && SetMask(F2) & WhitePawns)
       score += bishop_trapped;
-/*
- ************************************************************
- *                                                          *
- *   check to see if the bishop is bad, which in this very  *
- *   simple case simply means that it is attacking one or   *
- *   two friendly pawns from the rear, one or two squares   *
- *   away.                                                  *
- *                                                          *
- ************************************************************
- */
-    if (SetMask(square) & mask_corner_a8)
-      score += PopCnt(minus7dir[square] & BlackPawns) * bishop_bad;
-    else if (SetMask(square) & mask_corner_h8)
-      score += PopCnt(minus9dir[square] & BlackPawns) * bishop_bad;
 /*
  ************************************************************
  *                                                          *
@@ -939,7 +1165,7 @@ int EvaluateKingsFileW(TREE * RESTRICT tree, int whichfile)
   return (Min(defects, 15));
 }
 
-/* last modified 05/23/06 */
+/* last modified 08/25/06 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -958,7 +1184,7 @@ int EvaluateKnights(TREE * RESTRICT tree)
  *   white knights.                                         *
  *                                                          *
  *   first fold in centralization score from the piece/     *
- *   square table "nval".                                   *
+ *   square table "nval", then any weak pawn attacks.       *
  *                                                          *
  ************************************************************
  */
@@ -966,6 +1192,7 @@ int EvaluateKnights(TREE * RESTRICT tree)
   while (temp) {
     square = LSB(temp);
     score += nval[square];
+    score += KnightWeakPawnW(tree, square)-4;
 /*
  ************************************************************
  *                                                          *
@@ -978,17 +1205,6 @@ int EvaluateKnights(TREE * RESTRICT tree)
     if (white_outpost[square] && !(mask_no_pattacks_b[square] & BlackPawns)
         && b_pawn_attacks[square] & WhitePawns)
       score += white_outpost[square];
-/*
- ************************************************************
- *                                                          *
- *   if the knight is blocking an unmoved center pawn, then *
- *   this really cramps the opponent and should be given a  *
- *   reward.                                                *
- *                                                          *
- ************************************************************
- */
-    if ((square == D6 || square == E6) && PcOnSq(square + 8) == -pawn)
-      score += blocked_center_pawn;
 /*
  ************************************************************
  *                                                          *
@@ -1009,7 +1225,7 @@ int EvaluateKnights(TREE * RESTRICT tree)
  *   black knights.                                         *
  *                                                          *
  *   first fold in centralization score from the piece/     *
- *   square table "nval".                                   *
+ *   square table "nval", then any weak pawn attacks.       *
  *                                                          *
  ************************************************************
  */
@@ -1017,6 +1233,7 @@ int EvaluateKnights(TREE * RESTRICT tree)
   while (temp) {
     square = LSB(temp);
     score -= nval[square];
+    score -= KnightWeakPawnB(tree, square)-4;
 /*
  ************************************************************
  *                                                          *
@@ -1029,17 +1246,6 @@ int EvaluateKnights(TREE * RESTRICT tree)
     if (black_outpost[square] && !(mask_no_pattacks_w[square] & WhitePawns)
         && w_pawn_attacks[square] & BlackPawns)
       score -= black_outpost[square];
-/*
- ************************************************************
- *                                                          *
- *   if the knight is blocking an unmoved center pawn, then *
- *   this really cramps the opponent and should be given a  *
- *   reward.                                                *
- *                                                          *
- ************************************************************
- */
-    if ((square == D3 || square == E3) && PcOnSq(square - 8) == pawn)
-      score -= blocked_center_pawn;
 /*
  ************************************************************
  *                                                          *
@@ -1731,15 +1937,15 @@ int EvaluatePassedPawnRaces(TREE * RESTRICT tree, int wtm)
  ************************************************************
  */
     if ((white_queener < 8) && (black_queener == 8))
-      return (pawn_can_promote + (5 - white_queener) * 10);
+      return (pawn_can_promote + (5 - white_queener) * pawn_value / 10);
     else if ((black_queener < 8) && (white_queener == 8))
-      return (-(pawn_can_promote + (5 - black_queener) * 10));
+      return (-(pawn_can_promote + (5 - black_queener) * pawn_value / 10));
     if (Flip(wtm))
       black_queener--;
     if (white_queener < black_queener)
-      return (pawn_can_promote + (5 - white_queener) * 10);
+      return (pawn_can_promote + (5 - white_queener) * pawn_value / 10);
     else if (black_queener < white_queener - 1)
-      return (-(pawn_can_promote + (5 - black_queener) * 10));
+      return (-(pawn_can_promote + (5 - black_queener) * pawn_value / 10));
     if ((white_queener == 8) || (black_queener == 8))
       break;
 /*
@@ -1767,13 +1973,13 @@ int EvaluatePassedPawnRaces(TREE * RESTRICT tree, int wtm)
         if (Attack(BlackKingSQ, white_square)) {
           WhitePieces = tempw;
           BlackPieces = tempb;
-          return (pawn_can_promote + (5 - white_queener) * 10);
+          return (pawn_can_promote + (5 - white_queener) * pawn_value / 10);
         }
         if (Attack(white_square, black_square) &&
             !(king_attacks[black_square] & BlackKing)) {
           WhitePieces = tempw;
           BlackPieces = tempb;
-          return (pawn_can_promote + (5 - white_queener) * 10);
+          return (pawn_can_promote + (5 - white_queener) * pawn_value / 10);
         }
         WhitePieces = tempw;
         BlackPieces = tempb;
@@ -1804,13 +2010,13 @@ int EvaluatePassedPawnRaces(TREE * RESTRICT tree, int wtm)
         if (Attack(WhiteKingSQ, black_square)) {
           WhitePieces = tempw;
           BlackPieces = tempb;
-          return (-(pawn_can_promote + (5 - black_queener) * 10));
+          return (-(pawn_can_promote + (5 - black_queener) * pawn_value / 10));
         }
         if (Attack(white_square, black_square) &&
             !(king_attacks[white_square] & WhiteKing)) {
           WhitePieces = tempw;
           BlackPieces = tempb;
-          return (-(pawn_can_promote + (5 - black_queener) * 10));
+          return (-(pawn_can_promote + (5 - black_queener) * pawn_value / 10));
         }
         WhitePieces = tempw;
         BlackPieces = tempb;
@@ -1958,22 +2164,6 @@ int EvaluatePawns(TREE * RESTRICT tree)
         Rank(LSB(mask_e3e4e5e6 & WhitePawns)))
       tree->pawn_score.center = 1;
   }
-/*
- ************************************************************
- *                                                          *
- *   now check for blocked unmoved center pawns.  a pawn at *
- *   e2/d2 or e7/d7 that is blocked by an enemy pawn is a   *
- *   thorn to development and center control and should be  *
- *   avoided if possible.                                   *
- *                                                          *
- ************************************************************
- */
-  if (WhitePawns & ((BlackPawns & rank_mask[RANK7]) >> 8) & (file_mask[FILED]
-          | file_mask[FILEE]))
-    score += blocked_center_pawn;
-  if (BlackPawns & ((WhitePawns & rank_mask[RANK2]) << 8) & (file_mask[FILED]
-          | file_mask[FILEE]))
-    score -= blocked_center_pawn;
 /*
  ************************************************************
  *                                                          *
@@ -2818,7 +3008,7 @@ int EvaluateQueens(TREE * RESTRICT tree)
   return (score);
 }
 
-/* last modified 07/19/06 */
+/* last modified 08/25/06 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -2838,7 +3028,7 @@ int EvaluateRooks(TREE * RESTRICT tree)
  *                                                          *
  *   white rooks                                            *
  *                                                          *
- *   first fold in the piece/square value from rval[].      *
+ *   first fold in the mobility/square score.               *
  *                                                          *
  ************************************************************
  */
@@ -2846,7 +3036,7 @@ int EvaluateRooks(TREE * RESTRICT tree)
   while (temp) {
     square = LSB(temp);
     file = File(square);
-    score += rval[square];
+    score += RookSlideW(tree, square)-24;
 /*
  ************************************************************
  *                                                          *
@@ -2939,7 +3129,7 @@ int EvaluateRooks(TREE * RESTRICT tree)
  *                                                          *
  *   black rooks                                            *
  *                                                          *
- *   first fold in the piece/square value from rval[].      *
+ *   first fold in the mobility/square score.               *
  *                                                          *
  ************************************************************
  */
@@ -2947,7 +3137,7 @@ int EvaluateRooks(TREE * RESTRICT tree)
   while (temp) {
     square = LSB(temp);
     file = File(square);
-    score -= rval[square];
+    score -= RookSlideB(tree, square)-24;
 /*
  ************************************************************
  *                                                          *

@@ -182,7 +182,8 @@ typedef enum {
 typedef enum { FILEA, FILEB, FILEC, FILED, FILEE, FILEF, FILEG, FILEH } files;
 typedef enum { RANK1, RANK2, RANK3, RANK4, RANK5, RANK6, RANK7, RANK8 } ranks;
 typedef enum { none = 0, pawn = 1, knight = 2, king = 3,
-  bishop = 5, rook = 6, queen = 7
+  bishop = 5, rook = 6, queen = 7,
+  unprotected_pawn = 16, weak_pawn = 17, unprotected_blocked_pawn = 18, weak_blocked_pawn = 19
 } PIECE;
 typedef enum { empty_v = 0, pawn_v = 1, knight_v = 3,
   bishop_v = 3, rook_v = 5, queen_v = 9, king_v = 99
@@ -575,6 +576,26 @@ int       EvaluateQueens(TREE * RESTRICT);
 int       EvaluateRooks(TREE * RESTRICT);
 int       EvaluateStalemate(TREE * RESTRICT, int);
 int       EvaluateWinningChances(TREE * RESTRICT);
+
+// Slider functions.
+int inline IsPawnWeakW(TREE * RESTRICT tree, int square);
+int inline IsPawnWeakB(TREE * RESTRICT tree, int square);
+int inline SlideW2(TREE * RESTRICT tree, int sqr, int dir, int num, int ignore);
+int inline SlideB2(TREE * RESTRICT tree, int sqr, int dir, int num, int ignore);
+int inline SlideW(TREE * RESTRICT tree, int square, int dir, int num, int *sqrVal, int *hit1, int *hit2, int ignore);
+int inline SlideB(TREE * RESTRICT tree, int square, int dir, int num, int *sqrVal, int *hit1, int *hit2, int ignore);
+int inline BishopSlideEvalW(TREE * RESTRICT tree, int square, int dir, int num);
+int inline BishopSlideEvalB(TREE * RESTRICT tree, int square, int dir, int num);
+int inline RookSlideEvalW(TREE * RESTRICT tree, int square, int dir, int num, int *weakPawnScoreArray);
+int inline RookSlideEvalB(TREE * RESTRICT tree, int square, int dir, int num, int *weakPawnScoreArray);
+int inline RookSlideW(TREE * RESTRICT tree, int square);
+int inline RookSlideB(TREE * RESTRICT tree, int square);
+int inline BishopSlideW(TREE * RESTRICT tree, int square);
+int inline BishopSlideB(TREE * RESTRICT tree, int square);
+int inline KnightWeakPawnW(TREE * RESTRICT tree, int sqr);
+int inline KnightWeakPawnB(TREE * RESTRICT tree, int sqr);
+
+int EvaluateAll(TREE * RESTRICT tree);
 void      EVTest(char *);
 int       FindBlockID(TREE * RESTRICT);
 char     *FormatPV(TREE * RESTRICT, int, PATH);
@@ -780,6 +801,17 @@ extern void WinFreeInterleaved(void *, size_t);
 #define Rank(x)       ((x)>>3)
 #define File(x)       ((x)&7)
 #define Flip(x)       ((x)^1)
+
+// Slider stuff.
+#define Num_up(x)         (7-Rank(x))
+#define Num_down(x)       (Rank(x))
+#define Num_right(x)      (7-File(x))
+#define Num_left(x)       (File(x))
+#define Num_up_left(x)    (Min(Num_up(x),Num_left(x)))
+#define Num_up_right(x)   (Min(Num_up(x),Num_right(x)))
+#define Num_down_left(x)  (Min(Num_down(x),Num_left(x)))
+#define Num_down_right(x) (Min(Num_down(x),Num_right(x)))
+
 #  define AttacksRank(a)                                                   \
       rook_attacks_r0[(a)][((tree->pos.w_occupied|tree->pos.b_occupied)>>  \
                            (((a)&56)+1))&63]

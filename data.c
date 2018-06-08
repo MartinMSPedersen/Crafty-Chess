@@ -93,6 +93,7 @@ BITBOARD set_mask_rl45[65];
 BITBOARD set_mask_rr45[65];
 BITBOARD file_mask[8];
 BITBOARD rank_mask[8];
+BITBOARD virgin_center_pawns;
 BITBOARD mask_efgh, mask_fgh, mask_abc, mask_abcd;
 BITBOARD mask_advance_2_w;
 BITBOARD mask_advance_2_b;
@@ -160,7 +161,7 @@ BITBOARD black_pawn_race_btm[64];
 BOOK_POSITION book_buffer[BOOK_CLUSTER_SIZE];
 BOOK_POSITION book_buffer_char[BOOK_CLUSTER_SIZE];
 
-#define    VERSION                             "21.0"
+#define    VERSION                             "21.1"
 char version[8] = { VERSION };
 PLAYING_MODE mode = normal_mode;
 int batch_mode = 0;             /* no asynch reads */
@@ -378,6 +379,26 @@ const char mate[64] = {
    96, 80, 70, 60, 60, 70, 80,  96,
   100, 96, 93, 90, 90, 93, 96, 100
 };
+int sqrvalB[64] = {
+    1,   1,   1,   1,   1,   1,   1,   1,
+    1,   2,   2,   2,   2,   2,   2,   1,
+    1,   2,   3,   3,   3,   3,   2,   1,
+    1,   2,   3,   4,   4,   3,   2,   1,
+    1,   2,   3,   4,   4,   3,   2,   1,
+    1,   2,   3,   3,   3,   3,   2,   1,
+    1,   2,   2,   2,   2,   2,   2,   1,
+    1,   1,   1,   1,   1,   1,   1,   1
+};
+int sqrvalR[64] = {
+    1,   2,   3,   4,   4,   3,   2,   1,
+    1,   2,   3,   4,   4,   3,   2,   1,
+    1,   2,   3,   4,   4,   3,   2,   1,
+    1,   2,   3,   4,   4,   3,   2,   1,
+    1,   2,   3,   4,   4,   3,   2,   1,
+    1,   2,   3,   4,   4,   3,   2,   1,
+    1,   2,   3,   4,   4,   3,   2,   1,
+    1,   2,   3,   4,   4,   3,   2,   1
+};
 int white_outpost[64] = {
   0, 0,  0,  0,  0,  0, 0, 0,
   0, 0,  0,  0,  0,  0, 0, 0,
@@ -407,26 +428,6 @@ int nval[64] = {
   -30,  -6,  -6,  -6,  -6,  -6,  -6, -30,
   -30, -24, -10, -10, -10, -10, -24, -30,
   -60, -30, -30, -30, -30, -30, -30, -60,
-};
-int bval[64] = {
-  -20, -20, -20, -20, -20, -20, -20, -20,
-  -20,   6,   6,   3,   3,   6,   6, -20,
-  -20,   6,   8,   6,   6,   8,   6, -20,
-  -20,   3,   6,  10,  10,   6,   3, -20,
-  -20,   3,   6,  10,  10,   6,   3, -20,
-  -20,   6,   8,   6,   6,   8,   6, -20,
-  -20,   6,   6,   3,   3,   6,   6, -20,
-  -20, -20, -20, -20, -20, -20, -20, -20,
-};
-int rval[64] = {
-  -10,  -6,  -2,   2,   2,  -2,  -6, -10,
-  -10,  -6,  -2,   2,   2,  -2,  -6, -10,
-  -10,  -6,  -2,   2,   2,  -2,  -6, -10,
-  -10,  -6,  -2,   2,   2,  -2,  -6, -10,
-  -10,  -6,  -2,   2,   2,  -2,  -6, -10,
-  -10,  -6,  -2,   2,   2,  -2,  -6, -10,
-  -10,  -6,  -2,   2,   2,  -2,  -6, -10,
-  -10,  -6,  -2,   2,   2,  -2,  -6, -10
 };
 int qval[64] = {
   -20, -20,   0,   0,   0,   0, -20, -20,
@@ -504,7 +505,10 @@ int won_kp_ending = 200;
 int split_passed = 50;
 int king_king_tropism = 15;
 int bishop_trapped = 174;
-int bishop_over_knight_endgame = 36;
+int slider_with_wing_pawns = 36;
+int pinOrDiscoveredCheck = 4;
+int weakPawnScore[4] = {4, 6, 5, 9};
+int weakPawnScoreVert[4] = {5, 9, 5, 9};
 /*
     this is indexed by the center status (open, ..., blocked)
     as a bishop pair is more important when the board has opened
@@ -512,7 +516,6 @@ int bishop_over_knight_endgame = 36;
     value is in-between.
 */
 int bishop_pair[3] = { 0, 30, 60 };
-int bishop_bad = 12;
 int rook_on_7th = 24;
 int rook_connected_7th_rank = 10;
 
@@ -548,6 +551,16 @@ int development_thematic = 12;
 int blocked_center_pawn = 12;
 int development_losing_castle = 20;
 int development_not_castled = 20;
+
+// Directions.
+int UP = +8;
+int UP_RIGHT = +9;
+int RIGHT = +1;
+int DOWN_RIGHT = -7;
+int DOWN = -8;
+int DOWN_LEFT = -9;
+int LEFT = -1;
+int UP_LEFT = +7;
 
 /*
    First term is a character string explaining what the eval
@@ -622,12 +635,12 @@ struct eval_term eval_packet[256] = {
   {NULL, 0, NULL},
   {NULL, 0, NULL},
   {"bishop scoring------------------", 0, NULL},        /* 60 */
-  {"bishop over knight endgame      ", 0, &bishop_over_knight_endgame},
+  {"bishop over knight endgame      ", 0, &slider_with_wing_pawns},
   {"bishop trapped                  ", 0, &bishop_trapped},
-  {"bishop bad                      ", 0, &bishop_bad},
   {"bishop pair                     ", 3, bishop_pair},
   {"king tropism [distance]         ", 8, king_tropism_b},
-  {"bishop piece/square table       ", -64, bval},
+  {"bishop mobility/square table    ", -64, sqrvalB},
+  {NULL, 0, NULL},
   {NULL, 0, NULL},
   {NULL, 0, NULL},
   {NULL, 0, NULL},
@@ -641,7 +654,7 @@ struct eval_term eval_packet[256] = {
   {"rook reaches open file          ", 0, &rook_reaches_open_file},
   {"king tropism [distance]         ", 8, king_tropism_r},
   {"king file tropism [distance]    ", 8, king_tropism_at_r},
-  {"rook piece/square table         ", -64, rval},
+  {"rook mobility/square table      ", -64, sqrvalR},
   {NULL, 0, NULL},
   {NULL, 0, NULL},
   {NULL, 0, NULL},

@@ -1527,42 +1527,19 @@ int Option(TREE * RESTRICT tree)
  */
   else if (OptionMatch("learn", *args)) {
     if (nargs == 2) {
-      if (OptionMatch("clear", *(args + 1))) {
-        int index[32768], i, j, cluster;
-        unsigned char buf32[4];
-
-        fseek(book_file, 0, SEEK_SET);
-        for (i = 0; i < 32768; i++) {
-          fread(buf32, 4, 1, book_file);
-          index[i] = BookIn32(buf32);
-        }
-        for (i = 0; i < 32768; i++)
-          if (index[i] > 0) {
-            fseek(book_file, index[i], SEEK_SET);
-            fread(buf32, 4, 1, book_file);
-            cluster = BookIn32(buf32);
-            BookClusterIn(book_file, cluster, book_buffer);
-            for (j = 0; j < cluster; j++)
-              book_buffer[j].learn = 0.0;
-            fseek(book_file, index[i] + sizeof(int), SEEK_SET);
-            BookClusterOut(book_file, cluster, book_buffer);
-          }
-      }
-      else {
-        learning = atoi(args[1]);
-        if (learning & book_learning)
-          Print(128, "book learning enabled\n");
-        else
-          Print(128, "book learning disabled\n");
-        if (learning & result_learning)
-          Print(128, "result learning enabled\n");
-        else
-          Print(128, "result learning disabled\n");
-        if (learning & position_learning)
-          Print(128, "position learning enabled\n");
-        else
-          Print(128, "position learning disabled\n");
-      }
+      learning = atoi(args[1]);
+      if (learning & book_learning)
+        Print(128, "book learning enabled\n");
+      else
+        Print(128, "book learning disabled\n");
+      if (learning & result_learning)
+        Print(128, "result learning enabled\n");
+      else
+        Print(128, "result learning disabled\n");
+      if (learning & position_learning)
+        Print(128, "position learning enabled\n");
+      else
+        Print(128, "position learning disabled\n");
     } else if (nargs == 3) {
       learning_trigger = atof(args[1]) * 100;
       learning_cutoff = atof(args[2]) * 100;
