@@ -2517,6 +2517,51 @@
 *           has been temporarily removed so that this version can be released *
 *           to get the 6 piece ending stuff out.                              *
 *                                                                             *
+*   17.0    connected passed pawn scoring modified so that connected passers  *
+*           don't get any sort of bonus, except for those cases where the     *
+*           opponent has a rook or more.  this will avoid liking positions    *
+*           where crafty has two connected passers on the d/e files, and the  *
+*           opponent has passers on the b/g files.  the split passers win if  *
+*           all pieces are traded, while the connected passers are better     *
+*           when pieces are present.  a new scoring term evaluates the        *
+*           "split" passers similar to outside passers, this at the request   *
+*           (make that demand) of GM Roman Dzindzichashvili. Book() now finds *
+*           the most popular move as the move to ponder.  this eliminated all *
+*           'puzzling' searches which result in clearing the hash tables two  *
+*           times for every book move, which can slow it down when a large    *
+*           hash table is used.  new book option for playing against computer *
+*           opponents was written for this version.  Crafty now supports two  *
+*           "books.bin" type files, books.bin and bookc.bin (the bookc create *
+*           command can be used to make bookc.bin).  bookc will only be used  *
+*           when crafty is playing a computer.  this is supplied by xboard or *
+*           winboard when playing on a server, or can be included int the     *
+*           crafty.rc/.craftyrc file when playing directly.  bookc.bin will   *
+*           be used when playing a computer only, and should be used to avoid *
+*           unsound lines that are fine against humans, but not against other *
+*           computers.  if you don't use a bookc.bin, it will use the normal  *
+*           books.bin as always.  if you use both, it will only use bookc.bin *
+*           in games that have been started and then given the 'computer'     *
+*           command.  minor adjustment to EGTB probe code so that it will     *
+*           always probe TBs at ply=2 (if the right number of pieces are on   *
+*           the board) but won't probe beyond ply=2 unless the move at the    *
+*           previous ply was a capture/promotion and the total pieces drops   *
+*           into the proper range for TB probes.  this makes the 6 piece      *
+*           files far more efficient as before it would continuously probe    *
+*           after reaching 6 piece endings, even if it didn't have the right  *
+*           file.  Now after the capture that takes us to a 6 piece ending    *
+*           we probe one time...  and if there is no hit we don't probe at    *
+*           the next node (or any successors) unless there is another capture *
+*           or promotion that might take us to a database we have.  the book  *
+*           (binary) format has once again been modified, meaning that to use *
+*           16.20 and beyond the book.bin/books.bin files must be re-built    *
+*           from the raw PGN input.  this new format includes an entry for    *
+*           the CAP project score, so that deep searches can be used to guide *
+*           opening book lines.  a new weight (bookw CAP) controls how much   *
+*           this affects book move ordering/selection.  a new import command  *
+*           will take the raw CAPS data and merge it into the book.bin after  *
+*           the file has been built.  serious bug in SetBoard() would leave   *
+*           old EP status set in test suites.  this has been fixed.           *
+*                                                                             *
 *******************************************************************************
 */
 int main(int argc, char **argv) {
@@ -2689,6 +2734,7 @@ int main(int argc, char **argv) {
       if (new_game) NewGame(0);
       opponent_start_time=ReadClock(elapsed);
       made_predicted_move=0;
+      made_unexpected_move=0;
       display=tree->pos;
       move=0;
       presult=0;

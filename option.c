@@ -55,7 +55,7 @@ int Option(TREE *tree) {
  ----------------------------------------------------------
 */
   if (buffer[0] == '!') {
-    system(strchr(buffer,'!')+1);
+    if (!xboard) system(strchr(buffer,'!')+1);
   }
 /*
  ----------------------------------------------------------
@@ -238,11 +238,14 @@ int Option(TREE *tree) {
         book_weight_eval=atof(args[2]);
       else if (!strcmp("learn",args[1]))
         book_weight_learn=atof(args[2]);
+      else if (!strcmp("CAP",args[1]))
+        book_weight_CAP=atof(args[2]);
     }
     else {
       Print(128,"frequency (freq)..............%4.2f\n",book_weight_freq);
       Print(128,"static evaluation (eval)......%4.2f\n",book_weight_eval);
       Print(128,"learning (learn)..............%4.2f\n",book_weight_learn);
+      Print(128,"CAP (CAP score)...............%4.2f\n",book_weight_CAP);
     }
   }
 /*
@@ -255,6 +258,10 @@ int Option(TREE *tree) {
   else if (!strcmp("book",*args)) {
     nargs=ReadParse(buffer,args," 	;");
     BookUp(tree,"book.bin", nargs-1,args+1);
+  }
+  else if (!strcmp("bookc",*args)) {
+    nargs=ReadParse(buffer,args," 	;");
+    BookUp(tree,"bookc.bin", nargs-1,args+1);
   }
   else if (!strcmp("books",*args)) {
     nargs=ReadParse(buffer,args," 	;");
@@ -359,6 +366,7 @@ int Option(TREE *tree) {
     book_weight_freq=1.0;
     book_weight_eval=.1;
     book_weight_learn=.2;
+    books_file=(computer_bs_file) ? computer_bs_file : normal_bs_file;
   }
 /*
  ----------------------------------------------------------
@@ -1662,27 +1670,32 @@ int Option(TREE *tree) {
   else if (OptionMatch("info",*args)) {
     Print(4095,"Crafty version %s\n",version);
     if (hash_table_size*6*sizeof(HASH_ENTRY) < 1<<20)
-      Print(4095,"hash table memory = %dK bytes.\n",
+      Print(4095,"hash table memory =      %4dK bytes.\n",
             hash_table_size*3*sizeof(HASH_ENTRY)/(1<<10));
-    else {
-      if (hash_table_size*6*sizeof(HASH_ENTRY)%(1<<20))
-        Print(4095,"hash table memory = %.1fM bytes.\n",
-              (float) hash_table_size*3*sizeof(HASH_ENTRY)/(1<<20));
-      else
-        Print(4095,"hash table memory = %dM bytes.\n",
-              hash_table_size*3*sizeof(HASH_ENTRY)/(1<<20));
-    }
+    else if (hash_table_size*6*sizeof(HASH_ENTRY)%(1<<20))
+      Print(4095,"hash table memory =      %4.1fM bytes.\n",
+            (float) hash_table_size*3*sizeof(HASH_ENTRY)/(1<<20));
+    else
+      Print(4095,"hash table memory =      %4dM bytes.\n",
+            hash_table_size*3*sizeof(HASH_ENTRY)/(1<<20));
     if (pawn_hash_table_size*sizeof(PAWN_HASH_ENTRY) < 1<<20)
-      Print(4095,"pawn hash table memory = %dK bytes.\n",
+      Print(4095,"pawn hash table memory = %4dK bytes.\n",
             pawn_hash_table_size*sizeof(PAWN_HASH_ENTRY)/(1<<10));
-    else {
-      if (pawn_hash_table_size*6*sizeof(PAWN_HASH_ENTRY)%(1<<20))
-        Print(4095,"pawn hash table memory = %.1fM bytes.\n",
-              (float) pawn_hash_table_size*sizeof(PAWN_HASH_ENTRY)/(1<<20));
-      else
-        Print(4095,"pawn hash table memory = %dM bytes.\n",
-              pawn_hash_table_size*sizeof(PAWN_HASH_ENTRY)/(1<<20));
-    }
+    else if (pawn_hash_table_size*6*sizeof(PAWN_HASH_ENTRY)%(1<<20))
+      Print(4095,"pawn hash table memory = %4.1fM bytes.\n",
+            (float) pawn_hash_table_size*sizeof(PAWN_HASH_ENTRY)/(1<<20));
+    else
+      Print(4095,"pawn hash table memory = %4dM bytes.\n",
+            pawn_hash_table_size*sizeof(PAWN_HASH_ENTRY)/(1<<20));
+    if (EGTB_cache_size < 1<<20)
+      Print(4095,"EGTB cache memory =      %4dK bytes.\n",
+            EGTB_cache_size/(1<<10));
+    else if (EGTB_cache_size%(1<<20))
+      Print(4095,"EGTB cache memory =      %4.1fM bytes.\n",
+            (float) EGTB_cache_size/(1<<20));
+    else
+      Print(4095,"EGTB cache memory =      %4dM bytes.\n",
+            EGTB_cache_size/(1<<20));
     if (!tc_sudden_death) {
       Print(4095,"%d moves/%d minutes %d seconds primary time control\n",
             tc_moves, tc_time/6000, (tc_time/100)%60);
@@ -1702,6 +1715,10 @@ int Option(TREE *tree) {
             tc_secondary_time/6000);
       if (tc_increment) Print(4095,"increment %d seconds.\n",tc_increment/100);
     }
+    Print(128,"frequency (freq)..............%4.2f\n",book_weight_freq);
+    Print(128,"static evaluation (eval)......%4.2f\n",book_weight_eval);
+    Print(128,"learning (learn)..............%4.2f\n",book_weight_learn);
+    Print(128,"CAP (CAP score)...............%4.2f\n",book_weight_CAP);
   }
 /*
  ----------------------------------------------------------
@@ -2580,7 +2597,7 @@ int Option(TREE *tree) {
 |                                                          |
  ----------------------------------------------------------
 */
-#define PERF_CYCLES 100000
+#define PERF_CYCLES 1000000
   else if (OptionMatch("perf",*args)) {
     int i, *mv, clock_before, clock_after;
     float time_used;

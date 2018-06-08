@@ -75,7 +75,7 @@ int Ponder(int wtm) {
   }
   if (!ponder_move) {
     TimeSet(puzzle);
-    if (time_limit < 10) return(0);
+    if (time_limit < 20) return(0);
     puzzling=1;
     tree->position[1]=tree->position[0];
     Print(128,"              puzzling over a move to ponder.\n");
@@ -194,6 +194,6 @@ int Ponder(int wtm) {
  ----------------------------------------------------------
 */
   if (made_predicted_move) return(1);
-  if (abort_search) return(3);
+  if (made_unexpected_move) return(3);
   return(2);
 }

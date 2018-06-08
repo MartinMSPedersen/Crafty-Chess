@@ -2,7 +2,7 @@
 #  define    EVALUATE_INCLUDED
  
 #  define                                 MAXO           (6)
-#  define                            BAD_TRADE         (100)
+#  define                            BAD_TRADE         (132)
 #  define                          EIGHT_PAWNS          (12)
 #  define                        PAWNS_BLOCKED          (12)
 #  define                  CENTER_PAWN_UNMOVED          (16)
@@ -51,7 +51,7 @@
 #  define                    PAWN_ADVANCE_EG_H           (3)
 
 #  define          PAWN_CONNECTED_PASSED_6TH  (PAWN_VALUE/2)
-#  define              PAWN_CONNECTED_PASSED            (16)
+#  define              PAWN_CONNECTED_PASSED             (6)
   
 #  define          PAWN_SUPPORTED_PASSED_RANK2           (0)
 #  define          PAWN_SUPPORTED_PASSED_RANK3           (0)
@@ -71,7 +71,7 @@
   
 #  define                          ROOK_ON_7TH          (30)
 #  define                    ROOK_ABSOLUTE_7TH          (20)
-#  define              ROOK_CONNECTED_7TH_RANK          (10)
+#  define              ROOK_CONNECTED_7TH_RANK          (16)
 #  define                       ROOK_OPEN_FILE          (15)
 #  define                  ROOK_HALF_OPEN_FILE           (5)
 #  define             ROOK_CONNECTED_OPEN_FILE           (5)

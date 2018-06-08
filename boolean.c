@@ -61,61 +61,23 @@ int PopCnt(register BITBOARD a) {
 }
 
 int FirstOne(BITBOARD arg1) {
-  union doub {
-    unsigned short i[4];
-    BITBOARD d;
-  };
-  register union doub x;
-  x.d=arg1;
-#if defined(LITTLE_ENDIAN_ARCH)
-  if (x.i[3])
-    return (first_ones[x.i[3]]);
-  if (x.i[2])
-    return (first_ones[x.i[2]]+16);
-  if (x.i[1])
-    return (first_ones[x.i[1]]+32);
-  if (x.i[0]) 
-    return (first_ones[x.i[0]]+48);
-#else
-  if (x.i[0])
-    return (first_ones[x.i[0]]);
-  if (x.i[1])
-    return (first_ones[x.i[1]]+16);
-  if (x.i[2])
-    return (first_ones[x.i[2]]+32);
-  if (x.i[3]) 
-    return (first_ones[x.i[3]]+48);
-#endif
-  return(64);
+    if (arg1>>48)
+      return (first_ones[arg1>>48]);
+    if ((arg1>>32)&65535)
+      return (first_ones[(arg1>>32)&65535]+16);
+    if ((arg1>>16)&65535)
+      return (first_ones[(arg1>>16)&65535]+32);
+    return (first_ones[arg1&65535]+48);
 }
   
 int LastOne(BITBOARD arg1) {
-  union doub {
-    unsigned short i[4];
-    BITBOARD d;
-  };
-  register union doub x;
-  x.d=arg1;
-#if defined(LITTLE_ENDIAN_ARCH)
-  if (x.i[0]) 
-    return (last_ones[x.i[0]]+48);
-  if (x.i[1])
-    return (last_ones[x.i[1]]+32);
-  if (x.i[2])
-    return (last_ones[x.i[2]]+16);
-  if (x.i[3])
-    return (last_ones[x.i[3]]);
-#else
-  if (x.i[3]) 
-    return (last_ones[x.i[3]]+48);
-  if (x.i[2])
-    return (last_ones[x.i[2]]+32);
-  if (x.i[1])
-    return (last_ones[x.i[1]]+16);
-  if (x.i[0])
-    return (last_ones[x.i[0]]);
-#endif
-  return(64);
+    if (arg1&65535)
+      return (last_ones[arg1&65535]+48);
+    if ((arg1>>16)&65535)
+      return (last_ones[(arg1>>16)&65535]+32);
+    if ((arg1>>32)&65535)
+      return (last_ones[(arg1>>32)&65535]+16);
+    return (last_ones[arg1>>48]);
 }
 #endif
 #endif

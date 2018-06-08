@@ -6,6 +6,8 @@
   FILE           *input_stream;
   FILE           *book_file;
   FILE           *books_file;
+  FILE           *normal_bs_file;
+  FILE           *computer_bs_file;
   FILE           *history_file;
   FILE           *log_file;
   FILE           *auto_file;
@@ -47,6 +49,7 @@
   int            burp;
   int            ponder_move;
   int            made_predicted_move;
+  int            made_unexpected_move;
   int            ponder_moves[220];
   int            num_ponder_moves;
   unsigned int   opponent_start_time, opponent_end_time;
@@ -214,6 +217,7 @@
   unsigned char  first_ones_8bit[256];
   unsigned char  last_ones_8bit[256];
   unsigned char  connected_passed[256];
+  unsigned char  file_spread[256];
   BITBOARD       mask_pawn_protected_b[64];
   BITBOARD       mask_pawn_protected_w[64];
   BITBOARD       mask_pawn_duo[64];
@@ -246,7 +250,7 @@
   unsigned int   max_split_blocks;
   volatile unsigned int   splitting;
 
-# define    VERSION                            "16.19"
+# define    VERSION                            "17.0"
   char      version[6] =                    {VERSION};
   PLAYING_MODE mode =                     normal_mode;
 
@@ -442,6 +446,7 @@
   float     book_weight_freq =                    1.0;
   float     book_weight_eval =                    0.1;
   float     book_weight_learn =                   0.3;
+  float     book_weight_CAP =                     1.0;
   int       book_search_trigger =                  20;
   int       learning =                              7;
   int       moves_out_of_book =                     0;

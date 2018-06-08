@@ -228,41 +228,18 @@ void DelayTime(int ms) {
 }
 
 void DisplayBitBoard(BITBOARD board) {
-  union doub {
-    char i[8];
-    BITBOARD d;
-  };
-  union doub x;
-  int i,j;
-#if defined(LITTLE_ENDIAN_ARCH) && defined(HAS_LONGLONG)
-  static const int subs[8]={7,6,5,4,3,2,1,0};
-#endif
-#if defined(LITTLE_ENDIAN_ARCH) && !defined(HAS_LONGLONG)
-  static const int subs[8]={3,2,1,0,7,6,5,4};
-#endif
-
-  x.d=board;
-#if defined(LITTLE_ENDIAN_ARCH)
+  int i,j,x;
   for(i=7;i>=0;i--) {
     printf("  %2d ",i*8);
+    x=board&255;
+    board>>=8;
     for(j=128;j>0;j=j>>1)
-      if(x.i[subs[i]] & j) 
+      if(x & j) 
         printf("X ");
       else
         printf("- ");
     printf("\n");
   }
-#else
-  for(i=7;i>=0;i--) {
-    printf("  %2d ",i*8);
-    for(j=128;j>0;j=j>>1)
-      if(x.i[i] & j) 
-        printf("X ");
-      else
-        printf("- ");
-    printf("\n");
-  }
-#endif
 }
 
 /*
@@ -501,7 +478,7 @@ void DisplayTreeState(TREE *tree, int sply, int spos, int maxply) {
   if (sply == 1) {
     left=0;
     for (i=0;i<n_root_moves;i++)
-      if (!root_moves[i].status&128) left++;
+      if (!(root_moves[i].status&128)) left++;
     sprintf(buf,"%d:%d/%d  ",1,left,n_root_moves);
   }
   else {
@@ -528,61 +505,135 @@ void DisplayTreeState(TREE *tree, int sply, int spos, int maxply) {
 }
 
 void Display64bitWord(BITBOARD word) {
-  union doub {
-    unsigned int i[2];
-    BITBOARD d;
-  };
-  union doub x;
-  x.d=word;
-#if defined(LITTLE_ENDIAN_ARCH)
-  printf("%08x%08x\n",x.i[1],x.i[0]);
-#else
-  printf("%08x%08x\n",x.i[0],x.i[1]);
-#endif
+  printf("%08x%08x\n",(int)(word>>32),(int)word);
 }
 
 void Display2BitBoards(BITBOARD board1, BITBOARD board2) {
-  union doub {
-    char i[8];
-    BITBOARD d;
-  };
-  union doub x,y;
-  int i,j;
-#if defined(LITTLE_ENDIAN_ARCH) && defined(HAS_LONGLONG)
-  static const int subs[8]={7,6,5,4,3,2,1,0};
-#endif
-#if defined(LITTLE_ENDIAN_ARCH) && !defined(HAS_LONGLONG)
-  static const int subs[8]={3,2,1,0,7,6,5,4};
-#endif
+  int i,j,x,y;
+  for(i=7;i>=0;i--) {
+    printf("  %2d ",i*8);
+    x=board1&255;
+    board1>>=8;
+    for(j=128;j>0;j=j>>1)
+      if(x & j) printf("X ");
+      else printf("- ");
+    printf("     %2d ",i*8);
+    y=board2&255;
+    board2>>=8;
+    for(j=128;j>0;j=j>>1)
+      if(y & j) printf("X ");
+      else printf("- ");
+    printf("\n");
+  }
+}
 
-  x.d=board1;
-  y.d=board2;
-  printf("          good                     bad\n");
-#if defined(LITTLE_ENDIAN_ARCH)
-  for(i=7;i>=0;i--) {
-    printf("  %2d ",i*8);
-    for(j=128;j>0;j=j>>1)
-      if(x.i[subs[i]] & j) printf("X ");
-      else printf("- ");
-    printf("     %2d ",i*8);
-    for(j=128;j>0;j=j>>1)
-      if(y.i[subs[i]] & j) printf("X ");
-      else printf("- ");
-    printf("\n");
+/* last modified 09/21/99 */
+/*
+********************************************************************************
+*                                                                              *
+*   EGTBPV() is used to display the full PV (path) for a mate/mated in N EGTB  *
+*   position.  if the second token is a !, then we show which moves are the    *
+*   only optimal moves by adding a ! to them.                                  *
+*                                                                              *
+********************************************************************************
+*/
+void EGTBPV(TREE *tree, int wtm) {
+  int moves[1024], current[256];
+  char buffer[1024], *next;
+  BITBOARD pos[1024];
+  int value;
+  register int ply, i, j, nmoves, *last, t_move_number;
+  register int best=0, bestmv=0, optimal_mv=0;
+  register int bang=0;
+  if (!strcmp(args[1],"!")) bang=1;
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   first, see if this is a known EGTB position.  if not,  |
+|   we can bug out right now.                              |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  if (!EGTB_setup) return;
+  if(!EGTBProbe(tree, 1, wtm, &value)) return;
+  t_move_number=move_number;
+  if (display_options&64) sprintf(buffer,"%d.",move_number);
+  else buffer[0]=0;
+  if ((display_options&64) && !wtm) sprintf(buffer+strlen(buffer)," ...");
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   the rest is simple, but messy.  generate all moves,    |
+|   then find the move with the best egtb score and make   |
+|   it (note that if there is only one that is optimal, it |
+|   is flagged as such).  we then repeat this over and     |
+|   over until we reach the end, or until we repeat a move |
+|   and can call it a repetition.                          |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  for (ply=1;ply<1024;ply++) {
+    pos[ply]=HashKey;
+    last=GenerateCaptures(tree, 1, wtm, current);
+    last=GenerateNonCaptures(tree, 1, wtm, last);
+    nmoves=last-current;
+    best=-MATE-1;
+    for (i=0;i<nmoves;i++) {
+      MakeMove(tree,1,current[i],wtm);
+      if (!Check(wtm)) {
+        if(EGTBProbe(tree, 2, ChangeSide(wtm), &value)) {
+          value=-value;
+          if (value > best) {
+            best=value;
+            bestmv=current[i];
+            optimal_mv=1;
+          }
+          else if (value == best) optimal_mv=0;
+        }
+      }
+      UnMakeMove(tree,1,current[i],wtm);
+    }
+    if (best > -MATE-1) {
+      moves[ply]=bestmv;
+      if ((display_options&64) && ply>1 && wtm)
+        sprintf(buffer+strlen(buffer)," %d.",t_move_number);
+      sprintf(buffer+strlen(buffer)," %s",OutputMove(tree,bestmv,1,wtm));
+      if (bang && optimal_mv) sprintf(buffer+strlen(buffer),"!");
+      MakeMove(tree,1,bestmv,wtm);
+      tree->position[1]=tree->position[2];
+      wtm=ChangeSide(wtm);
+      for (j=1;j<ply;j++) 
+        if (pos[ply] == pos[j]) break;
+      if (j < ply) break;
+      if (wtm) t_move_number++;
+      if (strchr(buffer,'#')) break;
+    }
+    else {
+      ply--;
+      break;
+    }
   }
-#else
-  for(i=7;i>=0;i--) {
-    printf("  %2d ",i*8);
-    for(j=128;j>0;j=j>>1)
-      if(x.i[i] & j) printf("X ");
-      else printf("- ");
-    printf("     %2d ",i*8);
-    for(j=128;j>0;j=j>>1)
-      if(y.i[i] & j) printf("X ");
-      else printf("- ");
-    printf("\n");
+  nmoves=ply;
+  for (;ply>0;ply--) {
+    wtm=ChangeSide(wtm);
+    UnMakeMove(tree,1,moves[ply],wtm);
+    tree->position[2]=tree->position[1];
   }
-#endif
+  next=buffer;
+  while (nmoves) {
+    if (strlen(next) > 72) {
+      int i;
+      for (i=0;i<16;i++) 
+        if (*(next+64+i) == ' ') break;
+      *(next+64+i)=0;
+      printf("%s\n",next);
+      next+=64+i+1;
+    }
+    else {
+      printf("%s\n",next);
+      break;
+    }
+  }
 }
 
 void DisplayChessMove(char *title, int move) {
@@ -847,6 +898,7 @@ void NewGame(int save) {
     force=0;
     trojan_check=0;
     computer_opponent=0;
+    books_file=normal_bs_file;
     draw_score=0;
     wtm=1;
     move_number=1;

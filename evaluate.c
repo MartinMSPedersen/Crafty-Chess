@@ -4,7 +4,7 @@
 #include "evaluate.h"
 #include "data.h"
 
-/* last modified 09/20/99 */
+/* last modified 09/30/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -23,7 +23,7 @@
 int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
   register BITBOARD temp;
   register int square, file, score, tscore, w_tropism=0, b_tropism=0;
-  register int trop, drawn_ending=0;
+  register int w_spread, b_spread, trop, drawn_ending=0;
 #if defined(DEBUGEV)
   int lastsc=Material;
 #endif
@@ -126,6 +126,18 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
       pscore+=EvaluatePassedPawnRaces(tree,wtm);
     score+=pscore*passed_scale/100;
   }
+  if (!(tree->pawn_score.outside&1) && tree->pawn_score.outside&4)
+    score+=majority[(int) TotalBlackPieces];
+  if (!(tree->pawn_score.outside&2) && tree->pawn_score.outside&8)
+    score-=majority[(int) TotalWhitePieces];
+  w_spread=file_spread[tree->pawn_score.passed_w|
+                       tree->pawn_score.candidates_w];
+  b_spread=file_spread[tree->pawn_score.passed_b|
+                       tree->pawn_score.candidates_b];
+  if (w_spread > 1)
+    score+=outside_passed[(int) TotalBlackPieces]>>1;
+  if (b_spread > 1)
+    score-=outside_passed[(int) TotalWhitePieces]>>1;
 #ifdef DEBUGEV
   if (score != lastsc) {
     printf("score[passed pawns]=              %4d (%+d)\n",score,score-lastsc);
@@ -210,11 +222,13 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
 *                                                                    *
 **********************************************************************
 */
+/*
   if (drawn_ending == 0) {
     register const int tscore=(wtm)?score:-score;
     if (tscore-largest_positional_score>= beta) return(beta);
     if (tscore+largest_positional_score<= alpha) return(alpha);
   }
+*/
   tscore=score;
   tree->evaluations++;
 /*
@@ -1286,7 +1300,7 @@ int EvaluateDraws(TREE *tree) {
 ********************************************************************************
 */
 int EvaluateMate(TREE *tree) {
-  register int mate_score=0;
+  register int mate_score=DrawScore(root_wtm==wtm);
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -1561,7 +1575,7 @@ int EvaluatePassedPawns(TREE *tree) {
       pawns&=~(128>>file);
       square1=FirstOne(BlackPawns&file_mask[file-1]);
       square2=FirstOne(BlackPawns&file_mask[file]);
-      score-=connected_passed_pawn_value[7-Min(Rank(square1),Rank(square2))];
+      score-=connected_passed_pawn_value[7-Max(Rank(square1),Rank(square2))];
       if (Rank(square1) > RANK3) continue;
       if (Rank(square2) > RANK3) continue;
       score-=PAWN_CONNECTED_PASSED_6TH>>1;
@@ -1628,7 +1642,7 @@ int EvaluatePassedPawns(TREE *tree) {
       pawns&=~(128>>file);
       square1=LastOne(WhitePawns&file_mask[file-1]);
       square2=LastOne(WhitePawns&file_mask[file]);
-      score+=connected_passed_pawn_value[Max(Rank(square1),Rank(square2))];
+      score+=connected_passed_pawn_value[Min(Rank(square1),Rank(square2))];
       if (Rank(square1) < RANK6) continue;
       if (Rank(square2) < RANK6) continue;
       score+=PAWN_CONNECTED_PASSED_6TH>>1;
@@ -1998,7 +2012,7 @@ int EvaluatePassedPawnRaces(TREE *tree, int wtm) {
   return(0);
 }
 
-/* last modified 09/20/99 */
+/* last modified 09/30/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -2021,6 +2035,7 @@ int EvaluatePawns(TREE *tree) {
   register int ks_equal=1, qs_equal=1;
   register int w_unblocked, b_unblocked;
   register int w_file_l, w_file_r, b_file_l, b_file_r;
+  register int w_cfile_l, w_cfile_r, b_cfile_l, b_cfile_r;
   register int defenders, attackers, weakness, blocked, sq;
   register int kside_open_files, qside_open_files;
   register int kside_half_open_files_b, kside_half_open_files_w;
@@ -2294,6 +2309,63 @@ int EvaluatePawns(TREE *tree) {
 /*
  ----------------------------------------------------------
 |                                                          |
+|   now determine if this pawn is a candidate passer,      |
+|   since we now know it isn't passed.  a candidate is a   |
+|   pawn on a file with no enemy pawns in front of it, and |
+|   if it advances until it contacts an enemy pawn, and it |
+|   is defended as many times as it is attacked when it    |
+|   reaches that pawn, then all that is left is to see if  |
+|   it is passed when the attacker(s) get removed.         |
+|                                                          |
+ ----------------------------------------------------------
+*/
+    else {
+      if (!(file_mask[File(square)]&BlackPawns) &&
+          mask_pawn_isolated[square]&WhitePawns &&
+          !(w_pawn_attacks[square]&BlackPawns) &&
+          ((file<FILEE && !qs_equal) || (file>FILED && !ks_equal))) {
+        attackers=1;
+        defenders=0;
+        for (sq=square;sq<A7;sq+=8) {
+          if (SetMask(sq+8)&tree->all_pawns) break;
+          defenders=PopCnt(b_pawn_attacks[sq]&wp_moves);
+          attackers=PopCnt(w_pawn_attacks[sq]&BlackPawns);
+          if (attackers) break;
+        }
+        if (attackers <= defenders) {
+          if (!(mask_pawn_passed_w[sq+8]&BlackPawns)) {
+            tree->pawn_score.candidates_w|=128>>file;
+          }
+        }
+      }
+      if (!(tree->pawn_score.candidates_w&128)) {
+        if (file <= FILED) {
+          if (WhitePawns&file_mask[file+1] && WhitePawns&file_mask[file+2]) {
+            if (!(BlackPawns&file_mask[file]) &&
+                !(BlackPawns&file_mask[file+2]) &&
+                !(BlackPawns&file_mask[file+3]) &&
+                PopCnt(BlackPawns&file_mask[file+1])<=2)
+              tree->pawn_score.candidates_w|=128>>file;
+          }
+        }
+        else {
+          if (WhitePawns&file_mask[file-1] && WhitePawns&file_mask[file-2]) {
+            if (!(BlackPawns&file_mask[file]) &&
+                !(BlackPawns&file_mask[file-2]) &&
+                !(BlackPawns&file_mask[file-3]) &&
+                PopCnt(BlackPawns&file_mask[file-1])<=2)
+              tree->pawn_score.candidates_w|=128>>file;
+          }
+        }
+      }
+#ifdef DEBUGP
+      if (tree->pawn_score.candidates_w&(128>>file))
+        printf("white pawn[candidate]       square=%d\n", square);
+#endif
+    }
+/*
+ ----------------------------------------------------------
+|                                                          |
 |   evaluate "hidden" passed pawns.  simple case is a pawn |
 |   chain (white) at b5, a6, with a black pawn at a7.      |
 |   it appears the b-pawn is backward, with a ram at a6/a7 |
@@ -2310,7 +2382,7 @@ int EvaluatePawns(TREE *tree) {
          (File(square) > FILEA && SetMask(square-9)&WhitePawns &&
           !(plus8dir[square-9]&BlackPawns) &&
           (File(square) == FILEB || !(plus8dir[square-10]&BlackPawns))))) {
-      tree->pawn_score.p_score+=passed_pawn_value[Rank(square)];
+      tree->pawn_score.p_score+=passed_pawn_value[Rank(square)]>>1;
     }
 #ifdef DEBUGP
     if (tree->pawn_score.p_score != lastsc)
@@ -2514,6 +2586,63 @@ int EvaluatePawns(TREE *tree) {
 /*
  ----------------------------------------------------------
 |                                                          |
+|   now determine if this pawn is a candidate passer,      |
+|   since we now know it isn't passed.  a candidate is a   |
+|   pawn on a file with no enemy pawns in front of it, and |
+|   if it advances until it contacts an enemy pawn, and it |
+|   is defended as many times as it is attacked when it    |
+|   reaches that pawn, then all that is left is to see if  |
+|   it is passed when the attacker(s) get removed.         |
+|                                                          |
+ ----------------------------------------------------------
+*/
+    else {
+      if (!(file_mask[File(square)]&WhitePawns) &&
+          mask_pawn_isolated[square]&BlackPawns &&
+          !(b_pawn_attacks[square]&WhitePawns) &&
+          ((file<FILEE && !qs_equal) || (file>FILED && !ks_equal))) {
+        attackers=1;
+        defenders=0;
+        for (sq=square;sq>H2;sq-=8) {
+          if (SetMask(sq-8)&tree->all_pawns) break;
+          attackers=PopCnt(b_pawn_attacks[sq]&WhitePawns);
+          defenders=PopCnt(w_pawn_attacks[sq]&bp_moves);
+          if (attackers) break;
+        }
+        if (attackers <= defenders) {
+          if (!(mask_pawn_passed_b[sq-8]&WhitePawns)) {
+            tree->pawn_score.candidates_b|=128>>file;
+          }
+        }
+      }
+      if (!(tree->pawn_score.candidates_b&128)) {
+        if (file <= FILED) {
+          if (BlackPawns&file_mask[file+1] && BlackPawns&file_mask[file+2]) {
+            if (!(WhitePawns&file_mask[file]) &&
+                !(WhitePawns&file_mask[file+2]) &&
+                !(WhitePawns&file_mask[file+3]) &&
+                PopCnt(WhitePawns&file_mask[file+1])<=2)
+              tree->pawn_score.candidates_b|=128>>file;
+          }
+        }
+        else {
+          if (BlackPawns&file_mask[file-1] && BlackPawns&file_mask[file-2]) {
+            if (!(WhitePawns&file_mask[file]) &&
+                !(WhitePawns&file_mask[file-2]) &&
+                  !(WhitePawns&file_mask[file-3]) &&
+                PopCnt(WhitePawns&file_mask[file-1])<=2)
+              tree->pawn_score.candidates_b|=128>>file;
+          }
+        }
+      }
+#ifdef DEBUGP
+      if (tree->pawn_score.candidates_b&(128>>file))
+        printf("black pawn[candidate]       square=%d\n", square);
+#endif
+    }
+/*
+ ----------------------------------------------------------
+|                                                          |
 |   evaluate "hidden" passed pawns.  simple case is a pawn |
 |   chain (white) at b5, a6, with a black pawn at a7.      |
 |   it appears the b-pawn is backward, with a ram at a6/a7 |
@@ -2530,7 +2659,7 @@ int EvaluatePawns(TREE *tree) {
          (File(square) > FILEA && SetMask(square+7)&BlackPawns &&
           !(minus8dir[square+7]&WhitePawns) &&
           (File(square) == FILEB || !(minus8dir[square+6]&WhitePawns))))) {
-      tree->pawn_score.p_score-=passed_pawn_value[(RANK8-Rank(square))];
+      tree->pawn_score.p_score-=passed_pawn_value[(RANK8-Rank(square))]>>1;
     }
 #ifdef DEBUGP
     if (tree->pawn_score.p_score != lastsc)
@@ -2815,6 +2944,10 @@ int EvaluatePawns(TREE *tree) {
 |  passer to trade down to a simple king and pawn ending   |
 |  which the outside passer wins.                          |
 |                                                          |
+|  we do the same thing for candidate passers, except that |
+|  we compare our candidate passers to the opponent's      |
+|  candidate passers + his real passers.                   |
+|                                                          |
  ----------------------------------------------------------
 */
   w_file_l=first_ones_8bit[tree->pawn_score.passed_w];
@@ -2838,14 +2971,17 @@ int EvaluatePawns(TREE *tree) {
 |  better even if his opponent has a protected   |
 |  passer.                                       |
 |                                                |
+|  ditto for a candidate passed pawn, as it can  |
+|  turn into a passed pawn very quickly.         |
+|                                                |
  ------------------------------------------------
 */
   if (w_file_l != 9) {
     if (w_file_l!=w_file_r &&
-        w_file_l <b_file_l-1 && w_file_r>b_file_r+1) {
+        w_file_l<b_file_l-1 && w_file_r>b_file_r+1) {
       tree->pawn_score.outside|=1;
     }
-    else if ((w_file_l < b_file_l-1) || (w_file_r > b_file_r+1)) do {
+    else if ((w_file_l<b_file_l-1) || (w_file_r>b_file_r+1)) do {
       if (w_file_l < 4) {
         if(tree->all_pawns&right_side_mask[w_file_l] &&
            !(BlackPawns&left_side_empty_mask[w_file_l])) {
@@ -2863,13 +2999,34 @@ int EvaluatePawns(TREE *tree) {
       }
     } while(0);
   }
+  if (tree->pawn_score.candidates_w) {
+    register int b_file_l, b_file_r;
+    w_cfile_l=first_ones_8bit[tree->pawn_score.candidates_w];
+    if (w_cfile_l == 8) w_cfile_l=9;
+    w_cfile_r=last_ones_8bit[tree->pawn_score.candidates_w];
+    if (w_cfile_r == 8) w_cfile_r=-9;
+    b_file_l=first_ones_8bit[tree->pawn_score.passed_b|
+                             tree->pawn_score.candidates_b];
+    if (b_file_l == 8) b_file_l=9;
+    b_file_r=last_ones_8bit[tree->pawn_score.passed_b|
+                            tree->pawn_score.candidates_b];
+    if (b_file_r == 8) b_file_r=-9;
+
+    if (w_cfile_l!=w_cfile_r &&
+        w_cfile_l<b_file_l-1 && w_cfile_r>b_file_r+1) {
+      tree->pawn_score.outside|=4;
+    }
+    else if ((w_cfile_l<b_file_l-1) || (w_cfile_r>b_file_r+1)) {
+      if (!(tree->pawn_score.protected&2)) tree->pawn_score.outside|=4;
+    }
+  }
 
   if (b_file_l != 9) {
     if (b_file_l!=b_file_r &&
-        b_file_l <w_file_l-1 && b_file_r>w_file_r+1) {
+        b_file_l<w_file_l-1 && b_file_r>w_file_r+1) {
       tree->pawn_score.outside|=2;
     }
-    else if ((b_file_l < w_file_l-1) || (b_file_r > w_file_r+1)) do {
+    else if ((b_file_l<w_file_l-1) || (b_file_r>w_file_r+1)) do {
       if (b_file_l < 4) {
         if(tree->all_pawns&right_side_mask[b_file_l] &&
            !(WhitePawns&left_side_empty_mask[b_file_l])) {
@@ -2886,6 +3043,26 @@ int EvaluatePawns(TREE *tree) {
         }
       }
     } while(0);
+  }
+  if (tree->pawn_score.candidates_b) {
+    register int w_file_l, w_file_r;
+    b_cfile_l=first_ones_8bit[tree->pawn_score.candidates_b];
+    if (b_cfile_l == 8) b_cfile_l=9;
+    b_cfile_r=last_ones_8bit[tree->pawn_score.candidates_b];
+    if (b_cfile_r == 8) b_cfile_r=-9;
+    w_file_l=first_ones_8bit[tree->pawn_score.passed_w|
+                             tree->pawn_score.candidates_w];
+    if (w_file_l == 8) w_file_l=9;
+    w_file_r=last_ones_8bit[tree->pawn_score.passed_w|
+                            tree->pawn_score.candidates_w];
+    if (w_file_r == 8) w_file_r=-9;
+    if (b_cfile_l!=b_cfile_r &&
+        b_cfile_l<w_file_l-1 && b_cfile_r>w_file_r+1) {
+      tree->pawn_score.outside|=8;
+    }
+    else if ((b_cfile_l<w_file_l-1) || (b_cfile_r>w_file_r+1)) {
+      if (!(tree->pawn_score.protected&1)) tree->pawn_score.outside|=8;
+    }
   }
   if (!tree->pawn_score.outside) {
     if (tree->pawn_score.protected&1 && !(tree->pawn_score.protected&2))

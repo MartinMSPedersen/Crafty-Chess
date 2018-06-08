@@ -31,6 +31,8 @@
   extern FILE           *input_stream;
   extern FILE           *book_file;
   extern FILE           *books_file;
+  extern FILE           *normal_bs_file;
+  extern FILE           *computer_bs_file;
   extern FILE           *history_file;
   extern FILE           *log_file;
   extern FILE           *auto_file;
@@ -152,6 +154,7 @@
   extern int            ponder;
   extern int            ponder_move;
   extern int            made_predicted_move;
+  extern int            made_unexpected_move;
   extern int            force;
   extern int            ponder_moves[220];
   extern int            num_ponder_moves;
@@ -182,6 +185,7 @@
   extern float          book_weight_freq;
   extern float          book_weight_eval;
   extern float          book_weight_learn;
+  extern float          book_weight_CAP;
   extern int            book_search_trigger;
   extern int            book_selection_width;
   extern int            show_book;
@@ -429,6 +433,7 @@
   extern unsigned char  first_ones_8bit[256];
   extern unsigned char  last_ones_8bit[256];
   extern unsigned char  connected_passed[256];
+  extern unsigned char  file_spread[256];
 
   extern BITBOARD       mask_pawn_protected_b[64];
   extern BITBOARD       mask_pawn_protected_w[64];

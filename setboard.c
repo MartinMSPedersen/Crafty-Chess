@@ -163,6 +163,7 @@ void SetBoard(int nargs, char *args[], int special) {
   for (i=0;i<64;i++) PcOnSq(i)=tboard[i];
   WhiteCastle(0)=wcastle;
   BlackCastle(0)=bcastle;
+  EnPassant(0)=0;
   if (ep) {
     if (Rank(ep) == RANK6) {
       if (PcOnSq(ep-8) != -pawn) ep=0;

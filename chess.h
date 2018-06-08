@@ -19,10 +19,6 @@
 *   the bitwise operators are done by the compiler rather than by procedure    *
 *   calls.                                                                     *
 *                                                                              *
-*   LITTLE_ENDIAN_ARCH:  define for a 32-bit machine that mangles the way data *
-*   is stored within a word.  This is currently true for all PC class machines *
-*   and false for other processors used in current workstations (SUN, etc.)    *
-*                                                                              *
 *   UNIX:  define this if the program is being run on a unix-based system,     *
 *   which causes the executable to use unix-specific runtime utilities.        *
 *                                                                              *
@@ -61,73 +57,61 @@
 #if defined(AIX)
 #  undef  HAS_64BITS           /* machine has 64-bit integers / operators     */
 #  define HAS_LONGLONG         /* machine has 32-bit/64-bit integers          */
-#  undef  LITTLE_ENDIAN_ARCH   /* machine stores bytes in "PC" order          */
 #  define UNIX                 /* system is unix-based                        */
 #endif
 #if defined(ALPHA)
 #  define HAS_64BITS           /* machine has 64-bit integers / operators     */
 #  undef  HAS_LONGLONG         /* machine has 32-bit/64-bit integers          */
-#  define LITTLE_ENDIAN_ARCH   /* machine stores bytes in "PC" order          */
 #  define UNIX                 /* system is unix-based                        */
 #endif
 #if defined(AMIGA)
 #  undef  HAS_64BITS           /* machine has 64-bit integers / operators     */
 #  define HAS_LONGLONG         /* machine has 32-bit/64-bit integers          */
-#  undef  LITTLE_ENDIAN_ARCH   /* machine stores bytes in "PC" order          */
 #  undef  UNIX                 /* system is unix-based                        */
 #endif
 #if defined(CRAY1)
 #  define HAS_64BITS           /* machine has 64-bit integers / operators     */
 #  undef  HAS_LONGLONG         /* machine has 32-bit/64-bit integers          */
-#  undef  LITTLE_ENDIAN_ARCH   /* machine stores bytes in "PC" order          */
 #  define UNIX                 /* system is unix-based                        */
 #endif
 #if defined(DOS)
 #  undef  HAS_64BITS           /* machine has 64-bit integers / operators     */
 #  define HAS_LONGLONG         /* machine has 32-bit/64-bit integers          */
-#  define LITTLE_ENDIAN_ARCH   /* machine stores bytes in "PC" order          */
 #  undef  UNIX                 /* system is unix-based                        */
 #endif
 #if defined(FreeBSD)
 #  undef  HAS_64BITS           /* machine has 64-bit integers / operators     */
 #  define HAS_LONGLONG         /* machine has 32-bit/64-bit integers          */
-#  define LITTLE_ENDIAN_ARCH   /* machine stores bytes in "PC" order          */
 #  define UNIX                 /* system is unix-based                        */
 #endif
 #if defined(HP)
 #  undef  HAS_64BITS           /* machine has 64-bit integers / operators     */
 #  define HAS_LONGLONG         /* machine has 32-bit/64-bit integers          */
-#  undef  LITTLE_ENDIAN_ARCH   /* machine stores bytes in "PC" order          */
 #  define UNIX                 /* system is unix-based                        */
 #endif
 #if defined(LINUX)
 #  undef  HAS_64BITS           /* machine has 64-bit integers / operators     */
 #  define HAS_LONGLONG         /* machine has 32-bit/64-bit integers          */
-#  define LITTLE_ENDIAN_ARCH   /* machine stores bytes in "PC" order          */
 #  define UNIX                 /* system is unix-based                        */
 #endif
 #if defined(MIPS)
 #  undef  HAS_64BITS           /* machine has 64-bit integers / operators     */
 #  define HAS_LONGLONG         /* machine has 32-bit/64-bit integers          */
-#  undef  LITTLE_ENDIAN_ARCH   /* machine stores bytes in "PC" order          */
 #  define UNIX                 /* system is unix-based                        */
 #endif
 #if defined(NEXT)
 #  undef  HAS_64BITS          /* machine has 64-bit integers / operators     */
 #  define HAS_LONGLONG        /* machine has 32-bit/64-bit integers          */
-#  undef  LITTLE_ENDIAN_ARCH  /* machine stores bytes in "PC" order          */
 #  define UNIX                /* system is unix-based                        */
 #endif
 #if defined(NT_AXP)
 #  undef  HAS_64BITS           /* machine has 64-bit integers / operators     */
 #  define HAS_LONGLONG         /* machine has 32-bit/64-bit integers          */
-#  define LITTLE_ENDIAN_ARCH   /* machine stores bytes in "PC" order          */
 #  undef  UNIX                 /* system is unix-based                        */
 #endif
 #if defined(NT_i386)
 #  undef  HAS_64BITS           /* machine has 64-bit integers / operators     */
 #  define HAS_LONGLONG         /* machine has 32-bit/64-bit integers          */
-#  define LITTLE_ENDIAN_ARCH   /* machine stores bytes in "PC" order          */
 #  undef  UNIX                 /* system is unix-based                        */
 #  undef  STDCALL
 #  define STDCALL __stdcall
@@ -143,25 +127,21 @@
 #if defined(OS2)
 #  undef  HAS_64BITS           /* machine has 64-bit integers / operators     */
 #  define HAS_LONGLONG         /* machine has 32-bit/64-bit integers          */
-#  define LITTLE_ENDIAN_ARCH   /* machine stores bytes in "PC" order          */
 #  define UNIX                 /* system is unix-based                        */
 #endif
 #if defined(SGI)
 #  undef  HAS_64BITS           /* machine has 64-bit integers / operators     */
 #  define HAS_LONGLONG         /* machine has 32-bit/64-bit integers          */
-#  undef  LITTLE_ENDIAN_ARCH   /* machine stores bytes in "PC" order          */
 #  define UNIX                 /* system is unix-based                        */
 #endif
 #if defined(SUN)
 #  undef  HAS_64BITS           /* machine has 64-bit integers / operators     */
 #  define HAS_LONGLONG         /* machine has 32-bit/64-bit integers          */
-#  undef  LITTLE_ENDIAN_ARCH   /* machine stores bytes in "PC" order          */
 #  define UNIX                 /* system is unix-based                        */
 #endif
 #if defined(SUN_BSD)
 #  undef  HAS_64BITS           /* machine has 64-bit integers / operators     */
 #  define HAS_LONGLONG         /* machine has 32-bit/64-bit integers          */
-#  undef  LITTLE_ENDIAN_ARCH   /* machine stores bytes in "PC" order          */
 #  define UNIX                 /* system is unix-based                        */
 #endif
 
@@ -172,7 +152,6 @@
 #if defined(MACOS)
 #  undef  HAS_64BITS           /* machine has 64-bit integers / operators     */
 #  define HAS_LONGLONG         /* machine has 32-bit/64-bit integers          */
-#  undef  LITTLE_ENDIAN_ARCH   /* machine stores bytes in "PC" order          */
 #  undef  UNIX                 /* system is unix-based                        */
 
 #  define COMPACT_ATTACKS
@@ -207,6 +186,8 @@
 #define        LEARN_WINDOW_UB            +40
 #define      LEARN_COUNTER_BAD            -80
 #define     LEARN_COUNTER_GOOD           +100
+#define         CAP_SCORE_GOOD           +150
+#define          CAP_SCORE_BAD           -150
 
 /*
   fractional ply extensions.  these should be in units based on the
@@ -524,6 +505,7 @@ BITBOARD       AttacksTo(TREE*, int);
 void           Bench(void);
 int            Book(TREE*,int,int);
 int            BookMask(char*);
+int            BookPonderMove(TREE*,int);
 void           BookUp(TREE*, char*, int, char**);
 void           BookSort(BB_POSITION*, int, int);
 #if defined(NT_i386) || defined(NT_AXP)
@@ -603,6 +585,7 @@ void           LearnBookUpdate(TREE*, int, int, float);
 int            LearnFunction(int, int, int, int);
 void           LearnImport(TREE*, int, char**);
 void           LearnImportBook(TREE*, int, char**);
+void           LearnImportCAP(TREE*, int, char**);
 void           LearnImportPosition(TREE*, int, char**);
 void           LearnPosition(TREE*, int, int, int);
 void           LearnPositionLoad(void);

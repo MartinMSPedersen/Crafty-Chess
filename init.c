@@ -186,19 +186,35 @@ void Initialize(int continuing) {
 #else
   sprintf(log_filename,"%s/books.bin",book_path);
 #endif
-  books_file=fopen(log_filename,"rb");
+  normal_bs_file=fopen(log_filename,"rb");
+  books_file=normal_bs_file;
 #if defined(MACOS)
-  if (!books_file) printf("unable to open book file [:%s:books.bin].\n",book_path);
+  if (!normal_bs_file)
+    printf("unable to open book file [:%s:books.bin].\n",book_path);
 #else
-  if (!books_file) printf("unable to open book file [%s/books.bin].\n",book_path);
+  if (!normal_bs_file)
+    printf("unable to open book file [%s/books.bin].\n",book_path);
+#endif
+#if defined(MACOS)
+  sprintf(log_filename,":%s:bookc.bin",book_path);
+#else
+  sprintf(log_filename,"%s/bookc.bin",book_path);
+#endif
+  computer_bs_file=fopen(log_filename,"rb");
+#if defined(MACOS)
+  if (computer_bs_file)
+    printf("found computer opening book file [:%s:books.bin].\n",book_path);
+#else
+  if (computer_bs_file)
+    printf("found computer opening book file [%s/books.bin].\n",book_path);
 #endif
   if (book_file) {
     fseek(book_file,-sizeof(int),SEEK_END);
     fread(&major,sizeof(int),1,book_file);
     minor=major&65535;
     major=major>>16;
-    if (major<15 || (major==15 && minor<15)) {
-      Print(4095,"\nERROR!  book.bin not made by version 15.15 or later\n");
+    if (major<16 || (major==16 && minor<20)) {
+      Print(4095,"\nERROR!  book.bin not made by version 16.20 or later\n");
       fclose(book_file);
       fclose(books_file);
       book_file=0;
@@ -705,6 +721,7 @@ void InitializeChessBoard(SEARCH_POSITION *new_pos) {
     middle_game=0;
     end_game=0;
     largest_positional_score=100;
+    wtm=1;
 /*
    place pawns
 */
@@ -1431,7 +1448,7 @@ void InitializeSMP(void) {
 #endif
 
 void InitializeZeroMasks(void) {
-  int i,j;
+  int i,j, dist, maxd;
 #if !defined(CRAY1) && !defined(USE_ASSEMBLY_B)
   int maskl,maskr;
   first_ones[0]=16;
@@ -1478,5 +1495,16 @@ void InitializeZeroMasks(void) {
         break;
       }
     }
+    dist=0;
+    maxd=0;
+    for (j=1;j<256;j<<=1) if (i & j) break;
+    for (;j<256;j<<=1) {
+      if (j & i) {
+        maxd=(maxd>dist) ? maxd : dist;
+        dist=0;
+      }
+      else dist++;
+    }
+    file_spread[i]=maxd;
   }
 }

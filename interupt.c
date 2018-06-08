@@ -97,7 +97,7 @@ void Interrupt(int ply) {
         printf("%d ",tree->nodes_searched);
         printf("%d ",iteration_depth); 
         for (i=0;i<n_root_moves;i++)
-          if (!root_moves[i].status&128) left++;
+          if (!(root_moves[i].status&128)) left++;
         printf("%d %d\n",left,n_root_moves);
         fflush(stdout);
         break;
@@ -203,6 +203,7 @@ void Interrupt(int ply) {
               Print(128,"predicted move made.\n");
             }
             else {
+              made_unexpected_move=1;
               abort_search=1;
               break;
             }
