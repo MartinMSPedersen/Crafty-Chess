@@ -365,6 +365,12 @@ struct tree {
   int       current_move[MAXPLY];
   int       hash_move[MAXPLY];
   int      *last[MAXPLY];
+ # if !defined(NOFUTILITY)
+  unsigned int fprune;
+ # endif
+ # if !defined(LIMITEXT)
+  unsigned int no_limit;
+ # endif
   unsigned int fail_high;
   unsigned int fail_high_first;
   unsigned int evaluations;
@@ -769,6 +775,17 @@ extern void WinFreeInterleaved(void *, size_t);
    the following macro is used to limit the search extensions based on the
    current iteration depth and current ply in the tree.
  */
+# if !defined(LIMITEXT)
+#define LimitExtensions(extended,ply)                                        \
+      extended=Min(extended,PLY);                                            \
+      if (ply > 2*shared->iteration_depth && !tree->no_limit) {              \
+        if (ply <= 4*shared->iteration_depth)                                \
+          extended=extended*(4*shared->iteration_depth-ply)/                 \
+                   (2*shared->iteration_depth);                              \
+        else                                                                 \
+          extended=0;                                                        \
+      }
+# else
 #define LimitExtensions(extended,ply)                                        \
       extended=Min(extended,PLY);                                            \
       if (ply > 2*shared->iteration_depth) {                                 \
@@ -778,6 +795,8 @@ extern void WinFreeInterleaved(void *, size_t);
         else                                                                 \
           extended=0;                                                        \
       }
+# endif
+
 /*
    the following macro is used to determine if one side is in check.  it
    simply returns the result of Attacked().

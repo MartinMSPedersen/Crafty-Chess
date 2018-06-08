@@ -18,7 +18,6 @@
 #     netbsd       {80X86 architecture running netbsd(Unix)}
 #     netbsd-sparc {sparc architecture running netbsd(Unix)}
 #     next         {NextStep}
-#     os2          {IBM OS/2 warp}
 #     sgi          {SGI Workstation running Irix (SYSV/R4) Unix}
 #     solaris      {Sun SparcStation running Solaris (SYSV/R4) Unix}
 #     solaris-gcc  {Sun SparcStation running Solaris but using gcc}
@@ -31,44 +30,44 @@
 #   assembly modules.  Typical performance improvement is 5%, but this
 #   only applies to X86 machines running Linux.
 #   
-#   -DSMP             enables SMP support (not clustering).  If you choose
-#                     this option, you need to look closely at the following
-#                     two options as well.
-#   -DCPUS=n          defines the maximum number of CPUS Crafty will be able
-#                     to use in a SMP system.  Note that this is the max you
-#                     will be able to use.  You need to use the smpmt=n command
-#                     to make crafty use more than the default 1 thread.
-#   -DNUMA            says this system is NUMA, which is mainly used for Linux
-#                     systems, and references libnuma, needed for the NUMA calls
-#                     (crafty doesn't use many of these, it does the memory setup
-#                     stuff itself)
-#   -DBOOKDIR         path to the directory containing the book binary files.
+#                default
+#   -DBOOKDIR      N  path to the directory containing the book binary files.
 #                     The default for all such path values is "." if you don't
 #                     specify a path with this macro definition.
-#   -DDETECTDRAW      This enables experimental code that detects lots of the
-#                     famous blocked-pawn positions as draws.  It is much slower
-#                     and perhaps slightly risky.
-#   -DDGT             This is a unix-only option to support the DGT board.
-#   -DEPD             if you want full EPD support built in.
-#   -DFAST            This option compiles out some of the statistics 
-#                     gathering to slightly speed up the code.
-#   -DLOGDIR          path to the directory where Crafty puts the log.nnn and
-#                     game.nnn files.
-#   -DRCDIR           path to the directory where we look for the .craftyrc or
-#                     crafty.rc (windows) file.
-#   -DTBDIR           path to the directory where the endgame tablebase files
-#                     are found.  default = "./TB"
-#   -DTRACE           This enables the "trace" command so that the search tree
-#                     can be dumped while running.
-#   -DINLINE64        Compiles with the Intel assembly code for FirstOne(),
-#                     LastOne() and PopCnt() for the AMD opteron, only tested
-#                     with the 64-bit opteron GCC compiler / Intel ICC compiler.
-#   -DINLINE32        Compiles with the Intel assembly code for FirstOne(),
+#   -DCPUS=n       N  defines the maximum number of CPUS Crafty will be able
+#                     to use in a SMP system.  Note that this is the max you
+#                     will be able to use.  You need to use the smpmt=n command
+#                     to make crafty use more than the default 1 process.
+#   -DDGT          N  This is a unix-only option to support the DGT board.
+#   -DEPD          Y  if you want full EPD support built in.
+#   -DHASHSTATS    N  This option compiles in some of the statistics 
+#                     gathering to provide hashing statistics.
+#   -DINLINE32     N  Compiles with the Intel assembly code for FirstOne(),
 #                     LastOne() and PopCnt().  This is for gcc-style inlining
 #                     and now works with the Intel C/C++ compiler as well.
-#   -DNOEGTB          eliminates the egtb code for compilers that can't deal
+#   -DINLINE64     N  Compiles with the Intel assembly code for FirstOne(),
+#                     LastOne() and PopCnt() for the AMD opteron, only tested
+#                     with the 64-bit opteron GCC compiler / Intel ICC compiler.
+#   -DLIMITEXT     N  limit extensions as search gets deeper
+#   -DLOGDIR       N  path to the directory where Crafty puts the log.nnn and
+#                     game.nnn files.
+#   -DNOEGTB       N  eliminates the egtb code for compilers that can't deal
 #                     with the large egtb.cpp code/templates.
-#   
+#   -DNOFUTILITY   N  disables classic futility pruning
+#   -DNUMA         N  says this system is NUMA, which is mainly used for Linux
+#                     systems, and references libnuma, needed for the NUMA calls
+#                     (crafty doesn't use many of these, it does the memory
+#                     setup stuff itself)
+#   -DPOWERPC      N  enables PPC spinlock inline function for SMP boxes only
+#   -DRCDIR        N  path to the directory where we look for the .craftyrc or
+#                     crafty.rc (windows) file.
+#   -DSMP          N  enables SMP support (not clustering).  If you choose
+#                     this option, you need to look closely at the following
+#                     two options as well.
+#   -DTBDIR        N  path to the directory where the endgame tablebase files
+#                     are found.  default = "./TB"
+#   -DTRACE        N  This enables the "trace" command so that the search tree
+#                     can be dumped while running.
 
 default:
 	$(MAKE) -j linux-icc
@@ -88,7 +87,6 @@ help:
 	@echo "make netbsd           NetBSD"
 	@echo "make netbsd-sparc     NetBSD optimized for sparc"
 	@echo "make next             NeXTSTEP"
-	@echo "make os2              IBM OS/2 Warp"
 	@echo "make sgi              SGI running IRIX"
 	@echo "make solaris          Solaris 2.x"
 	@echo "make solaris-gcc      Solaris 2.x using GNU cc"
@@ -112,7 +110,7 @@ alpha:
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS='$(LDFLAGS) $(CFLAGS)' \
 		LIBS='-lexc' \
-		opt='$(opt) -DSMP -DCPUS=8 -DFAST' \
+		opt='$(opt)' \
 		crafty-make
 
 alpha-host:
@@ -122,17 +120,7 @@ alpha-host:
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS='$(LDFLAGS) $(CFLAGS)' \
 		LIBS='-lexc' \
-		opt='$(opt) -DSMP -DCPUS=8 -DFAST' \
-		crafty-make
-
-alpha-host-nocix:
-	$(MAKE) target=ALPHA \
-		CC=cc CXX=cxx \
-		CFLAGS='$(CFLAGS) -std -fast -O4 -newc' \
-		CXFLAGS='$(CFLAGS) -arch ev56 -tune host' \
-		LDFLAGS='$(LDFLAGS) $(CFLAGS)' \
-		LIBS='-lexc' \
-		opt='$(opt) -DSMP -DCPUS=8 -DFAST' \
+		opt='$(opt)' \
 		crafty-make
 
 darwin:
@@ -142,16 +130,26 @@ darwin:
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS=$(LDFLAGS) \
 		LIBS='-lstdc++' \
-		opt='$(opt) -DFAST' \
+		opt='$(opt)' \
 		crafty-make
-		
+
+darwinG5:
+	$(MAKE) target=LINUX \
+		CC=gcc CXX=g++ \
+		CFLAGS='$(CFLAGS) -Wall -pipe -D_REENTRANT -O3 -mcpu=G5 \
+			-mtune=G5 -fomit-frame-pointer -fast' \
+		CXFLAGS=$(CFLAGS) \
+		LDFLAGS='$(LDFLAGS) -lstdc++' \
+		opt='$(opt) -DSMP -DCPUS=4 -DPOWERPC' \
+		crafty-make
+	
 freebsd:
 	$(MAKE) target=FreeBSD \
 		CC=gcc CXX='$(CC)' \
 		CFLAGS='$(CFLAGS) -fomit-frame-pointer -m486 -O3 -Wall' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS=$(LDFLAGS) \
-		opt='$(opt) -DUSE_ASSEMBLY -DFAST' \
+		opt='$(opt) -DINLINE32' \
 		crafty-make
 
 freebsd-pgcc:
@@ -160,7 +158,7 @@ freebsd-pgcc:
 		CFLAGS='$(CFLAGS) -pipe -D_REENTRANT -mpentium -O -Wall' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS=$(LDFLAGS) \
-		opt='$(opt) -DUSE_ASSEMBLY -DFAST' \
+		opt='$(opt) -DINLINE32' \
 		crafty-make
 
 hpux:
@@ -171,18 +169,6 @@ hpux:
 		LDFLAGS='$(LDFLAGS) +O3 +Onolimit $(CFLAGS)' \
 		crafty-make
 
-linux:
-	$(MAKE) target=LINUX \
-		CC=gcc CXX=g++ \
-		CFLAGS='$(CFLAGS) -Wall -pipe -D_REENTRANT -march=i686 -O3 \
-			-fbranch-probabilities -fforce-mem -fomit-frame-pointer\
-			-fno-gcse -mpreferred-stack-boundary=2' \
-		CXFLAGS=$(CFLAGS) \
-		LDFLAGS='$(LDFLAGS) -lstdc++' \
-		opt='$(opt) -DFAST -DINLINE32 \
-			-DSMP -DCPUS=2' \
-		crafty-make
-
 linux-amd64-profile:
 	$(MAKE) target=LINUX \
 		CC=gcc CXX=g++ \
@@ -190,8 +176,7 @@ linux-amd64-profile:
                         -fprofile-arcs -fomit-frame-pointer -O3 -march=k8' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS='$(LDFLAGS) -lnuma -fprofile-arcs -lstdc++' \
-		opt='$(opt)-DFAST -DSMP -DNUMA -DLIBNUMA -DCPUS=8 \
-			-DUSE_ASSEMBLY -DINLINE64' \
+		opt='$(opt) -DINLINE64 -DSMP -DCPUS=8 -DNUMA -DLIBNUMA' \
 		crafty-make
 
 linux-amd64:
@@ -201,8 +186,18 @@ linux-amd64:
                 -fbranch-probabilities -fomit-frame-pointer -O3 -march=k8' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS='$(LDFLAGS) -lnuma -lstdc++' \
-		opt='$(opt) -DFAST -DSMP -DNUMA -DLIBNUMA -DCPUS=8 \
-			-DUSE_ASSEMBLY -DINLINE64' \
+		opt='$(opt) -DINLINE64 -DSMP -DCPUS=8 -DNUMA -DLIBNUMA' \
+		crafty-make
+
+linux:
+	$(MAKE) target=LINUX \
+		CC=gcc CXX=g++ \
+		CFLAGS='$(CFLAGS) -Wall -pipe -D_REENTRANT -march=i686 -O3 \
+			-fbranch-probabilities -fforce-mem -fomit-frame-pointer\
+			-fno-gcse -mpreferred-stack-boundary=2' \
+		CXFLAGS=$(CFLAGS) \
+		LDFLAGS='$(LDFLAGS) -lstdc++' \
+		opt='$(opt) -DINLINE32 -DSMP -DCPUS=2' \
 		crafty-make
 
 linux-profile:
@@ -213,21 +208,7 @@ linux-profile:
 			-fno-gcse -mpreferred-stack-boundary=2' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS='$(LDFLAGS) -fprofile-arcs -lstdc++ ' \
-		opt='$(opt) -DINLINE32 -DFAST \
-			-DSMP -DCPUS=2' \
-		crafty-make
-
-linux-icc-profile:
-	$(MAKE) target=LINUX \
-		CC=icc CXX=icc \
-		CFLAGS='$(CFLAGS) -D_REENTRANT -O2 \
-			-xN -prof_genx -prof_dir ./profdir \
-			-Ob2 -fno-alias' \
-		CXFLAGS='$(CFLAGS) -D_REENTRANT -O2 \
-			-w -xN -prof_genx -prof_dir ./profdir' \
-		LDFLAGS='$(LDFLAGS) -lstdc++ ' \
-		opt='$(opt) -DFAST -DINLINE32 \
-			-DSMP -DCPUS=2' \
+		opt='$(opt) -DINLINE32 -DSMP -DCPUS=2' \
 		crafty-make
 
 linux-icc:
@@ -239,8 +220,19 @@ linux-icc:
 		CXFLAGS='$(CFLAGS) -D_REENTRANT -O2 \
 			-w -xN -prof_use -prof_dir ./profdir' \
 		LDFLAGS='$(LDFLAGS) -lstdc++' \
-		opt='$(opt) -DFAST -DINLINE32 \
-			-DSMP -DCPUS=2' \
+		opt='$(opt) -DINLINE32 -DSMP -DCPUS=2' \
+		crafty-make
+
+linux-icc-profile:
+	$(MAKE) target=LINUX \
+		CC=icc CXX=icc \
+		CFLAGS='$(CFLAGS) -D_REENTRANT -O2 \
+			-xN -prof_genx -prof_dir ./profdir \
+			-Ob2 -fno-alias' \
+		CXFLAGS='$(CFLAGS) -D_REENTRANT -O2 \
+			-w -xN -prof_genx -prof_dir ./profdir' \
+		LDFLAGS='$(LDFLAGS) -lstdc++ ' \
+		opt='$(opt) -DINLINE32 -DSMP -DCPUS=2' \
 		crafty-make
 
 linux-alpha:
@@ -250,8 +242,7 @@ linux-alpha:
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS='$(LDFLAGS) $(CFLAGS)' \
 		LIBS='' \
-		opt='$(opt) -DSMP -DCPUS=8 -DFAST\
-			-DNOBUILTINS' \
+		opt='$(opt) -DNOBUILTINS' \
 		crafty-make
 
 netbsd:
@@ -262,7 +253,7 @@ netbsd:
 			-finline-functions -ffast-math' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS=$(LDFLAGS) \
-		opt='$(opt) -DFAST' \
+		opt='$(opt) -DINLINE32' \
 		crafty-make
 
 netbsd-i386:
@@ -273,7 +264,7 @@ netbsd-i386:
 			-finline-functions -ffast-math' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS=$(LDFLAGS) \
-		opt='$(opt) -DFAST -DUSE_ASSEMBLY' \
+		opt='$(opt) -DINLINE32' \
 		crafty-make
 
 netbsd-sparc:
@@ -284,7 +275,7 @@ netbsd-sparc:
 			-finline-functions -ffast-math' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS=$(LDFLAGS) \
-		opt='$(opt) -DFAST' \
+		opt='$(opt)' \
 		crafty-make
 
 next:
@@ -294,15 +285,6 @@ next:
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS='$(LDFLAGS) $(CFLAGS)'
 		opt='$(opt)' \
-		crafty-make
-
-os2:
-	$(MAKE) target=OS2 \
-		CC=gcc CXX='$(CC)' \
-		CFLAGS='$(CFLAGS) -fomit-frame-pointer -m486 -O3 -Wall' \
-		CXFLAGS=$(CFLAGS) \
-		LDFLAGS='$(LDFLAGS) -Zexe -Zcrtdll -s' \
-		opt='$(opt) -DUSE_ASSEMBLY -DFAST' \
 		crafty-make
 
 sgi:
@@ -321,7 +303,7 @@ solaris:
 		CFLAGS='$(CFLAGS) -fast -xO5 -xunroll=20' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS='$(LDFLAGS)' \
-		opt='$(opt) -DSMP -DCPUS=4' \
+		opt='$(opt)' \
 		crafty-make
 
 solaris-gcc:
@@ -331,13 +313,7 @@ solaris-gcc:
 			-fforce-mem -fomit-frame-pointer' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS='$(LDFLAGS) -lstdc++' \
-		opt='$(opt) -DFAST' \
-		crafty-make
-
-generic:
-	$(MAKE) CC=gcc CXX=g++ \
-		CXFLAGS=$(CFLAGS) \
-		LDFLAGS=$(LDFLAGS) \
+		opt='$(opt)' \
 		crafty-make
 
 profile:

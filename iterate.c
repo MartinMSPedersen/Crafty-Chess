@@ -99,7 +99,7 @@ int Iterate(int wtm, int search_type, int root_list_done)
       shared->elapsed_start = ReadClock();
       shared->next_time_check = shared->nodes_between_time_checks;
       tree->evaluations = 0;
-#if !defined(FAST)
+#if defined(HASHSTATS)
       tree->transposition_hits = 0;
       tree->transposition_good_hits = 0;
       tree->transposition_uppers = 0;
@@ -519,7 +519,7 @@ int Iterate(int wtm, int search_type, int root_list_done)
  ************************************************************
  */
       used = 0;
-#if !defined(FAST)
+#if defined(HASHSTATS)
       for (i = 0; i < hash_table_size; i++) {
         if ((trans_ref + i)->prefer.word1 >> 61 == shared->transposition_id)
           used++;
@@ -568,7 +568,7 @@ int Iterate(int wtm, int search_type, int root_list_done)
             DisplayKM(tree->evaluations), Rule50Moves(0));
         Print(16, "  EGTBprobes=%s  hits=%s\n", DisplayKM(tree->egtb_probes),
             DisplayKM(tree->egtb_probes_successful));
-#if !defined(FAST)
+#if defined(HASHSTATS)
         Print(16,
             "              hashing-> %d%%(raw) %d%%(draftOK) "
             " %d%%(saturation)\n",

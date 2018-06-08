@@ -3357,9 +3357,21 @@
  *           that a fail-high on a reduction search is never trusted.          *
  *                                                                             *
  *   20.12   further modifications to king safety initialization code to try   *
- *           scale back the values a bit to control score limits.  this is the *
- *           version that played on the final day of the 2006 WCCC event. The  *
- *           other rounds were played by 20.9 - 20.11.                         *
+ *           scale back the values a bit to control score limits.              *
+ *                                                                             *
+ *   20.13   fix to bench.c to remove two file closes that would wreck the     *
+ *           program after the bench command was finished.  also the           *
+ *           SMP-time-to-ply measurement was removed since it had no meaning.  *
+ *           old FUTILITY code re-inserted along with an extension limit       *
+ *           modification by Mike Byrne to avoid limiting the search extension *
+ *           on one-reply extensions only.  new lock.h submitted by Andreas    *
+ *           Guettinger to support spinlocks on the PPC architecture (Linux).  *
+ *           some -D configuration options were changed so that none are       *
+ *           needed to compile the "standard" crafty.  futility is normally on *
+ *           now, and -DNOFUTILITY is required to compile it out.  the new     *
+ *           Makefile gives the configuration options, but the only ones that  *
+ *           would normally need setting are the SMP and CPUS= options if you  *
+ *           have a SMP platform.                                              *
  *                                                                             *
  *******************************************************************************
  */

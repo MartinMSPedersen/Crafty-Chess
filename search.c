@@ -5,6 +5,11 @@
 #include "data.h"
 #include "epdglue.h"
 
+#if !defined(NOFUTILITY)
+#  define RAZOR_MARGIN ((queen_value+1)/2)
+#  define F_MARGIN ((bishop_value+1)/2)
+#endif
+
 /* last modified 03/01/06 */
 /*
  *******************************************************************************
@@ -349,6 +354,10 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
  *                                                          *
  ************************************************************
  */
+#if !defined(NOFUTILITY)
+      tree->fprune = 0;
+#endif
+
       extensions = extended - PLY;
       if (!moves_searched) {
         if (depth + extensions >= PLY) {
@@ -357,8 +366,8 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
               ply + 1, DO_NULL);
           if (value > alpha && extended < 0)
             value =
-                -Search(tree, -beta, -alpha, Flip(wtm), depth - PLY,
-                ply + 1, DO_NULL);
+                -Search(tree, -beta, -alpha, Flip(wtm), depth - PLY, ply + 1,
+                DO_NULL);
         } else
           value = -Quiesce(tree, -beta, -alpha, Flip(wtm), ply + 1);
         if (shared->abort_search || tree->stop) {
@@ -366,7 +375,31 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
           return (0);
         }
       } else {
-        if (depth + extensions >= PLY) {
+
+#if !defined(NOFUTILITY)
+        if (!tree->in_check[ply] && !tree->in_check[ply + 1]) {
+          if (abs(alpha) < (MATE - 500) && ply > 4 && !tree->in_check[ply]) {
+            if (wtm) {
+              if (depth < 3 * PLY && (Material + F_MARGIN) <= alpha)
+                tree->fprune = 1;
+              else if (depth >= 3 * PLY && depth < 5 * PLY &&
+                  (Material + RAZOR_MARGIN) <= alpha)
+                extensions -= 4;
+            } else {
+              if (depth < 3 * PLY && (-Material + F_MARGIN) <= alpha)
+                tree->fprune = 1;
+              else if (depth >= 3 * PLY && depth < 5 * PLY &&
+                  (-Material + RAZOR_MARGIN) <= alpha)
+                extensions -= 4;
+            }
+          }
+        }
+#endif
+        if (depth + extensions >= PLY
+#if !defined(NOFUTILITY)
+            && !tree->fprune
+#endif
+            ) {
           value =
               -Search(tree, -alpha - 1, -alpha, Flip(wtm), depth + extensions,
               ply + 1, DO_NULL);
@@ -542,9 +575,15 @@ int SearchControl(TREE * RESTRICT tree, int wtm, int ply, int depth,
  *                                                          *
  ************************************************************
  */
+#if !defined(LIMITEXT)
+  tree->no_limit = 0;
+#endif
   if (tree->in_check[ply] && tree->last[ply] - tree->last[ply - 1] == 1) {
     tree->one_reply_extensions_done++;
     adjustment += onerep_depth;
+#if !defined(LIMITEXT)
+    tree->no_limit = 1;
+#endif
   }
   if (adjustment) {
     LimitExtensions(adjustment, ply);

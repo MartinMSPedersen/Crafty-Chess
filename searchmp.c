@@ -5,6 +5,11 @@
 #include "data.h"
 #include "epdglue.h"
 
+#if !defined(NOFUTILITY)
+#  define RAZOR_MARGIN ((queen_value+1)/2)
+#  define F_MARGIN ((bishop_value+1)/2)
+#endif
+
 /* modified 08/07/05 */
 /*
  *******************************************************************************
@@ -86,8 +91,34 @@ int SearchSMP(TREE * RESTRICT tree, int alpha, int beta, int value, int wtm,
  ************************************************************
  */
       begin_root_nodes = tree->nodes_searched;
+#  if !defined(NOFUTILITY)
+      tree->fprune = 0;
+#  endif
       extensions = extended - PLY;
-      if (depth + extensions >= PLY) {
+#  if !defined(NOFUTILITY)
+      if (!tree->in_check[ply] && !tree->in_check[ply + 1]) {
+        if (abs(alpha) < (MATE - 500) && ply > 4 && !tree->in_check[ply]) {
+          if (wtm) {
+            if (depth < 3 * PLY && (Material + F_MARGIN) <= alpha)
+              tree->fprune = 1;
+            else if (depth >= 3 * PLY && depth < 5 * PLY &&
+                (Material + RAZOR_MARGIN) <= alpha)
+              extensions -= 4;
+          } else {
+            if (depth < 3 * PLY && (-Material + F_MARGIN) <= alpha)
+              tree->fprune = 1;
+            else if (depth >= 3 * PLY && depth < 5 * PLY &&
+                (-Material + RAZOR_MARGIN) <= alpha)
+              extensions -= 4;
+          }
+        }
+      }
+#  endif
+      if (depth + extensions >= PLY
+#  if !defined(NOFUTILITY)
+          && !tree->fprune
+#  endif
+          ) {
         value =
             -Search(tree, -alpha - 1, -alpha, Flip(wtm), depth + extensions,
             ply + 1, DO_NULL);

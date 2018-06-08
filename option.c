@@ -1905,7 +1905,7 @@ int Option(TREE * RESTRICT tree)
       if (log_file)
         fclose(log_file);
       log_file = 0;
-      sprintf(filename, "%s/log.%03d", log_path, log_id);
+      sprintf(filename, "%s/log.%03d", log_path, log_id - 1);
       remove(filename);
     } else if (args[1][0] >= '0' && args[1][0] <= '9') {
       if (log_id == 0)

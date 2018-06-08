@@ -80,7 +80,7 @@ typedef int piece;
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
-#if !defined (DEBUG) && !defined(EBUG)
+#if !defined (DEBUG) && !defined(NDEBUG)
 #  define   NDEBUG
 #endif
 #include <assert.h>
