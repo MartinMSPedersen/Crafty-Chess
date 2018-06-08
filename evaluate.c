@@ -4,7 +4,7 @@
 #include "evaluate.h"
 #include "data.h"
 
-/* last modified 12/08/99 */
+/* last modified 06/01/00 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -1294,8 +1294,8 @@ int EvaluateDraws(TREE *tree) {
     if (!(WhitePawns&file_mask[FILEA]) ||
         !(WhitePawns&file_mask[FILEH])) {
       square=LastOne(WhitePawns);
-      if (Rank(BlackKingSQ) >= Rank(square))
-        if (FileDistance(BlackKingSQ,square)<=1) return(1);
+      if (Rank(BlackKingSQ)>=Rank(square) &&
+          FileDistance(BlackKingSQ,square)<=2) return(1);
       return(0);
     }
   }
@@ -1326,8 +1326,8 @@ int EvaluateDraws(TREE *tree) {
     if (!(BlackPawns&file_mask[FILEA]) ||
         !(BlackPawns&file_mask[FILEH])) {
       square=FirstOne(BlackPawns);
-      if (Rank(WhiteKingSQ) <= Rank(square))
-        if (FileDistance(WhiteKingSQ,square)<=1) return(1);
+      if (Rank(WhiteKingSQ)<=Rank(square) &&
+          FileDistance(WhiteKingSQ,square)<=2) return(1);
       return(0);
     }
   }
@@ -1458,14 +1458,16 @@ int EvaluateMaterial(TREE *tree) {
     if (WhiteMinors != BlackMinors) {
       if (WhiteMajors == BlackMajors) {
         if (WhiteMinors > BlackMinors) {
-          if (WhiteMajors==1 && !TotalWhitePawns && TotalBlackPawns) {
+          if (WhiteMajors==1 && (WhiteMinors-BlackMinors)==1 &&
+              !TotalWhitePawns && TotalBlackPawns) {
             score=0;
             break;
           }
           score+=BAD_TRADE;
         }
         else {
-          if (BlackMajors==1 && TotalWhitePawns && !TotalBlackPawns) {
+          if (BlackMajors==1 && (BlackMinors-WhiteMinors)==1 && 
+              TotalWhitePawns && !TotalBlackPawns) {
             score=0;
             break;
           }
@@ -2170,7 +2172,6 @@ int EvaluatePawns(TREE *tree) {
   register int pns, square, file;
   register int w_isolated, b_isolated;
   register int w_isolated_of, b_isolated_of;
-  register int ks_equal=1, qs_equal=1;
   register int w_unblocked, b_unblocked;
   register int allw=0, allb=0;
   register int wop, bop;
@@ -2276,8 +2277,6 @@ int EvaluatePawns(TREE *tree) {
     }
     Clear(square,pawns);
   }
-  qs_equal=(PopCnt(mask_abcd&WhitePawns)==PopCnt(mask_abcd&BlackPawns));
-  ks_equal=(PopCnt(mask_efgh&WhitePawns)==PopCnt(mask_efgh&BlackPawns));
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -2462,8 +2461,7 @@ int EvaluatePawns(TREE *tree) {
     else {
       if (!(file_mask[File(square)]&BlackPawns) &&
           mask_pawn_isolated[square]&WhitePawns &&
-          !(w_pawn_attacks[square]&BlackPawns) &&
-          ((file<FILEE && !qs_equal) || (file>FILED && !ks_equal))) {
+          !(w_pawn_attacks[square]&BlackPawns)) {
         attackers=1;
         defenders=0;
         for (sq=square;sq<A7;sq+=8) {
@@ -2737,8 +2735,7 @@ int EvaluatePawns(TREE *tree) {
     else {
       if (!(file_mask[File(square)]&WhitePawns) &&
           mask_pawn_isolated[square]&BlackPawns &&
-          !(b_pawn_attacks[square]&WhitePawns) &&
-          ((file<FILEE && !qs_equal) || (file>FILED && !ks_equal))) {
+          !(b_pawn_attacks[square]&WhitePawns)) {
         attackers=1;
         defenders=0;
         for (sq=square;sq>H2;sq-=8) {
@@ -3134,6 +3131,7 @@ int EvaluatePawns(TREE *tree) {
            tree->pawn_score.candidates_w,tree->pawn_score.candidates_b);
     wop=is_outside[tree->pawn_score.passed_w][allb];
     bop=is_outside[tree->pawn_score.passed_b][allw];
+    printf("allb=%x  allw=%x\n",allb,allw);
     printf("passed, wop=%d  bop=%d\n",wop,bop);
     wop=is_outside_c[tree->pawn_score.candidates_w][allb];
     bop=is_outside_c[tree->pawn_score.candidates_b][allw];

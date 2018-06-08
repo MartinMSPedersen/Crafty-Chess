@@ -173,7 +173,7 @@
 #define MAX_BLOCKS            64
 #define MAX_TC_NODES      300000
 
-#if !defined(SMP)
+#if !defined(SMP) && !defined(SUN)
 #  define lock_t int
 #endif
 #include "lock.h"
@@ -634,6 +634,7 @@ int            ReadNextMove(TREE*, char*, int, int);
 int            ReadParse(char*, char *args[], char*);
 int            ReadInput();
 int            RepetitionCheck(TREE*, int, int);
+int            RepetitionCheckBook(TREE*, int, int);
 int            RepetitionDraw(TREE*, int);
 void           ResignOrDraw(TREE*, int);
 void           RestoreGame(void);

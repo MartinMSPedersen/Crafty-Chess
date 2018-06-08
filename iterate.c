@@ -246,7 +246,7 @@ int Iterate(int wtm, int search_type, int root_list_done) {
           else nodes_between_time_checks/=100;
         } else nodes_between_time_checks=5000;
       }
-      while (!time_abort && !abort_search) {
+      while (1) {
 #if defined(SMP)
         thread[0]=local[0];
 #endif
@@ -255,6 +255,7 @@ int Iterate(int wtm, int search_type, int root_list_done) {
                          iteration_depth*INCPLY+45);
         root_print_ok=tree->nodes_searched > noise_level;
         cpu_time_used+=ReadClock(cpu)-thread_start_time[0];
+        if (abort_search || time_abort) break;
         if (value >= root_beta) {
           root_moves[0].status|=2;
           root_moves[0].status&=255-128;
@@ -263,6 +264,24 @@ int Iterate(int wtm, int search_type, int root_list_done) {
           root_value=root_alpha;
           root_beta=MATE+1;
           root_moves[0].nodes=0;
+          if (root_print_ok) {
+            Print(2,"               %2i   %s     ++   ",iteration_depth,
+            DisplayTime(end_time-start_time));
+            if (display_options&64) Print(2,"%d. ",move_number);
+            if ((display_options&64) && !wtm) Print(2,"... ");
+            Print(2,"%s!!\n",
+                  OutputMove(tree,tree->pv[1].path[1],1,wtm));
+            whisper_text[0]=0;
+            if (display_options&64)
+              sprintf(whisper_text," %d.",move_number);
+            if ((display_options&64) && !wtm)
+              sprintf(whisper_text+strlen(whisper_text)," ...");
+            sprintf(whisper_text+strlen(whisper_text)," %s!!",
+                    OutputMove(tree,tree->pv[1].path[1],1,wtm));
+            Whisper(6,iteration_depth,end_time-start_time,whisper_value,
+                    tree->nodes_searched,-1, tree->egtb_probes_successful,
+                    whisper_text);
+          }
         }
         else if (value <= root_alpha) {
           if (!(root_moves[0].status&2)) {

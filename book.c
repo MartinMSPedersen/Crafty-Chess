@@ -99,7 +99,7 @@ int Book(TREE *tree, int wtm, int root_list_done) {
       for (im=0;im<n_root_moves;im++) {
         common=HashKey & mask_16;
         MakeMove(tree,1,root_moves[im].move,wtm);
-        if (RepetitionCheck(tree,2,ChangeSide(wtm))) {
+        if (RepetitionCheckBook(tree,2,ChangeSide(wtm))) {
           UnMakeMove(tree,1,root_moves[im].move,wtm);
           return(0);
         }
@@ -170,7 +170,7 @@ int Book(TREE *tree, int wtm, int root_list_done) {
     for (im=0;im<n_root_moves;im++) {
       common=HashKey & mask_16;
       MakeMove(tree,1,root_moves[im].move,wtm);
-      if (RepetitionCheck(tree,2,ChangeSide(wtm))) {
+      if (RepetitionCheckBook(tree,2,ChangeSide(wtm))) {
         UnMakeMove(tree,1,root_moves[im].move,wtm);
         return(0);
       }

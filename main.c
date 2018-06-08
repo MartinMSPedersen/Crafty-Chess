@@ -2650,6 +2650,22 @@
 *           minor bug in main() that would report stalemate on some mates     *
 *           when the ponder score was forgotten.                              *
 *                                                                             *
+*   17.11   Fail high/low logic changed to move the ++ output into Iterate()  *
+*           where the -- output was already located.  (This was done for      *
+*           consistecy only, it was not a problem.  New function to detect    *
+*           draws RepetitionCheckBook() was added to count two-fold repeats   *
+*           as draws while in book.  This lets Crafty search to see if it     *
+*           wants tht draw or not, rather than just repeating blindly.  Minor *
+*           bug in "go"/"move" command fixed.  The command did not work if    *
+*           the engine was pondering.  minor change to Evaluate() that makes  *
+*           BAD_TRADE code more acurate.  minor change to pawn majority code  *
+*           to fix two bugs.  white pawns on g2/h2 with black pawn on h7 was  *
+*           not seen as a majority (outside candidate passer) but moving the  *
+*           black pawn to g7 made it work fine.   Also if both sides had an   *
+*           equal number of pawns (black pawn at a7/b7, white pawns at b2/c2  *
+*           the code would not notice black had an outside passer candidate   *
+*           since pawns were 'equal' in number.                               *
+*                                                                             *
 *******************************************************************************
 */
 int main(int argc, char **argv) {
@@ -3137,7 +3153,7 @@ int main(int argc, char **argv) {
     if (moves_out_of_book) 
       LearnBook(tree,crafty_is_white,last_value,
                 last_pv.pathd+2,0,0);
-    if (value == -MATE+1) LearnResult(tree,crafty_is_white);
+    if (value <= -MATE+10) LearnResult(tree,crafty_is_white);
     for (i=0;i<4096;i++) {
       history_w[i]=history_w[i]>>8;
       history_b[i]=history_b[i]>>8;

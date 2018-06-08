@@ -92,6 +92,7 @@ void ResignOrDraw(TREE *tree, int value) {
  ----------------------------------------------------------
 */
   if (returnv == 1) {
+    LearnResult(tree,crafty_is_white);
     if (xboard) Print(4095,"tellics resign\n");
     if (crafty_is_white) {
       Print(4095,"0-1 {White resigns}\n");
@@ -101,7 +102,6 @@ void ResignOrDraw(TREE *tree, int value) {
       Print(4095,"1-0 {Black resigns}\n");
       strcpy(pgn_result,"1-0");
     }
-    LearnResult(tree,crafty_is_white);
   }
   if (returnv == 2) {
     if (!ics && !xboard) Print(4095,"\nI offer a draw.\n\n");

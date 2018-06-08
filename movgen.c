@@ -863,8 +863,8 @@ int* GenerateCheckEvasions(TREE *tree, int ply, int wtm, int *move) {
 /*
 ********************************************************************************
 *                                                                              *
-*   GenerateMoves() is used to generate non-capture moves from the current     *
-*   position.                                                                  *
+*   GenerateNonCaptures() is used to generate non-capture moves from the       *
+*   current position.                                                          *
 *                                                                              *
 *   once the valid destination squares are known, we have to locate a friendly *
 *   piece to get a attacks_to[] entry.  we then produce the moves for this     *

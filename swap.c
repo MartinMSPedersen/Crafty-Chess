@@ -3,7 +3,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 06/29/99 */
+/* last modified 04/04/00 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -28,7 +28,7 @@ int Swap(TREE *tree, int source, int target, int wtm) {
   register BITBOARD attacks;
   register int attacked_piece;
   register int square, direction;
-  register int sign, color, next_capture=1;
+  register int color, nc=1;
   int swap_list[32];
 /*
  ----------------------------------------------------------
@@ -51,7 +51,6 @@ int Swap(TREE *tree, int source, int target, int wtm) {
 */
   color=ChangeSide(wtm);
   swap_list[0]=attacked_piece;
-  sign=-1;
   attacked_piece=p_values[PcOnSq(source)+7];
   Clear(source,attacks);
   direction=directions[target][source];
@@ -107,13 +106,12 @@ int Swap(TREE *tree, int source, int target, int wtm) {
 |                                                |
  ------------------------------------------------
 */
-    swap_list[next_capture]=swap_list[next_capture-1]+sign*attacked_piece;
+    swap_list[nc]=-swap_list[nc-1]+attacked_piece;
     attacked_piece=p_values[PcOnSq(square)+7];
     Clear(square,attacks);
     direction=directions[target][square];
     if (direction) attacks=SwapXray(tree,attacks,square,direction);
-    next_capture++;
-    sign=-sign;
+    nc++;
     color=ChangeSide(color);
   }
 /*
@@ -125,21 +123,8 @@ int Swap(TREE *tree, int source, int target, int wtm) {
 |                                                          |
  ----------------------------------------------------------
 */
-  next_capture--;
-  if(next_capture&1) sign=-1;
-  else sign=1;
-  while (next_capture) {
-    if (sign < 0) {
-      if(swap_list[next_capture] <= swap_list[next_capture-1])
-         swap_list[next_capture-1]=swap_list[next_capture];
-    }
-    else {
-      if(swap_list[next_capture] >= swap_list[next_capture-1])
-       swap_list[next_capture-1]=swap_list[next_capture];
-    }
-    next_capture--;
-    sign=-sign;
-  }
+  while(--nc)
+    if(swap_list[nc] > -swap_list[nc-1]) swap_list[nc-1]=-swap_list[nc];
   return (swap_list[0]);
 }
 

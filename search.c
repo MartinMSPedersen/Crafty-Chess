@@ -482,7 +482,7 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
   }
   else {
     if (alpha != o_alpha) {
-      memcpy(&tree->pv[ply-1].path[ply],&tree->pv[ply].path[ply],(tree->pv[ply].pathl-ply+1)*4);
+      memcpy(&tree->pv[ply-1].path[ply],&tree->pv[ply].path[ply],(tree->pv[ply].pathl-ply+1)*sizeof(int));
       memcpy(&tree->pv[ply-1].pathh,&tree->pv[ply].pathh,3);
       tree->pv[ply-1].path[ply-1]=tree->current_move[ply-1];
       History(tree,ply,depth,wtm,tree->pv[ply].path[ply]);

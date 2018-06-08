@@ -6,6 +6,8 @@
 #include <pthread.h>
 #endif
 
+#define T41_INCLUDE
+#define T33_INCLUDE
 #define  NEW
 #define  XX  127
 

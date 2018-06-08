@@ -1525,6 +1525,9 @@ void InitializeZeroMasks(void) {
   from the rest of the pawns, at least.  for is_outside_c[] the
   candidate passer only has to be outside by 1 file.
 
+  ppsq = square that contains a (potential) passed pawn.
+  psql = leftmost pawn, period.
+  psqr = rightmost pawn, period.
   0 -> passed pawn is not 'outside'
   1 -> passed pawn is 'outside'
 */
@@ -1538,13 +1541,13 @@ void InitializeZeroMasks(void) {
       if (ppsq < 8) {
         psql=first_ones_8bit[j&(255-(128>>ppsq))];
         if (ppsq < psql-1) is_outside[i][j]=1;
-        if (ppsq < psql) is_outside_c[i][j]=1;
+        if (ppsq <= psql+1) is_outside_c[i][j]=1;
       }
       ppsq=last_ones_8bit[i];
       if (ppsq < 8) {
         psqr=last_ones_8bit[j&(255-(128>>ppsq))];
         if (ppsq > psqr+1) is_outside[i][j]=1;
-        if (ppsq > psqr) is_outside_c[i][j]=1;
+        if (ppsq >= psqr-1) is_outside_c[i][j]=1;
       }
     }
   }

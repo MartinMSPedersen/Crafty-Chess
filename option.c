@@ -1014,7 +1014,7 @@ int Option(TREE *tree) {
 */
   else if (OptionMatch("go",*args) || OptionMatch("move",*args)) {
     char temp[64];
-    if (thinking) return(2);
+    if (thinking || pondering) return(2);
     if (wtm) {
       if (strncmp(pgn_white,"Crafty",6)) {
         strcpy(temp,pgn_white);
@@ -2648,9 +2648,13 @@ int Option(TREE *tree) {
  ----------------------------------------------------------
 */
   else if (OptionMatch("perft",*args)) {
-    int i;
+    int i, clock_before, clock_after;
+    float time_used;
 
     if (thinking || pondering) return(2);
+    clock_before = clock();
+    while (clock() == clock_before);
+    clock_before = clock();
     if (nargs < 2) {
       printf("usage:  perftest <depth>\n");
       return(1);
@@ -2664,7 +2668,10 @@ int Option(TREE *tree) {
     }
     total_moves=0;
     OptionPerft(tree,1,i,wtm);
-    printf("total moves=%d\n",total_moves);
+    clock_after=clock();
+    time_used=((float) clock_after-(float) clock_before) /
+              (float) CLOCKS_PER_SEC;
+    printf("total moves=%d  time=%.2f\n",total_moves, time_used);
   }
 /*
  ----------------------------------------------------------
@@ -3399,7 +3406,7 @@ int Option(TREE *tree) {
  ----------------------------------------------------------
 */
   else if (OptionMatch("SP",*args)) {
-    if (thinking) return(2);
+    if (thinking || pondering) return(2);
     return(-1);
   }
 /*
@@ -3922,20 +3929,28 @@ int OptionMatch(char *command, char *input) {
 }
 
 void OptionPerft(TREE *tree, int ply,int depth,int wtm) {
-  int i, *mv;
+  int *mv, r;
+  static char line[256], *p[64], move[16];
 
   tree->last[ply]=GenerateCaptures(tree, ply, wtm, tree->last[ply-1]);
+  for (mv=tree->last[ply-1];mv<tree->last[ply];mv++) if (Captured(*mv) == king) return;
   tree->last[ply]=GenerateNonCaptures(tree, ply, wtm, tree->last[ply]);
+  p[1]=line;
   for (mv=tree->last[ply-1];mv<tree->last[ply];mv++) {
+#if defined(TRACE)
+    strcpy(move, OutputMove(tree,*mv,ply,wtm));
+#endif
     MakeMove(tree,ply,*mv,wtm);
-    if (!Check(wtm)) {
-      if (ply <= trace_level) {
-        for (i=1;i<ply;i++) printf("  ");
-        printf("%s\n", OutputMove(tree,*mv,ply,wtm));
-      }
-      if (depth-1) OptionPerft(tree,ply+1,depth-1,ChangeSide(wtm));
-      else total_moves++;
+#if defined(TRACE)
+    if (ply <= trace_level) {
+      strcpy(p[ply], move);
+      strcpy(line+strlen(line)," ");
+      p[ply+1]=line+strlen(line);
+      if (ply == trace_level) printf("%s\n",line);
     }
+#endif
+    if (depth-1) OptionPerft(tree,ply+1,depth-1,ChangeSide(wtm));
+    else if (!Check(wtm)) total_moves++;
     UnMakeMove(tree,ply,*mv,wtm);
   }
 }

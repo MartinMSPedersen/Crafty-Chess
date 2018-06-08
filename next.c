@@ -177,15 +177,17 @@ int NextMove(TREE *tree, int ply, int wtm) {
     bestval=0;
     bestp=0;
     for (movep=tree->last[ply-1];movep<tree->last[ply];movep++)
-      if (*movep && (*movep == tree->hash_move[ply] ||
-                     *movep == tree->killers[ply].move1 ||
-                     *movep == tree->killers[ply].move2)) *movep=0;
-      else {
-        index=*movep&4095;
-        history_value= (wtm) ? history_w[index] : history_b[index];
-        if (history_value > bestval) {
-          bestval=history_value;
-          bestp=movep;
+      if (*movep) {
+        if (*movep == tree->hash_move[ply] ||
+            *movep == tree->killers[ply].move1 ||
+            *movep == tree->killers[ply].move2) *movep=0;
+        else {
+          index=*movep&4095;
+          history_value= (wtm) ? history_w[index] : history_b[index];
+          if (history_value > bestval) {
+            bestval=history_value;
+            bestp=movep;
+          }
         }
       }
     if (bestp) {

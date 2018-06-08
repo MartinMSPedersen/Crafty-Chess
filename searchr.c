@@ -262,25 +262,6 @@ void SearchOutput(TREE *tree, int value, int bound) {
       MakeMove(tree,1,tree->pv[1].path[1],root_wtm);
     }
     else {
-      if (root_print_ok) {
-        Print(2,"               %2i   %s     ++   ",iteration_depth,
-        DisplayTime(end_time-start_time));
-        UnMakeMove(tree,1,tree->current_move[1],wtm);
-        if (display_options&64) Print(2,"%d. ",move_number);
-        if ((display_options&64) && !wtm) Print(2,"... ");
-        Print(2,"%s!!\n",OutputMove(tree,tree->current_move[1],1,wtm));
-        whisper_text[0]=0;
-        if (display_options&64)
-          sprintf(whisper_text," %d.",move_number);
-        if ((display_options&64) && !wtm)
-          sprintf(whisper_text+strlen(whisper_text)," ...");
-        sprintf(whisper_text+strlen(whisper_text)," %s!!",
-                OutputMove(tree,tree->current_move[1],1,wtm));
-        MakeMove(tree,1,tree->current_move[1],wtm);
-        Whisper(6,iteration_depth,end_time-start_time,whisper_value,
-                tree->nodes_searched,-1, tree->egtb_probes_successful,
-                whisper_text);
-      }
       if (tree->current_move[1] != tree->pv[1].path[1]) {
         tree->pv[1].path[1]=tree->current_move[1];
         tree->pv[1].pathl=1;

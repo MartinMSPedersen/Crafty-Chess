@@ -635,7 +635,7 @@ void MakeMoveRoot(TREE *tree, int move, int wtm) {
 |                                                          |
  ----------------------------------------------------------
 */
-  MakeMove(tree, 0,move,wtm);
+  MakeMove(tree,0,move,wtm);
 /*
  ----------------------------------------------------------
 |                                                          |

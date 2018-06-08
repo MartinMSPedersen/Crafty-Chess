@@ -32,7 +32,7 @@ int EnPrise(int target, int wtm) {
            *rooks[2], *queens[2], *kings[2];
   int attacked_piece;
   int square, direction;
-  int swap_sign, color, next_capture=0;
+  int color, nc=0;
   int swap_list[32];
   TREE *tree=local[0];
 /*
@@ -89,7 +89,6 @@ int EnPrise(int target, int wtm) {
   queens[1]=&WhiteQueens;
   kings[0]=&BlackKing;
   kings[1]=&WhiteKing;
-  swap_sign=1;
   attacks=AttacksTo(tree,target);
   color=wtm;
 /*
@@ -127,17 +126,15 @@ int EnPrise(int target, int wtm) {
  ------------------------------------------------
 */
     if (square < 0) break;
-    if (next_capture)
-      swap_list[next_capture]=swap_list[next_capture-1]+
-                              swap_sign*attacked_piece;
+    if (nc)
+      swap_list[nc]=-swap_list[nc-1]+attacked_piece;
     else
-      swap_list[next_capture]=attacked_piece;
+      swap_list[nc]=attacked_piece;
     attacked_piece=p_values[PcOnSq(square)+7];
     Clear(square,attacks);
     direction=directions[target][square];
     if (direction) attacks=SwapXray(tree,attacks,square,direction);
-    next_capture++;
-    swap_sign=-swap_sign;
+    nc++;
     color=ChangeSide(color);
   }
 /*
@@ -149,22 +146,7 @@ int EnPrise(int target, int wtm) {
 |                                                          |
  ----------------------------------------------------------
 */
-  next_capture--;
-  if(next_capture&1) 
-    swap_sign=-1;
-  else
-    swap_sign=1;
-  while (next_capture) {
-    if (swap_sign < 0) {
-      if(swap_list[next_capture] <= swap_list[next_capture-1])
-         swap_list[next_capture-1]=swap_list[next_capture];
-    }
-    else {
-      if(swap_list[next_capture] >= swap_list[next_capture-1])
-       swap_list[next_capture-1]=swap_list[next_capture];
-    }
-    next_capture--;
-    swap_sign=-swap_sign;
-  }
+  while(--nc)
+    if(swap_list[nc] > -swap_list[nc-1]) swap_list[nc-1]=-swap_list[nc];
   return (swap_list[0]);
 }
