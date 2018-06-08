@@ -3337,7 +3337,29 @@
  *   20.10   change to king safety pawn structure.  open files around the king *
  *           are dangerous, but the h/g (or b/a) files are more dangerous than *
  *           the f-e-d-c files since they are much harder to defend against    *
- *           with the castled king in the way.                                 *
+ *           with the castled king in the way.  modified the way the king      *
+ *           safety matrix is computed so that at the tropism/pawnstructure    *
+ *           values are more sane.  It currently will get the same value for   *
+ *           array indices of 5,0, 4,1, 3,2, 2,3, 1,4, or 0,5, which is better *
+ *           than what it was doing.  I plan to tweak this more later to make  *
+ *           3,2 or 2,3 worse than 4,1 or 1,4 and 0,5 or 5,0, as the latter    *
+ *           mean "unsafe king but no piece pressure" or "piece pressure but   *
+ *           king pawn shelter is safe" whereas the middle values mean both    *
+ *           components of an attack are present, unsafe king position and the
+ *           pieces are closing in.                                            *
+ *                                                                             *
+ *   20.11   minor fix to late move reduction code.  turns out it is possible  *
+ *           to reach the block of code if (first_move) { } with status set to *
+ *           REMAINING_MOVES (this means no captures, no killer, no hash move, *
+ *           no history move, etc).  That would let me try a reduction, and if *
+ *           it failed high, we would use that score as-is.  we now re-search  *
+ *           a fail-high here just like we did in the other block of code so   *
+ *           that a fail-high on a reduction search is never trusted.          *
+ *                                                                             *
+ *   20.12   further modifications to king safety initialization code to try   *
+ *           scale back the values a bit to control score limits.  this is the *
+ *           version that played on the final day of the 2006 WCCC event. The  *
+ *           other rounds were played by 20.9 - 20.11.                         *
  *                                                                             *
  *******************************************************************************
  */
@@ -3900,8 +3922,14 @@ int main(int argc, char **argv)
       last_search_value = value;
       MakeMoveRoot(tree, last_pv.path[1], wtm);
       move_actually_played = 1;
+#if !defined(TEST)
       if (log_file && shared->time_limit > 300)
+#endif
         DisplayChessBoard(log_file, tree->pos);
+#if defined(TEST)
+      strcpy(buffer, "score");
+      Option(tree);
+#endif
 /*
  ************************************************************
  *                                                          *

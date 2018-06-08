@@ -355,6 +355,10 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
           value =
               -Search(tree, -beta, -alpha, Flip(wtm), depth + extensions,
               ply + 1, DO_NULL);
+          if (value > alpha && extended < 0)
+            value =
+                -Search(tree, -beta, -alpha, Flip(wtm), depth - PLY,
+                ply + 1, DO_NULL);
         } else
           value = -Quiesce(tree, -beta, -alpha, Flip(wtm), ply + 1);
         if (shared->abort_search || tree->stop) {
@@ -366,7 +370,7 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
           value =
               -Search(tree, -alpha - 1, -alpha, Flip(wtm), depth + extensions,
               ply + 1, DO_NULL);
-          if (value > alpha && extensions < -PLY)
+          if (value > alpha && extended < 0)
             value =
                 -Search(tree, -alpha - 1, -alpha, Flip(wtm), depth - PLY,
                 ply + 1, DO_NULL);
@@ -424,7 +428,7 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
           Interrupt(ply);
         value = tree->search_value;
         if (value > alpha) {
-          HistoryUpdateFH(tree, wtm, &tree->current_move[ply] + 1, 1);
+          HistoryUpdateFH(tree, wtm, &tree->current_move[ply], 1);
           if (value >= beta) {
             History(tree, ply, depth, wtm, tree->current_move[ply]);
             HashStore(tree, ply, depth, wtm, LOWER, value, mate_threat);

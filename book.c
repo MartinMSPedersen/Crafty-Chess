@@ -57,7 +57,7 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
   static int bs_played[200], bs_percent[200];
   static int book_status[200], evaluations[200], bs_learn[200], bs_CAP[200];
   static float bs_value[200], total_value;
-  int m1_status, forced = 0, total_percent;
+  int m1_status, forced = 0, total_percent, play_percentage = 0;
   float tempr;
   int done, i, j, last_move, temp, which, minlv = 999999, maxlv = -999999, cap;
   int mincap = 999999, maxcap = -999999, maxp = -999999, minev = 999999, maxev =
@@ -422,20 +422,46 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
 /*
  ************************************************************
  *                                                          *
+ *   check for book moves with the play % value set.  if    *
+ *   there are any such moves, then exclude all moves that  *
+ *   do not have a play %.                                  *
+ *                                                          *
+ ************************************************************
+ */
+    for (i = 0; i < nmoves; i++)
+      if (bs_percent[i])
+        play_percentage = 1;
+/*
+ ************************************************************
+ *                                                          *
  *   delete ? and ?? moves first, which includes those      *
- *   moves with bad learned results.                        *
+ *   moves with bad learned results.  here is where we also *
+ *   exclude moves with no play % if we find at least one   *
+ *   with a non-zero value.                                 *
  *                                                          *
  ************************************************************
  */
     num_selected = 0;
-    for (i = 0; i < nmoves; i++)
-      if (!(book_status[i] & 0x03) || bs_percent[i]) {
-        selected_status[num_selected] = book_status[i];
-        selected_order_played[num_selected] = bs_played[i];
-        selected_value[num_selected] = bs_value[i];
-        selected_percent[num_selected] = bs_percent[i];
-        selected[num_selected++] = book_moves[i];
-      }
+    if (!play_percentage) {
+      for (i = 0; i < nmoves; i++)
+        if (!(book_status[i] & 0x03) || bs_percent[i]) {
+          selected_status[num_selected] = book_status[i];
+          selected_order_played[num_selected] = bs_played[i];
+          selected_value[num_selected] = bs_value[i];
+          selected_percent[num_selected] = bs_percent[i];
+          selected[num_selected++] = book_moves[i];
+        }
+     }
+     else {
+      for (i = 0; i < nmoves; i++)
+        if (bs_percent[i]) {
+          selected_status[num_selected] = book_status[i];
+          selected_order_played[num_selected] = bs_played[i];
+          selected_value[num_selected] = bs_value[i];
+          selected_percent[num_selected] = bs_percent[i];
+          selected[num_selected++] = book_moves[i];
+        }
+    }
     for (i = 0; i < num_selected; i++) {
       book_status[i] = selected_status[i];
       bs_played[i] = selected_order_played[i];

@@ -1077,13 +1077,22 @@ void InitializeHistoryKillers(void)
  */
 void InitializeKingSafety()
 {
-  int safety, tropism;
+  int safety, tropism, edge;
 
-  for (safety = 0; safety < 16; safety++)
-    for (tropism = 0; tropism < 16; tropism++)
-      king_safety[safety][tropism] = safety_vector[Min(safety+tropism,15)];
+  for (edge = 0; edge < 32; edge++) {
+    safety = edge;
+    tropism = 0;
+    while (tropism <= edge) {
+      if (tropism < 16 && safety < 16)
+        king_safety[safety][tropism] =
+            (safety * safety_vector[Min(edge, 15)] +
+            tropism * tropism_vector[Min(edge, 15)]) / Max(safety + tropism, 1);
+      safety--;
+      tropism++;
+    }
+  }
 /*
-  printf("    ");
+  printf("   ");
   for (tropism = 0; tropism < 16; tropism++)
     printf("%4d", tropism);
   printf("\n");

@@ -162,7 +162,7 @@ BITBOARD black_pawn_race_btm[64];
 BOOK_POSITION book_buffer[BOOK_CLUSTER_SIZE];
 BOOK_POSITION book_buffer_char[BOOK_CLUSTER_SIZE];
 
-#define    VERSION                             "20.10"
+#define    VERSION                             "20.11"
 char version[6] = { VERSION };
 PLAYING_MODE mode = normal_mode;
 int batch_mode = 0;             /* no asynch reads */
@@ -319,7 +319,7 @@ int blockading_passed_pawn_value[8] = { 0, 6, 10, 24, 36, 60, 75, 0 };
 int isolated_pawn_value[9] = { 0, 8, 20, 40, 60, 70, 80, 80, 80 };
 int isolated_pawn_of_value[9] = { 0, 4, 10, 16, 24, 24, 24, 24, 24 };
 int doubled_pawn_value[9] = { 0, 0, 4, 7, 10, 10, 10, 10, 10 };
-int doubled_isolated_pawn_value[9] = { 0, 10, 20, 30, 30, 30, 30, 30, 30 };
+int doubled_isolated_pawn_value[9] = { 0, 5, 10, 15, 15, 15, 15, 15, 15 };
 int supported_passer[8] = { 0, 0, 0, 20, 40, 60, 100, 0 };
 int outside_passed[128] = {
  160, 100, 100, 100,  80,  80,  80,  70,
@@ -472,6 +472,9 @@ int kval_wq[64] = {
 int safety_vector[16] = {
    0,  10,  30,  48,  60,  90, 120, 140,
  160, 170, 180, 200, 225, 250, 275, 300};
+int tropism_vector[16] = {
+   0,  0,  0,  10,  20,  30, 48, 64,
+ 100, 120, 150, 180, 210, 240, 270, 300};
 
 /* note that black piece/square values are copied from white, but
    reflected */
@@ -670,7 +673,7 @@ struct eval_term eval_packet[256] = {
   {"king safe open file [file]      ", 8, open_file},
   {"king safe half-open file [file] ", 8, half_open_file},
   {"king safety pawn-shield vector  ", 16, safety_vector},
-  {NULL, 0, NULL},
+  {"king safety tropism vector      ", 16, tropism_vector},
   {NULL, 0, NULL},
   {NULL, 0, NULL},
   {NULL, 0, NULL},

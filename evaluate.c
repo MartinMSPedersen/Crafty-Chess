@@ -166,6 +166,7 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta)
   tree->b_tropism = 0;
   if (can_win == 3) {
     int lscore = (wtm) ? score : -score;
+
     if ((lscore - lazy_eval_cutoff >= beta) ||
         (lscore + lazy_eval_cutoff <= alpha))
       full_eval = 0;
@@ -409,8 +410,7 @@ int EvaluateDevelopmentB(TREE * RESTRICT tree, int ply)
  ************************************************************
  *                                                          *
  *   first, some "thematic" things, which includes don't    *
- *   block the c-pawn in queen-pawn openings, then also     *
- *   check to see if center pawns are blocked.              *
+ *   block the c-pawn in queen-pawn openings.               *
  *                                                          *
  ************************************************************
  */
@@ -469,8 +469,7 @@ int EvaluateDevelopmentW(TREE * RESTRICT tree, int ply)
  ************************************************************
  *                                                          *
  *   first, some "thematic" things, which includes don't    *
- *   block the c-pawn in queen-pawn openings, then also     *
- *   check to see if center pawns are blocked.              *
+ *   block the c-pawn in queen-pawn openings.               *
  *                                                          *
  ************************************************************
  */
@@ -1163,9 +1162,6 @@ int EvaluateMaterial(TREE * RESTRICT tree)
  *   has more piece material points than the other (using normal      *
  *   piece values of 3, 3, 5, 9 for N, B, R and Q) then the side that *
  *   is behind in piece material gets a penalty.                      *
- *                                                                    *
- *   test 2.  if Majors and Minors are balanced, then if one side has *
- *   a queen but the other side does not, the queen gets a bonus.     *
  *                                                                    *
  **********************************************************************
  */
@@ -1949,10 +1945,20 @@ int EvaluatePawns(TREE * RESTRICT tree)
         Rank(LastOne(mask_e3e4e5e6 & WhitePawns)))
       tree->pawn_score.center = 1;
   }
-  if (Occupied & ((BlackPawns & rank_mask[RANK7]) << 8) & (file_mask[FILED]
+/*
+ ************************************************************
+ *                                                          *
+ *   now check for blocked unmoved center pawns.  a pawn at *
+ *   e2/d2 or e7/d7 that is blocked by an enemy pawn is a   *
+ *   thorn to development and center control and should be  *
+ *   avoided if possible.                                   *
+ *                                                          *
+ ************************************************************
+ */
+  if (WhitePawns & ((BlackPawns & rank_mask[RANK7]) << 8) & (file_mask[FILED]
           | file_mask[FILEE]))
     score += blocked_center_pawn;
-  if (Occupied & ((WhitePawns & rank_mask[RANK2]) >> 8) & (file_mask[FILED]
+  if (BlackPawns & ((WhitePawns & rank_mask[RANK2]) >> 8) & (file_mask[FILED]
           | file_mask[FILEE]))
     score -= blocked_center_pawn;
 /*
@@ -2871,15 +2877,15 @@ int EvaluateRooks(TREE * RESTRICT tree)
  *   finally check to see if any rooks are on the 7th rank, *
  *   with the opponent having pawns on that rank and the    *
  *   opponent's king being hemmed in on the 7th/8th rank.   *
- *   if so, and another rook or queen is also on the 7th,   *
- *   then this is a *strong* positional advantage.          *
+ *   if so, and another rook is also on the 7th rank, then  *
+ *   this is a *strong* positional advantage.               *
  *                                                          *
  ************************************************************
  */
     if (Rank(square) == RANK7 && (BlackKingSQ > H7 ||
             BlackPawns & rank_mask[RANK7])) {
       score += rook_on_7th;
-      if (AttacksRank(square) & (WhiteRooks | WhiteQueens))
+      if (AttacksRank(square) & WhiteRooks)
         score += rook_connected_7th_rank;
     }
 /*
@@ -2972,15 +2978,15 @@ int EvaluateRooks(TREE * RESTRICT tree)
  *   finally check to see if any rooks are on the 7th rank, *
  *   with the opponent having pawns on that rank and the    *
  *   opponent's king being hemmed in on the 7th/8th rank.   *
- *   if so, and another rook or queen is also on the 7th,   *
- *   then this is a *strong* positional advantage.          *
+ *   if so, and another rook is also on the 7th rank, then  *
+ *   this is a *strong* positional advantage.               *
  *                                                          *
  ************************************************************
  */
     if (Rank(square) == RANK2 && (WhiteKingSQ < A2 ||
             WhitePawns & rank_mask[RANK2])) {
       score -= rook_on_7th;
-      if (AttacksRank(square) & (BlackRooks | BlackQueens))
+      if (AttacksRank(square) & BlackRooks)
         score -= rook_connected_7th_rank;
     }
 /*

@@ -203,6 +203,7 @@ extern int kval_bk[64];
 extern int kval_bq[64];
 extern int king_safety[16][16];
 extern int safety_vector[16];
+extern int tropism_vector[16];
 extern int bishop_pair[3];
 extern const char b_n_mate_dark_squares[64];
 extern const char b_n_mate_light_squares[64];
