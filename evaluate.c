@@ -623,7 +623,7 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
 */
     trop=7;
     if (!(file_mask[file] & tree->all_pawns)) {
-      score+=ScaleDown(tree->b_safety,TotalWhitePieces);
+      score+=ROOK_OPEN_FILE;
       trop=FileDistance(square,tree->b_kingsq);
     }
     else if (!(plus8dir[square] & WhitePawns)) score+=ROOK_HALF_OPEN_FILE;

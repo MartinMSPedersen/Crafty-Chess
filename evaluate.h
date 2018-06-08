@@ -3,7 +3,7 @@
  
 #  define                            BAD_TRADE         (100)
 #  define                          EIGHT_PAWNS          (10)
-#  define                        PAWNS_BLOCKED           (6)
+#  define                        PAWNS_BLOCKED          (12)
 #  define                             PAWN_DUO           (2)
 #  define                             PAWN_JAM          (10)
 #  define                         PAWN_DOUBLED           (5)

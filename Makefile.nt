@@ -117,10 +117,10 @@ $(xcobjs): $(includes)
 
 x1.c:      searchr.c search.c repeat.c next.c nextr.c history.c nexte.c \
            quiesce.c evaluate.c movgen.c make.c unmake.c attacks.c swap.c \
-           boolean.c draw.c utility.c valid.c searchmp.c thread.c x86.c
+           boolean.c utility.c valid.c searchmp.c thread.c x86.c
            copy /b x86.c+boolean.c+swap.c+attacks.c+evaluate.c+make.c+\
            unmake.c+movgen.c+quiesce.c+search.c+next.c+searchr.c+repeat.c+\
-           nextr.c+history.c+nexte.c+draw.c+utility.c+valid.c+searchmp.c+\
+           nextr.c+history.c+nexte.c+utility.c+valid.c+searchmp.c+\
            thread.c x1.c
 x2.c:      book.c data.c drawn.c edit.c enprise.c epd.c epdglue.c init.c \
            input.c interupt.c iterate.c main.c option.c output.c phase.c \

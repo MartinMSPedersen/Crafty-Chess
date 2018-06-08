@@ -223,7 +223,7 @@
 #define KNIGHT_VALUE            300
 #define BISHOP_VALUE            300
 #define ROOK_VALUE              500
-#define QUEEN_VALUE             950
+#define QUEEN_VALUE             900
 #define KING_VALUE            40000
 #define EG_MAT                   14
   
