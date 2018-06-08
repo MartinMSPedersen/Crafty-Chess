@@ -20,8 +20,7 @@
  *                                                                             *
  *******************************************************************************
  */
-int Swap(TREE * RESTRICT tree, int source, int target, int wtm)
-{
+int Swap(TREE * RESTRICT tree, int source, int target, int wtm) {
   register BITBOARD attacks, temp = 0, toccupied;
   register int attacked_piece;
   register int piece;

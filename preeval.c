@@ -10,8 +10,7 @@
  *                                                                             *
  *******************************************************************************
  */
-void PreEvaluate(TREE * RESTRICT tree)
-{
+void PreEvaluate(TREE * RESTRICT tree) {
   static int last_trojan_check = 0;
   static int last_clear = 0;
 

@@ -13,8 +13,7 @@
  *                                                                             *
  *******************************************************************************
  */
-int Drawn(TREE * RESTRICT tree, int value)
-{
+int Drawn(TREE * RESTRICT tree, int value) {
 /*
  ************************************************************
  *                                                          *
@@ -50,8 +49,9 @@ int Drawn(TREE * RESTRICT tree, int value)
     return (0);
   if (TotalPieces(black, occupied) == 5 || TotalPieces(black, occupied) > 6)
     return (0);
-  if ((TotalPieces(white, occupied) == 6 && !Bishops(white) && Material > 0) ||
-      (TotalPieces(black, occupied) == 6 && !Bishops(black) && Material < 0))
+  if ((TotalPieces(white, occupied) == 6 && !Bishops(white) && Material > 0)
+      || (TotalPieces(black, occupied) == 6 && !Bishops(black) &&
+          Material < 0))
     return (2);
 /*
  ************************************************************

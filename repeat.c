@@ -25,8 +25,7 @@
  *                                                                             *
  *******************************************************************************
  */
-int RepetitionCheck(TREE * RESTRICT tree, int ply, int wtm)
-{
+int RepetitionCheck(TREE * RESTRICT tree, int ply, int wtm) {
   register int where, loops;
 
 /*
@@ -71,8 +70,7 @@ int RepetitionCheck(TREE * RESTRICT tree, int ply, int wtm)
  *                                                                             *
  *******************************************************************************
  */
-int RepetitionCheckBook(TREE * RESTRICT tree, int ply, int wtm)
-{
+int RepetitionCheckBook(TREE * RESTRICT tree, int ply, int wtm) {
   register int where;
 
 /*
@@ -111,8 +109,7 @@ int RepetitionCheckBook(TREE * RESTRICT tree, int ply, int wtm)
  *                                                                             *
  *******************************************************************************
  */
-int RepetitionDraw(TREE * RESTRICT tree, int ply, int wtm)
-{
+int RepetitionDraw(TREE * RESTRICT tree, int ply, int wtm) {
   register int reps;
   int where;
 

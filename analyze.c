@@ -16,8 +16,7 @@
  *                                                                             *
  *******************************************************************************
  */
-void Analyze()
-{
+void Analyze() {
   int i, move, back_number, readstat = 1;
   TREE *const tree = block[0];
 
@@ -136,7 +135,8 @@ void Analyze()
         char *outmove = OutputMove(tree, move, 0, wtm);
 
         if (history_file) {
-          fseek(history_file, ((move_number - 1) * 2 + 1 - wtm) * 10, SEEK_SET);
+          fseek(history_file, ((move_number - 1) * 2 + 1 - wtm) * 10,
+              SEEK_SET);
           fprintf(history_file, "%9s\n", outmove);
         }
         if (wtm)

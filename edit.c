@@ -27,9 +27,9 @@
  *                                                                             *
  *******************************************************************************
  */
-void Edit(void)
-{
-  int athome = 1, i, piece, readstat, square, tfile, trank, wtm = 1, error = 0;
+void Edit(void) {
+  int athome = 1, i, piece, readstat, square, tfile, trank, wtm = 1, error =
+      0;
   static const char pieces[] =
       { 'x', 'X', 'P', 'p', 'N', 'n', 'B', 'b', 'R', 'r',
     'Q', 'q', 'K', 'k', '\0'
@@ -120,10 +120,10 @@ void Edit(void)
       athome = 0;
   if (!athome || (PcOnSq(A1) == rook && PcOnSq(B1) == knight &&
           PcOnSq(C1) == bishop && PcOnSq(D1) == queen && PcOnSq(E1) == king &&
-          PcOnSq(F1) == bishop && PcOnSq(G1) == knight && PcOnSq(H1) == rook &&
-          PcOnSq(A8) == -rook && PcOnSq(B8) == -knight && PcOnSq(C8) == -bishop
-          && PcOnSq(D8) == -queen && PcOnSq(E8) == -king &&
-          PcOnSq(F8) == -bishop && PcOnSq(G8) == -knight &&
+          PcOnSq(F1) == bishop && PcOnSq(G1) == knight && PcOnSq(H1) == rook
+          && PcOnSq(A8) == -rook && PcOnSq(B8) == -knight &&
+          PcOnSq(C8) == -bishop && PcOnSq(D8) == -queen && PcOnSq(E8) == -king
+          && PcOnSq(F8) == -bishop && PcOnSq(G8) == -knight &&
           PcOnSq(H8) == -rook)) {
     if (PcOnSq(E1) == king) {
       if (PcOnSq(A1) == rook)

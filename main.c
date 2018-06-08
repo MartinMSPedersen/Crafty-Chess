@@ -9,7 +9,7 @@
 #  include <numa.h>
 #endif
 #include <signal.h>
-/* last modified 01/18/09 */
+/* last modified 02/26/09 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -3480,7 +3480,7 @@
  *   21.4    Misc eval changes.  More king safety changes to include a tropism *
  *           distance of 1 for bishops or rooks that can slide to intercept    *
  *           any square surrounding the enemy king.  Reduced rook slide score  *
- *           by 40%.                                                           *
+ *           by 40%.
  *                                                                             *
  *   21.5    passed pawn extension revisited.  Bad trade was giving a penalty  *
  *           for being down an exchange (or a bonus for being up an exchange)  *
@@ -3647,10 +3647,82 @@
  *           and we simply will not use the bad data and do a normal pawn      *
  *           evaluation to compute valid values.                               *
  *                                                                             *
+ *    23.0   Essentially a cleaned up 22.9 version.  Comments have been        *
+ *           reviewed to make sure they are consistent with what is actually   *
+ *           done in the program.  Major change is that the random numbers     *
+ *           used to produce the Zobrist hash signature are now statically     *
+ *           initialized which eliminates a source of compatibility issues     *
+ *           where a different stream of random numbers is produced if an      *
+ *           architecture has some feature that changes the generator, such    *
+ *           as a case on an older 30/36 bit word machine.  The issue with     *
+ *           this change is that the old binary books are not compatible and   *
+ *           need to be re-created with the current random numbers.  The       *
+ *           "lockless hash table" idea is back in.  It was removed because    *
+ *           the move from the hash table is recognized as illegal when this   *
+ *           is appropriate, and no longer causes crashes.  However, the above *
+ *           pawn hash issue showed that this happens enough that it is better *
+ *           to avoid any error at all, including the score, for safety.  We   *
+ *           made a significant change to the parallel search split logic in   *
+ *           this version.  We now use a different test to limit how near the  *
+ *           tips we split.  This test measures how large the sub-tree is for  *
+ *           the first move at any possible split point, and requires that     *
+ *           this be at least some minimum number of nodes before a split can  *
+ *           be considered at this node.  The older approach, which based this *
+ *           decsion on remaining search depth at a node led to some cases     *
+ *           where the parallel search overhead was excessively high, or even  *
+ *           excessively low (when we chose to not split frequently enough).   *
+ *           This version appears to work well on a variety of platforms, even *
+ *           though NUMA architectures may well need additional tuning of this *
+ *           paramenter (smpsn) as well as (smpgroup) to try to contain most   *
+ *           splits on a single NUMA node where memory is local.  I attempted  *
+ *           to automate this entire process, and tune for all sorts of plat-  *
+ *           forms, but nothing worked for the general case, which leaves the  *
+ *           current approach.  When I converted back to threads from          *
+ *           processes, I forgot to restore the alignment for the hash/pawn-   *
+ *           hash tables.  The normal hash table needs to be on a 16 byte      *
+ *           boundary, which normally happens automatically, but pawn hash     *
+ *           entries should be on a 32 byte boundary to align them properly in *
+ *           cache to avoid splitting an entry across two cache blocks and     *
+ *           hurting performance.  New rook/bishop cache introduced to limit   *
+ *           overhead caused by mobility calculations.  If the ranks/files the *
+ *           rook is on are the same as the last time we evaluated a rook on   *
+ *           this specific square, we can reuse the mobility score with no     *
+ *           calculation required.  The code for "rook behind passed pawns"    *
+ *           was moved to EvaluatePassedPawns() so that it is only done when   *
+ *           there is a passed pawn on the board, not just when rooks are      *
+ *           present.  Book learning has been greatly cleaned up and           *
+ *           simplified.  The old "result learning" (which used the game       *
+ *           result to modify the book) and "book learning" (which used the    *
+ *           first N search scores to modify the book) were redundant, since   *
+ *           result learning would overwrite whatever book learning did.  The  *
+ *           new approach uses the game result (if available) to update the    *
+ *           book database when the program exits or starts a new game.  If    *
+ *           a result is not available, it will then rely on the previous      *
+ *           search results so that it has some idea of whether this was a     *
+ *           good opening or not, even if the game was not completed.  Minor   *
+ *           LMR bug in SearchRoot() could do a PVS fail-high research using   *
+ *           the wrong depth (off by -1) because of the LMR reduction that had *
+ *           been set.  The normal search module had this correct, but the     *
+ *           SearchRoot() module did not.  EvaluateDevelopment() was turned    *
+ *           off for a side after castling.  This caused a problem in that we  *
+ *           do things like checking for a knight blocking the C-pawn in queen *
+ *           pawn openings.  Unfortunately, the program could either block the *
+ *           pawn and then castle, which removed the blocked pawn penalty, or  *
+ *           it could castle first and then block the pawn, making it more     *
+ *           difficult to develop the queen-side.  We now enable this code     *
+ *           always and never disable it.  This disable was done years ago     *
+ *           when the castling evaluation of Crafty would scan the move list   *
+ *           to see if crafty had castled, when it noticed castling was no     *
+ *           longer possible.  Once it had castled, we disabled this to avoid  *
+ *           the lengthy loop and the overhead it caused.  Today the test is   *
+ *           quite cheap anyway, and I measured no speed difference with it on *
+ *           or off, to speak of.  Now we realize that the knight in front of  *
+ *           the C-pawn is bad and needs to either not go there, or else move  *
+ *           out of the way.                                                   *
+ *                                                                             *
  *******************************************************************************
  */
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
   int move, presult, readstat;
   int value = 0, i, result;
   int draw_type;
@@ -3695,7 +3767,8 @@ int main(int argc, char **argv)
  ************************************************************
  */
   block[0] =
-      (TREE *) ((~(size_t) 127) & (127 + (size_t) malloc(sizeof(TREE) + 127)));
+      (TREE *) ((~(size_t) 127) & (127 + (size_t) malloc(sizeof(TREE) +
+              127)));
   block[0]->used = 1;
   block[0]->stop = 0;
   block[0]->ply = 1;
@@ -3834,10 +3907,10 @@ int main(int argc, char **argv)
   if (xboard)
     signal(SIGINT, SIG_IGN);
 #endif
-  Print(128, "\nCrafty v%s (%d cpus)\n\n", version, Max(max_threads, 1));
+  Print(128, "\nCrafty v%s (%d cpus)\n\n", version, Max(smp_max_threads, 1));
   if (ics)
     printf("*whisper Hello from Crafty v%s! (%d cpus)\n", version,
-        Max(max_threads, 1));
+        Max(smp_max_threads, 1));
   NewGame(1);
 /*
  ************************************************************
@@ -3966,14 +4039,14 @@ int main(int argc, char **argv)
           if (xboard)
             Print(4095, "1/2-1/2 {Insufficient material}\n");
         }
-        wtm = Flip(wtm);
-        if (wtm)
-          move_number++;
         time_used_opponent = opponent_end_time - opponent_start_time;
         if (!force)
           Print(1, "              time used: %s\n",
               DisplayTime(time_used_opponent));
-        TimeAdjust(time_used_opponent, opponent);
+        TimeAdjust(time_used_opponent, wtm);
+        wtm = Flip(wtm);
+        if (wtm)
+          move_number++;
       } else {
         tree->position[1] = tree->position[0];
         presult = 0;
@@ -3991,8 +4064,8 @@ int main(int argc, char **argv)
  */
     crafty_is_white = wtm;
     if (presult == 2) {
-      if ((From(ponder_move) == From(move)) && (To(ponder_move) == To(move)) &&
-          (Piece(ponder_move) == Piece(move)) &&
+      if ((From(ponder_move) == From(move)) && (To(ponder_move) == To(move))
+          && (Piece(ponder_move) == Piece(move)) &&
           (Captured(ponder_move) == Captured(move)) &&
           (Promote(ponder_move) == Promote(move))) {
         presult = 1;
@@ -4032,7 +4105,7 @@ int main(int argc, char **argv)
       if (move_number < 40 || !accept_draws)
         drawsc = -300;
       if (value <= drawsc && (tc_increment != 0 ||
-              tc_time_remaining_opponent >= 1000)) {
+              tc_time_remaining[Flip(wtm)] >= 1000)) {
         if (xboard)
           Print(4095, "offer draw\n");
         else {
@@ -4103,10 +4176,12 @@ int main(int argc, char **argv)
     } else {
       if ((value > MATE - 300) && (value < MATE - 2)) {
         Print(128, "\nmate in %d moves.\n\n", (MATE - value) / 2);
-        Kibitz(1, wtm, 0, 0, (MATE - value) / 2, tree->nodes_searched, 0, " ");
+        Kibitz(1, wtm, 0, 0, (MATE - value) / 2, tree->nodes_searched, 0,
+            " ");
       } else if ((-value > MATE - 300) && (-value < MATE - 1)) {
         Print(128, "\nmated in %d moves.\n\n", (MATE + value) / 2);
-        Kibitz(1, wtm, 0, 0, -(MATE + value) / 2, tree->nodes_searched, 0, " ");
+        Kibitz(1, wtm, 0, 0, -(MATE + value) / 2, tree->nodes_searched, 0,
+            " ");
       }
 /*
  ************************************************************
@@ -4214,9 +4289,10 @@ int main(int argc, char **argv)
       }
       time_used = program_end_time - program_start_time;
       Print(1, "              time used: %s\n", DisplayTime(time_used));
-      TimeAdjust(time_used, crafty);
+      TimeAdjust(time_used, wtm);
       fseek(history_file, ((move_number - 1) * 2 + 1 - wtm) * 10, SEEK_SET);
-      fprintf(history_file, "%9s\n", OutputMove(tree, last_pv.path[1], 0, wtm));
+      fprintf(history_file, "%9s\n", OutputMove(tree, last_pv.path[1], 0,
+              wtm));
       last_search_value = value;
       MakeMoveRoot(tree, last_pv.path[1], wtm);
       move_actually_played = 1;
@@ -4235,7 +4311,8 @@ int main(int argc, char **argv)
  *                                                          *
  ************************************************************
  */
-      if (last_pv.pathl > 1 && VerifyMove(tree, 0, Flip(wtm), last_pv.path[2])) {
+      if (last_pv.pathl > 1 &&
+          VerifyMove(tree, 0, Flip(wtm), last_pv.path[2])) {
         ponder_move = last_pv.path[2];
         for (i = 1; i <= (int) last_pv.pathl - 2; i++)
           last_pv.path[i] = last_pv.path[i + 2];
@@ -4280,25 +4357,19 @@ int main(int argc, char **argv)
 /*
  ************************************************************
  *                                                          *
- *   Now execute LearnBook() to determine if the book line  *
- *   was bad or good.  Then follow up with another call to  *
- *   LearnBook() if the score indicates checkmate.          *
+ *   Now execute LearnValue() to record the scores for the  *
+ *   first N searches out of book.  If we get a MATE-type   *
+ *   score we can set learn-value immediately.              *
  *                                                          *
  ************************************************************
  */
-    if (moves_out_of_book) {
-      LearnBook(last_value, last_pv.pathd + 2, 0, 0);
-    } else if (learn_positions_count < 63) {
+    if (learning && moves_out_of_book && !learn_value) {
+      LearnValue(last_value, last_pv.pathd + 2);
+    }
+    if (learn_positions_count < 63) {
       learn_seekto[learn_positions_count] = book_learn_seekto;
       learn_key[learn_positions_count] = book_learn_key;
       learn_nmoves[learn_positions_count++] = book_learn_nmoves;
-    }
-    if (abs(value) > MATE - 200) {
-      int val = (crafty_is_white) ? 300 : -300;
-
-      if (value < 0)
-        val = -val;
-      LearnBook(val, 0, 1, 2);
     }
     if (mode == tournament_mode) {
       strcpy(buffer, "clock");

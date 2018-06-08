@@ -13,8 +13,7 @@
  *                                                                             *
  *******************************************************************************
  */
-char *OutputMove(TREE * RESTRICT tree, int move, int ply, int wtm)
-{
+char *OutputMove(TREE * RESTRICT tree, int move, int ply, int wtm) {
   static char text_move[10], new_text[10];
   int *mvp;
   char *text;
@@ -237,8 +236,7 @@ char *OutputMove(TREE * RESTRICT tree, int move, int ply, int wtm)
  *                                                                             *
  *******************************************************************************
  */
-char *OutputMoveICS(int move)
-{
+char *OutputMoveICS(int move) {
   static char text_move[10];
   char *text;
   static const char piece_names[7] = { ' ', 'P', 'N', 'B', 'R', 'Q', 'K' };
@@ -270,8 +268,7 @@ char *OutputMoveICS(int move)
  *                                                                             *
  *******************************************************************************
  */
-int OutputGood(TREE * RESTRICT tree, char *text, int ply, int wtm)
-{
+int OutputGood(TREE * RESTRICT tree, char *text, int ply, int wtm) {
   int new_move;
 
   new_move = InputMove(tree, text, ply, wtm, 1, 0);

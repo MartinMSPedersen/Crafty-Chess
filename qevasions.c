@@ -21,7 +21,7 @@ int QuiesceEvasions(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply)
 /*
  ************************************************************
  *                                                          *
- *   Initialize.                                            *
+ *   initialize.                                            *
  *                                                          *
  ************************************************************
  */
@@ -41,7 +41,7 @@ int QuiesceEvasions(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply)
 /*
  ************************************************************
  *                                                          *
- *   Check for draw by repetition.                          *
+ *   check for draw by repetition.                          *
  *                                                          *
  ************************************************************
  */
@@ -62,8 +62,8 @@ int QuiesceEvasions(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply)
 /*
  ************************************************************
  *                                                          *
- *   Iterate through the move list and search the resulting *
- *   positions.                                             *
+ *   now iterate through the move list and search the       *
+ *   resulting positions.                                   *
  *                                                          *
  ************************************************************
  */
@@ -87,7 +87,7 @@ int QuiesceEvasions(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply)
 /*
  ************************************************************
  *                                                          *
- *   All moves have been searched.  If none were legal,     *
+ *   all moves have been searched.  if none were legal,     *
  *   return either MATE or DRAW depending on whether the    *
  *   side to move is in check or not.                       *
  *                                                          *

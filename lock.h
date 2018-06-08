@@ -1,3 +1,4 @@
+/* *INDENT-OFF* */
 #if (CPUS > 1)
 /*
  *******************************************************************************
@@ -20,8 +21,7 @@ typedef volatile LONG lock_t[1];
 #      define LockInit(v)      ((v)[0] = 0)
 #      define LockFree(v)      ((v)[0] = 0)
 #      define Unlock(v)        ((v)[0] = 0)
-__forceinline void Lock(volatile LONG * hPtr)
-{
+__forceinline void Lock(volatile LONG * hPtr) {
   int iValue;
 
   for (;;) {
@@ -35,9 +35,9 @@ __forceinline void Lock(volatile LONG * hPtr)
 #      define lock_t           volatile int
 #      define LockInit(v)      ((v) = 0)
 #      define LockFree(v)      ((v) = 0)
-#      define Lock(v)          do {                                         \
-                             while(InterlockedExchange((LPLONG)&(v),1) != 0);  \
-                           } while (0)
+#      define Lock(v)  do {                                                   \
+                         while(InterlockedExchange((LPLONG)&(v),1) != 0);     \
+                       } while (0)
 #      define Unlock(v)        ((v) = 0)
 #    endif                      /* architecture check */
 #  else
@@ -58,22 +58,28 @@ __forceinline void Lock(volatile LONG * hPtr)
 #      define Lock(v)			OSSpinLockLock(&(v))
 #      define Unlock(v)			OSSpinLockUnlock(&(v))
 #    else                       /* X86 */
-static void __inline__ LockX86(volatile int *lock)
-{
+static void __inline__ LockX86(volatile int *lock) {
   int dummy;
-  asm __volatile__("1:          movl    $1, %0" "\n\t"
-      "            xchgl   (%1), %0" "\n\t" "            testl   %0, %0" "\n\t"
-      "            jz      3f" "\n\t" "2:          pause" "\n\t"
-      "            movl    (%1), %0" "\n\t" "            testl   %0, %0" "\n\t"
-      "            jnz     2b" "\n\t" "            jmp     1b" "\n\t" "3:"
-      "\n\t":"=&q"(dummy)
+  asm __volatile__(
+      "1:          movl    $1, %0"   "\n\t"
+      "            xchgl   (%1), %0" "\n\t"
+      "            testl   %0, %0"   "\n\t"
+      "            jz      3f"       "\n\t"
+      "2:          pause"            "\n\t"
+      "            movl    (%1), %0" "\n\t"
+      "            testl   %0, %0"   "\n\t"
+      "            jnz     2b"       "\n\t"
+      "            jmp     1b"       "\n\t"
+      "3:"                           "\n\t"
+      :"=&q"(dummy)
       :"q"(lock)
       :"cc", "memory");
 }
-static void __inline__ UnlockX86(volatile int *lock)
-{
+static void __inline__ UnlockX86(volatile int *lock) {
   int dummy;
-  asm __volatile__("movl    $0, (%1)":"=&q"(dummy)
+  asm __volatile__(
+      "movl    $0, (%1)"
+      :"=&q"(dummy)
       :"q"(lock));
 }
 
@@ -91,3 +97,4 @@ static void __inline__ UnlockX86(volatile int *lock)
 #  define Unlock(p)
 #  define lock_t volatile int
 #endif                          /*  SMP code */
+/* *INDENT-ON* */

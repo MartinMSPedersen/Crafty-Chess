@@ -19,6 +19,7 @@
  *                                                                             *
  *******************************************************************************
  */
+/* *INDENT-ON* */
 #include <stdio.h>
 #include <assert.h>
 #include <stdlib.h>
@@ -191,8 +192,6 @@ typedef enum { no_extension = 0, check_extension = 1,
 typedef enum { think = 1, puzzle = 2, book = 3, annotate = 4 } SEARCH_TYPE;
 typedef enum { normal_mode, tournament_mode } PLAYING_MODE;
 typedef enum { crafty, opponent } PLAYER;
-typedef enum { book_learning = 1, result_learning = 2
-} LEARNING_MODE;
 typedef struct {
   unsigned char enpassant_target;
   signed char castle[2];
@@ -216,6 +215,8 @@ typedef struct {
   signed char board[64];
   signed char pieces[2][7];
   signed char pawns[2];
+  signed char majors[2];
+  signed char minors[2];
   signed char total_all_pieces;
 } POSITION;
 typedef struct {
@@ -297,10 +298,19 @@ struct tree {
   BITBOARD all_pawns;
   BITBOARD nodes_searched;
   BITBOARD save_pawn_hash_key[MAXPLY + 2];
+  BITBOARD cache_n[64];
+  BITBOARD cache_b_friendly[2][64];
+  BITBOARD cache_b_enemy[2][64];
+  BITBOARD cache_r_friendly[64];
+  BITBOARD cache_r_enemy[64];
   PAWN_HASH_ENTRY pawn_score;
   SEARCH_POSITION position[MAXPLY + 2];
   NEXT_MOVE next_status[MAXPLY];
   PATH pv[MAXPLY];
+  int cache_n_mobility[64];
+  int cache_b_mobility[2][64];
+  int cache_r_mobility_mg[64];
+  int cache_r_mobility_eg[64];
   int rep_index[2];
   int curmv[MAXPLY];
   int hash_move[MAXPLY];
@@ -390,7 +400,7 @@ void AnnotateFooterTeX(FILE *);
 void AnnotatePositionTeX(TREE *, int, FILE *);
 int Attacks(TREE * RESTRICT, int, int);
 BITBOARD AttacksTo(TREE * RESTRICT, int);
-void Bench(void);
+void Bench(int);
 int Book(TREE * RESTRICT, int, int);
 void BookClusterIn(FILE *, int, BOOK_POSITION *);
 void BookClusterOut(FILE *, int, BOOK_POSITION *);
@@ -425,6 +435,7 @@ char *DisplayEvaluation(int, int);
 char *DisplayEvaluationKibitz(int, int);
 void DisplayFT(int, int, int);
 char *DisplayHHMM(unsigned int);
+char *DisplayHHMMSS(unsigned int);
 char *DisplayKM(unsigned int);
 void DisplayPV(TREE * RESTRICT, int, int, int, int, PATH *);
 char *DisplayTime(unsigned int);
@@ -438,6 +449,7 @@ void DisplayType5(int *, int *, int);
 void DisplayType6(int *, int *);
 void DisplayType7(int *, int *);
 void DisplayType8(int *);
+void DisplayType9(int *, int *);
 void Edit(void);
 
 #  if !defined(NOEGTB)
@@ -476,7 +488,6 @@ int IInitializeTb(char *);
 void Initialize(void);
 void InitializeAttackBoards(void);
 void InitializeChessBoard(TREE *);
-int InitializeFindAttacks(int, int, int);
 int InitializeGetLogID();
 void InitializeHashTables(void);
 void InitializeKillers(void);
@@ -487,7 +498,6 @@ BITBOARD InitializeMagicRook(int, BITBOARD);
 BITBOARD InitializeMagicOccupied(int *, int, BITBOARD);
 void InitializeMasks(void);
 void InitializePawnMasks(void);
-void InitializeRandomHash(void);
 void InitializeSMP(void);
 int InputMove(TREE * RESTRICT, char *, int, int, int, int);
 int InputMoveICS(TREE * RESTRICT, char *, int, int, int, int);
@@ -497,9 +507,9 @@ int InvalidPosition(TREE * RESTRICT);
 int Iterate(int, int, int);
 void Killer(TREE * RESTRICT, int, int);
 int KingPawnSquare(int, int, int, int);
-void LearnBook(int, int, int, int);
-void LearnBookUpdate(TREE *, int, BITBOARD, float);
+void LearnBook(void);
 int LearnFunction(int, int, int, int);
+void LearnValue(int, int);
 void MakeMove(TREE * RESTRICT, int, int, int);
 void MakeMoveRoot(TREE * RESTRICT, int, int);
 void NewGame(int);
@@ -566,7 +576,7 @@ void ThreadMalloc(int);
 #  endif
 void ThreadStop(TREE * RESTRICT);
 int ThreadWait(long, TREE * RESTRICT);
-void TimeAdjust(int, PLAYER);
+void TimeAdjust(int, int);
 int TimeCheck(TREE * RESTRICT, int);
 void TimeSet(int);
 void UnmakeMove(TREE * RESTRICT, int, int, int);
@@ -598,23 +608,23 @@ extern void WinFreeInterleaved(void *, size_t);
 #  define FileDistance(a,b) abs(File(a) - File(b))
 #  define RankDistance(a,b) abs(Rank(a) - Rank(b))
 #  define Distance(a,b) Max(FileDistance(a,b), RankDistance(a,b))
-#  define DrawScore(wtm)                 (draw_score[wtm])
+#  define DrawScore(side)                 (draw_score[side])
 #  define PopCnt8Bit(a) (pop_cnt_8bit[a])
 #  define MSB8Bit(a) (msb_8bit[a])
 #  define LSB8Bit(a) (lsb_8bit[a])
 /*
-  wtm = side to move
+  side = side to move
   mptr = pointer into move list
   m = bit vector of to squares to unpack
   t = pre-computed from + moving piece
  */
-#  define Unpack(wtm, mptr, m, t)                                            \
+#  define Unpack(side, mptr, m, t)                                         \
   while (m) {                                                              \
-    int to = Advanced(wtm, moves);                                         \
+    int to = Advanced(side, moves);                                        \
     *mptr++ = t | (to << 6) | (Abs(PcOnSq(to)) << 15);                     \
     Clear(to, m);                                                          \
   }
-#  define Check(wtm) Attacks(tree, KingSQ(wtm), Flip(wtm))
+#  define Check(side) Attacks(tree, KingSQ(side), Flip(side))
 #  define Attack(from,to) (!(obstructed[from][to] & OccupiedSquares))
 #  define AttacksBishop(square, occ) *(magic_bishop_indices[square]+((((occ)&magic_bishop_mask[square])*magic_bishop[square])>>magic_bishop_shift[square]))
 #  define AttacksKnight(square) knight_attacks[square]
@@ -623,11 +633,11 @@ extern void WinFreeInterleaved(void *, size_t);
 #  define Rank(x)       ((x)>>3)
 #  define File(x)       ((x)&7)
 #  define Flip(x)       ((x)^1)
-#  define PawnAttacks(wtm, x)   (pawn_attacks[Flip(wtm)][(x)] & Pawns(wtm))
-#  define Advanced(wtm, pawns) ((wtm) ? MSB(pawns) : LSB(pawns))
-#  define MinMax(wtm, v1, v2) ((wtm) ? Min((v1), (v2)) : Max((v1), (v2)))
-#  define FrontOf(wtm, k, p) ((wtm) ? k > p : k < p)
-#  define Behind(wtm, k, p) ((wtm) ? k < p : k > p)
+#  define PawnAttacks(side, x)   (pawn_attacks[Flip(side)][(x)] & Pawns(side))
+#  define Advanced(side, squares) ((side) ? MSB(squares) : LSB(squares))
+#  define MinMax(side, v1, v2) ((side) ? Min((v1), (v2)) : Max((v1), (v2)))
+#  define InFront(side, k, p) ((side) ? k > p : k < p)
+#  define Behind(side, k, p) ((side) ? k < p : k > p)
 #  define AttacksRank(a) (AttacksRook(a, OccupiedSquares) & rank_mask[Rank(a)])
 #  define AttacksFile(a) (AttacksRook(a, OccupiedSquares) & file_mask[File(a)])
 #  define AttacksDiaga1(a) (AttacksBishop(a, OccupiedSquares) & (plus9dir[a] | minus9dir[a]))
@@ -657,7 +667,7 @@ extern void WinFreeInterleaved(void *, size_t);
 #  define PieceValues(c, p)     (piece_values[c][p])
 #  define TotalAllPieces        (tree->pos.total_all_pieces)
 #  define Material              (tree->pos.material_evaluation)
-#  define MaterialSTM           ((wtm) ? Material : -Material)
+#  define MaterialSTM(side)     ((side) ? Material : -Material)
 #  define Castle(ply, c)        (tree->position[ply].castle[c])
 #  define Rule50Moves(ply)      (tree->position[ply].rule_50_moves)
 #  define Repetition(side)      (tree->rep_index[side])
@@ -686,7 +696,7 @@ extern void WinFreeInterleaved(void *, size_t);
 #  define HashP(a,c)            (PawnHashKey^=randoms[a][pawn][c])
 #  define HashCastle(a,b,c)     (b^=castle_random[c][a])
 #  define HashEP(a,b)           (b^=enpassant_random[a])
-#  define SavePV(tree,ply,ph)   do {                                          \
+#  define SavePV(tree,ply,ph)   do {                                        \
         tree->pv[ply-1].path[ply-1]=tree->curmv[ply-1];                     \
         tree->pv[ply-1].pathl=ply-1;                                        \
         tree->pv[ply-1].pathh=ph;                                           \
@@ -703,3 +713,4 @@ extern void WinFreeInterleaved(void *, size_t);
 #    define SPEAK ".\\Speak.exe "
 #  endif
 #endif                          /* if defined(TYPES_INCLUDED) */
+/* *INDENT-OFF* */

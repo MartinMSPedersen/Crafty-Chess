@@ -28,8 +28,7 @@
  *                                                                             *
  *******************************************************************************
  */
-void Test(char *filename)
-{
+void Test(char *filename) {
   FILE *test_input;
   int i, move, right = 0, wrong = 0, correct;
   int time = 0, len;
@@ -177,7 +176,8 @@ void Test(char *filename)
         avg_depth / (right + wrong));
     Print(4095, "nodes per second..................%12d\n",
         nodes * 100 / Max(time, 1));
-    Print(4095, "total time........................%12s\n", DisplayTime(time));
+    Print(4095, "total time........................%12s\n",
+        DisplayTime(time));
   }
   input_stream = stdin;
   early_exit = 99;
@@ -206,8 +206,7 @@ void Test(char *filename)
  *                                                                             *
  *******************************************************************************
  */
-void TestEPD(char *filename)
-{
+void TestEPD(char *filename) {
   FILE *test_input;
   int i, move, right = 0, wrong = 0, correct;
   int time = 0, len;
@@ -324,8 +323,8 @@ void TestEPD(char *filename)
     }
     if (correct) {
       right++;
-      Print(4095, "----------------------> solution correct (%d/%d).\n", right,
-          right + wrong);
+      Print(4095, "----------------------> solution correct (%d/%d).\n",
+          right, right + wrong);
     } else {
       wrong++;
       Print(4095, "----------------------> solution incorrect (%d/%d).\n",
@@ -352,9 +351,10 @@ void TestEPD(char *filename)
     Print(4095, "total nodes searched..............%12llu\n", nodes);
     Print(4095, "average search depth..............%12.1f\n",
         avg_depth / (right + wrong));
-    Print(4095, "nodes per second..................%12d\n", nodes * 100 / Max(1,
-            time));
-    Print(4095, "total time........................%12s\n", DisplayTime(time));
+    Print(4095, "nodes per second..................%12d\n",
+        nodes * 100 / Max(1, time));
+    Print(4095, "total time........................%12s\n",
+        DisplayTime(time));
   }
   input_stream = stdin;
   early_exit = 99;

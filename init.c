@@ -20,8 +20,7 @@
  *                                                                             *
  *******************************************************************************
  */
-void Initialize()
-{
+void Initialize() {
   int i, major, minor, id;
   TREE *tree;
   void *mem;
@@ -33,7 +32,6 @@ void Initialize()
   InitializeMagic();
   InitializeSMP();
   InitializeMasks();
-  InitializeRandomHash();
   InitializeAttackBoards();
   InitializePawnMasks();
   InitializeChessBoard(tree);
@@ -67,7 +65,8 @@ void Initialize()
   sprintf(log_filename, "%s/bookc.bin", book_path);
   computer_bs_file = fopen(log_filename, "rb");
   if (computer_bs_file)
-    Print(128, "found computer opening book file [%s/bookc.bin].\n", book_path);
+    Print(128, "found computer opening book file [%s/bookc.bin].\n",
+        book_path);
   if (book_file) {
     int maj_min;
     fseek(book_file, -sizeof(int), SEEK_END);
@@ -75,8 +74,8 @@ void Initialize()
     major = BookIn32((unsigned char *) &maj_min);
     minor = major & 65535;
     major = major >> 16;
-    if (major < 20 || (major == 20 && minor < 17)) {
-      Print(4095, "\nERROR!  book.bin not made by version 20.17 or later\n");
+    if (major < 23) {
+      Print(4095, "\nERROR!  book.bin not made by version 23.0 or later\n");
       fclose(book_file);
       fclose(books_file);
       book_file = 0;
@@ -92,19 +91,28 @@ void Initialize()
     printf("ERROR, unable to open game history file, exiting\n");
     CraftyExit(1);
   }
-  cb_trans_ref = 3 * sizeof(HASH_ENTRY) * hash_table_size + 15;
-  trans_ref = (HASH_ENTRY *) malloc(cb_trans_ref);
-  cb_pawn_hash_table = sizeof(PAWN_HASH_ENTRY) * pawn_hash_table_size + 15;
-  pawn_hash_table = (PAWN_HASH_ENTRY *) malloc(cb_pawn_hash_table);
+  real_trans_ref =
+      (HASH_ENTRY *) malloc(3 * sizeof(HASH_ENTRY) * hash_table_size + 15);
+  trans_ref =
+      (HASH_ENTRY *) (((unsigned long) real_trans_ref +
+          (unsigned long) 15) & ~(unsigned long) 15);
+  real_pawn_hash_table =
+      (PAWN_HASH_ENTRY *) malloc(sizeof(PAWN_HASH_ENTRY) *
+      pawn_hash_table_size + 31);
+  pawn_hash_table =
+      (PAWN_HASH_ENTRY *) (((unsigned long) real_pawn_hash_table +
+          (unsigned long) 31) & ~(unsigned long) 31);
   if (!trans_ref) {
-    Print(128, "malloc() failed, not enough memory.\n");
-    free(trans_ref);
-    free(pawn_hash_table);
+    Print(128,
+        "malloc() failed, not enough memory (primary trans/ref table).\n");
     hash_table_size = 0;
-    pawn_hash_table_size = 0;
     log_hash = 0;
-    log_pawn_hash = 0;
     trans_ref = 0;
+  }
+  if (!pawn_hash_table) {
+    Print(128, "malloc() failed, not enough memory (pawn hash table).\n");
+    pawn_hash_table_size = 0;
+    log_pawn_hash = 0;
     pawn_hash_table = 0;
   }
 /*
@@ -135,7 +143,7 @@ void Initialize()
   for (i = 0; i < MAX_BLOCKS_PER_CPU; i++) {
     memset((void *) block[i + 1], 0, sizeof(TREE));
     block[i + 1]->used = 0;
-    block[i + 1]->parent = (TREE *) - 1;
+    block[i + 1]->parent = NULL;
     LockInit(block[i + 1]->lock);
   }
 #endif
@@ -154,8 +162,7 @@ void Initialize()
  *                                                                             *
  *******************************************************************************
  */
-void InitializeAttackBoards(void)
-{
+void InitializeAttackBoards(void) {
   int i, j, frank, ffile, trank, tfile;
   int sq, lastsq;
   static const int knightsq[8] = { -17, -15, -10, -6, 6, 10, 15, 17 };
@@ -171,17 +178,19 @@ void InitializeAttackBoards(void)
     if (i < 56)
       for (j = 2; j < 4; j++) {
         sq = i + bishopsq[j];
-        if ((abs(Rank(sq) - Rank(i)) == 1) && (abs(File(sq) - File(i)) == 1) &&
-            (sq < 64) && (sq > -1))
-          pawn_attacks[white][i] = pawn_attacks[white][i] | (BITBOARD) 1 << sq;
+        if ((abs(Rank(sq) - Rank(i)) == 1) && (abs(File(sq) - File(i)) == 1)
+            && (sq < 64) && (sq > -1))
+          pawn_attacks[white][i] =
+              pawn_attacks[white][i] | (BITBOARD) 1 << sq;
       }
     pawn_attacks[black][i] = 0;
     if (i > 7)
       for (j = 0; j < 2; j++) {
         sq = i + bishopsq[j];
-        if ((abs(Rank(sq) - Rank(i)) == 1) && (abs(File(sq) - File(i)) == 1) &&
-            (sq < 64) && (sq > -1))
-          pawn_attacks[black][i] = pawn_attacks[black][i] | (BITBOARD) 1 << sq;
+        if ((abs(Rank(sq) - Rank(i)) == 1) && (abs(File(sq) - File(i)) == 1)
+            && (sq < 64) && (sq > -1))
+          pawn_attacks[black][i] =
+              pawn_attacks[black][i] | (BITBOARD) 1 << sq;
       }
   }
 /*
@@ -258,6 +267,19 @@ void InitializeAttackBoards(void)
         sq = sq + rooksq[j];
       }
     }
+  }
+/*
+ initialize bishop attack board
+ */
+  for (i = 0; i < 64; i++) {
+    bishop_attacks[i] =
+        plus9dir[i] | minus9dir[i] | plus7dir[i] | minus7dir[i];
+  }
+/*
+ initialize rook attack board
+ */
+  for (i = 0; i < 64; i++) {
+    rook_attacks[i] = file_mask[File(i)] | rank_mask[Rank(i)];
   }
 /*
  initialize king attack board
@@ -347,8 +369,7 @@ void InitializeAttackBoards(void)
  *                                                                             *
  *******************************************************************************
  */
-void InitializeMagic(void)
-{
+void InitializeMagic(void) {
   int i;
   int initmagicmoves_bitpos64_database[64] = {
     63, 0, 58, 1, 59, 47, 53, 2,
@@ -418,8 +439,7 @@ void InitializeMagic(void)
  *                                                                             *
  *******************************************************************************
  */
-BITBOARD InitializeMagicBishop(int square, BITBOARD occupied)
-{
+BITBOARD InitializeMagicBishop(int square, BITBOARD occupied) {
   BITBOARD ret = 0;
   BITBOARD abit;
   BITBOARD abit2;
@@ -477,8 +497,7 @@ BITBOARD InitializeMagicBishop(int square, BITBOARD occupied)
  *******************************************************************************
  */
 BITBOARD InitializeMagicOccupied(int *squares, int numSquares,
-    BITBOARD linoccupied)
-{
+    BITBOARD linoccupied) {
   int i;
   BITBOARD ret = 0;
 
@@ -496,8 +515,7 @@ BITBOARD InitializeMagicOccupied(int *squares, int numSquares,
  *                                                                             *
  *******************************************************************************
  */
-BITBOARD InitializeMagicRook(int square, BITBOARD occupied)
-{
+BITBOARD InitializeMagicRook(int square, BITBOARD occupied) {
   BITBOARD ret = 0;
   BITBOARD abit;
   BITBOARD rowbits = (((BITBOARD) 0xFF) << (8 * (square / 8)));
@@ -540,9 +558,8 @@ BITBOARD InitializeMagicRook(int square, BITBOARD occupied)
  *                                                                             *
  *******************************************************************************
  */
-void InitializeChessBoard(TREE * tree)
-{
-  int i;
+void InitializeChessBoard(TREE * tree) {
+  int i, j;
 
   if (strlen(initial_position)) {
     int nargs;
@@ -613,6 +630,18 @@ void InitializeChessBoard(TREE * tree)
  */
     SetChessBitBoards(tree);
   }
+/*
+ clear the caches.
+ */
+  for (i = 0; i < 65; i++) {
+    tree->cache_n[i] = ~0ULL;
+    for (j = 0; j <= 1; j++) {
+      tree->cache_b_friendly[j][i] = ~0ULL;
+      tree->cache_b_enemy[j][i] = ~0ULL;
+    }
+    tree->cache_r_friendly[i] = ~0ULL;
+    tree->cache_r_enemy[i] = ~0ULL;
+  }
 }
 
 /*
@@ -623,8 +652,7 @@ void InitializeChessBoard(TREE * tree)
  *                                                                             *
  *******************************************************************************
  */
-void SetChessBitBoards(TREE * tree)
-{
+void SetChessBitBoards(TREE * tree) {
   int side, piece, square;
 
   HashKey = 0;
@@ -676,57 +704,17 @@ void SetChessBitBoards(TREE * tree)
           PopCnt(Pieces(side, piece)) * p_vals[piece];
   }
   TotalAllPieces = PopCnt(OccupiedSquares);
+/*
+ initialize major/minor counts.
+ */
+  for (side = black; side <= white; side++) {
+    tree->pos.majors[side] = TotalPieces(side, rook)
+        + 2 * TotalPieces(side, queen);
+    tree->pos.minors[side] = TotalPieces(side, knight)
+        + TotalPieces(side, bishop);
+  }
   Repetition(black) = 0;
   Repetition(white) = 0;
-}
-
-/*
- *******************************************************************************
- *                                                                             *
- *   InitlializeFindAttacks() is used to find the attacks from <square> that   *
- *   exist on the 8-bit vector supplied as <pieces>.  <pieces> represents a    *
- *   rank, file or diagonal, based on the rotated bit-boards.                  *
- *                                                                             *
- *******************************************************************************
- */
-int InitializeFindAttacks(int square, int pieces, int length)
-{
-  int result, start;
-
-  result = 0;
-/*
- ************************************************************
- *                                                          *
- *   Find attacks to left of <square>.                      *
- *                                                          *
- ************************************************************
- */
-  if (square < 7) {
-    start = 1 << (square + 1);
-    while (start < 256) {
-      result = result | start;
-      if (pieces & start)
-        break;
-      start = start << 1;
-    }
-  }
-/*
- ************************************************************
- *                                                          *
- *   Find attacks to right of <square>.                     *
- *                                                          *
- ************************************************************
- */
-  if (square > 0) {
-    start = 1 << (square - 1);
-    while (start > 0) {
-      result = result | start;
-      if (pieces & start)
-        break;
-      start = start >> 1;
-    }
-  }
-  return (result & ((1 << length) - 1));
 }
 
 /*
@@ -740,8 +728,7 @@ int InitializeFindAttacks(int square, int pieces, int length)
  *                                                                             *
  *******************************************************************************
  */
-int InitializeGetLogID(void)
-{
+int InitializeGetLogID(void) {
 #if defined(UNIX)
   struct stat *fileinfo = malloc(sizeof(struct stat));
 #endif
@@ -791,15 +778,14 @@ int InitializeGetLogID(void)
  *                                                                             *
  *******************************************************************************
  */
-void InitializeHashTables(void)
-{
+void InitializeHashTables(void) {
   int i, side;
 
   transposition_id = 0;
   if (!trans_ref)
     return;
   for (i = 0; i < 3 * hash_table_size; i++) {
-    (trans_ref + i)->word1 = (BITBOARD) 7 << 61;
+    (trans_ref + i)->word1 = 0;
     (trans_ref + i)->word2 = 0;
   }
   if (!pawn_hash_table)
@@ -809,6 +795,7 @@ void InitializeHashTables(void)
     (pawn_hash_table + i)->score_mg = 0;
     (pawn_hash_table + i)->score_eg = 0;
     (pawn_hash_table + i)->open_files = 0;
+    (pawn_hash_table + i)->filler = 0;
     for (side = black; side <= white; side++) {
       (pawn_hash_table + i)->candidates[side] = 0;
       (pawn_hash_table + i)->defects_k[side] = 0;
@@ -830,8 +817,7 @@ void InitializeHashTables(void)
  *                                                                             *
  *******************************************************************************
  */
-void InitializeKillers(void)
-{
+void InitializeKillers(void) {
   int i, j;
 
   for (i = 0; i < MAXPLY; i++) {
@@ -855,8 +841,7 @@ void InitializeKillers(void)
  *                                                                             *
  *******************************************************************************
  */
-void InitializeKingSafety()
-{
+void InitializeKingSafety() {
   int safety, tropism;
 
   for (safety = 0; safety < 16; safety++) {
@@ -884,8 +869,7 @@ void InitializeKingSafety()
  *                                                                             *
  *******************************************************************************
  */
-void InitializeMasks(void)
-{
+void InitializeMasks(void) {
   int i, j;
 
   mask_clear_entry = (BITBOARD) 0xe7fffffffffe0000ull;
@@ -921,18 +905,22 @@ void InitializeMasks(void)
           7) | SetMask(i + 7) | SetMask(i + 9);
     } else if (File(i) == 0) {
       mask_pawn_duo[i] = SetMask(i + 1);
-      mask_pawn_connected[i] = SetMask(i + 1) | SetMask(i - 7) | SetMask(i + 9);
+      mask_pawn_connected[i] =
+          SetMask(i + 1) | SetMask(i - 7) | SetMask(i + 9);
     } else if (File(i) == 7) {
       mask_pawn_duo[i] = SetMask(i - 1);
-      mask_pawn_connected[i] = SetMask(i - 1) | SetMask(i - 9) | SetMask(i + 7);
+      mask_pawn_connected[i] =
+          SetMask(i - 1) | SetMask(i - 9) | SetMask(i + 7);
     }
   }
   mask_fgh = file_mask[FILEF] | file_mask[FILEG] | file_mask[FILEH];
   mask_efgh =
-      file_mask[FILEE] | file_mask[FILEF] | file_mask[FILEG] | file_mask[FILEH];
+      file_mask[FILEE] | file_mask[FILEF] | file_mask[FILEG] |
+      file_mask[FILEH];
   mask_abc = file_mask[FILEA] | file_mask[FILEB] | file_mask[FILEC];
   mask_abcd =
-      file_mask[FILEA] | file_mask[FILEB] | file_mask[FILEC] | file_mask[FILED];
+      file_mask[FILEA] | file_mask[FILEB] | file_mask[FILEC] |
+      file_mask[FILED];
   mask_kr_trapped[black][0] = SetMask(H7);
   mask_kr_trapped[black][1] = SetMask(H8) | SetMask(H7);
   mask_kr_trapped[black][2] = SetMask(H8) | SetMask(G8) | SetMask(H7);
@@ -946,7 +934,7 @@ void InitializeMasks(void)
   mask_qr_trapped[white][1] = SetMask(A1) | SetMask(A2);
   mask_qr_trapped[white][2] = SetMask(A1) | SetMask(B1) | SetMask(A2);
 #if !defined(_M_AMD64) && !defined (_M_IA64) && !defined(INLINE32)
-  msb[0] = 0;
+  msb[0] = 64;
   lsb[0] = 16;
   for (i = 1; i < 65536; i++) {
     lsb[i] = 16;
@@ -985,8 +973,7 @@ void InitializeMasks(void)
  *                                                                             *
  *******************************************************************************
  */
-void InitializePawnMasks(void)
-{
+void InitializePawnMasks(void) {
   int i, j;
   BITBOARD m1, m2;
 
@@ -1101,7 +1088,8 @@ void InitializePawnMasks(void)
    are rook pawns, or all are now rook pawns.
  */
   not_rook_pawns =
-      file_mask[FILEB] | file_mask[FILEC] | file_mask[FILED] | file_mask[FILEE]
+      file_mask[FILEB] | file_mask[FILEC] | file_mask[FILED] |
+      file_mask[FILEE]
       | file_mask[FILEF] | file_mask[FILEG];
   rook_pawns = ~not_rook_pawns;
 /*
@@ -1211,44 +1199,11 @@ void InitializePawnMasks(void)
 /*
  *******************************************************************************
  *                                                                             *
- *   InitializeRandomHash() is called to initialize the tables of random       *
- *   numbers used to produce the incrementally-updated hash keys.  Note that   *
- *   this uses a treendom number generator rather than the C library one       *
- *   since there is no uniformity in the number of bits returned by the        *
- *   standard library routines, it varies from 16 bits to 64.                  *
- *                                                                             *
- *******************************************************************************
- */
-void InitializeRandomHash(void)
-{
-  int piece, color, square, i;
-
-  for (square = 0; square < 64; square++)
-    for (piece = pawn; piece <= king; piece++)
-      for (color = white; color >= black; color--)
-        randoms[color][piece][square] = Random64();
-  for (i = 0; i < 2; i++) {
-    castle_random[1][i] = Random64();
-    castle_random[0][i] = Random64();
-  }
-  enpassant_random[0] = 0;
-  for (i = 1; i < 65; i++) {
-    enpassant_random[i] = Random64();
-  }
-  for (i = 0; i < 2; i++) {
-    wtm_random[i] = Random64();
-  }
-}
-
-/*
- *******************************************************************************
- *                                                                             *
  *   InitlializeSMP() is used to initialize the pthread lock variables.        *
  *                                                                             *
  *******************************************************************************
  */
-void InitializeSMP(void)
-{
+void InitializeSMP(void) {
   LockInit(lock_smp);
   LockInit(lock_io);
   LockInit(lock_root);

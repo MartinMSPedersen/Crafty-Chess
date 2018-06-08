@@ -22,8 +22,7 @@
  *                                                                             *
  *******************************************************************************
  */
-int Quiesce(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply)
-{
+int Quiesce(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply) {
   register int o_alpha, value;
   register int *next_move;
   register int *goodmv, *movep, moves = 0, *sortv, temp;
@@ -107,7 +106,8 @@ int Quiesce(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply)
       temp = Swap(tree, From(*movep), To(*movep), wtm);
       if (temp >= 0) {
         *goodmv++ = *movep;
-        *sortv++ = 128 * pc_values[Captured(*movep)] - pc_values[Piece(*movep)];
+        *sortv++ =
+            128 * pc_values[Captured(*movep)] - pc_values[Piece(*movep)];
         moves++;
       }
     }
@@ -222,8 +222,7 @@ int Quiesce(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply)
  *                                                                             *
  *******************************************************************************
  */
-int QuiesceChecks(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply)
-{
+int QuiesceChecks(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply) {
   register int o_alpha, value;
   register int *next_move;
   register int *goodmv, *movep, moves = 0, *sortv, temp;
@@ -323,7 +322,8 @@ int QuiesceChecks(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply)
       temp = Swap(tree, From(*movep), To(*movep), wtm);
       if (temp >= 0) {
         *goodmv++ = *movep;
-        *sortv++ = 128 * pc_values[Captured(*movep)] - pc_values[Piece(*movep)];
+        *sortv++ =
+            128 * pc_values[Captured(*movep)] - pc_values[Piece(*movep)];
         moves++;
       }
     }
@@ -462,8 +462,8 @@ int QuiesceChecks(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply)
  *                                                                             *
  *******************************************************************************
  */
-int QuiesceEvasions(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply)
-{
+int QuiesceEvasions(TREE * RESTRICT tree, int alpha, int beta, int wtm,
+    int ply) {
   register int o_alpha, value;
   register int moves_searched = 0;
 

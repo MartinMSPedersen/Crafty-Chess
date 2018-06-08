@@ -77,8 +77,7 @@ extern int TB_FASTCALL L_TbtProbeTable(int, pcolor, INDEX);
 
 #  define PfnIndCalc PfnIndCalcFun
 #  define FRegistered FRegisteredFun
-int EGTBProbe(TREE * RESTRICT tree, int ply, int wtm, int *score)
-{
+int EGTBProbe(TREE * RESTRICT tree, int ply, int wtm, int *score) {
   int rgiCounters[10], iTb, fInvert;
   pcolor side;
   squaret rgsqWhite[C_PIECES * 5 + 1], rgsqBlack[C_PIECES * 5 + 1];

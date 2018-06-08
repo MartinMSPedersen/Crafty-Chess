@@ -9,8 +9,7 @@
  *                                                                             *
  *******************************************************************************
  */
-void Killer(TREE * RESTRICT tree, int ply, int move)
-{
+void Killer(TREE * RESTRICT tree, int ply, int move) {
 /*
  ************************************************************
  *                                                          *

@@ -63,8 +63,7 @@
  *                                                                             *
  *******************************************************************************
  */
-void BookClusterIn(FILE * file, int positions, BOOK_POSITION * buffer)
-{
+void BookClusterIn(FILE * file, int positions, BOOK_POSITION * buffer) {
   char file_buffer[BOOK_CLUSTER_SIZE * BOOK_POSITION_SIZE];
   int i;
 
@@ -73,7 +72,8 @@ void BookClusterIn(FILE * file, int positions, BOOK_POSITION * buffer)
     buffer[i].position =
         BookIn64((unsigned char *) (file_buffer + i * BOOK_POSITION_SIZE));
     buffer[i].status_played =
-        BookIn32((unsigned char *) (file_buffer + i * BOOK_POSITION_SIZE + 8));
+        BookIn32((unsigned char *) (file_buffer + i * BOOK_POSITION_SIZE +
+            8));
     buffer[i].learn =
         BookIn32f((unsigned char *) (file_buffer + i * BOOK_POSITION_SIZE +
             12));
@@ -89,14 +89,13 @@ void BookClusterIn(FILE * file, int positions, BOOK_POSITION * buffer)
  *                                                                             *
  *******************************************************************************
  */
-void BookClusterOut(FILE * file, int positions, BOOK_POSITION * buffer)
-{
+void BookClusterOut(FILE * file, int positions, BOOK_POSITION * buffer) {
   char file_buffer[BOOK_CLUSTER_SIZE * BOOK_POSITION_SIZE];
   int i;
 
   for (i = 0; i < positions; i++) {
-    memcpy(file_buffer + i * BOOK_POSITION_SIZE, BookOut64(buffer[i].position),
-        8);
+    memcpy(file_buffer + i * BOOK_POSITION_SIZE,
+        BookOut64(buffer[i].position), 8);
     memcpy(file_buffer + i * BOOK_POSITION_SIZE + 8,
         BookOut32(buffer[i].status_played), 4);
     memcpy(file_buffer + i * BOOK_POSITION_SIZE + 12,
@@ -114,8 +113,7 @@ void BookClusterOut(FILE * file, int positions, BOOK_POSITION * buffer)
  *                                                                             *
  *******************************************************************************
  */
-float BookIn32f(unsigned char *ch)
-{
+float BookIn32f(unsigned char *ch) {
   union {
     float fv;
     int iv;
@@ -134,8 +132,7 @@ float BookIn32f(unsigned char *ch)
  *                                                                             *
  *******************************************************************************
  */
-int BookIn32(unsigned char *ch)
-{
+int BookIn32(unsigned char *ch) {
   return ((ch[3] << 24) | (ch[2] << 16) | (ch[1] << 8) | ch[0]);
 }
 
@@ -148,9 +145,9 @@ int BookIn32(unsigned char *ch)
  *                                                                             *
  *******************************************************************************
  */
-BITBOARD BookIn64(unsigned char *ch)
-{
-  return ((((BITBOARD) ch[7]) << 56) | (((BITBOARD) ch[6]) << 48) | (((BITBOARD)
+BITBOARD BookIn64(unsigned char *ch) {
+  return ((((BITBOARD) ch[7]) << 56) | (((BITBOARD) ch[6]) << 48) |
+      (((BITBOARD)
               ch[5]) << 40) | (((BITBOARD) ch[4]) << 32) | (((BITBOARD) ch[3])
           << 24) | (((BITBOARD) ch[2]) << 16) | (((BITBOARD) ch[1]) << 8) |
       ((BITBOARD) ch[0]));
@@ -165,8 +162,7 @@ BITBOARD BookIn64(unsigned char *ch)
  *                                                                             *
  *******************************************************************************
  */
-unsigned char *BookOut32(int val)
-{
+unsigned char *BookOut32(int val) {
   convert_buff[3] = (val >> 24) & 0xff;
   convert_buff[2] = (val >> 16) & 0xff;
   convert_buff[1] = (val >> 8) & 0xff;
@@ -183,8 +179,7 @@ unsigned char *BookOut32(int val)
  *                                                                             *
  *******************************************************************************
  */
-unsigned char *BookOut32f(float val)
-{
+unsigned char *BookOut32f(float val) {
   union {
     float fv;
     int iv;
@@ -207,8 +202,7 @@ unsigned char *BookOut32f(float val)
  *                                                                             *
  *******************************************************************************
  */
-unsigned char *BookOut64(BITBOARD val)
-{
+unsigned char *BookOut64(BITBOARD val) {
   convert_buff[7] = (val >> 56) & 0xff;
   convert_buff[6] = (val >> 48) & 0xff;
   convert_buff[5] = (val >> 40) & 0xff;
@@ -234,8 +228,7 @@ unsigned char *BookOut64(BITBOARD val)
 #  include <windows.h>
 #  include <conio.h>
 /* Windows NT using PeekNamedPipe() function */
-int CheckInput(void)
-{
+int CheckInput(void) {
   int i;
   static int init = 0, pipe;
   static HANDLE inh;
@@ -278,8 +271,7 @@ int CheckInput(void)
 #endif
 #if defined(UNIX)
 /* Simple UNIX approach using select with a zero timeout value */
-int CheckInput(void)
-{
+int CheckInput(void) {
   fd_set readfds;
   struct timeval tv;
   int data;
@@ -310,15 +302,16 @@ int CheckInput(void)
  *                                                                             *
  *******************************************************************************
  */
-void ClearHashTableScores(void)
-{
+void ClearHashTableScores(void) {
   int i;
 
-  if (trans_ref) {
-    for (i = 0; i < 3 * hash_table_size; i++)
+  if (trans_ref)
+    for (i = 0; i < 3 * hash_table_size; i++) {
+      (trans_ref + i)->word2 ^= (trans_ref + i)->word1;
       (trans_ref + i)->word1 =
           ((trans_ref + i)->word1 & mask_clear_entry) | (BITBOARD) 65536;
-  }
+      (trans_ref + i)->word2 ^= (trans_ref + i)->word1;
+    }
 }
 
 /*
@@ -331,10 +324,11 @@ void ClearHashTableScores(void)
  *                                                                             *
  *******************************************************************************
  */
-void CraftyExit(int exit_type)
-{
-  abort_search = 1;
-  quit = 1;
+void CraftyExit(int exit_type) {
+  int proc;
+
+  for (proc = 1; proc < CPUS; proc++)
+    thread[proc] = (TREE *) - 1;
   while (smp_threads);
   exit(exit_type);
 }
@@ -349,8 +343,7 @@ void CraftyExit(int exit_type)
  *                                                                             *
  *******************************************************************************
  */
-void DisplayArray(int *array, int size)
-{
+void DisplayArray(int *array, int size) {
   int i, j, len = 16;
 
   if (abs(size) % 10 == 0)
@@ -395,8 +388,7 @@ void DisplayArray(int *array, int size)
  *                                                                             *
  *******************************************************************************
  */
-void DisplayArrayX2(int *array, int *array2, int size)
-{
+void DisplayArrayX2(int *array, int *array2, int size) {
   int i, j;
 
   if (size == 256) {
@@ -463,8 +455,7 @@ void DisplayArrayX2(int *array, int *array2, int size)
  *                                                                             *
  *******************************************************************************
  */
-void DisplayBitBoard(BITBOARD board)
-{
+void DisplayBitBoard(BITBOARD board) {
   int i, j, x;
 
   for (i = 56; i >= 0; i -= 8) {
@@ -488,8 +479,7 @@ void DisplayBitBoard(BITBOARD board)
  *                                                                             *
  *******************************************************************************
  */
-void Display2BitBoards(BITBOARD board1, BITBOARD board2)
-{
+void Display2BitBoards(BITBOARD board1, BITBOARD board2) {
   int i, j, x, y;
 
   for (i = 56; i >= 0; i -= 8) {
@@ -519,8 +509,7 @@ void Display2BitBoards(BITBOARD board1, BITBOARD board2)
  *                                                                             *
  *******************************************************************************
  */
-void DisplayChessBoard(FILE * display_file, POSITION pos)
-{
+void DisplayChessBoard(FILE * display_file, POSITION pos) {
   int display_board[64];
   static const char display_string[16][4] =
       { "<K>", "<Q>", "<R>", "<B>", "<N>", "<P>", "   ",
@@ -571,8 +560,7 @@ void DisplayChessBoard(FILE * display_file, POSITION pos)
  *                                                                             *
  *******************************************************************************
  */
-char *DisplayEvaluation(int value, int wtm)
-{
+char *DisplayEvaluation(int value, int wtm) {
   static char out[10];
   int tvalue;
 
@@ -612,8 +600,7 @@ char *DisplayEvaluation(int value, int wtm)
  *                                                                             *
  *******************************************************************************
  */
-char *DisplayEvaluationKibitz(int value, int wtm)
-{
+char *DisplayEvaluationKibitz(int value, int wtm) {
   static char out[10];
   int tvalue;
 
@@ -654,8 +641,7 @@ char *DisplayEvaluationKibitz(int value, int wtm)
  *******************************************************************************
  */
 void DisplayPV(TREE * RESTRICT tree, int level, int wtm, int time, int value,
-    PATH * pv)
-{
+    PATH * pv) {
   char buffer[4096], *buffp, *bufftemp;
   int i, t_move_number, type, j, dummy = 0;
   int nskip = 0, twtm = wtm;
@@ -715,8 +701,8 @@ void DisplayPV(TREE * RESTRICT tree, int level, int wtm, int time, int value,
         pv->pathl++;
         if ((display_options & 64) && wtm)
           sprintf(buffer + strlen(buffer), " %d.", t_move_number);
-        sprintf(buffer + strlen(buffer), " %s", OutputMove(tree, pv->path[i], i,
-                wtm));
+        sprintf(buffer + strlen(buffer), " %s", OutputMove(tree, pv->path[i],
+                i, wtm));
         MakeMove(tree, i, pv->path[i], wtm);
       } else
         break;
@@ -728,7 +714,7 @@ void DisplayPV(TREE * RESTRICT tree, int level, int wtm, int time, int value,
   } else if (pv->pathh == 2)
     sprintf(buffer + strlen(buffer), " <EGTB>");
   strcpy(kibitz_text, buffer);
-  if (nskip > 1 && max_threads > 1)
+  if (nskip > 1 && smp_max_threads > 1)
     sprintf(buffer + strlen(buffer), " (s=%d)", nskip);
   if (root_print_ok) {
     Lock(lock_io);
@@ -765,14 +751,30 @@ void DisplayPV(TREE * RESTRICT tree, int level, int wtm, int time, int value,
 /*
  *******************************************************************************
  *                                                                             *
+ *   DisplayHHMMSS is used to convert integer time values in 1/100th second    *
+ *   units into a traditional output format for time, hh:mm:ss rather than     *
+ *   just nnn.n seconds.                                                       *
+ *                                                                             *
+ *******************************************************************************
+ */
+char *DisplayHHMMSS(unsigned int time) {
+  static char out[10];
+
+  time = time / 100;
+  sprintf(out, "%3u:%02u:%02u", time / 3600, time / 60, time % 60);
+  return (out);
+}
+
+/*
+ *******************************************************************************
+ *                                                                             *
  *   DisplayHHMM is used to convert integer time values in 1/100th second      *
  *   units into a traditional output format for time, mm:ss rather than just   *
  *   nnn.n seconds.                                                            *
  *                                                                             *
  *******************************************************************************
  */
-char *DisplayHHMM(unsigned int time)
-{
+char *DisplayHHMM(unsigned int time) {
   static char out[10];
 
   time = time / 6000;
@@ -789,8 +791,7 @@ char *DisplayHHMM(unsigned int time)
  *                                                                             *
  *******************************************************************************
  */
-char *DisplayKM(unsigned int val)
-{
+char *DisplayKM(unsigned int val) {
   static char out[10];
 
   if (val < 1000)
@@ -814,8 +815,7 @@ char *DisplayKM(unsigned int val)
  *                                                                             *
  *******************************************************************************
  */
-char *DisplayTime(unsigned int time)
-{
+char *DisplayTime(unsigned int time) {
   static char out[10];
 
   if (time < 6000)
@@ -836,8 +836,7 @@ char *DisplayTime(unsigned int time)
  *                                                                             *
  *******************************************************************************
  */
-char *DisplayTimeKibitz(unsigned int time)
-{
+char *DisplayTimeKibitz(unsigned int time) {
   static char out[10];
 
   if (time < 6000)
@@ -858,8 +857,7 @@ char *DisplayTimeKibitz(unsigned int time)
  *                                                                             *
  *******************************************************************************
  */
-void DisplayTreeState(TREE * RESTRICT tree, int sply, int spos, int maxply)
-{
+void DisplayTreeState(TREE * RESTRICT tree, int sply, int spos, int maxply) {
   int left, i, *mvp, parallel = 0;
   char buf[1024];
 
@@ -893,7 +891,7 @@ void DisplayTreeState(TREE * RESTRICT tree, int sply, int spos, int maxply)
   }
   printf("%s\n", buf);
   if (sply == 1 && tree->nprocs) {
-    for (i = 0; i < max_threads; i++)
+    for (i = 0; i < smp_max_threads; i++)
       if (tree->siblings[i])
         DisplayTreeState(tree->siblings[i], tree->ply + 1, parallel, maxply);
   }
@@ -908,8 +906,7 @@ void DisplayTreeState(TREE * RESTRICT tree, int sply, int spos, int maxply)
  *                                                                             *
  *******************************************************************************
  */
-void DisplayType3(int *array, int *array2)
-{
+void DisplayType3(int *array, int *array2) {
   int i, j;
 
   printf("    ----------- Middlegame -----------   ");
@@ -939,8 +936,7 @@ void DisplayType3(int *array, int *array2)
  *                                                                             *
  *******************************************************************************
  */
-void DisplayType4(int *array, int *array2)
-{
+void DisplayType4(int *array, int *array2) {
   int i, j;
 
   printf("    ----------- Middlegame -----------   ");
@@ -969,8 +965,7 @@ void DisplayType4(int *array, int *array2)
  *                                                                             *
  *******************************************************************************
  */
-void DisplayType5(int *array, int *array2, int rows)
-{
+void DisplayType5(int *array, int *array2, int rows) {
   int i, j;
 
   printf("    ----------- Middlegame -----------   ");
@@ -995,8 +990,7 @@ void DisplayType5(int *array, int *array2, int rows)
  *                                                                             *
  *******************************************************************************
  */
-void DisplayType6(int *array, int *array2)
-{
+void DisplayType6(int *array, int *array2) {
   int i;
 
   printf("    ----------- Middlegame -----------   ");
@@ -1019,8 +1013,7 @@ void DisplayType6(int *array, int *array2)
  *                                                                             *
  *******************************************************************************
  */
-void DisplayType7(int *array, int *array2)
-{
+void DisplayType7(int *array, int *array2) {
   int i;
 
   printf("    ----- Middlegame -----   ");
@@ -1042,12 +1035,34 @@ void DisplayType7(int *array, int *array2)
  *                                                                             *
  *******************************************************************************
  */
-void DisplayType8(int *array)
-{
+void DisplayType8(int *array) {
   int i;
 
   for (i = 0; i < 4; i++)
     printf("%3d ", array[i]);
+  printf("\n");
+}
+
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   DisplayType9() prints personality parameters that use an array[mg][9]     *
+ *   format.                                                                   *
+ *                                                                             *
+ *******************************************************************************
+ */
+void DisplayType9(int *array, int *array2) {
+  int i;
+
+  printf("    ------------- Middlegame -------------   ");
+  printf("    --------------- Endgame --------------\n");
+  printf("    ");
+  for (i = 0; i < 9; i++)
+    printf("%3d ", array[i]);
+  printf("  |     |");
+  printf("  ");
+  for (i = 0; i < 9; i++)
+    printf("%3d ", array2[i]);
   printf("\n");
 }
 
@@ -1071,8 +1086,7 @@ void DisplayType8(int *array)
  *                                                                             *
  *******************************************************************************
  */
-void EGTBPV(TREE * RESTRICT tree, int wtm)
-{
+void EGTBPV(TREE * RESTRICT tree, int wtm) {
   int moves[1024], current[256];
   BITBOARD hk[1024], phk[1024];
   char buffer[16384], *next;
@@ -1146,7 +1160,8 @@ void EGTBPV(TREE * RESTRICT tree, int wtm)
       moves[ply] = bestmv;
       if ((display_options & 64) && ply > 1 && wtm)
         sprintf(buffer + strlen(buffer), " %d.", t_move_number);
-      sprintf(buffer + strlen(buffer), " %s", OutputMove(tree, bestmv, 1, wtm));
+      sprintf(buffer + strlen(buffer), " %s", OutputMove(tree, bestmv, 1,
+              wtm));
       if (!strchr(buffer, '#') && legal > 1 && optimal_mv)
         sprintf(buffer + strlen(buffer), "!");
       hk[ply] = HashKey;
@@ -1202,10 +1217,10 @@ void EGTBPV(TREE * RESTRICT tree, int wtm)
  *                                                                             *
  *******************************************************************************
  */
-void DisplayChessMove(char *title, int move)
-{
-  Print(4095, "%s  piece=%d, from=%d, to=%d, captured=%d, promote=%d\n", title,
-      Piece(move), From(move), To(move), Captured(move), Promote(move));
+void DisplayChessMove(char *title, int move) {
+  Print(4095, "%s  piece=%d, from=%d, to=%d, captured=%d, promote=%d\n",
+      title, Piece(move), From(move), To(move), Captured(move),
+      Promote(move));
 }
 
 /*
@@ -1216,8 +1231,7 @@ void DisplayChessMove(char *title, int move)
  *                                                                             *
  *******************************************************************************
  */
-char *FormatPV(TREE * RESTRICT tree, int wtm, PATH pv)
-{
+char *FormatPV(TREE * RESTRICT tree, int wtm, PATH pv) {
   static char buffer[4096];
   int i, t_move_number;
 
@@ -1263,8 +1277,7 @@ char *FormatPV(TREE * RESTRICT tree, int wtm, PATH pv)
  *                                                                             *
  *******************************************************************************
  */
-int GameOver(int wtm)
-{
+int GameOver(int wtm) {
   int *mvp, *lastm, rmoves[256];
   TREE *const tree = block[0];
   int over = 1;
@@ -1323,8 +1336,7 @@ int GameOver(int wtm)
  *                                                                             *
  *******************************************************************************
  */
-unsigned int ReadClock(void)
-{
+unsigned int ReadClock(void) {
 #if defined(UNIX) || defined(AMIGA)
   struct timeval timeval;
   struct timezone timezone;
@@ -1351,8 +1363,7 @@ unsigned int ReadClock(void)
  *                                                                             *
  *******************************************************************************
  */
-int FindBlockID(TREE * RESTRICT which)
-{
+int FindBlockID(TREE * RESTRICT which) {
   int i;
 
   for (i = 0; i < MAX_BLOCKS + 1; i++)
@@ -1371,8 +1382,7 @@ int FindBlockID(TREE * RESTRICT which)
  *                                                                             *
  *******************************************************************************
  */
-int InvalidPosition(TREE * RESTRICT tree)
-{
+int InvalidPosition(TREE * RESTRICT tree) {
   int error = 0;
   int wp, wn, wb, wr, wq, bp, bn, bb, br, bq;
 
@@ -1466,8 +1476,7 @@ int InvalidPosition(TREE * RESTRICT tree)
  *                                                                             *
  *******************************************************************************
  */
-int KingPawnSquare(int pawn, int king, int queen, int ptm)
-{
+int KingPawnSquare(int pawn, int king, int queen, int ptm) {
   register int pdist, kdist;
 
   pdist = abs(Rank(pawn) - Rank(queen)) + !ptm;
@@ -1475,7 +1484,7 @@ int KingPawnSquare(int pawn, int king, int queen, int ptm)
   return (pdist >= kdist);
 }
 
-/* last modified 08/07/05 */
+/* last modified 02/26/09 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -1484,8 +1493,7 @@ int KingPawnSquare(int pawn, int king, int queen, int ptm)
  *                                                                             *
  *******************************************************************************
  */
-void NewGame(int save)
-{
+void NewGame(int save) {
   static int save_book_selection_width = 5;
   static int save_kibitz = 0, save_channel = 0;
   static int save_resign = 0, save_resign_count = 0, save_draw_count = 0;
@@ -1505,20 +1513,21 @@ void NewGame(int save)
     save_learning = learning;
     save_accept_draws = accept_draws;
   } else {
-    if (learning & book_learning && moves_out_of_book) {
-      int val = (crafty_is_white) ? last_search_value : -last_search_value;
-
-      LearnBook(val, 0, 0, 1);
+    if (learning && moves_out_of_book) {
+      learn_value =
+          (crafty_is_white) ? last_search_value : -last_search_value;
+      LearnBook();
     }
     if (ics)
       printf("*whisper Hello from Crafty v%s !\n", version);
     if (xboard) {
       printf("tellicsnoalias set 1 Crafty v%s (%d cpus)\n", version, Max(1,
-              max_threads));
+              smp_max_threads));
     }
     over = 0;
     moves_out_of_book = 0;
     learn_positions_count = 0;
+    learn_value = 0;
     ponder_move = 0;
     last_search_value = 0;
     last_pv.pathd = 0;
@@ -1534,9 +1543,10 @@ void NewGame(int save)
     draw_score[1] = 0;
     wtm = 1;
     move_number = 1;
-    tc_time_remaining = tc_time;
-    tc_time_remaining_opponent = tc_time;
-    tc_moves_remaining = tc_moves;
+    tc_time_remaining[white] = tc_time;
+    tc_time_remaining[black] = tc_time;
+    tc_moves_remaining[white] = tc_moves;
+    tc_moves_remaining[black] = tc_moves;
     if (move_actually_played) {
       if (log_file)
         fclose(log_file);
@@ -1582,8 +1592,7 @@ void NewGame(int save)
  *                                                                             *
  *******************************************************************************
  */
-char *Normal(void)
-{
+char *Normal(void) {
 #if defined(NT_i386)
   HANDLE std_console;
 
@@ -1612,32 +1621,31 @@ char *Normal(void)
  *                                                                             *
  *******************************************************************************
  */
-int ParseTime(char *string)
-{
+int ParseTime(char *string) {
   int time = 0;
   int minutes = 0;
 
   while (*string) {
     switch (*string) {
-    case '0':
-    case '1':
-    case '2':
-    case '3':
-    case '4':
-    case '5':
-    case '6':
-    case '7':
-    case '8':
-    case '9':
-      minutes = minutes * 10 + (*string) - '0';
-      break;
-    case ':':
-      time = time * 60 + minutes;
-      minutes = 0;
-      break;
-    default:
-      Print(4095, "illegal character in time, please re-enter\n");
-      break;
+      case '0':
+      case '1':
+      case '2':
+      case '3':
+      case '4':
+      case '5':
+      case '6':
+      case '7':
+      case '8':
+      case '9':
+        minutes = minutes * 10 + (*string) - '0';
+        break;
+      case ':':
+        time = time * 60 + minutes;
+        minutes = 0;
+        break;
+      default:
+        Print(4095, "illegal character in time, please re-enter\n");
+        break;
     }
     string++;
   }
@@ -1654,8 +1662,7 @@ int ParseTime(char *string)
  *                                                                             *
  *******************************************************************************
  */
-void Pass(void)
-{
+void Pass(void) {
   char buffer[128];
   const int halfmoves_done = 2 * (move_number - 1) + (1 - wtm);
   int prev_pass = 0;
@@ -1700,15 +1707,14 @@ void Pass(void)
  *                                                                             *
  *******************************************************************************
  */
-void Print(int vb, char *fmt, ...)
-{
+void Print(int vb, char *fmt, ...) {
   va_list ap;
 
   va_start(ap, fmt);
   if (vb & display_options)
     vprintf(fmt, ap);
   fflush(stdout);
-  if (time_limit > -99 || tc_time_remaining > 6000 || vb == 4095) {
+  if (time_limit > -99 || tc_time_remaining[root_wtm] > 6000 || vb == 4095) {
     va_start(ap, fmt);
     if (log_file)
       vfprintf(log_file, fmt, ap);
@@ -1727,8 +1733,7 @@ void Print(int vb, char *fmt, ...)
  *                                                                             *
  *******************************************************************************
  */
-char *PrintKM(size_t val, int realK)
-{
+char *PrintKM(size_t val, int realK) {
   static char buf[32];
 
   if (realK) {
@@ -1760,8 +1765,7 @@ char *PrintKM(size_t val, int realK)
  *                                                                             *
  *******************************************************************************
  */
-unsigned int Random32(void)
-{
+unsigned int Random32(void) {
 /*
  random numbers from Mathematica 2.0.
  SeedRandom = 1;
@@ -1811,8 +1815,7 @@ unsigned int Random32(void)
  *                                                                             *
  *******************************************************************************
  */
-BITBOARD Random64(void)
-{
+BITBOARD Random64(void) {
   BITBOARD result;
   unsigned int r1, r2;
 
@@ -1830,8 +1833,7 @@ BITBOARD Random64(void)
  *                                                                             *
  *******************************************************************************
  */
-int Read(int wait, char *buffer)
-{
+int Read(int wait, char *buffer) {
   char *eol, *ret, readdata;
 
   *buffer = 0;
@@ -1888,8 +1890,7 @@ int Read(int wait, char *buffer)
  *                                                                             *
  *******************************************************************************
  */
-void ReadClear()
-{
+void ReadClear() {
   cmd_buffer[0] = 0;
 }
 
@@ -1902,8 +1903,7 @@ void ReadClear()
  *                                                                             *
  *******************************************************************************
  */
-int ReadParse(char *buffer, char *args[], char *delims)
-{
+int ReadParse(char *buffer, char *args[], char *delims) {
   char *next, tbuffer[4096];
   int nargs;
 
@@ -1931,8 +1931,7 @@ int ReadParse(char *buffer, char *args[], char *delims)
  *                                                                             *
  *******************************************************************************
  */
-int ReadInput(void)
-{
+int ReadInput(void) {
   char buffer[4096], *end;
   int bytes;
 
@@ -1963,8 +1962,7 @@ int ReadInput(void)
  *                                                                             *
  *******************************************************************************
  */
-int ReadChessMove(TREE * RESTRICT tree, FILE * input, int wtm, int one_move)
-{
+int ReadChessMove(TREE * RESTRICT tree, FILE * input, int wtm, int one_move) {
   static char text[128];
   char *tmove;
   int move = 0, status;
@@ -1999,8 +1997,7 @@ int ReadChessMove(TREE * RESTRICT tree, FILE * input, int wtm, int one_move)
  *                                                                             *
  *******************************************************************************
  */
-int ReadNextMove(TREE * RESTRICT tree, char *text, int ply, int wtm)
-{
+int ReadNextMove(TREE * RESTRICT tree, char *text, int ply, int wtm) {
   char *tmove;
   int move = 0;
 
@@ -2029,8 +2026,7 @@ int ReadNextMove(TREE * RESTRICT tree, char *text, int ply, int wtm)
  *                                                                             *
  *******************************************************************************
  */
-int ReadPGN(FILE * input, int option)
-{
+int ReadPGN(FILE * input, int option) {
   static int data = 0, lines_read = 0;
   static char input_buffer[4096];
   char temp[4096], *eof, analysis_move[64];
@@ -2256,7 +2252,8 @@ int ReadPGN(FILE * input, int option)
           percent = strstr(first, "play");
           if (percent == 0)
             return (0);
-          pgn_suggested_percent = atoi(percent + 4 + strspn(percent + 4, " "));
+          pgn_suggested_percent =
+              atoi(percent + 4 + strspn(percent + 4, " "));
           return (0);
         }
       }
@@ -2277,8 +2274,7 @@ int ReadPGN(FILE * input, int option)
  *                                                                             *
  *******************************************************************************
  */
-void RestoreGame(void)
-{
+void RestoreGame(void) {
   int i, move;
   char cmd[16];
 
@@ -2310,8 +2306,7 @@ void RestoreGame(void)
  *                                                                             *
  *******************************************************************************
  */
-char *Reverse(void)
-{
+char *Reverse(void) {
 #if defined(NT_i386)
   HANDLE std_console;
 
@@ -2344,9 +2339,8 @@ char *Reverse(void)
  *                                                                             *
  *******************************************************************************
  */
-void Kibitz(int level, int wtm, int depth, int time, int value, BITBOARD nodes,
-    int tb_hits, char *pv)
-{
+void Kibitz(int level, int wtm, int depth, int time, int value,
+    BITBOARD nodes, int tb_hits, char *pv) {
   int nps;
 
   nps = (int) ((time) ? 100 * nodes / (BITBOARD) time : nodes);
@@ -2362,76 +2356,77 @@ void Kibitz(int level, int wtm, int depth, int time, int value, BITBOARD nodes,
     else
       sprintf(prefix, "whisper");
     switch (level) {
-    case 1:
-      if ((kibitz & 15) >= 1) {
-        if (value > 0) {
+      case 1:
+        if ((kibitz & 15) >= 1) {
+          if (value > 0) {
+            if (ics)
+              printf("*");
+            printf("%s mate in %d moves.\n\n", prefix, value);
+          }
+          if (value < 0) {
+            if (ics)
+              printf("*");
+            printf("%s mated in %d moves.\n\n", prefix, -value);
+          }
+        }
+        break;
+      case 2:
+        if ((kibitz & 15) >= 2) {
           if (ics)
             printf("*");
-          printf("%s mate in %d moves.\n\n", prefix, value);
+          printf("%s ply=%d; eval=%s; nps=%s; time=%s; egtb=%d\n", prefix,
+              depth, DisplayEvaluationKibitz(value, wtm), DisplayKM(nps),
+              DisplayTimeKibitz(time), tb_hits);
         }
-        if (value < 0) {
+      case 3:
+        if ((kibitz & 15) >= 3 && (nodes > 5000 || level == 2)) {
           if (ics)
             printf("*");
-          printf("%s mated in %d moves.\n\n", prefix, -value);
+          printf("%s %s\n", prefix, pv);
         }
-      }
-      break;
-    case 2:
-      if ((kibitz & 15) >= 2) {
-        if (ics)
-          printf("*");
-        printf("%s ply=%d; eval=%s; nps=%s; time=%s; egtb=%d\n", prefix, depth,
-            DisplayEvaluationKibitz(value, wtm), DisplayKM(nps),
-            DisplayTimeKibitz(time), tb_hits);
-      }
-    case 3:
-      if ((kibitz & 15) >= 3 && (nodes > 5000 || level == 2)) {
-        if (ics)
-          printf("*");
-        printf("%s %s\n", prefix, pv);
-      }
-      break;
-    case 4:
-      if ((kibitz & 15) >= 4) {
-        if (ics)
-          printf("*");
-        printf("%s %s\n", prefix, pv);
-      }
-      break;
-    case 5:
-      if ((kibitz & 15) >= 5 && nodes > 5000) {
-        if (ics)
-          printf("*");
-        printf("%s d%d-> %s/s %s %s %s ", prefix, depth, DisplayKM(nps),
-            DisplayTimeKibitz(time), DisplayEvaluationKibitz(value, wtm), pv);
-        if (tb_hits)
-          printf("egtb=%d", tb_hits);
-        printf("\n");
-      }
-      break;
-    case 6:
-      if ((kibitz & 15) >= 6 && nodes > 5000) {
-        if (ics)
-          printf("*");
-        if (wtm)
-          printf("%s d%d+ %s/s %s >(%s) %s <re-searching>\n", prefix, depth,
-              DisplayKM(nps), DisplayTimeKibitz(time),
-              DisplayEvaluationKibitz(value, wtm), pv);
-        else
-          printf("%s d%d+ %s/s %s <(%s) %s <re-searching>\n", prefix, depth,
-              DisplayKM(nps), DisplayTimeKibitz(time),
-              DisplayEvaluationKibitz(value, wtm), pv);
-      }
-      break;
+        break;
+      case 4:
+        if ((kibitz & 15) >= 4) {
+          if (ics)
+            printf("*");
+          printf("%s %s\n", prefix, pv);
+        }
+        break;
+      case 5:
+        if ((kibitz & 15) >= 5 && nodes > 5000) {
+          if (ics)
+            printf("*");
+          printf("%s d%d-> %s/s %s %s %s ", prefix, depth, DisplayKM(nps),
+              DisplayTimeKibitz(time), DisplayEvaluationKibitz(value, wtm),
+              pv);
+          if (tb_hits)
+            printf("egtb=%d", tb_hits);
+          printf("\n");
+        }
+        break;
+      case 6:
+        if ((kibitz & 15) >= 6 && nodes > 5000) {
+          if (ics)
+            printf("*");
+          if (wtm)
+            printf("%s d%d+ %s/s %s >(%s) %s <re-searching>\n", prefix, depth,
+                DisplayKM(nps), DisplayTimeKibitz(time),
+                DisplayEvaluationKibitz(value, wtm), pv);
+          else
+            printf("%s d%d+ %s/s %s <(%s) %s <re-searching>\n", prefix, depth,
+                DisplayKM(nps), DisplayTimeKibitz(time),
+                DisplayEvaluationKibitz(value, wtm), pv);
+        }
+        break;
     }
     value = (wtm) ? value : -value;
     if (post && level > 1) {
       if (strstr(pv, "book"))
-        printf("	%2d  %5d %7d " BMF6 " %s\n", depth, value, time, nodes,
-            pv + 10);
+        printf("	%2d  %5d %7d " BMF6 " %s\n", depth, value, time,
+            nodes, pv + 10);
       else
-        printf("	%2d  %5d %7d " BMF6 " %s\n", depth, value, time, nodes,
-            pv);
+        printf("	%2d  %5d %7d " BMF6 " %s\n", depth, value, time,
+            nodes, pv);
     }
     fflush(stdout);
   }
@@ -2449,8 +2444,7 @@ void Kibitz(int level, int wtm, int depth, int time, int value, BITBOARD nodes,
  *                                                                             *
  *******************************************************************************
  */
-void Output(TREE * RESTRICT tree, int value, int bound)
-{
+void Output(TREE * RESTRICT tree, int value, int bound) {
   register int wtm;
   int i;
   ROOT_MOVE temp_rm;
@@ -2513,8 +2507,7 @@ void Output(TREE * RESTRICT tree, int value, int bound)
  *******************************************************************************
  */
 void Trace(TREE * RESTRICT tree, int ply, int depth, int wtm, int alpha,
-    int beta, char *name, int phase)
-{
+    int beta, char *name, int phase) {
   int i;
 
   Lock(lock_io);
@@ -2525,7 +2518,7 @@ void Trace(TREE * RESTRICT tree, int ply, int depth, int wtm, int alpha,
             wtm), depth, DisplayEvaluation(alpha, 1));
     printf("%s] n:" BMF " %s(%d)", DisplayEvaluation(beta, 1),
         (tree->nodes_searched), name, phase);
-    if (max_threads > 1)
+    if (smp_max_threads > 1)
       printf(" (t=%ld) ", tree->thread_id);
     printf("\n");
   } else {
@@ -2544,8 +2537,7 @@ void Trace(TREE * RESTRICT tree, int ply, int depth, int wtm, int alpha,
  *                                                                             *
  *******************************************************************************
  */
-int StrCnt(char *string, char testchar)
-{
+int StrCnt(char *string, char testchar) {
   int count = 0, i;
 
   for (i = 0; i < strlen(string); i++)
@@ -2564,8 +2556,7 @@ int StrCnt(char *string, char testchar)
  *                                                                             *
  *******************************************************************************
  */
-int ValidMove(TREE * RESTRICT tree, int ply, int wtm, int move)
-{
+int ValidMove(TREE * RESTRICT tree, int ply, int wtm, int move) {
   static int epdir[2] = { 8, -8 };
   static int csq[2] = { C8, C1 };
   static int dsq[2] = { D8, D1 };
@@ -2592,8 +2583,8 @@ int ValidMove(TREE * RESTRICT tree, int ply, int wtm, int move)
  *                                                          *
  ************************************************************
  */
-  case empty:
-    return (0);
+    case empty:
+      return (0);
 /*
  ************************************************************
  *                                                          *
@@ -2606,27 +2597,27 @@ int ValidMove(TREE * RESTRICT tree, int ply, int wtm, int move)
  *                                                          *
  ************************************************************
  */
-  case king:
-    if (abs(From(move) - To(move)) == 2) {
-      if (Castle(ply, wtm) > 0) {
-        if (To(move) == csq[wtm]) {
-          if ((!(Castle(ply, wtm) & 2)) || (OccupiedSquares & OOO[wtm]) ||
-              (AttacksTo(tree, csq[wtm]) & Occupied(btm)) ||
-              (AttacksTo(tree, dsq[wtm]) & Occupied(btm)) ||
-              (AttacksTo(tree, esq[wtm]) & Occupied(btm)))
-            return (0);
-        } else if (To(move) == gsq[wtm]) {
-          if ((!(Castle(ply, wtm) & 1)) || (OccupiedSquares & OO[wtm]) ||
-              (AttacksTo(tree, esq[wtm]) & Occupied(btm)) ||
-              (AttacksTo(tree, fsq[wtm]) & Occupied(btm)) ||
-              (AttacksTo(tree, gsq[wtm]) & Occupied(btm)))
-            return (0);
-        }
-      } else
-        return (0);
-      return (1);
-    }
-    break;
+    case king:
+      if (abs(From(move) - To(move)) == 2) {
+        if (Castle(ply, wtm) > 0) {
+          if (To(move) == csq[wtm]) {
+            if ((!(Castle(ply, wtm) & 2)) || (OccupiedSquares & OOO[wtm]) ||
+                (AttacksTo(tree, csq[wtm]) & Occupied(btm)) ||
+                (AttacksTo(tree, dsq[wtm]) & Occupied(btm)) ||
+                (AttacksTo(tree, esq[wtm]) & Occupied(btm)))
+              return (0);
+          } else if (To(move) == gsq[wtm]) {
+            if ((!(Castle(ply, wtm) & 1)) || (OccupiedSquares & OO[wtm]) ||
+                (AttacksTo(tree, esq[wtm]) & Occupied(btm)) ||
+                (AttacksTo(tree, fsq[wtm]) & Occupied(btm)) ||
+                (AttacksTo(tree, gsq[wtm]) & Occupied(btm)))
+              return (0);
+          }
+        } else
+          return (0);
+        return (1);
+      }
+      break;
 /*
  ************************************************************
  *                                                          *
@@ -2634,19 +2625,19 @@ int ValidMove(TREE * RESTRICT tree, int ply, int wtm, int move)
  *                                                          *
  ************************************************************
  */
-  case pawn:
-    if (abs(From(move) - To(move)) == 8) {
-      if (!PcOnSq(To(move)))
-        return (1);
-      return (0);
-    }
-    if (abs(From(move) - To(move)) == 16) {
-      if (!PcOnSq(To(move)) && !PcOnSq(To(move) + epdir[wtm]))
-        return (1);
-      return (0);
-    }
-    if (!Captured(move))
-      return (0);
+    case pawn:
+      if (abs(From(move) - To(move)) == 8) {
+        if (!PcOnSq(To(move)))
+          return (1);
+        return (0);
+      }
+      if (abs(From(move) - To(move)) == 16) {
+        if (!PcOnSq(To(move)) && !PcOnSq(To(move) + epdir[wtm]))
+          return (1);
+        return (0);
+      }
+      if (!Captured(move))
+        return (0);
 /*
  ************************************************************
  *                                                          *
@@ -2657,10 +2648,10 @@ int ValidMove(TREE * RESTRICT tree, int ply, int wtm, int move)
  *                                                          *
  ************************************************************
  */
-    if ((PcOnSq(To(move)) == 0) &&
-        (PcOnSq(To(move) + epdir[wtm]) == ((wtm) ? -pawn : pawn)) &&
-        (EnPassantTarget(ply) & SetMask(To(move))))
-      return (1);
+      if ((PcOnSq(To(move)) == 0) &&
+          (PcOnSq(To(move) + epdir[wtm]) == ((wtm) ? -pawn : pawn)) &&
+          (EnPassantTarget(ply) & SetMask(To(move))))
+        return (1);
 /*
  ************************************************************
  *                                                          *
@@ -2668,14 +2659,14 @@ int ValidMove(TREE * RESTRICT tree, int ply, int wtm, int move)
  *                                                          *
  ************************************************************
  */
-  case queen:
-  case rook:
-  case bishop:
-    if (Attack(From(move), To(move)))
+    case queen:
+    case rook:
+    case bishop:
+      if (Attack(From(move), To(move)))
+        break;
+      return (0);
+    case knight:
       break;
-    return (0);
-  case knight:
-    break;
   }
 /*
  ************************************************************
@@ -2702,8 +2693,7 @@ int ValidMove(TREE * RESTRICT tree, int ply, int wtm, int move)
  *                                                                             *
  *******************************************************************************
  */
-int VerifyMove(TREE * RESTRICT tree, int ply, int wtm, int move)
-{
+int VerifyMove(TREE * RESTRICT tree, int ply, int wtm, int move) {
   int moves[220], *mv, *mvp;
 
 /*
@@ -2744,8 +2734,7 @@ static ULONG ulNumaNodes;
 static ULONG ulNumaNode = 0;
 
 // Get NUMA-related information from Windows
-static void WinNumaInit(void)
-{
+static void WinNumaInit(void) {
   DWORD_PTR dwMask;
   HMODULE hModule;
   ULONG ulCPU, ulNode;
@@ -2772,7 +2761,8 @@ static void WinNumaInit(void)
         printf("System is NUMA. %d nodes reported by Windows\n",
             ulNumaNodes + 1);
         for (ulNode = 0; ulNode <= ulNumaNodes; ulNode++) {
-          pGetNumaNodeProcessorMask((UCHAR) ulNode, &ullProcessorMask[ulNode]);
+          pGetNumaNodeProcessorMask((UCHAR) ulNode,
+              &ullProcessorMask[ulNode]);
           printf("Node %d CPUs: ", ulNode);
           ullMask = ullProcessorMask[ulNode];
           if (0 == ullMask)
@@ -2815,8 +2805,8 @@ static void WinNumaInit(void)
 }
 
 // Start thread. For NUMA system set it affinity.
-pthread_t NumaStartThread(void *func, void *args)
-{
+#  if (CPUS > 1)
+pthread_t NumaStartThread(void *func, void *args) {
   HANDLE hThread;
   ULONGLONG ullMask;
 
@@ -2826,7 +2816,8 @@ pthread_t NumaStartThread(void *func, void *args)
     if (ulNumaNode > ulNumaNodes)
       ulNumaNode = 0;
     ullMask = ullProcessorMask[ulNumaNode];
-    printf("Starting thread on node %d CPU mask %I64d\n", ulNumaNode, ullMask);
+    printf("Starting thread on node %d CPU mask %I64d\n", ulNumaNode,
+        ullMask);
     SetThreadAffinityMask(GetCurrentThread(), (DWORD_PTR) ullMask);
     hThread = (HANDLE) _beginthreadex(0, 0, func, args, CREATE_SUSPENDED, 0);
     SetThreadAffinityMask(hThread, (DWORD_PTR) ullMask);
@@ -2836,10 +2827,10 @@ pthread_t NumaStartThread(void *func, void *args)
     hThread = (HANDLE) _beginthreadex(0, 0, func, args, 0, 0);
   return hThread;
 }
+#  endif
 
 // Allocate memory for thread #N
-void *WinMalloc(size_t cbBytes, int iThread)
-{
+void *WinMalloc(size_t cbBytes, int iThread) {
   HANDLE hThread;
   DWORD_PTR dwAffinityMask;
   void *pBytes;
@@ -2865,8 +2856,7 @@ void *WinMalloc(size_t cbBytes, int iThread)
 }
 
 // Allocate interleaved memory
-void *WinMallocInterleaved(size_t cbBytes, int cThreads)
-{
+void *WinMallocInterleaved(size_t cbBytes, int cThreads) {
   char *pBase;
   char *pEnd;
   char *pch;
@@ -2895,7 +2885,8 @@ void *WinMallocInterleaved(size_t cbBytes, int cThreads)
     pEnd = pBase + cbBytes;
     for (iThread = 0; iThread < cThreads; iThread++) {
       ulNode = iThread % (ulNumaNodes + 1);
-      dwAffinityMask = SetThreadAffinityMask(hThread, ullProcessorMask[ulNode]);
+      dwAffinityMask =
+          SetThreadAffinityMask(hThread, ullProcessorMask[ulNode]);
       for (pch = pBase + iThread * dwPageSize; pch < pEnd; pch += dwStep) {
         lpvResult = VirtualAlloc(pch,   // next page to commit
             dwPageSize, // page size, in bytes
@@ -2917,8 +2908,7 @@ void *WinMallocInterleaved(size_t cbBytes, int cThreads)
 }
 
 // Free interleaved memory
-void WinFreeInterleaved(void *pMemory, size_t cBytes)
-{
+void WinFreeInterleaved(void *pMemory, size_t cBytes) {
   VirtualFree(pMemory, 0, MEM_RELEASE);
 }
 #endif

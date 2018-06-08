@@ -14,8 +14,7 @@
  *                                                                             *
  *******************************************************************************
  */
-void Interrupt(int ply)
-{
+void Interrupt(int ply) {
   int temp, i, left = 0, readstat, result, time_used;
   int save_move_number;
   TREE *const tree = block[0];

@@ -43,8 +43,7 @@
  *******************************************************************************
  */
 int HashProbe(TREE * RESTRICT tree, int ply, int depth, int wtm, int *alpha,
-    int beta)
-{
+    int beta) {
   register BITBOARD word1, word2;
   register int type, draft, avoid_null = 0, val, probe;
   BITBOARD temp_hashkey;
@@ -75,9 +74,13 @@ int HashProbe(TREE * RESTRICT tree, int ply, int depth, int wtm, int *alpha,
   for (probe = 0; probe < 2; probe++) {
     word1 = htable->word1;
     word2 = htable->word2;
+    word2 ^= word1;
     if (word2 == temp_hashkey) {
-      htable->word1 =
-          (word1 & 0x1fffffffffffffffULL) | ((BITBOARD) transposition_id << 61);
+      word1 =
+          (word1 & 0x1fffffffffffffffULL) | ((BITBOARD) transposition_id <<
+          61);
+      htable->word1 = word1;
+      htable->word2 = word1 ^ word2;
       val = (word1 & 0x1ffff) - 65536;
       draft = (word1 >> 17) & 0x7fff;
       if (!tree->hash_move[ply])
@@ -91,20 +94,20 @@ int HashProbe(TREE * RESTRICT tree, int ply, int depth, int wtm, int *alpha,
         else if (val < -MATE + 300)
           val += ply - 1;
         switch (type) {
-        case EXACT:
-          *alpha = val;
-          if (draft != MAX_DRAFT)
-            return (EXACT);
-          else
-            return (EXACTEGTB);
-        case UPPER:
-          if (val <= *alpha)
-            return (UPPER);
-          break;
-        case LOWER:
-          if (val >= beta)
-            return (LOWER);
-          break;
+          case EXACT:
+            *alpha = val;
+            if (draft != MAX_DRAFT)
+              return (EXACT);
+            else
+              return (EXACTEGTB);
+          case UPPER:
+            if (val <= *alpha)
+              return (UPPER);
+            break;
+          case LOWER:
+            if (val >= beta)
+              return (LOWER);
+            break;
         }
       }
     }
@@ -145,8 +148,7 @@ int HashProbe(TREE * RESTRICT tree, int ply, int depth, int wtm, int *alpha,
  *******************************************************************************
  */
 void HashStore(TREE * RESTRICT tree, int ply, int depth, int wtm, int type,
-    int value, int bestmove)
-{
+    int value, int bestmove) {
   register BITBOARD word1, word2;
   register HASH_ENTRY *htable;
   register int draft, age, hwhich;
@@ -185,17 +187,17 @@ void HashStore(TREE * RESTRICT tree, int ply, int depth, int wtm, int type,
   draft = (htable->word1 >> 17) & 0x7fff;
   age = htable->word1 >> 61;
   if (age != transposition_id || (depth >= draft)) {
-    if (word2 != htable->word2) {
-      hwhich = (((htable->word2) >> log_hash) & 1) + 1;
+    if (word2 != (htable->word2 ^ htable->word1)) {
+      hwhich = (((htable->word2 ^ htable->word1) >> log_hash) & 1) + 1;
       (htable + hwhich)->word1 = htable->word1;
       (htable + hwhich)->word2 = htable->word2;
     }
     htable->word1 = word1;
-    htable->word2 = word2;
+    htable->word2 = word2 ^ word1;
   } else {
     hwhich = ((word2 >> log_hash) & 1) + 1;
     (htable + hwhich)->word1 = word1;
-    (htable + hwhich)->word2 = word2;
+    (htable + hwhich)->word2 = word2 ^ word1;
   }
 }
 
@@ -208,8 +210,7 @@ void HashStore(TREE * RESTRICT tree, int ply, int depth, int wtm, int type,
  *                                                                             *
  *******************************************************************************
  */
-void HashStorePV(TREE * RESTRICT tree, int ply, int wtm, int bestmove)
-{
+void HashStorePV(TREE * RESTRICT tree, int ply, int wtm, int bestmove) {
   register int hwhich;
   register HASH_ENTRY *htable;
   register BITBOARD temp_hashkey;
@@ -244,18 +245,20 @@ void HashStorePV(TREE * RESTRICT tree, int ply, int wtm, int bestmove)
  *                                                          *
  ************************************************************
  */
-  if ((htable->word2) == temp_hashkey) {
+  if ((htable->word2 ^ htable->word1) == temp_hashkey) {
     htable->word1 &= ~((BITBOARD) 0x1fffff << 32);
     htable->word1 |= (BITBOARD) bestmove << 32;
+    htable->word2 = temp_hashkey ^ htable->word1;
   } else if ((htable + hwhich)->word2 == temp_hashkey) {
     (htable + hwhich)->word1 &= ~((BITBOARD) 0x1fffff << 32);
     (htable + hwhich)->word1 |= (BITBOARD) bestmove << 32;
+    (htable + hwhich)->word2 = temp_hashkey ^ (htable + hwhich)->word1;
   } else {
     htable += hwhich;
     htable->word1 = transposition_id;
     htable->word1 = (htable->word1 << 2) | WORTHLESS;
     htable->word1 = (htable->word1 << 27) | bestmove;
     htable->word1 = (htable->word1 << 32) | 65536;;
-    htable->word2 = temp_hashkey;
+    htable->word2 = temp_hashkey ^ htable->word1;
   }
 }

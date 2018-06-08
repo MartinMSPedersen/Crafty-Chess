@@ -12,8 +12,7 @@
  *                                                                             *
  *******************************************************************************
  */
-int NextEvasion(TREE * RESTRICT tree, int ply, int wtm)
-{
+int NextEvasion(TREE * RESTRICT tree, int ply, int wtm) {
   register int *movep, *sortv, moves = 0;
 
   switch (tree->next_status[ply].phase) {
@@ -27,17 +26,17 @@ int NextEvasion(TREE * RESTRICT tree, int ply, int wtm)
  *                                                          *
  ************************************************************
  */
-  case HASH_MOVE:
-    if (tree->hash_move[ply]) {
-      tree->next_status[ply].phase = SORT_ALL_MOVES;
-      tree->curmv[ply] = tree->hash_move[ply];
-      if (ValidMove(tree, ply, wtm, tree->curmv[ply]))
-        return (HASH_MOVE);
+    case HASH_MOVE:
+      if (tree->hash_move[ply]) {
+        tree->next_status[ply].phase = SORT_ALL_MOVES;
+        tree->curmv[ply] = tree->hash_move[ply];
+        if (ValidMove(tree, ply, wtm, tree->curmv[ply]))
+          return (HASH_MOVE);
 #if defined(DEBUG)
-      else
-        Print(128, "bad move from hash table, ply=%d\n", ply);
+        else
+          Print(128, "bad move from hash table, ply=%d\n", ply);
 #endif
-    }
+      }
 /*
  ************************************************************
  *                                                          *
@@ -56,25 +55,27 @@ int NextEvasion(TREE * RESTRICT tree, int ply, int wtm)
  *                                                          *
  ************************************************************
  */
-  case SORT_ALL_MOVES:
-    tree->last[ply] =
-        GenerateCheckEvasions(tree, ply, wtm, tree->last[ply - 1]);
-    tree->next_status[ply].phase = REMAINING_MOVES;
-    for (movep = tree->last[ply - 1], sortv = tree->sort_value;
-        movep < tree->last[ply]; moves++, movep++, sortv++)
-      if (tree->hash_move[ply] && *movep == tree->hash_move[ply]) {
-        *sortv = -999999;
-        *movep = 0;
-      } else {
-        if (pc_values[Piece(*movep)] < pc_values[Captured(*movep)])
-          *sortv = 128 * pc_values[Captured(*movep)] - pc_values[Piece(*movep)];
-        else {
-          *sortv = Swap(tree, From(*movep), To(*movep), wtm);
-          if (*sortv >= 0)
+    case SORT_ALL_MOVES:
+      tree->last[ply] =
+          GenerateCheckEvasions(tree, ply, wtm, tree->last[ply - 1]);
+      tree->next_status[ply].phase = REMAINING_MOVES;
+      for (movep = tree->last[ply - 1], sortv = tree->sort_value;
+          movep < tree->last[ply]; moves++, movep++, sortv++)
+        if (tree->hash_move[ply] && *movep == tree->hash_move[ply]) {
+          *sortv = -999999;
+          *movep = 0;
+        } else {
+          if (pc_values[Piece(*movep)] < pc_values[Captured(*movep)])
             *sortv =
                 128 * pc_values[Captured(*movep)] - pc_values[Piece(*movep)];
+          else {
+            *sortv = Swap(tree, From(*movep), To(*movep), wtm);
+            if (*sortv >= 0)
+              *sortv =
+                  128 * pc_values[Captured(*movep)] -
+                  pc_values[Piece(*movep)];
+          }
         }
-      }
 /*
  ************************************************************
  *                                                          *
@@ -85,26 +86,26 @@ int NextEvasion(TREE * RESTRICT tree, int ply, int wtm)
  *                                                          *
  ************************************************************
  */
-    if (tree->last[ply] > tree->last[ply - 1] + 1) {
-      register int done, temp;
-      register int *end = tree->last[ply - 1] + moves - 1;
+      if (tree->last[ply] > tree->last[ply - 1] + 1) {
+        register int done, temp;
+        register int *end = tree->last[ply - 1] + moves - 1;
 
-      do {
-        done = 1;
-        sortv = tree->sort_value;
-        for (movep = tree->last[ply - 1]; movep < end; movep++, sortv++)
-          if (*sortv < *(sortv + 1)) {
-            temp = *sortv;
-            *sortv = *(sortv + 1);
-            *(sortv + 1) = temp;
-            temp = *movep;
-            *movep = *(movep + 1);
-            *(movep + 1) = temp;
-            done = 0;
-          }
-      } while (!done);
-    }
-    tree->next_status[ply].last = tree->last[ply - 1];
+        do {
+          done = 1;
+          sortv = tree->sort_value;
+          for (movep = tree->last[ply - 1]; movep < end; movep++, sortv++)
+            if (*sortv < *(sortv + 1)) {
+              temp = *sortv;
+              *sortv = *(sortv + 1);
+              *(sortv + 1) = temp;
+              temp = *movep;
+              *movep = *(movep + 1);
+              *(movep + 1) = temp;
+              done = 0;
+            }
+        } while (!done);
+      }
+      tree->next_status[ply].last = tree->last[ply - 1];
 /*
  ************************************************************
  *                                                          *
@@ -112,17 +113,17 @@ int NextEvasion(TREE * RESTRICT tree, int ply, int wtm)
  *                                                          *
  ************************************************************
  */
-  case REMAINING_MOVES:
-    for (; tree->next_status[ply].last < tree->last[ply];
-        tree->next_status[ply].last++)
-      if ((*tree->next_status[ply].last)) {
-        tree->curmv[ply] = *tree->next_status[ply].last++;
-        return (REMAINING_MOVES);
-      }
-    return (NONE);
-  default:
-    printf("oops!  next_status.phase is bad! [evasion %d]\n",
-        tree->next_status[ply].phase);
+    case REMAINING_MOVES:
+      for (; tree->next_status[ply].last < tree->last[ply];
+          tree->next_status[ply].last++)
+        if ((*tree->next_status[ply].last)) {
+          tree->curmv[ply] = *tree->next_status[ply].last++;
+          return (REMAINING_MOVES);
+        }
+      return (NONE);
+    default:
+      printf("oops!  next_status.phase is bad! [evasion %d]\n",
+          tree->next_status[ply].phase);
   }
   return (NONE);
 }
@@ -135,8 +136,7 @@ int NextEvasion(TREE * RESTRICT tree, int ply, int wtm)
  *                                                                             *
  *******************************************************************************
  */
-int NextMove(TREE * RESTRICT tree, int ply, int wtm)
-{
+int NextMove(TREE * RESTRICT tree, int ply, int wtm) {
   register int *movep, *sortv;
 
   switch (tree->next_status[ply].phase) {
@@ -149,17 +149,17 @@ int NextMove(TREE * RESTRICT tree, int ply, int wtm)
  *                                                          *
  ************************************************************
  */
-  case HASH_MOVE:
-    tree->next_status[ply].phase = GENERATE_CAPTURE_MOVES;
-    if (tree->hash_move[ply]) {
-      tree->curmv[ply] = tree->hash_move[ply];
-      if (ValidMove(tree, ply, wtm, tree->curmv[ply]))
-        return (HASH_MOVE);
+    case HASH_MOVE:
+      tree->next_status[ply].phase = GENERATE_CAPTURE_MOVES;
+      if (tree->hash_move[ply]) {
+        tree->curmv[ply] = tree->hash_move[ply];
+        if (ValidMove(tree, ply, wtm, tree->curmv[ply]))
+          return (HASH_MOVE);
 #if defined(DEBUG)
-      else
-        Print(128, "bad move from hash table, ply=%d\n", ply);
+        else
+          Print(128, "bad move from hash table, ply=%d\n", ply);
 #endif
-    }
+      }
 /*
  ************************************************************
  *                                                          *
@@ -174,29 +174,31 @@ int NextMove(TREE * RESTRICT tree, int ply, int wtm)
  *                                                          *
  ************************************************************
  */
-  case GENERATE_CAPTURE_MOVES:
-    tree->next_status[ply].phase = CAPTURE_MOVES;
-    tree->last[ply] = GenerateCaptures(tree, ply, wtm, tree->last[ply - 1]);
-    tree->next_status[ply].remaining = 0;
-    for (movep = tree->last[ply - 1], sortv = tree->sort_value;
-        movep < tree->last[ply]; movep++, sortv++)
-      if (tree->hash_move[ply] && *movep == tree->hash_move[ply]) {
-        *sortv = -999999;
-        *movep = 0;
-        tree->hash_move[ply] = 0;
-      } else {
-        if (pc_values[Piece(*movep)] < pc_values[Captured(*movep)]) {
-          *sortv = 128 * pc_values[Captured(*movep)] - pc_values[Piece(*movep)];
-          tree->next_status[ply].remaining++;
+    case GENERATE_CAPTURE_MOVES:
+      tree->next_status[ply].phase = CAPTURE_MOVES;
+      tree->last[ply] = GenerateCaptures(tree, ply, wtm, tree->last[ply - 1]);
+      tree->next_status[ply].remaining = 0;
+      for (movep = tree->last[ply - 1], sortv = tree->sort_value;
+          movep < tree->last[ply]; movep++, sortv++)
+        if (tree->hash_move[ply] && *movep == tree->hash_move[ply]) {
+          *sortv = -999999;
+          *movep = 0;
+          tree->hash_move[ply] = 0;
         } else {
-          *sortv = Swap(tree, From(*movep), To(*movep), wtm);
-          if (*sortv >= 0) {
+          if (pc_values[Piece(*movep)] < pc_values[Captured(*movep)]) {
             *sortv =
                 128 * pc_values[Captured(*movep)] - pc_values[Piece(*movep)];
             tree->next_status[ply].remaining++;
+          } else {
+            *sortv = Swap(tree, From(*movep), To(*movep), wtm);
+            if (*sortv >= 0) {
+              *sortv =
+                  128 * pc_values[Captured(*movep)] -
+                  pc_values[Piece(*movep)];
+              tree->next_status[ply].remaining++;
+            }
           }
         }
-      }
 /*
  ************************************************************
  *                                                          *
@@ -206,28 +208,28 @@ int NextMove(TREE * RESTRICT tree, int ply, int wtm)
  *                                                          *
  ************************************************************
  */
-    if (tree->last[ply] > tree->last[ply - 1] + 1) {
-      int temp1, temp2, *tmovep, *tsortv;
-      int *end;
+      if (tree->last[ply] > tree->last[ply - 1] + 1) {
+        int temp1, temp2, *tmovep, *tsortv;
+        int *end;
 
-      sortv = tree->sort_value + 1;
-      end = tree->last[ply];
-      for (movep = tree->last[ply - 1] + 1; movep < end; movep++, sortv++) {
-        temp1 = *movep;
-        temp2 = *sortv;
-        tmovep = movep - 1;
-        tsortv = sortv - 1;
-        while (tmovep >= tree->last[ply - 1] && *tsortv < temp2) {
-          *(tsortv + 1) = *tsortv;
-          *(tmovep + 1) = *tmovep;
-          tmovep--;
-          tsortv--;
+        sortv = tree->sort_value + 1;
+        end = tree->last[ply];
+        for (movep = tree->last[ply - 1] + 1; movep < end; movep++, sortv++) {
+          temp1 = *movep;
+          temp2 = *sortv;
+          tmovep = movep - 1;
+          tsortv = sortv - 1;
+          while (tmovep >= tree->last[ply - 1] && *tsortv < temp2) {
+            *(tsortv + 1) = *tsortv;
+            *(tmovep + 1) = *tmovep;
+            tmovep--;
+            tsortv--;
+          }
+          *(tmovep + 1) = temp1;
+          *(tsortv + 1) = temp2;
         }
-        *(tmovep + 1) = temp1;
-        *(tsortv + 1) = temp2;
       }
-    }
-    tree->next_status[ply].last = tree->last[ply - 1];
+      tree->next_status[ply].last = tree->last[ply - 1];
 /*
  ************************************************************
  *                                                          *
@@ -237,16 +239,16 @@ int NextMove(TREE * RESTRICT tree, int ply, int wtm)
  *                                                          *
  ************************************************************
  */
-  case CAPTURE_MOVES:
-    if (tree->next_status[ply].remaining) {
-      tree->curmv[ply] = *(tree->next_status[ply].last);
-      *tree->next_status[ply].last++ = 0;
-      tree->next_status[ply].remaining--;
-      if (!tree->next_status[ply].remaining)
-        tree->next_status[ply].phase = KILLER_MOVE_1;
-      return (CAPTURE_MOVES);
-    }
-    tree->next_status[ply].phase = KILLER_MOVE_1;
+    case CAPTURE_MOVES:
+      if (tree->next_status[ply].remaining) {
+        tree->curmv[ply] = *(tree->next_status[ply].last);
+        *tree->next_status[ply].last++ = 0;
+        tree->next_status[ply].remaining--;
+        if (!tree->next_status[ply].remaining)
+          tree->next_status[ply].phase = KILLER_MOVE_1;
+        return (CAPTURE_MOVES);
+      }
+      tree->next_status[ply].phase = KILLER_MOVE_1;
 /*
  ************************************************************
  *                                                          *
@@ -256,21 +258,21 @@ int NextMove(TREE * RESTRICT tree, int ply, int wtm)
  *                                                          *
  ************************************************************
  */
-  case KILLER_MOVE_1:
-    if ((tree->hash_move[ply] != tree->killers[ply].move1) &&
-        ValidMove(tree, ply, wtm, tree->killers[ply].move1)) {
-      tree->curmv[ply] = tree->killers[ply].move1;
-      tree->next_status[ply].phase = KILLER_MOVE_2;
-      return (KILLER_MOVE_1);
-    }
-  case KILLER_MOVE_2:
-    if ((tree->hash_move[ply] != tree->killers[ply].move2) &&
-        ValidMove(tree, ply, wtm, tree->killers[ply].move2)) {
-      tree->curmv[ply] = tree->killers[ply].move2;
+    case KILLER_MOVE_1:
+      if ((tree->hash_move[ply] != tree->killers[ply].move1) &&
+          ValidMove(tree, ply, wtm, tree->killers[ply].move1)) {
+        tree->curmv[ply] = tree->killers[ply].move1;
+        tree->next_status[ply].phase = KILLER_MOVE_2;
+        return (KILLER_MOVE_1);
+      }
+    case KILLER_MOVE_2:
+      if ((tree->hash_move[ply] != tree->killers[ply].move2) &&
+          ValidMove(tree, ply, wtm, tree->killers[ply].move2)) {
+        tree->curmv[ply] = tree->killers[ply].move2;
+        tree->next_status[ply].phase = GENERATE_ALL_MOVES;
+        return (KILLER_MOVE_2);
+      }
       tree->next_status[ply].phase = GENERATE_ALL_MOVES;
-      return (KILLER_MOVE_2);
-    }
-    tree->next_status[ply].phase = GENERATE_ALL_MOVES;
 /*
  ************************************************************
  *                                                          *
@@ -278,10 +280,10 @@ int NextMove(TREE * RESTRICT tree, int ply, int wtm)
  *                                                          *
  ************************************************************
  */
-  case GENERATE_ALL_MOVES:
-    tree->last[ply] = GenerateNoncaptures(tree, ply, wtm, tree->last[ply]);
-    tree->next_status[ply].phase = REMAINING_MOVES;
-    tree->next_status[ply].last = tree->last[ply - 1];
+    case GENERATE_ALL_MOVES:
+      tree->last[ply] = GenerateNoncaptures(tree, ply, wtm, tree->last[ply]);
+      tree->next_status[ply].phase = REMAINING_MOVES;
+      tree->next_status[ply].last = tree->last[ply - 1];
 /*
  ************************************************************
  *                                                          *
@@ -289,18 +291,18 @@ int NextMove(TREE * RESTRICT tree, int ply, int wtm)
  *                                                          *
  ************************************************************
  */
-  case REMAINING_MOVES:
-    for (; tree->next_status[ply].last < tree->last[ply];
-        tree->next_status[ply].last++)
-      if (*tree->next_status[ply].last) {
-        tree->curmv[ply] = *tree->next_status[ply].last;
-        *tree->next_status[ply].last++ = 0;
-        return (REMAINING_MOVES);
-      }
-    return (NONE);
-  default:
-    Print(4095, "oops!  next_status.phase is bad! [normal %d]\n",
-        tree->next_status[ply].phase);
+    case REMAINING_MOVES:
+      for (; tree->next_status[ply].last < tree->last[ply];
+          tree->next_status[ply].last++)
+        if (*tree->next_status[ply].last) {
+          tree->curmv[ply] = *tree->next_status[ply].last;
+          *tree->next_status[ply].last++ = 0;
+          return (REMAINING_MOVES);
+        }
+      return (NONE);
+    default:
+      Print(4095, "oops!  next_status.phase is bad! [normal %d]\n",
+          tree->next_status[ply].phase);
   }
   return (NONE);
 }
@@ -313,8 +315,7 @@ int NextMove(TREE * RESTRICT tree, int ply, int wtm)
  *                                                                             *
  *******************************************************************************
  */
-int NextRootMove(TREE * RESTRICT tree, TREE * RESTRICT mytree, int wtm)
-{
+int NextRootMove(TREE * RESTRICT tree, TREE * RESTRICT mytree, int wtm) {
   register int done, which, i;
   BITBOARD total_nodes;
 
@@ -387,14 +388,17 @@ int NextRootMove(TREE * RESTRICT tree, TREE * RESTRICT mytree, int wtm)
  */
       if ((tree->nodes_searched > noise_level) && (display_options & 32)) {
         Lock(lock_io);
-        sprintf(mytree->remaining_moves_text, "%d/%d", which + 1, n_root_moves);
+        sprintf(mytree->remaining_moves_text, "%d/%d", which + 1,
+            n_root_moves);
         end_time = ReadClock();
         if (pondering)
           printf("               %2i   %s%7s?  ", iteration_depth,
-              DisplayTime(end_time - start_time), mytree->remaining_moves_text);
+              DisplayTime(end_time - start_time),
+              mytree->remaining_moves_text);
         else
           printf("               %2i   %s%7s*  ", iteration_depth,
-              DisplayTime(end_time - start_time), mytree->remaining_moves_text);
+              DisplayTime(end_time - start_time),
+              mytree->remaining_moves_text);
         if (display_options & 32 && display_options & 64)
           printf("%d. ", move_number);
         if ((display_options & 32) && (display_options & 64) && Flip(wtm))
@@ -443,8 +447,7 @@ int NextRootMove(TREE * RESTRICT tree, TREE * RESTRICT mytree, int wtm)
  *                                                                             *
  *******************************************************************************
  */
-int NextRootMoveParallel(void)
-{
+int NextRootMoveParallel(void) {
   register int which;
 
 /*

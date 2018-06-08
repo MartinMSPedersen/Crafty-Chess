@@ -4480,7 +4480,8 @@ public:
 #if (CPUS > 1)
   static    lock_t  lockDecode;
 #endif
-extern "C" int TB_CRC_CHECK = 0;
+/*extern "C" int TB_CRC_CHECK = 0; */
+int TB_CRC_CHECK = 0;
 static int cCompressed = 0;
 static decode_block *rgpdbDecodeBlocks[CPUS];
 

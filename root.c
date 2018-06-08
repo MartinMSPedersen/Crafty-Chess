@@ -12,8 +12,7 @@
  *                                                                             *
  *******************************************************************************
  */
-void RootMoveList(int wtm)
-{
+void RootMoveList(int wtm) {
   int *mvp, *lastm, rmoves[256], sort_value[256];
   int i, done, temp, value;
   TREE *const tree = block[0];
@@ -203,7 +202,8 @@ void RootMoveList(int wtm)
       if (mating_via_tb && TotalAllPieces <= EGTBlimit &&
           Castle(1, white) + Castle(1, black) == 0)
         temp =
-            (EGTBProbe(tree, 2, Flip(wtm), &tb_value) != DrawScore(Flip(wtm)));
+            (EGTBProbe(tree, 2, Flip(wtm),
+                &tb_value) != DrawScore(Flip(wtm)));
       else
         temp = 0;
       UnmakeMove(tree, 1, rmoves[i], wtm);

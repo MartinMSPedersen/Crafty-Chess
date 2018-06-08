@@ -12,8 +12,7 @@
  *                                                                             *
  *******************************************************************************
  */
-void TimeAdjust(int time_used, PLAYER player)
-{
+void TimeAdjust(int time_used, int side) {
 /*
  ************************************************************
  *                                                          *
@@ -23,27 +22,19 @@ void TimeAdjust(int time_used, PLAYER player)
  *                                                          *
  ************************************************************
  */
-  if (player == crafty) {
-    tc_moves_remaining--;
-    tc_time_remaining -=
-        (tc_time_remaining > time_used) ? time_used : tc_time_remaining;
-    if (!tc_moves_remaining) {
-      if (tc_sudden_death == 2)
-        tc_sudden_death = 1;
-      tc_moves_remaining += tc_secondary_moves;
-      tc_time_remaining += tc_secondary_time;
-      tc_time_remaining_opponent += tc_secondary_time;
-      Print(4095, "time control reached\n");
-    }
-    if (tc_increment)
-      tc_time_remaining += tc_increment;
-  } else {
-    tc_time_remaining_opponent -=
-        (tc_time_remaining_opponent >
-        time_used) ? time_used : tc_time_remaining_opponent;
-    if (tc_increment)
-      tc_time_remaining_opponent += tc_increment;
+  tc_moves_remaining[side]--;
+  tc_time_remaining[side] -=
+      (tc_time_remaining[side] >
+      time_used) ? time_used : tc_time_remaining[side];
+  if (!tc_moves_remaining[side]) {
+    if (tc_sudden_death == 2)
+      tc_sudden_death = 1;
+    tc_moves_remaining[side] += tc_secondary_moves;
+    tc_time_remaining[side] += tc_secondary_time;
+    Print(4095, "time control reached (%s)\n", (side) ? "white" : "black");
   }
+  if (tc_increment)
+    tc_time_remaining[side] += tc_increment;
 }
 
 /* last modified 01/17/09 */
@@ -61,8 +52,7 @@ void TimeAdjust(int time_used, PLAYER player)
  *                                                                             *
  *******************************************************************************
  */
-int TimeCheck(TREE * RESTRICT tree, int abort)
-{
+int TimeCheck(TREE * RESTRICT tree, int abort) {
   int time_used;
   int value, last_value;
   int i, ndone;
@@ -159,8 +149,8 @@ int TimeCheck(TREE * RESTRICT tree, int abort)
  */
   value = root_value;
   last_value = last_root_value;
-  if ((value >= last_value - 24 && !(root_moves[0].status & 7)) || (value > 350
-          && value >= last_value - 50)) {
+  if ((value >= last_value - 24 && !(root_moves[0].status & 7)) ||
+      (value > 350 && value >= last_value - 50)) {
     if (time_used > time_limit * 2)
       return (1);
     else
@@ -177,9 +167,11 @@ int TimeCheck(TREE * RESTRICT tree, int abort)
  *                                                          *
  ************************************************************
  */
-  if (time_used < time_limit * 2.5 && time_used + 500 < tc_time_remaining)
+  if (time_used < time_limit * 2.5 &&
+      time_used + 500 < tc_time_remaining[root_wtm])
     return (0);
-  if ((value >= last_value - 67 && !(root_moves[0].status & 7)) || value > 550)
+  if ((value >= last_value - 67 && !(root_moves[0].status & 7)) ||
+      value > 550)
     return (abort);
 /*
  ************************************************************
@@ -191,7 +183,8 @@ int TimeCheck(TREE * RESTRICT tree, int abort)
  *                                                          *
  ************************************************************
  */
-  if (time_used < time_limit * 7 && time_used + 500 < tc_time_remaining)
+  if (time_used < time_limit * 7 &&
+      time_used + 500 < tc_time_remaining[root_wtm])
     return (0);
   return (1);
 }
@@ -208,8 +201,7 @@ int TimeCheck(TREE * RESTRICT tree, int abort)
  *                                                                             *
  *******************************************************************************
  */
-void TimeSet(int search_type)
-{
+void TimeSet(int search_type) {
   static const float behind[6] = { 32.0, 16.0, 8.0, 4.0, 2.0, 1.5 };
   static const int reduce[6] = { 96, 48, 24, 12, 6, 3 };
   int i, mult = 0, extra = 0;
@@ -244,21 +236,22 @@ void TimeSet(int search_type)
   if (tc_sudden_death == 1) {
     if (tc_increment) {
       time_limit =
-          (tc_time_remaining -
-          tc_operator_time * tc_moves_remaining) / (ponder ? 18 : 26) +
-          tc_increment;
-      if (tc_time_remaining < 500 + tc_increment) {
+          (tc_time_remaining[root_wtm] -
+          tc_operator_time * tc_moves_remaining[root_wtm]) /
+          (ponder ? 23 : 28) + tc_increment;
+      if (tc_time_remaining[root_wtm] < 500 + tc_increment) {
         time_limit = tc_increment;
-        if (tc_time_remaining < 250 + tc_increment)
+        if (tc_time_remaining[root_wtm] < 250 + tc_increment)
           time_limit /= 2;
       }
-      absolute_time_limit = tc_time_remaining / 2;
+      absolute_time_limit = tc_time_remaining[root_wtm] / 2;
       if (absolute_time_limit < time_limit ||
-          tc_time_remaining - time_limit < 100)
+          tc_time_remaining[root_wtm] - time_limit < 100)
         absolute_time_limit = time_limit;
     } else {
-      time_limit = tc_time_remaining / (ponder ? 27 : 33);
-      absolute_time_limit = Min(time_limit * 6, tc_time_remaining / 2);
+      time_limit = tc_time_remaining[root_wtm] / (ponder ? 29 : 35);
+      absolute_time_limit =
+          Min(time_limit * 6, tc_time_remaining[root_wtm] / 2);
     }
   }
 /*
@@ -278,18 +271,22 @@ void TimeSet(int search_type)
   else {
     if (move_number <= tc_moves)
       simple_average =
-          (tc_time - (tc_operator_time * tc_moves_remaining)) / tc_moves;
+          (tc_time -
+          (tc_operator_time * tc_moves_remaining[root_wtm])) / tc_moves;
     else
       simple_average =
           (tc_secondary_time -
-          (tc_operator_time * tc_moves_remaining)) / tc_secondary_moves;
+          (tc_operator_time * tc_moves_remaining[root_wtm])) /
+          tc_secondary_moves;
     surplus =
-        Max(tc_time_remaining - (tc_operator_time * tc_moves_remaining) -
-        simple_average * tc_moves_remaining, 0);
+        Max(tc_time_remaining[root_wtm] -
+        (tc_operator_time * tc_moves_remaining[root_wtm]) -
+        simple_average * tc_moves_remaining[root_wtm], 0);
     average =
-        (tc_time_remaining - (tc_operator_time * tc_moves_remaining) +
-        tc_moves_remaining * tc_increment)
-        / tc_moves_remaining;
+        (tc_time_remaining[root_wtm] -
+        (tc_operator_time * tc_moves_remaining[root_wtm]) +
+        tc_moves_remaining[root_wtm] * tc_increment)
+        / tc_moves_remaining[root_wtm];
     if (surplus < tc_safety_margin)
       time_limit = (average < simple_average) ? average : simple_average;
     else
@@ -303,12 +300,12 @@ void TimeSet(int search_type)
   if (time_limit <= 0)
     time_limit = 5;
   absolute_time_limit =
-      time_limit + surplus / 2 + ((tc_time_remaining -
-          tc_operator_time * tc_moves_remaining) / 4);
+      time_limit + surplus / 2 + ((tc_time_remaining[root_wtm] -
+          tc_operator_time * tc_moves_remaining[root_wtm]) / 4);
   if (absolute_time_limit > 7 * time_limit)
     absolute_time_limit = 7 * time_limit;
-  if (absolute_time_limit > tc_time_remaining / 2)
-    absolute_time_limit = tc_time_remaining / 2;
+  if (absolute_time_limit > tc_time_remaining[root_wtm] / 2)
+    absolute_time_limit = tc_time_remaining[root_wtm] / 2;
 /*
  ************************************************************
  *                                                          *
@@ -326,7 +323,8 @@ void TimeSet(int search_type)
   if (!ponder)
     time_limit = 3 * time_limit / 4;
   if (first_nonbook_factor && moves_out_of_book < first_nonbook_span) {
-    mult = (first_nonbook_span - moves_out_of_book + 1) * first_nonbook_factor;
+    mult =
+        (first_nonbook_span - moves_out_of_book + 1) * first_nonbook_factor;
     extra = time_limit * mult / first_nonbook_span / 100;
     time_limit += extra;
   }
@@ -345,20 +343,21 @@ void TimeSet(int search_type)
  */
   if (mode != tournament_mode && !computer_opponent) {
     for (i = 0; i < 6; i++) {
-      if ((float) tc_time_remaining * behind[i] <
-          (float) tc_time_remaining_opponent) {
+      if ((float) tc_time_remaining[root_wtm] * behind[i] <
+          (float) tc_time_remaining[Flip(root_wtm)]) {
         time_limit = time_limit / reduce[i];
         Print(128, "crafty is behind %4.1f on time, reducing by 1/%d.\n",
             behind[i], reduce[i]);
         break;
       }
     }
-    if (tc_increment == 0 && tc_time_remaining_opponent > tc_time_remaining) {
-      if (tc_time_remaining < 3000)
+    if (tc_increment == 0 &&
+        tc_time_remaining[Flip(root_wtm)] > tc_time_remaining[root_wtm]) {
+      if (tc_time_remaining[root_wtm] < 3000)
         time_limit /= 2;
-      if (tc_time_remaining < 2000)
+      if (tc_time_remaining[root_wtm] < 2000)
         time_limit /= 2;
-      if (tc_time_remaining < 1000)
+      if (tc_time_remaining[root_wtm] < 1000)
         time_limit = 1;
     }
   }

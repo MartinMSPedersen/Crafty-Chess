@@ -166,11 +166,11 @@ linux-amd64:
 linux:
 	$(MAKE) target=LINUX \
 		CC=gcc CXX=g++ \
-		CFLAGS='$(CFLAGS) -Wall -pipe -march=i686 -O3 \
-			-g -pg -fno-gcse -mpreferred-stack-boundary=2' \
+		CFLAGS='$(CFLAGS) -g -Wall -pipe -march=i686 -O3 \
+			-fno-gcse -mpreferred-stack-boundary=2' \
 		CXFLAGS=$(CFLAGS) \
-		LDFLAGS='$(LDFLAGS) -lpthread -lstdc++' \
-		opt='$(opt) -DINLINE32 -DCPUS=2' \
+		LDFLAGS='$(LDFLAGS) -g -lpthread -lstdc++' \
+		opt='$(opt) -DDEBUG -DTRACE -DINLINE32 -DCPUS=2' \
 		crafty-make
 
 linux-profile:
@@ -188,12 +188,12 @@ linux-icc:
 	$(MAKE) target=LINUX \
 		CC=icc CXX=icc \
 		CFLAGS='$(CFLAGS) -O2 \
-			-xN -prof_use -prof_dir ./profdir \
+			-prof_use -prof_dir ./profdir \
 			-Ob2 -fno-alias' \
 		CXFLAGS='$(CFLAGS) -O2 \
-			-w -xN -prof_use -prof_dir ./profdir' \
+			-w -prof_use -prof_dir ./profdir' \
 		LDFLAGS='$(LDFLAGS) -lpthread -lstdc++' \
-		opt='$(opt) -DTEST -DINLINE32 -DCPUS=2' \
+		opt='$(opt) -DTEST -DINLINE32 -DCPUS=4' \
 		crafty-make
 
 linux-icc-profile:
@@ -378,7 +378,7 @@ profile:
 #
 
 #objects = search.o thread.o repeat.o next.o killer.o   \
-       quiesce.o qevasions.o evaluate.o movgen.o make.o unmake.o hash.o      \
+       quiesce.o evaluate.o movgen.o make.o unmake.o hash.o      \
        attacks.o swap.o boolean.o utility.o probe.o book.o data.o drawn.o    \
        edit.o epd.o epdglue.o init.o input.o interupt.o iterate.o main.o     \
        option.o output.o ponder.o preeval.o resign.o root.o learn.o          \

@@ -14,8 +14,7 @@
  *                                                                             *
  *******************************************************************************
  */
-int Thread(TREE * RESTRICT tree)
-{
+int Thread(TREE * RESTRICT tree) {
   TREE *block;
   int proc;
   int nblocks = 0;
@@ -30,8 +29,8 @@ int Thread(TREE * RESTRICT tree)
  ************************************************************
  */
   Lock(lock_smp);
-  for (proc = 0; proc < max_threads && thread[proc]; proc++);
-  if (proc == max_threads || tree->stop) {
+  for (proc = 0; proc < smp_max_threads && thread[proc]; proc++);
+  if (proc == smp_max_threads || tree->stop) {
     Unlock(lock_smp);
     return (0);
   }
@@ -40,7 +39,7 @@ int Thread(TREE * RESTRICT tree)
   Print(128, "thread %d  block %d  ply %d  parallel split\n", tree->thread_id,
       FindBlockID(tree), tree->ply);
   Print(128, "thread %d  threads(s) idle:", tree->thread_id);
-  for (proc = 0; proc < max_threads; proc++)
+  for (proc = 0; proc < smp_max_threads; proc++)
     if (!thread[proc])
       Print(128, " %d", proc);
   Print(128, "\n");
@@ -59,10 +58,11 @@ int Thread(TREE * RESTRICT tree)
  *                                                          *
  ************************************************************
  */
-  parallel_splits++;
   thread[tree->thread_id] = 0;
   tree->nprocs = 0;
-  for (proc = 0; proc < max_threads && nblocks < max_thread_group; proc++) {
+  for (proc = 0;
+      proc < smp_max_threads && (nblocks < smp_max_thread_group ||
+          tree->ply == 1); proc++) {
     tree->siblings[proc] = 0;
     if (thread[proc] == 0) {
       block = CopyToChild(tree, proc);
@@ -94,7 +94,8 @@ int Thread(TREE * RESTRICT tree)
  *                                                          *
  ************************************************************
  */
-  for (proc = 0; proc < max_threads; proc++)
+  parallel_splits++;
+  for (proc = 0; proc < smp_max_threads; proc++)
     if (tree->siblings[proc])
       thread[proc] = tree->siblings[proc];
 /*
@@ -136,8 +137,7 @@ int Thread(TREE * RESTRICT tree)
  *                                                                             *
  *******************************************************************************
  */
-void CopyFromChild(TREE * RESTRICT p, TREE * RESTRICT c, int value)
-{
+void CopyFromChild(TREE * RESTRICT p, TREE * RESTRICT c, int value) {
   int i;
 
   if (c->nodes_searched && !c->stop && value > p->search_value) {
@@ -171,19 +171,19 @@ void CopyFromChild(TREE * RESTRICT p, TREE * RESTRICT c, int value)
  *                                                                             *
  *******************************************************************************
  */
-TREE *CopyToChild(TREE * RESTRICT p, int thread)
-{
+TREE *CopyToChild(TREE * RESTRICT p, int thread) {
   int i, j, max;
   TREE *c;
   static int warnings = 0;
   int first = thread * MAX_BLOCKS_PER_CPU + 1;
   int last = first + MAX_BLOCKS_PER_CPU;
-  int maxb = max_threads * MAX_BLOCKS_PER_CPU + 1;
+  int maxb = smp_max_threads * MAX_BLOCKS_PER_CPU + 1;
 
   for (i = first; i < last && block[i]->used; i++);
   if (i >= last) {
     if (++warnings < 6)
-      Print(128, "WARNING.  optimal SMP block cannot be allocated, thread %d\n",
+      Print(128,
+          "WARNING.  optimal SMP block cannot be allocated, thread %d\n",
           thread);
     for (i = 1; i < maxb && block[i]->used; i++);
     if (i >= maxb) {
@@ -200,7 +200,7 @@ TREE *CopyToChild(TREE * RESTRICT p, int thread)
   c = block[i];
   c->used = 1;
   c->stop = 0;
-  for (i = 0; i < max_threads; i++)
+  for (i = 0; i < smp_max_threads; i++)
     c->siblings[i] = 0;
   c->pos = p->pos;
   c->pv[p->ply - 1] = p->pv[p->ply - 1];
@@ -250,16 +250,15 @@ TREE *CopyToChild(TREE * RESTRICT p, int thread)
 /*
  *******************************************************************************
  *                                                                             *
- *   WaitForAllThreadsInitialized() waits until all max_threads are            *
+ *   WaitForAllThreadsInitialized() waits until all smp_max_threads are        *
  *   initialized.  We have to initialize each thread and malloc() its split    *
  *   blocks before we start the actual parallel search.  Otherwise we will see *
  *   invalid memory accesses and crash instantly.                              *
  *                                                                             *
  *******************************************************************************
  */
-void WaitForAllThreadsInitialized(void)
-{
-  while (initialized_threads < max_threads);    /* Do nothing */
+void WaitForAllThreadsInitialized(void) {
+  while (initialized_threads < smp_max_threads);        /* Do nothing */
 }
 
 /* modified 01/17/09 */
@@ -275,26 +274,40 @@ void WaitForAllThreadsInitialized(void)
  *                                                                             *
  *******************************************************************************
  */
-void *STDCALL ThreadInit(void *tid)
-{
-  int i;
-  long j;
+void *STDCALL ThreadInit(void *tid) {
+  int i, j, p;
 
 #if defined(_WIN32) || defined(_WIN64)
   ThreadMalloc((int) tid);
 #endif
-  j = (long) tid;
   for (i = 0; i < MAX_BLOCKS_PER_CPU; i++) {
-    memset((void *) block[j * MAX_BLOCKS_PER_CPU + i + 1], 0, sizeof(TREE));
-    block[j * MAX_BLOCKS_PER_CPU + i + 1]->used = 0;
-    block[j * MAX_BLOCKS_PER_CPU + i + 1]->parent = (TREE *) - 1;
-    LockInit(block[j * MAX_BLOCKS_PER_CPU + i + 1]->lock);
+    memset((void *) block[(long) tid * MAX_BLOCKS_PER_CPU + i + 1], 0,
+        sizeof(TREE));
+    block[(long) tid * MAX_BLOCKS_PER_CPU + i + 1]->used = 0;
+    block[(long) tid * MAX_BLOCKS_PER_CPU + i + 1]->parent = NULL;
+    LockInit(block[(long) tid * MAX_BLOCKS_PER_CPU + i + 1]->lock);
+    for (j = 0; j < 64; j++) {
+      block[(long) tid * MAX_BLOCKS_PER_CPU + i + 1]->cache_n[j] = ~0ULL;
+      for (p = 0; p < 2; p++) {
+        block[(long) tid * MAX_BLOCKS_PER_CPU + i +
+            1]->cache_b_friendly[p][j] = ~0ULL;
+        block[(long) tid * MAX_BLOCKS_PER_CPU + i + 1]->cache_b_enemy[p][j] =
+            ~0ULL;
+      }
+      block[(long) tid * MAX_BLOCKS_PER_CPU + i + 1]->cache_r_friendly[j] =
+          ~0ULL;
+      block[(long) tid * MAX_BLOCKS_PER_CPU + i + 1]->cache_r_enemy[j] =
+          ~0ULL;
+    }
   }
   Lock(lock_smp);
   initialized_threads++;
   Unlock(lock_smp);
   WaitForAllThreadsInitialized();
   ThreadWait((long) tid, (TREE *) 0);
+  Lock(lock_smp);
+  smp_threads--;
+  Unlock(lock_smp);
   return (0);
 }
 
@@ -310,8 +323,7 @@ void *STDCALL ThreadInit(void *tid)
  *******************************************************************************
  */
 extern void *WinMalloc(size_t, int);
-void ThreadMalloc(int tid)
-{
+void ThreadMalloc(int tid) {
   int i, n = MAX_BLOCKS_PER_CPU;
 
   for (i = MAX_BLOCKS_PER_CPU * ((int) tid) + 1; n; i++, n--) {
@@ -320,7 +332,7 @@ void ThreadMalloc(int tid)
           (TREE *) ((~(size_t) 127) & (127 + (size_t) WinMalloc(sizeof(TREE) +
                   127, tid)));
     block[i]->used = 0;
-    block[i]->parent = (TREE *) - 1;
+    block[i]->parent = NULL;
     LockInit(block[i]->lock);
   }
 }
@@ -339,13 +351,12 @@ void ThreadMalloc(int tid)
  *                                                                             *
  *******************************************************************************
  */
-void ThreadStop(TREE * RESTRICT tree)
-{
+void ThreadStop(TREE * RESTRICT tree) {
   int proc;
 
   Lock(tree->lock);
   tree->stop = 1;
-  for (proc = 0; proc < max_threads; proc++)
+  for (proc = 0; proc < smp_max_threads; proc++)
     if (tree->siblings[proc])
       ThreadStop(tree->siblings[proc]);
   Unlock(tree->lock);
@@ -370,8 +381,7 @@ void ThreadStop(TREE * RESTRICT tree)
  *                                                                             *
  *******************************************************************************
  */
-int ThreadWait(long tid, TREE * RESTRICT waiting)
-{
+int ThreadWait(long tid, TREE * RESTRICT waiting) {
   int value;
 
 /*
@@ -392,12 +402,12 @@ int ThreadWait(long tid, TREE * RESTRICT waiting)
     Unlock(lock_smp);
 #if defined(DEBUGSMP)
     Lock(lock_io);
-    Print(128, "thread %d now idle (%d procs, %d idle).\n", tid, max_threads,
-        smp_idle);
+    Print(128, "thread %d now idle (%d procs, %d idle).\n", tid,
+        smp_max_threads, smp_idle);
     if (FindBlockID(waiting) >= 0)
       Print(128,
-          "thread %d  waiting on block %d, still %d threads busy there\n", tid,
-          FindBlockID(waiting), waiting->nprocs);
+          "thread %d  waiting on block %d, still %d threads busy there\n",
+          tid, FindBlockID(waiting), waiting->nprocs);
     Unlock(lock_io);
 #endif
 /*
@@ -411,13 +421,7 @@ int ThreadWait(long tid, TREE * RESTRICT waiting)
  *                                                          *
  ************************************************************
  */
-    while (!thread[tid] && !quit && (!waiting || waiting->nprocs));
-    if (quit) {
-      Lock(lock_smp);
-      smp_threads--;
-      Unlock(lock_smp);
-      return (0);
-    }
+    while (!thread[tid] && (!waiting || waiting->nprocs));
     Lock(lock_smp);
     if (!thread[tid])
       thread[tid] = waiting;
@@ -446,14 +450,8 @@ int ThreadWait(long tid, TREE * RESTRICT waiting)
  ************************************************************
  */
     Unlock(lock_smp);
-    if (thread[tid] == waiting)
+    if (thread[tid] == waiting || thread[tid] == (TREE *) - 1)
       return (0);
-    if (quit || thread[tid] == (TREE *) - 1) {
-      Lock(lock_io);
-      smp_threads--;
-      Unlock(lock_io);
-      return (0);
-    }
 /*
  ************************************************************
  *                                                          *

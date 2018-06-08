@@ -11,8 +11,7 @@
  *                                                                             *
  *******************************************************************************
  */
-void UnmakeMove(TREE * RESTRICT tree, int ply, int move, int wtm)
-{
+void UnmakeMove(TREE * RESTRICT tree, int ply, int move, int wtm) {
   register int piece, from, to, captured, promote, btm = Flip(wtm);
 
 #if defined(DEBUG)
@@ -59,73 +58,77 @@ void UnmakeMove(TREE * RESTRICT tree, int ply, int move, int wtm)
  ************************************************************
  */
   switch (piece) {
-  case pawn:
-    if (captured == 1) {
-      if (EnPassant(ply) == to) {
-        TotalAllPieces++;
-        Set(to + epsq[wtm], Pawns(btm));
-        Set(to + epsq[wtm], Occupied(btm));
-        PcOnSq(to + epsq[wtm]) = pieces[btm][pawn];
-        Material -= PieceValues(wtm, pawn);
-        TotalPieces(btm, pawn)++;
-        captured = 0;
+    case pawn:
+      if (captured == 1) {
+        if (EnPassant(ply) == to) {
+          TotalAllPieces++;
+          Set(to + epsq[wtm], Pawns(btm));
+          Set(to + epsq[wtm], Occupied(btm));
+          PcOnSq(to + epsq[wtm]) = pieces[btm][pawn];
+          Material -= PieceValues(wtm, pawn);
+          TotalPieces(btm, pawn)++;
+          captured = 0;
+        }
       }
-    }
-    if (promote) {
-      TotalPieces(wtm, pawn)++;
-      Clear(to, Pawns(wtm));
-      Clear(to, Occupied(wtm));
-      Clear(to, Pieces(wtm, promote));
-      Material -= PieceValues(wtm, promote);
-      Material += PieceValues(wtm, pawn);
-      TotalPieces(wtm, occupied) -= p_vals[promote];
-      TotalPieces(wtm, promote)--;
-      switch (promote) {
-      case knight:
-        break;
-      case bishop:
-        Clear(to, BishopsQueens);
-        break;
-      case rook:
-        Clear(to, RooksQueens);
-        break;
-      case queen:
-        Clear(to, BishopsQueens);
-        Clear(to, RooksQueens);
-        break;
+      if (promote) {
+        TotalPieces(wtm, pawn)++;
+        Clear(to, Pawns(wtm));
+        Clear(to, Occupied(wtm));
+        Clear(to, Pieces(wtm, promote));
+        Material -= PieceValues(wtm, promote);
+        Material += PieceValues(wtm, pawn);
+        TotalPieces(wtm, occupied) -= p_vals[promote];
+        TotalPieces(wtm, promote)--;
+        switch (promote) {
+          case knight:
+            tree->pos.minors[wtm]--;
+            break;
+          case bishop:
+            Clear(to, BishopsQueens);
+            tree->pos.minors[wtm]--;
+            break;
+          case rook:
+            Clear(to, RooksQueens);
+            tree->pos.majors[wtm]--;
+            break;
+          case queen:
+            Clear(to, BishopsQueens);
+            Clear(to, RooksQueens);
+            tree->pos.majors[wtm] -= 2;
+            break;
+        }
       }
-    }
-    break;
-  case knight:
-    break;
-  case bishop:
-    ClearSet(bit_move, BishopsQueens);
-    break;
-  case rook:
-    ClearSet(bit_move, RooksQueens);
-    break;
-  case queen:
-    ClearSet(bit_move, BishopsQueens);
-    ClearSet(bit_move, RooksQueens);
-    break;
-  case king:
-    KingSQ(wtm) = from;
-    if (abs(to - from) == 2) {
-      if (to == rook_G[wtm]) {
-        from = rook_H[wtm];
-        to = rook_F[wtm];
-      } else {
-        from = rook_A[wtm];
-        to = rook_D[wtm];
-      }
-      bit_move = SetMask(from) | SetMask(to);
+      break;
+    case knight:
+      break;
+    case bishop:
+      ClearSet(bit_move, BishopsQueens);
+      break;
+    case rook:
       ClearSet(bit_move, RooksQueens);
-      ClearSet(bit_move, Rooks(wtm));
-      ClearSet(bit_move, Occupied(wtm));
-      PcOnSq(to) = 0;
-      PcOnSq(from) = pieces[wtm][rook];
-    }
-    break;
+      break;
+    case queen:
+      ClearSet(bit_move, BishopsQueens);
+      ClearSet(bit_move, RooksQueens);
+      break;
+    case king:
+      KingSQ(wtm) = from;
+      if (abs(to - from) == 2) {
+        if (to == rook_G[wtm]) {
+          from = rook_H[wtm];
+          to = rook_F[wtm];
+        } else {
+          from = rook_A[wtm];
+          to = rook_D[wtm];
+        }
+        bit_move = SetMask(from) | SetMask(to);
+        ClearSet(bit_move, RooksQueens);
+        ClearSet(bit_move, Rooks(wtm));
+        ClearSet(bit_move, Occupied(wtm));
+        PcOnSq(to) = 0;
+        PcOnSq(from) = pieces[wtm][rook];
+      }
+      break;
   }
 /*
  ************************************************************
@@ -145,33 +148,37 @@ void UnmakeMove(TREE * RESTRICT tree, int ply, int move, int wtm)
     if (captured != pawn)
       TotalPieces(btm, occupied) += p_vals[captured];
     switch (captured) {
-    case pawn:
-      break;
-    case knight:
-      break;
-    case bishop:
-      Set(to, BishopsQueens);
-      break;
-    case rook:
-      Set(to, RooksQueens);
-      break;
-    case queen:
-      Set(to, BishopsQueens);
-      Set(to, RooksQueens);
-      break;
-    case king:
+      case pawn:
+        break;
+      case knight:
+        tree->pos.minors[btm]++;
+        break;
+      case bishop:
+        Set(to, BishopsQueens);
+        tree->pos.minors[btm]++;
+        break;
+      case rook:
+        Set(to, RooksQueens);
+        tree->pos.majors[btm]++;
+        break;
+      case queen:
+        Set(to, BishopsQueens);
+        Set(to, RooksQueens);
+        tree->pos.majors[btm] += 2;
+        break;
+      case king:
 #if defined(DEBUG)
-      Print(128, "captured a king (Unmake)\n");
-      for (i = 1; i <= ply; i++)
+        Print(128, "captured a king (Unmake)\n");
+        for (i = 1; i <= ply; i++)
+          Print(128, "ply=%2d, piece=%2d,from=%2d,to=%2d,captured=%2d\n", i,
+              Piece(tree->curmv[i]), From(tree->curmv[i]), To(tree->curmv[i]),
+              Captured(tree->curmv[i]));
         Print(128, "ply=%2d, piece=%2d,from=%2d,to=%2d,captured=%2d\n", i,
-            Piece(tree->curmv[i]), From(tree->curmv[i]), To(tree->curmv[i]),
-            Captured(tree->curmv[i]));
-      Print(128, "ply=%2d, piece=%2d,from=%2d,to=%2d,captured=%2d\n", i, piece,
-          from, to, captured);
-      if (log_file)
-        DisplayChessBoard(log_file, tree->pos);
+            piece, from, to, captured);
+        if (log_file)
+          DisplayChessBoard(log_file, tree->pos);
 #endif
-      break;
+        break;
     }
   }
 #if defined(DEBUG)

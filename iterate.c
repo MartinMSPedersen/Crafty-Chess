@@ -5,7 +5,7 @@
 #  include <unistd.h>
 #  include <sys/types.h>
 #endif
-/* last modified 01/07/09 */
+/* last modified 01/30/09 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -16,8 +16,7 @@
  *                                                                             *
  *******************************************************************************
  */
-int Iterate(int wtm, int search_type, int root_list_done)
-{
+int Iterate(int wtm, int search_type, int root_list_done) {
   ROOT_MOVE temp;
   static int prev_time = 0;
   int extended = 0, i;
@@ -40,8 +39,6 @@ int Iterate(int wtm, int search_type, int root_list_done)
  ************************************************************
  */
   tree->curmv[0] = 0;
-  if (average_nps == 0)
-    average_nps = 150000 * max_threads;
   if (wtm) {
     draw_score[0] = -abs_draw_score;
     draw_score[1] = abs_draw_score;
@@ -116,11 +113,10 @@ int Iterate(int wtm, int search_type, int root_list_done)
         program_end_time = ReadClock();
         tree->pv[0].pathl = 0;
         tree->pv[0].pathd = 0;
-        if (Check(wtm)) {
+        if (Check(wtm))
           root_value = -(MATE - 1);
-        } else {
+        else
           root_value = DrawScore(wtm);
-        }
         Print(6, "              depth   time  score   variation\n");
         Print(6, "                                    (no moves)\n");
         tree->nodes_searched = 1;
@@ -182,11 +178,11 @@ int Iterate(int wtm, int search_type, int root_list_done)
  ************************************************************
  */
 #if (CPUS > 1)
-      if (max_threads > smp_idle + 1) {
+      if (smp_max_threads > smp_idle + 1) {
         long proc;
 
         initialized_threads = 1;
-        for (proc = smp_threads + 1; proc < max_threads; proc++) {
+        for (proc = smp_threads + 1; proc < smp_max_threads; proc++) {
           Print(128, "starting thread %d\n", proc);
           thread[proc] = 0;
 #  if defined(_WIN32) || defined(_WIN64)
@@ -271,7 +267,8 @@ int Iterate(int wtm, int search_type, int root_list_done)
             if (!(root_moves[i].status & 256))
               break;
           root_moves[i].status &= 4095 - 128;
-          value = SearchRoot(tree, root_alpha, root_beta, wtm, iteration_depth);
+          value =
+              SearchRoot(tree, root_alpha, root_beta, wtm, iteration_depth);
           root_print_ok = tree->nodes_searched > noise_level;
           if (abort_search || time_abort)
             break;
@@ -292,8 +289,10 @@ int Iterate(int wtm, int search_type, int root_list_done)
  *                                                          *
  ************************************************************
  */
+/*
           if (iteration_depth > 3) {
             int time_left, prev_ply;
+
             time_used = ReadClock() - start_time;
             time_left = time_limit - time_used;
             prev_ply = ReadClock() - prev_time;
@@ -309,9 +308,9 @@ int Iterate(int wtm, int search_type, int root_list_done)
           } else
             extended = 0;
           prev_time = ReadClock();
-
           if (time_limit > absolute_time_limit)
             time_limit = absolute_time_limit;
+*/
 /*
  ************************************************************
  *                                                          *
@@ -324,13 +323,12 @@ int Iterate(int wtm, int search_type, int root_list_done)
  ************************************************************
  */
           if (value >= root_beta) {
-            if (!(root_moves[0].status & 8)) {
+            if (!(root_moves[0].status & 8))
               root_moves[0].status |= 8;
-            } else if (!(root_moves[0].status & 16)) {
+            else if (!(root_moves[0].status & 16))
               root_moves[0].status |= 16;
-            } else {
+            else
               root_moves[0].status |= 32;
-            }
             root_alpha = SetRootAlpha(root_moves[0].status, root_alpha);
             root_value = root_alpha;
             root_beta = SetRootBeta(root_moves[0].status, root_beta);
@@ -356,13 +354,14 @@ int Iterate(int wtm, int search_type, int root_list_done)
                 Print(2, "%d. ", move_number);
               if ((display_options & 64) && !wtm)
                 Print(2, "... ");
-              Print(2, "%s!!\n", OutputMove(tree, tree->pv[1].path[1], 1, wtm));
+              Print(2, "%s!                    \n", OutputMove(tree,
+                      tree->pv[1].path[1], 1, wtm));
               kibitz_text[0] = 0;
               if (display_options & 64)
                 sprintf(kibitz_text, " %d.", move_number);
               if ((display_options & 64) && !wtm)
                 sprintf(kibitz_text + strlen(kibitz_text), " ...");
-              sprintf(kibitz_text + strlen(kibitz_text), " %s!!",
+              sprintf(kibitz_text + strlen(kibitz_text), " %s!",
                   OutputMove(tree, tree->pv[1].path[1], 1, wtm));
               Kibitz(6, wtm, iteration_depth, end_time - start_time, value,
                   tree->nodes_searched, tree->egtb_probes_successful,
@@ -381,13 +380,12 @@ int Iterate(int wtm, int search_type, int root_list_done)
  */
           } else if (value <= root_alpha) {
             if (!(root_moves[0].status & 0x38)) {
-              if (!(root_moves[0].status & 1)) {
+              if (!(root_moves[0].status & 1))
                 root_moves[0].status |= 1;
-              } else if (!(root_moves[0].status & 2)) {
+              else if (!(root_moves[0].status & 2))
                 root_moves[0].status |= 2;
-              } else {
+              else
                 root_moves[0].status |= 4;
-              }
               root_alpha = SetRootAlpha(root_moves[0].status, root_alpha);
               root_value = root_alpha;
               root_beta = SetRootBeta(root_moves[0].status, root_beta);
@@ -408,13 +406,15 @@ int Iterate(int wtm, int search_type, int root_list_done)
                   if (root_moves[0].status & 4)
                     fl_indicator = "+M";
                 }
-                Print(4, "               %2i   %s     %2s   ", iteration_depth,
-                    DisplayTime(ReadClock() - start_time), fl_indicator);
+                Print(4, "               %2i   %s     %2s   ",
+                    iteration_depth, DisplayTime(ReadClock() - start_time),
+                    fl_indicator);
                 if (display_options & 64)
                   Print(4, "%d. ", move_number);
                 if ((display_options & 64) && !wtm)
                   Print(4, "... ");
-                Print(4, "%s\n", OutputMove(tree, root_moves[0].move, 1, wtm));
+                Print(4, "%s?                    \n", OutputMove(tree,
+                        root_moves[0].move, 1, wtm));
               }
             } else
               break;
@@ -520,7 +520,8 @@ int Iterate(int wtm, int search_type, int root_list_done)
                 correct_count >= early_exit || value > MATE - 300 ||
                 tree->pv[0].pathh == 2)) {
           if (value != -(MATE - 1))
-            DisplayPV(tree, 5, wtm, end_time - start_time, value, &tree->pv[0]);
+            DisplayPV(tree, 5, wtm, end_time - start_time, value,
+                &tree->pv[0]);
         }
         root_alpha = value - 40;
         root_value = root_alpha;
@@ -559,12 +560,6 @@ int Iterate(int wtm, int search_type, int root_list_done)
       if (elapsed_end > 10)
         nodes_per_second =
             (BITBOARD) tree->nodes_searched * 100 / (BITBOARD) elapsed_end;
-      if (!tree->egtb_probes) {
-        if (average_nps)
-          average_nps = (9 * average_nps + nodes_per_second) / 10;
-        else
-          average_nps = nodes_per_second;
-      }
       tree->evaluations = (tree->evaluations) ? tree->evaluations : 1;
       if ((!abort_search || time_abort) && !puzzling) {
         tree->fail_high++;
@@ -579,11 +574,12 @@ int Iterate(int wtm, int search_type, int root_list_done)
         Print(8, "  nps=%s\n", DisplayKM(nodes_per_second));
         Print(16, "              ext-> check=%s ",
             DisplayKM(tree->check_extensions_done));
-        Print(16, "qcheck=%s ", DisplayKM(tree->qsearch_check_extensions_done));
+        Print(16, "qcheck=%s ",
+            DisplayKM(tree->qsearch_check_extensions_done));
         Print(16, "reduce=%s", DisplayKM(tree->reductions_attempted));
         Print(16, "/%s\n", DisplayKM(tree->reductions_done));
-        Print(16, "              predicted=%d  evals=%s  50move=%d", predicted,
-            DisplayKM(tree->evaluations), Rule50Moves(0));
+        Print(16, "              predicted=%d  evals=%s  50move=%d",
+            predicted, DisplayKM(tree->evaluations), Rule50Moves(0));
         Print(16, "  EGTBprobes=%s  hits=%s\n", DisplayKM(tree->egtb_probes),
             DisplayKM(tree->egtb_probes_successful));
         Print(16, "              SMP->  splits=%d  aborts=%d  data=%d/%d  ",
@@ -600,14 +596,18 @@ int Iterate(int wtm, int search_type, int root_list_done)
       Kibitz(4, wtm, 0, 0, 0, 0, 0, kibitz_text);
   }
   if (smp_nice && ponder == 0 && smp_threads) {
-    Print(128, "terminating SMP processes.");
-    quit = 1;
+    int proc;
+
+    Print(128, "terminating SMP processes.\n");
+    for (proc = 1; proc < CPUS; proc++)
+      thread[proc] = (TREE *) - 1;
     while (smp_threads);
-    quit = 0;
     smp_idle = 0;
   }
   program_end_time = ReadClock();
   search_move = 0;
+  if (quit)
+    CraftyExit(0);
   return (last_root_value);
 }
 
@@ -621,8 +621,7 @@ int Iterate(int wtm, int search_type, int root_list_done)
  *                                                                             *
  *******************************************************************************
  */
-int SetRootAlpha(unsigned char status, int old_root_alpha)
-{
+int SetRootAlpha(unsigned char status, int old_root_alpha) {
   if (status & 4)
     return (-MATE - 1);
   if (status & 2)
@@ -642,8 +641,7 @@ int SetRootAlpha(unsigned char status, int old_root_alpha)
  *                                                                             *
  *******************************************************************************
  */
-int SetRootBeta(unsigned char status, int old_root_beta)
-{
+int SetRootBeta(unsigned char status, int old_root_beta) {
   if (status & 32)
     return (MATE + 1);
   if (status & 16)

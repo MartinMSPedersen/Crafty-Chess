@@ -20,8 +20,7 @@
  *                                                                             *
  *******************************************************************************
  */
-void ValidatePosition(TREE * RESTRICT tree, int ply, int move, char *caller)
-{
+void ValidatePosition(TREE * RESTRICT tree, int ply, int move, char *caller) {
   BITBOARD temp, temp1, temp_occ;
   BITBOARD temp_occx;
   int i, square, error;
@@ -38,7 +37,8 @@ void ValidatePosition(TREE * RESTRICT tree, int ply, int move, char *caller)
   error = 0;
   for (side = black; side <= white; side++) {
     temp_occ =
-        Pawns(side) | Knights(side) | Bishops(side) | Rooks(side) | Queens(side)
+        Pawns(side) | Knights(side) | Bishops(side) | Rooks(side) |
+        Queens(side)
         | Kings(side);
     if (Occupied(side) ^ temp_occ) {
       Print(128, "ERROR %s occupied squares is bad!\n",
@@ -120,7 +120,8 @@ void ValidatePosition(TREE * RESTRICT tree, int ply, int move, char *caller)
       temp_score += PopCnt(Pieces(side, piece)) * p_vals[piece];
     if (temp_score != TotalPieces(side, occupied)) {
       Print(128, "ERROR  %s pieces is wrong, good=%d, bad=%d\n",
-          (side) ? "white" : "black", temp_score, TotalPieces(side, occupied));
+          (side) ? "white" : "black", temp_score, TotalPieces(side,
+              occupied));
       error = 1;
     }
   }
@@ -192,7 +193,8 @@ void ValidatePosition(TREE * RESTRICT tree, int ply, int move, char *caller)
   while (temp) {
     square = LSB(temp);
     if (PcOnSq(square)) {
-      Print(128, "ERROR!  board[%d]=%d, should be 0\n", square, PcOnSq(square));
+      Print(128, "ERROR!  board[%d]=%d, should be 0\n", square,
+          PcOnSq(square));
       error = 1;
     }
     temp &= temp - 1;

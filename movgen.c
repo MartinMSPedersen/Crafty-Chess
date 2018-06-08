@@ -13,8 +13,7 @@
  *                                                                             *
  *******************************************************************************
  */
-int *GenerateCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
-{
+int *GenerateCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move) {
   register BITBOARD target, piecebd, moves;
   register BITBOARD promotions, pcapturesl, pcapturesr;
   register int from, to, temp, common, btm = Flip(wtm);
@@ -192,8 +191,7 @@ int *GenerateCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
  *                                                                             *
  *******************************************************************************
  */
-int *GenerateChecks(TREE * RESTRICT tree, int ply, int wtm, int *move)
-{
+int *GenerateChecks(TREE * RESTRICT tree, int ply, int wtm, int *move) {
   register BITBOARD temp_target, target, piecebd, moves;
   register BITBOARD padvances1, blockers, checkers;
   register int from, to, promote, temp, btm = Flip(wtm);
@@ -506,8 +504,7 @@ int *GenerateChecks(TREE * RESTRICT tree, int ply, int wtm, int *move)
  *                                                                             *
  *******************************************************************************
  */
-int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move)
-{
+int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move) {
   register BITBOARD target, targetc, targetp, piecebd, moves;
   register BITBOARD padvances1, padvances2, pcapturesl, pcapturesr;
   register BITBOARD padvances1_all, empty, checksqs, ep;
@@ -769,8 +766,7 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move)
  *******************************************************************************
  */
 BITBOARD InterposeSquares(int check_direction, int king_square,
-    int checking_square)
-{
+    int checking_square) {
   register BITBOARD target;
 
 /*
@@ -784,33 +780,33 @@ BITBOARD InterposeSquares(int check_direction, int king_square,
  ************************************************************
  */
   switch (check_direction) {
-  case +1:
-    target = plus1dir[king_square - 1] ^ plus1dir[checking_square];
-    break;
-  case +7:
-    target = plus7dir[king_square - 7] ^ plus7dir[checking_square];
-    break;
-  case +8:
-    target = plus8dir[king_square - 8] ^ plus8dir[checking_square];
-    break;
-  case +9:
-    target = plus9dir[king_square - 9] ^ plus9dir[checking_square];
-    break;
-  case -1:
-    target = minus1dir[king_square + 1] ^ minus1dir[checking_square];
-    break;
-  case -7:
-    target = minus7dir[king_square + 7] ^ minus7dir[checking_square];
-    break;
-  case -8:
-    target = minus8dir[king_square + 8] ^ minus8dir[checking_square];
-    break;
-  case -9:
-    target = minus9dir[king_square + 9] ^ minus9dir[checking_square];
-    break;
-  default:
-    target = 0;
-    break;
+    case +1:
+      target = plus1dir[king_square - 1] ^ plus1dir[checking_square];
+      break;
+    case +7:
+      target = plus7dir[king_square - 7] ^ plus7dir[checking_square];
+      break;
+    case +8:
+      target = plus8dir[king_square - 8] ^ plus8dir[checking_square];
+      break;
+    case +9:
+      target = plus9dir[king_square - 9] ^ plus9dir[checking_square];
+      break;
+    case -1:
+      target = minus1dir[king_square + 1] ^ minus1dir[checking_square];
+      break;
+    case -7:
+      target = minus7dir[king_square + 7] ^ minus7dir[checking_square];
+      break;
+    case -8:
+      target = minus8dir[king_square + 8] ^ minus8dir[checking_square];
+      break;
+    case -9:
+      target = minus9dir[king_square + 9] ^ minus9dir[checking_square];
+      break;
+    default:
+      target = 0;
+      break;
   }
   return (target);
 }
@@ -826,8 +822,7 @@ BITBOARD InterposeSquares(int check_direction, int king_square,
  *                                                                             *
  *******************************************************************************
  */
-int PinnedOnKing(TREE * RESTRICT tree, int wtm, int square)
-{
+int PinnedOnKing(TREE * RESTRICT tree, int wtm, int square) {
   register int ray;
   register int btm = Flip(wtm);
 
@@ -853,26 +848,26 @@ int PinnedOnKing(TREE * RESTRICT tree, int wtm, int square)
  ************************************************************
  */
   switch (abs(ray)) {
-  case 1:
-    if (AttacksRank(square) & Kings(wtm))
-      return ((AttacksRank(square) & RooksQueens & Occupied(btm)) != 0);
-    else
-      return (0);
-  case 7:
-    if (AttacksDiagh1(square) & Kings(wtm))
-      return ((AttacksDiagh1(square) & BishopsQueens & Occupied(btm)) != 0);
-    else
-      return (0);
-  case 8:
-    if (AttacksFile(square) & Kings(wtm))
-      return ((AttacksFile(square) & RooksQueens & Occupied(btm)) != 0);
-    else
-      return (0);
-  case 9:
-    if (AttacksDiaga1(square) & Kings(wtm))
-      return ((AttacksDiaga1(square) & BishopsQueens & Occupied(btm)) != 0);
-    else
-      return (0);
+    case 1:
+      if (AttacksRank(square) & Kings(wtm))
+        return ((AttacksRank(square) & RooksQueens & Occupied(btm)) != 0);
+      else
+        return (0);
+    case 7:
+      if (AttacksDiagh1(square) & Kings(wtm))
+        return ((AttacksDiagh1(square) & BishopsQueens & Occupied(btm)) != 0);
+      else
+        return (0);
+    case 8:
+      if (AttacksFile(square) & Kings(wtm))
+        return ((AttacksFile(square) & RooksQueens & Occupied(btm)) != 0);
+      else
+        return (0);
+    case 9:
+      if (AttacksDiaga1(square) & Kings(wtm))
+        return ((AttacksDiaga1(square) & BishopsQueens & Occupied(btm)) != 0);
+      else
+        return (0);
   }
   return (0);
 }
@@ -900,8 +895,7 @@ int PinnedOnKing(TREE * RESTRICT tree, int wtm, int square)
  *                                                                             *
  *******************************************************************************
  */
-int *GenerateNoncaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
-{
+int *GenerateNoncaptures(TREE * RESTRICT tree, int ply, int wtm, int *move) {
   register BITBOARD target, piecebd, moves;
   register BITBOARD padvances1, padvances2, pcapturesl, pcapturesr;
   register int from, to, temp, common, btm = Flip(wtm);
@@ -915,7 +909,8 @@ int *GenerateNoncaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
  */
   if (Castle(ply, wtm) > 0) {
     if ((Castle(ply, wtm) & 1) && !(OccupiedSquares & OO[wtm]) &&
-        !Attacks(tree, OOsqs[wtm][0], btm) && !Attacks(tree, OOsqs[wtm][1], btm)
+        !Attacks(tree, OOsqs[wtm][0], btm) &&
+        !Attacks(tree, OOsqs[wtm][1], btm)
         && !Attacks(tree, OOsqs[wtm][2], btm)) {
       *move++ = (king << 12) + (OOto[wtm] << 6) + OOfrom[wtm];
     }

@@ -147,23 +147,20 @@ static rbT ret_rb;
 static mT ret_m;
 
 /*--> EPDFatal: emit fatal diagnostic and quit */
-nonstatic void EPDFatal(charptrT s)
-{
+nonstatic void EPDFatal(charptrT s) {
   fprintf(stderr, "EPD Fatal error: %s.\n", s);
   exit(1);
 }
 
 /*--> EPDSwitchFault: emit switch fault diagnostic and quit */
-nonstatic void EPDSwitchFault(charptrT s)
-{
+nonstatic void EPDSwitchFault(charptrT s) {
   fprintf(stderr, "Switch fault detected.\n");
   EPDFatal(s);
   return;
 }
 
 /*--> EPDMemoryGrab: allocate memory */
-nonstatic voidptrT EPDMemoryGrab(liT n)
-{
+nonstatic voidptrT EPDMemoryGrab(liT n) {
   voidptrT ptr;
 
   ptr = (voidptrT) malloc((n == 0) ? 1 : n);
@@ -173,16 +170,14 @@ nonstatic voidptrT EPDMemoryGrab(liT n)
 }
 
 /*--> EPDMemoryFree: deallocate memory */
-nonstatic void EPDMemoryFree(voidptrT ptr)
-{
+nonstatic void EPDMemoryFree(voidptrT ptr) {
   if (ptr != NULL)
     free(ptr);
   return;
 }
 
 /*--> EPDStringGrab: allocate and copy a string */
-nonstatic charptrT EPDStringGrab(charptrT s)
-{
+nonstatic charptrT EPDStringGrab(charptrT s) {
   charptrT ptr;
 
   ptr = (charptrT) EPDMemoryGrab(strlen(s) + 1);
@@ -191,8 +186,7 @@ nonstatic charptrT EPDStringGrab(charptrT s)
 }
 
 /*--> EPDStringAppendChar: append a character to a string */
-nonstatic charptrT EPDStringAppendChar(charptrT s, char c)
-{
+nonstatic charptrT EPDStringAppendChar(charptrT s, char c) {
   charptrT ptr;
   liT length;
 
@@ -207,8 +201,7 @@ nonstatic charptrT EPDStringAppendChar(charptrT s, char c)
 }
 
 /*--> EPDStringAppendStr: append a string to a string */
-nonstatic charptrT EPDStringAppendStr(charptrT s0, charptrT s1)
-{
+nonstatic charptrT EPDStringAppendStr(charptrT s0, charptrT s1) {
   charptrT ptr;
   liT length;
 
@@ -222,8 +215,7 @@ nonstatic charptrT EPDStringAppendStr(charptrT s0, charptrT s1)
 }
 
 /*--> EPDNewGPM: allocate and initialize a new GPM record */
-static gpmptrT EPDNewGPM(mptrT mptr)
-{
+static gpmptrT EPDNewGPM(mptrT mptr) {
   gpmptrT gpmptr;
   cT c;
   sqT sq;
@@ -249,8 +241,7 @@ static gpmptrT EPDNewGPM(mptrT mptr)
 
 /*--> EPDReleaseGPM: release a GPM record */
 static
-void EPDReleaseGPM(gpmptrT gpmptr)
-{
+void EPDReleaseGPM(gpmptrT gpmptr) {
   if (gpmptr != NULL)
     EPDMemoryFree(gpmptr);
   return;
@@ -258,8 +249,7 @@ void EPDReleaseGPM(gpmptrT gpmptr)
 
 /*--> EPDAppendGPM: append a GPM record to a game  */
 static
-void EPDAppendGPM(gamptrT gamptr, gpmptrT gpmptr)
-{
+void EPDAppendGPM(gamptrT gamptr, gpmptrT gpmptr) {
   if (gamptr->gam_tailgpm == NULL)
     gamptr->gam_headgpm = gpmptr;
   else
@@ -272,8 +262,7 @@ void EPDAppendGPM(gamptrT gamptr, gpmptrT gpmptr)
 
 /*--> EPDUnthreadGPM: unthread a GPM record from a game */
 static
-void EPDUnthreadGPM(gamptrT gamptr, gpmptrT gpmptr)
-{
+void EPDUnthreadGPM(gamptrT gamptr, gpmptrT gpmptr) {
   if (gpmptr->gpm_prev == NULL)
     gamptr->gam_headgpm = gpmptr->gpm_next;
   else
@@ -287,8 +276,7 @@ void EPDUnthreadGPM(gamptrT gamptr, gpmptrT gpmptr)
 
 /*--> EPDReleaseGPMoveChain: release the game played moves chain */
 static
-void EPDReleaseGPMoveChain(gamptrT gamptr)
-{
+void EPDReleaseGPMoveChain(gamptrT gamptr) {
   gpmptrT gpmptr;
 
   while (gamptr->gam_headgpm != NULL) {
@@ -300,8 +288,7 @@ void EPDReleaseGPMoveChain(gamptrT gamptr)
 }
 
 /*--> EPDNewGAM: allocate and initialize a new GAM record */
-static gamptrT EPDNewGAM(void)
-{
+static gamptrT EPDNewGAM(void) {
   gamptrT gamptr;
   pgnstrT pgnstr;
 
@@ -316,8 +303,7 @@ static gamptrT EPDNewGAM(void)
 
 /*--> EPDReleaseGAM: release a GAM record */
 static
-void EPDReleaseGAM(gamptrT gamptr)
-{
+void EPDReleaseGAM(gamptrT gamptr) {
   pgnstrT pgnstr;
 
   if (gamptr != NULL) {
@@ -332,8 +318,7 @@ void EPDReleaseGAM(gamptrT gamptr)
 
 /*--> EPDAppendGAM: append a GAM record to the game chain */
 static
-void EPDAppendGAM(gamptrT gamptr)
-{
+void EPDAppendGAM(gamptrT gamptr) {
   if (tail_gamptr == NULL)
     head_gamptr = gamptr;
   else
@@ -346,8 +331,7 @@ void EPDAppendGAM(gamptrT gamptr)
 
 /*--> EPDUnthreadGAM: unthread a GAM record from the game chain */
 static
-void EPDUnthreadGAM(gamptrT gamptr)
-{
+void EPDUnthreadGAM(gamptrT gamptr) {
   if (gamptr->gam_prev == NULL)
     head_gamptr = gamptr->gam_next;
   else
@@ -361,8 +345,7 @@ void EPDUnthreadGAM(gamptrT gamptr)
 
 /*--> EPDReleaseGameChain: release the game chain */
 static
-void EPDReleaseGameChain(void)
-{
+void EPDReleaseGameChain(void) {
   gamptrT gamptr;
 
   while (head_gamptr != NULL) {
@@ -374,8 +357,7 @@ void EPDReleaseGameChain(void)
 }
 
 /*--> EPDGamePlyCount: return ply count of a game */
-static siT EPDGamePlyCount(gamptrT gamptr)
-{
+static siT EPDGamePlyCount(gamptrT gamptr) {
   siT count;
   gpmptrT gpmptr;
 
@@ -389,8 +371,7 @@ static siT EPDGamePlyCount(gamptrT gamptr)
 }
 
 /*--> EPDGameOpen: create/open a new game structure */
-nonstatic gamptrT EPDGameOpen(void)
-{
+nonstatic gamptrT EPDGameOpen(void) {
   gamptrT gamptr;
 
   gamptr = EPDNewGAM();
@@ -399,8 +380,7 @@ nonstatic gamptrT EPDGameOpen(void)
 }
 
 /*--> EPDGameClose: close/destroy a game structure */
-nonstatic void EPDGameClose(gamptrT gamptr)
-{
+nonstatic void EPDGameClose(gamptrT gamptr) {
   if (gamptr != NULL) {
     EPDUnthreadGAM(gamptr);
     EPDReleaseGAM(gamptr);
@@ -409,8 +389,7 @@ nonstatic void EPDGameClose(gamptrT gamptr)
 }
 
 /*--> EPDGameAppendMove: append a move to a game structure */
-nonstatic void EPDGameAppendMove(gamptrT gamptr, mptrT mptr)
-{
+nonstatic void EPDGameAppendMove(gamptrT gamptr, mptrT mptr) {
   gpmptrT gpmptr;
 
   gpmptr = EPDNewGPM(mptr);
@@ -419,8 +398,7 @@ nonstatic void EPDGameAppendMove(gamptrT gamptr, mptrT mptr)
 }
 
 /*--> EPDNewTKN: allocate and initialize a new TKN record */
-static tknptrT EPDNewTKN(charptrT s)
-{
+static tknptrT EPDNewTKN(charptrT s) {
   tknptrT tknptr;
 
   tknptr = (tknptrT) EPDMemoryGrab(sizeof(tknT));
@@ -431,8 +409,7 @@ static tknptrT EPDNewTKN(charptrT s)
 
 /*--> EPDReleaseTKN: release a TKN record */
 static
-void EPDReleaseTKN(tknptrT tknptr)
-{
+void EPDReleaseTKN(tknptrT tknptr) {
   if (tknptr != NULL) {
     if (tknptr->tkn_str != NULL)
       EPDMemoryFree(tknptr->tkn_str);
@@ -443,8 +420,7 @@ void EPDReleaseTKN(tknptrT tknptr)
 
 /*--> EPDAppendTKN: append a TKN record to the token chain */
 static
-void EPDAppendTKN(tknptrT tknptr)
-{
+void EPDAppendTKN(tknptrT tknptr) {
   if (tail_tknptr == NULL)
     head_tknptr = tknptr;
   else
@@ -457,8 +433,7 @@ void EPDAppendTKN(tknptrT tknptr)
 
 /*--> EPDUnthreadTKN: unthread a TKN record from the token chain */
 static
-void EPDUnthreadTKN(tknptrT tknptr)
-{
+void EPDUnthreadTKN(tknptrT tknptr) {
   if (tknptr->tkn_prev == NULL)
     head_tknptr = tknptr->tkn_next;
   else
@@ -472,8 +447,7 @@ void EPDUnthreadTKN(tknptrT tknptr)
 
 /*--> EPDReleaseTokenChain: release the token chain */
 static
-void EPDReleaseTokenChain(void)
-{
+void EPDReleaseTokenChain(void) {
   tknptrT tknptr;
 
   while (head_tknptr != NULL) {
@@ -485,8 +459,7 @@ void EPDReleaseTokenChain(void)
 }
 
 /*--> EPDTokenize: create the token chain */
-nonstatic void EPDTokenize(charptrT s)
-{
+nonstatic void EPDTokenize(charptrT s) {
   siT i;
   char c;
   tknptrT tknptr;
@@ -517,8 +490,7 @@ nonstatic void EPDTokenize(charptrT s)
 }
 
 /*--> EPDTokenCount: count the tokens in the token chain */
-nonstatic siT EPDTokenCount(void)
-{
+nonstatic siT EPDTokenCount(void) {
   siT n;
   tknptrT tknptr;
 
@@ -532,8 +504,7 @@ nonstatic siT EPDTokenCount(void)
 }
 
 /*--> EPDTokenFetch: fetch n-th (zero origin) token from the token chain */
-nonstatic charptrT EPDTokenFetch(siT n)
-{
+nonstatic charptrT EPDTokenFetch(siT n) {
   charptrT s;
   siT i;
   tknptrT tknptr;
@@ -552,8 +523,7 @@ nonstatic charptrT EPDTokenFetch(siT n)
 }
 
 /*--> EPDCICharEqual: test for case independent character equality */
-nonstatic siT EPDCICharEqual(char ch0, char ch1)
-{
+nonstatic siT EPDCICharEqual(char ch0, char ch1) {
   siT flag;
 
   if (map_lower(ch0) == map_lower(ch1))
@@ -564,8 +534,7 @@ nonstatic siT EPDCICharEqual(char ch0, char ch1)
 }
 
 /*--> EPDPieceFromCP: fetch piece from color-piece */
-nonstatic pT EPDPieceFromCP(cpT cp)
-{
+nonstatic pT EPDPieceFromCP(cpT cp) {
   pT p;
 
   p = cv_p_cpv[cp];
@@ -573,8 +542,7 @@ nonstatic pT EPDPieceFromCP(cpT cp)
 }
 
 /*--> EPDCheckPiece: test if a character is a piece letter */
-nonstatic siT EPDCheckPiece(char ch)
-{
+nonstatic siT EPDCheckPiece(char ch) {
   siT flag;
   pT p;
 
@@ -589,8 +557,7 @@ nonstatic siT EPDCheckPiece(char ch)
 }
 
 /*--> EPDEvaluatePiece: evaluate a piece letter character */
-nonstatic pT EPDEvaluatePiece(char ch)
-{
+nonstatic pT EPDEvaluatePiece(char ch) {
   pT p;
   siT flag;
 
@@ -607,8 +574,7 @@ nonstatic pT EPDEvaluatePiece(char ch)
 }
 
 /*--> EPDCheckColor: test if a character is a color letter */
-nonstatic siT EPDCheckColor(char ch)
-{
+nonstatic siT EPDCheckColor(char ch) {
   siT flag;
   cT c;
 
@@ -623,8 +589,7 @@ nonstatic siT EPDCheckColor(char ch)
 }
 
 /*--> EPDEvaluateColor: evaluate a color letter character */
-nonstatic cT EPDEvaluateColor(char ch)
-{
+nonstatic cT EPDEvaluateColor(char ch) {
   cT c;
   siT flag;
 
@@ -641,8 +606,7 @@ nonstatic cT EPDEvaluateColor(char ch)
 }
 
 /*--> EPDCheckRank: test if a character is a rank character */
-nonstatic siT EPDCheckRank(char ch)
-{
+nonstatic siT EPDCheckRank(char ch) {
   siT flag;
   rankT rank;
 
@@ -657,8 +621,7 @@ nonstatic siT EPDCheckRank(char ch)
 }
 
 /*--> EPDEvaluateRank: evaluate a color rank character */
-nonstatic rankT EPDEvaluateRank(char ch)
-{
+nonstatic rankT EPDEvaluateRank(char ch) {
   rankT rank;
   siT flag;
 
@@ -675,8 +638,7 @@ nonstatic rankT EPDEvaluateRank(char ch)
 }
 
 /*--> EPDCheckFile: test if a character is a file character */
-nonstatic siT EPDCheckFile(char ch)
-{
+nonstatic siT EPDCheckFile(char ch) {
   siT flag;
   fileT file;
 
@@ -691,8 +653,7 @@ nonstatic siT EPDCheckFile(char ch)
 }
 
 /*--> EPDEvaluateFile: evaluate a color file character */
-nonstatic rankT EPDEvaluateFile(char ch)
-{
+nonstatic rankT EPDEvaluateFile(char ch) {
   fileT file;
   siT flag;
 
@@ -709,8 +670,7 @@ nonstatic rankT EPDEvaluateFile(char ch)
 }
 
 /*--> EPDNewEOV: allocate a new EOV record */
-nonstatic eovptrT EPDNewEOV(void)
-{
+nonstatic eovptrT EPDNewEOV(void) {
   eovptrT eovptr;
 
   eovptr = (eovptrT) EPDMemoryGrab(sizeof(eovT));
@@ -721,8 +681,7 @@ nonstatic eovptrT EPDNewEOV(void)
 }
 
 /*--> EPDReleaseEOV: release an EOV record */
-nonstatic void EPDReleaseEOV(eovptrT eovptr)
-{
+nonstatic void EPDReleaseEOV(eovptrT eovptr) {
   if (eovptr != NULL) {
     if (eovptr->eov_str != NULL)
       EPDMemoryFree(eovptr->eov_str);
@@ -732,8 +691,7 @@ nonstatic void EPDReleaseEOV(eovptrT eovptr)
 }
 
 /*--> EPDAppendEOV: append an EOV record */
-nonstatic void EPDAppendEOV(eopptrT eopptr, eovptrT eovptr)
-{
+nonstatic void EPDAppendEOV(eopptrT eopptr, eovptrT eovptr) {
   if (eopptr->eop_taileov == NULL)
     eopptr->eop_headeov = eovptr;
   else
@@ -746,8 +704,7 @@ nonstatic void EPDAppendEOV(eopptrT eopptr, eovptrT eovptr)
 
 /*--> EPDUnthreadEOV: unthread an EOV record */
 static
-void EPDUnthreadEOV(eopptrT eopptr, eovptrT eovptr)
-{
+void EPDUnthreadEOV(eopptrT eopptr, eovptrT eovptr) {
   if (eovptr->eov_prev == NULL)
     eopptr->eop_headeov = eovptr->eov_next;
   else
@@ -760,8 +717,7 @@ void EPDUnthreadEOV(eopptrT eopptr, eovptrT eovptr)
 }
 
 /*--> EPDCreateEOVSym: create a new EOV record with a symbol value */
-nonstatic eovptrT EPDCreateEOVSym(charptrT sym)
-{
+nonstatic eovptrT EPDCreateEOVSym(charptrT sym) {
   eovptrT eovptr;
 
   eovptr = EPDNewEOV();
@@ -771,8 +727,7 @@ nonstatic eovptrT EPDCreateEOVSym(charptrT sym)
 }
 
 /*--> EPDCreateEOVInt: create a new EOV record with an integer value */
-nonstatic eovptrT EPDCreateEOVInt(liT lval)
-{
+nonstatic eovptrT EPDCreateEOVInt(liT lval) {
   eovptrT eovptr;
   char tv[tL];
 
@@ -784,8 +739,7 @@ nonstatic eovptrT EPDCreateEOVInt(liT lval)
 }
 
 /*--> EPDLocateEOV: try to locate 1st EOV record with given string value */
-nonstatic eovptrT EPDLocateEOV(eopptrT eopptr, charptrT strval)
-{
+nonstatic eovptrT EPDLocateEOV(eopptrT eopptr, charptrT strval) {
   eovptrT eovptr;
   siT flag;
 
@@ -802,8 +756,7 @@ nonstatic eovptrT EPDLocateEOV(eopptrT eopptr, charptrT strval)
 }
 
 /*--> EPDReplaceEOVStr: replace EOV string value with given string value */
-nonstatic void EPDReplaceEOVStr(eovptrT eovptr, charptrT str)
-{
+nonstatic void EPDReplaceEOVStr(eovptrT eovptr, charptrT str) {
   if (eovptr->eov_str != NULL) {
     EPDMemoryFree(eovptr->eov_str);
     eovptr->eov_str = NULL;
@@ -814,8 +767,7 @@ nonstatic void EPDReplaceEOVStr(eovptrT eovptr, charptrT str)
 }
 
 /*--> EPDNewEOP: allocate a new EOP record */
-nonstatic eopptrT EPDNewEOP(void)
-{
+nonstatic eopptrT EPDNewEOP(void) {
   eopptrT eopptr;
 
   eopptr = (eopptrT) EPDMemoryGrab(sizeof(eopT));
@@ -826,8 +778,7 @@ nonstatic eopptrT EPDNewEOP(void)
 }
 
 /*--> EPDReleaseEOP: release an EOP record */
-nonstatic void EPDReleaseEOP(eopptrT eopptr)
-{
+nonstatic void EPDReleaseEOP(eopptrT eopptr) {
   eovptrT eovptr0, eovptr1;
 
   if (eopptr != NULL) {
@@ -846,8 +797,7 @@ nonstatic void EPDReleaseEOP(eopptrT eopptr)
 }
 
 /*--> EPDAppendEOP: append an EOP record */
-nonstatic void EPDAppendEOP(epdptrT epdptr, eopptrT eopptr)
-{
+nonstatic void EPDAppendEOP(epdptrT epdptr, eopptrT eopptr) {
   if (epdptr->epd_taileop == NULL)
     epdptr->epd_headeop = eopptr;
   else
@@ -860,8 +810,7 @@ nonstatic void EPDAppendEOP(epdptrT epdptr, eopptrT eopptr)
 
 /*--> EPDUnthreadEOP: unthread an EOP record */
 static
-void EPDUnthreadEOP(epdptrT epdptr, eopptrT eopptr)
-{
+void EPDUnthreadEOP(epdptrT epdptr, eopptrT eopptr) {
   if (eopptr->eop_prev == NULL)
     epdptr->epd_headeop = eopptr->eop_next;
   else
@@ -874,8 +823,7 @@ void EPDUnthreadEOP(epdptrT epdptr, eopptrT eopptr)
 }
 
 /*--> EPDCreateEOP: create a new EOP record with opsym */
-nonstatic eopptrT EPDCreateEOP(charptrT opsym)
-{
+nonstatic eopptrT EPDCreateEOP(charptrT opsym) {
   eopptrT eopptr;
 
   eopptr = EPDNewEOP();
@@ -884,8 +832,7 @@ nonstatic eopptrT EPDCreateEOP(charptrT opsym)
 }
 
 /*--> EPDCreateEOPCode: create a new EOP record using opsym index */
-nonstatic eopptrT EPDCreateEOPCode(epdsoT epdso)
-{
+nonstatic eopptrT EPDCreateEOPCode(epdsoT epdso) {
   eopptrT eopptr;
 
   eopptr = EPDCreateEOP(EPDFetchOpsym(epdso));
@@ -893,8 +840,7 @@ nonstatic eopptrT EPDCreateEOPCode(epdsoT epdso)
 }
 
 /*--> EPDLocateEOP: attempt to locate EOP record with given opsym */
-nonstatic eopptrT EPDLocateEOP(epdptrT epdptr, charptrT opsym)
-{
+nonstatic eopptrT EPDLocateEOP(epdptrT epdptr, charptrT opsym) {
   eopptrT eopptr;
   siT flag;
 
@@ -911,14 +857,12 @@ nonstatic eopptrT EPDLocateEOP(epdptrT epdptr, charptrT opsym)
 }
 
 /*--> EPDLocateEOPCode: attempt to locate EOP record with given code */
-nonstatic eopptrT EPDLocateEOPCode(epdptrT epdptr, epdsoT epdso)
-{
+nonstatic eopptrT EPDLocateEOPCode(epdptrT epdptr, epdsoT epdso) {
   return (EPDLocateEOP(epdptr, epdsostrv[epdso]));
 }
 
 /*--> EPDDropIfLocEOPCode: try to locate/drop EOP record with given code */
-nonstatic void EPDDropIfLocEOPCode(epdptrT epdptr, epdsoT epdso)
-{
+nonstatic void EPDDropIfLocEOPCode(epdptrT epdptr, epdsoT epdso) {
   eopptrT eopptr;
 
   eopptr = EPDLocateEOP(epdptr, epdsostrv[epdso]);
@@ -930,8 +874,7 @@ nonstatic void EPDDropIfLocEOPCode(epdptrT epdptr, epdsoT epdso)
 }
 
 /*--> EPDAddOpInt: add a single integer operand operation */
-nonstatic void EPDAddOpInt(epdptrT epdptr, epdsoT epdso, liT val)
-{
+nonstatic void EPDAddOpInt(epdptrT epdptr, epdsoT epdso, liT val) {
   eopptrT eopptr;
   eovptrT eovptr;
 
@@ -944,8 +887,7 @@ nonstatic void EPDAddOpInt(epdptrT epdptr, epdsoT epdso, liT val)
 }
 
 /*--> EPDAddOpSym: add a single symbol operand operation */
-nonstatic void EPDAddOpSym(epdptrT epdptr, epdsoT epdso, charptrT s)
-{
+nonstatic void EPDAddOpSym(epdptrT epdptr, epdsoT epdso, charptrT s) {
   eopptrT eopptr;
   eovptrT eovptr;
 
@@ -958,8 +900,7 @@ nonstatic void EPDAddOpSym(epdptrT epdptr, epdsoT epdso, charptrT s)
 }
 
 /*--> EPDNewEPD: allocate a new EPD record */
-nonstatic epdptrT EPDNewEPD(void)
-{
+nonstatic epdptrT EPDNewEPD(void) {
   epdptrT epdptr;
   siT i;
 
@@ -974,8 +915,7 @@ nonstatic epdptrT EPDNewEPD(void)
 }
 
 /*--> EPDReleaseOperations: release EPD operation list */
-nonstatic void EPDReleaseOperations(epdptrT epdptr)
-{
+nonstatic void EPDReleaseOperations(epdptrT epdptr) {
   eopptrT eopptr0, eopptr1;
 
   if (epdptr != NULL) {
@@ -993,8 +933,7 @@ nonstatic void EPDReleaseOperations(epdptrT epdptr)
 }
 
 /*--> EPDReleaseEPD: release an EPD record */
-nonstatic void EPDReleaseEPD(epdptrT epdptr)
-{
+nonstatic void EPDReleaseEPD(epdptrT epdptr) {
   if (epdptr != NULL) {
     EPDReleaseOperations(epdptr);
     EPDMemoryFree(epdptr);
@@ -1003,14 +942,12 @@ nonstatic void EPDReleaseEPD(epdptrT epdptr)
 }
 
 /*--> EPDFetchOpsym: return a pointer to the indicated mnemonic */
-nonstatic charptrT EPDFetchOpsym(epdsoT epdso)
-{
+nonstatic charptrT EPDFetchOpsym(epdsoT epdso) {
   return (epdsostrv[epdso]);
 }
 
 /*--> EPDCountOperands: count operands */
-static siT EPDCountOperands(eopptrT eopptr)
-{
+static siT EPDCountOperands(eopptrT eopptr) {
   siT count;
   eovptrT eovptr;
 
@@ -1024,8 +961,7 @@ static siT EPDCountOperands(eopptrT eopptr)
 }
 
 /*--> EPDCountOperations: count operations */
-static siT EPDCountOperations(epdptrT epdptr)
-{
+static siT EPDCountOperations(epdptrT epdptr) {
   siT count;
   eopptrT eopptr;
 
@@ -1040,8 +976,7 @@ static siT EPDCountOperations(epdptrT epdptr)
 
 /*--> EPDSortOperands: sort operands according to string value */
 static
-void EPDSortOperands(eopptrT eopptr)
-{
+void EPDSortOperands(eopptrT eopptr) {
   siT count;
   siT pass, flag;
   eovptrT ptr0, ptr1, ptr2, ptr3;
@@ -1083,8 +1018,7 @@ void EPDSortOperands(eopptrT eopptr)
 
 /*--> EPDSortOperations: sort operations according to opcode */
 static
-void EPDSortOperations(epdptrT epdptr)
-{
+void EPDSortOperations(epdptrT epdptr) {
   siT count;
   siT pass, flag;
   eopptrT ptr0, ptr1, ptr2, ptr3;
@@ -1126,8 +1060,7 @@ void EPDSortOperations(epdptrT epdptr)
 
 /*--> EPDNormalize: apply normalizing sorts */
 static
-void EPDNormalize(epdptrT epdptr)
-{
+void EPDNormalize(epdptrT epdptr) {
   eopptrT eopptr;
   charptrT opsym;
   siT flag;
@@ -1153,8 +1086,7 @@ void EPDNormalize(epdptrT epdptr)
 }
 
 /*--> EPDCloneEPDBase: clone an EPD structure, base items only */
-nonstatic epdptrT EPDCloneEPDBase(epdptrT epdptr)
-{
+nonstatic epdptrT EPDCloneEPDBase(epdptrT epdptr) {
   epdptrT nptr;
   siT index;
 
@@ -1168,8 +1100,7 @@ nonstatic epdptrT EPDCloneEPDBase(epdptrT epdptr)
 }
 
 /*--> EPDCloneEOV: clone an EOV structure */
-nonstatic eovptrT EPDCloneEOV(eovptrT eovptr)
-{
+nonstatic eovptrT EPDCloneEOV(eovptrT eovptr) {
   eovptrT nptr;
 
   nptr = EPDNewEOV();
@@ -1180,8 +1111,7 @@ nonstatic eovptrT EPDCloneEOV(eovptrT eovptr)
 }
 
 /*--> EPDCloneEOP: clone an EOP structure */
-nonstatic eopptrT EPDCloneEOP(eopptrT eopptr)
-{
+nonstatic eopptrT EPDCloneEOP(eopptrT eopptr) {
   eopptrT nptr;
   eovptrT eovptr, rptr;
 
@@ -1199,29 +1129,27 @@ nonstatic eopptrT EPDCloneEOP(eopptrT eopptr)
 
 /*--> EPDSetKings: set the king location vector */
 static
-void EPDSetKings(void)
-{
+void EPDSetKings(void) {
   sqT sq;
 
 /* this operates only on the local environment */
   ese.ese_ksqv[c_w] = ese.ese_ksqv[c_b] = sq_nil;
   for (sq = sq_a1; sq <= sq_h8; sq++)
     switch (EPDboard.rbv[sq]) {
-    case cp_wk:
-      ese.ese_ksqv[c_w] = sq;
-      break;
-    case cp_bk:
-      ese.ese_ksqv[c_b] = sq;
-      break;
-    default:
-      break;
+      case cp_wk:
+        ese.ese_ksqv[c_w] = sq;
+        break;
+      case cp_bk:
+        ese.ese_ksqv[c_b] = sq;
+        break;
+      default:
+        break;
     };
   return;
 }
 
 /*--> EPDSet: set up an EPD structure for the given position */
-nonstatic epdptrT EPDSet(rbptrT rbptr, cT actc, castT cast, sqT epsq)
-{
+nonstatic epdptrT EPDSet(rbptrT rbptr, cT actc, castT cast, sqT epsq) {
   epdptrT epdptr;
   sqT sq;
   cpT cp0, cp1;
@@ -1241,8 +1169,7 @@ nonstatic epdptrT EPDSet(rbptrT rbptr, cT actc, castT cast, sqT epsq)
 
 /*--> EPDSetCurrentPosition: set current position */
 nonstatic void EPDSetCurrentPosition(rbptrT rbptr, cT actc, castT cast,
-    sqT epsq, siT hmvc, siT fmvn)
-{
+    sqT epsq, siT hmvc, siT fmvn) {
   sqT sq;
 
 /* this changes the current position */
@@ -1258,8 +1185,7 @@ nonstatic void EPDSetCurrentPosition(rbptrT rbptr, cT actc, castT cast,
 }
 
 /*--> EPDGetCurrentPosition: return EPD structure for current position */
-nonstatic epdptrT EPDGetCurrentPosition(void)
-{
+nonstatic epdptrT EPDGetCurrentPosition(void) {
   epdptrT epdptr;
   sqT sq;
   cpT cp0, cp1;
@@ -1277,51 +1203,44 @@ nonstatic epdptrT EPDGetCurrentPosition(void)
 }
 
 /*--> EPDFetchACTC: fetch current active color */
-nonstatic cT EPDFetchACTC(void)
-{
+nonstatic cT EPDFetchACTC(void) {
 /* return the value of the current active color */
   return (ese.ese_actc);
 }
 
 /*--> EPDFetchCAST: fetch current castling availability */
-nonstatic castT EPDFetchCAST(void)
-{
+nonstatic castT EPDFetchCAST(void) {
 /* return the value of the current castling availability */
   return (ese.ese_cast);
 }
 
 /*--> EPDFetchEPSQ: fetch current en passant target square */
-nonstatic sqT EPDFetchEPSQ(void)
-{
+nonstatic sqT EPDFetchEPSQ(void) {
 /* return the value of the current en passant target square */
   return (ese.ese_epsq);
 }
 
 /*--> EPDFetchHMVC: fetch current halfmove clock */
-nonstatic siT EPDFetchHMVC(void)
-{
+nonstatic siT EPDFetchHMVC(void) {
 /* return the value of the current halfmove clock */
   return (ese.ese_hmvc);
 }
 
 /*--> EPDFetchFMVN: fetch current fullmove number */
-nonstatic siT EPDFetchFMVN(void)
-{
+nonstatic siT EPDFetchFMVN(void) {
 /* return the value of the current fullmove number */
   return (ese.ese_fmvn);
 }
 
 /*--> EPDFetchBoard: fetch current board */
-nonstatic rbptrT EPDFetchBoard(void)
-{
+nonstatic rbptrT EPDFetchBoard(void) {
 /* copy from the local board into the designated static return area */
   ret_rb = EPDboard;
   return (&ret_rb);
 }
 
 /*--> EPDFetchCP: fetch color-piece */
-nonstatic cpT EPDFetchCP(sqT sq)
-{
+nonstatic cpT EPDFetchCP(sqT sq) {
   cpT cp;
 
 /* fetch from the local board */
@@ -1330,21 +1249,18 @@ nonstatic cpT EPDFetchCP(sqT sq)
 }
 
 /*--> EPDGetGTIM: get game termination marker indicator */
-nonstatic gtimT EPDGetGTIM(gamptrT gamptr)
-{
+nonstatic gtimT EPDGetGTIM(gamptrT gamptr) {
   return (gamptr->gam_gtim);
 }
 
 /*--> EPDPutGTIM: put game termination marker indicator */
-nonstatic void EPDPutGTIM(gamptrT gamptr, gtimT gtim)
-{
+nonstatic void EPDPutGTIM(gamptrT gamptr, gtimT gtim) {
   gamptr->gam_gtim = gtim;
   return;
 }
 
 /*--> EPDGenBasic: generate basic EPD notation for a given position */
-nonstatic charptrT EPDGenBasic(rbptrT rbptr, cT actc, castT cast, sqT epsq)
-{
+nonstatic charptrT EPDGenBasic(rbptrT rbptr, cT actc, castT cast, sqT epsq) {
   charptrT ptr;
   epdptrT epdptr;
 
@@ -1356,8 +1272,7 @@ nonstatic charptrT EPDGenBasic(rbptrT rbptr, cT actc, castT cast, sqT epsq)
 }
 
 /*--> EPDGenBasicCurrent: generate basic EPD for current position */
-nonstatic charptrT EPDGenBasicCurrent(void)
-{
+nonstatic charptrT EPDGenBasicCurrent(void) {
   charptrT ptr;
 
 /* this references but does not change the current position */
@@ -1366,8 +1281,7 @@ nonstatic charptrT EPDGenBasicCurrent(void)
 }
 
 /*--> EPDDecode: read an EPD structure from a string */
-nonstatic epdptrT EPDDecode(charptrT s)
-{
+nonstatic epdptrT EPDDecode(charptrT s) {
   epdptrT epdptr;
   eopptrT eopptr;
   eovptrT eovptr;
@@ -1403,61 +1317,61 @@ nonstatic epdptrT EPDDecode(charptrT s)
     file = file_a;
     while (flag && (ch != ascii_nul) && !isspace(ch)) {
       switch (ch) {
-      case '/':
-        if ((file != fileL) || (rank == rank_1))
-          flag = 0;
-        else {
-          rank--;
-          file = file_a;
-        };
-        break;
-      case '1':
-      case '2':
-      case '3':
-      case '4':
-      case '5':
-      case '6':
-      case '7':
-      case '8':
-        d = ch - '0';
-        if ((file + d) > fileL)
-          flag = 0;
-        else
-          for (j = 0; j < d; j++) {
+        case '/':
+          if ((file != fileL) || (rank == rank_1))
+            flag = 0;
+          else {
+            rank--;
+            file = file_a;
+          };
+          break;
+        case '1':
+        case '2':
+        case '3':
+        case '4':
+        case '5':
+        case '6':
+        case '7':
+        case '8':
+          d = ch - '0';
+          if ((file + d) > fileL)
+            flag = 0;
+          else
+            for (j = 0; j < d; j++) {
+              sq = map_sq(rank, file);
+              bptr = &epdptr->epd_nbv[sq >> 1];
+              if ((sq % 2) == 0) {
+                *bptr &= ~nybbM;
+                *bptr |= cp_v0;
+              } else {
+                *bptr &= ~(nybbM << nybbW);
+                *bptr |= (cp_v0 << nybbW);
+              };
+              file++;
+            };
+          break;
+        default:
+          if (!EPDCheckPiece((char) ch) || (file >= fileL))
+            flag = 0;
+          else {
+            p = EPDEvaluatePiece((char) ch);
+            if (isupper(ch))
+              c = c_w;
+            else
+              c = c_b;
             sq = map_sq(rank, file);
             bptr = &epdptr->epd_nbv[sq >> 1];
+            cp = cv_cp_c_pv[c][p];
             if ((sq % 2) == 0) {
               *bptr &= ~nybbM;
-              *bptr |= cp_v0;
+              *bptr |= cp;
             } else {
               *bptr &= ~(nybbM << nybbW);
-              *bptr |= (cp_v0 << nybbW);
+              *bptr |= (cp << nybbW);
             };
             file++;
           };
-        break;
-      default:
-        if (!EPDCheckPiece((char) ch) || (file >= fileL))
-          flag = 0;
-        else {
-          p = EPDEvaluatePiece((char) ch);
-          if (isupper(ch))
-            c = c_w;
-          else
-            c = c_b;
-          sq = map_sq(rank, file);
-          bptr = &epdptr->epd_nbv[sq >> 1];
-          cp = cv_cp_c_pv[c][p];
-          if ((sq % 2) == 0) {
-            *bptr &= ~nybbM;
-            *bptr |= cp;
-          } else {
-            *bptr &= ~(nybbM << nybbW);
-            *bptr |= (cp << nybbW);
-          };
-          file++;
-        };
-        break;
+          break;
       };
       ch = *(s + i++);
     };
@@ -1614,7 +1528,8 @@ nonstatic epdptrT EPDDecode(charptrT s)
             if (ch == ascii_nul)
               flag = 0;
             else {
-              eovptr->eov_str = EPDStringAppendChar(eovptr->eov_str, (char) ch);
+              eovptr->eov_str =
+                  EPDStringAppendChar(eovptr->eov_str, (char) ch);
               ch = *(s + i++);
             };
           };
@@ -1625,7 +1540,8 @@ nonstatic epdptrT EPDDecode(charptrT s)
             if (ch == ascii_nul)
               flag = 0;
             else {
-              eovptr->eov_str = EPDStringAppendChar(eovptr->eov_str, (char) ch);
+              eovptr->eov_str =
+                  EPDStringAppendChar(eovptr->eov_str, (char) ch);
               ch = *(s + i++);
             };
           };
@@ -1669,8 +1585,7 @@ nonstatic epdptrT EPDDecode(charptrT s)
 }
 
 /*--> EPDEncode: write an EPD structure to a string */
-nonstatic charptrT EPDEncode(epdptrT epdptr)
-{
+nonstatic charptrT EPDEncode(epdptrT epdptr) {
   charptrT ptr;
   sqT sq;
   cpT cp;
@@ -1760,17 +1675,17 @@ nonstatic charptrT EPDEncode(epdptrT epdptr)
       s1 = EPDStringGrab(" ");
 /* conjure operand value */
       switch (eovptr->eov_eob) {
-      case eob_string:
-        s1 = EPDStringAppendChar(s1, '"');
-        s1 = EPDStringAppendStr(s1, eovptr->eov_str);
-        s1 = EPDStringAppendChar(s1, '"');
-        break;
-      case eob_symbol:
-        s1 = EPDStringAppendStr(s1, eovptr->eov_str);
-        break;
-      default:
-        EPDSwitchFault("EPDEncode");
-        break;
+        case eob_string:
+          s1 = EPDStringAppendChar(s1, '"');
+          s1 = EPDStringAppendStr(s1, eovptr->eov_str);
+          s1 = EPDStringAppendChar(s1, '"');
+          break;
+        case eob_symbol:
+          s1 = EPDStringAppendStr(s1, eovptr->eov_str);
+          break;
+        default:
+          EPDSwitchFault("EPDEncode");
+          break;
       };
 /* append */
       s0 = EPDStringAppendStr(s0, s1);
@@ -1790,8 +1705,7 @@ nonstatic charptrT EPDEncode(epdptrT epdptr)
 }
 
 /*--> EPDRealize: set the current position according to EPD */
-nonstatic void EPDRealize(epdptrT epdptr)
-{
+nonstatic void EPDRealize(epdptrT epdptr) {
   sqT sq;
   cpT cp;
   eopptrT eopptr;
@@ -1823,8 +1737,7 @@ nonstatic void EPDRealize(epdptrT epdptr)
 }
 
 /*--> EPDInitArray: set the current position to the initial array */
-nonstatic void EPDInitArray(void)
-{
+nonstatic void EPDInitArray(void) {
   sqT sq;
 
 /* this changes the current position */
@@ -1855,8 +1768,7 @@ nonstatic void EPDInitArray(void)
 
 /*--> EPDSANEncodeChar: encode SAN character */
 static
-void EPDSANEncodeChar(char ch)
-{
+void EPDSANEncodeChar(char ch) {
   if ((lsani < (sanL - 1)) || ((ch == '\0') && (lsani < sanL)))
     lsan[lsani++] = ch;
   else
@@ -1866,8 +1778,7 @@ void EPDSANEncodeChar(char ch)
 
 /*--> EPDSANEncodeStr: encode a SAN string */
 static
-void EPDSANEncodeStr(charptrT s)
-{
+void EPDSANEncodeStr(charptrT s) {
   charptrT p;
 
   p = s;
@@ -1878,24 +1789,21 @@ void EPDSANEncodeStr(charptrT s)
 
 /*--> EPDSANEncodeFile: encode SAN file from square */
 static
-void EPDSANEncodeFile(sqT sq)
-{
+void EPDSANEncodeFile(sqT sq) {
   EPDSANEncodeChar(ascfv[map_file(sq)]);
   return;
 }
 
 /*--> EPDSANEncodeRank: encode SAN rank from square */
 static
-void EPDSANEncodeRank(sqT sq)
-{
+void EPDSANEncodeRank(sqT sq) {
   EPDSANEncodeChar(ascrv[map_rank(sq)]);
   return;
 }
 
 /*--> EPDSANEncodeSq: encode SAN square */
 static
-void EPDSANEncodeSq(sqT sq)
-{
+void EPDSANEncodeSq(sqT sq) {
   EPDSANEncodeFile(sq);
   EPDSANEncodeRank(sq);
   return;
@@ -1903,31 +1811,29 @@ void EPDSANEncodeSq(sqT sq)
 
 /*--> EPDSANEncodeCI: encode an appropriate capture indicator */
 static
-void EPDSANEncodeCI(siT index)
-{
+void EPDSANEncodeCI(siT index) {
   switch (index) {
-  case 0:
-    EPDSANEncodeChar('x');
-    break;
-  case 1:
-    break;
-  case 2:
-    EPDSANEncodeChar(':');
-    break;
-  case 3:
-    EPDSANEncodeChar('*');
-    break;
-  case 4:
-    EPDSANEncodeChar('-');
-    break;
+    case 0:
+      EPDSANEncodeChar('x');
+      break;
+    case 1:
+      break;
+    case 2:
+      EPDSANEncodeChar(':');
+      break;
+    case 3:
+      EPDSANEncodeChar('*');
+      break;
+    case 4:
+      EPDSANEncodeChar('-');
+      break;
   };
   return;
 }
 
 /*--> EPDSANEncodeAux: encode SAN format move with variants */
 static
-void EPDSANEncodeAux(mptrT mptr, sanT san, ssavT ssav)
-{
+void EPDSANEncodeAux(mptrT mptr, sanT san, ssavT ssav) {
   siT i;
 
 /* reset local index */
@@ -1937,109 +1843,95 @@ void EPDSANEncodeAux(mptrT mptr, sanT san, ssavT ssav)
     EPDSANEncodeChar('*');
 /* process according to moving piece */
   switch (cv_p_cpv[mptr->m_frcp]) {
-  case p_p:
-    switch (mptr->m_scmv) {
-    case scmv_reg:
-      if (mptr->m_tocp != cp_v0) {
-        EPDSANEncodeFile(mptr->m_frsq);
-        if (ssav[ssa_edcr] == 1)
-          EPDSANEncodeRank(mptr->m_frsq);
-        EPDSANEncodeCI(ssav[ssa_capt]);
-        if (ssav[ssa_ptar] == 0)
-          EPDSANEncodeSq(mptr->m_tosq);
-        else
-          EPDSANEncodeFile(mptr->m_tosq);
-      } else {
-        EPDSANEncodeFile(mptr->m_frsq);
-        if (ssav[ssa_edcr] == 1)
-          EPDSANEncodeRank(mptr->m_frsq);
-        if (ssav[ssa_move] == 1)
-          EPDSANEncodeChar('-');
-        if (ssav[ssa_edcf] == 1)
-          EPDSANEncodeFile(mptr->m_tosq);
-        EPDSANEncodeRank(mptr->m_tosq);
+    case p_p:
+      switch (mptr->m_scmv) {
+        case scmv_reg:
+          if (mptr->m_tocp != cp_v0) {
+            EPDSANEncodeFile(mptr->m_frsq);
+            if (ssav[ssa_edcr] == 1)
+              EPDSANEncodeRank(mptr->m_frsq);
+            EPDSANEncodeCI(ssav[ssa_capt]);
+            if (ssav[ssa_ptar] == 0)
+              EPDSANEncodeSq(mptr->m_tosq);
+            else
+              EPDSANEncodeFile(mptr->m_tosq);
+          } else {
+            EPDSANEncodeFile(mptr->m_frsq);
+            if (ssav[ssa_edcr] == 1)
+              EPDSANEncodeRank(mptr->m_frsq);
+            if (ssav[ssa_move] == 1)
+              EPDSANEncodeChar('-');
+            if (ssav[ssa_edcf] == 1)
+              EPDSANEncodeFile(mptr->m_tosq);
+            EPDSANEncodeRank(mptr->m_tosq);
+          };
+          break;
+        case scmv_epc:
+          EPDSANEncodeFile(mptr->m_frsq);
+          if (ssav[ssa_edcr] == 1)
+            EPDSANEncodeRank(mptr->m_frsq);
+          EPDSANEncodeCI(ssav[ssa_capt]);
+          if (ssav[ssa_ptar] == 0)
+            EPDSANEncodeSq(mptr->m_tosq);
+          else
+            EPDSANEncodeFile(mptr->m_tosq);
+          if (ssav[ssa_epct] == 1)
+            EPDSANEncodeStr("ep");
+          break;
+        case scmv_ppn:
+        case scmv_ppb:
+        case scmv_ppr:
+        case scmv_ppq:
+          if (mptr->m_tocp != cp_v0) {
+            EPDSANEncodeFile(mptr->m_frsq);
+            if (ssav[ssa_edcr] == 1)
+              EPDSANEncodeRank(mptr->m_frsq);
+            EPDSANEncodeCI(ssav[ssa_capt]);
+            if (ssav[ssa_ptar] == 0)
+              EPDSANEncodeSq(mptr->m_tosq);
+            else
+              EPDSANEncodeFile(mptr->m_tosq);
+          } else {
+            EPDSANEncodeFile(mptr->m_frsq);
+            if (ssav[ssa_edcr] == 1)
+              EPDSANEncodeRank(mptr->m_frsq);
+            if (ssav[ssa_move] == 1)
+              EPDSANEncodeChar('-');
+            if (ssav[ssa_edcf] == 1)
+              EPDSANEncodeFile(mptr->m_tosq);
+            EPDSANEncodeRank(mptr->m_tosq);
+          };
+          switch (ssav[ssa_prom]) {
+            case 0:
+              EPDSANEncodeChar('=');
+              EPDSANEncodeChar(ascpv[cv_p_scmvv[mptr->m_scmv]]);
+              break;
+            case 1:
+              EPDSANEncodeChar(ascpv[cv_p_scmvv[mptr->m_scmv]]);
+              break;
+            case 2:
+              EPDSANEncodeChar('/');
+              EPDSANEncodeChar(ascpv[cv_p_scmvv[mptr->m_scmv]]);
+              break;
+            case 3:
+              EPDSANEncodeChar('(');
+              EPDSANEncodeChar(ascpv[cv_p_scmvv[mptr->m_scmv]]);
+              EPDSANEncodeChar(')');
+              break;
+          };
+          break;
       };
       break;
-    case scmv_epc:
-      EPDSANEncodeFile(mptr->m_frsq);
-      if (ssav[ssa_edcr] == 1)
-        EPDSANEncodeRank(mptr->m_frsq);
-      EPDSANEncodeCI(ssav[ssa_capt]);
-      if (ssav[ssa_ptar] == 0)
-        EPDSANEncodeSq(mptr->m_tosq);
-      else
-        EPDSANEncodeFile(mptr->m_tosq);
-      if (ssav[ssa_epct] == 1)
-        EPDSANEncodeStr("ep");
-      break;
-    case scmv_ppn:
-    case scmv_ppb:
-    case scmv_ppr:
-    case scmv_ppq:
-      if (mptr->m_tocp != cp_v0) {
+    case p_n:
+    case p_b:
+    case p_r:
+    case p_q:
+      EPDSANEncodeChar(ascpv[cv_p_cpv[mptr->m_frcp]]);
+      if (((mptr->m_flag & mf_sanf) || (ssav[ssa_edcf] == 1)) ||
+          ((mptr->m_flag & mf_sanr) && (ssav[ssa_edcf] == 2)))
         EPDSANEncodeFile(mptr->m_frsq);
-        if (ssav[ssa_edcr] == 1)
-          EPDSANEncodeRank(mptr->m_frsq);
-        EPDSANEncodeCI(ssav[ssa_capt]);
-        if (ssav[ssa_ptar] == 0)
-          EPDSANEncodeSq(mptr->m_tosq);
-        else
-          EPDSANEncodeFile(mptr->m_tosq);
-      } else {
-        EPDSANEncodeFile(mptr->m_frsq);
-        if (ssav[ssa_edcr] == 1)
-          EPDSANEncodeRank(mptr->m_frsq);
-        if (ssav[ssa_move] == 1)
-          EPDSANEncodeChar('-');
-        if (ssav[ssa_edcf] == 1)
-          EPDSANEncodeFile(mptr->m_tosq);
-        EPDSANEncodeRank(mptr->m_tosq);
-      };
-      switch (ssav[ssa_prom]) {
-      case 0:
-        EPDSANEncodeChar('=');
-        EPDSANEncodeChar(ascpv[cv_p_scmvv[mptr->m_scmv]]);
-        break;
-      case 1:
-        EPDSANEncodeChar(ascpv[cv_p_scmvv[mptr->m_scmv]]);
-        break;
-      case 2:
-        EPDSANEncodeChar('/');
-        EPDSANEncodeChar(ascpv[cv_p_scmvv[mptr->m_scmv]]);
-        break;
-      case 3:
-        EPDSANEncodeChar('(');
-        EPDSANEncodeChar(ascpv[cv_p_scmvv[mptr->m_scmv]]);
-        EPDSANEncodeChar(')');
-        break;
-      };
-      break;
-    };
-    break;
-  case p_n:
-  case p_b:
-  case p_r:
-  case p_q:
-    EPDSANEncodeChar(ascpv[cv_p_cpv[mptr->m_frcp]]);
-    if (((mptr->m_flag & mf_sanf) || (ssav[ssa_edcf] == 1)) ||
-        ((mptr->m_flag & mf_sanr) && (ssav[ssa_edcf] == 2)))
-      EPDSANEncodeFile(mptr->m_frsq);
-    if (((mptr->m_flag & mf_sanr) || (ssav[ssa_edcr] == 1)) ||
-        ((mptr->m_flag & mf_sanf) && (ssav[ssa_edcr] == 2)))
-      EPDSANEncodeRank(mptr->m_frsq);
-    if (mptr->m_tocp != cp_v0)
-      EPDSANEncodeCI(ssav[ssa_capt]);
-    else if (ssav[ssa_move] == 1)
-      EPDSANEncodeChar('-');
-    EPDSANEncodeSq(mptr->m_tosq);
-    break;
-  case p_k:
-    switch (mptr->m_scmv) {
-    case scmv_reg:
-      EPDSANEncodeChar(ascpv[p_k]);
-      if (ssav[ssa_edcf] == 1)
-        EPDSANEncodeFile(mptr->m_frsq);
-      if (ssav[ssa_edcr] == 1)
+      if (((mptr->m_flag & mf_sanr) || (ssav[ssa_edcr] == 1)) ||
+          ((mptr->m_flag & mf_sanf) && (ssav[ssa_edcr] == 2)))
         EPDSANEncodeRank(mptr->m_frsq);
       if (mptr->m_tocp != cp_v0)
         EPDSANEncodeCI(ssav[ssa_capt]);
@@ -2047,86 +1939,100 @@ void EPDSANEncodeAux(mptrT mptr, sanT san, ssavT ssav)
         EPDSANEncodeChar('-');
       EPDSANEncodeSq(mptr->m_tosq);
       break;
-    case scmv_cks:
-      switch (ssav[ssa_cast]) {
-      case 0:
-        EPDSANEncodeStr("O-O");
-        break;
-      case 1:
-        EPDSANEncodeStr("0-0");
-        break;
-      case 2:
-        EPDSANEncodeStr("OO");
-        break;
-      case 3:
-        EPDSANEncodeStr("00");
-        break;
-      case 4:
-        EPDSANEncodeChar(ascpv[p_k]);
-        if (ssav[ssa_edcf] == 1)
-          EPDSANEncodeFile(mptr->m_frsq);
-        if (ssav[ssa_edcr] == 1)
-          EPDSANEncodeRank(mptr->m_frsq);
-        if (ssav[ssa_move] == 1)
-          EPDSANEncodeChar('-');
-        EPDSANEncodeSq(mptr->m_tosq);
-        break;
+    case p_k:
+      switch (mptr->m_scmv) {
+        case scmv_reg:
+          EPDSANEncodeChar(ascpv[p_k]);
+          if (ssav[ssa_edcf] == 1)
+            EPDSANEncodeFile(mptr->m_frsq);
+          if (ssav[ssa_edcr] == 1)
+            EPDSANEncodeRank(mptr->m_frsq);
+          if (mptr->m_tocp != cp_v0)
+            EPDSANEncodeCI(ssav[ssa_capt]);
+          else if (ssav[ssa_move] == 1)
+            EPDSANEncodeChar('-');
+          EPDSANEncodeSq(mptr->m_tosq);
+          break;
+        case scmv_cks:
+          switch (ssav[ssa_cast]) {
+            case 0:
+              EPDSANEncodeStr("O-O");
+              break;
+            case 1:
+              EPDSANEncodeStr("0-0");
+              break;
+            case 2:
+              EPDSANEncodeStr("OO");
+              break;
+            case 3:
+              EPDSANEncodeStr("00");
+              break;
+            case 4:
+              EPDSANEncodeChar(ascpv[p_k]);
+              if (ssav[ssa_edcf] == 1)
+                EPDSANEncodeFile(mptr->m_frsq);
+              if (ssav[ssa_edcr] == 1)
+                EPDSANEncodeRank(mptr->m_frsq);
+              if (ssav[ssa_move] == 1)
+                EPDSANEncodeChar('-');
+              EPDSANEncodeSq(mptr->m_tosq);
+              break;
+          };
+          break;
+        case scmv_cqs:
+          switch (ssav[ssa_cast]) {
+            case 0:
+              EPDSANEncodeStr("O-O-O");
+              break;
+            case 1:
+              EPDSANEncodeStr("0-0-0");
+              break;
+            case 2:
+              EPDSANEncodeStr("OOO");
+              break;
+            case 3:
+              EPDSANEncodeStr("000");
+              break;
+            case 4:
+              EPDSANEncodeChar(ascpv[p_k]);
+              if (ssav[ssa_edcf] == 1)
+                EPDSANEncodeFile(mptr->m_frsq);
+              if (ssav[ssa_edcr] == 1)
+                EPDSANEncodeRank(mptr->m_frsq);
+              if (ssav[ssa_move] == 1)
+                EPDSANEncodeChar('-');
+              EPDSANEncodeSq(mptr->m_tosq);
+              break;
+          };
+          break;
       };
       break;
-    case scmv_cqs:
-      switch (ssav[ssa_cast]) {
-      case 0:
-        EPDSANEncodeStr("O-O-O");
-        break;
-      case 1:
-        EPDSANEncodeStr("0-0-0");
-        break;
-      case 2:
-        EPDSANEncodeStr("OOO");
-        break;
-      case 3:
-        EPDSANEncodeStr("000");
-        break;
-      case 4:
-        EPDSANEncodeChar(ascpv[p_k]);
-        if (ssav[ssa_edcf] == 1)
-          EPDSANEncodeFile(mptr->m_frsq);
-        if (ssav[ssa_edcr] == 1)
-          EPDSANEncodeRank(mptr->m_frsq);
-        if (ssav[ssa_move] == 1)
-          EPDSANEncodeChar('-');
-        EPDSANEncodeSq(mptr->m_tosq);
-        break;
-      };
-      break;
-    };
-    break;
   };
 /* insert markers */
   if ((mptr->m_flag & mf_chec) && !(mptr->m_flag & mf_chmt))
     switch (ssav[ssa_chec]) {
-    case 0:
-      EPDSANEncodeChar('+');
-      break;
-    case 1:
-      break;
-    case 2:
-      EPDSANEncodeStr("ch");
-      break;
+      case 0:
+        EPDSANEncodeChar('+');
+        break;
+      case 1:
+        break;
+      case 2:
+        EPDSANEncodeStr("ch");
+        break;
     };
   if (mptr->m_flag & mf_chmt)
     switch (ssav[ssa_chmt]) {
-    case 0:
-      EPDSANEncodeChar('#');
-      break;
-    case 1:
-      break;
-    case 2:
-      EPDSANEncodeChar('+');
-      break;
-    case 3:
-      EPDSANEncodeStr("++");
-      break;
+      case 0:
+        EPDSANEncodeChar('#');
+        break;
+      case 1:
+        break;
+      case 2:
+        EPDSANEncodeChar('+');
+        break;
+      case 3:
+        EPDSANEncodeStr("++");
+        break;
     };
   if (mptr->m_flag & mf_draw)
     if (ssav[ssa_draw] == 1)
@@ -2144,8 +2050,7 @@ void EPDSANEncodeAux(mptrT mptr, sanT san, ssavT ssav)
 }
 
 /*--> EPDSANEncode: encode a move into a SAN string */
-nonstatic void EPDSANEncode(mptrT mptr, sanT san)
-{
+nonstatic void EPDSANEncode(mptrT mptr, sanT san) {
   ssaT ssa;
   ssavT ssav;
 
@@ -2157,8 +2062,7 @@ nonstatic void EPDSANEncode(mptrT mptr, sanT san)
 }
 
 /*--> EPDSANDecodeBump: increment a style vector and return overflow */
-static siT EPDSANDecodeBump(ssavT ssav, ssavT bssav)
-{
+static siT EPDSANDecodeBump(ssavT ssav, ssavT bssav) {
   siT flag;
   ssaT ssa;
 
@@ -2177,8 +2081,7 @@ static siT EPDSANDecodeBump(ssavT ssav, ssavT bssav)
 }
 
 /*--> EPDSANDecodeFlex: locate a move from SAN (flexible interpretation) */
-static mptrT EPDSANDecodeFlex(sanT san)
-{
+static mptrT EPDSANDecodeFlex(sanT san) {
   mptrT mptr;
   ssavT ssav, bssav;
   siT i, flag;
@@ -2265,8 +2168,7 @@ static mptrT EPDSANDecodeFlex(sanT san)
 }
 
 /*--> EPDSANDecode: locate a move from SAN (strict interpretation) */
-static mptrT EPDSANDecode(sanT san)
-{
+static mptrT EPDSANDecode(sanT san) {
   mptrT mptr;
   mptrT rmptr;
   sanT rsan;
@@ -2291,8 +2193,7 @@ static mptrT EPDSANDecode(sanT san)
 }
 
 /*--> EPDSANDecodeAux: locate a move from SAN */
-nonstatic mptrT EPDSANDecodeAux(sanT san, siT strict)
-{
+nonstatic mptrT EPDSANDecodeAux(sanT san, siT strict) {
   mptrT mptr;
 
   if (strict)
@@ -2303,8 +2204,7 @@ nonstatic mptrT EPDSANDecodeAux(sanT san, siT strict)
 }
 
 /*--> EPDAttack: determine if a color attacks a square */
-static siT EPDAttack(cT c, sqT sq)
-{
+static siT EPDAttack(cT c, sqT sq) {
   siT flag;
   dxT dx;
   dvT dv;
@@ -2328,7 +2228,8 @@ static siT EPDAttack(cT c, sqT sq)
     if (!flag) {
       dx = dx_8;
       while (!flag && (dx <= dx_f))
-        if ((*(xsqptr0 + xdvv[dx]) == cp_v0) && (*(sqptr0 + dvv[dx]) == cp_wn))
+        if ((*(xsqptr0 + xdvv[dx]) == cp_v0) &&
+            (*(sqptr0 + dvv[dx]) == cp_wn))
           flag = 1;
         else
           dx++;
@@ -2367,7 +2268,8 @@ static siT EPDAttack(cT c, sqT sq)
     if (!flag) {
       dx = dx_0;
       while (!flag && (dx <= dx_7))
-        if ((*(xsqptr0 + xdvv[dx]) == cp_v0) && (*(sqptr0 + dvv[dx]) == cp_wk))
+        if ((*(xsqptr0 + xdvv[dx]) == cp_v0) &&
+            (*(sqptr0 + dvv[dx]) == cp_wk))
           flag = 1;
         else
           dx++;
@@ -2382,7 +2284,8 @@ static siT EPDAttack(cT c, sqT sq)
     if (!flag) {
       dx = dx_8;
       while (!flag && (dx <= dx_f))
-        if ((*(xsqptr0 + xdvv[dx]) == cp_v0) && (*(sqptr0 + dvv[dx]) == cp_bn))
+        if ((*(xsqptr0 + xdvv[dx]) == cp_v0) &&
+            (*(sqptr0 + dvv[dx]) == cp_bn))
           flag = 1;
         else
           dx++;
@@ -2421,7 +2324,8 @@ static siT EPDAttack(cT c, sqT sq)
     if (!flag) {
       dx = dx_0;
       while (!flag && (dx <= dx_7))
-        if ((*(xsqptr0 + xdvv[dx]) == cp_v0) && (*(sqptr0 + dvv[dx]) == cp_bk))
+        if ((*(xsqptr0 + xdvv[dx]) == cp_v0) &&
+            (*(sqptr0 + dvv[dx]) == cp_bk))
           flag = 1;
         else
           dx++;
@@ -2431,20 +2335,17 @@ static siT EPDAttack(cT c, sqT sq)
 }
 
 /*--> EPDWhiteAttacks: check if White attacks a square */
-static siT EPDWhiteAttacks(sqT sq)
-{
+static siT EPDWhiteAttacks(sqT sq) {
   return (EPDAttack(c_w, sq));
 }
 
 /*--> EPDBlackAttacks: check if White attacks a square */
-static siT EPDBlackAttacks(sqT sq)
-{
+static siT EPDBlackAttacks(sqT sq) {
   return (EPDAttack(c_b, sq));
 }
 
 /*--> EPDTestAKIC: test for active king in check */
-static siT EPDTestAKIC(void)
-{
+static siT EPDTestAKIC(void) {
   siT flag;
 
   if (ese.ese_actc == c_w)
@@ -2455,8 +2356,7 @@ static siT EPDTestAKIC(void)
 }
 
 /*--> EPDTestPKIC: test for passive king in check */
-static siT EPDTestPKIC(void)
-{
+static siT EPDTestPKIC(void) {
   siT flag;
 
   if (ese.ese_actc == c_b)
@@ -2468,8 +2368,7 @@ static siT EPDTestPKIC(void)
 
 /*--> EPDCensus: calculate local census vectors */
 static
-void EPDCensus(void)
-{
+void EPDCensus(void) {
   cT c;
   pT p;
   sqT sq;
@@ -2494,8 +2393,7 @@ void EPDCensus(void)
 }
 
 /*--> EPDIsLegal: determine if current position is legal */
-nonstatic siT EPDIsLegal(void)
-{
+nonstatic siT EPDIsLegal(void) {
   siT flag;
   cT c;
   fileT file;
@@ -2626,8 +2524,7 @@ nonstatic siT EPDIsLegal(void)
 
 /*--> EPDGeneratePL: generate psuedolegal moves */
 static
-void EPDGeneratePL(void)
-{
+void EPDGeneratePL(void) {
   dxT dx;
   dvT dv;
   xdvT xdv;
@@ -2659,309 +2556,318 @@ void EPDGeneratePL(void)
 /* generate moves for active color piece */
       xsqptr0 = &xb.xbv[map_xsq_sq(gen_m.m_frsq)];
       switch (cv_p_cpv[gen_m.m_frcp]) {
-      case p_p:
+        case p_p:
 /* pawn moves: a bit tricky; colors done separately */
-        frfile = map_file(gen_m.m_frsq);
-        frrank = map_rank(gen_m.m_frsq);
-        if (ese.ese_actc == c_w) {
+          frfile = map_file(gen_m.m_frsq);
+          frrank = map_rank(gen_m.m_frsq);
+          if (ese.ese_actc == c_w) {
 /* one square non-capture */
-          gen_m.m_tocp = EPDboard.rbv[gen_m.m_tosq = gen_m.m_frsq + dv_1];
-          if (gen_m.m_tocp == cp_v0) {
-            if (frrank != rank_7) {
+            gen_m.m_tocp = EPDboard.rbv[gen_m.m_tosq = gen_m.m_frsq + dv_1];
+            if (gen_m.m_tocp == cp_v0) {
+              if (frrank != rank_7) {
 /* non-promotion */
-              *treeptr++ = gen_m;
-              tse.tse_count++;
-            } else {
+                *treeptr++ = gen_m;
+                tse.tse_count++;
+              } else {
 /* promotion */
-              for (gen_m.m_scmv = scmv_ppn; gen_m.m_scmv <= scmv_ppq;
-                  gen_m.m_scmv++) {
-                *treeptr++ = gen_m;
-                tse.tse_count++;
-              }
-              gen_m.m_scmv = scmv_reg;
-            };
-          }
+                for (gen_m.m_scmv = scmv_ppn; gen_m.m_scmv <= scmv_ppq;
+                    gen_m.m_scmv++) {
+                  *treeptr++ = gen_m;
+                  tse.tse_count++;
+                }
+                gen_m.m_scmv = scmv_reg;
+              };
+            }
 /* two squares forward */
-          if ((frrank == rank_2) && Vacant(gen_m.m_frsq + dv_1) &&
-              Vacant(gen_m.m_frsq + (2 * dv_1))) {
-            gen_m.m_tosq = gen_m.m_frsq + (2 * dv_1);
-            gen_m.m_tocp = cp_v0;
-            *treeptr++ = gen_m;
-            tse.tse_count++;
-          };
+            if ((frrank == rank_2) && Vacant(gen_m.m_frsq + dv_1) &&
+                Vacant(gen_m.m_frsq + (2 * dv_1))) {
+              gen_m.m_tosq = gen_m.m_frsq + (2 * dv_1);
+              gen_m.m_tocp = cp_v0;
+              *treeptr++ = gen_m;
+              tse.tse_count++;
+            };
 /* capture to left */
-          if (frfile != file_a) {
-            gen_m.m_tosq = gen_m.m_frsq + dv_5;
-            gen_m.m_tocp = EPDboard.rbv[gen_m.m_tosq];
-            if (cv_c_cpv[gen_m.m_tocp] == inv_cv[ese.ese_actc]) {
-              if (frrank != rank_7) {
+            if (frfile != file_a) {
+              gen_m.m_tosq = gen_m.m_frsq + dv_5;
+              gen_m.m_tocp = EPDboard.rbv[gen_m.m_tosq];
+              if (cv_c_cpv[gen_m.m_tocp] == inv_cv[ese.ese_actc]) {
+                if (frrank != rank_7) {
 /* non-promote */
-                *treeptr++ = gen_m;
-                tse.tse_count++;
-              } else {
-/* promote */
-                for (gen_m.m_scmv = scmv_ppn; gen_m.m_scmv <= scmv_ppq;
-                    gen_m.m_scmv++) {
                   *treeptr++ = gen_m;
                   tse.tse_count++;
+                } else {
+/* promote */
+                  for (gen_m.m_scmv = scmv_ppn; gen_m.m_scmv <= scmv_ppq;
+                      gen_m.m_scmv++) {
+                    *treeptr++ = gen_m;
+                    tse.tse_count++;
+                  };
+                  gen_m.m_scmv = scmv_reg;
                 };
-                gen_m.m_scmv = scmv_reg;
-              };
-            }
-          };
+              }
+            };
 /* capture to right */
-          if (frfile != file_h) {
-            gen_m.m_tosq = gen_m.m_frsq + dv_4;
-            gen_m.m_tocp = EPDboard.rbv[gen_m.m_tosq];
-            if (cv_c_cpv[gen_m.m_tocp] == inv_cv[ese.ese_actc]) {
-              if (frrank != rank_7) {
+            if (frfile != file_h) {
+              gen_m.m_tosq = gen_m.m_frsq + dv_4;
+              gen_m.m_tocp = EPDboard.rbv[gen_m.m_tosq];
+              if (cv_c_cpv[gen_m.m_tocp] == inv_cv[ese.ese_actc]) {
+                if (frrank != rank_7) {
 /* non-promote */
-                *treeptr++ = gen_m;
-                tse.tse_count++;
-              } else {
-/* promote */
-                for (gen_m.m_scmv = scmv_ppn; gen_m.m_scmv <= scmv_ppq;
-                    gen_m.m_scmv++) {
                   *treeptr++ = gen_m;
                   tse.tse_count++;
+                } else {
+/* promote */
+                  for (gen_m.m_scmv = scmv_ppn; gen_m.m_scmv <= scmv_ppq;
+                      gen_m.m_scmv++) {
+                    *treeptr++ = gen_m;
+                    tse.tse_count++;
+                  };
+                  gen_m.m_scmv = scmv_reg;
                 };
-                gen_m.m_scmv = scmv_reg;
-              };
-            }
-          };
+              }
+            };
 /* en passant */
-          if ((frrank == rank_5) && (ese.ese_epsq != sq_nil)) {
+            if ((frrank == rank_5) && (ese.ese_epsq != sq_nil)) {
 /* capture to left */
-            if ((frfile != file_a) &&
-                ((gen_m.m_tosq = gen_m.m_frsq + dv_5) == ese.ese_epsq)) {
-              gen_m.m_tocp = cp_v0;
-              gen_m.m_scmv = scmv_epc;
-              *treeptr++ = gen_m;
-              tse.tse_count++;
-              gen_m.m_scmv = scmv_reg;
-            };
+              if ((frfile != file_a) &&
+                  ((gen_m.m_tosq = gen_m.m_frsq + dv_5) == ese.ese_epsq)) {
+                gen_m.m_tocp = cp_v0;
+                gen_m.m_scmv = scmv_epc;
+                *treeptr++ = gen_m;
+                tse.tse_count++;
+                gen_m.m_scmv = scmv_reg;
+              };
 /* capture to right */
-            if ((frfile != file_h) &&
-                ((gen_m.m_tosq = gen_m.m_frsq + dv_4) == ese.ese_epsq)) {
-              gen_m.m_tocp = cp_v0;
-              gen_m.m_scmv = scmv_epc;
-              *treeptr++ = gen_m;
-              tse.tse_count++;
-              gen_m.m_scmv = scmv_reg;
+              if ((frfile != file_h) &&
+                  ((gen_m.m_tosq = gen_m.m_frsq + dv_4) == ese.ese_epsq)) {
+                gen_m.m_tocp = cp_v0;
+                gen_m.m_scmv = scmv_epc;
+                *treeptr++ = gen_m;
+                tse.tse_count++;
+                gen_m.m_scmv = scmv_reg;
+              };
             };
-          };
-        } else {
+          } else {
 /* one square non-capture */
-          gen_m.m_tocp = EPDboard.rbv[gen_m.m_tosq = gen_m.m_frsq + dv_3];
-          if (gen_m.m_tocp == cp_v0) {
-            if (frrank != rank_2) {
+            gen_m.m_tocp = EPDboard.rbv[gen_m.m_tosq = gen_m.m_frsq + dv_3];
+            if (gen_m.m_tocp == cp_v0) {
+              if (frrank != rank_2) {
 /* non-promotion */
-              *treeptr++ = gen_m;
-              tse.tse_count++;
-            } else {
+                *treeptr++ = gen_m;
+                tse.tse_count++;
+              } else {
 /* promotion */
-              for (gen_m.m_scmv = scmv_ppn; gen_m.m_scmv <= scmv_ppq;
-                  gen_m.m_scmv++) {
-                *treeptr++ = gen_m;
-                tse.tse_count++;
-              }
-              gen_m.m_scmv = scmv_reg;
-            };
-          }
+                for (gen_m.m_scmv = scmv_ppn; gen_m.m_scmv <= scmv_ppq;
+                    gen_m.m_scmv++) {
+                  *treeptr++ = gen_m;
+                  tse.tse_count++;
+                }
+                gen_m.m_scmv = scmv_reg;
+              };
+            }
 /* two squares forward */
-          if ((frrank == rank_7) && Vacant(gen_m.m_frsq + dv_3) &&
-              Vacant(gen_m.m_frsq + (2 * dv_3))) {
-            gen_m.m_tosq = gen_m.m_frsq + (2 * dv_3);
-            gen_m.m_tocp = cp_v0;
-            *treeptr++ = gen_m;
-            tse.tse_count++;
-          };
+            if ((frrank == rank_7) && Vacant(gen_m.m_frsq + dv_3) &&
+                Vacant(gen_m.m_frsq + (2 * dv_3))) {
+              gen_m.m_tosq = gen_m.m_frsq + (2 * dv_3);
+              gen_m.m_tocp = cp_v0;
+              *treeptr++ = gen_m;
+              tse.tse_count++;
+            };
 /* capture to left */
-          if (frfile != file_a) {
-            gen_m.m_tosq = gen_m.m_frsq + dv_6;
-            gen_m.m_tocp = EPDboard.rbv[gen_m.m_tosq];
-            if (cv_c_cpv[gen_m.m_tocp] == inv_cv[ese.ese_actc]) {
-              if (frrank != rank_2) {
+            if (frfile != file_a) {
+              gen_m.m_tosq = gen_m.m_frsq + dv_6;
+              gen_m.m_tocp = EPDboard.rbv[gen_m.m_tosq];
+              if (cv_c_cpv[gen_m.m_tocp] == inv_cv[ese.ese_actc]) {
+                if (frrank != rank_2) {
 /* non-promote */
-                *treeptr++ = gen_m;
-                tse.tse_count++;
-              } else {
-/* promote */
-                for (gen_m.m_scmv = scmv_ppn; gen_m.m_scmv <= scmv_ppq;
-                    gen_m.m_scmv++) {
                   *treeptr++ = gen_m;
                   tse.tse_count++;
+                } else {
+/* promote */
+                  for (gen_m.m_scmv = scmv_ppn; gen_m.m_scmv <= scmv_ppq;
+                      gen_m.m_scmv++) {
+                    *treeptr++ = gen_m;
+                    tse.tse_count++;
+                  };
+                  gen_m.m_scmv = scmv_reg;
                 };
-                gen_m.m_scmv = scmv_reg;
-              };
-            }
-          };
+              }
+            };
 /* capture to right */
-          if (frfile != file_h) {
-            gen_m.m_tosq = gen_m.m_frsq + dv_7;
-            gen_m.m_tocp = EPDboard.rbv[gen_m.m_tosq];
-            if (cv_c_cpv[gen_m.m_tocp] == inv_cv[ese.ese_actc]) {
-              if (frrank != rank_2) {
+            if (frfile != file_h) {
+              gen_m.m_tosq = gen_m.m_frsq + dv_7;
+              gen_m.m_tocp = EPDboard.rbv[gen_m.m_tosq];
+              if (cv_c_cpv[gen_m.m_tocp] == inv_cv[ese.ese_actc]) {
+                if (frrank != rank_2) {
 /* non-promote */
-                *treeptr++ = gen_m;
-                tse.tse_count++;
-              } else {
-/* promote */
-                for (gen_m.m_scmv = scmv_ppn; gen_m.m_scmv <= scmv_ppq;
-                    gen_m.m_scmv++) {
                   *treeptr++ = gen_m;
                   tse.tse_count++;
+                } else {
+/* promote */
+                  for (gen_m.m_scmv = scmv_ppn; gen_m.m_scmv <= scmv_ppq;
+                      gen_m.m_scmv++) {
+                    *treeptr++ = gen_m;
+                    tse.tse_count++;
+                  };
+                  gen_m.m_scmv = scmv_reg;
                 };
-                gen_m.m_scmv = scmv_reg;
-              };
-            }
-          };
+              }
+            };
 /* en passant */
-          if ((frrank == rank_4) && (ese.ese_epsq != sq_nil)) {
+            if ((frrank == rank_4) && (ese.ese_epsq != sq_nil)) {
 /* capture to left */
-            if ((frfile != file_a) &&
-                ((gen_m.m_tosq = gen_m.m_frsq + dv_6) == ese.ese_epsq)) {
-              gen_m.m_tocp = cp_v0;
-              gen_m.m_scmv = scmv_epc;
-              *treeptr++ = gen_m;
-              tse.tse_count++;
-              gen_m.m_scmv = scmv_reg;
-            };
+              if ((frfile != file_a) &&
+                  ((gen_m.m_tosq = gen_m.m_frsq + dv_6) == ese.ese_epsq)) {
+                gen_m.m_tocp = cp_v0;
+                gen_m.m_scmv = scmv_epc;
+                *treeptr++ = gen_m;
+                tse.tse_count++;
+                gen_m.m_scmv = scmv_reg;
+              };
 /* capture to right */
-            if ((frfile != file_h) &&
-                ((gen_m.m_tosq = gen_m.m_frsq + dv_7) == ese.ese_epsq)) {
-              gen_m.m_tocp = cp_v0;
-              gen_m.m_scmv = scmv_epc;
-              *treeptr++ = gen_m;
-              tse.tse_count++;
-              gen_m.m_scmv = scmv_reg;
+              if ((frfile != file_h) &&
+                  ((gen_m.m_tosq = gen_m.m_frsq + dv_7) == ese.ese_epsq)) {
+                gen_m.m_tocp = cp_v0;
+                gen_m.m_scmv = scmv_epc;
+                *treeptr++ = gen_m;
+                tse.tse_count++;
+                gen_m.m_scmv = scmv_reg;
+              };
             };
           };
-        };
-        break;
-      case p_n:
+          break;
+        case p_n:
 /* knight moves: very simple */
-        for (dx = dx_8; dx <= dx_f; dx++)
-          if (*(xsqptr0 + xdvv[dx]) == cp_v0) {
-            gen_m.m_tocp = EPDboard.rbv[gen_m.m_tosq = gen_m.m_frsq + dvv[dx]];
-            if (cv_c_cpv[gen_m.m_tocp] != ese.ese_actc) {
-              *treeptr++ = gen_m;
-              tse.tse_count++;
+          for (dx = dx_8; dx <= dx_f; dx++)
+            if (*(xsqptr0 + xdvv[dx]) == cp_v0) {
+              gen_m.m_tocp = EPDboard.rbv[gen_m.m_tosq =
+                  gen_m.m_frsq + dvv[dx]];
+              if (cv_c_cpv[gen_m.m_tocp] != ese.ese_actc) {
+                *treeptr++ = gen_m;
+                tse.tse_count++;
+              };
             };
-          };
-        break;
-      case p_b:
+          break;
+        case p_b:
 /* bishop moves: diagonal sweeper */
-        for (dx = dx_4; dx <= dx_7; dx++) {
-          dv = dvv[dx];
-          xdv = xdvv[dx];
-          gen_m.m_tosq = gen_m.m_frsq;
-          xsqptr1 = xsqptr0;
-          while ((*(xsqptr1 += xdv) == cp_v0) &&
-              ((gen_m.m_tocp = EPDboard.rbv[gen_m.m_tosq += dv]) == cp_v0)) {
-            *treeptr++ = gen_m;
-            tse.tse_count++;
-          };
-          if ((*xsqptr1 == cp_v0) &&
-              (cv_c_cpv[gen_m.m_tocp] == inv_cv[ese.ese_actc])) {
-            *treeptr++ = gen_m;
-            tse.tse_count++;
-          };
-        };
-        break;
-      case p_r:
-/* rook moves: orthogonal sweeper */
-        for (dx = dx_0; dx <= dx_3; dx++) {
-          dv = dvv[dx];
-          xdv = xdvv[dx];
-          gen_m.m_tosq = gen_m.m_frsq;
-          xsqptr1 = xsqptr0;
-          while ((*(xsqptr1 += xdv) == cp_v0) &&
-              ((gen_m.m_tocp = EPDboard.rbv[gen_m.m_tosq += dv]) == cp_v0)) {
-            *treeptr++ = gen_m;
-            tse.tse_count++;
-          };
-          if ((*xsqptr1 == cp_v0) &&
-              (cv_c_cpv[gen_m.m_tocp] == inv_cv[ese.ese_actc])) {
-            *treeptr++ = gen_m;
-            tse.tse_count++;
-          };
-        };
-        break;
-      case p_q:
-/* queen moves: orthogonal and diagonal sweeper */
-        for (dx = dx_0; dx <= dx_7; dx++) {
-          dv = dvv[dx];
-          xdv = xdvv[dx];
-          gen_m.m_tosq = gen_m.m_frsq;
-          xsqptr1 = xsqptr0;
-          while ((*(xsqptr1 += xdv) == cp_v0) &&
-              ((gen_m.m_tocp = EPDboard.rbv[gen_m.m_tosq += dv]) == cp_v0)) {
-            *treeptr++ = gen_m;
-            tse.tse_count++;
-          };
-          if ((*xsqptr1 == cp_v0) &&
-              (cv_c_cpv[gen_m.m_tocp] == inv_cv[ese.ese_actc])) {
-            *treeptr++ = gen_m;
-            tse.tse_count++;
-          };
-        };
-        break;
-      case p_k:
-/* king moves: one square adjacent regular */
-        for (dx = dx_0; dx <= dx_7; dx++)
-          if (*(xsqptr0 + xdvv[dx]) == cp_v0) {
-            gen_m.m_tocp = EPDboard.rbv[gen_m.m_tosq = gen_m.m_frsq + dvv[dx]];
-            if (cv_c_cpv[gen_m.m_tocp] != ese.ese_actc) {
+          for (dx = dx_4; dx <= dx_7; dx++) {
+            dv = dvv[dx];
+            xdv = xdvv[dx];
+            gen_m.m_tosq = gen_m.m_frsq;
+            xsqptr1 = xsqptr0;
+            while ((*(xsqptr1 += xdv) == cp_v0) &&
+                ((gen_m.m_tocp = EPDboard.rbv[gen_m.m_tosq +=
+                            dv]) == cp_v0)) {
+              *treeptr++ = gen_m;
+              tse.tse_count++;
+            };
+            if ((*xsqptr1 == cp_v0) &&
+                (cv_c_cpv[gen_m.m_tocp] == inv_cv[ese.ese_actc])) {
               *treeptr++ = gen_m;
               tse.tse_count++;
             };
           };
+          break;
+        case p_r:
+/* rook moves: orthogonal sweeper */
+          for (dx = dx_0; dx <= dx_3; dx++) {
+            dv = dvv[dx];
+            xdv = xdvv[dx];
+            gen_m.m_tosq = gen_m.m_frsq;
+            xsqptr1 = xsqptr0;
+            while ((*(xsqptr1 += xdv) == cp_v0) &&
+                ((gen_m.m_tocp = EPDboard.rbv[gen_m.m_tosq +=
+                            dv]) == cp_v0)) {
+              *treeptr++ = gen_m;
+              tse.tse_count++;
+            };
+            if ((*xsqptr1 == cp_v0) &&
+                (cv_c_cpv[gen_m.m_tocp] == inv_cv[ese.ese_actc])) {
+              *treeptr++ = gen_m;
+              tse.tse_count++;
+            };
+          };
+          break;
+        case p_q:
+/* queen moves: orthogonal and diagonal sweeper */
+          for (dx = dx_0; dx <= dx_7; dx++) {
+            dv = dvv[dx];
+            xdv = xdvv[dx];
+            gen_m.m_tosq = gen_m.m_frsq;
+            xsqptr1 = xsqptr0;
+            while ((*(xsqptr1 += xdv) == cp_v0) &&
+                ((gen_m.m_tocp = EPDboard.rbv[gen_m.m_tosq +=
+                            dv]) == cp_v0)) {
+              *treeptr++ = gen_m;
+              tse.tse_count++;
+            };
+            if ((*xsqptr1 == cp_v0) &&
+                (cv_c_cpv[gen_m.m_tocp] == inv_cv[ese.ese_actc])) {
+              *treeptr++ = gen_m;
+              tse.tse_count++;
+            };
+          };
+          break;
+        case p_k:
+/* king moves: one square adjacent regular */
+          for (dx = dx_0; dx <= dx_7; dx++)
+            if (*(xsqptr0 + xdvv[dx]) == cp_v0) {
+              gen_m.m_tocp = EPDboard.rbv[gen_m.m_tosq =
+                  gen_m.m_frsq + dvv[dx]];
+              if (cv_c_cpv[gen_m.m_tocp] != ese.ese_actc) {
+                *treeptr++ = gen_m;
+                tse.tse_count++;
+              };
+            };
 /* castling; process according to active color */
-        if (ese.ese_actc == c_w) {
-          if ((ese.ese_cast & cf_wk) && !EPDBlackAttacks(sq_e1) && Vacant(sq_f1)
-              && !EPDBlackAttacks(sq_f1) && Vacant(sq_g1) &&
-              !EPDBlackAttacks(sq_g1)) {
-            gen_m.m_tosq = sq_g1;
-            gen_m.m_tocp = cp_v0;
-            gen_m.m_scmv = scmv_cks;
-            *treeptr++ = gen_m;
-            tse.tse_count++;
-            gen_m.m_scmv = scmv_reg;
+          if (ese.ese_actc == c_w) {
+            if ((ese.ese_cast & cf_wk) && !EPDBlackAttacks(sq_e1) &&
+                Vacant(sq_f1)
+                && !EPDBlackAttacks(sq_f1) && Vacant(sq_g1) &&
+                !EPDBlackAttacks(sq_g1)) {
+              gen_m.m_tosq = sq_g1;
+              gen_m.m_tocp = cp_v0;
+              gen_m.m_scmv = scmv_cks;
+              *treeptr++ = gen_m;
+              tse.tse_count++;
+              gen_m.m_scmv = scmv_reg;
+            };
+            if ((ese.ese_cast & cf_wq) && !EPDBlackAttacks(sq_e1) &&
+                Vacant(sq_d1)
+                && !EPDBlackAttacks(sq_d1) && Vacant(sq_c1) &&
+                !EPDBlackAttacks(sq_c1) && Vacant(sq_b1)) {
+              gen_m.m_tosq = sq_c1;
+              gen_m.m_tocp = cp_v0;
+              gen_m.m_scmv = scmv_cqs;
+              *treeptr++ = gen_m;
+              tse.tse_count++;
+              gen_m.m_scmv = scmv_reg;
+            };
+          } else {
+            if ((ese.ese_cast & cf_bk) && !EPDWhiteAttacks(sq_e8) &&
+                Vacant(sq_f8)
+                && !EPDWhiteAttacks(sq_f8) && Vacant(sq_g8) &&
+                !EPDWhiteAttacks(sq_g8)) {
+              gen_m.m_tosq = sq_g8;
+              gen_m.m_tocp = cp_v0;
+              gen_m.m_scmv = scmv_cks;
+              *treeptr++ = gen_m;
+              tse.tse_count++;
+              gen_m.m_scmv = scmv_reg;
+            };
+            if ((ese.ese_cast & cf_bq) && !EPDWhiteAttacks(sq_e8) &&
+                Vacant(sq_d8)
+                && !EPDWhiteAttacks(sq_d8) && Vacant(sq_c8) &&
+                !EPDWhiteAttacks(sq_c8) && Vacant(sq_b8)) {
+              gen_m.m_tosq = sq_c8;
+              gen_m.m_tocp = cp_v0;
+              gen_m.m_scmv = scmv_cqs;
+              *treeptr++ = gen_m;
+              tse.tse_count++;
+              gen_m.m_scmv = scmv_reg;
+            };
           };
-          if ((ese.ese_cast & cf_wq) && !EPDBlackAttacks(sq_e1) && Vacant(sq_d1)
-              && !EPDBlackAttacks(sq_d1) && Vacant(sq_c1) &&
-              !EPDBlackAttacks(sq_c1) && Vacant(sq_b1)) {
-            gen_m.m_tosq = sq_c1;
-            gen_m.m_tocp = cp_v0;
-            gen_m.m_scmv = scmv_cqs;
-            *treeptr++ = gen_m;
-            tse.tse_count++;
-            gen_m.m_scmv = scmv_reg;
-          };
-        } else {
-          if ((ese.ese_cast & cf_bk) && !EPDWhiteAttacks(sq_e8) && Vacant(sq_f8)
-              && !EPDWhiteAttacks(sq_f8) && Vacant(sq_g8) &&
-              !EPDWhiteAttacks(sq_g8)) {
-            gen_m.m_tosq = sq_g8;
-            gen_m.m_tocp = cp_v0;
-            gen_m.m_scmv = scmv_cks;
-            *treeptr++ = gen_m;
-            tse.tse_count++;
-            gen_m.m_scmv = scmv_reg;
-          };
-          if ((ese.ese_cast & cf_bq) && !EPDWhiteAttacks(sq_e8) && Vacant(sq_d8)
-              && !EPDWhiteAttacks(sq_d8) && Vacant(sq_c8) &&
-              !EPDWhiteAttacks(sq_c8) && Vacant(sq_b8)) {
-            gen_m.m_tosq = sq_c8;
-            gen_m.m_tocp = cp_v0;
-            gen_m.m_scmv = scmv_cqs;
-            *treeptr++ = gen_m;
-            tse.tse_count++;
-            gen_m.m_scmv = scmv_reg;
-          };
-        };
-        break;
+          break;
       };
     };
   };
@@ -2969,8 +2875,7 @@ void EPDGeneratePL(void)
 }
 
 /*--> EPDSameMoveRef: check if two move references are the same move */
-static siT EPDSameMoveRef(mptrT mptr0, mptrT mptr1)
-{
+static siT EPDSameMoveRef(mptrT mptr0, mptrT mptr1) {
   siT flag;
 
   if ((mptr0->m_tosq == mptr1->m_tosq) && (mptr0->m_frsq == mptr1->m_frsq) &&
@@ -2983,8 +2888,7 @@ static siT EPDSameMoveRef(mptrT mptr0, mptrT mptr1)
 }
 
 /*--> EPDFindMove: locate the move in the current generation set */
-static mptrT EPDFindMove(mptrT mptr)
-{
+static mptrT EPDFindMove(mptrT mptr) {
   mptrT rmptr;
   siT flag;
   siT index;
@@ -3006,8 +2910,7 @@ static mptrT EPDFindMove(mptrT mptr)
 
 /*--> EPDExecute: execute the supplied move */
 static
-void EPDExecute(mptrT mptr)
-{
+void EPDExecute(mptrT mptr) {
   sqT pcsq;
   cpT ppcp;
 
@@ -3021,77 +2924,77 @@ void EPDExecute(mptrT mptr)
   mptr->m_flag |= mf_exec;
 /* process according to move case */
   switch (mptr->m_scmv) {
-  case scmv_reg:
-    EPDboard.rbv[mptr->m_frsq] = cp_v0;
-    EPDboard.rbv[mptr->m_tosq] = mptr->m_frcp;
-    break;
-  case scmv_epc:
-    if (ese.ese_actc == c_w)
-      pcsq = mptr->m_tosq + dv_3;
-    else
-      pcsq = mptr->m_tosq + dv_1;
-    EPDboard.rbv[mptr->m_frsq] = cp_v0;
-    EPDboard.rbv[mptr->m_tosq] = mptr->m_frcp;
-    EPDboard.rbv[pcsq] = cp_v0;
-    break;
-  case scmv_cks:
-    if (ese.ese_actc == c_w) {
-      EPDboard.rbv[sq_e1] = cp_v0;
-      EPDboard.rbv[sq_g1] = cp_wk;
-      EPDboard.rbv[sq_h1] = cp_v0;
-      EPDboard.rbv[sq_f1] = cp_wr;
-    } else {
-      EPDboard.rbv[sq_e8] = cp_v0;
-      EPDboard.rbv[sq_g8] = cp_bk;
-      EPDboard.rbv[sq_h8] = cp_v0;
-      EPDboard.rbv[sq_f8] = cp_br;
-    };
-    break;
-  case scmv_cqs:
-    if (ese.ese_actc == c_w) {
-      EPDboard.rbv[sq_e1] = cp_v0;
-      EPDboard.rbv[sq_c1] = cp_wk;
-      EPDboard.rbv[sq_a1] = cp_v0;
-      EPDboard.rbv[sq_d1] = cp_wr;
-    } else {
-      EPDboard.rbv[sq_e8] = cp_v0;
-      EPDboard.rbv[sq_c8] = cp_bk;
-      EPDboard.rbv[sq_a8] = cp_v0;
-      EPDboard.rbv[sq_d8] = cp_br;
-    };
-    break;
-  case scmv_ppn:
-    if (ese.ese_actc == c_w)
-      ppcp = cp_wn;
-    else
-      ppcp = cp_bn;
-    EPDboard.rbv[mptr->m_frsq] = cp_v0;
-    EPDboard.rbv[mptr->m_tosq] = ppcp;
-    break;
-  case scmv_ppb:
-    if (ese.ese_actc == c_w)
-      ppcp = cp_wb;
-    else
-      ppcp = cp_bb;
-    EPDboard.rbv[mptr->m_frsq] = cp_v0;
-    EPDboard.rbv[mptr->m_tosq] = ppcp;
-    break;
-  case scmv_ppr:
-    if (ese.ese_actc == c_w)
-      ppcp = cp_wr;
-    else
-      ppcp = cp_br;
-    EPDboard.rbv[mptr->m_frsq] = cp_v0;
-    EPDboard.rbv[mptr->m_tosq] = ppcp;
-    break;
-  case scmv_ppq:
-    if (ese.ese_actc == c_w)
-      ppcp = cp_wq;
-    else
-      ppcp = cp_bq;
-    EPDboard.rbv[mptr->m_frsq] = cp_v0;
-    EPDboard.rbv[mptr->m_tosq] = ppcp;
-    break;
+    case scmv_reg:
+      EPDboard.rbv[mptr->m_frsq] = cp_v0;
+      EPDboard.rbv[mptr->m_tosq] = mptr->m_frcp;
+      break;
+    case scmv_epc:
+      if (ese.ese_actc == c_w)
+        pcsq = mptr->m_tosq + dv_3;
+      else
+        pcsq = mptr->m_tosq + dv_1;
+      EPDboard.rbv[mptr->m_frsq] = cp_v0;
+      EPDboard.rbv[mptr->m_tosq] = mptr->m_frcp;
+      EPDboard.rbv[pcsq] = cp_v0;
+      break;
+    case scmv_cks:
+      if (ese.ese_actc == c_w) {
+        EPDboard.rbv[sq_e1] = cp_v0;
+        EPDboard.rbv[sq_g1] = cp_wk;
+        EPDboard.rbv[sq_h1] = cp_v0;
+        EPDboard.rbv[sq_f1] = cp_wr;
+      } else {
+        EPDboard.rbv[sq_e8] = cp_v0;
+        EPDboard.rbv[sq_g8] = cp_bk;
+        EPDboard.rbv[sq_h8] = cp_v0;
+        EPDboard.rbv[sq_f8] = cp_br;
+      };
+      break;
+    case scmv_cqs:
+      if (ese.ese_actc == c_w) {
+        EPDboard.rbv[sq_e1] = cp_v0;
+        EPDboard.rbv[sq_c1] = cp_wk;
+        EPDboard.rbv[sq_a1] = cp_v0;
+        EPDboard.rbv[sq_d1] = cp_wr;
+      } else {
+        EPDboard.rbv[sq_e8] = cp_v0;
+        EPDboard.rbv[sq_c8] = cp_bk;
+        EPDboard.rbv[sq_a8] = cp_v0;
+        EPDboard.rbv[sq_d8] = cp_br;
+      };
+      break;
+    case scmv_ppn:
+      if (ese.ese_actc == c_w)
+        ppcp = cp_wn;
+      else
+        ppcp = cp_bn;
+      EPDboard.rbv[mptr->m_frsq] = cp_v0;
+      EPDboard.rbv[mptr->m_tosq] = ppcp;
+      break;
+    case scmv_ppb:
+      if (ese.ese_actc == c_w)
+        ppcp = cp_wb;
+      else
+        ppcp = cp_bb;
+      EPDboard.rbv[mptr->m_frsq] = cp_v0;
+      EPDboard.rbv[mptr->m_tosq] = ppcp;
+      break;
+    case scmv_ppr:
+      if (ese.ese_actc == c_w)
+        ppcp = cp_wr;
+      else
+        ppcp = cp_br;
+      EPDboard.rbv[mptr->m_frsq] = cp_v0;
+      EPDboard.rbv[mptr->m_tosq] = ppcp;
+      break;
+    case scmv_ppq:
+      if (ese.ese_actc == c_w)
+        ppcp = cp_wq;
+      else
+        ppcp = cp_bq;
+      EPDboard.rbv[mptr->m_frsq] = cp_v0;
+      EPDboard.rbv[mptr->m_tosq] = ppcp;
+      break;
   };
 /* set values for updated environment record: active color */
   ese.ese_actc = inv_cv[ese.ese_actc];
@@ -3138,14 +3041,14 @@ void EPDExecute(mptrT mptr)
     ese.ese_fmvn++;
 /* set values for updated environment record: king locations */
   switch (mptr->m_frcp) {
-  case cp_wk:
-    ese.ese_ksqv[c_w] = mptr->m_tosq;
-    break;
-  case cp_bk:
-    ese.ese_ksqv[c_b] = mptr->m_tosq;
-    break;
-  default:
-    break;
+    case cp_wk:
+      ese.ese_ksqv[c_w] = mptr->m_tosq;
+      break;
+    case cp_bk:
+      ese.ese_ksqv[c_b] = mptr->m_tosq;
+      break;
+    default:
+      break;
   };
 /* check/bust flags */
   if (EPDTestAKIC())
@@ -3158,8 +3061,7 @@ void EPDExecute(mptrT mptr)
 }
 
 /*--> EPDExecuteUpdate: update the current move pointer, then execute */
-nonstatic void EPDExecuteUpdate(mptrT mptr)
-{
+nonstatic void EPDExecuteUpdate(mptrT mptr) {
   tse.tse_curr = EPDFindMove(mptr);
   if (tse.tse_curr == NULL)
     EPDFatal("EPDExecuteUpdate: can't find move");
@@ -3169,8 +3071,7 @@ nonstatic void EPDExecuteUpdate(mptrT mptr)
 
 /*--> EPDRetract: retract the supplied move */
 static
-void EPDRetract(mptrT mptr)
-{
+void EPDRetract(mptrT mptr) {
 /* decrement ply */
   ply--;
 /* restore the current environment and generation */
@@ -3178,58 +3079,57 @@ void EPDRetract(mptrT mptr)
   tse = *--tseptr;
 /* process by move case */
   switch (mptr->m_scmv) {
-  case scmv_reg:
-    EPDboard.rbv[mptr->m_tosq] = mptr->m_tocp;
-    EPDboard.rbv[mptr->m_frsq] = mptr->m_frcp;
-    break;
-  case scmv_epc:
-    EPDboard.rbv[mptr->m_tosq] = cp_v0;
-    EPDboard.rbv[mptr->m_frsq] = mptr->m_frcp;
-    if (ese.ese_actc == c_w)
-      EPDboard.rbv[mptr->m_tosq + dv_3] = cp_bp;
-    else
-      EPDboard.rbv[mptr->m_tosq + dv_1] = cp_wp;
-    break;
-  case scmv_cks:
-    if (ese.ese_actc == c_w) {
-      EPDboard.rbv[sq_g1] = cp_v0;
-      EPDboard.rbv[sq_e1] = cp_wk;
-      EPDboard.rbv[sq_f1] = cp_v0;
-      EPDboard.rbv[sq_h1] = cp_wr;
-    } else {
-      EPDboard.rbv[sq_g8] = cp_v0;
-      EPDboard.rbv[sq_e8] = cp_bk;
-      EPDboard.rbv[sq_f8] = cp_v0;
-      EPDboard.rbv[sq_h8] = cp_br;
-    }
-    break;
-  case scmv_cqs:
-    if (ese.ese_actc == c_w) {
-      EPDboard.rbv[sq_c1] = cp_v0;
-      EPDboard.rbv[sq_e1] = cp_wk;
-      EPDboard.rbv[sq_d1] = cp_v0;
-      EPDboard.rbv[sq_a1] = cp_wr;
-    } else {
-      EPDboard.rbv[sq_c8] = cp_v0;
-      EPDboard.rbv[sq_e8] = cp_bk;
-      EPDboard.rbv[sq_d8] = cp_v0;
-      EPDboard.rbv[sq_a8] = cp_br;
-    };
-    break;
-  case scmv_ppn:
-  case scmv_ppb:
-  case scmv_ppr:
-  case scmv_ppq:
-    EPDboard.rbv[mptr->m_tosq] = mptr->m_tocp;
-    EPDboard.rbv[mptr->m_frsq] = mptr->m_frcp;
-    break;
+    case scmv_reg:
+      EPDboard.rbv[mptr->m_tosq] = mptr->m_tocp;
+      EPDboard.rbv[mptr->m_frsq] = mptr->m_frcp;
+      break;
+    case scmv_epc:
+      EPDboard.rbv[mptr->m_tosq] = cp_v0;
+      EPDboard.rbv[mptr->m_frsq] = mptr->m_frcp;
+      if (ese.ese_actc == c_w)
+        EPDboard.rbv[mptr->m_tosq + dv_3] = cp_bp;
+      else
+        EPDboard.rbv[mptr->m_tosq + dv_1] = cp_wp;
+      break;
+    case scmv_cks:
+      if (ese.ese_actc == c_w) {
+        EPDboard.rbv[sq_g1] = cp_v0;
+        EPDboard.rbv[sq_e1] = cp_wk;
+        EPDboard.rbv[sq_f1] = cp_v0;
+        EPDboard.rbv[sq_h1] = cp_wr;
+      } else {
+        EPDboard.rbv[sq_g8] = cp_v0;
+        EPDboard.rbv[sq_e8] = cp_bk;
+        EPDboard.rbv[sq_f8] = cp_v0;
+        EPDboard.rbv[sq_h8] = cp_br;
+      }
+      break;
+    case scmv_cqs:
+      if (ese.ese_actc == c_w) {
+        EPDboard.rbv[sq_c1] = cp_v0;
+        EPDboard.rbv[sq_e1] = cp_wk;
+        EPDboard.rbv[sq_d1] = cp_v0;
+        EPDboard.rbv[sq_a1] = cp_wr;
+      } else {
+        EPDboard.rbv[sq_c8] = cp_v0;
+        EPDboard.rbv[sq_e8] = cp_bk;
+        EPDboard.rbv[sq_d8] = cp_v0;
+        EPDboard.rbv[sq_a8] = cp_br;
+      };
+      break;
+    case scmv_ppn:
+    case scmv_ppb:
+    case scmv_ppr:
+    case scmv_ppq:
+      EPDboard.rbv[mptr->m_tosq] = mptr->m_tocp;
+      EPDboard.rbv[mptr->m_frsq] = mptr->m_frcp;
+      break;
   };
   return;
 }
 
 /*--> EPDRetractUpdate: retract last executed move */
-nonstatic void EPDRetractUpdate(void)
-{
+nonstatic void EPDRetractUpdate(void) {
   mptrT mptr;
 
   mptr = (tseptr - 1)->tse_curr;
@@ -3238,16 +3138,14 @@ nonstatic void EPDRetractUpdate(void)
 }
 
 /*--> EPDRetractAll: retract all moves in current variation */
-nonstatic void EPDRetractAll(void)
-{
+nonstatic void EPDRetractAll(void) {
   while (ply > 0)
     EPDRetractUpdate();
   return;
 }
 
 /*--> EPDCollapse: collapse the played move stack */
-nonstatic void EPDCollapse(void)
-{
+nonstatic void EPDCollapse(void) {
 /* process for nonzero ply */
   if (ply > 0) {
 /* reset the stack pointers */
@@ -3261,8 +3159,7 @@ nonstatic void EPDCollapse(void)
 }
 
 /*--> EPDReset: collapse, then reset starting position */
-nonstatic void EPDReset(void)
-{
+nonstatic void EPDReset(void) {
   EPDCollapse();
   EPDInitArray();
   return;
@@ -3270,8 +3167,7 @@ nonstatic void EPDReset(void)
 
 /*--> EPDMLExec: execute the current move list */
 static
-void EPDMLExec(void)
-{
+void EPDMLExec(void) {
   siT i;
   mptrT mptr;
 
@@ -3288,8 +3184,7 @@ void EPDMLExec(void)
 
 /*--> EPDMLPolice: remove illegal moves the current move list */
 static
-void EPDMLPolice(void)
-{
+void EPDMLPolice(void) {
   mptrT tptr, mptr;
   siT i, bust;
   mT t_m;
@@ -3316,8 +3211,7 @@ void EPDMLPolice(void)
 
 /*--> EPDMLDisambiguate: insert disambiguation flags in move list */
 static
-void EPDMLDisambiguate(void)
-{
+void EPDMLDisambiguate(void) {
   siT i, j, tmc, rmc, fmc;
   mptrT mptr0, mptr1;
   pT p;
@@ -3363,8 +3257,7 @@ void EPDMLDisambiguate(void)
 
 /*--> EPDMLScanMate: scan current move list for mating moves */
 static
-void EPDMLScanMate(void)
-{
+void EPDMLScanMate(void) {
   siT i, j, mateflag, drawflag, moveflag;
   mptrT mptr0, mptr1;
 
@@ -3419,8 +3312,7 @@ void EPDMLScanMate(void)
 
 /*--> EPDGenClean: generate move list with first level processing */
 static
-void EPDGenClean(void)
-{
+void EPDGenClean(void) {
 /* basic psuedolegal generation */
   EPDGeneratePL();
 /* set legality flags, remove illegal moves, and disambiguate */
@@ -3431,8 +3323,7 @@ void EPDGenClean(void)
 }
 
 /*--> EPDGenMoves: generate legal moves and set mate flags */
-nonstatic void EPDGenMoves(void)
-{
+nonstatic void EPDGenMoves(void) {
 /* perform basic first level generation */
   EPDGenClean();
 /* handle two ply draw and checkmate detection */
@@ -3441,21 +3332,18 @@ nonstatic void EPDGenMoves(void)
 }
 
 /*--> EPDFetchMoveCount: fetch the move count */
-nonstatic siT EPDFetchMoveCount(void)
-{
+nonstatic siT EPDFetchMoveCount(void) {
   return (tse.tse_count);
 }
 
 /*--> EPDFetchMove: fetch the nth move */
-nonstatic mptrT EPDFetchMove(siT index)
-{
+nonstatic mptrT EPDFetchMove(siT index) {
   ret_m = *(tse.tse_base + index);
   return (&ret_m);
 }
 
 /*--> EPDSetMoveFlags: set move flags from current generation set */
-nonstatic void EPDSetMoveFlags(mptrT mptr)
-{
+nonstatic void EPDSetMoveFlags(mptrT mptr) {
   mptrT rmptr;
 
   rmptr = EPDFindMove(mptr);
@@ -3465,8 +3353,7 @@ nonstatic void EPDSetMoveFlags(mptrT mptr)
 }
 
 /*--> EPDSortSAN: ASCII SAN sort move list */
-nonstatic void EPDSortSAN(void)
-{
+nonstatic void EPDSortSAN(void) {
   mptrT mptr, mptr0, mptr1;
   siT i, j, pair, pass, flag;
   sanptrT sanptr, sptr0, sptr1;
@@ -3516,8 +3403,7 @@ nonstatic void EPDSortSAN(void)
 
 /*--> EPDRepairMove: repair a move operation */
 static
-void EPDRepairMove(eopptrT eopptr)
-{
+void EPDRepairMove(eopptrT eopptr) {
   eovptrT eovptr;
   mptrT mptr;
   mT m;
@@ -3539,8 +3425,7 @@ void EPDRepairMove(eopptrT eopptr)
 
 /*--> EPDRepairMoveset: repair a moveset operation */
 static
-void EPDRepairMoveset(eopptrT eopptr)
-{
+void EPDRepairMoveset(eopptrT eopptr) {
   eovptrT eovptr;
   mptrT mptr;
   mT m;
@@ -3563,8 +3448,7 @@ void EPDRepairMoveset(eopptrT eopptr)
 
 /*--> EPDRepairVariation: repair a variation operation */
 static
-void EPDRepairVariation(eopptrT eopptr)
-{
+void EPDRepairVariation(eopptrT eopptr) {
   eovptrT eovptr;
   mptrT mptr;
   mT m;
@@ -3595,8 +3479,7 @@ void EPDRepairVariation(eopptrT eopptr)
 }
 
 /*--> EPDPurgeOpFile: purge operation from input file to output file */
-nonstatic siT EPDPurgeOpFile(charptrT opsym, charptrT fn0, charptrT fn1)
-{
+nonstatic siT EPDPurgeOpFile(charptrT opsym, charptrT fn0, charptrT fn1) {
   siT flag;
   fptrT fptr0, fptr1;
   epdptrT epdptr;
@@ -3656,8 +3539,7 @@ nonstatic siT EPDPurgeOpFile(charptrT opsym, charptrT fn0, charptrT fn1)
 }
 
 /*--> EPDRepairEPD: repair an EPD structure */
-nonstatic siT EPDRepairEPD(epdptrT epdptr)
-{
+nonstatic siT EPDRepairEPD(epdptrT epdptr) {
   siT flag;
   eopptrT eopptr;
 
@@ -3700,8 +3582,7 @@ nonstatic siT EPDRepairEPD(epdptrT epdptr)
 }
 
 /*--> EPDRepairFile: repair input file to output file */
-nonstatic siT EPDRepairFile(charptrT fn0, charptrT fn1)
-{
+nonstatic siT EPDRepairFile(charptrT fn0, charptrT fn1) {
   siT flag;
   fptrT fptr0, fptr1;
   epdptrT epdptr;
@@ -3759,8 +3640,7 @@ nonstatic siT EPDRepairFile(charptrT fn0, charptrT fn1)
 }
 
 /*--> EPDNormalizeFile: normalize input file to output file */
-nonstatic siT EPDNormalizeFile(charptrT fn0, charptrT fn1)
-{
+nonstatic siT EPDNormalizeFile(charptrT fn0, charptrT fn1) {
   siT flag;
   fptrT fptr0, fptr1;
   epdptrT epdptr;
@@ -3813,8 +3693,7 @@ nonstatic siT EPDNormalizeFile(charptrT fn0, charptrT fn1)
 }
 
 /*--> EPDScoreFile: score a benchmark file */
-nonstatic siT EPDScoreFile(charptrT fn, bmsptrT bmsptr)
-{
+nonstatic siT EPDScoreFile(charptrT fn, bmsptrT bmsptr) {
   siT flag;
   siT skipflag;
   siT am_flag, bm_flag;
@@ -3953,8 +3832,7 @@ nonstatic siT EPDScoreFile(charptrT fn, bmsptrT bmsptr)
 }
 
 /*--> EPDEnumerate: enumeration of current position */
-static liT EPDEnumerate(siT depth)
-{
+static liT EPDEnumerate(siT depth) {
   liT total;
   mptrT mptr;
   siT i;
@@ -3980,8 +3858,7 @@ static liT EPDEnumerate(siT depth)
 
 /*--> EPDEnumerateFile: enumerate input file to output file */
 nonstatic siT EPDEnumerateFile(siT depth, charptrT fn0, charptrT fn1,
-    liptrT totalptr)
-{
+    liptrT totalptr) {
   siT flag;
   fptrT fptr0, fptr1;
   time_t start_time;
@@ -4058,8 +3935,7 @@ nonstatic siT EPDEnumerateFile(siT depth, charptrT fn0, charptrT fn1,
 }
 
 /*--> EPDMoveList: generate a string representation of a move list */
-nonstatic charptrT EPDMoveList(gamptrT gamptr)
-{
+nonstatic charptrT EPDMoveList(gamptrT gamptr) {
   charptrT s;
   charptrT b;
   siT count;
@@ -4177,8 +4053,7 @@ nonstatic charptrT EPDMoveList(gamptrT gamptr)
 }
 
 /*--> EPDPGNFetchTagIndex: return a PGN Seven Tag Roster tag index */
-nonstatic pgnstrT EPDPGNFetchTagIndex(charptrT s)
-{
+nonstatic pgnstrT EPDPGNFetchTagIndex(charptrT s) {
   pgnstrT pgnstr;
   pgnstrT rstr;
 
@@ -4193,20 +4068,17 @@ nonstatic pgnstrT EPDPGNFetchTagIndex(charptrT s)
 }
 
 /*--> EPDPGNFetchTagName: return a PGN Seven Tag Roster tag name */
-nonstatic charptrT EPDPGNFetchTagName(pgnstrT pgnstr)
-{
+nonstatic charptrT EPDPGNFetchTagName(pgnstrT pgnstr) {
   return (pgnstrstrv[pgnstr]);
 }
 
 /*--> EPDPGNGetSTR: return a string from the Seven Tag Roster */
-nonstatic charptrT EPDPGNGetSTR(gamptrT gamptr, pgnstrT pgnstr)
-{
+nonstatic charptrT EPDPGNGetSTR(gamptrT gamptr, pgnstrT pgnstr) {
   return (gamptr->gam_strv[pgnstr]);
 }
 
 /*--> EPDPGNPutSTR: enter a string into the Seven Tag Roster */
-nonstatic void EPDPGNPutSTR(gamptrT gamptr, pgnstrT pgnstr, charptrT s)
-{
+nonstatic void EPDPGNPutSTR(gamptrT gamptr, pgnstrT pgnstr, charptrT s) {
   if (gamptr->gam_strv[pgnstr] != NULL)
     EPDMemoryFree(gamptr->gam_strv[pgnstr]);
   gamptr->gam_strv[pgnstr] = EPDStringGrab(s);
@@ -4214,23 +4086,22 @@ nonstatic void EPDPGNPutSTR(gamptrT gamptr, pgnstrT pgnstr, charptrT s)
 }
 
 /*--> EPDPGNGenSTR: return a string with the entire STR */
-nonstatic charptrT EPDPGNGenSTR(gamptrT gamptr)
-{
+nonstatic charptrT EPDPGNGenSTR(gamptrT gamptr) {
   charptrT s;
   pgnstrT pgnstr;
   char tv[tL];
 
   s = EPDStringGrab("");
   for (pgnstr = 0; pgnstr < pgnstrL; pgnstr++) {
-    sprintf(tv, "[%s \"%s\"]\n", pgnstrstrv[pgnstr], gamptr->gam_strv[pgnstr]);
+    sprintf(tv, "[%s \"%s\"]\n", pgnstrstrv[pgnstr],
+        gamptr->gam_strv[pgnstr]);
     s = EPDStringAppendStr(s, tv);
   };
   return (s);
 }
 
 /*--> EPDPGNHistory: generate a string for PGN version of history */
-nonstatic charptrT EPDPGNHistory(gamptrT gamptr)
-{
+nonstatic charptrT EPDPGNHistory(gamptrT gamptr) {
   charptrT s;
   charptrT ms;
 
@@ -4244,8 +4115,7 @@ nonstatic charptrT EPDPGNHistory(gamptrT gamptr)
 }
 
 /*--> EPDCopyOutPTP: copy STR from an EDP structure (ptp operation) */
-nonstatic void EPDCopyOutPTP(gamptrT gamptr, epdptrT epdptr)
-{
+nonstatic void EPDCopyOutPTP(gamptrT gamptr, epdptrT epdptr) {
   eopptrT eopptr;
   eovptrT eovptr;
   pgnstrT pgnstr;
@@ -4264,20 +4134,17 @@ nonstatic void EPDCopyOutPTP(gamptrT gamptr, epdptrT epdptr)
 }
 
 /*--> EPDFetchRefcomStr: return  pointer of indicated refcom string */
-nonstatic charptrT EPDFetchRefcomStr(refcomT refcom)
-{
+nonstatic charptrT EPDFetchRefcomStr(refcomT refcom) {
   return (refcomstrv[refcom]);
 }
 
 /*--> EPDFetchRefreqStr: return  pointer of indicated refreq string */
-nonstatic charptrT EPDFetchRefreqStr(refreqT refreq)
-{
+nonstatic charptrT EPDFetchRefreqStr(refreqT refreq) {
   return (refreqstrv[refreq]);
 }
 
 /*--> EPDFetchRefcomIndex: return a referee command index */
-nonstatic refcomT EPDFetchRefcomIndex(charptrT s)
-{
+nonstatic refcomT EPDFetchRefcomIndex(charptrT s) {
   refcomT refcom;
   refcomT rcom;
 
@@ -4292,8 +4159,7 @@ nonstatic refcomT EPDFetchRefcomIndex(charptrT s)
 }
 
 /*--> EPDExtractRefcomIndex: extract a referee command index */
-nonstatic refreqT EPDExtractRefcomIndex(epdptrT epdptr)
-{
+nonstatic refreqT EPDExtractRefcomIndex(epdptrT epdptr) {
   refcomT refcom;
   eopptrT eopptr;
   eovptrT eovptr;
@@ -4308,8 +4174,7 @@ nonstatic refreqT EPDExtractRefcomIndex(epdptrT epdptr)
 }
 
 /*--> EPDComm: slave to Duplex autoplay program */
-nonstatic siT EPDComm(refintptrT refintptr, charptrT pipebase)
-{
+nonstatic siT EPDComm(refintptrT refintptr, charptrT pipebase) {
   siT flag;
   siT done;
   siT flow;
@@ -4393,8 +4258,7 @@ nonstatic siT EPDComm(refintptrT refintptr, charptrT pipebase)
 }
 
 /*--> EPDInit: one time initialization for EPD */
-nonstatic void EPDInit(void)
-{
+nonstatic void EPDInit(void) {
   cpT cp;
   sqT sq;
   xsqT xsq;
@@ -4602,8 +4466,7 @@ nonstatic void EPDInit(void)
 }
 
 /*--> EPDTerm: one time termination for EPD */
-nonstatic void EPDTerm(void)
-{
+nonstatic void EPDTerm(void) {
 /* release any existing game chain */
   EPDReleaseGameChain();
 /* release any existing token chain */

@@ -20,8 +20,7 @@
 #    ifdef __ICL
 typedef unsigned long long __m64;
 #    elif _MSC_VER >= 1300
-typedef union __declspec (intrin_type) __declspec(align(8)) __m64
-{
+typedef union __declspec (intrin_type) __declspec(align(8)) __m64 {
   unsigned __int64 m64_u64;
   float m64_f32[2];
   __int8 m64_i8[8];
@@ -36,8 +35,7 @@ typedef union __declspec (intrin_type) __declspec(align(8)) __m64
 __m64 __m64_popcnt(__m64);
 
 #    pragma intrinsic (__m64_popcnt)
-int PopCnt(register BITBOARD a)
-{
+int PopCnt(register BITBOARD a) {
 #    ifdef __ICL
   return (int) __m64_popcnt(a);
 #    else
@@ -50,8 +48,7 @@ int PopCnt(register BITBOARD a)
 }
 #  else
 #    if !defined(INLINE32) && !defined(VC_INLINE32)
-int PopCnt(register BITBOARD a)
-{
+int PopCnt(register BITBOARD a) {
   register int c = 0;
 
   while (a) {
@@ -69,8 +66,7 @@ extern unsigned char _BitScanReverse64(unsigned long *, unsigned __int64);
 extern unsigned char _BitScanForward64(unsigned long *, unsigned __int64);
 
 #    pragma intrinsic (_BitScanForward64)
-int MSB(BITBOARD arg1)
-{
+int MSB(BITBOARD arg1) {
   unsigned long index;
 
   if (_BitScanReverse64(&index, arg1))
@@ -79,8 +75,7 @@ int MSB(BITBOARD arg1)
     return 64;
 }
 
-int LSB(BITBOARD arg1)
-{
+int LSB(BITBOARD arg1) {
   unsigned long index;
 
   if (_BitScanForward64(&index, arg1))
@@ -90,8 +85,7 @@ int LSB(BITBOARD arg1)
 }
 #  else
 #    if !defined(INLINE32) && !defined(VC_INLINE32)
-int MSB(BITBOARD arg1)
-{
+int MSB(BITBOARD arg1) {
   if (arg1 >> 48)
     return (msb[arg1 >> 48] + 48);
   if ((arg1 >> 32) & 65535)
@@ -101,8 +95,7 @@ int MSB(BITBOARD arg1)
   return (msb[arg1 & 65535]);
 }
 
-int LSB(BITBOARD arg1)
-{
+int LSB(BITBOARD arg1) {
   if (arg1 & 65535)
     return (lsb[arg1 & 65535]);
   if ((arg1 >> 16) & 65535)

@@ -86,8 +86,7 @@ static gamptrT default_gamptr;
 
 /*--> EGPrint: print a string to the output */
 static
-void EGPrint(charptrT s)
-{
+void EGPrint(charptrT s) {
 /* this is an internal EPD glue routine */
 /*
  This routine is provided as an alternative to direct writing to the
@@ -106,8 +105,7 @@ void EGPrint(charptrT s)
 
 /*--> EGPrintTB: print the contents of the text buffer */
 static
-void EGPrintTB(void)
-{
+void EGPrintTB(void) {
 /* this is an internal EPD glue routine */
   EGPrint(tbufv);
   return;
@@ -115,8 +113,7 @@ void EGPrintTB(void)
 
 /*--> EGPL: print a string followed by a newline */
 static
-void EGPL(charptrT s)
-{
+void EGPL(charptrT s) {
 /* this is an internal EPD glue routine */
   EGPrint(s);
   EGPrint("\n");
@@ -124,8 +121,7 @@ void EGPL(charptrT s)
 }
 
 /*--> EGLocateCommand: locate an EPD glue command from a token */
-static egcommT EGLocateCommand(charptrT s)
-{
+static egcommT EGLocateCommand(charptrT s) {
   egcommT egcomm, index;
 
 /* this is an internal EPD glue routine */
@@ -142,8 +138,7 @@ static egcommT EGLocateCommand(charptrT s)
 }
 
 /*--> EGMapFromHostColor: map a color from the host to the EPD style */
-static cT EGMapFromHostColor(siT color)
-{
+static cT EGMapFromHostColor(siT color) {
   cT c;
 
 /* this is an internal glue routine */
@@ -156,8 +151,7 @@ static cT EGMapFromHostColor(siT color)
 }
 
 /*--> EGMapToHostColor: map a color to the host from the EPD style */
-static siT EGMapToHostColor(cT c)
-{
+static siT EGMapToHostColor(cT c) {
   siT color;
 
 /* this is an internal glue routine */
@@ -170,140 +164,136 @@ static siT EGMapToHostColor(cT c)
 }
 
 /*--> EGMapToHostPiece: map a piece to the host from the EPD style */
-static siT EGMapToHostPiece(pT p)
-{
+static siT EGMapToHostPiece(pT p) {
   siT piece = 0;
 
 /* this is an internal glue routine */
 /* map to Crafty's piece representation */
   switch (p) {
-  case p_p:
-    piece = pawn;
-    break;
-  case p_n:
-    piece = knight;
-    break;
-  case p_b:
-    piece = bishop;
-    break;
-  case p_r:
-    piece = rook;
-    break;
-  case p_q:
-    piece = queen;
-    break;
-  case p_k:
-    piece = king;
-    break;
+    case p_p:
+      piece = pawn;
+      break;
+    case p_n:
+      piece = knight;
+      break;
+    case p_b:
+      piece = bishop;
+      break;
+    case p_r:
+      piece = rook;
+      break;
+    case p_q:
+      piece = queen;
+      break;
+    case p_k:
+      piece = king;
+      break;
   };
   return (piece);
 }
 
 /*--> EGMapFromHostCP: map a color piece from the host to the EPD style */
-static cpT EGMapFromHostCP(siT hostcp)
-{
+static cpT EGMapFromHostCP(siT hostcp) {
   cpT cp = 0;
 
 /* this is an internal glue routine */
 /* map from Crafty's color-piece representation */
   switch (hostcp) {
-  case -queen:
-    cp = cp_bq;
-    break;
-  case -rook:
-    cp = cp_br;
-    break;
-  case -bishop:
-    cp = cp_bb;
-    break;
-  case -king:
-    cp = cp_bk;
-    break;
-  case -knight:
-    cp = cp_bn;
-    break;
-  case -pawn:
-    cp = cp_bp;
-    break;
-  case 0:
-    cp = cp_v0;
-    break;
-  case pawn:
-    cp = cp_wp;
-    break;
-  case knight:
-    cp = cp_wn;
-    break;
-  case king:
-    cp = cp_wk;
-    break;
-  case bishop:
-    cp = cp_wb;
-    break;
-  case rook:
-    cp = cp_wr;
-    break;
-  case queen:
-    cp = cp_wq;
-    break;
+    case -queen:
+      cp = cp_bq;
+      break;
+    case -rook:
+      cp = cp_br;
+      break;
+    case -bishop:
+      cp = cp_bb;
+      break;
+    case -king:
+      cp = cp_bk;
+      break;
+    case -knight:
+      cp = cp_bn;
+      break;
+    case -pawn:
+      cp = cp_bp;
+      break;
+    case 0:
+      cp = cp_v0;
+      break;
+    case pawn:
+      cp = cp_wp;
+      break;
+    case knight:
+      cp = cp_wn;
+      break;
+    case king:
+      cp = cp_wk;
+      break;
+    case bishop:
+      cp = cp_wb;
+      break;
+    case rook:
+      cp = cp_wr;
+      break;
+    case queen:
+      cp = cp_wq;
+      break;
   };
   return (cp);
 }
 
 /*--> EGMapToHostCP: map a color piece to the host from the EPD style */
-static siT EGMapToHostCP(cpT cp)
-{
+static siT EGMapToHostCP(cpT cp) {
   siT hostcp = 0;
 
 /* this is an internal glue routine */
 /* map to Crafty's color-piece representation */
   switch (cp) {
-  case cp_wp:
-    hostcp = pawn;
-    break;
-  case cp_wn:
-    hostcp = knight;
-    break;
-  case cp_wb:
-    hostcp = bishop;
-    break;
-  case cp_wr:
-    hostcp = rook;
-    break;
-  case cp_wq:
-    hostcp = queen;
-    break;
-  case cp_wk:
-    hostcp = king;
-    break;
-  case cp_bp:
-    hostcp = -pawn;
-    break;
-  case cp_bn:
-    hostcp = -knight;
-    break;
-  case cp_bb:
-    hostcp = -bishop;
-    break;
-  case cp_br:
-    hostcp = -rook;
-    break;
-  case cp_bq:
-    hostcp = -queen;
-    break;
-  case cp_bk:
-    hostcp = -king;
-    break;
-  case cp_v0:
-    hostcp = 0;
-    break;
+    case cp_wp:
+      hostcp = pawn;
+      break;
+    case cp_wn:
+      hostcp = knight;
+      break;
+    case cp_wb:
+      hostcp = bishop;
+      break;
+    case cp_wr:
+      hostcp = rook;
+      break;
+    case cp_wq:
+      hostcp = queen;
+      break;
+    case cp_wk:
+      hostcp = king;
+      break;
+    case cp_bp:
+      hostcp = -pawn;
+      break;
+    case cp_bn:
+      hostcp = -knight;
+      break;
+    case cp_bb:
+      hostcp = -bishop;
+      break;
+    case cp_br:
+      hostcp = -rook;
+      break;
+    case cp_bq:
+      hostcp = -queen;
+      break;
+    case cp_bk:
+      hostcp = -king;
+      break;
+    case cp_v0:
+      hostcp = 0;
+      break;
   };
   return (hostcp);
 }
 
 /*--> EGMapFromHostSq: map square index from host style */
-static sqT EGMapFromHostSq(siT index)
-{
+static sqT EGMapFromHostSq(siT index) {
   sqT sq;
 
 /* this is an internal glue routine */
@@ -313,8 +303,7 @@ static sqT EGMapFromHostSq(siT index)
 }
 
 /*--> EGMapToHostSq: map square index to host style */
-static siT EGMapToHostSq(sqT sq)
-{
+static siT EGMapToHostSq(sqT sq) {
   siT index;
 
 /* this is an internal glue routine */
@@ -324,8 +313,7 @@ static siT EGMapToHostSq(sqT sq)
 }
 
 /*--> EGMapFromHostScore: map score from host style */
-static cpevT EGMapFromHostScore(liT score)
-{
+static cpevT EGMapFromHostScore(liT score) {
   cpevT cpev;
   liT distance;
 
@@ -347,8 +335,7 @@ static cpevT EGMapFromHostScore(liT score)
 }
 
 /*--> EGMapToHostScore: map score to host style */
-static liT EGMapToHostScore(cpevT cpev)
-{
+static liT EGMapToHostScore(cpevT cpev) {
   liT score;
 
 /* this is an internal EPD glue routine */
@@ -367,8 +354,7 @@ static liT EGMapToHostScore(cpevT cpev)
 }
 
 /*--> EGMapFromHostMove: map move from host style to EPD style */
-static mT EGMapFromHostMove(liT move)
-{
+static mT EGMapFromHostMove(liT move) {
   mT m;
   siT flag;
 
@@ -414,18 +400,18 @@ static mT EGMapFromHostMove(liT move)
   if (!flag)
     if (Promote(move) != 0) {
       switch (Promote(move)) {
-      case knight:
-        m.m_scmv = scmv_ppn;
-        break;
-      case bishop:
-        m.m_scmv = scmv_ppb;
-        break;
-      case rook:
-        m.m_scmv = scmv_ppr;
-        break;
-      case queen:
-        m.m_scmv = scmv_ppq;
-        break;
+        case knight:
+          m.m_scmv = scmv_ppn;
+          break;
+        case bishop:
+          m.m_scmv = scmv_ppb;
+          break;
+        case rook:
+          m.m_scmv = scmv_ppr;
+          break;
+        case queen:
+          m.m_scmv = scmv_ppq;
+          break;
       };
       flag = 1;
     };
@@ -435,8 +421,7 @@ static mT EGMapFromHostMove(liT move)
 }
 
 /*--> EGMapToHostMove: map move to host style from EPD style */
-static liT EGMapToHostMove(mT m)
-{
+static liT EGMapToHostMove(mT m) {
   liT move;
 
 /* this is an internal EPD glue routine */
@@ -448,31 +433,30 @@ static liT EGMapToHostMove(mT m)
   if (m.m_tocp != cp_v0)
     move |= EGMapToHostPiece(EPDPieceFromCP(m.m_tocp)) << 15;
   switch (m.m_scmv) {
-  case scmv_epc:
-    move |= pawn << 15;
-    break;
-  case scmv_ppn:
-    move |= knight << 18;
-    break;
-  case scmv_ppb:
-    move |= bishop << 18;
-    break;
-  case scmv_ppr:
-    move |= rook << 18;
-    break;
-  case scmv_ppq:
-    move |= queen << 18;
-    break;
-  default:
-    break;
+    case scmv_epc:
+      move |= pawn << 15;
+      break;
+    case scmv_ppn:
+      move |= knight << 18;
+      break;
+    case scmv_ppb:
+      move |= bishop << 18;
+      break;
+    case scmv_ppr:
+      move |= rook << 18;
+      break;
+    case scmv_ppq:
+      move |= queen << 18;
+      break;
+    default:
+      break;
   };
   return (move);
 }
 
 /*--> EGGetIndexedHostPosition: copy from indexed host position */
 static
-void EGGetIndexedHostPosition(TREE * RESTRICT tree, siT posdex, int active)
-{
+void EGGetIndexedHostPosition(TREE * RESTRICT tree, siT posdex, int active) {
   sqT sq;
   rbT rb;
   cT actc;
@@ -495,30 +479,30 @@ void EGGetIndexedHostPosition(TREE * RESTRICT tree, siT posdex, int active)
 /* read from the host piece castling availability */
   cast = 0;
   switch (tree->position[posdex].castle[1]) {
-  case 0:
-    break;
-  case 1:
-    cast |= cf_wk;
-    break;
-  case 2:
-    cast |= cf_wq;
-    break;
-  case 3:
-    cast |= cf_wk | cf_wq;
-    break;
+    case 0:
+      break;
+    case 1:
+      cast |= cf_wk;
+      break;
+    case 2:
+      cast |= cf_wq;
+      break;
+    case 3:
+      cast |= cf_wk | cf_wq;
+      break;
   };
   switch (tree->position[posdex].castle[0]) {
-  case 0:
-    break;
-  case 1:
-    cast |= cf_bk;
-    break;
-  case 2:
-    cast |= cf_bq;
-    break;
-  case 3:
-    cast |= cf_bk | cf_bq;
-    break;
+    case 0:
+      break;
+    case 1:
+      cast |= cf_bk;
+      break;
+    case 2:
+      cast |= cf_bq;
+      break;
+    case 3:
+      cast |= cf_bk | cf_bq;
+      break;
   };
 /* read from the host piece en passant target square */
   epsq = sq_nil;
@@ -541,8 +525,7 @@ void EGGetIndexedHostPosition(TREE * RESTRICT tree, siT posdex, int active)
 
 /*--> EGGetHostPosition: copy from host position to EPD Kit position */
 static
-void EGGetHostPosition(void)
-{
+void EGGetHostPosition(void) {
 /* this is an internal EPD glue routine */
 /*
  This routine is called from within the EPD glue to copy the host program's
@@ -556,8 +539,7 @@ void EGGetHostPosition(void)
 
 /*--> EGPutHostPosition: copy from EPD Kit position to host position */
 static
-void EGPutHostPosition(void)
-{
+void EGPutHostPosition(void) {
   sqT sq;
   rbT rb;
   cT actc;
@@ -630,8 +612,7 @@ void EGPutHostPosition(void)
 }
 
 /*--> EGEncodeHostHistory: generate a string from host move history */
-static charptrT EGEncodeHostHistory(void)
-{
+static charptrT EGEncodeHostHistory(void) {
   charptrT sptr;
   gamptrT gamptr;
   pgnstrT pgnstr;
@@ -712,8 +693,7 @@ static charptrT EGEncodeHostHistory(void)
 
 /*--> EGIterate: wrapper function for host Iterate() call */
 static
-int EGIterate(siT wtm_flag, siT think_flag)
-{
+int EGIterate(siT wtm_flag, siT think_flag) {
   int value;
   int move;
   mptrT mptr;
@@ -736,8 +716,7 @@ int EGIterate(siT wtm_flag, siT think_flag)
 }
 
 /*--> EGCommHandler: callback routine for handling Duplex events */
-static epdptrT EGCommHandler(epdptrT epdptr0, siptrT flagptr)
-{
+static epdptrT EGCommHandler(epdptrT epdptr0, siptrT flagptr) {
   epdptrT epdptr1;
   eopptrT eopptr;
   charptrT s;
@@ -755,94 +734,54 @@ static epdptrT EGCommHandler(epdptrT epdptr0, siptrT flagptr)
   epdptr1 = NULL;
 /* process according to input referee command */
   switch (EPDExtractRefcomIndex(epdptr0)) {
-  case refcom_conclude:
+    case refcom_conclude:
 /* end of game */
-    s = EPDPGNHistory(default_gamptr);
-    if (s == NULL)
-      *flagptr = 0;
-    else {
-/* append game to PGN output file */
-      sprintf(tv, "c%05hd.pgn", ((siT) getpid()));
-      fptr = fopen(tv, "a");
-      if (fptr == NULL)
+      s = EPDPGNHistory(default_gamptr);
+      if (s == NULL)
         *flagptr = 0;
       else {
-        fprintf(fptr, "%s", s);
-        fclose(fptr);
+/* append game to PGN output file */
+        sprintf(tv, "c%05hd.pgn", ((siT) getpid()));
+        fptr = fopen(tv, "a");
+        if (fptr == NULL)
+          *flagptr = 0;
+        else {
+          fprintf(fptr, "%s", s);
+          fclose(fptr);
+        };
+        EPDMemoryFree(s);
       };
-      EPDMemoryFree(s);
-    };
 /* clean up and remove the temporary history file */
-    if (history_file != NULL) {
-      fclose(history_file);
-      history_file = NULL;
-    };
-    sprintf(tv, "h%05hd.pml", ((siT) getpid()));
-    remove(tv);
+      if (history_file != NULL) {
+        fclose(history_file);
+        history_file = NULL;
+      };
+      sprintf(tv, "h%05hd.pml", ((siT) getpid()));
+      remove(tv);
 /* close the game structure */
-    if (default_gamptr != NULL) {
-      EPDGameClose(default_gamptr);
-      default_gamptr = NULL;
-    };
-    break;
-  case refcom_disconnect:
+      if (default_gamptr != NULL) {
+        EPDGameClose(default_gamptr);
+        default_gamptr = NULL;
+      };
+      break;
+    case refcom_disconnect:
 /* channel shutdown */
 /* clean up and remove the temporary history file */
-    if (history_file != NULL) {
-      fclose(history_file);
-      history_file = NULL;
-    };
-    sprintf(tv, "h%05hd.pml", ((siT) getpid()));
-    remove(tv);
+      if (history_file != NULL) {
+        fclose(history_file);
+        history_file = NULL;
+      };
+      sprintf(tv, "h%05hd.pml", ((siT) getpid()));
+      remove(tv);
 /* ensure game structure is closed */
-    if (default_gamptr != NULL) {
-      EPDGameClose(default_gamptr);
-      default_gamptr = NULL;
-    };
-    break;
-  case refcom_execute:
+      if (default_gamptr != NULL) {
+        EPDGameClose(default_gamptr);
+        default_gamptr = NULL;
+      };
+      break;
+    case refcom_execute:
 /* execute the supplied move */
-    eopptr = EPDLocateEOPCode(epdptr0, epdso_sm);
-    move = InputMove(tree, eopptr->eop_headeov->eov_str, 0, wtm, 0, 0);
-    if (history_file) {
-      fseek(history_file, ((((move_number - 1) * 2) + 1 - wtm) * 10), SEEK_SET);
-      fprintf(history_file, "%9s\n", eopptr->eop_headeov->eov_str);
-    }
-    MakeMoveRoot(tree, move, wtm);
-    wtm = Flip(wtm);
-    if (wtm)
-      move_number++;
-/* execute the move in the EPD Kit */
-    EPDGenMoves();
-    mptr = EPDSANDecodeAux(eopptr->eop_headeov->eov_str, 0);
-    m = *mptr;
-    EPDGameAppendMove(default_gamptr, &m);
-    EPDExecuteUpdate(&m);
-    EPDCollapse();
-    break;
-  case refcom_fault:
-/* a problem occurred */
-    EGPL("EPDCommHandler: refcom fault");
-    *flagptr = 0;
-    break;
-  case refcom_inform:
-/* process incidental information */
-    EPDCopyOutPTP(default_gamptr, epdptr0);
-/* update the current game termination marker */
-    s = EPDPGNGetSTR(default_gamptr, pgnstr_result);
-    if ((s == NULL) || (strcmp(s, "*") == 0))
-      EPDPutGTIM(default_gamptr, gtim_u);
-    else if (strcmp(s, "1-0") == 0)
-      EPDPutGTIM(default_gamptr, gtim_w);
-    else if (strcmp(s, "0-1") == 0)
-      EPDPutGTIM(default_gamptr, gtim_b);
-    else if (strcmp(s, "1/2-1/2") == 0)
-      EPDPutGTIM(default_gamptr, gtim_d);
-    break;
-  case refcom_respond:
-/* execute the supplied move (if any) */
-    eopptr = EPDLocateEOPCode(epdptr0, epdso_sm);
-    if (eopptr != NULL) {
+      eopptr = EPDLocateEOPCode(epdptr0, epdso_sm);
       move = InputMove(tree, eopptr->eop_headeov->eov_str, 0, wtm, 0, 0);
       if (history_file) {
         fseek(history_file, ((((move_number - 1) * 2) + 1 - wtm) * 10),
@@ -860,84 +799,126 @@ static epdptrT EGCommHandler(epdptrT epdptr0, siptrT flagptr)
       EPDGameAppendMove(default_gamptr, &m);
       EPDExecuteUpdate(&m);
       EPDCollapse();
-    };
+      break;
+    case refcom_fault:
+/* a problem occurred */
+      EGPL("EPDCommHandler: refcom fault");
+      *flagptr = 0;
+      break;
+    case refcom_inform:
+/* process incidental information */
+      EPDCopyOutPTP(default_gamptr, epdptr0);
+/* update the current game termination marker */
+      s = EPDPGNGetSTR(default_gamptr, pgnstr_result);
+      if ((s == NULL) || (strcmp(s, "*") == 0))
+        EPDPutGTIM(default_gamptr, gtim_u);
+      else if (strcmp(s, "1-0") == 0)
+        EPDPutGTIM(default_gamptr, gtim_w);
+      else if (strcmp(s, "0-1") == 0)
+        EPDPutGTIM(default_gamptr, gtim_b);
+      else if (strcmp(s, "1/2-1/2") == 0)
+        EPDPutGTIM(default_gamptr, gtim_d);
+      break;
+    case refcom_respond:
+/* execute the supplied move (if any) */
+      eopptr = EPDLocateEOPCode(epdptr0, epdso_sm);
+      if (eopptr != NULL) {
+        move = InputMove(tree, eopptr->eop_headeov->eov_str, 0, wtm, 0, 0);
+        if (history_file) {
+          fseek(history_file, ((((move_number - 1) * 2) + 1 - wtm) * 10),
+              SEEK_SET);
+          fprintf(history_file, "%9s\n", eopptr->eop_headeov->eov_str);
+        }
+        MakeMoveRoot(tree, move, wtm);
+        wtm = Flip(wtm);
+        if (wtm)
+          move_number++;
+/* execute the move in the EPD Kit */
+        EPDGenMoves();
+        mptr = EPDSANDecodeAux(eopptr->eop_headeov->eov_str, 0);
+        m = *mptr;
+        EPDGameAppendMove(default_gamptr, &m);
+        EPDExecuteUpdate(&m);
+        EPDCollapse();
+      };
 /* calculate move + respond */
-    EPDGenMoves();
-    if (EPDFetchMoveCount() > 0) {
+      EPDGenMoves();
+      if (EPDFetchMoveCount() > 0) {
 /* at least one move exists, set up for search */
+        ponder_move = 0;
+        thinking = 1;
+        last_pv.pathd = 0;
+        last_pv.pathl = 0;
+        tree->position[1] = tree->position[0];
+/* search */
+        (void) EGIterate((siT) wtm, (siT) think);
+/* process search result */
+        strcpy(tv, OutputMove(tree, last_pv.path[1], 0, wtm));
+        move = last_pv.path[1];
+/* locate SAN move */
+        mptr = EPDSANDecodeAux(tv, 0);
+        m = *mptr;
+        EPDSANEncode(&m, san);
+/* output to temporary history file */
+        if (history_file) {
+          fseek(history_file, ((((move_number - 1) * 2) + 1 - wtm) * 10),
+              SEEK_SET);
+          fprintf(history_file, "%9s\n", san);
+        }
+/* update host position */
+        MakeMoveRoot(tree, move, wtm);
+        wtm = Flip(wtm);
+        if (wtm)
+          move_number++;
+/* create reply EPD structure */
+        epdptr1 = EPDGetCurrentPosition();
+/* add in referee request */
+        EPDAddOpSym(epdptr1, epdso_refreq, EPDFetchRefreqStr(refreq_reply));
+/* add in supplied move */
+        EPDAddOpSym(epdptr1, epdso_sm, san);
+/* execute the move in the EPD Kit */
+        mptr = EPDSANDecodeAux(san, 0);
+        m = *mptr;
+        EPDGameAppendMove(default_gamptr, &m);
+        EPDExecuteUpdate(&m);
+        EPDCollapse();
+      } else {
+/* no moves exist, so no move response possible */
+        epdptr1 = EPDGetCurrentPosition();
+        eopptr = EPDCreateEOPCode(epdso_refreq);
+        EPDAppendEOV(eopptr,
+            EPDCreateEOVSym(EPDFetchRefreqStr(refreq_reply)));
+        EPDAppendEOP(epdptr1, eopptr);
+      };
+      break;
+    case refcom_reset:
+/* reset EPD Kit */
+      EPDReset();
+/* reset host for a new game */
+      ponder = 0;
       ponder_move = 0;
-      thinking = 1;
       last_pv.pathd = 0;
       last_pv.pathl = 0;
-      tree->position[1] = tree->position[0];
-/* search */
-      (void) EGIterate((siT) wtm, (siT) think);
-/* process search result */
-      strcpy(tv, OutputMove(tree, last_pv.path[1], 0, wtm));
-      move = last_pv.path[1];
-/* locate SAN move */
-      mptr = EPDSANDecodeAux(tv, 0);
-      m = *mptr;
-      EPDSANEncode(&m, san);
-/* output to temporary history file */
-      if (history_file) {
-        fseek(history_file, ((((move_number - 1) * 2) + 1 - wtm) * 10),
-            SEEK_SET);
-        fprintf(history_file, "%9s\n", san);
-      }
-/* update host position */
-      MakeMoveRoot(tree, move, wtm);
-      wtm = Flip(wtm);
-      if (wtm)
-        move_number++;
-/* create reply EPD structure */
-      epdptr1 = EPDGetCurrentPosition();
-/* add in referee request */
-      EPDAddOpSym(epdptr1, epdso_refreq, EPDFetchRefreqStr(refreq_reply));
-/* add in supplied move */
-      EPDAddOpSym(epdptr1, epdso_sm, san);
-/* execute the move in the EPD Kit */
-      mptr = EPDSANDecodeAux(san, 0);
-      m = *mptr;
-      EPDGameAppendMove(default_gamptr, &m);
-      EPDExecuteUpdate(&m);
-      EPDCollapse();
-    } else {
-/* no moves exist, so no move response possible */
-      epdptr1 = EPDGetCurrentPosition();
-      eopptr = EPDCreateEOPCode(epdso_refreq);
-      EPDAppendEOV(eopptr, EPDCreateEOVSym(EPDFetchRefreqStr(refreq_reply)));
-      EPDAppendEOP(epdptr1, eopptr);
-    };
-    break;
-  case refcom_reset:
-/* reset EPD Kit */
-    EPDReset();
-/* reset host for a new game */
-    ponder = 0;
-    ponder_move = 0;
-    last_pv.pathd = 0;
-    last_pv.pathl = 0;
-    InitializeChessBoard(tree);
-    InitializeHashTables();
-    wtm = 1;
-    move_number = 1;
+      InitializeChessBoard(tree);
+      InitializeHashTables();
+      wtm = 1;
+      move_number = 1;
 /* open the temporary history file */
-    if (history_file != NULL) {
-      fclose(history_file);
-      history_file = NULL;
-    };
-    sprintf(tv, "h%05hd.pml", ((siT) getpid()));
-    remove(tv);
-    history_file = fopen(tv, "w+");
+      if (history_file != NULL) {
+        fclose(history_file);
+        history_file = NULL;
+      };
+      sprintf(tv, "h%05hd.pml", ((siT) getpid()));
+      remove(tv);
+      history_file = fopen(tv, "w+");
 /* open the current game structure */
-    if (default_gamptr != NULL)
-      EPDGameClose(default_gamptr);
-    default_gamptr = EPDGameOpen();
-    break;
-  case refcom_nil:
-    *flagptr = 0;
-    break;
+      if (default_gamptr != NULL)
+        EPDGameClose(default_gamptr);
+      default_gamptr = EPDGameOpen();
+      break;
+    case refcom_nil:
+      *flagptr = 0;
+      break;
   };
 /* clean up if there was a problem */
   if (!(*flagptr))
@@ -949,8 +930,7 @@ static epdptrT EGCommHandler(epdptrT epdptr0, siptrT flagptr)
 }
 
 /*--> EGProcessAPGN: process the EG command epdapgn */
-static siT EGProcessAPGN(void)
-{
+static siT EGProcessAPGN(void) {
   siT flag;
   charptrT s;
   fptrT fptr;
@@ -983,8 +963,7 @@ static siT EGProcessAPGN(void)
 }
 
 /*--> EGProcessBFIX: process the EG command epdbfix */
-static siT EGProcessBFIX(void)
-{
+static siT EGProcessBFIX(void) {
   siT flag;
   fptrT fptr0, fptr1;
   eopptrT eopptr;
@@ -1057,8 +1036,7 @@ static siT EGProcessBFIX(void)
 }
 
 /*--> EGProcessCICS: process the EG command epdcics */
-static siT EGProcessCICS(void)
-{
+static siT EGProcessCICS(void) {
   siT flag;
 
 /* this is an internal EPD glue routine */
@@ -1078,8 +1056,7 @@ static siT EGProcessCICS(void)
 }
 
 /*--> EGProcessCOMM: process the EG command epdcomm */
-static siT EGProcessCOMM(void)
-{
+static siT EGProcessCOMM(void) {
   siT flag;
   fptrT save_history_file;
   gamptrT save_default_gamptr;
@@ -1117,8 +1094,7 @@ static siT EGProcessCOMM(void)
 }
 
 /*--> EGProcessDPGN: process the EG command epddpgn */
-static siT EGProcessDPGN(void)
-{
+static siT EGProcessDPGN(void) {
   siT flag;
   charptrT s;
 
@@ -1144,8 +1120,7 @@ static siT EGProcessDPGN(void)
 }
 
 /*--> EGProcessDSML: process the EG command epddsml */
-static siT EGProcessDSML(void)
-{
+static siT EGProcessDSML(void) {
   siT flag;
   siT count, index;
   siT length, column;
@@ -1168,16 +1143,16 @@ static siT EGProcessDSML(void)
     EPDGenMoves();
     count = EPDFetchMoveCount();
     switch (count) {
-    case 0:
-      EGPL("No moves are available.");
-      break;
-    case 1:
-      EGPL("There is 1 move available.");
-      break;
-    default:
-      sprintf(tbufv, "There are %hd moves available.\n", count);
-      EGPrintTB();
-      break;
+      case 0:
+        EGPL("No moves are available.");
+        break;
+      case 1:
+        EGPL("There is 1 move available.");
+        break;
+      default:
+        sprintf(tbufv, "There are %hd moves available.\n", count);
+        EGPrintTB();
+        break;
     };
 /* list moves */
     if (count > 0) {
@@ -1205,8 +1180,7 @@ static siT EGProcessDSML(void)
 }
 
 /*--> EGProcessDSTR: process the EG command epddstr */
-static siT EGProcessDSTR(void)
-{
+static siT EGProcessDSTR(void) {
   siT flag;
   charptrT s;
 
@@ -1228,8 +1202,7 @@ static siT EGProcessDSTR(void)
 }
 
 /*--> EGProcessDTPV: process the EG command epddtpv */
-static siT EGProcessDTPV(void)
-{
+static siT EGProcessDTPV(void) {
   siT flag;
   pgnstrT pgnstr;
 
@@ -1262,8 +1235,7 @@ static siT EGProcessDTPV(void)
 }
 
 /*--> EGProcessENUM: process the EG command epdenum */
-static siT EGProcessENUM(void)
-{
+static siT EGProcessENUM(void) {
   siT flag;
   liT total;
 
@@ -1290,8 +1262,7 @@ static siT EGProcessENUM(void)
 }
 
 /*--> EGProcessHELP: process the EG command epdhelp */
-static siT EGProcessHELP(void)
-{
+static siT EGProcessHELP(void) {
   siT flag;
   siT i;
   egcommT egcomm;
@@ -1332,8 +1303,7 @@ static siT EGProcessHELP(void)
 }
 
 /*--> EGProcessLINK: process the EG command epdlink */
-static siT EGProcessLINK(void)
-{
+static siT EGProcessLINK(void) {
   siT flag;
 
 /* this is an internal EPD glue routine */
@@ -1353,8 +1323,7 @@ static siT EGProcessLINK(void)
 }
 
 /*--> EGProcessLPGN: process the EG command epdlpgn */
-static siT EGProcessLPGN(void)
-{
+static siT EGProcessLPGN(void) {
   siT flag;
 
 /* this is an internal EPD glue routine */
@@ -1374,8 +1343,7 @@ static siT EGProcessLPGN(void)
 }
 
 /*--> EGProcessLREC: process the EG command epdlrec */
-static siT EGProcessLREC(void)
-{
+static siT EGProcessLREC(void) {
   siT flag;
   fptrT fptr;
   liT i, n;
@@ -1422,8 +1390,7 @@ static siT EGProcessLREC(void)
 }
 
 /*--> EGProcessMORE: process the EG command epdmore */
-static siT EGProcessMORE(void)
-{
+static siT EGProcessMORE(void) {
   siT flag;
 
 /* this is an internal EPD glue routine */
@@ -1437,275 +1404,274 @@ static siT EGProcessMORE(void)
 /* process the epdmore command */
   if (flag)
     switch (EGLocateCommand(EPDTokenFetch(1))) {
-    case egcomm_epdapgn:
-      EGPL("epdapgn: Append the game to a PGN file");
-      EGPL("");
-      EGPL("This command is used to append the current game to a file");
-      EGPL("using Portable Game Notation (PGN) format.  It takes one");
-      EGPL("parameter which is the file name of interest.");
-      break;
-    case egcomm_epdbfix:
-      EGPL("epdbfix: Fix an EPD file for import into Bookup");
-      EGPL("");
-      EGPL("This command takes two parameters.  Both parameters are");
-      EGPL("names of EPD files.  The first is an existing EPD file with");
-      EGPL("analysis data.  The second is the EPD file to be created");
-      EGPL("from the first by removing all operations except the ce and");
-      EGPL("pv operations.  This second file can then be imported into");
-      EGPL("the Bookup program.");
-      break;
-    case egcomm_epdcert:
-      EGPL("epdcert: Try to display a certain evaluation");
-      EGPL("");
-      EGPL("This command takes no parameters.  The current position is");
-      EGPL("examined for legality, and if legal, an attempt is made to");
-      EGPL("return an absolute certain evaluation.  An absolute certain");
-      EGPL("evaluation is available for checkmates, stalemates, draws by");
-      EGPL("insufficient material, and mate in one positions.  Also,");
-      EGPL("if there are only a few chessmen on the board, then the");
-      EGPL("current position is used as an index into an external file");
-      EGPL("corresponding to the active color and the distribution of");
-      EGPL("pieces.  If the appropriate external file is available, the");
-      EGPL("position is evaluated by a single file look-up operation.");
-      EGPL("These files are called tablebases and they should appear in");
-      EGPL("the TB subdirectory of the current working directory.  These");
-      EGPL("files may be obtained via ftp from the chess.onenet.net site");
-      EGPL("in the pub/chess/TB directory.");
-      break;
-    case egcomm_epdcics:
-      EGPL("epdcics: Slave to an Internet Chess Server");
-      EGPL("");
-      EGPL("This command causes the host program Crafty to becomed slaved");
-      EGPL("to an Internet Chess Server (ICS).  This means that the host");
-      EGPL("program will follow directions from the indicated Internet");
-      EGPL("Chess Server until either the ICS tells the program to exit");
-      EGPL("slave mode or the program is interrupted by the user.  This");
-      EGPL("command takes two parameters.  The first is the name of the");
-      EGPL("machine running the ICS and the second is the port number in");
-      EGPL("use by the ICS.");
-      break;
-    case egcomm_epdcomm:
-      EGPL("epdcomm: Slave to the Duplex referee program");
-      EGPL("");
-      EGPL("This command causes the host program Crafty to becomed slaved");
-      EGPL("to the simple referee program Duplex.  Duplex must be started");
-      EGPL("prior to entering this command.  Once the host program is");
-      EGPL("slaved to Duplex, it will remain so until it is instructed");
-      EGPL("by Duplex to terminate or is interrupted by the user.  This");
-      EGPL("command is used to support the Duplex function of controlling");
-      EGPL("automatic play between two host programs on the same Unix");
-      EGPL("system.  The communication used is based on named pipes which");
-      EGPL("are special files that support FIFO data operation.  This");
-      EGPL("command takes one parameter which is a base name for a pair");
-      EGPL("of named pipes.  The host output pipe name is generated by");
-      EGPL("adding a \".pc0\" suffix to the base name and the host input");
-      EGPL("pipe name is generated by addint a \".pc1\" suffix to the");
-      EGPL("base name.  (Both pipe files are created and later removed");
-      EGPL("automatically by the Duplex program.)  The Duplex program is");
-      EGPL("given three parameters to run a series of games between two");
-      EGPL("host programs: the first is the base name given to the first");
-      EGPL("host program, the second is the base name given to the second");
-      EGPL("host program, and the third is the count of the number of");
-      EGPL("games to be played.");
-      break;
-    case egcomm_epddpgn:
-      EGPL("epddpgn: Display the game using PGN");
-      EGPL("");
-      EGPL("This command displays the current game using Portable Game");
-      EGPL("Notation (PGN).  It takes no parameters.");
-      break;
-    case egcomm_epddsml:
-      EGPL("epddsml: Display SAN move list");
-      EGPL("");
-      EGPL("This command displays the ASCII sorted list of available");
-      EGPL("moves using SAN (Standard Algebraic Notation).  The count");
-      EGPL("of moves is also displayed.  This command takes no");
-      EGPL("parameters.");
-      break;
-    case egcomm_epddstr:
-      EGPL("epddstr: Display the PGN Seven Tag Roster");
-      EGPL("");
-      EGPL("This command displays the current values of each of the tag");
-      EGPL("pairs of the PGN Seven Tag Roster.  These tags are: Event, ");
-      EGPL("Site, Date, Round, White, Black, and Result.  This command");
-      EGPL("takes no parameters.");
-      break;
-    case egcomm_epddtpv:
-      EGPL("epddtpv: Display a PGN tag pair value");
-      EGPL("");
-      EGPL("This command displays the current value for the indicated");
-      EGPL("PGN tag pair.  These available tag pair names are: Event, ");
-      EGPL("Site, Date, Round, White, Black, and Result.  This command");
-      EGPL("takes a single parameter which is the name of the tag pair");
-      EGPL("to be displayed.");
-      break;
-    case egcomm_epdenum:
-      EGPL("epdenum: Enumerate positions in an EPD file");
-      EGPL("");
-      EGPL("This command takes three parameters.  The first is a non-");
-      EGPL("negative integer that gives a ply depth limit.  The second");
-      EGPL("is an input EPD file with positions to be enumerated to the");
-      EGPL("given depth.  The third parameter is the result EPD file");
-      EGPL("with enumeration data given with the acd, acn, and acs");
-      EGPL("operations.  The grand total of all enumerations is printed");
-      EGPL("to the standard output.");
-      break;
-    case egcomm_epdhelp:
-      EGPL("epdhelp: Display available epdglue commands");
-      EGPL("");
-      EGPL("This command takes no parameters.  It displays a list");
-      EGPL("of all the epdglue commands with a single line description");
-      EGPL("of each command.  The epdmore command gives a detailed");
-      EGPL("description of a specified command.");
-      break;
-    case egcomm_epdlink:
-      EGPL("epdlink: Slave to the Argus moderator program");
-      EGPL("");
-      EGPL("This command used to slave the host program to the Argus");
-      EGPL("tournament referee program.  It takes two parameters.  The");
-      EGPL("first is the name of the machine running the Argus referee");
-      EGPL("and the second is the port number in use by Argus on the");
-      EGPL("indicated machine.  The Argus program must be started prior");
-      EGPL("to using this command.  Argus acts as a general tournament");
-      EGPL("supervisor and mediator for any number of chessplaying");
-      EGPL("programs competing in a compuer chess event.  It supplies");
-      EGPL("the participating program entrants with everything needed");
-      EGPL("for an entire tournament.");
-      break;
-    case egcomm_epdlpgn:
-      EGPL("epdlpgn: Load the game from a PGN file");
-      EGPL("");
-      EGPL("This command loads a single game from a Portable Game");
-      EGPL("Notation (PGN) file.  If there is more than one game in the");
-      EGPL("file, then only the first one is loaded.  This command tales");
-      EGPL("a single parameter which is the name of the file containing");
-      EGPL("the PGN data of interest.");
-      break;
-    case egcomm_epdlrec:
-      EGPL("epdlpgn: Load a selected EPD record from a file");
-      EGPL("");
-      EGPL("This command loads an EPD record from a file and causes it");
-      EGPL("to become the current position in the host program.  This");
-      EGPL("command takes two parameters.  The first is the name of the");
-      EGPL("file with EPD records and the second is the record number");
-      EGPL("of interest.  The epdlrec command is intended to assist with");
-      EGPL("benchmark analysis by making it easy to select and load the");
-      EGPL("Nth record of a benchmark file.");
-      break;
-    case egcomm_epdmore:
-      EGPL("epdmore: Display detailed help for a given command");
-      EGPL("");
-      EGPL("This command takes a single parameter which is the name");
-      EGPL("of one of the available epdglue commands.  A brief paragraph");
-      EGPL("of helpful assistance is displayed.");
-      break;
-    case egcomm_epdnoop:
-      EGPL("epdnoop: No operation");
-      EGPL("");
-      EGPL("This command performs no operation.  It is provided for");
-      EGPL("development purposes.");
-      break;
-    case egcomm_epdpfdn:
-      EGPL("epdpfdn:  Process file: data normalization");
-      EGPL("");
-      EGPL("This command takes two parameters.  The first is the name of");
-      EGPL("an input EPD data file.  The second is the name of the EPD");
-      EGPL("output file to be produced from normalizing the input.  The");
-      EGPL("normalization process produces a canonical external");
-      EGPL("representation for each EPD input record.");
-      break;
-    case egcomm_epdpfdr:
-      EGPL("epdpfdr:  Process file: data repair");
-      EGPL("");
-      EGPL("This command takes two parameters.  The first is the name of");
-      EGPL("an input EPD data file.  The second is the name of the EPD");
-      EGPL("output file to be produced from repairing the input.  The");
-      EGPL("repair process attempts to map all chess move data present");
-      EGPL("in the input into Standard Algebraic Notation.  This repair");
-      EGPL("effort affects the am, bm, pm, pv, sm, and sv operations.");
-      break;
-    case egcomm_epdpfga:
-      EGPL("epdpfga:  Process file: general analysis");
-      EGPL("");
-      EGPL("This command takes two parameters.  The first is the name of");
-      EGPL("an input EPD data file.  The second is the name of the EPD");
-      EGPL("output file to be produced from applying general analysis");
-      EGPL("to each position in the input file.  The output analysis is");
-      EGPL("contained in the acd, acn, acs, ce, and pv operations.");
-      break;
-    case egcomm_epdpflc:
-      EGPL("epdpflc:  Process file: locate cooks");
-      EGPL("");
-      EGPL("This command is used to scan an EPD file and report on any");
-      EGPL("checkmating cooks.  The signle parameter is the name of the");
-      EGPL("EPD file to be scanned.  Each record is scanned and if the");
-      EGPL("centipawn evaluation indicates a forced mate, then the move");
-      EGPL("appearing as the result of a search is checked against the");
-      EGPL("moves appearing in the bm (best moves) operation on the same");
-      EGPL("record.  If the result move does not appear in the bm list,");
-      EGPL("then the record is reported as a cook.");
-      break;
-    case egcomm_epdpfop:
-      EGPL("epdpfop:  Process file: operation purge");
-      EGPL("");
-      EGPL("This command takes threee parameters.  The first is the name");
-      EGPL("of an EPD operation mnemonic to be purged.  The second is the");
-      EGPL("name fo the input EPD file, and the third is the name of the");
-      EGPL("EPD output to be produced by purging the specified operation");
-      EGPL("from the input file.");
-      break;
-    case egcomm_epdscor:
-      EGPL("epdscor:  Score EPD analysis file");
-      EGPL("");
-      EGPL("This command takes one parameter.  It is the name of an input");
-      EGPL("EPD data file containing analysis result data.  The input");
-      EGPL("data analysis is scanned and a brief statistical report is");
-      EGPL("displayed.");
-      break;
-    case egcomm_epdshow:
-      EGPL("epdshow:  Show EPD four fields for the current position");
-      EGPL("");
-      EGPL("This command takes no parameters.  It causes the EPD four");
-      EGPL("data fields for the current position to be displayed.");
-      break;
-    case egcomm_epdspgn:
-      EGPL("epdspgn: Save the game to a PGN file");
-      EGPL("");
-      EGPL("This command is used to save the current game to a file");
-      EGPL("using Portable Game Notation (PGN) format.  It takes one");
-      EGPL("parameter which is the file name of interest.  The previous");
-      EGPL("copy of the file, if any, is overwritten.");
-      break;
-    case egcomm_epdstpv:
-      EGPL("epdstpv: Set a PGN tag pair value");
-      EGPL("");
-      EGPL("This command sets the current value for the indicated");
-      EGPL("PGN tag pair.  These available tag pair names are: Event, ");
-      EGPL("Site, Date, Round, White, Black, and Result.  This command");
-      EGPL("takes two parameters.  The first which is the name of the");
-      EGPL("tag pair of interest and the second is the value to be");
-      EGPL("assigned.  Underscore characters in the value are mapped");
-      EGPL("to blanks; this allows embedded spaces to appear in the");
-      EGPL("received value.");
-      break;
-    case egcomm_epdtest:
-      EGPL("epdtest:  Developer testing");
-      EGPL("");
-      EGPL("This command takes no parameters.  It is used for developer");
-      EGPL("testing purposes.");
-      break;
-    case egcomm_nil:
-      sprintf(tbufv, "Unknown command: %s\n", EPDTokenFetch(1));
-      EGPrintTB();
-      flag = 0;
-      break;
+      case egcomm_epdapgn:
+        EGPL("epdapgn: Append the game to a PGN file");
+        EGPL("");
+        EGPL("This command is used to append the current game to a file");
+        EGPL("using Portable Game Notation (PGN) format.  It takes one");
+        EGPL("parameter which is the file name of interest.");
+        break;
+      case egcomm_epdbfix:
+        EGPL("epdbfix: Fix an EPD file for import into Bookup");
+        EGPL("");
+        EGPL("This command takes two parameters.  Both parameters are");
+        EGPL("names of EPD files.  The first is an existing EPD file with");
+        EGPL("analysis data.  The second is the EPD file to be created");
+        EGPL("from the first by removing all operations except the ce and");
+        EGPL("pv operations.  This second file can then be imported into");
+        EGPL("the Bookup program.");
+        break;
+      case egcomm_epdcert:
+        EGPL("epdcert: Try to display a certain evaluation");
+        EGPL("");
+        EGPL("This command takes no parameters.  The current position is");
+        EGPL("examined for legality, and if legal, an attempt is made to");
+        EGPL("return an absolute certain evaluation.  An absolute certain");
+        EGPL("evaluation is available for checkmates, stalemates, draws by");
+        EGPL("insufficient material, and mate in one positions.  Also,");
+        EGPL("if there are only a few chessmen on the board, then the");
+        EGPL("current position is used as an index into an external file");
+        EGPL("corresponding to the active color and the distribution of");
+        EGPL("pieces.  If the appropriate external file is available, the");
+        EGPL("position is evaluated by a single file look-up operation.");
+        EGPL("These files are called tablebases and they should appear in");
+        EGPL("the TB subdirectory of the current working directory.  These");
+        EGPL("files may be obtained via ftp from the chess.onenet.net site");
+        EGPL("in the pub/chess/TB directory.");
+        break;
+      case egcomm_epdcics:
+        EGPL("epdcics: Slave to an Internet Chess Server");
+        EGPL("");
+        EGPL("This command causes the host program Crafty to becomed slaved");
+        EGPL("to an Internet Chess Server (ICS).  This means that the host");
+        EGPL("program will follow directions from the indicated Internet");
+        EGPL("Chess Server until either the ICS tells the program to exit");
+        EGPL("slave mode or the program is interrupted by the user.  This");
+        EGPL("command takes two parameters.  The first is the name of the");
+        EGPL("machine running the ICS and the second is the port number in");
+        EGPL("use by the ICS.");
+        break;
+      case egcomm_epdcomm:
+        EGPL("epdcomm: Slave to the Duplex referee program");
+        EGPL("");
+        EGPL("This command causes the host program Crafty to becomed slaved");
+        EGPL("to the simple referee program Duplex.  Duplex must be started");
+        EGPL("prior to entering this command.  Once the host program is");
+        EGPL("slaved to Duplex, it will remain so until it is instructed");
+        EGPL("by Duplex to terminate or is interrupted by the user.  This");
+        EGPL("command is used to support the Duplex function of controlling");
+        EGPL("automatic play between two host programs on the same Unix");
+        EGPL("system.  The communication used is based on named pipes which");
+        EGPL("are special files that support FIFO data operation.  This");
+        EGPL("command takes one parameter which is a base name for a pair");
+        EGPL("of named pipes.  The host output pipe name is generated by");
+        EGPL("adding a \".pc0\" suffix to the base name and the host input");
+        EGPL("pipe name is generated by addint a \".pc1\" suffix to the");
+        EGPL("base name.  (Both pipe files are created and later removed");
+        EGPL("automatically by the Duplex program.)  The Duplex program is");
+        EGPL("given three parameters to run a series of games between two");
+        EGPL("host programs: the first is the base name given to the first");
+        EGPL("host program, the second is the base name given to the second");
+        EGPL("host program, and the third is the count of the number of");
+        EGPL("games to be played.");
+        break;
+      case egcomm_epddpgn:
+        EGPL("epddpgn: Display the game using PGN");
+        EGPL("");
+        EGPL("This command displays the current game using Portable Game");
+        EGPL("Notation (PGN).  It takes no parameters.");
+        break;
+      case egcomm_epddsml:
+        EGPL("epddsml: Display SAN move list");
+        EGPL("");
+        EGPL("This command displays the ASCII sorted list of available");
+        EGPL("moves using SAN (Standard Algebraic Notation).  The count");
+        EGPL("of moves is also displayed.  This command takes no");
+        EGPL("parameters.");
+        break;
+      case egcomm_epddstr:
+        EGPL("epddstr: Display the PGN Seven Tag Roster");
+        EGPL("");
+        EGPL("This command displays the current values of each of the tag");
+        EGPL("pairs of the PGN Seven Tag Roster.  These tags are: Event, ");
+        EGPL("Site, Date, Round, White, Black, and Result.  This command");
+        EGPL("takes no parameters.");
+        break;
+      case egcomm_epddtpv:
+        EGPL("epddtpv: Display a PGN tag pair value");
+        EGPL("");
+        EGPL("This command displays the current value for the indicated");
+        EGPL("PGN tag pair.  These available tag pair names are: Event, ");
+        EGPL("Site, Date, Round, White, Black, and Result.  This command");
+        EGPL("takes a single parameter which is the name of the tag pair");
+        EGPL("to be displayed.");
+        break;
+      case egcomm_epdenum:
+        EGPL("epdenum: Enumerate positions in an EPD file");
+        EGPL("");
+        EGPL("This command takes three parameters.  The first is a non-");
+        EGPL("negative integer that gives a ply depth limit.  The second");
+        EGPL("is an input EPD file with positions to be enumerated to the");
+        EGPL("given depth.  The third parameter is the result EPD file");
+        EGPL("with enumeration data given with the acd, acn, and acs");
+        EGPL("operations.  The grand total of all enumerations is printed");
+        EGPL("to the standard output.");
+        break;
+      case egcomm_epdhelp:
+        EGPL("epdhelp: Display available epdglue commands");
+        EGPL("");
+        EGPL("This command takes no parameters.  It displays a list");
+        EGPL("of all the epdglue commands with a single line description");
+        EGPL("of each command.  The epdmore command gives a detailed");
+        EGPL("description of a specified command.");
+        break;
+      case egcomm_epdlink:
+        EGPL("epdlink: Slave to the Argus moderator program");
+        EGPL("");
+        EGPL("This command used to slave the host program to the Argus");
+        EGPL("tournament referee program.  It takes two parameters.  The");
+        EGPL("first is the name of the machine running the Argus referee");
+        EGPL("and the second is the port number in use by Argus on the");
+        EGPL("indicated machine.  The Argus program must be started prior");
+        EGPL("to using this command.  Argus acts as a general tournament");
+        EGPL("supervisor and mediator for any number of chessplaying");
+        EGPL("programs competing in a compuer chess event.  It supplies");
+        EGPL("the participating program entrants with everything needed");
+        EGPL("for an entire tournament.");
+        break;
+      case egcomm_epdlpgn:
+        EGPL("epdlpgn: Load the game from a PGN file");
+        EGPL("");
+        EGPL("This command loads a single game from a Portable Game");
+        EGPL("Notation (PGN) file.  If there is more than one game in the");
+        EGPL("file, then only the first one is loaded.  This command tales");
+        EGPL("a single parameter which is the name of the file containing");
+        EGPL("the PGN data of interest.");
+        break;
+      case egcomm_epdlrec:
+        EGPL("epdlpgn: Load a selected EPD record from a file");
+        EGPL("");
+        EGPL("This command loads an EPD record from a file and causes it");
+        EGPL("to become the current position in the host program.  This");
+        EGPL("command takes two parameters.  The first is the name of the");
+        EGPL("file with EPD records and the second is the record number");
+        EGPL("of interest.  The epdlrec command is intended to assist with");
+        EGPL("benchmark analysis by making it easy to select and load the");
+        EGPL("Nth record of a benchmark file.");
+        break;
+      case egcomm_epdmore:
+        EGPL("epdmore: Display detailed help for a given command");
+        EGPL("");
+        EGPL("This command takes a single parameter which is the name");
+        EGPL("of one of the available epdglue commands.  A brief paragraph");
+        EGPL("of helpful assistance is displayed.");
+        break;
+      case egcomm_epdnoop:
+        EGPL("epdnoop: No operation");
+        EGPL("");
+        EGPL("This command performs no operation.  It is provided for");
+        EGPL("development purposes.");
+        break;
+      case egcomm_epdpfdn:
+        EGPL("epdpfdn:  Process file: data normalization");
+        EGPL("");
+        EGPL("This command takes two parameters.  The first is the name of");
+        EGPL("an input EPD data file.  The second is the name of the EPD");
+        EGPL("output file to be produced from normalizing the input.  The");
+        EGPL("normalization process produces a canonical external");
+        EGPL("representation for each EPD input record.");
+        break;
+      case egcomm_epdpfdr:
+        EGPL("epdpfdr:  Process file: data repair");
+        EGPL("");
+        EGPL("This command takes two parameters.  The first is the name of");
+        EGPL("an input EPD data file.  The second is the name of the EPD");
+        EGPL("output file to be produced from repairing the input.  The");
+        EGPL("repair process attempts to map all chess move data present");
+        EGPL("in the input into Standard Algebraic Notation.  This repair");
+        EGPL("effort affects the am, bm, pm, pv, sm, and sv operations.");
+        break;
+      case egcomm_epdpfga:
+        EGPL("epdpfga:  Process file: general analysis");
+        EGPL("");
+        EGPL("This command takes two parameters.  The first is the name of");
+        EGPL("an input EPD data file.  The second is the name of the EPD");
+        EGPL("output file to be produced from applying general analysis");
+        EGPL("to each position in the input file.  The output analysis is");
+        EGPL("contained in the acd, acn, acs, ce, and pv operations.");
+        break;
+      case egcomm_epdpflc:
+        EGPL("epdpflc:  Process file: locate cooks");
+        EGPL("");
+        EGPL("This command is used to scan an EPD file and report on any");
+        EGPL("checkmating cooks.  The signle parameter is the name of the");
+        EGPL("EPD file to be scanned.  Each record is scanned and if the");
+        EGPL("centipawn evaluation indicates a forced mate, then the move");
+        EGPL("appearing as the result of a search is checked against the");
+        EGPL("moves appearing in the bm (best moves) operation on the same");
+        EGPL("record.  If the result move does not appear in the bm list,");
+        EGPL("then the record is reported as a cook.");
+        break;
+      case egcomm_epdpfop:
+        EGPL("epdpfop:  Process file: operation purge");
+        EGPL("");
+        EGPL("This command takes threee parameters.  The first is the name");
+        EGPL("of an EPD operation mnemonic to be purged.  The second is the");
+        EGPL("name fo the input EPD file, and the third is the name of the");
+        EGPL("EPD output to be produced by purging the specified operation");
+        EGPL("from the input file.");
+        break;
+      case egcomm_epdscor:
+        EGPL("epdscor:  Score EPD analysis file");
+        EGPL("");
+        EGPL("This command takes one parameter.  It is the name of an input");
+        EGPL("EPD data file containing analysis result data.  The input");
+        EGPL("data analysis is scanned and a brief statistical report is");
+        EGPL("displayed.");
+        break;
+      case egcomm_epdshow:
+        EGPL("epdshow:  Show EPD four fields for the current position");
+        EGPL("");
+        EGPL("This command takes no parameters.  It causes the EPD four");
+        EGPL("data fields for the current position to be displayed.");
+        break;
+      case egcomm_epdspgn:
+        EGPL("epdspgn: Save the game to a PGN file");
+        EGPL("");
+        EGPL("This command is used to save the current game to a file");
+        EGPL("using Portable Game Notation (PGN) format.  It takes one");
+        EGPL("parameter which is the file name of interest.  The previous");
+        EGPL("copy of the file, if any, is overwritten.");
+        break;
+      case egcomm_epdstpv:
+        EGPL("epdstpv: Set a PGN tag pair value");
+        EGPL("");
+        EGPL("This command sets the current value for the indicated");
+        EGPL("PGN tag pair.  These available tag pair names are: Event, ");
+        EGPL("Site, Date, Round, White, Black, and Result.  This command");
+        EGPL("takes two parameters.  The first which is the name of the");
+        EGPL("tag pair of interest and the second is the value to be");
+        EGPL("assigned.  Underscore characters in the value are mapped");
+        EGPL("to blanks; this allows embedded spaces to appear in the");
+        EGPL("received value.");
+        break;
+      case egcomm_epdtest:
+        EGPL("epdtest:  Developer testing");
+        EGPL("");
+        EGPL("This command takes no parameters.  It is used for developer");
+        EGPL("testing purposes.");
+        break;
+      case egcomm_nil:
+        sprintf(tbufv, "Unknown command: %s\n", EPDTokenFetch(1));
+        EGPrintTB();
+        flag = 0;
+        break;
     };
   return (flag);
 }
 
 /*--> EGProcessNOOP: process the EG command epdnoop */
-static siT EGProcessNOOP(void)
-{
+static siT EGProcessNOOP(void) {
   siT flag;
 
 /* this is an internal EPD glue routine */
@@ -1716,8 +1682,7 @@ static siT EGProcessNOOP(void)
 }
 
 /*--> EGProcessPFDN: process the EG command epdpfdn */
-static siT EGProcessPFDN(void)
-{
+static siT EGProcessPFDN(void) {
   siT flag;
 
 /* this is an internal EPD glue routine */
@@ -1735,8 +1700,7 @@ static siT EGProcessPFDN(void)
 }
 
 /*--> EGProcessPFDR: process the EG command epdpfdr */
-static siT EGProcessPFDR(void)
-{
+static siT EGProcessPFDR(void) {
   siT flag;
 
 /* this is an internal EPD glue routine */
@@ -1754,8 +1718,7 @@ static siT EGProcessPFDR(void)
 }
 
 /*--> EGProcessPFGA: process the EG command epdpfga */
-static siT EGProcessPFGA(void)
-{
+static siT EGProcessPFGA(void) {
   siT flag;
   fptrT fptr0, fptr1;
   liT record;
@@ -1924,8 +1887,7 @@ static siT EGProcessPFGA(void)
 }
 
 /*--> EGProcessPFLC: process the EG command epdpflc */
-static siT EGProcessPFLC(void)
-{
+static siT EGProcessPFLC(void) {
   siT flag;
   fptrT fptr;
   epdptrT epdptr;
@@ -1983,7 +1945,8 @@ static siT EGProcessPFLC(void)
 /* if not found, then it's a cook */
               if (eovptr == NULL) {
 /* issue report */
-                sprintf(tbufv, "PFLC: record %ld:   cook: %s", (record + 1), s);
+                sprintf(tbufv, "PFLC: record %ld:   cook: %s", (record + 1),
+                    s);
                 EGPrintTB();
                 eopptr = EPDLocateEOPCode(epdptr, epdso_id);
                 if ((eopptr != NULL) &&
@@ -2010,8 +1973,7 @@ static siT EGProcessPFLC(void)
 }
 
 /*--> EGProcessPFOP: process the EG command epdpfop */
-static siT EGProcessPFOP(void)
-{
+static siT EGProcessPFOP(void) {
   siT flag;
 
 /* this is an internal EPD glue routine */
@@ -2024,13 +1986,13 @@ static siT EGProcessPFOP(void)
   };
 /* process the epdpfop command */
   if (flag)
-    flag = EPDPurgeOpFile(EPDTokenFetch(1), EPDTokenFetch(2), EPDTokenFetch(3));
+    flag =
+        EPDPurgeOpFile(EPDTokenFetch(1), EPDTokenFetch(2), EPDTokenFetch(3));
   return (flag);
 }
 
 /*--> EGProcessSCOR: process the EG command epdscor */
-static siT EGProcessSCOR(void)
-{
+static siT EGProcessSCOR(void) {
   siT flag;
   bmsT bms;
 
@@ -2129,8 +2091,7 @@ static siT EGProcessSCOR(void)
 }
 
 /*--> EGProcessSHOW: process the EG command epdshow */
-static siT EGProcessSHOW(void)
-{
+static siT EGProcessSHOW(void) {
   siT flag;
   charptrT s;
 
@@ -2157,8 +2118,7 @@ static siT EGProcessSHOW(void)
 }
 
 /*--> EGProcessSPGN: process the EG command epdspgn */
-static siT EGProcessSPGN(void)
-{
+static siT EGProcessSPGN(void) {
   siT flag;
   charptrT s;
   fptrT fptr;
@@ -2191,8 +2151,7 @@ static siT EGProcessSPGN(void)
 }
 
 /*--> EGProcessSTPV: process the EG command epdstpv */
-static siT EGProcessSTPV(void)
-{
+static siT EGProcessSTPV(void) {
   siT flag;
   pgnstrT pgnstr;
   charptrT s;
@@ -2232,8 +2191,7 @@ static siT EGProcessSTPV(void)
 }
 
 /*--> EGProcessTEST: process the EG command epdtest */
-static siT EGProcessTEST(void)
-{
+static siT EGProcessTEST(void) {
   siT flag;
 
 /* this is an internal EPD glue routine */
@@ -2253,8 +2211,7 @@ static siT EGProcessTEST(void)
 }
 
 /*--> EGCommandCheck: check if a string starts with an EPD command token */
-nonstatic int EGCommandCheck(char *s)
-{
+nonstatic int EGCommandCheck(char *s) {
   siT flag;
   charptrT tokenptr;
   egcommT egcomm;
@@ -2288,8 +2245,7 @@ nonstatic int EGCommandCheck(char *s)
 }
 
 /*--> EGCommand: process an EPD command string */
-nonstatic int EGCommand(char *s)
-{
+nonstatic int EGCommand(char *s) {
   siT flag;
   egcommT egcomm;
 
@@ -2316,81 +2272,81 @@ nonstatic int EGCommand(char *s)
   } else {
 /* a valid command token was found; perform command dispatch */
     switch (egcomm) {
-    case egcomm_epdapgn:
-      flag = EGProcessAPGN();
-      break;
-    case egcomm_epdbfix:
-      flag = EGProcessBFIX();
-      break;
-    case egcomm_epdcics:
-      flag = EGProcessCICS();
-      break;
-    case egcomm_epdcomm:
-      flag = EGProcessCOMM();
-      break;
-    case egcomm_epddpgn:
-      flag = EGProcessDPGN();
-      break;
-    case egcomm_epddsml:
-      flag = EGProcessDSML();
-      break;
-    case egcomm_epddstr:
-      flag = EGProcessDSTR();
-      break;
-    case egcomm_epddtpv:
-      flag = EGProcessDTPV();
-      break;
-    case egcomm_epdenum:
-      flag = EGProcessENUM();
-      break;
-    case egcomm_epdhelp:
-      flag = EGProcessHELP();
-      break;
-    case egcomm_epdlink:
-      flag = EGProcessLINK();
-      break;
-    case egcomm_epdlpgn:
-      flag = EGProcessLPGN();
-      break;
-    case egcomm_epdlrec:
-      flag = EGProcessLREC();
-      break;
-    case egcomm_epdmore:
-      flag = EGProcessMORE();
-      break;
-    case egcomm_epdnoop:
-      flag = EGProcessNOOP();
-      break;
-    case egcomm_epdpfdn:
-      flag = EGProcessPFDN();
-      break;
-    case egcomm_epdpfdr:
-      flag = EGProcessPFDR();
-      break;
-    case egcomm_epdpfga:
-      flag = EGProcessPFGA();
-      break;
-    case egcomm_epdpflc:
-      flag = EGProcessPFLC();
-      break;
-    case egcomm_epdpfop:
-      flag = EGProcessPFOP();
-      break;
-    case egcomm_epdscor:
-      flag = EGProcessSCOR();
-      break;
-    case egcomm_epdshow:
-      flag = EGProcessSHOW();
-      break;
-    case egcomm_epdspgn:
-      flag = EGProcessSPGN();
-      break;
-    case egcomm_epdstpv:
-      flag = EGProcessSTPV();
-      break;
-    case egcomm_epdtest:
-      flag = EGProcessTEST();
-      break;
+      case egcomm_epdapgn:
+        flag = EGProcessAPGN();
+        break;
+      case egcomm_epdbfix:
+        flag = EGProcessBFIX();
+        break;
+      case egcomm_epdcics:
+        flag = EGProcessCICS();
+        break;
+      case egcomm_epdcomm:
+        flag = EGProcessCOMM();
+        break;
+      case egcomm_epddpgn:
+        flag = EGProcessDPGN();
+        break;
+      case egcomm_epddsml:
+        flag = EGProcessDSML();
+        break;
+      case egcomm_epddstr:
+        flag = EGProcessDSTR();
+        break;
+      case egcomm_epddtpv:
+        flag = EGProcessDTPV();
+        break;
+      case egcomm_epdenum:
+        flag = EGProcessENUM();
+        break;
+      case egcomm_epdhelp:
+        flag = EGProcessHELP();
+        break;
+      case egcomm_epdlink:
+        flag = EGProcessLINK();
+        break;
+      case egcomm_epdlpgn:
+        flag = EGProcessLPGN();
+        break;
+      case egcomm_epdlrec:
+        flag = EGProcessLREC();
+        break;
+      case egcomm_epdmore:
+        flag = EGProcessMORE();
+        break;
+      case egcomm_epdnoop:
+        flag = EGProcessNOOP();
+        break;
+      case egcomm_epdpfdn:
+        flag = EGProcessPFDN();
+        break;
+      case egcomm_epdpfdr:
+        flag = EGProcessPFDR();
+        break;
+      case egcomm_epdpfga:
+        flag = EGProcessPFGA();
+        break;
+      case egcomm_epdpflc:
+        flag = EGProcessPFLC();
+        break;
+      case egcomm_epdpfop:
+        flag = EGProcessPFOP();
+        break;
+      case egcomm_epdscor:
+        flag = EGProcessSCOR();
+        break;
+      case egcomm_epdshow:
+        flag = EGProcessSHOW();
+        break;
+      case egcomm_epdspgn:
+        flag = EGProcessSPGN();
+        break;
+      case egcomm_epdstpv:
+        flag = EGProcessSTPV();
+        break;
+      case egcomm_epdtest:
+        flag = EGProcessTEST();
+        break;
     };
 /* check result */
     if (!flag) {
@@ -2403,8 +2359,7 @@ nonstatic int EGCommand(char *s)
 }
 
 /*--> EGInit: one time EPD glue initialization */
-nonstatic void EGInit(void)
-{
+nonstatic void EGInit(void) {
 /* this is called by Initialize() in init.c */
   EGPL("EPD Kit revision date: 1996.04.21");
 /* call the EPD one time set up code */
@@ -2439,7 +2394,8 @@ nonstatic void EGInit(void)
 /* initialize the EPD glue command string descriptions vector */
   eghelpstrv[egcomm_epdapgn] = "Append PGN game to <file>";
   eghelpstrv[egcomm_epdbfix] = "Fix <file1> data for Bookup input <file2>";
-  eghelpstrv[egcomm_epdcert] = "Display certain score for the current position";
+  eghelpstrv[egcomm_epdcert] =
+      "Display certain score for the current position";
   eghelpstrv[egcomm_epdcics] = "Slave to ICS at <hostname> and <portnumber>";
   eghelpstrv[egcomm_epdcomm] = "Slave to Duplex using <pipefile-basename>";
   eghelpstrv[egcomm_epddpgn] = "Display game using PGN";
@@ -2448,7 +2404,8 @@ nonstatic void EGInit(void)
   eghelpstrv[egcomm_epddtpv] = "Display PGN tag pair <tag-name> value";
   eghelpstrv[egcomm_epdenum] = "Enumerate to <depth> from <file1> to <file2>";
   eghelpstrv[egcomm_epdhelp] = "Display EPD glue command descriptions";
-  eghelpstrv[egcomm_epdlink] = "Slave to Argus at <hostname> and <portnumber>";
+  eghelpstrv[egcomm_epdlink] =
+      "Slave to Argus at <hostname> and <portnumber>";
   eghelpstrv[egcomm_epdlpgn] = "Load PGN game from <file>";
   eghelpstrv[egcomm_epdlrec] = "Load EPD record from <file> <line-number>";
   eghelpstrv[egcomm_epdmore] = "Display more help for <command>";
@@ -2459,7 +2416,8 @@ nonstatic void EGInit(void)
   eghelpstrv[egcomm_epdpflc] = "Locate mating cooks in result <file>";
   eghelpstrv[egcomm_epdpfop] = "Purge EPD <opcode> from <file1> to <file2>";
   eghelpstrv[egcomm_epdscor] = "Score benchmark EPD results from <file>";
-  eghelpstrv[egcomm_epdshow] = "Show EPD four fields for the current position";
+  eghelpstrv[egcomm_epdshow] =
+      "Show EPD four fields for the current position";
   eghelpstrv[egcomm_epdspgn] = "Save PGN game to <file>";
   eghelpstrv[egcomm_epdstpv] = "Set PGN tag pair <tag-name> to <value>";
   eghelpstrv[egcomm_epdtest] = "EPD glue developer testing";
@@ -2470,8 +2428,7 @@ nonstatic void EGInit(void)
 }
 
 /*--> EGTerm: one time EPD glue termination */
-nonstatic void EGTerm(void)
-{
+nonstatic void EGTerm(void) {
 /* this is called by Option() in option.c */
 /* release the default game structure */
   if (default_gamptr != NULL)

@@ -20,8 +20,7 @@
  *                                                                             *
  *******************************************************************************
  */
-void MakeMove(TREE * RESTRICT tree, int ply, int move, int wtm)
-{
+void MakeMove(TREE * RESTRICT tree, int ply, int move, int wtm) {
   register int piece, from, to, captured, promote, btm = Flip(wtm);
   register int cpiece;
 
@@ -94,107 +93,111 @@ void MakeMove(TREE * RESTRICT tree, int ply, int move, int wtm)
  ************************************************************
  */
   switch (piece) {
-  case pawn:
-    HashP(wtm, from);
-    HashP(wtm, to);
-    if (captured == 1 && !cpiece) {
-      Clear(to + epsq[wtm], Pawns(btm));
-      Clear(to + epsq[wtm], Occupied(btm));
-      Hash(btm, pawn, to + epsq[wtm]);
-      HashP(btm, to + epsq[wtm]);
-      PcOnSq(to + epsq[wtm]) = 0;
-      Material -= PieceValues(btm, pawn);
-      TotalPieces(btm, pawn)--;
-      TotalAllPieces--;
-      captured = 0;
-    }
-    if (promote) {
-      TotalPieces(wtm, pawn)--;
-      Material -= PieceValues(wtm, pawn);
-      Clear(to, Pawns(wtm));
-      Hash(wtm, pawn, to);
+    case pawn:
+      HashP(wtm, from);
       HashP(wtm, to);
-      Hash(wtm, promote, to);
-      PcOnSq(to) = pieces[wtm][promote];
-      TotalPieces(wtm, occupied) += p_vals[promote];
-      TotalPieces(wtm, promote)++;
-      Material += PieceValues(wtm, promote);
-      Set(to, Pieces(wtm, promote));
-      switch (promote) {
-      case knight:
-        break;
-      case bishop:
-        Set(to, BishopsQueens);
-        break;
-      case rook:
-        Set(to, RooksQueens);
-        break;
-      case queen:
-        Set(to, BishopsQueens);
-        Set(to, RooksQueens);
-        break;
+      if (captured == 1 && !cpiece) {
+        Clear(to + epsq[wtm], Pawns(btm));
+        Clear(to + epsq[wtm], Occupied(btm));
+        Hash(btm, pawn, to + epsq[wtm]);
+        HashP(btm, to + epsq[wtm]);
+        PcOnSq(to + epsq[wtm]) = 0;
+        Material -= PieceValues(btm, pawn);
+        TotalPieces(btm, pawn)--;
+        TotalAllPieces--;
+        captured = 0;
       }
-    } else if ((Abs(to - from) == 16) && (mask_eptest[to] & Pawns(btm))) {
-      EnPassant(ply + 1) = to + epsq[wtm];
-      HashEP(to + epsq[wtm], HashKey);
-    }
-    Rule50Moves(ply + 1) = 0;
-    break;
-  case knight:
-    break;
-  case bishop:
-    Clear(from, BishopsQueens);
-    Set(to, BishopsQueens);
-    break;
-  case rook:
-    Clear(from, RooksQueens);
-    Set(to, RooksQueens);
-    if (Castle(ply + 1, wtm) > 0) {
-      if ((from == rook_A[wtm]) && (Castle(ply + 1, wtm) & 2)) {
-        Castle(ply + 1, wtm) &= 1;
-        HashCastle(1, HashKey, wtm);
-      } else if ((from == rook_H[wtm]) && (Castle(ply + 1, wtm) & 1)) {
-        Castle(ply + 1, wtm) &= 2;
-        HashCastle(0, HashKey, wtm);
-      }
-    }
-    break;
-  case queen:
-    Clear(from, BishopsQueens);
-    Set(to, BishopsQueens);
-    Clear(from, RooksQueens);
-    Set(to, RooksQueens);
-    break;
-  case king:
-    KingSQ(wtm) = to;
-    if (Castle(ply + 1, wtm) > 0) {
-      if (Castle(ply + 1, wtm) & 2)
-        HashCastle(1, HashKey, wtm);
-      if (Castle(ply + 1, wtm) & 1)
-        HashCastle(0, HashKey, wtm);
-      if (abs(to - from) == 2) {
-        Castle(ply + 1, wtm) = -ply;
-        piece = rook;
-        if (to == rook_G[wtm]) {
-          from = rook_H[wtm];
-          to = rook_F[wtm];
-        } else {
-          from = rook_A[wtm];
-          to = rook_D[wtm];
+      if (promote) {
+        TotalPieces(wtm, pawn)--;
+        Material -= PieceValues(wtm, pawn);
+        Clear(to, Pawns(wtm));
+        Hash(wtm, pawn, to);
+        HashP(wtm, to);
+        Hash(wtm, promote, to);
+        PcOnSq(to) = pieces[wtm][promote];
+        TotalPieces(wtm, occupied) += p_vals[promote];
+        TotalPieces(wtm, promote)++;
+        Material += PieceValues(wtm, promote);
+        Set(to, Pieces(wtm, promote));
+        switch (promote) {
+          case knight:
+            tree->pos.minors[wtm]++;
+            break;
+          case bishop:
+            tree->pos.minors[wtm]++;
+            Set(to, BishopsQueens);
+            break;
+          case rook:
+            Set(to, RooksQueens);
+            tree->pos.majors[wtm]++;
+            break;
+          case queen:
+            Set(to, BishopsQueens);
+            Set(to, RooksQueens);
+            tree->pos.majors[wtm] += 2;
+            break;
         }
-        Clear(from, RooksQueens);
-        Set(to, RooksQueens);
-        bit_move = SetMask(from) | SetMask(to);
-        ClearSet(bit_move, Rooks(wtm));
-        ClearSet(bit_move, Occupied(wtm));
-        Hash(wtm, rook, from);
-        Hash(wtm, rook, to);
-        PcOnSq(from) = 0;
-        PcOnSq(to) = pieces[wtm][rook];
-      } else
-        Castle(ply + 1, wtm) = 0;
-    }
-    break;
+      } else if ((Abs(to - from) == 16) && (mask_eptest[to] & Pawns(btm))) {
+        EnPassant(ply + 1) = to + epsq[wtm];
+        HashEP(to + epsq[wtm], HashKey);
+      }
+      Rule50Moves(ply + 1) = 0;
+      break;
+    case knight:
+      break;
+    case bishop:
+      Clear(from, BishopsQueens);
+      Set(to, BishopsQueens);
+      break;
+    case rook:
+      Clear(from, RooksQueens);
+      Set(to, RooksQueens);
+      if (Castle(ply + 1, wtm) > 0) {
+        if ((from == rook_A[wtm]) && (Castle(ply + 1, wtm) & 2)) {
+          Castle(ply + 1, wtm) &= 1;
+          HashCastle(1, HashKey, wtm);
+        } else if ((from == rook_H[wtm]) && (Castle(ply + 1, wtm) & 1)) {
+          Castle(ply + 1, wtm) &= 2;
+          HashCastle(0, HashKey, wtm);
+        }
+      }
+      break;
+    case queen:
+      Clear(from, BishopsQueens);
+      Set(to, BishopsQueens);
+      Clear(from, RooksQueens);
+      Set(to, RooksQueens);
+      break;
+    case king:
+      KingSQ(wtm) = to;
+      if (Castle(ply + 1, wtm) > 0) {
+        if (Castle(ply + 1, wtm) & 2)
+          HashCastle(1, HashKey, wtm);
+        if (Castle(ply + 1, wtm) & 1)
+          HashCastle(0, HashKey, wtm);
+        if (abs(to - from) == 2) {
+          Castle(ply + 1, wtm) = -ply;
+          piece = rook;
+          if (to == rook_G[wtm]) {
+            from = rook_H[wtm];
+            to = rook_F[wtm];
+          } else {
+            from = rook_A[wtm];
+            to = rook_D[wtm];
+          }
+          Clear(from, RooksQueens);
+          Set(to, RooksQueens);
+          bit_move = SetMask(from) | SetMask(to);
+          ClearSet(bit_move, Rooks(wtm));
+          ClearSet(bit_move, Occupied(wtm));
+          Hash(wtm, rook, from);
+          Hash(wtm, rook, to);
+          PcOnSq(from) = 0;
+          PcOnSq(to) = pieces[wtm][rook];
+        } else
+          Castle(ply + 1, wtm) = 0;
+      }
+      break;
   }
 /*
  ************************************************************
@@ -218,49 +221,53 @@ void MakeMove(TREE * RESTRICT tree, int ply, int move, int wtm)
     if (captured != pawn)
       TotalPieces(btm, occupied) -= p_vals[captured];
     switch (captured) {
-    case pawn:
-      HashP(btm, to);
-      break;
-    case knight:
-      break;
-    case bishop:
-      if (piece != bishop && piece != queen)
-        Clear(to, BishopsQueens);
-      break;
-    case rook:
-      if (piece != rook && piece != queen)
-        Clear(to, RooksQueens);
-      if (Castle(ply + 1, btm) > 0) {
-        if ((to == rook_A[btm]) && (Castle(ply + 1, btm) & 2)) {
-          Castle(ply + 1, btm) &= 1;
-          HashCastle(1, HashKey, btm);
-        } else if ((to == rook_H[btm]) && (Castle(ply + 1, btm) & 1)) {
-          Castle(ply + 1, btm) &= 2;
-          HashCastle(0, HashKey, btm);
-        }
-      }
-      break;
-    case queen:
-      if (piece != queen) {
-        if (piece != bishop)
+      case pawn:
+        HashP(btm, to);
+        break;
+      case knight:
+        tree->pos.minors[btm]--;
+        break;
+      case bishop:
+        if (piece != bishop && piece != queen)
           Clear(to, BishopsQueens);
-        if (piece != rook)
+        tree->pos.minors[btm]--;
+        break;
+      case rook:
+        if (piece != rook && piece != queen)
           Clear(to, RooksQueens);
-      }
-      break;
-    case king:
+        if (Castle(ply + 1, btm) > 0) {
+          if ((to == rook_A[btm]) && (Castle(ply + 1, btm) & 2)) {
+            Castle(ply + 1, btm) &= 1;
+            HashCastle(1, HashKey, btm);
+          } else if ((to == rook_H[btm]) && (Castle(ply + 1, btm) & 1)) {
+            Castle(ply + 1, btm) &= 2;
+            HashCastle(0, HashKey, btm);
+          }
+        }
+        tree->pos.majors[btm]--;
+        break;
+      case queen:
+        if (piece != queen) {
+          if (piece != bishop)
+            Clear(to, BishopsQueens);
+          if (piece != rook)
+            Clear(to, RooksQueens);
+        }
+        tree->pos.majors[btm] -= 2;
+        break;
+      case king:
 #if defined(DEBUG)
-      Print(128, "captured a king (Make)\n");
-      for (i = 1; i <= ply; i++)
+        Print(128, "captured a king (Make)\n");
+        for (i = 1; i <= ply; i++)
+          Print(128, "ply=%2d, piece=%2d,from=%2d,to=%2d,captured=%2d\n", i,
+              Piece(tree->curmv[i]), From(tree->curmv[i]), To(tree->curmv[i]),
+              Captured(tree->curmv[i]));
         Print(128, "ply=%2d, piece=%2d,from=%2d,to=%2d,captured=%2d\n", i,
-            Piece(tree->curmv[i]), From(tree->curmv[i]), To(tree->curmv[i]),
-            Captured(tree->curmv[i]));
-      Print(128, "ply=%2d, piece=%2d,from=%2d,to=%2d,captured=%2d\n", i, piece,
-          from, to, captured);
-      if (log_file)
-        DisplayChessBoard(log_file, tree->pos);
+            piece, from, to, captured);
+        if (log_file)
+          DisplayChessBoard(log_file, tree->pos);
 #endif
-      break;
+        break;
     }
   }
 #if defined(DEBUG)
@@ -281,8 +288,7 @@ void MakeMove(TREE * RESTRICT tree, int ply, int move, int wtm)
  *                                                                             *
  *******************************************************************************
  */
-void MakeMoveRoot(TREE * RESTRICT tree, int move, int wtm)
-{
+void MakeMoveRoot(TREE * RESTRICT tree, int move, int wtm) {
   int i;
 
 /*

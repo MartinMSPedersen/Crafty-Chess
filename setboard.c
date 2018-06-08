@@ -44,8 +44,7 @@
  *                                                                             *
  *******************************************************************************
  */
-void SetBoard(TREE * tree, int nargs, char *args[], int special)
-{
+void SetBoard(TREE * tree, int nargs, char *args[], int special) {
   int twtm, i, match, num, pos, square, tboard[64];
   int bcastle, ep, wcastle, error = 0;
   char input[80];
@@ -229,8 +228,8 @@ void SetBoard(TREE * tree, int nargs, char *args[], int special)
  */
   if ((twtm && EnPassant(0) && (PcOnSq(EnPassant(0) + 8) != -pawn) &&
           (PcOnSq(EnPassant(0) - 7) != pawn) &&
-          (PcOnSq(EnPassant(0) - 9) != pawn)) || (Flip(twtm) && EnPassant(0) &&
-          (PcOnSq(EnPassant(0) - 8) != pawn) &&
+          (PcOnSq(EnPassant(0) - 9) != pawn)) || (Flip(twtm) && EnPassant(0)
+          && (PcOnSq(EnPassant(0) - 8) != pawn) &&
           (PcOnSq(EnPassant(0) + 7) != -pawn) &&
           (PcOnSq(EnPassant(0) + 9) != -pawn))) {
     EnPassant(0) = 0;

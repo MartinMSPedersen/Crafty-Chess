@@ -71,8 +71,7 @@
 #define MIN_DECISIVE_ADV 150
 #define MIN_MODERATE_ADV  70
 #define MIN_SLIGHT_ADV    30
-void Annotate()
-{
+void Annotate() {
   FILE *annotate_in, *annotate_out;
   char text[128], tbuffer[4096], colors[32] = { "" }, pname[128] = {
   ""};
@@ -110,7 +109,8 @@ void Annotate()
   strcpy(tbuffer, buffer);
   nargs = ReadParse(tbuffer, args, " 	;");
   if (nargs < 6) {
-    printf("usage: annotate <file> <color> <moves> <margin> <time> [nmoves]\n");
+    printf
+        ("usage: annotate <file> <color> <moves> <margin> <time> [nmoves]\n");
     return;
   }
   annotate_in = fopen(args[1], "r");
@@ -210,17 +210,21 @@ void Annotate()
       fprintf(annotate_out, "[Black \"%s\"]%s\n", pgn_black, html_br);
       fprintf(annotate_out, "[BlackElo \"%s\"]%s\n", pgn_black_elo, html_br);
       fprintf(annotate_out, "[Result \"%s\"]%s\n", pgn_result, html_br);
-      fprintf(annotate_out, "[Annotator \"Crafty v%s\"]%s\n", version, html_br);
+      fprintf(annotate_out, "[Annotator \"Crafty v%s\"]%s\n", version,
+          html_br);
       if (strlen(colors) != 0) {
         if (!strcmp(colors, "bw") || !strcmp(colors, "wb"))
-          fprintf(annotate_out, "{annotating both black and white moves.}%s\n",
-              html_br);
+          fprintf(annotate_out,
+              "{annotating both black and white moves.}%s\n", html_br);
         else if (strchr(colors, 'b'))
-          fprintf(annotate_out, "{annotating only black moves.}%s\n", html_br);
+          fprintf(annotate_out, "{annotating only black moves.}%s\n",
+              html_br);
         else if (strchr(colors, 'w'))
-          fprintf(annotate_out, "{annotating only white moves.}%s\n", html_br);
+          fprintf(annotate_out, "{annotating only white moves.}%s\n",
+              html_br);
       } else
-        fprintf(annotate_out, "{annotating for player %s}%s\n", pname, html_br);
+        fprintf(annotate_out, "{annotating for player %s}%s\n", pname,
+            html_br);
       fprintf(annotate_out, "{using a scoring margin of %s pawns.}%s\n",
           DisplayEvaluationKibitz(annotate_margin, wtm), html_br);
       fprintf(annotate_out, "{search time limit is %s}%s\n%s\n",
@@ -229,8 +233,8 @@ void Annotate()
       fprintf(annotate_out, "\\textbf{\\sc %s %s -- %s %s}%s\n", pgn_white,
           pgn_white_elo, pgn_black, pgn_black_elo, html_br);
       fprintf(annotate_out, "{\\em %s, %s}%s\n", pgn_site, pgn_date, html_br);
-      fprintf(annotate_out, "{\\small %s, Round: %s}%s\n", pgn_event, pgn_round,
-          html_br);
+      fprintf(annotate_out, "{\\small %s, Round: %s}%s\n", pgn_event,
+          pgn_round, html_br);
       fprintf(annotate_out, "\\begin{mainline}{%s}{Crafty v%s}\n", pgn_result,
           version);
     }
@@ -370,8 +374,8 @@ void Annotate()
           thinking = 0;
           if (player_pv.pathd > 1 && player_pv.pathl >= 1 &&
               player_score + annotate_margin < annotate_score[0] &&
-              (temp[0].path[1] != player_pv.path[1] || annotate_margin < 0.0 ||
-                  best_moves != 1)) {
+              (temp[0].path[1] != player_pv.path[1] || annotate_margin < 0.0
+                  || best_moves != 1)) {
             if (wtm) {
               analysis_printed = 1;
               fprintf(annotate_out, "%s\n", html_br);
@@ -381,10 +385,12 @@ void Annotate()
             if (latex == 1) {
               AnnotatePositionTeX(tree, wtm, annotate_out);
               fprintf(annotate_out, "   \\begin{variation}\\{%d:%s\\}",
-                  player_pv.pathd, DisplayEvaluationKibitz(player_score, wtm));
+                  player_pv.pathd, DisplayEvaluationKibitz(player_score,
+                      wtm));
             } else
-              fprintf(annotate_out, "                ({%d:%s}", player_pv.pathd,
-                  DisplayEvaluationKibitz(player_score, wtm));
+              fprintf(annotate_out, "                ({%d:%s}",
+                  player_pv.pathd, DisplayEvaluationKibitz(player_score,
+                      wtm));
             path_len = player_pv.pathl;
             fprintf(annotate_out, " %s", FormatPV(tree, wtm, player_pv));
             if (latex == 1)
@@ -461,8 +467,8 @@ void Annotate()
                 tree->pv[0].pathd, DisplayEvaluationKibitz(annotate_score[0],
                     wtm));
             for (i = 1; i <= path_len; i++) {
-              fprintf(annotate_out, " %s", OutputMove(tree, tree->pv[0].path[i],
-                      i, twtm));
+              fprintf(annotate_out, " %s", OutputMove(tree,
+                      tree->pv[0].path[i], i, twtm));
               MakeMove(tree, i, tree->pv[0].path[i], twtm);
               twtm = Flip(twtm);
             }
@@ -470,8 +476,9 @@ void Annotate()
               twtm = Flip(twtm);
               UnmakeMove(tree, i, tree->pv[0].path[i], twtm);
             }
-            fprintf(annotate_out, " %s)%s\n", AnnotateVtoNAG(annotate_score[0],
-                    wtm, html_mode, latex), html_br);
+            fprintf(annotate_out, " %s)%s\n",
+                AnnotateVtoNAG(annotate_score[0], wtm, html_mode, latex),
+                html_br);
           }
         }
         read_status = ReadPGN(annotate_in, 1);
@@ -524,6 +531,7 @@ void Annotate()
   annotate_mode = 0;
   swindle_mode = save_swindle_mode;
 }
+
 /*
  *******************************************************************************
  *                                                                             *
@@ -531,8 +539,7 @@ void Annotate()
  *                                                                             *
  *******************************************************************************
  */
-void AnnotateHeaderHTML(char *title_text, FILE * annotate_out)
-{
+void AnnotateHeaderHTML(char *title_text, FILE * annotate_out) {
   fprintf(annotate_out,
       "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 Transitional//EN\"\n");
   fprintf(annotate_out,
@@ -546,13 +553,11 @@ void AnnotateHeaderHTML(char *title_text, FILE * annotate_out)
       " vlink=\"#551a8b\">\n");
 }
 
-void AnnotateFooterHTML(FILE * annotate_out)
-{
+void AnnotateFooterHTML(FILE * annotate_out) {
   fprintf(annotate_out, "</BODY>\n");
   fprintf(annotate_out, "</HTML>\n");
 }
-void AnnotatePositionHTML(TREE * RESTRICT tree, int wtm, FILE * annotate_out)
-{
+void AnnotatePositionHTML(TREE * RESTRICT tree, int wtm, FILE * annotate_out) {
   char filename[32], html_piece;
   char alt[32];
   int rank, file;
@@ -570,58 +575,58 @@ void AnnotatePositionHTML(TREE * RESTRICT tree, int wtm, FILE * annotate_out)
         (void) strcat(filename, "b");
       html_piece = translate[PcOnSq((rank << 3) + file) + 6];
       switch (html_piece) {
-      case 'p':
-        strcat(filename, "bp");
-        strcpy(alt, "*P");
-        break;
-      case 'r':
-        strcat(filename, "br");
-        strcpy(alt, "*R");
-        break;
-      case 'n':
-        strcat(filename, "bn");
-        strcpy(alt, "*N");
-        break;
-      case 'b':
-        strcat(filename, "bb");
-        strcpy(alt, "*B");
-        break;
-      case 'q':
-        strcat(filename, "bq");
-        strcpy(alt, "*Q");
-        break;
-      case 'k':
-        strcat(filename, "bk");
-        strcpy(alt, "*K");
-        break;
-      case 'P':
-        strcat(filename, "wp");
-        strcpy(alt, "P");
-        break;
-      case 'R':
-        strcat(filename, "wr");
-        strcpy(alt, "R");
-        break;
-      case 'N':
-        strcat(filename, "wn");
-        strcpy(alt, "N");
-        break;
-      case 'B':
-        strcat(filename, "wb");
-        strcpy(alt, "B");
-        break;
-      case 'Q':
-        strcat(filename, "wq");
-        strcpy(alt, "Q");
-        break;
-      case 'K':
-        strcat(filename, "wk");
-        strcpy(alt, "K");
-        break;
-      default:
-        strcat(filename, "sq");
-        strcpy(alt, " ");
-        break;
+        case 'p':
+          strcat(filename, "bp");
+          strcpy(alt, "*P");
+          break;
+        case 'r':
+          strcat(filename, "br");
+          strcpy(alt, "*R");
+          break;
+        case 'n':
+          strcat(filename, "bn");
+          strcpy(alt, "*N");
+          break;
+        case 'b':
+          strcat(filename, "bb");
+          strcpy(alt, "*B");
+          break;
+        case 'q':
+          strcat(filename, "bq");
+          strcpy(alt, "*Q");
+          break;
+        case 'k':
+          strcat(filename, "bk");
+          strcpy(alt, "*K");
+          break;
+        case 'P':
+          strcat(filename, "wp");
+          strcpy(alt, "P");
+          break;
+        case 'R':
+          strcat(filename, "wr");
+          strcpy(alt, "R");
+          break;
+        case 'N':
+          strcat(filename, "wn");
+          strcpy(alt, "N");
+          break;
+        case 'B':
+          strcat(filename, "wb");
+          strcpy(alt, "B");
+          break;
+        case 'Q':
+          strcat(filename, "wq");
+          strcpy(alt, "Q");
+          break;
+        case 'K':
+          strcat(filename, "wk");
+          strcpy(alt, "K");
+          break;
+        default:
+          strcat(filename, "sq");
+          strcpy(alt, " ");
+          break;
       }
       strcat(filename, ".gif");
       fprintf(annotate_out, "<TD><IMG ALT=\"%s\" SRC=\"%s\"></TD>\n", alt,
@@ -651,8 +656,7 @@ void AnnotatePositionHTML(TREE * RESTRICT tree, int wtm, FILE * annotate_out)
  *                                                                             *
  *******************************************************************************
  */
-void AnnotateHeaderTeX(char *title_text, FILE * annotate_out)
-{
+void AnnotateHeaderTeX(char *title_text, FILE * annotate_out) {
   fprintf(annotate_out, "\\documentclass[12pt,twocolumn]{article}\n");
   fprintf(annotate_out, "%% This is a LaTeX file generated by Crafty \n");
   fprintf(annotate_out,
@@ -684,12 +688,10 @@ void AnnotateHeaderTeX(char *title_text, FILE * annotate_out)
   fprintf(annotate_out, "\n\n\\begin{document}\n\n");
 }
 
-void AnnotateFooterTeX(FILE * annotate_out)
-{
+void AnnotateFooterTeX(FILE * annotate_out) {
   fprintf(annotate_out, "\n\n\\end{document}\n");
 }
-void AnnotatePositionTeX(TREE * tree, int wtm, FILE * annotate_out)
-{
+void AnnotatePositionTeX(TREE * tree, int wtm, FILE * annotate_out) {
   char filename[32], html_piece;
   int rank, file;
 
@@ -704,44 +706,44 @@ void AnnotatePositionTeX(TREE * tree, int wtm, FILE * annotate_out)
         (void) strcpy(filename, "*");
       html_piece = translate[PcOnSq((rank << 3) + file) + 6];
       switch (html_piece) {
-      case 'p':
-        strcpy(filename, "p");
-        break;
-      case 'r':
-        strcpy(filename, "r");
-        break;
-      case 'n':
-        strcpy(filename, "n");
-        break;
-      case 'b':
-        strcpy(filename, "b");
-        break;
-      case 'q':
-        strcpy(filename, "q");
-        break;
-      case 'k':
-        strcpy(filename, "k");
-        break;
-      case 'P':
-        strcpy(filename, "P");
-        break;
-      case 'R':
-        strcpy(filename, "R");
-        break;
-      case 'N':
-        strcpy(filename, "N");
-        break;
-      case 'B':
-        strcpy(filename, "B");
-        break;
-      case 'Q':
-        strcpy(filename, "Q");
-        break;
-      case 'K':
-        strcpy(filename, "K");
-        break;
-      default:
-        break;
+        case 'p':
+          strcpy(filename, "p");
+          break;
+        case 'r':
+          strcpy(filename, "r");
+          break;
+        case 'n':
+          strcpy(filename, "n");
+          break;
+        case 'b':
+          strcpy(filename, "b");
+          break;
+        case 'q':
+          strcpy(filename, "q");
+          break;
+        case 'k':
+          strcpy(filename, "k");
+          break;
+        case 'P':
+          strcpy(filename, "P");
+          break;
+        case 'R':
+          strcpy(filename, "R");
+          break;
+        case 'N':
+          strcpy(filename, "N");
+          break;
+        case 'B':
+          strcpy(filename, "B");
+          break;
+        case 'Q':
+          strcpy(filename, "Q");
+          break;
+        case 'K':
+          strcpy(filename, "K");
+          break;
+        default:
+          break;
       }
       fprintf(annotate_out, "%s", filename);
     }
@@ -756,8 +758,7 @@ void AnnotatePositionTeX(TREE * tree, int wtm, FILE * annotate_out)
   fprintf(annotate_out, "}\n \\end{nochess}\\end{center} \n\n");
   fprintf(annotate_out, "\n");
 }
-char *AnnotateVtoNAG(int value, int wtm, int html_mode, int latex)
-{
+char *AnnotateVtoNAG(int value, int wtm, int html_mode, int latex) {
   static char buf[64];
 
   if (!wtm)

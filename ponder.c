@@ -20,8 +20,7 @@
  *                                                                             *
  *******************************************************************************
  */
-int Ponder(int wtm)
-{
+int Ponder(int wtm) {
   int dalpha = -999999, dbeta = 999999, i, *n_ponder_moves, *mv;
   int save_move_number, tlom;
   TREE *const tree = block[0];
