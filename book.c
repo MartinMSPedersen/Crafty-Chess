@@ -924,7 +924,7 @@ void Bookup(TREE * RESTRICT tree, int nargs, char **args) {
   static char schar[2] = { "." };
   int result = 0, played, i, mask_word, total_moves;
   int move, move_num, wtm, book_positions, major, minor;
-  int cluster, max_cluster, discarded = 0, discarded_mp = 0, discarded_lose =
+  int cluster, max_cluster, ignored = 0, ignored_mp = 0, ignored_lose =
       0;
   int errors, data_read;
   int start_elapsed_time, ply, max_ply = 256;
@@ -1132,7 +1132,7 @@ void Bookup(TREE * RESTRICT tree, int nargs, char **args) {
                 move = ReadNextMove(tree, buffer, 2, wtm);
               else {
                 move = 0;
-                discarded++;
+                ignored++;
               }
               if (move) {
                 ply++;
@@ -1314,9 +1314,9 @@ void Bookup(TREE * RESTRICT tree, int nargs, char **args) {
           if (stat != 1)
             Print(4095, "ERROR!  write failed, disk probably full.\n");
         } else if (played < min_played)
-          discarded_mp++;
+          ignored_mp++;
         else
-          discarded_lose++;
+          ignored_lose++;
         if (last != (int) (next.position >> 49)) {
           next_cluster = ftell(book_file);
           fseek(book_file, cluster_seek, SEEK_SET);
@@ -1373,10 +1373,10 @@ void Bookup(TREE * RESTRICT tree, int nargs, char **args) {
     Print(4095, "\n\nparsed %d moves (%d games).\n", total_moves,
         games_parsed);
     Print(4095, "found %d errors during parsing.\n", errors);
-    Print(4095, "discarded %d moves (maxply=%d).\n", discarded, max_ply);
-    Print(4095, "discarded %d moves (minplayed=%d).\n", discarded_mp,
+    Print(4095, "ignored %d moves (maxply=%d).\n", ignored, max_ply);
+    Print(4095, "ignored %d moves (minplayed=%d).\n", ignored_mp,
         min_played);
-    Print(4095, "discarded %d moves (win/lose=%.1f%%).\n", discarded_lose,
+    Print(4095, "ignored %d moves (win/lose=%.1f%%).\n", ignored_lose,
         wl_percent * 100);
     Print(4095, "book contains %d unique positions.\n", book_positions);
     Print(4095, "deepest book line was %d plies.\n", max_search_depth);

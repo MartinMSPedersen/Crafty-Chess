@@ -1832,18 +1832,9 @@ int Option(TREE * RESTRICT tree) {
  ************************************************************
  */
   else if (OptionMatch("new", *args)) {
-    new_game = 1;
-    if (thinking || pondering)
-      return 3;
-    if (smp_max_threads) {
-      int proc;
-
-      Print(32, "parallel threads terminated.\n");
-      for (proc = 1; proc < CPUS; proc++)
-        thread[proc].terminate = 1;
-    }
-    NewGame(0);
-    return 3;
+    Print(4095, "NOTICE:  ""new"" command not implemented, please exit and\n");
+    Print(4095, "restart crafty to re-initialize everything for a new game\n");
+    return 1;
   }
 /*
  ************************************************************
@@ -2383,7 +2374,7 @@ int Option(TREE * RESTRICT tree) {
     if (pversion >= 1 && pversion <= 3) {
       if (pversion >= 2) {
         Print(-1, "feature ping=1 setboard=1 san=1 time=1 draw=1\n");
-        Print(-1, "feature sigint=0 sigterm=0 reuse=1 analyze=1\n");
+        Print(-1, "feature sigint=0 sigterm=0 reuse=0 analyze=1\n");
         Print(-1, "feature myname=\"Crafty-%s\" name=1\n", version);
         Print(-1, "feature playother=1 colors=0 memory=%d\n", allow_memory);
 #if (CPUS > 1)

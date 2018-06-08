@@ -19,7 +19,10 @@
  */
 void Initialize() {
   TREE *tree;
-  int i, j, v, major, id, node;
+  int j, v, major, id;
+#if defined(UNIX)
+  int i, node;
+#endif
 
   tree = block[0];
   for (j = 1; j <= MAX_BLOCKS; j++)
@@ -64,7 +67,7 @@ void Initialize() {
         book_path);
   if (book_file) {
     int maj_min;
-    fseek(book_file, -sizeof(int), SEEK_END);
+    fseek(book_file, - (long) sizeof(int), SEEK_END);
     v = fread(&maj_min, 4, 1, book_file);
     if (v <= 0)
       perror("Initialize() fread error: ");

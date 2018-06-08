@@ -4236,6 +4236,16 @@
  *           ends which will also overwrite the current exact match and update *
  *           the age as well.  Suggested by J. Wesley Cleveland on CCC.        *
  *                                                                             *
+ *    25.2   Minor bug in the fail-high / fail-low code.  Crafty is supposed   *
+ *           to deal with the case where the first move produces a score, then *
+ *           a later move fails high but then produces a worse score.  We are  *
+ *           supposed to revert to the better move.  An "optimization" made    *
+ *           this fail, but it has been fixed here.  "new" command removed as  *
+ *           it is pretty difficult to restore everything once a game has been *
+ *           started.  To start a new game, quit crafty and restart.  Crafty   *
+ *           now notifies xboard/winboard to do this automatically so using    *
+ *           those interfaces requires no changes to anything.                 *
+ *                                                                             *
  *******************************************************************************
  */
 int main(int argc, char **argv) {
@@ -4423,7 +4433,6 @@ int main(int argc, char **argv) {
   if (hardware_processors > 0)
     Print(32, "machine has %d processors\n\n", hardware_processors);
 
-  NewGame(1);
 /*
  ************************************************************
  *                                                          *
@@ -4501,8 +4510,6 @@ int main(int argc, char **argv) {
   while (1) {
     presult = 0;
     do {
-      if (new_game)
-        NewGame(0);
       opponent_start_time = ReadClock();
       input_status = 0;
       display = tree->position;

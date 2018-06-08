@@ -1312,10 +1312,6 @@ unsigned int ReadClock(void) {
 #if defined(UNIX)
   struct timeval timeval;
   struct timezone timezone;
-#else
-  HANDLE hThread;
-  FILETIME ftCreate, ftExit, ftKernel, ftUser;
-  uint64_t tUser64;
 #endif
 #if defined(UNIX)
   gettimeofday(&timeval, &timezone);
@@ -1525,97 +1521,6 @@ int Mated(TREE * RESTRICT tree, int ply, int wtm) {
   if (Check(wtm))
     return 1;
   return 2;
-}
-
-/* last modified 02/26/14 */
-/*
- *******************************************************************************
- *                                                                             *
- *   NewGame() is used to initialize the chess position and timing controls to *
- *   the setup needed to start a new game.                                     *
- *                                                                             *
- *******************************************************************************
- */
-void NewGame(int save) {
-  TREE *const tree = block[0];
-  static int save_book_selection_width = 5, save_kibitz = 0;
-  static int save_resign = 0, save_resign_count = 0, save_draw_count = 0;
-  static int save_learning = 0, save_learn = 0, save_accept_draws = 0;
-  int id;
-
-  new_game = 0;
-  if (save) {
-    save_book_selection_width = book_selection_width;
-    save_kibitz = kibitz;
-    save_resign = resign;
-    save_resign_count = resign_count;
-    save_draw_count = draw_count;
-    save_learning = learning;
-    save_learn = learn;
-    save_accept_draws = accept_draws;
-  } else {
-    if (learn && moves_out_of_book) {
-      learn_value =
-          (crafty_is_white) ? last_search_value : -last_search_value;
-      LearnBook();
-    }
-    if (xboard) {
-      printf("tellicsnoalias set 1 Crafty v%s (%d cpus)\n", version, Max(1,
-              smp_max_threads));
-    }
-    over = 0;
-    moves_out_of_book = 0;
-    learn_positions_count = 0;
-    learn_value = 0;
-    ponder_move = 0;
-    last_search_value = 0;
-    last_pv.pathd = 0;
-    last_pv.pathl = 0;
-    strcpy(initial_position, "");
-    InitializeChessBoard(tree);
-    InitializeHashTables(0);
-    force = 0;
-    books_file = normal_bs_file;
-    draw_score[0] = 0;
-    draw_score[1] = 0;
-    game_wtm = 1;
-    move_number = 1;
-    tc_time_remaining[white] = tc_time;
-    tc_time_remaining[black] = tc_time;
-    tc_moves_remaining[white] = tc_moves;
-    tc_moves_remaining[black] = tc_moves;
-    if (move_actually_played) {
-      if (log_file) {
-        fclose(log_file);
-        fclose(history_file);
-        id = InitializeGetLogID();
-        sprintf(log_filename, "%s/log.%03d", log_path, id);
-        sprintf(history_filename, "%s/game.%03d", log_path, id);
-        log_file = fopen(log_filename, "w");
-        history_file = fopen(history_filename, "w+");
-        if (!history_file) {
-          printf("ERROR, unable to open game history file, exiting\n");
-          CraftyExit(1);
-        }
-      }
-    }
-    move_actually_played = 0;
-    book_selection_width = save_book_selection_width;
-    kibitz = save_kibitz;
-    resign = save_resign;
-    resign_count = save_resign_count;
-    resign_counter = 0;
-    draw_count = save_draw_count;
-    accept_draws = save_accept_draws;
-    draw_counter = 0;
-    usage_level = 0;
-    learning = save_learning;
-    learn = save_learn;
-    predicted = 0;
-    kibitz_depth = 0;
-    tree->nodes_searched = 0;
-    kibitz_text[0] = 0;
-  }
 }
 
 /*
@@ -2603,7 +2508,6 @@ static ULONG ulNumaNode = 0;
 
 // Get NUMA-related information from Windows
 static void WinNumaInit(void) {
-  DWORD_PTR dwMask;
   HMODULE hModule;
   ULONG ulCPU, ulNode;
   ULONGLONG ullMask;
@@ -2626,12 +2530,12 @@ static void WinNumaInit(void) {
         fSystemIsNUMA = TRUE;
         if (ulNumaNodes > 255)
           ulNumaNodes = 255;
-        printf("System is NUMA. %d nodes reported by Windows\n",
+        printf("System is NUMA. " PRId64 " nodes reported by Windows\n",
             ulNumaNodes + 1);
         for (ulNode = 0; ulNode <= ulNumaNodes; ulNode++) {
           pGetNumaNodeProcessorMask((UCHAR) ulNode,
               &ullProcessorMask[ulNode]);
-          printf("Node %d CPUs: ", ulNode);
+          printf("Node " PRId64 " CPUs: ", ulNode);
           ullMask = ullProcessorMask[ulNode];
           if (0 == ullMask)
             fSystemIsNUMA = FALSE;
@@ -2639,7 +2543,7 @@ static void WinNumaInit(void) {
             ulCPU = 0;
             do {
               if (ullMask & 1)
-                printf("%d ", ulCPU);
+                printf("" PRId64 " ", ulCPU);
               ulCPU++;
               ullMask >>= 1;
             } while (ullMask);
@@ -2651,13 +2555,13 @@ static void WinNumaInit(void) {
 // so ProcessorMask[0] would always be node for thread 0
         dwCPU =
             pSetThreadIdealProcessor(GetCurrentThread(), MAXIMUM_PROCESSORS);
-        printf("Current ideal CPU is %u\n", dwCPU);
+        printf("Current ideal CPU is %llu\n", dwCPU);
         pSetThreadIdealProcessor(GetCurrentThread(), dwCPU);
         if ((((DWORD) - 1) != dwCPU) && (MAXIMUM_PROCESSORS != dwCPU)
             && !(ullProcessorMask[0] & (1u << dwCPU))) {
           for (ulNode = 1; ulNode <= ulNumaNodes; ulNode++) {
             if (ullProcessorMask[ulNode] & (1u << dwCPU)) {
-              printf("Exchanging nodes 0 and %d\n", ulNode);
+              printf("Exchanging nodes 0 and " PRId64 "\n", ulNode);
               ullMask = ullProcessorMask[ulNode];
               ullProcessorMask[ulNode] = ullProcessorMask[0];
               ullProcessorMask[0] = ullMask;
@@ -2684,7 +2588,7 @@ pthread_t NumaStartThread(void *func, void *args) {
     if (ulNumaNode > ulNumaNodes)
       ulNumaNode = 0;
     ullMask = ullProcessorMask[ulNumaNode];
-    printf("Starting thread on node %d CPU mask %I64d\n", ulNumaNode,
+    printf("Starting thread on node " PRId64 " CPU mask %I64d\n", ulNumaNode,
         ullMask);
     SetThreadAffinityMask(GetCurrentThread(), (DWORD_PTR) ullMask);
     hThread = (HANDLE) _beginthreadex(0, 0, func, args, CREATE_SUSPENDED, 0);

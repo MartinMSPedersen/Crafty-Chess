@@ -15,7 +15,6 @@
 extern pthread_t NumaStartThread(void *func, void *args);
 
 #    include <windows.h>
-#    pragma intrinsic (_InterlockedExchange)
 typedef volatile LONG lock_t[1];
 
 #    define LockInit(v)      ((v)[0] = 0)

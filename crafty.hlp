@@ -41,7 +41,7 @@ linelength n................... sets line length to n.  A really large value
                                 will produce 1 line PVs, making parsing easier
 list........................... update/display GM/IM/computer lists.
 lmp base scale................. LMP pruning move counts
-lmr min max depths moves scale. LMR reduction matrix generator
+lmr min max bias moves scale... LMR reduction matrix generator
 load file title................ load a position from problem file, starting
                                 with line containing title, ending on exit.
 log on|off..................... turn logging on/off.
@@ -86,7 +86,6 @@ smp............................ sets SMP parameters (help smp for details)
 sn n........................... sets absolute search node limit.
 speech on|off.................. enables (disables) audio output.
 st n........................... sets absolute search time.
-store val...................... stores position/score (position.bin).
 swindle on|off................. enables/disables swindle mode.
 tags........................... list PGN header tags.
 test file [N].................. test a suite of problems.

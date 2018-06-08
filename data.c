@@ -442,7 +442,7 @@ const int OOOsqs[2][3] = {{E8, D8, C8}, {E1, D1, C1}};
 const int OOfrom[2] = {E8, E1};
 const int OOto[2] =   {G8, G1};
 const int OOOto[2] =  {C8, C1};
-#define VERSION      "25.1"
+#define VERSION      "25.2"
 char version[8] = {VERSION};
 PLAYING_MODE mode = normal_mode;
 int batch_mode = 0;                  /* no asynch reads */
@@ -489,7 +489,6 @@ int xboard = 0;
 int xboard_done = 0;
 int pong = 0;
 int early_exit = 99;
-int new_game = 0;
 char book_path[128] = {BOOKDIR};
 char log_path[128] = {LOGDIR};
 char tb_path[128] = {TBDIR};

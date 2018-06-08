@@ -740,7 +740,6 @@ int SearchMoveList(TREE * RESTRICT tree, int ply, int depth, int wtm,
             for (j = i; j > 0; j--)
               root_moves[j] = root_moves[j - 1];
             root_moves[0] = t;
-            break;
           }
         }
         Output(tree);

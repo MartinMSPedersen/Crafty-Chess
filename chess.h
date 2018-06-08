@@ -446,7 +446,6 @@ void MakeMove(TREE *RESTRICT, int, int, int);
 void MakeMoveRoot(TREE *RESTRICT, int, int);
 int Mated(TREE *RESTRICT, int, int);
 int RootMoveEGTB(int);
-void NewGame(int);
 int NextMove(TREE *RESTRICT, int, int, int, int);
 int NextRootMove(TREE *RESTRICT, TREE *RESTRICT, int);
 int NextRootMoveParallel(void);

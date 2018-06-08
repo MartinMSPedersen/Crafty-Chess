@@ -15,7 +15,6 @@ extern int allow_cores;
 extern int allow_memory;
 extern int initialized;
 extern int early_exit;
-extern int new_game;
 extern char *AK_list[128];
 extern char *GM_list[128];
 extern char *IM_list[128];

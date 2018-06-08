@@ -215,6 +215,6 @@ int Bench(int increase, int autotune) {
   smp_max_threads = Max(0, old_mt);
   books_file = old_books;
   book_file = old_book;
-  NewGame(0);
+  InitializeChessBoard(tree);
   return total_time_used;
 }
