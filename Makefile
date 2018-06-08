@@ -27,6 +27,9 @@
 #                     systems, and references libnuma, needed for the NUMA calls
 #                     (crafty doesn't use many of these, it does the memory
 #                     setup stuff itself)
+#   -DPOPCNT       N  Compiles with the Intel assembly code for hardware popcnt
+#                     instruction, only applies to Nehalem and beyond (I think
+#                     this is SSE 4.2 or something similar).
 #   -DPOWERPC      N  enables PPC spinlock inline function for SMP boxes only
 #   -DRCDIR        N  path to the directory where we look for the .craftyrc or
 #                     crafty.rc (windows) file.

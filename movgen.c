@@ -498,7 +498,7 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move) {
     checking_square = LSB(checksqs);
     if (PcOnSq(checking_square) != pieces[btm][pawn])
       check_direction1 = directions[checking_square][king_square];
-    target = InterposeSquares(check_direction1, king_square, checking_square);
+    target = InterposeSquares(king_square, checking_square);
     target |= checksqs;
     target |= Kings(btm);
   } else {
@@ -918,61 +918,6 @@ int *GenerateNoncaptures(TREE * RESTRICT tree, int ply, int wtm, int *move) {
     *move++ = common | (Abs(PcOnSq(to)) << 15) | (knight << 18);
   }
   return (move);
-}
-
-/*
- *******************************************************************************
- *                                                                             *
- *   InterposeSquares() is used to compute the set of squares that block an    *
- *   attack on the king by a sliding piece, by interposing any piece between   *
- *   the attacking piece and the king on the same ray.                         *
- *                                                                             *
- *******************************************************************************
- */
-BITBOARD InterposeSquares(int check_direction, int king_square,
-    int checking_square) {
-  register BITBOARD target;
-
-/*
- ************************************************************
- *                                                          *
- *   If this is a check from a single sliding piece, then   *
- *   we can interpose along the checking rank/file/diagonal *
- *   and block the check.  Otherwise, interposing is not a  *
- *   possibility.                                           *
- *                                                          *
- ************************************************************
- */
-  switch (check_direction) {
-    case +1:
-      target = plus1dir[king_square - 1] ^ plus1dir[checking_square];
-      break;
-    case +7:
-      target = plus7dir[king_square - 7] ^ plus7dir[checking_square];
-      break;
-    case +8:
-      target = plus8dir[king_square - 8] ^ plus8dir[checking_square];
-      break;
-    case +9:
-      target = plus9dir[king_square - 9] ^ plus9dir[checking_square];
-      break;
-    case -1:
-      target = minus1dir[king_square + 1] ^ minus1dir[checking_square];
-      break;
-    case -7:
-      target = minus7dir[king_square + 7] ^ minus7dir[checking_square];
-      break;
-    case -8:
-      target = minus8dir[king_square + 8] ^ minus8dir[checking_square];
-      break;
-    case -9:
-      target = minus9dir[king_square + 9] ^ minus9dir[checking_square];
-      break;
-    default:
-      target = 0;
-      break;
-  }
-  return (target);
 }
 
 /* modified 09/23/09 */

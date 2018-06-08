@@ -54,10 +54,10 @@ void Interrupt(int ply) {
         save_move_number = move_number;
         if (!wtm)
           move_number--;
-        if (wtm)
-          Print(128, "White(%d): %s\n", move_number, buffer);
-        else
+        if (root_wtm)
           Print(128, "Black(%d): %s\n", move_number, buffer);
+        else
+          Print(128, "White(%d): %s\n", move_number, buffer);
         move_number = save_move_number;
       }
 /*

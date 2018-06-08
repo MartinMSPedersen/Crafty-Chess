@@ -390,6 +390,7 @@ int Option(TREE * RESTRICT tree) {
             (side) ? "white" : "black");
       printf("\n");
     }
+    Print(128, "\n");
     if (tc_sudden_death == 1)
       Print(128, "Sudden-death time control in effect\n");
   }
@@ -537,6 +538,11 @@ int Option(TREE * RESTRICT tree) {
  */
   else if (OptionMatch("debug", *args)) {
     Print(4095, "No debug code added to option.c\n");
+    int move, from, to, piece;
+    printf("from, to, piece: ");
+    scanf("%d %d %d", &from, &to, &piece);
+    move = from + (to << 6) + (piece << 12);
+    printf("swapo=%d\n", SwapO(tree, move, wtm));
 /*
     int *mv;
     tree->last[1] = GenerateCheckEvasions(tree, 1, wtm, tree->last[0]);
@@ -1121,13 +1127,13 @@ int Option(TREE * RESTRICT tree) {
  */
   else if (OptionMatch("info", *args)) {
     Print(128, "Crafty version %s\n", version);
-    Print(128, "hash table memory =      %s bytes.\n",
-        PrintKM(hash_table_size * 3 * sizeof(HASH_ENTRY), 1));
-    Print(128, "pawn hash table memory = %s bytes.\n",
+    Print(128, "number of threads =         %2d\n", smp_max_threads);
+    Print(128, "hash table memory =      %s\n",
+        PrintKM(hash_table_size * sizeof(HASH_ENTRY), 1));
+    Print(128, "pawn hash table memory = %s\n",
         PrintKM(pawn_hash_table_size * sizeof(PAWN_HASH_ENTRY), 1));
 #if !defined(NOEGTB)
-    Print(128, "EGTB cache memory =      %s bytes.\n",
-        PrintKM(EGTB_cache_size, 1));
+    Print(128, "EGTB cache memory =      %s\n", PrintKM(EGTB_cache_size, 1));
 #endif
     if (!tc_sudden_death) {
       Print(128, "%d moves/%d minutes %d seconds primary time control\n",
@@ -1149,9 +1155,12 @@ int Option(TREE * RESTRICT tree) {
       if (tc_increment)
         Print(128, "increment %d seconds.\n", tc_increment / 100);
     }
-    Print(128, "frequency (freq)..............%4.2f\n", book_weight_freq);
-    Print(128, "static evaluation (eval)......%4.2f\n", book_weight_eval);
-    Print(128, "learning (learn)..............%4.2f\n", book_weight_learn);
+    Print(128, "book frequency (freq)..............%4.2f\n",
+        book_weight_freq);
+    Print(128, "book static evaluation (eval)......%4.2f\n",
+        book_weight_eval);
+    Print(128, "book learning (learn)..............%4.2f\n",
+        book_weight_learn);
   }
 /*
  ************************************************************
@@ -1555,6 +1564,7 @@ int Option(TREE * RESTRICT tree) {
  ************************************************************
  */
   else if (OptionMatch("log", *args)) {
+#if !defined(IPHONE)
     FILE *output_file;
     char filename[64], buffer[128];
 
@@ -1638,6 +1648,10 @@ int Option(TREE * RESTRICT tree) {
       if (output_file != stdout)
         fclose(output_file);
     }
+#else
+    history_file = 0;
+    log_file = 0;
+#endif
   }
 /*
  ************************************************************
@@ -1736,7 +1750,8 @@ int Option(TREE * RESTRICT tree) {
  ************************************************************
  *                                                          *
  *   "memory" command is used to set the max memory to use  *
- *   for hash and hashp combined.                           *
+ *   for hash and hashp combined.  This is an xboard        *
+ *   compatibility command, not normally used by players.   *
  *                                                          *
  ************************************************************
  */
@@ -1744,7 +1759,7 @@ int Option(TREE * RESTRICT tree) {
     BITBOARD size;
     size_t hmemory, pmemory;
     if (nargs < 2) {
-      printf("usage:  memory <size[KMG]>\n");
+      printf("usage:  memory <size>\n");
       return (1);
     }
     size = atoi(args[1]) * 1024 * 1024;
@@ -1753,10 +1768,10 @@ int Option(TREE * RESTRICT tree) {
     pmemory = (1ULL) << MSB(size);
     if (pmemory < 1024 * 1024)
       pmemory = 0;
-    sprintf(buffer, "hash %lld\n", hmemory);
+    sprintf(buffer, "hash %lld\n", (BITBOARD) hmemory);
     (void) Option(tree);
     if (pmemory) {
-      sprintf(buffer, "hashp %lld\n", pmemory);
+      sprintf(buffer, "hashp %lld\n", (BITBOARD) pmemory);
       (void) Option(tree);
     }
   }
@@ -3396,7 +3411,8 @@ int Option(TREE * RESTRICT tree) {
       Print(128, "skill level set to %d%%\n", skill);
       null_depth = null_depth * skill / 100;
       check_depth = check_depth * skill / 100;
-      LMR_depth = LMR_depth * skill / 100;
+      LMR_min_reduction = LMR_min_reduction * skill / 100;
+      LMR_max_reduction = LMR_max_reduction * skill / 100;
     }
   }
 #endif

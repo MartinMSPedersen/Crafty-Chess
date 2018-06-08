@@ -13,7 +13,7 @@
 /*
  *******************************************************************************
  *                                                                             *
- *  Crafty, copyright 1996-2009 by Robert M. Hyatt, Ph.D., Associate Professor *
+ *  Crafty, copyright 1996-2010 by Robert M. Hyatt, Ph.D., Associate Professor *
  *  of Computer and Information Sciences, University of Alabama at Birmingham. *
  *                                                                             *
  *  Crafty is a team project consisting of the following members.  These are   *
@@ -22,7 +22,7 @@
  *                                                                             *
  *     Michael Byrne, Pen Argyle, PA.                                          *
  *     Robert Hyatt, University of Alabama at Birmingham.                      *
- *     Tracy Riegle, Houston, TX.                                              *
+ *     Tracy Riegle, Hershey, PA.                                              *
  *     Peter Skinner, Edmonton, AB  Canada.                                    *
  *     Ted Langreck                       .                                    *
  *                                                                             *
@@ -3538,8 +3538,8 @@
  *           that handles repetition detection.  There is an undetected bug in *
  *           the previous code, related to pondering and SMP, that was not     *
  *           obvious.  The code was completely rewritten and is now much       *
- *           simpler to understand, and has been verified to be bug-free as a  *
- *           with massive cluster testing.                                     *
+ *           simpler to understand, and has been verified to be bug-free with  *
+ *           massive cluster testing.                                          *
  *                                                                             *
  *   22.1    Minor fix for CPUS=1, which would cause compile errors.  Other    *
  *           eval tweaks to improve scoring.  New "skill" command that can be  *
@@ -3829,6 +3829,26 @@
  *           limit, or you can set them in your .craftyrc/crafty.rc file.  But *
  *           if you use the .craftyrc/crafty.rc file to set either, then the   *
  *           corresponding xboard command will be disabled.                    *
+ *                                                                             *
+ *    23.3   Null-move search restriction changed to allow null-move searches  *
+ *           at any node where the side on move has at least one piece of any  *
+ *           type.  Minor bug in ValidMove() fixed to catch "backward" pawn    *
+ *           moves and flag them as illegal.  This sometimes caused an error   *
+ *           when annotating games and annotating for both sides.  The killer  *
+ *           move array could have "backward" moves due to flipping sides back *
+ *           and forth, which would cause some odd PV displays.  Small change  *
+ *           to "reduce-at-root".  We no longer reduce moves that are flagged  *
+ *           as "do not search in parallel".  Check extension modified so that *
+ *           if "SEE" says the check is unsafe, the extension is not done.  We *
+ *           found this to be worth about +10 Elo.  We also now reduce any     *
+ *           capture move that appears in the "REMAINING_MOVES" phase since    *
+ *           they can only appear there if SEE returns a score indicating loss *
+ *           of material.  We now reduce a bit more aggressively, reducing by` *
+ *           2 plies once we have searched at least 4 moves at any ply.  I     *
+ *           tried going to 3 on very late moves, but could not find any case  *
+ *           where this was better, even limiting it to near the root or other *
+ *           ideas.  But reducing by 2 plies after the at least 4 moves are    *
+ *           searched was an improvement.                                      *
  *                                                                             *
  *******************************************************************************
  */
@@ -4516,7 +4536,7 @@ int main(int argc, char **argv) {
     if (mode == tournament_mode) {
       strcpy(buffer, "clock");
       Option(tree);
-      Print(128, "if clocks are wrong, use 'clock' command to adjust them\n");
+      Print(128, "if clocks are wrong, use 'settc' command to adjust them\n");
     }
   }
 }

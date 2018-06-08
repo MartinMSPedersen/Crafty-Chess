@@ -23,6 +23,9 @@ int Iterate(int wtm, int search_type, int root_list_done) {
   register int correct, correct_count, material = 0, sorted;
   char *fh_indicator, *fl_indicator;
   TREE *const tree = block[0];
+  int savevalue;
+  PATH savepv;
+  int print_ok = 0;
 
 #if (CPUS > 1)
   pthread_t pt;
@@ -427,13 +430,13 @@ int Iterate(int wtm, int search_type, int root_list_done) {
  ************************************************************
  */
         for (i = 0; i < n_root_moves; i++)
-          root_moves[i].status &= 128;
+          root_moves[i].status = 0;
         if (root_moves[0].nodes > 1000)
           for (i = 0; i < n_root_moves; i++) {
             if (i < Min(n_root_moves, 16) &&
                 root_moves[i].nodes > root_moves[0].nodes / 3)
               root_moves[i].status |= 64;
-            if (i > n_root_moves / 4)
+            if (i < n_root_moves / 4)
               root_moves[i].status |= 128;
           }
 /*
@@ -447,14 +450,13 @@ int Iterate(int wtm, int search_type, int root_list_done) {
         if (display_options & 256) {
           BITBOARD total_nodes = 0;
 
-          Print(128, "       move       nodes      hi/low   reduce\n");
+          Print(128, "       move       nodes     R/P\n");
           for (i = 0; i < n_root_moves; i++) {
             total_nodes += root_moves[i].nodes;
-            Print(128, " %10s  " BMF10 "       %d   %d     %d\n",
-                OutputMove(tree, root_moves[i].move, 1, wtm),
-                root_moves[i].nodes, (root_moves[i].status & 0x38) > 0,
-                (root_moves[i].status & 7) > 0,
-                (root_moves[i].status & 128) > 0);
+            Print(128, " %10s  " BMF10 "     %d %d\n", OutputMove(tree,
+                    root_moves[i].move, 1, wtm), root_moves[i].nodes,
+                (root_moves[i].status & 128) == 0,
+                (root_moves[i].status & 64) == 0);
           }
           Print(256, "      total  " BMF10 "\n", total_nodes);
         }
@@ -465,12 +467,15 @@ int Iterate(int wtm, int search_type, int root_list_done) {
               tree->nodes_searched * 100 / (BITBOARD) (end_time - start_time);
         else
           nodes_per_second = 1000000;
-        if (!time_abort && !abort_search && (root_print_ok ||
-                correct_count >= early_exit || value > MATE - 300 ||
-                tree->pv[0].pathh == 2)) {
-          if (value != -(MATE - 1))
+        if (!time_abort && !abort_search && value != -(MATE - 1)) {
+          if (root_print_ok) {
             DisplayPV(tree, 5, wtm, end_time - start_time, value,
                 &tree->pv[0]);
+          } else {
+            savevalue = value;
+            savepv = tree->pv[0];
+            print_ok = 1;
+          }
         }
         root_alpha = value - 40;
         root_value = root_alpha;
@@ -509,6 +514,10 @@ int Iterate(int wtm, int search_type, int root_list_done) {
       if (elapsed_end > 10)
         nodes_per_second =
             (BITBOARD) tree->nodes_searched * 100 / (BITBOARD) elapsed_end;
+      if (!root_print_ok && print_ok) {
+        root_print_ok = 1;
+        DisplayPV(tree, 5, wtm, end_time - start_time, savevalue, &savepv);
+      }
       tree->evaluations = (tree->evaluations) ? tree->evaluations : 1;
       if ((!abort_search || time_abort) && !puzzling) {
         tree->fail_high++;

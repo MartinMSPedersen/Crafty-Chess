@@ -281,69 +281,69 @@ void InitializeAttackBoards(void) {
   }
 /*
  direction[sq1][sq2] gives the "move direction" to move from
- sq1 to sq2.  obstructed[sq1][sq2] gives a bit vector that indicates
+ sq1 to sq2.  intervening[sq1][sq2] gives a bit vector that indicates
  which squares must be unoccupied in order for <sq1> to attack <sq2>,
  assuming a sliding piece is involved.  to use this, you simply have
- to Or(obstructed[sq1][sq2],occupied_squares) and if the result is
+ to Or(intervening[sq1][sq2],occupied_squares) and if the result is
  "0" then a sliding piece on sq1 would attack sq2 and vice-versa.
  */
   for (i = 0; i < 64; i++) {
     for (j = 0; j < 64; j++)
-      obstructed[i][j] = (BITBOARD) - 1;
+      intervening[i][j] = 0;
     sqs = plus1dir[i];
     while (sqs) {
       j = LSB(sqs);
       directions[i][j] = 1;
-      obstructed[i][j] = plus1dir[i] ^ plus1dir[j - 1];
+      intervening[i][j] = plus1dir[i] ^ plus1dir[j - 1];
       sqs &= sqs - 1;
     }
     sqs = plus7dir[i];
     while (sqs) {
       j = LSB(sqs);
       directions[i][j] = 7;
-      obstructed[i][j] = plus7dir[i] ^ plus7dir[j - 7];
+      intervening[i][j] = plus7dir[i] ^ plus7dir[j - 7];
       sqs &= sqs - 1;
     }
     sqs = plus8dir[i];
     while (sqs) {
       j = LSB(sqs);
       directions[i][j] = 8;
-      obstructed[i][j] = plus8dir[i] ^ plus8dir[j - 8];
+      intervening[i][j] = plus8dir[i] ^ plus8dir[j - 8];
       sqs &= sqs - 1;
     }
     sqs = plus9dir[i];
     while (sqs) {
       j = LSB(sqs);
       directions[i][j] = 9;
-      obstructed[i][j] = plus9dir[i] ^ plus9dir[j - 9];
+      intervening[i][j] = plus9dir[i] ^ plus9dir[j - 9];
       sqs &= sqs - 1;
     }
     sqs = minus1dir[i];
     while (sqs) {
       j = LSB(sqs);
       directions[i][j] = -1;
-      obstructed[i][j] = minus1dir[i] ^ minus1dir[j + 1];
+      intervening[i][j] = minus1dir[i] ^ minus1dir[j + 1];
       sqs &= sqs - 1;
     }
     sqs = minus7dir[i];
     while (sqs) {
       j = LSB(sqs);
       directions[i][j] = -7;
-      obstructed[i][j] = minus7dir[i] ^ minus7dir[j + 7];
+      intervening[i][j] = minus7dir[i] ^ minus7dir[j + 7];
       sqs &= sqs - 1;
     }
     sqs = minus8dir[i];
     while (sqs) {
       j = LSB(sqs);
       directions[i][j] = -8;
-      obstructed[i][j] = minus8dir[i] ^ minus8dir[j + 8];
+      intervening[i][j] = minus8dir[i] ^ minus8dir[j + 8];
       sqs &= sqs - 1;
     }
     sqs = minus9dir[i];
     while (sqs) {
       j = LSB(sqs);
       directions[i][j] = -9;
-      obstructed[i][j] = minus9dir[i] ^ minus9dir[j + 9];
+      intervening[i][j] = minus9dir[i] ^ minus9dir[j + 9];
       sqs &= sqs - 1;
     }
   }
@@ -640,11 +640,8 @@ void InitializeChessBoard(TREE * tree) {
 /*
  clear the caches.
  */
-  for (i = 0; i < 64; i++) {
+  for (i = 0; i < 64; i++)
     tree->cache_n[i] = ~0ULL;
-    tree->cache_r_friendly[i] = ~0ULL;
-    tree->cache_r_enemy[i] = ~0ULL;
-  }
 }
 
 /*

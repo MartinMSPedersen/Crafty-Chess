@@ -173,11 +173,10 @@ int Quiesce(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply) {
  */
   while (next_move < tree->last[ply]) {
     tree->curmv[ply] = *(next_move++);
-    if ((pc_values[Piece(tree->curmv[ply])] >
-            pc_values[Captured(tree->curmv[ply])]) &&
-        (((wtm) ? TotalPieces(black, occupied) : TotalPieces(white, occupied))
-            - p_vals[Captured(tree->curmv[ply])] > 0) &&
-        (Swap(tree, tree->curmv[ply], wtm) < 0))
+    if (pc_values[Piece(tree->curmv[ply])] >
+        pc_values[Captured(tree->curmv[ply])] && TotalPieces(wtm, occupied)
+        - p_vals[Captured(tree->curmv[ply])] > 0 &&
+        Swap(tree, tree->curmv[ply], wtm) < 0)
       continue;
 #if defined(TRACE)
     if (ply <= trace_level)
@@ -413,11 +412,10 @@ int QuiesceChecks(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply) {
  */
   while (next_move < tree->last[ply]) {
     tree->curmv[ply] = *(next_move++);
-    if ((pc_values[Piece(tree->curmv[ply])] >
-            pc_values[Captured(tree->curmv[ply])]) &&
-        (((wtm) ? TotalPieces(black, occupied) : TotalPieces(white, occupied))
-            - p_vals[Captured(tree->curmv[ply])] > 0) &&
-        (Swap(tree, tree->curmv[ply], wtm) < 0))
+    if (pc_values[Piece(tree->curmv[ply])] >
+        pc_values[Captured(tree->curmv[ply])] &&
+        TotalPieces(wtm, occupied) - p_vals[Captured(tree->curmv[ply])] > 0 &&
+        Swap(tree, tree->curmv[ply], wtm) < 0)
       continue;
 #if defined(TRACE)
     if (ply <= trace_level)

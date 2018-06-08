@@ -38,7 +38,9 @@
 #    if !defined(NEXT) && !defined(__APPLE__)
 #      include <stropts.h>
 #    endif
-#    include <sys/conf.h>
+#    if !defined(IPHONE)
+#      include <sys/conf.h>
+#    endif
 #  else
 #    include <sys/ioctl.h>
 #  endif
@@ -1615,6 +1617,7 @@ void NewGame(int save) {
     tc_time_remaining[black] = tc_time;
     tc_moves_remaining[white] = tc_moves;
     tc_moves_remaining[black] = tc_moves;
+#if !defined(IPHONE)
     if (move_actually_played) {
       if (log_file) {
         fclose(log_file);
@@ -1630,6 +1633,10 @@ void NewGame(int save) {
         }
       }
     }
+#else
+    history_file = 0;
+    log_file = 0;
+#endif
     move_actually_played = 0;
     book_selection_width = save_book_selection_width;
     kibitz = save_kibitz;
@@ -1975,7 +1982,7 @@ int ReadInput(void) {
   int bytes;
 
   do
-    bytes = read(fileno(input_stream), buffer, 4096);
+    bytes = read(fileno(input_stream), buffer, 2048);
   while (bytes < 0 && errno == EINTR);
   if (bytes == 0) {
     if (input_stream != stdin)
@@ -2619,6 +2626,8 @@ int ValidMove(TREE * RESTRICT tree, int ply, int wtm, int move) {
  ************************************************************
  */
     case pawn:
+      if (((wtm) ? To(move) - From(move) : From(move) - To(move)) < 0)
+        return (0);
       if (abs(From(move) - To(move)) == 8) {
         if (!PcOnSq(To(move)))
           return (1);
@@ -2645,6 +2654,7 @@ int ValidMove(TREE * RESTRICT tree, int ply, int wtm, int move) {
           (PcOnSq(To(move) + epdir[wtm]) == ((wtm) ? -pawn : pawn)) &&
           (EnPassantTarget(ply) & SetMask(To(move))))
         return (1);
+      break;
 /*
  ************************************************************
  *                                                          *

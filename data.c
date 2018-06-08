@@ -1,6 +1,6 @@
 #include "chess.h"
 /* *INDENT-OFF* */
-int scale = 2;
+int scale = 10;
 FILE *input_stream;
 FILE *book_file;
 FILE *books_file;
@@ -9,6 +9,8 @@ FILE *computer_bs_file;
 FILE *history_file;
 FILE *log_file;
 int done = 0;
+BITBOARD burner[10] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
+int burnc[10] = {40000, 20000, 10000, 4000, 2000, 800, 400, 200, 100, 0};
 BITBOARD total_moves;
 int allow_cores = 1;
 int allow_memory = 1;
@@ -401,7 +403,7 @@ BITBOARD knight_attacks[64];
 BITBOARD rook_attacks[64];
 BITBOARD bishop_attacks[64];
 BITBOARD king_attacks[64];
-BITBOARD obstructed[64][64];
+BITBOARD intervening[64][64];
 BITBOARD clear_mask[65];
 BITBOARD set_mask[65];
 BITBOARD file_mask[8];
@@ -453,7 +455,7 @@ int OOOsqs[2][3] = {{ E8, D8, C8 }, { E1, D1, C1 }};
 int OOfrom[2] = { E8, E1 };
 int OOto[2] = { G8, G1 };
 int OOOto[2] = { C8, C1 };
-#define    VERSION                             "23.2"
+#define    VERSION                             "23.3"
 char version[8] = { VERSION };
 PLAYING_MODE mode = normal_mode;
 int batch_mode = 0;             /* no asynch reads */
@@ -512,8 +514,9 @@ int wtm = 1;
 int last_opponent_move = 0;
 int check_depth = 1;
 int null_depth = 3;               /* R=3 */
-int LMR_min_depth = 1;            /* leave 1 full ply after reductions */
-int LMR_depth = 1;                /* reduce 1 ply */
+int LMR_remaining_depth = 1;      /* leave 1 full ply after reductions */
+int LMR_min_reduction = 1;        /* minimum reduction 1 ply */
+int LMR_max_reduction = 2;        /* maximum reduction 2 plies */
 int search_depth = 0;
 unsigned int search_nodes = 0;
 unsigned int temp_search_nodes = 0;
@@ -567,7 +570,6 @@ int last_root_value;
 ROOT_MOVE root_moves[256];
 int n_root_moves;
 int easy_move;
-int time_limit;
 int absolute_time_limit;
 int search_time_limit;
 int burp;
@@ -976,7 +978,8 @@ int imbalance[9][9] = {
   {  42,  126,  126,  126,  126,  126,  126,  126,  126 }  /* R=+4 */
 };
 int pp_rank_bonus[8] = { 0, 0, 0, 2, 6, 12, 20, 0 };
-int pp_dist_bonus[8] = { 0, 0, 0, 2, 6, 15, 24, 0 };
+int pp_dist_bonus[8] = { 0, 0, 0, 2, 7, 19, 31, 0 };
+int pp_bonus[8] = { 0, 3, 3, 15, 35, 60, 100, 0 };
 int king_tropism_n[8] = { 0, 3, 3, 2, 1, 0, 0, 0 };
 int king_tropism_b[8] = { 0, 2, 2, 1, 0, 0, 0, 0 };
 int king_tropism_r[8] = { 0, 4, 3, 2, 1, 1, 1, 1 };
@@ -1334,8 +1337,8 @@ int bishop_with_wing_pawns[2] = { 18, 36 };
 int mobility_score_b[4] = { 1, 2, 3, 4 };
 int lower_r = 16;
 int mobility_score_r[4] = { 1, 2, 3, 4 };
-int rook_on_7th[2] = { 20, 40 };
-int rook_open_file[2] = { 40, 20 };
+int rook_on_7th[2] = { 25, 35 };
+int rook_open_file[2] = { 35, 20 };
 int rook_half_open_file[2] = { 10, 10 };
 int rook_behind_passed_pawn[2] = { 10, 36 };
 int rook_trapped = 60;
@@ -1374,11 +1377,11 @@ struct personality_term personality_packet[256] = {
   {"search options                       ", 0, 0, NULL},        /* 0 */
   {"check extension                      ", 1, 0, &check_depth},
   {"null-move reduction                  ", 1, 0, &null_depth},
-  {"LMR min distance to frontier         ", 1, 0, &LMR_min_depth},
-  {"LMR reduction                        ", 1, 0, &LMR_depth},
+  {"LMR min distance to frontier         ", 1, 0, &LMR_remaining_depth},
+  {"LMR min reduction                    ", 1, 0, &LMR_min_reduction},
+  {"LMR max reduction                    ", 1, 0, &LMR_max_reduction},
   {"prune depth                          ", 1, 0, &pruning_depth},
   {"prune margin                         ", 8, 8, pruning_margin},
-  {NULL, 0, 0, NULL},
   {NULL, 0, 0, NULL},
   {NULL, 0, 0, NULL},
   {"raw piece values                     ", 0, 0, NULL},        /* 10 */

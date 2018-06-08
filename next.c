@@ -286,7 +286,10 @@ int NextMove(TREE * RESTRICT tree, int ply, int wtm) {
     case REMAINING_MOVES:
       for (; tree->next_status[ply].last < tree->last[ply];
           tree->next_status[ply].last++)
-        if (*tree->next_status[ply].last) {
+        if (*tree->next_status[ply].last &&
+            *tree->next_status[ply].last != tree->hash_move[ply] &&
+            *tree->next_status[ply].last != tree->killers[ply].move1 &&
+            *tree->next_status[ply].last != tree->killers[ply].move2) {
           tree->curmv[ply] = *tree->next_status[ply].last;
           *tree->next_status[ply].last++ = 0;
           return (REMAINING_MOVES);
@@ -410,7 +413,19 @@ int NextRootMove(TREE * RESTRICT tree, TREE * RESTRICT mytree, int wtm) {
         fflush(stdout);
         Unlock(lock_io);
       }
-      if (!(root_moves[which].status & 128))
+/*
+ ************************************************************
+ *                                                          *
+ *   Bit of a tricky exit.  If the move is flagged as "do   *
+ *   not reduce" or "do not search in parallel" then we     *
+ *   return "HASH_MOVE" which will prevent SearchRoot()     *
+ *   from reducing the move (LMR).  Otherwise we return the *
+ *   more common "REMAINING_MOVES" value which allows LMR   *
+ *   to be used on those root moves.                        *
+ *                                                          *
+ ************************************************************
+ */
+      if (root_moves[which].status & 0xc0)
         return (HASH_MOVE);
       else
         return (REMAINING_MOVES);

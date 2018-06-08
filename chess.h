@@ -20,10 +20,13 @@
  *******************************************************************************
  */
 /* *INDENT-ON* */
+
 #include <stdio.h>
 #include <assert.h>
 #include <stdlib.h>
-#include <malloc.h>
+#if !defined(IPHONE)
+#  include <malloc.h>
+#endif
 #include <string.h>
 #if !defined(TYPES_INCLUDED)
 #  include "lock.h"
@@ -206,7 +209,6 @@ typedef struct {
   int kingsq[2];
   signed char board[64];
   signed char pieces[2][7];
-  signed char pawns[2];
   signed char majors[2];
   signed char minors[2];
   signed char total_all_pieces;
@@ -288,15 +290,11 @@ struct tree {
   BITBOARD nodes_searched;
   BITBOARD save_pawn_hash_key[MAXPLY + 2];
   BITBOARD cache_n[64];
-  BITBOARD cache_r_friendly[64];
-  BITBOARD cache_r_enemy[64];
   PAWN_HASH_ENTRY pawn_score;
   SEARCH_POSITION position[MAXPLY + 2];
   NEXT_MOVE next_status[MAXPLY];
   PATH pv[MAXPLY];
   int cache_n_mobility[64];
-  int cache_r_mobility_mg[64];
-  int cache_r_mobility_eg[64];
   int rep_index[2];
   int curmv[MAXPLY];
   int hash_move[MAXPLY];
@@ -336,6 +334,7 @@ struct tree {
   int depth;
   int ply;
   int cutmove;
+  int moves_searched;
   volatile int used;
 };
 typedef struct tree TREE;
@@ -546,6 +545,7 @@ int SetRootBeta(unsigned char, int);
 void SharedFree(void *address);
 int StrCnt(char *, char);
 int Swap(TREE * RESTRICT, int, int);
+int SwapO(TREE * RESTRICT, int, int);
 void Test(char *);
 void TestEPD(char *);
 int Thread(TREE * RESTRICT);
@@ -601,7 +601,7 @@ extern void WinFreeInterleaved(void *, size_t);
     *mptr++ = t | (to << 6) | (Abs(PcOnSq(to)) << 15);                     \
   }
 #  define Check(side) Attacks(tree, KingSQ(side), Flip(side))
-#  define Attack(from,to) (!(obstructed[from][to] & OccupiedSquares))
+#  define Attack(from,to) (!(intervening[from][to] & OccupiedSquares))
 #  define AttacksBishop(square, occ) *(magic_bishop_indices[square]+((((occ)&magic_bishop_mask[square])*magic_bishop[square])>>magic_bishop_shift[square]))
 #  define MobilityBishop(square, occ) *(magic_bishop_mobility_indices[square]+((((occ)&magic_bishop_mask[square])*magic_bishop[square])>>magic_bishop_shift[square]))
 #  define AttacksKnight(square) knight_attacks[square]
@@ -621,6 +621,7 @@ extern void WinFreeInterleaved(void *, size_t);
 #  define AttacksFile(a) (AttacksRook(a, OccupiedSquares) & file_mask[File(a)])
 #  define AttacksDiaga1(a) (AttacksBishop(a, OccupiedSquares) & (plus9dir[a] | minus9dir[a]))
 #  define AttacksDiagh1(a) (AttacksBishop(a, OccupiedSquares) & (plus7dir[a] | minus7dir[a]))
+#  define InterposeSquares(kingsq, checksq) intervening[kingsq][checksq]
 /*
    the following macros are used to extract the pieces of a move that are
    kept compressed into the rightmost 21 bits of a simple integer.
