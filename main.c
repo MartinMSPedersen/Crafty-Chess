@@ -3794,6 +3794,42 @@
  *           it is convinced all of them lead to draws.  This version is about *
  *           +100 Elo stronger than 23.0 based on cluster testing results.     *
  *                                                                             *
+ *    23.2   Two changes related to draw handling.  First, the 50-move draw    *
+ *           rule is tricky.  It is possible that the move on the 100th ply    *
+ *           after the last non-reversible move might not be a draw, even if   *
+ *           it is reversible itself, because it might deliver mate.  In this  *
+ *           specific case, the mate will end the game as a win.  This has     *
+ *           been fixed in Crafty to match this specific rule exception.  Also *
+ *           draws by "insufficient material" have been changed to match the   *
+ *           FIDE rules which say that mate can't be possible, even with worst *
+ *           possible play by the opponent.  Crafty would claim a draw in a    *
+ *           simple KN vs KN position, which is incorrect.  Even though        *
+ *           neither side can force mate, mate is possible and so the position *
+ *           is not a draw by FIDE rules.  Mobility scoring changed for        *
+ *           sliding pieces.  Now the mobility scores are pre-computed and     *
+ *           stored in a table that is addressed by the "magic number move     *
+ *           generation idea".  This completely eliminates the computational   *
+ *           cost of the mobility scoring since all of the scores are pre-     *
+ *           computed before the game starts.  This was a modest speed         *
+ *           improvement but really made the code simpler and smaller.  Change *
+ *           to lazy eval cutoff code to improve accuracy.  BookUP() had a     *
+ *           minor bug that caused it to not report how many moves were not    *
+ *           included because of the "maxply" limit.  This has been fixed also *
+ *           so that it now reports the correct value.  New xboard "cores" and *
+ *           "memory" command support added.  Code to malloc() both was also   *
+ *           rewritten completely to clean it up and simplify things.  In an   *
+ *           effort to avoid confusion, there is one caveat here.  If your     *
+ *           .craftyrc/crafty.rc file has an option to set the number of       *
+ *           threads (mt=n/smpnt=n), then the "cores" option from xboard is    *
+ *           automatically disabled so that the .craftyrc option effectively   *
+ *           overrides any potential cores setting.  If you set hash or hashp  *
+ *           in the .craftyrc/crafty.rc file, then the "memory" option from    *
+ *           xboard is automatically disabled, for the same reason.  In short, *
+ *           you can let xboard set the number of threads and memory usage     *
+ *           limit, or you can set them in your .craftyrc/crafty.rc file.  But *
+ *           if you use the .craftyrc/crafty.rc file to set either, then the   *
+ *           corresponding xboard command will be disabled.                    *
+ *                                                                             *
  *******************************************************************************
  */
 int main(int argc, char **argv) {
@@ -4401,7 +4437,7 @@ int main(int argc, char **argv) {
           Print(4095, "1/2-1/2 {Drawn by 3-fold repetition}\n");
         value = DrawScore(wtm);
       }
-      if (draw_type == 2) {
+      if (draw_type == 2 && last_search_value < MATE - 1024) {
         Print(128, "I claim a draw by the 50 move rule after my move.\n");
         if (xboard)
           Print(4095, "1/2-1/2 {Drawn by 50-move rule}\n");

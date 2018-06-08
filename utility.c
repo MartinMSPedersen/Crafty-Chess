@@ -79,6 +79,27 @@ void AlignedMalloc(void **pointer, int alignment, size_t size) {
 /*
  *******************************************************************************
  *                                                                             *
+ *   atoiKM() is used to read in an integer value that can have a "K" or "M"   *
+ *   appended to it to multiply by 1024 or 1024*1024.  It returns a 64 bit     *
+ *   value since memory sizes can exceed 4gb on modern hardware.               *
+ *                                                                             *
+ *******************************************************************************
+ */
+
+BITBOARD atoiKM(char *input) {
+  BITBOARD size;
+
+  size = atoi(input);
+  if (strchr(input, 'K') || strchr(input, 'k'))
+    size *= 1 << 10;
+  if (strchr(input, 'M') || strchr(input, 'm'))
+    size *= 1 << 20;
+  return (size);
+}
+
+/*
+ *******************************************************************************
+ *                                                                             *
  *   AlignedRemalloc() is used to change the size of a memory block that has   *
  *   previously been allocated using AlignedMalloc().                          *
  *                                                                             *

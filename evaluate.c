@@ -28,6 +28,12 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta) {
  *                                                                    *
  **********************************************************************
  */
+//TLR
+  lscore = (wtm) ? Material : -Material;
+  cutoff = KNIGHT_VALUE - 5;
+  if (lscore + cutoff < alpha || lscore - cutoff > beta)
+    return lscore;
+
   tree->dangerous[white] = (Queens(white) &&
       TotalPieces(white, occupied) > 13)
       || (TotalPieces(white, rook) > 1 && TotalPieces(white, occupied) > 15);
@@ -177,8 +183,8 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta) {
         for (side = black; side <= white; side++)
           EvaluatePawns(tree, side);
         ptable->key =
-            pxtable->entry[0] ^ pxtable->
-            entry[1] ^ pxtable->entry[2] ^ pxtable->entry[3];
+            pxtable->entry[0] ^ pxtable->entry[1] ^ pxtable->
+            entry[2] ^ pxtable->entry[3];
         memcpy((char *) ptable + 8, (char *) &(tree->pawn_score) + 8, 24);
       }
       tree->score_mg += tree->pawn_score.score_mg;
@@ -285,10 +291,9 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta) {
  *******************************************************************************
  */
 void EvaluateBishops(TREE * RESTRICT tree, int side) {
-  register BITBOARD temp, moves, moves2;
-  register int square, i, t;
+  register BITBOARD temp, moves;
+  register int square, t, mobility;
   register int score_eg = 0, score_mg = 0, enemy = Flip(side);
-  int pair = TotalPieces(side, bishop) > 1;
 /*
  ************************************************************
  *                                                          *
@@ -359,26 +364,14 @@ void EvaluateBishops(TREE * RESTRICT tree, int side) {
  ************************************************************
  *                                                          *
  *   Mobility counts the number of squares the piece        *
- *   attacks, excluding squares with friendly pieces, and   *
- *   weighs each square according to centralization.        *
+ *   attacks, and weighs each square according to           *
+ *   centralization.                                        *
  *                                                          *
  ************************************************************
  */
-    moves = bishop_attacks[square] & Occupied(side);
-    moves2 = bishop_attacks[square] & Occupied(enemy);
-    if (tree->cache_b_friendly[square] != moves ||
-        tree->cache_b_enemy[square] != moves2) {
-      tree->cache_b_friendly[square] = moves;
-      tree->cache_b_enemy[square] = moves2;
-      moves = AttacksBishop(square, OccupiedSquares) & ~Occupied(side);
-      moves |= SetMask(square);
-      t = -lower_b;
-      for (i = 0; i < 4; i++)
-        t += PopCnt(moves & mobility_mask_b[i]) * mobility_score_b[i];
-      tree->cache_b_mobility[square] = t;
-    }
-    score_mg += tree->cache_b_mobility[square];
-    score_eg += tree->cache_b_mobility[square];
+    mobility = MobilityBishop(square, OccupiedSquares);
+    score_mg += mobility;
+    score_eg += mobility;
 /*
  ************************************************************
  *                                                          *
@@ -406,18 +399,6 @@ void EvaluateBishops(TREE * RESTRICT tree, int side) {
           Distance(square, KingSQ(enemy));
       tree->tropism[side] += king_tropism_b[t];
     }
-  }
-/*
- ************************************************************
- *                                                          *
- *   Add a bonus if this side has a pair of bishops, which  *
- *   can become very strong in open positions.              *
- *                                                          *
- ************************************************************
- */
-  if (pair) {
-    score_mg += bishop_pair[mg];
-    score_eg += bishop_pair[eg];
   }
   tree->score_mg += sign[side] * score_mg;
   tree->score_eg += sign[side] * score_eg;
@@ -913,8 +894,10 @@ void EvaluateMate(TREE * RESTRICT tree, int side) {
  *                                                                             *
  *******************************************************************************
  */
+static int bon[17] =
+    { 0, 40, 40, 35, 30, 24, 16, 12, 10, 8, 7, 6, 5, 4, 3, 2, 1 };
 void EvaluateMaterial(TREE * RESTRICT tree, int wtm) {
-  register int score_mg, score_eg, majors, minors;
+  register int score_mg, score_eg, majors, minors, imbal;
 
 /*
  **********************************************************************
@@ -938,8 +921,49 @@ void EvaluateMaterial(TREE * RESTRICT tree, int wtm) {
   minors = 4 + tree->pos.minors[white] - tree->pos.minors[black];
   majors = Max(Min(majors, 8), 0);
   minors = Max(Min(minors, 8), 0);
-  score_mg += imbalance[majors][minors];
-  score_eg += imbalance[majors][minors];
+  imbal = imbalance[majors][minors];
+  score_mg += imbal;
+  score_eg += imbal;
+//TLR
+/*
+ ************************************************************
+ *                                                          *
+ *   Add a bonus per side if side has a pair of bishops,    *
+ *   which can become very strong in open positions.        *
+ *                                                          *
+ ************************************************************
+ */
+  if (TotalPieces(white, bishop) > 1) {
+    score_mg += 38;
+    score_eg += 56;
+  }
+  if (TotalPieces(black, bishop) > 1) {
+    score_mg -= 38;
+    score_eg -= 56;
+  }
+/*
+ ************************************************************
+ *                                                          *
+ *   Check for pawns on both wings, which makes a bishop    *
+ *   even more valuable against an enemy knight             *
+ *   (knight vs. bishop in endgame)                         *
+ *                                                          *
+ ************************************************************
+ */
+  if (!imbal && !tree->pos.majors[white] && tree->pos.minors[white] == 1) {
+    if (tree->all_pawns & mask_fgh && tree->all_pawns & mask_abc) {
+      imbal = bon[(TotalPieces(white, pawn) + TotalPieces(black, pawn))];
+      if (Bishops(white)) {
+        score_mg += imbal;
+        score_eg += imbal;
+      }
+      if (Bishops(black)) {
+        score_mg -= imbal;
+        score_eg -= imbal;
+      }
+    }
+  }
+
   tree->score_mg += score_mg;
   tree->score_eg += score_eg;
 #ifdef DEBUGM
@@ -1717,8 +1741,8 @@ void EvaluateQueens(TREE * RESTRICT tree, int side) {
  *******************************************************************************
  */
 void EvaluateRooks(TREE * RESTRICT tree, int side) {
-  register BITBOARD temp, moves, moves2;
-  register int square, rank, fRank, file, i, t, n, p;
+  register BITBOARD temp, moves;
+  register int square, rank, fRank, file, i, t, mobility;
   register int score_mg = 0, score_eg = 0;
   register int enemy = Flip(side);
 
@@ -1791,37 +1815,18 @@ void EvaluateRooks(TREE * RESTRICT tree, int side) {
  ************************************************************
  *                                                          *
  *   Mobility counts the number of squares the piece        *
- *   attacks, excluding squares with friendly pieces, and   *
- *   weighs each square according to centralization (file). *
+ *   attacks, and weighs each square according to a complex *
+ *   formula that includes files as well as total number of *
+ *   squares attacked.                                      *
  *                                                          *
- *   For efficiency, we use a small cache to eliminate the  *
- *   rook mobility calculation cost if the pieces on the    *
- *   same rank/file with this rook are identical to the     *
- *   placement the last time we evaluated a rook on this    *
- *   same square.                                           *
+ *   For efficiency, we use a pre-computed mobility score   *
+ *   that is accessed just like a magic attack generation.  *
  *                                                          *
  ************************************************************
  */
-    moves = rook_attacks[square] & Occupied(side);
-    moves2 = rook_attacks[square] & Occupied(enemy);
-    if (tree->cache_r_friendly[square] != moves ||
-        tree->cache_r_enemy[square] != moves2) {
-      tree->cache_r_friendly[square] = moves;
-      tree->cache_r_enemy[square] = moves2;
-      moves = AttacksRook(square, OccupiedSquares) & ~Occupied(side);
-      moves |= SetMask(square);
-      t = -1;
-      n = -6;
-      for (i = 0; i < 4; i++) {
-        p = PopCnt(moves & mobility_mask_r[i]);
-        t += p * mobility_score_r[i];
-        n += p;
-      }
-      tree->cache_r_mobility_mg[square] = mob_curve_r[t];
-      tree->cache_r_mobility_eg[square] = 3 * n;
-    }
-    score_mg += tree->cache_r_mobility_mg[square];
-    score_eg += tree->cache_r_mobility_eg[square];
+    mobility = MobilityRook(square, OccupiedSquares);
+    score_mg += mobility;
+    score_eg += mobility;
 /*
  ************************************************************
  *                                                          *

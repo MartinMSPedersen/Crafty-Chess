@@ -10,6 +10,8 @@ FILE *history_file;
 FILE *log_file;
 int done = 0;
 BITBOARD total_moves;
+int allow_cores = 1;
+int allow_memory = 1;
 int last_mate_score;
 char log_filename[256];
 char history_filename[256];
@@ -37,8 +39,6 @@ int learn_nmoves[64];
 int book_learn_nmoves;
 int book_learn_seekto;
 BITBOARD book_learn_key;
-int hash_mask;
-unsigned int pawn_hash_mask;
 HASH_ENTRY *trans_ref;
 PAWN_HASH_ENTRY *pawn_hash_table;
 void * segments[MAX_BLOCKS + 32][2];
@@ -453,7 +453,7 @@ int OOOsqs[2][3] = {{ E8, D8, C8 }, { E1, D1, C1 }};
 int OOfrom[2] = { E8, E1 };
 int OOto[2] = { G8, G1 };
 int OOOto[2] = { C8, C1 };
-#define    VERSION                             "23.1"
+#define    VERSION                             "23.2"
 char version[8] = { VERSION };
 PLAYING_MODE mode = normal_mode;
 int batch_mode = 0;             /* no asynch reads */
@@ -633,10 +633,12 @@ int show_book = 0;
 int book_selection_width = 5;
 int ponder = 1;
 int trace_level = 0;
+/*  hash_mask should be (hash_table_size - 1) >> 2  */
 size_t hash_table_size = 65536;
-int log_hash = 16;
+BITBOARD hash_mask = 0x00003fff;
+/*  pawn_hash_mask should be pawn_hash_table_size - 1  */
 size_t pawn_hash_table_size = 16384;
-int log_pawn_hash = 14;
+BITBOARD pawn_hash_mask = 0x00003fff;
 int abs_draw_score = 1;
 int accept_draws = 1;
 const char translate[13] =
@@ -734,6 +736,41 @@ BITBOARD *magic_bishop_indices[64] = {
   magic_bishop_table + 1632, magic_bishop_table + 2272,
   magic_bishop_table + 4896, magic_bishop_table + 5184
 };
+short int magic_bishop_mobility_table[5248];
+short int *magic_bishop_mobility_indices[64] = {
+  magic_bishop_mobility_table + 4992, magic_bishop_mobility_table + 2624,
+  magic_bishop_mobility_table + 256, magic_bishop_mobility_table + 896,
+  magic_bishop_mobility_table + 1280, magic_bishop_mobility_table + 1664,
+  magic_bishop_mobility_table + 4800, magic_bishop_mobility_table + 5120,
+  magic_bishop_mobility_table + 2560, magic_bishop_mobility_table + 2656,
+  magic_bishop_mobility_table + 288, magic_bishop_mobility_table + 928,
+  magic_bishop_mobility_table + 1312, magic_bishop_mobility_table + 1696,
+  magic_bishop_mobility_table + 4832, magic_bishop_mobility_table + 4928,
+  magic_bishop_mobility_table + 0, magic_bishop_mobility_table + 128,
+  magic_bishop_mobility_table + 320, magic_bishop_mobility_table + 960,
+  magic_bishop_mobility_table + 1344, magic_bishop_mobility_table + 1728,
+  magic_bishop_mobility_table + 2304, magic_bishop_mobility_table + 2432,
+  magic_bishop_mobility_table + 32, magic_bishop_mobility_table + 160,
+  magic_bishop_mobility_table + 448, magic_bishop_mobility_table + 2752,
+  magic_bishop_mobility_table + 3776, magic_bishop_mobility_table + 1856,
+  magic_bishop_mobility_table + 2336, magic_bishop_mobility_table + 2464,
+  magic_bishop_mobility_table + 64, magic_bishop_mobility_table + 192,
+  magic_bishop_mobility_table + 576, magic_bishop_mobility_table + 3264,
+  magic_bishop_mobility_table + 4288, magic_bishop_mobility_table + 1984,
+  magic_bishop_mobility_table + 2368, magic_bishop_mobility_table + 2496,
+  magic_bishop_mobility_table + 96, magic_bishop_mobility_table + 224,
+  magic_bishop_mobility_table + 704, magic_bishop_mobility_table + 1088,
+  magic_bishop_mobility_table + 1472, magic_bishop_mobility_table + 2112,
+  magic_bishop_mobility_table + 2400, magic_bishop_mobility_table + 2528,
+  magic_bishop_mobility_table + 2592, magic_bishop_mobility_table + 2688,
+  magic_bishop_mobility_table + 832, magic_bishop_mobility_table + 1216,
+  magic_bishop_mobility_table + 1600, magic_bishop_mobility_table + 2240,
+  magic_bishop_mobility_table + 4864, magic_bishop_mobility_table + 4960,
+  magic_bishop_mobility_table + 5056, magic_bishop_mobility_table + 2720,
+  magic_bishop_mobility_table + 864, magic_bishop_mobility_table + 1248,
+  magic_bishop_mobility_table + 1632, magic_bishop_mobility_table + 2272,
+  magic_bishop_mobility_table + 4896, magic_bishop_mobility_table + 5184
+};
 BITBOARD magic_rook_table[102400];
 BITBOARD *magic_rook_indices[64] = {
   magic_rook_table + 86016, magic_rook_table + 73728,
@@ -768,6 +805,41 @@ BITBOARD *magic_rook_indices[64] = {
   magic_rook_table + 40960, magic_rook_table + 45056,
   magic_rook_table + 49152, magic_rook_table + 55296,
   magic_rook_table + 79872, magic_rook_table + 98304
+};
+short int magic_rook_mobility_table[102400];
+short int *magic_rook_mobility_indices[64] = {
+  magic_rook_mobility_table + 86016, magic_rook_mobility_table + 73728,
+  magic_rook_mobility_table + 36864, magic_rook_mobility_table + 43008,
+  magic_rook_mobility_table + 47104, magic_rook_mobility_table + 51200,
+  magic_rook_mobility_table + 77824, magic_rook_mobility_table + 94208,
+  magic_rook_mobility_table + 69632, magic_rook_mobility_table + 32768,
+  magic_rook_mobility_table + 38912, magic_rook_mobility_table + 10240,
+  magic_rook_mobility_table + 14336, magic_rook_mobility_table + 53248,
+  magic_rook_mobility_table + 57344, magic_rook_mobility_table + 81920,
+  magic_rook_mobility_table + 24576, magic_rook_mobility_table + 33792,
+  magic_rook_mobility_table + 6144, magic_rook_mobility_table + 11264,
+  magic_rook_mobility_table + 15360, magic_rook_mobility_table + 18432,
+  magic_rook_mobility_table + 58368, magic_rook_mobility_table + 61440,
+  magic_rook_mobility_table + 26624, magic_rook_mobility_table + 4096,
+  magic_rook_mobility_table + 7168, magic_rook_mobility_table + 0,
+  magic_rook_mobility_table + 2048, magic_rook_mobility_table + 19456,
+  magic_rook_mobility_table + 22528, magic_rook_mobility_table + 63488,
+  magic_rook_mobility_table + 28672, magic_rook_mobility_table + 5120,
+  magic_rook_mobility_table + 8192, magic_rook_mobility_table + 1024,
+  magic_rook_mobility_table + 3072, magic_rook_mobility_table + 20480,
+  magic_rook_mobility_table + 23552, magic_rook_mobility_table + 65536,
+  magic_rook_mobility_table + 30720, magic_rook_mobility_table + 34816,
+  magic_rook_mobility_table + 9216, magic_rook_mobility_table + 12288,
+  magic_rook_mobility_table + 16384, magic_rook_mobility_table + 21504,
+  magic_rook_mobility_table + 59392, magic_rook_mobility_table + 67584,
+  magic_rook_mobility_table + 71680, magic_rook_mobility_table + 35840,
+  magic_rook_mobility_table + 39936, magic_rook_mobility_table + 13312,
+  magic_rook_mobility_table + 17408, magic_rook_mobility_table + 54272,
+  magic_rook_mobility_table + 60416, magic_rook_mobility_table + 83968,
+  magic_rook_mobility_table + 90112, magic_rook_mobility_table + 75776,
+  magic_rook_mobility_table + 40960, magic_rook_mobility_table + 45056,
+  magic_rook_mobility_table + 49152, magic_rook_mobility_table + 55296,
+  magic_rook_mobility_table + 79872, magic_rook_mobility_table + 98304
 };
 BITBOARD magic_rook[64] = {
   0x0080001020400080ULL, 0x0040001000200040ULL, 0x0080081000200080ULL,
@@ -918,8 +990,8 @@ int passed_pawn_candidate[2][2][8] = {
 int passed_pawn_value[2][2][8] = {
  {{ 0, 200, 120,  80,  20,   0,   0, 0 },   /* [mg][black][rank] */
   { 0,   0,   0,  20,  80, 120, 200, 0 }},  /* [mg][white][rank] */
- {{ 0, 234, 140,  95,  24,   2,   2, 0 },   /* [eg][black][rank] */
-  { 0,   2,   2,  24,  95, 140, 234, 0 }}   /* [eg][white][rank] */
+ {{ 0, 234, 145,  95,  24,   2,   2, 0 },   /* [eg][black][rank] */
+  { 0,   2,   2,  24,  95, 145, 234, 0 }}   /* [eg][white][rank] */
 };
 int connected_passed_pawn_value[2] = { 1, 3 };
 int passed_pawn_hidden[2] = { 0, 40 };
@@ -1015,7 +1087,7 @@ int bishop_outpost[2][64] = {
 };
 int pval[2][2][64] = {
    {{ 0,   0,   0,   0,   0,   0,   0,   0,
-     70,  70,  70,  70,  70,  70,  70,  70,
+     66,  66,  66,  66,  66,  66,  66,  66,
      10,  10,  10,  30,  30,  10,  10,  10,
       6,   6,   6,  16,  16,   6,   6,   6,
       3,   3,   3,  13,  13,   3,   3,   3,   /* [mg][black][64] */
@@ -1029,11 +1101,11 @@ int pval[2][2][64] = {
       3,   3,   3,  13,  13,   3,   3,   3,
       6,   6,   6,  16,  16,   6,   6,   6,   /* [mg][white][64] */
      10,  10,  10,  30,  30,  10,  10,  10,
-     70,  70,  70,  70,  70,  70,  70,  70,
+     66,  66,  66,  66,  66,  66,  66,  66,
       0,   0,   0,   0,   0,   0,   0,   0 }},
 
    {{ 0,   0,   0,   0,   0,   0,   0,   0,
-     70,  70,  70,  70,  70,  70,  70,  70,
+     66,  66,  66,  66,  66,  66,  66,  66,
      10,  10,  10,  30,  30,  10,  10,  10,
       6,   6,   6,  16,  16,   6,   6,   6,
       3,   3,   3,  13,  13,   3,   3,   3,   /* [eg][black][64] */
@@ -1047,7 +1119,7 @@ int pval[2][2][64] = {
       3,   3,   3,  13,  13,   3,   3,   3,
       6,   6,   6,  16,  16,   6,   6,   6,   /* [eg][white][64] */
      10,  10,  10,  30,  30,  10,  10,  10,
-     70,  70,  70,  70,  70,  70,  70,  70,
+     66,  66,  66,  66,  66,  66,  66,  66,
       0,   0,   0,   0,   0,   0,   0,   0 }}
 };
 int nval[2][2][64] = {
@@ -1251,8 +1323,8 @@ int bad_trade = 90;
 int wtm_bonus[2] = { 5, 8 };
 int undeveloped_piece = 12;
 int pawn_duo[2] = { 4, 8 };
-int pawn_isolated[2] = { 12, 18 };
-int pawn_weak[2] = { 16, 24 };
+int pawn_isolated[2] = { 18, 21 };
+int pawn_weak[2] = { 8, 18 };
 int lower_n = 16;
 int mobility_score_n[4] = { 1, 2, 3, 4 };
 int lower_b = 10;

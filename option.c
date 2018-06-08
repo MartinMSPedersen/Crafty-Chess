@@ -7,7 +7,7 @@
 #  include <signal.h>
 #endif
 #include "epdglue.h"
-/* last modified 08/13/09 */
+/* last modified 02/15/10 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -117,35 +117,13 @@ int Option(TREE * RESTRICT tree) {
       return (1);
     }
     if (nargs > 1) {
-      float ah = atof(args[1]);
-
-      if (strchr(args[1], 'K') || strchr(args[1], 'k'))
-        ah *= 1000;
-      if (strchr(args[1], 'M') || strchr(args[1], 'm'))
-        ah *= 1000000;
-      adaptive_hash = (int) ah;
-      adaptive_hash_min = atoi(args[2]);
-      if (strchr(args[2], 'K') || strchr(args[2], 'k'))
-        adaptive_hash_min *= 1 << 10;
-      if (strchr(args[2], 'M') || strchr(args[2], 'm'))
-        adaptive_hash_min *= 1 << 20;
-      adaptive_hash_max = atoi(args[3]);
-      if (strchr(args[3], 'K') || strchr(args[3], 'k'))
-        adaptive_hash_max *= 1 << 10;
-      if (strchr(args[3], 'M') || strchr(args[3], 'm'))
-        adaptive_hash_max *= 1 << 20;
-      adaptive_hashp_min = atoi(args[4]);
-      if (strchr(args[4], 'K') || strchr(args[4], 'k'))
-        adaptive_hashp_min *= 1 << 10;
-      if (strchr(args[4], 'M') || strchr(args[4], 'm'))
-        adaptive_hashp_min *= 1 << 20;
-      adaptive_hashp_max = atoi(args[5]);
-      if (strchr(args[5], 'K') || strchr(args[5], 'k'))
-        adaptive_hashp_max *= 1 << 10;
-      if (strchr(args[5], 'M') || strchr(args[5], 'm'))
-        adaptive_hashp_max *= 1 << 20;
+      adaptive_hash = atoiKM(args[1]);
+      adaptive_hash_min = atoiKM(args[2]);
+      adaptive_hash_max = atoiKM(args[3]);
+      adaptive_hashp_min = atoiKM(args[4]);
+      adaptive_hashp_max = atoiKM(args[5]);
     }
-    Print(128, "adaptive estimated NPS =  %s\n", PrintKM(adaptive_hash, 0));
+    Print(128, "adaptive estimated NPS =  %s\n", PrintKM(adaptive_hash, 1));
     Print(128, "adaptive minimum hsize =  %s\n", PrintKM(adaptive_hash_min,
             1));
     Print(128, "adaptive maximum hsize =  %s\n", PrintKM(adaptive_hash_max,
@@ -380,11 +358,7 @@ int Option(TREE * RESTRICT tree) {
  */
 #if !defined(NOEGTB)
   else if (OptionMatch("cache", *args)) {
-    EGTB_cache_size = atoi(args[1]);
-    if (strchr(args[1], 'K') || strchr(args[1], 'k'))
-      EGTB_cache_size *= 1 << 10;
-    if (strchr(args[1], 'M') || strchr(args[1], 'm'))
-      EGTB_cache_size *= 1 << 20;
+    EGTB_cache_size = atoiKM(args[1]);
     if (EGTB_cache)
       free(EGTB_cache);
     EGTB_cache = malloc(EGTB_cache_size);
@@ -562,11 +536,13 @@ int Option(TREE * RESTRICT tree) {
  ************************************************************
  */
   else if (OptionMatch("debug", *args)) {
+    Print(4095, "No debug code added to option.c\n");
+/*
     int *mv;
-
     tree->last[1] = GenerateCheckEvasions(tree, 1, wtm, tree->last[0]);
     for (mv = tree->last[0]; mv < tree->last[1]; mv++)
       printf("%s\n", OutputMove(tree, *mv, 1, wtm));
+*/
   }
 /*
  ************************************************************
@@ -965,15 +941,9 @@ int Option(TREE * RESTRICT tree) {
  *      hash=nnnM where nnn is in M bytes.                  *
  *                                                          *
  *   the only restriction is that the hash table is com-    *
- *   puted as follows:  one entry is 16 bytes long.  There  *
- *   are 4 tables, two for black, two for white, with one   *
- *   of each being twice the size of the other for the same *
- *   side.  This means that one entry in one of the small   *
- *   tables corresponds to two in the other, so one entry   *
- *   really translates to six entries.  Therefore, the size *
- *   that is entered is divided by 6*16, and then rounded   *
- *   down to the nearest power of two which is a restric-   *
- *   tion on the size of a single table.                    *
+ *   puted as a perfect power of 2.  Any value that is not  *
+ *   a perfect power of 2 is rounded down so that it is,    *
+ *   in order to avoid breaking the addressing scheme.      *
  *                                                          *
  ************************************************************
  */
@@ -983,39 +953,23 @@ int Option(TREE * RESTRICT tree) {
     if (thinking || pondering)
       return (2);
     if (nargs > 1) {
-      new_hash_size = atoi(args[1]);
-      if (strchr(args[1], 'K') || strchr(args[1], 'k'))
-        new_hash_size *= 1 << 10;
-      if (strchr(args[1], 'M') || strchr(args[1], 'm'))
-        new_hash_size *= 1 << 20;
-      if (new_hash_size < 48 * 1024) {
-        printf("ERROR.  Minimum hash table size is 48K bytes.\n");
+      allow_memory = 0;
+      Print(4095, "Warning--  xboard 'memory' option disabled\n");
+      new_hash_size = atoiKM(args[1]);
+      if (new_hash_size < 64 * 1024) {
+        printf("ERROR.  Minimum hash table size is 64K bytes.\n");
         return (1);
       }
-      if (new_hash_size > 0) {
-        new_hash_size /= 16;
-        for (log_hash = 0; log_hash < (int) (8 * sizeof(int)); log_hash++)
-          if ((1 << (log_hash + 1)) > new_hash_size)
-            break;
-        if (log_hash) {
-          hash_table_size = 1 << log_hash;
-          AlignedRemalloc((void **) &trans_ref, 64,
-              sizeof(HASH_ENTRY) * hash_table_size);
-          if (!trans_ref) {
-            printf("AlignedRemalloc() failed, not enough memory.\n");
-            hash_table_size = 0;
-            log_hash = 0;
-            trans_ref = 0;
-          }
-          hash_mask = (1 << (log_hash - 2)) - 1;
-          ClearHashTableScores();
-        } else {
-          trans_ref = 0;
-          hash_table_size = 0;
-          log_hash = 0;
-        }
-      } else
-        Print(4095, "ERROR:  hash table size must be > 0\n");
+      hash_table_size = ((1ULL) << MSB(new_hash_size)) / sizeof(HASH_ENTRY);
+      AlignedRemalloc((void **) &trans_ref, 64,
+          sizeof(HASH_ENTRY) * hash_table_size);
+      if (!trans_ref) {
+        printf("AlignedRemalloc() failed, not enough memory.\n");
+        hash_table_size = 0;
+        trans_ref = 0;
+      }
+      hash_mask = (1ULL << (MSB((BITBOARD) hash_table_size) - 2)) - 1;
+      InitializeHashTables();
     }
     Print(128, "hash table memory = %s bytes.\n",
         PrintKM(hash_table_size * sizeof(HASH_ENTRY), 1));
@@ -1034,30 +988,23 @@ int Option(TREE * RESTRICT tree) {
     if (thinking || pondering)
       return (2);
     if (nargs > 1) {
-      new_hash_size = atoi(args[1]);
-      if (strchr(args[1], 'K') || strchr(args[1], 'k'))
-        new_hash_size *= 1 << 10;
-      if (strchr(args[1], 'M') || strchr(args[1], 'm'))
-        new_hash_size *= 1 << 20;
+      allow_memory = 0;
+      Print(4095, "Warning--  xboard 'memory' option disabled\n");
+      new_hash_size = atoiKM(args[1]);
       if (new_hash_size < 16 * 1024) {
         printf("ERROR.  Minimum pawn hash table size is 16K bytes.\n");
         return (1);
       }
-      new_hash_size /= sizeof(PAWN_HASH_ENTRY);
-      for (log_pawn_hash = 0; log_pawn_hash < (int) (8 * sizeof(int));
-          log_pawn_hash++)
-        if ((1 << (log_pawn_hash + 1)) > new_hash_size)
-          break;
-      pawn_hash_table_size = 1 << log_pawn_hash;
+      pawn_hash_table_size =
+          (1ULL << MSB(new_hash_size)) / sizeof(PAWN_HASH_ENTRY);
       AlignedRemalloc((void **) &pawn_hash_table, 32,
           sizeof(PAWN_HASH_ENTRY) * pawn_hash_table_size);
       if (!pawn_hash_table) {
         printf("AlignedRemalloc() failed, not enough memory.\n");
         pawn_hash_table_size = 0;
-        log_pawn_hash = 0;
         pawn_hash_table = 0;
       }
-      pawn_hash_mask = (1 << log_pawn_hash) - 1;
+      pawn_hash_mask = (1ULL << MSB((BITBOARD) pawn_hash_table_size)) - 1;
       for (i = 0; i < pawn_hash_table_size; i++) {
         (pawn_hash_table + i)->key = 0;
         (pawn_hash_table + i)->score_mg = 0;
@@ -1732,7 +1679,8 @@ int Option(TREE * RESTRICT tree) {
     smp_max_thread_group = atoi(args[1]);
     Print(128, "maximum thread group size set to %d.\n",
         smp_max_thread_group);
-  } else if (OptionMatch("smpmt", *args) || OptionMatch("mt", *args)) {
+  } else if (OptionMatch("smpmt", *args) || OptionMatch("mt", *args) ||
+      OptionMatch("cores", *args)) {
     int proc;
 
     if (nargs < 2) {
@@ -1741,6 +1689,8 @@ int Option(TREE * RESTRICT tree) {
     }
     if (thinking || pondering)
       return (3);
+    allow_cores = 0;
+    Print(4095, "Warning--  xboard 'cores' option disabled\n");
     smp_max_threads = atoi(args[1]);
     if (smp_max_threads > CPUS) {
       Print(4095, "ERROR - Crafty was compiled with CPUS=%d.", CPUS);
@@ -1781,6 +1731,34 @@ int Option(TREE * RESTRICT tree) {
     }
     smp_split_nodes = atoi(args[1]);
     Print(128, "minimum nodes before a split %d.\n", smp_split_nodes);
+  }
+/*
+ ************************************************************
+ *                                                          *
+ *   "memory" command is used to set the max memory to use  *
+ *   for hash and hashp combined.                           *
+ *                                                          *
+ ************************************************************
+ */
+  else if (OptionMatch("memory", *args)) {
+    BITBOARD size;
+    size_t hmemory, pmemory;
+    if (nargs < 2) {
+      printf("usage:  memory <size[KMG]>\n");
+      return (1);
+    }
+    size = atoi(args[1]) * 1024 * 1024;
+    hmemory = (1ULL) << MSB(size);
+    size &= ~hmemory;
+    pmemory = (1ULL) << MSB(size);
+    if (pmemory < 1024 * 1024)
+      pmemory = 0;
+    sprintf(buffer, "hash %lld\n", hmemory);
+    (void) Option(tree);
+    if (pmemory) {
+      sprintf(buffer, "hashp %lld\n", pmemory);
+      (void) Option(tree);
+    }
   }
 /*
  ************************************************************
@@ -2507,7 +2485,10 @@ int Option(TREE * RESTRICT tree) {
         Print(4095, "feature ping=1 setboard=1 san=1 time=1 draw=1\n");
         Print(4095, "feature sigint=0 sigterm=0 reuse=1 analyze=1\n");
         Print(4095, "feature myname=\"Crafty-%s\" name=1\n", version);
-        Print(4095, "feature playother=1 colors=0\n");
+        Print(4095, "feature playother=1 colors=0 memory=%d\n", allow_memory);
+#if (CPUS > 1)
+        Print(4095, "feature smp=%d\n", allow_cores);
+#endif
         Print(4095, "feature variants=\"normal,nocastle\"\n");
         Print(4095, "feature done=1\n");
         done = 1;

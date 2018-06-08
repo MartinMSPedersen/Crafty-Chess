@@ -42,7 +42,7 @@ int RepetitionCheck(TREE * RESTRICT tree, int ply, int wtm) {
   if (Rule50Moves(ply) < 4)
     return (0);
   if (Rule50Moves(ply) > 99)
-    return (1);
+    return (2);
 /*
  ************************************************************
  *                                                          *

@@ -286,8 +286,6 @@ void *STDCALL ThreadInit(void *tid) {
     LockInit(block[(long) tid * MAX_BLOCKS_PER_CPU + i + 1]->lock);
     for (j = 0; j < 64; j++) {
       block[(long) tid * MAX_BLOCKS_PER_CPU + i + 1]->cache_n[j] = ~0ULL;
-      block[(long) tid * MAX_BLOCKS_PER_CPU + i + 1]->cache_b_friendly[j] =
-          ~0ULL;
       block[(long) tid * MAX_BLOCKS_PER_CPU + i + 1]->cache_r_friendly[j] =
           ~0ULL;
       block[(long) tid * MAX_BLOCKS_PER_CPU + i + 1]->cache_r_enemy[j] =

@@ -28,9 +28,9 @@ void Initialize() {
   tree = block[0];
   for (j = 1; j < MAX_BLOCKS + 1; j++)
     block[j] = NULL;
+  InitializeMasks();
   InitializeMagic();
   InitializeSMP();
-  InitializeMasks();
   InitializeAttackBoards();
   InitializePawnMasks();
   InitializeChessBoard(tree);
@@ -98,14 +98,12 @@ void Initialize() {
     Print(128,
         "AlignedMalloc() failed, not enough memory (primary trans/ref table).\n");
     hash_table_size = 0;
-    log_hash = 0;
     trans_ref = 0;
   }
   if (!pawn_hash_table) {
     Print(128,
         "AlignedMalloc() failed, not enough memory (pawn hash table).\n");
     pawn_hash_table_size = 0;
-    log_pawn_hash = 0;
     pawn_hash_table = 0;
   }
 /*
@@ -141,8 +139,6 @@ void Initialize() {
 #endif
   initialized_threads++;
   InitializeHashTables();
-  hash_mask = (1 << (log_hash - 2)) - 1;
-  pawn_hash_mask = (1 << (log_pawn_hash)) - 1;
   InitializeKingSafety();
 }
 
@@ -357,12 +353,15 @@ void InitializeAttackBoards(void) {
  *******************************************************************************
  *                                                                             *
  *   InitializeMagic() initializes the magic number tables used in the new     *
- *   magic move generation algorithm.                                          *
+ *   magic move generation algorithm.  We also initialize a set of parallel    *
+ *   tables that contain mobility scores for each possible set of magic attack *
+ *   vectors, which saves significant time in the evaluation, since it is done *
+ *   here before the game actually starts.                                     *
  *                                                                             *
  *******************************************************************************
  */
 void InitializeMagic(void) {
-  int i;
+  int i, j;
   int initmagicmoves_bitpos64_database[64] = {
     63, 0, 58, 1, 59, 47, 53, 2,
     60, 39, 48, 27, 54, 33, 42, 3,
@@ -374,7 +373,7 @@ void InitializeMagic(void) {
     44, 24, 15, 8, 23, 7, 6, 5
   };
 /*
- Bishop attacks
+ Bishop attacks and mobility
  */
   for (i = 0; i < 64; i++) {
     int squares[64];
@@ -390,19 +389,28 @@ void InitializeMagic(void) {
       temp ^= abit;
     }
     for (temp = 0; temp < (((BITBOARD) (1)) << numsquares); temp++) {
+      BITBOARD moves;
+      int t = -lower_b;
       BITBOARD tempoccupied =
           InitializeMagicOccupied(squares, numsquares, temp);
+      moves = InitializeMagicBishop(i, tempoccupied);
       *(magic_bishop_indices[i] +
           (((tempoccupied) * magic_bishop[i]) >> magic_bishop_shift[i])) =
-          InitializeMagicBishop(i, tempoccupied);
+          moves;
+      moves |= SetMask(i);
+      for (j = 0; j < 4; j++)
+        t += PopCnt(moves & mobility_mask_b[j]) * mobility_score_b[j];
+      *(magic_bishop_mobility_indices[i] +
+          (((tempoccupied) * magic_bishop[i]) >> magic_bishop_shift[i])) = t;
     }
   }
 /*
- Rook attacks
+ Rook attacks and mobility
  */
   for (i = 0; i < 64; i++) {
     int squares[64];
     int numsquares = 0;
+    int t;
     BITBOARD temp = magic_rook_mask[i];
 
     while (temp) {
@@ -416,9 +424,17 @@ void InitializeMagic(void) {
     for (temp = 0; temp < (((BITBOARD) (1)) << numsquares); temp++) {
       BITBOARD tempoccupied =
           InitializeMagicOccupied(squares, numsquares, temp);
+      BITBOARD moves = InitializeMagicRook(i, tempoccupied);
       *(magic_rook_indices[i] +
+          (((tempoccupied) * magic_rook[i]) >> magic_rook_shift[i])) = moves;
+      moves |= SetMask(i);
+      t = -1;
+      for (j = 0; j < 4; j++)
+        t += PopCnt(moves & mobility_mask_r[j]) * mobility_score_r[j];
+      *(magic_rook_mobility_indices[i] +
           (((tempoccupied) * magic_rook[i]) >> magic_rook_shift[i])) =
-          InitializeMagicRook(i, tempoccupied);
+          mob_curve_r[t];
+
     }
   }
 }
@@ -626,7 +642,6 @@ void InitializeChessBoard(TREE * tree) {
  */
   for (i = 0; i < 64; i++) {
     tree->cache_n[i] = ~0ULL;
-    tree->cache_b_friendly[i] = ~0ULL;
     tree->cache_r_friendly[i] = ~0ULL;
     tree->cache_r_enemy[i] = ~0ULL;
   }

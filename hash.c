@@ -352,7 +352,7 @@ void HashStorePV(TREE * RESTRICT tree, int wtm, int bestmove) {
     for (entry = 0; entry < 4; entry++) {
       age = htable->word1 >> 61;
       draft = (htable->word1 >> 17) & 0x7fff;
-      if (age != transposition_id && replace_draft < draft) {
+      if (age != transposition_id && replace_draft > draft) {
         replace = htable;
         replace_draft = draft;
       }

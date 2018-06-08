@@ -1,6 +1,6 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 07/04/09 */
+/* last modified 12/21/09 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -15,7 +15,7 @@
 int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
     int ply, int do_null) {
   register BITBOARD start_nodes = tree->nodes_searched;
-  register int first_tried, moves_searched = 0;
+  register int first_tried, moves_searched = 0, repeat;
   register int o_alpha = alpha, value = 0, t_beta = beta;
   register int extensions, pieces;
 
@@ -65,15 +65,17 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
  *                                                          *
  ************************************************************
  */
-  if (RepetitionCheck(tree, ply, wtm)) {
-    value = DrawScore(wtm);
-    if (value < beta)
-      SavePV(tree, ply, 0);
+  if ((repeat = RepetitionCheck(tree, ply, wtm))) {
+    if (repeat == 1 || !tree->inchk[ply]) {
+      value = DrawScore(wtm);
+      if (value < beta)
+        SavePV(tree, ply, 0);
 #if defined(TRACE)
-    if (ply <= trace_level)
-      printf("draw by repetition detected, ply=%d.\n", ply);
+      if (ply <= trace_level)
+        printf("draw by repetition detected, ply=%d.\n", ply);
 #endif
-    return (value);
+      return (value);
+    }
   }
 /*
  ************************************************************
@@ -299,8 +301,8 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
             !tree->inchk[ply + 1] && !CaptureOrPromote(tree->curmv[ply])) {
           if (depth - 1 - LMR_depth >= LMR_min_depth &&
               (Piece(tree->curmv[ply]) != pawn ||
-                  mask_passed[wtm][To(tree->
-                          curmv[ply])] & Pawns(Flip(wtm)))) {
+                  mask_passed[wtm][To(tree->curmv[ply])] & Pawns(Flip(wtm))))
+          {
             extensions -= LMR_depth;
             tree->reductions_done++;
           }
@@ -450,7 +452,6 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
     }
 #endif
   }
-  while (0);
 /*
  ************************************************************
  *                                                          *
@@ -471,9 +472,19 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
     }
     return (value);
   } else {
-    int bestmove = (alpha == o_alpha) ? first_tried : tree->pv[ply].path[ply];
-    int type = (alpha == o_alpha) ? UPPER : EXACT;
-    if (alpha != o_alpha) {
+    int bestmove, type;
+    bestmove = (alpha == o_alpha) ? first_tried : tree->pv[ply].path[ply];
+    type = (alpha == o_alpha) ? UPPER : EXACT;
+    if (repeat == 2 && alpha != -(MATE - ply - 1)) {
+      value = DrawScore(wtm);
+      if (value < beta)
+        SavePV(tree, ply, 0);
+#if defined(TRACE)
+      if (ply <= trace_level)
+        printf("draw by repetition detected, ply=%d.\n", ply);
+#endif
+      return (value);
+    } else if (alpha != o_alpha) {
       memcpy(&tree->pv[ply - 1].path[ply], &tree->pv[ply].path[ply],
           (tree->pv[ply].pathl - ply + 1) * sizeof(int));
       memcpy(&tree->pv[ply - 1].pathh, &tree->pv[ply].pathh, 3);
@@ -584,8 +595,8 @@ int SearchParallel(TREE * RESTRICT tree, int alpha, int beta, int value,
             !tree->inchk[ply + 1] && !CaptureOrPromote(tree->curmv[ply])) {
           if (depth - 1 - LMR_depth >= LMR_min_depth &&
               (Piece(tree->curmv[ply]) != pawn ||
-                  mask_passed[wtm][To(tree->
-                          curmv[ply])] & Pawns(Flip(wtm)))) {
+                  mask_passed[wtm][To(tree->curmv[ply])] & Pawns(Flip(wtm))))
+          {
             extensions -= LMR_depth;
             tree->reductions_done++;
           }

@@ -1106,8 +1106,10 @@ void BookUp(TREE * RESTRICT tree, int nargs, char **args) {
             if (!strchr(buffer, '$') && !strchr(buffer, '*')) {
               if (ply < max_ply)
                 move = ReadNextMove(tree, buffer, 2, wtm);
-              else
+              else {
                 move = 0;
+                discarded++;
+              }
               if (move) {
                 ply++;
                 max_search_depth = Max(max_search_depth, ply);
@@ -1139,8 +1141,6 @@ void BookUp(TREE * RESTRICT tree, int nargs, char **args) {
                     buffered = 0;
                     strcpy(schar, "S");
                   }
-                } else {
-                  discarded++;
                 }
                 if (!(total_moves % 100000)) {
                   printf(schar);

@@ -1,36 +1,8 @@
 # To build crafty:
 #
-#	  You want to set up for maximum optimization, but typically you will
-#	  need to experiment to see which options provide the fastest code.
-#	  This is optimized for gcc, which is a fairly current compiler.
+#  You want to set up for maximum optimization, but typically you will
+#  need to experiment to see which options provide the fastest code.
 #   
-#   The currently available targets:
-#
-#     aix          {IBM machines running AIX}
-#     alpha        {DEC Alpha running OSF/1-Digital Unix}
-#     darwin       {PPC on Mac OSX}
-#     freebsd      {80X86 architecture running FreeBSD (Unix)}
-#     hpux         {HP workstation running HP_UX operating system (Unix)}
-#     linux        {80X86 architecture running LINUX (Unix) (gcc)}
-#     linux-alpha  {Digital Alpha processor running LINUX (Unix)}
-#     linux-amd64  {AMD X86-64 (opteron) running LINUX (Unix)}
-#     linux-icc    {80X86 architecture running LINUX (Unix) (Intel compiler)}
-#     netbsd       {80X86 architecture running netbsd(Unix)}
-#     netbsd-sparc {sparc architecture running netbsd(Unix)}
-#     next         {NextStep}
-#     sgi          {SGI Workstation running Irix (SYSV/R4) Unix}
-#     solaris      {Sun SparcStation running Solaris (SYSV/R4) Unix}
-#     solaris-gcc  {Sun SparcStation running Solaris but using gcc}
-#   
-#   The next options are optimizations inside Crafty that you will have
-#   test to see if they help.  on some machines, these will slow things
-#   by up to 10%, while on other machines these options will result in
-#   improving search speed up to 20%.  NOTE:  if you are running Linux
-#   system, the default configurations below will use the hand-written
-#   assembly modules.  Typical performance improvement is 5%, but this
-#   only applies to X86 machines running Linux.
-#   
-#                default
 #   -DBOOKDIR      N  path to the directory containing the book binary files.
 #                     The default for all such path values is "." if you don't
 #                     specify a path with this macro definition.
@@ -64,91 +36,80 @@
 #                     can be dumped while running.
 
 default:
-	$(MAKE) linux
+	$(MAKE) linux-64
 help:
 	@echo "You must specify the system which you want to compile for:"
 	@echo ""
 	@echo "make aix              IBM AIX"
-	@echo "make alpha            DEC Alpha with OSF/1-Digital UNIX"
-	@echo "make alpha-host       Alpha DECstation optimized for host"
-	@echo "make alpha-host-nocix Alpha DECstation optimezed for host, no CIX insn"
 	@echo "make darwin           Darwin on OSX"
 	@echo "make hpux             HP/UX 9/10, /7xx"
 	@echo "make linux            Linux optimized for i386, ELF format"
-	@echo "make linux-alpha      Linux optimized for alpha"
 	@echo "make linux-AMD64      Linux optimized for AMD opteron"
 	@echo "make freebsd          FreeBSD"
 	@echo "make netbsd           NetBSD"
 	@echo "make netbsd-sparc     NetBSD optimized for sparc"
-	@echo "make next             NeXTSTEP"
-	@echo "make sgi              SGI running IRIX"
 	@echo "make solaris          Solaris 2.x"
 	@echo "make solaris-gcc      Solaris 2.x using GNU cc"
-	@echo ""
-	@echo "make generic          Try this one if your system isn't listed above;"
-	@echo "                      it assumes you have installed GNU cc"
 	@echo ""
 
 aix:
 	$(MAKE) target=AIX \
 		CC=cc CXX=$(CC) \
-		CFLAGS='$(CFLAGS) -O2' \
-		CXFLAGS=$(CFLAGS) \
+		CFLAGS='-O2' \
+		CXFLAGS='' \
 		opt='$(opt)' \
 		crafty-make
 
 darwin:
 	$(MAKE) target=FreeBSD \
 		CC=gcc CXX=g++ \
-		CFLAGS='$(CFLAGS) -Wall -pipe -O3' \
-		CXFLAGS=$(CFLAGS) \
+		CFLAGS='-Wall -pipe -O3' \
+		CXFLAGS='-Wall -pipe -O3' \
 		LDFLAGS=$(LDFLAGS) \
-		LIBS='-lpthread -lstdc++' \
+		LIBS='-lstdc++' \
 		opt='$(opt)' \
 		crafty-make
 
 darwinG5:
 	$(MAKE) target=LINUX \
 		CC=gcc CXX=g++ \
-		CFLAGS='$(CFLAGS) -Wall -pipe -O3 -mcpu=G5 \
-			-mtune=G5 -fomit-frame-pointer -fast' \
-		CXFLAGS=$(CFLAGS) \
-		LDFLAGS='$(LDFLAGS) -lpthread -lstdc++' \
+		CFLAGS='-Wall -pipe -O3 -mcpu=G5 -mtune=G5 -fomit-frame-pointer -fast' \
+		CXFLAGS='-Wall -pipe -O3 -mcpu=G5 -mtune=G5 -fomit-frame-pointer -fast' \
+		LDFLAGS='$(LDFLAGS) -lstdc++' \
 		opt='$(opt) -DCPUS=4 -DPOWERPC' \
 		crafty-make
 	
 freebsd:
 	$(MAKE) target=FreeBSD \
 		CC=gcc CXX='$(CC)' \
-		CFLAGS='$(CFLAGS) -fomit-frame-pointer -m486 -O3 -Wall' \
-		CXFLAGS=$(CFLAGS) \
-		LDFLAGS='$(LDFLAGS) -lpthread' \
+		CFLAGS='-fomit-frame-pointer -m486 -O3 -Wall' \
+		CXFLAGS='-fomit-frame-pointer -m486 -O3 -Wall' \
+		LDFLAGS=$(LDFLAGS) \
 		opt='$(opt) -DINLINE32' \
 		crafty-make
 
 freebsd-pgcc:
 	$(MAKE) target=FreeBSD \
 		CC=gcc CXX='$(CC)' \
-		CFLAGS='$(CFLAGS) -pipe -mpentium -O -Wall' \
-		CXFLAGS=$(CFLAGS) \
-		LDFLAGS='$(LDFLAGS) -lpthread' \
+		CFLAGS='-pipe -mpentium -O -Wall' \
+		CXFLAGS='' \
+		LDFLAGS=$(LDFLAGS) \
 		opt='$(opt) -DINLINE32' \
 		crafty-make
 
 hpux:
 	$(MAKE) target=HP \
 		CC=cc CXX='$(CC)' \
-		CFLAGS='$(CFLAGS) +ESlit -Ae +w1' \
-		CXFLAGS=$(CFLAGS) \
-		LDFLAGS='$(LDFLAGS) +O3 +Onolimit $(CFLAGS)' \
+		CFLAGS='+ESlit -Ae +w1' \
+		CXFLAGS='' \
+		LDFLAGS='$(LDFLAGS) +O3 +Onolimit' \
 		crafty-make
 
 linux-amd64-profile:
 	$(MAKE) target=LINUX \
 		CC=gcc CXX=g++ \
-                CFLAGS='$(CFLAGS) -Wall -pipe \
-                        -fprofile-arcs -fomit-frame-pointer -O3 -march=k8' \
-		CXFLAGS=$(CFLAGS) \
+                CFLAGS='-Wall -pipe -fprofile-arcs -fomit-frame-pointer -O3 -march=k8' \
+		CXFLAGS='' \
 		LDFLAGS='$(LDFLAGS) -lpthread -lnuma -fprofile-arcs -lstdc++' \
 		opt='$(opt) -DINLINE64 -DCPUS=8 -DNUMA -DLIBNUMA' \
 		crafty-make
@@ -156,9 +117,8 @@ linux-amd64-profile:
 linux-amd64:
 	$(MAKE) target=LINUX \
 		CC=gcc CXX=g++ \
-                CFLAGS='$(CFLAGS) -Wall -pipe \
-                -fbranch-probabilities -fomit-frame-pointer -O3 -march=k8' \
-		CXFLAGS=$(CFLAGS) \
+                CFLAGS='-Wall -pipe -fbranch-probabilities -fomit-frame-pointer -O3 -march=k8' \
+		CXFLAGS='' \
 		LDFLAGS='$(LDFLAGS) -lpthread -lnuma -lstdc++' \
 		opt='$(opt) -DINLINE64 -DCPUS=8 -DNUMA -DLIBNUMA' \
 		crafty-make
@@ -166,116 +126,81 @@ linux-amd64:
 linux:
 	$(MAKE) target=LINUX \
 		CC=gcc CXX=g++ \
-		CFLAGS='$(CFLAGS) -Wall -pipe -march=i686 -O3 \
-			-fno-gcse -mpreferred-stack-boundary=2' \
-		CXFLAGS=$(CFLAGS) \
-		LDFLAGS='$(LDFLAGS) -lpthread -lstdc++' \
-		opt='$(opt) -DTRACE -DINLINE32 -DCPUS=2' \
+		CFLAGS='-pg -Wall -pipe' \
+		CXFLAGS='' \
+		LDFLAGS='$(LDFLAGS) -pg -lstdc++ -lpthread' \
+		opt='$(opt) -DTRACE -DINLINE64 -DCPUS=2' \
 		crafty-make
 
 linux-profile:
 	$(MAKE) target=LINUX \
 		CC=gcc CXX=g++ \
-		CFLAGS='$(CFLAGS) -Wall -pipe -march=i686 -O3 \
-			-fprofile-arcs -fforce-mem -fomit-frame-pointer \
-			-fno-gcse -mpreferred-stack-boundary=2' \
-		CXFLAGS=$(CFLAGS) \
-		LDFLAGS='$(LDFLAGS) -lpthread -lstdc++ ' \
+		CFLAGS='-Wall -pipe -O3 -fprofile-arcs' \
+		CXFLAGS='' \
+		LDFLAGS='$(LDFLAGS) -fprofile-arcs -lstdc++ ' \
 		opt='$(opt) -DINLINE32 -DCPUS=2' \
+		crafty-make
+
+linux-64:
+	$(MAKE) target=LINUX \
+		CC=icc CXX=icc \
+		CFLAGS='-w -xP -O2 -fno-alias -prof-use -prof_dir ./profdir' \
+		CXFLAGS='-w -xP -O2 -prof-use -prof-dir ./profdir' \
+		LDFLAGS='$(LDFLAGS) -lpthread -lstdc++' \
+		opt='$(opt) -DINLINE64 -DCPUS=2' \
+		crafty-make
+
+linux-64-profile:
+	$(MAKE) target=LINUX \
+		CC=icc CXX=icc \
+		CFLAGS='-w -xP -O2 -fno-alias -prof-gen=srcpos -prof-dir ./profdir' \
+		CXFLAGS='-w -xP -O2 -ip -prof-gen=srcpos -prof-dir ./profdir' \
+		LDFLAGS='$(LDFLAGS) -lpthread -lstdc++ ' \
+		opt='$(opt) -DINLINE64 -DCPUS=2' \
 		crafty-make
 
 linux-icc:
 	$(MAKE) target=LINUX \
 		CC=icc CXX=icc \
-		CFLAGS='$(CFLAGS) -O2 \
-			-xN -prof_use -prof_dir ./profdir \
-			-Ob2 -fno-alias' \
-		CXFLAGS='$(CFLAGS) -O2 \
-			-w -xN -prof_use -prof_dir ./profdir' \
-		LDFLAGS='$(LDFLAGS) -lpthread -lstdc++' \
-		opt='$(opt) -DTEST -DINLINE32 -DCPUS=4' \
+		CFLAGS='-w -O2 -prof_use -prof_dir ./profdir -fno-alias' \
+		CXFLAGS='-w -O2 -prof_use -prof_dir ./profdir' \
+		LDFLAGS='$(LDFLAGS) -lstdc++' \
+		opt='$(opt) -DINLINE32 -DCPUS=1' \
 		crafty-make
 
 linux-icc-profile:
 	$(MAKE) target=LINUX \
 		CC=icc CXX=icc \
-		CFLAGS='$(CFLAGS) -O2 \
-			-xN -prof_genx -prof_dir ./profdir \
-			-Ob2 -fno-alias' \
-		CXFLAGS='$(CFLAGS) -O2 \
-			-w -xN -prof_genx -prof_dir ./profdir' \
-		LDFLAGS='$(LDFLAGS) -lpthread -lstdc++ ' \
-		opt='$(opt) -DTEST -DINLINE32 -DCPUS=2' \
+		CFLAGS='-w -O2 -prof_genx -prof_dir ./profdir -fno-alias' \
+		CXFLAGS='-w -O2 -prof_genx -prof_dir ./profdir' \
+		LDFLAGS='$(LDFLAGS) -lstdc++ ' \
+		opt='$(opt) -DINLINE32 -DCPUS=2' \
 		crafty-make
 
 netbsd:
 	$(MAKE) target=NetBSD \
 		CC=gcc CXX=g++ \
-		CFLAGS='$(CFLAGS) -O3 -Wall \
-			-fomit-frame-pointer -funroll-all-loops \
-			-finline-functions -ffast-math' \
-		CXFLAGS=$(CFLAGS) \
-		LDFLAGS='$(LDFLAGS) -lpthread' \
+		CFLAGS='-O3 -Wall -fomit-frame-pointer' \
+		CXFLAGS='-O3 -Wall -fomit-frame-pointer' \
+		LDFLAGS=$(LDFLAGS) \
 		opt='$(opt) -DINLINE32' \
-		crafty-make
-
-netbsd-i386:
-	$(MAKE) target=NetBSD \
-		CC=gcc CXX=g++ \
-		CFLAGS='$(CFLAGS) -O3 -Wall -m486 \
-			-fomit-frame-pointer -funroll-all-loops \
-			-finline-functions -ffast-math' \
-		CXFLAGS=$(CFLAGS) \
-		LDFLAGS='$(LDFLAGS) -lpthread' \
-		opt='$(opt) -DINLINE32' \
-		crafty-make
-
-netbsd-sparc:
-	$(MAKE) target=NetBSD \
-		CC=gcc CXX=g++ \
-		CFLAGS='$(CFLAGS) -O3 -Wall \
-			-fomit-frame-pointer -funroll-all-loops \
-			-finline-functions -ffast-math' \
-		CXFLAGS=$(CFLAGS) \
-		LDFLAGS='$(LDFLAGS) -lpthread' \
-		opt='$(opt)' \
-		crafty-make
-
-next:
-	$(MAKE) target=NEXT \
-		CC=/bin/cc CXX='$(CC)' \
-		CFLAGS='$(CFLAGS) -O2' \
-		CXFLAGS=$(CFLAGS) \
-		LDFLAGS='$(LDFLAGS) $(CFLAGS) -lpthread'
-		opt='$(opt)' \
-		crafty-make
-
-sgi:
-	$(MAKE) target=SGI \
-		AS=/bin/as CC=cc CXX='$(CC)' \
-		AFLAGS='-P' \
-		CFLAGS='$(CFLAGS) -32 -mips2 -cckr' \
-		CXFLAGS=$(CFLAGS) \
-		LDFLAGS='$(LDFLAGS) -lpthread' \
-		opt='$(opt)' \
 		crafty-make
 
 solaris:
 	$(MAKE) target=SUN \
 		CC=cc CXX='$(CC)' \
-		CFLAGS='$(CFLAGS) -fast -xO5 -xunroll=20' \
-		CXFLAGS=$(CFLAGS) \
-		LDFLAGS='$(LDFLAGS) -lpthread' \
+		CFLAGS='-fast -xO5 -xunroll=20' \
+		CXFLAGS='-fast -xO5 -xunroll=20' \
+		LDFLAGS='$(LDFLAGS)' \
 		opt='$(opt)' \
 		crafty-make
 
 solaris-gcc:
 	$(MAKE) target=SUN \
 		CC=gcc CXX=g++ \
-		CFLAGS='$(CFLAGS) -Wall -pipe -O2 \
-			-fforce-mem -fomit-frame-pointer' \
-		CXFLAGS=$(CFLAGS) \
-		LDFLAGS='$(LDFLAGS) -lpthread -lstdc++' \
+		CFLAGS='-Wall -pipe -O2 -fforce-mem -fomit-frame-pointer' \
+		CXFLAGS='-Wall -pipe -O2 -fforce-mem -fomit-frame-pointer' \
+		LDFLAGS='$(LDFLAGS) -lstdc++' \
 		opt='$(opt)' \
 		crafty-make
 
@@ -284,7 +209,7 @@ profile:
 	@rm -rf position.bin
 	@mkdir profdir
 	@touch *.c *.cpp *.h
-	$(MAKE) linux-profile
+	$(MAKE) linux-64-profile
 	@echo "#!/bin/csh" > runprof
 	@echo "./crafty <<EOF" >>runprof
 	@echo "st=10" >>runprof
@@ -366,7 +291,7 @@ profile:
 	@./runprof
 	@rm runprof
 	@touch *.c *.cpp *.h
-	$(MAKE) linux
+	$(MAKE) linux-64
 
 #
 #  one of the two following definitions for "objects" should be used.  The
@@ -377,14 +302,13 @@ profile:
 #  compiling both ways to see which way produces the fastest code.
 #
 
-objects = search.o thread.o repeat.o next.o killer.o   \
-       quiesce.o evaluate.o movgen.o make.o unmake.o hash.o      \
-       attacks.o swap.o boolean.o utility.o probe.o book.o data.o drawn.o    \
-       edit.o epd.o epdglue.o init.o input.o interupt.o iterate.o main.o     \
-       option.o output.o ponder.o preeval.o resign.o root.o learn.o          \
-       setboard.o test.o time.o validate.o annotate.o analyze.o evtest.o     \
-       bench.o
-#objects = crafty.o
+#objects = search.o thread.o repeat.o next.o killer.o quiesce.o evaluate.o    \
+       movgen.o make.o unmake.o hash.o  attacks.o swap.o boolean.o utility.o  \
+       probe.o book.o data.o drawn.o edit.o epd.o epdglue.o init.o input.o    \
+       interupt.o iterate.o main.o option.o output.o ponder.o preeval.o       \
+       resign.o root.o learn.o setboard.o test.o time.o validate.o annotate.o \
+       analyze.o evtest.o bench.o
+objects = crafty.o
 
 # Do not change anything below this line!
 
@@ -393,7 +317,7 @@ opts = $(opt) -D$(target)
 includes = data.h chess.h
 
 crafty-make:
-	@$(MAKE) opt='$(opt)' crafty
+	@$(MAKE) opt='$(opt)' CXFLAGS='$(CXFLAGS)' CFLAGS='$(CFLAGS)' crafty
 
 crafty.o: *.c *.h
 

@@ -288,8 +288,6 @@ struct tree {
   BITBOARD nodes_searched;
   BITBOARD save_pawn_hash_key[MAXPLY + 2];
   BITBOARD cache_n[64];
-  BITBOARD cache_b_friendly[64];
-  BITBOARD cache_b_enemy[64];
   BITBOARD cache_r_friendly[64];
   BITBOARD cache_r_enemy[64];
   PAWN_HASH_ENTRY pawn_score;
@@ -297,7 +295,6 @@ struct tree {
   NEXT_MOVE next_status[MAXPLY];
   PATH pv[MAXPLY];
   int cache_n_mobility[64];
-  int cache_b_mobility[64];
   int cache_r_mobility_mg[64];
   int cache_r_mobility_eg[64];
   int rep_index[2];
@@ -386,6 +383,7 @@ char *AnnotateVtoNAG(int, int, int, int);
 void AnnotateHeaderTeX(char *, FILE *);
 void AnnotateFooterTeX(FILE *);
 void AnnotatePositionTeX(TREE *, int, FILE *);
+BITBOARD atoiKM(char *);
 int Attacks(TREE * RESTRICT, int, int);
 BITBOARD AttacksTo(TREE * RESTRICT, int);
 void Bench(int);
@@ -605,9 +603,12 @@ extern void WinFreeInterleaved(void *, size_t);
 #  define Check(side) Attacks(tree, KingSQ(side), Flip(side))
 #  define Attack(from,to) (!(obstructed[from][to] & OccupiedSquares))
 #  define AttacksBishop(square, occ) *(magic_bishop_indices[square]+((((occ)&magic_bishop_mask[square])*magic_bishop[square])>>magic_bishop_shift[square]))
+#  define MobilityBishop(square, occ) *(magic_bishop_mobility_indices[square]+((((occ)&magic_bishop_mask[square])*magic_bishop[square])>>magic_bishop_shift[square]))
 #  define AttacksKnight(square) knight_attacks[square]
-#  define AttacksQueen(square, occ)   (AttacksBishop(square, occ)|AttacksRook(square, occ))
 #  define AttacksRook(square, occ) *(magic_rook_indices[square]+((((occ)&magic_rook_mask[square])*magic_rook[square])>>magic_rook_shift[square]))
+#  define MobilityRook(square, occ) *(magic_rook_mobility_indices[square]+((((occ)&magic_rook_mask[square])*magic_rook[square])>>magic_rook_shift[square]))
+#  define AttacksQueen(square, occ)   (AttacksBishop(square, occ)|AttacksRook(square, occ))
+#  define AttacksQueen(square, occ)   (AttacksBishop(square, occ)|AttacksRook(square, occ))
 #  define Rank(x)       ((x)>>3)
 #  define File(x)       ((x)&7)
 #  define Flip(x)       ((x)^1)

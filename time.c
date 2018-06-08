@@ -37,22 +37,21 @@ void TimeAdjust(int time_used, int side) {
     tc_time_remaining[side] += tc_increment;
 }
 
-/* last modified 01/17/09 */
+/* last modified 02/19/10 */
 /*
  *******************************************************************************
  *                                                                             *
  *   TimeCheck() is used to determine when the search should stop.  It uses    *
  *   several conditions to make this determination:  (1) The search time has   *
  *   exceeded the time per move limit;  (2) The value at the root of the tree  *
- *   has not dropped to low.  (3) If the root move was flagged as "easy" and   *
+ *   has not dropped too low.  (3) If the root move was flagged as "easy" and  *
  *   no move has replaced it as best, the search can actually be stopped early *
  *   to save some time on the clock.  If (2) is false, then the time is        *
- *   extended based on how far the root value has dropped in an effort to      *
- *   avoid whatever is being lost.                                             *
+ *   extended up to 6x in an effort to avoid playing a poor move.              *
  *                                                                             *
  *   We use one additional trick here to avoid stopping the search just before *
  *   we change to a better move.  Once we reach the time limit, we set do not  *
- *   immediately stop the search, rather, we let it continue to any/all root   *
+ *   immediately stop the search, rather, we let it continue until all root    *
  *   moves that are "in progress" complete.  This is important, particularly   *
  *   on a parallel search that splits at the root like Crafty does.  A new     *
  *   best move will take quite a bit of time to search, and with just one CPU  *
@@ -215,27 +214,16 @@ int TimeCheck(TREE * RESTRICT tree, int abort) {
 /*
  ************************************************************
  *                                                          *
- *   We are in trouble at the root.  Depending on how much  *
- *   the score has dropped, increase the search time limit  *
- *   to try and correct the problem.  Time can be increased *
- *   by a factor of 2, 4, or 8 based on how low the score   *
- *   actually dropped.                                      *
+ *   We are in trouble at the root.  We have now used the   *
+ *   allocated time limit, yet the score for the current    *
+ *   iteration is still worse than the score for the        *
+ *   previous iteration.  We will continue to search until  *
+ *   we use 6x the normal target time in an effort to avoid *
+ *   playing a move that might end up losing the game.      *
  *                                                          *
  ************************************************************
  */
-  if ((root_value >= last_root_value - 25 && !(root_moves[0].status & 7))) {
-    if (time_used > time_limit * 2 ||
-        time_used + 500 > tc_time_remaining[root_wtm])
-      return (abort);
-    return (0);
-  }
-  if ((root_value >= last_root_value - 50 && !(root_moves[0].status & 7))) {
-    if (time_used > time_limit * 4 ||
-        time_used + 400 > tc_time_remaining[root_wtm])
-      return (abort);
-    return (0);
-  }
-  if (time_used > time_limit * 8 ||
+  if (time_used > time_limit * 6 ||
       time_used + 300 > tc_time_remaining[root_wtm])
     return (1);
   return (0);

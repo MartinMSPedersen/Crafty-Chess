@@ -21,7 +21,7 @@
  *******************************************************************************
  */
 int Swap(TREE * RESTRICT tree, int move, int wtm) {
-  register BITBOARD attacks, temp = 0, toccupied;
+  register BITBOARD attacks, temp = 0, toccupied = OccupiedSquares;
   register BITBOARD bsliders =
       Bishops(white) | Bishops(black) | Queens(white) | Queens(black);
   register BITBOARD rsliders =
@@ -42,7 +42,6 @@ int Swap(TREE * RESTRICT tree, int move, int wtm) {
  *                                                          *
  ************************************************************
  */
-  toccupied = OccupiedSquares;
   attacks = AttacksTo(tree, target);
   attacked_piece = pc_values[Captured(move)];
 /*
@@ -94,7 +93,8 @@ int Swap(TREE * RESTRICT tree, int move, int wtm) {
     }
     swap_list[nc] = -swap_list[nc - 1] + attacked_piece;
     attacked_piece = pc_values[piece];
-    nc++;
+    if (swap_list[nc++] - attacked_piece > 0)
+      break;
     color = Flip(color);
   }
 /*
