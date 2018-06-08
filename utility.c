@@ -2220,9 +2220,9 @@ TREE* CopyToSMP(TREE *p) {
   c->save_pawn_hash_key[p->ply]=p->save_pawn_hash_key[p->ply];
   c->rephead_w=c->replist_w+(p->rephead_w-p->replist_w);
   c->rephead_b=c->replist_b+(p->rephead_b-p->replist_b);
-  for (i=0;i<=p->rephead_w-p->replist_w+((p->ply)>>1);i++) 
+  for (i=0;i<128;i++) 
     c->replist_w[i]=p->replist_w[i];
-  for (i=0;i<=p->rephead_b-p->replist_b+((p->ply)>>1);i++) 
+  for (i=0;i<128;i++) 
     c->replist_b[i]=p->replist_b[i];
   c->last[p->ply]=c->move_list;
   c->hash_move[p->ply]=p->hash_move[p->ply];

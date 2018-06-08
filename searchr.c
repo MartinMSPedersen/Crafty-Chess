@@ -46,7 +46,7 @@ int SearchRoot(TREE *tree, int alpha, int beta, int wtm, int depth) {
 |                                                          |
  ----------------------------------------------------------
 */
-  while ((tree->phase[1]=NextRootMove(tree,wtm,tree->root_move_text))) {
+  while ((tree->phase[1]=NextRootMove(tree,tree,wtm))) {
     tree->extended_reason[1]=0;
 #if defined(TRACE)
     if (1 <= trace_level)

@@ -2752,6 +2752,15 @@
 *           with the new xboard/winboard 4.2.2 versions.  book learning was   *
 *           badly broken in the previous version and has been fixed/tested.   *
 *                                                                             *
+*   18.4    recapture extension was left in SearchSMP() erroneously.  this    *
+*           has now been protected by a #ifdef just like it was in Search().  *
+*           bug in RepetitionCheck() was causing problems in SMP versions.    *
+*           The entire repetition list code was modified to clean this up.    *
+*           the problem was most noticable on things like fine #70.  bug in   *
+*           LearnImportBook() confused the learn value sign, due to the other *
+*           changes to make +=white all the time.  opposite bishop scoring    *
+*           has been beefed up a bit to avoid these drawish endings.          *
+*                                                                             *
 *******************************************************************************
 */
 int main(int argc, char **argv) {

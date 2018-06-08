@@ -644,7 +644,7 @@ void           MakeMoveRoot(TREE*, int, int);
 void           NewGame(int);
 int            NextEvasion(TREE*, int, int);
 int            NextMove(TREE*, int, int);
-int            NextRootMove(TREE*, int, char*);
+int            NextRootMove(TREE*, TREE*, int);
 int            NextRootMoveParallel(void);
 char*          Normal(void);
 int            Option(TREE*);
@@ -1105,7 +1105,7 @@ void           Whisper(int, int, int, int, int, unsigned int, int, int, char*);
 #define PawnHashKey           (tree->pos.pawn_hash_key)
 #define EnPassant(ply)        (tree->position[ply].enpassant_target)
 #define EnPassantTarget(ply)  (EnPassant(ply) ? SetMask(EnPassant(ply)) : 0)
-#define PcOnSq(sq)     (tree->pos.board[sq])
+#define PcOnSq(sq)            (tree->pos.board[sq])
 #define BishopsQueens         (tree->pos.bishops_queens)
 #define RooksQueens           (tree->pos.rooks_queens)
 #define Occupied              (tree->pos.w_occupied|tree->pos.b_occupied)

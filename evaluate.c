@@ -4,7 +4,7 @@
 #include "evaluate.h"
 #include "data.h"
 
-/* last modified 12/17/00 */
+/* last modified 02/26/01 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -1060,13 +1060,13 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
           square_color[FirstOne(WhiteBishops)]) {
         if (abs(Material) > 2*PAWN_VALUE) {
           if (TotalWhitePieces==3 && TotalBlackPieces==3)
-            score=((score-Material)>>2)+Material;
+            score=score>>1;
           else if (TotalWhitePieces==TotalBlackPieces)
             score=((score-Material)>>1)+Material;
         }
         else {
           if (TotalWhitePieces==3 && TotalBlackPieces==3)
-            score=score>>1;
+            score=score>>2;
         }
       }
     }

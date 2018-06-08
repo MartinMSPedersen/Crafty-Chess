@@ -98,10 +98,10 @@ int TimeCheck(TREE *tree, int abort) {
 #if defined(MACOS)
     if (pondering)
       printf("               %2i   %s%7s?  ",iteration_depth,
-             DisplayTime(time_used,tree->remaining_moves_text));
+             DisplayTime(time_used),tree->remaining_moves_text);
     else
       printf("               %2i   %s%7s*  ",iteration_depth,
-             DisplayTime(time_used,tree->remaining_moves_text));
+             DisplayTime(time_used),tree->remaining_moves_text);
     printf("%d. ",move_number);
     printf("%s      \n",tree->root_move_text);
 #else

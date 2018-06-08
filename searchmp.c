@@ -37,7 +37,7 @@ int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
   while (1) {
     Lock(tree->parent->lock);
     if (ply == 1) {
-      tree->phase[ply]=NextRootMove((TREE*)tree->parent,wtm,tree->root_move_text);
+      tree->phase[ply]=NextRootMove(tree->parent,tree,wtm);
       tree->root_move=tree->parent->root_move;
     }
     else
@@ -55,10 +55,10 @@ int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
 /*
  ----------------------------------------------------------
 |                                                          |
-|   if two successive moves are capture / re-capture so    |
-|   that the material score is restored, extend the search |
-|   by one ply on the re-capture since it is pretty much   |
-|   forced and easy to analyze.                            |
+|   if the null move found that the side on move gets      |
+|   mated by not moving, then there must be some strong    |
+|   threat at this position.  extend the search to make    |
+|   sure it is analyzed carefully.                         |
 |                                                          |
  ----------------------------------------------------------
 */
@@ -77,6 +77,7 @@ int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
 |                                                          |
  ----------------------------------------------------------
 */
+#if defined(RECAPTURE)
     if (ply>1 && Captured(tree->current_move[ply]) &&
         Captured(tree->current_move[ply-1]) &&
         To(tree->current_move[ply-1]) == To(tree->current_move[ply]) &&
@@ -88,6 +89,7 @@ int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
       tree->recapture_extensions_done++;
       extensions+=(full_extension) ? recap_depth : recap_depth>>1;
     }
+#endif
 /*
  ----------------------------------------------------------
 |                                                          |

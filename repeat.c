@@ -26,8 +26,7 @@
 ********************************************************************************
 */
 int RepetitionCheck(TREE *tree, int ply, int wtm) {
-  register int entries;
-  register BITBOARD *replist, *thispos;
+  register BITBOARD *replist, *thispos, *lastpos;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -48,16 +47,22 @@ int RepetitionCheck(TREE *tree, int ply, int wtm) {
 |                                                          |
  ----------------------------------------------------------
 */
-  entries=Rule50Moves(ply)>>1;
-  thispos=((wtm)?tree->rephead_w:tree->rephead_b)+((ply-2)>>1);
+  if (wtm) {
+    thispos=tree->rephead_w+((ply-2)>>1);
+    lastpos=tree->replist_w;
+  }
+  else {
+    thispos=tree->rephead_b+((ply-2)>>1);
+    lastpos=tree->replist_b;
+  }
   *thispos=HashKey;
   if (ply > 3) {
-    for (replist=thispos-1;entries;replist--,entries--)
+    for (replist=thispos-1;replist>=lastpos;replist--)
       if(HashKey == *replist) return(1);
   }
   else {
     int count=0;
-    for (replist=thispos-1;entries;replist--,entries--)
+    for (replist=thispos-1;replist>=lastpos;replist--)
       if(HashKey == *replist) count++;
     if (count > 1) return(1);
   }

@@ -9,7 +9,7 @@
 #  include <unistd.h>
 #endif
 
-/* last modified 02/12/01 */
+/* last modified 02/25/01 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -607,7 +607,7 @@ void LearnImportBook(TREE *tree, int nargs, char **args) {
     crafty_rating=rating_difference;
     opponent_rating=0;
     learning|=book_learning;
-    LearnBook(tree, wtm, (wtm) ? learn_value : -learn_value, depth, 1, 1);
+    LearnBook(tree, wtm, learn_value, depth, 1, 1);
     added_lines++;
   }
   move_number=1;

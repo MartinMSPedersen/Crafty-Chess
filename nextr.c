@@ -11,7 +11,7 @@
 *                                                                              *
 ********************************************************************************
 */
-int NextRootMove(TREE *tree, int wtm, char *move_text) {
+int NextRootMove(TREE *tree, TREE *mytree, int wtm) {
   register int done, i;
 /*
  ----------------------------------------------------------
@@ -55,23 +55,24 @@ int NextRootMove(TREE *tree, int wtm, char *move_text) {
       root_moves[i].status|=128;
       if ((tree->nodes_searched > noise_level) && (display_options&32)) {
         Lock(lock_io);
-        sprintf(tree->remaining_moves_text,"%d/%d",i+1,n_root_moves);
+        sprintf(mytree->remaining_moves_text,"%d/%d",i+1,n_root_moves);
         end_time=ReadClock(time_type);
         if (pondering)
           printf("               %2i   %s%7s?  ",iteration_depth,
-                 DisplayTime(end_time-start_time),tree->remaining_moves_text);
+                 DisplayTime(end_time-start_time),mytree->remaining_moves_text);
         else
           printf("               %2i   %s%7s*  ",iteration_depth,
-                 DisplayTime(end_time-start_time),tree->remaining_moves_text);
+                 DisplayTime(end_time-start_time),mytree->remaining_moves_text);
         if (display_options&32 && display_options&64)
           printf("%d. ",move_number);
         if ((display_options&32) && (display_options&64) && !wtm)
           printf("... ");
-        strcpy(move_text, OutputMove(tree,tree->current_move[1],1,wtm));
+        strcpy(mytree->root_move_text,
+               OutputMove(tree,tree->current_move[1],1,wtm));
 #if !defined(MACOS)
-        printf("%s      \r",move_text);
+        printf("%s      \r",mytree->root_move_text);
 #else
-        printf("%s      \n",move_text);
+        printf("%s      \n",mytree->root_move_text);
 #endif
         fflush(stdout);
         UnLock(lock_io);
