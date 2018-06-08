@@ -1,13 +1,11 @@
 #if defined(SMP)
 
-#if (defined(NT_i386) || defined(NT_AXP))
+#if defined(_WIN32) || defined(_WIN64)
 
 #  define pthread_attr_t  HANDLE
 #  define pthread_t       HANDLE
 #  define thread_t        HANDLE
-#  define tfork(t,f,p)    do {                                             \
-                            (pthread_t)_beginthreadex(0,0,(void *)(f),(void *)(p),0,0);  \
-                          } while (0)
+#  define tfork(t,f,p)    (pthread_t)_beginthreadex(0,0,(void *)(f),(void *)(p),0,0);
 
 #if (defined (_M_ALPHA) && !defined(NT_INTEREX))
    
@@ -21,6 +19,7 @@
   typedef volatile int lock_t[1];
 
 #  define LockInit(v)      ((v)[0] = 0)
+#  define LockFree(v)      ((v)[0] = 0)
 #  define UnLock(v)        (__MB(), (v)[0] = 0)
 
    __inline void Lock (volatile int *hPtr) {
@@ -38,8 +37,37 @@
    typedef volatile int lock_t[1];
 
 #  define LockInit(v)      ((v)[0] = 0)
+#  define LockFree(v)      ((v)[0] = 0)
 #  define UnLock(v)        ((v)[0] = 0)
 
+
+#  if (_MSC_VER > 1200)
+
+#     ifdef __cplusplus
+        extern "C" long _InterlockedExchange (long*, long);
+#     else
+        extern long _InterlockedExchange (long*, long);
+#     endif
+#     pragma intrinsic (_InterlockedExchange)
+
+   __forceinline void Lock (volatile int *hPtr)
+    {
+    int iValue;
+    volatile int *hPtrTmp;
+
+    hPtrTmp = hPtr;     // Workaround for vc7 beta1 bug
+    iValue = 1;
+    for (;;)
+        {
+        iValue = _InterlockedExchange ((long*) hPtrTmp, iValue);
+        if (0 == iValue)
+            return;
+        while (*hPtrTmp)
+            ;   // Do nothing
+        }
+    }
+
+#  else
 
 __inline void Lock (volatile int *hPtr)
     {
@@ -58,14 +86,43 @@ __inline void Lock (volatile int *hPtr)
       }
     }
 
+#  endif
+
+#elif (defined (_M_IA64) && !defined(NT_INTEREX))
+
+#  include <windows.h>
+
+#  pragma intrinsic (_InterlockedExchange)
+
+   typedef volatile LONG lock_t[1];
+
+#  define LockInit(v)      ((v)[0] = 0)
+#  define LockFree(v)      ((v)[0] = 0)
+#  define UnLock(v)        ((v)[0] = 0)
+
+
+__forceinline void Lock (volatile LONG *hPtr)
+    {
+    int iValue;
+
+    for (;;)
+        {
+        iValue = _InterlockedExchange ((LPLONG) hPtr, 1);
+        if (0 == iValue)
+            return;
+        while (*hPtr)
+            ;   // Do nothing
+        }
+    }
+
 
 #else /* NT non-Alpha/Intel, without assembler Lock() */
 
 #  define lock_t           volatile int
 #  define LockInit(v)      ((v) = 0)
+#  define LockFree(v)      ((v) = 0)
 #  define Lock(v)          do {                                         \
-                             while(InterlockedExchange((LPLONG)&(v),1) != 0);  
-\
+                             while(InterlockedExchange((LPLONG)&(v),1) != 0);  \
                            } while (0)
 #  define UnLock(v)        ((v) = 0)
 
@@ -77,6 +134,7 @@ __inline void Lock (volatile int *hPtr)
 
 #  define Lock(v)          pthread_mutex_lock(&v)
 #  define LockInit(v)      pthread_mutex_init(&v,0)
+#  define LockFree(v)      pthread_mutex_destroy(&v)
 #  define UnLock(v)        pthread_mutex_unlock(&v)
 #  define lock_t           pthread_mutex_t
 
@@ -86,6 +144,7 @@ __inline void Lock (volatile int *hPtr)
 
 #  define lock_t           volatile long
 #  define LockInit(v)      ((v) = 0)
+#  define LockFree(v)      ((v) = 0)
 #  define Lock(v)          __LOCK_LONG(&(v))
 #  define UnLock(v)        __UNLOCK_LONG(&(v))
 
@@ -99,6 +158,7 @@ __inline void Lock (volatile int *hPtr)
      _ret;                                                   \
      })
 #  define LockInit(p)           (p=0)
+#  define LockFree(p)           (p=0)
 #  define UnLock(p)             (exchange(&p,0))
 #  define Lock(p)               while(exchange(&p,1)) while(p)
 #  define lock_t                volatile int
@@ -122,6 +182,7 @@ __inline void Lock (volatile int *hPtr)
 
 #else
 #  define LockInit(p)
+#  define LockFree(p)
 #  define Lock(p)
 #  define UnLock(p)
 #endif /*  SMP code */

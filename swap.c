@@ -24,7 +24,7 @@
 *                                                                              *
 ********************************************************************************
 */
-int Swap(TREE *tree, int source, int target, int wtm) {
+int Swap(TREE * RESTRICT tree, int source, int target, int wtm) {
   register BITBOARD attacks;
   register int attacked_piece;
   register int square, direction;
@@ -138,7 +138,7 @@ int Swap(TREE *tree, int source, int target, int wtm) {
 *                                                                              *
 ********************************************************************************
 */
-BITBOARD SwapXray(TREE *tree, BITBOARD attacks, int from, int direction) {
+BITBOARD SwapXray(TREE * RESTRICT tree, BITBOARD attacks, int from, int direction) {
   switch (direction) {
   case 1: 
     return(attacks | (AttacksRank(from) & RooksQueens & plus1dir[from]));

@@ -10,7 +10,7 @@
 #endif
 #include <signal.h>
 
-/* last modified 03/13/01 */
+/* last modified 09/25/02 */
 /*
 *******************************************************************************
 *                                                                             *
@@ -2870,6 +2870,39 @@
 *           to notice that K+B+right RP vs K+B is not necessarily won if the  *
 *           weaker side has a bishop of the right color.                      *
 *                                                                             *
+*   19.0    significant change to the search extension limits.  first, the    *
+*           limit of no more than 1 ply of extensions per ply has been tossed *
+*           out.  now, any number of extensions are allowed in the first N    *
+*           plies, where N=iteration_depth of the current iteration.  After   *
+*           the first N plies, extensions are reduced by 50% for the next N   *
+*           plies.  They are then reduced by another 50% for the next N plies *
+*           and then completely disabled after that.  IE for a 12 ply search, *
+*           all extensions (even > one ply) are allowed for the first 12      *
+*           plies, then the extensions are reduced by 1/2 for the next 12     *
+*           plies, then by 1/4 for the next 12 plies, then turned off from    *
+*           that point forward.  minor tweak (suggested by GCP) to reduce the *
+*           time limit by 1/4 for ponder=off games was done in time.c.  fix   *
+*           to EvaluateWinner() to correctly realize that KR[BN] vs KRR is a  *
+*           draw for the KRR side if it doesn't have at least a pawn left.    *
+*           minor bug in RejectBookMove() would reject all moves if the op-   *
+*           ponent had a stonewall-type pawn set-up.  it was supposed to only *
+*           reject castling into the attack.  minor change to code in the     *
+*           EvaluateMaterial() function to lower the penalty for sacrificing  *
+*           the exchange.  it was considered just as bad as trading a rook    *
+*           for two pawns which was wrong.  change to hashing code so that we *
+*           can now determine that a hash entry came from the EGTB so that    *
+*           PVs are displayed with <EGTB> when appropriate, not <EGTB> if it  *
+*           originally came from the EGTB but later <HT> when it was picked   *
+*           up from the hash table instead.  minor changes to search/searchmp *
+*           to make them identical in "look" where possible, for consistency  *
+*           in source reading if nothing else.  if the first argument on the  *
+*           command-line is "xboard" or if the environment variable           *
+*           "CRAFTY_XBOARD" is set, crafty sends a "feature done=0" command   *
+*           to tell xboard it has not yet initialized things.  significant    *
+*           changes to EvaluateWinner() to recognize new cases of draws such  *
+*           as Q+minor+nopawns vs Q+pawns as unwinnable by the Q+minor side.  *
+*           other cases were fixed/improved as well.                          *
+*                                                                             *
 *******************************************************************************
 */
 void SigInt(int type) {
@@ -2905,6 +2938,10 @@ int main(int argc, char **argv) {
   directory_spec=getenv("CRAFTY_RC_PATH");
   if (directory_spec)
     strncpy (rc_path, directory_spec, sizeof rc_path);
+  if (getenv("CRAFTY_XBOARD"))
+    Print(128,"feature done=0\n");
+  else if (argc>1 && !strcmp(argv[1],"xboard"))
+    Print(128,"feature done=0\n");
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -3115,17 +3152,17 @@ int main(int argc, char **argv) {
         move_actually_played=1;
         last_opponent_move=move;
         if (RepetitionDraw(tree,ChangeSide(wtm))==1) {
-          Print(4095,"%sgame is a draw by repetition.%s\n",Reverse(),Normal());
+          Print(128,"%sgame is a draw by repetition.%s\n",Reverse(),Normal());
           value=DrawScore(wtm);
           if (xboard) Print(4095,"1/2-1/2 {Drawn by 3-fold repetition}\n");
         }
         if (RepetitionDraw(tree,ChangeSide(wtm))==2) {
-          Print(4095,"%sgame is a draw by the 50 move rule.%s\n",Reverse(),Normal());
+          Print(128,"%sgame is a draw by the 50 move rule.%s\n",Reverse(),Normal());
           value=DrawScore(wtm);
           if (xboard) Print(4095,"1/2-1/2 {Drawn by 50-move rule}\n");
         }
         if (Drawn(tree,last_search_value) == 2) {
-          Print(4095,"%sgame is a draw due to insufficient material.%s\n",
+          Print(128,"%sgame is a draw due to insufficient material.%s\n",
                 Reverse(),Normal());
           if (xboard) Print(4095,"1/2-1/2 {Insufficient material}\n");
         }
@@ -3188,14 +3225,14 @@ int main(int argc, char **argv) {
       if (last_search_value<=drawsc && (tc_increment!=0 ||
           tc_time_remaining_opponent>=1000)) {
         if (xboard) Print(4095,"tellics draw\n");
-        else Print(4095,"Draw accepted.\n");
+        else Print(128,"Draw accepted.\n");
         Print(4095,"1/2-1/2 {Draw agreed}\n");
         strcpy(pgn_result,"1/2-1/2");
       }
       else {
         if (xboard) {
           Print(4095,"tellics decline\n");
-          Print(4095,"Decline\n");
+          Print(128,"Decline\n");
         }
         else Print(4095,"Draw declined.\n");
       }
@@ -3228,7 +3265,7 @@ int main(int argc, char **argv) {
         over=1;
         if (!xboard) {
           printf("%s",Reverse());
-          Print(4095,"stalemate\n");
+          Print(128,"stalemate\n");
           printf("%s",Normal());
         }
         else Print(4095,"1/2-1/2 {stalemate}\n");
@@ -3245,13 +3282,13 @@ int main(int argc, char **argv) {
       }
       if (wtm) {
         if (!xboard && !ics) {
-          Print(4095,"\n");
+          Print(128,"\n");
           printf("%s",Reverse());
           if (audible_alarm) printf("%c",audible_alarm);
-          Print(4095,"White(%d): %s ",move_number,
+          Print(128,"White(%d): %s ",move_number,
                 OutputMove(tree,last_pv.path[1],0,wtm));
           printf("%s",Normal());
-          Print(4095,"\n");
+          Print(128,"\n");
           if (auto232) { 
             const char *mv=OutputMoveICS(last_pv.path[1]);
             DelayTime(auto232_delay);
@@ -3267,16 +3304,16 @@ int main(int argc, char **argv) {
                                 OutputMove(tree,last_pv.path[1],0,wtm));
           printf("move %s\n",OutputMove(tree,last_pv.path[1],0,wtm));
         }
-        else Print(4095,"*%s\n",OutputMove(tree,last_pv.path[1],0,wtm));
+        else Print(128,"*%s\n",OutputMove(tree,last_pv.path[1],0,wtm));
       }
       else {
         if (!xboard && !ics) {
-          Print(4095,"\n");
+          Print(128,"\n");
           printf("%s",Reverse());
           if (audible_alarm) printf("%c",audible_alarm);
-          Print(4095,"Black(%d): %s ",move_number,OutputMove(tree,last_pv.path[1],0,wtm));
+          Print(128,"Black(%d): %s ",move_number,OutputMove(tree,last_pv.path[1],0,wtm));
           printf("%s",Normal());
-          Print(4095,"\n");
+          Print(128,"\n");
           if (auto232) { 
             const char *mv=OutputMoveICS(last_pv.path[1]);
             DelayTime(auto232_delay);
@@ -3331,7 +3368,7 @@ int main(int argc, char **argv) {
         value=DrawScore(wtm);
       }
       if (Drawn(tree,last_search_value) == 2) {
-        Print(4095,"%sgame is a draw due to insufficient material.%s\n",
+        Print(128,"%sgame is a draw due to insufficient material.%s\n",
               Reverse(),Normal());
         if (xboard) Print(4095,"1/2-1/2 {Insufficient material}\n");
       }

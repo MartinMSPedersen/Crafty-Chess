@@ -18,7 +18,7 @@
 *                                                                              *
 ********************************************************************************
 */
-void History(TREE *tree, int ply, int depth, int wtm, int move) {
+void History(TREE * RESTRICT tree, int ply, int depth, int wtm, int move) {
   register int index;
 /*
  ----------------------------------------------------------

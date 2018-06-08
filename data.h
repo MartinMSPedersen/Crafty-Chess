@@ -12,8 +12,9 @@
   extern int            number_of_computers;
   extern int            number_of_GMs;
   extern int            number_of_IMs;
-  extern int            number_of_blockers;
   extern int            number_to_play;
+  extern int            number_of_blockers;
+  extern int            number_of_special_openings;
   extern int            time_used;
   extern int            time_used_opponent;
   extern int            cpu_time_used;
@@ -28,6 +29,8 @@
   extern char           computer_list[512][20];
   extern char           blocker_list[512][20];
   extern char           toplay_list[512][20];
+  extern char           opening_list[16][20];
+  extern char           opening_filenames[16][64];
   extern FILE           *input_stream;
   extern FILE           *book_file;
   extern FILE           *books_file;

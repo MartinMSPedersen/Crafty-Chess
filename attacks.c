@@ -17,7 +17,7 @@
 *                                                                              *
 ********************************************************************************
 */
-BITBOARD AttacksTo(TREE *tree, int square) {
+BITBOARD AttacksTo(TREE * RESTRICT tree, int square) {
 
   return((w_pawn_attacks[square] & BlackPawns) |
          (b_pawn_attacks[square] & WhitePawns) |
@@ -39,7 +39,7 @@ BITBOARD AttacksTo(TREE *tree, int square) {
 ********************************************************************************
 */
 
-int Attacked(TREE *tree, int square, int wtm) {
+int Attacked(TREE * RESTRICT tree, int square, int wtm) {
 
   if (wtm) {
     if (b_pawn_attacks[square] & WhitePawns) return(1);

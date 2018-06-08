@@ -201,7 +201,6 @@ int Book(TREE *tree, int wtm, int root_list_done) {
             }
           }
           book_moves[nmoves]=root_moves[im].move;
-          if (BookRejectMove(tree,wtm)) book_status[nmoves]|=BAD_MOVE;
           nmoves++;
           break;
         }
@@ -237,6 +236,9 @@ int Book(TREE *tree, int wtm, int root_list_done) {
       if (bs_CAP[i]<=CAP_SCORE_BAD && bs_CAP[i]!=-2*MATE &&
           !(book_status[i]&003)) book_status[i]|=BAD_MOVE;
       if (bs_percent[i]) book_status[i]|=GOOD_MOVE;
+      if (!(book_status[i]&GOOD_MOVE) &&
+          BookRejectMove(tree,wtm,book_moves[i]))
+                                   book_status[i]|=BAD_MOVE;
     }
 /*
  ----------------------------------------------------------
@@ -794,13 +796,12 @@ int BookPonderMove(TREE *tree, int wtm) {
   return(book_ponder_move);
 }
 
-/* last modified 03/19/01 */
+/* last modified 09/11/02 */
 /*
 ********************************************************************************
 *                                                                              *
-*   BookUp() is used to create/add to the opening book file.  typing "book     *
-*   create" will erase the old book file and start from scratch, typing "book  *
-*   add" will simply add more moves to the existing file.                      *
+*   BookUp() is used to create/add to the opening book file.  typing "<file>   *
+*   create" will erase the old book file and start from scratch,               *
 *                                                                              *
 *   the format of the input data is a left bracket ("[") followed by any title *
 *   information desired, followed by a right bracket ("]") followed by a       *
@@ -843,11 +844,11 @@ int BookPonderMove(TREE *tree, int wtm) {
 *                                                                              *
 ********************************************************************************
 */
-void BookUp(TREE *tree, char *output_filename, int nargs, char **args) {
+void BookUp(TREE *tree, int nargs, char **args) {
   BB_POSITION *bbuffer;
   BITBOARD temp_hash_key, common;
   FILE *book_input;
-  char fname[128], start, *ch;
+  char fname[128], start, *ch, output_filename[128];
   static char schar[2]={"."};
   int result=0, played, i, mask_word, total_moves;
   int move, move_num, wtm, book_positions, major, minor;
@@ -869,21 +870,25 @@ void BookUp(TREE *tree, char *output_filename, int nargs, char **args) {
 |                                                          |
  ----------------------------------------------------------
 */
-  if (!strcmp(args[0],"create")) {
-    if (nargs < 3) {
-      Print(4095,"usage:  book|books create filename ");
+  if (!strcmp(args[1],"create")) {
+    if (nargs < 4) {
+      Print(4095,"usage:  <binfile> create <pgn-filename> ");
       Print(4095,"maxply [minplay] [win/lose %]\n");
       return;
     }
-    max_ply=atoi(args[2]);
-    if (nargs >= 4) {
-      min_played=atoi(args[3]);
+    max_ply=atoi(args[3]);
+    if (nargs >= 5) {
+      min_played=atoi(args[4]);
     }
-    if (nargs > 4) {
-      wl_percent=atof(args[4])/100.0;
+    if (nargs > 5) {
+      wl_percent=atof(args[5])/100.0;
+    }
+    strcpy(output_filename,args[0]);
+    if (!strstr(output_filename,".bin")) {
+      strcat(output_filename,".bin");
     }
   }
-  else if (!strcmp(args[0],"off")) {
+  else if (!strcmp(args[1],"off")) {
     if (book_file) fclose(book_file);
     if (books_file) fclose(books_file);
     book_file=0;
@@ -891,7 +896,7 @@ void BookUp(TREE *tree, char *output_filename, int nargs, char **args) {
     Print(4095,"book file disabled.\n");
     return;
   }
-  else if (!strcmp(args[0],"on")) {
+  else if (!strcmp(args[1],"on")) {
     if (!book_file) {
 #if defined (MACOS)
       sprintf(fname,":%s:book.bin",book_path);
@@ -908,28 +913,28 @@ void BookUp(TREE *tree, char *output_filename, int nargs, char **args) {
     }
     return;
   }
-  else if (!strcmp(args[0],"mask")) {
-    if (nargs < 3) {
+  else if (!strcmp(args[1],"mask")) {
+    if (nargs < 4) {
       Print(4095,"usage:  book mask accept|reject value\n");
       return;
     }
-    else if (!strcmp(args[1],"accept")) {
-      book_accept_mask=BookMask(args[2]);
+    else if (!strcmp(args[2],"accept")) {
+      book_accept_mask=BookMask(args[3]);
       book_reject_mask=book_reject_mask & ~book_accept_mask;
       return;
     }
-    else if (!strcmp(args[1],"reject")) {
-      book_reject_mask=BookMask(args[2]);
+    else if (!strcmp(args[2],"reject")) {
+      book_reject_mask=BookMask(args[3]);
       book_accept_mask=book_accept_mask & ~book_reject_mask;
       return;
     }
   }
-  else if (!strcmp(args[0],"random")) {
-    if (nargs < 2) {
+  else if (!strcmp(args[1],"random")) {
+    if (nargs < 3) {
       Print(4095,"usage:  book random <n>\n");
       return;
     }
-    book_random=atoi(args[1]);
+    book_random=atoi(args[2]);
     switch (book_random) {
       case 0:
         Print(4095,"play best book line after search.\n");
@@ -943,22 +948,22 @@ void BookUp(TREE *tree, char *output_filename, int nargs, char **args) {
     }
     return;
   }
-  else if (!strcmp(args[0],"trigger")) {
-    if (nargs < 2) {
+  else if (!strcmp(args[1],"trigger")) {
+    if (nargs < 3) {
       Print(4095,"usage:  book trigger <n>\n");
       return;
     }
-    book_search_trigger=atoi(args[1]);
+    book_search_trigger=atoi(args[2]);
     Print(4095,"search book moves if the most popular was not played\n");
     Print(4095,"at least %d times.\n", book_search_trigger);
     return;
   }
-  else if (!strcmp(args[0],"width")) {
-    if (nargs < 2) {
+  else if (!strcmp(args[1],"width")) {
+    if (nargs < 3) {
       Print(4095,"usage:  book width <n>\n");
       return;
     }
-    book_selection_width=atoi(args[1]);
+    book_selection_width=atoi(args[2]);
     Print(4095,"choose from %d best moves.\n", book_selection_width);
     return;
   }
@@ -966,8 +971,8 @@ void BookUp(TREE *tree, char *output_filename, int nargs, char **args) {
     Print(4095,"usage:  book [option] [filename] [maxply] [minplay]\n");
     return;
   }
-  if (!(book_input=fopen(args[1],"r"))) {
-    printf("file %s does not exist.\n",args[1]);
+  if (!(book_input=fopen(args[2],"r"))) {
+    printf("file %s does not exist.\n",args[2]);
     return;
   }
   ReadPGN(0,0);
@@ -1275,7 +1280,7 @@ int BookMask(char *flags) {
 }
 
 
-/* last modified 01/08/01 */
+/* last modified 08/29/02 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -1285,7 +1290,7 @@ int BookMask(char *flags) {
 *                                                                              *
 ********************************************************************************
 */
-int BookRejectMove(TREE *tree, int wtm) {
+int BookRejectMove(TREE *tree, int wtm, int move) {
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -1294,12 +1299,15 @@ int BookRejectMove(TREE *tree, int wtm) {
 |                                                          |
  ----------------------------------------------------------
 */
+  if (Piece(move) != king) return(0);
   if (wtm) {
+    if (From(move)!=E1 || (To(move)!=C1 && To(move)!=G1)) return(0);
     if (PopCnt(BlackPawns&stonewall_black)==2 &&
         (WhitePawns&SetMask(E2) || WhitePawns&SetMask(E3)))
       return(1);
   }
   else {
+    if (From(move)!=E8 || (To(move)!=C8 && To(move)!=G8)) return(0);
     if (PopCnt(WhitePawns&stonewall_white)==2 &&
         (BlackPawns&SetMask(E7) || BlackPawns&SetMask(E6)))
       return(1);

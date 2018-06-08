@@ -5,7 +5,7 @@
 #include "data.h"
 #include "epdglue.h"
 
-/* last modified 10/23/01 */
+/* last modified 09/11/02 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -18,7 +18,7 @@
 *                                                                              *
 ********************************************************************************
 */
-int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
+int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
            int ply, int do_null, int lp_recapture) {
   register int moves_searched=0;
   register int o_alpha, value=0;
@@ -100,6 +100,9 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
     case EXACT:
       if(alpha < beta) SavePV(tree,ply,alpha,1);
       return(alpha);
+    case EXACTEGTB:
+      if(alpha < beta) SavePV(tree,ply,alpha,2);
+      return(alpha);
     case LOWER:
       return(beta);
     case UPPER:
@@ -139,7 +142,7 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
       }
       if(alpha < beta) SavePV(tree,ply,alpha,2);
       tree->pv[ply].pathl=0;
-      HashStore(tree,ply,32000,wtm,EXACT,alpha,mate_threat);
+      HashStore(tree,ply,MAX_DRAFT,wtm,EXACT,alpha,mate_threat);
       return(alpha);
     }
   }
@@ -193,7 +196,8 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
  ----------------------------------------------------------
 */
   pieces=(wtm) ? TotalWhitePieces : TotalBlackPieces;
-  if (do_null && !tree->in_check[ply] && pieces && (pieces>5 || depth<421)) {
+  if (do_null && !tree->in_check[ply] && pieces &&
+      (pieces>5 || depth<7*INCPLY)) {
     register BITBOARD save_hash_key;
     int null_depth;
     tree->current_move[ply]=0;
@@ -307,22 +311,6 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
 /*
  ----------------------------------------------------------
 |                                                          |
-|   if the move to be made checks the opponent, then we    |
-|   need to remember that he's in check and also extend    |
-|   the depth by one ply for him to get out.               |
-|                                                          |
- ----------------------------------------------------------
-*/
-      extended=0;
-      if (Check(ChangeSide(wtm))) {
-        tree->in_check[ply+1]=1;
-        tree->check_extensions_done++;
-        extended+=incheck_depth;
-      }
-      else tree->in_check[ply+1]=0;
-/*
- ----------------------------------------------------------
-|                                                          |
 |   if the null move found that the side on move gets      |
 |   mated by not moving, then there must be some strong    |
 |   threat at this position.  extend the search to make    |
@@ -330,10 +318,26 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
 |                                                          |
  ----------------------------------------------------------
 */
+      extended=0;
       if (mate_threat) {
         extended+=mate_depth;
         tree->mate_extensions_done++;
       }
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   if the move to be made checks the opponent, then we    |
+|   need to remember that he's in check and also extend    |
+|   the depth by one ply for him to get out.               |
+|                                                          |
+ ----------------------------------------------------------
+*/
+      if (Check(ChangeSide(wtm))) {
+        tree->in_check[ply+1]=1;
+        tree->check_extensions_done++;
+        extended+=incheck_depth;
+      }
+      else tree->in_check[ply+1]=0;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -390,8 +394,7 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
  ----------------------------------------------------------
 */
         if (extended) {
-          if (extended > INCPLY) extended=INCPLY;
-          if (ply > 2*iteration_depth) extended>>=1;
+          LimitExtensions(extended,ply);
         }
         extensions=extended-INCPLY;
         if (depth+extensions >= INCPLY)
@@ -406,8 +409,7 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
       }
       else {
         if (extended) {
-          if (extended > INCPLY) extended=INCPLY;
-          if (ply > 2*iteration_depth) extended>>=1;
+          LimitExtensions(extended,ply);
         }
         extensions=extended-INCPLY;
         if (depth+extensions >= INCPLY)

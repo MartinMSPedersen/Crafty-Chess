@@ -50,6 +50,43 @@ int PopCnt(register BITBOARD a) {
 
 #else
 #if (!defined(USE_ASSEMBLY_B) && !defined(ALPHA)) || (defined(ALPHA) && !defined(PopCnt))
+
+#if defined (_M_IA64)
+
+#ifdef __ICL
+typedef unsigned long long __m64;
+#elif _MSC_VER >= 1300
+typedef union __declspec(intrin_type) __declspec(align(8)) __m64
+{
+    unsigned __int64    m64_u64;
+    float               m64_f32[2];
+    __int8              m64_i8[8];
+    __int16             m64_i16[4];
+    __int32             m64_i32[2];
+    __int64             m64_i64;
+    unsigned __int8     m64_u8[8];
+    unsigned __int16    m64_u16[4];
+    unsigned __int32    m64_u32[2];
+} __m64;
+#endif
+
+__m64 __m64_popcnt(__m64);
+#pragma intrinsic (__m64_popcnt)
+
+int PopCnt(register BITBOARD a) {
+#ifdef __ICL
+  return (int) __m64_popcnt(a);
+#else
+  __m64 m;
+
+  m.m64_u64 = a;
+  m = __m64_popcnt(m);
+  return (int) m.m64_u64;
+#endif
+}
+
+#else
+
 int PopCnt(register BITBOARD a) {
   register int c=0;
 
@@ -59,6 +96,8 @@ int PopCnt(register BITBOARD a) {
   }
   return(c);
 }
+
+#endif
 
 int FirstOne(BITBOARD arg1) {
     if (arg1>>48)

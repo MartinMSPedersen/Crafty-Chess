@@ -152,7 +152,7 @@ int Ponder(int wtm) {
     *tree->rephead_w++=HashKey;
   else
     *tree->rephead_b++=HashKey;
-  if (RepetitionDraw(tree,wtm)) Print(4095,"game is a draw by repetition\n");
+  if (RepetitionDraw(tree,wtm)) Print(128,"game is a draw by repetition\n");
   if (whisper) strcpy(whisper_text,"n/a");
   thinking=0;
   pondering=1;

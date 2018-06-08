@@ -250,7 +250,7 @@
   unsigned int   max_split_blocks;
   volatile unsigned int   splitting;
 
-# define    VERSION                            "18.15"
+# define    VERSION                             "19.0"
   char      version[6] =                    {VERSION};
   PLAYING_MODE mode =                     normal_mode;
 
@@ -321,6 +321,11 @@
   char      IM_list[512][20] =       {
                                       {""}};
 
+  int       number_of_special_openings =            0;
+  char      opening_list[16][20] =       {
+                                      {""}};
+  char      opening_filenames[16][64] =       {
+                                      {""}};
   int       ics =                                   0;
   int       output_format =                         0;
   int       EGTBlimit =                             0;
@@ -350,11 +355,11 @@
   int       crafty_is_white =                       0;
   int       last_opponent_move =                    0;
   int       average_nps =                           0;
-  int       incheck_depth =                        60;
-  int       onerep_depth =                         45;
-  int       recap_depth =                          45;
-  int       pushpp_depth =                         45;
-  int       mate_depth =                           45;
+  int       incheck_depth =                    INCPLY;
+  int       onerep_depth =                 3*INCPLY/4;
+  int       recap_depth =                  3*INCPLY/4;
+  int       pushpp_depth =                 3*INCPLY/4;
+  int       mate_depth =                   3*INCPLY/4;
   int       null_min =                       3*INCPLY;  /* R=2 */
   int       null_max =                       4*INCPLY;  /* R=3 */
   int       largest_positional_score =            300;
@@ -420,9 +425,9 @@
   int       book_reject_mask =                      3;
   int       book_random =                           1;
   float     book_weight_learn =                   1.0;
-  float     book_weight_freq =                    0.5;
-  float     book_weight_CAP =                     0.3;
-  float     book_weight_eval =                    0.1;
+  float     book_weight_freq =                    1.0;
+  float     book_weight_CAP =                     0.7;
+  float     book_weight_eval =                    0.5;
   int       book_search_trigger =                  20;
   int       learning =                              7;
   int       moves_out_of_book =                     0;

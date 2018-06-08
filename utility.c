@@ -136,17 +136,6 @@ int CheckInput(void) {
 }
 #endif
 
-#if defined(DOS)
-int CheckInput(void) {
-  int i;
-  if (!xboard && !ics && !isatty(fileno(stdin))) return(0);
-  if (batch_mode) return(0);
-  if (strchr(cmd_buffer,'\n')) return(1);
-  i=bioskey(1);
-  return(i);
-}
-#endif
-
 #if defined(UNIX)
 #  ifdef __EMX__
 int CheckInput(void) {
@@ -418,15 +407,13 @@ void DisplayPV(TREE *tree, int level, int wtm, int time, int value, PATH *pv) {
   }
   else if(pv->pathh == 2) 
     sprintf(buffer+strlen(buffer)," <EGTB>");
+  if (nskip>1 && max_threads>1) sprintf(buffer+strlen(buffer)," (s=%d)",nskip);
   strcpy(whisper_text,buffer);
   if (root_print_ok) {
 #if defined(SMP)
     Lock(lock_io);
 #endif
-    if (nskip <= 1)
-      Print(type,"               ");
-    else
-      Print(type,"         (%1d)   ",nskip);
+    Print(type,"               ");
     if (level==6)
       Print(type,"%2i   %s%s   ",iteration_depth,
             DisplayTime(time),DisplayEvaluation(value,twtm));
@@ -459,8 +446,8 @@ void DisplayPV(TREE *tree, int level, int wtm, int time, int value, PATH *pv) {
 
 char* DisplaySQ(unsigned int sq) {
   static char out[3];
-  out[0]=(From(sq) & 7)+'a';
-  out[1]=(From(sq) / 8)+'1';
+  out[0]=File(From(sq))+'a';
+  out[1]=Rank(From(sq))+'1';
   out[2]=0;
   return(out);
 }
@@ -556,8 +543,7 @@ void Display2BitBoards(BITBOARD board1, BITBOARD board2) {
 ********************************************************************************
 *                                                                              *
 *   EGTBPV() is used to display the full PV (path) for a mate/mated in N EGTB  *
-*   position.  if the second token is a !, then we show which moves are the    *
-*   only optimal moves by adding a ! to them.                                  *
+*   position.                                                                  *
 *                                                                              *
 ********************************************************************************
 */
@@ -569,8 +555,7 @@ void EGTBPV(TREE *tree, int wtm) {
   int value;
   register int ply, i, j, nmoves, *last, t_move_number;
   register int best=0, bestmv=0, optimal_mv=0;
-  register int bang=0, legal;
-  if (!strcmp(args[1],"!")) bang=1;
+  register int legal;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -628,8 +613,8 @@ void EGTBPV(TREE *tree, int wtm) {
       if ((display_options&64) && ply>1 && wtm)
         sprintf(buffer+strlen(buffer)," %d.",t_move_number);
       sprintf(buffer+strlen(buffer)," %s",OutputMove(tree,bestmv,1,wtm));
-      if (!strchr(buffer,'#') && bang &&
-          legal>1 && optimal_mv) sprintf(buffer+strlen(buffer),"!");
+      if (!strchr(buffer,'#') && legal>1 &&
+          optimal_mv) sprintf(buffer+strlen(buffer),"!");
       hk[ply]=HashKey;
       phk[ply]=PawnHashKey;
       MakeMove(tree,1,bestmv,wtm);
@@ -717,7 +702,7 @@ char *FormatPV(TREE *tree, int wtm, PATH pv) {
 
 #if defined(MACOS)
 unsigned int ReadClock(TIME_TYPE type) {
-      return(clock() * 100 / CLOCKS_PER_SEC);
+        return(clock() * 100 / CLOCKS_PER_SEC);
 }
 #else
 unsigned int ReadClock(TIME_TYPE type) {
@@ -728,16 +713,10 @@ unsigned int ReadClock(TIME_TYPE type) {
   BITBOARD cputime=0;
 #endif
 #if defined(NT_i386) || defined(NT_AXP)
-  HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE,
-GetCurrentProcessId());
+  HANDLE hThread;
   FILETIME ftCreate, ftExit, ftKernel, ftUser;
-  unsigned int cputime=0;
-  BITBOARD tUser64=0;
-  if (GetProcessTimes(hProcess, &ftCreate, &ftExit, &ftKernel, &ftUser)) {
-    tUser64 = *(BITBOARD *)&ftUser;
-    cputime=(unsigned int)(tUser64/100000);
-  }
-  CloseHandle(hProcess);
+  unsigned int cputime;
+  BITBOARD tUser64;
 #endif
 
   switch (type) {
@@ -762,6 +741,12 @@ GetCurrentProcessId());
 #endif
 #if defined(NT_i386) || defined(NT_AXP)
     case cpu:
+      hThread = GetCurrentThread();
+      if (GetThreadTimes(hThread, &ftCreate, &ftExit, &ftKernel,
+&ftUser)) {
+        tUser64 = *(BITBOARD *)&ftUser;
+        cputime=(unsigned int)(tUser64/100000);
+      }
       return(cputime);
     case elapsed:
       return( (unsigned int) GetTickCount()/10);
@@ -881,9 +866,9 @@ BITBOARD InterposeSquares(int check_direction, int king_square,
  
 int KingPawnSquare(int pawn, int king, int queen, int ptm) {
   register int pdist, kdist;
-  pdist=abs((pawn>>3)-(queen>>3));
-  kdist=(abs((king>>3)-(queen>>3)) > abs((king&7)-(queen&7))) ? 
-    abs((king>>3)-(queen>>3)) : abs((king&7)-(queen&7));
+  pdist=abs(Rank(pawn)-Rank(queen));
+  kdist=(abs(Rank(king)-Rank(queen)) > abs(File(king)-File(queen))) ? 
+    abs(Rank(king)-Rank(queen)) : abs(File(king)-File(queen));
   if (!ptm) pdist++;
   if (pdist < kdist) return(0);
   else return(1);
@@ -1073,7 +1058,7 @@ void Pass(void) {
 *                                                                              *
 ********************************************************************************
 */
-int PinnedOnKing(TREE *tree, int wtm, int square) {
+int PinnedOnKing(TREE * RESTRICT tree, int wtm, int square) {
   register int ray;
   if (wtm) {
 /*
@@ -2202,6 +2187,10 @@ void CopyFromSMP(TREE *p, TREE *c) {
   p->evaluations+=c->evaluations;
   p->transposition_probes+=c->transposition_probes;
   p->transposition_hits+=c->transposition_hits;
+  p->transposition_good_hits+=c->transposition_good_hits;
+  p->transposition_uppers+=c->transposition_uppers;
+  p->transposition_lowers+=c->transposition_lowers;
+  p->transposition_exacts+=c->transposition_exacts;
   p->pawn_probes+=c->pawn_probes;
   p->pawn_hits+=c->pawn_hits;
   p->egtb_probes+=c->egtb_probes;
@@ -2236,7 +2225,6 @@ TREE* CopyToSMP(TREE *p) {
   c=local[i];
   c->used=1;
   c->stop=0;
-  c->done=0;
   for (i=0;i<max_threads;i++) c->siblings[i]=0;
   c->pos=p->pos;
   c->pv[p->ply-1]=p->pv[p->ply-1];
@@ -2265,6 +2253,10 @@ TREE* CopyToSMP(TREE *p) {
   c->evaluations=0;
   c->transposition_probes=0;
   c->transposition_hits=0;
+  c->transposition_good_hits=0;
+  c->transposition_uppers=0;
+  c->transposition_lowers=0;
+  c->transposition_exacts=0;
   c->pawn_probes=0;
   c->pawn_hits=0;
   c->egtb_probes=0;
@@ -2299,7 +2291,7 @@ TREE* CopyToSMP(TREE *p) {
 *                                                                              *
 ********************************************************************************
 */
-int LegalMove(TREE *tree, int ply, int wtm, int move) {
+int LegalMove(TREE * RESTRICT tree, int ply, int wtm, int move) {
   int moves[220], *mv, *mvp;
 /*
    generate moves, then eliminate any that are illegal.               

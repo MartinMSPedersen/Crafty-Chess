@@ -18,7 +18,7 @@
 *                                                                              *
 ********************************************************************************
 */
-int SearchRoot(TREE *tree, int alpha, int beta, int wtm, int depth) {
+int SearchRoot(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth) {
   register int first_move=1;
   register int initial_alpha, value;
   register int extensions, extended;
@@ -78,8 +78,8 @@ int SearchRoot(TREE *tree, int alpha, int beta, int wtm, int depth) {
 /*
  ----------------------------------------------------------
 |                                                          |
-|   if we push a pawn to the 7th rank, we need to look     |
-|   deeper to see if it can promote.                       |
+|   if we push a passed pawn, we need to look deeper to    |
+|   see if it is a legitimate threat.                      |
 |                                                          |
  ----------------------------------------------------------
 */
@@ -96,7 +96,7 @@ int SearchRoot(TREE *tree, int alpha, int beta, int wtm, int depth) {
  ----------------------------------------------------------
 */
     begin_root_nodes=tree->nodes_searched;
-    if (extended > 2*INCPLY) extended=2*INCPLY;
+    LimitExtensions(extended,1);
     extensions=extended-INCPLY;
     if (first_move) {
       if (depth+extensions >= INCPLY)

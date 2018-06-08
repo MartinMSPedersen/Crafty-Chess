@@ -10,7 +10,7 @@
 #endif
 #include "epdglue.h"
 
-/* last modified 01/03/01 */
+/* last modified 09/10/02 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -273,15 +273,11 @@ int Option(TREE *tree) {
 */
   else if (!strcmp("book",*args)) {
     nargs=ReadParse(buffer,args," 	;");
-    BookUp(tree,"book.bin", nargs-1,args+1);
+    BookUp(tree,nargs,args);
   }
-  else if (!strcmp("bookc",*args)) {
+  else if (!strcmp("create",*(args+1))) {
     nargs=ReadParse(buffer,args," 	;");
-    BookUp(tree,"bookc.bin", nargs-1,args+1);
-  }
-  else if (!strcmp("books",*args)) {
-    nargs=ReadParse(buffer,args," 	;");
-    BookUp(tree,"books.bin", nargs-1,args+1);
+    BookUp(tree,nargs,args);
   }
 /*
  ----------------------------------------------------------
@@ -336,9 +332,9 @@ int Option(TREE *tree) {
       EGTB_cache=malloc(EGTB_CACHE_DEFAULT);
     }
     if (EGTB_cache_size < 1<<20)
-      Print(4095,"EGTB cache memory = %dK bytes.\n", EGTB_cache_size/(1<<10));
+      Print(128,"EGTB cache memory = %dK bytes.\n", EGTB_cache_size/(1<<10));
     else
-      Print(4095,"EGTB cache memory = %dM bytes.\n", EGTB_cache_size/(1<<20));
+      Print(128,"EGTB cache memory = %dM bytes.\n", EGTB_cache_size/(1<<20));
     FTbSetCacheSize(EGTB_cache,EGTB_cache_size);
   }
 /*
@@ -360,11 +356,11 @@ int Option(TREE *tree) {
 
     if (nargs > 2)
       tc_time_remaining_opponent=ParseTime(args[2])*6000;
-    Print(4095,"time remaining %s (Crafty)",
+    Print(128,"time remaining %s (Crafty)",
           DisplayHHMM(tc_time_remaining));
-    Print(4095,"  %s (opponent).\n",
+    Print(128,"  %s (opponent).\n",
           DisplayHHMM(tc_time_remaining_opponent));
-    Print(4095,"%d moves to next time control (Crafty)\n",
+    Print(128,"%d moves to next time control (Crafty)\n",
           tc_moves_remaining);
   }
 /*
@@ -570,7 +566,7 @@ int Option(TREE *tree) {
       return(1);
     }
     auto232_delay=atoi(args[1]);
-    Print(4095,"auto232 delay value set to %d ms.\n",auto232_delay);
+    Print(128,"auto232 delay value set to %d ms.\n",auto232_delay);
   }
 /*
  ----------------------------------------------------------
@@ -586,7 +582,7 @@ int Option(TREE *tree) {
       return(1);
     }
     search_depth=atoi(args[1]);
-    Print(4095,"search depth set to %d.\n",search_depth);
+    Print(128,"search depth set to %d.\n",search_depth);
   }
 /*
  ----------------------------------------------------------
@@ -636,8 +632,9 @@ int Option(TREE *tree) {
  ----------------------------------------------------------
 */
   else if (OptionMatch("easy",*args)) {
+    if (thinking || pondering) return(2);
     ponder=0;
-    Print(4095,"pondering disabled.\n");
+    Print(128,"pondering disabled.\n");
   }
 /*
  ----------------------------------------------------------
@@ -689,7 +686,7 @@ int Option(TREE *tree) {
       if (EGTBlimit) {
         if (!EGTB_cache) EGTB_cache=malloc(EGTB_cache_size);
         if (!EGTB_cache) {
-          Print(4095,"ERROR  EGTB cache malloc failed\n");
+          Print(128,"ERROR  EGTB cache malloc failed\n");
           EGTB_cache=malloc(EGTB_CACHE_DEFAULT);
         }
         else FTbSetCacheSize(EGTB_cache,EGTB_cache_size);
@@ -697,7 +694,7 @@ int Option(TREE *tree) {
       }
     }
     else {
-      if (nargs==1 || !strcmp(args[1],"!")) EGTBPV(tree,wtm);
+      if (nargs == 1) EGTBPV(tree,wtm);
       else if (nargs==2) EGTBlimit=Min(atoi(args[1]),5);
     }
   }
@@ -713,7 +710,7 @@ int Option(TREE *tree) {
     last_search_value=(crafty_is_white) ? last_search_value:-last_search_value;
     if (moves_out_of_book)
       LearnBook(tree,wtm,last_search_value,0,0,1);
-    Print(4095,"execution complete.\n");
+    Print(128,"execution complete.\n");
     fflush(stdout);
     if (book_file) fclose(book_file);
     if (books_file) fclose(books_file);
@@ -728,6 +725,11 @@ int Option(TREE *tree) {
 #endif
     abort_search=1;
     quit=1;  
+    strcpy(buffer,"mt=0");
+    (void) Option(tree);
+#if !defined (_WIN32) && !defined (_WIN64)
+    sleep(1);
+#endif
     exit(0);
   }
 /*
@@ -850,7 +852,7 @@ int Option(TREE *tree) {
     if (input_stream != stdin) fclose(input_stream);
     input_stream=stdin;
     ReadClear();
-    Print(4095,"\n");
+    Print(128,"\n");
   }
 /*
  ----------------------------------------------------------
@@ -863,40 +865,40 @@ int Option(TREE *tree) {
 */
   else if (OptionMatch("extensions",*args)) {
     if (OptionMatch("check",args[1])) {
-      const float ext=atof(args[2]);
-      incheck_depth=60.0*ext;
+      float ext=atof(args[2]);
+      incheck_depth=(float) INCPLY*ext;
       if (incheck_depth < 0) incheck_depth=0;
-      if (incheck_depth > 60) incheck_depth=60;
+      if (incheck_depth > INCPLY) incheck_depth=INCPLY;
     }
     if (OptionMatch("onerep",args[1])) {
-      const float ext=atof(args[2]);
-      onerep_depth=60.0*ext;
+      float ext=atof(args[2]);
+      onerep_depth=(float) INCPLY*ext;
       if (onerep_depth < 0) onerep_depth=0;
-      if (onerep_depth > 60) onerep_depth=60;
+      if (onerep_depth > INCPLY) onerep_depth=INCPLY;
     }
     if (OptionMatch("pushpp",args[1])) {
-      const float ext=atof(args[2]);
-      pushpp_depth=60.0*ext;
+      float ext=atof(args[2]);
+      pushpp_depth=(float) INCPLY*ext;
       if (pushpp_depth < 0) pushpp_depth=0;
-      if (pushpp_depth > 60) pushpp_depth=60;
+      if (pushpp_depth > INCPLY) pushpp_depth=INCPLY;
     }
     if (OptionMatch("recapture",args[1])) {
-      const float ext=atof(args[2]);
-      recap_depth=60.0*ext;
+      float ext=atof(args[2]);
+      recap_depth=(float) INCPLY*ext;
       if (recap_depth < 0) recap_depth=0;
-      if (recap_depth > 60) recap_depth=60;
+      if (recap_depth > INCPLY) recap_depth=INCPLY;
     }
     if (OptionMatch("mate",args[1])) {
-      const float ext=atof(args[2]);
-      mate_depth=60.0*ext;
+      float ext=atof(args[2]);
+      mate_depth=(float) INCPLY*ext;
       if (mate_depth < 0) mate_depth=0;
-      if (mate_depth > 60) mate_depth=60;
+      if (mate_depth > INCPLY) mate_depth=INCPLY;
     }
-    Print(1,"one-reply extension..................%4.2f\n",(float) onerep_depth/60.0);
-    Print(1,"in-check extension...................%4.2f\n",(float) incheck_depth/60.0);
-    Print(1,"recapture extension..................%4.2f\n",(float) recap_depth/60.0);
-    Print(1,"pushpp extension.....................%4.2f\n",(float) pushpp_depth/60.0);
-    Print(1,"mate thrt extension..................%4.2f\n",(float) mate_depth/60.0);
+    Print(1,"one-reply extension..................%4.2f\n",(float) onerep_depth/INCPLY);
+    Print(1,"in-check extension...................%4.2f\n",(float) incheck_depth/INCPLY);
+    Print(1,"recapture extension..................%4.2f\n",(float) recap_depth/INCPLY);
+    Print(1,"pushpp extension.....................%4.2f\n",(float) pushpp_depth/INCPLY);
+    Print(1,"mate thrt extension..................%4.2f\n",(float) mate_depth/INCPLY);
   }
 /*
  ----------------------------------------------------------
@@ -913,8 +915,8 @@ int Option(TREE *tree) {
     }
     if (!strcmp(args[1],"on")) call_flag=1;
     else if (!strcmp(args[1],"off")) call_flag=0;
-    if (call_flag) Print(4095,"end game on time forfeits\n");
-    else Print(4095,"ignore time forfeits\n");
+    if (call_flag) Print(128,"end game on time forfeits\n");
+    else Print(128,"ignore time forfeits\n");
   }
 /*
  ----------------------------------------------------------
@@ -1066,7 +1068,7 @@ int Option(TREE *tree) {
 */
   else if (OptionMatch("hard",*args)) {
     ponder=1;
-    Print(4095,"pondering enabled.\n");
+    Print(128,"pondering enabled.\n");
   }
 /*
  ----------------------------------------------------------
@@ -1115,8 +1117,8 @@ int Option(TREE *tree) {
           hash_table_size=1<<log_hash;
           trans_ref_a_orig=(HASH_ENTRY *) malloc(16*hash_table_size+15);
           trans_ref_b_orig=(HASH_ENTRY *) malloc(16*2*hash_table_size+15);
-          trans_ref_a=(HASH_ENTRY*) (((unsigned long) trans_ref_a_orig+15)&~15);
-          trans_ref_b=(HASH_ENTRY*) (((unsigned long) trans_ref_b_orig+15)&~15);
+          trans_ref_a=(HASH_ENTRY*) (((size_t) trans_ref_a_orig+15)&~15);
+          trans_ref_b=(HASH_ENTRY*) (((size_t) trans_ref_b_orig+15)&~15);
           if (!trans_ref_a || !trans_ref_b) {
             printf("malloc() failed, not enough memory.\n");
             free(trans_ref_a_orig);
@@ -1140,14 +1142,14 @@ int Option(TREE *tree) {
       else Print(4095,"ERROR:  hash table size must be > 0\n");
     }
     if (hash_table_size*3*sizeof(HASH_ENTRY) < 1<<20)
-      Print(4095,"hash table memory = %dK bytes.\n",
+      Print(128,"hash table memory = %dK bytes.\n",
             hash_table_size*3*sizeof(HASH_ENTRY)/(1<<10));
     else {
       if (hash_table_size*3*sizeof(HASH_ENTRY)%(1<<20))
-        Print(4095,"hash table memory = %.1fM bytes.\n",
+        Print(128,"hash table memory = %.1fM bytes.\n",
               (float) hash_table_size*3*sizeof(HASH_ENTRY)/(1<<20));
       else
-        Print(4095,"hash table memory = %dM bytes.\n",
+        Print(128,"hash table memory = %dM bytes.\n",
               hash_table_size*3*sizeof(HASH_ENTRY)/(1<<20));
     }
   }
@@ -1183,7 +1185,7 @@ int Option(TREE *tree) {
         if ((1<<(log_pawn_hash+1)) > new_hash_size) break;
       pawn_hash_table_size=1<<log_pawn_hash;
       pawn_hash_table_orig=(PAWN_HASH_ENTRY *) malloc(sizeof(PAWN_HASH_ENTRY)*pawn_hash_table_size+15);
-      pawn_hash_table=(PAWN_HASH_ENTRY*) (((unsigned long) pawn_hash_table_orig+15)&~15);
+      pawn_hash_table=(PAWN_HASH_ENTRY*) (((size_t) pawn_hash_table_orig+15)&~15);
       if (!pawn_hash_table) {
         printf("malloc() failed, not enough memory.\n");
         free(pawn_hash_table_orig);
@@ -1208,14 +1210,14 @@ int Option(TREE *tree) {
       }
     }
     if (pawn_hash_table_size*sizeof(PAWN_HASH_ENTRY) < 1<<20)
-      Print(4095,"pawn hash table memory = %dK bytes.\n",
+      Print(128,"pawn hash table memory = %dK bytes.\n",
             pawn_hash_table_size*sizeof(PAWN_HASH_ENTRY)/(1<<10));
     else {
       if (pawn_hash_table_size*sizeof(PAWN_HASH_ENTRY)%(1<<20))
-        Print(4095,"pawn hash table memory = %.1fM bytes.\n",
+        Print(128,"pawn hash table memory = %.1fM bytes.\n",
               (float) pawn_hash_table_size*sizeof(PAWN_HASH_ENTRY)/(1<<20));
       else
-        Print(4095,"pawn hash table memory = %dM bytes.\n",
+        Print(128,"pawn hash table memory = %dM bytes.\n",
               pawn_hash_table_size*sizeof(PAWN_HASH_ENTRY)/(1<<20));
     }
   }
@@ -1269,23 +1271,25 @@ int Option(TREE *tree) {
         printf("contains selected lines that are well-suited to Crafty's\n");
         printf("style of play.  the <flags> can further refine how this\n");
         printf("small book file is used to encourage/avoid specific lines.\n");
-        printf("book[s] create [<filename>] [maxply] [mp] [wpc]...creates a\n");
-        printf("   new book by first removing the old book.bin.  it then\n");
-        printf("   will parse <filename> and add the moves to book.bin (if\n");
-        printf("   the book create command was used) or to books.bin (if the\n");
-        printf("   books create command was used.)  <maxply> truncates book\n");
-        printf("   lines after that many plies (typically 60).  <mp> will \n");
-        printf("   exclude *any* move not appearing <mp> times in the input.\n");
+        printf("\n");
+        printf("<binfile> create [<filename>] [maxply] [mp] [wpc]...creates a\n");
+        printf("   new book by first removing the old binary file.  it then\n");
+        printf("   will parse <filename> and add the moves to the binary\n");
+        printf("   book filename given as <binfile>.\n");
+        printf("   <maxply> is the max length of book moves stored from any\n");
+        printf("   single pgn game in the input file.\n");
+        printf("   <mp> means a particular move must appear in at least\n");
+        printf("   that many games to be stored in the book file.\n");
         printf("   <wpc> is the winning percentage.  50 means exclude any\n");
         printf("   book move that doesn't have at least 50%% as many wins as\n");
         printf("   losses.\n");
+        printf("more...");
+        fflush(stdout);
+        (void) Read(1,buffer);
         printf("book mask accept <chars>...............sets the accept mask to\n");
         printf("   the flag characters in <chars> (see flags below.)  any flags\n");
         printf("   set in this mask will include either (a) moves with the \n");
         printf("   flag set, or (b) moves with no flags set.\n");
-        printf("more...");
-        fflush(stdout);
-        (void) Read(1,buffer);
         printf("book mask reject <chars>...............sets the reject mask to\n");
         printf("   the flag characters in <chars> (see flags below.)  any flags\n");
         printf("   set in this mask will reject any moves with the flag\n");
@@ -1396,15 +1400,33 @@ int Option(TREE *tree) {
         printf("\n");
       }
       else if (OptionMatch("list",args[1])) {
-        printf("list is used to update the GM/IM/computer lists, which are\n");
-        printf("used internally to control how crafty uses the opening book.\n");
-        printf("Syntax:  list GM|IM|B|C|S [+|-name] ...\n");
-        printf("   GM/IM/C selects the appropriate list.  if no name is given,\n");
+        printf("list is used to update the various internal lists, which are\n");
+        printf("used to control how crafty uses the opening book, or reacts to .\n");
+        printf("particular strategies such as trying to block the position.\n");
+        printf("Syntax:  list GM|IM|B|C [+|-name] ...\n");
+        printf("   GM/IM/C/SO/B/P selects the appropriate list.  if no name is given,\n");
         printf("the list is displayed.  if a name is given, it must be preceeded\n");
         printf("by a + (add to list) or -(remove from list).  note that this\n");
         printf("list is not saved in a file, so that anything added or removed\n");
         printf("will be lost when Crafty is re-started.  To solve this, these\n");
         printf("commands can be added to the .craftyrc file.\n");
+        printf("the lists include the following:\n");
+        printf("GM/IM/C.  this allows Crafty to realize it is playing a particular level\n");
+        printf("    of player just based on the name of the opponent.\n");
+        printf("B.  this allows Crafty to realize it is playing a particular\n");
+        printf("    player that likes to lock things up and play only for a draw.  Crafty will\n");
+        printf("    try much harder to prevent this for players in this list.\n");
+        printf("SO. this allows Crafty to realize it is playing a particular\n");
+        printf("    player that wants to play a particular opening.  this list requires a second\n");
+        printf("    argument (filename) that is a particular small start book to be used only when\n");
+        printf("    playing this particular opponent.  you build the book using the bookc/books create\n");
+        printf("    command, but then you must rename the bookc.bin/books.bin (whichever you build) to\n");
+        printf("    another filename.  then you could use 'list +qpplayer qpbook.bin' and it will use\n");
+        printf("    that book to guide the opening for that specific player.\n");
+        printf("P.  this is the 'play only' list, and is mainly used during\n");
+        printf("    player that wants to play a particular opening.  this list requires a second\n");
+        printf("    an online tournament.  if this list is non-empty, crafty will abort\n");
+        printf("    the game if a player not in the list matches it.\n");
       }
       else if (OptionMatch("pgn",args[1])) {
         printf("the pgn command is used to set the various PGN headers\n");
@@ -1678,52 +1700,52 @@ int Option(TREE *tree) {
  ----------------------------------------------------------
 */
   else if (OptionMatch("info",*args)) {
-    Print(4095,"Crafty version %s\n",version);
+    Print(128,"Crafty version %s\n",version);
     if (hash_table_size*6*sizeof(HASH_ENTRY) < 1<<20)
-      Print(4095,"hash table memory =      %4dK bytes.\n",
+      Print(128,"hash table memory =      %4dK bytes.\n",
             hash_table_size*3*sizeof(HASH_ENTRY)/(1<<10));
     else if (hash_table_size*6*sizeof(HASH_ENTRY)%(1<<20))
-      Print(4095,"hash table memory =      %4.1fM bytes.\n",
+      Print(128,"hash table memory =      %4.1fM bytes.\n",
             (float) hash_table_size*3*sizeof(HASH_ENTRY)/(1<<20));
     else
-      Print(4095,"hash table memory =      %4dM bytes.\n",
+      Print(128,"hash table memory =      %4dM bytes.\n",
             hash_table_size*3*sizeof(HASH_ENTRY)/(1<<20));
     if (pawn_hash_table_size*sizeof(PAWN_HASH_ENTRY) < 1<<20)
-      Print(4095,"pawn hash table memory = %4dK bytes.\n",
+      Print(128,"pawn hash table memory = %4dK bytes.\n",
             pawn_hash_table_size*sizeof(PAWN_HASH_ENTRY)/(1<<10));
     else if (pawn_hash_table_size*6*sizeof(PAWN_HASH_ENTRY)%(1<<20))
-      Print(4095,"pawn hash table memory = %4.1fM bytes.\n",
+      Print(128,"pawn hash table memory = %4.1fM bytes.\n",
             (float) pawn_hash_table_size*sizeof(PAWN_HASH_ENTRY)/(1<<20));
     else
-      Print(4095,"pawn hash table memory = %4dM bytes.\n",
+      Print(128,"pawn hash table memory = %4dM bytes.\n",
             pawn_hash_table_size*sizeof(PAWN_HASH_ENTRY)/(1<<20));
     if (EGTB_cache_size < 1<<20)
-      Print(4095,"EGTB cache memory =      %4dK bytes.\n",
+      Print(128,"EGTB cache memory =      %4dK bytes.\n",
             EGTB_cache_size/(1<<10));
     else if (EGTB_cache_size%(1<<20))
-      Print(4095,"EGTB cache memory =      %4.1fM bytes.\n",
+      Print(128,"EGTB cache memory =      %4.1fM bytes.\n",
             (float) EGTB_cache_size/(1<<20));
     else
-      Print(4095,"EGTB cache memory =      %4dM bytes.\n",
+      Print(128,"EGTB cache memory =      %4dM bytes.\n",
             EGTB_cache_size/(1<<20));
     if (!tc_sudden_death) {
-      Print(4095,"%d moves/%d minutes %d seconds primary time control\n",
+      Print(128,"%d moves/%d minutes %d seconds primary time control\n",
             tc_moves, tc_time/6000, (tc_time/100)%60);
-      Print(4095,"%d moves/%d minutes %d seconds secondary time control\n",
+      Print(128,"%d moves/%d minutes %d seconds secondary time control\n",
             tc_secondary_moves, tc_secondary_time/6000,
             (tc_secondary_time/100)%60);
-      if (tc_increment) Print(4095,"increment %d seconds.\n",tc_increment/100);
+      if (tc_increment) Print(128,"increment %d seconds.\n",tc_increment/100);
     }
     else if (tc_sudden_death == 1) {
-      Print(4095," game/%d minutes primary time control\n", tc_time/6000);
-      if (tc_increment) Print(4095,"increment %d seconds.\n",(tc_increment/100)%60);
+      Print(128," game/%d minutes primary time control\n", tc_time/6000);
+      if (tc_increment) Print(128,"increment %d seconds.\n",(tc_increment/100)%60);
     }
     else if (tc_sudden_death == 2) {
-      Print(4095,"%d moves/%d minutes primary time control\n",
+      Print(128,"%d moves/%d minutes primary time control\n",
             tc_moves, tc_time/6000);
-      Print(4095,"game/%d minutes secondary time control\n",
+      Print(128,"game/%d minutes secondary time control\n",
             tc_secondary_time/6000);
-      if (tc_increment) Print(4095,"increment %d seconds.\n",tc_increment/100);
+      if (tc_increment) Print(128,"increment %d seconds.\n",tc_increment/100);
     }
     Print(128,"frequency (freq)..............%4.2f\n",book_weight_freq);
     Print(128,"static evaluation (eval)......%4.2f\n",book_weight_eval);
@@ -1771,17 +1793,17 @@ int Option(TREE *tree) {
   else if (OptionMatch("learn",*args)) {
     if (nargs == 2) learning=atoi(args[1]);
     if (learning&book_learning)
-      Print(4095,"book learning enabled\n");
+      Print(128,"book learning enabled\n");
     else
-      Print(4095,"book learning disabled\n");
+      Print(128,"book learning disabled\n");
     if (learning&result_learning)
-      Print(4095,"result learning enabled\n");
+      Print(128,"result learning enabled\n");
     else
-      Print(4095,"result learning disabled\n");
+      Print(128,"result learning disabled\n");
     if (learning&position_learning)
-      Print(4095,"position learning enabled\n");
+      Print(128,"position learning enabled\n");
     else
-      Print(4095,"position learning disabled\n");
+      Print(128,"position learning disabled\n");
   }
 /*
  ----------------------------------------------------------
@@ -1813,15 +1835,15 @@ int Option(TREE *tree) {
       tc_moves_remaining=tc_moves;
     }
     if (!tc_sudden_death) {
-      Print(4095,"%d moves/%d minutes primary time control\n",
+      Print(128,"%d moves/%d minutes primary time control\n",
             tc_moves, tc_time/100);
-      Print(4095,"%d moves/%d minutes secondary time control\n",
+      Print(128,"%d moves/%d minutes secondary time control\n",
             tc_secondary_moves, tc_secondary_time/100);
-      if (tc_increment) Print(4095,"increment %d seconds.\n",tc_increment/100);
+      if (tc_increment) Print(128,"increment %d seconds.\n",tc_increment/100);
     }
     else if (tc_sudden_death == 1) {
-      Print(4095," game/%d minutes primary time control\n",tc_time/100);
-      if (tc_increment) Print(4095,"increment %d seconds.\n",tc_increment/100);
+      Print(128," game/%d minutes primary time control\n",tc_time/100);
+      if (tc_increment) Print(128,"increment %d seconds.\n",tc_increment/100);
     }
     tc_time*=60;
     tc_time_remaining=tc_time;
@@ -1865,21 +1887,21 @@ int Option(TREE *tree) {
                   strcpy(GM_list[j],GM_list[j+1]);
                 number_of_GMs--;
                 i=0;
-                Print(4095,"%s removed from GM list.\n",targs[0]+1);
+                Print(128,"%s removed from GM list.\n",targs[0]+1);
                 break;
               }
           }
           else if (targs[0][0] == '+') {
             for (i=0;i<number_of_GMs;i++)
               if (!strcmp(GM_list[i],targs[0]+1)) {
-                Print(4095, "Warning: %s is already in GM list.\n",targs[0]+1);
+                Print(128, "Warning: %s is already in GM list.\n",targs[0]+1);
                 break;
               }
             if (number_of_GMs >= 512)
-              Print(4095,"ERROR!  GM list is full at 512 entries\n");
+              Print(128,"ERROR!  GM list is full at 512 entries\n");
             else if (i==number_of_GMs) {
               strcpy(GM_list[number_of_GMs++],targs[0]+1);
-              Print(4095,"%s added to GM list.\n",targs[0]+1);
+              Print(128,"%s added to GM list.\n",targs[0]+1);
             }
           }
           else if (!strcmp(targs[0],"clear")) {
@@ -1895,21 +1917,21 @@ int Option(TREE *tree) {
                   strcpy(blocker_list[j],blocker_list[j+1]);
                 number_of_blockers--;
                 i=0;
-                Print(4095,"%s removed from blocker list.\n",targs[0]+1);
+                Print(128,"%s removed from blocker list.\n",targs[0]+1);
                 break;
               }
           }
           else if (targs[0][0] == '+') {
             for (i=0;i<number_of_blockers;i++)
               if (!strcmp(blocker_list[i],targs[0]+1)) {
-                Print(4095, "Warning: %s is already in B list.\n",targs[0]+1);
+                Print(128, "Warning: %s is already in B list.\n",targs[0]+1);
                 break;
               }
             if (number_of_blockers >= 512)
               Print(4095,"ERROR!  blocker list is full at 512 entries\n");
             else if (i==number_of_blockers) {
               strcpy(blocker_list[number_of_blockers++],targs[0]+1);
-              Print(4095,"%s added to blocker list.\n",targs[0]+1);
+              Print(128,"%s added to blocker list.\n",targs[0]+1);
             }
             }
           else if (!strcmp(targs[0],"clear")) {
@@ -1925,21 +1947,21 @@ int Option(TREE *tree) {
                   strcpy(IM_list[j],IM_list[j+1]);
                 number_of_IMs--;
                 i=0;
-                Print(4095,"%s removed from IM list.\n",targs[0]+1);
+                Print(128,"%s removed from IM list.\n",targs[0]+1);
                 break;
               }
           }
           else if (targs[0][0] == '+') {
             for (i=0;i<number_of_IMs;i++)
               if (!strcmp(IM_list[i],targs[0]+1)) {
-                Print(4095, "Warning: %s is already in IM list.\n",targs[0]+1);
+                Print(128, "Warning: %s is already in IM list.\n",targs[0]+1);
                 break;
               }
             if (number_of_IMs >= 512)
               Print(4095,"ERROR!  IM list is full at 512 entries\n");
             else if (i==number_of_IMs) {
               strcpy(IM_list[number_of_IMs++],targs[0]+1);
-              Print(4095,"%s added to IM list.\n",targs[0]+1);
+              Print(128,"%s added to IM list.\n",targs[0]+1);
             }
           }
           else if (!strcmp(targs[0],"clear")) {
@@ -1952,28 +1974,61 @@ int Option(TREE *tree) {
             for (i=0;i<number_to_play;i++)
               if (!strcmp(toplay_list[i],targs[0]+1)) {
                 for (j=i;j<number_to_play;j++)
-                  strcpy(toplay_list[j],blocker_list[j+1]);
+                  strcpy(toplay_list[j],toplay_list[j+1]);
                 number_to_play--;
                 i=0;
-                Print(4095,"%s removed from to play list.\n",targs[0]+1);
+                Print(128,"%s removed from to play list.\n",targs[0]+1);
                 break;
               }
           }
           else if (targs[0][0] == '+') {
             for (i=0;i<number_to_play;i++)
               if (!strcmp(toplay_list[i],targs[0]+1)) {
-                Print(4095, "Warning: %s is already in P list.\n",targs[0]+1);
+                Print(128, "Warning: %s is already in P list.\n",targs[0]+1);
                 break;
               }
             if (number_to_play >= 512)
               Print(4095,"ERROR!  play list is full at 512 entries\n");
             else if (i==number_to_play) {
               strcpy(toplay_list[number_to_play++],targs[0]+1);
-              Print(4095,"%s added to play list.\n",targs[0]+1);
+              Print(128,"%s added to play list.\n",targs[0]+1);
             }
-            }
+          }
           else if (!strcmp(targs[0],"clear")) {
             number_to_play=0;
+          }
+          else Print(4095,"error, name must be preceeded by +/- flag.\n");
+        }
+        if (!strcmp(listname,"SO")) {
+          if (targs[0][0] == '-') {
+            for (i=0;i<number_of_special_openings;i++)
+              if (!strcmp(opening_list[i],targs[0]+1)) {
+                for (j=i;j<number_of_special_openings;j++)
+                  strcpy(opening_list[j],opening_list[j+1]);
+                number_of_special_openings--;
+                i=0;
+                Print(128,"%s removed from to special opening list.\n",targs[0]+1);
+                break;
+              }
+          }
+          else if (targs[0][0] == '+') {
+            for (i=0;i<number_of_special_openings;i++)
+              if (!strcmp(opening_list[i],targs[0]+1)) {
+                Print(128, "Warning: %s is already in SO list.\n",targs[0]+1);
+                break;
+              }
+            if (number_of_special_openings >= 16)
+              Print(4095,"ERROR!  special opening list is full at 16 entries\n");
+            else if (i==number_of_special_openings) {
+              strcpy(opening_list[number_of_special_openings],targs[0]+1);
+              strcpy(opening_filenames[number_of_special_openings++],targs[1]);
+              Print(128,"%s added to special opening list.\n",targs[0]+1);
+              nargs--;
+              targs++;
+            }
+          }
+          else if (!strcmp(targs[0],"clear")) {
+            number_of_special_openings=0;
           }
           else Print(4095,"error, name must be preceeded by +/- flag.\n");
         }
@@ -1985,21 +2040,21 @@ int Option(TREE *tree) {
                   strcpy(computer_list[j],computer_list[j+1]);
                 number_of_computers--;
                 i=0;
-                Print(4095,"%s removed from computer list.\n",targs[0]+1);
+                Print(128,"%s removed from computer list.\n",targs[0]+1);
                 break;
               }
           }
           else if (targs[0][0] == '+') {
             for (i=0;i<number_of_computers;i++)
               if (!strcmp(computer_list[i],targs[0]+1)) {
-                Print(4095, "Warning: %s is already in C list.\n",targs[0]+1);
+                Print(128, "Warning: %s is already in C list.\n",targs[0]+1);
                 break;
               }
             if (number_of_computers >= 512)
               Print(4095,"ERROR!  C list is full at 512 entries\n");
             else if (i==number_of_computers) {
               strcpy(computer_list[number_of_computers++],targs[0]+1);
-              Print(4095,"%s added to computer list.\n",targs[0]+1);
+              Print(128,"%s added to computer list.\n",targs[0]+1);
             }
           }
           else if (!strcmp(targs[0],"clear")) {
@@ -2015,21 +2070,21 @@ int Option(TREE *tree) {
                   strcpy(auto_kibitz_list[j],auto_kibitz_list[j+1]);
                 number_auto_kibitzers--;
                 i=0;
-                Print(4095,"%s removed from auto kibitz list.\n",targs[0]+1);
+                Print(128,"%s removed from auto kibitz list.\n",targs[0]+1);
                 break;
               }
           }
           else if (targs[0][0] == '+') {
             for (i=0;i<number_auto_kibitzers;i++)
               if (!strcmp(auto_kibitz_list[i],targs[0]+1)) {
-                Print(4095, "Warning: %s is already in AK list.\n",targs[0]+1);
+                Print(128, "Warning: %s is already in AK list.\n",targs[0]+1);
                 break;
               }
             if (number_auto_kibitzers >= 64)
               Print(4095,"ERROR!  AK list is full at 64 entries\n");
             else if (i==number_auto_kibitzers) {
               strcpy(auto_kibitz_list[number_auto_kibitzers++],targs[0]+1);
-              Print(4095,"%s added to auto kibitz list.\n",targs[0]+1);
+              Print(128,"%s added to auto kibitz list.\n",targs[0]+1);
             }
           }
           else if (!strcmp(targs[0],"clear")) {
@@ -2042,34 +2097,39 @@ int Option(TREE *tree) {
       }
     }
     else if (!strcmp(listname,"GM")) {
-      Print(4095,"GM List:\n");
+      Print(128,"GM List:\n");
       for (i=0;i<number_of_GMs;i++)
-        Print(4095,"%s\n",GM_list[i]);
+        Print(128,"%s\n",GM_list[i]);
     }
     else if (!strcmp(listname,"B")) {
-      Print(4095,"blocker List:\n");
+      Print(128,"blocker List:\n");
       for (i=0;i<number_of_blockers;i++)
-        Print(4095,"%s\n",blocker_list[i]);
+        Print(128,"%s\n",blocker_list[i]);
     }
     else if (!strcmp(listname,"IM")) {
-      Print(4095,"IM List:\n");
+      Print(128,"IM List:\n");
       for (i=0;i<number_of_IMs;i++)
-        Print(4095,"%s\n",IM_list[i]);
+        Print(128,"%s\n",IM_list[i]);
     }
     else if (!strcmp(listname,"C")) {
-      Print(4095, "computer list:\n");
+      Print(128, "computer list:\n");
       for (i=0;i<number_of_computers;i++)
-        Print(4095,"%s\n",computer_list[i]);
+        Print(128,"%s\n",computer_list[i]);
     }
     else if (!strcmp(listname,"AK")) {
-      Print(4095, "auto kibitz list:\n");
+      Print(128, "auto kibitz list:\n");
       for (i=0;i<number_auto_kibitzers;i++)
-        Print(4095,"%s\n",auto_kibitz_list[i]);
+        Print(128,"%s\n",auto_kibitz_list[i]);
+    }
+    else if (!strcmp(listname,"SO")) {
+      Print(128, "special opening list:\n");
+      for (i=0;i<number_of_special_openings;i++)
+        Print(128,"%s -> %s\n",opening_list[i], opening_filenames[i]);
     }
     else if (!strcmp(listname,"P")) {
-      Print(4095, "to play list:\n");
+      Print(128, "to play list:\n");
       for (i=0;i<number_to_play;i++)
-        Print(4095,"%s\n",toplay_list[i]);
+        Print(128,"%s\n",toplay_list[i]);
     }
   }
 /*
@@ -2258,7 +2318,7 @@ int Option(TREE *tree) {
       return(1);
     }
     max_thread_group=atoi(args[1]);
-    Print(4095,"maximum thread group size set to %d\n",max_thread_group);
+    Print(128,"maximum thread group size set to %d\n",max_thread_group);
   }
   else if (OptionMatch("smpmin",*args)) {
     if (nargs < 2) {
@@ -2266,7 +2326,7 @@ int Option(TREE *tree) {
       return(1);
     }
     min_thread_depth=INCPLY*atoi(args[1]);
-    Print(4095,"minimum thread depth set to %d\n",min_thread_depth);
+    Print(128,"minimum thread depth set to %d\n",min_thread_depth);
   }
   else if (OptionMatch("smpmt",*args) || OptionMatch("mt",*args)) {
     int proc;
@@ -2282,10 +2342,10 @@ int Option(TREE *tree) {
       max_threads=CPUS;
     }
     if (max_threads)
-      Print(4095,"max threads set to %d\n",max_threads);
+      Print(128,"max threads set to %d\n",max_threads);
     else
-      Print(4095,"parallel threads disabled.\n");
-    for (proc=0;proc<CPUS;proc++)
+      Print(128,"parallel threads disabled.\n");
+    for (proc=1;proc<CPUS;proc++)
       if (proc >= max_threads) thread[proc]=(TREE*)-1;
   }
   else if (OptionMatch("smproot",*args)) {
@@ -2295,9 +2355,9 @@ int Option(TREE *tree) {
     }
     split_at_root=atoi(args[1]);
     if (split_at_root)
-      Print(4095,"SMP search split at ply >= 1\n");
+      Print(128,"SMP search split at ply >= 1\n");
     else
-      Print(4095,"SMP search split at ply > 1\n");
+      Print(128,"SMP search split at ply > 1\n");
   }
 #endif
 /*
@@ -2314,7 +2374,7 @@ int Option(TREE *tree) {
       return(1);
     }
     move_number=atoi(args[1]);
-    Print(4095,"move number set to %d\n",move_number);
+    Print(128,"move number set to %d\n",move_number);
   }
 /*
  ----------------------------------------------------------
@@ -2373,7 +2433,7 @@ int Option(TREE *tree) {
       strcpy(pgn_black,args[1]);
       sprintf(pgn_white,"Crafty %s",version);
     }
-    Print(4095,"Crafty %s vs %s\n",version,args[1]);
+    Print(128,"Crafty %s vs %s\n",version,args[1]);
     next=args[1];
     while (*next) {
       *next=tolower(*next);
@@ -2418,6 +2478,17 @@ int Option(TREE *tree) {
           draw_count=8;
           accept_draws=1;
           kibitz=0;
+          break;
+        }
+      for (i=0;i<number_of_special_openings;i++)
+        if (!strcmp(opening_list[i],args[1])) {
+          FILE* normal_bs_file=books_file;
+          Print(128,"playing a special opening player!\n");
+          books_file=fopen(opening_filenames[i],"rb");
+          if (!books_file) {
+            Print(4095,"Error!  unable to open %s for player %s.\n",opening_filenames[i],opening_list[i]);
+            books_file=normal_bs_file;
+          }
           break;
         }
     }
@@ -2466,7 +2537,7 @@ int Option(TREE *tree) {
       return(1);
     }
     noise_level=atoi(args[1]);
-    Print(4095,"noise level set to %d.\n",noise_level);
+    Print(128,"noise level set to %d.\n",noise_level);
   }
 /*
  ----------------------------------------------------------
@@ -2484,7 +2555,7 @@ int Option(TREE *tree) {
       return(1);
     }
     tc_operator_time=ParseTime(args[1])*100;
-    Print(4095,"reserving %d seconds per move for operator overhead.\n",
+    Print(128,"reserving %d seconds per move for operator overhead.\n",
           tc_operator_time/100);
   }
 /*
@@ -2506,8 +2577,8 @@ int Option(TREE *tree) {
       fprintf(log_file,"time remaining: %s (opponent).\n",
               DisplayTime(tc_time_remaining_opponent));
     if (call_flag && xboard && tc_time_remaining_opponent <= 1) {
-      if (crafty_is_white) Print(4095,"1-0 {Black ran out of time}\n");
-      else Print(4095,"0-1 {White ran out of time}\n");
+      if (crafty_is_white) Print(128,"1-0 {Black ran out of time}\n");
+      else Print(128,"0-1 {White ran out of time}\n");
     }
   }
 /*
@@ -2527,9 +2598,9 @@ int Option(TREE *tree) {
     else if (!strcmp(args[1],"short")) output_format=0;
     else printf("usage:  output long|short\n");
     if (output_format == 1)
-      Print(4095,"output moves in long algebraic format\n");
+      Print(128,"output moves in long algebraic format\n");
     else if (output_format == 0)
-      Print(4095,"output moves in short algebraic format\n");
+      Print(128,"output moves in short algebraic format\n");
   }
 /*
  ----------------------------------------------------------
@@ -2668,7 +2739,7 @@ int Option(TREE *tree) {
     tree->last[0]=tree->move_list;
     i=atoi(args[1]);
     if (i <= 0) {
-      Print(4095,"usage:  perft <maxply>\n");
+      Print(128,"usage:  perft <maxply>\n");
       return(1);
     }
     total_moves=0;
@@ -2743,7 +2814,12 @@ int Option(TREE *tree) {
  ----------------------------------------------------------
 */
   else if (!strcmp("ping",*args)) {
-    pong=atoi(args[1]);
+    if (pondering) {
+      Print(4095,"pong %s\n",args[1]);
+    }
+    else {
+      pong=atoi(args[1]);
+    }
   }
 /*
  ----------------------------------------------------------
@@ -2773,11 +2849,11 @@ int Option(TREE *tree) {
     }
     if (!strcmp(args[1],"on")) {
       ponder=1;
-      Print(4095,"pondering enabled.\n");
+      Print(128,"pondering enabled.\n");
     }
     else if (!strcmp(args[1],"off")) {
       ponder=0;
-      Print(4095,"pondering disabled.\n");
+      Print(128,"pondering disabled.\n");
     }
     else {
       ponder_move=InputMove(tree,args[1],0,wtm,0,0);
@@ -3311,13 +3387,13 @@ int Option(TREE *tree) {
 */
   else if (OptionMatch("selective",*args)) {
     if (nargs < 3) {
-      Print(4095,"usage: selective min max\n");
+      Print(128,"usage: selective min max\n");
     }
     else {
       null_min=(atoi(args[1])+1)*INCPLY;
       null_max=(atoi(args[2])+1)*INCPLY;
     }
-    Print(4095,"null depth set to %d/%d (min/max)\n",
+    Print(128,"null depth set to %d/%d (min/max)\n",
           null_min/INCPLY-1, null_max/INCPLY-1);
   }
 /*
@@ -3337,11 +3413,11 @@ int Option(TREE *tree) {
     tc_moves_remaining=atoi(args[1]);
     tc_time_remaining=ParseTime(args[2])*6000;
     tc_time_remaining_opponent=ParseTime(args[3])*6000;
-    Print(4095,"time remaining: %s (crafty).\n",
+    Print(128,"time remaining: %s (crafty).\n",
             DisplayTime(tc_time_remaining));
-    Print(4095,"time remaining: %s (opponent).\n",
+    Print(128,"time remaining: %s (opponent).\n",
             DisplayTime(tc_time_remaining_opponent));
-    Print(4095,"%d moves to next time control (Crafty)\n",
+    Print(128,"%d moves to next time control (Crafty)\n",
           tc_moves_remaining);
   }
 /*
@@ -3445,7 +3521,7 @@ int Option(TREE *tree) {
       return(1);
     }
     search_depth=atoi(args[1]);
-    Print(4095,"search depth set to %d.\n",search_depth);
+    Print(128,"search depth set to %d.\n",search_depth);
   }
 /*
  ----------------------------------------------------------
@@ -3463,8 +3539,8 @@ int Option(TREE *tree) {
     }
     if (OptionMatch("book",args[1])) {
       show_book=!show_book;
-      if (show_book) Print(4095,"show book statistics\n");
-      else Print(4095,"don't show book statistics\n");
+      if (show_book) Print(128,"show book statistics\n");
+      else Print(128,"don't show book statistics\n");
     }
   }
 /*
@@ -3481,7 +3557,7 @@ int Option(TREE *tree) {
       return(1);
     }
     search_nodes=atoi(args[1]);
-    Print(4095,"search nodes set to %d.\n",search_nodes);
+    Print(128,"search nodes set to %d.\n",search_nodes);
     ponder=0;
   }
 /*
@@ -3505,18 +3581,12 @@ int Option(TREE *tree) {
  ----------------------------------------------------------
 */
   else if (!strcmp("st",*args)) {
-    int fract;
     if (nargs < 2) {
       printf("usage:  st <time>\n");
       return(1);
     }
-    search_time_limit=atoi(args[1])*100;
-    if (strchr(args[1],'.')) {
-      fract=atoi(strchr(args[1],'.')+1);
-      if (fract<10 && *(strchr(args[1],'.')+1) != '0') fract*=10;
-      search_time_limit+=fract;
-    }
-    Print(4095,"search time set to %.2f.\n",(float)search_time_limit/100.0);
+    search_time_limit=atof(args[1])*100;
+    Print(128,"search time set to %.2f.\n",(float)search_time_limit/100.0);
   }
 /*
  ----------------------------------------------------------
@@ -3545,7 +3615,7 @@ int Option(TREE *tree) {
     temp2=tree->pv[0].path[1];
     temp3=moves_out_of_book;
     moves_out_of_book=0;
-    tree->pv[0].pathd=60;
+    tree->pv[0].pathd=INCPLY-5;
     tree->pv[0].path[1]=0;
     LearnPosition(tree,wtm,Max(score+100,0),score);
     tree->pv[0].pathd=temp1;
@@ -3562,7 +3632,7 @@ int Option(TREE *tree) {
 */
   else if (OptionMatch("surplus",*args)) {
     if (nargs == 2) tc_safety_margin=atoi(args[1])*6000;
-    Print(4095,"time surplus set to %s.\n",DisplayTime(tc_safety_margin));
+    Print(128,"time surplus set to %s.\n",DisplayTime(tc_safety_margin));
   }
 /*
  ----------------------------------------------------------
@@ -3671,11 +3741,11 @@ int Option(TREE *tree) {
       if (nargs == 2) {
         if (!strcmp("cpu",args[1])) {
           time_type=cpu;
-          Print(4095,"using cpu time\n");
+          Print(128,"using cpu time\n");
         }
         else if (!strcmp("elapsed",args[1])) {
           time_type=elapsed;
-          Print(4095,"using elapsed time\n");
+          Print(128,"using elapsed time\n");
         }
         else printf("usage:  time cpu|elapsed|<controls>\n");
       }
@@ -3721,23 +3791,23 @@ int Option(TREE *tree) {
         tc_time_remaining_opponent=tc_time;
         tc_moves_remaining=tc_moves;
         if (!tc_sudden_death) {
-          Print(4095,"%d moves/%d minutes primary time control\n",
+          Print(128,"%d moves/%d minutes primary time control\n",
                 tc_moves, tc_time/100);
-          Print(4095,"%d moves/%d minutes secondary time control\n",
+          Print(128,"%d moves/%d minutes secondary time control\n",
                 tc_secondary_moves, tc_secondary_time/100);
-          if (tc_increment) Print(4095,"increment %d seconds.\n",tc_increment/100);
+          if (tc_increment) Print(128,"increment %d seconds.\n",tc_increment/100);
         }
         else if (tc_sudden_death == 1) {
-          Print(4095," game/%d minutes primary time control\n",
+          Print(128," game/%d minutes primary time control\n",
                 tc_time/100);
-          if (tc_increment) Print(4095,"increment %d seconds.\n",tc_increment/100);
+          if (tc_increment) Print(128,"increment %d seconds.\n",tc_increment/100);
         }
         else if (tc_sudden_death == 2) {
-          Print(4095,"%d moves/%d minutes primary time control\n",
+          Print(128,"%d moves/%d minutes primary time control\n",
                 tc_moves, tc_time/100);
-          Print(4095,"game/%d minutes secondary time control\n",
+          Print(128,"game/%d minutes secondary time control\n",
                 tc_secondary_time/100);
-          if (tc_increment) Print(4095,"increment %d seconds.\n",tc_increment/100);
+          if (tc_increment) Print(128,"increment %d seconds.\n",tc_increment/100);
         }
         tc_time*=60;
         tc_time_remaining*=60;
@@ -3855,7 +3925,7 @@ int Option(TREE *tree) {
     usage_level=atoi(args[1]);
     if (usage_level > 50) usage_level=50;
     else if (usage_level < -50) usage_level=-50;
-    Print(4095,"time usage up front set to %d percent increase/(-)decrease.\n",
+    Print(128,"time usage up front set to %d percent increase/(-)decrease.\n",
           usage_level);
   }
 /*

@@ -20,7 +20,7 @@
 ********************************************************************************
 */
 
-int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
+int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta) {
   register BITBOARD temp;
   register int square, file, score, tscore, w_tropism=0, b_tropism=0;
   register int w_spread, b_spread, trop, can_win=3;
@@ -39,7 +39,7 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
 *                                                                    *
 **********************************************************************
 */
-  if (TotalWhitePieces<9 && TotalBlackPieces<9) {
+  if (TotalWhitePieces<13 && TotalBlackPieces<13) {
     can_win=EvaluateWinner(tree);
     if (EvaluateStalemate(tree,wtm)) can_win=0;
   }
@@ -810,9 +810,11 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
       trop=FileDistance(square,tree->w_kingsq);
     }
     else {
-      unsigned char rankmvs=AttacksRank(square)>>(56-(square&0x38));
-      if (!(rankmvs & tree->pawn_score.open_files))
-        score+=ROOK_OPEN_FILE>>1;
+      if (tree->pawn_score.open_files) {
+        unsigned char rankmvs=AttacksRank(square)>>(56-(square&0x38));
+        if (!(rankmvs & tree->pawn_score.open_files))
+          score+=ROOK_OPEN_FILE>>1;
+      }
       if (!(file_mask[file]&BlackPawns)) {
         score-=ROOK_HALF_OPEN_FILE;
         trop=FileDistance(square,tree->w_kingsq);
@@ -1138,7 +1140,7 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
 *                                                                              *
 ********************************************************************************
 */
-int EvaluateDevelopmentB(TREE *tree, int ply) {
+int EvaluateDevelopmentB(TREE * RESTRICT tree, int ply) {
   register int possible, real, score=0;
 /*
  ----------------------------------------------------------
@@ -1245,7 +1247,7 @@ int EvaluateDevelopmentB(TREE *tree, int ply) {
 *                                                                              *
 ********************************************************************************
 */
-int EvaluateDevelopmentW(TREE *tree, int ply) {
+int EvaluateDevelopmentW(TREE * RESTRICT tree, int ply) {
   register int possible, real, score=0;
 /*
  ----------------------------------------------------------
@@ -1351,7 +1353,7 @@ int EvaluateDevelopmentW(TREE *tree, int ply) {
 *                                                                              *
 ********************************************************************************
 */
-int EvaluateMate(TREE *tree) {
+int EvaluateMate(TREE * RESTRICT tree) {
   register int mate_score=DrawScore(1);
 /*
  ----------------------------------------------------------
@@ -1406,7 +1408,7 @@ int EvaluateMate(TREE *tree) {
   return(mate_score);
 }
 
-/* last modified 11/27/00 */
+/* last modified 09/10/02 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -1416,7 +1418,7 @@ int EvaluateMate(TREE *tree) {
 *                                                                              *
 ********************************************************************************
 */
-int EvaluateMaterial(TREE *tree) {
+int EvaluateMaterial(TREE * RESTRICT tree) {
   register int score;
 /*
 **********************************************************************
@@ -1454,11 +1456,11 @@ int EvaluateMaterial(TREE *tree) {
       }
       else if (BlackMajors-1 == WhiteMajors) {
         if (WhiteMinors > BlackMinors+1) score+=BAD_TRADE;
-        else if (WhiteMinors > BlackMinors) score-=BAD_TRADE;
+        else if (WhiteMinors > BlackMinors) score-=BAD_TRADE>>2;
       }
       else if (WhiteMajors-1 == BlackMajors) {
         if (BlackMinors > WhiteMinors+1) score-=BAD_TRADE;
-        else if (BlackMinors > WhiteMinors) score+=BAD_TRADE;
+        else if (BlackMinors > WhiteMinors) score+=BAD_TRADE>>2;
       }
       else if (abs(WhiteMajors-BlackMajors) == 2) {
         if (WhiteMinors > BlackMinors+2) score+=BAD_TRADE;
@@ -1467,12 +1469,8 @@ int EvaluateMaterial(TREE *tree) {
       break;
     }
     else if (WhiteMajors == BlackMajors) {
-      if (WhiteQueens && !BlackQueens) score+=BAD_TRADE;
-      else if (!WhiteQueens && BlackQueens) score-=BAD_TRADE;
-    }
-    else {
-      if (WhiteMajors>BlackMajors && WhiteMinors==BlackMinors) score+=BAD_TRADE;
-      else if (BlackMajors>WhiteMajors && WhiteMinors==BlackMinors) score-=BAD_TRADE;
+      if (WhiteQueens && !BlackQueens) score+=BAD_TRADE>>1;
+      else if (!WhiteQueens && BlackQueens) score-=BAD_TRADE>>1;
     }
   } while(0);
 #ifdef DEBUGM
@@ -1491,7 +1489,7 @@ int EvaluateMaterial(TREE *tree) {
 *                                                                              *
 ********************************************************************************
 */
-int EvaluateKingSafety(TREE *tree, int ply) {
+int EvaluateKingSafety(TREE * RESTRICT tree, int ply) {
   int score=0;
 /*
  ----------------------------------------------------------
@@ -1652,7 +1650,7 @@ int EvaluateKingSafety(TREE *tree, int ply) {
 *                                                                              *
 ********************************************************************************
 */
-int EvaluatePassedPawns(TREE *tree) {
+int EvaluatePassedPawns(TREE * RESTRICT tree) {
   register int file, square, score=0;
   register int white_king_sq, black_king_sq;
   register int pawns;
@@ -1831,7 +1829,7 @@ int EvaluatePassedPawns(TREE *tree) {
 *                                                                              *
 ********************************************************************************
 */
-int EvaluatePassedPawnRaces(TREE *tree, int wtm) {
+int EvaluatePassedPawnRaces(TREE * RESTRICT tree, int wtm) {
   register int file, square;
   register int white_queener=8, white_square=0;
   register int black_queener=8, black_square=0;
@@ -1874,13 +1872,13 @@ int EvaluatePassedPawnRaces(TREE *tree, int wtm) {
     if (File(pawnsq) == FILEA) {
       if ((File(WhiteKingSQ) == FILEB) &&
           (Distance(WhiteKingSQ,A8) < Distance(BlackKingSQ,A8)))
-        return(QUEEN_VALUE-BISHOP_VALUE);
+        return(PAWN_CAN_PROMOTE);
       break;
     }
     else if (File(pawnsq) == FILEH) {
       if ((File(WhiteKingSQ) == FILEG) &&
           (Distance(WhiteKingSQ,H8) < Distance(BlackKingSQ,H8)))
-        return(QUEEN_VALUE-BISHOP_VALUE);
+        return(PAWN_CAN_PROMOTE);
       break;
     }
 /*
@@ -1895,9 +1893,9 @@ int EvaluatePassedPawnRaces(TREE *tree, int wtm) {
 */
     if (Distance(WhiteKingSQ,pawnsq) < Distance(BlackKingSQ,pawnsq)) {
       if (Rank(WhiteKingSQ) > Rank(pawnsq)+1)
-        return(QUEEN_VALUE-BISHOP_VALUE);
+        return(PAWN_CAN_PROMOTE);
       if (Rank(WhiteKingSQ) == RANK6)
-        return(QUEEN_VALUE-BISHOP_VALUE);
+        return(PAWN_CAN_PROMOTE);
     }
 /*
  ------------------------------------------------
@@ -1910,7 +1908,7 @@ int EvaluatePassedPawnRaces(TREE *tree, int wtm) {
 */
     if ((Rank(WhiteKingSQ) == Rank(pawnsq)+1) &&
         HasOpposition(wtm,WhiteKingSQ,BlackKingSQ))
-      return(QUEEN_VALUE-BISHOP_VALUE);
+      return(PAWN_CAN_PROMOTE);
   } while(0);
 /*
  ----------------------------------------------------------
@@ -1946,13 +1944,13 @@ int EvaluatePassedPawnRaces(TREE *tree, int wtm) {
     if (File(pawnsq) == FILEA) {
       if ((File(BlackKingSQ) == FILEB) &&
           (Distance(BlackKingSQ,A1) < Distance(WhiteKingSQ,A1)))
-        return(-(QUEEN_VALUE-BISHOP_VALUE));
+        return(-(PAWN_CAN_PROMOTE));
       break;
     }
     else if (File(pawnsq) == FILEH) {
       if ((File(BlackKingSQ) == FILEG) &&
           (Distance(BlackKingSQ,H1) < Distance(WhiteKingSQ,H1)))
-        return(-(QUEEN_VALUE-BISHOP_VALUE));
+        return(-(PAWN_CAN_PROMOTE));
       break;
     }
 /*
@@ -1967,9 +1965,9 @@ int EvaluatePassedPawnRaces(TREE *tree, int wtm) {
 */
     if (Distance(BlackKingSQ,pawnsq) < Distance(WhiteKingSQ,pawnsq)) {
       if (Rank(BlackKingSQ) < Rank(pawnsq)-1)
-        return(-(QUEEN_VALUE-BISHOP_VALUE));
+        return(-(PAWN_CAN_PROMOTE));
       if (Rank(BlackKingSQ) == RANK3)
-        return(-(QUEEN_VALUE-BISHOP_VALUE));
+        return(-(PAWN_CAN_PROMOTE));
     }
 /*
  ------------------------------------------------
@@ -1982,7 +1980,7 @@ int EvaluatePassedPawnRaces(TREE *tree, int wtm) {
 */
     if ((Rank(BlackKingSQ) == Rank(pawnsq)-1) &&
         HasOpposition(ChangeSide(wtm),BlackKingSQ,WhiteKingSQ))
-      return(-(QUEEN_VALUE-BISHOP_VALUE));
+      return(-(PAWN_CAN_PROMOTE));
   } while(0);
 /*
  ----------------------------------------------------------
@@ -2114,14 +2112,14 @@ int EvaluatePassedPawnRaces(TREE *tree, int wtm) {
  ----------------------------------------------------------
 */
     if ((white_queener < 8) && (black_queener == 8))
-      return(QUEEN_VALUE-BISHOP_VALUE+(5-white_queener)*PAWN_VALUE/10);
+      return(PAWN_CAN_PROMOTE+(5-white_queener)*PAWN_VALUE/10);
     else if ((black_queener < 8) && (white_queener == 8))
-      return(-(QUEEN_VALUE-BISHOP_VALUE+(5-black_queener)*PAWN_VALUE/10));
+      return(-(PAWN_CAN_PROMOTE+(5-black_queener)*PAWN_VALUE/10));
     if (ChangeSide(wtm)) black_queener--;
     if (white_queener < black_queener)
-      return(QUEEN_VALUE-BISHOP_VALUE+(5-white_queener)*PAWN_VALUE/10);
+      return(PAWN_CAN_PROMOTE+(5-white_queener)*PAWN_VALUE/10);
     else if (black_queener < white_queener-1)
-      return(-(QUEEN_VALUE-BISHOP_VALUE+(5-black_queener)*PAWN_VALUE/10));
+      return(-(PAWN_CAN_PROMOTE+(5-black_queener)*PAWN_VALUE/10));
     if ((white_queener==8) || (black_queener==8)) break;
 /*
  ----------------------------------------------------------
@@ -2144,13 +2142,13 @@ int EvaluatePassedPawnRaces(TREE *tree, int wtm) {
       if (Attack(BlackKingSQ,white_square)) {
         WhitePieces=tempw;
         BlackPieces=tempb;
-        return(QUEEN_VALUE-BISHOP_VALUE+(5-white_queener)*PAWN_VALUE/10);
+        return(PAWN_CAN_PROMOTE+(5-white_queener)*PAWN_VALUE/10);
       }
       if (Attack(black_square,white_square) &&
           !(king_attacks[black_square]&BlackKing)) {
         WhitePieces=tempw;
         BlackPieces=tempb;
-        return(QUEEN_VALUE-BISHOP_VALUE+(5-white_queener)*PAWN_VALUE/10);
+        return(PAWN_CAN_PROMOTE+(5-white_queener)*PAWN_VALUE/10);
       }
       WhitePieces=tempw;
       BlackPieces=tempb;
@@ -2176,13 +2174,13 @@ int EvaluatePassedPawnRaces(TREE *tree, int wtm) {
       if (Attack(WhiteKingSQ,black_square)) {
         WhitePieces=tempw;
         BlackPieces=tempb;
-        return(-(QUEEN_VALUE-BISHOP_VALUE+(5-black_queener)*PAWN_VALUE/10));
+        return(-(PAWN_CAN_PROMOTE+(5-black_queener)*PAWN_VALUE/10));
       }
       if (Attack(white_square,black_square) &&
           !(king_attacks[white_square]&WhiteKing)) {
         WhitePieces=tempw;
         BlackPieces=tempb;
-        return(-(QUEEN_VALUE-BISHOP_VALUE+(5-black_queener)*PAWN_VALUE/10));
+        return(-(PAWN_CAN_PROMOTE+(5-black_queener)*PAWN_VALUE/10));
       }
       WhitePieces=tempw;
       BlackPieces=tempb;
@@ -2204,7 +2202,7 @@ int EvaluatePassedPawnRaces(TREE *tree, int wtm) {
 *                                                                              *
 ********************************************************************************
 */
-int EvaluatePawns(TREE *tree) {
+int EvaluatePawns(TREE * RESTRICT tree) {
   register PAWN_HASH_ENTRY *ptable;
   register BITBOARD pawns;
   register BITBOARD temp, left, right;
@@ -2597,9 +2595,9 @@ int EvaluatePawns(TREE *tree) {
             (File(square) == FILEB || !(plus8dir[square-10]&BlackPawns)))))
         score+=hidden_passed_pawn_value[Rank(square)];
 #ifdef DEBUGP
-    if (score != lastsc)
-      printf("white pawn[hidden] file=%d,   score=%d\n", file,score);
-    lastsc=score;
+      if (score != lastsc)
+        printf("white pawn[hidden] file=%d,   score=%d\n", file,score);
+      lastsc=score;
 #endif
     }
     Clear(square,pawns);
@@ -2856,7 +2854,6 @@ int EvaluatePawns(TREE *tree) {
       if (tree->pawn_score.candidates_b&(128>>file))
         printf("black pawn[candidate]       square=%d\n", square);
 #endif
-    }
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -2868,21 +2865,22 @@ int EvaluatePawns(TREE *tree) {
 |                                                          |
  ----------------------------------------------------------
 */
-    if (Rank(square) < RANK4 && SetMask(square-8)&WhitePawns &&
-        !(mask_pawn_passed_b[square-8]&WhitePawns) &&
-        ((File(square) < FILEH && SetMask(square+9)&BlackPawns &&
-          !(minus8dir[square+9]&WhitePawns) &&
-          (File(square) == FILEG || !(minus8dir[square+10]&WhitePawns))) ||
-         (File(square) > FILEA && SetMask(square+7)&BlackPawns &&
-          !(minus8dir[square+7]&WhitePawns) &&
-          (File(square) == FILEB || !(minus8dir[square+6]&WhitePawns))))) {
-      score-=hidden_passed_pawn_value[(RANK8-Rank(square))];
-    }
+      if (Rank(square) < RANK4 && SetMask(square-8)&WhitePawns &&
+          !(mask_pawn_passed_b[square-8]&WhitePawns) &&
+          ((File(square) < FILEH && SetMask(square+9)&BlackPawns &&
+            !(minus8dir[square+9]&WhitePawns) &&
+            (File(square) == FILEG || !(minus8dir[square+10]&WhitePawns))) ||
+           (File(square) > FILEA && SetMask(square+7)&BlackPawns &&
+            !(minus8dir[square+7]&WhitePawns) &&
+            (File(square) == FILEB || !(minus8dir[square+6]&WhitePawns))))) {
+        score-=hidden_passed_pawn_value[(RANK8-Rank(square))];
+      }
 #ifdef DEBUGP
-    if (score != lastsc)
-      printf("black pawn[hidden] file=%d,   score=%d\n", file,score);
-    lastsc=score;
+      if (score != lastsc)
+        printf("black pawn[hidden] file=%d,   score=%d\n", file,score);
+      lastsc=score;
 #endif
+    }
     Clear(square,pawns);
   }
 /*
@@ -3240,7 +3238,7 @@ int EvaluatePawns(TREE *tree) {
 *                                                                              *
 ********************************************************************************
 */
-int EvaluateStalemate(TREE *tree, int wtm) {
+int EvaluateStalemate(TREE * RESTRICT tree, int wtm) {
   int stalemate=0;
 /*
  ----------------------------------------------------------
@@ -3295,7 +3293,7 @@ int EvaluateStalemate(TREE *tree, int wtm) {
   return (stalemate);
 }
 
-/* last modified 10/17/01 */
+/* last modified 09/25/02 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -3310,20 +3308,52 @@ int EvaluateStalemate(TREE *tree, int wtm) {
 *                                                                              *
 ********************************************************************************
 */
-int EvaluateWinner(TREE *tree) {
+int EvaluateWinner(TREE * RESTRICT tree) {
   register int can_win=3;
 /*
  ----------------------------------------------------------
 |                                                          |
-|   if lots of material is left, it's not a draw.          |
+|   if one side is a piece up, but has no pawns, then that |
+|   side can not possibly win.                             |
 |                                                          |
  ----------------------------------------------------------
 */
-  if (TotalWhitePieces > 8 || TotalBlackPieces >8) return(can_win);
-  if (TotalWhitePieces==6 && WhiteBishops && TotalWhitePawns) return(can_win);
-  if (TotalBlackPieces==6 && BlackBishops && TotalBlackPawns) return(can_win);
+  if (WhiteMajors == BlackMajors) {
+    if (TotalWhitePawns==0 && WhiteMinors-BlackMinors==1) can_win&=2;
+    if (TotalBlackPawns==0 && BlackMinors-WhiteMinors==1) can_win&=1;
+    if (can_win != 3) return(can_win);
+  }
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   if one side is an exchange up, but has no pawns, then  |
+|   that side can not possibly win.                        |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  if (WhiteMajors != BlackMajors) {
+    if ((WhiteMajors-BlackMajors) == (BlackMinors-WhiteMinors)) {
+      if (TotalWhitePawns==0) can_win&=2;
+    }
+    else if ((BlackMajors-WhiteMajors) == (WhiteMinors-BlackMinors)) {
+      if (TotalBlackPawns==0) can_win&=1;
+    }
+    return(can_win);
+  }
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   if neither side has any pieces, and both sides have    |
+|   non-rookpawns, then either side can win.  also, if one |
+|   has a piece and the other side has one pawn, then that |
+|   piece can sac itself for the pawn so that the side     |
+|   with a pawn can't win.                                 |
+|                                                          |
+ ----------------------------------------------------------
+*/
   if (TotalWhitePieces==0 && TotalBlackPieces==0) {
-    if ((WhitePawns|BlackPawns)&not_rook_pawns) return(can_win);
+    if (WhitePawns&not_rook_pawns &&
+        BlackPawns&not_rook_pawns) return(can_win);
   }
   if (!TotalBlackPieces) {
     if (!TotalBlackPawns) can_win&=1;
@@ -3341,9 +3371,6 @@ int EvaluateWinner(TREE *tree) {
 |   right color bishop or any other piece, otherwise it is |
 |   not winnable if the black king can get to the queening |
 |   square first.                                          |
-|                                                          |
-|   special case:  if both sides have the right colored    |
-|   bishop, it is still most likely drawn.                 |
 |                                                          |
  ----------------------------------------------------------
 */
@@ -3366,9 +3393,7 @@ int EvaluateWinner(TREE *tree) {
           if (WhiteBishops&dark_squares && !(BlackBishops&dark_squares)) {
             if (file_mask[FILEH]&WhitePawns) continue;
           }
-          else if (WhiteBishops&light_squares && !(BlackBishops&light_squares)) {
-            if (file_mask[FILEA]&WhitePawns) continue;
-          }
+          else if (file_mask[FILEA]&WhitePawns) continue;
         }
       }
       if (!(WhitePawns&file_mask[FILEA]) ||
@@ -3390,7 +3415,7 @@ int EvaluateWinner(TREE *tree) {
           if (bkd <= 1) can_win&=2;
           else {
             wkd=Distance(WhiteKingSQ,H8);
-            pd=Distance(LastOne(BlackPawns&file_mask[FILEH]),H8);
+            pd=Distance(LastOne(WhitePawns&file_mask[FILEH]),H8);
             if (bkd<(wkd-wtm) && bkd<=(pd-wtm)) can_win&=2;
           }
           continue;
@@ -3406,9 +3431,6 @@ int EvaluateWinner(TREE *tree) {
 |   right color bishop or any other piece, otherwise it is |
 |   not winnable if the white king can get to the queening |
 |   square first.                                          |
-|                                                          |
-|   special case:  if both sides have the right colored    |
-|   bishop, it is still most likely drawn.                 |
 |                                                          |
  ----------------------------------------------------------
 */
@@ -3431,9 +3453,7 @@ int EvaluateWinner(TREE *tree) {
           if (BlackBishops&dark_squares && !(WhiteBishops&dark_squares)) {
             if (file_mask[FILEA]&BlackPawns) continue;
           }
-          else if (BlackBishops&dark_squares && !(WhiteBishops&dark_squares)) {
-            if (file_mask[FILEH]&BlackPawns) continue;
-          }
+          else if (file_mask[FILEH]&BlackPawns) continue;
         }
       }
       if (!(BlackPawns&file_mask[FILEA]) ||
@@ -3495,39 +3515,14 @@ int EvaluateWinner(TREE *tree) {
 /*
  ----------------------------------------------------------
 |                                                          |
-|   if one side has a rook and piece, while the other side |
-|   has a rook and pawn(s), the rook+piece can not win.    |
+|   if one side is two knights ahead and the opponent has  |
+|   no remaining material, it is a draw.                   |
 |                                                          |
  ----------------------------------------------------------
 */
-  if (TotalWhitePawns==0 && TotalWhitePieces==8 &&
-      TotalBlackPieces==5) can_win&=2;
-  if (TotalBlackPawns==0 && TotalBlackPieces==8 &&
-      TotalWhitePieces==5) can_win&=1;
-/*
- ----------------------------------------------------------
-|                                                          |
-|   if one side is only a piece ahead and has no pawns,    |
-|   and he only has one or two pieces left, then he can't  |
-|   win.                                                   |
-|                                                          |
- ----------------------------------------------------------
-*/
-  if (TotalWhitePawns==0 && TotalWhitePieces<=6 &&
-      TotalWhitePieces-TotalBlackPieces==3) can_win&=2;
-  if (TotalBlackPawns==0 && TotalBlackPieces<=6 &&
-      TotalBlackPieces-TotalWhitePieces==3) can_win&=1;
-/*
- ----------------------------------------------------------
-|                                                          |
-|   if one side has only a rook and the other side has one |
-|   minor piece, neither side can win.                     |
-|                                                          |
- ----------------------------------------------------------
-*/
-  if (TotalWhitePawns+TotalBlackPawns==0) {
-    if (TotalWhitePieces==5 && TotalBlackPieces==3) can_win=0;
-    if (TotalWhitePieces==3 && TotalBlackPieces==5) can_win=0;
-  }
+  if (TotalWhitePawns==0 && TotalWhitePieces==6 && !WhiteBishops &&
+      TotalBlackPieces+TotalBlackPawns==0) can_win&=2;
+  if (TotalBlackPawns==0 && TotalBlackPieces==6 && !BlackBishops &&
+      TotalWhitePieces+TotalWhitePawns==0) can_win&=1;
   return(can_win);
 }

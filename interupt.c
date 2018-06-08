@@ -121,7 +121,7 @@ void Interrupt(int ply) {
     else if (!strcmp("mn",args[0])) {
       if (nargs == 2) {
         move_number=atoi(args[1]);
-        Print(4095,"move number set to %d\n",move_number);
+        Print(128,"move number set to %d\n",move_number);
       }
     }
 /*
@@ -151,7 +151,7 @@ void Interrupt(int ply) {
       move_number=save_move_number;
       if (result >= 2) {
         if (thinking && result!=3)
-          Print(4095,"command not legal now.\n");
+          Print(128,"command not legal now.\n");
         else {
           abort_search=1;
           input_status=2;

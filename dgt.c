@@ -91,8 +91,8 @@ void DGTInit(int nargs, char *args[]) {
 ********************************************************************************
 */
 void DGTRead() {
-  static unsigned char buffer[512];
-  unsigned char temp[512];
+  static char buffer[512];
+  char temp[512];
   static int bytes=0;
   char *last;
   bytes=read(from_dgt,buffer+bytes,256);

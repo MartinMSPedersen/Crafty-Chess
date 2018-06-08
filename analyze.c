@@ -72,7 +72,7 @@ void Analyze() {
         readstat=Read(1,buffer);
         if (readstat < 0) break;
         nargs=ReadParse(buffer,args," 	;");
-        Print(4095,"%s\n",buffer);
+        Print(128,"%s\n",buffer);
         if (strstr(args[0],"timeleft") && !xboard) {
           if (wtm) printf("analyze.White(%d): ",move_number);
           else printf("analyze.Black(%d): ",move_number);

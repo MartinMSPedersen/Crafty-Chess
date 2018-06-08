@@ -33,7 +33,7 @@
 #define DGT_TRADEMARK       0x12
 #define DGT_VERSION         0x13
 
-#define Rank(x)             (((x)>>3)&7)
+#define Rank(x)             ((x)>>3)
 #define File(x)             ((x)&7)
 
 typedef enum {FILEA, FILEB, FILEC, FILED, FILEE, FILEF, FILEG, FILEH} files;

@@ -15,9 +15,9 @@
 *                                                                              *
 ********************************************************************************
 */
-void MakeMove(TREE *tree, int ply, int move, int wtm) {
+void MakeMove(TREE * RESTRICT tree, int ply, int move, int wtm) {
   register int piece, from, to, captured, promote;
-  BITBOARD bit_move;
+  BITBOARD bit_move, bit_move_rl45, bit_move_rr45, bit_move_rl90;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -51,13 +51,13 @@ void MakeMove(TREE *tree, int ply, int move, int wtm) {
   captured=Captured(move);
   promote=Promote(move);
 MakePieceMove:
-  ClearRL90(from,OccupiedRL90);
-  ClearRL45(from,OccupiedRL45);
-  ClearRR45(from,OccupiedRR45);
-  SetRL90(to,OccupiedRL90);
-  SetRL45(to,OccupiedRL45);
-  SetRR45(to,OccupiedRR45);
   bit_move=SetMask(from) | SetMask(to);
+  bit_move_rl45=SetMaskRL45(from) | SetMaskRL45(to);
+  bit_move_rr45=SetMaskRR45(from) | SetMaskRR45(to);
+  bit_move_rl90=SetMaskRL90(from) | SetMaskRL90(to);
+  ClearSet(bit_move_rl45,OccupiedRL45);
+  ClearSet(bit_move_rr45,OccupiedRR45);
+  ClearSet(bit_move_rl90,OccupiedRL90);
   PcOnSq(from)=0;
   switch (piece) {
 /*
@@ -440,10 +440,13 @@ MakePieceMove:
 *                                                                              *
 ********************************************************************************
 */
-  if(captured) {
+  if (captured) {
     Rule50Moves(ply+1)=0;
     TotalPieces--;
     if (promote) piece=promote;
+    SetRL45(to,OccupiedRL45);
+    SetRR45(to,OccupiedRR45);
+    SetRL90(to,OccupiedRL90);
     switch (captured) {
 /*
  ----------------------------------------------------------
@@ -626,7 +629,7 @@ MakePieceMove:
 *                                                                              *
 ********************************************************************************
 */
-void MakeMoveRoot(TREE *tree, int move, int wtm) {
+void MakeMoveRoot(TREE * RESTRICT tree, int move, int wtm) {
 /*
  ----------------------------------------------------------
 |                                                          |

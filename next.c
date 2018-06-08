@@ -11,7 +11,7 @@
 *                                                                              *
 ********************************************************************************
 */
-int NextMove(TREE *tree, int ply, int wtm) {
+int NextMove(TREE * RESTRICT tree, int ply, int wtm) {
   register int *bestp, *movep, *sortv;
   register int history_value, bestval, index;
 

@@ -4,11 +4,6 @@
 *   configuration information:  the following variables need to be set to      *
 *   indicate the machine configuration/capabilities.                           *
 *                                                                              *
-*   there are pre-defined machine types for the following machines: (1) SUN    *
-*   (2) DOS (3) ALPHA [DEC Alpha] (4) CRAY  (5) LINUX.  defining any of these  *
-*   names will produce a runnable executable.  for other machines, the names   *
-*   explained below must be individually DEFINED or UNDEFINED as needed.       *
-*                                                                              *
 *   HAS_64BITS:  define this for a machine that has true 64-bit hardware       *
 *   including leading-zero hardware, population count, etc.  ie, a Cray-like   *
 *   machine.                                                                   *
@@ -35,6 +30,12 @@
 ********************************************************************************
 */
 #if !defined(TYPES_INCLUDED)
+
+#if defined (_MSC_VER) && (MSC_VER >= 1300)
+#  define RESTRICT __restrict
+#else
+#  define RESTRICT
+#endif
 
 #if !defined(CPUS)
 #  define CPUS 1
@@ -84,11 +85,6 @@
 #  define HAS_64BITS           /* machine has 64-bit integers / operators     */
 #  undef  HAS_LONGLONG         /* machine has 32-bit/64-bit integers          */
 #  define UNIX                 /* system is unix-based                        */
-#endif
-#if defined(DOS)
-#  undef  HAS_64BITS           /* machine has 64-bit integers / operators     */
-#  define HAS_LONGLONG         /* machine has 32-bit/64-bit integers          */
-#  undef  UNIX                 /* system is unix-based                        */
 #endif
 #if defined(FreeBSD)
 #  undef  HAS_64BITS           /* machine has 64-bit integers / operators     */
@@ -208,10 +204,10 @@
 #  endif
 #endif
 
-# define    EGTB_CACHE_DEFAULT 1024*1024
-#define     MAXPLY            65
-#define MAX_BLOCKS       16*CPUS
-#define MAX_TC_NODES      300000
+#define     EGTB_CACHE_DEFAULT 1024*1024
+#define     MAXPLY             65
+#define     MAX_BLOCKS         16*CPUS
+#define     MAX_TC_NODES       300000
 
 #if !defined(SMP) && !defined(SUN)
 #  define lock_t int
@@ -239,6 +235,7 @@
 #define QUEEN_VALUE             900
 #define KING_VALUE            40000
 #define EG_MAT                   14
+#define MAX_DRAFT             32000
   
 #if defined(HAS_64BITS)
   typedef unsigned long BITBOARD;
@@ -437,6 +434,10 @@ struct tree {
   unsigned int    evaluations;
   unsigned int    transposition_probes;
   unsigned int    transposition_hits;
+  unsigned int    transposition_good_hits;
+  unsigned int    transposition_uppers;
+  unsigned int    transposition_lowers;
+  unsigned int    transposition_exacts;
   unsigned int    pawn_probes;
   unsigned int    pawn_hits;
   unsigned int    egtb_probes;
@@ -459,7 +460,6 @@ struct tree {
   lock_t          lock;
   int             thread_id;
   volatile char   stop;
-  volatile char   done;
   char            root_move_text[16];
   char            remaining_moves_text[16];
   struct tree     *volatile siblings[CPUS], *parent;
@@ -472,7 +472,7 @@ struct tree {
   int             ply;
   int             mate_threat;
   int             lp_recapture;
-  int             used;
+  volatile int    used;
 };
   
 typedef struct tree TREE;
@@ -520,7 +520,7 @@ typedef struct tree TREE;
 #define UPPER                     2
 #define EXACT                     3
 #define AVOID_NULL_MOVE           4
-#define FAIL_LOW_POS              5
+#define EXACTEGTB                 5
 
 #define NULL_MOVE                 0
 #define DO_NULL                   1
@@ -556,14 +556,14 @@ void           AnnotateHeaderHTML(char*, FILE*);
 void           AnnotateFooterHTML(FILE*);
 void           AnnotatePositionHTML(TREE*, int, FILE*);
 char           *AnnotateValueToNAG(int, int, int);
-int            Attacked(TREE*, int, int);
-BITBOARD       AttacksTo(TREE*, int);
+int            Attacked(TREE*RESTRICT, int, int);
+BITBOARD       AttacksTo(TREE*RESTRICT, int);
 void           Bench(void);
 int            Book(TREE*,int,int);
 int            BookMask(char*);
 int            BookPonderMove(TREE*,int);
-int            BookRejectMove(TREE*,int);
-void           BookUp(TREE*, char*, int, char**);
+int            BookRejectMove(TREE*,int,int);
+void           BookUp(TREE*, int, char**);
 void           BookSort(BB_POSITION*, int, int);
 #if defined(NT_i386) || defined(NT_AXP)
   int _cdecl     BookUpCompare(const void *, const void *);
@@ -594,35 +594,35 @@ char*          DisplayTimeWhisper(unsigned int);
 void           DisplayTreeState(TREE*, int, int, int);
 void           Display2BitBoards(BITBOARD, BITBOARD);
 void           DisplayChessMove(char*, int);
-int            Drawn(TREE*, int);
+int            Drawn(TREE*RESTRICT, int);
 void           Edit(void);
 int            EGTBProbe(TREE*, int, int, int*);
 void           EGTBPV(TREE*, int);
 int            EnPrise(int, int);
-int            Evaluate(TREE*, int, int, int, int);
-int            EvaluateDevelopmentB(TREE*, int);
-int            EvaluateDevelopmentW(TREE*, int);
-int            EvaluateWinner(TREE*);
-int            EvaluateKingSafety(TREE*, int);
-int            EvaluateMate(TREE*);
-int            EvaluateMaterial(TREE*);
-int            EvaluatePassedPawns(TREE*);
-int            EvaluatePassedPawnRaces(TREE*, int);
-int            EvaluatePawns(TREE*);
-int            EvaluateStalemate(TREE*,int);
-int            EvaluateWinner(TREE*);
+int            Evaluate(TREE*RESTRICT, int, int, int, int);
+int            EvaluateDevelopmentB(TREE*RESTRICT, int);
+int            EvaluateDevelopmentW(TREE*RESTRICT, int);
+int            EvaluateWinner(TREE*RESTRICT);
+int            EvaluateKingSafety(TREE*RESTRICT, int);
+int            EvaluateMate(TREE*RESTRICT);
+int            EvaluateMaterial(TREE*RESTRICT);
+int            EvaluatePassedPawns(TREE*RESTRICT);
+int            EvaluatePassedPawnRaces(TREE*RESTRICT, int);
+int            EvaluatePawns(TREE*RESTRICT);
+int            EvaluateStalemate(TREE*RESTRICT,int);
+int            EvaluateWinner(TREE*RESTRICT);
 void           EVTest(char *);
 int            FindBlockID(TREE*);
 char*          FormatPV(TREE*,int,PATH);
 int            FTbSetCacheSize(void*,unsigned long);
-int*           GenerateCaptures(TREE*, int, int, int*);
-int*           GenerateCheckEvasions(TREE*, int, int, int*);
-int*           GenerateNonCaptures(TREE*, int, int, int*);
-int            HashProbe(TREE*, int, int, int, int*, int*, int*);
-void           HashStore(TREE*, int, int, int, int, int, int);
-void           HashStorePV(TREE*, int,int);
+int*           GenerateCaptures(TREE*RESTRICT, int, int, int*);
+int*           GenerateCheckEvasions(TREE*RESTRICT, int, int, int*);
+int*           GenerateNonCaptures(TREE*RESTRICT, int, int, int*);
+int            HashProbe(TREE*RESTRICT, int, int, int, int*, int*, int*);
+void           HashStore(TREE*RESTRICT, int, int, int, int, int, int);
+void           HashStorePV(TREE*RESTRICT, int,int);
 int            HasOpposition(int, int, int);
-void           History(TREE*, int, int, int, int);
+void           History(TREE*RESTRICT, int, int, int, int);
 int            IInitializeTb(char*);
 void           Initialize(int);
 void           InitializeAttackBoards(void);
@@ -651,12 +651,12 @@ void           LearnImportCAP(TREE*, int, char**);
 void           LearnImportPosition(TREE*, int, char**);
 void           LearnPosition(TREE*, int, int, int);
 void           LearnPositionLoad(void);
-int            LegalMove(TREE*, int, int, int);
-void           MakeMove(TREE*, int, int, int);
-void           MakeMoveRoot(TREE*, int, int);
+int            LegalMove(TREE*RESTRICT, int, int, int);
+void           MakeMove(TREE*RESTRICT, int, int, int);
+void           MakeMoveRoot(TREE*RESTRICT, int, int);
 void           NewGame(int);
-int            NextEvasion(TREE*, int, int);
-int            NextMove(TREE*, int, int);
+int            NextEvasion(TREE*RESTRICT, int, int);
+int            NextMove(TREE*RESTRICT, int, int);
 int            NextRootMove(TREE*, TREE*, int);
 int            NextRootMoveParallel(void);
 char*          Normal(void);
@@ -669,11 +669,11 @@ int            OutputGood(TREE*, char*, int, int);
 int            ParseTime(char*);
 void           Pass(void);
 void           Phase(void);
-int            PinnedOnKing(TREE*, int, int);
+int            PinnedOnKing(TREE*RESTRICT, int, int);
 int            Ponder(int);
-void           PreEvaluate(TREE*,int);
+void           PreEvaluate(TREE*RESTRICT,int);
 void           Print(int, char*, ...);
-int            Quiesce(TREE*, int, int, int, int);
+int            Quiesce(TREE*RESTRICT, int, int, int, int);
 unsigned int   Random32(void);
 BITBOARD       Random64(void);
 int            Read(int, char*);
@@ -684,23 +684,23 @@ int            ReadPGN(FILE*,int);
 int            ReadNextMove(TREE*, char*, int, int);
 int            ReadParse(char*, char *args[], char*);
 int            ReadInput();
-int            RepetitionCheck(TREE*, int, int);
-int            RepetitionCheckBook(TREE*, int, int);
-int            RepetitionDraw(TREE*, int);
+int            RepetitionCheck(TREE*RESTRICT, int, int);
+int            RepetitionCheckBook(TREE*RESTRICT, int, int);
+int            RepetitionDraw(TREE*RESTRICT, int);
 void           ResignOrDraw(TREE*, int);
 void           RestoreGame(void);
 char*          Reverse(void);
 void           RootMoveList(int);
-int            Search(TREE*, int, int, int, int, int, int, int);
+int            Search(TREE*RESTRICT, int, int, int, int, int, int, int);
 void           SearchOutput(TREE*, int, int);
-int            SearchRoot(TREE*, int, int, int, int);
+int            SearchRoot(TREE*RESTRICT, int, int, int, int);
 int            SearchSMP(TREE*, int, int, int, int, int, int, int, int);
 void           SearchTrace(TREE*, int, int, int, int, int, char*, int);
 void           SetBoard(SEARCH_POSITION*,int,char**,int);
 void           SetChessBitBoards(SEARCH_POSITION*);
 int            StrCnt(char*, char);
-int            Swap(TREE*, int, int, int);
-BITBOARD       SwapXray(TREE*, BITBOARD, int, int);
+int            Swap(TREE*RESTRICT, int, int, int);
+BITBOARD       SwapXray(TREE*RESTRICT, BITBOARD, int, int);
 void           Test(char *);
 void           TestEPD(char *);
 int            Thread(TREE*);
@@ -715,7 +715,7 @@ int            Threat(TREE*, int, int, int, int, int, int);
 void           TimeAdjust(int,PLAYER);
 int            TimeCheck(TREE*,int);
 void           TimeSet(int);
-void           UnmakeMove(TREE*, int, int, int);
+void           UnmakeMove(TREE*RESTRICT, int, int, int);
 int            ValidMove(TREE*, int, int, int);
 void           ValidatePosition(TREE*, int, int, char*);
 void           Whisper(int, int, int, int, int, BITBOARD , int, int, char*);
@@ -890,13 +890,24 @@ void           Whisper(int, int, int, int, int, BITBOARD , int, int, char*);
 
 #define Max(a,b)  (((a) > (b)) ? (a) : (b))
 #define Min(a,b)  (((a) < (b)) ? (a) : (b))
-#define FileDistance(a,b) abs(((a)&7) - ((b)&7))
-#define RankDistance(a,b) abs(((a)>>3) - ((b)>>3))
+#define FileDistance(a,b) abs(File(a) - File(b))
+#define RankDistance(a,b) abs(Rank(a) - Rank(b))
 #define Distance(a,b) Max(FileDistance(a,b),RankDistance(a,b))
 #define DrawScore(wtm)                 (draw_score[wtm])
 #define PopCnt8Bit(a) (pop_cnt_8bit[a])
 #define FirstOne8Bit(a) (first_one_8bit[a])
 #define LastOne8Bit(a) (last_one_8bit[a])
+
+/*  
+    the following macro is used to limit the search extensions based on the
+    current iteration depth and current ply in the tree.
+*/
+#define LimitExtensions(extended,ply)                                \
+      if (ply <= 3*iteration_depth) {                                \
+        if (ply > iteration_depth) extended>>=1;                     \
+        if (ply > 2*iteration_depth) extended>>=1;                   \
+      }                                                              \
+      else extended=0;
 
 /*  
     the following macro is used to determine if one side is in check.  it
@@ -927,7 +938,7 @@ void           Whisper(int, int, int, int, int, BITBOARD , int, int, char*);
 #endif
 
 #define AttacksQueen(a)   (AttacksBishop(a)|AttacksRook(a))
-#define Rank(x)       (((x)>>3)&7)
+#define Rank(x)       ((x)>>3)
 #define File(x)       ((x)&7)
 #define ChangeSide(x) ((x)^1)
 
@@ -988,7 +999,7 @@ void           Whisper(int, int, int, int, int, BITBOARD , int, int, char*);
                            (56-((a)&56)))&255]
 #  define AttacksFile(a)                                                  \
       rook_attacks_rl90[(a)][(tree->pos.occupied_rl90>>                   \
-                             (56-(((a)&7)<<3)))&255]
+                             (56-(File(a)<<3)))&255]
 #  define AttacksDiaga1(a)                                                \
       bishop_attacks_rl45[(a)][(tree->pos.occupied_rl45>>                 \
                                 bishop_shift_rl45[(a)])&255]
@@ -1052,7 +1063,7 @@ void           Whisper(int, int, int, int, int, BITBOARD , int, int, char*);
                             (56-((a)&56))&255])
 #  define MobilityFile(a)                                                   \
      (rook_mobility_rl90[(a)][tree->pos.occupied_rl90>>                     \
-                             (56-(((a)&7)<<3))&255])
+                             (56-(File(a)<<3))&255])
 #  define MobilityDiaga1(a)                                                 \
      (bishop_mobility_rl45[(a)][tree->pos.occupied_rl45>>                   \
                                bishop_shift_rl45[(a)]&255])

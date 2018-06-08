@@ -189,7 +189,7 @@ int TimeCheck(TREE *tree, int abort) {
   return(1);
 }
 
-/* last modified 01/04/98 */
+/* last modified 06/20/02 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -274,6 +274,7 @@ void TimeSet(int search_type) {
    new option 'usage' increases and decrease the time factors)
 */
   if (usage_level)  time_limit*=1.0+usage_level/100.0;
+  if (!ponder) time_limit=3*time_limit/4;
 /*
  ----------------------------------------------------------
 |                                                          |

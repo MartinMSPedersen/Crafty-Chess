@@ -18,7 +18,7 @@
 *                                                                              *
 ********************************************************************************
 */
-void PreEvaluate(TREE *tree, int crafty_is_white) {
+void PreEvaluate(TREE * RESTRICT tree, int crafty_is_white) {
   int i, j;
   static int hashing_opening = 0;
   static int hashing_middle_game = 0;

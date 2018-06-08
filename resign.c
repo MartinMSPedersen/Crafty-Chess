@@ -105,7 +105,7 @@ void ResignOrDraw(TREE *tree, int value) {
     }
   }
   if (result == 2) {
-    if (!ics && !xboard) Print(4095,"\nI offer a draw.\n\n");
+    if (!ics && !xboard) Print(128,"\nI offer a draw.\n\n");
     else if (xboard) Print(4095,"offer draw\n");
     else Print(4095,"\n*draw\n");
   }

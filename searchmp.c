@@ -5,7 +5,7 @@
 #include "data.h"
 #include "epdglue.h"
 
-/* modified 10/10/01 */
+/* modified 09/11/02 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -47,7 +47,6 @@ int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
     tree->current_move[ply]=tree->parent->current_move[ply];
     UnLock(tree->parent->lock);
     if (!tree->phase[ply]) break;
-    extended=0;
 #if defined(TRACE)
     if (ply <= trace_level)
       SearchTrace(tree,ply,depth,wtm,alpha,beta,"SearchSMP",tree->phase[ply]);
@@ -68,6 +67,21 @@ int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
 /*
  ----------------------------------------------------------
 |                                                          |
+|   if the null move found that the side on move gets      |
+|   mated by not moving, then there must be some strong    |
+|   threat at this position.  extend the search to make    |
+|   sure it is analyzed carefully.                         |
+|                                                          |
+ ----------------------------------------------------------
+*/
+      extended=0;
+      if (mate_threat) {
+        extended+=mate_depth;
+        tree->mate_extensions_done++;
+      }
+/*
+ ----------------------------------------------------------
+|                                                          |
 |   if the move to be made checks the opponent, then we    |
 |   need to remember that he's in check and also extend    |
 |   the depth by one ply for him to get out.               |
@@ -83,20 +97,6 @@ int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
 /*
  ----------------------------------------------------------
 |                                                          |
-|   if the null move found that the side on move gets      |
-|   mated by not moving, then there must be some strong    |
-|   threat at this position.  extend the search to make    |
-|   sure it is analyzed carefully.                         |
-|                                                          |
- ----------------------------------------------------------
-*/
-      if (mate_threat) {
-        extended+=mate_depth;
-        tree->mate_extensions_done++;
-      }
-/*
- ----------------------------------------------------------
-|                                                          |
 |   if two successive moves are capture / re-capture so    |
 |   that the material score is restored, extend the search |
 |   by one ply on the re-capture since it is pretty much   |
@@ -105,8 +105,7 @@ int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
  ----------------------------------------------------------
 */
       recapture=0;
-      if (ply>1 && Captured(tree->current_move[ply]) &&
-          Captured(tree->current_move[ply-1]) &&
+      if (ply>1 && !extended && Captured(tree->current_move[ply-1]) &&
           To(tree->current_move[ply-1]) == To(tree->current_move[ply]) &&
           (p_values[Captured(tree->current_move[ply-1])+7] == 
            p_values[Captured(tree->current_move[ply])+7] ||
@@ -139,8 +138,7 @@ int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
 */
       begin_root_nodes=tree->nodes_searched;
       if (extended) {
-        if (extended > INCPLY) extended=INCPLY;
-        if (ply > 2*iteration_depth) extended>>=1;
+        LimitExtensions(extended,ply);
       }
       extensions=extended-INCPLY;
       if (depth+extensions >= INCPLY)
@@ -206,7 +204,6 @@ int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
     UnmakeMove(tree,ply,tree->current_move[ply],wtm);
     tree->search_value=alpha;
   }
-  tree->parent->done=1;
   if (tree->stop && ply==1) root_moves[tree->root_move].status&=255-128;
   return(0);
 }

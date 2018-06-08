@@ -3,7 +3,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 09/14/99 */
+/* last modified 10/11/02 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -34,13 +34,16 @@
 *                                                                              *
 ********************************************************************************
 */
-int HashProbe(TREE *tree, int ply, int depth, int wtm, int *alpha,
+int HashProbe(TREE * RESTRICT tree, int ply, int depth, int wtm, int *alpha,
            int *beta, int *threat) {
   register BITBOARD word1, word2;
   register int type, draft, avoid_null=0, val, pieces, null_depth;
   register unsigned int word1l, word1r;
   BITBOARD temp_hashkey;
   HASH_ENTRY *htable;
+#if !defined(FAST)
+  int local_hits=0, local_good_hits=0;
+#endif
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -69,7 +72,7 @@ int HashProbe(TREE *tree, int ply, int depth, int wtm, int *alpha,
   word2=word1^htable->word2;
   if (word2 == temp_hashkey) do {
 #if !defined(FAST)
-    tree->transposition_hits++;
+    local_hits++;
 #endif
     word1l=word1>>32;
     word1r=word1;
@@ -82,6 +85,9 @@ int HashProbe(TREE *tree, int ply, int depth, int wtm, int *alpha,
         depth-null_depth <= draft &&
         val < *beta) avoid_null=AVOID_NULL_MOVE;
     if (depth > draft) break;
+#if !defined(FAST)
+    local_good_hits++;
+#endif
 
     switch (type) {
       case EXACT:
@@ -90,16 +96,32 @@ int HashProbe(TREE *tree, int ply, int depth, int wtm, int *alpha,
           else val+=(ply-1);
         }
         *alpha=val;
-        return(EXACT);
+#if !defined(FAST)
+        tree->transposition_hits++;
+        tree->transposition_good_hits++;
+        tree->transposition_exacts++;
+#endif
+        if (draft != MAX_DRAFT) return(EXACT);
+        else return(EXACTEGTB);
       case UPPER:
         if (val <= *alpha) {
           *alpha=val;
+#if !defined(FAST)
+          tree->transposition_hits++;
+          tree->transposition_good_hits++;
+          tree->transposition_uppers++;
+#endif
           return(UPPER);
         }
         break;
       case LOWER:
         if (val >= *beta) {
           *beta=val;
+#if !defined(FAST)
+          tree->transposition_hits++;
+          tree->transposition_lowers++;
+          tree->transposition_good_hits++;
+#endif
           return(LOWER);
         }
         break;
@@ -111,7 +133,7 @@ int HashProbe(TREE *tree, int ply, int depth, int wtm, int *alpha,
   word2=word1^htable->word2;
   if (word2 == temp_hashkey) {
 #if !defined(FAST)
-    tree->transposition_hits++;
+    local_hits++;
 #endif
     word1l=word1>>32;
     word1r=word1;
@@ -124,6 +146,9 @@ int HashProbe(TREE *tree, int ply, int depth, int wtm, int *alpha,
         depth-null_depth <= draft &&
         val < *beta) avoid_null=AVOID_NULL_MOVE;
     if (depth > draft) return(avoid_null);
+#if !defined(FAST)
+    local_good_hits++;
+#endif
 
     switch (type) {
       case EXACT:
@@ -132,21 +157,47 @@ int HashProbe(TREE *tree, int ply, int depth, int wtm, int *alpha,
           else val+=(ply-1);
         }
         *alpha=val;
-        return(EXACT);
+#if !defined(FAST)
+        tree->transposition_hits++;
+        tree->transposition_good_hits++;
+        tree->transposition_exacts++;
+#endif
+        if (draft != MAX_DRAFT) return(EXACT);
+        else return(EXACTEGTB);
       case UPPER:
         if (val <= *alpha) {
           *alpha=val;
+#if !defined(FAST)
+          tree->transposition_hits++;
+          tree->transposition_good_hits++;
+          tree->transposition_uppers++;
+#endif
           return(UPPER);
         }
+#if !defined(FAST)
+        tree->transposition_hits++;
+        tree->transposition_good_hits++;
+#endif
         return(avoid_null);
       case LOWER:
         if (val >= *beta) {
           *beta=val;
+#if !defined(FAST)
+          tree->transposition_hits++;
+          tree->transposition_good_hits++;
+          tree->transposition_lowers++;
+#endif
           return(LOWER);
         }
+        tree->transposition_hits++;
+        tree->transposition_good_hits++;
         return(avoid_null);
     }
   }
+#if !defined(FAST)
+  if (local_hits) tree->transposition_hits++;
+  if (local_good_hits) tree->transposition_good_hits++;
+#endif
   return(avoid_null);
 }
 
@@ -181,7 +232,7 @@ int HashProbe(TREE *tree, int ply, int depth, int wtm, int *alpha,
 *                                                                              *
 ********************************************************************************
 */
-void HashStore(TREE *tree, int ply, int depth, int wtm, int type,
+void HashStore(TREE * RESTRICT tree, int ply, int depth, int wtm, int type,
                int value, int threat) {
   register BITBOARD word1, word2;
   register HASH_ENTRY *htablea, *htableb;
@@ -253,7 +304,7 @@ void HashStore(TREE *tree, int ply, int depth, int wtm, int type,
 *                                                                              *
 ********************************************************************************
 */
-void HashStorePV(TREE *tree, int ply, int wtm) {
+void HashStorePV(TREE * RESTRICT tree, int ply, int wtm) {
   register HASH_ENTRY *htablea, *htableb;
   register BITBOARD temp_hashkey;
 /*

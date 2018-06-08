@@ -5,7 +5,7 @@
 #include "data.h"
 #include "epdglue.h"
 
-/* last modified 11/20/01 */
+/* last modified 09/08/02 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -89,6 +89,10 @@ int Iterate(int wtm, int search_type, int root_list_done) {
     tree->evaluations=0;
 #if !defined(FAST)
     tree->transposition_hits=0;
+    tree->transposition_good_hits=0;
+    tree->transposition_uppers=0;
+    tree->transposition_lowers=0;
+    tree->transposition_exacts=0;
     tree->transposition_probes=0;
     tree->pawn_probes=0;
     tree->pawn_hits=0;
@@ -148,7 +152,7 @@ int Iterate(int wtm, int search_type, int root_list_done) {
     iteration_depth=1;
     if (last_pv.pathd > 1)
       iteration_depth=last_pv.pathd+1;
-    Print(6,"         nss  depth   time  score   variation (%d)\n",
+    Print(6,"              depth   time  score   variation (%d)\n",
           iteration_depth);
     time_abort=0;
     abort_search=0;
@@ -207,7 +211,7 @@ int Iterate(int wtm, int search_type, int root_list_done) {
     }
 #endif
     root_print_ok=0;
-    for (;iteration_depth<=60;iteration_depth++) {
+    for (;iteration_depth<=MAXPLY-5;iteration_depth++) {
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -256,7 +260,7 @@ int Iterate(int wtm, int search_type, int root_list_done) {
 #endif
         thread_start_time[0]=ReadClock(cpu);
         value=SearchRoot(tree,root_alpha, root_beta, wtm,
-                         iteration_depth*INCPLY+30);
+                         iteration_depth*INCPLY);
         root_print_ok=tree->nodes_searched > noise_level;
         cpu_time_used+=ReadClock(cpu)-thread_start_time[0];
         if (abort_search || time_abort) break;
@@ -364,8 +368,8 @@ int Iterate(int wtm, int search_type, int root_list_done) {
 */
       for (i=0;i<n_root_moves;i++) root_moves[i].status=0;
       if (root_moves[0].nodes > 1000)
-        for (i=0;i<Min(n_root_moves,4);i++) {
-          if (root_moves[i].nodes > root_moves[0].nodes/2)
+        for (i=0;i<Min(n_root_moves,16);i++) {
+          if (root_moves[i].nodes > root_moves[0].nodes/3)
             root_moves[i].status|=64;
         }
 /*
@@ -378,10 +382,10 @@ int Iterate(int wtm, int search_type, int root_list_done) {
 */
       if (display_options&256) {
         unsigned int total_nodes=0;
-        Print(4095,"       move       nodes      hi/low\n");
+        Print(128,"       move       nodes      hi/low\n");
         for (i=0;i<n_root_moves;i++) {
           total_nodes+=root_moves[i].nodes;
-          Print(4095," %10s  " BMF10 "       %d   %d\n",
+          Print(128," %10s  " BMF10 "       %d   %d\n",
             OutputMove(tree,root_moves[i].move,1,wtm),
                        root_moves[i].nodes,
                        (root_moves[i].status&2)>0,(root_moves[i].status&1)>0);
@@ -461,10 +465,15 @@ int Iterate(int wtm, int search_type, int root_list_done) {
       Print(16,"              endgame tablebase-> probes done=%d  successful=%d\n",
             tree->egtb_probes, tree->egtb_probes_successful);
 #if !defined(FAST)
-      Print(16,"              hashing-> trans/ref=%d%%  pawn=%d%%  used=%d%%\n",
+      Print(16,"              hashing-> %d%%(raw) %d%%(depth)  %d%%(sat)  %d%%(pawn)\n",
             (int) (100*(BITBOARD)tree->transposition_hits/(BITBOARD)(tree->transposition_probes+1)),
-            (int) (100*(BITBOARD)tree->pawn_hits/(BITBOARD)(tree->pawn_probes+1)),
-            used*100/(3*hash_table_size+1));
+            (int) (100*(BITBOARD)tree->transposition_good_hits/(BITBOARD)(tree->transposition_probes+1)),
+            used*100/(3*hash_table_size+1),
+            (int) (100*(BITBOARD)tree->pawn_hits/(BITBOARD)(tree->pawn_probes+1)));
+      Print(16,"              hashing-> %d%%(exact)  %d%%(lower)  %d%%(upper)\n",
+            (int) (100*(BITBOARD)tree->transposition_exacts/(BITBOARD)(tree->transposition_probes+1)),
+            (int) (100*(BITBOARD)tree->transposition_lowers/(BITBOARD)(tree->transposition_probes+1)),
+            (int) (100*(BITBOARD)tree->transposition_uppers/(BITBOARD)(tree->transposition_probes+1)));
 #endif
 #if defined(SMP)
       Print(16,"              SMP->  split=%d  stop=%d  data=%d/%d  ",

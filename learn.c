@@ -792,8 +792,8 @@ void LearnImportCAP(TREE *tree, int nargs, char **args) {
  ----------------------------------------------------------
 */
   }
-  Print(4095,"updated   %d book CAP scores.\n",CAP_used);
-  Print(4095,"processed %d book CAP scores.\n",CAP_found-1);
+  Print(128,"updated   %d book CAP scores.\n",CAP_used);
+  Print(128,"processed %d book CAP scores.\n",CAP_found-1);
 }
 
 /* last modified 03/11/98 */
@@ -1006,8 +1006,8 @@ void LearnImportPosition(TREE *tree, int nargs, char **args) {
                               Rank(EnPassant(0))+((wtm)?-1:+1)+'1');
     fprintf(position_lrn_file,"\n{%d %d %d}\n",value,move,depth);
   }
-  Print(4095,"added %d new positions to position.bin\n",added_positions);
-  Print(4095,"      %d total positions in position.bin\n",positions);
+  Print(128,"added %d new positions to position.bin\n",added_positions);
+  Print(128,"      %d total positions in position.bin\n",positions);
   fflush(position_file);
   fflush(position_lrn_file);
 }
@@ -1074,7 +1074,7 @@ void LearnPosition(TREE *tree, int wtm, int last_value, int value) {
 |                                                          |
  ----------------------------------------------------------
 */
-  Print(4095,"learning position, wtm=%d  value=%d\n",wtm,value);
+  Print(128,"learning position, wtm=%d  value=%d\n",wtm,value);
   word1=(BITBOARD) (value+65536);
   word1|=((BITBOARD) (tree->pv[0].pathd*INCPLY))<<17;
   word1|=((BITBOARD) tree->pv[0].path[1])<<32;

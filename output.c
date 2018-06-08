@@ -54,11 +54,11 @@ char* OutputMove(TREE *tree, int move, int ply, int wtm) {
 */
     text=new_text;
     if ((int) Piece(move) > pawn) *text++=piece_names[Piece(move)];
-    *text++=(From(move) & 7)+'a';
-    *text++=(From(move) / 8)+'1';
+    *text++=File(From(move))+'a';
+    *text++=Rank(From(move))+'1';
     if (Captured(move)) *text++='x';
-    *text++=(To(move) & 7)+'a';
-    *text++=(To(move) / 8)+'1';
+    *text++=File(To(move))+'a';
+    *text++=Rank(To(move))+'1';
     if (Promote(move)) {
       *text++='=';
       *text++=piece_names[Promote(move)];
@@ -181,10 +181,10 @@ char* OutputMoveICS(int move) {
    convert to fully-qualified algebraic form first.
 */
   text=text_move;
-  *text++=(From(move) & 7)+'a';
-  *text++=(From(move) / 8)+'1';
-  *text++=(To(move) & 7)+'a';
-  *text++=(To(move) / 8)+'1';
+  *text++=File(From(move))+'a';
+  *text++=Rank(From(move))+'1';
+  *text++=File(To(move))+'a';
+  *text++=Rank(To(move))+'1';
   if (Promote(move))
     *text++=piece_names[Promote(move)];
   *text='\0';

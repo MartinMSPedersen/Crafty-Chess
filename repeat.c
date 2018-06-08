@@ -25,7 +25,7 @@
 *                                                                              *
 ********************************************************************************
 */
-int RepetitionCheck(TREE *tree, int ply, int wtm) {
+int RepetitionCheck(TREE * RESTRICT tree, int ply, int wtm) {
   register BITBOARD *replist, *thispos, *lastpos;
 /*
  ----------------------------------------------------------
@@ -79,7 +79,7 @@ int RepetitionCheck(TREE *tree, int ply, int wtm) {
 *                                                                              *
 ********************************************************************************
 */
-int RepetitionCheckBook(TREE *tree, int ply, int wtm) {
+int RepetitionCheckBook(TREE * RESTRICT tree, int ply, int wtm) {
   register int entries;
   register BITBOARD *replist, *thispos;
 /*
@@ -117,7 +117,7 @@ int RepetitionCheckBook(TREE *tree, int ply, int wtm) {
 *                                                                              *
 ********************************************************************************
 */
-int RepetitionDraw(TREE *tree, int wtm) {
+int RepetitionDraw(TREE * RESTRICT tree, int wtm) {
   register int reps;
   BITBOARD *thispos;
 /*

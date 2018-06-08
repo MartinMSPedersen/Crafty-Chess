@@ -283,6 +283,7 @@ void Initialize(int continuing) {
     position_lrn_file=fopen(log_filename,"r");
     if (!position_lrn_file) {
       position_lrn_file=fopen(log_filename,"a");
+      fprintf(position_lrn_file,"position\n");
     }
     else {
       fclose(position_lrn_file);
@@ -399,8 +400,8 @@ void InitializeAttackBoards(void) {
     if (i < 56)
       for(j=2;j<4;j++) {
         sq=i+bishopsq[j];
-        if((abs(sq/8-i/8)==1) && 
-           (abs((sq&7) - (i&7))==1) &&
+        if((abs(Rank(sq)-Rank(i))==1) && 
+           (abs(File(sq) - File(i))==1) &&
               (sq < 64) && (sq > -1)) 
           w_pawn_attacks[i]=w_pawn_attacks[i] | mask_1>>sq;
       }
@@ -408,8 +409,8 @@ void InitializeAttackBoards(void) {
     if (i > 7)
       for(j=0;j<2;j++) {
         sq=i+bishopsq[j];
-        if((abs(sq/8-i/8)==1) && 
-           (abs((sq&7)-(i&7))==1) &&
+        if((abs(Rank(sq)-Rank(i))==1) && 
+           (abs(File(sq)-File(i))==1) &&
               (sq < 64) && (sq > -1)) 
           b_pawn_attacks[i]=b_pawn_attacks[i] | mask_1>>sq;
       }
@@ -419,13 +420,13 @@ void InitializeAttackBoards(void) {
 */
   for(i=0;i<64;i++) {
     knight_attacks[i]=0;
-    frank=i/8;
-    ffile=i&7;
+    frank=Rank(i);
+    ffile=File(i);
     for(j=0;j<8;j++) {
       sq=i+knightsq[j];
       if((sq < 0) || (sq > 63)) continue;
-      trank=sq/8;
-      tfile=sq&7;
+      trank=Rank(sq);
+      tfile=File(sq);
       if((abs(frank-trank) > 2) || 
          (abs(ffile-tfile) > 2)) continue;
       knight_attacks[i]=knight_attacks[i] | mask_1>>sq;
@@ -440,8 +441,8 @@ void InitializeAttackBoards(void) {
       sq=i;
       lastsq=sq;
       sq=sq+bishopsq[j];
-      while((abs(sq/8-lastsq/8)==1) && 
-            (abs((sq&7)-(lastsq&7))==1) &&
+      while((abs(Rank(sq)-Rank(lastsq))==1) && 
+            (abs(File(sq)-File(lastsq))==1) &&
             (sq < 64) && (sq > -1)) {
         bishop_attacks[i]=bishop_attacks[i] | mask_1>>sq;
         queen_attacks[i]=queen_attacks[i] | mask_1>>sq;
@@ -475,10 +476,10 @@ void InitializeAttackBoards(void) {
       sq=i;
       lastsq=sq;
       sq=sq+rooksq[j];
-      while((((abs(sq/8-lastsq/8)==1) && 
-             (abs((sq&7)-(lastsq&7))==0)) || 
-            ((abs(sq/8-lastsq/8)==0) && 
-             (abs((sq&7)-(lastsq&7))==1))) &&
+      while((((abs(Rank(sq)-Rank(lastsq))==1) && 
+             (abs(File(sq)-File(lastsq))==0)) || 
+            ((abs(Rank(sq)-Rank(lastsq))==0) && 
+             (abs(File(sq)-File(lastsq))==1))) &&
             (sq < 64) && (sq > -1)) {
         rook_attacks[i]=rook_attacks[i] | mask_1>>sq;
         queen_attacks[i]=queen_attacks[i] | mask_1>>sq;
@@ -654,7 +655,7 @@ void InitializeAttackBoards(void) {
           sq=first_one_8bit[attacks];
           rook_attacks_rl90[square][pcs]=
             rook_attacks_rl90[square][pcs] | 
-               SetMask(init_r90[((square&7)<<3)+sq]);
+               SetMask(init_r90[(File(square)<<3)+sq]);
           attacks=attacks&(~(1<<(7-sq)));
         }
         rook_mobility_rl90[square][pcs]=PopCnt(rook_attacks_rl90[square][pcs]);
@@ -1270,9 +1271,9 @@ void InitializePawnMasks(void) {
     the files adjacent to the pawn file.
 */
   for (i=0;i<64;i++) {
-    if (!(i&7)) mask_pawn_isolated[i]=file_mask[(i&7)+1];
-    else if ((i&7) == 7) mask_pawn_isolated[i]=file_mask[(i&7)-1];
-    else mask_pawn_isolated[i]=file_mask[(i&7)-1] | file_mask[(i&7)+1];
+    if (!File(i)) mask_pawn_isolated[i]=file_mask[File(i)+1];
+    else if (File(i) == 7) mask_pawn_isolated[i]=file_mask[File(i)-1];
+    else mask_pawn_isolated[i]=file_mask[File(i)-1] | file_mask[File(i)+1];
   }
 /*
     initialize passed pawn masks, which are nothing more than 1's on
@@ -1280,11 +1281,11 @@ void InitializePawnMasks(void) {
     in "front" of the pawn.  
 */
   for (i=0;i<64;i++) {
-    if (!(i&7)) {
+    if (!File(i)) {
       mask_pawn_passed_w[i]=plus8dir[i] | plus8dir[i+1];
       mask_pawn_passed_b[i]=minus8dir[i] | minus8dir[i+1];
     }
-    else if ((i&7) == 7) {
+    else if (File(i) == 7) {
       mask_pawn_passed_w[i]=plus8dir[i-1] | plus8dir[i];
       mask_pawn_passed_b[i]=minus8dir[i-1] | minus8dir[i];
     }
@@ -1298,11 +1299,11 @@ void InitializePawnMasks(void) {
     that can attack [square].
 */
   for (i=8;i<56;i++) {
-    if (!(i&7)) {
+    if (!File(i)) {
       mask_no_pawn_attacks_w[i]=minus8dir[i+1];
       mask_no_pawn_attacks_b[i]=plus8dir[i+1];
     }
-    else if ((i&7) == 7) {
+    else if (File(i) == 7) {
       mask_no_pawn_attacks_w[i]=minus8dir[i-1];
       mask_no_pawn_attacks_b[i]=plus8dir[i-1];
     }
@@ -1333,7 +1334,7 @@ void InitializePawnMasks(void) {
     m2=m2 | m2>>2;
   }
   for (i=0;i<64;i+=8) {
-    if ((i/8)&1) {
+    if ((Rank(i))&1) {
       dark_squares=dark_squares | m2>>i;
       light_squares=light_squares | m1>>i;
     }
@@ -1410,38 +1411,38 @@ void InitializePieceMasks(void) {
     for (i=0;i<64;i++) {
 /* white pawn, wtm */
       if (j < 16) {
-        if (KingPawnSquare(j+8,i,(j&7)+56,1)) 
+        if (KingPawnSquare(j+8,i,File(j)+56,1)) 
           white_pawn_race_wtm[j]=white_pawn_race_wtm[j] | SetMask(i);
       }
       else {
-        if (KingPawnSquare(j,i,(j&7)+56,1)) 
+        if (KingPawnSquare(j,i,File(j)+56,1)) 
           white_pawn_race_wtm[j]=white_pawn_race_wtm[j] | SetMask(i);
       }
 /* white pawn, ChangeSide(wtm) */
       if (j < 16) {
-        if (KingPawnSquare(j+8,i,(j&7)+56,0)) 
+        if (KingPawnSquare(j+8,i,File(j)+56,0)) 
           white_pawn_race_btm[j]=white_pawn_race_btm[j] | SetMask(i);
       }
       else {
-        if (KingPawnSquare(j,i,(j&7)+56,0)) 
+        if (KingPawnSquare(j,i,File(j)+56,0)) 
           white_pawn_race_btm[j]=white_pawn_race_btm[j] | SetMask(i);
       }
 /* black pawn, wtm */
       if (j > 47) {
-        if (KingPawnSquare(j-8,i,j&7,0)) 
+        if (KingPawnSquare(j-8,i,File(j),0)) 
           black_pawn_race_wtm[j]=black_pawn_race_wtm[j] | SetMask(i);
       }
       else {
-        if (KingPawnSquare(j,i,j&7,0)) 
+        if (KingPawnSquare(j,i,File(j),0)) 
           black_pawn_race_wtm[j]=black_pawn_race_wtm[j] | SetMask(i);
       }
 /* black pawn, ChangeSide(wtm) */
       if (j > 47) {
-        if (KingPawnSquare(j-8,i,j&7,1)) 
+        if (KingPawnSquare(j-8,i,File(j),1)) 
           black_pawn_race_btm[j]=black_pawn_race_btm[j] | SetMask(i);
       }
       else {
-        if (KingPawnSquare(j,i,j&7,1)) 
+        if (KingPawnSquare(j,i,File(j),1)) 
           black_pawn_race_btm[j]=black_pawn_race_btm[j] | SetMask(i);
       }
     }

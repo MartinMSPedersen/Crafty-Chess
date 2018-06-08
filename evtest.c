@@ -4,7 +4,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 04/30/97 */
+/* last modified 09/10/02 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -28,7 +28,6 @@
 */
 void EVTest(char *filename) {
   FILE *test_input;
-  int i, len;
   char *eof;
   TREE * const tree=local[0];
 /*
@@ -57,6 +56,7 @@ void EVTest(char *filename) {
     else break;
     nargs=ReadParse(buffer,args," ;");
     if (!strcmp(args[0],"end")) break;
+/*
     else if (!strcmp(args[0],"title")) {
       Print(4095,"======================================================================\n");
       Print(4095,"! ");
@@ -71,8 +71,10 @@ void EVTest(char *filename) {
       Print(4095,"======================================================================\n");
     }
     else if (!strcmp(args[0],"setboard")) {
+*/
+    else {
       int s;
-      SetBoard(&tree->position[0],nargs-1,args+1,0);
+      SetBoard(&tree->position[0],nargs,args,0);
       WhiteCastle(0)=0;
       BlackCastle(0)=0;
       root_wtm=wtm;

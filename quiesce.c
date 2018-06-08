@@ -15,7 +15,7 @@
 *                                                                              *
 ********************************************************************************
 */
-int Quiesce(TREE *tree, int alpha, int beta, int wtm, int ply) {
+int Quiesce(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply) {
   register int o_alpha, value, delta;
   register int *next_move;
   register int *goodmv, *movep, moves=0, *sortv, temp;
