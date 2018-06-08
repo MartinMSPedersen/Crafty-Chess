@@ -201,8 +201,11 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
       EnPassant(ply+1)=0;
     }
     null_depth=(depth > 6*INCPLY) ? 4*INCPLY : 3*INCPLY;
-    value=-ABSearch(tree,-beta,1-beta,ChangeSide(wtm),
+    if (depth-null_depth >= INCPLY)
+      value=-Search(tree,-beta,1-beta,ChangeSide(wtm),
                     depth-null_depth,ply+1,NO_NULL);
+    else
+      value=-Quiesce(tree,-beta,1-beta,ChangeSide(wtm),ply+1);
     HashKey=save_hash_key;
     if (abort_search || tree->stop) return(0);
     if (value >= beta) {
@@ -236,10 +239,16 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
       if (alpha!=-root_beta || beta!=-root_alpha) break;
     }
     tree->current_move[ply]=0;
-    value=ABSearch(tree,alpha,beta,wtm,depth-2*INCPLY,ply,DO_NULL);
+    if (depth-2*INCPLY >= INCPLY)
+      value=Search(tree,alpha,beta,wtm,depth-2*INCPLY,ply,DO_NULL);
+    else
+      value=Quiesce(tree,alpha,beta,wtm,ply);
     if (abort_search || tree->stop) return(0);
     if (value <= alpha) {
-      value=ABSearch(tree,-MATE,beta,wtm,depth-2*INCPLY,ply,DO_NULL);
+      if (depth-2*INCPLY >= INCPLY)
+        value=Search(tree,-MATE,beta,wtm,depth-2*INCPLY,ply,DO_NULL);
+      else
+        value=Quiesce(tree,-MATE,beta,wtm,ply);
       if (abort_search || tree->stop) return(0);
     }
     else if (value < beta) {
@@ -381,8 +390,11 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
           extensions+=(full_extension) ? onerep_depth : onerep_depth>>1;
         }
         extensions=Min(extensions,0);
-        value=-ABSearch(tree,-beta,-alpha,ChangeSide(wtm),
+        if (depth+extensions >= INCPLY)
+          value=-Search(tree,-beta,-alpha,ChangeSide(wtm),
                         depth+extensions,ply+1,DO_NULL);
+        else
+          value=-Quiesce(tree,-beta,-alpha,ChangeSide(wtm),ply+1);
         if (abort_search || tree->stop) {
           UnMakeMove(tree,ply,tree->current_move[ply],wtm);
           return(0);
@@ -390,15 +402,21 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
       }
       else {
         extensions=Min(extensions,0);
-        value=-ABSearch(tree,-alpha-1,-alpha,ChangeSide(wtm),
+        if (depth+extensions >= INCPLY)
+          value=-Search(tree,-alpha-1,-alpha,ChangeSide(wtm),
                         depth+extensions,ply+1,DO_NULL);
+        else
+          value=-Quiesce(tree,-alpha-1,-alpha,ChangeSide(wtm),ply+1);
         if (abort_search || tree->stop) {
           UnMakeMove(tree,ply,tree->current_move[ply],wtm);
           return(0);
         }
         if (value>alpha && value<beta) {
-          value=-ABSearch(tree,-beta,-alpha,ChangeSide(wtm),
+          if (depth+extensions >= INCPLY)
+            value=-Search(tree,-beta,-alpha,ChangeSide(wtm),
                           depth+extensions,ply+1,DO_NULL);
+          else
+            value=-Quiesce(tree,-beta,-alpha,ChangeSide(wtm),ply+1);
           if (abort_search || tree->stop) {
             UnMakeMove(tree,ply,tree->current_move[ply],wtm);
             return(0);

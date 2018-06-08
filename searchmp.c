@@ -142,15 +142,21 @@ int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
       }
       begin_root_nodes=tree->nodes_searched;
       extensions=Min(extensions,0);
-      value=-ABSearch(tree,-alpha-1,-alpha,ChangeSide(wtm),
+      if (depth+extensions >= INCPLY)
+        value=-Search(tree,-alpha-1,-alpha,ChangeSide(wtm),
                       depth+extensions,ply+1,DO_NULL);
+      else
+        value=-Quiesce(tree,-alpha-1,-alpha,ChangeSide(wtm),ply+1);
       if (abort_search || tree->stop) {
         UnMakeMove(tree,ply,tree->current_move[ply],wtm);
         break;
       }
       if (value>alpha && value<beta) {
-        value=-ABSearch(tree,-beta,-alpha,ChangeSide(wtm),
+        if (depth+extensions >= INCPLY)
+          value=-Search(tree,-beta,-alpha,ChangeSide(wtm),
                         depth+extensions,ply+1,DO_NULL);
+        else
+          value=-Quiesce(tree,-beta,-alpha,ChangeSide(wtm),ply+1);
         if (abort_search || tree->stop) {
           UnMakeMove(tree,ply,tree->current_move[ply],wtm);
           break;

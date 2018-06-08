@@ -46,7 +46,6 @@
 #CC      = cc
 #CFLAGS  = -O2
 #CXX	 = $(CC)
-#CXXFLAGS= $(CFLAGS)
 #LDFLAGS =
 #opt     = -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS
 #opt     = -DCOMPACT_ATTACKS
@@ -56,7 +55,6 @@
 #CC      = cc
 #CFLAGS  = -std -O4 -pthread -newc -tune host
 #CXX	 = cxx
-#CXXFLAGS= $(CFLAGS)
 #LDFLAGS = $(CFLAGS)
 #LIBS    = -lpthread -lexc
 ##opt    = -DSMP -DCPUS=8 -DMUTEX -DFAST -DPOSIX
@@ -68,7 +66,6 @@
 # CC      = gcc
 # CFLAGS  = -fomit-frame-pointer -m486 -O3
 # CXX	  = $(CC)
-# CXXFLAGS= $(CFLAGS)
 # LDFLAGS =
 # opt     = -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
 #           -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B
@@ -79,7 +76,6 @@
 #CC      = gcc
 #CFLAGS  = -fomit-frame-pointer -m486 -O3 -Wall
 #CXX	 = $(CC)
-#CXXFLAGS= $(CFLAGS)
 #LDFLAGS = 
 #opt     = -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
 #          -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST
@@ -89,7 +85,6 @@
 #CC      = gcc
 #CFLAGS  = -pipe -D_REENTRANT -mpentium -O -Wall
 #CXX	 = $(CC)
-#CXXFLAGS= $(CFLAGS)
 #LDFLAGS = 
 #opt     = -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
 #          -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST
@@ -100,7 +95,6 @@
 #OPT     = +O3 +Onolimit
 #CFLAGS  = +ESlit -Ae +w1
 #CXX	 = $(CC)
-#CXXFLAGS= $(CFLAGS)
 #LDFLAGS = $(OPT) $(CFLAGS)
 #opt     = 
  
@@ -108,9 +102,12 @@
 # Note: You have to uncomment exactly ONE of the `asm' lines below.
 target  = LINUX
 CC      = gcc
-CFLAGS  = -Wall -pipe -D_REENTRANT -mpentium -O
 CXX	= $(CC)
-CXXFLAGS= -pipe -D_REENTRANT -mpentium -O 
+#CFLAGS = -Wall -pipe -D_REENTRANT -march=i686 -O \
+#         -malign-double -malign-loops=4 -malign-jumps=4 -malign-functions=4\
+#         -mpreferred-stack-boundary=4
+CFLAGS = -Wall -pipe -D_REENTRANT -march=i686 -O -fforce-mem -fomit-frame-pointer
+
 LDFLAGS = -lpthread
 opt     = -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
           -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST -DSMP -DCPUS=4 -DDGT
@@ -127,7 +124,6 @@ asm     = X86-elf.o
 #CC      = gcc
 #CFLAGS  = -pipe -D_REENTRANT -O
 #CXX	 = $(CC)
-#CXXFLAGS= $(CFLAGS)
 #LDFLAGS = -lpthread
 #opt     = -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
 #          -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST -DSMP -DCPUS=4
@@ -143,7 +139,6 @@ asm     = X86-elf.o
 #CC      = /bin/cc
 #CFLAGS  = -O2
 #CXX	 = $(CC)
-#CXXFLAGS= $(CFLAGS)
 #LDFLAGS = $(CFLAGS)
 #opt     = -DCOMPACT_ATTACKS
 
@@ -152,7 +147,6 @@ asm     = X86-elf.o
 #  CC      = gcc
 #  CFLAGS  = -fomit-frame-pointer -m486 -O3 -Wall
 #  CXX     = $(CC)
-#  CXXFLAGS= $(CFLAGS)
 #  LDFLAGS = -Zexe -Zcrtdll -s
 #  opt = -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
 #        -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST -DOS2
@@ -165,7 +159,6 @@ asm     = X86-elf.o
 #AFLAGS  = -P
 #CFLAGS  = -g -32 -mips2 -cckr
 #CXX	 = $(CC)
-#CXXFLAGS= $(CFLAGS)
 #LDFLAGS = 
 #opt     = -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS
 #opt     = 
@@ -176,7 +169,6 @@ asm     = X86-elf.o
 #CC      = cc
 #AFLAGS  = -P
 #CXX	 = $(CC)
-#CXXFLAGS= $(CFLAGS)
 #CFLAGS  = -fast -xO5 -xunroll=20
 #LDFLAGS = -lpthread
 #opt     = -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
@@ -202,8 +194,7 @@ epdincludes = epd.h epddefs.h epdglue.h
 eval_users = data.o evaluate.o preeval.o 
 
 crafty:	$(objects) 
-	@echo $(CC) $(LDFLAGS) -o crafty {object files} -lm
-	@$(CC) $(LDFLAGS) -o crafty $(objects) -lm  $(LIBS)
+	$(CC) $(LDFLAGS) -o crafty $(objects) -lm  $(LIBS)
 	@rm -f X86-elf.S
 	@rm -f X86-aout.S
 
@@ -211,8 +202,7 @@ dgt:    dgtdrv.o
 	@cc -O -o dgt dgtdrv.c
 
 egtb.o: egtb.cpp
-	@echo $(CXX) $(CXXFLAGS) -c egtb.cpp
-	@$(CXX) -c $(CXXFLAGS) $(opts) egtb.cpp
+	$(CXX) -c $(CFLAGS) $(opts) egtb.cpp
 clean:
 	-rm -f *.o crafty X86-elf.X X86-aout.S
 
@@ -223,18 +213,17 @@ $(eval_users): evaluate.h
 epd.o epdglue.o option.o init.o : $(epdincludes)
 
 .c.o:
-	@echo $(CC) $(CFLAGS) -c $*.c
-	@$(CC) $(CFLAGS) $(opts) -c $*.c
+	$(CC) $(CFLAGS) $(opts) -c $*.c
 
 .s.o:
 	$(AS) $(AFLAGS) -o $*.o $*.s
 
 X86-aout.o:
 	@cp X86.s X86-aout.S
-	@$(CC) -c X86-aout.S
+	$(CC) -c X86-aout.S
 	@rm X86-aout.S
 
 X86-elf.o:
 	@sed -e '/ _/s// /' -e '/^_/s///' X86.s > X86-elf.S
-	@$(CC) -c X86-elf.S
+	$(CC) -c X86-elf.S
 	@rm X86-elf.S

@@ -1673,10 +1673,7 @@
 *           book move, but there were no other possible book moves.  the      *
 *           trade bonus now includes trade pawns if behind, but not if ahead  *
 *           as well as now considering being ahead or behind only one pawn    *
-*           rather than the two pawns used previously in 11.19.  castling is  *
-*           now written to files and read from files using 0-0 (zero-zero)    *
-*           to be PGN compatible.  it will still accept upper/lower alpha o   *
-*           as well, but uses numeric zero for output.                        *
+*           rather than the two pawns used previously in 11.19.               *
 *                                                                             *
 *   11.21   additional bug fix in annotate command that would fail if there   *
 *           was only one legal move to search.  passed pawn values now have   *
@@ -2454,9 +2451,16 @@
 *           that an enpassant capture is physically possible, and that the    *
 *           target square is on the right rank with pawns in the right place. *
 *                                                                             *
-*   16.15   but in EGTBProbe() usage fixed.  it was possible to call this     *
+*   16.15   bug in EGTBProbe() usage fixed.  it was possible to call this     *
 *           function before tablebases were initialized, or when there were   *
 *           more than 3 pieces on one side, which would break a subscript.    *
+*                                                                             *
+*   16.16   changes to the way EvaluatePassedPawn() works.  it now does a     *
+*           reasonable job of penalizing blockaded passed pawns.  also a bug  *
+*           in king scoring used a variable set from the previous call to the *
+*           Evaluate() procedure, which could produce bizarre effects.  a few *
+*           minor eval glitches that caused asymmetric scores unintentionally *
+*           were removed.                                                     *
 *                                                                             *
 *******************************************************************************
 */

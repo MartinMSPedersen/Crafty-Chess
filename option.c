@@ -33,7 +33,7 @@ int Option(TREE *tree) {
  ----------------------------------------------------------
 */
   nargs=ReadParse(buffer,args," 	;=/");
-  if (!nargs) return(0);
+  if (!nargs) return(1);
   if (args[0][0] == '#') return(1);
   if (initialized) {
     if (EGCommandCheck(buffer)) {
@@ -761,10 +761,10 @@ int Option(TREE *tree) {
       for (i=16;i<32;i++)
         Print(128,"%3d ", temper_w[i]);
       Print(128,"\n       ");
-      for (i=33;i<48;i++)
+      for (i=32;i<48;i++)
         Print(128,"%3d ", temper_w[i]);
       Print(128,"\n       ");
-      for (i=49;i<64;i++)
+      for (i=48;i<64;i++)
         Print(128,"%3d ", temper_w[i]);
       Print(128,"\n\nblack: ");
       for (i=0;i<16;i++)
@@ -775,7 +775,7 @@ int Option(TREE *tree) {
       Print(128,"\n       ");
       for (i=32;i<48;i++)
         Print(128,"%3d ", temper_b[i]);
-      Print(128,"\n");
+      Print(128,"\n       ");
       for (i=48;i<64;i++)
         Print(128,"%3d ", temper_b[i]);
       Print(128,"\n");
@@ -3330,6 +3330,7 @@ int Option(TREE *tree) {
     }
     search_nodes=atoi(args[1]);
     Print(4095,"search nodes set to %d.\n",search_nodes);
+    ponder=0;
   }
 /*
  ----------------------------------------------------------

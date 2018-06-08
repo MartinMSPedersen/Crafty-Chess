@@ -476,6 +476,7 @@ void ValidatePosition(TREE *tree, int ply, int move, char *caller) {
     error=1;
   }
   if (error) {
+Lock(lock_io);
     Print(4095,"processor id: cpu-%d\n",tree->thread_id);
     Print(4095,"current move:\n");
     DisplayChessMove("move=",move);

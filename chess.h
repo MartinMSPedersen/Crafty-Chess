@@ -694,11 +694,6 @@ void           Whisper(int, int, int, int, unsigned int, int, int, char*);
 #  endif
 #endif
 
-#define ABSearch(tree,alpha,beta,wtm,depth,ply,donull)        \
-        (((depth) >= INCPLY) ?                                \
-        Search(tree,alpha,beta,wtm,depth,ply,donull) :        \
-        Quiesce(tree,alpha,beta,wtm,ply))
-
 #define Max(a,b)  (((a) > (b)) ? (a) : (b))
 #define Min(a,b)  (((a) < (b)) ? (a) : (b))
 #define FileDistance(a,b) abs(((a)&7) - ((b)&7))
@@ -742,12 +737,12 @@ void           Whisper(int, int, int, int, unsigned int, int, int, char*);
 #define ChangeSide(x) ((x)^1)
 
 #if defined(COMPACT_ATTACKS)
-#  define AttacksDiaga1Int(diagp,boardp) \
-     (diagp)->ad_attacks[(diagp)->ad_which_attack[                \
+#  define AttacksDiaga1Int(diagp,boardp)                                  \
+     (diagp)->ad_attacks[(diagp)->ad_which_attack[                        \
       ((boardp)->occupied_rl45>>(diagp)->ad_shift) & (diagp)->ad_mask]]
 
-#  define AttacksDiagh1Int(diagp,boardp)                          \
-     (diagp)->d_attacks[(diagp)->d_which_attack[                  \
+#  define AttacksDiagh1Int(diagp,boardp)                                  \
+     (diagp)->d_attacks[(diagp)->d_which_attack[                          \
       ((boardp)->occupied_rr45>>(diagp)->d_shift) & (diagp)->d_mask]]
 
 /*
@@ -791,17 +786,17 @@ void           Whisper(int, int, int, int, unsigned int, int, int, char*);
 
 #else
 
-#  define AttacksRank(a)                                               \
+#  define AttacksRank(a)                                                  \
       rook_attacks_r0[(a)][((tree->pos.w_occupied|tree->pos.b_occupied)>> \
                            (56-((a)&56)))&255]
-#  define AttacksFile(a)                                               \
-      rook_attacks_rl90[(a)][(tree->pos.occupied_rl90>>
+#  define AttacksFile(a)                                                  \
+      rook_attacks_rl90[(a)][(tree->pos.occupied_rl90>>                   \
                              (56-(((a)&7)<<3)))&255]
-#  define AttacksDiaga1(a)                                             \
-      bishop_attacks_rl45[(a)][(tree->pos.occupied_rl45>>
+#  define AttacksDiaga1(a)                                                \
+      bishop_attacks_rl45[(a)][(tree->pos.occupied_rl45>>                 \
                                 bishop_shift_rl45[(a)])&255]
-#  define AttacksDiagh1(a)                                             \
-      bishop_attacks_rr45[(a)][(tree->pos.occupied_rr45>>
+#  define AttacksDiagh1(a)                                                \
+      bishop_attacks_rr45[(a)][(tree->pos.occupied_rr45>>                 \
                                 bishop_shift_rr45[(a)])&255]
 #endif /* defined(COMPACT_ATTACKS) */
 /*  
@@ -859,7 +854,7 @@ void           Whisper(int, int, int, int, unsigned int, int, int, char*);
      rook_mobility_r0[(a)][tree->pos.w_occupied|tree->pos.b_occupied)>>     \
                            (56-((a)&56))&255]
 #  define MobilityFile(a)                                                   \
-     rook_mobility_rl90[(a)][tree->pos.occupied_rl90>>
+     rook_mobility_rl90[(a)][tree->pos.occupied_rl90>>                      \
                              (56-(((a)&7)<<3))&255]
 #  define MobilityDiaga1(a)                                                 \
      bishop_mobility_rl45[(a)][tree->pos.occupied_rl45>>                    \
@@ -977,14 +972,14 @@ void           Whisper(int, int, int, int, unsigned int, int, int, char*);
 #define HashCastleB(a,b)    b=castle_random_b[a]^(b)
 #define SavePV(tree,ply,value,ph) do {                                      \
           tree->pv[ply-1].path[ply-1]=tree->current_move[ply-1];            \
-          tree->pv[ply-1].pathl=ply-1;                                \
-          tree->pv[ply-1].pathh=ph;                                   \
+          tree->pv[ply-1].pathl=ply-1;                                      \
+          tree->pv[ply-1].pathh=ph;                                         \
           tree->pv[ply-1].pathd=iteration_depth;} while(0)
 #define SavePVS(tree,ply,value,ph) do {                                     \
           tree->pv[ply-1].path[ply-1]=tree->current_move[ply-1];            \
-          tree->pv[ply-1].pathl=ply-1;                                \
-          tree->pv[ply-1].pathh=ph;                                   \
-          tree->pv[ply-1].pathd=iteration_depth;             \
+          tree->pv[ply-1].pathl=ply-1;                                      \
+          tree->pv[ply-1].pathh=ph;                                         \
+          tree->pv[ply-1].pathd=iteration_depth;                            \
           SearchOutput(tree,value,beta);} while(0)
 
 /*

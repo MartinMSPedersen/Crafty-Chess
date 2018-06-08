@@ -308,7 +308,6 @@ void Initialize(int continuing) {
   trans_ref_a=(HASH_ENTRY*) (((unsigned long) trans_ref_a_orig+15)&~15);
   trans_ref_b=(HASH_ENTRY*) (((unsigned long) trans_ref_b_orig+15)&~15);
   pawn_hash_table=(PAWN_HASH_ENTRY*) (((unsigned long) pawn_hash_table_orig+15)&~15);
-  InitializeHashTables();
   if (!trans_ref_a || !trans_ref_b) {
     printf("malloc() failed, not enough memory.\n");
     free(trans_ref_a_orig);
@@ -322,6 +321,7 @@ void Initialize(int continuing) {
     trans_ref_b=0;
     pawn_hash_table=0;
   }
+  InitializeHashTables();
   hash_maska=(1<<log_hash)-1;
   hash_maskb=(1<<(log_hash+1))-1;
   pawn_hash_mask=(1<<(log_pawn_hash))-1;
@@ -1021,6 +1021,7 @@ void InitializeHashTables(void)
 {
   int i;
   transposition_id=0;
+  if (!trans_ref_a || !trans_ref_b) return;
   for (i=0;i<hash_table_size;i++) {
     (trans_ref_a+i)->word1=(BITBOARD) 7<<61;
     (trans_ref_a+i)->word2=0;
@@ -1029,6 +1030,7 @@ void InitializeHashTables(void)
     (trans_ref_b+i)->word1=(BITBOARD) 7<<61;
     (trans_ref_b+i)->word2=0;
   }
+  if (!pawn_hash_table) return;
   for (i=0;i<pawn_hash_table_size;i++) {
     (pawn_hash_table+i)->key=0;
     (pawn_hash_table+i)->p_score=0;

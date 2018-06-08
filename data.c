@@ -246,7 +246,7 @@
   unsigned int   max_split_blocks;
   volatile unsigned int   splitting;
 
-# define    VERSION                            "16.15"
+# define    VERSION                            "16.16"
   char      version[6] =                    {VERSION};
   PLAYING_MODE mode =                     normal_mode;
 
@@ -733,7 +733,7 @@
                                0,  0,  2,  4,  4,  2,  0,  0,
                                0,  0,  2,  4,  4,  2,  0,  0,
                                0,  0,  2,  4,  4,  2,  0,  0,
-                               0,  0,  2,  4,  6,  2,  0,  0};
+                               0,  0,  2,  4,  4,  2,  0,  0};
 
   signed char  qval_w[64] = {-10, -8,  0,  0,  0,  0, -8,-10,
                              -10,  2,  8,  8,  8,  8,  2,-10,
