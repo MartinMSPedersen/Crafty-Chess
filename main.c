@@ -2666,6 +2666,10 @@
 *           the code would not notice black had an outside passer candidate   *
 *           since pawns were 'equal' in number.                               *
 *                                                                             *
+*   17.12   BookUp() will now create a book with all sorts of games in it, so *
+*           long as the various games have the FEN string to properly set the *
+*           initial chess board position.                                     *
+*                                                                             *
 *******************************************************************************
 */
 int main(int argc, char **argv) {

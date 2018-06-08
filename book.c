@@ -341,7 +341,7 @@ int Book(TREE *tree, int wtm, int root_list_done) {
 */
     if (show_book) {
       Print(128,"  after screening, the following moves can be played\n");
-      Print(128,"  move     played    %%  score    learn     CAP     sortv  P%%  P\n");
+      Print(128,"  move     played    %%  score    learn     CAP     sortv   P%%  P\n");
       for (i=0;i<nmoves;i++) {
         Print(128,"%6s", OutputMove(tree,book_moves[i],1,wtm));
         st=book_status[i];
@@ -782,7 +782,7 @@ int BookPonderMove(TREE *tree, int wtm) {
   return(book_ponder_move);
 }
 
-/* last modified 09/30/99 */
+/* last modified 07/04/00 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -848,8 +848,6 @@ void BookUp(TREE *tree, char *output_filename, int nargs, char **args) {
   BB_POSITION temp;
   int last, cluster_seek, next_cluster;
   int counter, *index, max_search_depth;
-  POSITION cp_save;
-  SEARCH_POSITION sp_save;
   double wl_percent=0.0;
 
 /*
@@ -960,10 +958,7 @@ void BookUp(TREE *tree, char *output_filename, int nargs, char **args) {
     printf("file %s does not exist.\n",args[1]);
     return;
   }
-  InitializeChessBoard(&tree->position[1]);
   ReadPGN(0,0);
-  cp_save=tree->pos;
-  sp_save=tree->position[1];
   if (book_file) fclose(book_file);
   book_file=fopen(output_filename,"wb+");
   bbuffer=(BB_POSITION *) malloc(sizeof(BB_POSITION)*SORT_BLOCK);
@@ -1019,6 +1014,7 @@ void BookUp(TREE *tree, char *output_filename, int nargs, char **args) {
       }
       else do {
         wtm=1;
+        InitializeChessBoard(&tree->position[1]);
         move_num=1;
         tree->position[2]=tree->position[1];
         ply=0;
@@ -1084,9 +1080,6 @@ void BookUp(TREE *tree, char *output_filename, int nargs, char **args) {
           data_read=ReadPGN(book_input,0);
         }
       } while(0);
-      InitializeChessBoard(&tree->position[1]);
-      tree->pos=cp_save;
-      tree->position[1]=sp_save;
     } while (strcmp(buffer,"end") && data_read!=-1);
     if (book_input != stdin) fclose(book_input);
     if (buffered) BookSort(bbuffer,buffered,++files);
@@ -1228,6 +1221,8 @@ void BookUp(TREE *tree, char *output_filename, int nargs, char **args) {
     Print(4095,"time used:  %s cpu  ", DisplayTime(start_cpu_time));
     Print(4095,"  %s elapsed.\n", DisplayTime(start_elapsed_time));
   }
+  strcpy(initial_position,"");
+  InitializeChessBoard(&tree->position[1]);
 }
 
 /* last modified 06/18/98 */

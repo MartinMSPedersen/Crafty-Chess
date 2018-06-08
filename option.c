@@ -368,7 +368,7 @@ int Option(TREE *tree) {
     Print(128,"playing a computer!\n");
     computer_opponent=1;
     accept_draws=0;
-    book_selection_width=1;
+    book_selection_width=2;
     usage_level=0;
     book_weight_freq=1.0;
     book_weight_eval=.1;
@@ -2796,7 +2796,8 @@ int Option(TREE *tree) {
     }
     crafty_rating=atoi(args[1]);
     opponent_rating=atoi(args[2]);
-    if (crafty_rating-opponent_rating < 0) abs_draw_score=+20;
+    if (computer_opponent) abs_draw_score=0;
+    else if (crafty_rating-opponent_rating < 0) abs_draw_score=+20;
     else if (crafty_rating-opponent_rating < 100) abs_draw_score=0;
     else if (crafty_rating-opponent_rating < 300) abs_draw_score=-20;
     else if (crafty_rating-opponent_rating < 500) abs_draw_score=-30;
