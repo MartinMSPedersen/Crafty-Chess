@@ -100,7 +100,7 @@ void ResignOrDraw(TREE * RESTRICT tree, int value)
 
     LearnBook(val, 0, 1, 2);
     if (xboard)
-      Print(4095, "tellics resign\n");
+      Print(4095, "resign\n");
     if (audible_alarm)
       printf("%c", audible_alarm);
     if (speech) {

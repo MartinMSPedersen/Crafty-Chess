@@ -946,7 +946,7 @@ void InitializeMasks(void)
   mask_qr_trapped[white][1] = SetMask(A1) | SetMask(A2);
   mask_qr_trapped[white][2] = SetMask(A1) | SetMask(B1) | SetMask(A2);
 #if !defined(_M_AMD64) && !defined (_M_IA64) && !defined(INLINE32)
-  msb[0] = 16;
+  msb[0] = 0;
   lsb[0] = 16;
   for (i = 1; i < 65536; i++) {
     lsb[i] = 16;

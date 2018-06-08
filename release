@@ -1,0 +1,15 @@
+#!/bin/csh
+if ($# < 1) then
+  echo "version number missing"
+  exit(1)
+endif
+echo "releasing crafty version $1"
+rm *.zip *.Z *.gz
+mkdir crafty-$1
+cp *.c *.h *.s *.cpp crafty.hlp speak Makefile Makefile.xp crafty-$1
+zip -r crafty-$1.zip crafty-$1
+scp crafty-$1.zip juniper1:/home/vsftpd/pub/hyatt/source
+mkdir /home/old/crafty-$1
+cp *.c *.h *.s *.cpp crafty.hlp speak Makefile /home/old/crafty-$1
+rm *.zip
+rm -rf crafty-$1

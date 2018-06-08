@@ -3480,7 +3480,7 @@
  *   21.4    Misc eval changes.  More king safety changes to include a tropism *
  *           distance of 1 for bishops or rooks that can slide to intercept    *
  *           any square surrounding the enemy king.  Reduced rook slide score  *
- *           by 40%.
+ *           by 40%.                                                           *
  *                                                                             *
  *   21.5    passed pawn extension revisited.  Bad trade was giving a penalty  *
  *           for being down an exchange (or a bonus for being up an exchange)  *
@@ -4034,7 +4034,7 @@ int main(int argc, char **argv)
       if (value <= drawsc && (tc_increment != 0 ||
               tc_time_remaining_opponent >= 1000)) {
         if (xboard)
-          Print(4095, "tellics draw\n");
+          Print(4095, "offer draw\n");
         else {
           Print(128, "Draw accepted.\n");
           if (audible_alarm)
@@ -4050,10 +4050,7 @@ int main(int argc, char **argv)
         Print(4095, "1/2-1/2 {Draw agreed}\n");
         strcpy(pgn_result, "1/2-1/2");
       } else {
-        if (xboard) {
-          Print(4095, "tellics decline\n");
-          Print(128, "Decline\n");
-        } else
+        if (!xboard)
           Print(4095, "Draw declined.\n");
       }
     }
