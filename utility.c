@@ -867,7 +867,7 @@ int KingPawnSquare(int pawn, int king, int queen, int ptm) {
   else return(1);
 }
 
-/* last modified 05/01/97 */
+/* last modified 03/13/01 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -927,23 +927,26 @@ void NewGame(int save) {
     tc_time_remaining=tc_time;
     tc_time_remaining_opponent=tc_time;
     tc_moves_remaining=tc_moves;
-    if (log_file) fclose(log_file);
-    if (history_file) fclose(history_file);
-    if (log_file) {
-      if (log_id < 299) log_id++;
+    if (move_actually_played) {
+      if (log_file) fclose(log_file);
+      if (history_file) fclose(history_file);
+      if (log_file) {
+        if (log_id < 299) log_id++;
 #if defined(MACOS)
-      sprintf(filename,":%s:log.%03d",log_path,log_id);
+        sprintf(filename,":%s:log.%03d",log_path,log_id);
 #else
-      sprintf(filename,"%s/log.%03d",log_path,log_id);
+        sprintf(filename,"%s/log.%03d",log_path,log_id);
 #endif
-      log_file=fopen(filename,"w+");
+        log_file=fopen(filename,"w+");
+      }
+#if defined(MACOS)
+      sprintf(filename,":%s:game.%03d",log_path,log_id);
+#else
+      sprintf(filename,"%s/game.%03d",log_path,log_id);
+#endif
+      history_file=fopen(filename,"w+");
     }
-#if defined(MACOS)
-    sprintf(filename,":%s:game.%03d",log_path,log_id);
-#else
-    sprintf(filename,"%s/game.%03d",log_path,log_id);
-#endif
-    history_file=fopen(filename,"w+");
+    move_actually_played=0;
     book_selection_width=save_book_selection_width;
     whisper=save_whisper;
     kibitz=save_kibitz;

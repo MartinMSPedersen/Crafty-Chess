@@ -95,26 +95,35 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
 */
   if (tree->pawn_score.passed_b || tree->pawn_score.passed_w) {
     int pscore=EvaluatePassedPawns(tree);
+    int wmult=0, bmult=0;
+    if (tree->pawn_score.outside&12) {
+      wmult=outside_passed[(int) TotalBlackPieces];
+      if (!BlackQueens && !BlackRooks && !BlackBishops) wmult*=2;
+    }
+    if (tree->pawn_score.outside&192) {
+      bmult=outside_passed[(int) TotalWhitePieces];
+      if (!WhiteQueens && !WhiteRooks && !WhiteBishops) bmult*=2;
+    }
     if (tree->pawn_score.outside&8)
-      pscore+=2*outside_passed[(int) TotalBlackPieces];
+      pscore+=2*wmult;
     else if (tree->pawn_score.outside&4)
-      pscore+=outside_passed[(int) TotalBlackPieces];
+      pscore+=wmult;
     if (tree->pawn_score.outside&128)
-      pscore-=2*outside_passed[(int) TotalWhitePieces];
+      pscore-=2*bmult;
     else if (tree->pawn_score.outside&64)
-      pscore-=outside_passed[(int) TotalWhitePieces];
+      pscore-=bmult;
     if ((TotalWhitePieces==0 && tree->pawn_score.passed_b) ||
         (TotalBlackPieces==0 && tree->pawn_score.passed_w))
       pscore+=EvaluatePassedPawnRaces(tree,wtm);
     score+=pscore*passed_scale/100;
   }
-  if (!(tree->pawn_score.outside&0014)) {
+  if (!(tree->pawn_score.outside&12)) {
     if (tree->pawn_score.outside&2)
       score+=2*majority[(int) TotalBlackPieces];
     else if (tree->pawn_score.outside&1)
       score+=majority[(int) TotalBlackPieces];
   }
-  if (!(tree->pawn_score.outside&0300)) {
+  if (!(tree->pawn_score.outside&192)) {
      if (tree->pawn_score.outside&32)
        score-=2*majority[(int) TotalWhitePieces];
      else if (tree->pawn_score.outside&16)
@@ -708,6 +717,15 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
 /*
  ----------------------------------------------------------
 |                                                          |
+|   see if the rook can move horizontally.  if not, it is  |
+|   somewhat precarious in how it is situated.             |
+|                                                          |
+ ----------------------------------------------------------
+*/
+    if (!MobilityRank(square)) score-=ROOK_LIMITED;
+/*
+ ----------------------------------------------------------
+|                                                          |
 |   see if the rook is behind a passed pawn.  if it is,    |
 |   it is given a bonus.                                   |
 |                                                          |
@@ -796,6 +814,15 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
     else if (!(minus8dir[square]&BlackPawns)) {
       trop=FileDistance(square,tree->w_kingsq);
     }
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   see if the rook can move horizontally.  if not, it is  |
+|   somewhat precarious in how it is situated.             |
+|                                                          |
+ ----------------------------------------------------------
+*/
+    if (!MobilityRank(square)) score+=ROOK_LIMITED;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -1297,7 +1324,7 @@ int EvaluateDevelopmentW(TREE *tree, int ply) {
   return(score);
 }
 
-/* last modified 11/27/00 */
+/* last modified 03/12/01 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -3220,6 +3247,8 @@ int EvaluatePawns(TREE *tree) {
 /*
   if (tree->pawn_score.outside) {
     printf(">>>>>>>>>>>>>>>>>>>  outside=%x\n",tree->pawn_score.outside);
+    printf("w_passed=%x  b_passed=%x\n",
+           tree->pawn_score.passed_w,tree->pawn_score.passed_b);
     printf("w_candidates=%x  b_candidates=%x\n",
            tree->pawn_score.candidates_w,tree->pawn_score.candidates_b);
     wop=is_outside[tree->pawn_score.passed_w][tree->pawn_score.allb];

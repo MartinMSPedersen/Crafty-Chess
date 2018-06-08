@@ -66,6 +66,7 @@
 #  define             ROOK_CONNECTED_OPEN_FILE           (7)
 #  define              ROOK_BEHIND_PASSED_PAWN          (16)
 #  define                         ROOK_TRAPPED          (40)
+#  define                         ROOK_LIMITED          (20)
   
 #  define               QUEEN_ROOK_ON_7TH_RANK          (10)
 #  define                    QUEEN_KING_SAFETY           (6)

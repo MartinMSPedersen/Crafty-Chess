@@ -39,6 +39,7 @@
   int            root_value;
   int            root_wtm;
   int            root_print_ok;
+  int            move_actually_played;
   ROOT_MOVE      root_moves[256];
   int            n_root_moves;
   int            cpu_percent;
@@ -246,7 +247,7 @@
   unsigned int   max_split_blocks;
   volatile unsigned int   splitting;
 
-# define    VERSION                             "18.5"
+# define    VERSION                             "18.6"
   char      version[6] =                    {VERSION};
   PLAYING_MODE mode =                     normal_mode;
 
@@ -607,7 +608,7 @@
    king safety, making Crafty's less important (this will tend to increase
    aggressiveness while - values will make Crafty more passive/defensive.)
 */
-  int king_safety_asymmetry =                  -30;
+  int king_safety_asymmetry =                  -40;
 /*
    this value scales king safety up or down equally for both sides.  A
    value of 100 leaves the values as they are.  values below 100 drop
@@ -737,14 +738,14 @@
                              -15,  2,  4,  4,  4,  4,  2,-15,
                              -25,-15,  0,  0,  0,  0,-15,-25};
 
-  signed char  rval_w[64] = {  0,  0,  2,  4,  4,  2,  0,  0,
-                             -10,  0,  2,  4,  4,  2,  0,-10,
-                             -10,  0,  2,  4,  4,  2,  0,-10,
-                             -10,  0,  2,  4,  4,  2,  0,-10,
-                               0,  0,  2,  4,  4,  2,  0,  0,
-                               0,  0,  2,  4,  4,  2,  0,  0,
-                               0,  0,  2,  4,  4,  2,  0,  0,
-                               0,  0,  2,  4,  4,  2,  0,  0};
+  signed char  rval_w[64] = {  0,  0,  4,  6,  6,  4,  0,  0,
+                               0,  0,  4,  6,  6,  4,  0,  0,
+                               0,  0,  4,  6,  6,  4,  0,  0,
+                               0,  0,  4,  6,  6,  4,  0,  0,
+                               0,  0,  4,  6,  6,  4,  0,  0,
+                               0,  0,  4,  6,  6,  4,  0,  0,
+                               0,  0,  4,  6,  6,  4,  0,  0,
+                               0,  0,  4,  6,  6,  4,  0,  0};
 
   signed char  qval_w[64] = {-10, -8,  0,  0,  0,  0, -8,-10,
                              -10,  2,  8,  8,  8,  8,  2,-10,

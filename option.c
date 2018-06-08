@@ -948,7 +948,7 @@ int Option(TREE *tree) {
         PcOnSq(((7-rank)<<3)+file)=piece;
       }
     }
-    InitializeChessBoard(&tree->position[0]);
+    SetChessBitBoards(&tree->position[0]);
 #if defined(DEBUG)
     ValidatePosition(tree,0,wtm,"Option().flip");
 #endif
@@ -972,7 +972,7 @@ int Option(TREE *tree) {
         PcOnSq((rank<<3)+7-file)=piece;
       }
     }
-    InitializeChessBoard(&tree->position[0]);
+    SetChessBitBoards(&tree->position[0]);
 #if defined(DEBUG)
     ValidatePosition(tree,0,wtm,"Option().flop");
 #endif

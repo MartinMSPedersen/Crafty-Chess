@@ -1547,11 +1547,13 @@ void InitializeZeroMasks(void) {
         if (ppsq1 <= psql+1) is_outside_c[i][j]+=1;
       }
       ppsq2=last_ones_8bit[i];
-      if (ppsq2<8 && ppsq2!=ppsq1) {
+      if (ppsq2 < 8) {
         psqr=last_ones_8bit[j&(255-(128>>ppsq2))];
         if (ppsq2 > psqr+1) is_outside[i][j]+=1;
         if (ppsq2 >= psqr-1) is_outside_c[i][j]+=1;
       }
+      if (ppsq1==ppsq2 && is_outside[i][j]>0) is_outside[i][j]=1;
+      if (ppsq1==ppsq2 && is_outside_c[i][j]>0) is_outside_c[i][j]=1;
     }
   }
 }

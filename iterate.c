@@ -443,7 +443,6 @@ int Iterate(int wtm, int search_type, int root_list_done) {
       tree->fail_high++;
       tree->fail_high_first++;
       material=Material/PAWN_VALUE;
-      if (ChangeSide(wtm)) material=-material;
       Print(8,"              time=%s  cpu=%d%%  mat=%d",
             DisplayTimeWhisper(end_time-start_time), cpu_percent, material); 
       Print(8,"  n=%u", tree->nodes_searched);

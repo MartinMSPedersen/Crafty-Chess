@@ -290,7 +290,7 @@ void SearchTrace(TREE *tree, int ply, int depth, int wtm,
   printf("%d  %s d:%5.2f [%s,",
          ply,OutputMove(tree,tree->current_move[ply],ply,wtm),
          (float) depth/ (float) INCPLY,DisplayEvaluation(alpha,1));
-  printf("%s] n:%d %s(%d)", DisplayEvaluation(beta,1),
+  printf("%s] n:%u %s(%d)", DisplayEvaluation(beta,1),
          (tree->nodes_searched),name,phase);
   if (max_threads > 1) printf(" (t=%d) ",tree->thread_id);
   printf("\n");

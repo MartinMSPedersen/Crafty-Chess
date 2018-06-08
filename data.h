@@ -116,6 +116,7 @@
   extern int            root_value;
   extern int            root_wtm;
   extern int            root_print_ok;
+  extern int            move_actually_played;
   extern ROOT_MOVE      root_moves[256];
   extern int            n_root_moves;
   extern int            nodes_per_second;

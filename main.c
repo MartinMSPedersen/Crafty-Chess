@@ -10,7 +10,7 @@
 #endif
 #include <signal.h>
 
-/* last modified 02/10/00 */
+/* last modified 03/13/01 */
 /*
 *******************************************************************************
 *                                                                             *
@@ -2769,6 +2769,14 @@
 *           pawn endings were winnable if both kings were very close to the   *
 *           queening square, even with the wrong bishop.                      *
 *                                                                             *
+*   18.6    "new" no longer produces a new log.nnn/game.nnn file if no moves  *
+*           have actually been played.  minor change to rook scoring gives a  *
+*           penalty when a rook has no horizontal (rank) mobility, to avoid   *
+*           moves like Ra2 protecting the pawn on b2, etc. glitch in the      *
+*           code that initializes is_outside[][] and is_outside_c[][] could   *
+*           cause missed outside pawn cases to happen.  this has been there   *
+*           a long time.                                                      *
+*                                                                             *
 *******************************************************************************
 */
 int main(int argc, char **argv) {
@@ -2877,6 +2885,7 @@ int main(int argc, char **argv) {
   }
   display=tree->pos;
   initialized=1;
+  move_actually_played=0;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -3007,6 +3016,7 @@ int main(int argc, char **argv) {
         fseek(history_file,((move_number-1)*2+1-wtm)*10,SEEK_SET);
         fprintf(history_file,"%9s\n",OutputMove(tree,move,0,wtm));
         MakeMoveRoot(tree,move,wtm);
+        move_actually_played=1;
         last_opponent_move=move;
         if (RepetitionDraw(tree,ChangeSide(wtm))==1) {
           Print(4095,"%sgame is a draw by repetition.%s\n",Reverse(),Normal());
@@ -3186,6 +3196,7 @@ int main(int argc, char **argv) {
       LearnPosition(tree,wtm,last_search_value,value);
       last_search_value=value;
       MakeMoveRoot(tree,last_pv.path[1],wtm);
+      move_actually_played=1;
       if (RepetitionDraw(tree,ChangeSide(wtm))==1) {
         Print(128,"%sgame is a draw by repetition.%s\n",Reverse(),Normal());
         if (xboard) Print(4095,"1/2-1/2 {Drawn by 3-fold repetition}\n");
