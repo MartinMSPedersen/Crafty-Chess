@@ -36,7 +36,9 @@ generic PC running Linux 1.2.9 and using the gcc 2.6.3 compiler.
 #include <string.h>
 #include <ctype.h>
 #include <time.h>
-
+#if defined(NT_i386) || defined(NT_AXP)
+#include <process.h>
+#endif
 /* Crafty includes */
 
 #include "chess.h"
@@ -220,45 +222,6 @@ else
 	color = 0;
 
 return (color);
-}
-
-/*--> EGMapFromHostPiece: map a piece from the host to the EPD style */
-static
-pT
-EGMapFromHostPiece(siT piece)
-{
-pT p;
-
-/* this is an internal glue routine */
-
-/* map from Crafty's piece representation */
-
-switch (piece)
-	{
-	case pawn:
-		p = p_p;
-		break;
-	case knight:
-		p = p_n;
-		break;
-	case bishop:
-		p = p_b;
-		break;
-	case rook:
-		p = p_r;
-		break;
-	case queen:
-		p = p_q;
-		break;
-	case king:
-		p = p_k;
-		break;
-	default:
-                p = p_nil;
-                break;
-	};
-
-return (p);
 }
 
 /*--> EGMapToHostPiece: map a piece to the host from the EPD style */
@@ -474,7 +437,7 @@ else
 		{
 		/* convert regular score */
 
-		cpev = score / 10;
+		cpev = score;
 		};
 
 return (cpev);
@@ -495,20 +458,20 @@ if (forced_mate(cpev))
 	{
 	/* convert forced mate score */
 
-        score = MATE - (cpev_best-cpev+1);
+	score = MATE - (cpev_best-cpev+1);
 	}
 else
 	if (forced_loss(cpev))
 		{
 		/* convert forced loss score */
 
-        	score = -MATE + (cpev_best+cpev+1);
+		score = -MATE + (cpev_best+cpev+1);
 		}
 	else
 		{
 		/* convert regular score */
 
-		score = ((liT) cpev) * 10;
+		score = ((liT) cpev);
 		};
 
 return (score);
@@ -527,8 +490,8 @@ siT flag;
 /* the EPD current position must be properly set */
 
 m.m_flag = 0;
-m.m_frsq = EGMapFromHostSq(From(move));
-m.m_tosq = EGMapFromHostSq(To(move));
+m.m_frsq = EGMapFromHostSq((siT)From(move));
+m.m_tosq = EGMapFromHostSq((siT)To(move));
 m.m_frcp = EPDFetchCP(m.m_frsq);
 m.m_tocp = EPDFetchCP(m.m_tosq);
 
@@ -656,7 +619,7 @@ return (move);
 /*--> EGGetIndexedHostPosition: copy from indexed host position */
 static
 void
-EGGetIndexedHostPosition(siT posdex, int active)
+EGGetIndexedHostPosition(TREE *tree, siT posdex, int active)
 {
 sqT sq;
 rbT rb;
@@ -678,17 +641,17 @@ the previous EPD Kit current position is lost.
 
 for (sq = sq_a1; sq <= sq_h8; sq++)
 	rb.rbv[sq] =
-		EGMapFromHostCP(search.board[EGMapToHostSq(sq)]);
+		EGMapFromHostCP(tree->pos.board[EGMapToHostSq(sq)]);
 
 /* read from the host piece active color */
 
-actc = EGMapFromHostColor(active);
+actc = EGMapFromHostColor((siT)active);
 
 /* read from the host piece castling availability */
 
 cast = 0;
 
-switch (position[posdex].w_castle)
+switch (tree->position[posdex].w_castle)
 	{
 	case 0:
 		break;
@@ -703,7 +666,7 @@ switch (position[posdex].w_castle)
 		break;
 	};
 
-switch (position[posdex].b_castle)
+switch (tree->position[posdex].b_castle)
 	{
 	case 0:
 		break;
@@ -721,11 +684,11 @@ switch (position[posdex].b_castle)
 /* read from the host piece en passant target square */
 
 epsq = sq_nil;
-if (position[posdex].enpassant_target != 0)
+if (tree->position[posdex].enpassant_target != 0)
 	{
 	sq = sq_a1;
 	while ((epsq == sq_nil) && (sq <= sq_h8))
-		if (position[posdex].enpassant_target == EGMapToHostSq(sq))
+		if (tree->position[posdex].enpassant_target == EGMapToHostSq(sq))
 			epsq = sq;
 		else
 			sq++;
@@ -733,7 +696,7 @@ if (position[posdex].enpassant_target != 0)
 
 /* read from the host halfmove clock */
 
-hmvc = position[posdex].rule_50_moves;
+hmvc = tree->position[posdex].rule_50_moves;
 
 /* read from the host fullmove number */
 
@@ -761,7 +724,7 @@ current position is lost.
 
 /* transfer from ply zero host position */
 
-EGGetIndexedHostPosition(0, wtm);
+EGGetIndexedHostPosition(local[0], 0, wtm);
 
 return;
 }
@@ -778,7 +741,8 @@ castT cast;
 sqT epsq;
 siT hmvc;
 siT fmvn;
-siT i, index;
+siT index;
+TREE *tree=local[0];
 
 /* this is an internal EPD glue routine */
 
@@ -805,7 +769,7 @@ fmvn = EPDFetchFMVN();
 /* copy the board into the host board */
 
 for (sq = sq_a1; sq <= sq_h8; sq++)
-	search.board[EGMapToHostSq(sq)] = EGMapToHostCP(rb.rbv[sq]);
+	tree->pos.board[EGMapToHostSq(sq)] = EGMapToHostCP(rb.rbv[sq]);
 
 /* copy the active color */
 
@@ -813,28 +777,28 @@ wtm = EGMapToHostColor(actc);
 
 /* copy the castling availibility */
 
-position[0].w_castle = 0;
+tree->position[0].w_castle = 0;
 if (cast & cf_wk)
-	position[0].w_castle += 1;
+	tree->position[0].w_castle += 1;
 if (cast & cf_wq)
-	position[0].w_castle += 2;
+	tree->position[0].w_castle += 2;
 
-position[0].b_castle = 0;
+tree->position[0].b_castle = 0;
 if (cast & cf_bk)
-	position[0].b_castle += 1;
+	tree->position[0].b_castle += 1;
 if (cast & cf_bq)
-	position[0].b_castle += 2;
+	tree->position[0].b_castle += 2;
 
 /* copy the en passant target square */
 
 if (epsq == sq_nil)
-	position[0].enpassant_target = 0;
+	tree->position[0].enpassant_target = 0;
 else
-	position[0].enpassant_target = EGMapToHostSq(epsq);
+	tree->position[0].enpassant_target = EGMapToHostSq(epsq);
 
 /* copy the halfmove clock */
 
-position[0].rule_50_moves = hmvc;
+tree->position[0].rule_50_moves = hmvc;
 
 /* copy the fullmove number */
 
@@ -842,11 +806,11 @@ move_number = fmvn;
 
 /* set secondary host data items */
 
-SetChessBitBoards(&position[0]);
+SetChessBitBoards(&tree->position[0]);
 
-repetition_head_w=repetition_list_w;
-repetition_head_b=repetition_list_b;
-last_move_in_book = -100;
+tree->rephead_w=tree->replist_w;
+tree->rephead_b=tree->replist_b;
+moves_out_of_book = 0;
 last_mate_score = 0;
 
 /* clear the host history */
@@ -856,16 +820,13 @@ for (index = 0; index < (sqL * sqL); index++)
 
 /* clear the host killer information */
 
-for (index = 0; index < MAXPLY; index++)
-	for (i = 0; i < 2; i++)
-		{
-		killer_move[index][i] = 0;
-		killer_move_count[index][i] = 0;
-		};
+for (index = 0; index < MAXPLY; index++) {
+  tree->killer_move1[index] = 0;
+  tree->killer_move2[index] = 0;
+}
 
 /* clear miscellaneous host items */
 
-ponder_completed = 0;
 ponder_move = 0;
 last_pv.path_iteration_depth = 0;
 last_pv.path_length = 0;
@@ -944,14 +905,14 @@ while (flag && (ch != EOF))
 		/* attach the first character */
 
 		s = EPDStringGrab("");
-		s = EPDStringAppendChar(s, ch);
+		s = EPDStringAppendChar(s, (char)ch);
 		ch = fgetc(history_file);
 
 		/* attach the remaining characters */
 
 		while ((ch != EOF) && !isspace(ch))
 			{
-			s = EPDStringAppendChar(s, ch);
+			s = EPDStringAppendChar(s, (char)ch);
 			ch = fgetc(history_file);
 			};
 
@@ -1008,6 +969,7 @@ int move;
 mptrT mptr;
 mT m;
 epdptrT epdptr;
+TREE *tree=local[0];
 
 /* if there is only one move, then select it without search */
 
@@ -1029,10 +991,10 @@ if (EPDFetchMoveCount() == 1)
 
 	/* set Iterate() result variables */
 
-	pv[0].path_hashed = 0;
-	pv[0].path_length = 1;
-	pv[0].path_iteration_depth = 1;
-	pv[0].path[1] = move;
+	tree->pv[0].path_hashed = 0;
+	tree->pv[0].path_length = 1;
+	tree->pv[0].path_iteration_depth = 1;
+	tree->pv[0].path[1] = move;
 	}
 else
 	{
@@ -1042,7 +1004,7 @@ else
 
 	/* more than one move, execute regular search */
 
-	value = Iterate(wtm_flag, think_flag);
+	value = Iterate(wtm_flag, think_flag, 0);
 
 	/* restore kit position */
 
@@ -1051,7 +1013,7 @@ else
 	EPDGenMoves();
 	};
 
-last_pv = pv[0];
+last_pv = tree->pv[0];
 last_value = value;
 
 return (value);
@@ -1072,6 +1034,7 @@ sanT san;
 int move;
 int value;
 char tv[tL];
+TREE *tree=local[0];
 
 /* set flag: no errors (so far) */
 
@@ -1157,11 +1120,11 @@ switch (EPDExtractRefcomIndex(epdptr0))
 		/* execute the supplied move */
 
 		eopptr = EPDLocateEOPCode(epdptr0, epdso_sm);
-		move = InputMove(eopptr->eop_headeov->eov_str, 0, wtm, 0, 0);
+		move = InputMove(tree,eopptr->eop_headeov->eov_str, 0, wtm, 0, 0);
 		fseek(history_file,
 			((((move_number - 1) * 2) + 1 - wtm) * 10), SEEK_SET);
-		fprintf(history_file, "%10s", eopptr->eop_headeov->eov_str);
-		MakeMoveRoot(move, wtm);
+		fprintf(history_file, "%9s\n", eopptr->eop_headeov->eov_str);
+		MakeMoveRoot(tree,move, wtm);
 		wtm = ChangeSide(wtm);
 		if (wtm)
 			move_number++;
@@ -1217,11 +1180,11 @@ switch (EPDExtractRefcomIndex(epdptr0))
 		eopptr = EPDLocateEOPCode(epdptr0, epdso_sm);
 		if (eopptr != NULL)
 			{
-			move = InputMove(eopptr->eop_headeov->eov_str, 0, wtm, 0, 0);
+			move = InputMove(tree,eopptr->eop_headeov->eov_str, 0, wtm, 0, 0);
 			fseek(history_file,
 				((((move_number - 1) * 2) + 1 - wtm) * 10), SEEK_SET);
-			fprintf(history_file, "%10s", eopptr->eop_headeov->eov_str);
-			MakeMoveRoot(move, wtm);
+			fprintf(history_file, "%9s\n", eopptr->eop_headeov->eov_str);
+			MakeMoveRoot(tree,move, wtm);
 			wtm = ChangeSide(wtm);
 			if (wtm)
 				move_number++;
@@ -1247,15 +1210,15 @@ switch (EPDExtractRefcomIndex(epdptr0))
 			thinking = 1;
 			last_pv.path_iteration_depth = 0;
 			last_pv.path_length = 0;
-			position[1] = position[0];
+			tree->position[1] = tree->position[0];
 
 			/* search */
 
-			value = EGIterate(wtm, think);
+			value = EGIterate((siT)wtm, (siT)think);
 
 			/* process search result */
 
-			strcpy(tv, OutputMove(&last_pv.path[1], 0, wtm));
+			strcpy(tv, OutputMove(tree,last_pv.path[1], 0, wtm));
 			move = last_pv.path[1];
 
 			/* locate SAN move */
@@ -1268,11 +1231,11 @@ switch (EPDExtractRefcomIndex(epdptr0))
 
 			fseek(history_file,
 				((((move_number - 1) * 2) + 1 - wtm) * 10), SEEK_SET);
-			fprintf(history_file, "%10s", san);
+			fprintf(history_file, "%9s\n", san);
 
 			/* update host position */
 
-			MakeMoveRoot(move, wtm);
+			MakeMoveRoot(tree,move, wtm);
 			wtm = ChangeSide(wtm);
 			if (wtm)
 				move_number++;
@@ -1318,14 +1281,13 @@ switch (EPDExtractRefcomIndex(epdptr0))
 
 		/* reset host for a new game */
 
-		do_ponder = 0;
-		ponder_completed = 0;
+		ponder = 0;
 		ponder_move = 0;
 
 		last_pv.path_iteration_depth = 0;
 		last_pv.path_length = 0;
 
-		InitializeChessBoard(&position[0]);
+		InitializeChessBoard(&tree->position[0]);
 		InitializeHashTables();
 
 		wtm = 1;
@@ -1370,7 +1332,7 @@ return (epdptr1);
 /*--> EGTBScore: fetch a tablebase score for the indicated position */
 nonstatic
 int
-EGTBScore(int posdex, int active, int *scoreptr)
+EGTBScore(TREE *tree, int posdex, int active, int *scoreptr)
 {
 siT flag;
 cpevT cpev;
@@ -1384,7 +1346,7 @@ flag = 0;
 
 /* copy the indexed host position as the EPD Kit new current position */
 
-EGGetIndexedHostPosition(posdex, active);
+EGGetIndexedHostPosition(tree, (siT)posdex, active);
 
 /* perform the probe */
 
@@ -2035,7 +1997,7 @@ if (EPDTokenCount() != 4)
 if (flag)
 	{
 	flag = EPDEnumerateFile(
-		atol(EPDTokenFetch(1)), EPDTokenFetch(2), EPDTokenFetch(3), &total);
+		(siT)atol(EPDTokenFetch(1)), EPDTokenFetch(2), EPDTokenFetch(3), &total);
 	if (flag)
 		{
 		sprintf(tbufv, "Enumeration to depth %ld totals %ld\n",
@@ -2654,6 +2616,7 @@ eovptrT eovptr;
 eopptrT eopptr;
 epdptrT epdptr;
 char ev[epdL];
+TREE *tree=local[0];
 
 /* this is an internal EPD glue routine */
 
@@ -2764,9 +2727,9 @@ if (flag)
 
 				/* set host search parameters */
 
-				position[1] = position[0];
+				tree->position[1] = tree->position[0];
 				iteration_depth = 0;
-				do_ponder = 0;
+				ponder = 0;
 
 				/* get the starting time */
 
@@ -2793,7 +2756,7 @@ if (flag)
 
 				/* extract analysis count: nodes */
 
-				host_acn = nodes_searched + q_nodes_searched;
+				host_acn = tree->nodes_searched;
 				if (host_acn == 0)
 					host_acn = 1;
 
@@ -2828,7 +2791,7 @@ if (flag)
 				EPDDropIfLocEOPCode(epdptr, epdso_pv);
 				eopptr = EPDCreateEOPCode(epdso_pv);
 
-				for (index = 1; index <= pv[0].path_length; index++)
+				for (index = 1; index <= (int) tree->pv[0].path_length; index++)
 					{
 					/* generate moves for the current position */
 
@@ -2836,7 +2799,7 @@ if (flag)
 
 					/* fetch the predicted move at this ply */
 
-					move = pv[0].path[index];
+					move = tree->pv[0].path[index];
 
 					/* map the host move to EPD style */
 
@@ -3768,14 +3731,14 @@ if (count == 0)
 	{
 	sprintf(tbufv,
 		"No tablebase files found in the %s directory.\n",
-		TBDIR);
+		tb_path);
 	EGPrintTB();
 	}
 else
 	{
 	sprintf(tbufv,
 		"%hd tablebase file(s) found in the %s directory.\n",
-		count, TBDIR);
+		count, tb_path);
 	EGPrintTB();
 	};
 

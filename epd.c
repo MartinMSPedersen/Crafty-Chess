@@ -37,6 +37,8 @@ generic PC running Linux 1.3.20 and using the gcc 2.7.0 compiler.
 /* EPD routine prototypes (host independent) */
 
 #include "epd.h"
+#include "chess.h"
+#include "data.h"
 
 /* ASCII character constants */
 
@@ -1924,7 +1926,7 @@ for (rank = rank_8; rank >= rank_1; rank--)
 	for (file = file_a; file <= file_h; file++)
 		{
 		cp = EPDboard.rbm[rank][file];
-		if (cp == cp_v0)
+		if (cp == cp_v0) {
 			if ((rank % 2) == (file % 2))
 				{
 				*r++ = ':';
@@ -1935,6 +1937,7 @@ for (rank = rank_8; rank >= rank_1; rank--)
 				*r++ = ascii_sp;
 				*r++ = ascii_sp;
 				}
+                }
 		else
 			{
 			*r++ = asccv[cv_c_cpv[cp]];
@@ -2327,11 +2330,11 @@ if (flag)
 				break;
 
 			default:
-				if (!EPDCheckPiece(ch) || (file >= fileL))
+				if (!EPDCheckPiece((char)ch) || (file >= fileL))
 					flag = 0;
 				else
 					{
-					p = EPDEvaluatePiece(ch);
+					p = EPDEvaluatePiece((char)ch);
 					if (isupper(ch))
 						c = c_w;
 					else
@@ -2382,11 +2385,11 @@ if (flag)
 
 if (flag)
 	{
-	if (!EPDCheckColor(ch))
+	if (!EPDCheckColor((char)ch))
 		flag = 0;
 	else
 		{
-		epdptr->epd_actc = EPDEvaluateColor(ch);
+		epdptr->epd_actc = EPDEvaluateColor((char)ch);
 		ch = *(s + i++);
 		};
 	};
@@ -2476,7 +2479,7 @@ if (flag)
 
 /* process en passant target */
 
-if (flag)
+if (flag) {
 	if (ch == '-')
 		{
 		epdptr->epd_epsq = sq_nil;
@@ -2484,23 +2487,25 @@ if (flag)
 		if ((ch != ascii_nul) && !isspace(ch))
 			flag = 0;
 		}
-	else
-		if (!EPDCheckFile(ch))
+	else {
+		if (!EPDCheckFile((char)ch))
 			flag = 0;
 		else
 			{
-			file = EPDEvaluateFile(ch);
+			file = EPDEvaluateFile((char)ch);
 			ch = *(s + i++);
-			if ((ch == ascii_nul) || !EPDCheckRank(ch))
+			if ((ch == ascii_nul) || !EPDCheckRank((char)ch))
 				flag = 0;
 			else
 				{
-				epdptr->epd_epsq = map_sq(EPDEvaluateRank(ch), file);
+				epdptr->epd_epsq = map_sq(EPDEvaluateRank((char)ch), file);
 				ch = *(s + i++);
 				if ((ch != ascii_nul) && !isspace(ch))
 					flag = 0;
 				};
 			};
+                }
+}
 
 /* skip whitespace (end-of-line is not an error) */
 
@@ -2523,7 +2528,7 @@ if (flag)
 		if (IdentChar(ch))
 			{
 			eopptr->eop_opsym = EPDStringGrab("");
-			eopptr->eop_opsym = EPDStringAppendChar(eopptr->eop_opsym, ch);
+			eopptr->eop_opsym = EPDStringAppendChar(eopptr->eop_opsym, (char)ch);
 			ch = *(s + i++);
 			}
 		else
@@ -2533,7 +2538,7 @@ if (flag)
 
 		while (IdentChar(ch))
 			{
-			eopptr->eop_opsym = EPDStringAppendChar(eopptr->eop_opsym, ch);
+			eopptr->eop_opsym = EPDStringAppendChar(eopptr->eop_opsym, (char)ch);
 			ch = *(s + i++);
 			};
 
@@ -2580,7 +2585,7 @@ if (flag)
 					else
 						{
 						eovptr->eov_str =
-							EPDStringAppendChar(eovptr->eov_str, ch);
+							EPDStringAppendChar(eovptr->eov_str, (char)ch);
 						ch = *(s + i++);
 						};
 					};
@@ -2596,7 +2601,7 @@ if (flag)
 					else
 						{
 						eovptr->eov_str =
-							EPDStringAppendChar(eovptr->eov_str, ch);
+							EPDStringAppendChar(eovptr->eov_str, (char)ch);
 						ch = *(s + i++);
 						};
 					};
@@ -2617,11 +2622,12 @@ if (flag)
 
 		/* process semicolon */
 
-		if (flag)
+		if (flag) {
 			if (ch == ';')
 				ch = *(s + i++);
 			else
 				flag = 0;
+                }
 
 		/* append operation */
 
@@ -3927,7 +3933,7 @@ if (flag && (ese.ese_cast & cf_bq))
 
 /* check en passant target square */
 
-if (flag && (ese.ese_epsq != sq_nil))
+if (flag && (ese.ese_epsq != sq_nil)) {
 	if (ese.ese_actc == c_w)
 		{
 		if (map_rank(ese.ese_epsq) != rank_6)
@@ -3955,7 +3961,8 @@ if (flag && (ese.ese_epsq != sq_nil))
 				else
 					if (EPDboard.rbv[ese.ese_epsq + dv_3] != cp_v0)
 						flag = 0;
-		};
+		}
+}
 
 /* check for passive king in check */
 
@@ -4255,7 +4262,7 @@ for (gen_m.m_frsq = sq_a1; gen_m.m_frsq <= sq_h8; gen_m.m_frsq++)
 					/* one square non-capture */
 
 					gen_m.m_tocp = EPDboard.rbv[gen_m.m_tosq = gen_m.m_frsq + dv_1];
-					if (gen_m.m_tocp == cp_v0)
+					if (gen_m.m_tocp == cp_v0) {
 						if (frrank != rank_7)
 							{
 							/* non-promotion */
@@ -4275,6 +4282,7 @@ for (gen_m.m_frsq = sq_a1; gen_m.m_frsq <= sq_h8; gen_m.m_frsq++)
 								}
 							gen_m.m_scmv = scmv_reg;
 							};
+                                        }
 
 					/* two squares forward */
 
@@ -4294,7 +4302,7 @@ for (gen_m.m_frsq = sq_a1; gen_m.m_frsq <= sq_h8; gen_m.m_frsq++)
 						{
 						gen_m.m_tosq = gen_m.m_frsq + dv_5;
 						gen_m.m_tocp = EPDboard.rbv[gen_m.m_tosq];
-						if (cv_c_cpv[gen_m.m_tocp] == inv_cv[ese.ese_actc])
+						if (cv_c_cpv[gen_m.m_tocp] == inv_cv[ese.ese_actc]) {
 							if (frrank != rank_7)
 								{
 								/* non-promote */
@@ -4314,6 +4322,7 @@ for (gen_m.m_frsq = sq_a1; gen_m.m_frsq <= sq_h8; gen_m.m_frsq++)
 									};
 								gen_m.m_scmv = scmv_reg;
 								};
+                                           }
 						};
 
 					/* capture to right */
@@ -4322,7 +4331,7 @@ for (gen_m.m_frsq = sq_a1; gen_m.m_frsq <= sq_h8; gen_m.m_frsq++)
 						{
 						gen_m.m_tosq = gen_m.m_frsq + dv_4;
 						gen_m.m_tocp = EPDboard.rbv[gen_m.m_tosq];
-						if (cv_c_cpv[gen_m.m_tocp] == inv_cv[ese.ese_actc])
+						if (cv_c_cpv[gen_m.m_tocp] == inv_cv[ese.ese_actc]) {
 							if (frrank != rank_7)
 								{
 								/* non-promote */
@@ -4342,6 +4351,7 @@ for (gen_m.m_frsq = sq_a1; gen_m.m_frsq <= sq_h8; gen_m.m_frsq++)
 									};
 								gen_m.m_scmv = scmv_reg;
 								};
+                                                         }
 						};
 
 					/* en passant */
@@ -4380,7 +4390,7 @@ for (gen_m.m_frsq = sq_a1; gen_m.m_frsq <= sq_h8; gen_m.m_frsq++)
 					/* one square non-capture */
 
 					gen_m.m_tocp = EPDboard.rbv[gen_m.m_tosq = gen_m.m_frsq + dv_3];
-					if (gen_m.m_tocp == cp_v0)
+					if (gen_m.m_tocp == cp_v0) {
 						if (frrank != rank_2)
 							{
 							/* non-promotion */
@@ -4400,6 +4410,7 @@ for (gen_m.m_frsq = sq_a1; gen_m.m_frsq <= sq_h8; gen_m.m_frsq++)
 								}
 							gen_m.m_scmv = scmv_reg;
 							};
+                                        }
 
 					/* two squares forward */
 
@@ -4419,7 +4430,7 @@ for (gen_m.m_frsq = sq_a1; gen_m.m_frsq <= sq_h8; gen_m.m_frsq++)
 						{
 						gen_m.m_tosq = gen_m.m_frsq + dv_6;
 						gen_m.m_tocp = EPDboard.rbv[gen_m.m_tosq];
-						if (cv_c_cpv[gen_m.m_tocp] == inv_cv[ese.ese_actc])
+						if (cv_c_cpv[gen_m.m_tocp] == inv_cv[ese.ese_actc]) {
 							if (frrank != rank_2)
 								{
 								/* non-promote */
@@ -4439,6 +4450,7 @@ for (gen_m.m_frsq = sq_a1; gen_m.m_frsq <= sq_h8; gen_m.m_frsq++)
 									};
 								gen_m.m_scmv = scmv_reg;
 								};
+                                                }
 						};
 
 					/* capture to right */
@@ -4447,7 +4459,7 @@ for (gen_m.m_frsq = sq_a1; gen_m.m_frsq <= sq_h8; gen_m.m_frsq++)
 						{
 						gen_m.m_tosq = gen_m.m_frsq + dv_7;
 						gen_m.m_tocp = EPDboard.rbv[gen_m.m_tosq];
-						if (cv_c_cpv[gen_m.m_tocp] == inv_cv[ese.ese_actc])
+						if (cv_c_cpv[gen_m.m_tocp] == inv_cv[ese.ese_actc]) {
 							if (frrank != rank_2)
 								{
 								/* non-promote */
@@ -4467,6 +4479,7 @@ for (gen_m.m_frsq = sq_a1; gen_m.m_frsq <= sq_h8; gen_m.m_frsq++)
 									};
 								gen_m.m_scmv = scmv_reg;
 								};
+                                                       }
 						};
 
 					/* en passant */
@@ -4862,20 +4875,22 @@ if (ese.ese_cast != 0)
 
 /* set values for updated environment record: en passant */
 
-if (ese.ese_actc == c_b)
+if (ese.ese_actc == c_b) {
 	if ((mptr->m_frcp == cp_wp) &&
 		(map_rank(mptr->m_frsq) == rank_2) &&
 		(map_rank(mptr->m_tosq) == rank_4))
 		ese.ese_epsq = mptr->m_frsq + dv_1;
 	else
 		ese.ese_epsq = sq_nil;
-else
+}
+else {
 	if ((mptr->m_frcp == cp_bp) &&
 		(map_rank(mptr->m_frsq) == rank_7) &&
 		(map_rank(mptr->m_tosq) == rank_5))
 		ese.ese_epsq = mptr->m_frsq + dv_3;
 	else
 		ese.ese_epsq = sq_nil;
+}
 
 /* set values for updated environment record: halfmove clock */
 
@@ -6070,7 +6085,7 @@ else
 		tse.tse_curr = mptr;
 		EPDExecute(mptr);
 		if (!(mptr->m_flag & mf_bust))
-			total += EPDEnumerate(depth - 1);
+			total += EPDEnumerate((siT)(depth - 1));
 		EPDRetract(mptr);
 		mptr++;
 		};
@@ -6637,7 +6652,7 @@ for (flow = 0; flow < flowL; flow++)
 	{
 	pfnv[flow] = EPDStringGrab(pipebase);
 	pfnv[flow] = EPDStringAppendStr(pfnv[flow], ".pc");
-	pfnv[flow] = EPDStringAppendChar(pfnv[flow], (flow + '0'));
+	pfnv[flow] = EPDStringAppendChar(pfnv[flow], (char)(flow + '0'));
 	pfptrv[flow] = NULL;
 	};
 
@@ -7131,7 +7146,7 @@ if (slot == -1)
 	tbcv[slot].tbc_inuse = 1;
 	tbcv[slot].tbc_tbid = tbid;
 	tbcv[slot].tbc_c = c;
-	fnptr = EPDTBClassFileName(TBDIR, tbid, c);
+	fnptr = EPDTBClassFileName(tb_path, tbid, c);
 	tbcv[slot].tbc_fptr = fopen(fnptr, "rb");
 	EPDStringFree(fnptr);
 	};
@@ -7167,7 +7182,7 @@ siT flag;
 fptrT fptr;
 charptrT fnptr;
 
-fnptr = EPDTBClassFileName(TBDIR, tbid, c);
+fnptr = EPDTBClassFileName(tb_path, tbid, c);
 fptr = fopen(fnptr, "rb");
 EPDStringFree(fnptr);
 if (fptr == NULL)

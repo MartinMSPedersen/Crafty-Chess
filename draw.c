@@ -2,7 +2,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 09/19/96 */
+/* last modified 06/05/98 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -15,18 +15,9 @@
 *                                                                              *
 ********************************************************************************
 */
-int DrawScore(void)
+int DrawScore(int crafty_is_white)
 {
   register int draw_score;
-/*
- ----------------------------------------------------------
-|                                                          |
-|   if playing a computer, return the default draw score   |
-|   regardless of the phase of the game or time left.      |
-|                                                          |
- ----------------------------------------------------------
-*/
-  if (draw_score_is_zero) return(default_draw_score);
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -35,12 +26,13 @@ int DrawScore(void)
 |                                                          |
  ----------------------------------------------------------
 */
-  if (opening) 
-    draw_score=default_draw_score-2*PAWN_VALUE/3;
-  else if (middle_game)
-    draw_score=default_draw_score-PAWN_VALUE/3;
-  else
-    draw_score=default_draw_score;
+  if (!computer_opponent) {
+    if (move_number <= 30) 
+      draw_score=default_draw_score-66;
+    else if (middle_game)
+      draw_score=default_draw_score-33;
+    else
+      draw_score=default_draw_score;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -54,17 +46,23 @@ int DrawScore(void)
 |                                                          |
  ----------------------------------------------------------
 */
-  if (tc_increment < 500) {
-    if ((tc_time_remaining_opponent < 6000) && (tc_time_remaining < 6000)) {
-      if (tc_time_remaining/Max(tc_time_remaining_opponent,1) > 1)
-        draw_score=default_draw_score-PAWN_VALUE/2;
-    }
-    else {
-      if (tc_time_remaining_opponent < 6000)
-        draw_score=default_draw_score-PAWN_VALUE/2;
+    if (tc_increment == 0) {
       if (tc_time_remaining_opponent < 3000)
-        draw_score=default_draw_score-PAWN_VALUE;
+        draw_score=default_draw_score-50;
+      if (tc_time_remaining_opponent < 1500)
+        draw_score=default_draw_score-100;
     }
   }
-  return(draw_score);
+/*
+
+ ----------------------------------------------------------
+|                                                          |
+|   if playing a computer, return the default draw score   |
+|   regardless of the phase of the game or time left.      |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  else draw_score=default_draw_score;
+  if (crafty_is_white) return(draw_score);
+  else return(-draw_score);
 }

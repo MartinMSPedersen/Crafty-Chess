@@ -3,7 +3,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 02/12/96 */
+/* last modified 03/11/98 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -12,9 +12,10 @@
 *                                                                              *
 ********************************************************************************
 */
-static BITBOARD bit_move;
-void UnMakeMove(int ply, int move, int wtm)
+void UnMakeMove(TREE *tree, int ply, int move, int wtm)
 {
+  register int piece, from, to, captured, promote;
+  BITBOARD bit_move;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -23,8 +24,8 @@ void UnMakeMove(int ply, int move, int wtm)
 |                                                          |
  ----------------------------------------------------------
 */
-  HashKey=save_hash_key[ply];
-  PawnHashKey=save_pawn_hash_key[ply];
+  HashKey=tree->save_hash_key[ply];
+  PawnHashKey=tree->save_pawn_hash_key[ply];
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -33,26 +34,279 @@ void UnMakeMove(int ply, int move, int wtm)
 |                                                          |
  ----------------------------------------------------------
 */
-  bit_move=Or(set_mask[From(move)],set_mask[To(move)]);
-  switch (Piece(move)) {
+  piece=Piece(move);
+  from=From(move);
+  to=To(move);
+  captured=Captured(move);
+  promote=Promote(move);
+UnMakePieceMove:
+  SetRL90(from,OccupiedRL90);
+  SetRL45(from,OccupiedRL45);
+  SetRR45(from,OccupiedRR45);
+  ClearRL90(to,OccupiedRL90);
+  ClearRL45(to,OccupiedRL45);
+  ClearRR45(to,OccupiedRR45);
+  bit_move=Or(set_mask[from],set_mask[to]);
+  PieceOnSquare(to)=0;
+  switch (piece) {
+
+/*
+********************************************************************************
+*                                                                              *
+*   unmake pawn moves.                                                         *
+*                                                                              *
+********************************************************************************
+*/
   case pawn:
-    UnMakeMovePawn(ply,From(move),To(move),Captured(move),Promote(move),wtm);
-    if (Captured(move) == 1 && To(move) == EnPassant(ply)) move&=~(7<<15);
+    if (wtm) {
+      ClearSet(bit_move,WhitePawns);
+      ClearSet(bit_move,WhitePieces);
+      PieceOnSquare(from)=pawn;
+      if (captured == 1) {
+        if(EnPassant(ply) == to) {
+          TotalPieces++;
+          SetRL90(to-8,OccupiedRL90);
+          SetRL45(to-8,OccupiedRL45);
+          SetRR45(to-8,OccupiedRR45);
+          Set(to-8,BlackPawns);
+          Set(to-8,BlackPieces);
+          PieceOnSquare(to-8)=-pawn;
+          Material-=PAWN_VALUE;
+          TotalBlackPawns++;
+          captured=0;
+        }
+      }
+/*
+ --------------------------------------------------------------------
+|                                                                    |
+|  if this is a pawn promotion, remove the pawn from the counts      |
+|  then update the correct piece board to reflect the piece just     |
+|  created.                                                          |
+|                                                                    |
+ --------------------------------------------------------------------
+*/
+      if (promote) {
+        TotalWhitePawns++;
+        Material+=PAWN_VALUE;
+        Clear(to,WhitePawns);
+        Clear(to,WhitePieces);
+        switch (promote) {
+        case knight:
+          Clear(to,WhiteKnights);
+          TotalWhitePieces-=knight_v;
+          Material-=KNIGHT_VALUE;
+          break;
+        case bishop:
+          Clear(to,WhiteBishops);
+          Clear(to,BishopsQueens);
+          TotalWhitePieces-=bishop_v;
+          Material-=BISHOP_VALUE;
+          break;
+        case rook:
+          Clear(to,WhiteRooks);
+          Clear(to,RooksQueens);
+          TotalWhitePieces-=rook_v;
+          Material-=ROOK_VALUE;
+          break;
+        case queen:
+          Clear(to,WhiteQueens);
+          Clear(to,BishopsQueens);
+          Clear(to,RooksQueens);
+          TotalWhitePieces-=queen_v;
+          Material-=QUEEN_VALUE;
+          break;
+        }
+      }
+    }
+    else {
+      ClearSet(bit_move,BlackPawns);
+      ClearSet(bit_move,BlackPieces);
+      PieceOnSquare(from)=-pawn;
+      if (captured == 1) {
+        if(EnPassant(ply) == to) {
+          TotalPieces++;
+          SetRL90(to+8,OccupiedRL90);
+          SetRL45(to+8,OccupiedRL45);
+          SetRR45(to+8,OccupiedRR45);
+          Set(to+8,WhitePawns);
+          Set(to+8,WhitePieces);
+          PieceOnSquare(to+8)=pawn;
+          Material+=PAWN_VALUE;
+          TotalWhitePawns++;
+          captured=0;
+        }
+      }
+/*
+ --------------------------------------------------------------------
+|                                                                    |
+|  if this is a pawn promotion, remove the pawn from the counts      |
+|  then update the correct piece board to reflect the piece just     |
+|  created.                                                          |
+|                                                                    |
+ --------------------------------------------------------------------
+*/
+      if (promote) {
+        TotalBlackPawns++;
+        Material-=PAWN_VALUE;
+        Clear(to,BlackPawns);
+        Clear(to,BlackPieces);
+        switch (promote) {
+        case knight:
+          Clear(to,BlackKnights);
+          TotalBlackPieces-=knight_v;
+          Material+=KNIGHT_VALUE;
+          break;
+        case bishop:
+          Clear(to,BlackBishops);
+          Clear(to,BishopsQueens);
+          TotalBlackPieces-=bishop_v;
+          Material+=BISHOP_VALUE;
+          break;
+        case rook:
+          Clear(to,BlackRooks);
+          Clear(to,RooksQueens);
+          TotalBlackPieces-=rook_v;
+          Material+=ROOK_VALUE;
+          break;
+        case queen:
+          Clear(to,BlackQueens);
+          Clear(to,BishopsQueens);
+          Clear(to,RooksQueens);
+          TotalBlackPieces-=queen_v;
+          Material+=QUEEN_VALUE;
+          break;
+        }
+      }
+    }
     break;
+
+/*
+********************************************************************************
+*                                                                              *
+*   unmake knight moves.                                                       *
+*                                                                              *
+********************************************************************************
+*/
   case knight:
-    UnMakeMoveKnight(From(move),To(move),wtm);
+    if (wtm) {
+      ClearSet(bit_move,WhiteKnights);
+      ClearSet(bit_move,WhitePieces);
+      PieceOnSquare(from)=knight;
+    }
+    else {
+      ClearSet(bit_move,BlackKnights);
+      ClearSet(bit_move,BlackPieces);
+      PieceOnSquare(from)=-knight;
+    }
     break;
+
+/*
+********************************************************************************
+*                                                                              *
+*   unmake bishop moves.                                                       *
+*                                                                              *
+********************************************************************************
+*/
   case bishop:
-    UnMakeMoveBishop(From(move),To(move),wtm);
+    ClearSet(bit_move,BishopsQueens);
+    if (wtm) {
+      ClearSet(bit_move,WhiteBishops);
+      ClearSet(bit_move,WhitePieces);
+      PieceOnSquare(from)=bishop;
+    }
+    else {
+      ClearSet(bit_move,BlackBishops);
+      ClearSet(bit_move,BlackPieces);
+      PieceOnSquare(from)=-bishop;
+    }
     break;
+/*
+********************************************************************************
+*                                                                              *
+*   unmake rook moves.                                                         *
+*                                                                              *
+********************************************************************************
+*/
   case rook:
-    UnMakeMoveRook(From(move),To(move),wtm);
+    ClearSet(bit_move,RooksQueens);
+    if (wtm) {
+      ClearSet(bit_move,WhiteRooks);
+      ClearSet(bit_move,WhitePieces);
+      PieceOnSquare(from)=rook;
+    }
+    else {
+      ClearSet(bit_move,BlackRooks);
+      ClearSet(bit_move,BlackPieces);
+      PieceOnSquare(from)=-rook;
+    }
     break;
+/*
+********************************************************************************
+*                                                                              *
+*   unmake queen moves.                                                        *
+*                                                                              *
+********************************************************************************
+*/
   case queen:
-    UnMakeMoveQueen(From(move),To(move),wtm);
+    ClearSet(bit_move,BishopsQueens);
+    ClearSet(bit_move,RooksQueens);
+    if (wtm) {
+      ClearSet(bit_move,WhiteQueens);
+      ClearSet(bit_move,WhitePieces);
+      PieceOnSquare(from)=queen;
+    }
+    else {
+      ClearSet(bit_move,BlackQueens);
+      ClearSet(bit_move,BlackPieces);
+      PieceOnSquare(from)=-queen;
+    }
     break;
+/*
+********************************************************************************
+*                                                                              *
+*   unmake king moves.                                                         *
+*                                                                              *
+********************************************************************************
+*/
   case king:
-    UnMakeMoveKing(From(move),To(move),wtm);
+    if (wtm) {
+      ClearSet(bit_move,WhitePieces);
+      PieceOnSquare(from)=king;
+      WhiteKingSQ=from;
+      if (abs(to-from) == 2) {
+        if (to == 6) {
+          from=H1;
+          to=F1;
+          piece=rook;
+          goto UnMakePieceMove;
+        }
+        else {
+          from=A1;
+          to=D1;
+          piece=rook;
+          goto UnMakePieceMove;
+        }
+      }
+    }
+    else {
+      ClearSet(bit_move,BlackPieces);
+      PieceOnSquare(from)=-king;
+      BlackKingSQ=from;
+      if (abs(to-from) == 2) {
+        if (to == 62) {
+          from=H8;
+          to=F8;
+          piece=rook;
+          goto UnMakePieceMove;
+        }
+        else {
+          from=A8;
+          to=D8;
+          piece=rook;
+          goto UnMakePieceMove;
+        }
+      }
+    }
     break;
   }
 /*
@@ -62,11 +316,12 @@ void UnMakeMove(int ply, int move, int wtm)
 *                                                                              *
 ********************************************************************************
 */
-  if(Captured(move)) {
-    SetRL90(To(move),OccupiedRL90);
-    SetRL45(To(move),OccupiedRL45);
-    SetRR45(To(move),OccupiedRR45);
-    switch (Captured(move)) {
+  if(captured) {
+    TotalPieces++;
+    SetRL90(to,OccupiedRL90);
+    SetRL45(to,OccupiedRL45);
+    SetRR45(to,OccupiedRR45);
+    switch (captured) {
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -76,16 +331,16 @@ void UnMakeMove(int ply, int move, int wtm)
 */
     case pawn: 
       if (wtm) {
-        Set(To(move),BlackPawns);
-        Set(To(move),BlackPieces);
-        PieceOnSquare(To(move))=-pawn;
+        Set(to,BlackPawns);
+        Set(to,BlackPieces);
+        PieceOnSquare(to)=-pawn;
         Material-=PAWN_VALUE;
         TotalBlackPawns++;
       }
       else {
-        Set(To(move),WhitePawns);
-        Set(To(move),WhitePieces);
-        PieceOnSquare(To(move))=pawn;
+        Set(to,WhitePawns);
+        Set(to,WhitePieces);
+        PieceOnSquare(to)=pawn;
         Material+=PAWN_VALUE;
         TotalWhitePawns++;
       }
@@ -99,16 +354,16 @@ void UnMakeMove(int ply, int move, int wtm)
 */
     case knight: 
       if (wtm) {
-        Set(To(move),BlackKnights);
-        Set(To(move),BlackPieces);
-        PieceOnSquare(To(move))=-knight;
+        Set(to,BlackKnights);
+        Set(to,BlackPieces);
+        PieceOnSquare(to)=-knight;
         TotalBlackPieces+=knight_v;
         Material-=KNIGHT_VALUE;
       }
       else {
-        Set(To(move),WhiteKnights);
-        Set(To(move),WhitePieces);
-        PieceOnSquare(To(move))=knight;
+        Set(to,WhiteKnights);
+        Set(to,WhitePieces);
+        PieceOnSquare(to)=knight;
         TotalWhitePieces+=knight_v;
         Material+=KNIGHT_VALUE;
       }
@@ -121,18 +376,18 @@ void UnMakeMove(int ply, int move, int wtm)
  ----------------------------------------------------------
 */
     case bishop: 
-      Set(To(move),BishopsQueens);
+      Set(to,BishopsQueens);
       if (wtm) {
-        Set(To(move),BlackBishops);
-        Set(To(move),BlackPieces);
-        PieceOnSquare(To(move))=-bishop;
+        Set(to,BlackBishops);
+        Set(to,BlackPieces);
+        PieceOnSquare(to)=-bishop;
         TotalBlackPieces+=bishop_v;
         Material-=BISHOP_VALUE;
       }
       else {
-        Set(To(move),WhiteBishops);
-        Set(To(move),WhitePieces);
-        PieceOnSquare(To(move))=bishop;
+        Set(to,WhiteBishops);
+        Set(to,WhitePieces);
+        PieceOnSquare(to)=bishop;
         TotalWhitePieces+=bishop_v;
         Material+=BISHOP_VALUE;
       }
@@ -145,18 +400,18 @@ void UnMakeMove(int ply, int move, int wtm)
  ----------------------------------------------------------
 */
     case rook: 
-      Set(To(move),RooksQueens);
+      Set(to,RooksQueens);
       if (wtm) {
-        Set(To(move),BlackRooks);
-        Set(To(move),BlackPieces);
-        PieceOnSquare(To(move))=-rook;
+        Set(to,BlackRooks);
+        Set(to,BlackPieces);
+        PieceOnSquare(to)=-rook;
         TotalBlackPieces+=rook_v;
         Material-=ROOK_VALUE;
       }
       else {
-        Set(To(move),WhiteRooks);
-        Set(To(move),WhitePieces);
-        PieceOnSquare(To(move))=rook;
+        Set(to,WhiteRooks);
+        Set(to,WhitePieces);
+        PieceOnSquare(to)=rook;
         TotalWhitePieces+=rook_v;
         Material+=ROOK_VALUE;
       }
@@ -169,19 +424,19 @@ void UnMakeMove(int ply, int move, int wtm)
  ----------------------------------------------------------
 */
     case queen: 
-      Set(To(move),BishopsQueens);
-      Set(To(move),RooksQueens);
+      Set(to,BishopsQueens);
+      Set(to,RooksQueens);
       if (wtm) {
-        Set(To(move),BlackQueens);
-        Set(To(move),BlackPieces);
-        PieceOnSquare(To(move))=-queen;
+        Set(to,BlackQueens);
+        Set(to,BlackPieces);
+        PieceOnSquare(to)=-queen;
         TotalBlackPieces+=queen_v;
         Material-=QUEEN_VALUE;
       }
       else {
-        Set(To(move),WhiteQueens);
-        Set(To(move),WhitePieces);
-        PieceOnSquare(To(move))=queen;
+        Set(to,WhiteQueens);
+        Set(to,WhitePieces);
+        PieceOnSquare(to)=queen;
         TotalWhitePieces+=queen_v;
         Material+=QUEEN_VALUE;
       }
@@ -194,368 +449,15 @@ void UnMakeMove(int ply, int move, int wtm)
  ----------------------------------------------------------
 */
     case king: 
-      Print(1,"captured a king\n");
-      Print(1,"piece=%d,from=%d,to=%d,captured=%d\n",
-            Piece(move),From(move),
-            To(move),Captured(move));
-      Print(1,"ply=%d\n",ply);
-      if (log_file) DisplayChessBoard(log_file,search);
+      Print(128,"captured a king\n");
+      Print(128,"piece=%d,from=%d,to=%d,captured=%d\n",
+            piece,from,to,captured);
+      Print(128,"ply=%d\n",ply);
+      if (log_file) DisplayChessBoard(log_file,tree->pos);
     }
   }
 #if defined(DEBUG)
-  ValidatePosition(ply,move,"UnMakeMove(2)");
+  ValidatePosition(tree,ply,move,"UnMakeMove(2)");
 #endif
   return;
-}
-
-/*
-********************************************************************************
-*                                                                              *
-*   unmake bishop moves.                                                       *
-*                                                                              *
-********************************************************************************
-*/
-void UnMakeMoveBishop(int from, int to, int wtm)
-{
-/*
- --------------------------------------------------------------------
-|                                                                    |
-|  first, update the occupied-square bitboards, of which there are   |
-|  several.                                                          |
-|                                                                    |
- --------------------------------------------------------------------
-*/
-  ClearSet(bit_move,BishopsQueens);
-  SetRL90(from,OccupiedRL90);
-  SetRL45(from,OccupiedRL45);
-  SetRR45(from,OccupiedRR45);
-  ClearRL90(to,OccupiedRL90);
-  ClearRL45(to,OccupiedRL45);
-  ClearRR45(to,OccupiedRR45);
-  if (wtm) {
-    ClearSet(bit_move,WhiteBishops);
-    ClearSet(bit_move,WhitePieces);
-    PieceOnSquare(to)=0;
-    PieceOnSquare(from)=bishop;
-  }
-  else {
-    ClearSet(bit_move,BlackBishops);
-    ClearSet(bit_move,BlackPieces);
-    PieceOnSquare(to)=0;
-    PieceOnSquare(from)=-bishop;
-  }
-}
-
-/*
-********************************************************************************
-*                                                                              *
-*   unmake king moves.                                                         *
-*                                                                              *
-********************************************************************************
-*/
-void UnMakeMoveKing(int from, int to, int wtm)
-{
-/*
- --------------------------------------------------------------------
-|                                                                    |
-|  first, update the occupied-square bitboards, of which there are   |
-|  several.                                                          |
-|                                                                    |
- --------------------------------------------------------------------
-*/
-  SetRL90(from,OccupiedRL90);
-  SetRL45(from,OccupiedRL45);
-  SetRR45(from,OccupiedRR45);
-  ClearRL90(to,OccupiedRL90);
-  ClearRL45(to,OccupiedRL45);
-  ClearRR45(to,OccupiedRR45);
-  if (wtm) {
-    ClearSet(bit_move,WhitePieces);
-    PieceOnSquare(to)=0;
-    PieceOnSquare(from)=king;
-    WhiteKingSQ=from;
-    if (abs(to-from) == 2) {
-      if (to == 6) {
-        bit_move=Or(set_mask[F1],set_mask[H1]);
-        UnMakeMoveRook(H1,F1,wtm);
-      }
-      else {
-        bit_move=Or(set_mask[A1],set_mask[D1]);
-        UnMakeMoveRook(A1,D1,wtm);
-      }
-    }
-  }
-  else {
-    ClearSet(bit_move,BlackPieces);
-    PieceOnSquare(to)=0;
-    PieceOnSquare(from)=-king;
-    BlackKingSQ=from;
-    if (abs(to-from) == 2) {
-      if (to == 62) {
-        bit_move=Or(set_mask[F8],set_mask[H8]);
-        UnMakeMoveRook(H8,F8,wtm);
-      }
-      else {
-        bit_move=Or(set_mask[A8],set_mask[D8]);
-        UnMakeMoveRook(A8,D8,wtm);
-      }
-    }
-  }
-}
-
-/*
-********************************************************************************
-*                                                                              *
-*   unmake knight moves.                                                       *
-*                                                                              *
-********************************************************************************
-*/
-void UnMakeMoveKnight(int from, int to, int wtm)
-{
-/*
- --------------------------------------------------------------------
-|                                                                    |
-|  first, update the occupied-square bitboards, of which there are   |
-|  several.                                                          |
-|                                                                    |
- --------------------------------------------------------------------
-*/
-  SetRL90(from,OccupiedRL90);
-  SetRL45(from,OccupiedRL45);
-  SetRR45(from,OccupiedRR45);
-  ClearRL90(to,OccupiedRL90);
-  ClearRL45(to,OccupiedRL45);
-  ClearRR45(to,OccupiedRR45);
-  if (wtm) {
-    ClearSet(bit_move,WhiteKnights);
-    ClearSet(bit_move,WhitePieces);
-    PieceOnSquare(to)=0;
-    PieceOnSquare(from)=knight;
-  }
-  else {
-    ClearSet(bit_move,BlackKnights);
-    ClearSet(bit_move,BlackPieces);
-    PieceOnSquare(to)=0;
-    PieceOnSquare(from)=-knight;
-  }
-}
-
-/*
-********************************************************************************
-*                                                                              *
-*   unmake pawn moves.                                                         *
-*                                                                              *
-********************************************************************************
-*/
-void UnMakeMovePawn(int ply, int from, int to, int Captured, int Promote, int wtm)
-{
-/*
- --------------------------------------------------------------------
-|                                                                    |
-|  now, update the occupied-square bitboards, of which there are     |
-|  several.                                                          |
-|                                                                    |
- --------------------------------------------------------------------
-*/
-  SetRL90(from,OccupiedRL90);
-  SetRL45(from,OccupiedRL45);
-  SetRR45(from,OccupiedRR45);
-  ClearRL90(to,OccupiedRL90);
-  ClearRL45(to,OccupiedRL45);
-  ClearRR45(to,OccupiedRR45);
-  if (wtm) {
-    ClearSet(bit_move,WhitePawns);
-    ClearSet(bit_move,WhitePieces);
-    PieceOnSquare(to)=0;
-    PieceOnSquare(from)=pawn;
-    if (Captured == 1) {
-      if(EnPassant(ply) == to) {
-        SetRL90(to-8,OccupiedRL90);
-        SetRL45(to-8,OccupiedRL45);
-        SetRR45(to-8,OccupiedRR45);
-        Set(to-8,BlackPawns);
-        Set(to-8,BlackPieces);
-        PieceOnSquare(to-8)=-pawn;
-        Material-=PAWN_VALUE;
-        TotalBlackPawns++;
-      }
-    }
-/*
- --------------------------------------------------------------------
-|                                                                    |
-|  if this is a pawn promotion, remove the pawn from the counts      |
-|  then update the correct piece board to reflect the piece just     |
-|  created.                                                          |
-|                                                                    |
- --------------------------------------------------------------------
-*/
-    if (Promote) {
-      TotalWhitePawns++;
-      Material+=PAWN_VALUE;
-      Clear(to,WhitePawns);
-      Clear(to,WhitePieces);
-      switch (Promote) {
-      case knight:
-        Clear(to,WhiteKnights);
-        TotalWhitePieces-=knight_v;
-        Material-=KNIGHT_VALUE;
-        break;
-      case bishop:
-        Clear(to,WhiteBishops);
-        Clear(to,BishopsQueens);
-        TotalWhitePieces-=bishop_v;
-        Material-=BISHOP_VALUE;
-        break;
-      case rook:
-        Clear(to,WhiteRooks);
-        Clear(to,RooksQueens);
-        TotalWhitePieces-=rook_v;
-        Material-=ROOK_VALUE;
-        break;
-      case queen:
-        Clear(to,WhiteQueens);
-        Clear(to,BishopsQueens);
-        Clear(to,RooksQueens);
-        TotalWhitePieces-=queen_v;
-        Material-=QUEEN_VALUE;
-        break;
-      }
-    }
-  }
-  else {
-    ClearSet(bit_move,BlackPawns);
-    ClearSet(bit_move,BlackPieces);
-    PieceOnSquare(to)=0;
-    PieceOnSquare(from)=-pawn;
-    if (Captured == 1) {
-      if(EnPassant(ply) == to) {
-        SetRL90(to+8,OccupiedRL90);
-        SetRL45(to+8,OccupiedRL45);
-        SetRR45(to+8,OccupiedRR45);
-        Set(to+8,WhitePawns);
-        Set(to+8,WhitePieces);
-        PieceOnSquare(to+8)=pawn;
-        Material+=PAWN_VALUE;
-        TotalWhitePawns++;
-      }
-    }
-/*
- --------------------------------------------------------------------
-|                                                                    |
-|  if this is a pawn promotion, remove the pawn from the counts      |
-|  then update the correct piece board to reflect the piece just     |
-|  created.                                                          |
-|                                                                    |
- --------------------------------------------------------------------
-*/
-    if (Promote) {
-      TotalBlackPawns++;
-      Material-=PAWN_VALUE;
-      Clear(to,BlackPawns);
-      Clear(to,BlackPieces);
-      switch (Promote) {
-      case knight:
-        Clear(to,BlackKnights);
-        TotalBlackPieces-=knight_v;
-        Material+=KNIGHT_VALUE;
-        break;
-      case bishop:
-        Clear(to,BlackBishops);
-        Clear(to,BishopsQueens);
-        TotalBlackPieces-=bishop_v;
-        Material+=BISHOP_VALUE;
-        break;
-      case rook:
-        Clear(to,BlackRooks);
-        Clear(to,RooksQueens);
-        TotalBlackPieces-=rook_v;
-        Material+=ROOK_VALUE;
-        break;
-      case queen:
-        Clear(to,BlackQueens);
-        Clear(to,BishopsQueens);
-        Clear(to,RooksQueens);
-        TotalBlackPieces-=queen_v;
-        Material+=QUEEN_VALUE;
-        break;
-      }
-    }
-  }
-}
-
-/*
-********************************************************************************
-*                                                                              *
-*   unmake queen moves.                                                        *
-*                                                                              *
-********************************************************************************
-*/
-void UnMakeMoveQueen(int from, int to, int wtm)
-{
-/*
- --------------------------------------------------------------------
-|                                                                    |
-|  first, update the occupied-square bitboards, of which there are   |
-|  several.                                                          |
-|                                                                    |
- --------------------------------------------------------------------
-*/
-  ClearSet(bit_move,BishopsQueens);
-  ClearSet(bit_move,RooksQueens);
-  SetRL90(from,OccupiedRL90);
-  SetRL45(from,OccupiedRL45);
-  SetRR45(from,OccupiedRR45);
-  ClearRL90(to,OccupiedRL90);
-  ClearRL45(to,OccupiedRL45);
-  ClearRR45(to,OccupiedRR45);
-  if (wtm) {
-    ClearSet(bit_move,WhiteQueens);
-    ClearSet(bit_move,WhitePieces);
-    PieceOnSquare(to)=0;
-    PieceOnSquare(from)=queen;
-  }
-  else {
-    ClearSet(bit_move,BlackQueens);
-    ClearSet(bit_move,BlackPieces);
-    PieceOnSquare(to)=0;
-    PieceOnSquare(from)=-queen;
-  }
-}
-
-/*
-********************************************************************************
-*                                                                              *
-*   unmake rook moves.                                                         *
-*                                                                              *
-********************************************************************************
-*/
-void UnMakeMoveRook(int from, int to, int wtm)
-{
-/*
- --------------------------------------------------------------------
-|                                                                    |
-|  first, update the occupied-square bitboards, of which there are   |
-|  several.                                                          |
-|                                                                    |
- --------------------------------------------------------------------
-*/
-  ClearSet(bit_move,RooksQueens);
-  SetRL90(from,OccupiedRL90);
-  SetRL45(from,OccupiedRL45);
-  SetRR45(from,OccupiedRR45);
-  ClearRL90(to,OccupiedRL90);
-  ClearRL45(to,OccupiedRL45);
-  ClearRR45(to,OccupiedRR45);
-  if (wtm) {
-    ClearSet(bit_move,WhiteRooks);
-    ClearSet(bit_move,WhitePieces);
-    PieceOnSquare(to)=0;
-    PieceOnSquare(from)=rook;
-  }
-  else {
-    ClearSet(bit_move,BlackRooks);
-    ClearSet(bit_move,BlackPieces);
-    PieceOnSquare(to)=0;
-    PieceOnSquare(from)=-rook;
-  }
 }

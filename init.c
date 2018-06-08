@@ -1,11 +1,16 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "chess.h"
 #include "data.h"
 #if defined(UNIX) || defined(AMIGA)
 #  include <unistd.h>
 #endif
 #include "epdglue.h"
+#if defined(NT_i386) || defined(NT_AXP)
+#  include <fcntl.h>  /* needed for definition of "_O_BINARY" */
+#endif
+
 
 #if defined(COMPACT_ATTACKS)
 extern unsigned char init_l90[];
@@ -111,8 +116,7 @@ int diagonal_length[64] = {         1,
                                     1 };
 #endif
 
-void Initialize(int continuing)
-{
+void Initialize(int continuing) {
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -120,55 +124,175 @@ void Initialize(int continuing)
 |                                                          |
  ----------------------------------------------------------
 */
-  char log_filename[64];
-  char history_filename[64];
-  char command[80];
+  int i, j, major, minor;
+  TREE *tree;
 
+#if defined(SMP)
+  for (i=1;i<MAX_BLOCKS+1;i++) {
+    local[i]=(TREE*) malloc(sizeof(TREE));
+    local[i]->used=0;
+  }
+  local[0]->parent=(TREE*)-1;
+#endif
+  
+  tree=local[0];
+  i=0;
   InitializeZeroMasks();
+#if defined(SMP)
+  InitializeSMP();
+#endif
   InitializeMasks();
   InitializeRandomHash();
   InitializeAttackBoards();
   InitializePawnMasks();
   InitializePieceMasks();
-
-  InitializeChessBoard(&position[0]);
+  InitializeChessBoard(&tree->position[0]);
+#if defined(NT_i386) || defined(NT_AXP)
+  _fmode = _O_BINARY;  /* set global file mode to binary to avoid text translation */
+#endif
 
   EGInit();
 
-  last[0]=move_list;
+  tree->last[0]=tree->move_list;
 
-  sprintf(log_filename,"%s/book.bin",BOOKDIR);
+#if defined(MACOS)
+  sprintf(log_filename,":%s:book.bin",book_path);
+#else
+  sprintf(log_filename,"%s/book.bin",book_path);
+#endif
   book_file=fopen(log_filename,"rb+");
-  if (!book_file) printf("unable to open book file [book.bin].\n");
-  sprintf(log_filename,"%s/books.bin",BOOKDIR);
+  if (!book_file) {
+    book_file=fopen(log_filename,"rb");
+    if (!book_file) {
+#if defined(MACOS)
+      printf("unable to open book file [:%s:book.bin].\n",book_path);
+#else
+      printf("unable to open book file [%s/book.bin].\n",book_path);
+#endif
+      printf("book is disabled\n");
+    }
+    else {
+#if defined(MACOS)
+      printf("unable to open book file [:%s:book.bin] for \"write\".\n",book_path);
+#else
+      printf("unable to open book file [%s/book.bin] for \"write\".\n",book_path);
+#endif
+      printf("learning is disabled\n");
+    }
+  }
+#if defined(MACOS)
+  sprintf(log_filename,":%s:books.bin",book_path);
+#else
+  sprintf(log_filename,"%s/books.bin",book_path);
+#endif
   books_file=fopen(log_filename,"rb");
-  if (!books_file) printf("unable to open book file [books.bin].\n");
-  learn_file=fopen("book.lrn","a");
-  if (!learn_file) printf("unable to open book learning file [book.lrn].\n");
+#if defined(MACOS)
+  if (!books_file) printf("unable to open book file [:%s:books.bin].\n",book_path);
+#else
+  if (!books_file) printf("unable to open book file [%s/books.bin].\n",book_path);
+#endif
+  if (book_file) {
+    fseek(book_file,-sizeof(int),SEEK_END);
+    fread(&major,sizeof(int),1,book_file);
+    minor=major&65535;
+    major=major>>16;
+    if (major<15 || (major==15 && minor<15)) {
+      Print(4095,"\nERROR!  book.bin not made by version 15.15 or later\n");
+      book_file=0;
+      books_file=0;
+    }
+  }
+#if defined(MACOS)
+  sprintf(log_filename,":%s:book.lrn",book_path);
+#else
+  sprintf(log_filename,"%s/book.lrn",book_path);
+#endif
+  book_lrn_file=fopen(log_filename,"a");
+  if (!book_lrn_file) {
+#if defined(MACOS)
+    printf("unable to open book learning file [:%s:book.lrn].\n",book_path);
+#else
+    printf("unable to open book learning file [%s/book.lrn].\n",book_path);
+#endif
+    printf("learning disabled.\n");
+    learning&=~(book_learning+result_learning);
+  }
+  if (learning&position_learning) {
+#if defined(MACOS)
+    sprintf(log_filename,":%s:position.bin",book_path);
+#else
+    sprintf(log_filename,"%s/position.bin",book_path);
+#endif
+    position_file=fopen(log_filename,"rb+");
+    if (position_file) {
+      fseek(position_file,0,SEEK_END);
+      if (ftell(position_file) == 0) {
+        fclose(position_file);
+        position_file=0;
+      }
+    }
+    if (!position_file) {
+      position_file=fopen(log_filename,"wb+");
+      if (position_file) {
+        fseek(position_file,0,SEEK_SET);
+        fwrite(&i,sizeof(int),1,position_file);
+        i--;
+        fwrite(&i,sizeof(int),1,position_file);
+      }
+      else {
+#if defined(MACOS)
+        printf("unable to open position learning file [:%s:position.bin].\n",book_path);
+#else
+        printf("unable to open position learning file [%s/position.bin].\n",book_path);
+#endif
+        printf("learning disabled.\n");
+        learning&=~position_learning;
+      }
+    }
+#if defined(MACOS)
+    sprintf(log_filename,":%s:position.lrn",book_path);
+#else
+    sprintf(log_filename,"%s/position.lrn",book_path);
+#endif
+    position_lrn_file=fopen(log_filename,"r");
+    if (!position_lrn_file) {
+      position_lrn_file=fopen(log_filename,"a");
+      fprintf(position_lrn_file,"position\n");
+    }
+    else {
+      fclose(position_lrn_file);
+      position_lrn_file=fopen(log_filename,"a");
+    }
+  }
 
   for (log_id=1;log_id <300;log_id++) {
-    sprintf(log_filename,"%s/log.%03d",LOGDIR,log_id);
-    sprintf(history_filename,"%s/game.%03d",LOGDIR,log_id);
+#if defined(MACOS)
+    sprintf(log_filename,":%s:log.%03d",log_path,log_id);
+    sprintf(history_filename,":%s:game.%03d",log_path,log_id);
+#else
+    sprintf(log_filename,"%s/log.%03d",log_path,log_id);
+    sprintf(history_filename,"%s/game.%03d",log_path,log_id);
+#endif
     log_file=fopen(log_filename,"r");
     if (!log_file) break;
     fclose(log_file);
   }
   if (continuing) {
     log_id--;
-    sprintf(log_filename,"%s/log.%03d",LOGDIR,log_id);
-    sprintf(history_filename,"%s/game.%03d",LOGDIR,log_id);
+    sprintf(log_filename,"%s/log.%03d",log_path,log_id);
+    sprintf(history_filename,"%s/game.%03d",log_path,log_id);
     log_file=fopen(log_filename,"r+");
     history_file=fopen(history_filename,"r+");
     if (!log_file || !history_file) {
       printf("\nsorry.  nothing to continue.\n\n");
-      sprintf(log_filename,"%s/log.%03d",LOGDIR,1);
-      sprintf(history_filename,"%s/game.%03d",LOGDIR,1);
+      sprintf(log_filename,"%s/log.%03d",log_path,1);
+      sprintf(history_filename,"%s/game.%03d",log_path,1);
       log_file=fopen("log_filename","w");
       history_file=fopen("history_filename","w+");
     }
     else {
-      sprintf(command,"read=game.%03d",log_id);
-      (void) Option(command);
+      sprintf(buffer,"read %s/game.%03d", log_path, log_id);
+      (void) Option(tree);
     }
   }
   else {
@@ -180,7 +304,7 @@ void Initialize(int continuing)
   trans_ref_wb=malloc(16*2*hash_table_size);
   trans_ref_ba=malloc(16*hash_table_size);
   trans_ref_bb=malloc(16*2*hash_table_size);
-  pawn_hash_table=malloc(16*pawn_hash_table_size);
+  pawn_hash_table=malloc(sizeof(PAWN_HASH_ENTRY)*pawn_hash_table_size);
   InitializeHashTables();
   if (!trans_ref_wa || !trans_ref_wb || !trans_ref_ba || !trans_ref_bb ) {
     printf("malloc() failed, not enough memory.\n");
@@ -191,17 +315,27 @@ void Initialize(int continuing)
     free(pawn_hash_table);
     hash_table_size=0;
     pawn_hash_table_size=0;
-    log_hash_table_size=0;
-    log_pawn_hash_table_size=0;
+    log_hash=0;
+    log_pawn_hash=0;
     trans_ref_wa=0;
     trans_ref_wb=0;
     trans_ref_ba=0;
     trans_ref_bb=0;
     pawn_hash_table=0;
   }
-  hash_maska=(1<<log_hash_table_size)-1;
-  hash_maskb=(1<<(log_hash_table_size+1))-1;
-  pawn_hash_mask=((unsigned int) 037777777777)>>(32-log_pawn_hash_table_size);
+  hash_maska=(1<<log_hash)-1;
+  hash_maskb=(1<<(log_hash+1))-1;
+  pawn_hash_mask=((unsigned int) 037777777777)>>(32-log_pawn_hash);
+
+  for (i=0;i<8;i++)
+    for (j=0;j<8;j++) {
+      pawn_value_b[i*8+j]=  pawn_value_w[(7-i)*8+j];
+      knight_value_b[i*8+j]=knight_value_w[(7-i)*8+j];
+      bishop_value_b[i*8+j]=bishop_value_w[(7-i)*8+j];
+      rook_value_b[i*8+j]=  rook_value_w[(7-i)*8+j];
+      queen_value_b[i*8+j]= queen_value_w[(7-i)*8+j];
+      king_value_b[i*8+j]=  king_value_w[(7-i)*8+j];
+    }
 }
 
 void InitializeAttackBoards(void)
@@ -268,26 +402,26 @@ void InitializeAttackBoards(void)
         bishop_attacks[i]=Or(bishop_attacks[i],Shiftr(mask_1,sq));
         queen_attacks[i]=Or(queen_attacks[i],Shiftr(mask_1,sq));
         if(bishopsq[j]==7)
-          mask_plus7dir[i]=Or(mask_plus7dir[i],Shiftr(mask_1,sq));
+          plus7dir[i]=Or(plus7dir[i],Shiftr(mask_1,sq));
         else if(bishopsq[j]==9)
-          mask_plus9dir[i]=Or(mask_plus9dir[i],Shiftr(mask_1,sq));
+          plus9dir[i]=Or(plus9dir[i],Shiftr(mask_1,sq));
         else if(bishopsq[j]==-7)
-          mask_minus7dir[i]=Or(mask_minus7dir[i],Shiftr(mask_1,sq));
+          minus7dir[i]=Or(minus7dir[i],Shiftr(mask_1,sq));
         else
-          mask_minus9dir[i]=Or(mask_minus9dir[i],Shiftr(mask_1,sq));
+          minus9dir[i]=Or(minus9dir[i],Shiftr(mask_1,sq));
         lastsq=sq;
         sq=sq+bishopsq[j];
       }
     }
   }
-  mask_plus1dir[64]=0;
-  mask_plus7dir[64]=0;
-  mask_plus8dir[64]=0;
-  mask_plus9dir[64]=0;
-  mask_minus1dir[64]=0;
-  mask_minus7dir[64]=0;
-  mask_minus8dir[64]=0;
-  mask_minus9dir[64]=0;
+  plus1dir[64]=0;
+  plus7dir[64]=0;
+  plus8dir[64]=0;
+  plus9dir[64]=0;
+  minus1dir[64]=0;
+  minus7dir[64]=0;
+  minus8dir[64]=0;
+  minus9dir[64]=0;
 /*
    initialize rook/queen attack boards
 */
@@ -305,13 +439,13 @@ void InitializeAttackBoards(void)
         rook_attacks[i]=Or(rook_attacks[i],Shiftr(mask_1,sq));
         queen_attacks[i]=Or(queen_attacks[i],Shiftr(mask_1,sq));
         if(rooksq[j]==1)
-          mask_plus1dir[i]=Or(mask_plus1dir[i],Shiftr(mask_1,sq));
+          plus1dir[i]=Or(plus1dir[i],Shiftr(mask_1,sq));
         else if(rooksq[j]==8)
-          mask_plus8dir[i]=Or(mask_plus8dir[i],Shiftr(mask_1,sq));
+          plus8dir[i]=Or(plus8dir[i],Shiftr(mask_1,sq));
         else if(rooksq[j]==-1)
-          mask_minus1dir[i]=Or(mask_minus1dir[i],Shiftr(mask_1,sq));
+          minus1dir[i]=Or(minus1dir[i],Shiftr(mask_1,sq));
         else
-          mask_minus8dir[i]=Or(mask_minus8dir[i],Shiftr(mask_1,sq));
+          minus8dir[i]=Or(minus8dir[i],Shiftr(mask_1,sq));
         lastsq=sq;
         sq=sq+rooksq[j];
       }
@@ -343,61 +477,61 @@ void InitializeAttackBoards(void)
 */
   for (i=0;i<64;i++) {
     for (j=0;j<64;j++)
-      obstructed[i][j]=-1;
-    sqs=mask_plus1dir[i];
+      obstructed[i][j]=(BITBOARD) -1;
+    sqs=plus1dir[i];
     while (sqs) {
       j=FirstOne(sqs);
       directions[i][j]=1;
-      obstructed[i][j]=Xor(mask_plus1dir[i],mask_plus1dir[j-1]);
+      obstructed[i][j]=Xor(plus1dir[i],plus1dir[j-1]);
       Clear(j,sqs);
     }
-    sqs=mask_plus7dir[i];
+    sqs=plus7dir[i];
     while (sqs) {
       j=FirstOne(sqs);
       directions[i][j]=7;
-      obstructed[i][j]=Xor(mask_plus7dir[i],mask_plus7dir[j-7]);
+      obstructed[i][j]=Xor(plus7dir[i],plus7dir[j-7]);
       Clear(j,sqs);
     }
-    sqs=mask_plus8dir[i];
+    sqs=plus8dir[i];
     while (sqs) {
       j=FirstOne(sqs);
       directions[i][j]=8;
-      obstructed[i][j]=Xor(mask_plus8dir[i],mask_plus8dir[j-8]);
+      obstructed[i][j]=Xor(plus8dir[i],plus8dir[j-8]);
       Clear(j,sqs);
     }
-    sqs=mask_plus9dir[i];
+    sqs=plus9dir[i];
     while (sqs) {
       j=FirstOne(sqs);
       directions[i][j]=9;
-      obstructed[i][j]=Xor(mask_plus9dir[i],mask_plus9dir[j-9]);
+      obstructed[i][j]=Xor(plus9dir[i],plus9dir[j-9]);
       Clear(j,sqs);
     }
-    sqs=mask_minus1dir[i];
+    sqs=minus1dir[i];
     while (sqs) {
       j=FirstOne(sqs);
       directions[i][j]=-1;
-      obstructed[i][j]=Xor(mask_minus1dir[i],mask_minus1dir[j+1]);
+      obstructed[i][j]=Xor(minus1dir[i],minus1dir[j+1]);
       Clear(j,sqs);
     }
-    sqs=mask_minus7dir[i];
+    sqs=minus7dir[i];
     while (sqs) {
       j=FirstOne(sqs);
       directions[i][j]=-7;
-      obstructed[i][j]=Xor(mask_minus7dir[i],mask_minus7dir[j+7]);
+      obstructed[i][j]=Xor(minus7dir[i],minus7dir[j+7]);
       Clear(j,sqs);
     }
-    sqs=mask_minus8dir[i];
+    sqs=minus8dir[i];
     while (sqs) {
       j=FirstOne(sqs);
       directions[i][j]=-8;
-      obstructed[i][j]=Xor(mask_minus8dir[i],mask_minus8dir[j+8]);
+      obstructed[i][j]=Xor(minus8dir[i],minus8dir[j+8]);
       Clear(j,sqs);
     }
-    sqs=mask_minus9dir[i];
+    sqs=minus9dir[i];
     while (sqs) {
       j=FirstOne(sqs);
       directions[i][j]=-9;
-      obstructed[i][j]=Xor(mask_minus9dir[i],mask_minus9dir[j+9]);
+      obstructed[i][j]=Xor(minus9dir[i],minus9dir[j+9]);
       Clear(j,sqs);
     }
   }
@@ -553,246 +687,263 @@ void InitializeAttackBoards(void)
 void InitializeChessBoard(SEARCH_POSITION *new_pos)
 {
   int i;
+  TREE *tree=local[0];
 
-  for(i=0;i<64;i++) search.board[i]=empty;
-  new_pos->rule_50_moves=0;
-  opening=1;
-  middle_game=0;
-  end_game=0;
-  largest_positional_score=1000;
+  if (strlen(initial_position)) {
+    static char a1[80], a2[16], a3[16], a4[16], a5[16];
+    static char *args[16]={a1,a2,a3,a4,a5,a5,a5,a5,a5,a5,a5,a5,a5,a5,a5,a5};
+    int nargs;
+
+    nargs=ReadParse(initial_position,args," ;");
+    SetBoard(nargs,args,1);
+  }
+  else {
+    for(i=0;i<64;i++) tree->pos.board[i]=empty;
+    new_pos->rule_50_moves=0;
+    opening=1;
+    middle_game=0;
+    end_game=0;
+    largest_positional_score=100;
 /*
    place pawns
 */
-  for (i=0;i<8;i++) {
-    search.board[i+8]=pawn;
-    search.board[i+48]=-pawn;
-  }
+    for (i=0;i<8;i++) {
+      tree->pos.board[i+8]=pawn;
+      tree->pos.board[i+48]=-pawn;
+    }
 /*
    place knights
 */
-  search.board[1]=knight;
-  search.board[6]=knight;
-  search.board[57]=-knight;
-  search.board[62]=-knight;
+    tree->pos.board[B1]=knight;
+    tree->pos.board[G1]=knight;
+    tree->pos.board[B8]=-knight;
+    tree->pos.board[G8]=-knight;
 /*
    place bishops
 */
-  search.board[2]=bishop;
-  search.board[5]=bishop;
-  search.board[58]=-bishop;
-  search.board[61]=-bishop;
+    tree->pos.board[C1]=bishop;
+    tree->pos.board[F1]=bishop;
+    tree->pos.board[C8]=-bishop;
+    tree->pos.board[F8]=-bishop;
 /*
    place rooks
 */
-  search.board[0]=rook;
-  search.board[7]=rook;
-  search.board[56]=-rook;
-  search.board[63]=-rook;
+    tree->pos.board[A1]=rook;
+    tree->pos.board[H1]=rook;
+    tree->pos.board[A8]=-rook;
+    tree->pos.board[H8]=-rook;
 /*
    place queens
 */
-  search.board[3]=queen;
-  search.board[59]=-queen;
+    tree->pos.board[D1]=queen;
+    tree->pos.board[D8]=-queen;
 /*
    place kings
 */
-  search.board[4]=king;
-  search.board[60]=-king;
+    tree->pos.board[E1]=king;
+    tree->pos.board[E8]=-king;
 /*
    initialize castling status so all castling is legal.
 */
-  new_pos->w_castle=3;
-  new_pos->b_castle=3;
+    new_pos->w_castle=3;
+    new_pos->b_castle=3;
+/*
+   initialize 50 move counter.
+*/
+    new_pos->rule_50_moves=0;
 /*
    initialize enpassant status.
 */
-  new_pos->enpassant_target=0;
+    new_pos->enpassant_target=0;
 /*
    now, set the bit-boards.
 */
-  SetChessBitBoards(new_pos);
+    SetChessBitBoards(new_pos);
+  }
 }
 
 void SetChessBitBoards(SEARCH_POSITION *new_pos)
 {
   int i;
-  search.hash_key=0;
-  search.pawn_hash_key=0;
+  TREE *tree=local[0];
+  tree->pos.hash_key=0;
+  tree->pos.pawn_hash_key=0;
 /*
    place pawns
 */
-  search.w_pawn=0;
-  search.b_pawn=0;
+  tree->pos.w_pawn=0;
+  tree->pos.b_pawn=0;
   for (i=0;i<64;i++) {
-    if(search.board[i]==pawn) {
-      search.w_pawn=Or(search.w_pawn,set_mask[i]);
-      search.hash_key=Xor(search.hash_key,w_pawn_random[i]);
-      search.pawn_hash_key=Xor(search.pawn_hash_key,w_pawn_random[i]);
+    if(tree->pos.board[i]==pawn) {
+      tree->pos.w_pawn=Or(tree->pos.w_pawn,set_mask[i]);
+      tree->pos.hash_key=Xor(tree->pos.hash_key,w_pawn_random[i]);
+      tree->pos.pawn_hash_key=tree->pos.pawn_hash_key^w_pawn_random32[i];
     }
-    if(search.board[i]==-pawn) {
-      search.b_pawn=Or(search.b_pawn,set_mask[i]);
-      search.hash_key=Xor(search.hash_key,b_pawn_random[i]);
-      search.pawn_hash_key=Xor(search.pawn_hash_key,b_pawn_random[i]);
+    if(tree->pos.board[i]==-pawn) {
+      tree->pos.b_pawn=Or(tree->pos.b_pawn,set_mask[i]);
+      tree->pos.hash_key=Xor(tree->pos.hash_key,b_pawn_random[i]);
+      tree->pos.pawn_hash_key=tree->pos.pawn_hash_key^b_pawn_random32[i];
     }
   }
 /*
    place knights
 */
-  search.w_knight=0;
-  search.b_knight=0;
+  tree->pos.w_knight=0;
+  tree->pos.b_knight=0;
   for (i=0;i<64;i++) {
-    if(search.board[i] == knight) {
-      search.w_knight=Or(search.w_knight,set_mask[i]);
-      search.hash_key=Xor(search.hash_key,w_knight_random[i]);
+    if(tree->pos.board[i] == knight) {
+      tree->pos.w_knight=Or(tree->pos.w_knight,set_mask[i]);
+      tree->pos.hash_key=Xor(tree->pos.hash_key,w_knight_random[i]);
     }
-    if(search.board[i] == -knight) {
-      search.b_knight=Or(search.b_knight,set_mask[i]);
-      search.hash_key=Xor(search.hash_key,b_knight_random[i]);
+    if(tree->pos.board[i] == -knight) {
+      tree->pos.b_knight=Or(tree->pos.b_knight,set_mask[i]);
+      tree->pos.hash_key=Xor(tree->pos.hash_key,b_knight_random[i]);
     }
   }
 /*
    place bishops
 */
-  search.w_bishop=0;
-  search.b_bishop=0;
+  tree->pos.w_bishop=0;
+  tree->pos.b_bishop=0;
   for (i=0;i<64;i++) {
-    if(search.board[i] == bishop) {
-      search.w_bishop=Or(search.w_bishop,set_mask[i]);
-      search.hash_key=Xor(search.hash_key,w_bishop_random[i]);
+    if(tree->pos.board[i] == bishop) {
+      tree->pos.w_bishop=Or(tree->pos.w_bishop,set_mask[i]);
+      tree->pos.hash_key=Xor(tree->pos.hash_key,w_bishop_random[i]);
     }
-    if(search.board[i] == -bishop) {
-      search.b_bishop=Or(search.b_bishop,set_mask[i]);
-      search.hash_key=Xor(search.hash_key,b_bishop_random[i]);
+    if(tree->pos.board[i] == -bishop) {
+      tree->pos.b_bishop=Or(tree->pos.b_bishop,set_mask[i]);
+      tree->pos.hash_key=Xor(tree->pos.hash_key,b_bishop_random[i]);
     }
   }
 /*
    place rooks
 */
-  search.w_rook=0;
-  search.b_rook=0;
+  tree->pos.w_rook=0;
+  tree->pos.b_rook=0;
   for (i=0;i<64;i++) {
-    if(search.board[i] == rook) {
-      search.w_rook=Or(search.w_rook,set_mask[i]);
-      search.hash_key=Xor(search.hash_key,w_rook_random[i]);
+    if(tree->pos.board[i] == rook) {
+      tree->pos.w_rook=Or(tree->pos.w_rook,set_mask[i]);
+      tree->pos.hash_key=Xor(tree->pos.hash_key,w_rook_random[i]);
     }
-    if(search.board[i] == -rook) {
-      search.b_rook=Or(search.b_rook,set_mask[i]);
-      search.hash_key=Xor(search.hash_key,b_rook_random[i]);
+    if(tree->pos.board[i] == -rook) {
+      tree->pos.b_rook=Or(tree->pos.b_rook,set_mask[i]);
+      tree->pos.hash_key=Xor(tree->pos.hash_key,b_rook_random[i]);
     }
   }
 /*
    place queens
 */
-  search.w_queen=0;
-  search.b_queen=0;
+  tree->pos.w_queen=0;
+  tree->pos.b_queen=0;
   for (i=0;i<64;i++) {
-    if(search.board[i] == queen) {
-      search.w_queen=Or(search.w_queen,set_mask[i]);
-      search.hash_key=Xor(search.hash_key,w_queen_random[i]);
+    if(tree->pos.board[i] == queen) {
+      tree->pos.w_queen=Or(tree->pos.w_queen,set_mask[i]);
+      tree->pos.hash_key=Xor(tree->pos.hash_key,w_queen_random[i]);
     }
-    if(search.board[i] == -queen) {
-      search.b_queen=Or(search.b_queen,set_mask[i]);
-      search.hash_key=Xor(search.hash_key,b_queen_random[i]);
+    if(tree->pos.board[i] == -queen) {
+      tree->pos.b_queen=Or(tree->pos.b_queen,set_mask[i]);
+      tree->pos.hash_key=Xor(tree->pos.hash_key,b_queen_random[i]);
     }
   }
 /*
    place kings
 */
   for (i=0;i<64;i++) {
-    if(search.board[i] == king) {
-      search.white_king=i;
-      search.hash_key=Xor(search.hash_key,w_king_random[i]);
+    if(tree->pos.board[i] == king) {
+      tree->pos.white_king=i;
+      tree->pos.hash_key=Xor(tree->pos.hash_key,w_king_random[i]);
     }
-    if(search.board[i] == -king) {
-      search.black_king=i;
-      search.hash_key=Xor(search.hash_key,b_king_random[i]);
+    if(tree->pos.board[i] == -king) {
+      tree->pos.black_king=i;
+      tree->pos.hash_key=Xor(tree->pos.hash_key,b_king_random[i]);
     }
   }
   if (new_pos->enpassant_target) 
-    HashEP(new_pos->enpassant_target,search.hash_key);
-  if (!(new_pos->w_castle&1)) HashCastleW(0,search.hash_key);
-  if (!(new_pos->w_castle&2)) HashCastleW(1,search.hash_key);
-  if (!(new_pos->b_castle&1)) HashCastleB(0,search.hash_key);
-  if (!(new_pos->b_castle&2)) HashCastleB(1,search.hash_key);
+    HashEP(new_pos->enpassant_target,tree->pos.hash_key);
+  if (!(new_pos->w_castle&1)) HashCastleW(0,tree->pos.hash_key);
+  if (!(new_pos->w_castle&2)) HashCastleW(1,tree->pos.hash_key);
+  if (!(new_pos->b_castle&1)) HashCastleB(0,tree->pos.hash_key);
+  if (!(new_pos->b_castle&2)) HashCastleB(1,tree->pos.hash_key);
 /*
    initialize combination boards that show multiple pieces.
 */
-  search.bishops_queens=Or(Or(Or(search.w_bishop,search.w_queen),search.b_bishop),search.b_queen);
-  search.rooks_queens=Or(Or(Or(search.w_rook,search.w_queen),search.b_rook),search.b_queen);
-  search.w_occupied=Or(Or(Or(Or(Or(search.w_pawn,search.w_knight),search.w_bishop),search.w_rook),
-                                   search.w_queen),set_mask[search.white_king]);
-  search.b_occupied=Or(Or(Or(Or(Or(search.b_pawn,search.b_knight),search.b_bishop),search.b_rook),
-                                   search.b_queen),set_mask[search.black_king]);
+  tree->pos.bishops_queens=Or(Or(Or(tree->pos.w_bishop,tree->pos.w_queen),tree->pos.b_bishop),tree->pos.b_queen);
+  tree->pos.rooks_queens=Or(Or(Or(tree->pos.w_rook,tree->pos.w_queen),tree->pos.b_rook),tree->pos.b_queen);
+  tree->pos.w_occupied=Or(Or(Or(Or(Or(tree->pos.w_pawn,tree->pos.w_knight),tree->pos.w_bishop),tree->pos.w_rook),
+                                   tree->pos.w_queen),set_mask[tree->pos.white_king]);
+  tree->pos.b_occupied=Or(Or(Or(Or(Or(tree->pos.b_pawn,tree->pos.b_knight),tree->pos.b_bishop),tree->pos.b_rook),
+                                   tree->pos.b_queen),set_mask[tree->pos.black_king]);
 /*
   now initialize rotated occupied bitboards.
 */
-  search.occupied_rl90=0;
-  search.occupied_rl45=0;
-  search.occupied_rr45=0;
+  tree->pos.occupied_rl90=0;
+  tree->pos.occupied_rl45=0;
+  tree->pos.occupied_rr45=0;
   for (i=0;i<64;i++) {
-    if (search.board[i]) {
-      search.occupied_rl90=Or(search.occupied_rl90,set_mask_rl90[i]);
-      search.occupied_rl45=Or(search.occupied_rl45,set_mask_rl45[i]);
-      search.occupied_rr45=Or(search.occupied_rr45,set_mask_rr45[i]);
+    if (tree->pos.board[i]) {
+      tree->pos.occupied_rl90=Or(tree->pos.occupied_rl90,set_mask_rl90[i]);
+      tree->pos.occupied_rl45=Or(tree->pos.occupied_rl45,set_mask_rl45[i]);
+      tree->pos.occupied_rr45=Or(tree->pos.occupied_rr45,set_mask_rr45[i]);
     }
   }
 /*
    initialize black/white piece counts.
 */
-  search.white_pieces=0;
-  search.white_pawns=0;
-  search.black_pieces=0;
-  search.black_pawns=0;
-  search.material_evaluation=0;
+  tree->pos.white_pieces=0;
+  tree->pos.white_pawns=0;
+  tree->pos.black_pieces=0;
+  tree->pos.black_pawns=0;
+  tree->pos.material_evaluation=0;
   for (i=0;i<64;i++) {
-    switch (search.board[i]) {
+    switch (tree->pos.board[i]) {
       case pawn:
-        search.material_evaluation+=PAWN_VALUE;
-        search.white_pawns+=pawn_v;
+        tree->pos.material_evaluation+=PAWN_VALUE;
+        tree->pos.white_pawns+=pawn_v;
         break;
       case knight:
-        search.material_evaluation+=KNIGHT_VALUE;
-        search.white_pieces+=knight_v;
+        tree->pos.material_evaluation+=KNIGHT_VALUE;
+        tree->pos.white_pieces+=knight_v;
         break;
       case bishop:
-        search.material_evaluation+=BISHOP_VALUE;
-        search.white_pieces+=bishop_v;
+        tree->pos.material_evaluation+=BISHOP_VALUE;
+        tree->pos.white_pieces+=bishop_v;
         break;
       case rook:
-        search.material_evaluation+=ROOK_VALUE;
-        search.white_pieces+=rook_v;
+        tree->pos.material_evaluation+=ROOK_VALUE;
+        tree->pos.white_pieces+=rook_v;
         break;
       case queen:
-        search.material_evaluation+=QUEEN_VALUE;
-        search.white_pieces+=queen_v;
+        tree->pos.material_evaluation+=QUEEN_VALUE;
+        tree->pos.white_pieces+=queen_v;
         break;
       case -pawn:
-        search.material_evaluation-=PAWN_VALUE;
-        search.black_pawns+=pawn_v;
+        tree->pos.material_evaluation-=PAWN_VALUE;
+        tree->pos.black_pawns+=pawn_v;
         break;
       case -knight:
-        search.material_evaluation-=KNIGHT_VALUE;
-        search.black_pieces+=knight_v;
+        tree->pos.material_evaluation-=KNIGHT_VALUE;
+        tree->pos.black_pieces+=knight_v;
         break;
       case -bishop:
-        search.material_evaluation-=BISHOP_VALUE;
-        search.black_pieces+=bishop_v;
+        tree->pos.material_evaluation-=BISHOP_VALUE;
+        tree->pos.black_pieces+=bishop_v;
         break;
       case -rook:
-        search.material_evaluation-=ROOK_VALUE;
-        search.black_pieces+=rook_v;
+        tree->pos.material_evaluation-=ROOK_VALUE;
+        tree->pos.black_pieces+=rook_v;
         break;
       case -queen:
-        search.material_evaluation-=QUEEN_VALUE;
-        search.black_pieces+=queen_v;
+        tree->pos.material_evaluation-=QUEEN_VALUE;
+        tree->pos.black_pieces+=queen_v;
         break;
       default:
         ;
     }
   }
-  if (new_pos == &position[0]) {
-    repetition_head_b=repetition_list_b;
-    repetition_head_w=repetition_list_w;
+  TotalPieces=PopCnt(Occupied);
+  if (new_pos == &tree->position[0]) {
+    tree->rephead_b=tree->replist_b;
+    tree->rephead_w=tree->replist_w;
   }
 }
 
@@ -850,27 +1001,39 @@ int InitializeFindAttacks(int square, int pieces, int length)
 void InitializeHashTables(void)
 {
   int i;
+  transposition_id=0;
   for (i=0;i<hash_table_size;i++) {
-    (trans_ref_wa+i)->word1=0;
+    (trans_ref_wa+i)->word1=Shiftl((BITBOARD) 7,61);
     (trans_ref_wa+i)->word2=0;
-    (trans_ref_ba+i)->word1=0;
+    (trans_ref_ba+i)->word1=Shiftl((BITBOARD) 7,61);
     (trans_ref_ba+i)->word2=0;
   }
   for (i=0;i<2*hash_table_size;i++) {
-    (trans_ref_wb+i)->word1=0;
+    (trans_ref_wb+i)->word1=Shiftl((BITBOARD) 7,61);
     (trans_ref_wb+i)->word2=0;
-    (trans_ref_bb+i)->word1=0;
+    (trans_ref_bb+i)->word1=Shiftl((BITBOARD) 7,61);
     (trans_ref_bb+i)->word2=0;
   }
   for (i=0;i<pawn_hash_table_size;i++) {
-    (pawn_hash_table+i)->word1=0;
-    (pawn_hash_table+i)->word2=0;
+    (pawn_hash_table+i)->key=0;
+    (pawn_hash_table+i)->p_score=0;
+    (pawn_hash_table+i)->black_protected=0;
+    (pawn_hash_table+i)->white_protected=0;
+    (pawn_hash_table+i)->black_pof=0;
+    (pawn_hash_table+i)->white_pof=0;
+    (pawn_hash_table+i)->weak_b=0;
+    (pawn_hash_table+i)->weak_w=0;
+    (pawn_hash_table+i)->black_defects_k=0;
+    (pawn_hash_table+i)->black_defects_q=0;
+    (pawn_hash_table+i)->white_defects_k=0;
+    (pawn_hash_table+i)->white_defects_q=0;
+    (pawn_hash_table+i)->passed_w=0;
+    (pawn_hash_table+i)->passed_w=0;
+    (pawn_hash_table+i)->outside=0;
   }
 }
 
-void InitializeMasks(void)
-{
-
+void InitializeMasks(void) {
   int i, j;
 /*
   specific masks to avoid Mask() procedure call if possible.
@@ -895,7 +1058,7 @@ void InitializeMasks(void)
     mask_121=Mask(121);
     mask_127=Mask(127);
 #  endif
-  mask_clear_entry=Compl(Or(Shiftl(Mask(108),21),Shiftr(Mask(2),2)));
+  mask_clear_entry=Compl(Or(Shiftl(Mask(109),21),Shiftr(Mask(3),3)));
 /*
   masks to set/clear a bit on a specific square
 */
@@ -926,15 +1089,14 @@ void InitializeMasks(void)
   for (i=1;i<8;i++) file_mask[FILEA]=Or(file_mask[FILEA],Shiftr(file_mask[FILEA],8));
   for (i=1;i<8;i++) file_mask[i]=Shiftr(file_mask[i-1],1);
 /*
-  masks to select bits on either white or black side of board
-  note that white is skewed 1 rank because of the way rams are
-  computed by advancing white pawns one rank and then Or'ing with
-  black pawns.
+  masks to determine if a pawn is protected by another pawn or not.
 */
-  mask_black_half=Or(Or(rank_mask[4],rank_mask[5]),
-                     Or(rank_mask[6],rank_mask[7]));
-  mask_white_half=Or(Or(rank_mask[1],rank_mask[2]),
-                     Or(rank_mask[3],rank_mask[4]));
+  for (i=8;i<56;i++) {
+   mask_pawn_protected_w[i]=Or(set_mask[i-1],set_mask[i+1]);
+   if (i > 15) mask_pawn_protected_w[i]|=Or(set_mask[i-7],set_mask[i-9]);
+   mask_pawn_protected_b[i]=Or(set_mask[i-1],set_mask[i+1]);
+   if (i < 48) mask_pawn_protected_b[i]|=Or(set_mask[i+7],set_mask[i+9]);
+  }
 /*
   masks to select bits on either half of board
 */
@@ -979,6 +1141,11 @@ void InitializeMasks(void)
   mask_F6H6=Or(set_mask[F6],set_mask[H6]);
   mask_A3C3=Or(set_mask[A3],set_mask[C3]);
   mask_A6C6=Or(set_mask[A6],set_mask[C6]);
+  mask_A7H7=Or(set_mask[A7],set_mask[H7]);
+  mask_A2H2=Or(set_mask[A2],set_mask[H2]);
+  center=Or(Or(set_mask[D4],set_mask[E4]),
+            Or(set_mask[D5],set_mask[E5]));
+  threat_flag=Shiftl((BITBOARD) 1, 58);
 }
 
 void InitializePawnMasks(void)
@@ -990,15 +1157,9 @@ void InitializePawnMasks(void)
     the files adjacent to the pawn file.
 */
   for (i=0;i<64;i++) {
-    if (!(i&7)) {
-      mask_pawn_isolated[i]=file_mask[(i&7)+1];
-    }
-    else if ((i&7) == 7) {
-      mask_pawn_isolated[i]=file_mask[(i&7)-1];
-    }
-    else {
-      mask_pawn_isolated[i]=Or(file_mask[(i&7)-1],file_mask[(i&7)+1]);
-    }
+    if (!(i&7)) mask_pawn_isolated[i]=file_mask[(i&7)+1];
+    else if ((i&7) == 7) mask_pawn_isolated[i]=file_mask[(i&7)-1];
+    else mask_pawn_isolated[i]=Or(file_mask[(i&7)-1],file_mask[(i&7)+1]);
   }
 /*
     initialize connected pawn masks, which are nothing more than 1's on
@@ -1026,18 +1187,18 @@ void InitializePawnMasks(void)
 */
   for (i=0;i<64;i++) {
     if (!(i&7)) {
-      mask_pawn_passed_w[i]=Or(mask_plus8dir[i],mask_plus8dir[i+1]);
-      mask_pawn_passed_b[i]=Or(mask_minus8dir[i],mask_minus8dir[i+1]);
+      mask_pawn_passed_w[i]=Or(plus8dir[i],plus8dir[i+1]);
+      mask_pawn_passed_b[i]=Or(minus8dir[i],minus8dir[i+1]);
     }
     else if ((i&7) == 7) {
-      mask_pawn_passed_w[i]=Or(mask_plus8dir[i-1],mask_plus8dir[i]);
-      mask_pawn_passed_b[i]=Or(mask_minus8dir[i-1],mask_minus8dir[i]);
+      mask_pawn_passed_w[i]=Or(plus8dir[i-1],plus8dir[i]);
+      mask_pawn_passed_b[i]=Or(minus8dir[i-1],minus8dir[i]);
     }
     else {
-      mask_pawn_passed_w[i]=Or(Or(mask_plus8dir[i-1],mask_plus8dir[i]),
-                               mask_plus8dir[i+1]);
-      mask_pawn_passed_b[i]=Or(Or(mask_minus8dir[i-1],mask_minus8dir[i]),
-                               mask_minus8dir[i+1]);
+      mask_pawn_passed_w[i]=Or(Or(plus8dir[i-1],plus8dir[i]),
+                               plus8dir[i+1]);
+      mask_pawn_passed_b[i]=Or(Or(minus8dir[i-1],minus8dir[i]),
+                               minus8dir[i+1]);
     }
   }
 /*
@@ -1046,97 +1207,49 @@ void InitializePawnMasks(void)
 */
   for (i=8;i<56;i++) {
     if (!(i&7)) {
-      mask_no_pawn_attacks_w[i]=mask_minus8dir[i+1];
-      mask_no_pawn_attacks_b[i]=mask_plus8dir[i+1];
+      mask_no_pawn_attacks_w[i]=minus8dir[i+1];
+      mask_no_pawn_attacks_b[i]=plus8dir[i+1];
     }
     else if ((i&7) == 7) {
-      mask_no_pawn_attacks_w[i]=mask_minus8dir[i-1];
-      mask_no_pawn_attacks_b[i]=mask_plus8dir[i-1];
+      mask_no_pawn_attacks_w[i]=minus8dir[i-1];
+      mask_no_pawn_attacks_b[i]=plus8dir[i-1];
     }
     else {
-      mask_no_pawn_attacks_w[i]=Or(mask_minus8dir[i-1],mask_minus8dir[i+1]);
-      mask_no_pawn_attacks_b[i]=Or(mask_plus8dir[i+1],mask_plus8dir[i-1]);
-    }
-  }
-/*
-    backward pawns are masked by almost the exact opposite, there must
-    be one friendly pawn even or behind on an adjacent file.
-*/
-  for (i=8;i<56;i++) {
-    if (!(i&7)) {
-      mask_pawn_backward_w[i]=mask_minus8dir[i+1];
-      mask_pawn_backward_b[i]=mask_plus8dir[i+1];
-    }
-    else if ((i&7) == 7) {
-      mask_pawn_backward_w[i]=mask_minus8dir[i-1];
-      mask_pawn_backward_b[i]=mask_plus8dir[i-1];
-    }
-    else {
-      mask_pawn_backward_w[i]=Or(mask_minus8dir[i-1],mask_minus8dir[i+1]);
-      mask_pawn_backward_b[i]=Or(mask_plus8dir[i+1],mask_plus8dir[i-1]);
-    }
-  }
-  for (i=24;i<56;i++) {
-    if (!(i&7)) {
-      mask_pawn_backward_w[i]=Xor(mask_pawn_backward_w[i],
-                                  mask_minus8dir[i-15]);
-    }
-    else if ((i&7) == 7) {
-      mask_pawn_backward_w[i]=Xor(mask_pawn_backward_w[i],
-                                  mask_minus8dir[i-17]);
-    }
-    else {
-      mask_pawn_backward_w[i]=Xor(mask_pawn_backward_w[i],
-                                  Or(mask_minus8dir[i-15],
-                                     mask_minus8dir[i-17]));
-    }
-  }
-  for (i=8;i<40;i++) {
-    if (!(i&7)) {
-      mask_pawn_backward_b[i]=Xor(mask_pawn_backward_b[i],
-                                  mask_plus8dir[i+17]);
-    }
-    else if ((i&7) == 7) {
-      mask_pawn_backward_b[i]=Xor(mask_pawn_backward_b[i],
-                                  mask_plus8dir[i+15]);
-    }
-    else {
-      mask_pawn_backward_b[i]=Xor(mask_pawn_backward_b[i],
-                                  Or(mask_plus8dir[i+15],
-                                     mask_plus8dir[i+17]));
+      mask_no_pawn_attacks_w[i]=Or(minus8dir[i-1],minus8dir[i+1]);
+      mask_no_pawn_attacks_b[i]=Or(plus8dir[i+1],plus8dir[i-1]);
     }
   }
 /*
     enpassant pawns are on either file adjacent to the current file, and
     on the same rank.                                          
 */
-  for (i=0;i<64;i++) mask_enpassant_test[i]=0;
-  for (i=25;i<31;i++) mask_enpassant_test[i]=Or(set_mask[i-1],set_mask[i+1]);
-  for (i=33;i<39;i++) mask_enpassant_test[i]=Or(set_mask[i-1],set_mask[i+1]);
-  mask_enpassant_test[A4]=set_mask[B4];
-  mask_enpassant_test[H4]=set_mask[G4];
-  mask_enpassant_test[A5]=set_mask[B5];
-  mask_enpassant_test[H5]=set_mask[G5];
+  for (i=0;i<64;i++) mask_eptest[i]=0;
+  for (i=25;i<31;i++) mask_eptest[i]=Or(set_mask[i-1],set_mask[i+1]);
+  for (i=33;i<39;i++) mask_eptest[i]=Or(set_mask[i-1],set_mask[i+1]);
+  mask_eptest[A4]=set_mask[B4];
+  mask_eptest[H4]=set_mask[G4];
+  mask_eptest[A5]=set_mask[B5];
+  mask_eptest[H5]=set_mask[G5];
 
 /*
   masks to detect pawns bearing down on the king
 */
-  mask_kingside_attack_w1=Or(Or(mask_minus8dir[F5],mask_minus8dir[G5]),
-                             mask_minus8dir[H5]);
-  mask_kingside_attack_w2=Or(Or(mask_minus8dir[F4],mask_minus8dir[G4]),
-                             mask_minus8dir[H4]);
-  mask_queenside_attack_w1=Or(Or(mask_minus8dir[A5],mask_minus8dir[B5]),
-                              mask_minus8dir[C5]);
-  mask_queenside_attack_w2=Or(Or(mask_minus8dir[A4],mask_minus8dir[B4]),
-                              mask_minus8dir[C4]);
-  mask_kingside_attack_b1=Or(Or(mask_plus8dir[F4],mask_plus8dir[G4]),
-                             mask_plus8dir[H4]);
-  mask_kingside_attack_b2=Or(Or(mask_plus8dir[F5],mask_plus8dir[G5]),
-                             mask_plus8dir[H5]);
-  mask_queenside_attack_b1=Or(Or(mask_plus8dir[A4],mask_plus8dir[B4]),
-                              mask_plus8dir[C4]);
-  mask_queenside_attack_b2=Or(Or(mask_plus8dir[A5],mask_plus8dir[B5]),
-                              mask_plus8dir[C5]);
+  mask_kingside_attack_w1=Or(Or(minus8dir[F5],minus8dir[G5]),
+                             minus8dir[H5]);
+  mask_kingside_attack_w2=Or(Or(minus8dir[F4],minus8dir[G4]),
+                             minus8dir[H4]);
+  mask_queenside_attack_w1=Or(Or(minus8dir[A5],minus8dir[B5]),
+                              minus8dir[C5]);
+  mask_queenside_attack_w2=Or(Or(minus8dir[A4],minus8dir[B4]),
+                              minus8dir[C4]);
+  mask_kingside_attack_b1=Or(Or(plus8dir[F4],plus8dir[G4]),
+                             plus8dir[H4]);
+  mask_kingside_attack_b2=Or(Or(plus8dir[F5],plus8dir[G5]),
+                             plus8dir[H5]);
+  mask_queenside_attack_b1=Or(Or(plus8dir[A4],plus8dir[B4]),
+                              plus8dir[C4]);
+  mask_queenside_attack_b2=Or(Or(plus8dir[A5],plus8dir[B5]),
+                              plus8dir[C5]);
 /* 
   pawns at d5/e5/f5 cramp black, and pawns at d4/e4/f4 cramp
   white, especially if there are no pawns that can attack
@@ -1248,16 +1361,25 @@ void InitializePawnMasks(void)
   these masks are used to detect that opponent pawns are getting very
   close to the king.
 */
-  mask_wq_3rd=Or(Or(set_mask[A3],set_mask[B3]),set_mask[C3]);
-  mask_wk_3rd=Or(Or(set_mask[F3],set_mask[G3]),set_mask[H3]);
-  mask_wq_4th=Or(Or(set_mask[A4],set_mask[B4]),set_mask[C4]);
-  mask_wk_4th=Or(Or(set_mask[F4],set_mask[G4]),set_mask[H4]);
+  mask_wq_4th=Or(Or(set_mask[A4],set_mask[B4]),
+                 Or(set_mask[C4],set_mask[D4]));
+  mask_wq_5th=Or(Or(set_mask[A5],set_mask[B5]),
+                 Or(set_mask[C5],set_mask[D5]));
+  mask_wk_4th=Or(Or(set_mask[E4],set_mask[F4]),
+                 Or(set_mask[G4],set_mask[H4]));
+  mask_wk_5th=Or(Or(set_mask[E5],set_mask[F5]),
+                 Or(set_mask[G5],set_mask[H5]));
+  mask_bk_4th=mask_wk_5th;
+  mask_bq_4th=mask_wq_5th;
+  mask_bk_5th=mask_wk_4th;
+  mask_bq_5th=mask_wq_4th;
 
-  mask_bq_3rd=Or(Or(set_mask[A6],set_mask[B6]),set_mask[C6]);
-  mask_bk_3rd=Or(Or(set_mask[F6],set_mask[G6]),set_mask[H6]);
-  mask_bq_4th=Or(Or(set_mask[A5],set_mask[B5]),set_mask[C5]);
-  mask_bk_4th=Or(Or(set_mask[F5],set_mask[G5]),set_mask[H5]);
-
+/*
+  these masks are used to detect that the opponent is trying to set up
+  a stonewall type pawn formation.
+*/
+  stonewall_white=Or(Or(set_mask[D4],set_mask[E3]),set_mask[F4]);
+  stonewall_black=Or(Or(set_mask[D5],set_mask[E6]),set_mask[F5]);
 }
 
 void InitializePieceMasks(void)
@@ -1337,7 +1459,7 @@ void InitializePieceMasks(void)
 *                                                                              *
 *   InitializeRandomHash() is called to initialize the tables of random      *
 *   numbers used to produce the incrementally-updated hash keys.  note that    *
-*   this uses a local random number generator rather than the C library one    *
+*   this uses a treendom number generator rather than the C library one    *
 *   since there is no uniformity in the number of bits returned by the         *
 *   standard library routines, it varies from 16 bits to 64.                   *
 *                                                                              *
@@ -1375,7 +1497,35 @@ void InitializeRandomHash(void)
   endgame_random_b=Random64();
   w_rooks_random=Random64();
   b_rooks_random=Random64();
+  for (i=0;i<64;i++) {
+    w_pawn_random32[i]=Random32();
+    b_pawn_random32[i]=Random32();
+  }
 }
+
+#if defined(SMP)
+/*
+********************************************************************************
+*                                                                              *
+*   InitlializeSMP() is used to initialize the pthread lock variables.         *
+*                                                                              *
+********************************************************************************
+*/
+void InitializeSMP(void) {
+  int i;
+#if defined(POSIX)
+  pthread_attr_init(&pthread_attr);
+  pthread_attr_setdetachstate(&pthread_attr, PTHREAD_CREATE_DETACHED);
+  pthread_attr_setscope(&pthread_attr, PTHREAD_SCOPE_SYSTEM);
+#endif
+  LockInit(lock_hash);
+  LockInit(lock_pawn_hash);
+  LockInit(lock_smp);
+  LockInit(lock_io);
+  for (i=0;i<64+1;i++)
+    LockInit(local[i]->lock);
+}
+#endif
 
 void InitializeZeroMasks(void)
 {

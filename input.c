@@ -4,7 +4,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 09/20/96 */
+/* last modified 03/11/98 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -19,29 +19,32 @@
 *                                                                              *
 ********************************************************************************
 */
-int InputMove(char *text, int ply, int wtm, int silent, int ponder_list)
-{
+int InputMove(TREE *tree, char *text, int ply, int wtm, int silent,
+              int ponder_list) {
   int moves[220], *mv, *mvp, *goodmove=0;
-  BITBOARD target;
   int piece=-1, capture, promote, give_check;
   int ffile, frank, tfile, trank;
   int current, i, nleft, ambig;
   char *goodchar;
   char movetext[128];
   char pieces[17]={' ',' ','P','p','N','n','K','k',' ',' ',
-                   'B','b','R','r','Q','q','\0'};
+                   'B','B','R','r','Q','q','\0'};
+  char pro_pieces[17]={' ',' ','P','p','N','n','K','k',' ',' ',
+                       'B','b','R','r','Q','q','\0'};
+
 /*
    check for fully-qualified input (f1e1) and handle if needed.
 */
+  if (strlen(text) == 0) return(0);
   if ((text[0] >= 'a') && (text[0] <= 'h') &&
       (text[1] >= '1') && (text[1] <= '8') &&
       (text[2] >= 'a') && (text[2] <= 'h') &&
       (text[3] >= '1') && (text[3] <= '8'))
-    return(InputMoveICS(text,ply,wtm,silent,ponder_list));
+    return(InputMoveICS(tree,text,ply,wtm,silent,ponder_list));
 /*
    initialize move structure in case an error is found
 */
-  position[MAXPLY]=position[ply];
+  tree->position[MAXPLY]=tree->position[ply];
   strcpy(movetext,text);
   moves[0]=0;
   piece=0;
@@ -54,7 +57,7 @@ int InputMove(char *text, int ply, int wtm, int silent, int ponder_list)
   tfile=-1;
   ambig=0;
   goodchar=strchr(movetext,'#');
-  if (goodchar) *goodchar='\0';
+  if (goodchar) *goodchar=0;
 /*
    first, figure out what each character means.  the first thing to
    do is eliminate castling moves
@@ -78,7 +81,7 @@ int InputMove(char *text, int ply, int wtm, int silent, int ponder_list)
   }
   else 
     if (!strcmp(movetext,"o-o-o") || !strcmp(movetext,"o-o-o+") ||
-		!strcmp(movetext,"O-O-O") || !strcmp(movetext,"O-O-O+") ||
+        !strcmp(movetext,"O-O-O") || !strcmp(movetext,"O-O-O+") ||
         !strcmp(movetext,"0-0-0") || !strcmp(movetext,"0-0-0+")) {
       piece=king;
       if(wtm) {
@@ -105,7 +108,7 @@ int InputMove(char *text, int ply, int wtm, int silent, int ponder_list)
    now, start by picking off the check indicator (+) if one is present.
 */
     if (strchr(movetext,'+')) {
-      *strchr(movetext,'+')='\0';
+      *strchr(movetext,'+')=0;
       give_check=1;
     }
 /*
@@ -115,8 +118,8 @@ int InputMove(char *text, int ply, int wtm, int silent, int ponder_list)
     if (strchr(movetext,'=')) {
       goodchar=strchr(movetext,'=');
       goodchar++;
-      promote=(strchr(pieces,*goodchar)-pieces) >> 1;
-      *strchr(movetext,'=')='\0';
+      promote=(strchr(pro_pieces,*goodchar)-pro_pieces) >> 1;
+      *strchr(movetext,'=')=0;
     }
 /*
    the next thing to do is extract the last rank/file designators since
@@ -125,32 +128,24 @@ int InputMove(char *text, int ply, int wtm, int silent, int ponder_list)
     current=strlen(movetext)-1;
     trank=movetext[current]-'1';
     if ((trank >= 0) && (trank <= 7)) 
-      movetext[current]='\0';
+      movetext[current]=0;
     else 
       trank=-1;
     current=strlen(movetext)-1;
     tfile=movetext[current]-'a';
-    if ((tfile >= 0) || (tfile <= 7)) 
-      movetext[current]='\0';
+    if ((tfile >= 0) && (tfile <= 7)) 
+      movetext[current]=0;
     else
       tfile=-1;
     if (strlen(movetext)) {
 /*
    now check the first character to see if it's a piece indicator
-   (PpNnBbRrQqKk).  if so, strip it off, unless it's a "b".  since
-   this is sometimes unclear as to what it means, we'll try it as both
-   a file and a piece unless there are only two characters in the move.
-   we simply won't allow b4 to mean a bishop move, it *has* to be a
-   pawn.
+   (PpNnBbRrQqKk).  if so, strip it off.
 */
-      if ((movetext[0] != 'b') || ((int) strlen(text) > 2)) {
-        if (strchr("  PpNnBbRrQqKk",*movetext)) {
-          piece=(strchr(pieces,movetext[0])-pieces) >> 1;
-          ambig=(movetext[0] == 'b');
-          if (!ambig) 
-            for(i=0;i<(int) strlen(movetext);i++) 
-              movetext[i]=movetext[i+1];
-        }
+      if (strchr("  PpNnBBRrQqKk",*movetext)) {
+        piece=(strchr(pieces,movetext[0])-pieces) >> 1;
+        for(i=0;i<(int) strlen(movetext);i++) 
+          movetext[i]=movetext[i+1];
       }
 /*
    now that we have the destination and the moving piece (if any)
@@ -160,7 +155,7 @@ int InputMove(char *text, int ply, int wtm, int silent, int ponder_list)
 */
       if ((strlen(movetext)) && (movetext[strlen(movetext)-1] == 'x')) {
         capture=1;
-        movetext[strlen(movetext)-1]='\0';
+        movetext[strlen(movetext)-1]=0;
       }
       else
         capture=0;
@@ -187,8 +182,8 @@ int InputMove(char *text, int ply, int wtm, int silent, int ponder_list)
   }
   if (!piece) piece=1;
   if (!ponder_list) {
-    target=(wtm) ? Compl(WhitePieces) : Compl(BlackPieces);
-    mvp=GenerateMoves(MAXPLY, 1, wtm, target, 1, moves);
+    mvp=GenerateCaptures(tree,MAXPLY, wtm, moves);
+    mvp=GenerateNonCaptures(tree,MAXPLY, wtm, mvp);
   }
   else {
     for (i=0;i<num_ponder_moves;i++)
@@ -196,28 +191,20 @@ int InputMove(char *text, int ply, int wtm, int silent, int ponder_list)
     mvp=moves+num_ponder_moves;
   }
   for (mv=&moves[0];mv<mvp;mv++) {
-    if (!ambig) {
-      if (piece && (Piece(*mv) != piece)) *mv=0;
-      if ((ffile >= 0) && (File(From(*mv)) != ffile)) *mv=0;
-    }
-    else {
-      if ((Piece(*mv) != bishop) &&
-          (Piece(*mv) != pawn)) *mv=0;
-      if ((Piece(*mv) != bishop) &&
-          (File(From(*mv)) != ffile)) *mv=0;
-    }
+    if (piece && (Piece(*mv) != piece)) *mv=0;
+    if ((ffile >= 0) && (File(From(*mv)) != ffile)) *mv=0;
     if (capture && (!Captured(*mv))) *mv=0;
     if (promote && (Promote(*mv) != promote)) *mv=0;
     if ((frank >= 0)  && (Rank(From(*mv)) != frank)) *mv=0;
     if ((tfile >= 0)  && (File(To(*mv)) != tfile)) *mv=0;
     if ((trank >= 0)  && (Rank(To(*mv)) != trank)) *mv=0;
     if (!ponder_list && *mv) {
-      MakeMove(MAXPLY, *mv, wtm);
+      MakeMove(tree,MAXPLY, *mv, wtm);
       if (Check(wtm) || (give_check && !Check(ChangeSide(wtm)))) {
-        UnMakeMove(MAXPLY, *mv, wtm);
+        UnMakeMove(tree,MAXPLY, *mv, wtm);
         *mv=0;
       }
-      else UnMakeMove(MAXPLY, *mv, wtm);
+      else UnMakeMove(tree,MAXPLY, *mv, wtm);
     }
   }
   nleft=0;
@@ -244,14 +231,14 @@ int InputMove(char *text, int ply, int wtm, int silent, int ponder_list)
     }
   }
   if (!silent) {
-    if (!nleft) Print(0,"illegal move.\n");
-    else if (piece < 0) Print(0,"unrecognizable move.\n");
-    else Print(0,"move is ambiguous.\n");
+    if (nleft == 0) Print(4095,"Illegal move: %s\n",text);
+    else if (piece < 0) Print(4095,"Illegal move (unrecognizable): %s\n",text);
+    else Print(4095,"Illegal move (ambiguous): %s\n",text);
   }
   return(0);
 }
 
-/* last modified 09/20/96 */
+/* last modified 03/11/97 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -260,10 +247,9 @@ int InputMove(char *text, int ply, int wtm, int silent, int ponder_list)
 *                                                                              *
 ********************************************************************************
 */
-int InputMoveICS(char *text, int ply, int wtm, int silent, int ponder_list)
-{
+int InputMoveICS(TREE *tree, char *text, int ply, int wtm, int silent,
+                 int ponder_list) {
   int moves[220], *mv, *mvp, *goodmove=0;
-  BITBOARD target;
   int piece=-1, promote;
   int ffile, frank, tfile, trank;
   int i, nleft;
@@ -273,7 +259,8 @@ int InputMoveICS(char *text, int ply, int wtm, int silent, int ponder_list)
 /*
    initialize move structure in case an error is found
 */
-  position[MAXPLY]=position[ply];
+  if (strlen(text) == 0) return(0);
+  tree->position[MAXPLY]=tree->position[ply];
   strcpy(movetext,text);
   moves[0]=0;
   promote=0;
@@ -281,7 +268,8 @@ int InputMoveICS(char *text, int ply, int wtm, int silent, int ponder_list)
    first, figure out what each character means.  the first thing to
    do is eliminate castling moves
 */
-  if (!strcmp(movetext,"o-o") || !strcmp(movetext,"O-O")) {
+  if (!strcmp(movetext,"o-o") || !strcmp(movetext,"O-O") ||
+      !strcmp(movetext,"0-0")) {
     piece=king;
     if(wtm) {
       ffile=4;
@@ -297,7 +285,8 @@ int InputMoveICS(char *text, int ply, int wtm, int silent, int ponder_list)
     }
   }
   else 
-    if (!strcmp(movetext,"o-o-o") || !strcmp(movetext,"O-O-O")) {
+    if (!strcmp(movetext,"o-o-o") || !strcmp(movetext,"O-O-O") ||
+        !strcmp(movetext,"0-0-0")) {
       piece=king;
       if(wtm) {
         ffile=4;
@@ -325,32 +314,33 @@ int InputMoveICS(char *text, int ply, int wtm, int silent, int ponder_list)
    now, continue by picking off the promotion piece if one is present.  this 
    is indicated by something like q on the end of the move string.
 */
-    if ((movetext[4] != '\0') && (movetext[4] != ' ')) {
+    if (movetext[4]=='=')
+      promote=(strchr(pieces,movetext[5])-pieces) >> 1;
+    else if ((movetext[4] != 0) && (movetext[4] != ' '))
       promote=(strchr(pieces,movetext[4])-pieces) >> 1;
-    }
   }
   if (!ponder_list) {
-    target=(wtm) ? Compl(WhitePieces) : Compl(BlackPieces);
-    mvp=GenerateMoves(MAXPLY, 1, wtm, target, 1, moves);
+    mvp=GenerateCaptures(tree,MAXPLY, wtm, moves);
+    mvp=GenerateNonCaptures(tree,MAXPLY, wtm, mvp);
   }
   else {
     for (i=0;i<num_ponder_moves;i++) moves[i]=ponder_moves[i];
     mvp=moves+num_ponder_moves;
   }
   for (mv=&moves[0];mv<mvp;mv++) {
-    if (autoplay && Promote(*mv) && (Promote(*mv) != queen)) *mv = 0;
-    if (!autoplay && Promote(*mv) != promote) *mv=0;
+    if (auto232 && Promote(*mv) && (Promote(*mv) != queen)) *mv = 0;
+    if (!auto232 && Promote(*mv) != promote) *mv=0;
     if (Rank(From(*mv)) != frank) *mv=0;
     if (File(From(*mv)) != ffile) *mv=0;
     if (Rank(To(*mv)) != trank) *mv=0;
     if (File(To(*mv)) != tfile) *mv=0;
     if (!ponder_list && *mv) {
-      MakeMove(MAXPLY, *mv, wtm);
+      MakeMove(tree,MAXPLY, *mv, wtm);
       if(Check(wtm)) {
-        UnMakeMove(MAXPLY, *mv, wtm);
+        UnMakeMove(tree,MAXPLY, *mv, wtm);
         *mv=0;
       }
-      else UnMakeMove(MAXPLY, *mv, wtm);
+      else UnMakeMove(tree,MAXPLY, *mv, wtm);
     }
   }
   nleft=0;
@@ -362,9 +352,9 @@ int InputMoveICS(char *text, int ply, int wtm, int silent, int ponder_list)
   }
   if (nleft == 1) return(*goodmove);
   if (!silent) {
-    if (!nleft) Print(0,"illegal move.\n");
-    else if (piece < 0) Print(0,"unrecognizable move.\n");
-    else Print(0,"move is ambiguous.\n");
+    if (nleft == 0) Print(4095,"Illegal move: %s\n",text);
+    else if (piece < 0) Print(4095,"Illegal move (unrecognizable): %s\n",text);
+    else Print(4095,"Illegal move (ambiguous): %s\n",text);
   }
   return(0);
 }

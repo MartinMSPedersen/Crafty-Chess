@@ -3,7 +3,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* modified 08/22/96 */
+/* modified 03/11/97 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -16,7 +16,7 @@
 *                                                                              *
 ********************************************************************************
 */
-int* GenerateCaptures(int ply, int wtm, int *move)
+int* GenerateCaptures(TREE *tree, int ply, int wtm, int *move)
 {
   register BITBOARD target, piecebd, moves;
   register BITBOARD  promotions, pcapturesl, pcapturesr;
@@ -143,27 +143,15 @@ int* GenerateCaptures(int ply, int wtm, int *move)
 |                                                          |
  ----------------------------------------------------------
 */
-    promotions=And(Shiftr(And(WhitePawns,rank_mask[RANK7]),8),
-                   Compl(Occupied));
-/*
- ----------------------------------------------------------
-|                                                          |
-|   now that we got 'em, we simply enumerate the to        |
-|   squares as before, but in three steps since we have    |
-|   three sets of potential moves.                         |
-|                                                          |
- ----------------------------------------------------------
-*/
+    promotions=And(Shiftr(And(WhitePawns,rank_mask[RANK7]),8),Compl(Occupied));
     while (promotions) {
       to=LastOne(promotions);
-      if (to < 56) *move++=(to-8)|(to<<6)|(pawn<<12);
-      else *move++=(to-8)|(to<<6)|(pawn<<12)|(queen<<18);
+      *move++=(to-8)|(to<<6)|(pawn<<12)|(queen<<18);
       Clear(to,promotions);
     }
 
     target=Or(BlackPieces,EnPassantTarget(ply));
     pcapturesl=And(Shiftr(And(WhitePawns,mask_left_edge),7),target);
-    pcapturesr=And(Shiftr(And(WhitePawns,mask_right_edge),9),target);
     while (pcapturesl) {
       to=LastOne(pcapturesl);
       if (to < 56) {
@@ -176,6 +164,8 @@ int* GenerateCaptures(int ply, int wtm, int *move)
         *move++=(to-7)|(to<<6)|(pawn<<12)|((-PieceOnSquare(to))<<15)|(queen<<18);
       Clear(to,pcapturesl);
     }
+
+    pcapturesr=And(Shiftr(And(WhitePawns,mask_right_edge),9),target);
     while (pcapturesr) {
       to=LastOne(pcapturesr);
       if (to < 56) {
@@ -312,25 +302,14 @@ int* GenerateCaptures(int ply, int wtm, int *move)
 */
     promotions=And(Shiftl(And(BlackPawns,rank_mask[RANK2]),8),
                    Compl(Occupied));
-/*
- ----------------------------------------------------------
-|                                                          |
-|   now that we got 'em, we simply enumerate the to        |
-|   squares as before, but in three steps since we have    |
-|   three sets of potential moves.                         |
-|                                                          |
- ----------------------------------------------------------
-*/
     while (promotions) {
       to=FirstOne(promotions);
-      if (to > 7) *move++=(to+8)|(to<<6)|(pawn<<12);
-      else *move++=(to+8)|(to<<6)|(pawn<<12)|(queen<<18);
+      *move++=(to+8)|(to<<6)|(pawn<<12)|(queen<<18);
       Clear(to,promotions);
     }
 
     target=Or(WhitePieces,EnPassantTarget(ply));
     pcapturesl=And(Shiftl(And(BlackPawns,mask_left_edge),9),target);
-    pcapturesr=And(Shiftl(And(BlackPawns,mask_right_edge),7),target);
     while (pcapturesl) {
       to=FirstOne(pcapturesl);
       if (to > 7) {
@@ -343,6 +322,8 @@ int* GenerateCaptures(int ply, int wtm, int *move)
         *move++=(to+9)|(to<<6)|(pawn<<12)|(PieceOnSquare(to)<<15)|(queen<<18);
       Clear(to,pcapturesl);
     }
+
+    pcapturesr=And(Shiftl(And(BlackPawns,mask_right_edge),7),target);
     while (pcapturesr) {
       to=FirstOne(pcapturesr);
       if (to > 7) {
@@ -383,7 +364,7 @@ int* GenerateCaptures(int ply, int wtm, int *move)
 *                                                                              *
 ********************************************************************************
 */
-int* GenerateCheckEvasions(int ply, int wtm, int *move)
+int* GenerateCheckEvasions(TREE *tree, int ply, int wtm, int *move)
 {
   register BITBOARD target, targetc, targetp, piecebd, moves;
   register BITBOARD padvances1, padvances2, pcapturesl, pcapturesr;
@@ -403,15 +384,15 @@ int* GenerateCheckEvasions(int ply, int wtm, int *move)
 */
   if (wtm) {
     king_square=WhiteKingSQ;
-    checksqs=And(AttacksTo(king_square),BlackPieces);
+    checksqs=And(AttacksTo(tree,king_square),BlackPieces);
     checkers=PopCnt(checksqs);
     if (checkers == 1) {
-      checking_square=FirstOne(And(AttacksTo(king_square),
+      checking_square=FirstOne(And(AttacksTo(tree,king_square),
                                     BlackPieces));
       if (PieceOnSquare(checking_square) != -pawn)
         check_direction1=directions[checking_square][king_square];
       target=InterposeSquares(check_direction1,king_square,checking_square);
-      target=Or(target,And(AttacksTo(king_square),BlackPieces));
+      target=Or(target,And(AttacksTo(tree,king_square),BlackPieces));
       target=Or(target,BlackKing);
     }
     else {
@@ -449,7 +430,7 @@ int* GenerateCheckEvasions(int ply, int wtm, int *move)
     temp=from+(king<<12);
     while (moves) {
       to=LastOne(moves);
-      if (!Attacked(to,0) && (directions[from][to] != check_direction1) &&
+      if (!Attacked(tree,to,0) && (directions[from][to] != check_direction1) &&
                                  (directions[from][to] != check_direction2))
         *move++=temp|(to<<6)|((-PieceOnSquare(to))<<15);
       Clear(to,moves);
@@ -468,7 +449,7 @@ int* GenerateCheckEvasions(int ply, int wtm, int *move)
       piecebd=WhiteKnights;
       while (piecebd) {
         from=LastOne(piecebd);
-        if (!PinnedOnKing(wtm,from)) {
+        if (!PinnedOnKing(tree,wtm,from)) {
           moves=And(knight_attacks[from],target);
           temp=from+(knight<<12);
           while (moves) {
@@ -492,7 +473,7 @@ int* GenerateCheckEvasions(int ply, int wtm, int *move)
       piecebd=WhiteBishops;
       while (piecebd) {
         from=LastOne(piecebd);
-        if (!PinnedOnKing(wtm,from)) {
+        if (!PinnedOnKing(tree,wtm,from)) {
           moves=And(AttacksBishop(from),target);
           temp=from+(bishop<<12);
           while (moves) {
@@ -516,7 +497,7 @@ int* GenerateCheckEvasions(int ply, int wtm, int *move)
       piecebd=WhiteRooks;
       while (piecebd) {
         from=LastOne(piecebd);
-        if (!PinnedOnKing(wtm,from)) {
+        if (!PinnedOnKing(tree,wtm,from)) {
           moves=And(AttacksRook(from),target);
           temp=from+(rook<<12);
           while (moves) {
@@ -540,7 +521,7 @@ int* GenerateCheckEvasions(int ply, int wtm, int *move)
       piecebd=WhiteQueens;
       while (piecebd) {
         from=LastOne(piecebd);
-        if (!PinnedOnKing(wtm,from)) {
+        if (!PinnedOnKing(tree,wtm,from)) {
           moves=And(AttacksQueen(from),target);
           temp=from+(queen<<12);
           while (moves) {
@@ -581,12 +562,12 @@ int* GenerateCheckEvasions(int ply, int wtm, int *move)
 */
       while (padvances2) {
         to=LastOne(padvances2);
-        if (!PinnedOnKing(wtm,to-16)) *move++=(to-16)|(to<<6)|(pawn<<12);
+        if (!PinnedOnKing(tree,wtm,to-16)) *move++=(to-16)|(to<<6)|(pawn<<12);
         Clear(to,padvances2);
       }
       while (padvances1) {
         to=LastOne(padvances1);
-        if (!PinnedOnKing(wtm,to-8)) {
+        if (!PinnedOnKing(tree,wtm,to-8)) {
           if (to < 56) *move++=(to-8)|(to<<6)|(pawn<<12);
           else {
             *move++=(to-8)|(to<<6)|(pawn<<12)|(queen<<18);
@@ -606,7 +587,7 @@ int* GenerateCheckEvasions(int ply, int wtm, int *move)
       pcapturesr=And(Shiftr(And(WhitePawns,mask_right_edge),9),targetc);
       while (pcapturesl) {
         to=LastOne(pcapturesl);
-        if (!PinnedOnKing(wtm,to-7)) {
+        if (!PinnedOnKing(tree,wtm,to-7)) {
           if (to < 56) {
             if(PieceOnSquare(to)) 
               *move++=(to-7)|(to<<6)|(pawn<<12)|((-PieceOnSquare(to))<<15);
@@ -624,7 +605,7 @@ int* GenerateCheckEvasions(int ply, int wtm, int *move)
       }
       while (pcapturesr) {
         to=LastOne(pcapturesr);
-        if (!PinnedOnKing(wtm,to-9)) {
+        if (!PinnedOnKing(tree,wtm,to-9)) {
           if (to < 56) {
             if(PieceOnSquare(to)) 
               *move++=(to-9)|(to<<6)|(pawn<<12)|((-PieceOnSquare(to))<<15);
@@ -653,15 +634,15 @@ int* GenerateCheckEvasions(int ply, int wtm, int *move)
 */
   else {
     king_square=BlackKingSQ;
-    checksqs=And(AttacksTo(king_square),WhitePieces);
+    checksqs=And(AttacksTo(tree,king_square),WhitePieces);
     checkers=PopCnt(checksqs);
     if (checkers == 1) {
-      checking_square=FirstOne(And(AttacksTo(king_square),
+      checking_square=FirstOne(And(AttacksTo(tree,king_square),
                                     WhitePieces));
       if (PieceOnSquare(checking_square) != pawn)
         check_direction1=directions[checking_square][king_square];
       target=InterposeSquares(check_direction1,king_square,checking_square);
-      target=Or(target,And(AttacksTo(king_square),WhitePieces));
+      target=Or(target,And(AttacksTo(tree,king_square),WhitePieces));
       target=Or(target,WhiteKing);
     }
     else {
@@ -699,7 +680,7 @@ int* GenerateCheckEvasions(int ply, int wtm, int *move)
     temp=from+(king<<12);
     while (moves) {
       to=FirstOne(moves);
-      if (!Attacked(to,1) && (directions[from][to] != check_direction1) &&
+      if (!Attacked(tree,to,1) && (directions[from][to] != check_direction1) &&
                                  (directions[from][to] != check_direction2))
         *move++=temp|(to<<6)|(PieceOnSquare(to)<<15);
       Clear(to,moves);
@@ -718,7 +699,7 @@ int* GenerateCheckEvasions(int ply, int wtm, int *move)
       piecebd=BlackKnights;
       while (piecebd) {
         from=FirstOne(piecebd);
-        if (!PinnedOnKing(wtm,from)) {
+        if (!PinnedOnKing(tree,wtm,from)) {
           moves=And(knight_attacks[from],target);
           temp=from+(knight<<12);
           while (moves) {
@@ -742,7 +723,7 @@ int* GenerateCheckEvasions(int ply, int wtm, int *move)
       piecebd=BlackBishops;
       while (piecebd) {
         from=FirstOne(piecebd);
-        if (!PinnedOnKing(wtm,from)) {
+        if (!PinnedOnKing(tree,wtm,from)) {
           moves=And(AttacksBishop(from),target);
           temp=from+(bishop<<12);
           while (moves) {
@@ -766,7 +747,7 @@ int* GenerateCheckEvasions(int ply, int wtm, int *move)
       piecebd=BlackRooks;
       while (piecebd) {
         from=FirstOne(piecebd);
-        if (!PinnedOnKing(wtm,from)) {
+        if (!PinnedOnKing(tree,wtm,from)) {
           moves=And(AttacksRook(from),target);
           temp=from+(rook<<12);
           while (moves) {
@@ -788,7 +769,7 @@ int* GenerateCheckEvasions(int ply, int wtm, int *move)
       piecebd=BlackQueens;
       while (piecebd) {
         from=FirstOne(piecebd);
-        if (!PinnedOnKing(wtm,from)) {
+        if (!PinnedOnKing(tree,wtm,from)) {
           moves=And(AttacksQueen(from),target);
           temp=from+(queen<<12);
           while (moves) {
@@ -835,12 +816,12 @@ int* GenerateCheckEvasions(int ply, int wtm, int *move)
 */
       while (padvances2) {
         to=FirstOne(padvances2);
-        if (!PinnedOnKing(wtm,to+16)) *move++=(to+16)|(to<<6)|(pawn<<12);
+        if (!PinnedOnKing(tree,wtm,to+16)) *move++=(to+16)|(to<<6)|(pawn<<12);
         Clear(to,padvances2);
       }
       while (padvances1) {
         to=FirstOne(padvances1);
-        if (!PinnedOnKing(wtm,to+8)) {
+        if (!PinnedOnKing(tree,wtm,to+8)) {
           if (to > 7) *move++=(to+8)|(to<<6)|(pawn<<12);
           else {
             *move++=(to+8)|(to<<6)|(pawn<<12)|(queen<<18);
@@ -860,7 +841,7 @@ int* GenerateCheckEvasions(int ply, int wtm, int *move)
       pcapturesr=And(Shiftl(And(BlackPawns,mask_right_edge),7),targetc);
       while (pcapturesl) {
         to=FirstOne(pcapturesl);
-        if (!PinnedOnKing(wtm,to+9)) {
+        if (!PinnedOnKing(tree,wtm,to+9)) {
           if (to > 7) {
             if(PieceOnSquare(to)) 
               *move++=(to+9)|(to<<6)|(pawn<<12)|(PieceOnSquare(to)<<15);
@@ -878,7 +859,7 @@ int* GenerateCheckEvasions(int ply, int wtm, int *move)
       }
       while (pcapturesr) {
         to=FirstOne(pcapturesr);
-        if (!PinnedOnKing(wtm,to+7)) {
+        if (!PinnedOnKing(tree,wtm,to+7)) {
           if (to > 7) {
             if(PieceOnSquare(to)) 
               *move++=(to+7)|(to<<6)|(pawn<<12)|(PieceOnSquare(to)<<15);
@@ -899,15 +880,12 @@ int* GenerateCheckEvasions(int ply, int wtm, int *move)
   return(move);
 }
 
-/* modified 11/12/96 */
+/* modified 03/11/97 */
 /*
 ********************************************************************************
 *                                                                              *
-*   GenerateMoves() is used to generate moves to a set of squares from the     *
-*   current position.  this set of squares is passed through "target" and is   *
-*   most often either (a) the complement of the current side's piece locations *
-*   (which generates all legal moves) or (b) the opposing side's piece         *
-*   locations (which generates captures).                                      *
+*   GenerateMoves() is used to generate non-capture moves from the current     *
+*   position.                                                                  *
 *                                                                              *
 *   once the valid destination squares are known, we have to locate a friendly *
 *   piece to get a attacks_to[] entry.  we then produce the moves for this     *
@@ -923,24 +901,14 @@ int* GenerateCheckEvasions(int ply, int wtm, int *move)
 *   reaches the 8th rank, we produce a set of four moves, promoting the pawn   *
 *   to knight, bishop, rook and queen.                                         *
 *                                                                              *
-*   the paramater "generate_captures" is somewhat confusing, but is used to    *
-*   clear up two special cases caused by pawns.  (1) en passant captures are   *
-*   tricky since the pawn is capturing on a square that is not really occupied *
-*   and including the EnPassant_Target in "target" would erroneously cause     *
-*   GenerateMoves() to produce piece moves to this "wrong" square.  (2)        *
-*   promotions are another special case.  since a promotion can be thought of  *
-*   as a special case of captures (since the move does gain material..) the    *
-*   quiescence search needs these moves included.  generate_captures forces    *
-*   their inclusion.                                                           *
-*                                                                              *
 ********************************************************************************
 */
-int* GenerateMoves(int ply, int depth, int wtm, BITBOARD target, 
-                              int generate_captures, int *move)
+int* GenerateNonCaptures(TREE *tree, int ply, int wtm, int *move)
 {
-  register BITBOARD targets, targetc, temp_target , piecebd, moves;
+  register BITBOARD target, piecebd, moves;
   register BITBOARD  padvances1, padvances2, pcapturesl, pcapturesr;
   register int from, to, temp;
+
   if (wtm) {
 /*
  ----------------------------------------------------------
@@ -950,14 +918,12 @@ int* GenerateMoves(int ply, int depth, int wtm, BITBOARD target,
  ----------------------------------------------------------
 */
     if (WhiteCastle(ply) > 0) {
-      if ((WhiteCastle(ply)&1) && And(set_mask[G1],target) &&
-          !And(Occupied,Shiftr(mask_2,5)) &&
-          !Attacked(E1,0) && !Attacked(F1,0) && !Attacked(G1,0)) {
+      if ((WhiteCastle(ply)&1) && !And(Occupied,Shiftr(mask_2,5)) &&
+          !Attacked(tree,E1,0) && !Attacked(tree,F1,0) && !Attacked(tree,G1,0)) {
         *move++=12676;
       }
-      if ((WhiteCastle(ply)&2) && And(set_mask[C1],target) &&
-          !And(Occupied,Shiftr(mask_3,1)) &&
-          !Attacked(C1,0) && !Attacked(D1,0) && !Attacked(E1,0)) {
+      if ((WhiteCastle(ply)&2) && !And(Occupied,Shiftr(mask_3,1)) &&
+          !Attacked(tree,C1,0) && !Attacked(tree,D1,0) && !Attacked(tree,E1,0)) {
         *move++=12420;
       }
     }
@@ -971,6 +937,7 @@ int* GenerateMoves(int ply, int depth, int wtm, BITBOARD target,
 |                                                          |
  ----------------------------------------------------------
 */
+    target=Compl(Occupied);
     piecebd=WhiteKnights;
     while (piecebd) {
       from=LastOne(piecebd);
@@ -978,7 +945,7 @@ int* GenerateMoves(int ply, int depth, int wtm, BITBOARD target,
       temp=from+(knight<<12);
       while (moves) {
         to=LastOne(moves);
-        *move++=temp|(to<<6)|((-PieceOnSquare(to))<<15);
+        *move++=temp|(to<<6);
         Clear(to,moves);
       }
       Clear(from,piecebd);
@@ -1000,7 +967,7 @@ int* GenerateMoves(int ply, int depth, int wtm, BITBOARD target,
       temp=from+(bishop<<12);
       while (moves) {
         to=LastOne(moves);
-        *move++=temp|(to<<6)|((-PieceOnSquare(to))<<15);
+        *move++=temp|(to<<6);
         Clear(to,moves);
       }
       Clear(from,piecebd);
@@ -1022,7 +989,7 @@ int* GenerateMoves(int ply, int depth, int wtm, BITBOARD target,
       temp=from+(rook<<12);
       while (moves) {
         to=LastOne(moves);
-        *move++=temp|(to<<6)|((-PieceOnSquare(to))<<15);
+        *move++=temp|(to<<6);
         Clear(to,moves);
       }
       Clear(from,piecebd);
@@ -1044,7 +1011,7 @@ int* GenerateMoves(int ply, int depth, int wtm, BITBOARD target,
       temp=from+(queen<<12);
       while (moves) {
         to=LastOne(moves);
-        *move++=temp|(to<<6)|((-PieceOnSquare(to))<<15);
+        *move++=temp|(to<<6);
         Clear(to,moves);
       }
       Clear(from,piecebd);
@@ -1064,7 +1031,7 @@ int* GenerateMoves(int ply, int depth, int wtm, BITBOARD target,
     temp=from+(king<<12);
     while (moves) {
       to=LastOne(moves);
-      *move++=temp|(to<<6)|((-PieceOnSquare(to))<<15);
+      *move++=temp|(to<<6);
       Clear(to,moves);
     }
 /*
@@ -1073,20 +1040,21 @@ int* GenerateMoves(int ply, int depth, int wtm, BITBOARD target,
 |   now, produce pawn moves.  this is done differently due |
 |   to inconsistencies in the way a pawn moves when it     |
 |   captures as opposed to normal non-capturing moves.     |
-|   another exception is capturing enpassant.  the first   |
-|   step is to generate all possible pawn moves.  we do    |
-|   this in 2 operations:  (1) shift the pawns forward one |
+|   first we generate all possible pawn moves.  we do      |
+|   this in 4 operations:  (1) shift the pawns forward one |
 |   rank then and with empty squares;  (2) shift the pawns |
-|   forward two ranks and then and with empty squares.     |
+|   forward two ranks and then and with empty squares;     |
+|   (3) remove the a-pawn(s) then shift the pawns          |
+|   diagonally left then and with enemy occupied squares;  |
+|   (4) remove the h-pawn(s) then shift the pawns          |
+|   diagonally right then and with enemy occupied squares. |
+|   note that the only captures produced are under-        |
+|   promotions, because the rest were done in GenCap.      |
 |                                                          |
  ----------------------------------------------------------
 */
-    temp_target=Compl(Occupied);
-    targets=And(temp_target,target);
-    if(generate_captures) targets=Or(targets,And(rank_mask[RANK8],temp_target));
-    else targets=And(targets,mask_not_rank8);
-    padvances1=And(Shiftr(WhitePawns,8),targets);
-    padvances2=And(Shiftr(And(padvances1,mask_advance_2_w),8),targets);
+    padvances1=And(Shiftr(WhitePawns,8),target);
+    padvances2=And(Shiftr(And(padvances1,mask_advance_2_w),8),target);
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -1101,60 +1069,34 @@ int* GenerateMoves(int ply, int depth, int wtm, BITBOARD target,
       *move++=(to-16)|(to<<6)|(pawn<<12);
       Clear(to,padvances2);
     }
+
     while (padvances1) {
       to=LastOne(padvances1);
       if (to < 56) *move++=(to-8)|(to<<6)|(pawn<<12);
       else {
-        *move++=(to-8)|(to<<6)|(pawn<<12)|(queen<<18);
-        if (depth > 0) {
-          *move++=(to-8)|(to<<6)|(pawn<<12)|(rook<<18);
-          *move++=(to-8)|(to<<6)|(pawn<<12)|(bishop<<18);
-          *move++=(to-8)|(to<<6)|(pawn<<12)|(knight<<18);
-        }
+        *move++=(to-8)|(to<<6)|(pawn<<12)|(rook<<18);
+        *move++=(to-8)|(to<<6)|(pawn<<12)|(bishop<<18);
+        *move++=(to-8)|(to<<6)|(pawn<<12)|(knight<<18);
       }
       Clear(to,padvances1);
     }
-    if (generate_captures) {
-      targetc=And(BlackPieces,target);
-      targetc=Or(targetc,EnPassantTarget(ply));
-      pcapturesl=And(Shiftr(And(WhitePawns,mask_left_edge),7),targetc);
-      pcapturesr=And(Shiftr(And(WhitePawns,mask_right_edge),9),targetc);
-      while (pcapturesl) {
-        to=LastOne(pcapturesl);
-        if (to < 56) {
-          if(PieceOnSquare(to)) 
-            *move++=(to-7)|(to<<6)|(pawn<<12)|((-PieceOnSquare(to))<<15);
-          else
-            *move++=(to-7)|(to<<6)|(pawn<<12)|(pawn<<15);
-        }
-        else {
-          *move++=(to-7)|(to<<6)|(pawn<<12)|((-PieceOnSquare(to))<<15)|(queen<<18);
-          if (depth > 0) {
-            *move++=(to-7)|(to<<6)|(pawn<<12)|((-PieceOnSquare(to))<<15)|(rook<<18);
-            *move++=(to-7)|(to<<6)|(pawn<<12)|((-PieceOnSquare(to))<<15)|(bishop<<18);
-            *move++=(to-7)|(to<<6)|(pawn<<12)|((-PieceOnSquare(to))<<15)|(knight<<18);
-          }
-        }
-        Clear(to,pcapturesl);
-      }
-      while (pcapturesr) {
-        to=LastOne(pcapturesr);
-        if (to < 56) {
-          if(PieceOnSquare(to)) 
-            *move++=(to-9)|(to<<6)|(pawn<<12)|(-PieceOnSquare(to)<<15);
-          else
-            *move++=(to-9)|(to<<6)|(pawn<<12)|(pawn<<15);
-        }
-        else {
-          *move++=(to-9)|(to<<6)|(pawn<<12)|((-PieceOnSquare(to))<<15)|(queen<<18);
-          if (depth > 0) {
-            *move++=(to-9)|(to<<6)|(pawn<<12)|((-PieceOnSquare(to))<<15)|(rook<<18);
-            *move++=(to-9)|(to<<6)|(pawn<<12)|((-PieceOnSquare(to))<<15)|(bishop<<18);
-            *move++=(to-9)|(to<<6)|(pawn<<12)|((-PieceOnSquare(to))<<15)|(knight<<18);
-          }
-        }
-        Clear(to,pcapturesr);
-      }
+
+    target=And(BlackPieces,rank_mask[RANK8]);
+    pcapturesl=And(Shiftr(And(WhitePawns,mask_left_edge),7),target);
+    pcapturesr=And(Shiftr(And(WhitePawns,mask_right_edge),9),target);
+    while (pcapturesl) {
+      to=LastOne(pcapturesl);
+      *move++=(to-7)|(to<<6)|(pawn<<12)|((-PieceOnSquare(to))<<15)|(rook<<18);
+      *move++=(to-7)|(to<<6)|(pawn<<12)|((-PieceOnSquare(to))<<15)|(bishop<<18);
+      *move++=(to-7)|(to<<6)|(pawn<<12)|((-PieceOnSquare(to))<<15)|(knight<<18);
+      Clear(to,pcapturesl);
+    }
+    while (pcapturesr) {
+      to=LastOne(pcapturesr);
+      *move++=(to-9)|(to<<6)|(pawn<<12)|((-PieceOnSquare(to))<<15)|(rook<<18);
+      *move++=(to-9)|(to<<6)|(pawn<<12)|((-PieceOnSquare(to))<<15)|(bishop<<18);
+      *move++=(to-9)|(to<<6)|(pawn<<12)|((-PieceOnSquare(to))<<15)|(knight<<18);
+      Clear(to,pcapturesr);
     }
   }
 /*
@@ -1166,14 +1108,12 @@ int* GenerateMoves(int ply, int depth, int wtm, BITBOARD target,
 */
   else {
     if (BlackCastle(ply) > 0) {
-      if ((BlackCastle(ply)&1)  && And(set_mask[G8],target) &&
-          !And(Occupied,Shiftr(mask_2,61)) &&
-          !Attacked(E8,1) && !Attacked(F8,1) && !Attacked(G8,1)) {
+      if ((BlackCastle(ply)&1) && !And(Occupied,Shiftr(mask_2,61)) &&
+          !Attacked(tree,E8,1) && !Attacked(tree,F8,1) && !Attacked(tree,G8,1)) {
         *move++=16316;
       }
-      if ((BlackCastle(ply)&2) && And(set_mask[C8],target) &&
-          !And(Occupied,Shiftr(mask_3,57)) &&
-          !Attacked(C8,1) && !Attacked(D8,1) && !Attacked(E8,1)) {
+      if ((BlackCastle(ply)&2) && !And(Occupied,Shiftr(mask_3,57)) &&
+          !Attacked(tree,C8,1) && !Attacked(tree,D8,1) && !Attacked(tree,E8,1)) {
         *move++=16060;
       }
     }
@@ -1187,6 +1127,7 @@ int* GenerateMoves(int ply, int depth, int wtm, BITBOARD target,
 |                                                          |
  ----------------------------------------------------------
 */
+    target=Compl(Occupied);
     piecebd=BlackKnights;
     while (piecebd) {
       from=FirstOne(piecebd);
@@ -1194,7 +1135,7 @@ int* GenerateMoves(int ply, int depth, int wtm, BITBOARD target,
       temp=from+(knight<<12);
       while (moves) {
         to=FirstOne(moves);
-        *move++=temp|(to<<6)|(PieceOnSquare(to)<<15);
+        *move++=temp|(to<<6);
         Clear(to,moves);
       }
       Clear(from,piecebd);
@@ -1216,7 +1157,7 @@ int* GenerateMoves(int ply, int depth, int wtm, BITBOARD target,
       temp=from+(bishop<<12);
       while (moves) {
         to=FirstOne(moves);
-        *move++=temp|(to<<6)|(PieceOnSquare(to)<<15);
+        *move++=temp|(to<<6);
         Clear(to,moves);
       }
       Clear(from,piecebd);
@@ -1238,7 +1179,7 @@ int* GenerateMoves(int ply, int depth, int wtm, BITBOARD target,
       temp=from+(rook<<12);
       while (moves) {
         to=FirstOne(moves);
-        *move++=temp|(to<<6)|(PieceOnSquare(to)<<15);
+        *move++=temp|(to<<6);
         Clear(to,moves);
       }
       Clear(from,piecebd);
@@ -1260,7 +1201,7 @@ int* GenerateMoves(int ply, int depth, int wtm, BITBOARD target,
       temp=from+(queen<<12);
       while (moves) {
         to=FirstOne(moves);
-        *move++=temp|(to<<6)|(PieceOnSquare(to)<<15);
+        *move++=temp|(to<<6);
         Clear(to,moves);
       }
       Clear(from,piecebd);
@@ -1280,7 +1221,7 @@ int* GenerateMoves(int ply, int depth, int wtm, BITBOARD target,
     temp=from+(king<<12);
     while (moves) {
       to=FirstOne(moves);
-      *move++=temp|(to<<6)|(PieceOnSquare(to)<<15);
+      *move++=temp|(to<<6);
       Clear(to,moves);
     }
 /*
@@ -1289,26 +1230,21 @@ int* GenerateMoves(int ply, int depth, int wtm, BITBOARD target,
 |   now, produce pawn moves.  this is done differently due |
 |   to inconsistencies in the way a pawn moves when it     |
 |   captures as opposed to normal non-capturing moves.     |
-|   another exception is capturing enpassant.  the first   |
-|   step is to generate all possible pawn moves.  we do    |
+|   first we generate all possible pawn moves.  we do      |
 |   this in 4 operations:  (1) shift the pawns forward one |
 |   rank then and with empty squares;  (2) shift the pawns |
 |   forward two ranks and then and with empty squares;     |
 |   (3) remove the a-pawn(s) then shift the pawns          |
 |   diagonally left then and with enemy occupied squares;  |
 |   (4) remove the h-pawn(s) then shift the pawns          |
-|   diagonally right then and with enemy occupied squares; |
-|   note that enemy occupied squares includes the special  |
-|   case of the enpassant target square also.              |
+|   diagonally right then and with enemy occupied squares. |
+|   note that the only captures produced are under-        |
+|   promotions, because the rest were done in GenCap.      |
 |                                                          |
  ----------------------------------------------------------
 */
-    temp_target=Compl(Occupied);
-    targets=And(temp_target,target);
-    if(generate_captures) targets=Or(targets,And(rank_mask[RANK1],temp_target));
-    else targets=And(targets,mask_not_rank1);
-    padvances1=And(Shiftl(BlackPawns,8),targets);
-    padvances2=And(Shiftl(And(padvances1,mask_advance_2_b),8),targets);
+    padvances1=And(Shiftl(BlackPawns,8),target);
+    padvances2=And(Shiftl(And(padvances1,mask_advance_2_b),8),target);
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -1327,57 +1263,28 @@ int* GenerateMoves(int ply, int depth, int wtm, BITBOARD target,
       to=FirstOne(padvances1);
       if (to > 7) *move++=(to+8)|(to<<6)|(pawn<<12);
       else {
-        *move++=(to+8)|(to<<6)|(pawn<<12)|(queen<<18);
-        if (depth > 0) {
-          *move++=(to+8)|(to<<6)|(pawn<<12)|(rook<<18);
-          *move++=(to+8)|(to<<6)|(pawn<<12)|(bishop<<18);
-          *move++=(to+8)|(to<<6)|(pawn<<12)|(knight<<18);
-        }
+        *move++=(to+8)|(to<<6)|(pawn<<12)|(rook<<18);
+        *move++=(to+8)|(to<<6)|(pawn<<12)|(bishop<<18);
+        *move++=(to+8)|(to<<6)|(pawn<<12)|(knight<<18);
       }
       Clear(to,padvances1);
     }
-    if (generate_captures) {
-      targetc=And(WhitePieces,target);
-      targetc=Or(targetc,EnPassantTarget(ply));
-      pcapturesl=And(Shiftl(And(BlackPawns,mask_left_edge),9),targetc);
-      pcapturesr=And(Shiftl(And(BlackPawns,mask_right_edge),7),targetc);
-      while (pcapturesl) {
-        to=FirstOne(pcapturesl);
-        if (to > 7) {
-          if(PieceOnSquare(to)) 
-            *move++=(to+9)|(to<<6)|(pawn<<12)|(PieceOnSquare(to)<<15);
-          else
-            *move++=(to+9)|(to<<6)|(pawn<<12)|(pawn<<15);
-        }
-        else {
-          *move++=(to+9)|(to<<6)|(pawn<<12)|
-            (PieceOnSquare(to)<<15)|(queen<<18);
-          if (depth > 0) {
-            *move++=(to+9)|(to<<6)|(pawn<<12)|(PieceOnSquare(to)<<15)|(rook<<18);
-            *move++=(to+9)|(to<<6)|(pawn<<12)|(PieceOnSquare(to)<<15)|(bishop<<18);
-            *move++=(to+9)|(to<<6)|(pawn<<12)|(PieceOnSquare(to)<<15)|(knight<<18);
-          }
-        }
-        Clear(to,pcapturesl);
-      }
-      while (pcapturesr) {
-        to=FirstOne(pcapturesr);
-        if (to > 7) {
-          if(PieceOnSquare(to)) 
-            *move++=(to+7)|(to<<6)|(pawn<<12)|(PieceOnSquare(to)<<15);
-          else
-            *move++=(to+7)|(to<<6)|(pawn<<12)|(pawn<<15);
-        }
-        else {
-          *move++=(to+7)|(to<<6)|(pawn<<12)|(PieceOnSquare(to)<<15)|(queen<<18);
-          if (depth > 0) {
-            *move++=(to+7)|(to<<6)|(pawn<<12)|(PieceOnSquare(to)<<15)|(rook<<18);
-            *move++=(to+7)|(to<<6)|(pawn<<12)|(PieceOnSquare(to)<<15)|(bishop<<18);
-            *move++=(to+7)|(to<<6)|(pawn<<12)|(PieceOnSquare(to)<<15)|(knight<<18);
-          }
-        }
-        Clear(to,pcapturesr);
-      }
+    target=And(WhitePieces,rank_mask[RANK1]);
+    pcapturesl=And(Shiftl(And(BlackPawns,mask_left_edge),9),target);
+    pcapturesr=And(Shiftl(And(BlackPawns,mask_right_edge),7),target);
+    while (pcapturesl) {
+      to=FirstOne(pcapturesl);
+      *move++=(to+9)|(to<<6)|(pawn<<12)|(PieceOnSquare(to)<<15)|(rook<<18);
+      *move++=(to+9)|(to<<6)|(pawn<<12)|(PieceOnSquare(to)<<15)|(bishop<<18);
+      *move++=(to+9)|(to<<6)|(pawn<<12)|(PieceOnSquare(to)<<15)|(knight<<18);
+      Clear(to,pcapturesl);
+    }
+    while (pcapturesr) {
+      to=FirstOne(pcapturesr);
+      *move++=(to+7)|(to<<6)|(pawn<<12)|(PieceOnSquare(to)<<15)|(rook<<18);
+      *move++=(to+7)|(to<<6)|(pawn<<12)|(PieceOnSquare(to)<<15)|(bishop<<18);
+      *move++=(to+7)|(to<<6)|(pawn<<12)|(PieceOnSquare(to)<<15)|(knight<<18);
+      Clear(to,pcapturesr);
     }
   }
   return(move);

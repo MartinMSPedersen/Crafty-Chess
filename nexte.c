@@ -3,7 +3,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 04/09/96 */
+/* last modified 03/11/98 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -32,12 +32,12 @@
 *                                                                              *
 ********************************************************************************
 */
-int NextEvasion(int ply, int wtm)
+int NextEvasion(TREE *tree, int ply, int wtm)
 {
   register int *movep, *sortv;
   register int done, temp;
 
-  switch (next_status[ply].phase) {
+  switch (tree->next_status[ply].phase) {
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -48,7 +48,7 @@ int NextEvasion(int ply, int wtm)
  ----------------------------------------------------------
 */
   case HASH_MOVE:
-    last[ply]=GenerateCheckEvasions(ply, wtm, last[ply-1]);
+    tree->last[ply]=GenerateCheckEvasions(tree, ply, wtm, tree->last[ply-1]);
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -58,11 +58,11 @@ int NextEvasion(int ply, int wtm)
 |                                                          |
  ----------------------------------------------------------
 */
-    if (hash_move[ply]) {
-      next_status[ply].phase=SORT_ALL_MOVES;
-      current_move[ply]=hash_move[ply];
-      if (ValidMove(ply,wtm,current_move[ply])) return(HASH_MOVE);
-      else Print(1,"bad move from hash table, ply=%d\n",ply);
+    if (tree->hash_move[ply]) {
+      tree->next_status[ply].phase=SORT_ALL_MOVES;
+      tree->current_move[ply]=tree->hash_move[ply];
+      if (ValidMove(tree,ply,wtm,tree->current_move[ply])) return(HASH_MOVE);
+      else Print(128,"bad move from hash table, ply=%d\n",ply);
     }
 /*
  ----------------------------------------------------------
@@ -74,24 +74,26 @@ int NextEvasion(int ply, int wtm)
  ----------------------------------------------------------
 */
   case SORT_ALL_MOVES:
-    next_status[ply].phase=REMAINING_MOVES;
-    if (hash_move[ply]) {
-      for (movep=last[ply-1],sortv=sort_value;movep<last[ply];movep++,sortv++)
-        if (*movep == hash_move[ply]) {
+    tree->next_status[ply].phase=REMAINING_MOVES;
+    if (tree->hash_move[ply]) {
+      for (movep=tree->last[ply-1],sortv=tree->sort_value;
+           movep<tree->last[ply];movep++,sortv++)
+        if (*movep == tree->hash_move[ply]) {
           *sortv=-999999;
           *movep=0;
         }
         else {
-          if (piece_values[Piece(*movep)] < piece_values[Captured(*movep)]) 
-            *sortv=piece_values[Captured(*movep)]-piece_values[Piece(*movep)];
-          else *sortv=Swap(From(*movep),To(*movep),wtm);
+          if (p_values[Piece(*movep)+7] < p_values[Captured(*movep)+7]) 
+            *sortv=p_values[Captured(*movep)+7]-p_values[Piece(*movep)+7];
+          else *sortv=Swap(tree,From(*movep),To(*movep),wtm);
         }
     }
     else {
-      for (movep=last[ply-1],sortv=sort_value;movep<last[ply];movep++,sortv++)
-        if (piece_values[Piece(*movep)] < piece_values[Captured(*movep)]) 
-          *sortv=piece_values[Captured(*movep)]-piece_values[Piece(*movep)];
-        else *sortv=Swap(From(*movep),To(*movep),wtm);
+      for (movep=tree->last[ply-1],sortv=tree->sort_value;
+           movep<tree->last[ply];movep++,sortv++)
+        if (p_values[Piece(*movep)+7] < p_values[Captured(*movep)+7]) 
+          *sortv=p_values[Captured(*movep)+7]-p_values[Piece(*movep)+7];
+        else *sortv=Swap(tree,From(*movep),To(*movep),wtm);
     }
 /*
  ----------------------------------------------------------
@@ -104,7 +106,8 @@ int NextEvasion(int ply, int wtm)
 */
     do {
       done=1;
-      for (movep=last[ply-1],sortv=sort_value;movep<last[ply]-1;movep++,sortv++)
+      for (movep=tree->last[ply-1],sortv=tree->sort_value;
+           movep<tree->last[ply]-1;movep++,sortv++)
         if (*sortv < *(sortv+1)) {
           temp=*sortv;
           *sortv=*(sortv+1);
@@ -115,7 +118,7 @@ int NextEvasion(int ply, int wtm)
           done=0;
         }
     } while(!done);
-    next_status[ply].last=last[ply-1];
+    tree->next_status[ply].last=tree->last[ply-1];
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -124,15 +127,17 @@ int NextEvasion(int ply, int wtm)
  ----------------------------------------------------------
 */
   case REMAINING_MOVES:
-    for (;next_status[ply].last<last[ply];next_status[ply].last++)
-      if ((*next_status[ply].last)) {
-        current_move[ply]=*next_status[ply].last++;
+    for (;tree->next_status[ply].last<tree->last[ply];
+           tree->next_status[ply].last++)
+      if ((*tree->next_status[ply].last)) {
+        tree->current_move[ply]=*tree->next_status[ply].last++;
         return(REMAINING_MOVES);
       }  
     return(NONE);
 
   default:
-    printf("oops!  next_status.phase is bad! [evasion %d]\n",next_status[ply].phase);
+    printf("oops!  next_status.phase is bad! [evasion %d]\n",
+           tree->next_status[ply].phase);
     return(NONE);
   }
 }

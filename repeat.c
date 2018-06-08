@@ -3,7 +3,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 06/14/96 */
+/* last modified 03/11/98 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -23,20 +23,10 @@
 *                                                                              *
 ********************************************************************************
 */
-int RepetitionCheck(int ply, int wtm)
+int RepetitionCheck(TREE *tree, int ply, int wtm)
 {
   register int entries;
   register BITBOARD *replist, *thispos;
-/*
- ----------------------------------------------------------
-|                                                          |
-|   if the 50-move rule is drawing close, then adjust the  |
-|   score to reflect the impending draw.                   |
-|                                                          |
- ----------------------------------------------------------
-*/
-  if (ply == 1) return(0);
-  if (Rule50Moves(ply) > 99) return(2);
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -45,37 +35,25 @@ int RepetitionCheck(int ply, int wtm)
  ----------------------------------------------------------
 */
   if (!(TotalWhitePawns+TotalBlackPawns) &&
-      (TotalWhitePieces < 5) && (TotalBlackPieces < 5))
-    return(1);
+      TotalWhitePieces<5 && TotalBlackPieces<5) return(1);
 /*
  ----------------------------------------------------------
 |                                                          |
 |   insert the board into the next slot in the repetition  |
-|   list.  then scan the list.  we look for one of the     |
-|   conditions:  (a) the position has occured two times in |
-|   the actual search tree (not including positions that   |
-|   occurred before ply=1); (b) the position has occurred  |
-|   three times including all positions in the list.       |
+|   list.  then scan the list.  we look for the case where |
+|   the position has been seen one time before.            |
 |                                                          |
  ----------------------------------------------------------
 */
-  entries=(Rule50Moves(ply)>>1)+1;
-  if (wtm) {
-    thispos=repetition_head_w+((ply-2)>>1);
-    *thispos=HashKey;
-    for (replist=thispos-1;entries;replist--,entries--)
-      if(*thispos == *replist) return(1);
-  }
-  else {
-    thispos=repetition_head_b+((ply-2)>>1);
-    *thispos=HashKey;
-    for (replist=thispos-1;entries;replist--,entries--)
-      if(*thispos == *replist) return(1);
-  }
+  entries=Rule50Moves(ply)>>1;
+  thispos=((wtm)?tree->rephead_w:tree->rephead_b)+((ply-1)>>1);
+  *thispos=HashKey;
+  for (replist=thispos-1;entries;replist--,entries--)
+    if(*thispos == *replist) return(1);
   return(0);
 }
 
-/* last modified 06/14/96 */
+/* last modified 03/11/98 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -86,7 +64,7 @@ int RepetitionCheck(int ply, int wtm)
 *                                                                              *
 ********************************************************************************
 */
-int RepetitionDraw(int wtm)
+int RepetitionDraw(TREE *tree, int wtm)
 {
   register int reps;
   BITBOARD *thispos;
@@ -109,11 +87,11 @@ int RepetitionDraw(int wtm)
 */
   reps=0;
   if (wtm) {
-    for (thispos=repetition_list_w;thispos<repetition_head_w;thispos++)
+    for (thispos=tree->replist_w;thispos<tree->rephead_w;thispos++)
       if(HashKey == *thispos) reps++;
   }
   else {
-    for (thispos=repetition_list_b;thispos<repetition_head_b;thispos++)
+    for (thispos=tree->replist_b;thispos<tree->rephead_b;thispos++)
       if(HashKey == *thispos) reps++;
   }
   return(reps == 3);

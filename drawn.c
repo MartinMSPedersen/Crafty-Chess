@@ -3,7 +3,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 09/05/96 */
+/* last modified 06/05/98 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -16,7 +16,7 @@
 *                                                                              *
 ********************************************************************************
 */
-int Drawn(int value)
+int Drawn(TREE *tree, int value)
 {
 /*
  ----------------------------------------------------------
@@ -26,7 +26,7 @@ int Drawn(int value)
 |                                                          |
  ----------------------------------------------------------
 */
-  if (WhitePawns || BlackPawns) return(0);
+  if (TotalWhitePawns || TotalBlackPawns) return(0);
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -35,7 +35,17 @@ int Drawn(int value)
 |                                                          |
  ----------------------------------------------------------
 */
-  if (value != DrawScore()) return(0);
+  if (value != DrawScore(crafty_is_white)) return(0);
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   if neither side has pawns, and one side has some sort  |
+|   of material superiority, then determine if the winning |
+|   side has enough material to win.                       |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  if (TotalWhitePieces<5 && TotalBlackPieces<5) return(2);
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -46,20 +56,5 @@ int Drawn(int value)
  ----------------------------------------------------------
 */
   if (TotalWhitePieces == TotalBlackPieces) return(1);
-/*
- ----------------------------------------------------------
-|                                                          |
-|   if neither side has pawns, and one side has some sort  |
-|   of material superiority, then determine if the winning |
-|   side has enough material to win.                       |
-|                                                          |
- ----------------------------------------------------------
-*/
-  if ((TotalWhitePieces != 5) || (TotalBlackPieces != 5)) {
-    if ((TotalWhitePieces == 5) || (TotalWhitePieces > 6) ||
-        ((TotalWhitePieces == 6) && (WhiteBishops))) return(0);
-    if ((TotalBlackPieces == 5) || (TotalBlackPieces > 6) ||
-        ((TotalBlackPieces == 6) && (BlackBishops))) return(0);
-  }
-  return(1);
+  return(0);
 }

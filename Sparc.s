@@ -13,11 +13,11 @@
 
 ! position offsets
 	
-#define W_OCCUPIED	 16
-#define B_OCCUPIED	 24		
-#define RL90		     32	
-#define RL45		     40
-#define RR45		     48		
+#define W_OCCUPIED	  0
+#define B_OCCUPIED	  8		
+#define RL90		 16	
+#define RL45		 24
+#define RR45		 32		
 	
 ! struct at offsets	
 #define WHICH_ATTACK	   0

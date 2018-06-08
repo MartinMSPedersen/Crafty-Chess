@@ -4,7 +4,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 02/27/96 */
+/* last modified 10/18/97 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -32,14 +32,15 @@
 *                                                                              *
 ********************************************************************************
 */
-void Test(void)
+void Test(char *filename)
 {
+  FILE *test_input;
   int i, move, right=0, wrong=0, correct;
-  char command[64], nextc;
-  int nodes=0;
-  int time=0;
-  int temp_draw_score_is_zero;
+  int time=0, len;
+  double nodes=0.0;
+  char *eof;
   float avg_depth=0.0;
+  TREE *tree=local[0];
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -50,69 +51,95 @@ void Test(void)
 |                                                          |
  ----------------------------------------------------------
 */
-  temp_draw_score_is_zero=draw_score_is_zero;
-  draw_score_is_zero=1;
+  if (!(test_input=fopen(filename,"r"))) {
+    printf("file %s does not exist.\n",filename);
+    return;
+  }
+  test_mode=1;
   if (book_file) {
     fclose(book_file);
+    fclose(books_file);
     book_file=0;
+    books_file=0;
   }
   while (1) {
-    InitializeHashTables();
-    last_pv.path_iteration_depth=0;
-    largest_positional_score=1000;
-    if (fscanf(input_stream,"%s",command) == EOF) break;
-    if (!strcmp(command,"end")) break;
-    else if (!strcmp(command,"title")) {
-      fgets(command,80,input_stream);
-      command[strlen(command)-1]='\0';
-      Print(0,"=======================================================\n");
-      Print(0,"!  %-50s !\n",command);
-      Print(0,"=======================================================\n");
+    eof=fgets(buffer,512,test_input);
+    if (eof) {
+      char *delim;
+      delim=strchr(buffer,'\n');
+      if (delim) *delim=0;
+      delim=strchr(buffer,'\r');
+      if (delim) *delim=' ';
     }
-    else if (!strcmp(command,"setboard")) SetBoard();
-    else if (!strcmp(command,"solution")) {
+    else break;
+    nargs=ReadParse(buffer,args," ;");
+    if (!strcmp(args[0],"end")) break;
+    else if (!strcmp(args[0],"title")) {
+      Print(4095,"======================================================================\n");
+      Print(4095,"! ");
+      len=0;
+      for (i=1;i<nargs;i++) {
+        Print(4095,"%s ",args[i]);
+        len+=strlen(args[i])+1;
+        if (len > 65) break;
+      }
+      for (i=len;i<67;i++) printf(" ");
+      Print(4095,"!\n");
+      Print(4095,"======================================================================\n");
+    }
+    else if (!strcmp(args[0],"setboard")) {
+      SetBoard(nargs-1,args+1,0);
+    }
+    else if (!strcmp(args[0],"solution")) {
       number_of_solutions=0;
       solution_type=0;
-      Print(0,"solution ");
-      do {
-        fscanf(input_stream,"%s",command);
-        Print(0,"%d. %s ",number_of_solutions+1,command);
-        if (command[strlen(command)-1] == '?') {
+      Print(4095,"solution ");
+      for (i=1;i<nargs;i++) {
+        if (args[i][strlen(args[i])-1] == '?') {
           solution_type=1;
-          command[strlen(command)-1]='\0';
+          args[i][strlen(args[i])-1]='\0';
         }
-        else if (command[strlen(command)-1] == '!') {
+        else if (*(args+i)[strlen(args[i])-1] == '!') {
           solution_type=0;
-          command[strlen(command)-1]='\0';
+          args[i][strlen(args[i])-1]='\0';
         }
-        move=InputMove(command,0,wtm,0,0);
-        if (move)
-          solutions[number_of_solutions++]=move;
-        nextc=getc(input_stream);
-      } while (nextc == ' ');
-      Print(0,"\n");
+        move=InputMove(tree,args[i],0,wtm,0,0);
+        if (move) {
+          solutions[number_of_solutions]=move;
+          Print(4095,"%d. %s",(number_of_solutions++)+1,OutputMove(tree,move,0,wtm));
+          if (solution_type==1) Print(4095,"? ");
+          else Print(4095,"  ");
+        }
+        else DisplayChessBoard(stdout,tree->pos);
+      }
+      Print(4095,"\n");
+      InitializeHashTables();
+      last_pv.path_iteration_depth=0;
+      largest_positional_score=100;
       thinking=1;
-      position[1]=position[0];
-      (void) Iterate(wtm,think);
+      tree->position[1]=tree->position[0];
+      (void) Iterate(wtm,think,0);
       thinking=0;
-      nodes+=(nodes_searched+q_nodes_searched);
+      nodes+=tree->nodes_searched;
       avg_depth+=(float)iteration_depth;
       time+=(end_time-start_time);
       correct=solution_type;
       for (i=0;i<number_of_solutions;i++) {
         if (!solution_type) {
-          if (solutions[i] == pv[1].path[1]) correct=1;
+          if (solutions[i] == tree->pv[1].path[1]) correct=1;
         }
         else
-          if (solutions[i] == pv[1].path[1]) correct=0;
+          if (solutions[i] == tree->pv[1].path[1]) correct=0;
       }
       if (correct) {
         right++;
-        Print(0,"----------------------> solution correct.\n");
+        Print(4095,"----------------------> solution correct (%d/%d).\n",
+              right,right+wrong);
       }
       else {
         wrong++;
-        Print(0,"----------------------> solution incorrect.\n");
+        Print(4095,"----------------------> solution incorrect (%d/%d).\n",
+              right,right+wrong);
       }
     }
   }
@@ -123,16 +150,19 @@ void Test(void)
 |                                                          |
  ----------------------------------------------------------
 */
-  Print(0,"\n\n\n");
-  Print(0,"test results summary:\n\n");
-  Print(0,"total positions searched..........%10d\n",right+wrong);
-  Print(0,"number right......................%10d\n",right);
-  Print(0,"number wrong......................%10d\n",wrong);
-  Print(0,"percentage right..................%10d\n",right*100/(right+wrong));
-  Print(0,"percentage wrong..................%10d\n",wrong*100/(right+wrong));
-  Print(0,"total nodes searched..............%10d\n",nodes);
-  Print(0,"average search depth..............%10.1f\n",avg_depth/(right+wrong));
-  Print(0,"nodes per second..................%10d\n",(int) ((float) nodes/(float) time*100.0));
+  if (right+wrong) {
+    Print(4095,"\n\n\n");
+    Print(4095,"test results summary:\n\n");
+    Print(4095,"total positions searched..........%10d\n",right+wrong);
+    Print(4095,"number right......................%10d\n",right);
+    Print(4095,"number wrong......................%10d\n",wrong);
+    Print(4095,"percentage right..................%10d\n",right*100/(right+wrong));
+    Print(4095,"percentage wrong..................%10d\n",wrong*100/(right+wrong));
+    Print(4095,"total nodes searched..............%10.1f\n",nodes);
+    Print(4095,"average search depth..............%10.1f\n",avg_depth/(right+wrong));
+    Print(4095,"nodes per second..................%10d\n",(int) ((float) nodes/(float) time*100.0));
+  }
   input_stream=stdin;
-  draw_score_is_zero=temp_draw_score_is_zero;
+  early_exit=99;
+  test_mode=0;
 }

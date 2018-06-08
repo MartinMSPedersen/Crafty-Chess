@@ -4,7 +4,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 07/12/96 */
+/* last modified 04/16/97 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -32,10 +32,10 @@
 */
 void Edit(void)
 {
-  char command[80];
-  int athome=1, i, tfile, trank, square, piece;
+  int athome=1, i, piece, readstat, square, tfile, trank, wtm=1;
   char pieces[]={'x','X','P','p','N','n','K','k','*','*',
-                   'B','b','R','r','Q','q','\0'};
+                 'B','b','R','r','Q','q','\0'};
+  TREE *tree=local[0];
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -45,50 +45,48 @@ void Edit(void)
  ----------------------------------------------------------
 */
   while (1) {
-    if ((input_stream == stdin) && !xboard)
-      if (wtm)
-        printf("edit(white): ");
-      else
-        printf("edit(black): ");
-    fscanf(input_stream,"%s",command);
-    if (xboard) Print(1,"edit.command:%s\n",command);
-    if (!strcmp(command,"white")) {
-      wtm=1;
+    if ((input_stream == stdin) && !xboard) {
+      if (wtm) printf("edit(white): ");
+      else printf("edit(black): ");
     }
-    else if (!strcmp(command,"black")) {
-      wtm=0;
-    }
-    if (!strcmp(command,"#")) {
-      for (i=0;i<64;i++)
-        PieceOnSquare(i)=0;
-    }
-    else if (!strcmp(command,"c")) {
-      wtm=ChangeSide(wtm);
-    }
-    else if (!strcmp(command,"end") || (!strcmp(command,"."))) {
-      break;
-    }
-    else if (!strcmp(command,"d")) {
-      DisplayChessBoard(stdout,search);
-    }
-    else {
-      if (strchr(pieces,command[0])) {
-        piece=(strchr(pieces,command[0])-pieces) >> 1;
-        tfile=command[1]-'a';
-        trank=command[2]-'1';
+    fflush(stdout);
+    readstat=Read(1,buffer);
+    if (readstat < 0) return;
+    nargs=ReadParse(buffer,args," 	;");
+    if (xboard) Print(128,"edit.command:%s\n",args[0]);
+    
+    if (!strcmp(args[0],"white")) wtm=1;
+    else if (!strcmp(args[0],"black")) wtm=0;
+    if (!strcmp(args[0],"#"))
+      for (i=0;i<64;i++) PieceOnSquare(i)=0;
+    else if (!strcmp(args[0],"c")) wtm=ChangeSide(wtm);
+    else if (!strcmp(args[0],"end") || (!strcmp(args[0],"."))) break;
+    else if (!strcmp(args[0],"d")) DisplayChessBoard(stdout,tree->pos);
+    else if (strlen(args[0]) == 3) {
+      if (strchr(pieces,args[0][0])) {
+        piece=(strchr(pieces,args[0][0])-pieces) >> 1;
+        tfile=args[0][1]-'a';
+        trank=args[0][2]-'1';
         square=(trank<<3)+tfile;
         if ((square < 0) || (square > 63))
-          printf("unrecognized square %s\n",command);
-        if (wtm)
-          PieceOnSquare(square)=piece;
-        else
-          PieceOnSquare(square)=-piece;
-      }
-      else {
-        printf("unrecognized piece %s\n",command);
+          printf("unrecognized square %s\n",args[0]);
+        if (wtm) PieceOnSquare(square)=piece;
+        else PieceOnSquare(square)=-piece;
       }
     }
+    else if(strlen(args[0]) == 2) {
+      piece=pawn;
+      tfile=args[0][0]-'a';
+      trank=args[0][1]-'1';
+      square=(trank<<3)+tfile;
+      if ((square < 0) || (square > 63))
+        printf("unrecognized square %s\n",args[0]);
+      if (wtm) PieceOnSquare(square)=piece;
+      else PieceOnSquare(square)=-piece;
+    }
+    else printf("unrecognized piece %s\n",args[0]);
   }
+
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -102,9 +100,9 @@ void Edit(void)
 */
   WhiteCastle(0)=0;
   BlackCastle(0)=0;
-  for (i=0;i<16;i++) {
+  EnPassant(0)=0;
+  for (i=0;i<16;i++)
     if (PieceOnSquare(i)==0 || PieceOnSquare(i+48)==0) athome=0;
-  }
   if (!athome ||
       (PieceOnSquare(A1)==rook    && PieceOnSquare(B1)==knight &&
        PieceOnSquare(C1)==bishop  && PieceOnSquare(D1)==queen &&
@@ -115,16 +113,12 @@ void Edit(void)
        PieceOnSquare(E8)==-king   && PieceOnSquare(F8)==-bishop &&
        PieceOnSquare(G8)==-knight && PieceOnSquare(H8)==-rook)) {
     if (PieceOnSquare(E1) == king) {
-      if (PieceOnSquare(A1) == rook)
-        WhiteCastle(0)=WhiteCastle(0)|2;
-      if (PieceOnSquare(H1) == rook)
-        WhiteCastle(0)=WhiteCastle(0)|1;
+      if (PieceOnSquare(A1) == rook) WhiteCastle(0)=WhiteCastle(0)|2;
+      if (PieceOnSquare(H1) == rook) WhiteCastle(0)=WhiteCastle(0)|1;
     }
     if (PieceOnSquare(E8) == -king) {
-      if (PieceOnSquare(A8) == -rook)
-        BlackCastle(0)=BlackCastle(0)|2;
-      if (PieceOnSquare(H8) == -rook)
-        BlackCastle(0)=BlackCastle(0)|1;
+      if (PieceOnSquare(A8) == -rook) BlackCastle(0)=BlackCastle(0)|2;
+      if (PieceOnSquare(H8) == -rook) BlackCastle(0)=BlackCastle(0)|1;
     }
   }
 /*
@@ -135,13 +129,17 @@ void Edit(void)
 |                                                          |
  ----------------------------------------------------------
 */
-  SetChessBitBoards(&position[0]);
-  if (log_file) DisplayChessBoard(log_file,search);
+  SetChessBitBoards(&tree->position[0]);
+  if (log_file) DisplayChessBoard(log_file,tree->pos);
   wtm=1;
   move_number=1;
-  repetition_head_b=repetition_list_b;
-  repetition_head_w=repetition_list_w;
-  position[0].rule_50_moves=0;
-  last_move_in_book=move_number;
-  book_learning=0;
+  tree->rephead_b=tree->replist_b;
+  tree->rephead_w=tree->replist_w;
+  *tree->rephead_w++=HashKey;
+  tree->position[0].rule_50_moves=0;
+  moves_out_of_book=0;
+  largest_positional_score=100;
+  opening=0;
+  middle_game=1;
+  end_game=0;
 }

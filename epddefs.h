@@ -1,3 +1,5 @@
+#if !defined(EPDDEFS_INCLUDED)
+#  define EPDDEFS_INCLUDED
 /*>>> epddefs.h: Extended Position Description definitions */
 
 /* Revised: 1996.06.23 */
@@ -733,12 +735,6 @@ typedef struct gamS
 	struct gamS *gam_next;          /* next game */
 	} gamT, *gamptrT;
 
-/* tablebase file storage directory name */
-
-#if (!defined(TBDIR))
-#define TBDIR "TB"
-#endif
-
 /* tablebase byte entry semispan length */
 
 #define tbbe_ssL (((bit << byteW) - 4) / 2)
@@ -1016,4 +1012,5 @@ typedef struct tbcS
 
 #endif
 
+#endif
 /*<<< epddefs.h: EOF */

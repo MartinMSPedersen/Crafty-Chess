@@ -4,7 +4,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 06/23/96 */
+/* last modified 05/13/97 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -45,22 +45,22 @@
 *                                                                              *
 ********************************************************************************
 */
-void SetBoard(void)
+void SetBoard(int nargs, char *args[], int special)
 {
-  int i, match, num, pos, square, tboard[64];
-  int bcastle, ep, twtm, wcastle;
+  int twtm, i, match, num, pos, square, tboard[64];
+  int bcastle, ep, wcastle;
   char input[80];
   char bdinfo[] = {'q','r','b','*','k','n','p','*','P','N','K','*','B','R',
                    'Q','*', '1','2','3','4','5','6','7','8','/'};
   char status[13]={'K','Q','k','q','a','b','c','d','e','f','g','h',' '};
   int whichsq, firstsq[8]={56,48,40,32,24,16,8,0};
+  TREE *tree=local[0];
 
-  fgets(input,80,input_stream);
-  if (input_stream != stdin) Print(0,"%s\n",input);
-  else if (log_file) fprintf(log_file,"%s\n",input);
-  input[strlen(input)-1]='\0';
+  if (special)
+    strcpy(input,initial_position);
+  else
+    strcpy(input,args[0]);
   for (i=0;i<64;i++) tboard[i]=0;
-  for (pos=0;(pos<(int) strlen(input)) && (input[pos]==' ');pos++);
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -73,11 +73,8 @@ void SetBoard(void)
   whichsq=0;
   square=firstsq[whichsq];
   num=0;
-  for (;pos<(int) strlen(input);pos++) {
-    for (match=0;match<25 && input[pos]!=bdinfo[match];match++);
-/*
-   " " -> completed this part.
-*/
+  for (pos=0;pos<(int) strlen(args[0]);pos++) {
+    for (match=0;match<25 && args[0][pos]!=bdinfo[match];match++);
     if (match > 24) break;
 /*
    "/" -> end of this rank.
@@ -103,8 +100,7 @@ void SetBoard(void)
    piece codes.
 */
     else {
-      num++;
-      if (num > 8) {
+      if (++num > 8) {
         printf("more than 8 squares on one rank\n");
         return;
       }
@@ -121,35 +117,54 @@ void SetBoard(void)
  ----------------------------------------------------------
 */
   twtm=0;
-  ep=-1;
+  ep=0;
   wcastle=0;
   bcastle=0;
-  for (pos++;(pos<(int) strlen(input)) && (input[pos]==' ');pos++);
-  if (input[pos]=='w') twtm=1;
-  else if (input[pos]=='b') twtm=0;
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   side to move.                                          |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  if (args[1][0] == 'w') twtm=1;
+  else if (args[1][0] == 'b') twtm=0;
   else printf("side to move is bad\n");
-  for (pos++;(pos<(int) strlen(input)) && (input[pos]==' ');pos++);
-  for (;pos<(int) strlen(input);pos++) {
-    for (match=0;(match<13) && (input[pos]!=status[match]);match++);
-    if (match == 0) wcastle+=1;
-    else if (match == 1) wcastle+=2;
-    else if (match == 2) bcastle+=1;
-    else if (match == 3) bcastle+=2;
-    else if ((match>3) && (match<12) && (input[pos+1]>'0') && (input[pos+1]<'9')) {
-      ep=(input[pos+1]-'1')*8+match-4;
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   castling/enpassant status.                             |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  if (nargs>2 && strlen(args[2])) {
+    if (args[2][0]>='a' && args[2][0]<='h' &&
+        args[2][1]>'0' && args[2][1]<'9') {
+      ep=(args[2][1]-'1')*8+args[2][0]-'a';
       pos++;
     }
-    else if (match == 12) continue;
-    else printf("position ok, color/castle/enpassant is bad.\n");
+    else for (pos=0;pos<(int) strlen(args[2]);pos++) {
+      for (match=0;(match<13) && (args[2][pos]!=status[match]);match++);
+      if (match == 0) wcastle+=1;
+      else if (match == 1) wcastle+=2;
+      else if (match == 2) bcastle+=1;
+      else if (match == 3) bcastle+=2;
+      else if (args[2][0]!='-') printf("castling status is bad.\n");
+    }
+  }
+  if (nargs>3 && strlen(args[3])) {
+    if (args[3][0]>='a' && args[3][0]<='h' &&
+        args[3][1]>'0' && args[3][1]<'9') {
+      ep=(args[3][1]-'1')*8+args[3][0]-'a';
+      pos++;
+    }
+    else if (args[3][0]!='-') printf("enpassant status is bad.\n");
   }
   for (i=0;i<64;i++) PieceOnSquare(i)=tboard[i];
   WhiteCastle(0)=wcastle;
   BlackCastle(0)=bcastle;
-  EnPassant(0)=0;
-  wtm=twtm;
-  if (wtm & (ep > 0)) EnPassant(0)=ep+8;
-  if (ChangeSide(wtm) & (ep > 0)) EnPassant(0)=ep-8;
-  SetChessBitBoards(&position[0]);
+  EnPassant(0)=ep;
+  Rule50Moves(0)=0;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -159,38 +174,47 @@ void SetBoard(void)
 |                                                          |
  ----------------------------------------------------------
 */
-  if (((WhiteCastle(0) & 2) && (PieceOnSquare(0) != rook)) ||
-      ((WhiteCastle(0) & 1) && (PieceOnSquare(7) != rook)) ||
-      ((BlackCastle(0) & 2) && (PieceOnSquare(56) != -rook)) ||
-      ((BlackCastle(0) & 1) && (PieceOnSquare(63) != -rook)) ||
-      (wtm && EnPassant(0) && (PieceOnSquare(EnPassant(0)+8) != -pawn) &&
+  if (((WhiteCastle(0) & 2) && (PieceOnSquare(A1) != rook)) ||
+      ((WhiteCastle(0) & 1) && (PieceOnSquare(H1) != rook)) ||
+      ((BlackCastle(0) & 2) && (PieceOnSquare(A8) != -rook)) ||
+      ((BlackCastle(0) & 1) && (PieceOnSquare(H8) != -rook))) {
+    printf("ERROR-- castling status does not match board position\n");
+    InitializeChessBoard(&tree->position[0]);
+  }
+  if ((twtm && EnPassant(0) && (PieceOnSquare(EnPassant(0)+8) != -pawn) &&
        (PieceOnSquare(EnPassant(0)-7) != pawn) &&
        (PieceOnSquare(EnPassant(0)-9) != pawn)) ||
-      (ChangeSide(wtm) && EnPassant(0) && (PieceOnSquare(EnPassant(0)-8) != pawn) &&
+      (ChangeSide(twtm) && EnPassant(0) && (PieceOnSquare(EnPassant(0)-8) != pawn) &&
        (PieceOnSquare(EnPassant(0)+7) != -pawn) &&
        (PieceOnSquare(EnPassant(0)+9) != -pawn))) {
-    printf("ERROR-- enpassant or castling status don't match board position\n");
-    InitializeChessBoard(&position[0]);
+    EnPassant(0)=0;
   }
-  if (log_file) DisplayChessBoard(log_file,search);
-  repetition_head_b=repetition_list_b;
-  repetition_head_w=repetition_list_w;
-  if (wtm)
-    *repetition_head_w++=HashKey;
-  else
-    *repetition_head_b++=HashKey;
-  position[0].rule_50_moves=0;
-  last_mate_score=0;
-  for (i=0;i<4096;i++) {
-    history_w[i]=0;
-    history_b[i]=0;
+  SetChessBitBoards(&tree->position[0]);
+  if (log_file) DisplayChessBoard(log_file,tree->pos);
+  tree->rephead_b=tree->replist_b;
+  tree->rephead_w=tree->replist_w;
+  if (twtm) *tree->rephead_w++=HashKey;
+  else *tree->rephead_b++=HashKey;
+  tree->position[0].rule_50_moves=0;
+  if (!special) {
+    last_mate_score=0;
+    for (i=0;i<4096;i++) {
+      history_w[i]=0;
+      history_b[i]=0;
+    }
+    for (i=0;i<MAXPLY;i++) {
+      tree->killer_move1[i]=0;
+      tree->killer_move2[i]=0;
+    }
+    last_pv.path_iteration_depth=0;
+    last_pv.path_length=0;
+    tree->pv[0].path_iteration_depth=0;
+    tree->pv[0].path_length=0;
+    moves_out_of_book=0;
+    largest_positional_score=100;
+    opening=0;
+    middle_game=1;
+    end_game=0;
+    wtm=twtm;
   }
-  for (i=0;i<MAXPLY;i++) {
-    killer_move[i][0]=0;
-    killer_move[i][1]=0;
-    killer_move_count[i][0]=0;
-    killer_move_count[i][1]=0;
-  }
-  last_move_in_book=move_number;
-  book_learning=0;
 }

@@ -3,7 +3,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 09/27/96 */
+/* last modified 03/11/97 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -11,21 +11,12 @@
 *                                                                              *
 ********************************************************************************
 */
-int NextMove(int depth, int ply, int wtm)
+int NextMove(TREE *tree, int ply, int wtm)
 {
   register int *bestp, *movep, *sortv, temp;
-  char remaining_moves[10];
   register int history_value, bestval, done, index;
-/*
- ----------------------------------------------------------
-|                                                          |
-|   if in check, use NextEvasion() instead as it is more   |
-|   intelligent about the moves it produces when the king  |
-|   is in check.                                           |
-|                                                          |
- ----------------------------------------------------------
-*/
-  switch (next_status[ply].phase) {
+
+  switch (tree->next_status[ply].phase) {
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -36,11 +27,11 @@ int NextMove(int depth, int ply, int wtm)
  ----------------------------------------------------------
 */
   case HASH_MOVE:
-    next_status[ply].phase=GENERATE_CAPTURE_MOVES;
-    if (hash_move[ply]) {
-      current_move[ply]=hash_move[ply];
-      if (ValidMove(ply,wtm,current_move[ply])) return(HASH_MOVE);
-      else Print(1,"bad move from hash table, ply=%d\n",ply);
+    tree->next_status[ply].phase=GENERATE_CAPTURE_MOVES;
+    if (tree->hash_move[ply]) {
+      tree->current_move[ply]=tree->hash_move[ply];
+      if (ValidMove(tree,ply,wtm,tree->current_move[ply])) return(HASH_MOVE);
+      else Print(128,"bad move from hash table, ply=%d\n",ply);
     }
 /*
  ----------------------------------------------------------
@@ -53,38 +44,38 @@ int NextMove(int depth, int ply, int wtm)
  ----------------------------------------------------------
 */
   case GENERATE_CAPTURE_MOVES:
-    next_status[ply].phase=CAPTURE_MOVES;
-    last[ply]=GenerateMoves(ply, depth, wtm,
-                            (wtm) ? BlackPieces : WhitePieces,
-                            1, last[ply-1]);
-    next_status[ply].remaining=0;
-    if (hash_move[ply]) {
-      for (movep=last[ply-1],sortv=sort_value;movep<last[ply];movep++,sortv++)
-        if (*movep == hash_move[ply]) {
+    tree->next_status[ply].phase=CAPTURE_MOVES;
+    tree->last[ply]=GenerateCaptures(tree, ply, wtm, tree->last[ply-1]);
+    tree->next_status[ply].remaining=0;
+    if (tree->hash_move[ply]) {
+      for (movep=tree->last[ply-1],sortv=tree->sort_value;
+           movep<tree->last[ply];movep++,sortv++)
+        if (*movep == tree->hash_move[ply]) {
           *sortv=-999999;
           *movep=0;
-          hash_move[ply]=0;
+          tree->hash_move[ply]=0;
         }
         else {
-          if (piece_values[Piece(*movep)] < piece_values[Captured(*movep)]) {
-            *sortv=piece_values[Captured(*movep)]-piece_values[Piece(*movep)];
-            next_status[ply].remaining++;
+          if (p_values[Piece(*movep)+7] < p_values[Captured(*movep)+7]) {
+            *sortv=p_values[Captured(*movep)+7]-p_values[Piece(*movep)+7];
+            tree->next_status[ply].remaining++;
           }
           else {
-            *sortv=Swap(From(*movep),To(*movep),wtm);
-            if (*sortv >= 0)  next_status[ply].remaining++;
+            *sortv=Swap(tree,From(*movep),To(*movep),wtm);
+            if (*sortv >= 0)  tree->next_status[ply].remaining++;
           }
         }
     }
     else {
-      for (movep=last[ply-1],sortv=sort_value;movep<last[ply];movep++,sortv++)
-        if (piece_values[Piece(*movep)] < piece_values[Captured(*movep)]) {
-          *sortv=piece_values[Captured(*movep)]-piece_values[Piece(*movep)];
-          next_status[ply].remaining++;
+      for (movep=tree->last[ply-1],sortv=tree->sort_value;
+           movep<tree->last[ply];movep++,sortv++)
+        if (p_values[Piece(*movep)+7] < p_values[Captured(*movep)+7]) {
+          *sortv=p_values[Captured(*movep)+7]-p_values[Piece(*movep)+7];
+          tree->next_status[ply].remaining++;
         }
         else {
-          *sortv=Swap(From(*movep),To(*movep),wtm);
-          if (*sortv >= 0)  next_status[ply].remaining++;
+          *sortv=Swap(tree,From(*movep),To(*movep),wtm);
+          if (*sortv >= 0)  tree->next_status[ply].remaining++;
         }
     }
 /*
@@ -98,7 +89,8 @@ int NextMove(int depth, int ply, int wtm)
 */
     do {
       done=1;
-      for (movep=last[ply-1],sortv=sort_value;movep<last[ply]-1;movep++,sortv++)
+      for (movep=tree->last[ply-1],sortv=tree->sort_value;
+           movep<tree->last[ply]-1;movep++,sortv++)
         if (*sortv < *(sortv+1)) {
           temp=*sortv;
           *sortv=*(sortv+1);
@@ -109,7 +101,7 @@ int NextMove(int depth, int ply, int wtm)
           done=0;
         }
     } while(!done);
-    next_status[ply].last=last[ply-1];
+    tree->next_status[ply].last=tree->last[ply-1];
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -120,14 +112,14 @@ int NextMove(int depth, int ply, int wtm)
  ----------------------------------------------------------
 */
   case CAPTURE_MOVES:
-    if (next_status[ply].remaining) {
-      current_move[ply]=*(next_status[ply].last);
-      *next_status[ply].last++=0;
-      next_status[ply].remaining--;
-      if (!next_status[ply].remaining) next_status[ply].phase=KILLER_MOVE_1;
+    if (tree->next_status[ply].remaining) {
+      tree->current_move[ply]=*(tree->next_status[ply].last);
+      *tree->next_status[ply].last++=0;
+      tree->next_status[ply].remaining--;
+      if (!tree->next_status[ply].remaining) tree->next_status[ply].phase=KILLER_MOVE_1;
       return(CAPTURE_MOVES);
     }
-    next_status[ply].phase=KILLER_MOVE_1;
+    tree->next_status[ply].phase=KILLER_MOVE_1;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -138,20 +130,20 @@ int NextMove(int depth, int ply, int wtm)
  ----------------------------------------------------------
 */
   case KILLER_MOVE_1:
-    if ((hash_move[ply] != killer_move[ply][0]) &&
-        ValidMove(ply,wtm,killer_move[ply][0])) {
-      current_move[ply]=killer_move[ply][0];
-      next_status[ply].phase=KILLER_MOVE_2;
+    if ((tree->hash_move[ply] != tree->killer_move1[ply]) &&
+        ValidMove(tree,ply,wtm,tree->killer_move1[ply])) {
+      tree->current_move[ply]=tree->killer_move1[ply];
+      tree->next_status[ply].phase=KILLER_MOVE_2;
       return(KILLER_MOVE_1);
     }
   case KILLER_MOVE_2:
-    if ((hash_move[ply] != killer_move[ply][1]) &&
-        ValidMove(ply,wtm,killer_move[ply][1])) {
-      current_move[ply]=killer_move[ply][1];
-      next_status[ply].phase=GENERATE_ALL_MOVES;
+    if ((tree->hash_move[ply] != tree->killer_move2[ply]) &&
+        ValidMove(tree,ply,wtm,tree->killer_move2[ply])) {
+      tree->current_move[ply]=tree->killer_move2[ply];
+      tree->next_status[ply].phase=GENERATE_ALL_MOVES;
       return(KILLER_MOVE_2);
     }
-    next_status[ply].phase=GENERATE_ALL_MOVES;
+    tree->next_status[ply].phase=GENERATE_ALL_MOVES;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -160,9 +152,8 @@ int NextMove(int depth, int ply, int wtm)
  ----------------------------------------------------------
 */
   case GENERATE_ALL_MOVES:
-    last[ply]=GenerateMoves(ply, depth, wtm, Compl(Occupied),
-                            0, last[ply]);
-    next_status[ply].phase=HISTORY_MOVES_1;
+    tree->last[ply]=GenerateNonCaptures(tree, ply, wtm, tree->last[ply]);
+    tree->next_status[ply].phase=HISTORY_MOVES_1;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -175,13 +166,14 @@ int NextMove(int depth, int ply, int wtm)
  ----------------------------------------------------------
 */
   case HISTORY_MOVES_1:
-    next_status[ply].remaining=1;
-    next_status[ply].phase=HISTORY_MOVES_2;
+    tree->next_status[ply].remaining=1;
+    tree->next_status[ply].phase=HISTORY_MOVES_2;
     bestval=0;
     bestp=0;
-    for (movep=last[ply-1];movep<last[ply];movep++)
-      if (*movep && ((*movep == hash_move[ply]) || (*movep == killer_move[ply][0]) ||
-          (*movep == killer_move[ply][1]))) *movep=0;
+    for (movep=tree->last[ply-1];movep<tree->last[ply];movep++)
+      if (*movep && (*movep == tree->hash_move[ply] ||
+          *movep == tree->killer_move1[ply] ||
+          *movep == tree->killer_move2[ply])) *movep=0;
       else {
         index=*movep&4095;
         history_value= (wtm) ? history_w[index] : history_b[index];
@@ -191,7 +183,7 @@ int NextMove(int depth, int ply, int wtm)
         }
       }
     if (bestp) {
-      current_move[ply]=*bestp;
+      tree->current_move[ply]=*bestp;
       *bestp=0;
       return(HISTORY_MOVES_1);
     }
@@ -209,7 +201,7 @@ int NextMove(int depth, int ply, int wtm)
   case HISTORY_MOVES_2:
     bestval=0;
     bestp=0;
-    for (movep=last[ply-1];movep<last[ply];movep++)
+    for (movep=tree->last[ply-1];movep<tree->last[ply];movep++)
       if (*movep) {
         index=*movep&4095;
         history_value= (wtm) ? history_w[index] : history_b[index];
@@ -219,18 +211,18 @@ int NextMove(int depth, int ply, int wtm)
         }
       }
     if (bestval) {
-      current_move[ply]=*bestp;
+      tree->current_move[ply]=*bestp;
       *bestp=0;
-      next_status[ply].remaining++;
-      if (next_status[ply].remaining > 3) {
-        next_status[ply].phase=REMAINING_MOVES;
-        next_status[ply].last=last[ply-1];
+      tree->next_status[ply].remaining++;
+      if (tree->next_status[ply].remaining > 3) {
+        tree->next_status[ply].phase=REMAINING_MOVES;
+        tree->next_status[ply].last=tree->last[ply-1];
       }
       return(HISTORY_MOVES_2);
     }
   remaining_moves:
-    next_status[ply].phase=REMAINING_MOVES;
-    next_status[ply].last=last[ply-1];
+    tree->next_status[ply].phase=REMAINING_MOVES;
+    tree->next_status[ply].last=tree->last[ply-1];
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -239,67 +231,18 @@ int NextMove(int depth, int ply, int wtm)
  ----------------------------------------------------------
 */
   case REMAINING_MOVES:
-    for (;next_status[ply].last<last[ply];next_status[ply].last++)
-      if (*next_status[ply].last) {
-        current_move[ply]=*next_status[ply].last;
-        *next_status[ply].last++=0;
+    for (;tree->next_status[ply].last<tree->last[ply];
+         tree->next_status[ply].last++)
+      if (*tree->next_status[ply].last) {
+        tree->current_move[ply]=*tree->next_status[ply].last;
+        *tree->next_status[ply].last++=0;
         return(REMAINING_MOVES);
       }
     return(NONE);
-/*
- ----------------------------------------------------------
-|                                                          |
-|   for the moves at the root of the tree, the list has    |
-|   already been generated and sorted.  on entry, test     |
-|   the searched_this_root_move[] array and then take the  |
-|   moves in the order they appear in the move list.       |
-|                                                          |
- ----------------------------------------------------------
-*/
-  case ROOT_MOVES:
-    time_abort+=TimeCheck(1);
-    if (time_abort) {
-      abort_search=1;
-      return(NONE);
-    }
-    done=0;
-    for (movep=last[0];movep<last[1];movep++)
-      if (searched_this_root_move[movep-last[0]]) done++;
-    if ((done==1) && searched_this_root_move[0] &&
-        (root_value==root_alpha) && !search_failed_high) return(NONE);
-
-    for (movep=last[0];movep<last[1];movep++)
-      if (!searched_this_root_move[movep-last[0]]) {
-        if (search_move) {
-          if (search_move > 0) {
-            if(*movep != search_move) {
-              searched_this_root_move[movep-last[0]]=1;
-              continue;
-            }
-          }
-          else {
-            if(*movep == -search_move) {
-              searched_this_root_move[movep-last[0]]=1;
-              continue;
-            }
-          }
-        }
-        current_move[1]=*movep;
-        searched_this_root_move[movep-last[0]]=1;
-        if ((nodes_searched > noise_level) && (verbosity_level >= 9)) {
-          sprintf(remaining_moves,"%d/%d",movep-last[ply-1]+1,last[ply]-last[ply-1]);
-          end_time=GetTime(time_type);
-          printf("               %2i   %s %7s   ",iteration_depth,
-                 DisplayTime(end_time-start_time),remaining_moves);
-          printf(" %s      \r",OutputMove(&current_move[1],1,wtm));
-          fflush(stdout);
-        }
-        return(ROOT_MOVES);
-      }
-      return(NONE);
   
   default:
-    printf("oops!  next_status.phase is bad! [normal %d]\n",next_status[ply].phase);
+    Print(4095,"oops!  next_status.phase is bad! [normal %d]\n",
+          tree->next_status[ply].phase);
     return(NONE);
   }
 }

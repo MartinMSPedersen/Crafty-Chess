@@ -1,3 +1,5 @@
+#if !defined(EPDH_INCLUDED)
+#  define EPDH_INCLUDED
 /*>>> epd.h: subprogram prototypes for epd.c */
 
 /* Revised: 1996.06.23 */
@@ -147,4 +149,5 @@ void EPDTBCacheFlush(void);
 void EPDInit(void);
 void EPDTerm(void);
 
+#endif
 /*<<< epd.h: EOF */

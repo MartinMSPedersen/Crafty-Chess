@@ -23,6 +23,7 @@
 void Phase(void)
 {
   int t_opening, t_middle_game, t_end_game;
+  TREE *tree=local[0];
 
 /*
  ----------------------------------------------------------
@@ -37,15 +38,17 @@ void Phase(void)
   t_end_game=end_game;
   if (opening) {
     do {
-      if (root_wtm) {
-        if (WhiteCastle(1)>0) break;
-        if (And(WhiteBishops,white_minor_pieces)) break;
-        if (And(WhiteKnights,white_minor_pieces)) break;
-      }
-      else {
-        if (BlackCastle(1)>0) break;
-        if (And(BlackBishops,black_minor_pieces)) break;
-        if (And(BlackKnights,black_minor_pieces)) break;
+      if (move_number < 26) {
+        if (root_wtm) {
+          if (WhiteCastle(1)>0) break;
+          if (And(WhiteBishops,white_minor_pieces)) break;
+          if (And(WhiteKnights,white_minor_pieces)) break;
+        }
+        else {
+          if (BlackCastle(1)>0) break;
+          if (And(BlackBishops,black_minor_pieces)) break;
+          if (And(BlackKnights,black_minor_pieces)) break;
+        }
       }
       opening=0;
       middle_game=1;
@@ -60,15 +63,15 @@ void Phase(void)
 |                                                          |
  ----------------------------------------------------------
 */
-  if (TotalWhitePieces < 10 && TotalBlackPieces < 10) {
+  if (TotalWhitePieces < 14 && TotalBlackPieces < 14) {
     opening=0;
     middle_game=0;
     end_game=1;
   }
   if (opening && opening != t_opening)
-    Print(6,"opening phase\n");
+    Print(128,"opening phase\n");
   else if (middle_game && middle_game != t_middle_game)
-    Print(6,"middle-game phase\n");
+    Print(128,"middle-game phase\n");
   else if (end_game != t_end_game)
-    Print(6,"end-game phase\n");
+    Print(128,"end-game phase\n");
 }

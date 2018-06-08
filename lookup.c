@@ -3,7 +3,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 08/27/96 */
+/* last modified 05/29/98 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -14,14 +14,13 @@
 *   bits given in the table below:                                             *
 *                                                                              *
 *     bits     name  SL  description                                           *
-*       2       age  62  search id to identify old trans/ref entried.          *
-*       2      type  60  0->value is worthless; 1-> value represents a fail-   *
+*       3       age  61  search id to identify old trans/ref entried.          *
+*       2      type  59  0->value is worthless; 1-> value represents a fail-   *
 *                        low bound; 2-> value represents a fail-high bound;    *
 *                        3-> value is an exact score.                          *
-*      19     value  40  unsigned integer value of this position + 262144.     *
+*       1    threat  58  threat extension flag, 1 -> extend this position.     *
+*      16     value  21  unsigned integer value of this position + 65536.      *
 *                        this might be a good score or search bound.           *
-*      20    pvalue  21  unsigned integer value the evaluate() procedure       *
-*                        produced for this position (0=none)+262144.           *
 *      21      move   0  best move from the current position, according to the *
 *                        search at the time this position was stored.          *
 *                                                                              *
@@ -35,10 +34,11 @@
 *                                                                              *
 ********************************************************************************
 */
-int LookUp(int ply, int depth, int wtm, int *alpha, int beta)
-{
+int LookUp(TREE *tree, int ply, int depth, int wtm, int *alpha,
+           int *beta, int *threat) {
   register BITBOARD temp_hash_key;
-  register HASH_ENTRY *htablea, *htableb;
+  register BITBOARD word1, word2;
+  register HASH_ENTRY *htable;
   register int type, draft, avoid_null=WORTHLESS, val;
 /*
  ----------------------------------------------------------
@@ -48,17 +48,11 @@ int LookUp(int ply, int depth, int wtm, int *alpha, int beta)
 |                                                          |
  ----------------------------------------------------------
 */
-  hash_move[ply]=0;
-  temp_hash_key=HashKey;
-  if (wtm) {
-    htablea=trans_ref_wa+(((int) temp_hash_key) & hash_maska);
-    htableb=trans_ref_wb+(((int) temp_hash_key) & hash_maskb);
-  }
-  else {
-    htablea=trans_ref_ba+(((int) temp_hash_key) & hash_maska);
-    htableb=trans_ref_bb+(((int) temp_hash_key) & hash_maskb);
-  }
-  temp_hash_key=temp_hash_key>>16;
+  tree->hash_move[ply]=0;
+  temp_hash_key=HashKey>>16;
+#if !defined(FAST)
+  tree->transposition_probes++;
+#endif
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -67,82 +61,97 @@ int LookUp(int ply, int depth, int wtm, int *alpha, int beta)
 |                                                          |
  ----------------------------------------------------------
 */
-  if (!Xor(And(htablea->word2,mask_80),temp_hash_key)) {
-    hash_move[ply]=((int) htablea->word1) & 07777777;
-    type=((int) Shiftr(htablea->word1,60)) & 03;
-    draft=(int) Shiftr(htablea->word2,48);
-    val=(((int) Shiftr(htablea->word1,41)) & 01777777)-262144;
-    if ((type & LOWER_BOUND) && ((depth-NULL_MOVE_DEPTH-INCREMENT_PLY) <= draft) &&
-          (val < beta)) avoid_null=AVOID_NULL_MOVE;
-    if (depth > draft) return(avoid_null);
-    switch (type) {
-      case EXACT_SCORE:
-        if (abs(val) > MATE-100) {
-          if (val > 0) val-=(ply-1);
-          else val+=(ply-1);
-        }
-        *alpha=val;
-#if !defined(FAST)
-        transposition_hashes++;
+  htable=((wtm)?trans_ref_wa:trans_ref_ba)+(((int) HashKey) & hash_maska);
+# if defined(SMP)
+  Lock(lock_hash);
 #endif
-        return(EXACT_SCORE);
-      case LOWER_BOUND:
-        if (val <= *alpha) {
-#if !defined(FAST)
-          transposition_hashes++;
+  word1=htable->word1;
+  word2=htable->word2;
+# if defined(SMP)
+  UnLock(lock_hash);
 #endif
-          return(LOWER_BOUND);
-        }
-        return(avoid_null);
-      case UPPER_BOUND:
-        if (val >= beta) {
+  if (!Xor(And(word2,mask_80),temp_hash_key)) do {
 #if !defined(FAST)
-          transposition_hashes++;
+    tree->transposition_hits++;
 #endif
-          return(UPPER_BOUND);
-        }
-        return(avoid_null);
-    }
-    return(avoid_null);
-  }
-  if (!Xor(And(htableb->word2,mask_80),temp_hash_key)) {
-    if (hash_move[ply]==0)
-      hash_move[ply]=((int) htableb->word1) & 07777777;
-    type=((int) Shiftr(htableb->word1,60)) & 03;
-    draft=Shiftr(htableb->word2,48);
-    val=(((int) Shiftr(htableb->word1,41)) & 01777777)-262144;
-    if ((type & LOWER_BOUND) && ((depth-NULL_MOVE_DEPTH-INCREMENT_PLY) <= draft) &&
-          (val < beta)) avoid_null=AVOID_NULL_MOVE;
-    if (depth > draft) return(avoid_null);
-    switch (type) {
-      case EXACT_SCORE:
-        if (abs(val) > MATE-100) {
-          if (val > 0) val-=(ply-1);
-          else val+=(ply-1);
-        }
-        *alpha=val;
-#if !defined(FAST)
-        transposition_hashes++;
-#endif
-        return(EXACT_SCORE);
-      case LOWER_BOUND:
-        if (val <= *alpha) {
-#if !defined(FAST)
-          transposition_hashes++;
-#endif
-          return(LOWER_BOUND);
-        }
-        return(avoid_null);
-      case UPPER_BOUND:
-        if (val >= beta) {
-#if !defined(FAST)
-          transposition_hashes++;
-#endif
-          return(UPPER_BOUND);
-        }
-        return(avoid_null);
-    }
-  }
+    tree->hash_move[ply]=((int) word1) & 07777777;
+    type=((int) Shiftr(word1,59)) & 03;
+    draft=(int) Shiftr(word2,48);
+    val=(((int) Shiftr(word1,21)) & 01777777)-65536;
+    *threat=((int) Shiftr(word1,58)) & 01;
+    if ((type & UPPER_BOUND) &&
+        depth-NULL_MOVE_DEPTH-INCREMENT_PLY <= draft &&
+        val < *beta) avoid_null=AVOID_NULL_MOVE;
+    if (depth > draft) break;
 
-  return(WORTHLESS);
+    switch (type) {
+      case EXACT_SCORE:
+        if (abs(val) > MATE-100) {
+          if (val > 0) val-=(ply-1);
+          else val+=(ply-1);
+        }
+        *alpha=val;
+        return(EXACT_SCORE);
+      case UPPER_BOUND:
+        if (val <= *alpha) {
+          *alpha=val;
+          return(UPPER_BOUND);
+        }
+        break;
+      case LOWER_BOUND:
+        if (val >= *beta) {
+          *beta=val;
+          return(LOWER_BOUND);
+        }
+        break;
+    }
+  } while(0);
+
+  htable=((wtm)?trans_ref_wb:trans_ref_bb)+(((int) HashKey) & hash_maskb);
+# if defined(SMP)
+  Lock(lock_hash);
+#endif
+  word1=htable->word1;
+  word2=htable->word2;
+# if defined(SMP)
+  UnLock(lock_hash);
+#endif
+  if (!Xor(And(word2,mask_80),temp_hash_key)) {
+#if !defined(FAST)
+    tree->transposition_hits++;
+#endif
+    if (tree->hash_move[ply]==0)
+      tree->hash_move[ply]=((int) word1) & 07777777;
+    type=((int) Shiftr(word1,59)) & 03;
+    draft=Shiftr(word2,48);
+    val=(((int) Shiftr(word1,21)) & 01777777)-65536;
+    *threat=((int) Shiftr(word1,58)) & 01;
+    if ((type & UPPER_BOUND) &&
+        depth-NULL_MOVE_DEPTH-INCREMENT_PLY <= draft &&
+        val < *beta) avoid_null=AVOID_NULL_MOVE;
+    if (depth > draft) return(avoid_null);
+
+    switch (type) {
+      case EXACT_SCORE:
+        if (abs(val) > MATE-100) {
+          if (val > 0) val-=(ply-1);
+          else val+=(ply-1);
+        }
+        *alpha=val;
+        return(EXACT_SCORE);
+      case UPPER_BOUND:
+        if (val <= *alpha) {
+          *alpha=val;
+          return(UPPER_BOUND);
+        }
+        return(avoid_null);
+      case LOWER_BOUND:
+        if (val >= *beta) {
+          *beta=val;
+          return(LOWER_BOUND);
+        }
+        return(avoid_null);
+    }
+  }
+  return(avoid_null);
 }

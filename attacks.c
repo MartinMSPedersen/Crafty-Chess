@@ -3,7 +3,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 08/23/96 */
+/* last modified 03/12/98 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -13,7 +13,7 @@
 *                                                                              *
 ********************************************************************************
 */
-BITBOARD AttacksFrom(int square, int wtm) {
+BITBOARD AttacksFrom(TREE *tree, int square, int wtm) {
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -43,7 +43,7 @@ BITBOARD AttacksFrom(int square, int wtm) {
   }
 }
 
-/* last modified 08/23/96 */
+/* last modified 03/12/98 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -57,7 +57,7 @@ BITBOARD AttacksFrom(int square, int wtm) {
 *                                                                              *
 ********************************************************************************
 */
-BITBOARD AttacksTo(int square) {
+BITBOARD AttacksTo(TREE *tree, int square) {
   register BITBOARD attacks;
 /*
  ----------------------------------------------------------
@@ -112,7 +112,7 @@ BITBOARD AttacksTo(int square) {
   return(attacks);
 }
 
-/* last modified 08/23/96 */
+/* last modified 03/12/98 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -124,7 +124,7 @@ BITBOARD AttacksTo(int square) {
 ********************************************************************************
 */
 
-int Attacked(int square, int wtm) {
+int Attacked(TREE *tree, int square, int wtm) {
   register BITBOARD attacks;
 
   if (wtm) {

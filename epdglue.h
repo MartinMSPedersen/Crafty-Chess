@@ -1,3 +1,5 @@
+#if !defined(EPDGLUE_INCLUDED)
+#  define EPDGLUE_INCLUDED
 /*>>> epdglue.h: subprogram prototypes for epdglue.c */
 
 /* Revised: 1995.12.11 */
@@ -25,11 +27,12 @@ four columns.  Further testing and development was performed on a
 generic PC running Linux 1.2.9 and using the gcc 2.6.3 compiler.
 */
 
-int EGTBScore(int posdex, int active, int *scoreptr);
+int EGTBScore(TREE *tree, int posdex, int active, int *scoreptr);
 int EGCommandParmCount(char *s);
 int EGCommandCheck(char *s);
 int EGCommand(char *s);
 void EGInit(void);
 void EGTerm(void);
 
+#endif
 /*<<< epdglue.h: EOF */

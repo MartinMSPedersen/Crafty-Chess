@@ -3,7 +3,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 02/12/96 */
+/* last modified 03/11/98 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -15,9 +15,10 @@
 *                                                                              *
 ********************************************************************************
 */
-static BITBOARD bit_move;
-void MakeMove(int ply, int move, int wtm)
+void MakeMove(TREE *tree, int ply, int move, int wtm)
 {
+  register int piece, from, to, captured, promote;
+  BITBOARD bit_move;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -27,11 +28,11 @@ void MakeMove(int ply, int move, int wtm)
  ----------------------------------------------------------
 */
 #if defined(DEBUG)
-  ValidatePosition(ply,move,"MakeMove(1)");
+  ValidatePosition(tree,ply,move,"MakeMove(1)");
 #endif
-  position[ply+1]=position[ply];
-  save_hash_key[ply]=HashKey;
-  save_pawn_hash_key[ply]=PawnHashKey;
+  tree->position[ply+1]=tree->position[ply];
+  tree->save_hash_key[ply]=HashKey;
+  tree->save_pawn_hash_key[ply]=PawnHashKey;
   if (EnPassant(ply+1)) {
     HashEP(EnPassant(ply+1),HashKey);
     EnPassant(ply+1)=0;
@@ -45,34 +46,381 @@ void MakeMove(int ply, int move, int wtm)
 |                                                          |
  ----------------------------------------------------------
 */
-  bit_move=Or(set_mask[From(move)],set_mask[To(move)]);
-  switch (Piece(move)) {
+  piece=Piece(move);
+  from=From(move);
+  to=To(move);
+  captured=Captured(move);
+  promote=Promote(move);
+MakePieceMove:
+  ClearRL90(from,OccupiedRL90);
+  ClearRL45(from,OccupiedRL45);
+  ClearRR45(from,OccupiedRR45);
+  SetRL90(to,OccupiedRL90);
+  SetRL45(to,OccupiedRL45);
+  SetRR45(to,OccupiedRR45);
+  bit_move=Or(set_mask[from],set_mask[to]);
+  PieceOnSquare(from)=0;
+  switch (piece) {
+/*
+********************************************************************************
+*                                                                              *
+*   make pawn moves.  there are two special cases:  (a) enpassant captures     *
+*   where the captured pawn is not on the "to" square and must be removed in   *
+*   a different way, and (2) pawn promotions (where the "Promote" variable     *
+*   is non-zero) requires updating the appropriate bit boards since we are     *
+*   creating a new piece.                                                      *
+*                                                                              *
+********************************************************************************
+*/
   case pawn:
-    MakeMovePawn(ply,From(move),To(move),Captured(move),Promote(move),wtm);
-    if (Captured(move) == 1) {
-      if (wtm) {
-        if (!And(BlackPawns,set_mask[To(move)])) move&=~(7<<15);
+    if (wtm) {
+      ClearSet(bit_move,WhitePawns);
+      ClearSet(bit_move,WhitePieces);
+      HashPW(from,HashKey);
+      HashPW32(from,PawnHashKey);
+      HashPW(to,HashKey);
+      HashPW32(to,PawnHashKey);
+      PieceOnSquare(to)=pawn;
+      if (captured == 1) {
+        if(!And(BlackPawns,set_mask[to])) {
+          ClearRL90(to-8,OccupiedRL90);
+          ClearRL45(to-8,OccupiedRL45);
+          ClearRR45(to-8,OccupiedRR45);
+          Clear(to-8,BlackPawns);
+          Clear(to-8,BlackPieces);
+          HashPB(to-8,HashKey);
+          HashPB32(to-8,PawnHashKey);
+          PieceOnSquare(to-8)=0;
+          Material+=PAWN_VALUE;
+          TotalBlackPawns--;
+          TotalPieces--;
+          captured=0;
+        }
       }
-      else {
-        if (!And(WhitePawns,set_mask[To(move)])) move&=~(7<<15);
+  /*
+   --------------------------------------------------------------------
+  |                                                                    |
+  |  if this is a pawn promotion, remove the pawn from the counts      |
+  |  then update the correct piece board to reflect the piece just     |
+  |  created.                                                          |
+  |                                                                    |
+   --------------------------------------------------------------------
+  */
+      if (promote) {
+        TotalWhitePawns--;
+        Material-=PAWN_VALUE;
+        Clear(to,WhitePawns);
+        HashPW(to,HashKey);
+        HashPW32(to,PawnHashKey);
+        switch (promote) {
+        case knight:
+          Set(to,WhiteKnights);
+          HashNW(to,HashKey);
+          PieceOnSquare(to)=knight;
+          TotalWhitePieces+=knight_v;
+          Material+=KNIGHT_VALUE;
+          break;
+        case bishop:
+          Set(to,WhiteBishops);
+          Set(to,BishopsQueens);
+          HashBW(to,HashKey);
+          PieceOnSquare(to)=bishop;
+          TotalWhitePieces+=bishop_v;
+          Material+=BISHOP_VALUE;
+          break;
+        case rook:
+          Set(to,WhiteRooks);
+          Set(to,RooksQueens);
+          HashRW(to,HashKey);
+          PieceOnSquare(to)=rook;
+          TotalWhitePieces+=rook_v;
+          Material+=ROOK_VALUE;
+          break;
+        case queen:
+          Set(to,WhiteQueens);
+          Set(to,BishopsQueens);
+          Set(to,RooksQueens);
+          HashQW(to,HashKey);
+          PieceOnSquare(to)=queen;
+          TotalWhitePieces+=queen_v;
+          Material+=QUEEN_VALUE;
+          break;
+        }
       }
+      else 
+        if (((to-from) == 16) && And(mask_eptest[to],BlackPawns)) {
+          EnPassant(ply+1)=to-8;
+          HashEP(to-8,HashKey);
+        }
+    }
+    else {
+      ClearSet(bit_move,BlackPawns);
+      ClearSet(bit_move,BlackPieces);
+      HashPB(from,HashKey);
+      HashPB32(from,PawnHashKey);
+      HashPB(to,HashKey);
+      HashPB32(to,PawnHashKey);
+      PieceOnSquare(to)=-pawn;
+      if (captured == 1) {
+        if(!And(WhitePawns,set_mask[to])) {
+          ClearRL90(to+8,OccupiedRL90);
+          ClearRL45(to+8,OccupiedRL45);
+          ClearRR45(to+8,OccupiedRR45);
+          Clear(to+8,WhitePawns);
+          Clear(to+8,WhitePieces);
+          HashPW(to+8,HashKey);
+          HashPW32(to+8,PawnHashKey);
+          PieceOnSquare(to+8)=0;
+          Material-=PAWN_VALUE;
+          TotalWhitePawns--;
+          TotalPieces--;
+          captured=0;
+        }
+      }
+/*
+ --------------------------------------------------------------------
+|                                                                    |
+|  if this is a pawn promotion, remove the pawn from the counts      |
+|  then update the correct piece board to reflect the piece just     |
+|  created.                                                          |
+|                                                                    |
+ --------------------------------------------------------------------
+*/
+      if (promote) {
+        TotalBlackPawns--;
+        Material+=PAWN_VALUE;
+        Clear(to,BlackPawns);
+        HashPB(to,HashKey);
+        HashPB32(to,PawnHashKey);
+        switch (promote) {
+        case knight:
+          Set(to,BlackKnights);
+          HashNB(to,HashKey);
+          PieceOnSquare(to)=-knight;
+          TotalBlackPieces+=knight_v;
+          Material-=KNIGHT_VALUE;
+          break;
+        case bishop:
+          Set(to,BlackBishops);
+          Set(to,BishopsQueens);
+          HashBB(to,HashKey);
+          PieceOnSquare(to)=-bishop;
+          TotalBlackPieces+=bishop_v;
+          Material-=BISHOP_VALUE;
+          break;
+        case rook:
+          Set(to,BlackRooks);
+          Set(to,RooksQueens);
+          HashRB(to,HashKey);
+          PieceOnSquare(to)=-rook;
+          TotalBlackPieces+=rook_v;
+          Material-=ROOK_VALUE;
+          break;
+        case queen:
+          Set(to,BlackQueens);
+          Set(to,BishopsQueens);
+          Set(to,RooksQueens);
+          HashQB(to,HashKey);
+          PieceOnSquare(to)=-queen;
+          TotalBlackPieces+=queen_v;
+          Material-=QUEEN_VALUE;
+          break;
+        }
+      }
+      else 
+        if (((from-to) == 16) && And(mask_eptest[to],WhitePawns)) {
+          EnPassant(ply+1)=to+8;
+          HashEP(to+8,HashKey);
+        }
     }
     Rule50Moves(ply+1)=0;
     break;
+/*
+********************************************************************************
+*                                                                              *
+*   make knight moves.                                                         *
+*                                                                              *
+********************************************************************************
+*/
   case knight:
-    MakeMoveKnight(From(move),To(move),wtm);
+    if (wtm) {
+      ClearSet(bit_move,WhiteKnights);
+      ClearSet(bit_move,WhitePieces);
+      HashNW(from,HashKey);
+      HashNW(to,HashKey);
+      PieceOnSquare(to)=knight;
+    }
+    else {
+      ClearSet(bit_move,BlackKnights);
+      ClearSet(bit_move,BlackPieces);
+      HashNB(from,HashKey);
+      HashNB(to,HashKey);
+      PieceOnSquare(to)=-knight;
+    }
     break;
+/*
+********************************************************************************
+*                                                                              *
+*   make bishop moves.                                                         *
+*                                                                              *
+********************************************************************************
+*/
   case bishop:
-    MakeMoveBishop(From(move),To(move),wtm);
+    ClearSet(bit_move,BishopsQueens);
+    if (wtm) {
+      ClearSet(bit_move,WhiteBishops);
+      ClearSet(bit_move,WhitePieces);
+      HashBW(from,HashKey);
+      HashBW(to,HashKey);
+      PieceOnSquare(to)=bishop;
+    }
+    else {
+      ClearSet(bit_move,BlackBishops);
+      ClearSet(bit_move,BlackPieces);
+      HashBB(from,HashKey);
+      HashBB(to,HashKey);
+      PieceOnSquare(to)=-bishop;
+    }
     break;
+/*
+********************************************************************************
+*                                                                              *
+*   make rook moves.  the only special case handling required is to determine  *
+*   if x_castle is non-zero [x=w or b based on side to move].  if it is non-   *
+*   zero, the value must be corrected if either rook is moving from its        *
+*   original square, so that castling with that rook becomes impossible.       *
+*                                                                              *
+********************************************************************************
+*/
   case rook:
-    MakeMoveRook(ply,From(move),To(move),wtm);
+    ClearSet(bit_move,RooksQueens);
+    if (wtm) {
+      ClearSet(bit_move,WhiteRooks);
+      ClearSet(bit_move,WhitePieces);
+      HashRW(from,HashKey);
+      HashRW(to,HashKey);
+      PieceOnSquare(to)=rook;
+      if (WhiteCastle(ply+1) > 0) {
+        if ((from == 0) && (WhiteCastle(ply+1)&2)) {
+          WhiteCastle(ply+1)&=1;
+          HashCastleW(1,HashKey);
+        }
+        else if ((from == 7) && (WhiteCastle(ply+1)&1)) {
+          WhiteCastle(ply+1)&=2;
+          HashCastleW(0,HashKey);
+        }
+      }
+    }
+    else {
+      ClearSet(bit_move,BlackRooks);
+      ClearSet(bit_move,BlackPieces);
+      HashRB(from,HashKey);
+      HashRB(to,HashKey);
+      PieceOnSquare(to)=-rook;
+      if (BlackCastle(ply+1) > 0) {
+        if ((from == 56) && (BlackCastle(ply+1)&2)) {
+          BlackCastle(ply+1)&=1;
+          HashCastleB(1,HashKey);
+        }
+        else if ((from == 63) && (BlackCastle(ply+1)&1)) {
+          BlackCastle(ply+1)&=2;
+          HashCastleB(0,HashKey);
+        }
+      }
+    }
     break;
+/*
+********************************************************************************
+*                                                                              *
+*   make queen moves                                                           *
+*                                                                              *
+********************************************************************************
+*/
   case queen:
-    MakeMoveQueen(From(move),To(move),wtm);
+    ClearSet(bit_move,BishopsQueens);
+    ClearSet(bit_move,RooksQueens);
+    if (wtm) {
+      ClearSet(bit_move,WhiteQueens);
+      ClearSet(bit_move,WhitePieces);
+      HashQW(from,HashKey);
+      HashQW(to,HashKey);
+      PieceOnSquare(to)=queen;
+    }
+    else {
+      ClearSet(bit_move,BlackQueens);
+      ClearSet(bit_move,BlackPieces);
+      HashQB(from,HashKey);
+      HashQB(to,HashKey);
+      PieceOnSquare(to)=-queen;
+    }
     break;
+/*
+********************************************************************************
+*                                                                              *
+*   make king moves.  the only special case is castling, which is indicated    *
+*   by from=4, to=6 for o-o as an example.  the king is moving from e1-g1      *
+*   which is normally illegal.  in this case, the correct rook is also moved.  *
+*                                                                              *
+*   note that moving the king in any direction resets the x_castle [x=w or b]  *
+*   flag indicating that castling is not possible in *this* position.          *
+*                                                                              *
+********************************************************************************
+*/
   case king:
-    MakeMoveKing(ply,From(move),To(move),wtm);
+    if (wtm) {
+      ClearSet(bit_move,WhitePieces);
+      HashKW(from,HashKey);
+      HashKW(to,HashKey);
+      PieceOnSquare(to)=king;
+      WhiteKingSQ=to;
+      if (WhiteCastle(ply) > 0) {
+        if (WhiteCastle(ply+1)&2) HashCastleW(1,HashKey);
+        if (WhiteCastle(ply+1)&1) HashCastleW(0,HashKey);
+        if (abs(to-from) == 2) WhiteCastle(ply+1)=-4;
+        else WhiteCastle(ply+1)=0;
+        if (abs(to-from) == 2) {
+          if (to == G1) {
+            from=H1;
+            to=F1;
+            piece=rook;
+            goto MakePieceMove;
+          }
+          else {
+            from=A1;
+            to=D1;
+            piece=rook;
+            goto MakePieceMove;
+          }
+        }
+      }
+    }
+    else {
+      ClearSet(bit_move,BlackPieces);
+      HashKB(from,HashKey);
+      HashKB(to,HashKey);
+      PieceOnSquare(to)=-king;
+      BlackKingSQ=to;
+      if (BlackCastle(ply+1) > 0) {
+        if (BlackCastle(ply+1)&2) HashCastleB(1,HashKey);
+        if (BlackCastle(ply+1)&1) HashCastleB(0,HashKey);
+        if (abs(to-from) == 2) BlackCastle(ply+1)=-4;
+        else BlackCastle(ply+1)=0;
+        if (abs(to-from) == 2) {
+          if (to == G8) {
+            from=H8;
+            to=F8;
+            piece=rook;
+            goto MakePieceMove;
+          }
+          else {
+            from=A8;
+            to=D8;
+            piece=rook;
+            goto MakePieceMove;
+          }
+        }
+      }
+    }
     break;
   }
 /*
@@ -83,10 +431,11 @@ void MakeMove(int ply, int move, int wtm)
 *                                                                              *
 ********************************************************************************
 */
-  if(Captured(move)) {
+  if(captured) {
     Rule50Moves(ply+1)=0;
-    if (Promote(move)) move=(move&(~(7<<12)))|(Promote(move)<<12);
-    switch (Captured(move)) {
+    TotalPieces--;
+    if (promote) piece=promote;
+    switch (captured) {
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -96,18 +445,18 @@ void MakeMove(int ply, int move, int wtm)
 */
     case pawn: 
       if (wtm) {
-        Clear(To(move),BlackPawns);
-        Clear(To(move),BlackPieces);
-        HashPB(To(move),HashKey);
-        HashPB(To(move),PawnHashKey);
+        Clear(to,BlackPawns);
+        Clear(to,BlackPieces);
+        HashPB(to,HashKey);
+        HashPB32(to,PawnHashKey);
         Material+=PAWN_VALUE;
         TotalBlackPawns--;
       }
       else {
-        Clear(To(move),WhitePawns);
-        Clear(To(move),WhitePieces);
-        HashPW(To(move),HashKey);
-        HashPW(To(move),PawnHashKey);
+        Clear(to,WhitePawns);
+        Clear(to,WhitePieces);
+        HashPW(to,HashKey);
+        HashPW32(to,PawnHashKey);
         Material-=PAWN_VALUE;
         TotalWhitePawns--;
       }
@@ -121,16 +470,16 @@ void MakeMove(int ply, int move, int wtm)
 */
     case knight: 
       if (wtm) {
-        Clear(To(move),BlackKnights);
-        Clear(To(move),BlackPieces);
-        HashNB(To(move),HashKey);
+        Clear(to,BlackKnights);
+        Clear(to,BlackPieces);
+        HashNB(to,HashKey);
         TotalBlackPieces-=knight_v;
         Material+=KNIGHT_VALUE;
       }
       else {
-        Clear(To(move),WhiteKnights);
-        Clear(To(move),WhitePieces);
-        HashNW(To(move),HashKey);
+        Clear(to,WhiteKnights);
+        Clear(to,WhitePieces);
+        HashNW(to,HashKey);
         TotalWhitePieces-=knight_v;
         Material-=KNIGHT_VALUE;
       }
@@ -143,19 +492,19 @@ void MakeMove(int ply, int move, int wtm)
  ----------------------------------------------------------
 */
     case bishop: 
-      if (SlidingDiag(Piece(move))) Set(To(move),BishopsQueens);
-      else Clear(To(move),BishopsQueens);
+      if (SlidingDiag(piece)) Set(to,BishopsQueens);
+      else Clear(to,BishopsQueens);
       if (wtm) {
-        Clear(To(move),BlackBishops);
-        Clear(To(move),BlackPieces);
-        HashBB(To(move),HashKey);
+        Clear(to,BlackBishops);
+        Clear(to,BlackPieces);
+        HashBB(to,HashKey);
         TotalBlackPieces-=bishop_v;
         Material+=BISHOP_VALUE;
       }
       else {
-        Clear(To(move),WhiteBishops);
-        Clear(To(move),WhitePieces);
-        HashBW(To(move),HashKey);
+        Clear(to,WhiteBishops);
+        Clear(to,WhitePieces);
+        HashBW(to,HashKey);
         TotalWhitePieces-=bishop_v;
         Material-=BISHOP_VALUE;
       }
@@ -168,18 +517,18 @@ void MakeMove(int ply, int move, int wtm)
  ----------------------------------------------------------
 */
     case rook: 
-      if (SlidingRow(Piece(move))) Set(To(move),RooksQueens);
-      else Clear(To(move),RooksQueens);
+      if (SlidingRow(piece)) Set(to,RooksQueens);
+      else Clear(to,RooksQueens);
       if (wtm) {
-        Clear(To(move),BlackRooks);
-        Clear(To(move),BlackPieces);
-        HashRB(To(move),HashKey);
+        Clear(to,BlackRooks);
+        Clear(to,BlackPieces);
+        HashRB(to,HashKey);
         if (BlackCastle(ply) > 0) {
-          if ((To(move) == 56) && (BlackCastle(ply+1)&2)) {
+          if ((to == 56) && (BlackCastle(ply+1)&2)) {
             BlackCastle(ply+1)&=1;
             HashCastleB(1,HashKey);
           }
-          else if ((To(move) == 63) && (BlackCastle(ply+1)&1)) {
+          else if ((to == 63) && (BlackCastle(ply+1)&1)) {
             BlackCastle(ply+1)&=2;
             HashCastleB(0,HashKey);
           }
@@ -188,15 +537,15 @@ void MakeMove(int ply, int move, int wtm)
         Material+=ROOK_VALUE;
       }
       else {
-        Clear(To(move),WhiteRooks);
-        Clear(To(move),WhitePieces);
-        HashRW(To(move),HashKey);
+        Clear(to,WhiteRooks);
+        Clear(to,WhitePieces);
+        HashRW(to,HashKey);
         if (WhiteCastle(ply) > 0) {
-          if ((To(move) == 0) && (WhiteCastle(ply+1)&2)) {
+          if ((to == 0) && (WhiteCastle(ply+1)&2)) {
             WhiteCastle(ply+1)&=1;
             HashCastleW(1,HashKey);
           }
-          else if ((To(move) == 7) && (WhiteCastle(ply+1)&1)) {
+          else if ((to == 7) && (WhiteCastle(ply+1)&1)) {
             WhiteCastle(ply+1)&=2;
             HashCastleW(0,HashKey);
           }
@@ -213,21 +562,21 @@ void MakeMove(int ply, int move, int wtm)
  ----------------------------------------------------------
 */
     case queen: 
-      if (SlidingDiag(Piece(move))) Set(To(move),BishopsQueens);
-      else Clear(To(move),BishopsQueens);
-      if (SlidingRow(Piece(move))) Set(To(move),RooksQueens);
-      else Clear(To(move),RooksQueens);
+      if (SlidingDiag(piece)) Set(to,BishopsQueens);
+      else Clear(to,BishopsQueens);
+      if (SlidingRow(piece)) Set(to,RooksQueens);
+      else Clear(to,RooksQueens);
       if (wtm) {
-        Clear(To(move),BlackQueens);
-        Clear(To(move),BlackPieces);
-        HashQB(To(move),HashKey);
+        Clear(to,BlackQueens);
+        Clear(to,BlackPieces);
+        HashQB(to,HashKey);
         TotalBlackPieces-=queen_v;
         Material+=QUEEN_VALUE;
       }
       else {
-        Clear(To(move),WhiteQueens);
-        Clear(To(move),WhitePieces);
-        HashQW(To(move),HashKey);
+        Clear(to,WhiteQueens);
+        Clear(to,WhitePieces);
+        HashQW(to,HashKey);
         TotalWhitePieces-=queen_v;
         Material-=QUEEN_VALUE;
       }
@@ -240,474 +589,18 @@ void MakeMove(int ply, int move, int wtm)
  ----------------------------------------------------------
 */
     case king: 
-      Print(1,"captured a king\n");
-      Print(1,"piece=%d,from=%d,to=%d,captured=%d\n",
-            Piece(move),From(move),
-            To(move),Captured(move));
-      Print(1,"ply=%d\n",ply);
-      if (log_file) DisplayChessBoard(log_file,search);
+      Print(128,"captured a king\n");
+      Print(128,"piece=%d,from=%d,to=%d,captured=%d\n",
+            piece,from,to,captured);
+      Print(128,"ply=%d\n",ply);
+      if (log_file) DisplayChessBoard(log_file,tree->pos);
     }
   }
 #if defined(DEBUG)
-  ValidatePosition(ply+1,move,"MakeMove(2)");
+  ValidatePosition(tree,ply+1,move,"MakeMove(2)");
 #endif
   return;
 }
-
-/*
-********************************************************************************
-*                                                                              *
-*   make bishop moves.                                                         *
-*                                                                              *
-********************************************************************************
-*/
-void MakeMoveBishop(int from, int to, int wtm)
-{
-/*
- --------------------------------------------------------------------
-|                                                                    |
-|  first, update the occupied-square bitboards, of which there are   |
-|  several.                                                          |
-|                                                                    |
- --------------------------------------------------------------------
-*/
-  ClearSet(bit_move,BishopsQueens);
-  ClearRL90(from,OccupiedRL90);
-  ClearRL45(from,OccupiedRL45);
-  ClearRR45(from,OccupiedRR45);
-  SetRL90(to,OccupiedRL90);
-  SetRL45(to,OccupiedRL45);
-  SetRR45(to,OccupiedRR45);
-  if (wtm) {
-    ClearSet(bit_move,WhiteBishops);
-    ClearSet(bit_move,WhitePieces);
-    HashBW(from,HashKey);
-    HashBW(to,HashKey);
-    PieceOnSquare(from)=0;
-    PieceOnSquare(to)=bishop;
-  }
-  else {
-    ClearSet(bit_move,BlackBishops);
-    ClearSet(bit_move,BlackPieces);
-    HashBB(from,HashKey);
-    HashBB(to,HashKey);
-    PieceOnSquare(from)=0;
-    PieceOnSquare(to)=-bishop;
-  }
-}
-
-/*
-********************************************************************************
-*                                                                              *
-*   make king moves.  the only special case is castling, which is indicated    *
-*   by from=4, to=6 for o-o as an example.  the king is moving from e1-g1      *
-*   which is normally illegal.  in this case, the correct rook is also moved.  *
-*                                                                              *
-*   note that moving the king in any direction resets the x_castle [x=w or b]  *
-*   flag indicating that castling is not possible in *this* position.          *
-*                                                                              *
-********************************************************************************
-*/
-void MakeMoveKing(int ply, int from, int to, int wtm)
-{
-/*
- --------------------------------------------------------------------
-|                                                                    |
-|  first, update the occupied-square bitboards, of which there are   |
-|  several.                                                          |
-|                                                                    |
- --------------------------------------------------------------------
-*/
-  ClearRL90(from,OccupiedRL90);
-  ClearRL45(from,OccupiedRL45);
-  ClearRR45(from,OccupiedRR45);
-  SetRL90(to,OccupiedRL90);
-  SetRL45(to,OccupiedRL45);
-  SetRR45(to,OccupiedRR45);
-  if (wtm) {
-    ClearSet(bit_move,WhitePieces);
-    HashKW(from,HashKey);
-    HashKW(to,HashKey);
-    PieceOnSquare(from)=0;
-    PieceOnSquare(to)=king;
-    if (WhiteCastle(ply) > 0) {
-      if (WhiteCastle(ply+1)&2) HashCastleW(1,HashKey);
-      if (WhiteCastle(ply+1)&1) HashCastleW(0,HashKey);
-      if (abs(to-from) == 2) WhiteCastle(ply+1)=-4;
-      else WhiteCastle(ply+1)=0;
-    }
-    WhiteKingSQ=to;
-    if (abs(to-from) == 2)
-      if (to == 6) {
-        bit_move=Or(set_mask[F1],set_mask[H1]);
-        MakeMoveRook(ply,H1,F1,wtm);
-      }
-      else {
-        bit_move=Or(set_mask[A1],set_mask[D1]);
-        MakeMoveRook(ply,A1,D1,wtm);
-      }
-  }
-  else {
-    ClearSet(bit_move,BlackPieces);
-    HashKB(from,HashKey);
-    HashKB(to,HashKey);
-    PieceOnSquare(from)=0;
-    PieceOnSquare(to)=-king;
-    BlackKingSQ=to;
-    if (BlackCastle(ply+1) > 0) {
-      if (BlackCastle(ply+1)&2) HashCastleB(1,HashKey);
-      if (BlackCastle(ply+1)&1) HashCastleB(0,HashKey);
-      if (abs(to-from) == 2) BlackCastle(ply+1)=-4;
-      else BlackCastle(ply+1)=0;
-    }
-    if (abs(to-from) == 2)
-      if (to == 62) {
-        bit_move=Or(set_mask[F8],set_mask[H8]);
-        MakeMoveRook(ply,H8,F8,wtm);
-      }
-      else {
-        bit_move=Or(set_mask[A8],set_mask[D8]);
-        MakeMoveRook(ply,A8,D8,wtm);
-      }
-  }
-}
-
-/*
-********************************************************************************
-*                                                                              *
-*   make knight moves.                                                         *
-*                                                                              *
-********************************************************************************
-*/
-void MakeMoveKnight(int from, int to, int wtm)
-{
-/*
- --------------------------------------------------------------------
-|                                                                    |
-|  first, update the occupied-square bitboards, of which there are   |
-|  several.                                                          |
-|                                                                    |
- --------------------------------------------------------------------
-*/
-  ClearRL90(from,OccupiedRL90);
-  ClearRL45(from,OccupiedRL45);
-  ClearRR45(from,OccupiedRR45);
-  SetRL90(to,OccupiedRL90);
-  SetRL45(to,OccupiedRL45);
-  SetRR45(to,OccupiedRR45);
-  if (wtm) {
-    ClearSet(bit_move,WhiteKnights);
-    ClearSet(bit_move,WhitePieces);
-    HashNW(from,HashKey);
-    HashNW(to,HashKey);
-    PieceOnSquare(from)=0;
-    PieceOnSquare(to)=knight;
-  }
-  else {
-    ClearSet(bit_move,BlackKnights);
-    ClearSet(bit_move,BlackPieces);
-    HashNB(from,HashKey);
-    HashNB(to,HashKey);
-    PieceOnSquare(from)=0;
-    PieceOnSquare(to)=-knight;
-  }
-}
-
-/*
-********************************************************************************
-*                                                                              *
-*   make pawn moves.  there are two special cases:  (a) enpassant captures     *
-*   where the captured pawn is not on the "to" square and must be removed in   *
-*   a different way, and (2) pawn promotions (where the "Promote" variable     *
-*   is non-zero) requires updating the appropriate bit boards since we are     *
-*   creating a new piece.                                                      *
-*                                                                              *
-********************************************************************************
-*/
-void MakeMovePawn(int ply, int from, int to, int Captured, int Promote, int wtm)
-{
-/*
- --------------------------------------------------------------------
-|                                                                    |
-|  now, update the occupied-square bitboards, of which there are     |
-|  several.                                                          |
-|                                                                    |
- --------------------------------------------------------------------
-*/
-  ClearRL90(from,OccupiedRL90);
-  ClearRL45(from,OccupiedRL45);
-  ClearRR45(from,OccupiedRR45);
-  SetRL90(to,OccupiedRL90);
-  SetRL45(to,OccupiedRL45);
-  SetRR45(to,OccupiedRR45);
-  if (wtm) {
-    ClearSet(bit_move,WhitePawns);
-    ClearSet(bit_move,WhitePieces);
-    HashPW(from,HashKey);
-    HashPW(from,PawnHashKey);
-    HashPW(to,HashKey);
-    HashPW(to,PawnHashKey);
-    PieceOnSquare(from)=0;
-    PieceOnSquare(to)=pawn;
-    if (Captured == 1) {
-      if(!And(BlackPawns,set_mask[to])) {
-        ClearRL90(to-8,OccupiedRL90);
-        ClearRL45(to-8,OccupiedRL45);
-        ClearRR45(to-8,OccupiedRR45);
-        Clear(to-8,BlackPawns);
-        Clear(to-8,BlackPieces);
-        HashPB(to-8,HashKey);
-        HashPB(to-8,PawnHashKey);
-        PieceOnSquare(to-8)=0;
-        Material+=PAWN_VALUE;
-        TotalBlackPawns--;
-      }
-    }
-/*
- --------------------------------------------------------------------
-|                                                                    |
-|  if this is a pawn promotion, remove the pawn from the counts      |
-|  then update the correct piece board to reflect the piece just     |
-|  created.                                                          |
-|                                                                    |
- --------------------------------------------------------------------
-*/
-    if (Promote) {
-      TotalWhitePawns--;
-      Material-=PAWN_VALUE;
-      Clear(to,WhitePawns);
-      HashPW(to,HashKey);
-      HashPW(to,PawnHashKey);
-      switch (Promote) {
-      case knight:
-        Set(to,WhiteKnights);
-        HashNW(to,HashKey);
-        PieceOnSquare(to)=knight;
-        TotalWhitePieces+=knight_v;
-        Material+=KNIGHT_VALUE;
-        break;
-      case bishop:
-        Set(to,WhiteBishops);
-        Set(to,BishopsQueens);
-        HashBW(to,HashKey);
-        PieceOnSquare(to)=bishop;
-        TotalWhitePieces+=bishop_v;
-        Material+=BISHOP_VALUE;
-        break;
-      case rook:
-        Set(to,WhiteRooks);
-        Set(to,RooksQueens);
-        HashRW(to,HashKey);
-        PieceOnSquare(to)=rook;
-        TotalWhitePieces+=rook_v;
-        Material+=ROOK_VALUE;
-        break;
-      case queen:
-        Set(to,WhiteQueens);
-        Set(to,BishopsQueens);
-        Set(to,RooksQueens);
-        HashQW(to,HashKey);
-        PieceOnSquare(to)=queen;
-        TotalWhitePieces+=queen_v;
-        Material+=QUEEN_VALUE;
-        break;
-      }
-    }
-    else 
-      if (((to-from) == 16) && And(mask_enpassant_test[to],BlackPawns)) {
-        EnPassant(ply+1)=to-8;
-        HashEP(to-8,HashKey);
-      }
-  }
-  else {
-    ClearSet(bit_move,BlackPawns);
-    ClearSet(bit_move,BlackPieces);
-    HashPB(from,HashKey);
-    HashPB(from,PawnHashKey);
-    HashPB(to,HashKey);
-    HashPB(to,PawnHashKey);
-    PieceOnSquare(from)=0;
-    PieceOnSquare(to)=-pawn;
-    if (Captured == 1) {
-      if(!And(WhitePawns,set_mask[to])) {
-        ClearRL90(to+8,OccupiedRL90);
-        ClearRL45(to+8,OccupiedRL45);
-        ClearRR45(to+8,OccupiedRR45);
-        Clear(to+8,WhitePawns);
-        Clear(to+8,WhitePieces);
-        HashPW(to+8,HashKey);
-        HashPW(to+8,PawnHashKey);
-        PieceOnSquare(to+8)=0;
-        Material-=PAWN_VALUE;
-        TotalWhitePawns--;
-      }
-    }
-/*
- --------------------------------------------------------------------
-|                                                                    |
-|  if this is a pawn promotion, remove the pawn from the counts      |
-|  then update the correct piece board to reflect the piece just     |
-|  created.                                                          |
-|                                                                    |
- --------------------------------------------------------------------
-*/
-    if (Promote) {
-      TotalBlackPawns--;
-      Material+=PAWN_VALUE;
-      Clear(to,BlackPawns);
-      HashPB(to,HashKey);
-      HashPB(to,PawnHashKey);
-      switch (Promote) {
-      case knight:
-        Set(to,BlackKnights);
-        HashNB(to,HashKey);
-        PieceOnSquare(to)=-knight;
-        TotalBlackPieces+=knight_v;
-        Material-=KNIGHT_VALUE;
-        break;
-      case bishop:
-        Set(to,BlackBishops);
-        Set(to,BishopsQueens);
-        HashBB(to,HashKey);
-        PieceOnSquare(to)=-bishop;
-        TotalBlackPieces+=bishop_v;
-        Material-=BISHOP_VALUE;
-        break;
-      case rook:
-        Set(to,BlackRooks);
-        Set(to,RooksQueens);
-        HashRB(to,HashKey);
-        PieceOnSquare(to)=-rook;
-        TotalBlackPieces+=rook_v;
-        Material-=ROOK_VALUE;
-        break;
-      case queen:
-        Set(to,BlackQueens);
-        Set(to,BishopsQueens);
-        Set(to,RooksQueens);
-        HashQB(to,HashKey);
-        PieceOnSquare(to)=-queen;
-        TotalBlackPieces+=queen_v;
-        Material-=QUEEN_VALUE;
-        break;
-      }
-    }
-    else 
-      if (((from-to) == 16) && And(mask_enpassant_test[to],WhitePawns)) {
-        EnPassant(ply+1)=to+8;
-        HashEP(to+8,HashKey);
-      }
-  }
-}
-
-/*
-********************************************************************************
-*                                                                              *
-*   make queen moves                                                           *
-*                                                                              *
-********************************************************************************
-*/
-void MakeMoveQueen(int from, int to, int wtm)
-{
-/*
- --------------------------------------------------------------------
-|                                                                    |
-|  first, update the occupied-square bitboards, of which there are   |
-|  several.                                                          |
-|                                                                    |
- --------------------------------------------------------------------
-*/
-  ClearSet(bit_move,BishopsQueens);
-  ClearSet(bit_move,RooksQueens);
-  ClearRL90(from,OccupiedRL90);
-  ClearRL45(from,OccupiedRL45);
-  ClearRR45(from,OccupiedRR45);
-  SetRL90(to,OccupiedRL90);
-  SetRL45(to,OccupiedRL45);
-  SetRR45(to,OccupiedRR45);
-  if (wtm) {
-    ClearSet(bit_move,WhiteQueens);
-    ClearSet(bit_move,WhitePieces);
-    HashQW(from,HashKey);
-    HashQW(to,HashKey);
-    PieceOnSquare(from)=0;
-    PieceOnSquare(to)=queen;
-  }
-  else {
-    ClearSet(bit_move,BlackQueens);
-    ClearSet(bit_move,BlackPieces);
-    HashQB(from,HashKey);
-    HashQB(to,HashKey);
-    PieceOnSquare(from)=0;
-    PieceOnSquare(to)=-queen;
-  }
-}
-
-/*
-********************************************************************************
-*                                                                              *
-*   make rook moves.  the only special case handling required is to determine  *
-*   if x_castle is non-zero [x=w or b based on side to move].  if it is non-   *
-*   zero, the value must be corrected if either rook is moving from its        *
-*   original square, so that castling with that rook becomes impossible.       *
-*                                                                              *
-********************************************************************************
-*/
-void MakeMoveRook(int ply, int from, int to, int wtm)
-{
-/*
- --------------------------------------------------------------------
-|                                                                    |
-|  first, update the occupied-square bitboards, of which there are   |
-|  several.                                                          |
-|                                                                    |
- --------------------------------------------------------------------
-*/
-  ClearSet(bit_move,RooksQueens);
-  ClearRL90(from,OccupiedRL90);
-  ClearRL45(from,OccupiedRL45);
-  ClearRR45(from,OccupiedRR45);
-  SetRL90(to,OccupiedRL90);
-  SetRL45(to,OccupiedRL45);
-  SetRR45(to,OccupiedRR45);
-  if (wtm) {
-    ClearSet(bit_move,WhiteRooks);
-    ClearSet(bit_move,WhitePieces);
-    HashRW(from,HashKey);
-    HashRW(to,HashKey);
-    PieceOnSquare(from)=0;
-    PieceOnSquare(to)=rook;
-    if (WhiteCastle(ply+1) > 0) {
-      if ((from == 0) && (WhiteCastle(ply+1)&2)) {
-        WhiteCastle(ply+1)&=1;
-        HashCastleW(1,HashKey);
-      }
-      else if ((from == 7) && (WhiteCastle(ply+1)&1)) {
-        WhiteCastle(ply+1)&=2;
-        HashCastleW(0,HashKey);
-      }
-    }
-  }
-  else {
-    ClearSet(bit_move,BlackRooks);
-    ClearSet(bit_move,BlackPieces);
-    HashRB(from,HashKey);
-    HashRB(to,HashKey);
-    PieceOnSquare(from)=0;
-    PieceOnSquare(to)=-rook;
-    if (BlackCastle(ply+1) > 0) {
-      if ((from == 56) && (BlackCastle(ply+1)&2)) {
-        BlackCastle(ply+1)&=1;
-        HashCastleB(1,HashKey);
-      }
-      else if ((from == 63) && (BlackCastle(ply+1)&1)) {
-        BlackCastle(ply+1)&=2;
-        HashCastleB(0,HashKey);
-      }
-    }
-  }
-}
-
 /*
 ********************************************************************************
 *                                                                              *
@@ -720,7 +613,7 @@ void MakeMoveRook(int ply, int from, int to, int wtm)
 *                                                                              *
 ********************************************************************************
 */
-void MakeMoveRoot(int move, int wtm)
+void MakeMoveRoot(TREE *tree, int move, int wtm)
 {
 /*
  ----------------------------------------------------------
@@ -730,7 +623,7 @@ void MakeMoveRoot(int move, int wtm)
 |                                                          |
  ----------------------------------------------------------
 */
-  MakeMove(0,move,wtm);
+  MakeMove(tree, 0,move,wtm);
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -740,14 +633,14 @@ void MakeMoveRoot(int move, int wtm)
  ----------------------------------------------------------
 */
   if (Rule50Moves(1) == 0) {
-    repetition_head_b=repetition_list_b;
-    repetition_head_w=repetition_list_w;
+    tree->rephead_b=tree->replist_b;
+    tree->rephead_w=tree->replist_w;
   }
   WhiteCastle(1)=Max(0,WhiteCastle(1));
   BlackCastle(1)=Max(0,BlackCastle(1));
-  position[0]=position[1];
+  tree->position[0]=tree->position[1];
   if (ChangeSide(wtm))
-    *repetition_head_w++=HashKey;
+    *tree->rephead_w++=HashKey;
   else
-    *repetition_head_b++=HashKey;
+    *tree->rephead_b++=HashKey;
 }

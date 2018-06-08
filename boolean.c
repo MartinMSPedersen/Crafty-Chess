@@ -8,7 +8,7 @@
 BITBOARD Mask(int arg1)
 {
   register BITBOARD i;
-  i=-1;
+  i=(BITBOARD) -1;
   if (arg1 == 128)
     return(0);
   else if (arg1 > 64)
@@ -16,6 +16,44 @@ BITBOARD Mask(int arg1)
   else
     return(i<<(64-arg1));
 }
+
+#if defined(MACOS)
+
+  int FirstOne(register BITBOARD a)
+	{
+		register unsigned long i;
+		
+		if (i = a >> 32)
+			return(__cntlzw(i));
+		if (i = a & 0xffffffff)
+			return(__cntlzw(i) + 32);
+		return(64);
+	}
+  
+  int LastOne(register BITBOARD a)
+	{
+		register unsigned long i;
+		
+		if (i = a & 0xffffffff)
+			return(__cntlzw(i ^ (i - 1)) + 32);
+		if (i = a >> 32)
+			return(__cntlzw(i ^ (i - 1)));
+		return(64);
+	}
+
+  int PopCnt(register BITBOARD a)
+  {
+    register int c=0;
+
+    while(a) {
+      c++;
+      a &= a - 1;
+    }
+    return(c);
+  }
+
+
+#else
 #if !defined(USE_ASSEMBLY_B)
   int PopCnt(register BITBOARD a)
   {
@@ -90,4 +128,5 @@ BITBOARD Mask(int arg1)
     return(64);
   }
 #  endif
+#endif
 #endif

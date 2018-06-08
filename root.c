@@ -2,8 +2,9 @@
 #include <stdlib.h>
 #include "chess.h"
 #include "data.h"
+#include "epdglue.h"
 
-/* last modified 07/14/96 */
+/* last modified 03/11/97 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -21,10 +22,26 @@
 */
 void RootMoveList(int wtm)
 {
-  BITBOARD target;
   int *mvp, tempm;
   int square, side, i, done, temp, value;
-
+  TREE *tree=local[0];
+  int tb_value;
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   if the position at the root is a draw, based on EGTB   |
+|   results, we are going to behave differently.  we will  |
+|   extract the root moves that are draws, and toss the    |
+|   losers out.  then, we will do a normal search on the   |
+|   moves that draw to try and chose the most difficult    |
+|   drawing move.                                          |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  EGTB_draw=0;
+  if (EGTBScore(tree, 1, wtm, &tb_value)) {
+    if (tb_value == 0) EGTB_draw=1;
+  }
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -34,9 +51,9 @@ void RootMoveList(int wtm)
  ----------------------------------------------------------
 */
   easy_move=0;
-  target=(wtm) ? Compl(WhitePieces) : Compl(BlackPieces);
-  last[1]=GenerateMoves(1, 1, wtm, target, 1, last[0]);
-  if (last[1] == last[0]+1) return;
+  tree->last[1]=GenerateCaptures(tree, 1, wtm, tree->last[0]);
+  tree->last[1]=GenerateNonCaptures(tree, 1, wtm, tree->last[1]);
+  if (tree->last[1] == tree->last[0]+1) return;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -45,12 +62,17 @@ void RootMoveList(int wtm)
 |                                                          |
  ----------------------------------------------------------
 */
-  for (mvp=last[0];mvp<last[1];mvp++) {
+  for (mvp=tree->last[0];mvp<tree->last[1];mvp++) {
     value=-4000000;
-    MakeMove(1, *mvp, wtm);
-    if (!Check(wtm)) {
-      current_move[1]=*mvp;
-      value=-Evaluate(2,ChangeSide(wtm),-99999,99999);
+    MakeMove(tree, 1, *mvp, wtm);
+    if (!Check(wtm)) do {
+      if (EGTB_draw) {
+        int i=EGTBScore(tree, 2, ChangeSide(wtm), &tb_value);
+if (i==0) Print(4095,"fucked up, EGTB failed\n");
+        if (tb_value != 0) break;
+      }
+      tree->current_move[1]=*mvp;
+      value=-Evaluate(tree,2,ChangeSide(wtm),-99999,99999);
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -91,10 +113,10 @@ void RootMoveList(int wtm)
 |                                                          |
  ----------------------------------------------------------
 */
-      if (Promote(*mvp) && (Promote(*mvp) != queen)) value-=500;
-    }
-    root_sort_value[mvp-last[0]]=value;
-    UnMakeMove(1, *mvp, wtm);
+      if (Promote(*mvp) && (Promote(*mvp) != queen)) value-=50;
+    } while(0);
+    tree->sort_value[mvp-tree->last[0]]=value;
+    UnMakeMove(tree, 1, *mvp, wtm);
   }
 /*
  ----------------------------------------------------------
@@ -107,14 +129,14 @@ void RootMoveList(int wtm)
 */
   do {
     done=1;
-    for (i=0;i<last[1]-last[0]-1;i++) {
-      if (root_sort_value[i] < root_sort_value[i+1]) {
-        temp=root_sort_value[i];
-        root_sort_value[i]=root_sort_value[i+1];
-        root_sort_value[i+1]=temp;
-        tempm=*(last[0]+i);
-        *(last[0]+i)=*(last[0]+i+1);
-        *(last[0]+i+1)=tempm;
+    for (i=0;i<tree->last[1]-tree->last[0]-1;i++) {
+      if (tree->sort_value[i] < tree->sort_value[i+1]) {
+        temp=tree->sort_value[i];
+        tree->sort_value[i]=tree->sort_value[i+1];
+        tree->sort_value[i+1]=temp;
+        tempm=*(tree->last[0]+i);
+        *(tree->last[0]+i)=*(tree->last[0]+i+1);
+        *(tree->last[0]+i+1)=tempm;
         done=0;
       }
     }
@@ -127,23 +149,23 @@ void RootMoveList(int wtm)
 |                                                          |
  ----------------------------------------------------------
 */
-  for (;last[1]>last[0];last[1]--) 
-    if (root_sort_value[last[1]-last[0]-1] > -3000000) break;
-  if (root_sort_value[0] > 1000000) root_sort_value[0]-=2000000;
-  if (root_sort_value[0] > root_sort_value[1]+2000 &&
-      ((To(*last[0]) == To(last_opponent_move) &&
-        Captured(*last[0]) == Piece(last_opponent_move)) || 
-      root_sort_value[0] < PAWN_VALUE)) easy_move=1;
+  for (;tree->last[1]>tree->last[0];tree->last[1]--) 
+    if (tree->sort_value[tree->last[1]-tree->last[0]-1] > -3000000) break;
+  if (tree->sort_value[0] > 1000000) tree->sort_value[0]-=2000000;
+  if (tree->sort_value[0] > tree->sort_value[1]+2000 &&
+      ((To(*tree->last[0]) == To(last_opponent_move) &&
+        Captured(*tree->last[0]) == Piece(last_opponent_move)) || 
+      tree->sort_value[0] < PAWN_VALUE)) easy_move=1;
   if (trace_level > 0) {
-    printf("produced %d moves at root\n",last[1]-last[0]);
-    for (mvp=last[0];mvp<last[1];mvp++) {
-      current_move[1]=*mvp;
-      printf("%s",OutputMove(mvp,1,wtm));
-      MakeMove(1, *mvp, wtm);
-      printf("/%d/%d  ",root_sort_value[mvp-last[0]],
-             -Evaluate(2,ChangeSide(wtm),-99999,99999));
-      if (!((mvp-last[0]+1) % 5)) printf("\n");
-      UnMakeMove(1, *mvp, wtm);
+    printf("produced %d moves at root\n",tree->last[1]-tree->last[0]);
+    for (mvp=tree->last[0];mvp<tree->last[1];mvp++) {
+      tree->current_move[1]=*mvp;
+      printf("%s",OutputMove(tree,*mvp,1,wtm));
+      MakeMove(tree, 1, *mvp, wtm);
+      printf("/%d/%d  ",tree->sort_value[mvp-tree->last[0]],
+             -Evaluate(tree,2,ChangeSide(wtm),-99999,99999));
+      if (!((mvp-tree->last[0]+1) % 5)) printf("\n");
+      UnMakeMove(tree, 1, *mvp, wtm);
     }
   }
   return;

@@ -1,26 +1,36 @@
-#if defined(NT_i386) || defined(NT_AXP)
-#  include <windows.h>
-#  include <conio.h>
-#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
+#include <errno.h>
+#include <ctype.h>
+#include "chess.h"
+#include "data.h"
 #if !defined(AMIGA)
 #  include <limits.h>
 #endif
-#if !defined(NT_i386) && !defined(NT_AXP)
-#  include <sys/times.h>
-#  include <sys/time.h>
+#if defined(OS2)
+#  include <sys/select.h>
 #endif
-#include "chess.h"
-#include "data.h"
+#if defined(NT_i386) || defined(NT_AXP)
+#  include <windows.h>
+#  include <winbase.h>
+#  include <wincon.h>
+#  include <io.h>
+#  include <time.h>
+#else
+#  if !defined(MACOS)
+#    include <sys/times.h>
+#    include <sys/time.h>
+#  endif
+#endif
 #if defined(UNIX)
 #  include <unistd.h>
 #  include <sys/types.h>
-#  if !defined(LINUX) && !defined(ALPHA) && !defined(HP) && !defined(AIX) && !defined(CRAY1) && !defined(FreeBSD)
+#  if !defined(LINUX) && !defined(ALPHA) && !defined(HP) && !defined(CRAY1) && !defined(FreeBSD) && !defined(__EMX__)
 #    if defined(AIX)
 #      include <sys/termio.h>
+#      include <sys/select.h>
 #    else
 #      if defined(NEXT)
 #        include <bsd/termios.h>
@@ -38,10 +48,27 @@
 #  endif
 #endif
 #if defined(UNIX)
-   struct tms t;
 #  if !defined(CLK_TCK)
      static clock_t clk_tck = 0;
 #  endif
+#endif
+
+#if defined(__EMX__)
+#  define INCL_DOS
+#  define INCL_KBD
+#  include <os2.h>
+#endif
+
+#if defined(MACOS)
+#  include <unistd.h>
+#  include <unix.h>
+#  include <Events.h>
+
+   int CheckInput(void) {
+      EventRecord theEvent;
+   
+      return OSEventAvail(keyDownMask | autoKeyMask, &theEvent);
+   }
 #endif
 
 #if defined(AMIGA)
@@ -52,64 +79,39 @@
 #  define RAW 1
 #  define CON 0
 #  include <limits.h>
-#endif
 
-#if defined(AMIGA)
-
-typedef int BOOLEAN;
-
-/* Returns FALSE right away if input stream is not a terminal
-** TRUE if user pressed a key
-** FALSE if user didn't press a key
-**
-** Note: Lightly tested
-*/
-
-BOOLEAN _kbhit(void)
+int _kbhit(void)
 {
   BPTR  inp;
   BOOLEAN  ret;
 
   inp=Input();
-  if(!IsInteractive(inp))   /* Not a terminal? */
-    return FALSE;       /*  Ok, then noone can press any keys...    */
+  if(!IsInteractive(inp)) return FALSE;
   Flush(inp);
   (void) SetMode(inp,RAW);
   ret=WaitForChar(inp,1);
-/*  ret=WaitForChar(inp,100000);*/  /* You may want to change this 100000. Its */
-  (void) SetMode(inp,CON);          /* time the function will wait.  The time   */
-  return ret;                       /* unit is microseconds. 1000000 is 1 sec   */
-}                                   /* Current 100000 is 0.1 sec            */
-
-/* Note that the character is LEFT in the input stream, which has the effect
-** that subsequent calls will return TRUE right away
-** c=FGetC(inp); to get the char code in c (c should be long)
-** 
-** Note also that A(miga), SHIFT, CTRL,ALT keys wont make the function
-** return TRUE.
-*/
-
+  (void) SetMode(inp,CON);
+  return ret;
+}
 #endif   /* if defined(AMIGA)  */
 
+# if defined(NT_i386) || defined(NT_AXP)
+#  include <windows.h>
+#  include <conio.h>
 int CheckInput(void)
 {
   int i;
-#if defined(NT_i386) || defined(NT_AXP)
    static int init = 0, pipe;
    static HANDLE inh;
    DWORD dw;
-#endif
-#if defined(UNIX)
-/*i=ioctl(0,I_NREAD,&arg);*/
-  i=0;
-  (void) ioctl((int)0,FIONREAD,&i);
-  fflush(stdout);
-#else
-# if defined(NT_i386) || defined(NT_AXP)
+
+  if (!xboard && !ics && !isatty(fileno(stdin))) return(0);
+  if (batch_mode) return(0);
+  if (strchr(cmd_buffer,'\n')) return(1);
   if (xboard) {
- #if defined(FILE_CNT)
+#if defined(FILE_CNT)
     if (stdin->_cnt > 0) return stdin->_cnt;
- #endif
+#endif
     if (!init) {
       init = 1;
       inh = GetStdHandle(STD_INPUT_HANDLE);
@@ -132,15 +134,82 @@ int CheckInput(void)
   else {
     i=_kbhit();
   }
-# else
-#  if defined(AMIGA)
-    i=_kbhit();
-#  else
-    i=bioskey(1);
-#  endif
-# endif
-#endif
   return(i);
+}
+#endif
+
+#if defined(DOS)
+int CheckInput(void)
+{
+  int i;
+  if (!xboard && !ics && !isatty(fileno(stdin))) return(0);
+  if (batch_mode) return(0);
+  if (strchr(cmd_buffer,'\n')) return(1);
+  i=bioskey(1);
+  return(i);
+}
+#endif
+
+#if defined(UNIX)
+#  ifdef __EMX__
+int CheckInput(void) {
+  static KBDKEYINFO keyinfo;
+  int i;
+
+  if (!xboard && !ics && !isatty(fileno(stdin))) return(0);
+  if (strchr(cmd_buffer,'\n')) return(1);
+  KbdPeek (&keyinfo, 0);
+  if (keyinfo.fbStatus & KBDTRF_FINAL_CHAR_IN) i = 1;
+  else i = 0;
+  return(i);
+}
+#else
+int CheckInput(void) {
+  fd_set readfds;
+  struct timeval tv;
+  int data;
+
+  if (!xboard && !ics && !isatty(fileno(stdin))) return(0);
+  if (batch_mode) return(0);
+  if (strchr(cmd_buffer,'\n')) return(1);
+  FD_ZERO (&readfds);
+  FD_SET (fileno(stdin), &readfds);
+  tv.tv_sec=0;
+  tv.tv_usec=0;
+  select(16, &readfds, 0, 0, &tv);
+  data=FD_ISSET(fileno(stdin), &readfds);
+  return(data);
+}
+#  endif
+#endif
+
+void Delay232(int ms)
+{
+  int old,new;
+  old=ReadClock(elapsed);
+  do {
+    new=ReadClock(elapsed);
+  } while (new-ms/10 < old);
+}
+
+void ClearHashTables(void)
+{
+  int i;
+
+  if (trans_ref_ba && trans_ref_wa) {
+    for (i=0;i<hash_table_size;i++) {
+      (trans_ref_ba+i)->word1=Or(And((trans_ref_ba+i)->word1,
+			      mask_clear_entry),Shiftl((BITBOARD) 65536,21));
+	      (trans_ref_wa+i)->word1=Or(And((trans_ref_wa+i)->word1,
+			      mask_clear_entry),Shiftl((BITBOARD) 65536,21));
+    }
+    for (i=0;i<2*hash_table_size;i++) {
+      (trans_ref_bb+i)->word1=Or(And((trans_ref_bb+i)->word1,
+                      mask_clear_entry),Shiftl((BITBOARD) 65536,21));
+      (trans_ref_wb+i)->word1=Or(And((trans_ref_wb+i)->word1,
+                      mask_clear_entry),Shiftl((BITBOARD) 65536,21));
+    }
+  }
 }
 
 void DisplayBitBoard(BITBOARD board)
@@ -191,7 +260,7 @@ void DisplayBitBoard(BITBOARD board)
 *                                                                              *
 ********************************************************************************
 */
-void DisplayChessBoard(FILE *display_file, CHESS_POSITION pos)
+void DisplayChessBoard(FILE *display_file, POSITION pos)
 {
   int display_board[64];
   char display_string[] =
@@ -229,15 +298,16 @@ char* DisplayEvaluation(int value)
 {
   static char out[10];
 
-  if (abs(value) < MATE-100) sprintf(out,"%8.3f",((float) value)/1000.0);
+  if (abs(value) < MATE-100) 
+    sprintf(out,"%7.2f",((float) value)/100.0);
   else if (abs(value) > MATE) {
     if (value < 0) sprintf(out," -infnty");
     else sprintf(out," +infnty");
   }
-  else if (value == MATE-2) sprintf(out,"    Mate");
-  else if (value == -(MATE-1)) sprintf(out,"   -Mate");
-  else if (value > 0) sprintf(out,"   Mat%.2d",(MATE-value)/2);
-  else sprintf(out,"  -Mat%.2d",(MATE-abs(value))/2);
+  else if (value == MATE-2) sprintf(out,"   Mate");
+  else if (value == -(MATE-1)) sprintf(out,"  -Mate");
+  else if (value > 0) sprintf(out,"  Mat%.2d",(MATE-value)/2);
+  else sprintf(out," -Mat%.2d",(MATE-abs(value))/2);
   return(out);
 }
 
@@ -245,7 +315,8 @@ char* DisplayEvaluationWhisper(int value)
 {
   static char out[10];
 
-  if (abs(value) < MATE-100) sprintf(out,"%+.3f",((float) value)/1000.0);
+  if (abs(value) < MATE-100)
+    sprintf(out,"%+.2f",((float) value)/100.0);
   else if (abs(value) > MATE) {
     if (value < 0) sprintf(out,"-infnty");
     else sprintf(out,"+infnty");
@@ -267,6 +338,100 @@ void DisplayPieceBoards(int *white, int *black)
     printf("    ");
     for (j=i*8;j<i*8+8;j++) printf("%4d ",black[j]);
     printf("\n");
+  }
+}
+
+/* last modified 08/23/96 */
+/*
+********************************************************************************
+*                                                                              *
+*   DisplayPV() is used to display a PV during the search.  it will also note  *
+*   when the PV was terminated by a hash table hit and will check the hash     *
+*   entries to see if the PV can be extended by using moves from hits.         *
+*                                                                              *
+********************************************************************************
+*/
+void DisplayPV(TREE *tree, int level, int wtm, int time, int value, PATH *pv) {
+#define PrintOK() (tree->nodes_searched>noise_level || value>(MATE-100))
+  char buffer[512], *buffp, *bufftemp;
+  int i, t_move_number, type, j, dummy;
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   initialize.                                            |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  if (level==5) type=4; else type=2;
+  t_move_number=move_number;
+  if (display_options&64) sprintf(buffer," %d.",move_number);
+  else buffer[0]=0;
+  if ((display_options&64) && !wtm) sprintf(buffer+strlen(buffer)," ...");
+  for (i=1;i<=(int) pv->path_length;i++) {
+    if ((display_options&64) && i>1 && wtm)
+      sprintf(buffer+strlen(buffer)," %d.",t_move_number);
+    sprintf(buffer+strlen(buffer)," %s",OutputMove(tree,pv->path[i],i,wtm));
+    MakeMove(tree,i,pv->path[i],wtm);
+    wtm=ChangeSide(wtm);
+    if (wtm) t_move_number++;
+  }
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   if the pv was terminated prematurely by a trans/ref    |
+|   hit, see if any more moves are in the trans/ref table  |
+|   and if so, add 'em to the end of the PV so we will     |
+|   have better move ordering next iteration.              |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  if(pv->path_hashed == 1) {
+    for (i=pv->path_length+1;i<MAXPLY;i++) {
+      LookUp(tree,i,0,wtm,&dummy,&dummy,&dummy);
+      if (tree->hash_move[i] && LegalMove(tree,i,wtm,tree->hash_move[i])) {
+        pv->path[i]=tree->hash_move[i];
+        for (j=1;j<i;j++) 
+          if (pv->path[i] == pv->path[j]) break;
+        if (j < i) break;
+        pv->path_length++;
+        if ((display_options&64) && wtm)
+          sprintf(buffer+strlen(buffer)," %d.",t_move_number);
+        sprintf(buffer+strlen(buffer)," %s",OutputMove(tree,pv->path[i],i,wtm));
+        MakeMove(tree,i,pv->path[i],wtm);
+      }
+      else break;
+      wtm=ChangeSide(wtm);
+      if (wtm) t_move_number++;
+    }
+    sprintf(buffer+strlen(buffer)," <HT>");
+  }
+  else if(pv->path_hashed == 2) 
+    sprintf(buffer+strlen(buffer)," <EGTB>");
+  strcpy(whisper_text,buffer);
+  if (PrintOK()) {
+    if (level==6)
+      Print(type,"               %2i   %s%s   ",iteration_depth,
+            DisplayTime(time),DisplayEvaluation(value));
+    else
+      Print(type,"               %2i-> %s%s   ",iteration_depth,
+            DisplayTime(time),DisplayEvaluation(value));
+    buffp=buffer+1;
+    do {
+      if ((int) strlen(buffp) > 34) 
+        bufftemp=strchr(buffp+34,' ');
+      else 
+        bufftemp=0;
+      if (bufftemp) *bufftemp=0;
+      Print(type,"%s\n",buffp);
+      buffp=bufftemp+1;
+      if (bufftemp) Print(type,"                                    ");
+    } while(bufftemp);
+    Whisper(level,iteration_depth,end_time-start_time,whisper_value,
+            tree->nodes_searched,0,whisper_text);
+  }
+  for (i=pv->path_length;i>0;i--) {
+    wtm=ChangeSide(wtm);
+    UnMakeMove(tree,i,pv->path[i],wtm);
   }
 }
 
@@ -295,7 +460,7 @@ char* DisplayTimeWhisper(unsigned int time)
 {
   static char out[10];
 
-  if (time < 6000) sprintf(out,"%6.2f",(float) time/100.0);
+  if (time < 6000) sprintf(out,"%.2f",(float) time/100.0);
   else {
     time=time/100;
     sprintf(out,"%u:%02u", time/60, time%60);
@@ -365,37 +530,88 @@ void Display2BitBoards(BITBOARD board1, BITBOARD board2)
 
 void DisplayChessMove(char *title, int move)
 {
-  Print(0,"%s  piece=%d, from=%d, to=%d, captured=%d, promote=%d\n",
+  Print(4095,"%s  piece=%d, from=%d, to=%d, captured=%d, promote=%d\n",
          title,Piece(move),From(move), To(move),Captured(move),
          Promote(move));
 }
 
-unsigned int GetTime(TIME_TYPE type)
+/* last modified 02/17/98 */
+/*
+********************************************************************************
+*                                                                              *
+*   FormatPV() is used to display a PV during the search.  it will also note   *
+*   when the PV was terminated by a hash table hit.                            *
+*                                                                              *
+********************************************************************************
+*/
+char *FormatPV(TREE *tree, int wtm, PATH pv) {
+#define PrintOK() (tree->nodes_searched>noise_level || value>(MATE-100))
+  static char buffer[512];
+  int i, t_move_number;
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   initialize.                                            |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  t_move_number=move_number;
+  if (display_options&64) sprintf(buffer," %d.",move_number);
+  else buffer[0]=0;
+  if ((display_options&64) && !wtm) sprintf(buffer+strlen(buffer)," ...");
+  for (i=1;i<=(int) pv.path_length;i++) {
+    if ((display_options&64) && i>1 && wtm)
+      sprintf(buffer+strlen(buffer)," %d.",t_move_number);
+    sprintf(buffer+strlen(buffer)," %s",OutputMove(tree,pv.path[i],i,wtm));
+    MakeMove(tree,i,pv.path[i],wtm);
+    wtm=ChangeSide(wtm);
+    if (wtm) t_move_number++;
+  }
+  for (i=pv.path_length;i>0;i--) {
+    wtm=ChangeSide(wtm);
+    UnMakeMove(tree,i,pv.path[i],wtm);
+  }
+  return (buffer);
+}
+
+#if defined(MACOS)
+unsigned int ReadClock(TIME_TYPE type)
+{
+      return(clock() * 100 / CLOCKS_PER_SEC);
+}
+#else
+unsigned int ReadClock(TIME_TYPE type)
 {
 #if defined(UNIX) || defined(AMIGA)
-  static struct tms t;
-  static struct timeval timeval;
-  static struct timezone timezone;
+  struct tms t;
+  struct timeval timeval;
+  struct timezone timezone;
+  BITBOARD cputime=0;
 #endif
 
   switch (type) {
-    case cpu:
 #if defined(UNIX) || defined(AMIGA)
+    case cpu:
       (void) times(&t);
+      cputime=t.tms_utime+t.tms_stime+t.tms_cutime+t.tms_cstime;
 #  if defined(CLK_TCK)
-      return((t.tms_utime+t.tms_stime)*100/CLK_TCK);
+      cputime=cputime*100/CLK_TCK;
+      return((unsigned int) cputime);
 #  else
       if (!clk_tck) clk_tck = sysconf(_SC_CLK_TCK);
-      return((t.tms_utime+t.tms_stime)*10/clk_tck);
+      cputime=cputime*100/clk_tck;
+      return((unsigned int) cputime);
 #  endif
     case elapsed:
       gettimeofday(&timeval, &timezone);
-      return(timeval.tv_sec*100+(timeval.tv_usec / 10000L));
+      return(timeval.tv_sec*100+(timeval.tv_usec/10000));
     default:
       gettimeofday(&timeval, &timezone);
-      return(timeval.tv_usec);
+      return(timeval.tv_sec*100+(timeval.tv_usec/10000));
 #endif
 #if defined(NT_i386) || defined(NT_AXP)
+    case cpu:
+      return(clock()/(CLOCKS_PER_SEC/100));
     case elapsed:
       return( (unsigned int) GetTickCount()/10);
     default:
@@ -409,6 +625,24 @@ unsigned int GetTime(TIME_TYPE type)
 #endif
   }
 }
+#endif
+
+#if defined(SMP)
+/*
+********************************************************************************
+*                                                                              *
+*   FindBlockID() converts a thread block pointer into an ID that is easier to *
+*   understand when debugging.                                                 *
+*                                                                              *
+********************************************************************************
+*/
+int FindBlockID(TREE *block) {
+  int i;
+  for (i=0;i<MAX_BLOCKS+1;i++)
+    if (block == local[i]) return(i);
+  return(-1);
+}
+#endif
 
 /*
 ********************************************************************************
@@ -460,28 +694,28 @@ BITBOARD InterposeSquares(int check_direction, int king_square,
 */
   switch (check_direction) {
     case +1:
-      target=Xor(mask_plus1dir[king_square-1],mask_plus1dir[checking_square]);
+      target=Xor(plus1dir[king_square-1],plus1dir[checking_square]);
       break;
     case +7:
-      target=Xor(mask_plus7dir[king_square-7],mask_plus7dir[checking_square]);
+      target=Xor(plus7dir[king_square-7],plus7dir[checking_square]);
       break;
     case +8:
-      target=Xor(mask_plus8dir[king_square-8],mask_plus8dir[checking_square]);
+      target=Xor(plus8dir[king_square-8],plus8dir[checking_square]);
       break;
     case +9:
-      target=Xor(mask_plus9dir[king_square-9],mask_plus9dir[checking_square]);
+      target=Xor(plus9dir[king_square-9],plus9dir[checking_square]);
       break;
     case -1:
-      target=Xor(mask_minus1dir[king_square+1],mask_minus1dir[checking_square]);
+      target=Xor(minus1dir[king_square+1],minus1dir[checking_square]);
       break;
     case -7:
-      target=Xor(mask_minus7dir[king_square+7],mask_minus7dir[checking_square]);
+      target=Xor(minus7dir[king_square+7],minus7dir[checking_square]);
       break;
     case -8:
-      target=Xor(mask_minus8dir[king_square+8],mask_minus8dir[checking_square]);
+      target=Xor(minus8dir[king_square+8],minus8dir[checking_square]);
       break;
     case -9:
-      target=Xor(mask_minus9dir[king_square+9],mask_minus9dir[checking_square]);
+      target=Xor(minus9dir[king_square+9],minus9dir[checking_square]);
       break;
     default:
       target=0;
@@ -501,15 +735,122 @@ int KingPawnSquare(int pawn, int king, int queen, int ptm)
   else return(1);
 }
 
+/* last modified 05/01/97 */
+/*
+********************************************************************************
+*                                                                              *
+*   NewGame() is used to initialize the chess position and timing controls to  *
+*   the setup needed to start a new game.                                      *
+*                                                                              *
+********************************************************************************
+*/
+void NewGame(int save) {
+  char filename[64];
+  static int save_book_selection_width=5;
+  static int save_whisper=0, save_kibitz=0, save_channel=0;
+  static int save_resign=0, save_resign_count=0, save_draw_count=0;
+  static int save_learning=0;
+  static int save_accept_draws=0;
+  TREE *tree=local[0];
+
+  new_game=0;
+  if (save) {
+    save_book_selection_width=book_selection_width;
+    save_whisper=whisper;
+    save_kibitz=kibitz;
+    save_channel=channel;
+    save_resign=resign;
+    save_resign_count=resign_count;
+    save_draw_count=draw_count;
+    save_learning=learning;
+    save_accept_draws=accept_draws;
+  }
+  else {
+    if (learning&book_learning && moves_out_of_book)
+      LearnBook(tree,crafty_is_white,last_search_value,0,0,1);
+    if (ics) printf("*whisper Hello from Crafty v%s !\n",version);
+    if (xboard) {
+#if defined(SMP)
+      printf("kibitz Hello from Crafty v%s! (%d cpus)\n",version,CPUS);
+#else
+      printf("kibitz Hello from Crafty v%s!\n",version);
+#endif
+    }
+    over=0;
+    moves_out_of_book=0;
+    ponder_move=0;
+    previous_search_value=0;
+    last_pv.path_iteration_depth=0;
+    last_pv.path_length=0;
+    strcpy(initial_position,"");
+    InitializeChessBoard(&tree->position[0]);
+    InitializeHashTables();
+    force=0;
+    no_tricks=1;
+    computer_opponent=0;
+    default_draw_score=0;
+    wtm=1;
+    move_number=1;
+    tc_time_remaining=tc_time;
+    tc_time_remaining_opponent=tc_time;
+    tc_moves_remaining=tc_moves;
+    if (log_file) fclose(log_file);
+    if (history_file) fclose(history_file);
+    if (log_file) {
+      log_id++;
+#if defined(MACOS)
+      sprintf(filename,":%s:log.%03d",log_path,log_id);
+#else
+      sprintf(filename,"%s/log.%03d",log_path,log_id);
+#endif
+      log_file=fopen(filename,"w+");
+    }
+#if defined(MACOS)
+    sprintf(filename,":%s:game.%03d",log_path,log_id);
+#else
+    sprintf(filename,"%s/game.%03d",log_path,log_id);
+#endif
+    history_file=fopen(filename,"w+");
+    book_selection_width=save_book_selection_width;
+    whisper=save_whisper;
+    kibitz=save_kibitz;
+    channel=save_channel;
+    resign=save_resign;
+    resign_count=save_resign_count;
+    resign_counter=0;
+    draw_count=save_draw_count;
+    accept_draws=save_accept_draws;
+    draw_counter=0;
+    usage_level=0;
+    learning=save_learning;
+    largest_positional_score=100;
+    predicted=0;
+    whisper_depth=0;
+    whisper_value=0;
+    tree->nodes_searched=0;
+    cpu_percent=0;
+    whisper_text[0]=0;
+  }
+}
+
 char* Normal(void)
 {
-  if (ansi)
+#if defined(NT_i386) || defined(NT_AXP)
+  HANDLE  std_console;
+  std_console = GetStdHandle(STD_OUTPUT_HANDLE);
+#endif
+
+  if (ansi) {
 #if defined(UNIX) || defined(AMIGA)
     return("\033[0m");
+#elif defined(NT_i386) || defined(NT_AXP)
+    SetConsoleTextAttribute(std_console, FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
+    return("");
 #else
     return("\033[1;44;37m");
 #endif
-  else return("");
+  }
+  return("");
 }
 
 int ParseTime(char* string)
@@ -534,13 +875,35 @@ int ParseTime(char* string)
         time=time*60+minutes;
         minutes=0;
         break;
-      default: Print(0,"illegal character in time, please re-enter\n");
+      default: Print(4095,"illegal character in time, please re-enter\n");
         break;
     }
     string++;
   }
   return(time*60+minutes);
 }
+
+void Pass(void) {
+  char buffer[128];
+  int halfmoves_done=2*(move_number-1)+(1-wtm);
+  int prev_pass=0;
+  /* Was previous move a pass? */
+  if (halfmoves_done>0) {
+    fseek(history_file,(halfmoves_done-1)*10,SEEK_SET);
+    if (fscanf(history_file,"%s",buffer)==0 || strcmp(buffer,"pass")==0) {
+      prev_pass=1;
+    }
+  }
+  if (prev_pass) {
+    if (wtm) move_number--;
+  } else {
+    fseek(history_file,halfmoves_done*10,SEEK_SET);
+    fprintf(history_file,"%9s\n","pass");
+    if (!wtm) move_number++;
+  }
+  wtm=ChangeSide(wtm);
+}
+
 
 /*
 ********************************************************************************
@@ -552,7 +915,7 @@ int ParseTime(char* string)
 *                                                                              *
 ********************************************************************************
 */
-int PinnedOnKing(int wtm, int square)
+int PinnedOnKing(TREE *tree, int wtm, int square)
 {
   register int ray;
   if (wtm) {
@@ -650,11 +1013,13 @@ void Print(int vb, char *fmt, ...)
 {
   va_list ap;
   va_start(ap,fmt);
-  if (vb <= verbosity_level) vprintf(fmt, ap);
-  if (log_file) vfprintf(log_file, fmt, ap);
-  va_end(ap);
+  if (vb&display_options) vprintf(fmt, ap);
   fflush(stdout);
-  if (log_file) fflush(log_file);
+  if (time_limit>99 || tc_time_remaining>6000 || vb==4095) {
+    if (log_file) vfprintf(log_file, fmt, ap);
+    if (log_file) fflush(log_file);
+  }
+  va_end(ap);
 }
 
 /*
@@ -717,6 +1082,140 @@ BITBOARD Random64(void)
   return (result);
 }
 
+/* last modified 05/06/97 */
+/*
+********************************************************************************
+*                                                                              *
+*   Read() copies data from the command_buffer into a local buffer, and then   *
+*   uses ReadParse to break this command up into tokens for processing.        *
+*                                                                              *
+********************************************************************************
+*/
+int Read(int wait, char *buffer) {
+  char *eol, *ret, readdata;
+
+  *buffer=0;
+/*
+   case 1:  we have a complete command line, with terminating
+   N/L character in the buffer.  we can simply extract it from
+   the I/O buffer, parse it and return.
+*/
+  if (strchr(cmd_buffer,'\n'));
+/*
+   case 2:  the buffer does not contain a complete line.  If we
+   were asked to not wait for a complete command, then we first
+   see if I/O is possible, and if so, read in what is available.
+   If that includes a N/L, then we are ready to parse and return.
+   If not, we return indicating no input available just yet.
+*/
+  else if (!wait) {
+    if (CheckInput()) {
+      readdata=ReadInput();
+      if (!strchr(cmd_buffer,'\n')) return(0);
+      if (!readdata) return(-1);
+    }
+    else return(0);
+  }
+/*
+   case 3:  the buffer does not contain a complete line, but we
+   were asked to wait until a complete command is entered.  So we
+   hang by doing a ReadInput() and continue doing so until we get
+   a N/L character in the buffer.  Then we parse and return.
+*/
+  else while (!strchr(cmd_buffer,'\n')) {
+    readdata=ReadInput();
+    if (!readdata) return(-1);
+  }
+
+  eol=strchr(cmd_buffer,'\n');
+  *eol=0;
+  ret=strchr(cmd_buffer,'\r');
+  if (ret) *ret=' ';
+  strcpy(buffer,cmd_buffer);
+  memmove(cmd_buffer,eol+1,strlen(eol+1)+1);
+  return(1);
+}
+
+/* last modified 04/23/97 */
+/*
+********************************************************************************
+*                                                                              *
+*   ReadClear() clears the input buffer when input_stream is being switched to *
+*   a file, since we have info buffered up from a different input stream.      *
+*                                                                              *
+********************************************************************************
+*/
+void ReadClear() {
+  cmd_buffer[0]=0;
+}
+
+/* last modified 05/06/97 */
+/*
+********************************************************************************
+*                                                                              *
+*   ReadParse() takes one complete command-line, and breaks it up into tokens. *
+*   common delimiters are used, such as " ", ",", "/" and ";", any of which    *
+*   delimit fields.                                                            *
+*                                                                              *
+********************************************************************************
+*/
+int ReadParse(char *buffer, char *args[], char *delims) {
+  char *next, tbuffer[512];
+  int nargs;
+
+  strcpy(tbuffer,buffer);
+  for (nargs=0;nargs<16;nargs++) *(args[nargs])=0;
+  next=strtok(tbuffer,delims);
+  if (!next) return(0);
+  strcpy(args[0],next);
+  for (nargs=1;nargs<32;nargs++) {
+    next=strtok(0,delims);
+    if (!next) break;
+    strcpy(args[nargs],next);
+  }
+  return(nargs);
+}
+
+/* last modified 04/23/97 */
+/*
+********************************************************************************
+*                                                                              *
+*   ReadInput() reads data from the input_stream, and buffers this into the    *
+*   command_buffer for later processing.                                       *
+*                                                                              *
+********************************************************************************
+*/
+int ReadInput(void) {
+  char buffer[512], *end;
+  int bytes;
+
+#if defined(MACOS)
+  gets((char *) &buffer);
+  bytes=strlen(buffer);
+  end=cmd_buffer+strlen(cmd_buffer);
+  memcpy(end,buffer,bytes);
+  *(end+bytes)='\n';
+  *(end+bytes+1)=0;
+#else
+  do
+    bytes=read(fileno(input_stream),buffer,512);
+  while (bytes<0 && errno==EINTR);
+  if (bytes == 0) {
+    if (input_stream != stdin) fclose(input_stream);
+    input_stream=stdin;
+    return(0);
+  }
+  else if (bytes < 0) {
+    Print(4095,"ERROR!  input I/O stream is unreadable, exiting.\n");
+    exit(1);
+  }
+  end=cmd_buffer+strlen(cmd_buffer);
+  memcpy(end,buffer,bytes);
+  *(end+bytes)=0;
+#endif
+  return(1);
+}
+
 /* last modified 10/11/96 */
 /*
 ********************************************************************************
@@ -727,7 +1226,7 @@ BITBOARD Random64(void)
 *                                                                              *
 ********************************************************************************
 */
-int ReadChessMove(FILE *input, int wtm) {
+int ReadChessMove(TREE *tree, FILE *input, int wtm, int one_move) {
 
   static char text[128];
   char *tmove;
@@ -736,67 +1235,332 @@ int ReadChessMove(FILE *input, int wtm) {
   while (move == 0) {
     status=fscanf(input,"%s",text);
     if (status <= 0) return(-1);
-    tmove=text+strspn(text,"0123456789.");
-    if (((tmove[0]>='a') && (tmove[0]<='z')) ||
-          ((tmove[0]>='A') && (tmove[0]<='Z'))) {
+    if (strcmp(text,"0-0") && strcmp(text,"0-0-0"))
+      tmove=text+strspn(text,"0123456789.");
+    else
+      tmove=text;
+    if (((tmove[0]>='a' && tmove[0]<='z') ||
+         (tmove[0]>='A' && tmove[0]<='Z')) ||
+        !strcmp(tmove,"0-0") || !strcmp(tmove,"0-0-0")) {
       if (!strcmp(tmove,"exit")) return(-1);
-      move=InputMove(tmove,0,wtm,1,0);
+      move=InputMove(tree,tmove,0,wtm,1,0);
     }
+    if (one_move) break;
   }
   return(move);
 }
 
-char* Reverse(void)
-{
-  if (ansi)
+/* last modified 05/13/97 */
+/*
+********************************************************************************
+*                                                                              *
+*   ReadNextMove() is used to take a text chess move from a file, and see if   *
+*   if is legal, skipping a sometimes embedded move number (1.e4 for example)  *
+*   to make PGN import easier.                                                 *
+*                                                                              *
+********************************************************************************
+*/
+int ReadNextMove(TREE *tree, char *text, int ply, int wtm) {
+
+  char *tmove;
+  int move=0;
+
+  if (strcmp(text,"0-0") && strcmp(text,"0-0-0"))
+    tmove=text+strspn(text,"0123456789./-");
+  else
+    tmove=text;
+  if (((tmove[0]>='a' && tmove[0]<='z') ||
+       (tmove[0]>='A' && tmove[0]<='Z')) ||
+      !strcmp(tmove,"0-0") || !strcmp(tmove,"0-0-0")) {
+    if (!strcmp(tmove,"exit")) return(-1);
+    move=InputMove(tree,tmove,ply,wtm,1,0);
+  }
+  return(move);
+}
+
+/* last modified 06/15/98 */
+/*
+********************************************************************************
+*                                                                              *
+*   this routine reads a move from a PGN file to build an opening book or for  *
+*   annotating.  It returns a 1 if a header is read, it returns a 0 if a move  *
+*   is read, and returns a -1 on end of file.  It counts lines and this        *
+*   counter can be accessed by calling this function with a non-zero second    *
+*   formal parameter.                                                          *
+*                                                                              *
+********************************************************************************
+*/
+int ReadPGN(FILE *input, int option) {
+  static int data=0, lines_read=0;
+  static char input_buffer[512];
+  char temp[512], *eof, analysis_move[16];
+  int braces=0, parens=0, brackets=0, analysis=0, last_good_line;
+  
+/*
+ ----------------------------------------------------------
+|                                                          |
+|  if the line counter is being requested, return it with  |
+|  no other changes being made.  if "purge" is true, clear |
+|  the current input buffer.                               |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  pgn_suggested_percent=0;
+  if (!input) {
+    lines_read=0;
+    data=0;
+    return(0);
+  }
+  if (option==-1) data=0;
+  if (option==-2) return(lines_read);
+/*
+ ----------------------------------------------------------
+|                                                          |
+|  if we don't have any data in the buffer, the first step |
+|  is to read the next line.                               |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  while (1) {
+    if (!data) {
+      eof=fgets(input_buffer,512,input);
+      if (!eof) return(-1);
+      if (strchr(input_buffer,'\n')) *strchr(input_buffer,'\n')=0;
+      if (strchr(input_buffer,'\r')) *strchr(input_buffer,'\r')=' ';
+      lines_read++;
+      buffer[0]=0;
+      sscanf(input_buffer,"%s",buffer);
+      if (buffer[0] == '[') do {
+        char *bracket1, *bracket2, value[128];
+        strcpy(buffer,input_buffer);
+        bracket1=strchr(input_buffer,'\"');
+        if (bracket1 == 0) return(1);
+        bracket2=strchr(bracket1+1,'\"');
+        if (bracket2 == 0) return(1);
+        *bracket2=0;
+        strcpy(value,bracket1+1);
+        if (strstr(input_buffer,"Event")) strcpy(pgn_event,value);
+        else if (strstr(input_buffer,"Site")) strcpy(pgn_site,value);
+        else if (strstr(input_buffer,"Round")) strcpy(pgn_round,value);
+        else if (strstr(input_buffer,"Date")) strcpy(pgn_date,value);
+        else if (strstr(input_buffer,"WhiteElo")) strcpy(pgn_white_elo,value);
+        else if (strstr(input_buffer,"White")) strcpy(pgn_white,value);
+        else if (strstr(input_buffer,"BlackElo")) strcpy(pgn_black_elo,value);
+        else if (strstr(input_buffer,"Black")) strcpy(pgn_black,value);
+        else if (strstr(input_buffer,"Result")) strcpy(pgn_result,value);
+        else if (strstr(input_buffer,"FEN")) {
+          sprintf(buffer,"setboard %s",value);
+          (void) Option(local[0]);
+          continue;
+        }
+        return(1);
+      } while(0);
+      data=1;
+    }
+/*
+ ----------------------------------------------------------
+|                                                          |
+|  if we already have data in the buffer, it is just a     |
+|  matter of extracting the next move and returning it to  |
+|  the caller.  if the buffer is empty, another line has   |
+|  to be read in.                                          |
+|                                                          |
+ ----------------------------------------------------------
+*/
+    else {
+      buffer[0]=0;
+      sscanf(input_buffer,"%s",buffer);
+      if (strlen(buffer) == 0) {
+        data=0;
+        continue;
+      }
+      else {
+        char *skip;
+        strcpy(temp,input_buffer);
+        skip=strstr(input_buffer,buffer)+strlen(buffer);
+        if (skip) strcpy(input_buffer,skip);
+      }
+/*
+ ----------------------------------------------------------
+|                                                          |
+|  this skips over nested { or ( characters and finds the  |
+|  'mate', before returning any more moves.  it also stops |
+|  if a PGN header is encountered, probably due to an      |
+|  incorrectly bracketed analysis variation.               |
+|                                                          |
+ ----------------------------------------------------------
+*/
+      last_good_line=lines_read;
+      analysis_move[0]=0;
+      if (strchr(buffer,'{') || strchr(buffer,'(')) while (1) {
+        char *skip, *ch;
+        analysis=1;
+        while ((ch=strpbrk(buffer,"(){}[]"))) {
+          if (*ch == '(') {
+            *strchr(buffer,'(')=' ';
+            if (!braces) parens++;
+          }
+          if (*ch == ')') {
+            *strchr(buffer,')')=' ';
+            if (!braces) parens--;
+          }
+          if (*ch == '{') {
+            *strchr(buffer,'{')=' ';
+            braces++;
+          }
+          if (*ch == '}') {
+            *strchr(buffer,'}')=' ';
+            braces--;
+          }
+          if (*ch == '[') {
+            *strchr(buffer,'[')=' ';
+            if (!braces) brackets++;
+          }
+          if (*ch == ']') {
+            *strchr(buffer,']')=' ';
+            if (!braces) brackets--;
+          }
+        }
+        if (analysis && analysis_move[0]==0) {
+          if (strspn(buffer," ") != strlen(buffer)) {
+            char *tmove=analysis_move;
+            sscanf(buffer,"%s",analysis_move);
+            strcpy(buffer,analysis_move);
+            if (strcmp(buffer,"0-0") && strcmp(buffer,"0-0-0"))
+              tmove=buffer+strspn(buffer,"0123456789.");
+            else
+              tmove=buffer;
+            if ((tmove[0]>='a' && tmove[0]<='z') ||
+                (tmove[0]>='A' && tmove[0]<='Z') ||
+                !strcmp(tmove,"0-0") || !strcmp(tmove,"0-0-0"))
+              strcpy(analysis_move,buffer);
+            else
+              analysis_move[0]=0;
+          }
+        }
+        if (parens==0 && braces==0 && brackets==0) break;
+        buffer[0]=0;
+        sscanf(input_buffer,"%s",buffer);
+        if (strlen(buffer) == 0) {
+          eof=fgets(input_buffer,512,input);
+          if (!eof) {
+            parens=0;
+            braces=0;
+            brackets=0;
+            return(-1);
+          }
+          if (strchr(input_buffer,'\n')) *strchr(input_buffer,'\n')=0;
+          if (strchr(input_buffer,'\r')) *strchr(input_buffer,'\r')=' ';
+          lines_read++;
+          if (lines_read-last_good_line >= 100) {
+            parens=0;
+            braces=0;
+            brackets=0;
+            Print(4095,"ERROR.  comment spans over 100 lines, starting at line %d\n",
+                  last_good_line);
+            break;
+          }
+        }
+        strcpy(temp,input_buffer);
+        skip=strstr(input_buffer,buffer)+strlen(buffer);
+        strcpy(input_buffer,skip);
+      }
+      else {
+        int skip;
+        if ((skip=strspn(buffer,"0123456789."))) {
+          char temp[512];
+          strcpy(temp,buffer+skip);
+          strcpy(buffer,temp);
+        }
+        if (isalpha(buffer[0]) || strchr(buffer,'-')) {
+          char *first, *last, *percent;
+          first=input_buffer+strspn(input_buffer," ");
+          if (first==0 || *first != '{') return(0);
+          last=strchr(input_buffer,'}');
+          if (last == 0) return(0);
+          percent=strstr(first,"play");
+          if (percent == 0) return(0);
+          pgn_suggested_percent=atoi(percent+4+strspn(percent+4," "));
+          return(0);
+        }
+      }
+      if (analysis_move[0] && option==1) {
+        strcpy(buffer,analysis_move);
+        return(2);
+      }
+    }
+  }
+  return(-1);
+}
+
+/* last modified 06/10/98 */
+/*
+********************************************************************************
+*                                                                              *
+*   RestoreGame() resets the position to the beginning of the game, and then   *
+*   reads in the game.nnn history file to set the position up so that the game *
+*   position matches the position at the end of the history file.              *
+*                                                                              *
+********************************************************************************
+*/
+void RestoreGame(void) {
+  int i, move;
+  char cmd[16];
+  wtm=1;
+  InitializeChessBoard(&local[0]->position[0]);
+  for (i=0;i<500;i++) {
+    fseek(history_file,i*10,SEEK_SET);
+    strcpy(cmd,"");
+    fscanf(history_file,"%s",cmd);
+    if (strcmp(cmd,"pass")) {
+      move=InputMove(local[0],cmd,0,wtm,1,0);
+      if (move) MakeMoveRoot(local[0],move,wtm);
+      else break;
+    }
+    wtm=ChangeSide(wtm);
+  } 
+  Phase();
+}
+
+char* Reverse(void) {
+#if defined(NT_i386) || defined(NT_AXP)
+  HANDLE  std_console;
+  std_console = GetStdHandle(STD_OUTPUT_HANDLE);
+#endif
+
+  if (ansi) {
 #if defined(UNIX) || defined(AMIGA)
     return("\033[7m");
+#elif defined(NT_i386) || defined(NT_AXP)
+    SetConsoleTextAttribute(std_console, BACKGROUND_RED | BACKGROUND_GREEN | BACKGROUND_BLUE | BACKGROUND_INTENSITY);
+    return("");
 #else
     return("\033[7;47;33m");
 #endif
-  else
-    return("");
-}
-
-
-int TtoI(char *text)
-{
-  int t;
-  char *n;
-
-  t=0;
-  if (!strchr(text,':')) t=atoi(text);
-  else {
-    n=text-1;
-    do {
-      n++;
-      t=t*60+atoi(n);
-      n=strchr(n,':');
-    } while (n);
   }
-  return(t);
+  return("");
 }
 
 #if defined(COMPACT_ATTACKS)
 
 #if !defined(USE_ASSEMBLY_A)
 
-BITBOARD AttacksDiaga1Func (DIAG_INFO *diag, CHESS_POSITION *boardp)
+BITBOARD AttacksDiaga1Func (DIAG_INFO *diag, POSITION *boardp)
 {
   return AttacksDiaga1Int(diag,boardp);
 }
 
-BITBOARD AttacksDiagh1Func(DIAG_INFO *diag, CHESS_POSITION *boardp)
+BITBOARD AttacksDiagh1Func(DIAG_INFO *diag, POSITION *boardp)
 {
   return AttacksDiagh1Int(diag,boardp);
 }
 
-BITBOARD AttacksFileFunc(int square, CHESS_POSITION *boardp)
+BITBOARD AttacksFileFunc(int square, POSITION *boardp)
 {
   return AttacksFileInt(square,boardp);
 }
 
-BITBOARD AttacksRankFunc(int square, CHESS_POSITION *boardp)
+BITBOARD AttacksRankFunc(int square, POSITION *boardp)
 {
   BITBOARD tmp = Or((boardp)->w_occupied, (boardp)->b_occupied);
 
@@ -808,13 +1572,13 @@ BITBOARD AttacksRankFunc(int square, CHESS_POSITION *boardp)
   return SplitShiftl (tmp2, Rank(~(square))<<3);
 }
 
-BITBOARD AttacksBishopFunc(DIAG_INFO *diag, CHESS_POSITION *boardp)
+BITBOARD AttacksBishopFunc(DIAG_INFO *diag, POSITION *boardp)
 {
   return Or(AttacksDiaga1Int(diag,boardp),
       AttacksDiagh1Int(diag,boardp));
 }
 
-BITBOARD AttacksRookFunc(int square, CHESS_POSITION *boardp)
+BITBOARD AttacksRookFunc(int square, POSITION *boardp)
 {
   BITBOARD tmp = Or((boardp)->w_occupied, (boardp)->b_occupied);
 
@@ -826,22 +1590,22 @@ BITBOARD AttacksRookFunc(int square, CHESS_POSITION *boardp)
       AttacksFileInt(square,boardp));
 }
 
-unsigned MobilityDiaga1Func(DIAG_INFO *diag, CHESS_POSITION *boardp)
+unsigned MobilityDiaga1Func(DIAG_INFO *diag, POSITION *boardp)
 {
   return MobilityDiaga1Int(diag,boardp);
 }
 
-unsigned MobilityDiagh1Func(DIAG_INFO *diag, CHESS_POSITION *boardp)
+unsigned MobilityDiagh1Func(DIAG_INFO *diag, POSITION *boardp)
 {
   return MobilityDiagh1Int(diag,boardp);
 }
 
-unsigned MobilityFileFunc(int square, CHESS_POSITION *boardp)
+unsigned MobilityFileFunc(int square, POSITION *boardp)
 {
   return MobilityFileInt (square,boardp);
 }
 
-unsigned MobilityRankFunc(int square, CHESS_POSITION *boardp)
+unsigned MobilityRankFunc(int square, POSITION *boardp)
 {
   return MobilityRankInt (square,boardp);
 }
@@ -1095,8 +1859,8 @@ void ComputeAttacksAndMobility ()
 
       attack = MakeAttack(lower,upper);
       found = 0;
-      for (a = 0; a < attacks_found; a++)
-        if (attack == attacks_seen[a]) {
+      for (a=0; a<(int)attacks_found; a++)
+        if ((int)attack == attacks_seen[a]) {
           found = 1;
           break;
         }
@@ -1108,14 +1872,14 @@ void ComputeAttacksAndMobility ()
           if (attacks_found < max_attacks) {
             BITBOARD b = 0;
             int i, p;
-            for (p = attacker-1, i = 0; i < lower; i++, p--)
+            for (p = attacker-1, i = 0; i < (int) lower; i++, p--)
               Set(gfiles[gf].map[p], b);
-            for (p=attacker+1,i=0;(i<upper) && (p<(unsigned) gfiles[gf].length);
+            for (p=attacker+1,i=0;(i<(int) upper) && (p<(int) gfiles[gf].length);
                  i++, p++)
               Set(gfiles[gf].map[p], b);
             if (gfiles[gf].mobility)
             gfiles[gf].mobility[attacks_found] =
-              lower + Min(upper, gfiles[gf].length - attacker - 1);
+              lower + Min((int) upper, (int) gfiles[gf].length - attacker - 1);
             gfiles[gf].bitboard[attacks_found] = b;
           }
         }
@@ -1127,7 +1891,7 @@ void ComputeAttacksAndMobility ()
       unsigned len = gfiles[gf].length;
       unsigned this_inc =
         (gfiles[gf].inc ? gfiles[gf].inc : n_attacks[len][attacker]);
-      if (attacker < len) {
+      if ((unsigned) attacker < len) {
         if (gfiles[gf].mobility) gfiles[gf].mobility += this_inc;
         gfiles[gf].bitboard += this_inc;
       }
@@ -1159,6 +1923,12 @@ void Whisper(int level,int depth,int time,int value,unsigned int nodes,
              int cpu,char* pv)
 {
   if (!puzzling) {
+    char prefix[128];
+
+    if (strlen(channel_title) && channel)
+      sprintf(prefix,"tell %d (%s) ",channel, channel_title);
+    else if (channel) sprintf(prefix,"tell %d",channel);
+    else sprintf(prefix,"whisper");
     switch (level) {
     case 1:
       if (kibitz && (value > 0)) {
@@ -1167,34 +1937,34 @@ void Whisper(int level,int depth,int time,int value,unsigned int nodes,
       }
       else if (whisper && (value > 0)) {
         if (ics) printf("*");
-        printf("whisper mate in %d moves.\n\n",value);
+        printf("%s mate in %d moves.\n\n",prefix,value);
       }
       if (kibitz && (value < 0)) {
         if (ics) printf("*");
-        printf("whisper mated in %d moves.\n\n",-value);
+        printf("%s mated in %d moves.\n\n",prefix,-value);
       }
       break;
     case 2:
       if (kibitz >= 2) {
         if (ics) printf("*");
-        printf("kibitz depth %d; score %s; nodes %u; nps %d; cpu %d%%\n",
+        printf("kibitz d%d; %s; nps %d; time %s; cpu %d%%; p:%d\n",
                depth,DisplayEvaluationWhisper(value),
-               nodes,(time) ? 100*nodes/time : nodes,cpu);
+               (time)?100*nodes/time:nodes,DisplayTimeWhisper(time),cpu,predicted);
       }
       else if (whisper >= 2) {
         if (ics) printf("*");
-        printf("whisper depth %d; score %s; nodes %u; nps %d; cpu %d%%\n",
-               depth,DisplayEvaluationWhisper(value),
-               nodes,(time) ? 100*nodes/time : nodes,cpu);
+        printf("%s d%d; %s; nps %d; time %s; cpu %d%%; p:%d\n",
+               prefix,depth,DisplayEvaluationWhisper(value),
+               (time)?100*nodes/time:nodes,DisplayTimeWhisper(time),cpu,predicted);
       }
     case 3:
-      if ((kibitz >= 3) && nodes) {
+      if ((kibitz >= 3) && (nodes>5000 || level==2)) {
         if (ics) printf("*");
         printf("kibitz pv:%s\n",pv);
       }
-      else if ((whisper >= 3) && nodes) {
+      else if ((whisper >= 3) && (nodes>5000 || level==2)) {
         if (ics) printf("*");
-        printf("whisper pv:%s\n",pv);
+        printf("%s pv:%s\n",prefix,pv);
       }
       break;
     case 4:
@@ -1204,23 +1974,23 @@ void Whisper(int level,int depth,int time,int value,unsigned int nodes,
       }
       else if (whisper >= 4) {
         if (ics) printf("*");
-        printf("whisper %s\n",pv);
+        printf("%s %s\n",prefix,pv);
       }
       break;
     case 5:
-      if (kibitz >= 5) {
+      if (kibitz>=5 && nodes>5000) {
         if (ics) printf("*");
         printf("kibitz d%d-> %s %s %s\n",depth, DisplayTimeWhisper(time),
                                        DisplayEvaluationWhisper(value),pv);
       }
-      else if (whisper >= 5) {
+      else if (whisper>=5 && nodes>5000) {
         if (ics) printf("*");
-        printf("whisper d%d-> %s %s %s\n",depth, DisplayTimeWhisper(time),
+        printf("%s d%d-> %s %s %s\n",prefix,depth, DisplayTimeWhisper(time),
                                        DisplayEvaluationWhisper(value),pv);
       }
       break;
     case 6:
-      if (kibitz >= 6) {
+      if (kibitz>=6 && nodes>5000) {
         if (ics) printf("*");
         if (cpu == 0)
           printf("kibitz d%d+ %s %s %s\n",depth, DisplayTimeWhisper(time),
@@ -1229,23 +1999,161 @@ void Whisper(int level,int depth,int time,int value,unsigned int nodes,
           printf("kibitz d%d+ %s >(%s) %s <re-searching>\n",depth,
                  DisplayTimeWhisper(time),DisplayEvaluationWhisper(value),pv);
       }
-      else if (whisper >= 6) {
+      else if (whisper>=6 && nodes>5000) {
         if (ics) printf("*");
         if (cpu == 0)
-          printf("whisper d%d+ %s %s %s\n",depth, DisplayTimeWhisper(time),
+          printf("%s d%d+ %s %s %s\n",prefix,depth, DisplayTimeWhisper(time),
                                             DisplayEvaluationWhisper(value),pv);
         else
-          printf("whisper d%d+ %s >(%s) %s <re-searching>\n",depth,
+          printf("%s d%d+ %s >(%s) %s <re-searching>\n",prefix,depth,
                  DisplayTimeWhisper(time),DisplayEvaluationWhisper(value),pv);
       }
       break;
     }
-    if (post) {
+    if (post && level>1) {
       if (strstr(pv,"book"))
-        printf("	%2d  %5d %7d %6u %s\n",depth,value/10,time,nodes,pv+10);
+        printf("	%2d  %5d %7d %6u %s\n",depth,value,time,nodes,pv+10);
       else
-        printf("	%2d  %5d %7d %6u %s\n",depth,value/10,time,nodes,pv);
+        printf("	%2d  %5d %7d %6u %s\n",depth,value,time,nodes,pv);
     }
     fflush(stdout);
   }
+}
+
+#if defined(SMP)
+
+/*
+********************************************************************************
+*                                                                              *
+*   CopyFromSMP() is used to copy data from a child thread to a parent thread. *
+*   this only copies the appropriate parts of the TREE structure to avoid      *
+*   burning memory bandwidth by copying everything.                            *
+*                                                                              *
+********************************************************************************
+*/
+void CopyFromSMP(TREE *p, TREE *c) {
+  int i;
+  if (c->nodes_searched && !c->stop && c->search_value > p->search_value) {
+    p->pv[p->ply]=c->pv[p->ply];
+    p->search_value=c->search_value;
+    for (i=1;i<MAXPLY;i++) {
+      p->killer_move1[i]=c->killer_move1[i];
+      p->killer_move2[i]=c->killer_move2[i];
+    }
+  }
+  p->nodes_searched+=c->nodes_searched;
+  p->evaluations+=c->evaluations;
+  p->transposition_probes+=c->transposition_probes;
+  p->transposition_hits+=c->transposition_hits;
+  p->pawn_probes+=c->pawn_probes;
+  p->pawn_hits+=c->pawn_hits;
+  p->tb_probes+=c->tb_probes;
+  p->tb_probes_successful+=c->tb_probes_successful;
+  p->check_extensions_done+=c->check_extensions_done;
+  p->recapture_extensions_done+=c->recapture_extensions_done;
+  p->passed_pawn_extensions_done+=c->passed_pawn_extensions_done;
+  p->one_reply_extensions_done+=c->one_reply_extensions_done;
+  c->used=0;
+}
+
+/*
+********************************************************************************
+*                                                                              *
+*   CopyToSMP() is used to copy data from a parent thread to a particular      *
+*   child thread.  this only copies the appropriate parts of the TREE          *
+*   structure to avoid burning memory bandwidth by copying everything.         *
+*                                                                              *
+********************************************************************************
+*/
+TREE* CopyToSMP(TREE *p) {
+  int i;
+  TREE *c;
+  for (i=1;i<MAX_BLOCKS+1 && local[i]->used;i++);
+  if (i > MAX_BLOCKS) {
+    Print(128, "ERROR.  no SMP block can be allocated\n");
+    return(0);
+  }
+  c=local[i];
+  c->used=1;
+  c->stop=0;
+  c->done=0;
+  for (i=0;i<max_threads;i++) c->siblings[i]=0;
+  c->pos=p->pos;
+  c->pv[p->ply-1]=p->pv[p->ply-1];
+  c->pv[p->ply]=p->pv[p->ply];
+  c->next_status[p->ply]=p->next_status[p->ply];
+  c->save_hash_key[p->ply]=p->save_hash_key[p->ply];
+  c->save_pawn_hash_key[p->ply]=p->save_pawn_hash_key[p->ply];
+  c->rephead_w=c->replist_w+(p->rephead_w-p->replist_w);
+  c->rephead_b=c->replist_b+(p->rephead_b-p->replist_b);
+  for (i=0;i<=p->rephead_w-p->replist_w+((p->ply-1)>>1);i++) 
+    c->replist_w[i]=p->replist_w[i];
+  for (i=0;i<=p->rephead_b-p->replist_b+((p->ply-1)>>1);i++) 
+    c->replist_b[i]=p->replist_b[i];
+  c->last[p->ply]=c->move_list;
+  c->hash_move[p->ply]=p->hash_move[p->ply];
+  for (i=1;i<=p->ply;i++) {
+    c->position[i]=p->position[i];
+    c->current_move[i]=p->current_move[i];
+    c->extended_reason[i]=p->extended_reason[i];
+    c->in_check[i]=p->in_check[i];
+    c->current_phase[i]=p->current_phase[i];
+  }
+  for (i=1;i<MAXPLY;i++) {
+    c->killer_move1[i]=p->killer_move1[i];
+    c->killer_move2[i]=p->killer_move2[i];
+  }
+  c->nodes_searched=0;
+  c->evaluations=0;
+  c->transposition_probes=0;
+  c->transposition_hits=0;
+  c->pawn_probes=0;
+  c->pawn_hits=0;
+  c->tb_probes=0;
+  c->tb_probes_successful=0;
+  c->check_extensions_done=0;
+  c->recapture_extensions_done=0;
+  c->passed_pawn_extensions_done=0;
+  c->one_reply_extensions_done=0;
+  c->alpha=p->alpha;
+  c->beta=p->beta;
+  c->value=p->value;
+  c->wtm=p->wtm;
+  c->ply=p->ply;
+  c->depth=p->depth;
+  c->threat=p->threat;
+  c->search_value=0;
+  return(c);
+}
+
+#endif
+
+/* last modified 07/07/98 */
+/*
+********************************************************************************
+*                                                                              *
+*   LegalMove() tests a move to confirm it is absolutely legal.  it should not *
+*   be used inside the search, but can be used to check a 21-bit (compressed)  *
+*   move to be sure it is safe to make it on the permanent game board.         *
+*                                                                              *
+********************************************************************************
+*/
+int LegalMove(TREE *tree, int ply, int wtm, int move) {
+  int moves[220], *mv, *mvp;
+/*
+   generate moves, then eliminate any that are illegal.               
+*/
+  if (move == 0) return(0);
+  tree->position[MAXPLY]=tree->position[ply];
+  mvp=GenerateCaptures(tree,MAXPLY, wtm, moves);
+  mvp=GenerateNonCaptures(tree,MAXPLY, wtm, mvp);
+  for (mv=&moves[0];mv<mvp;mv++) {
+    MakeMove(tree,MAXPLY, *mv, wtm);
+    if (!Check(wtm) && move==*mv) {
+      UnMakeMove(tree,MAXPLY, *mv, wtm);
+      return(1);
+    }
+    UnMakeMove(tree,MAXPLY, *mv, wtm);
+  }
+  return(0);
 }

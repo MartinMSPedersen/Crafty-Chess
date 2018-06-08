@@ -151,11 +151,11 @@ AD_ATTACKS      = 24
 
 /* Position offsets */
     
-W_OCCUPIED       = 16
-B_OCCUPIED       = 24
-RL90             = 32
-RL45             = 40
-RR45             = 48
+W_OCCUPIED       =  0
+B_OCCUPIED       =  8
+RL90             = 16
+RL45             = 24
+RR45             = 32
     
 /* Struct at offsets:
         struct at {

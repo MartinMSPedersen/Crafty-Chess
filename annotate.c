@@ -4,7 +4,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 11/14/96 */
+/* last modified 02/17/98 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -24,19 +24,14 @@
 *  and if the best move and actual move scores are within <margin> of each     *
 *  other, no comment is produced, otherwise crafty inserts the evaluation for  *
 *  the move played, followed by the eval and PV for the best continuation it   *
-*  found.                                                                      *
-*                                                                              *
-*  the extended annotation takes a little longer, because crafty searches all  *
-*  moves *except* the move played, and then searches the move played, to the   *
-*  same depth.  This is used to produce more detailed statistics about the     *
-*  game, including such things as how often the player found the *only* move   *
-*  to win something or to avoid losing something.  this sort of information    *
-*  will eventually be used to attempt to compute a rating for a player based   *
-*  on analyzing a game (or games) played by him/her.                           *
+*  found.  you can enter suggested moves for Crafty to analyze at any point    *
+*  by simply entering a move as an analysis-type comment using (move) or       *
+*  {move}.  Crafty will search that move in addition to the move actually      *
+*  played and the move it thinks is best.                                      *
 *                                                                              *
 *  the format of the command is as follows:                                    *
 *                                                                              *
-*      annotate filename b|w|bw moves margin time [x]                          *
+*      annotate filename b|w|bw moves margin time [n]                          *
 *                                                                              *
 *  filename is the input file where Crafty will obtain the moves to annotate,  *
 *  and output will be written to file "filename.ann".                          *
@@ -56,24 +51,25 @@
 *                                                                              *
 *  time is time per move to search, in seconds.                                *
 *                                                                              *
-*  x [optional] indicates that annotate should use the "extended annotation"   *
-*  algorithm, which takes longer to execute, but which provides more info on   *
-*  how well the player(x) did compared to Crafty's search algorithm.           *
+*  [n] is optional and tells Crafty to produce the PV/score for the "n" best   *
+*  moves.  Crafty stops when the best move reaches the move played in the game *
+*  or after displaying n moves, whichever comes first.  if you use -n, then it *
+*  will display n moves regardless of where the game move ranks.               *
 *                                                                              *
 ********************************************************************************
 */
 void Annotate() {
 
   FILE *annotate_in, *annotate_out;
-  char command[80], text[128], colors[32], next;
-  int annotate_margin, annotate_score=0, player_score=0;
-  int annotate_search_time_limit, only;
-  int twtm, path_len, analysis_printed=0, extended=0;
-  int wtm, move_number, line1, line2, move, suggested, i;
-  int blunders[10], only_move[10], matched=0, book_moves=0;
-  int temp_draw_score_is_zero, last_white_eval=0, last_black_eval=0;
-  CHESS_PATH temp;
-
+  char text[128], tbuffer[512], colors[32];
+  int annotate_margin, annotate_score[100], player_score, best_moves;
+  int annotate_search_time_limit, search_player;
+  int twtm, path_len, analysis_printed=0, *mv;
+  int wtm, move_num, line1, line2, move, suggested, i;
+  int searches_done, read_status;
+  PATH temp[100], player_pv;
+  int temp_search_depth;
+  TREE *tree=local[0];
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -82,47 +78,39 @@ void Annotate() {
 |                                                          |
  ----------------------------------------------------------
 */
-  Print(0,"\nannotate filename: ");
-  fscanf(input_stream,"%s",text);
-  annotate_in = fopen(text,"r");
-  if (annotate_in == NULL) {
-    Print(0,"unable to open %s for input\n", text);
+  strcpy(tbuffer,buffer);
+  nargs=ReadParse(tbuffer,args," 	;");
+  if (nargs < 6) {
+    printf("usage: annotate <file> <color> <moves> <margin> <time> [nmoves]\n");
     return;
   }
-  sprintf(command,"read=%s",text);
-  Option(command);
+  annotate_in = fopen(args[1],"r");
+  if (annotate_in == NULL) {
+    Print(4095,"unable to open %s for input\n", args[1]);
+    return;
+  }
+  nargs=ReadParse(tbuffer,args," 	;");
+  strcpy(text,args[1]);
   strcpy(text+strlen(text),".can");
   annotate_out = fopen(text,"w");
   if (annotate_out == NULL) {
-    Print(0,"unable to open %s for output\n", text);
+    Print(4095,"unable to open %s for output\n", text);
     return;
   }
-  Print(0,"\ncolor(s): ");
-  fscanf(input_stream,"%s",colors);
+  strcpy(colors,args[2]);
   line1=1;
   line2=999;
-  Print(0,"\nstarting move number or range: ");
-  fscanf(input_stream,"%s",text);
-  if(strchr(text,'-')) sscanf(text,"%d-%d",&line1,&line2);
+  if(strchr(args[3],'-')) sscanf(args[3],"%d-%d",&line1,&line2);
   else {
-    sscanf(text,"%d",&line1);
+    sscanf(args[3],"%d",&line1);
     line2=999;
   }
-  Print(0,"\nannotation margin: ");
-  fscanf(input_stream,"%s",text);
-  annotate_margin=atof(text)*PAWN_VALUE;
-  Print(0,"\ntime per move: ");
-  fscanf(input_stream,"%s",text);
-  annotate_search_time_limit=atoi(text)*100;
-  next=getc(input_stream);
-  if (next == ' ') {
-    fscanf(input_stream,"%s",text);
-    extended=!strcmp(text,"x"); 
-  }
-  for (i=0;i<10;i++) {
-    blunders[i]=0;
-    only_move[i]=0;
-  }
+  annotate_margin=atof(args[4])*PAWN_VALUE;
+  annotate_search_time_limit=atoi(args[5])*100;
+  if (nargs > 6) 
+    best_moves=atoi(args[6]);
+  else
+    best_moves=1;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -135,62 +123,76 @@ void Annotate() {
 |                                                          |
  ----------------------------------------------------------
 */
-  temp_draw_score_is_zero=draw_score_is_zero;
-  draw_score_is_zero=1;
-  ponder_completed=0;
-  ponder_move=0;
-  last_pv.path_iteration_depth=0;
-  last_pv.path_length=0;
-  InitializeChessBoard(&position[0]);
-  wtm=1;
-  move_number=1;
+  annotate_mode=1;
+  ponder=0;
+  temp_search_depth=search_depth;
+ 
+  read_status=ReadPGN(0,0);
+  read_status=ReadPGN(annotate_in,0);
+  while (read_status != -1) {
+    ponder_move=0;
+    last_pv.path_iteration_depth=0;
+    last_pv.path_length=0;
+    InitializeChessBoard(&tree->position[0]);
+    wtm=1;
+    move_number=1;
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   now grab the PGN tag values so they can be copied to   |
+|   the .can file for reference.                           |
+|                                                          |
+ ----------------------------------------------------------
+*/
+    do
+      read_status=ReadPGN(annotate_in,0);
+    while(read_status==1);
+    if (read_status == -1) break;
+    fprintf(annotate_out,"[Event \"%s\"]\n",pgn_event);
+    fprintf(annotate_out,"[Site \"%s\"]\n",pgn_site);
+    fprintf(annotate_out,"[Date \"%s\"]\n",pgn_date);
+    fprintf(annotate_out,"[Round \"%s\"]\n",pgn_round);
+    fprintf(annotate_out,"[White \"%s\"]\n",pgn_white);
+    fprintf(annotate_out,"[WhiteElo \"%s\"]\n",pgn_white_elo);
+    fprintf(annotate_out,"[Black \"%s\"]\n",pgn_black);
+    fprintf(annotate_out,"[BlackElo \"%s\"]\n",pgn_black_elo);
+    fprintf(annotate_out,"[Result \"%s\"]\n",pgn_result);
 
-
-  fprintf(annotate_out,"[Event \"%s\"]\n",pgn_event);
-  fprintf(annotate_out,"[Site \"%s\"]\n",pgn_site);
-  fprintf(annotate_out,"[Date \"%s\"]\n",pgn_date);
-  fprintf(annotate_out,"[Round \"%s\"]\n",pgn_round);
-  fprintf(annotate_out,"[White \"%s\"]\n",pgn_white);
-  fprintf(annotate_out,"[WhiteElo \"%s\"]\n",pgn_white_elo);
-  fprintf(annotate_out,"[Black \"%s\"]\n",pgn_black);
-  fprintf(annotate_out,"[BlackElo \"%s\"]\n",pgn_black_elo);
-  fprintf(annotate_out,"[Result \"%s\"]\n",pgn_result);
-
-  fprintf(annotate_out,"[Annotator \"Crafty v%s\"]\n",version);
-  if (!strcmp(colors,"bw") || !strcmp(colors,"wb"))
-    fprintf(annotate_out,"{annotating both black and white moves.}\n");
-  else if (strchr(colors,'b'))
-    fprintf(annotate_out,"{annotating only black moves.}\n");
-  else if (strchr(colors,'w'))
-    fprintf(annotate_out,"{annotating only white moves.}\n");
-  fprintf(annotate_out,"{using a scoring margin of %s pawns.}\n",
-          DisplayEvaluationWhisper(annotate_margin));
-  fprintf(annotate_out,"{search time limit is %s}\n\n",
-          DisplayTimeWhisper(annotate_search_time_limit));
-  do {
-    fflush(annotate_out);
-    move=ReadChessMove(annotate_in,wtm);
-    if (move < 0) break;
-    strcpy(text,OutputMove(&move,0,wtm));
-    fseek(history_file,((move_number-1)*2+1-wtm)*10,SEEK_SET);
-    fprintf(history_file,"%10s ",text);
-    if (wtm) Print(0,"White(%d): %s\n",move_number,text);
-    else Print(0,"Black(%d): %s\n",move_number,text);
-    if (analysis_printed)
-      fprintf(annotate_out,"%3d.%s%6s\n",move_number,(wtm?"":"   ..."),text);
-    else {
-      if (wtm)
-        fprintf(annotate_out,"%3d.%6s",move_number,text);
-      else
-        fprintf(annotate_out,"%6s\n",text);
-    }
-    analysis_printed=0;
-    if (move_number >= line1) {
-      only=0;
-      if ((!wtm && strchr(colors,'b')) | ( wtm && strchr(colors,'w'))) {
-        last_pv.path_iteration_depth=0;
-        last_pv.path_length=0;
-        thinking=1;
+    fprintf(annotate_out,"[Annotator \"Crafty v%s\"]\n",version);
+    if (!strcmp(colors,"bw") || !strcmp(colors,"wb"))
+      fprintf(annotate_out,"{annotating both black and white moves.}\n");
+    else if (strchr(colors,'b'))
+      fprintf(annotate_out,"{annotating only black moves.}\n");
+    else if (strchr(colors,'w'))
+      fprintf(annotate_out,"{annotating only white moves.}\n");
+    fprintf(annotate_out,"{using a scoring margin of %s pawns.}\n",
+            DisplayEvaluationWhisper(annotate_margin));
+    fprintf(annotate_out,"{search time limit is %s}\n\n",
+            DisplayTimeWhisper(annotate_search_time_limit));
+    do {
+      fflush(annotate_out);
+      move=ReadNextMove(tree,buffer,0,wtm);
+      if (move <= 0) break;
+      strcpy(text,OutputMove(tree,move,0,wtm));
+      fseek(history_file,((move_number-1)*2+1-wtm)*10,SEEK_SET);
+      fprintf(history_file,"%9s\n",text);
+      if (wtm) Print(4095,"White(%d): %s\n",move_number,text);
+      else Print(4095,"Black(%d): %s\n",move_number,text);
+      if (analysis_printed)
+        fprintf(annotate_out,"%3d.%s%6s\n",move_number,(wtm?"":"   ..."),text);
+      else {
+        if (wtm)
+          fprintf(annotate_out,"%3d.%6s",move_number,text);
+        else
+          fprintf(annotate_out,"%6s\n",text);
+      }
+      analysis_printed=0;
+      if (move_number >= line1) {
+        if ((!wtm && strchr(colors,'b')) || ( wtm && strchr(colors,'w'))) {
+          last_pv.path_iteration_depth=0;
+          last_pv.path_length=0;
+          thinking=1;
+          RootMoveList(wtm);
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -201,152 +203,90 @@ void Annotate() {
 |                                                          |
  ----------------------------------------------------------
 */
-        if (!extended) {
           search_time_limit=annotate_search_time_limit;
-          Print(0,"\n              Searching all legal moves.");
-          Print(0,"----------------------------------\n");
-          position[1]=position[0];
-          annotate_score=Iterate(wtm,think);
-          temp=pv[0];
-          player_score=annotate_score;
-          if (temp.path[1] != move) {
-            Print(0,"\n              Searching only the move played in game.");
-            Print(0,"--------------------\n");
-            position[1]=position[0];
+          search_depth=temp_search_depth;
+          player_score=-999999;
+          search_player=1;
+          for (searches_done=0;searches_done<abs(best_moves);searches_done++) {
+            if (searches_done > 0) {
+              search_time_limit=3*annotate_search_time_limit;
+              search_depth=temp[0].path_iteration_depth;
+            }
+            Print(4095,"\n              Searching all legal moves.");
+            Print(4095,"----------------------------------\n");
+            tree->position[1]=tree->position[0];
+            InitializeHashTables();
+            annotate_score[searches_done]=Iterate(wtm,annotate,1);
+            if (tree->pv[0].path[1] == move) {
+              player_score=annotate_score[searches_done];
+              player_pv=tree->pv[0];
+              search_player=0;
+            }
+            temp[searches_done]=tree->pv[0];
+            for (mv=tree->last[0];mv<tree->last[1];mv++) {
+              if (*mv == tree->pv[0].path[1]) {
+                for (;mv<tree->last[1]-1;mv++) *mv=*(mv+1);
+                tree->last[1]--;
+                break;
+              }
+            }
+            if (tree->last[1] < tree->last[0] ||
+                (player_score+annotate_margin>annotate_score[searches_done] &&
+                 best_moves>0)) break;
+          }
+          if (search_player) {
+            Print(4095,"\n              Searching only the move played in game.");
+            Print(4095,"--------------------\n");
+            tree->position[1]=tree->position[0];
             search_move=move;
-            search_time_limit=99999999;
-            search_depth=temp.path_iteration_depth;
-            player_score=Iterate(wtm,think);
-            search_depth=0;
+            search_time_limit=3*annotate_search_time_limit;
+            search_depth=temp[0].path_iteration_depth;
+            if (search_depth==temp_search_depth)
+              search_time_limit=annotate_search_time_limit;
+            InitializeHashTables();
+            player_score=Iterate(wtm,annotate,0);
+            player_pv=tree->pv[0];
+            search_depth=temp_search_depth;
             search_time_limit=annotate_search_time_limit;
             search_move=0;
           }
-        }
 /*
  ----------------------------------------------------------
 |                                                          |
-|   now search the position, by searching every move but   |
-|   the move played, and then searching the move played,   |
-|   determine how good that move actually is.              |
+|   output the score/pv for the move played unless it      |
+|   matches what Crafty would have played.  if it doesn't  |
+|   then output the pv for what Crafty thinks is best.     |
 |                                                          |
  ----------------------------------------------------------
 */
-        else {
-          search_time_limit=annotate_search_time_limit;
-          Print(0,"\n              Searching all legal moves (except move played).");
-          Print(0,"------------\n");
-          position[1]=position[0];
-          search_move=-move;
-          annotate_score=Iterate(wtm,think);
-          temp=pv[0];
-          Print(0,"\n              Searching only the move played in game.");
-          Print(0,"--------------------\n");
-          search_move=move;
-          position[1]=position[0];
-          search_time_limit=99999999;
-          search_depth=temp.path_iteration_depth;
-          player_score=Iterate(wtm,think);
-          search_depth=0;
-          search_time_limit=annotate_search_time_limit;
-          search_move=0;
-/*
- --------------------------------------------
-|                                            |
-|  determine if the move played was a        |
-|  blunder.                                  |
-|                                            |
- --------------------------------------------
-*/
-          if (annotate_score-player_score > 800) {
-            int blunder_index=(annotate_score-player_score+800)/1000;
-            blunder_index=Min(blunder_index,9);
-            blunders[blunder_index]++;
-          }
-/*
- --------------------------------------------
-|                                            |
-|  determine if the move played was the only |
-|  reasonable move.                          |
-|                                            |
- --------------------------------------------
-*/
-          if (player_score-annotate_score > 800) {
-            int only_index=(player_score-annotate_score+800)/1000;
-            only_index=Min(only_index,9);
-            only_move[only_index]++;
-            only=1;
-          }
-/*
- --------------------------------------------
-|                                            |
-|  determine if the move played was a book   |
-|  move.                                     |
-|                                            |
- --------------------------------------------
-*/
-          if (pv[0].path_iteration_depth <= 1) {
-            book_moves++;
-          }
-/*
- --------------------------------------------
-|                                            |
-|  determine if the move played matched the  |
-|  move Crafty likes best.                   |
-|                                            |
- --------------------------------------------
-*/
-          if (player_score >= annotate_score) {
-            matched++;
+          thinking=0;
+          if (player_pv.path_iteration_depth>1 && player_pv.path_length>=1 && 
+              player_score+annotate_margin<annotate_score[0] &&
+              (temp[0].path[1]!=player_pv.path[1] || annotate_margin<0.0 ||
+              best_moves!=1)) {
+            if (wtm) {
+              analysis_printed=1;
+              fprintf(annotate_out,"\n");
+            }
+            fprintf(annotate_out,"                ({%d:%s}",
+                    player_pv.path_iteration_depth,
+                    DisplayEvaluationWhisper(player_score)); 
+            path_len=player_pv.path_length;
+            fprintf(annotate_out," %s", FormatPV(tree,wtm, player_pv));
+            fprintf(annotate_out,")\n");
+            for (move_num=0;move_num<searches_done;move_num++) {
+              if (move != temp[move_num].path[1]) {
+                fprintf(annotate_out,"                ({%d:%s}",
+                        temp[move_num].path_iteration_depth,
+                        DisplayEvaluationWhisper(annotate_score[move_num])); 
+                path_len=temp[move_num].path_length;
+                fprintf(annotate_out," %s", FormatPV(tree,wtm, temp[move_num]));
+                fprintf(annotate_out,")\n");
+              }
+            }
           }
         }
-        thinking=0;
-        twtm = wtm;
-        path_len = temp.path_length;
-        if (temp.path_iteration_depth > 1 && path_len >= 1 && 
-            player_score+annotate_margin <= annotate_score &&
-            (move != temp.path[1] || annotate_margin < 0.0)) {
-          if (wtm) {
-            analysis_printed=1;
-            fprintf(annotate_out,"\n");
-          }
-          fprintf(annotate_out,"{%s", DisplayEvaluationWhisper(player_score));
-          fprintf(annotate_out," (%d:%s", temp.path_iteration_depth,
-                  DisplayEvaluationWhisper(annotate_score)); 
-          for (i=1;i<=path_len;i++) {
-            fprintf(annotate_out," %s",OutputMove(&temp.path[i],i,twtm)); 
-            MakeMove(i,temp.path[i],twtm);
-            twtm=ChangeSide(twtm);
-          }
-          for (i=path_len;i>0;i--) {
-            twtm=ChangeSide(twtm);
-            UnMakeMove(i,temp.path[i],twtm);
-          }
-          fprintf(annotate_out,")}\n");
-        }
-        if (only) {
-          if (wtm || analysis_printed) fprintf(annotate_out,"\n");
-          analysis_printed=1;
-          if (wtm) {
-            if (annotate_score > last_white_eval)
-              fprintf(annotate_out,"{only move to win at least %d pawn(s)}\n",
-                      Min((player_score-annotate_score+800)/1000,9));
-            else
-              fprintf(annotate_out,"{only move to avoid losing at least %d pawn(s)}\n",
-                      Min((player_score-annotate_score+800)/1000,9));
-          }
-          else {
-            if (annotate_score > last_black_eval)
-              fprintf(annotate_out,"{only move to win at least %d pawn(s)}\n",
-                      Min((player_score-annotate_score+800)/1000,9));
-            else
-              fprintf(annotate_out,"{only move to avoid losing at least %d pawn(s)}\n",
-                      Min((player_score-annotate_score+800)/1000,9));
-          }
-        }
-        if (wtm) last_white_eval=player_score;
-        else last_black_eval=player_score;
       }
-    }
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -357,66 +297,64 @@ void Annotate() {
 |                                                          |
  ----------------------------------------------------------
 */
-    do {
-      next=getc(annotate_in);
-    } while (next==' ' || next=='\n');
-    ungetc(next,annotate_in);
-    if (next == EOF) break;
-    if (next == '{') do {
-      do {
-        next=getc(annotate_in);
-      } while (next==' ');
-      ungetc(next,annotate_in);
-      if (next == EOF || next == '}') break;
-      suggested=ReadChessMove(annotate_in,wtm);
-      if (suggested < 0) break;
-      thinking=1;
-      Print(0,"\n              Searching only the move suggested.");
-      Print(0,"--------------------\n");
-      position[1]=position[0];
-      search_move=suggested;
-      annotate_score = Iterate(wtm,think);
-      search_move=0;
-      thinking=0;
-      twtm = wtm;
-      path_len = pv[0].path_length;
-      if (pv[0].path_iteration_depth > 1 && path_len >= 1) {
-        if (wtm && !analysis_printed) {
-          analysis_printed=1;
-          fprintf(annotate_out,"\n");
+      read_status=ReadPGN(annotate_in,1);
+      while (read_status == 2) {
+        suggested=InputMove(tree,buffer,0,wtm,1,0);
+        if (suggested > 0) {
+          thinking=1;
+          Print(4095,"\n              Searching only the move suggested.");
+          Print(4095,"--------------------\n");
+          tree->position[1]=tree->position[0];
+          search_move=suggested;
+          search_time_limit=3*annotate_search_time_limit;
+          search_depth=temp[0].path_iteration_depth;
+          InitializeHashTables();
+          annotate_score[0]=Iterate(wtm,annotate,0);
+          search_depth=temp_search_depth;
+          search_time_limit=annotate_search_time_limit;
+          search_move=0;
+          thinking=0;
+          twtm = wtm;
+          path_len = tree->pv[0].path_length;
+          if (tree->pv[0].path_iteration_depth > 1 && path_len >= 1) {
+            if (wtm && !analysis_printed) {
+              analysis_printed=1;
+              fprintf(annotate_out,"\n");
+            }
+            fprintf(annotate_out,"                ({suggested %d:%s}",
+                    tree->pv[0].path_iteration_depth,
+                    DisplayEvaluationWhisper(annotate_score[0])); 
+            for (i=1;i<=path_len;i++) {
+              fprintf(annotate_out," %s",OutputMove(tree,tree->pv[0].path[i],i,twtm)); 
+              MakeMove(tree,i,tree->pv[0].path[i],twtm);
+              twtm=ChangeSide(twtm);
+              }
+            for (i=path_len;i>0;i--) {
+              twtm=ChangeSide(twtm);
+              UnMakeMove(tree,i,tree->pv[0].path[i],twtm);
+            }
+            fprintf(annotate_out,")\n");
+          }
         }
-        fprintf(annotate_out,"  {suggested %d:%s",
-                pv[0].path_iteration_depth,
-                DisplayEvaluationWhisper(annotate_score)); 
-        for (i=1;i<=path_len;i++) {
-          fprintf(annotate_out," %s",OutputMove(&pv[0].path[i],i,twtm)); 
-          MakeMove(i,pv[0].path[i],twtm);
-          twtm=ChangeSide(twtm);
-        }
-        for (i=path_len;i>0;i--) {
-          twtm=ChangeSide(twtm);
-          UnMakeMove(i,pv[0].path[i],twtm);
-        }
-        fprintf(annotate_out,"}\n");
+        read_status=ReadPGN(annotate_in,1);
+        if (read_status != 2) break;
       }
-    } while(1);
-    MakeMoveRoot(move,wtm);
-    wtm=ChangeSide(wtm);
-    if (wtm) move_number++;
-    if (move_number > line2) break;
-  } while (1);
-  if (extended) {
-    fprintf(annotate_out,"\n\n--------------------Summary-------------------\n\n");
-    fprintf(annotate_out,"book moves.................................%3d\n",book_moves);
-    fprintf(annotate_out,"best move played...........................%3d\n",matched);
-    for (i=0;i<10;i++)
-      if (blunders[i])
-        fprintf(annotate_out,"blundered at least %d pawns.................%3d\n",i,blunders[i]);
-    for (i=0;i<10;i++)
-      if (only_move[i])
-        fprintf(annotate_out,"only move to win at least %d pawns..........%3d\n",i,only_move[i]);
+      MakeMoveRoot(tree,move,wtm);
+      wtm=ChangeSide(wtm);
+      if (wtm) move_number++;
+      if (move_number > line2) break;
+      if (read_status != 0) break;
+    } while (1);
+    fprintf(annotate_out,"\n");
+    if (read_status == -1) break;
+    do
+      read_status=ReadPGN(annotate_in,0);
+    while(read_status==0);
+    if (read_status == -1) break;
   }
-  if (annotate_out != NULL) fclose(annotate_out);
+  fprintf(annotate_out,"\n");
+  if (annotate_out) fclose(annotate_out);
+  if (annotate_in) fclose(annotate_in);
   search_time_limit=0;
-  draw_score_is_zero=temp_draw_score_is_zero;
+  annotate_mode=0;
 }
