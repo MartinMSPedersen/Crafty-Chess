@@ -3,7 +3,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 01/30/99 */
+/* last modified 05/07/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -44,8 +44,8 @@ int HashProbe(TREE *tree, int ply, int depth, int wtm, int *alpha,
 /*
  ----------------------------------------------------------
 |                                                          |
-|   first, compute the initial hash address and choose     |
-|   which hash table (based on color) to probe.            |
+|   check both "parts" of the hash table to see if this    |
+|   position is in either one.                             |
 |                                                          |
  ----------------------------------------------------------
 */
@@ -53,106 +53,68 @@ int HashProbe(TREE *tree, int ply, int depth, int wtm, int *alpha,
 #if !defined(FAST)
   tree->transposition_probes++;
 #endif
-/*
- ----------------------------------------------------------
-|                                                          |
-|   now, check both "parts" of the hash table to see if    |
-|   this position is in either one.                        |
-|                                                          |
- ----------------------------------------------------------
-*/
   temp_hashkey=(wtm) ? HashKey : ~HashKey;
   htable=trans_ref_a+((int) temp_hashkey&hash_maska);
   Lock(lock_hasha);
   word1=htable->word1;
   word2=htable->word2;
   UnLock(lock_hasha);
-  if (word2 == temp_hashkey) do {
+  if (word2 != temp_hashkey) {
+    htable=trans_ref_b+((int)temp_hashkey&hash_maskb);
+    Lock(lock_hashb);
+    word1=htable->word1;
+    word2=htable->word2;
+    UnLock(lock_hashb);
+    if (word2 != temp_hashkey) return(0);
+  }
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   we got a "hit".  now we have to determine if the entry |
+|   is useful or not based on the draft.                   |
+|                                                          |
+ ----------------------------------------------------------
+*/
 #if !defined(FAST)
-    tree->transposition_hits++;
+  tree->transposition_hits++;
 #endif
-    word1l=word1>>32;
-    word1r=word1;
-    val=(word1r & 0377777)-65536;
-    draft=word1r>>17;
-    tree->hash_move[ply]=word1l & 07777777;
-    *threat=(word1l>>26) & 01;
-    type=(word1l>>27) & 03;
-    if ((type & UPPER) &&
-        depth-NULL_MOVE_DEPTH-INCPLY <= draft &&
-        val < *beta) avoid_null=AVOID_NULL_MOVE;
-    if (depth > draft) break;
+  word1l=word1>>32;
+  word1r=word1;
+  val=(word1r & 0377777)-65536;
+  draft=word1r>>17;
+  tree->hash_move[ply]=word1l & 07777777;
+  *threat=(word1l>>26) & 01;
+  type=(word1l>>27) & 03;
+  if ((type & UPPER) &&
+      depth-NULL_MOVE_DEPTH-INCPLY <= draft &&
+      val < *beta) avoid_null=AVOID_NULL_MOVE;
+  if (depth > draft) return(avoid_null);
 
-    switch (type) {
-      case EXACT:
-        if (abs(val) > MATE-300) {
-          if (val > 0) val-=(ply-1);
-          else val+=(ply-1);
-        }
+  switch (type) {
+    case EXACT:
+      if (abs(val) > MATE-300) {
+        if (val > 0) val-=(ply-1);
+        else val+=(ply-1);
+      }
+      *alpha=val;
+      return(EXACT);
+    case UPPER:
+      if (val <= *alpha) {
         *alpha=val;
-        return(EXACT);
-      case UPPER:
-        if (val <= *alpha) {
-          *alpha=val;
-          return(UPPER);
-        }
-        break;
-      case LOWER:
-        if (val >= *beta) {
-          *beta=val;
-          return(LOWER);
-        }
-        break;
-    }
-  } while(0);
-
-  htable=trans_ref_b+((int)temp_hashkey&hash_maskb);
-  Lock(lock_hashb);
-  word1=htable->word1;
-  word2=htable->word2;
-  UnLock(lock_hashb);
-  if (word2 == temp_hashkey) {
-#if !defined(FAST)
-    tree->transposition_hits++;
-#endif
-    word1l=word1>>32;
-    word1r=word1;
-    val=(word1r & 0377777)-65536;
-    draft=word1r>>17;
-    if (tree->hash_move[ply]==0) tree->hash_move[ply]=word1l & 07777777;
-    *threat=(word1l>>26) & 01;
-    type=(word1l>>27) & 03;
-    if ((type & UPPER) &&
-        depth-NULL_MOVE_DEPTH-INCPLY <= draft &&
-        val < *beta) avoid_null=AVOID_NULL_MOVE;
-    if (depth > draft) return(avoid_null);
-
-    switch (type) {
-      case EXACT:
-        if (abs(val) > MATE-300) {
-          if (val > 0) val-=(ply-1);
-          else val+=(ply-1);
-        }
-        *alpha=val;
-        return(EXACT);
-      case UPPER:
-        if (val <= *alpha) {
-          *alpha=val;
-          return(UPPER);
-        }
-        return(avoid_null);
-      case LOWER:
-        if (val >= *beta) {
-          *beta=val;
-          return(LOWER);
-        }
-        return(avoid_null);
-    }
+        return(UPPER);
+      }
+      break;
+    case LOWER:
+      if (val >= *beta) {
+        *beta=val;
+        return(LOWER);
+      }
+      break;
   }
   return(avoid_null);
 }
 
-/* last modified 02/02/99 */
+/* last modified 05/07/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -229,8 +191,8 @@ void HashStore(TREE *tree, int ply, int depth, int wtm, int type,
   if (age || (depth >= draft)) {
     Lock(lock_hasha);
     if (word2 != htablea->word2) {
-      Lock(lock_hashb);
       htableb=trans_ref_b+((int) (htablea->word2)&hash_maskb);
+      Lock(lock_hashb);
       htableb->word1=htablea->word1;
       htableb->word2=htablea->word2;
       UnLock(lock_hashb);

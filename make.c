@@ -15,8 +15,7 @@
 *                                                                              *
 ********************************************************************************
 */
-void MakeMove(TREE *tree, int ply, int move, int wtm)
-{
+void MakeMove(TREE *tree, int ply, int move, int wtm) {
   register int piece, from, to, captured, promote;
   BITBOARD bit_move;
 /*
@@ -97,15 +96,15 @@ MakePieceMove:
         }
       }
       PieceOnSquare(to)=pawn;
-  /*
-   --------------------------------------------------------------------
-  |                                                                    |
-  |  if this is a pawn promotion, remove the pawn from the counts      |
-  |  then update the correct piece board to reflect the piece just     |
-  |  created.                                                          |
-  |                                                                    |
-   --------------------------------------------------------------------
-  */
+/*
+ --------------------------------------------------------------------
+|                                                                    |
+|  if this is a pawn promotion, remove the pawn from the counts      |
+|  then update the correct piece board to reflect the piece just     |
+|  created.                                                          |
+|                                                                    |
+ --------------------------------------------------------------------
+*/
       if (promote) {
         TotalWhitePawns--;
         Material-=PAWN_VALUE;
@@ -309,11 +308,11 @@ MakePieceMove:
       HashRW(to,HashKey);
       PieceOnSquare(to)=rook;
       if (WhiteCastle(ply+1) > 0) {
-        if ((from == 0) && (WhiteCastle(ply+1)&2)) {
+        if ((from == A1) && (WhiteCastle(ply+1)&2)) {
           WhiteCastle(ply+1)&=1;
           HashCastleW(1,HashKey);
         }
-        else if ((from == 7) && (WhiteCastle(ply+1)&1)) {
+        else if ((from == H1) && (WhiteCastle(ply+1)&1)) {
           WhiteCastle(ply+1)&=2;
           HashCastleW(0,HashKey);
         }
@@ -326,11 +325,11 @@ MakePieceMove:
       HashRB(to,HashKey);
       PieceOnSquare(to)=-rook;
       if (BlackCastle(ply+1) > 0) {
-        if ((from == 56) && (BlackCastle(ply+1)&2)) {
+        if ((from == A8) && (BlackCastle(ply+1)&2)) {
           BlackCastle(ply+1)&=1;
           HashCastleB(1,HashKey);
         }
-        else if ((from == 63) && (BlackCastle(ply+1)&1)) {
+        else if ((from == H8) && (BlackCastle(ply+1)&1)) {
           BlackCastle(ply+1)&=2;
           HashCastleB(0,HashKey);
         }
@@ -366,7 +365,7 @@ MakePieceMove:
 ********************************************************************************
 *                                                                              *
 *   make king moves.  the only special case is castling, which is indicated    *
-*   by from=4, to=6 for o-o as an example.  the king is moving from e1-g1      *
+*   by from=E1, to=G1 for o-o as an example.  the king is moving from e1-g1    *
 *   which is normally illegal.  in this case, the correct rook is also moved.  *
 *                                                                              *
 *   note that moving the king in any direction resets the x_castle [x=w or b]  *
@@ -536,11 +535,11 @@ MakePieceMove:
         Clear(to,BlackPieces);
         HashRB(to,HashKey);
         if (BlackCastle(ply) > 0) {
-          if ((to == 56) && (BlackCastle(ply+1)&2)) {
+          if ((to == A8) && (BlackCastle(ply+1)&2)) {
             BlackCastle(ply+1)&=1;
             HashCastleB(1,HashKey);
           }
-          else if ((to == 63) && (BlackCastle(ply+1)&1)) {
+          else if ((to == H8) && (BlackCastle(ply+1)&1)) {
             BlackCastle(ply+1)&=2;
             HashCastleB(0,HashKey);
           }
@@ -554,11 +553,11 @@ MakePieceMove:
         Clear(to,WhitePieces);
         HashRW(to,HashKey);
         if (WhiteCastle(ply) > 0) {
-          if ((to == 0) && (WhiteCastle(ply+1)&2)) {
+          if ((to == A1) && (WhiteCastle(ply+1)&2)) {
             WhiteCastle(ply+1)&=1;
             HashCastleW(1,HashKey);
           }
-          else if ((to == 7) && (WhiteCastle(ply+1)&1)) {
+          else if ((to == H1) && (WhiteCastle(ply+1)&1)) {
             WhiteCastle(ply+1)&=2;
             HashCastleW(0,HashKey);
           }
@@ -629,8 +628,7 @@ MakePieceMove:
 *                                                                              *
 ********************************************************************************
 */
-void MakeMoveRoot(TREE *tree, int move, int wtm)
-{
+void MakeMoveRoot(TREE *tree, int move, int wtm) {
 /*
  ----------------------------------------------------------
 |                                                          |

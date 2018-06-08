@@ -9,7 +9,7 @@
 #  include <unistd.h>
 #endif
 
-/* last modified 03/11/98 */
+/* last modified 04/15/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -29,7 +29,6 @@
 *                                                                              *
 ********************************************************************************
 */
-
 void LearnBook(TREE *tree, int wtm, int search_value, int search_depth, int lv,
                int force) {
 /*
@@ -249,7 +248,10 @@ void LearnBook(TREE *tree, int wtm, int search_value, int search_depth, int lv,
     t_learn_value=((float) learn_value)/100.0;
     for (i=511;i>=0;i--) {
       book_learn[i]=t_learn_value;
-      if (n_book_moves[i] > 1) t_learn_value/=n_book_moves[i];
+/*
+      if (n_book_moves[i] > 1) t_learn_value/=Max(n_book_moves[i]>>1,1);
+*/
+      if (n_book_moves[i] > 1) t_learn_value=3*t_learn_value/4;
     }
 /*
  ----------------------------------------------------------
@@ -415,7 +417,7 @@ int LearnFunction(int sv, int search_depth, int rating_difference,
   else
     multiplier=rating_mult_ut[rd]*sd;
   sv=Max(Min(sv,600),-600);
-  return(sv*multiplier);
+  return((int) (sv*multiplier));
 }
 
 /* last modified 03/11/98 */
@@ -444,7 +446,6 @@ int LearnFunction(int sv, int search_depth, int rating_difference,
 ********************************************************************************
 */
 void LearnImport(TREE *tree, int nargs, char **args) {
-
   FILE *learn_in;
   char text[128];
   int eof;
@@ -485,13 +486,11 @@ void LearnImport(TREE *tree, int nargs, char **args) {
 *                                                                              *
 ********************************************************************************
 */
-
 #if defined(MACOS)
   int index[32768];
 #endif
 
 void LearnImportBook(TREE *tree, int nargs, char **args) {
-
   FILE *learn_in;
   char nextc, text[128], *eof;
   int wtm, learn_value, depth, rating_difference, move=0, i, added_lines=0;
@@ -622,7 +621,6 @@ void LearnImportBook(TREE *tree, int nargs, char **args) {
 ********************************************************************************
 */
 void LearnImportPosition(TREE *tree, int nargs, char **args) {
-
   BITBOARD word1, word2;
   int positions, nextp, secs;
   struct tm *timestruct;
@@ -1016,7 +1014,6 @@ void LearnPositionLoad(void) {
 *                                                                              *
 ********************************************************************************
 */
-
 void LearnResult(TREE *tree, int wtm) {
   int move, i, j;
   int secs, last_choice;

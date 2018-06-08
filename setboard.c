@@ -4,7 +4,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 05/13/97 */
+/* last modified 05/03/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -45,8 +45,7 @@
 *                                                                              *
 ********************************************************************************
 */
-void SetBoard(int nargs, char *args[], int special)
-{
+void SetBoard(int nargs, char *args[], int special) {
   int twtm, i, match, num, pos, square, tboard[64];
   int bcastle, ep, wcastle;
   char input[80];
@@ -206,8 +205,8 @@ void SetBoard(int nargs, char *args[], int special)
       history_b[i]=0;
     }
     for (i=0;i<MAXPLY;i++) {
-      tree->killer_move1[i]=0;
-      tree->killer_move2[i]=0;
+      tree->killers[i].move1=0;
+      tree->killers[i].move2=0;
     }
     last_pv.pathd=0;
     last_pv.pathl=0;

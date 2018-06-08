@@ -12,8 +12,7 @@
 *                                                                              *
 ********************************************************************************
 */
-void UnMakeMove(TREE *tree, int ply, int move, int wtm)
-{
+void UnMakeMove(TREE *tree, int ply, int move, int wtm) {
   register int piece, from, to, captured, promote;
   BITBOARD bit_move;
 /*
@@ -282,7 +281,7 @@ UnMakePieceMove:
       PieceOnSquare(from)=king;
       WhiteKingSQ=from;
       if (abs(to-from) == 2) {
-        if (to == 6) {
+        if (to == G1) {
           from=H1;
           to=F1;
           piece=rook;
@@ -301,7 +300,7 @@ UnMakePieceMove:
       PieceOnSquare(from)=-king;
       BlackKingSQ=from;
       if (abs(to-from) == 2) {
-        if (to == 62) {
+        if (to == G8) {
           from=H8;
           to=F8;
           piece=rook;

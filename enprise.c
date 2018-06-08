@@ -25,8 +25,7 @@
 *                                                                              *
 ********************************************************************************
 */
-int EnPrise(int target, int wtm)
-{
+int EnPrise(int target, int wtm) {
   BITBOARD white_attackers, black_attackers;
   BITBOARD attacks, temp_attacks;
   BITBOARD *pawns[2], *knights[2], *bishops[2], 

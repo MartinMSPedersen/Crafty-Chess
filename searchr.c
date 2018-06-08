@@ -49,7 +49,7 @@ int SearchRoot(TREE *tree, int alpha, int beta, int wtm, int depth) {
 */
   while ((tree->current_phase[1]=NextRootMove(tree,wtm))) {
     tree->extended_reason[1]=0;
-#if !defined(FAST)
+#if defined(TRACE)
     if (1 <= trace_level)
       SearchTrace(tree,1,depth,wtm,alpha,beta,"SearchRoot",tree->current_phase[1]);
 #endif
@@ -134,9 +134,10 @@ int SearchRoot(TREE *tree, int alpha, int beta, int wtm, int depth) {
         }
       }
     }
-    tree->root_nodes[root_move]=tree->nodes_searched-begin_root_nodes;
+    root_moves[tree->root_move].nodes=tree->nodes_searched-begin_root_nodes;
     if (value > alpha) {
       SearchOutput(tree,value,beta);
+      root_value=alpha;
       if(value >= beta) {
         History(tree,1,depth,wtm,tree->current_move[1]);
         UnMakeMove(tree,1,tree->current_move[1],wtm);
@@ -145,9 +146,32 @@ int SearchRoot(TREE *tree, int alpha, int beta, int wtm, int depth) {
       alpha=value;
     }
     root_value=alpha;
-    beta=alpha+40;
-    root_beta=beta;
     UnMakeMove(tree,1,tree->current_move[1],wtm);
+#if defined(SMP)
+    if (split_at_root && smp_idle && NextRootMoveParallel()) {
+      tree->alpha=alpha;
+      tree->beta=beta;
+      tree->value=alpha;
+      tree->wtm=wtm;
+      tree->ply=1;
+      tree->depth=depth;
+      tree->threat=0;
+      if(Thread(tree)) {
+        if (abort_search || tree->stop) return(0);
+        if (CheckInput()) Interrupt(1);
+        value=tree->search_value;
+        if (value > alpha) {
+          if(value >= beta) {
+            History(tree,1,depth,wtm,tree->current_move[1]);
+            tree->fail_high++;
+            return(value);
+          }
+          alpha=value;
+          break;
+        }
+      }
+    }
+#endif
   }
 /*
  ----------------------------------------------------------
@@ -163,7 +187,7 @@ int SearchRoot(TREE *tree, int alpha, int beta, int wtm, int depth) {
     value=(Check(wtm)) ? -(MATE-1) : DrawScore(root_wtm==wtm);
     if (value >=alpha && value <beta) {
       SavePVS(tree,1,value,0);
-#if !defined(FAST)
+#if defined(TRACE)
       if (1 <= trace_level) printf("Search() no moves!  ply=1\n");
 #endif
     }
@@ -192,12 +216,11 @@ int SearchRoot(TREE *tree, int alpha, int beta, int wtm, int depth) {
 *                                                                              *
 ********************************************************************************
 */
-void SearchOutput(TREE *tree, int value, int bound)
-{
+void SearchOutput(TREE *tree, int value, int bound) {
 #define PrintOK() (tree->nodes_searched>noise_level || value>(MATE-300))
-  register int *mv, *mvp;
   register int wtm;
-  int temp_root_nodes;
+  int i;
+  ROOT_MOVE temp_rm;
 
 /*
  ----------------------------------------------------------
@@ -212,15 +235,11 @@ void SearchOutput(TREE *tree, int value, int bound)
   if (!abort_search) {
     whisper_value=(analyze_mode && !root_wtm) ? -value : value;
     whisper_depth=iteration_depth;
-    for (mvp=tree->last[0];mvp<tree->last[1];mvp++) if(tree->current_move[1]== *mvp) break;
-    if (mvp != tree->last[0]) {
-      temp_root_nodes=tree->root_nodes[mvp-tree->last[0]];
-      for (mv=mvp;mv>tree->last[0];mv--) {
-        *mv=*(mv-1);
-        tree->root_nodes[mv-tree->last[0]]=tree->root_nodes[mv-1-tree->last[0]];
-      }
-      tree->root_nodes[0]=temp_root_nodes;
-      *tree->last[0]=tree->current_move[1];
+    for (i=0;i<n_root_moves;i++) if (tree->current_move[1] == root_moves[i].move) break;
+    if (i < n_root_moves) {
+      temp_rm=root_moves[i];
+      for (;i>0;i--) root_moves[i]=root_moves[i-1];
+      root_moves[0]=temp_rm;
       easy_move=0;
     }
     end_time=ReadClock(time_type);
@@ -278,8 +297,7 @@ void SearchOutput(TREE *tree, int value, int bound)
 ********************************************************************************
 */
 void SearchTrace(TREE *tree, int ply, int depth, int wtm,
-                 int alpha, int beta, char* name, int phase)
-{
+                 int alpha, int beta, char* name, int phase) {
   int i;
   Lock(lock_io);
   for (i=1;i<ply;i++) printf("  ");

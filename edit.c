@@ -30,10 +30,9 @@
 *                                                                              *
 ********************************************************************************
 */
-void Edit(void)
-{
+void Edit(void) {
   int athome=1, i, piece, readstat, square, tfile, trank, wtm=1;
-  const static char pieces[]={'x','X','P','p','N','n','K','k','*','*',
+  static const char pieces[]={'x','X','P','p','N','n','K','k','*','*',
                               'B','b','R','r','Q','q','\0'};
   TREE * const tree=local[0];
 /*

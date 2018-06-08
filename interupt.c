@@ -18,9 +18,8 @@
 *                                                                              *
 ********************************************************************************
 */
-void Interrupt(int ply)
-{
-  int temp, *mvp, left, readstat, result, time_used;
+void Interrupt(int ply) {
+  int temp, i, left=0, readstat, result, time_used;
   int save_move_number;
   TREE * const tree=local[0];
   static int busy=0;
@@ -97,9 +96,9 @@ void Interrupt(int ply)
         printf("stat01: %d ",time_used);
         printf("%d ",tree->nodes_searched);
         printf("%d ",iteration_depth); 
-        for (left=0,mvp=tree->last[0];mvp<tree->last[1];mvp++) 
-          if (!tree->searched_this_root_move[mvp-tree->last[0]]) left++;
-        printf("%d %d\n",left,tree->last[1]-tree->last[0]);
+        for (i=0;i<n_root_moves;i++)
+          if (!root_moves[i].status&128) left++;
+        printf("%d %d\n",left,n_root_moves);
         fflush(stdout);
         break;
       }

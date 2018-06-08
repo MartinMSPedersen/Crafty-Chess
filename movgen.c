@@ -16,8 +16,7 @@
 *                                                                              *
 ********************************************************************************
 */
-int* GenerateCaptures(TREE *tree, int ply, int wtm, int *move)
-{
+int* GenerateCaptures(TREE *tree, int ply, int wtm, int *move) {
   register BITBOARD target, piecebd, moves;
   register BITBOARD  promotions, pcapturesl, pcapturesr;
   register int from, to, temp;
@@ -364,8 +363,7 @@ int* GenerateCaptures(TREE *tree, int ply, int wtm, int *move)
 *                                                                              *
 ********************************************************************************
 */
-int* GenerateCheckEvasions(TREE *tree, int ply, int wtm, int *move)
-{
+int* GenerateCheckEvasions(TREE *tree, int ply, int wtm, int *move) {
   register BITBOARD target, targetc, targetp, piecebd, moves;
   register BITBOARD padvances1, padvances2, pcapturesl, pcapturesr;
   register BITBOARD padvances1_all, empty, checksqs;
@@ -903,8 +901,7 @@ int* GenerateCheckEvasions(TREE *tree, int ply, int wtm, int *move)
 *                                                                              *
 ********************************************************************************
 */
-int* GenerateNonCaptures(TREE *tree, int ply, int wtm, int *move)
-{
+int* GenerateNonCaptures(TREE *tree, int ply, int wtm, int *move) {
   register BITBOARD target, piecebd, moves;
   register BITBOARD  padvances1, padvances2, pcapturesl, pcapturesr;
   register int from, to, temp;

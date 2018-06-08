@@ -821,8 +821,8 @@ for (index = 0; index < (sqL * sqL); index++)
 /* clear the host killer information */
 
 for (index = 0; index < MAXPLY; index++) {
-  tree->killer_move1[index] = 0;
-  tree->killer_move2[index] = 0;
+  tree->killers[index].move1 = 0;
+  tree->killers[index].move2 = 0;
 }
 
 /* clear miscellaneous host items */

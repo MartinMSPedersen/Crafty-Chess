@@ -148,6 +148,6 @@ int EGTBProbe (TREE *tree, int ply, int wtm, int *score) {
   else if (tbValue < 0)
     *score=-MATE+2*(bev_mi1+tbValue);
   else
-    *score=0;
+    *score=DrawScore(root_wtm==wtm);
   return(1);
 }

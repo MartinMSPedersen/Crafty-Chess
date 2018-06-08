@@ -24,7 +24,7 @@ int InputMove(TREE *tree, char *text, int ply, int wtm, int silent,
   int moves[220], *mv, *mvp, *goodmove=0;
   int piece=-1, capture, promote, give_check;
   int ffile, frank, tfile, trank;
-  int current, i, nleft, ambig;
+  int current, i, nleft;
   char *goodchar;
   char movetext[128];
   static const char pieces[17]={' ',' ','P','p','N','n','K','k',' ',' ',
@@ -55,7 +55,6 @@ int InputMove(TREE *tree, char *text, int ply, int wtm, int silent,
   ffile=-1;
   trank=-1;
   tfile=-1;
-  ambig=0;
   goodchar=strchr(movetext,'#');
   if (goodchar) *goodchar=0;
 /*
@@ -215,21 +214,6 @@ int InputMove(TREE *tree, char *text, int ply, int wtm, int silent,
     }
   }
   if (nleft == 1) return(*goodmove);
-  if (ambig) {
-    if (nleft > 1) {
-      for (mv=&moves[0];mv<mvp;mv++) 
-        if (Piece(*mv) != pawn) *mv=0;
-      nleft=0;
-      for (mv=&moves[0];mv<mvp;mv++) {
-        if (*mv) {
-          nleft++;
-          goodmove=mv;
-        }
-      }
-      if (nleft == 1)
-        return(*goodmove);
-    }
-  }
   if (!silent) {
     if (nleft == 0) Print(4095,"Illegal move: %s\n",text);
     else if (piece < 0) Print(4095,"Illegal move (unrecognizable): %s\n",text);

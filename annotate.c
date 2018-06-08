@@ -4,7 +4,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 03/14/99 */
+/* last modified 04/20/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -76,7 +76,7 @@ void Annotate() {
   char text[128], tbuffer[512], colors[32]={""}, pname[128]={""};
   int annotate_margin, annotate_score[100], player_score, best_moves, annotate_wtm;
   int annotate_search_time_limit, search_player;
-  int twtm, path_len, analysis_printed=0, *mv;
+  int twtm, path_len, analysis_printed=0;
   int wtm, move_num, line1, line2, move, suggested, i;
   int searches_done, read_status;
   PATH temp[100], player_pv;
@@ -274,14 +274,14 @@ void Annotate() {
               search_player=0;
             }
             temp[searches_done]=tree->pv[0];
-            for (mv=tree->last[0];mv<tree->last[1];mv++) {
-              if (*mv == tree->pv[0].path[1]) {
-                for (;mv<tree->last[1]-1;mv++) *mv=*(mv+1);
-                tree->last[1]--;
+            for (i=0;i<n_root_moves;i++) {
+              if (root_moves[i].move == tree->pv[0].path[1]) {
+                for (;i<n_root_moves;i++) root_moves[i]=root_moves[i+1];
+                n_root_moves--;
                 break;
               }
             }
-            if (tree->last[1] < tree->last[0] ||
+            if (n_root_moves==0 ||
                 (player_score+annotate_margin>annotate_score[searches_done] &&
                  best_moves>0)) break;
           }

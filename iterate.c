@@ -5,7 +5,7 @@
 #include "data.h"
 #include "epdglue.h"
 
-/* last modified 12/07/98 */
+/* last modified 04/16/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -15,15 +15,13 @@
 *                                                                              *
 ********************************************************************************
 */
-int Iterate(int wtm, int search_type, int root_list_done)
-{
-  int *mvp;
+int Iterate(int wtm, int search_type, int root_list_done) {
+  ROOT_MOVE temp;
   int wpawn, bpawn, TB_use_ok;
   int i, value=0, time_used;
   int twtm, used;
-  int correct, correct_count, material=0, sorted, temp;
+  int correct, correct_count, material=0, sorted;
   TREE * const tree=local[0];
-
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -100,7 +98,7 @@ int Iterate(int wtm, int search_type, int root_list_done)
 |                                                          |
  ----------------------------------------------------------
 */
-    if (tree->last[0] == tree->last[1]) {
+    if (n_root_moves == 0) {
       program_end_time=ReadClock(time_type);
       tree->pv[0].pathl=0;
       tree->pv[0].pathd=10;
@@ -139,7 +137,7 @@ int Iterate(int wtm, int search_type, int root_list_done)
     iteration_depth=1;
     if (last_pv.pathd > 1)
       iteration_depth=last_pv.pathd+1;
-    Print(6,"              depth   time  score   variation (%d)\n",
+    Print(6,"          s   depth   time  score   variation (%d)\n",
           iteration_depth);
     time_abort=0;
     abort_search=0;
@@ -174,7 +172,6 @@ int Iterate(int wtm, int search_type, int root_list_done)
       root_value=-MATE-1;
       root_beta=MATE+1;
     }
-    for (i=0;i<256;i++) tree->root_nodes[i]=0;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -231,10 +228,17 @@ int Iterate(int wtm, int search_type, int root_list_done)
         printf("=      search iteration %2d       =\n",iteration_depth);
         printf("==================================\n");
       }
-      for (mvp=tree->last[0];mvp<tree->last[1];mvp++)
-        tree->searched_this_root_move[mvp-tree->last[0]]=0;
-      search_failed_high=0;
-      search_failed_low=0;
+      for (i=0;i<n_root_moves;i++) root_moves[i].status&=255-64;
+      for (i=0;i<Min(n_root_moves,4);i++) {
+        if (root_moves[i].nodes > 2*root_moves[0].nodes/3)
+          root_moves[i].status|=64;
+        else
+          root_moves[i].status&=255-64;
+      }
+      for (i=0;i<n_root_moves;i++) {
+        root_moves[i].status&=255-1-2-128;
+        root_moves[i].nodes=0;
+      }
       if (tree->nodes_searched) {
         nodes_between_time_checks=nodes_per_second;
         nodes_between_time_checks=Min(nodes_between_time_checks,MAX_TC_NODES);
@@ -255,17 +259,20 @@ int Iterate(int wtm, int search_type, int root_list_done)
                          iteration_depth*INCPLY+45);
         cpu_time_used+=ReadClock(cpu)-thread_start_time[0];
         if (value >= root_beta) {
-          search_failed_high=1;
-          root_alpha=root_beta-1;
+          root_moves[0].status|=2;
+          root_moves[0].status&=255-128;
+          if (root_moves[0].status&1) root_alpha=-MATE-1;
+          else root_alpha=root_beta-1;
           root_value=root_alpha;
           root_beta=MATE+1;
-          tree->searched_this_root_move[0]=0;
+          root_moves[0].nodes=0;
         }
         else if (value <= root_alpha) {
-          if (!search_failed_high) {
-            for (mvp=tree->last[0];mvp<tree->last[1];mvp++)
-              tree->searched_this_root_move[mvp-tree->last[0]]=0;
-            search_failed_low=1;
+          if (!(root_moves[0].status&2)) {
+            root_moves[0].status&=255-128;
+            root_moves[0].nodes=0;
+            root_moves[0].status|=1;
+            if (root_moves[0].status&2) root_beta=MATE+1;
             root_alpha=-MATE-1;
             root_value=root_alpha;
             easy_move=0;
@@ -274,13 +281,12 @@ int Iterate(int wtm, int search_type, int root_list_done)
                     DisplayTime(ReadClock(time_type)-start_time));
               if (display_options&64) Print(4,"%d. ",move_number);
               if ((display_options&64) && !wtm) Print(4,"... ");
-              Print(4,"%s\n",OutputMove(tree,*tree->last[0],1,wtm));
+              Print(4,"%s\n",OutputMove(tree,root_moves[0].move,1,wtm));
             }
           }
           else break;
         }
-        else
-          break;
+        else break;
       }
       if (root_value>root_alpha && root_value<root_beta) 
         last_search_value=root_value;
@@ -328,8 +334,30 @@ int Iterate(int wtm, int search_type, int root_list_done)
       root_alpha=value-40;
       root_value=root_alpha;
       root_beta=value+40;
-      if (iteration_depth>3 && value>MATE-300 &&
-          value>last_mate_score) break;
+      do {
+        sorted=1;
+        for (i=1;i<n_root_moves-1;i++) {
+          if (root_moves[i].nodes < root_moves[i+1].nodes) {
+            temp=root_moves[i];
+            root_moves[i]=root_moves[i+1];
+            root_moves[i+1]=temp;
+            sorted=0;
+          }
+        }
+      } while(!sorted);
+      if (display_options&256) {
+        unsigned int total_nodes=0;
+        Print(4095,"       move       nodes      hi/low\n");
+        for (i=0;i<n_root_moves;i++) {
+          total_nodes+=root_moves[i].nodes;
+          Print(4095," %10s  %10d       %d   %d\n",
+            OutputMove(tree,root_moves[i].move,1,wtm),
+                       (unsigned int)root_moves[i].nodes,
+                       (root_moves[i].status&2)>0,(root_moves[i].status&1)>0);
+        }
+        Print(256,"      total  %10d\n",total_nodes);
+      }
+      if (iteration_depth>3 && value>MATE-300 && value>last_mate_score) break;
       if ((iteration_depth >= search_depth) && search_depth) break;
       if (time_abort || abort_search) break;
       end_time=ReadClock(time_type)-start_time;
@@ -337,26 +365,6 @@ int Iterate(int wtm, int search_type, int root_list_done)
       if (correct_count >= early_exit) break;
       if (iteration_depth>3 && TotalPieces<=5 && TB_use_ok &&
           EGTBlimit && EGTBProbe(tree, 1, wtm, &i) && EGTB_use) break;
-      do {
-        sorted=1;
-        for (mvp=tree->last[0]+1;mvp<tree->last[1]-1;mvp++) {
-          if (tree->root_nodes[mvp-tree->last[0]] < tree->root_nodes[mvp-tree->last[0]+1]) {
-            temp=*mvp;
-            *mvp=*(mvp+1);
-            *(mvp+1)=temp;
-            temp=tree->root_nodes[mvp-tree->last[0]];
-            tree->root_nodes[mvp-tree->last[0]]=tree->root_nodes[mvp-tree->last[0]+1];
-            tree->root_nodes[mvp-tree->last[0]+1]=temp;
-            sorted=0;
-          }
-        }
-      } while(!sorted);
-/*
-      for (mvp=tree->last[0];mvp<tree->last[1];mvp++) {
-        Print(4095," %10s  %10d\n",
-          OutputMove(tree,*mvp,1,wtm),tree->root_nodes[mvp-tree->last[0]]);
-      }
-*/
     }
 /*
  ----------------------------------------------------------

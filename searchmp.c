@@ -5,7 +5,7 @@
 #include "data.h"
 #include "epdglue.h"
 
-/* modified 04/08/98 */
+/* modified 04/19/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -21,7 +21,7 @@
 #if defined(SMP)
 int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
               int depth, int ply, int threat) {
-  register int extensions;
+  register int extensions, begin_root_nodes;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -35,14 +35,19 @@ int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
 */
   while (1) {
     Lock(tree->parent->lock);
-    tree->current_phase[ply]=(tree->in_check[ply]) ? 
-                             NextEvasion((TREE*)tree->parent,ply,wtm) : 
-                             NextMove((TREE*)tree->parent,ply,wtm);
+    if (ply == 1) {
+      tree->current_phase[ply]=NextRootMove((TREE*)tree->parent,wtm);
+      tree->root_move=tree->parent->root_move;
+    }
+    else
+      tree->current_phase[ply]=(tree->in_check[ply]) ? 
+                               NextEvasion((TREE*)tree->parent,ply,wtm) : 
+                               NextMove((TREE*)tree->parent,ply,wtm);
     tree->current_move[ply]=tree->parent->current_move[ply];
     UnLock(tree->parent->lock);
     if (!tree->current_phase[ply]) break;
     tree->extended_reason[ply]&=check_extension;
-#if !defined(FAST)
+#if defined(TRACE)
     if (ply <= trace_level)
       SearchTrace(tree,ply,depth,wtm,alpha,beta,"SearchSMP",tree->current_phase[ply]);
 #endif
@@ -61,7 +66,8 @@ int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
       extensions+=threat_depth;
       tree->threat_extensions_done++;
     }
-    if (Captured(tree->current_move[ply]) && Captured(tree->current_move[ply-1]) &&
+    if (ply>1 && Captured(tree->current_move[ply]) &&
+        Captured(tree->current_move[ply-1]) &&
         To(tree->current_move[ply-1]) == To(tree->current_move[ply]) &&
         (p_values[Captured(tree->current_move[ply-1])+7] == 
          p_values[Captured(tree->current_move[ply])+7] ||
@@ -139,6 +145,7 @@ int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
                                      -(beta+51),-(alpha-51));
         if (value+50 < alpha) extensions-=60;
       }
+      begin_root_nodes=tree->nodes_searched;
       extensions=Min(extensions,0);
       value=-ABSearch(tree,-alpha-1,-alpha,ChangeSide(wtm),
                       depth+extensions,ply+1,DO_NULL);
@@ -164,12 +171,24 @@ int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
 |                                                          |
  ----------------------------------------------------------
 */
+      if (ply == 1)
+        root_moves[tree->root_move].nodes=tree->nodes_searched-begin_root_nodes;
       if (value > alpha) {
+        if (ply == 1) {
+          Lock(lock_root);
+          if (value > root_value) {
+            SearchOutput(tree,value,beta);
+            tree->parent->pv[0]=tree->pv[0];
+            root_value=value;
+          }
+          UnLock(lock_root);
+        }
         if(value >= beta) {
           register int proc;
           parallel_stops++;
           UnMakeMove(tree,ply,tree->current_move[ply],wtm);
           tree->search_value=value;
+          Lock(lock_smp);
           Lock(tree->parent->lock);
           if (!tree->stop) {
             for (proc=0;proc<max_threads;proc++)
@@ -177,6 +196,7 @@ int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
                 ThreadStop(tree->parent->siblings[proc]);
           }
           UnLock(tree->parent->lock);
+          UnLock(lock_smp);
           break;
         }
         alpha=value;
@@ -186,6 +206,7 @@ int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
     tree->search_value=alpha;
   }
   tree->parent->done=1;
+  if (tree->stop && ply==1) root_moves[tree->root_move].status&=255-128;
   return(0);
 }
 #endif

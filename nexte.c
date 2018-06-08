@@ -32,8 +32,7 @@
 *                                                                              *
 ********************************************************************************
 */
-int NextEvasion(TREE *tree, int ply, int wtm)
-{
+int NextEvasion(TREE *tree, int ply, int wtm) {
   register int *movep, *sortv;
   register int done, temp;
 

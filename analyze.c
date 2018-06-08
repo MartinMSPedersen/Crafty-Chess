@@ -4,7 +4,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 05/19/97 */
+/* last modified 05/12/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -26,12 +26,12 @@ void Analyze() {
 |                                                          |
  ----------------------------------------------------------
 */
-    int save_swindle_mode=swindle_mode;
-    swindle_mode=0;
-    ponder_move=0;
-    analyze_mode=1;
-    if (!xboard) display_options|=1+2+4;
-    printf("Analyze Mode: type \"exit\" to terminate.\n");
+  int save_swindle_mode=swindle_mode;
+  swindle_mode=0;
+  ponder_move=0;
+  analyze_mode=1;
+  if (!xboard) display_options|=1+2+4;
+  printf("Analyze Mode: type \"exit\" to terminate.\n");
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -40,95 +40,125 @@ void Analyze() {
 |                                                          |
  ----------------------------------------------------------
 */
+  do {
     do {
-      do {
-        last_pv.pathd=0;
-        last_pv.pathl=0;
-        analyze_move_read=0;
-        pondering=1;
-        tree->position[1]=tree->position[0];
-        (void) Iterate(wtm,think,0);
-        pondering=0;
-        if (book_move) moves_out_of_book=0;
-        if (!xboard) {
+      last_pv.pathd=0;
+      last_pv.pathl=0;
+      analyze_move_read=0;
+      pondering=1;
+      tree->position[1]=tree->position[0];
+      (void) Iterate(wtm,think,0);
+      pondering=0;
+      if (book_move) moves_out_of_book=0;
+      if (!xboard) {
+        if (wtm) printf("analyze.White(%d): ",move_number);
+        else printf("analyze.Black(%d): ",move_number);
+        fflush(stdout);
+      }
+/*
+ ----------------------------------------------------------
+|                                                          |
+|  if we get back to here, something has been typed in and |
+|  is in the command buffer normally, unless the search    |
+|  terminated naturally due to finding a mate or reaching  |
+|  the max depth allowable.                                |
+|                                                          |
+ ----------------------------------------------------------
+*/
+      if (!analyze_move_read) do {
+        readstat=Read(1,buffer);
+        if (readstat < 0) break;
+        nargs=ReadParse(buffer,args," 	;");
+        Print(4095,"%s\n",buffer);
+        if (strstr(args[0],"timeleft") && !xboard) {
           if (wtm) printf("analyze.White(%d): ",move_number);
           else printf("analyze.Black(%d): ",move_number);
           fflush(stdout);
         }
-        if (!analyze_move_read) do {
-          readstat=Read(1,buffer);
-          if (readstat < 0) break;
-          nargs=ReadParse(buffer,args," 	;");
-          Print(4095,"%s\n",buffer);
-          if (strstr(args[0],"timeleft") && !xboard) {
-            if (wtm) printf("analyze.White(%d): ",move_number);
-            else printf("analyze.Black(%d): ",move_number);
-            fflush(stdout);
-          }
-        } while (strstr(args[0],"timeleft"));
-        else nargs=ReadParse(buffer,args," 	;");
-        if (readstat < 0) break;
-        move=0;
-        if (!strcmp(args[0],"exit")) break;
-        move=InputMove(tree,args[0],0,wtm,1,0);
-        if (move) {
-          fseek(history_file,((move_number-1)*2+1-wtm)*10,SEEK_SET);
-          fprintf(history_file,"%9s\n",OutputMove(tree,move,0,wtm));
-          if (!xboard) {
-            if (wtm) Print(128,"White(%d): ",move_number);
-              else Print(128,"Black(%d): ",move_number);
-            Print(128,"%s\n",OutputMove(tree,move,0,wtm));
-          }
-          else {
-            if (wtm) Print(128,"White(%d): ",move_number);
-              else Print(128,"Black(%d): ",move_number);
-            Print(128,"%s\n",OutputMove(tree,move,0,wtm));
-          }
-          MakeMoveRoot(tree,move,wtm);
-          display=tree->pos;
-          last_mate_score=0;
+      } while (strstr(args[0],"timeleft"));
+      else nargs=ReadParse(buffer,args," 	;");
+      if (readstat < 0) break;
+      move=0;
+      if (!strcmp(args[0],"exit")) break;
+/*
+ ----------------------------------------------------------
+|                                                          |
+|  if InputMove() can recognize this as a move, make it,   |
+|  swap sides, and return to the top of the loop to call   |
+|  search from this new position.                          |
+|                                                          |
+ ----------------------------------------------------------
+*/
+      move=InputMove(tree,args[0],0,wtm,1,0);
+      if (move) {
+        fseek(history_file,((move_number-1)*2+1-wtm)*10,SEEK_SET);
+        fprintf(history_file,"%9s\n",OutputMove(tree,move,0,wtm));
+        if (wtm) Print(128,"White(%d): ",move_number);
+        else Print(128,"Black(%d): ",move_number);
+        Print(128,"%s\n",OutputMove(tree,move,0,wtm));
+        MakeMoveRoot(tree,move,wtm);
+        display=tree->pos;
+        last_mate_score=0;
+      }
+/*
+ ----------------------------------------------------------
+|                                                          |
+|  InputMove() didn't successfully parse the input, so it  |
+|  must be either a special analyze mode command (ie back) |
+|  or else an option that needs to be handled by Option(). |
+|                                                          |
+ ----------------------------------------------------------
+*/
+      else if (OptionMatch("back",args[0])) {
+        if (nargs > 1) back_number=atoi(args[1]);
+        else back_number=1;
+        for (i=0;i<back_number;i++) {
+          wtm=ChangeSide(wtm);
+          if (ChangeSide(wtm)) move_number--;
         }
-        else if (OptionMatch("back",args[0])) {
-          if (nargs > 1) back_number=atoi(args[1]);
-          else back_number=1;
-          for (i=0;i<back_number;i++) {
-            wtm=ChangeSide(wtm);
-            if (ChangeSide(wtm)) move_number--;
-          }
+        if (move_number == 0) {
+          move_number=1;
+          wtm=1;
+        }
+        sprintf(buffer,"reset %d",move_number);
+        (void) Option(tree);
+        display=tree->pos;
+      }
+      else if (Option(tree));
+/*
+ ----------------------------------------------------------
+|                                                          |
+|  If Option() didn't handle the input, then it might be   |
+|  something from the DGT driver, and something from there |
+|  means to retract a move.                                |
+|                                                          |
+ ----------------------------------------------------------
+*/
+      else {
+        if (!DGT_active) {
+          pondering=0;
+          if (Option(tree) == 0) printf("illegal move.\n");
+          pondering=1;
+        }
+        else {
+          wtm=ChangeSide(wtm);
+          if (ChangeSide(wtm)) move_number--;
           if (move_number == 0) {
             move_number=1;
             wtm=1;
           }
           sprintf(buffer,"reset %d",move_number);
           (void) Option(tree);
-          display=tree->pos;
         }
-        else if (Option(tree));
-        else {
-          if (!DGT_active) {
-            pondering=0;
-            if (Option(tree) == 0) printf("illegal move.\n");
-            pondering=1;
-          }
-          else {
-            wtm=ChangeSide(wtm);
-            if (ChangeSide(wtm)) move_number--;
-            if (move_number == 0) {
-              move_number=1;
-              wtm=1;
-            }
-            sprintf(buffer,"reset %d",move_number);
-            (void) Option(tree);
-          }
-          display=tree->pos;
-        }
-      } while (!move);
-      if (readstat < 0 || !strcmp(args[0],"exit")) break;
-      wtm=ChangeSide(wtm);
-      if (wtm) move_number++;
-    } while (1);
-    analyze_mode=0;
-    printf("analyze complete.\n");
-    pondering=0;
-    swindle_mode=save_swindle_mode;
+        display=tree->pos;
+      }
+    } while (!move);
+    if (readstat < 0 || !strcmp(args[0],"exit")) break;
+    wtm=ChangeSide(wtm);
+    if (wtm) move_number++;
+  } while (1);
+  analyze_mode=0;
+  printf("analyze complete.\n");
+  pondering=0;
+  swindle_mode=save_swindle_mode;
 }

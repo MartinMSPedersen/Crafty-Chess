@@ -223,7 +223,7 @@
 #define KNIGHT_VALUE            300
 #define BISHOP_VALUE            300
 #define ROOK_VALUE              500
-#define QUEEN_VALUE             900
+#define QUEEN_VALUE             950
 #define KING_VALUE            40000
 #define EG_MAT                   14
   
@@ -281,6 +281,11 @@ typedef struct {
   signed   char b_castle;
   unsigned char rule_50_moves;
 } SEARCH_POSITION;
+  
+typedef struct {
+  int             move1;
+  int             move2;
+} KILLER;
 
 typedef  struct {
   BITBOARD       w_occupied;
@@ -348,6 +353,18 @@ typedef struct {
   int remaining;
   int *last;
 } NEXT_MOVE;
+  
+typedef struct {
+  BITBOARD nodes;
+  int move;
+/* 
+  xxxx xxx1 = failed low
+  xxxx xx1x = failed high
+  1xxx xxxx = done (searched)
+  x1xx xxxx = don't search in parallel
+*/
+  unsigned char status;
+} ROOT_MOVE;
 
 typedef struct {
   BITBOARD position;
@@ -392,18 +409,17 @@ struct tree {
   unsigned int    passed_pawn_extensions_done;
   unsigned int    one_reply_extensions_done;
   unsigned int    threat_extensions_done;
-  int             killer_move1[MAXPLY];
-  int             killer_move2[MAXPLY];
+  KILLER          killers[MAXPLY];
   int             move_list[5120];
   int             sort_value[256];
-  unsigned int    root_nodes[256];
   signed char     in_check[MAXPLY];
   signed char     extended_reason[MAXPLY];
   signed char     current_phase[MAXPLY];
-  signed char     searched_this_root_move[256];
   int             search_value;
   int             w_safety, b_safety;
   int             w_kingsq, b_kingsq;
+  int             endgame;
+  int             root_move;
   lock_t          lock;
   int             thread_id;
   volatile char   stop;
@@ -465,6 +481,7 @@ typedef struct tree TREE;
 #define UPPER                     2
 #define EXACT                     3
 #define AVOID_NULL_MOVE           4
+#define FAIL_LOW_POS              5
 
 #define NULL_MOVE                 0
 #define DO_NULL                   1
@@ -530,7 +547,7 @@ char*          DisplayEvaluation(int);
 char*          DisplayEvaluationWhisper(int);
 void           DisplayFT(int, int, int);
 char*          DisplayHHMM(unsigned int);
-void           DisplayPieceBoards(int*, int*);
+void           DisplayPieceBoards(signed char*, signed char*);
 void           DisplayPV(TREE*, int, int, int, int, PATH*);
 char*          DisplaySQ(unsigned int);
 char*          DisplayTime(unsigned int);
@@ -596,6 +613,7 @@ void           NewGame(int);
 int            NextEvasion(TREE*, int, int);
 int            NextMove(TREE*, int, int);
 int            NextRootMove(TREE*, int);
+int            NextRootMoveParallel(void);
 char*          Normal(void);
 int            Option(TREE*);
 int            OptionMatch(char*, char*);

@@ -24,8 +24,7 @@
 *                                                                              *
 ********************************************************************************
 */
-int Ponder(int wtm)
-{
+int Ponder(int wtm) {
   int dalpha=-999999, dbeta=999999, dthreat=0, i, *n_ponder_moves, *mv;
   int save_move_number;
   TREE * const tree=local[0];
@@ -83,13 +82,13 @@ int Ponder(int wtm)
     last_pv.pathl=0;
     last_pv.pathd=0;
     for (i=0;i<MAXPLY;i++) {
-      tree->killer_move1[i]=0;
-      tree->killer_move2[i]=0;
+      tree->killers[i].move1=0;
+      tree->killers[i].move2=0;
     }
     (void) Iterate(wtm,puzzle,0);
     for (i=0;i<MAXPLY;i++) {
-      tree->killer_move1[i]=0;
-      tree->killer_move2[i]=0;
+      tree->killers[i].move1=0;
+      tree->killers[i].move2=0;
     }
     puzzling=0;
     if (tree->pv[0].pathl) ponder_move=tree->pv[0].path[1];

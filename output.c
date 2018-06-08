@@ -184,8 +184,7 @@ char* OutputMoveICS(int move) {
   return (text_move);
 }
 
-int OutputGood(TREE *tree, char* text, int ply, int wtm)
-{
+int OutputGood(TREE *tree, char* text, int ply, int wtm) {
   int new_move;
   new_move=InputMove(tree,text,ply,wtm,1,0);
   return (Piece(new_move));

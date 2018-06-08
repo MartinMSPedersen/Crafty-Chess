@@ -13,9 +13,9 @@
 
 
 #if defined(COMPACT_ATTACKS)
-extern unsigned char init_l90[];
-extern unsigned char init_l45[];
-extern unsigned char init_r45[];
+extern const unsigned char init_l90[];
+extern const unsigned char init_l45[];
+extern const unsigned char init_r45[];
 #else
 int init_r90[64] = { 56, 48, 40, 32, 24, 16,  8,  0, 
                      57, 49, 41, 33, 25, 17,  9,  1, 
@@ -154,6 +154,7 @@ void Initialize(int continuing) {
   EGInit();
 
   tree->last[0]=tree->move_list;
+  tree->last[1]=tree->move_list;
 
 #if defined(MACOS)
   sprintf(log_filename,":%s:book.bin",book_path);
@@ -198,6 +199,8 @@ void Initialize(int continuing) {
     major=major>>16;
     if (major<15 || (major==15 && minor<15)) {
       Print(4095,"\nERROR!  book.bin not made by version 15.15 or later\n");
+      fclose(book_file);
+      fclose(books_file);
       book_file=0;
       books_file=0;
     }
@@ -325,14 +328,16 @@ void Initialize(int continuing) {
 
   for (i=0;i<8;i++)
     for (j=0;j<8;j++) {
-      pawn_value_b[i*8+j]=  pawn_value_w[(7-i)*8+j];
-      knight_value_b[i*8+j]=knight_value_w[(7-i)*8+j];
-      bishop_value_b[i*8+j]=bishop_value_w[(7-i)*8+j];
-      rook_value_b[i*8+j]=  rook_value_w[(7-i)*8+j];
-      queen_value_b[i*8+j]= queen_value_w[(7-i)*8+j];
-      king_value_bn[i*8+j]= king_value_wn[(7-i)*8+j];
-      king_value_bk[i*8+j]= king_value_wk[(7-i)*8+j];
-      king_value_bq[i*8+j]= king_value_wq[(7-i)*8+j];
+      pval_b[i*8+j]=  pval_w[(7-i)*8+j];
+      nval_b[i*8+j]=nval_w[(7-i)*8+j];
+      bval_b[i*8+j]=bval_w[(7-i)*8+j];
+      rval_b[i*8+j]=  rval_w[(7-i)*8+j];
+      qval_b[i*8+j]= qval_w[(7-i)*8+j];
+      kval_bn[i*8+j]= kval_wn[(7-i)*8+j];
+      kval_bk[i*8+j]= kval_wk[(7-i)*8+j];
+      kval_bq[i*8+j]= kval_wq[(7-i)*8+j];
+      black_outpost[i*8+j]= white_outpost[(7-i)*8+j];
+      king_defects_b[i*8+j]=king_defects_w[(7-i)*8+j];
     }
 }
 
@@ -1149,6 +1154,15 @@ void InitializeMasks(void) {
 
   mask_A7H7=Or(SetMask(A7),SetMask(H7));
   mask_A2H2=Or(SetMask(A2),SetMask(H2));
+
+  mask_A3B3=Or(SetMask(A3),SetMask(B3));
+  mask_B3C3=Or(SetMask(B3),SetMask(C3));
+  mask_F3G3=Or(SetMask(F3),SetMask(G3));
+  mask_G3H3=Or(SetMask(G3),SetMask(H3));
+  mask_A6B6=Or(SetMask(A6),SetMask(B6));
+  mask_B6C6=Or(SetMask(B6),SetMask(C6));
+  mask_F6G6=Or(SetMask(F6),SetMask(G6));
+  mask_G6H6=Or(SetMask(G6),SetMask(H6));
 }
 
 void InitializePawnMasks(void)
@@ -1250,11 +1264,6 @@ void InitializePawnMasks(void)
   mask_right_edge=Compl(file_mask[FILEH]);
   mask_advance_2_w=rank_mask[RANK3];
   mask_advance_2_b=rank_mask[RANK6];
-
-  mask_A3C3=Or(set_mask[A3],set_mask[C3]);
-  mask_A6C6=Or(set_mask[A6],set_mask[C6]);
-  mask_F3H3=Or(set_mask[F3],set_mask[H3]);
-  mask_F6H6=Or(set_mask[F6],set_mask[H6]);
 /* 
   these masks have 1's on the squares where it is useful to have a bishop
   when the b or g pawn is missing or pushed one square.
@@ -1421,6 +1430,7 @@ void InitializeSMP(void) {
   LockInit(lock_pawn_hash);
   LockInit(lock_smp);
   LockInit(lock_io);
+  LockInit(lock_root);
   for (i=0;i<64+1;i++)
     LockInit(local[i]->lock);
 }

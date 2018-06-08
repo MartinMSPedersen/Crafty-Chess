@@ -24,8 +24,7 @@
 *                                                                              *
 ********************************************************************************
 */
-int Swap(TREE *tree, int source, int target, int wtm)
-{
+int Swap(TREE *tree, int source, int target, int wtm) {
   register BITBOARD attacks;
   register int attacked_piece;
   register int square, direction;
@@ -35,18 +34,12 @@ int Swap(TREE *tree, int source, int target, int wtm)
  ----------------------------------------------------------
 |                                                          |
 |   determine which squares attack <target> for each side. |
+|   initialize by placing the piece on <target> first in   |
+|   the list as it is being captured to start things off.  |
 |                                                          |
  ----------------------------------------------------------
 */
   attacks=AttacksTo(tree,target);
-/*
- ----------------------------------------------------------
-|                                                          |
-|   initialize by placing the piece on <target> first in   |
-| the list as it is being captured to start things off.    |
-|                                                          |
- ----------------------------------------------------------
-*/
   attacked_piece=p_values[PieceOnSquare(target)+7];
 /*
  ----------------------------------------------------------
@@ -160,8 +153,7 @@ int Swap(TREE *tree, int source, int target, int wtm)
 *                                                                              *
 ********************************************************************************
 */
-BITBOARD SwapXray(TREE *tree, BITBOARD attacks, int from, int direction)
-{
+BITBOARD SwapXray(TREE *tree, BITBOARD attacks, int from, int direction) {
   switch (direction) {
   case 1: 
     return(Or(attacks,

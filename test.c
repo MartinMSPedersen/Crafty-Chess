@@ -32,8 +32,7 @@
 *                                                                              *
 ********************************************************************************
 */
-void Test(char *filename)
-{
+void Test(char *filename) {
   FILE *test_input;
   int i, move, right=0, wrong=0, correct;
   int time=0, len;
@@ -87,10 +86,10 @@ void Test(char *filename)
       Print(4095,"!\n");
       Print(4095,"======================================================================\n");
     }
-    else if (!strcmp(args[0],"setboard")) {
-      SetBoard(nargs-1,args+1,0);
+    else if (strcmp(args[0],"solution")) {
+      Option(tree);
     }
-    else if (!strcmp(args[0],"solution")) {
+    else {
       number_of_solutions=0;
       solution_type=0;
       Print(4095,"solution ");

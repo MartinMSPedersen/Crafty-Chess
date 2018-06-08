@@ -5,7 +5,7 @@
 #include "data.h"
 #include "epdglue.h"
 
-/* last modified 02/08/99 */
+/* last modified 04/01/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -59,7 +59,7 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
   if (RepetitionCheck(tree,ply,wtm)) {
     value=DrawScore(root_wtm==wtm);
     if (value < beta) SavePV(tree,ply,value,0);
-#if !defined(FAST)
+#if defined(TRACE)
     if(ply <= trace_level) printf("draw by repetition detected, ply=%d.\n",ply);
 #endif
     return(value);
@@ -188,7 +188,7 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
     register BITBOARD save_hash_key;
     tree->current_move[ply]=0;
     tree->current_phase[ply]=NULL_MOVE;
-#if !defined(FAST)
+#if defined(TRACE)
     if (ply <= trace_level)
       SearchTrace(tree,ply,depth,wtm,beta-1,beta,"Search",0);
 #endif
@@ -227,7 +227,6 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
 */
   tree->next_status[ply].phase=FIRST_PHASE;
   if (tree->hash_move[ply]==0 && do_null && depth>=3*INCPLY) do {
-    int local_threat, local_alpha=-999999, local_beta=999999;
     if (ply & 1) {
       if (alpha!=root_alpha || beta!=root_beta) break;
     }
@@ -235,15 +234,17 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
       if (alpha!=-root_beta || beta!=-root_alpha) break;
     }
     tree->current_move[ply]=0;
-    value=ABSearch(tree,alpha,beta,wtm,depth-2*INCPLY,ply,0);
+    value=ABSearch(tree,alpha,beta,wtm,depth-2*INCPLY,ply,DO_NULL);
     if (abort_search || tree->stop) return(0);
     if (value <= alpha) {
-      value=ABSearch(tree,-MATE,beta,wtm,depth-2*INCPLY,ply,0);
+      value=ABSearch(tree,-MATE,beta,wtm,depth-2*INCPLY,ply,DO_NULL);
       if (abort_search || tree->stop) return(0);
     }
-    HashProbe(tree,ply,9999,wtm,&local_alpha,&local_beta,&local_threat);
-    if (!tree->hash_move[ply] && value!=-MATE+ply)
-      Print(4095,"Internal deepening failure, ply=%d, val=%d\n",ply,value);
+    else if (value < beta) {
+      if ((int) tree->pv[ply-1].pathl >= ply) 
+        tree->hash_move[ply]=tree->pv[ply-1].path[ply];
+    }
+    else tree->hash_move[ply]=tree->current_move[ply];
     tree->last[ply]=tree->last[ply-1];
     tree->next_status[ply].phase=FIRST_PHASE;
   } while(0);
@@ -261,7 +262,7 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
   while ((tree->current_phase[ply]=(tree->in_check[ply]) ?
          NextEvasion(tree,ply,wtm) : NextMove(tree,ply,wtm))) {
     tree->extended_reason[ply]&=check_extension;
-#if !defined(FAST)
+#if defined(TRACE)
     if (ply <= trace_level)
       SearchTrace(tree,ply,depth,wtm,alpha,beta,"Search",tree->current_phase[ply]);
 #endif
@@ -417,29 +418,27 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
     } else tree->nodes_searched++;
     UnMakeMove(tree,ply,tree->current_move[ply],wtm);
 #if defined(SMP)
-    if (smp_idle) {
-      if (moves_searched && min_thread_depth<=depth && 
-        (!tree->in_check[ply] || tree->last[ply]-tree->last[ply-1]>1)) {
-        tree->alpha=alpha;
-        tree->beta=beta;
-        tree->value=value;
-        tree->wtm=wtm;
-        tree->ply=ply;
-        tree->depth=depth;
-        tree->threat=threat;
-        if(Thread(tree)) {
-          if (CheckInput()) Interrupt(ply);
-          value=tree->search_value;
-          if (value > alpha) {
-            if(value >= beta) {
-              History(tree,ply,depth,wtm,tree->current_move[ply]);
-              HashStore(tree,ply,depth,wtm,LOWER,value,threat);
-              tree->fail_high++;
-              return(value);
-            }
-            alpha=value;
-            break;
+    if (smp_idle && moves_searched && min_thread_depth<=depth) {
+      tree->alpha=alpha;
+      tree->beta=beta;
+      tree->value=alpha;
+      tree->wtm=wtm;
+      tree->ply=ply;
+      tree->depth=depth;
+      tree->threat=threat;
+      if(Thread(tree)) {
+        if (abort_search || tree->stop) return(0);
+        if (CheckInput()) Interrupt(ply);
+        value=tree->search_value;
+        if (value > alpha) {
+          if(value >= beta) {
+            History(tree,ply,depth,wtm,tree->current_move[ply]);
+            HashStore(tree,ply,depth,wtm,LOWER,value,threat);
+            tree->fail_high++;
+            return(value);
           }
+          alpha=value;
+          break;
         }
       }
     }
@@ -458,7 +457,7 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
     value=(Check(wtm)) ? -(MATE-ply) : DrawScore(root_wtm==wtm);
     if (value>=alpha && value<beta) {
       SavePV(tree,ply,value,0);
-#if !defined(FAST)
+#if defined(TRACE)
       if (ply <= trace_level) printf("Search() no moves!  ply=%d\n",ply);
 #endif
     }

@@ -18,14 +18,31 @@
 *  of Computer and Information Sciences, University of Alabama at Birmingham. *
 *                                                                             *
 *  All rights reserved.  No part of this program may be reproduced in any     *
-*  form or by any means, for other than your personal use.  If you want to    *
-*  distribute this software in any form, you must first obtain the written    *
-*  permission of the author, and you must distribute this program with all of *
-*  the original copyright notice intact.  Any changes made to this software   *
-*  must also be made public to comply with the original intent of this soft-  *
-*  ware distribution project.  These restrictions apply whether the           *
-*  distribution is being done for free or as part or all of a commercial      *
-*  product.                                                                   *
+*  form or by any means, for other than your personal use, without the        *
+*  express written permission of the author.  This program may not be used in *
+*  whole, nor in part, to enter any computer chess competition without        *
+*  written permission from the author.  Such permission will include the      *
+*  requirement that the program be entered under the name "Crafty" so that    *
+*  the program's ancestry will be known.                                      *
+*                                                                             *
+*  Copies of the source must contain the original copyright notice intact.    *
+*                                                                             *
+*  Any changes made to this software must also be made public to comply with  *
+*  the original intent of this software distribution project.  These          *
+*  restrictions apply whether the distribution is being done for free or as   *
+*  part or all of a commercial product.  The author retains sole ownership    *
+*  and copyright on this program except for 'personal use' explained below.   *
+*                                                                             *
+*  personal use includes any use you make of the program yourself, either by  *
+*  playing games with it yourself, or allowing others to play it on your      *
+*  machine,  and requires that if others use the program, it must be clearly  *
+*  identified as "Crafty" to anyone playing it (on a chess server as one      *
+*  example).  Personal use does not allow anyone to enter this into a chess   *
+*  tournament where other program authors are invited to participate.  IE you *
+*  can do your own local tournament, with Crafty + other programs, since this *
+*  is for your personal enjoyment.  But you may not enter Crafty into an      *
+*  event where it will be in competition with other programs/programmers      *
+*  without permission as stated previously.                                   *
 *                                                                             *
 *  Crafty is the "son" (direct descendent) of Cray Blitz.  it is designed     *
 *  totally around the bit-board data structure for reasons of speed of ex-    *
@@ -2356,10 +2373,36 @@
 *           annotate command bug that would produce odd output in multi-game  *
 *           PGN files.                                                        *
 *                                                                             *
+*   16.7    minor bug in 'book create' command would produce wrong line num-  *
+*           bers if you used two book create commands without restarting      *
+*           crafty between uses.  replaced "ls" command with a !cmd shell     *
+*           escape to allow _any_ command to be executed by a shell. change   *
+*           to bishop scoring to avoid a bonus for a bishop pair _and_ a good *
+*           bishop sitting at g2/g7/etc to fill a pawn hole.  if the bishop   *
+*           fills that hole, the bishop pair score is reduced by 1/2 to avoid *
+*           scores getting too large.  another ugly SMP bug fixed.  it was    *
+*           for the CopyFromSMP() function to fail because Search() put the   *
+*           _wrong_ value into tree->value.  the "don't castle into an unsafe *
+*           king position" code was scaled up a bit as it wasn't quite up to  *
+*           detecting all cases of this problem.  the parallel search has     *
+*           been modified so that it can now split the tree at the root, as   *
+*           well as at deeper nodes.  this has improved the parallel search   *
+*           efficiency noticably while also making the code a bit more        *
+*           complex.  this uses an an adaptive algorithm that pays close      *
+*           attention to the node count for each root move.  if one (or more) *
+*           moves below the best move have high node counts (indicating that  *
+*           these moves might become new 'best' moves) then these moves are   *
+*           flagged as "don't search in parallel" so that all such moves are  *
+*           searched one by one, using all processors so that a new best move *
+*           if found faster.  positional scores were scaled back 50% and the  *
+*           king safety code was again modified to incorporate pawn storms,   *
+*           which was intentionally ignored in the last major revision.  many *
+*           other scoring terms have been modified as well to attempt to      *
+*           bring the scores back closer to something reasonable.             *
+*                                                                             *
 *******************************************************************************
 */
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
   int move, presult, readstat;
   int value=0, i, cont=0, result;
   char *targs[32];

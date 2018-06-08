@@ -3,8 +3,7 @@
 #include "chess.h"
 #include "data.h"
 
-void ValidatePosition(TREE *tree, int ply, int move, char *caller)
-{
+void ValidatePosition(TREE *tree, int ply, int move, char *caller) {
   BITBOARD temp, temp_occ, temp_occ_rl90, temp_occ_rl45;
   BITBOARD temp_occ_rr45, temp_occx, cattacks, rattacks;
   unsigned int temp1;
@@ -534,8 +533,7 @@ void ValidatePosition(TREE *tree, int ply, int move, char *caller)
   }
 }
 
-BITBOARD ValidateComputeBishopAttacks(TREE *tree, int square)
-{
+BITBOARD ValidateComputeBishopAttacks(TREE *tree, int square) {
   BITBOARD attacks, temp_attacks;
   BITBOARD temp7, temp9;
   attacks=bishop_attacks[square];
@@ -552,8 +550,7 @@ BITBOARD ValidateComputeBishopAttacks(TREE *tree, int square)
   return(attacks);
 }
 
-BITBOARD ValidateComputeRookAttacks(TREE *tree, int square)
-{
+BITBOARD ValidateComputeRookAttacks(TREE *tree, int square) {
   BITBOARD attacks, temp_attacks;
   BITBOARD temp1, temp8;
   attacks=rook_attacks[square];

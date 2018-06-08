@@ -3,7 +3,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 03/12/98 */
+/* last modified 05/12/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -14,16 +14,7 @@
 ********************************************************************************
 */
 BITBOARD AttacksFrom(TREE *tree, int square, int wtm) {
-/*
- ----------------------------------------------------------
-|                                                          |
-|  determine the type of piece on <square>.  if it's not a |
-|  sliding piece, simply return the normal attack bitmap.  |
-|  otherwise, use the rotated bitboards to compute the     |
-|  attack bitmap..                                         |
-|                                                          |
- ----------------------------------------------------------
-*/
+
   switch (abs(PieceOnSquare(square))) {
   case pawn:
     if (wtm) return(w_pawn_attacks[square]);
@@ -43,7 +34,7 @@ BITBOARD AttacksFrom(TREE *tree, int square, int wtm) {
   }
 }
 
-/* last modified 01/12/99 */
+/* last modified 05/12/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -58,16 +49,7 @@ BITBOARD AttacksFrom(TREE *tree, int square, int wtm) {
 ********************************************************************************
 */
 BITBOARD AttacksTo(TREE *tree, int square) {
-/*
- ----------------------------------------------------------
-|                                                          |
-|  start with the pawn attacks by checking in both         |
-|  directions to see if a pawn on <square> would attack    |
-|  a pawn.  then fold in knights, bishops, rooks and then  |
-|  finally kings.                                          |
-|                                                          |
- ----------------------------------------------------------
-*/
+
   return(Or(Or(Or(Or(Or(And(w_pawn_attacks[square],BlackPawns),
                         And(b_pawn_attacks[square],WhitePawns)),
     And(knight_attacks[square],Or(BlackKnights,WhiteKnights))),
@@ -76,7 +58,7 @@ BITBOARD AttacksTo(TREE *tree, int square) {
     And(king_attacks[square],Or(BlackKing,WhiteKing))));
 }
 
-/* last modified 01/12/99 */
+/* last modified 05/12/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -90,16 +72,6 @@ BITBOARD AttacksTo(TREE *tree, int square) {
 
 int Attacked(TREE *tree, int square, int wtm) {
 
-/*
- ----------------------------------------------------------
-|                                                          |
-|  start with the white attacks by checking in both        |
-|  directions to see if a pawn on <square> would attack    |
-|  a pawn.  ditto for knights, bishops, rooks, queens and  |
-|  kings                                                   |
-|                                                          |
- ----------------------------------------------------------
-*/
   if (wtm) {
     if (And(b_pawn_attacks[square],WhitePawns)) return(1);
     if (And(knight_attacks[square],WhiteKnights)) return(1);
@@ -108,17 +80,6 @@ int Attacked(TREE *tree, int square, int wtm) {
     if (And(king_attacks[square],WhiteKing)) return(1);
     return(0);
   }
-
-/*
- ----------------------------------------------------------
-|                                                          |
-|  start with the white attacks by checking in both        |
-|  directions to see if a pawn on <square> would attack    |
-|  a pawn.  ditto for knights, bishops, rooks, queens and  |
-|  kings                                                   |
-|                                                          |
- ----------------------------------------------------------
-*/
   else {
     if (And(w_pawn_attacks[square],BlackPawns)) return(1);
     if (And(knight_attacks[square],BlackKnights)) return(1);

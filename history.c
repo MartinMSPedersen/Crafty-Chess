@@ -3,7 +3,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 06/24/98 */
+/* last modified 05/03/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -49,8 +49,8 @@ void History(TREE *tree, int ply, int depth, int wtm, int move) {
 |                                                          |
  ----------------------------------------------------------
 */
-  if (tree->killer_move1[ply] != move) {
-    tree->killer_move2[ply]=tree->killer_move1[ply];
-    tree->killer_move1[ply]=move;
+  if (tree->killers[ply].move1 != move) {
+    tree->killers[ply].move2=tree->killers[ply].move1;
+    tree->killers[ply].move1=move;
   }
 }

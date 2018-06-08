@@ -15,8 +15,7 @@
 *                                                                              *
 ********************************************************************************
 */
-void TimeAdjust(int time_used, PLAYER player)
-{
+void TimeAdjust(int time_used, PLAYER player) {
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -62,11 +61,10 @@ void TimeAdjust(int time_used, PLAYER player)
 *                                                                              *
 ********************************************************************************
 */
-int TimeCheck(int abort)
-{
+int TimeCheck(int abort) {
   int time_used;
-  int value, last_value, searched;
-  int *i, ndone;
+  int value, last_value;
+  int i, ndone;
   TREE * const tree=local[0];
 /*
  ----------------------------------------------------------
@@ -81,8 +79,8 @@ int TimeCheck(int abort)
   if (tree->last[0]==(tree->last[1]-1) && !booking && !annotate_mode &&
       !pondering && iteration_depth>4) return(1);
   ndone=0;
-  for (i=tree->last[0];i<tree->last[1];i++)
-    if (tree->searched_this_root_move[i-tree->last[0]]) ndone++;
+  for (i=0;i<n_root_moves;i++)
+    if (root_moves[i].status&128) ndone++;
   if (ndone == 1) abort=1;
   if (iteration_depth <= 2) return(0);
 /*
@@ -126,12 +124,8 @@ int TimeCheck(int abort)
 |                                                          |
  ----------------------------------------------------------
 */
-  if ((root_value == root_alpha) && !search_failed_low) {
-    searched=0;
-    for (i=tree->last[0];i<tree->last[1];i++)
-      if (tree->searched_this_root_move[i-tree->last[0]]) searched++;
-    if (searched == 1) return(1);
-  }
+  if (root_value==root_alpha && !(root_moves[0].status&1) &&
+      ndone==1) return(1);
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -146,7 +140,7 @@ int TimeCheck(int abort)
 */
   value=root_value;
   last_value=last_search_value;
-  if ((value>=last_value-33 && !search_failed_low) ||
+  if ((value>=last_value-33 && !(root_moves[0].status&1)) ||
       (value>350 && value >= last_value-67)) {
     if (time_used > time_limit*2) return(1);
     else return(abort);
@@ -163,7 +157,7 @@ int TimeCheck(int abort)
  ----------------------------------------------------------
 */
   if (time_used < time_limit*2.5 && time_used+500<tc_time_remaining) return(0);
-  if ((value >= last_value-67 && !search_failed_low) ||
+  if ((value >= last_value-67 && !(root_moves[0].status&1)) ||
       value>550) return(abort);
 /*
  ----------------------------------------------------------
@@ -191,8 +185,7 @@ int TimeCheck(int abort)
 *                                                                              *
 ********************************************************************************
 */
-void TimeSet(int search_type)
-{
+void TimeSet(int search_type) {
   static const float behind[6] = {32.0, 16.0, 8.0, 4.0, 2.0, 1.5};
   static const int reduce[6] = {96, 48, 24, 12, 6, 3};
   int i;
@@ -331,5 +324,4 @@ void TimeSet(int search_type)
     time_limit= 1;
     usage_level=0;
   }
-
 }

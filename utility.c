@@ -80,8 +80,7 @@
 #  define CON 0
 #  include <limits.h>
 
-int _kbhit(void)
-{
+int _kbhit(void) {
   BPTR  inp;
   BOOLEAN  ret;
 
@@ -98,8 +97,7 @@ int _kbhit(void)
 # if defined(NT_i386) || defined(NT_AXP)
 #  include <windows.h>
 #  include <conio.h>
-int CheckInput(void)
-{
+int CheckInput(void) {
   int i;
    static int init = 0, pipe;
    static HANDLE inh;
@@ -139,8 +137,7 @@ int CheckInput(void)
 #endif
 
 #if defined(DOS)
-int CheckInput(void)
-{
+int CheckInput(void) {
   int i;
   if (!xboard && !ics && !isatty(fileno(stdin))) return(0);
   if (batch_mode) return(0);
@@ -189,8 +186,7 @@ int CheckInput(void) {
 #  endif
 #endif
 
-void ClearHashTables(void)
-{
+void ClearHashTables(void) {
   int i;
 
   if (trans_ref_a && trans_ref_b) {
@@ -205,8 +201,7 @@ void ClearHashTables(void)
   }
 }
 
-void DelayTime(int ms)
-{
+void DelayTime(int ms) {
   int oldt, newt;
   oldt=ReadClock(elapsed);
   do {
@@ -214,8 +209,7 @@ void DelayTime(int ms)
   } while (newt-ms/10 < oldt);
 }
 
-void DisplayBitBoard(BITBOARD board)
-{
+void DisplayBitBoard(BITBOARD board) {
   union doub {
     char i[8];
     BITBOARD d;
@@ -262,8 +256,7 @@ void DisplayBitBoard(BITBOARD board)
 *                                                                              *
 ********************************************************************************
 */
-void DisplayChessBoard(FILE *display_file, POSITION pos)
-{
+void DisplayChessBoard(FILE *display_file, POSITION pos) {
   int display_board[64];
   static const char display_string[] =
     {"*Q\0*R\0*B\0  \0*K\0*N\0*P\0  \0P \0N \0K \0  \0B \0R \0Q \0"};
@@ -312,8 +305,7 @@ char* DisplayEvaluation(int value) {
   return(out);
 }
 
-char* DisplayEvaluationWhisper(int value)
-{
+char* DisplayEvaluationWhisper(int value) {
   static char out[10];
 
   if (abs(value) < MATE-300)
@@ -329,8 +321,7 @@ char* DisplayEvaluationWhisper(int value)
   return(out);
 }
 
-void DisplayPieceBoards(int *white, int *black)
-{
+void DisplayPieceBoards(signed char *white, signed char *black) {
   int i,j;
   printf("                 white                      ");
   printf("                 black\n");
@@ -356,6 +347,7 @@ void DisplayPV(TREE *tree, int level, int wtm, int time, int value, PATH *pv) {
 #define PrintOK() (tree->nodes_searched>noise_level || value>(MATE-300))
   char buffer[512], *buffp, *bufftemp;
   int i, t_move_number, type, j, dummy;
+  int nskip=1;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -363,6 +355,10 @@ void DisplayPV(TREE *tree, int level, int wtm, int time, int value, PATH *pv) {
 |                                                          |
  ----------------------------------------------------------
 */
+#if defined(SMP)
+  for (i=0;i<n_root_moves;i++)
+    if (!(root_moves[i].status&128) && root_moves[i].status&64) nskip++;
+#endif
   if (level==5) type=4; else type=2;
   t_move_number=move_number;
   if (display_options&64) sprintf(buffer," %d.",move_number);
@@ -410,11 +406,15 @@ void DisplayPV(TREE *tree, int level, int wtm, int time, int value, PATH *pv) {
     sprintf(buffer+strlen(buffer)," <EGTB>");
   strcpy(whisper_text,buffer);
   if (PrintOK()) {
+    if (nskip == 1)
+      Print(type,"               ");
+    else
+      Print(type,"         (%1d)   ",nskip);
     if (level==6)
-      Print(type,"               %2i   %s%s   ",iteration_depth,
+      Print(type,"%2i   %s%s   ",iteration_depth,
             DisplayTime(time),DisplayEvaluation(value));
     else
-      Print(type,"               %2i-> %s%s   ",iteration_depth,
+      Print(type,"%2i-> %s%s   ",iteration_depth,
             DisplayTime(time),DisplayEvaluation(value));
     buffp=buffer+1;
     do {
@@ -437,8 +437,7 @@ void DisplayPV(TREE *tree, int level, int wtm, int time, int value, PATH *pv) {
   }
 }
 
-char* DisplaySQ(unsigned int sq)
-{
+char* DisplaySQ(unsigned int sq) {
   static char out[3];
   out[0]=(From(sq) & 7)+'a';
   out[1]=(From(sq) / 8)+'1';
@@ -446,8 +445,7 @@ char* DisplaySQ(unsigned int sq)
   return(out);
 }
 
-char* DisplayHHMM(unsigned int time)
-{
+char* DisplayHHMM(unsigned int time) {
   static char out[10];
 
   time=time/6000;
@@ -455,8 +453,7 @@ char* DisplayHHMM(unsigned int time)
   return(out);
 }
 
-char* DisplayTime(unsigned int time)
-{
+char* DisplayTime(unsigned int time) {
   static char out[10];
 
   if (time < 6000) sprintf(out,"%6.2f",(float) time/100.0);
@@ -483,9 +480,10 @@ void DisplayTreeState(TREE *tree, int sply, int spos, int maxply) {
   char buf[1024];
   buf[0]=0;
   if (sply == 1) {
-    for (left=0,mvp=tree->last[0];mvp<tree->last[1];mvp++) 
-      if (!tree->searched_this_root_move[mvp-tree->last[0]]) left++;
-    sprintf(buf,"%d:%d/%d  ",1,left,tree->last[1]-tree->last[0]);
+    left=0;
+    for (i=0;i<n_root_moves;i++)
+      if (!root_moves[i].status&128) left++;
+    sprintf(buf,"%d:%d/%d  ",1,left,n_root_moves);
   }
   else {
     for (i=0;i<spos-6;i++) sprintf(buf+strlen(buf)," ");
@@ -510,8 +508,7 @@ void DisplayTreeState(TREE *tree, int sply, int spos, int maxply) {
   }
 }
 
-void Display64bitWord(BITBOARD word)
-{
+void Display64bitWord(BITBOARD word) {
   union doub {
     unsigned int i[2];
     BITBOARD d;
@@ -525,8 +522,7 @@ void Display64bitWord(BITBOARD word)
 #endif
 }
 
-void Display2BitBoards(BITBOARD board1, BITBOARD board2)
-{
+void Display2BitBoards(BITBOARD board1, BITBOARD board2) {
   union doub {
     char i[8];
     BITBOARD d;
@@ -570,8 +566,7 @@ void Display2BitBoards(BITBOARD board1, BITBOARD board2)
 #endif
 }
 
-void DisplayChessMove(char *title, int move)
-{
+void DisplayChessMove(char *title, int move) {
   Print(4095,"%s  piece=%d, from=%d, to=%d, captured=%d, promote=%d\n",
          title,Piece(move),From(move), To(move),Captured(move),
          Promote(move));
@@ -617,13 +612,11 @@ char *FormatPV(TREE *tree, int wtm, PATH pv) {
 }
 
 #if defined(MACOS)
-unsigned int ReadClock(TIME_TYPE type)
-{
+unsigned int ReadClock(TIME_TYPE type) {
       return(clock() * 100 / CLOCKS_PER_SEC);
 }
 #else
-unsigned int ReadClock(TIME_TYPE type)
-{
+unsigned int ReadClock(TIME_TYPE type) {
 #if defined(UNIX) || defined(AMIGA)
   struct tms t;
   struct timeval timeval;
@@ -696,18 +689,23 @@ int FindBlockID(TREE *block) {
 *                                                                              *
 ********************************************************************************
 */
-int HasOpposition(int on_move, int white_king, int black_king)
-{
+int HasOpposition(int on_move, int white_king, int black_king) {
   register int file_distance, rank_distance;
   file_distance=FileDistance(white_king,black_king);
   rank_distance=RankDistance(white_king,black_king);
   if (rank_distance < 2) return(1);
   if (on_move) {
-    if (rank_distance > 2) rank_distance--;
-    else file_distance--;
+    if (rank_distance&1) {
+      rank_distance--;
+      if (file_distance&1) file_distance--;
+    }
+    else if (file_distance&1) {
+      file_distance--;
+      if (rank_distance&1) rank_distance--;
+    }
   }
-  if ((file_distance == 2) && (rank_distance == 2)) return(1);
-  if ((file_distance == 0) && (rank_distance == 2)) return(1);
+  if (!(file_distance&1) && !(rank_distance&1)) return(1);
+  if (!(file_distance&1) && !(rank_distance&1)) return(1);
   return(0);
 }
 
@@ -721,8 +719,7 @@ int HasOpposition(int on_move, int white_king, int black_king)
 ********************************************************************************
 */
 BITBOARD InterposeSquares(int check_direction, int king_square, 
-                          int checking_square)
-{
+                          int checking_square) {
   register BITBOARD target;
 /*
  ----------------------------------------------------------
@@ -766,8 +763,7 @@ BITBOARD InterposeSquares(int check_direction, int king_square,
   return(target);
 }
  
-int KingPawnSquare(int pawn, int king, int queen, int ptm)
-{
+int KingPawnSquare(int pawn, int king, int queen, int ptm) {
   register int pdist, kdist;
   pdist=abs((pawn>>3)-(queen>>3));
   kdist=(abs((king>>3)-(queen>>3)) > abs((king&7)-(queen&7))) ? 
@@ -879,8 +875,7 @@ void NewGame(int save) {
   }
 }
 
-char* Normal(void)
-{
+char* Normal(void) {
 #if defined(NT_i386) || defined(NT_AXP)
   HANDLE  std_console;
   std_console = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -899,8 +894,7 @@ char* Normal(void)
   return("");
 }
 
-int ParseTime(char* string)
-{
+int ParseTime(char* string) {
   int time=0;
   int minutes=0;
   while (*string) {
@@ -961,8 +955,7 @@ void Pass(void) {
 *                                                                              *
 ********************************************************************************
 */
-int PinnedOnKing(TREE *tree, int wtm, int square)
-{
+int PinnedOnKing(TREE *tree, int wtm, int square) {
   register int ray;
   if (wtm) {
 /*
@@ -1055,8 +1048,7 @@ int PinnedOnKing(TREE *tree, int wtm, int square)
   return(0);
 }
 
-void Print(int vb, char *fmt, ...)
-{
+void Print(int vb, char *fmt, ...) {
   va_list ap;
   va_start(ap,fmt);
   if (vb&display_options) vprintf(fmt, ap);
@@ -1077,8 +1069,7 @@ done by unsigned arithmetic.
 
 */
 
-unsigned int Random32(void)
-{
+unsigned int Random32(void) {
   /*
   random numbers from Mathematica 2.0.
   SeedRandom = 1;
@@ -1117,8 +1108,7 @@ unsigned int Random32(void)
   return((unsigned int)ul);
 }
 
-BITBOARD Random64(void)
-{
+BITBOARD Random64(void) {
   BITBOARD result;
   unsigned int r1, r2;
 
@@ -1591,7 +1581,6 @@ void RestoreGame(void) {
   } 
   Phase();
 }
-
 char* Reverse(void) {
 #if defined(NT_i386) || defined(NT_AXP)
   HANDLE  std_console;
@@ -1615,23 +1604,19 @@ char* Reverse(void) {
 
 #if !defined(USE_ASSEMBLY_A)
 
-BITBOARD AttacksDiaga1Func (DIAG_INFO *diag, POSITION *boardp)
-{
+BITBOARD AttacksDiaga1Func (DIAG_INFO *diag, POSITION *boardp) {
   return AttacksDiaga1Int(diag,boardp);
 }
 
-BITBOARD AttacksDiagh1Func(DIAG_INFO *diag, POSITION *boardp)
-{
+BITBOARD AttacksDiagh1Func(DIAG_INFO *diag, POSITION *boardp) {
   return AttacksDiagh1Int(diag,boardp);
 }
 
-BITBOARD AttacksFileFunc(int square, POSITION *boardp)
-{
+BITBOARD AttacksFileFunc(int square, POSITION *boardp) {
   return AttacksFileInt(square,boardp);
 }
 
-BITBOARD AttacksRankFunc(int square, POSITION *boardp)
-{
+BITBOARD AttacksRankFunc(int square, POSITION *boardp) {
   BITBOARD tmp = Or((boardp)->w_occupied, (boardp)->b_occupied);
 
   unsigned char tmp2 = 
@@ -1642,14 +1627,12 @@ BITBOARD AttacksRankFunc(int square, POSITION *boardp)
   return SplitShiftl (tmp2, Rank(~(square))<<3);
 }
 
-BITBOARD AttacksBishopFunc(DIAG_INFO *diag, POSITION *boardp)
-{
+BITBOARD AttacksBishopFunc(DIAG_INFO *diag, POSITION *boardp) {
   return Or(AttacksDiaga1Int(diag,boardp),
       AttacksDiagh1Int(diag,boardp));
 }
 
-BITBOARD AttacksRookFunc(int square, POSITION *boardp)
-{
+BITBOARD AttacksRookFunc(int square, POSITION *boardp) {
   BITBOARD tmp = Or((boardp)->w_occupied, (boardp)->b_occupied);
 
   unsigned char tmp2 = 
@@ -1660,23 +1643,19 @@ BITBOARD AttacksRookFunc(int square, POSITION *boardp)
       AttacksFileInt(square,boardp));
 }
 
-unsigned MobilityDiaga1Func(DIAG_INFO *diag, POSITION *boardp)
-{
+unsigned MobilityDiaga1Func(DIAG_INFO *diag, POSITION *boardp) {
   return MobilityDiaga1Int(diag,boardp);
 }
 
-unsigned MobilityDiagh1Func(DIAG_INFO *diag, POSITION *boardp)
-{
+unsigned MobilityDiagh1Func(DIAG_INFO *diag, POSITION *boardp) {
   return MobilityDiagh1Int(diag,boardp);
 }
 
-unsigned MobilityFileFunc(int square, POSITION *boardp)
-{
+unsigned MobilityFileFunc(int square, POSITION *boardp) {
   return MobilityFileInt (square,boardp);
 }
 
-unsigned MobilityRankFunc(int square, POSITION *boardp)
-{
+unsigned MobilityRankFunc(int square, POSITION *boardp) {
   return MobilityRankInt (square,boardp);
 }
 
@@ -1788,8 +1767,7 @@ static unsigned char rank_map [8];
             Rank(sq) - File(~sq) :  \
             File(~sq) - Rank(sq)))
 
-static void InitializeMaps(BITBOARD *temp_rank_attack_bitboards)
-{
+static void InitializeMaps(BITBOARD *temp_rank_attack_bitboards) {
   int file, rank;
   int diag;
   int gfile;
@@ -1882,8 +1860,7 @@ static void InitializeMaps(BITBOARD *temp_rank_attack_bitboards)
   for (file = 0; file < 8; file++) rank_map[file] = file | (7 << 3);
 }
 
-static void InitializeBrev (unsigned char brev[])
-{
+static void InitializeBrev (unsigned char brev[]) {
   unsigned value;
 
   for (value = 0; value < 64; value++) {
@@ -1896,8 +1873,7 @@ static void InitializeBrev (unsigned char brev[])
 
 #define MakeAttack(lower,upper) ((lower) | ((upper) << 3))
 
-void ComputeAttacksAndMobility ()
-{
+void ComputeAttacksAndMobility () {
   BITBOARD temp_rank_attack_bitboards[8][MAX_ATTACKS_FROM_SQUARE];
   int attacks_seen[MAX_ATTACKS_FROM_SQUARE];
   int attacker;
@@ -2107,10 +2083,7 @@ void CopyFromSMP(TREE *p, TREE *c) {
   if (c->nodes_searched && !c->stop && c->search_value > p->search_value) {
     p->pv[p->ply]=c->pv[p->ply];
     p->search_value=c->search_value;
-    for (i=1;i<MAXPLY;i++) {
-      p->killer_move1[i]=c->killer_move1[i];
-      p->killer_move2[i]=c->killer_move2[i];
-    }
+    for (i=1;i<MAXPLY;i++) p->killers[i]=c->killers[i];
   }
   p->nodes_searched+=c->nodes_searched;
   p->fail_high+=c->fail_high;
@@ -2174,10 +2147,7 @@ TREE* CopyToSMP(TREE *p) {
     c->in_check[i]=p->in_check[i];
     c->current_phase[i]=p->current_phase[i];
   }
-  for (i=1;i<MAXPLY;i++) {
-    c->killer_move1[i]=p->killer_move1[i];
-    c->killer_move2[i]=p->killer_move2[i];
-  }
+  for (i=1;i<MAXPLY;i++) c->killers[i]=p->killers[i];
   c->nodes_searched=0;
   c->fail_high=0;
   c->fail_high_first=0;

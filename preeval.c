@@ -18,8 +18,7 @@
 *                                                                              *
 ********************************************************************************
 */
-void PreEvaluate(TREE *tree, int wtm)
-{
+void PreEvaluate(TREE *tree, int wtm) {
   int i, j;
   static int hashing_pawns = 0;
   static int hashing_opening = 0;
@@ -98,14 +97,22 @@ void PreEvaluate(TREE *tree, int wtm)
 */
   for (i=1;i<7;i++)
     for (j=0;j<8;j++)
-      pawn_value_w[i*8+j]=pawn_base[j]+pawn_advance[j]*(i-3);
+      pval_w[i*8+j]=pawn_base[j]+pawn_advance[j]*(i-3);
   for (j=A6;j<A8;j++)
-    pawn_value_w[j]+=PAWN_JAM;
+    pval_w[j]+=PAWN_JAM;
+/*
+  for (j=A2;j<A8;j++)
+    if (File(j)==FILEA || File(j)==FILEH) pval_w[j]-=PAWN_RP_PENALTY;
+*/
   for (i=6;i>0;i--)
     for (j=0;j<8;j++)
-      pawn_value_b[i*8+j]=pawn_base[j]+pawn_advance[j]*(4-i);
+      pval_b[i*8+j]=pawn_base[j]+pawn_advance[j]*(4-i);
   for (j=A2;j<A4;j++)
-    pawn_value_b[j]+=PAWN_JAM;
+    pval_b[j]+=PAWN_JAM;
+/*
+  for (j=A2;j<A8;j++)
+    if (File(j)==FILEA || File(j)==FILEH) pval_b[j]-=PAWN_RP_PENALTY;
+*/
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -117,22 +124,22 @@ void PreEvaluate(TREE *tree, int wtm)
       And(Or(WhitePawns,BlackPawns),mask_abcd)) {
     hash_kings=1;
     for (i=0;i<64;i++) {
-      king_value_w[i]=king_value_wn[i];
-      king_value_b[i]=king_value_bn[i];
+      kval_w[i]=kval_wn[i];
+      kval_b[i]=kval_bn[i];
     }
   }
   else if (And(Or(WhitePawns,BlackPawns),mask_efgh)) {
     hash_kings=2;
     for (i=0;i<64;i++) {
-      king_value_w[i]=king_value_wk[i];
-      king_value_b[i]=king_value_bk[i];
+      kval_w[i]=kval_wk[i];
+      kval_b[i]=kval_bk[i];
     }
   }
   else if (And(Or(WhitePawns,BlackPawns),mask_abcd)) {
     hash_kings=3;
     for (i=0;i<64;i++) {
-      king_value_w[i]=king_value_wq[i];
-      king_value_b[i]=king_value_bq[i];
+      kval_w[i]=kval_wq[i];
+      kval_b[i]=kval_bq[i];
     }
   }
 /*

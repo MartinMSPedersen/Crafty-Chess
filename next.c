@@ -3,7 +3,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 03/11/97 */
+/* last modified 05/03/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -11,8 +11,7 @@
 *                                                                              *
 ********************************************************************************
 */
-int NextMove(TREE *tree, int ply, int wtm)
-{
+int NextMove(TREE *tree, int ply, int wtm) {
   register int *bestp, *movep, *sortv, temp;
   register int history_value, bestval, done, index;
 
@@ -130,16 +129,16 @@ int NextMove(TREE *tree, int ply, int wtm)
  ----------------------------------------------------------
 */
   case KILLER_MOVE_1:
-    if ((tree->hash_move[ply] != tree->killer_move1[ply]) &&
-        ValidMove(tree,ply,wtm,tree->killer_move1[ply])) {
-      tree->current_move[ply]=tree->killer_move1[ply];
+    if ((tree->hash_move[ply] != tree->killers[ply].move1) &&
+        ValidMove(tree,ply,wtm,tree->killers[ply].move1)) {
+      tree->current_move[ply]=tree->killers[ply].move1;
       tree->next_status[ply].phase=KILLER_MOVE_2;
       return(KILLER_MOVE_1);
     }
   case KILLER_MOVE_2:
-    if ((tree->hash_move[ply] != tree->killer_move2[ply]) &&
-        ValidMove(tree,ply,wtm,tree->killer_move2[ply])) {
-      tree->current_move[ply]=tree->killer_move2[ply];
+    if ((tree->hash_move[ply] != tree->killers[ply].move2) &&
+        ValidMove(tree,ply,wtm,tree->killers[ply].move2)) {
+      tree->current_move[ply]=tree->killers[ply].move2;
       tree->next_status[ply].phase=GENERATE_ALL_MOVES;
       return(KILLER_MOVE_2);
     }
@@ -172,8 +171,8 @@ int NextMove(TREE *tree, int ply, int wtm)
     bestp=0;
     for (movep=tree->last[ply-1];movep<tree->last[ply];movep++)
       if (*movep && (*movep == tree->hash_move[ply] ||
-          *movep == tree->killer_move1[ply] ||
-          *movep == tree->killer_move2[ply])) *movep=0;
+                     *movep == tree->killers[ply].move1 ||
+                     *movep == tree->killers[ply].move2)) *movep=0;
       else {
         index=*movep&4095;
         history_value= (wtm) ? history_w[index] : history_b[index];

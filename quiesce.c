@@ -124,7 +124,7 @@ int Quiesce(TREE *tree, int alpha, int beta, int wtm, int ply) {
 */
   while (moves--) {
     tree->current_move[ply]=*(next_move++);
-#if !defined(FAST)
+#if defined(TRACE)
     if (ply <= trace_level)
       SearchTrace(tree,ply,0,wtm,alpha,beta,"quiesce",CAPTURE_MOVES);
 #endif

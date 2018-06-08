@@ -26,8 +26,7 @@
 *                                                                              *
 ********************************************************************************
 */
-void EVTest(char *filename)
-{
+void EVTest(char *filename) {
   FILE *test_input;
   int i, len;
   char *eof;
@@ -35,10 +34,9 @@ void EVTest(char *filename)
 /*
  ----------------------------------------------------------
 |                                                          |
-|   read in the position and then the solutions.  after    |
-|   executing a search to find the best move (according    |
-|   to the program, anyway) compare it against the list    |
-|   of solutions and count it right or wrong.              |
+|   read in the position and then the solutions.  then do  |
+|   a call to Evaluate() which will normally display the   |
+|   debugging stuff that is enabled.                       |
 |                                                          |
  ----------------------------------------------------------
 */

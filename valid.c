@@ -14,8 +14,7 @@
 *                                                                              *
 ********************************************************************************
 */
-int ValidMove(TREE *tree, int ply, int wtm, int move)
-{
+int ValidMove(TREE *tree, int ply, int wtm, int move) {
 /*
  ----------------------------------------------------------
 |                                                          |

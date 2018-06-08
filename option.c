@@ -47,12 +47,23 @@ int Option(TREE *tree) {
 /*
  ----------------------------------------------------------
 |                                                          |
+|   "!" character is a 'shell escape' that passes the rest |
+|   of the command to a shell for execution.               |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  if (strchr(buffer,'!')) {
+    system(strchr(buffer,'!')+1);
+  }
+/*
+ ----------------------------------------------------------
+|                                                          |
 |   "." ignores "." if it happens to get to this point, if |
 |   xboard is running.                                     |
 |                                                          |
  ----------------------------------------------------------
 */
-  if (OptionMatch(".",*args)) {
+  else if (OptionMatch(".",*args)) {
     if (xboard) {
       printf("stat01: 0 0 0 0 0\n");
       fflush(stdout);
@@ -381,6 +392,9 @@ int Option(TREE *tree) {
 |    32 -> display root moves as they are searched.        |
 |    64 -> display move numbers in the PV output.          |
 |   128 -> display general informational messages.         |
+|   256 -> display ply-1 move node counts after each       |
+|          iteration.                                      |
+|   512 -> display ply-1 moves and positional evaluations  |
 |                                                          |
  ----------------------------------------------------------
 */
@@ -450,6 +464,22 @@ int Option(TREE *tree) {
         display_options&=4095-128;
         Print(128,"don't display informational messages.\n");
       }
+      else if (OptionMatch("nodes",args[1])) {
+        display_options|=256;
+        Print(128,"display ply-1 node counts after each iteration.\n");
+      }
+      else if (OptionMatch("nonodes",args[1])) {
+        display_options&=4095-256;
+        Print(128,"don't display ply-1 node counts after each iteration.\n");
+      }
+      else if (OptionMatch("ply1",args[1])) {
+        display_options|=512;
+        Print(128,"display ply-1 moves/evaluations.\n");
+      }
+      else if (OptionMatch("noply1",args[1])) {
+        display_options&=4095-512;
+        Print(128,"don't display ply-1 moves/evaluations.\n");
+      }
       else if (OptionMatch("*",args[1])) {
         if (display_options&1)
           printf("display time for moves\n");
@@ -467,6 +497,10 @@ int Option(TREE *tree) {
           printf("display move numbers in variations.\n");
         if (display_options&128)
           printf("display general messages.\n");
+        if (display_options&256)
+          printf("display ply-1 node counts every iteration.\n");
+        if (display_options&512)
+          printf("display ply-1 moves and evaluations.\n");
       }
       else break;
       return(1);
@@ -476,17 +510,17 @@ int Option(TREE *tree) {
       tree->position[1]=tree->position[0];
       PreEvaluate(tree,wtm);
       if (OptionMatch("pawn",args[1]))
-        DisplayPieceBoards(pawn_value_w,pawn_value_b);
+        DisplayPieceBoards(pval_w,pval_b);
       if (OptionMatch("knight",args[1]))
-        DisplayPieceBoards(knight_value_w,knight_value_b);
+        DisplayPieceBoards(nval_w,nval_b);
       if (OptionMatch("bishop",args[1]))
-        DisplayPieceBoards(bishop_value_w,bishop_value_b);
+        DisplayPieceBoards(bval_w,bval_b);
       if (OptionMatch("rook",args[1]))
-        DisplayPieceBoards(rook_value_w,rook_value_b);
+        DisplayPieceBoards(rval_w,rval_b);
       if (OptionMatch("queen",args[1]))
-        DisplayPieceBoards(queen_value_w,queen_value_b);
+        DisplayPieceBoards(qval_w,qval_b);
       if (OptionMatch("king",args[1]))
-        DisplayPieceBoards(king_value_w,king_value_b);
+        DisplayPieceBoards(kval_w,kval_b);
     }
     else DisplayChessBoard(stdout,display);
   }
@@ -569,11 +603,11 @@ int Option(TREE *tree) {
  ----------------------------------------------------------
 */
   else if (OptionMatch("drawscore",*args)) {
-    if (nargs < 2) {
+    if (nargs > 2) {
       printf("usage:  drawscore <n>\n");
       return(1);
     }
-    draw_score=atoi(args[1]);
+    if (nargs == 2) draw_score=atoi(args[1]);
     printf("draw score set to %7.2f pawns.\n",
            ((float) draw_score) / 100.0);
   }
@@ -1342,6 +1376,7 @@ int Option(TREE *tree) {
       else printf("no help available for that command\n");
     }
     else {
+      printf("!command..................passes command to a shell.\n");
       printf("alarm on|off..............turns audible alarm on/off.\n");
       printf("analyze...................analyze a game in progress\n");
       printf("annotate..................annotate game [help].\n");
@@ -1379,7 +1414,6 @@ int Option(TREE *tree) {
       printf("list                      update/display GM/IM/computer lists.\n");
       printf("load <file> <title>       load a position from problem file.\n");
       printf("log on|off................turn logging on/off.\n");
-      printf("ls [wildcard].............list files that match <wildcard>.\n");
       printf("mode normal|tournament....toggles tournament mode.\n");
       printf("move......................initiates search (same as go).\n");
 # if defined(SMP)
@@ -1994,38 +2028,43 @@ int Option(TREE *tree) {
       if (output_file != stdout) fclose(output_file);
     }
   }
+#if defined(SMP)
 /*
  ----------------------------------------------------------
 |                                                          |
-|   "ls" command is used to list files, ie perhaps to find |
-|   all the *.pgn files.  (wildcards are accepted here.)   |
+|   "smp" command is used to tune the various SMP search   |
+|   parameters.                                            |
 |                                                          |
- ----------------------------------------------------------
-*/
-  else if (OptionMatch("ls",*args)) {
-    char command[256];
-#if defined(UNIX)
-    sprintf(command,"ls %s",args[1]);
-#else
-    sprintf(command,"dir %s",args[1]);
-#endif
-    system(command);
-  }
-/*
- ----------------------------------------------------------
+|   "smpmin" command is used to set the minimum depth of   |
+|   a tree before a thread can be started.  this is used   |
+|   to prevent the thread creation overhead from becoming  |
+|   larger than the time actually needed to search the     |
+|   tree.                                                  |
 |                                                          |
-|   "mt" command is used to set the maximum number of      |
+|   "smpmt" command is used to set the maximum number of   |
 |   parallel threads to use, assuming that Crafty was      |
 |   compiled with -DSMP.  this value can not be set        |
 |   larger than the compiled-in -DCPUS=n value.            |
 |                                                          |
+|   "smproot" command is used to enable (1) or disable (0) |
+|   splitting the tree at the root (ply=1).  splitting at  |
+|   the root is more efficient, but might slow finding the |
+|   move in some test positions.                           |
+|                                                          |
  ----------------------------------------------------------
 */
-#if defined(SMP)
-  else if (OptionMatch("mt",*args)) {
+  else if (OptionMatch("smpmin",*args)) {
+    if (nargs < 2) {
+      printf("usage:  smpmin <plies>\n");
+      return(1);
+    }
+    min_thread_depth=INCPLY*atoi(args[1]);
+    Print(4095,"minimum thread depth set to %d\n",min_thread_depth);
+  }
+  else if (OptionMatch("smpmt",*args) || OptionMatch("mt",*args)) {
     int proc;
     if (nargs < 2) {
-      printf("usage:  mt=<threads>\n");
+      printf("usage:  smpmt=<threads>\n");
       return(1);
     }
     if (thinking || pondering) return(3);
@@ -2042,24 +2081,16 @@ int Option(TREE *tree) {
     for (proc=0;proc<CPUS;proc++)
       if (proc >= max_threads) thread[proc]=(TREE*)-1;
   }
-/*
- ----------------------------------------------------------
-|                                                          |
-|   "mtmin" command is used to set the minimum depth of    |
-|   a tree before a thread can be started.  this is used   |
-|   to prevent the thread creation overhead from becoming  |
-|   larger than the time actually needed to search the     |
-|   tree.                                                  |
-|                                                          |
- ----------------------------------------------------------
-*/
-  else if (OptionMatch("mtmin",*args)) {
+  else if (OptionMatch("smproot",*args)) {
     if (nargs < 2) {
-      printf("usage:  mtmin <plies>\n");
+      printf("usage:  smproot 0|1\n");
       return(1);
     }
-    min_thread_depth=INCPLY*atoi(args[1]);
-    Print(4095,"minimum thread depth set to %d\n",min_thread_depth);
+    split_at_root=atoi(args[1]);
+    if (split_at_root)
+      Print(4095,"SMP search split at ply >= 1\n");
+    else
+      Print(4095,"SMP search split at ply > 1\n");
   }
 #endif
 /*
@@ -2191,9 +2222,6 @@ int Option(TREE *tree) {
           kibitz=0;
           break;
         }
-      }
-    if (strstr(pgn_white,"guest") || strstr(pgn_black,"guest")) {
-      if (tc_time == 40*6000 && tc_increment == 60*100) draw_score=-100;
     }
   }
 /*
@@ -2553,11 +2581,11 @@ int Option(TREE *tree) {
     }
     crafty_rating=atoi(args[1]);
     opponent_rating=atoi(args[2]);
-    draw_score=0;
-    if (crafty_rating-opponent_rating < 0) draw_score=0+20;
+    if (crafty_rating-opponent_rating < 0) draw_score=+20;
     else if (crafty_rating-opponent_rating < 200) draw_score=0;
-    else if (crafty_rating-opponent_rating < 400) draw_score=0-20;
-    else if (crafty_rating-opponent_rating < 600) draw_score=0-30;
+    else if (crafty_rating-opponent_rating < 400) draw_score=-20;
+    else if (crafty_rating-opponent_rating < 600) draw_score=-30;
+    else draw_score=-50;
     if (log_file) {
       fprintf(log_file,"Crafty's rating: %d.\n",crafty_rating);
       fprintf(log_file,"opponent's rating: %d.\n",opponent_rating);
@@ -3376,8 +3404,8 @@ int Option(TREE *tree) {
  ----------------------------------------------------------
 */
   else if (OptionMatch("trace",*args)) {
-#if defined(FAST)
-    printf("Sorry, but I can't display traces when compiled with -DFAST\n");
+#if !defined(TRACE)
+    printf("Sorry, but I can't display traces unless compiled with -DTRACE\n");
 #endif
     if (nargs < 2) {
       printf("usage:  trace <depth>\n");
@@ -3577,8 +3605,7 @@ int Option(TREE *tree) {
 *                                                                              *
 ********************************************************************************
 */
-int OptionMatch(char *command, char *input)
-{
+int OptionMatch(char *command, char *input) {
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -3600,8 +3627,7 @@ int OptionMatch(char *command, char *input)
   return(0);
 }
 
-void OptionPerft(TREE *tree, int ply,int depth,int wtm)
-{
+void OptionPerft(TREE *tree, int ply,int depth,int wtm) {
   int i, *mv;
 
   tree->last[ply]=GenerateCaptures(tree, ply, wtm, tree->last[ply-1]);
