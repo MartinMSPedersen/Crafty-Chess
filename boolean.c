@@ -1,5 +1,20 @@
 #include "chess.h"
 #include "data.h"
+/* last modified 01/16/09 */
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   This group of procedures provide the three basic bitboard operators,      *
+ *   MSB(x) that determines the Most Significant Bit, LSB(x) that determines   *
+ *   the Least Significant Bit, and PopCnt(x) which returns the number of one  *
+ *   bits set in the word.                                                     *
+ *                                                                             *
+ *   We prefer to use hardware facilities (such as intel BSF/BSR) when they    *
+ *   are available, otherwise we resort to C and table lookups to do this in   *
+ *   the most efficient way possible.                                          *
+ *                                                                             *
+ *******************************************************************************
+ */
 #if (!defined(INLINE32) && !defined(VC_INLINE32) && !defined(INLINE64))
 #  if defined (_M_IA64)
 #    ifdef __ICL

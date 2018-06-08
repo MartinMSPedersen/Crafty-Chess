@@ -1,15 +1,14 @@
 #include <math.h>
 #include "chess.h"
 #include "data.h"
-/* last modified 08/07/05 */
+/* last modified 01/17/09 */
 /*
  *******************************************************************************
  *                                                                             *
  *   TimeAdjust() is called to adjust timing variables after each program move *
- *   is made.  it simply increments the number of moves made, decrements the   *
- *   amount of time used, and then makes any necessary adjustments based on the*
- *   time controls.                                                            *
- *   next search.                                                              *
+ *   is made.  It simply increments the number of moves made, decrements the   *
+ *   amount of time used, and then makes any necessary adjustments based on    *
+ *   the time controls.                                                        *
  *                                                                             *
  *******************************************************************************
  */
@@ -18,8 +17,8 @@ void TimeAdjust(int time_used, PLAYER player)
 /*
  ************************************************************
  *                                                          *
- *   decrement the number of moves remaining to the next    *
- *   time control.  then subtract the time the program took *
+ *   Decrement the number of moves remaining to the next    *
+ *   time control.  Then subtract the time the program took *
  *   to choose its move from the time remaining.            *
  *                                                          *
  ************************************************************
@@ -47,18 +46,18 @@ void TimeAdjust(int time_used, PLAYER player)
   }
 }
 
-/* last modified 08/07/05 */
+/* last modified 01/17/09 */
 /*
  *******************************************************************************
  *                                                                             *
- *   TimeCheck() is used to determine when the search should stop.  it uses    *
- *   several conditions to make this determination:  (1) the search time has   *
- *   exceeded the time per move limit;  (2) the value at the root of the tree  *
- *   has not dropped to low.  (3) if the root move was flagged as "easy" and   *
+ *   TimeCheck() is used to determine when the search should stop.  It uses    *
+ *   several conditions to make this determination:  (1) The search time has   *
+ *   exceeded the time per move limit;  (2) The value at the root of the tree  *
+ *   has not dropped to low.  (3) If the root move was flagged as "easy" and   *
  *   no move has replaced it as best, the search can actually be stopped early *
- *   to save some time on the clock.  if (2) is true, then the time is extended*
- *   based on how far the root value has dropped in an effort to avoid whatever*
- *   is being lost.                                                            *
+ *   to save some time on the clock.  If (2) is false, then the time is        *
+ *   extended based on how far the root value has dropped in an effort to      *
+ *   avoid whatever is being lost.                                             *
  *                                                                             *
  *******************************************************************************
  */
@@ -71,8 +70,8 @@ int TimeCheck(TREE * RESTRICT tree, int abort)
 /*
  ************************************************************
  *                                                          *
- *   first, check to see if we are searching the first move *
- *   at this depth.  if so, and we run out of time, we can  *
+ *   First, check to see if we are searching the first move *
+ *   at this depth.  If so, and we run out of time, we can  *
  *   abort the search rather than waiting to complete this  *
  *   ply=1 move to see if it's better.                      *
  *                                                          *
@@ -94,7 +93,7 @@ int TimeCheck(TREE * RESTRICT tree, int abort)
 /*
  ************************************************************
  *                                                          *
- *   now, check to see if we need to "burp" the time to     *
+ *   Now, check to see if we need to "burp" the time to     *
  *   let the operator know the search is progressing and    *
  *   how much time has been used so far.                    *
  *                                                          *
@@ -135,11 +134,11 @@ int TimeCheck(TREE * RESTRICT tree, int abort)
 /*
  ************************************************************
  *                                                          *
- *   ok.  we have used "time_limit" at this point.  now the *
+ *   Ok.  We have used "time_limit" at this point.  Now the *
  *   question is, can we stop the search?                   *
  *                                                          *
- *   first, make sure that we have actually found a score   *
- *   at the root of the tree.  if not, we can safely stop   *
+ *   First, make sure that we have actually found a score   *
+ *   at the root of the tree.  If not, we can safely stop   *
  *   searching without wasting any more time.               *
  *                                                          *
  ************************************************************
@@ -149,10 +148,10 @@ int TimeCheck(TREE * RESTRICT tree, int abort)
 /*
  ************************************************************
  *                                                          *
- *   we have a score at the root of the tree, if the        *
+ *   We have a score at the root of the tree, if the        *
  *   evaluation is not significantly worse than the last    *
  *   evaluation (from the previous iteration...) then we    *
- *   safely stop the search.  note also that if the current *
+ *   safely stop the search.  Note also that if the current *
  *   evaluation is quite a bit worse, but we are still way  *
  *   ahead, we can still avoid using extra time.            *
  *                                                          *
@@ -170,9 +169,9 @@ int TimeCheck(TREE * RESTRICT tree, int abort)
 /*
  ************************************************************
  *                                                          *
- *   we are in trouble at the root.  depending on how much  *
+ *   We are in trouble at the root.  Depending on how much  *
  *   the score has dropped, increase the search time limit  *
- *   to try and correct the problem.  for a positional drop *
+ *   to try and correct the problem.  For a positional drop *
  *   we can double the search time (this is for a serious   *
  *   drop, of course).                                      *
  *                                                          *
@@ -185,8 +184,8 @@ int TimeCheck(TREE * RESTRICT tree, int abort)
 /*
  ************************************************************
  *                                                          *
- *   we are in really serious trouble at the root, losing   *
- *   material.  increase the time limit to 6X the original  *
+ *   We are in really serious trouble at the root, losing   *
+ *   material.  Increase the time limit to 6X the original  *
  *   target, as losing material is tantamount to losing the *
  *   game anyway.                                           *
  *                                                          *
@@ -197,13 +196,13 @@ int TimeCheck(TREE * RESTRICT tree, int abort)
   return (1);
 }
 
-/* last modified 10/10/05 */
+/* last modified 01/17/09 */
 /*
  *******************************************************************************
  *                                                                             *
  *   TimeSet() is called to set the two variables "time_limit" and             *
  *   "absolute_time_limit" which controls the amount of time taken by the      *
- *   iterated search.  it simply takes the timing controls as set by the user  *
+ *   iterated search.  It simply takes the timing controls as set by the user  *
  *   and uses these values to calculate how much time should be spent on the   *
  *   next search.                                                              *
  *                                                                             *
@@ -222,9 +221,23 @@ void TimeSet(int search_type)
 /*
  ************************************************************
  *                                                          *
- *   check to see if we are in a sudden-death type of time  *
- *   control.  if so, we have a fixed amount of time        *
- *   remaining.  set the search time accordingly and exit.  *
+ *   Check to see if we are in a sudden-death type of time  *
+ *   control.  If so, we have a fixed amount of time        *
+ *   remaining.  Set the search time accordingly and exit.  *
+ *                                                          *
+ *   If we have less than 5 seconds on the clock prior to   *
+ *   the increment, then limit our search to the increment. *
+ *                                                          *
+ *   If we have less than 2.5 seconds on the clock prior to *
+ *   the increment, then limit our search to half the       *
+ *   increment in an attempt to add some time to our buffer.*
+ *                                                          *
+ *   Set our MAX search time to half the remaining time.    *
+ *                                                          *
+ *   If our search time will drop the clock below 1 second, *
+ *   then limit our MAX search time to the normal search    *
+ *   time.  This is done to stop any extensions from        *
+ *   dropping us too low.                                   *
  *                                                          *
  ************************************************************
  */
@@ -232,46 +245,29 @@ void TimeSet(int search_type)
     if (tc_increment) {
       time_limit =
           (tc_time_remaining -
-          tc_operator_time * tc_moves_remaining) / (ponder ? 23 : 28) +
+          tc_operator_time * tc_moves_remaining) / (ponder ? 18 : 26) +
           tc_increment;
-//TLR
-/*
-      if (tc_time_remaining < 600)
-        time_limit = tc_increment;
-      if (tc_time_remaining < 300)
-        time_limit /= 2;
-      absolute_time_limit = tc_time_remaining / 2;
-*/
-// If we have less than 5 seconds on the clock prior to the
-// increment, then limit our search to the increment.
       if (tc_time_remaining < 500 + tc_increment) {
         time_limit = tc_increment;
-// If we have less than 2.5 seconds on the clock prior to the
-// increment, then limit our search to half the increment in
-// an attempt to add some time to our buffer.
         if (tc_time_remaining < 250 + tc_increment)
           time_limit /= 2;
       }
-// Set our MAX search time to half the remaining time.
       absolute_time_limit = tc_time_remaining / 2;
-// If our search time will drop the clock below 1 second,
-// then limit our MAX search time to the normal search time.
-// This is done to stop any extensions from dropping us too low.
       if (absolute_time_limit < time_limit ||
           tc_time_remaining - time_limit < 100)
         absolute_time_limit = time_limit;
     } else {
-      time_limit = tc_time_remaining / (ponder ? 29 : 35);
+      time_limit = tc_time_remaining / (ponder ? 27 : 33);
       absolute_time_limit = Min(time_limit * 6, tc_time_remaining / 2);
     }
   }
 /*
  ************************************************************
  *                                                          *
- *   we are not in a sudden_death situation.  we now have   *
- *   two choices:  if the program has saved enough time to  *
+ *   We are not in a sudden_death situation.  We now have   *
+ *   two choices:  If the program has saved enough time to  *
  *   meet the surplus requirement, then we simply divide    *
- *   the time left evenly among the moves left.  if we      *
+ *   the time left evenly among the moves left.  If we      *
  *   haven't yet saved up a cushion so that "fail-lows"     *
  *   have extra time to find a solution, we simply take the *
  *   number of moves divided into the total time less the   *
@@ -316,8 +312,8 @@ void TimeSet(int search_type)
 /*
  ************************************************************
  *                                                          *
- *  the "usage" option can be used to force the time limit  *
- *  higher or lower than normal.  the new "timebook"        *
+ *  The "usage" option can be used to force the time limit  *
+ *  higher or lower than normal.  The new "timebook"        *
  *  command can also modify the target time making the      *
  *  program use more time early in the game as it exits the *
  *  book, knowing it will save time later on by ponder hits *
@@ -337,12 +333,12 @@ void TimeSet(int search_type)
 /*
  ************************************************************
  *                                                          *
- *  this code is used to handle the case where someone is   *
+ *  This code is used to handle the case where someone is   *
  *  trying to "blitz" crafty by reaching a position where   *
  *  things are locked up, and then just shuffling pieces    *
- *  back and forth.  when crafty reaches the point where it *
+ *  back and forth.  When crafty reaches the point where it *
  *  has less than 3/4 of the time the opponent has, it      *
- *  starts decreasing the target time.  at 1/2, it          *
+ *  starts decreasing the target time.  At 1/2, it          *
  *  decreases it further.                                   *
  *                                                          *
  ************************************************************
@@ -369,7 +365,7 @@ void TimeSet(int search_type)
 /*
  ************************************************************
  *                                                          *
- *   if the operator has set an absolute search time limit  *
+ *   If the operator has set an absolute search time limit  *
  *   already, then we simply copy this value and return.    *
  *                                                          *
  ************************************************************

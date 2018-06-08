@@ -230,32 +230,10 @@ unsigned char *BookOut64(BITBOARD val)
  *                                                                             *
  *******************************************************************************
  */
-#if defined(AMIGA)
-#  include <proto/dos.h>
-#  define tv_sec tv_secs
-#  define tv_usec tv_micro
-#  include <exec/types.h>
-#  define RAW 1
-#  define CON 0
-#  include <limits.h>
-int _kbhit(void)
-{
-  BPTR inp;
-  BOOLEAN ret;
-
-  inp = Input();
-  if (!IsInteractive(inp))
-    return FALSE;
-  Flush(inp);
-  (void) SetMode(inp, RAW);
-  ret = WaitForChar(inp, 1);
-  (void) SetMode(inp, CON);
-  return ret;
-}
-#endif                          /* if defined(AMIGA)  */
 #if defined(NT_i386)
 #  include <windows.h>
 #  include <conio.h>
+/* Windows NT using PeekNamedPipe() function */
 int CheckInput(void)
 {
   int i;
@@ -299,24 +277,7 @@ int CheckInput(void)
 }
 #endif
 #if defined(UNIX)
-#  ifdef __EMX__
-int CheckInput(void)
-{
-  static KBDKEYINFO keyinfo;
-  int i;
-
-  if (!xboard && !ics && !isatty(fileno(stdin)))
-    return (0);
-  if (strchr(cmd_buffer, '\n'))
-    return (1);
-  KbdPeek(&keyinfo, 0);
-  if (keyinfo.fbStatus & KBDTRF_FINAL_CHAR_IN)
-    i = 1;
-  else
-    i = 0;
-  return (i);
-}
-#  else
+/* Simple UNIX approach using select with a zero timeout value */
 int CheckInput(void)
 {
   fd_set readfds;
@@ -337,7 +298,6 @@ int CheckInput(void)
   data = FD_ISSET(fileno(stdin), &readfds);
   return (data);
 }
-#  endif
 #endif
 /*
  *******************************************************************************
@@ -355,16 +315,9 @@ void ClearHashTableScores(void)
   int i;
 
   if (trans_ref) {
-    for (i = 0; i < hash_table_size; i++) {
-      (trans_ref + i)->prefer.word1 =
-          ((trans_ref + i)->prefer.word1 & mask_clear_entry) | (BITBOARD) 65536;
-      (trans_ref + i)->always[0].word1 =
-          ((trans_ref +
-              i)->always[0].word1 & mask_clear_entry) | (BITBOARD) 65536;
-      (trans_ref + i)->always[1].word1 =
-          ((trans_ref +
-              i)->always[1].word1 & mask_clear_entry) | (BITBOARD) 65536;
-    }
+    for (i = 0; i < 3 * hash_table_size; i++)
+      (trans_ref + i)->word1 =
+          ((trans_ref + i)->word1 & mask_clear_entry) | (BITBOARD) 65536;
   }
 }
 
@@ -578,7 +531,7 @@ void DisplayChessBoard(FILE * display_file, POSITION pos)
 /*
  ************************************************************
  *                                                          *
- *   first, convert square values to indices to the proper  *
+ *   First, convert square values to indices to the proper  *
  *   text string.                                           *
  *                                                          *
  ************************************************************
@@ -593,7 +546,7 @@ void DisplayChessBoard(FILE * display_file, POSITION pos)
 /*
  ************************************************************
  *                                                          *
- *   now that that's done, simply display using 8 squares   *
+ *   Now that that's done, simply display using 8 squares   *
  *   per line.                                              *
  *                                                          *
  ************************************************************
@@ -613,7 +566,7 @@ void DisplayChessBoard(FILE * display_file, POSITION pos)
  *******************************************************************************
  *                                                                             *
  *   DisplayEvaluation() is used to convert the evaluation to a string that    *
- *   can be displayed.  the length is fixed so that screen formatting will     *
+ *   can be displayed.  The length is fixed so that screen formatting will     *
  *   look nice and aligned.                                                    *
  *                                                                             *
  *******************************************************************************
@@ -654,7 +607,7 @@ char *DisplayEvaluation(int value, int wtm)
  *******************************************************************************
  *                                                                             *
  *   DisplayEvaluationKibitz() is used to convert the evaluation to a string   *
- *   that can be displayed.  the length is variable so that ICC kibitzes and   *
+ *   that can be displayed.  The length is variable so that ICC kibitzes and   *
  *   whispers will look nicer.                                                 *
  *                                                                             *
  *******************************************************************************
@@ -694,7 +647,7 @@ char *DisplayEvaluationKibitz(int value, int wtm)
 /*
  *******************************************************************************
  *                                                                             *
- *   DisplayPV() is used to display a PV during the search.  it will also note *
+ *   DisplayPV() is used to display a PV during the search.  It will also note *
  *   when the PV was terminated by a hash table hit and will check the hash    *
  *   entries to see if the PV can be extended by using moves from hits.        *
  *                                                                             *
@@ -711,7 +664,7 @@ void DisplayPV(TREE * RESTRICT tree, int level, int wtm, int time, int value,
 /*
  ************************************************************
  *                                                          *
- *   initialize.                                            *
+ *   Initialize.                                            *
  *                                                          *
  ************************************************************
  */
@@ -742,7 +695,7 @@ void DisplayPV(TREE * RESTRICT tree, int level, int wtm, int time, int value,
 /*
  ************************************************************
  *                                                          *
- *   if the pv was terminated prematurely by a trans/ref    *
+ *   If the pv was terminated prematurely by a trans/ref    *
  *   hit, see if any more moves are in the trans/ref table  *
  *   and if so, add 'em to the end of the PV so we will     *
  *   have better move ordering next iteration.              *
@@ -856,9 +809,8 @@ char *DisplayKM(unsigned int val)
  *   two ways depending on the value passed in.  If less than 60 seconds is to *
  *   be displayed, it is displayed as a decimal fraction like 32.7, while if   *
  *   more than 60 seconds is to be displayed, it is converted to the more      *
- *   traditional mm:ss form.  the string it produces is of fixed length to     *
+ *   traditional mm:ss form.  The string it produces is of fixed length to     *
  *   provide neater screen formatting.                                         *
- *                                                                             *
  *                                                                             *
  *******************************************************************************
  */
@@ -901,7 +853,7 @@ char *DisplayTimeKibitz(unsigned int time)
  *******************************************************************************
  *                                                                             *
  *   DisplayTreeState() is a debugging procedure used to provide some basic    *
- *   information about how the parallel search is progressing.  it is invoked  *
+ *   information about how the parallel search is progressing.  It is invoked  *
  *   by typing a "." (no quotes) while in console mode.                        *
  *                                                                             *
  *******************************************************************************
@@ -921,7 +873,7 @@ void DisplayTreeState(TREE * RESTRICT tree, int sply, int spos, int maxply)
   } else {
     for (i = 0; i < spos - 6; i++)
       sprintf(buf + strlen(buf), " ");
-    sprintf(buf + strlen(buf), "[p%2d] ", tree->thread_id);
+    sprintf(buf + strlen(buf), "[p%2ld] ", tree->thread_id);
   }
   for (i = Max(sply, 2); i <= maxply; i++) {
     left = 0;
@@ -951,7 +903,7 @@ void DisplayTreeState(TREE * RESTRICT tree, int sply, int spos, int maxply)
  *******************************************************************************
  *                                                                             *
  *   DisplayType3() prints personality parameters that use an 8x8 board for    *
- *   their base values.  this prints them side by side with rank/file labels   *
+ *   their base values.  This prints them side by side with rank/file labels   *
  *   to make it easier to read.                                                *
  *                                                                             *
  *******************************************************************************
@@ -982,7 +934,7 @@ void DisplayType3(int *array, int *array2)
  *******************************************************************************
  *                                                                             *
  *   DisplayType4() prints personality parameters that use an 8x8 board for    *
- *   their base values.  this prints them side by side with rank/file labels   *
+ *   their base values.  This prints them side by side with rank/file labels   *
  *   to make it easier to read.                                                *
  *                                                                             *
  *******************************************************************************
@@ -1013,7 +965,7 @@ void DisplayType4(int *array, int *array2)
  *******************************************************************************
  *                                                                             *
  *   DisplayType5() prints personality parameters that use an nx8 board for    *
- *   their base values.  this prints them side by side.                        *
+ *   their base values.  This prints them side by side.                        *
  *                                                                             *
  *******************************************************************************
  */
@@ -1102,7 +1054,7 @@ void DisplayType8(int *array)
 /*
  *******************************************************************************
  *                                                                             *
- *   EGTBPV() is used to display the PV for a known EGTB position.  it simply  *
+ *   EGTBPV() is used to display the PV for a known EGTB position.  It simply  *
  *   makes moves, looks up the position to find the shortest mate, then it     *
  *   follows that PV.  It appends a "!" to a move that is the only move to     *
  *   preserve the shortest path to mate (all other moves lead to longer mates  *
@@ -1133,7 +1085,7 @@ void EGTBPV(TREE * RESTRICT tree, int wtm)
 /*
  ************************************************************
  *                                                          *
- *   first, see if this is a known EGTB position.  if not,  *
+ *   First, see if this is a known EGTB position.  If not,  *
  *   we can bug out right now.                              *
  *                                                          *
  ************************************************************
@@ -1155,10 +1107,10 @@ void EGTBPV(TREE * RESTRICT tree, int wtm)
 /*
  ************************************************************
  *                                                          *
- *   the rest is simple, but messy.  generate all moves,    *
+ *   The rest is simple, but messy.  Generate all moves,    *
  *   then find the move with the best egtb score and make   *
  *   it (note that if there is only one that is optimal, it *
- *   is flagged as such).  we then repeat this over and     *
+ *   is flagged as such).  We then repeat this over and     *
  *   over until we reach the end, or until we repeat a move *
  *   and can call it a repetition.                          *
  *                                                          *
@@ -1259,7 +1211,7 @@ void DisplayChessMove(char *title, int move)
 /*
  *******************************************************************************
  *                                                                             *
- *   FormatPV() is used to display a PV during the search.  it will also note  *
+ *   FormatPV() is used to display a PV during the search.  It will also note  *
  *   when the PV was terminated by a hash table hit.                           *
  *                                                                             *
  *******************************************************************************
@@ -1272,7 +1224,7 @@ char *FormatPV(TREE * RESTRICT tree, int wtm, PATH pv)
 /*
  ************************************************************
  *                                                          *
- *   initialize.                                            *
+ *   Initialize.                                            *
  *                                                          *
  ************************************************************
  */
@@ -1320,7 +1272,7 @@ int GameOver(int wtm)
 /*
  ************************************************************
  *                                                          *
- *   first, use GenerateMoves() to generate the set of      *
+ *   First, use GenerateMoves() to generate the set of      *
  *   legal moves from the root position.                    *
  *                                                          *
  ************************************************************
@@ -1330,8 +1282,8 @@ int GameOver(int wtm)
 /*
  ************************************************************
  *                                                          *
- *   now make each move and determine if we are in check    *
- *   after each one.  any move that does not leave us in    *
+ *   Now make each move and determine if we are in check    *
+ *   after each one.  Any move that does not leave us in    *
  *   check is good enough to prove that the game is not yet *
  *   officially over.                                       *
  *                                                          *
@@ -1346,10 +1298,10 @@ int GameOver(int wtm)
 /*
  ************************************************************
  *                                                          *
- *   if we did not make it thru the complete move list, we  *
+ *   If we did not make it thru the complete move list, we  *
  *   must have at least one legal move so the game is not   *
  *   over.  return (0).  Otherwise, we have no move and the *
- *   game is over.  we return (1) if this side is           *
+ *   game is over.  We return (1) if this side is           *
  *   stalemated or we return (2) if this side is mated.     *
  *                                                          *
  ************************************************************
@@ -1365,7 +1317,7 @@ int GameOver(int wtm)
 /*
  *******************************************************************************
  *                                                                             *
- *   ReadClock() is a procedure used to read the elapsed time.  since this     *
+ *   ReadClock() is a procedure used to read the elapsed time.  Since this     *
  *   varies from system to system, this procedure has several flavors to       *
  *   provide portability.                                                      *
  *                                                                             *
@@ -1509,7 +1461,7 @@ int InvalidPosition(TREE * RESTRICT tree)
  *******************************************************************************
  *                                                                             *
  *   KingPawnSquare() is used to initialize some of the passed pawn race       *
- *   tables used by Evaluate().  it simply answers the question "is the king   *
+ *   tables used by Evaluate().  It simply answers the question "is the king   *
  *   in the square of the pawn so the pawn can't outrun it and promote?"       *
  *                                                                             *
  *******************************************************************************
@@ -1655,7 +1607,7 @@ char *Normal(void)
  *******************************************************************************
  *                                                                             *
  *   ParseTime() is used to parse a time value that could be entered as s.ss,  *
- *   mm:ss, or hh:mm:ss.  it is converted to crafty's internal 1/100th second  *
+ *   mm:ss, or hh:mm:ss.  It is converted to crafty's internal 1/100th second  *
  *   time resolution.                                                          *
  *                                                                             *
  *******************************************************************************
@@ -1696,7 +1648,7 @@ int ParseTime(char *string)
  *******************************************************************************
  *                                                                             *
  *   Pass() was written by Tim Mann to handle the case where a position is set *
- *   using a FEN string, and then black moves first.  the game.nnn file was    *
+ *   using a FEN string, and then black moves first.  The game.nnn file was    *
  *   designed to start with a white move, so "pass" is now a "no-op" move for  *
  *   the side whose turn it is to move.                                        *
  *                                                                             *
@@ -1770,7 +1722,7 @@ void Print(int vb, char *fmt, ...)
  *******************************************************************************
  *                                                                             *
  *   PrintKM() converts a binary value to a real K/M type value, rather than   *
- *   the more common K=1000, M=1000000 type output.  this is used for info     *
+ *   the more common K=1000, M=1000000 type output.  This is used for info     *
  *   about the hash table sizes for one thing.                                 *
  *                                                                             *
  *******************************************************************************
@@ -1884,13 +1836,13 @@ int Read(int wait, char *buffer)
 
   *buffer = 0;
 /*
- case 1:  we have a complete command line, with terminating
- N/L character in the buffer.  we can simply extract it from
+ case 1:  We have a complete command line, with terminating
+ N/L character in the buffer.  We can simply extract it from
  the I/O buffer, parse it and return.
  */
   if (strchr(cmd_buffer, '\n'));
 /*
- case 2:  the buffer does not contain a complete line.  If we
+ case 2:  The buffer does not contain a complete line.  If we
  were asked to not wait for a complete command, then we first
  see if I/O is possible, and if so, read in what is available.
  If that includes a N/L, then we are ready to parse and return.
@@ -1907,7 +1859,7 @@ int Read(int wait, char *buffer)
       return (0);
   }
 /*
- case 3:  the buffer does not contain a complete line, but we
+ case 3:  The buffer does not contain a complete line, but we
  were asked to wait until a complete command is entered.  So we
  hang by doing a ReadInput() and continue doing so until we get
  a N/L character in the buffer.  Then we parse and return.
@@ -2005,7 +1957,7 @@ int ReadInput(void)
 /*
  *******************************************************************************
  *                                                                             *
- *   ReadChessMove() is used to read a move from an input file.  the main issue*
+ *   ReadChessMove() is used to read a move from an input file.  The main issue*
  *   is to skip over "trash" like move numbers, times, comments, and so forth, *
  *   and find the next actual move.                                            *
  *                                                                             *
@@ -2069,7 +2021,7 @@ int ReadNextMove(TREE * RESTRICT tree, char *text, int ply, int wtm)
 /*
  *******************************************************************************
  *                                                                             *
- *   this routine reads a move from a PGN file to build an opening book or for *
+ *   This routine reads a move from a PGN file to build an opening book or for *
  *   annotating.  It returns a 1 if a header is read, it returns a 0 if a move *
  *   is read, and returns a -1 on end of file.  It counts lines and this       *
  *   counter can be accessed by calling this function with a non-zero second   *
@@ -2087,8 +2039,8 @@ int ReadPGN(FILE * input, int option)
 /*
  ************************************************************
  *                                                          *
- *  if the line counter is being requested, return it with  *
- *  no other changes being made.  if "purge" is true, clear *
+ *  If the line counter is being requested, return it with  *
+ *  no other changes being made.  If "purge" is true, clear *
  *  the current input buffer.                               *
  *                                                          *
  ************************************************************
@@ -2106,7 +2058,7 @@ int ReadPGN(FILE * input, int option)
 /*
  ************************************************************
  *                                                          *
- *  if we don't have any data in the buffer, the first step *
+ *  If we don't have any data in the buffer, the first step *
  *  is to read the next line.                               *
  *                                                          *
  ************************************************************
@@ -2167,9 +2119,9 @@ int ReadPGN(FILE * input, int option)
 /*
  ************************************************************
  *                                                          *
- *  if we already have data in the buffer, it is just a     *
+ *  If we already have data in the buffer, it is just a     *
  *  matter of extracting the next move and returning it to  *
- *  the caller.  if the buffer is empty, another line has   *
+ *  the caller.  If the buffer is empty, another line has   *
  *  to be read in.                                          *
  *                                                          *
  ************************************************************
@@ -2191,8 +2143,8 @@ int ReadPGN(FILE * input, int option)
 /*
  ************************************************************
  *                                                          *
- *  this skips over nested {} or () characters and finds the*
- *  'mate', before returning any more moves.  it also stops *
+ *  This skips over nested {} or () characters and finds the*
+ *  'mate', before returning any more moves.  It also stops *
  *  if a PGN header is encountered, probably due to an      *
  *  incorrectly bracketed analysis variation.               *
  *                                                          *
@@ -2383,11 +2335,11 @@ char *Reverse(void)
 /*
  *******************************************************************************
  *                                                                             *
- *   Kibitz() is used to whisper/kibitz information to a chess server.  it has *
+ *   Kibitz() is used to whisper/kibitz information to a chess server.  It has *
  *   to handle the xboard whisper/kibitz interface as well as the custom ics   *
- *   interface for Crafty.  there are two main issues:  (a) presenting only the*
+ *   interface for Crafty.  There are two main issues:  (a) presenting only the*
  *   information specified by the current value of whisper or kibitz variables;*
- *   (a) if using the custom ICS interface, preceeding the commands with a "*" *
+ *   (b) if using the custom ICS interface, preceeding the commands with a "*" *
  *   so the interface will direct them to the server rather than the operator. *
  *                                                                             *
  *******************************************************************************
@@ -2489,8 +2441,8 @@ void Kibitz(int level, int wtm, int depth, int time, int value, BITBOARD nodes,
  *******************************************************************************
  *                                                                             *
  *   Output() is used to print the principal variation whenever it changes.    *
- *   one additional feature is that Output() will try to do something about    *
- *   variations truncated by the transposition table.  if the variation was    *
+ *   One additional feature is that Output() will try to do something about    *
+ *   variations truncated by the transposition table.  If the variation was    *
  *   cut short by a transposition table hit, then we can make the last move,   *
  *   add it to the end of the variation and extend the depth of the variation  *
  *   to cover it.                                                              *
@@ -2506,7 +2458,7 @@ void Output(TREE * RESTRICT tree, int value, int bound)
 /*
  ************************************************************
  *                                                          *
- *   first, move the best move to the top of the ply-1 move *
+ *   First, move the best move to the top of the ply-1 move *
  *   list if it's not already there, so that it will be the *
  *   first move tried in the next iteration.                *
  *                                                          *
@@ -2530,7 +2482,7 @@ void Output(TREE * RESTRICT tree, int value, int bound)
 /*
  ************************************************************
  *                                                          *
- *   if this is not a fail-high move, then output the PV    *
+ *   If this is not a fail-high move, then output the PV    *
  *   by walking down the path being backed up.              *
  *                                                          *
  ************************************************************
@@ -2574,7 +2526,7 @@ void Trace(TREE * RESTRICT tree, int ply, int depth, int wtm, int alpha,
     printf("%s] n:" BMF " %s(%d)", DisplayEvaluation(beta, 1),
         (tree->nodes_searched), name, phase);
     if (max_threads > 1)
-      printf(" (t=%d) ", tree->thread_id);
+      printf(" (t=%ld) ", tree->thread_id);
     printf("\n");
   } else {
     printf("%d window/eval(%s) = {", ply, name);
@@ -2605,7 +2557,7 @@ int StrCnt(char *string, char testchar)
 /*
  *******************************************************************************
  *                                                                             *
- *   ValidMove() is used to verify that a move is playable.  it is mainly      *
+ *   ValidMove() is used to verify that a move is playable.  It is mainly      *
  *   used to confirm that a move retrieved from the transposition/refutation   *
  *   and/or killer move is valid in the current position by checking the move  *
  *   against the current chess board, castling status, en passant status, etc. *
@@ -2625,7 +2577,7 @@ int ValidMove(TREE * RESTRICT tree, int ply, int wtm, int move)
 /*
  ************************************************************
  *                                                          *
- *   make sure that the piece on <from> is the right color. *
+ *   Make sure that the piece on <from> is the right color. *
  *                                                          *
  ************************************************************
  */
@@ -2635,7 +2587,7 @@ int ValidMove(TREE * RESTRICT tree, int ply, int wtm, int move)
 /*
  ************************************************************
  *                                                          *
- *   null-moves are caught as it is possible for a killer   *
+ *   Null-moves are caught as it is possible for a killer   *
  *   move entry to be zero at certain times.                *
  *                                                          *
  ************************************************************
@@ -2645,10 +2597,10 @@ int ValidMove(TREE * RESTRICT tree, int ply, int wtm, int move)
 /*
  ************************************************************
  *                                                          *
- *   king moves are validated here if the king is moving    *
- *   two squares at one time (castling moves).  otherwise   *
+ *   King moves are validated here if the king is moving    *
+ *   two squares at one time (castling moves).  Otherwise   *
  *   fall into the normal piece validation routine below.   *
- *   for castling moves, we need to verify that the         *
+ *   For castling moves, we need to verify that the         *
  *   castling status is correct to avoid "creating" a new   *
  *   rook or king.                                          *
  *                                                          *
@@ -2678,7 +2630,7 @@ int ValidMove(TREE * RESTRICT tree, int ply, int wtm, int move)
 /*
  ************************************************************
  *                                                          *
- *   check for a normal pawn advance.                       *
+ *   Check for a normal pawn advance.                       *
  *                                                          *
  ************************************************************
  */
@@ -2698,9 +2650,9 @@ int ValidMove(TREE * RESTRICT tree, int ply, int wtm, int move)
 /*
  ************************************************************
  *                                                          *
- *   check for an en passant capture which is somewhat      *
+ *   Check for an en passant capture which is somewhat      *
  *   unusual in that the [to] square does not contain the   *
- *   pawn being captured.  make sure that the pawn being    *
+ *   pawn being captured.  Make sure that the pawn being    *
  *   captured advanced two ranks the previous move.         *
  *                                                          *
  ************************************************************
@@ -2712,7 +2664,7 @@ int ValidMove(TREE * RESTRICT tree, int ply, int wtm, int move)
 /*
  ************************************************************
  *                                                          *
- *   normal moves are all checked the same way.             *
+ *   Normal moves are all checked the same way.             *
  *                                                          *
  ************************************************************
  */
@@ -2728,7 +2680,7 @@ int ValidMove(TREE * RESTRICT tree, int ply, int wtm, int move)
 /*
  ************************************************************
  *                                                          *
- *   all normal moves are validated in the same manner, by  *
+ *   All normal moves are validated in the same manner, by  *
  *   checking the from and to squares and also the attack   *
  *   status for completeness.                               *
  *                                                          *
@@ -2744,7 +2696,7 @@ int ValidMove(TREE * RESTRICT tree, int ply, int wtm, int move)
 /*
  *******************************************************************************
  *                                                                             *
- *   VerifyMove() tests a move to confirm it is absolutely legal. it shouldn't *
+ *   VerifyMove() tests a move to confirm it is absolutely legal. It shouldn't *
  *   be used inside the search, but can be used to check a 21-bit (compressed) *
  *   move to be sure it is safe to make it on the permanent game board.        *
  *                                                                             *
@@ -2755,7 +2707,7 @@ int VerifyMove(TREE * RESTRICT tree, int ply, int wtm, int move)
   int moves[220], *mv, *mvp;
 
 /*
- generate moves, then eliminate any that are illegal.
+ Generate moves, then eliminate any that are illegal.
  */
   if (move == 0)
     return (0);
@@ -2968,30 +2920,5 @@ void *WinMallocInterleaved(size_t cbBytes, int cThreads)
 void WinFreeInterleaved(void *pMemory, size_t cBytes)
 {
   VirtualFree(pMemory, 0, MEM_RELEASE);
-}
-#endif
-/*
- *******************************************************************************
- *                                                                             *
- *   SignalInterrupt() is the signal catcher for the SIGCHLD signal that is    *
- *   produced when a SMP search decides to terminate other processes (as in    *
- *   the case of using smpnice=1).  we have to catch the signal, and execute a *
- *   wait() system call to get the final status of that process so it won't    *
- *   hang around as a zombie/<defunct> process and eventually fill up all the  *
- *   available process slots.                                                  *
- *                                                                             *
- *******************************************************************************
- */
-#if defined(UNIX)
-void SignalInterrupt(int sigtype)
-{
-  signal(SIGCHLD, SignalInterrupt);
-  while (1) {
-    int status, r;
-
-    r = waitpid(-1, &status, WNOHANG);
-    if (r <= 0)
-      return;
-  }
 }
 #endif

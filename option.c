@@ -7,12 +7,12 @@
 #  include <signal.h>
 #endif
 #include "epdglue.h"
-/* last modified 10/13/08 */
+/* last modified 01/16/09 */
 /*
  *******************************************************************************
  *                                                                             *
  *   Option() is used to handle user input necessary to control/customize the  *
- *   program.  it performs all functions excepting chess move input which is   *
+ *   program.  It performs all functions excepting chess move input which is   *
  *   handled by main().                                                        *
  *                                                                             *
  *******************************************************************************
@@ -22,7 +22,7 @@ int Option(TREE * RESTRICT tree)
 /*
  ************************************************************
  *                                                          *
- *   parse the input.  if it looks like a FEN string, don't *
+ *   parse the input.  If it looks like a FEN string, don't *
  *   parse using "/" as a separator, otherwise do.          *
  *                                                          *
  ************************************************************
@@ -99,15 +99,15 @@ int Option(TREE * RESTRICT tree)
  ************************************************************
  *                                                          *
  *   "adaptive" sets the new adaptive hash algorithm        *
- *    parameters.  it requires five parameters.  the first  *
+ *    parameters.  It requires five parameters.  The first  *
  *    is an estimated NPS, the second is the minimum hash   *
- *    size, and the third is the maximum hash size.  the    *
+ *    size, and the third is the maximum hash size.  The    *
  *    adaptive algorithm will look at the time control, and *
  *    try to adjust the hash sizes to an optimal value      *
  *    without dropping below the minimum or exceeding the   *
- *    maximum memory size given.  the min/max sizes can be  *
+ *    maximum memory size given.  The min/max sizes can be  *
  *    given using the same syntax as the hash= command, ie  *
- *    xxx, xxxK or xxxM will all work. the fourth and fifth *
+ *    xxx, xxxK or xxxM will all work. The fourth and fifth *
  *    parameters are used to limit hashp in the same way.   *
  *                                                          *
  ************************************************************
@@ -174,8 +174,8 @@ int Option(TREE * RESTRICT tree)
  *                                                          *
  *   "analyze" puts Crafty in analyze mode, where it reads  *
  *   moves in and between moves, computes as though it is   *
- *   trying to find the best move to make.  when another    *
- *   move is entered, it switches sides and continues.  it  *
+ *   trying to find the best move to make.  When another    *
+ *   move is entered, it switches sides and continues.  It  *
  *   will never make a move on its own, rather, it will     *
  *   continue to analyze until an "exit" command is given.  *
  *                                                          *
@@ -191,7 +191,7 @@ int Option(TREE * RESTRICT tree)
  *                                                          *
  *   "annotate" command is used to read a series of moves   *
  *   and analyze the resulting game, producing comments as  *
- *   requested by the user.  this also handles the          *
+ *   requested by the user.  This also handles the          *
  *   annotateh (html) and annotatet (LaTex) output forms    *
  *   of the command.                                        *
  *                                                          *
@@ -344,7 +344,7 @@ int Option(TREE * RESTRICT tree)
  *                                                          *
  *   "channel" command behaves just like the whisper        *
  *   command, but sends the output to "channel n" instead.  *
- *   there is an optional second parameter that will be     *
+ *   There is an optional second parameter that will be     *
  *   added to the channel tell to indicate what the tell is *
  *   connected to, such as when multiple GM games are going *
  *   on, so that the comment can be directed to a game.     *
@@ -377,8 +377,8 @@ int Option(TREE * RESTRICT tree)
 /*
  ************************************************************
  *                                                          *
- *   "cache" is used to set the EGTB cache size.  as always *
- *   bigger is better.  the default is 1mb.  sizes can be   *
+ *   "cache" is used to set the EGTB cache size.  As always *
+ *   bigger is better.  The default is 1mb.  Sizes can be   *
  *   specified in bytes, Kbytes or Mbytes as with the hash  *
  *   commands.                                              *
  *                                                          *
@@ -440,7 +440,7 @@ int Option(TREE * RESTRICT tree)
     Print(128, "playing a computer!\n");
     computer_opponent = 1;
     accept_draws = 1;
-    resign = 5;
+    resign = 10;
     resign_counter = 4;
     book_selection_width = 1;
     usage_level = 0;
@@ -452,7 +452,7 @@ int Option(TREE * RESTRICT tree)
  *   "display" command displays the chess board.            *
  *                                                          *
  *   "display" command sets specific display options which  *
- *   control how "chatty" the program is.  in the variable  *
+ *   control how "chatty" the program is.  In the variable  *
  *   display_options, the following bits are set/cleared    *
  *   based on the option chosen.                            *
  *                                                          *
@@ -979,10 +979,10 @@ int Option(TREE * RESTRICT tree)
  *      hash=nnnM where nnn is in M bytes.                  *
  *                                                          *
  *   the only restriction is that the hash table is com-    *
- *   puted as follows:  one entry is 16 bytes long.  there  *
+ *   puted as follows:  one entry is 16 bytes long.  There  *
  *   are 4 tables, two for black, two for white, with one   *
  *   of each being twice the size of the other for the same *
- *   side.  this means that one entry in one of the small   *
+ *   side.  This means that one entry in one of the small   *
  *   tables corresponds to two in the other, so one entry   *
  *   really translates to six entries.  Therefore, the size *
  *   that is entered is divided by 6*16, and then rounded   *
@@ -1016,7 +1016,7 @@ int Option(TREE * RESTRICT tree)
             break;
         if (log_hash) {
           hash_table_size = 1 << log_hash;
-          cb_trans_ref = sizeof(HASH_ENTRY) * hash_table_size + 15;
+          cb_trans_ref = 3 * sizeof(HASH_ENTRY) * hash_table_size + 15;
           trans_ref = (HASH_ENTRY *) malloc(cb_trans_ref);
           if (!trans_ref) {
             printf("malloc() failed, not enough memory.\n");
@@ -1036,7 +1036,7 @@ int Option(TREE * RESTRICT tree)
         Print(4095, "ERROR:  hash table size must be > 0\n");
     }
     Print(128, "hash table memory = %s bytes.\n",
-        PrintKM(hash_table_size * sizeof(HASH_ENTRY), 1));
+        PrintKM(hash_table_size * 3 * sizeof(HASH_ENTRY), 1));
   }
 /*
  ************************************************************
@@ -1172,7 +1172,7 @@ int Option(TREE * RESTRICT tree)
  ************************************************************
  *                                                          *
  *  "ics" command is normally invoked from main() via the   *
- *  ics command-line option.  it sets proper defaults for   *
+ *  ics command-line option.  It sets proper defaults for   *
  *  defaults for the custom Crafty/ics interface program.   *
  *                                                          *
  ************************************************************
@@ -1213,7 +1213,7 @@ int Option(TREE * RESTRICT tree)
   else if (OptionMatch("info", *args)) {
     Print(128, "Crafty version %s\n", version);
     Print(128, "hash table memory =      %s bytes.\n",
-        PrintKM(hash_table_size * sizeof(HASH_ENTRY), 1));
+        PrintKM(hash_table_size * 3 * sizeof(HASH_ENTRY), 1));
     Print(128, "pawn hash table memory = %s bytes.\n",
         PrintKM(pawn_hash_table_size * sizeof(PAWN_HASH_ENTRY), 1));
 #if !defined(NOEGTB)
@@ -1267,7 +1267,7 @@ int Option(TREE * RESTRICT tree)
  ************************************************************
  *                                                          *
  *   "learn" command enables/disables the learning          *
- *   algorithms used in Crafty.  these are controlled by    *
+ *   algorithms used in Crafty.  These are controlled by    *
  *   a single variable with multiple boolean switches in    *
  *   it as defined below:                                   *
  *                                                          *
@@ -1331,7 +1331,10 @@ int Option(TREE * RESTRICT tree)
       return (1);
     }
     tc_moves = atoi(args[1]);
-    tc_time = atoi(args[2]) * 100;
+    tc_time = atoi(args[2]) * 60;
+    if (strchr(args[2], ':'))
+      tc_time = tc_time + atoi(strchr(args[2], ':') + 1);
+    tc_time *= 100;
     tc_increment = atoi(args[3]) * 100;
     tc_time_remaining = tc_time;
     tc_time_remaining_opponent = tc_time;
@@ -1347,14 +1350,14 @@ int Option(TREE * RESTRICT tree)
       tc_moves_remaining = tc_moves;
     }
     if (!tc_sudden_death) {
-      Print(128, "%d moves/%d minutes primary time control\n", tc_moves,
+      Print(128, "%d moves/%d seconds primary time control\n", tc_moves,
           tc_time / 100);
-      Print(128, "%d moves/%d minutes secondary time control\n",
+      Print(128, "%d moves/%d seconds secondary time control\n",
           tc_secondary_moves, tc_secondary_time / 100);
       if (tc_increment)
         Print(128, "increment %d seconds.\n", tc_increment / 100);
     } else if (tc_sudden_death == 1) {
-      Print(128, " game/%d minutes primary time control\n", tc_time / 100);
+      Print(128, " game/%d seconds primary time control\n", tc_time / 100);
       if (tc_increment)
         Print(128, "increment %d seconds.\n", tc_increment / 100);
     }
@@ -1390,7 +1393,7 @@ int Option(TREE * RESTRICT tree)
  ************************************************************
  *                                                          *
  *   "linelength" sets the default line length to something *
- *    other than 80, if desired.  setting this to a huge    *
+ *    other than 80, if desired.  Setting this to a huge    *
  *    number makes a PV print on one line for easier        *
  *    parsing by automated scripts.                         *
  *                                                          *
@@ -1416,33 +1419,33 @@ int Option(TREE * RESTRICT tree)
  *                                                          *
  *   <listname> is one of AK, B, C, GM, IM, SP.             *
  *                                                          *
- *   The final parameter is a name to add  or remove.  if   *
+ *   The final parameter is a name to add  or remove.  If   *
  *   you prepend a + to the name, that asks that the name   *
- *   be added to the list.  if you prepend a - to the name, *
+ *   be added to the list.  If you prepend a - to the name, *
  *   that asks that the name be removed from the list.      *
- *   if no name is given, the list is displayed.            *
+ *   If no name is given, the list is displayed.            *
  *                                                          *
  *   AK is the "auto-kibitz" list.  Crafty will kibitz info *
  *   on a chess server when playing any opponent in this    *
- *   list.  this should only have computer names as humans  *
+ *   list.  This should only have computer names as humans  *
  *   don't approve of kibitzes while they are playing.      *
  *                                                          *
  *   B identifies "blocker" players, those that try to      *
- *   block the position and go for easy draws.  this makes  *
+ *   block the position and go for easy draws.  This makes  *
  *   Crafty try much harder to prevent this from happening, *
  *   even at the expense of positional compensation.        *
  *                                                          *
  *   C identifies a computer opponent name, although on a   *
  *   chess server this is handled by xboard/winboard.       *
  *                                                          *
- *   GM and IM identify titled players.  this affects how   *
+ *   GM and IM identify titled players.  This affects how   *
  *   and when Crafty resigns or offers/accepts draws.  For  *
  *   GM players it will do so fairly early after the right  *
  *   circumstances have been seen, for IM it delays a bit   *
  *   longer as they are more prone to making a small error  *
  *   that avoids the loss or draw.                          *
  *                                                          *
- *   SP is the "special player" option.  this is an         *
+ *   SP is the "special player" option.  This is an         *
  *   extended version of the "list" command that allows you *
  *   to specify a special "start book" for a particular     *
  *   opponent to make Crafty play specific openings against *
@@ -1648,7 +1651,7 @@ int Option(TREE * RESTRICT tree)
  *   "log" command turns log on/off, and also lets you view *
  *   the end of the log or copy it to disk as needed.  To   *
  *   view the end, simply type "log <n>" where n is the #   *
- *   of lines you'd like to see (the last <n> lines).  you  *
+ *   of lines you'd like to see (the last <n> lines).  You  *
  *   can add a filename to the end and the output will go   *
  *   to this file instead.                                  *
  *                                                          *
@@ -1746,25 +1749,25 @@ int Option(TREE * RESTRICT tree)
  *   parameters.                                            *
  *                                                          *
  *   "smpmin" command is used to set the minimum depth of   *
- *   a tree before a thread can be started.  this is used   *
+ *   a tree before a thread can be started.  This is used   *
  *   to prevent the thread creation overhead from becoming  *
  *   larger than the time actually needed to search the     *
  *   tree.                                                  *
  *                                                          *
  *   "smpmt" command is used to set the maximum number of   *
  *   parallel threads to use, assuming that Crafty was      *
- *   compiled with -DSMP.  this value can not be set        *
+ *   compiled with -DSMP.  This value can not be set        *
  *   larger than the compiled-in -DCPUS=n value.            *
  *                                                          *
  *   "smproot" command is used to enable (1) or disable (0) *
- *   splitting the tree at the root (ply=1).  splitting at  *
+ *   splitting the tree at the root (ply=1).  Splitting at  *
  *   the root is more efficient, but might slow finding the *
  *   move in some test positions.                           *
  *                                                          *
  *   "smpgroup" command is used to control how many threads *
- *   may work together at any point in the tree.  the       *
+ *   may work together at any point in the tree.  The       *
  *   usual default is 8, but this might be reduced on a     *
- *   machine with a large number of processors.  it should  *
+ *   machine with a large number of processors.  It should  *
  *   be tested, of course.                                  *
  *                                                          *
  *   "smpnice" command turns on "nice" mode where idle      *
@@ -1850,8 +1853,8 @@ int Option(TREE * RESTRICT tree)
  ************************************************************
  *                                                          *
  *   "mode" command sets tournament mode or normal mode.    *
- *   tournament mode is used when Crafty is in a "real"     *
- *   tournament.  it forces draw_score to 0, and makes      *
+ *   Tournament mode is used when Crafty is in a "real"     *
+ *   tournament.  It forces draw_score to 0, and makes      *
  *   Crafty display the chess clock after each move.        *
  *                                                          *
  ************************************************************
@@ -1889,11 +1892,11 @@ int Option(TREE * RESTRICT tree)
  ************************************************************
  *                                                          *
  *   "name" command saves opponents name and writes it into *
- *   logfile along with the date/time.  it also scans the   *
+ *   logfile along with the date/time.  It also scans the   *
  *   list of known computers and adjusts its opening book   *
- *   to play less "risky" if it matches.  if the opponent   *
+ *   to play less "risky" if it matches.  If the opponent   *
  *   is in the GM list, it tunes the resignation controls   *
- *   to resign earlier.  ditto for other lists that are     *
+ *   to resign earlier.  Ditto for other lists that are     *
  *   used to recognize specific opponents and adjust things *
  *   accordingly.                                           *
  *                                                          *
@@ -2006,7 +2009,7 @@ int Option(TREE * RESTRICT tree)
  *                                                          *
  *   "noise" command sets a minimum limit on nodes searched *
  *   such that until this number of nodes has been searched *
- *   no program output will occur.  this is used to prevent *
+ *   no program output will occur.  This is used to prevent *
  *   simple endgames from swamping the display device since *
  *   30+ ply searches are possible, which can produce 100's *
  *   of lines of output.                                    *
@@ -2024,8 +2027,8 @@ int Option(TREE * RESTRICT tree)
 /*
  ************************************************************
  *                                                          *
- *   "operator" command sets the operator time.  this time  *
- *   is the time per move that the operator needs.  it is   *
+ *   "operator" command sets the operator time.  This time  *
+ *   is the time per move that the operator needs.  It is   *
  *   multiplied by the number of moves left to time control *
  *   to reserve operator time.                              *
  *                                                          *
@@ -2044,7 +2047,7 @@ int Option(TREE * RESTRICT tree)
  ************************************************************
  *                                                          *
  *   "otime" command sets the opponent's time remaining.    *
- *   this is used to determine if the opponent is in time   *
+ *   This is used to determine if the opponent is in time   *
  *   trouble, and is factored into the draw score if he is. *
  *                                                          *
  ************************************************************
@@ -2069,7 +2072,7 @@ int Option(TREE * RESTRICT tree)
  ************************************************************
  *                                                          *
  *   "output" command sets long or short algebraic output.  *
- *   long is Ng1f3, while short is simply Nf3.              *
+ *   Long is Ng1f3, while short is simply Nf3.              *
  *                                                          *
  ************************************************************
  */
@@ -2609,7 +2612,7 @@ int Option(TREE * RESTRICT tree)
  ************************************************************
  *                                                          *
  *   "remove" command backs up the game one whole move,     *
- *   leaving the opponent still on move.  it's intended for *
+ *   leaving the opponent still on move.  It's intended for *
  *   xboard compatibility, but works in any mode.           *
  *                                                          *
  ************************************************************
@@ -2625,7 +2628,7 @@ int Option(TREE * RESTRICT tree)
  ************************************************************
  *                                                          *
  *   "reset" restores (backs up) a game to a prior position *
- *   with the same side on move.  reset 17 would reset the  *
+ *   with the same side on move.  Reset 17 would reset the  *
  *   position to what it was at move 17.                    *
  *                                                          *
  ************************************************************
@@ -2692,11 +2695,11 @@ int Option(TREE * RESTRICT tree)
 /*
  ************************************************************
  *                                                          *
- *   "read" reads game moves in and makes them.  this can   *
+ *   "read" reads game moves in and makes them.  This can   *
  *   be used in two ways:  (1) type "read" and then start   *
  *   entering moves;  type "exit" when done;  (2) type      *
  *   "read <filename>" to read moves in from <filename>.    *
- *   note that read will attempt to skip over "non-move"    *
+ *   Note that read will attempt to skip over "non-move"    *
  *   text and try to extract moves if it can.               *
  *                                                          *
  ************************************************************
@@ -2810,7 +2813,7 @@ int Option(TREE * RESTRICT tree)
  *                                                          *
  *   "resign" command sets the resignation threshold to     *
  *   the number of pawns the program must be behind before  *
- *   resigning (0 -> disable resignations).  resign with no *
+ *   resigning (0 -> disable resignations).  Resign with no *
  *   arguments will mark the pgn result as lost by the      *
  *   opponent.                                              *
  *                                                          *
@@ -2840,7 +2843,7 @@ int Option(TREE * RESTRICT tree)
  ************************************************************
  *                                                          *
  *   "result" command comes from xboard/winboard and gives  *
- *   the result of the current game.  if learning routines  *
+ *   the result of the current game.  If learning routines  *
  *   have not yet been activated, this will do it.          *
  *                                                          *
  ************************************************************
@@ -2870,7 +2873,7 @@ int Option(TREE * RESTRICT tree)
  ************************************************************
  *                                                          *
  *   "savegame" command saves the game in a file in PGN     *
- *   format.  command has an optional filename.             *
+ *   format.  Command has an optional filename.             *
  *                                                          *
  ************************************************************
  */
@@ -3066,25 +3069,23 @@ int Option(TREE * RESTRICT tree)
 /*
  ************************************************************
  *                                                          *
- *   "scale" command is used for tuning.  we modify this to *
+ *   "scale" command is used for tuning.  We modify this to *
  *   scale some scoring value(s) by a percentage that can   *
  *   be either positive or negative.                        *
  *                                                          *
  ************************************************************
  */
   else if (!strcmp("scale", *args)) {
+    int v = atoi(args[1]);
+
+    development_losing_castle = v / 1000;
+    development_not_castled = v % 1000;
 /*
     int scale = atoi(args[1]);
     int orig = rook_open_file[mg];
     rook_open_file[mg] = scale * rook_open_file[mg] / 100;
     rook_open_file[eg] += orig - rook_open_file[mg];
 */
-    int i, j;
-
-    for (i = 0; i < 9; i++)
-      for (j = 0; j < 9; j++) {
-        imbalance[i][j] = atoi(args[1]) * imbalance[i][j] / 100;
-      }
   }
 /*
  ************************************************************
@@ -3147,6 +3148,10 @@ int Option(TREE * RESTRICT tree)
     if (thinking || pondering)
       return (2);
     nargs = ReadParse(buffer, args, " 	;=");
+    if (nargs < 3) {
+      printf("usage:  setboard <fen>\n");
+      return (1);
+    }
     SetBoard(tree, nargs - 1, args + 1, 0);
     move_number = 1;
     if (!wtm) {
@@ -3422,7 +3427,7 @@ int Option(TREE * RESTRICT tree)
  *                                                          *
  *   "skill" command sets a value from 1-100 that affects   *
  *   Crafty's playing skill level.  100 => max skill, 1 =>  *
- *   minimal skill.  this is used to reduce the chess       *
+ *   minimal skill.  This is used to reduce the chess       *
  *   knowledge usage, along with other things.              *
  *                                                          *
  ************************************************************
@@ -3581,7 +3586,7 @@ int Option(TREE * RESTRICT tree)
  ************************************************************
  *                                                          *
  *   "time" is used to set the basic search timing          *
- *   controls.  the general form of the command is as       *
+ *   controls.  The general form of the command is as       *
  *   follows:                                               *
  *                                                          *
  *     time nmoves/ntime/[nmoves/ntime]/[increment]         *
@@ -3589,22 +3594,22 @@ int Option(TREE * RESTRICT tree)
  *   nmoves/ntime represents a traditional first time       *
  *   control when nmoves is an integer representing the     *
  *   number of moves and ntime is the total time allowed    *
- *   for these moves.  the [optional] nmoves/ntime is a     *
- *   traditional secondary time control.  increment is a    *
+ *   for these moves.  The [optional] nmoves/ntime is a     *
+ *   traditional secondary time control.  Increment is a    *
  *   feature related to ics play and emulates the fischer   *
  *   clock where "increment" is added to the time left      *
  *   after each move is made.                               *
  *                                                          *
- *   as an alternative, nmoves can be "sd" which represents *
+ *   As an alternative, nmoves can be "sd" which represents *
  *   a "sudden death" time control of the remainder of the  *
- *   game played in ntime.  the optional secondary time     *
+ *   game played in ntime.  The optional secondary time     *
  *   control can be a sudden-death time control, as in the  *
  *   following example:                                     *
  *                                                          *
  *     time 60/30/sd/30                                     *
  *                                                          *
- *   this sets 60 moves in 30 minutes, then game in 30      *
- *   additional minutes.  an increment can be added if      *
+ *   This sets 60 moves in 30 minutes, then game in 30      *
+ *   additional minutes.  An increment can be added if      *
  *   desired.                                               *
  *                                                          *
  ************************************************************
@@ -3687,12 +3692,12 @@ int Option(TREE * RESTRICT tree)
  ************************************************************
  *                                                          *
  *   "timebook" command is used to adjust Crafty's time     *
- *   usage after it leaves the opening book.  the first     *
+ *   usage after it leaves the opening book.  The first     *
  *   value specifies the multiplier for the time added to   *
  *   the first move out of book expressed as a percentage   *
- *   (100 is 100% for example).  the second value specifies *
+ *   (100 is 100% for example).  The second value specifies *
  *   the "span" (number of moves) that this multiplier      *
- *   decays over.  for example, "timebook 100 10" says to   *
+ *   decays over.  For example, "timebook 100 10" says to   *
  *   add 100% of the normal search time for the first move  *
  *   out of book, then 90% for the next, until after 10     *
  *   non-book moves have been played, the percentage has    *
@@ -3815,7 +3820,7 @@ int Option(TREE * RESTRICT tree)
  *  used in the game  - percntage increase or decrease in time   *
  *  used up front.  Enter a number between 1 to 100 for the      *
  *  % decrease to increase - although other time limitations     !
- * controls may kick in.  negatives work as well, may be used    *
+ * controls may kick in.  Negatives work as well, may be used    *
  * in crafty.rc                                                  *
  *                                                               *
  *****************************************************************
@@ -3915,7 +3920,7 @@ int Option(TREE * RESTRICT tree)
  ************************************************************
  *                                                          *
  *  "xboard" command is normally invoked from main() via    *
- *  the xboard command-line option.  it sets proper         *
+ *  the xboard command-line option.  It sets proper         *
  *  defaults for ics/Xboard interface requirements.         *
  *                                                          *
  ************************************************************
@@ -3967,13 +3972,13 @@ int Option(TREE * RESTRICT tree)
 /*
  *******************************************************************************
  *                                                                             *
- *   OptionMatch() is used to recognize user commands.  it requires that the   *
+ *   OptionMatch() is used to recognize user commands.  It requires that the   *
  *   command (text input which is the *2nd parameter* conform to the following *
  *   simple rules:                                                             *
  *                                                                             *
- *     1.  the input must match the command, starting at the left-most         *
+ *     1.  The input must match the command, starting at the left-most         *
  *         character.                                                          *
- *     2.  if the command starts with a sequence of characters that could      *
+ *     2.  If the command starts with a sequence of characters that could      *
  *         be interpreted as a chess move as well (re for reset and/or rook    *
  *         to the e-file) then the input must match enough of the command      *
  *         to get past the ambiguity (res would be minimum we will accept      *

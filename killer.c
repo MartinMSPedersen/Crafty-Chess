@@ -1,6 +1,6 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 03/01/06 */
+/* last modified 01/14/09 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -14,7 +14,7 @@ void Killer(TREE * RESTRICT tree, int ply, int move)
 /*
  ************************************************************
  *                                                          *
- *   if the best move so far is a capture or a promotion,   *
+ *   If the best move so far is a capture or a promotion,   *
  *   return, since we try good captures and promotions      *
  *   before searching killer heuristic moves anyway.        *
  *                                                          *
@@ -25,8 +25,10 @@ void Killer(TREE * RESTRICT tree, int ply, int move)
 /*
  ************************************************************
  *                                                          *
- *   now, add this move to the current killer moves if it   *
- *   is not already there.                                  *
+ *   Now, add this move to the current killer moves if it   *
+ *   is not already there.  If the move is already first in *
+ *   the list, leave it there, otherwise move the first one *
+ *   down to slot two and insert this move into slot one.   *
  *                                                          *
  ************************************************************
  */

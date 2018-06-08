@@ -1,13 +1,13 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 01/22/01 */
+/* last modified 01/17/09 */
 /*
  *******************************************************************************
  *                                                                             *
  *   OutputMove() is responsible for converting the internal move format to a  *
- *   string that can be displayed.  first, it simply converts the from/to      *
+ *   string that can be displayed.  First, it simply converts the from/to      *
  *   squares to fully-qualified algebraic (which includes O-O and O-O-O for    *
- *   castling moves).  next, we try several "shortcut" forms and call          *
+ *   castling moves).  Next, we try several "shortcut" forms and call          *
  *   input_move(silent=1) to let it silently check the move for uniqueness.    *
  *   as soon as we get a non-ambiguous move, we return that text string.       *
  *                                                                             *
@@ -21,8 +21,13 @@ char *OutputMove(TREE * RESTRICT tree, int move, int ply, int wtm)
   static const char piece_names[7] = { ' ', 'P', 'N', 'B', 'R', 'Q', 'K' };
   text = text_move;
 /*
- special case for null-move, used only in tracing the search
- by dumping the tree of everything searched.
+ ************************************************************
+ *                                                          *
+ *   Special case for null-move which will only be used     *
+ *   in a search trace which dumps the entire tree.         *
+ *   return.                                                *
+ *                                                          *
+ ************************************************************
  */
   if (move == 0) {
     strcpy(text, "null");
@@ -30,7 +35,11 @@ char *OutputMove(TREE * RESTRICT tree, int move, int ply, int wtm)
   }
   do {
 /*
- check for castling first
+ ************************************************************
+ *                                                          *
+ *   Check for castling moves first.                        *
+ *                                                          *
+ ************************************************************
  */
     if ((Piece(move) == king) && (abs(From(move) - To(move)) == 2)) {
       if (wtm) {
@@ -47,8 +56,12 @@ char *OutputMove(TREE * RESTRICT tree, int move, int ply, int wtm)
       break;
     }
 /*
- not a castling move.  convert to fully-qualified algebraic form
- first.
+ ************************************************************
+ *                                                          *
+ *   Not a castling move.  Convert the move to a fully-     *
+ *   qualified algebraic move as a starting point.          *
+ *                                                          *
+ ************************************************************
  */
     text = new_text;
     if ((int) Piece(move) > pawn)
@@ -68,9 +81,14 @@ char *OutputMove(TREE * RESTRICT tree, int move, int ply, int wtm)
     if (output_format > 0)
       break;
 /*
- now, try some short forms.  if the moving piece is a pawn, and
- it is not capturing anything, simply try the destination square
- first: (e2e4->e4)
+ ************************************************************
+ *                                                          *
+ *   Now we try some short forms.  If this is a pawn move   *
+ *   (first character is "P") and the move is not a capture *
+ *   move, we can try just the destination square (Pe2e4    *
+ *   becomes e4).                                           *
+ *                                                          *
+ ************************************************************
  */
     if (Piece(move) == pawn) {
       if (!Captured(move)) {
@@ -79,22 +97,37 @@ char *OutputMove(TREE * RESTRICT tree, int move, int ply, int wtm)
           break;
       }
 /*
- if the move is a pawn capturing a piece, try the short-form for pawn
- capture moves: (e4xf5->exf5)
+ ************************************************************
+ *                                                          *
+ *   If this is a pawn and it is capturing something, try   *
+ *   the usual pawn capture format (Pe4xd5 becomes exd5).   *
+ *                                                          *
+ ************************************************************
  */
       text_move[0] = new_text[0];
       strcpy(text_move + 1, new_text + 2);
       if (OutputGood(tree, text_move, ply, wtm))
         break;
 /*
- punt, return the fully-qualified move.
+ ************************************************************
+ *                                                          *
+ *   It is a pawn move and we can't find a shorter form, so *
+ *   leave it as a fully-qualified move and go with it as   *
+ *   is.  (this will not normally happen).                  *
+ *                                                          *
+ ************************************************************
  */
       strcpy(text_move, new_text);
       break;
     }
 /*
- if the move is a piece move, but not a capture, then try the short-
- form for non-capturing moves:  (Ng1f3->Nf3)
+ ************************************************************
+ *                                                          *
+ *   If the move is a normal piece move, and does not       *
+ *   capture anything, we try the piece + destination       *
+ *   format first (Ng1f3 becomes Nf3).                      *
+ *                                                          *
+ ************************************************************
  */
     if (!Captured(move)) {
       text_move[0] = new_text[0];
@@ -102,59 +135,81 @@ char *OutputMove(TREE * RESTRICT tree, int move, int ply, int wtm)
       if (OutputGood(tree, text_move, ply, wtm))
         break;
 /*
- now try to qualify with the origin file only: (Ng1f3->Ngf3)
+ ************************************************************
+ *                                                          *
+ *   If that is ambiguous, we will try two alternatives:    *
+ *   (1) add in the origin file;  (2) add in the origin     *
+ *   rank (Ng1f3 becomes Ngf3 or N1f3).                     *
+ *                                                          *
+ ************************************************************
  */
       text_move[0] = new_text[0];
       text_move[1] = new_text[1];
       strcpy(text_move + 2, new_text + 3);
       if (OutputGood(tree, text_move, ply, wtm))
         break;
-/*
- now try to qualify with the origin rank only: (Ng1f3->N1f3)
- */
       text_move[0] = new_text[0];
       strcpy(text_move + 1, new_text + 2);
       if (OutputGood(tree, text_move, ply, wtm))
         break;
 /*
- punt, return the fully-qualified move.
+ ************************************************************
+ *                                                          *
+ *   Nothing worked, so we go with the fully-qualified      *
+ *   move.                                                  *
+ *                                                          *
+ ************************************************************
  */
       strcpy(text_move, new_text);
       break;
     } else {
 /*
- if the move is a piece move, and a capture, then try the short-
- form for capturing moves:  (Ng1xf3->Nxf3)
+ ************************************************************
+ *                                                          *
+ *   If this is a capture, we try the short form of a       *
+ *   capture move (Ng1xf3 becomes Nxf3)                     *
+ *                                                          *
+ ************************************************************
  */
       text_move[0] = new_text[0];
       strcpy(text_move + 1, new_text + 3);
       if (OutputGood(tree, text_move, ply, wtm))
         break;
 /*
- next, try adding in the origin file: (Ng1xf3->Ngxf3)
+ ************************************************************
+ *                                                          *
+ *   If that didn't work, we try adding in the origin file  *
+ *   or the origin rank (Ng1xf3 becomes Ngxf3 or N1xf3).    *
+ *                                                          *
+ ************************************************************
  */
       text_move[0] = new_text[0];
       text_move[1] = new_text[1];
       strcpy(text_move + 2, new_text + 3);
       if (OutputGood(tree, text_move, ply, wtm))
         break;
-/*
- next, try adding in the origin rank: (Ng1xf3->N1xf3)
- */
       text_move[0] = new_text[0];
       strcpy(text_move + 1, new_text + 2);
       if (OutputGood(tree, text_move, ply, wtm))
         break;
 /*
- punt, return the fully-qualified move.
+ ************************************************************
+ *                                                          *
+ *   Nothing worked, return the fully-qualified move.       *
+ *                                                          *
+ ************************************************************
  */
       strcpy(text_move, new_text);
       break;
     }
   } while (0);
 /*
- determine if it's a checking move, or if it's mate.  if so,
- append "+" or "#" as appropriate.
+ ************************************************************
+ *                                                          *
+ *   If the move is a check, or mate, append either "+" or  *
+ *   "#" as appropriate.                                    *
+ *                                                          *
+ ************************************************************
  */
   text = text_move + strlen(text_move);
   tree->position[MAXPLY] = tree->position[ply];
@@ -173,7 +228,7 @@ char *OutputMove(TREE * RESTRICT tree, int move, int ply, int wtm)
   return (text_move);
 }
 
-/* last modified 03/11/98 */
+/* last modified 01/17/09 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -188,7 +243,13 @@ char *OutputMoveICS(int move)
   char *text;
   static const char piece_names[7] = { ' ', 'P', 'N', 'B', 'R', 'Q', 'K' };
 /*
- convert to fully-qualified algebraic form first.
+ ************************************************************
+ *                                                          *
+ *   Chess server software likes a simple 5-character move  *
+ *   format, source square, destination square, and a       *
+ *   promotion piece if needed.                             *
+ *                                                          *
+ ************************************************************
  */
   text = text_move;
   *text++ = File(From(move)) + 'a';
@@ -200,6 +261,15 @@ char *OutputMoveICS(int move)
   *text = '\0';
   return (text_move);
 }
+
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   OutputGood() is used to test a move for legality when trying to convert   *
+ *   from long algebraic to SAN (Short Algebraic Notation).                    *
+ *                                                                             *
+ *******************************************************************************
+ */
 int OutputGood(TREE * RESTRICT tree, char *text, int ply, int wtm)
 {
   int new_move;

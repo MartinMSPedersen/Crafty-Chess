@@ -5,15 +5,15 @@
  *******************************************************************************
  *                                                                             *
  *   ValidatePosition() is a debugging tool that is enabled by using the       *
- *   -DDEBUG compilation flag.  this procedure tests the various data          *
+ *   -DDEBUG compilation flag.  This procedure tests the various data          *
  *   structures used in Crafty related to the chess board and incrementally    *
- *   updated values like hash signatures and so forth.  it simply looks for    *
+ *   updated values like hash signatures and so forth.  It simply looks for    *
  *   consistency between the various bitboards, and recomputes the hash        *
- *   signatures to determine if they are correct.  if anything fails to pass   *
+ *   signatures to determine if they are correct.  If anything fails to pass   *
  *   the validation test, we print out a dump of the moves made in this path   *
  *   through the tree, and then exit since things are corrupted.               *
  *                                                                             *
- *   this greatly slows the program down, because ValidatePosition() is called *
+ *   This greatly slows the program down, because ValidatePosition() is called *
  *   after each Make()/Unmake() (these are the functions that modify the       *
  *   primary data structures).  In general, this will not be used by users     *
  *   unless they are modifying the source code themselves.                     *
@@ -30,7 +30,7 @@ void ValidatePosition(TREE * RESTRICT tree, int ply, int move, char *caller)
 /*
  ************************************************************
  *                                                          *
- *  first, test occupied[side] which should match the OR    *
+ *  First, test occupied[side] which should match the OR    *
  *  result of all pieces[side].                             *
  *                                                          *
  ************************************************************
@@ -50,7 +50,7 @@ void ValidatePosition(TREE * RESTRICT tree, int ply, int move, char *caller)
 /*
  ************************************************************
  *                                                          *
- *  then test the bishops&queens and rooks&queens bitmaps   *
+ *  Then test the bishops&queens and rooks&queens bitmaps   *
  *  by ORing all of the correct piece type bitmaps.         *
  *                                                          *
  ************************************************************
@@ -70,8 +70,8 @@ void ValidatePosition(TREE * RESTRICT tree, int ply, int move, char *caller)
 /*
  ************************************************************
  *                                                          *
- *  now we do some sanity tests on the actual chess board   *
- *  information.  the first test is to make sure that no    *
+ *  Now we do some sanity tests on the actual chess board   *
+ *  information.  The first test is to make sure that no    *
  *  bitmap square is set in more than one bitmap, which     *
  *  would imply two different pieces on the same square.    *
  *                                                          *
@@ -92,7 +92,7 @@ void ValidatePosition(TREE * RESTRICT tree, int ply, int move, char *caller)
 /*
  ************************************************************
  *                                                          *
- *  add up all the pieces (material values) to see if this  *
+ *  Add up all the pieces (material values) to see if this  *
  *  matches the incrementally updated value.                *
  *                                                          *
  ************************************************************
@@ -109,7 +109,7 @@ void ValidatePosition(TREE * RESTRICT tree, int ply, int move, char *caller)
 /*
  ************************************************************
  *                                                          *
- *  next, check the incrementally updated piece counts for  *
+ *  Next, check the incrementally updated piece counts for  *
  *  both sides.  ditto for pawn counts.                     *
  *                                                          *
  ************************************************************
@@ -141,7 +141,7 @@ void ValidatePosition(TREE * RESTRICT tree, int ply, int move, char *caller)
 /*
  ************************************************************
  *                                                          *
- *  now we cycle through each different chessboard bitmap   *
+ *  Now we cycle through each different chessboard bitmap   *
  *  and verify that each piece in a bitmap matches the same *
  *  piece type in the board[64] array.                      *
  *                                                          *
@@ -163,7 +163,7 @@ void ValidatePosition(TREE * RESTRICT tree, int ply, int move, char *caller)
 /*
  ************************************************************
  *                                                          *
- *  and then we look at the board[64] array and make sure   *
+ *  And then we look at the board[64] array and make sure   *
  *  that any non-zero piece matches the proper bitmap for   *
  *  that particular piece type.                             *
  *                                                          *
@@ -182,7 +182,7 @@ void ValidatePosition(TREE * RESTRICT tree, int ply, int move, char *caller)
 /*
  ************************************************************
  *                                                          *
- *  the last chess board test is to make sure that any      *
+ *  The last chess board test is to make sure that any      *
  *  square that is empty according to board[64] is also     *
  *  empty according to the occupied squares bitmap.         *
  *                                                          *
@@ -200,7 +200,7 @@ void ValidatePosition(TREE * RESTRICT tree, int ply, int move, char *caller)
 /*
  ************************************************************
  *                                                          *
- *  finally, we re-compute the pawn hash signature and the  *
+ *  Finally, we re-compute the pawn hash signature and the  *
  *  normal hash signature and verify that they match the    *
  *  incrementally updated values.                           *
  *                                                          *
@@ -233,7 +233,7 @@ void ValidatePosition(TREE * RESTRICT tree, int ply, int move, char *caller)
 /*
  ************************************************************
  *                                                          *
- *  if any inconsistencies/errors were found, we are going  *
+ *  If any inconsistencies/errors were found, we are going  *
  *  to dump as much debugging information as possible to    *
  *  help pinpoint the source of the problem.                *
  *                                                          *

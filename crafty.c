@@ -1,15 +1,21 @@
-#include "searchr.c"
+/* last modified 01/18/09 */
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   This module is designed for the most efficient compiling, as it includes  *
+ *   all of the source files into one large wad so that the compiler can see   *
+ *   all function calls and inline whatever is appropriate.  The includes are  *
+ *   loosely ordered so that the most common functions occur first, to help    *
+ *   with cache layout when the code is actually loaded.                       *
+ *                                                                             *
+ *******************************************************************************
+ */
 #include "search.c"
 #include "thread.c"
-#include "searchmp.c"
 #include "repeat.c"
 #include "next.c"
-#include "nexte.c"
-#include "nextr.c"
 #include "killer.c"
 #include "quiesce.c"
-#include "qchecks.c"
-#include "qevasions.c"
 #include "evaluate.c"
 #include "movgen.c"
 #include "make.c"

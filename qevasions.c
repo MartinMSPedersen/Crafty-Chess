@@ -1,15 +1,15 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 08/25/08 */
+/* last modified 12/04/08 */
 /*
  *******************************************************************************
  *                                                                             *
- *   QuiesceChecks() is the recursive routine used to implement the alpha/beta *
- *   negamax search (similar to minimax but simpler to code.)  QuiesceChecks() *
- *   is called at leaf nodes and tries the usual captures, plus any other moves*
- *   that give check.  If a move searched is a check, the next ply will be a   *
- *   full-width search to escape the check.  Once QuiesceChecks() has been     *
- *   called in any path, it will not be called again.                          *
+ *   QuiesceEvasions() is the recursive routine used to implement the alpha/   *
+ *   beta negamax search (similar to minimax but simpler to code.)             *
+ *   QuiesceChecks() is called at leaf nodes and tries the usual captures,     *
+ *   plus any other moves that give check.  If a move searched is a check, the *
+ *   next ply will be a full-width search to escape the check.  Once           *
+ *   QuiesceChecks() has been called in any path, it will not be called again. *
  *                                                                             *
  *******************************************************************************
  */
@@ -21,7 +21,7 @@ int QuiesceEvasions(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply)
 /*
  ************************************************************
  *                                                          *
- *   initialize.                                            *
+ *   Initialize.                                            *
  *                                                          *
  ************************************************************
  */
@@ -41,7 +41,7 @@ int QuiesceEvasions(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply)
 /*
  ************************************************************
  *                                                          *
- *   check for draw by repetition.                          *
+ *   Check for draw by repetition.                          *
  *                                                          *
  ************************************************************
  */
@@ -62,8 +62,8 @@ int QuiesceEvasions(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply)
 /*
  ************************************************************
  *                                                          *
- *   now iterate through the move list and search the       *
- *   resulting positions.                                   *
+ *   Iterate through the move list and search the resulting *
+ *   positions.                                             *
  *                                                          *
  ************************************************************
  */
@@ -87,7 +87,7 @@ int QuiesceEvasions(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply)
 /*
  ************************************************************
  *                                                          *
- *   all moves have been searched.  if none were legal,     *
+ *   All moves have been searched.  If none were legal,     *
  *   return either MATE or DRAW depending on whether the    *
  *   side to move is in check or not.                       *
  *                                                          *

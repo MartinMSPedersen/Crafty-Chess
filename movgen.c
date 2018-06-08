@@ -1,13 +1,13 @@
 #include "chess.h"
 #include "data.h"
-/* modified 02/19/08 */
+/* modified 01/16/09 */
 /*
  *******************************************************************************
  *                                                                             *
  *   GenerateCaptures() is used to generate capture and pawn promotion moves   *
  *   from the current position.                                                *
  *                                                                             *
- *   the destination square set is the set of squares occupied by opponent     *
+ *   The destination square set is the set of squares occupied by opponent     *
  *   pieces, plus the set of squares on the 8th rank that pawns can advance to *
  *   and promote.                                                              *
  *                                                                             *
@@ -22,7 +22,7 @@ int *GenerateCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
 /*
  ************************************************************
  *                                                          *
- *   now, produce knight moves by cycling through the       *
+ *   Now, produce knight moves by cycling through the       *
  *   *_knight board to locate a [from] square and then      *
  *   cycling through knight_attacks[] to locate to squares  *
  *   that a knight on [from] attacks.                       *
@@ -40,7 +40,7 @@ int *GenerateCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
 /*
  ************************************************************
  *                                                          *
- *   now, produce bishop moves by cycling through the       *
+ *   Now, produce bishop moves by cycling through the       *
  *   *_bishop board to locate a [from] square and then      *
  *   generate the AttacksFrom() bitmap which supplies the   *
  *   list of valid <to> squares.                            *
@@ -58,7 +58,7 @@ int *GenerateCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
 /*
  ************************************************************
  *                                                          *
- *   now, produce rook moves by cycling through the         *
+ *   Now, produce rook moves by cycling through the         *
  *   *_rook board to locate a [from] square and then        *
  *   generate the AttacksFrom() bitmap which supplies the   *
  *   list of valid <to> squares.                            *
@@ -76,7 +76,7 @@ int *GenerateCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
 /*
  ************************************************************
  *                                                          *
- *   now, produce queen moves by cycling through the        *
+ *   Now, produce queen moves by cycling through the        *
  *   *_queen board to locate a [from] square and then       *
  *   generate the AttacksFrom() bitmap which supplies the   *
  *   list of valid <to> squares.                            *
@@ -94,7 +94,7 @@ int *GenerateCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
 /*
  ************************************************************
  *                                                          *
- *   now, produce king moves by cycling through the         *
+ *   Now, produce king moves by cycling through the         *
  *   *_king board to locate a [from] square and then        *
  *   cycling through king_attacks[] to locate to squares    *
  *   that a king on [from] attacks.                         *
@@ -108,11 +108,11 @@ int *GenerateCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
 /*
  ************************************************************
  *                                                          *
- *   now, produce pawn moves.  this is done differently due *
+ *   Now, produce pawn moves.  This is done differently due *
  *   to inconsistencies in the way a pawn moves when it     *
  *   captures as opposed to normal non-capturing moves.     *
- *   another exception is capturing enpassant.  the first   *
- *   step is to generate all possible pawn promotions.  we  *
+ *   Another exception is capturing enpassant.  The first   *
+ *   step is to generate all possible pawn promotions.  We  *
  *   do this by masking  all pawns but those on the 7th     *
  *   rank and then advancing them ahead if the square in    *
  *   front is empty.                                        *
@@ -155,7 +155,7 @@ int *GenerateCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
   return (move);
 }
 
-/* modified 12/01/08 */
+/* modified 01/16/09 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -201,12 +201,12 @@ int *GenerateChecks(TREE * RESTRICT tree, int ply, int wtm, int *move)
 /*
  *********************************************************************
  *                                                                   *
- *  First pass:  produce direct checks.  for each piece type, we     *
- *  pretent that a piece of that type stands on the square of the    *
+ *  First pass:  produce direct checks.  For each piece type, we     *
+ *  pretend that a piece of that type stands on the square of the    *
  *  king and we generate attacks from that square for that piece.    *
- *  now, if we can find any piece of that type that attacks one of   *
+ *  Now, if we can find any piece of that type that attacks one of   *
  *  those squares, then that piece move would deliver a direct       *
- *  check to the enemy king.  easy, wasn't it?                       *
+ *  check to the enemy king.  Easy, wasn't it?                       *
  *                                                                   *
  *********************************************************************
  */
@@ -214,7 +214,7 @@ int *GenerateChecks(TREE * RESTRICT tree, int ply, int wtm, int *move)
 /*
  ************************************************************
  *                                                          *
- *  knight direct checks.                                   *
+ *  Knight direct checks.                                   *
  *                                                          *
  ************************************************************
  */
@@ -230,7 +230,7 @@ int *GenerateChecks(TREE * RESTRICT tree, int ply, int wtm, int *move)
 /*
  ************************************************************
  *                                                          *
- *  bishop direct checks.                                   *
+ *  Bishop direct checks.                                   *
  *                                                          *
  ************************************************************
  */
@@ -246,7 +246,7 @@ int *GenerateChecks(TREE * RESTRICT tree, int ply, int wtm, int *move)
 /*
  ************************************************************
  *                                                          *
- *  rook direct checks.                                     *
+ *  Rook direct checks.                                     *
  *                                                          *
  ************************************************************
  */
@@ -262,7 +262,7 @@ int *GenerateChecks(TREE * RESTRICT tree, int ply, int wtm, int *move)
 /*
  ************************************************************
  *                                                          *
- *  queen direct checks.                                    *
+ *  Queen direct checks.                                    *
  *                                                          *
  ************************************************************
  */
@@ -278,7 +278,7 @@ int *GenerateChecks(TREE * RESTRICT tree, int ply, int wtm, int *move)
 /*
  ************************************************************
  *                                                          *
- *   pawn direct checks.                                    *
+ *   Pawn direct checks.                                    *
  *                                                          *
  ************************************************************
  */
@@ -292,7 +292,7 @@ int *GenerateChecks(TREE * RESTRICT tree, int ply, int wtm, int *move)
 /*
  *********************************************************************
  *                                                                   *
- *  Second pass:  produce discovered checks.  here we do things a    *
+ *  Second pass:  produce discovered checks.  Here we do things a    *
  *  bit different.  We first take diagonal movers.  From the enemy   *
  *  king's position, we generate diagonal moves to see if any of     *
  *  them end at one of our pieces that does not slide diagonally,    *
@@ -309,7 +309,7 @@ int *GenerateChecks(TREE * RESTRICT tree, int ply, int wtm, int *move)
 /*
  ************************************************************
  *                                                          *
- *   first we look for diagonal discovered attacks.  once   *
+ *   First we look for diagonal discovered attacks.  Once   *
  *   we know which squares hold pieces that create a        *
  *   discovered check when they move, we generate them      *
  *   piece type by piece type.                              *
@@ -339,7 +339,7 @@ int *GenerateChecks(TREE * RESTRICT tree, int ply, int wtm, int *move)
 /*
  ************************************************************
  *                                                          *
- *   knight discovered checks.                              *
+ *   Knight discovered checks.                              *
  *                                                          *
  ************************************************************
  */
@@ -356,7 +356,7 @@ int *GenerateChecks(TREE * RESTRICT tree, int ply, int wtm, int *move)
 /*
  ************************************************************
  *                                                          *
- *   rook discovered checks.                                *
+ *   Rook discovered checks.                                *
  *                                                          *
  ************************************************************
  */
@@ -373,7 +373,7 @@ int *GenerateChecks(TREE * RESTRICT tree, int ply, int wtm, int *move)
 /*
  ************************************************************
  *                                                          *
- *   pawn discovered checks.                                *
+ *   Pawn discovered checks.                                *
  *                                                          *
  ************************************************************
  */
@@ -395,7 +395,7 @@ int *GenerateChecks(TREE * RESTRICT tree, int ply, int wtm, int *move)
 /*
  ************************************************************
  *                                                          *
- *   next, we look for rank/file discovered attacks.  once  *
+ *   Next, we look for rank/file discovered attacks.  Once  *
  *   we know which squares hold pieces that create a        *
  *   discovered check when they move, we generate them      *
  *   piece type by piece type.                              *
@@ -426,7 +426,7 @@ int *GenerateChecks(TREE * RESTRICT tree, int ply, int wtm, int *move)
 /*
  ************************************************************
  *                                                          *
- *   knight discovered checks.                              *
+ *   Knight discovered checks.                              *
  *                                                          *
  ************************************************************
  */
@@ -443,7 +443,7 @@ int *GenerateChecks(TREE * RESTRICT tree, int ply, int wtm, int *move)
 /*
  ************************************************************
  *                                                          *
- *   bishop discovered checks.                              *
+ *   Bishop discovered checks.                              *
  *                                                          *
  ************************************************************
  */
@@ -460,7 +460,7 @@ int *GenerateChecks(TREE * RESTRICT tree, int ply, int wtm, int *move)
 /*
  ************************************************************
  *                                                          *
- *   pawn discovered checks.                                *
+ *   Pawn discovered checks.                                *
  *                                                          *
  ************************************************************
  */
@@ -482,25 +482,25 @@ int *GenerateChecks(TREE * RESTRICT tree, int ply, int wtm, int *move)
   return (move);
 }
 
-/* modified 12/10/07 */
+/* modified 01/16/09 */
 /*
  *******************************************************************************
  *                                                                             *
  *   GenerateCheckEvasions() is used to generate moves when the king is in     *
  *   check.                                                                    *
  *                                                                             *
- *   three types of check-evasion moves are generated:                         *
+ *   Three types of check-evasion moves are generated:                         *
  *                                                                             *
- *   (1) generate king moves to squares that are not attacked by the opponent's*
- *   pieces.  this includes capture and non-capture moves.                     *
+ *   (1) Generate king moves to squares that are not attacked by the           *
+ *   opponent's pieces.  this includes capture and non-capture moves.          *
  *                                                                             *
- *   (2) generate interpositions along the rank/file that the checking attack  *
+ *   (2) Generate interpositions along the rank/file that the checking attack  *
  *   is coming along (assuming (a) only one piece is checking the king, and    *
  *   (b) the checking piece is a sliding piece [bishop, rook, queen]).         *
  *                                                                             *
- *   (3) generate capture moves, but only to the square(s) that are giving     *
- *   check.  captures are a special case.  if there is one checking piece, then*
- *   capturing it by any piece is tried.  if there are two pieces checking the *
+ *   (3) Generate capture moves, but only to the square(s) that are giving     *
+ *   check.  Captures are a special case.  If there is one checking piece, then*
+ *   capturing it by any piece is tried.  If there are two pieces checking the *
  *   king, then the only legal capture to try is for the king to capture one of*
  *   the checking pieces that is on an un-attacked square.                     *
  *                                                                             *
@@ -518,7 +518,7 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move)
 /*
  ************************************************************
  *                                                          *
- *   first, determine how many pieces are attacking the     *
+ *   First, determine how many pieces are attacking the     *
  *   king and where they are, so we can figure out how to   *
  *   legally get out of check.                              *
  *                                                          *
@@ -547,17 +547,17 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move)
 /*
  ************************************************************
  *                                                          *
- *   the next step is to produce the set of valid           *
- *   destination squares.  for king moves, this is simply   *
+ *   The next step is to produce the set of valid           *
+ *   destination squares.  For king moves, this is simply   *
  *   the set of squares that are not attacked by enemy      *
  *   pieces (if there are any such squares.)                *
  *                                                          *
- *   then, if the checking piece is not a knight, we need   *
+ *   Then, if the checking piece is not a knight, we need   *
  *   to know the checking direction so that we can either   *
  *   move the king "off" of that direction, or else "block" *
  *   that direction.                                        *
  *                                                          *
- *   first produce king moves by cycling through the        *
+ *   First produce king moves by cycling through the        *
  *   *_king board to locate a [from] square and then        *
  *   cycling through attacks_to[] to locate to squares      *
  *   that the king on [from] attacks.                       *
@@ -569,7 +569,7 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move)
   temp = from + (king << 12);
   while (moves) {
     to = Advanced(wtm, moves);
-    if (!Attacked(tree, to, btm)
+    if (!Attacks(tree, to, btm)
         && (directions[from][to] != check_direction1)
         && (directions[from][to] != check_direction2))
       *move++ = temp | (to << 6) | (Abs(PcOnSq(to)) << 15);
@@ -578,7 +578,7 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move)
 /*
  ************************************************************
  *                                                          *
- *   now, produce knight moves by cycling through the       *
+ *   Now, produce knight moves by cycling through the       *
  *   *_knight board to locate a [from] square and then      *
  *   cycling through knight_attacks[] to locate to squares  *
  *   that a knight on [from] attacks.                       *
@@ -599,7 +599,7 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move)
 /*
  ************************************************************
  *                                                          *
- *   now, produce bishop moves by cycling through the       *
+ *   Now, produce bishop moves by cycling through the       *
  *   *_bishop board to locate a [from] square and then      *
  *   generate the AttacksFrom() bitmap which supplies the   *
  *   list of valid <to> squares.                            *
@@ -619,7 +619,7 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move)
 /*
  ************************************************************
  *                                                          *
- *   now, produce rook moves by cycling through the         *
+ *   Now, produce rook moves by cycling through the         *
  *   *_rook board to locate a [from] square and then        *
  *   generate the AttacksFrom() bitmap which supplies the   *
  *   list of valid <to> squares.                            *
@@ -639,7 +639,7 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move)
 /*
  ************************************************************
  *                                                          *
- *   now, produce queen moves by cycling through the        *
+ *   Now, produce queen moves by cycling through the        *
  *   *_queen board to locate a [from] square and then       *
  *   generate the AttacksFrom() bitmap which supplies the   *
  *   list of valid <to> squares.                            *
@@ -659,11 +659,11 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move)
 /*
  ************************************************************
  *                                                          *
- *   now, produce pawn moves.  this is done differently due *
+ *   Now, produce pawn moves.  This is done differently due *
  *   to inconsistencies in the way a pawn moves when it     *
  *   captures as opposed to normal non-capturing moves.     *
- *   another exception is capturing enpassant.  the first   *
- *   step is to generate all possible pawn moves.  we do    *
+ *   another exception is capturing enpassant.  The first   *
+ *   step is to generate all possible pawn moves.  We do    *
  *   this in 2 operations:  (1) shift the pawns forward one *
  *   rank then and with empty squares;  (2) shift the pawns *
  *   forward two ranks and then and with empty squares.     *
@@ -684,7 +684,7 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move)
 /*
  ************************************************************
  *                                                          *
- *   now that we got 'em, we simply enumerate the to        *
+ *   Now that we got 'em, we simply enumerate the to        *
  *   squares as before, but in four steps since we have     *
  *   four sets of potential moves.                          *
  *                                                          *
@@ -776,9 +776,9 @@ BITBOARD InterposeSquares(int check_direction, int king_square,
 /*
  ************************************************************
  *                                                          *
- *   if this is a check from a single sliding piece, then   *
+ *   If this is a check from a single sliding piece, then   *
  *   we can interpose along the checking rank/file/diagonal *
- *   and block the check.  otherwise, interposing is not a  *
+ *   and block the check.  Otherwise, interposing is not a  *
  *   possibility.                                           *
  *                                                          *
  ************************************************************
@@ -815,12 +815,12 @@ BITBOARD InterposeSquares(int check_direction, int king_square,
   return (target);
 }
 
-/* modified 01/23/08 */
+/* modified 01/16/09 */
 /*
  *******************************************************************************
  *                                                                             *
  *   PinnedOnKing() is used to determine if the piece on <square> is pinned    *
- *   against the king, so that it's illegal to move it.  this is used to cull  *
+ *   against the king, so that it's illegal to move it.  This is used to cull  *
  *   potential moves by GenerateCheckEvasions() so that illegal moves are not  *
  *   produced.                                                                 *
  *                                                                             *
@@ -834,7 +834,7 @@ int PinnedOnKing(TREE * RESTRICT tree, int wtm, int square)
 /*
  ************************************************************
  *                                                          *
- *   first, determine if the piece being moved is on the    *
+ *   First, determine if the piece being moved is on the    *
  *   same diagonal, rank or file as the king.               *
  *                                                          *
  ************************************************************
@@ -845,7 +845,7 @@ int PinnedOnKing(TREE * RESTRICT tree, int wtm, int square)
 /*
  ************************************************************
  *                                                          *
- *   if they are on the same ray, then determine if the     *
+ *   If they are on the same ray, then determine if the     *
  *   king blocks a bishop attack in one direction from this *
  *   square and a bishop or queen blocks a bishop attack    *
  *   on the same diagonal in the opposite direction.        *
@@ -884,17 +884,17 @@ int PinnedOnKing(TREE * RESTRICT tree, int wtm, int square)
  *   GenerateNoncaptures() is used to generate non-capture moves from the      *
  *   current position.                                                         *
  *                                                                             *
- *   once the valid destination squares are known, we have to locate a friendly*
- *   piece to get a attacks_to[] entry.  we then produce the moves for this    *
+ *   Once the valid destination squares are known, we have to locate a friendly*
+ *   piece to get a attacks_to[] entry.  We then produce the moves for this    *
  *   piece by using the source square as [from] and enumerating each square it *
  *   attacks into [to].                                                        *
  *                                                                             *
- *   pawns are handled differently.  regular pawn moves are produced by        *
+ *   Pawns are handled differently.  Regular pawn moves are produced by        *
  *   shifting the pawn bitmap 8 bits "forward" and anding this with the        *
  *   complement of the occupied squares bitmap  double advances are then       *
  *   produced by anding the pawn bitmap with a mask containing 1's on the      *
  *   second rank, shifting this 16 bits "forward" and then anding this with    *
- *   the complement of the occupied squares bitmap as before.  if [to]         *
+ *   the complement of the occupied squares bitmap as before.  If [to]         *
  *   reaches the 8th rank, we produce a set of four moves, promoting the pawn  *
  *   to knight, bishop, rook and queen.                                        *
  *                                                                             *
@@ -909,28 +909,27 @@ int *GenerateNoncaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
 /*
  ************************************************************
  *                                                          *
- *   first, produce castling moves if it is legal.          *
+ *   First, produce castling moves if it is legal.          *
  *                                                          *
  ************************************************************
  */
   if (Castle(ply, wtm) > 0) {
     if ((Castle(ply, wtm) & 1) && !(OccupiedSquares & OO[wtm]) &&
-        !Attacked(tree, OOsqs[wtm][0], btm) &&
-        !Attacked(tree, OOsqs[wtm][1], btm) &&
-        !Attacked(tree, OOsqs[wtm][2], btm)) {
+        !Attacks(tree, OOsqs[wtm][0], btm) && !Attacks(tree, OOsqs[wtm][1], btm)
+        && !Attacks(tree, OOsqs[wtm][2], btm)) {
       *move++ = (king << 12) + (OOto[wtm] << 6) + OOfrom[wtm];
     }
     if ((Castle(ply, wtm) & 2) && !(OccupiedSquares & OOO[wtm]) &&
-        !Attacked(tree, OOOsqs[wtm][0], btm) &&
-        !Attacked(tree, OOOsqs[wtm][1], btm) &&
-        !Attacked(tree, OOOsqs[wtm][2], btm)) {
+        !Attacks(tree, OOOsqs[wtm][0], btm) &&
+        !Attacks(tree, OOOsqs[wtm][1], btm) &&
+        !Attacks(tree, OOOsqs[wtm][2], btm)) {
       *move++ = (king << 12) + (OOOto[wtm] << 6) + OOfrom[wtm];
     }
   }
 /*
  ************************************************************
  *                                                          *
- *   now, produce knight moves by cycling through the       *
+ *   Now, produce knight moves by cycling through the       *
  *   *_knight board to locate a [from] square and then      *
  *   cycling through knight_attacks[] to locate to squares  *
  *   that a knight on [from] attacks.                       *
@@ -949,7 +948,7 @@ int *GenerateNoncaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
 /*
  ************************************************************
  *                                                          *
- *   now, produce bishop moves by cycling through the       *
+ *   Now, produce bishop moves by cycling through the       *
  *   *_bishop board to locate a [from] square and then      *
  *   generate the AttacksFrom() bitmap which supplies the   *
  *   list of valid <to> squares.                            *
@@ -967,7 +966,7 @@ int *GenerateNoncaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
 /*
  ************************************************************
  *                                                          *
- *   now, produce rook moves by cycling through the         *
+ *   Now, produce rook moves by cycling through the         *
  *   *_rook board to locate a [from] square and then        *
  *   generate the AttacksFrom() bitmap which supplies the   *
  *   list of valid <to> squares.                            *
@@ -985,7 +984,7 @@ int *GenerateNoncaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
 /*
  ************************************************************
  *                                                          *
- *   now, produce queen moves by cycling through the        *
+ *   Now, produce queen moves by cycling through the        *
  *   *_queen board to locate a [from] square and then       *
  *   generate the AttacksFrom() bitmap which supplies the   *
  *   list of valid <to> squares.                            *
@@ -1003,7 +1002,7 @@ int *GenerateNoncaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
 /*
  ************************************************************
  *                                                          *
- *   now, produce king moves by cycling through the         *
+ *   Now, produce king moves by cycling through the         *
  *   *_king board to locate a [from] square and then        *
  *   cycling through king_attacks[] to locate to squares    *
  *   that a king on [from] attacks.                         *
@@ -1017,10 +1016,10 @@ int *GenerateNoncaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
 /*
  ************************************************************
  *                                                          *
- *   now, produce pawn moves.  this is done differently due *
+ *   Now, produce pawn moves.  This is done differently due *
  *   to inconsistencies in the way a pawn moves when it     *
  *   captures as opposed to normal non-capturing moves.     *
- *   first we generate all possible pawn moves.  we do      *
+ *   First we generate all possible pawn moves.  We do      *
  *   this in 4 operations:  (1) shift the pawns forward one *
  *   rank then and with empty squares;  (2) shift the pawns *
  *   forward two ranks and then and with empty squares;     *
@@ -1040,7 +1039,7 @@ int *GenerateNoncaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
 /*
  ************************************************************
  *                                                          *
- *   now that we got 'em, we simply enumerate the to        *
+ *   Now that we got 'em, we simply enumerate the to        *
  *   squares as before, but in four steps since we have     *
  *   four sets of potential moves.                          *
  *                                                          *
@@ -1066,7 +1065,7 @@ int *GenerateNoncaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
 /*
  ************************************************************
  *                                                          *
- *   generate the rest of the capture/promotions here since *
+ *   Generate the rest of the capture/promotions here since *
  *   GenerateCaptures() only generates captures that are    *
  *   promotions to a queen.                                 *
  *                                                          *

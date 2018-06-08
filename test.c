@@ -1,6 +1,6 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 08/07/05 */
+/* last modified 01/17/09 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -8,20 +8,20 @@
  *   measure its performance on a particular machine, or to evaluate its skill *
  *   after modifying it in some way.                                           *
  *                                                                             *
- *   the test is initiated by using the "test <filename>" command to read in   *
- *   the suite of problems from file <filename>.  the format of this file is   *
+ *   The test is initiated by using the "test <filename>" command to read in   *
+ *   the suite of problems from file <filename>.  The format of this file is   *
  *   as follows:                                                               *
  *                                                                             *
- *   setboard <forsythe-string>:  this sets the board position using the usual *
+ *   Setboard <forsythe-string>:  This sets the board position using the usual *
  *   forsythe notation (see module SetBoard() in setc for a full ex-           *
  *   planation of the syntax).                                                 *
  *                                                                             *
- *   solution <move1> <move2> ... <moven>:  this provides a solution move (or  *
- *   set of solution moves if more than one is correct).  if the search finds  *
+ *   Solution <move1> <move2> ... <moven>:  this provides a solution move (or  *
+ *   set of solution moves if more than one is correct).  If the search finds  *
  *   one of these moves, then the prblem is counted as correct, otherwise it   *
  *   is counted wrong.                                                         *
  *                                                                             *
- *   after reading these two lines, the program then searches to whatever time *
+ *   After reading these two lines, the program then searches to whatever time *
  *   or depth limit has been set, when it reaches the end-of-file condition or *
  *   when it reads a record containing the string "end" it then displays the   *
  *   number correct and the number missed.                                     *
@@ -41,7 +41,7 @@ void Test(char *filename)
 /*
  ************************************************************
  *                                                          *
- *   read in the position and then the solutions.  after    *
+ *   Read in the position and then the solutions.  After    *
  *   executing a search to find the best move (according    *
  *   to the program, anyway) compare it against the list    *
  *   of solutions and count it right or wrong.              *
@@ -158,7 +158,7 @@ void Test(char *filename)
 /*
  ************************************************************
  *                                                          *
- *   now print the results.                                 *
+ *   Now print the results.                                 *
  *                                                          *
  ************************************************************
  */
@@ -183,7 +183,7 @@ void Test(char *filename)
   early_exit = 99;
 }
 
-/* last modified 08/07/05 */
+/* last modified 01/17/09 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -191,17 +191,17 @@ void Test(char *filename)
  *   measure its performance on a particular machine, or to evaluate its skill *
  *   after modifying it in some way.                                           *
  *                                                                             *
- *   the test is initiated by using the "test <filename>" command to read in   *
- *   the suite of problems from file <filename>.  the format of this file is   *
+ *   The test is initiated by using the "test <filename>" command to read in   *
+ *   the suite of problems from file <filename>.  The format of this file is   *
  *   as follows:                                                               *
  *                                                                             *
  *   <forsythe-string>  am/bm move1 move2 etc; title "xxx"                     *
  *                                                                             *
- *   am means "avoid move" and bm means "best move".  each test position may   *
+ *   Am means "avoid move" and bm means "best move".  Each test position may   *
  *   have multiple moves to avoid or that are best, but both am and bm may not *
  *   appear on one position.                                                   *
  *                                                                             *
- *   the title is just a comment that is given in the program output to make it*
+ *   The title is just a comment that is given in the program output to make it*
  *   easier to match output to specific positions.                             *
  *                                                                             *
  *******************************************************************************
@@ -219,7 +219,7 @@ void TestEPD(char *filename)
 /*
  ************************************************************
  *                                                          *
- *   read in the position and then the solutions.  after    *
+ *   Read in the position and then the solutions.  After    *
  *   executing a search to find the best move (according    *
  *   to the program, anyway) compare it against the list    *
  *   of solutions and count it right or wrong.              *
@@ -335,7 +335,7 @@ void TestEPD(char *filename)
 /*
  ************************************************************
  *                                                          *
- *   now print the results.                                 *
+ *   Now print the results.                                 *
  *                                                          *
  ************************************************************
  */

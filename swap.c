@@ -5,15 +5,15 @@
  *******************************************************************************
  *                                                                             *
  *   Swap() is used to analyze capture moves to see whether or not they appear *
- *   to be profitable.  the basic algorithm is extremely fast since it uses the*
+ *   to be profitable.  The basic algorithm is extremely fast since it uses the*
  *   bitmaps to determine which squares are attacking the [target] square.     *
  *                                                                             *
- *   the algorithm is quite simple.  using the attack bitmaps, we enumerate all*
- *   the pieces that are attacking [target] for either side.  then we simply   *
+ *   The algorithm is quite simple.  Using the attack bitmaps, we enumerate all*
+ *   the pieces that are attacking [target] for either side.  Then we simply   *
  *   use the lowest piece (value) for the correct side to capture on [target]. *
  *   we continually "flip" sides taking the lowest piece each time.            *
  *                                                                             *
- *   as a piece is used, if it is a sliding piece (pawn, bishop, rook or queen)*
+ *   As a piece is used, if it is a sliding piece (pawn, bishop, rook or queen)*
  *   we remove the piece, then generate moves of bishop/queen or rook/queen    *
  *   and then add those in to the attackers, removing any attacks that have    *
  *   already been used.                                                        *
@@ -31,7 +31,7 @@ int Swap(TREE * RESTRICT tree, int source, int target, int wtm)
 /*
  ************************************************************
  *                                                          *
- *   determine which squares attack <target> for each side. *
+ *   Determine which squares attack <target> for each side. *
  *   initialize by placing the piece on <target> first in   *
  *   the list as it is being captured to start things off.  *
  *                                                          *
@@ -43,7 +43,7 @@ int Swap(TREE * RESTRICT tree, int source, int target, int wtm)
 /*
  ************************************************************
  *                                                          *
- *   the first piece to capture on <target> is the piece    *
+ *   The first piece to capture on <target> is the piece    *
  *   standing on <source>.                                  *
  *                                                          *
  ************************************************************
@@ -63,14 +63,14 @@ int Swap(TREE * RESTRICT tree, int source, int target, int wtm)
 /*
  ************************************************************
  *                                                          *
- *   now pick out the least valuable piece for the correct  *
- *   side that is bearing on <target>.  as we find one, we  *
+ *   Now pick out the least valuable piece for the correct  *
+ *   side that is bearing on <target>.  As we find one, we  *
  *   update the attacks (if this is a sliding piece) to get *
  *   the attacks for any sliding piece that is lined up     *
  *   behind the attacker we are removing.                   *
  *                                                          *
- *   once we know there is a piece attacking the last       *
- *   capturing piece.  add it to the swap list and repeat   *
+ *   Once we know there is a piece attacking the last       *
+ *   capturing piece, add it to the swap list and repeat    *
  *   until one side has no more captures.                   *
  *                                                          *
  ************************************************************
@@ -97,7 +97,7 @@ int Swap(TREE * RESTRICT tree, int source, int target, int wtm)
 /*
  ************************************************************
  *                                                          *
- *   starting at the end of the sequence of values, use a   *
+ *   Starting at the end of the sequence of values, use a   *
  *   "minimax" like procedure to decide where the captures  *
  *   will stop.                                             *
  *                                                          *

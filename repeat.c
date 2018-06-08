@@ -1,25 +1,25 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 01/29/08 */
+/* last modified 01/17/09 */
 /*
  *******************************************************************************
  *                                                                             *
- *   RepetitionCheck() is used to detect a draw by repetition.  the repetition *
+ *   RepetitionCheck() is used to detect a draw by repetition.  The repetition *
  *   list is a 2d array indexed by wtm (0,1) and the repetition indices which  *
- *   are also indexed by wtm.  this keeps positions with wtm separate from the *
+ *   are also indexed by wtm.  This keeps positions with wtm separate from the *
  *   positions where it is btm, so that we can easily check the positions for  *
  *   the right side on move without having to wade through the positions with  *
- *   the wrong side on move as well.  positions are only added to this list in *
+ *   the wrong side on move as well.  Positions are only added to this list in *
  *   MakeMove() which alsi increments the proper index.  UnmakeMove() then     *
  *   decrements the proper index when the move is retracted, effectively       *
  *   removing the position from the list.                                      *
  *                                                                             *
  *   RepetitionCheck() scans the list to determine if this position has        *
- *   occurred before.  if so, the position will be treated as a draw by        *
+ *   occurred before.  If so, the position will be treated as a draw by        *
  *   Search().                                                                 *
  *                                                                             *
- *   RepetitionCheck() also handles 50-move draws.  the position[] structure   *
- *   countains the count of moves since the last capture or pawn push.  when   *
+ *   RepetitionCheck() also handles 50-move draws.  The position[] structure   *
+ *   countains the count of moves since the last capture or pawn push.  When   *
  *   this value reaches 100 (plies, which is 50 moves) the score is set to     *
  *   DRAW.                                                                     *
  *                                                                             *
@@ -32,7 +32,7 @@ int RepetitionCheck(TREE * RESTRICT tree, int ply, int wtm)
 /*
  ************************************************************
  *                                                          *
- *   if the 50-move rule has been reached, then adjust the  *
+ *   If the 50-move rule has been reached, then adjust the  *
  *   score to reflect the impending draw.                   *
  *                                                          *
  ************************************************************
@@ -42,15 +42,12 @@ int RepetitionCheck(TREE * RESTRICT tree, int ply, int wtm)
 /*
  ************************************************************
  *                                                          *
- *   now we scan the right part of the repetition list, and *
+ *   Now we scan the right part of the repetition list, and *
  *   stop when we reach the current repetition index value  *
- *   since positions beyond that index are not valid.  at   *
- *   plies 2 and 3 (this is never called at ply=1) we look  *
- *   for 3 repetitions (a real draw) where at plies deeper  *
- *   than 3, two repetitions are considered a draw.  this   *
- *   avoids very short PVs with 2-move repetitions cutting  *
- *   them off, although deeper PVs can still be truncated   *
- *   by the second repetition.                              *
+ *   since positions beyond that index are not valid.  We   *
+ *   only need to search backward thru the list using the   *
+ *   50-move rule counter as a limit since repetitions can  *
+ *   not occur across an irreversible move.                 *
  *                                                          *
  ************************************************************
  */
@@ -64,7 +61,7 @@ int RepetitionCheck(TREE * RESTRICT tree, int ply, int wtm)
   return (0);
 }
 
-/* last modified 01/28/08 */
+/* last modified 01/17/09 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -81,7 +78,7 @@ int RepetitionCheckBook(TREE * RESTRICT tree, int ply, int wtm)
 /*
  ************************************************************
  *                                                          *
- *   if the 50-move rule has been reached, then adjust the  *
+ *   If the 50-move rule has been reached, then adjust the  *
  *   score to reflect the impending draw.                   *
  *                                                          *
  ************************************************************
@@ -91,7 +88,7 @@ int RepetitionCheckBook(TREE * RESTRICT tree, int ply, int wtm)
 /*
  ************************************************************
  *                                                          *
- *   scan the list.  we look for the case where the         *
+ *   Scan the list.  We look for the case where the         *
  *   position has been seen one time before.                *
  *                                                          *
  ************************************************************
@@ -102,14 +99,14 @@ int RepetitionCheckBook(TREE * RESTRICT tree, int ply, int wtm)
   return (0);
 }
 
-/* last modified 01/28/08 */
+/* last modified 01/17/09 */
 /*
  *******************************************************************************
  *                                                                             *
- *   RepetitionDraw() is used to detect a draw by repetition.  this routine is *
+ *   RepetitionDraw() is used to detect a draw by repetition.  This routine is *
  *   only called from Main() and simply scans the complete list searching for  *
  *   exactly three repetitions (two additional repetitions of the current      *
- *   position.)  this is used to actually claim a draw by repetition or by the *
+ *   position.)  This is used to actually claim a draw by repetition or by the *
  *   50 move rule.                                                             *
  *                                                                             *
  *******************************************************************************
@@ -122,7 +119,7 @@ int RepetitionDraw(TREE * RESTRICT tree, int ply, int wtm)
 /*
  ************************************************************
  *                                                          *
- *   if the 50-move rule has been reached, then adjust the  *
+ *   If the 50-move rule has been reached, then adjust the  *
  *   score to reflect the impending draw.                   *
  *                                                          *
  ************************************************************
@@ -132,7 +129,7 @@ int RepetitionDraw(TREE * RESTRICT tree, int ply, int wtm)
 /*
  ************************************************************
  *                                                          *
- *   scan the repetition list to determine if this position *
+ *   Scan the repetition list to determine if this position *
  *   has occurred before.                                   *
  *                                                          *
  ************************************************************

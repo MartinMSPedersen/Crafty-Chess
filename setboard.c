@@ -1,23 +1,32 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 03/15/08 */
+/* last modified 01/17/09 */
 /*
  *******************************************************************************
  *                                                                             *
- *   SetBoard() is used to set up the board in any position desired.  it uses  *
+ *   SetBoard() is used to set up the board in any position desired.  It uses  *
  *   a forsythe-like string of characters to describe the board position.      *
  *                                                                             *
- *   the standard piece codes p,n,b,r,q,k are used to denote the type of piece *
+ *   The standard piece codes p,n,b,r,q,k are used to denote the type of piece *
  *   on a square, upper/lower case are used to indicate the side (program/opp.)*
  *   of the piece.                                                             *
  *                                                                             *
- *   the pieces are entered with the rank on the program's side of the board   *
- *   entered first, and the rank on the opponent's side entered last.  to enter*
- *   empty squares, use a number between 1 and 8 to indicate how many adjacent *
- *   squares are empty.  use a / to terminate each rank after all of the pieces*
- *   for that rank have been entered.                                          *
+ *   The pieces are entered with square a8 first, then b8, ... until the full  *
+ *   8th rank is completed.  A "/" terminates that rank.  This is repeated for *
+ *   each of the 8 ranks, with the last (1st) rank not needing a terminating   *
+ *   "/".  For empty squares, a number between 1 and 8 can be used to indicate *
+ *   the number of adjacent empty squares.                                     *
  *                                                                             *
- *   the following input will setup the board position that given below:       *
+ *   That board description must be followed by a "b" or "w" to indicate which *
+ *   side is on move.                                                          *
+ *                                                                             *
+ *   Next, up to 4 characters are used to indicate which side can castle and   *
+ *   to which side.  An uppercase K means white can castle kingside, while a   *
+ *   lowercase q means black can castle queenside.                             *
+ *                                                                             *
+ *   Finally, if there is an enpassant capture possible (the last move was a   *
+ *   double pawn move and there was an enemy pawn that could capture it.  The  *
+ *   square is the square the capturing pawn ends up on.                       *
  *                                                                             *
  *         K2R/PPP////q/5ppp/7k/ b - -                                         *
  *                                                                             *
@@ -32,12 +41,6 @@
  *                         -q  *  *  *  *  *  *  *                             *
  *                          *  *  *  *  * -p -p -p                             *
  *                          *  *  *  *  *  *  * -k                             *
- *                                                                             *
- *   the field after the final "/" should be either b or w to indicate which   *
- *   side is "on move."  after this side-to-move field any of the following    *
- *   characters can appear to indicate the following:  KQ: white can castle    *
- *   kingside/queenside/both;  kq: same for black;  a1-h8: indicates the       *
- *   square occupied by a pawn that can be captured en passant.                *
  *                                                                             *
  *******************************************************************************
  */
@@ -66,7 +69,7 @@ void SetBoard(TREE * tree, int nargs, char *args[], int special)
 /*
  ************************************************************
  *                                                          *
- *   scan the input string searching for pieces, numbers    *
+ *   Scan the input string searching for pieces, numbers    *
  *   [empty squares], slashes [end-of-rank] and a blank     *
  *   [end of board, start of castle status].                *
  *                                                          *
@@ -116,7 +119,7 @@ void SetBoard(TREE * tree, int nargs, char *args[], int special)
 /*
  ************************************************************
  *                                                          *
- *   now extract (a) side to move [w/b], (b) castle status  *
+ *   Now extract (a) side to move [w/b], (b) castle status  *
  *   [KkQq for white/black king-side ok, white/black queen- *
  *   side ok], (c) enpassant target square.                 *
  *                                                          *
@@ -129,7 +132,7 @@ void SetBoard(TREE * tree, int nargs, char *args[], int special)
 /*
  ************************************************************
  *                                                          *
- *   side to move.                                          *
+ *   Side to move.                                          *
  *                                                          *
  ************************************************************
  */
@@ -144,7 +147,7 @@ void SetBoard(TREE * tree, int nargs, char *args[], int special)
 /*
  ************************************************************
  *                                                          *
- *   castling/enpassant status.                             *
+ *   Castling/enpassant status.                             *
  *                                                          *
  ************************************************************
  */
@@ -204,7 +207,7 @@ void SetBoard(TREE * tree, int nargs, char *args[], int special)
 /*
  ************************************************************
  *                                                          *
- *   now check the castling status and enpassant status to  *
+ *   Now check the castling status and enpassant status to  *
  *   make sure that the board is in a state that matches    *
  *   these.                                                 *
  *                                                          *
@@ -220,7 +223,7 @@ void SetBoard(TREE * tree, int nargs, char *args[], int special)
 /*
  ************************************************************
  *                                                          *
- *   now set the bitboards so that error tests can be done. *
+ *   Now set the bitboards so that error tests can be done. *
  *                                                          *
  ************************************************************
  */
@@ -236,7 +239,7 @@ void SetBoard(TREE * tree, int nargs, char *args[], int special)
 /*
  ************************************************************
  *                                                          *
- *   now check the position for a sane position, which      *
+ *   Now check the position for a sane position, which      *
  *   means no more than 8 pawns, no more than 10 knights,   *
  *   bishops or rooks, no more than 9 queens, no pawns on   *
  *   1st or 8th rank, etc.                                  *

@@ -1,13 +1,13 @@
 #include "chess.h"
 #include "data.h"
 #include "epdglue.h"
-/* last modified 08/07/05 */
+/* last modified 01/17/09 */
 /*
  *******************************************************************************
  *                                                                             *
- *   RootMoveList() is used to set up the ply one move list.  it is a  more    *
+ *   RootMoveList() is used to set up the ply one move list.  It is a  more    *
  *   accurate ordering of the move list than that done for plies deeper than   *
- *   one.  briefly, Quiesce() is used to obtain the positional score plus the  *
+ *   one.  Briefly, Quiesce() is used to obtain the positional score plus the  *
  *   expected gain/loss for pieces that can be captured.                       *
  *                                                                             *
  *******************************************************************************
@@ -23,12 +23,12 @@ void RootMoveList(int wtm)
 /*
  ************************************************************
  *                                                          *
- *   if the position at the root is a draw, based on EGTB   *
- *   results, we are going to behave differently.  we will  *
+ *   If the position at the root is a draw, based on EGTB   *
+ *   results, we are going to behave differently.  We will  *
  *   extract the root moves that are draws, and toss the    *
- *   losers out.  then, we will do a normal search on the   *
- *   moves that draw to try and chose the most difficult    *
- *   drawing move.                                          *
+ *   losers out.  Then, we will do a normal search on the   *
+ *   moves that draw to try and chose the drawing move that *
+ *   gives our opponent the best chance to make an error.   *
  *                                                          *
  ************************************************************
  */
@@ -47,7 +47,7 @@ void RootMoveList(int wtm)
 /*
  ************************************************************
  *                                                          *
- *   first, use GenerateMoves() to generate the set of      *
+ *   First, use GenerateMoves() to generate the set of      *
  *   legal moves from the root position.                    *
  *                                                          *
  ************************************************************
@@ -59,7 +59,7 @@ void RootMoveList(int wtm)
 /*
  ************************************************************
  *                                                          *
- *   now make each move and use Evaluate() to compute the   *
+ *   Now make each move and use Evaluate() to compute the   *
  *   positional evaluation.                                 *
  *                                                          *
  ************************************************************
@@ -98,8 +98,8 @@ void RootMoveList(int wtm)
 /*
  ************************************************************
  *                                                          *
- *   add in a bonus if this move is part of the previous    *
- *   principal variation.  it was good in the search, we    *
+ *   Add in a bonus if this move is part of the previous    *
+ *   principal variation.  It was good in the search, we    *
  *   should try it first now.                               *
  *                                                          *
  ************************************************************
@@ -113,10 +113,8 @@ void RootMoveList(int wtm)
 /*
  ************************************************************
  *                                                          *
- *   fudge the score for promotions so that promotion to a  *
- *   queen is tried first.  since the positional score is   *
- *   computed before the piece is removed, under-promoting  *
- *   sometimes looks better.                                *
+ *   Fudge the score for promotions so that promotion to a  *
+ *   queen is tried first.                                  *
  *                                                          *
  ************************************************************
  */
@@ -129,9 +127,8 @@ void RootMoveList(int wtm)
 /*
  ************************************************************
  *                                                          *
- *   now sort the moves into order based on the sum of the  *
- *   positional score less the possible hung pieces, and    *
- *   factoring in a bonus for following the PV move.        *
+ *   Sort the moves into order based on the scores returned *
+ *   by Quiesce() which includes evaluation + captures.     *
  *                                                          *
  ************************************************************
  */
@@ -152,8 +149,14 @@ void RootMoveList(int wtm)
 /*
  ************************************************************
  *                                                          *
- *   now trim the move list to eliminate those moves that   *
- *   "hung" the king and are illegal.                       *
+ *   Trim the move list to eliminate those moves that hang  *
+ *   the king and are illegal.                              *
+ *                                                          *
+ *   If the first move in the list is better than the next  *
+ *   move by at least two pawns, we set the "easy move"     *
+ *   flag which will let us terminate the search early, if  *
+ *   we don't have any fail lows on the move before we run  *
+ *   out of time.                                           *
  *                                                          *
  ************************************************************
  */
@@ -170,7 +173,7 @@ void RootMoveList(int wtm)
 /*
  ************************************************************
  *                                                          *
- *   debugging output to dump root move list and the stuff  *
+ *   Debugging output to dump root move list and the stuff  *
  *   used to sort them, for testing and debugging.          *
  *                                                          *
  ************************************************************
@@ -187,8 +190,8 @@ void RootMoveList(int wtm)
 /*
  ************************************************************
  *                                                          *
- *   now check to see if we are in the special mode where   *
- *   moves need to be searched because of missing EGTBs.    *
+ *   check to see if we are in the special mode where moves *
+ *   need to be searched because of missing EGTBs.          *
  *                                                          *
  ************************************************************
  */
@@ -214,8 +217,8 @@ void RootMoveList(int wtm)
 /*
  ************************************************************
  *                                                          *
- *   now copy the root moves into the root_move structure   *
- *   array for use by NextRootMove().                       *
+ *   Copy the root moves into the root_move structure array *
+ *   for use by NextRootMove().                             *
  *                                                          *
  ************************************************************
  */

@@ -8,7 +8,6 @@
 #if defined(UNIX)
 #  include <sys/stat.h>
 #endif
-#include "epdglue.h"
 #if defined(NT_i386)
 #  include <fcntl.h>    /* needed for definition of "_O_BINARY" */
 #endif
@@ -29,8 +28,8 @@ void Initialize()
   int j;
 
   tree = block[0];
-  for (j = 1; j < MAX_BLOCKS; j++)
-    block[j] == NULL;
+  for (j = 1; j < MAX_BLOCKS + 1; j++)
+    block[j] = NULL;
   InitializeMagic();
   InitializeSMP();
   InitializeMasks();
@@ -93,7 +92,7 @@ void Initialize()
     printf("ERROR, unable to open game history file, exiting\n");
     CraftyExit(1);
   }
-  cb_trans_ref = sizeof(HASH_ENTRY) * hash_table_size + 15;
+  cb_trans_ref = 3 * sizeof(HASH_ENTRY) * hash_table_size + 15;
   trans_ref = (HASH_ENTRY *) malloc(cb_trans_ref);
   cb_pawn_hash_table = sizeof(PAWN_HASH_ENTRY) * pawn_hash_table_size + 15;
   pawn_hash_table = (PAWN_HASH_ENTRY *) malloc(cb_pawn_hash_table);
@@ -111,7 +110,7 @@ void Initialize()
 /*
  ************************************************************
  *                                                          *
- *   now for some NUMA stuff.  we need to allocate the      *
+ *   Now for some NUMA stuff.  We need to allocate the      *
  *   local memory for each processor, but we can't touch it *
  *   here or it will be faulted in and be allocated on the  *
  *   curret CPU, which is not where it should be located    *
@@ -146,6 +145,15 @@ void Initialize()
   pawn_hash_mask = (1 << (log_pawn_hash)) - 1;
   InitializeKingSafety();
 }
+
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   InitializeAttackBoards() is used to initialize the basic bitboards that   *
+ *   deal with what squares a piece attacks.                                   *
+ *                                                                             *
+ *******************************************************************************
+ */
 void InitializeAttackBoards(void)
 {
   int i, j, frank, ffile, trank, tfile;
@@ -330,6 +338,15 @@ void InitializeAttackBoards(void)
     }
   }
 }
+
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   InitializeMagic() initializes the magic number tables used in the new     *
+ *   magic move generation algorithm.                                          *
+ *                                                                             *
+ *******************************************************************************
+ */
 void InitializeMagic(void)
 {
   int i;
@@ -343,6 +360,9 @@ void InitializeMagic(void)
     56, 45, 25, 31, 35, 16, 9, 12,
     44, 24, 15, 8, 23, 7, 6, 5
   };
+/*
+ Bishop attacks
+ */
   for (i = 0; i < 64; i++) {
     int squares[64];
     int numsquares = 0;
@@ -364,6 +384,9 @@ void InitializeMagic(void)
           InitializeMagicBishop(i, tempoccupied);
     }
   }
+/*
+ Rook attacks
+ */
   for (i = 0; i < 64; i++) {
     int squares[64];
     int numsquares = 0;
@@ -386,6 +409,15 @@ void InitializeMagic(void)
     }
   }
 }
+
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   InitializeMagicBishop() does the bishop-specific initialization for a     *
+ *   particular square on the board.                                           *
+ *                                                                             *
+ *******************************************************************************
+ */
 BITBOARD InitializeMagicBishop(int square, BITBOARD occupied)
 {
   BITBOARD ret = 0;
@@ -436,6 +468,14 @@ BITBOARD InitializeMagicBishop(int square, BITBOARD occupied)
   return (ret);
 }
 
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   InitializeMagicOccupied() generates a specific occupied-square bitboard   *
+ *   needed during initialization.                                             *
+ *                                                                             *
+ *******************************************************************************
+ */
 BITBOARD InitializeMagicOccupied(int *squares, int numSquares,
     BITBOARD linoccupied)
 {
@@ -448,6 +488,14 @@ BITBOARD InitializeMagicOccupied(int *squares, int numSquares,
   return (ret);
 }
 
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   InitializeMagicRook() does the rook-specific initialization for a         *
+ *   particular square on the board.                                           *
+ *                                                                             *
+ *******************************************************************************
+ */
 BITBOARD InitializeMagicRook(int square, BITBOARD occupied)
 {
   BITBOARD ret = 0;
@@ -483,6 +531,15 @@ BITBOARD InitializeMagicRook(int square, BITBOARD occupied)
   return (ret);
 }
 
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   InitializeChessBoard() initializes the chess board to the normal starting *
+ *   position.   It then calls SetChessBitboards() to correctly set the usual  *
+ *   occupied-square bitboards to correspond to the starting position.         *
+ *                                                                             *
+ *******************************************************************************
+ */
 void InitializeChessBoard(TREE * tree)
 {
   int i;
@@ -557,6 +614,15 @@ void InitializeChessBoard(TREE * tree)
     SetChessBitBoards(tree);
   }
 }
+
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   SetChessBitBoards() is used to set the occupied-square bitboards so that  *
+ *   they agree with the current real chessboard.                              *
+ *                                                                             *
+ *******************************************************************************
+ */
 void SetChessBitBoards(TREE * tree)
 {
   int side, piece, square;
@@ -631,7 +697,7 @@ int InitializeFindAttacks(int square, int pieces, int length)
 /*
  ************************************************************
  *                                                          *
- *   find attacks to left of <square>.                      *
+ *   Find attacks to left of <square>.                      *
  *                                                          *
  ************************************************************
  */
@@ -647,7 +713,7 @@ int InitializeFindAttacks(int square, int pieces, int length)
 /*
  ************************************************************
  *                                                          *
- *   find attacks to right of <square>.                     *
+ *   Find attacks to right of <square>.                     *
  *                                                          *
  ************************************************************
  */
@@ -662,6 +728,18 @@ int InitializeFindAttacks(int square, int pieces, int length)
   }
   return (result & ((1 << length) - 1));
 }
+
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   InitializeGetLogID() is used to determine the nnn (in log.nnn) to use for *
+ *   the current game.  It is typically the ID of the last log + 1, but we do  *
+ *   not know what that is if we just started the engine.  We simply look thru *
+ *   existing log files in the current directory and use the next un-used name *
+ *   in sequence.                                                              *
+ *                                                                             *
+ *******************************************************************************
+ */
 int InitializeGetLogID(void)
 {
 #if defined(UNIX)
@@ -703,6 +781,16 @@ int InitializeGetLogID(void)
   t = log_id++;
   return (t);
 }
+
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   InitializeHashTables() is used to clear all hash entries completely, so   *
+ *   that no old information remains to interefere with a new game or test     *
+ *   position.                                                                 *
+ *                                                                             *
+ *******************************************************************************
+ */
 void InitializeHashTables(void)
 {
   int i, side;
@@ -710,13 +798,9 @@ void InitializeHashTables(void)
   transposition_id = 0;
   if (!trans_ref)
     return;
-  for (i = 0; i < hash_table_size; i++) {
-    (trans_ref + i)->prefer.word1 = (BITBOARD) 7 << 61;
-    (trans_ref + i)->prefer.word2 = 0;
-    (trans_ref + i)->always[0].word1 = (BITBOARD) 7 << 61;
-    (trans_ref + i)->always[0].word2 = 0;
-    (trans_ref + i)->always[1].word1 = (BITBOARD) 7 << 61;
-    (trans_ref + i)->always[1].word2 = 0;
+  for (i = 0; i < 3 * hash_table_size; i++) {
+    (trans_ref + i)->word1 = (BITBOARD) 7 << 61;
+    (trans_ref + i)->word2 = 0;
   }
   if (!pawn_hash_table)
     return;
@@ -737,6 +821,15 @@ void InitializeHashTables(void)
     }
   }
 }
+
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   InitializeKillers() is used to zero the killer moves and the repetition   *
+ *   list so that random garbage won't confuse the search when it starts.      *
+ *                                                                             *
+ *******************************************************************************
+ */
 void InitializeKillers(void)
 {
   int i, j;
@@ -753,10 +846,10 @@ void InitializeKillers(void)
 /*
  *******************************************************************************
  *                                                                             *
- *   InitlializeKingSafety() is used to initialize the king safety matrix.     *
- *   this is set so that the matrix, indexed by king safety pawn structure     *
+ *   InitializeKingSafety() is used to initialize the king safety matrix.      *
+ *   This is set so that the matrix, indexed by king safety pawn structure     *
  *   index and by king safety piece tropism, combines the two indices to       *
- *   produce a single score.  as either index rises, the king safety score     *
+ *   produce a single score.  As either index rises, the king safety score     *
  *   tracks along, but as both rise, the king safety score rises much more     *
  *   quickly.                                                                  *
  *                                                                             *
@@ -782,6 +875,15 @@ void InitializeKingSafety()
   }
 */
 }
+
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   InitializeMasks() is used to initialize the various bitboard masks that   *
+ *   are used throughout Crafty.                                               *
+ *                                                                             *
+ *******************************************************************************
+ */
 void InitializeMasks(void)
 {
   int i, j;
@@ -874,6 +976,15 @@ void InitializeMasks(void)
     }
   }
 }
+
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   InitializePawnMasks() is used to initialize the various bitboard masks    *
+ *   that are used in pawn evaluation.                                         *
+ *                                                                             *
+ *******************************************************************************
+ */
 void InitializePawnMasks(void)
 {
   int i, j;
@@ -1101,7 +1212,7 @@ void InitializePawnMasks(void)
  *******************************************************************************
  *                                                                             *
  *   InitializeRandomHash() is called to initialize the tables of random       *
- *   numbers used to produce the incrementally-updated hash keys.  note that   *
+ *   numbers used to produce the incrementally-updated hash keys.  Note that   *
  *   this uses a treendom number generator rather than the C library one       *
  *   since there is no uniformity in the number of bits returned by the        *
  *   standard library routines, it varies from 16 bits to 64.                  *
@@ -1142,7 +1253,7 @@ void InitializeSMP(void)
   LockInit(lock_io);
   LockInit(lock_root);
   LockInit(block[0]->lock);
-#if defined(UNIX) &&(CPUS > 1)
+#if defined(UNIX) && (CPUS > 1)
   pthread_attr_init(&attributes);
   pthread_attr_setdetachstate(&attributes, PTHREAD_CREATE_DETACHED);
 #endif

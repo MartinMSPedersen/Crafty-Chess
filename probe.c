@@ -1,19 +1,16 @@
 #if !defined(NOEGTB)
 #  include "chess.h"
 #  include "data.h"
-/* last modified 11/03/98 */
+/* last modified 01/17/09 */
 /*
  *******************************************************************************
  *                                                                             *
  *  EGTBProbe() is the interface to the new tablebase code by Eugene Nalimov.  *
- *  this is called from Search() when 5 or fewer pieces are left on the board. *
+ *  This is called from Search() after a capture, when the number of pieces    *
+ *  remaining on the board is less than or equal to the max number of pieces   *
+ *  we have in the EGTB files that are available for use.                      *
  *                                                                             *
  *******************************************************************************
- */
-/*
-   Service macro - initialize squares of the particular piece as well as
-   counter for that piece. Note: dual initialization saves some time when
-   TB is present, but waste for non-present TB. 
  */
 #  define  VInitSqCtr(rgCtr, rgSquares, piece, bitboard) {       \
   int  cPieces=0;                                                \
@@ -92,7 +89,7 @@ int EGTBProbe(TREE * RESTRICT tree, int ply, int wtm, int *score)
 /*
  ************************************************************
  *                                                          *
- *   initialize counters and piece arrays so the probe code *
+ *   Initialize counters and piece arrays so the probe code *
  *   can compute the modified Godel number.                 *
  *                                                          *
  ************************************************************
@@ -110,7 +107,7 @@ int EGTBProbe(TREE * RESTRICT tree, int ply, int wtm, int *score)
 /*
  ************************************************************
  *                                                          *
- *   quick early exit.  is the tablebase for the current    *
+ *   Quick early exit.  Is the tablebase for the current    *
  *   set of pieces registered?                              *
  *                                                          *
  ************************************************************
@@ -121,7 +118,7 @@ int EGTBProbe(TREE * RESTRICT tree, int ply, int wtm, int *score)
 /*
  ************************************************************
  *                                                          *
- *   yes, finish setting up to probe the tablebase.  if     *
+ *   Yes, finish setting up to probe the tablebase.  If     *
  *   black is the "winning" side (more pieces) then we need *
  *   to "invert" the pieces in the lists.                   *
  *                                                          *
@@ -144,7 +141,7 @@ int EGTBProbe(TREE * RESTRICT tree, int ply, int wtm, int *score)
 /*
  ************************************************************
  *                                                          *
- *   now check to see if this particular tablebase for this *
+ *   Now check to see if this particular tablebase for this *
  *   color to move is registered.                           *
  *                                                          *
  ************************************************************
@@ -159,7 +156,7 @@ int EGTBProbe(TREE * RESTRICT tree, int ply, int wtm, int *score)
 /*
  ************************************************************
  *                                                          *
- *   now convert to correct MATE range to match the value   *
+ *   Convert to correct MATE range to match the value       *
  *   Crafty uses.                                           *
  *                                                          *
  ************************************************************

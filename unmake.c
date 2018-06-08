@@ -1,11 +1,11 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 03/06/08 */
+/* last modified 01/16/09 */
 /*
  *******************************************************************************
  *                                                                             *
  *   UnmakeMove() is responsible for updating the position database whenever a *
- *   move is retracted.  it is the exact inverse of MakeMove(). the hash       *
+ *   move is retracted.  It is the exact inverse of MakeMove(). The hash       *
  *   signature(s) are not updated, they are just restored to their status that *
  *   was saved before the move was made, to save time.                         *
  *                                                                             *
@@ -23,7 +23,7 @@ void UnmakeMove(TREE * RESTRICT tree, int ply, int move, int wtm)
 /*
  ************************************************************
  *                                                          *
- *   first, restore the hash signatures to their state      *
+ *   First, restore the hash signatures to their state      *
  *   prior to this move being made, and remove the current  *
  *   position from the repetition list.                     *
  *                                                          *
@@ -35,7 +35,7 @@ void UnmakeMove(TREE * RESTRICT tree, int ply, int move, int wtm)
 /*
  ************************************************************
  *                                                          *
- *   now do the things that are common to all pieces, such  *
+ *   Now do the things that are common to all pieces, such  *
  *   as updating the bitboards and hash signature.          *
  *                                                          *
  ************************************************************
@@ -53,7 +53,7 @@ void UnmakeMove(TREE * RESTRICT tree, int ply, int move, int wtm)
 /*
  ************************************************************
  *                                                          *
- *   now do the piece-specific things by calling the        *
+ *   Now do the piece-specific things by jumping to the     *
  *   appropriate routine.                                   *
  *                                                          *
  ************************************************************
@@ -128,11 +128,12 @@ void UnmakeMove(TREE * RESTRICT tree, int ply, int move, int wtm)
     break;
   }
 /*
- *******************************************************************************
- *                                                                             *
- *   now it is time to restore a piece that was captured.                      *
- *                                                                             *
- *******************************************************************************
+ ************************************************************
+ *                                                          *
+ *   Next we restore information related to a piece that    *
+ *   was captured and is now being returned to the board.   *
+ *                                                          *
+ ************************************************************
  */
   if (captured) {
     TotalAllPieces++;

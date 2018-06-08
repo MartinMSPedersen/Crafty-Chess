@@ -1,14 +1,18 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 08/07/05 */
+/* last modified 01/18/09 */
 /*
  *******************************************************************************
  *                                                                             *
- *   Analyze() is used to handle the "analyze" command.  this mode basically   *
+ *   Analyze() is used to handle the "analyze" command.  This mode basically   *
  *   puts Crafty into a "permanent pondering" state, where it reads a move from*
- *   the input stream, and then "ponders" for the opposite side.  whenever a   *
+ *   the input stream, and then "ponders" for the opposite side.  Whenever a   *
  *   move is entered, Crafty reads this move, updates the game board, and then *
  *   starts "pondering" for the other side.                                    *
+ *                                                                             *
+ *   The purpose of this mode is to force Crafty to follow along in a game,    *
+ *   providing analysis continually for the side on move until a move is       *
+ *   entered, advancing the game to the next position.                         *
  *                                                                             *
  *******************************************************************************
  */
@@ -20,7 +24,7 @@ void Analyze()
 /*
  ************************************************************
  *                                                          *
- *  initialize.                                             *
+ *  Initialize.                                             *
  *                                                          *
  ************************************************************
  */
@@ -35,7 +39,7 @@ void Analyze()
 /*
  ************************************************************
  *                                                          *
- *  now loop waiting on input, searching the current        *
+ *  Now loop waiting on input, searching the current        *
  *  position continually until a move comes in.             *
  *                                                          *
  ************************************************************
@@ -61,7 +65,7 @@ void Analyze()
 /*
  ************************************************************
  *                                                          *
- *  if we get back to here, something has been typed in and *
+ *  If we get back to here, something has been typed in and *
  *  is in the command buffer normally, unless the search    *
  *  terminated naturally due to finding a mate or reaching  *
  *  the max depth allowable.                                *
@@ -122,7 +126,7 @@ void Analyze()
 /*
  ************************************************************
  *                                                          *
- *  if InputMove() can recognize this as a move, make it,   *
+ *  If InputMove() can recognize this as a move, make it,   *
  *  swap sides, and return to the top of the loop to call   *
  *  search from this new position.                          *
  *                                                          *

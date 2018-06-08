@@ -1,6 +1,6 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 08/07/05 */
+/* last modified 01/18/09 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -18,14 +18,14 @@ void PreEvaluate(TREE * RESTRICT tree)
 /*
  ************************************************************
  *                                                          *
- *   now check to see if the "trojan check" code should be  *
+ *   Check to see if the "trojan check" code should be      *
  *   turned on.  basically if the king is in the corner,    *
  *   the opponent has placed a piece on g4/g5, and both     *
  *   sides have pawns attacking that piece, and queens are  *
  *   still on the board, then it is a threat that must be   *
  *   handled.                                               *
  *                                                          *
- *   this is handled as 4 separate cases for each corner of *
+ *   This is handled as 4 separate cases for each corner of *
  *   the board, for simplicity.                             *
  *                                                          *
  ************************************************************
@@ -62,21 +62,13 @@ void PreEvaluate(TREE * RESTRICT tree)
 /*
  ************************************************************
  *                                                          *
- *   now, if any of the values above were changed, we must  *
+ *   Now, if any of the values above were changed, we must  *
  *   clear the appropriate hash tables so that the new      *
  *   values will be used to compute scores.                 *
  *                                                          *
  ************************************************************
  */
   if (last_trojan_check != trojan_check) {
-/*
- **************************************************
- *                                                *
- *   if the trojan check flag changed, we have to *
- *   clear hash scores.                           *
- *                                                *
- **************************************************
- */
     if (trojan_check)
       Print(128, "              trojan check enabled\n");
     Print(128, "              clearing hash tables\n");
@@ -86,10 +78,11 @@ void PreEvaluate(TREE * RESTRICT tree)
 /*
  ************************************************************
  *                                                          *
- *   now for a kludge.  If we are beyond the halfway point  *
- *   with respect to a 50 move draw, then clear the hash    *
- *   scores every move to avoid hiding the 50 move scores   *
- *   from the search by getting hash table hits.            *
+ *   Now for a kludge.  If we are in the last 10 moves of a *
+ *   potential 50 move rule draw, we clear the hash table   *
+ *   (scores only) every move to avoid hiding the 50 move   *
+ *   draw scores from the search when we get hash table     *
+ *   hits.                                                  *
  *                                                          *
  ************************************************************
  */

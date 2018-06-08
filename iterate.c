@@ -5,20 +5,22 @@
 #  include <unistd.h>
 #  include <sys/types.h>
 #endif
-/* last modified 01/05/08 */
+/* last modified 01/07/09 */
 /*
  *******************************************************************************
  *                                                                             *
- *   Iterate() is the routine used to drive the iterated search.  it repeatedly*
- *   calls search, incrementing the search depth after each call, until either *
- *   time is exhausted or the maximum set search depth is reached.             *
+ *   Iterate() is the routine used to drive the iterated search.  It           *
+ *   repeatedly calls search, incrementing the search depth after each call,   *
+ *   until either time is exhausted or the maximum set search depth is         *
+ *   reached.                                                                  *
  *                                                                             *
  *******************************************************************************
  */
 int Iterate(int wtm, int search_type, int root_list_done)
 {
   ROOT_MOVE temp;
-  int i;
+  static int prev_time = 0;
+  int extended = 0, i;
   register int wpawn, bpawn, TB_use_ok, value = 0, twtm, used;
   register int correct, correct_count, material = 0, sorted;
   register unsigned int time_used;
@@ -31,9 +33,7 @@ int Iterate(int wtm, int search_type, int root_list_done)
 /*
  ************************************************************
  *                                                          *
- *  initialize.                                             *
- *                                                          *
- *  produce the root move list, which is ordered and kept   *
+ *  Produce the root move list, which is ordered and kept   *
  *  for the duration of this search (the order may change   *
  *  as new best moves are backed up to the root of course.) *
  *                                                          *
@@ -106,9 +106,9 @@ int Iterate(int wtm, int search_type, int root_list_done)
 /*
  ************************************************************
  *                                                          *
- *  if there are no legal moves, it is either mate or draw  *
- *  depending on whether the side to move is in check or    *
- *  not (mate or stalemate.)                                *
+ *   If there are no legal moves, it is either mate or draw *
+ *   depending on whether the side to move is in check or   *
+ *   not (mate or stalemate.)                               *
  *                                                          *
  ************************************************************
  */
@@ -131,15 +131,15 @@ int Iterate(int wtm, int search_type, int root_list_done)
 /*
  ************************************************************
  *                                                          *
- *   now set the search time and iteratively call Search()  *
- *   to analyze the position deeper and deeper.  note that  *
+ *   Now set the search time and iteratively call Search()  *
+ *   to analyze the position deeper and deeper.  Note that  *
  *   Search() is called with an alpha/beta window roughly   *
  *   1/3 of a pawn on either side of the score last         *
- *   returned by search.  also, after the first root move   *
+ *   returned by search.  Also, after the first root move   *
  *   is searched, this window is collapsed to n and n+1     *
- *   (where n is the value for the first root move.)  often *
+ *   (where n is the value for the first root move.)  Often *
  *   a better move is found, which causes search to return  *
- *   <beta> as the score.  we then relax beta depending on  *
+ *   <beta> as the score.  We then relax beta depending on  *
  *   its value:  if beta = alpha+1, set beta to alpha+1/3   *
  *   of a pawn;  if beta = alpha+1/3 pawn, then set beta to *
  *   + infinity.                                            *
@@ -157,7 +157,7 @@ int Iterate(int wtm, int search_type, int root_list_done)
 /*
  ************************************************************
  *                                                          *
- *   set the initial search bounds based on the last search *
+ *   Set the initial search bounds based on the last search *
  *   or default values.                                     *
  *                                                          *
  ************************************************************
@@ -175,7 +175,7 @@ int Iterate(int wtm, int search_type, int root_list_done)
 /*
  ************************************************************
  *                                                          *
- *   if we are using multiple threads, and they have not    *
+ *   If we are using multiple threads, and they have not    *
  *   been started yet, then start them now as the search    *
  *   is ready to begin.                                     *
  *                                                          *
@@ -208,23 +208,22 @@ int Iterate(int wtm, int search_type, int root_list_done)
 /*
  ************************************************************
  *                                                          *
- *   now install the old PV into the hash table so that     *
+ *   Now install the old PV into the hash table so that     *
  *   these moves will be followed first.                    *
  *                                                          *
  ************************************************************
  */
         twtm = wtm;
         for (i = 1; i <= (int) tree->pv[0].pathl; i++) {
-          tree->pv[i] = tree->pv[i - 1];
-          if (!VerifyMove(tree, i, twtm, tree->pv[i].path[i])) {
+          if (!VerifyMove(tree, i, twtm, tree->pv[0].path[i])) {
             Print(4095, "ERROR, not installing bogus pv info at ply=%d\n", i);
             Print(4095, "not installing from=%d  to=%d  piece=%d\n",
-                From(tree->pv[i].path[i]), To(tree->pv[i].path[i]),
-                Piece(tree->pv[i].path[i]));
-            Print(4095, "pathlen=%d\n", tree->pv[i].pathl);
+                From(tree->pv[0].path[i]), To(tree->pv[0].path[i]),
+                Piece(tree->pv[0].path[i]));
+            Print(4095, "pathlen=%d\n", tree->pv[0].pathl);
             break;
           }
-          HashStorePV(tree, i, twtm);
+          HashStorePV(tree, i, twtm, tree->pv[0].path[i]);
           MakeMove(tree, i, tree->pv[0].path[i], twtm);
           twtm = Flip(twtm);
         }
@@ -232,13 +231,24 @@ int Iterate(int wtm, int search_type, int root_list_done)
           twtm = Flip(twtm);
           UnmakeMove(tree, i, tree->pv[0].path[i], twtm);
         }
+/*
+ ************************************************************
+ *                                                          *
+ *   Now we call SearchRoot() and start the next search     *
+ *   iteration.  We already have solid alpha/beta bounds    *
+ *   set up for the aspiration search.  When each iteration *
+ *   completes, these aspiration values are recomputed and  *
+ *   used for the next iteration.                           *
+ *                                                          *
+ ************************************************************
+ */
         if (trace_level) {
           printf("==================================\n");
           printf("=      search iteration %2d       =\n", iteration_depth);
           printf("==================================\n");
         }
         if (tree->nodes_searched) {
-          nodes_between_time_checks = nodes_per_second / Max(1, max_threads);
+          nodes_between_time_checks = nodes_per_second;
           nodes_between_time_checks = Max(nodes_between_time_checks, 50000);
           if (!analyze_mode) {
             if (time_limit > 300);
@@ -249,8 +259,7 @@ int Iterate(int wtm, int search_type, int root_list_done)
             else
               nodes_between_time_checks /= 100;
           } else
-            nodes_between_time_checks =
-                Min(nodes_per_second / Max(1, max_threads), 50000);
+            nodes_between_time_checks = Min(nodes_per_second, 100000);
         }
         if (search_nodes)
           nodes_between_time_checks = search_nodes - tree->nodes_searched;
@@ -269,24 +278,51 @@ int Iterate(int wtm, int search_type, int root_list_done)
 /*
  ************************************************************
  *                                                          *
- *   check the time after each ply.  if it is likely that   *
- *   there is not enough time to complete the next ply,     *
- *   then allow a search time of 1/2 time_used.  this       *
- *   should be enough time to allow for a fail-low.         *
+ *   Keep track of the time used for the last ply.  If the  *
+ *   next ply doesn't have at least as much time as the     *
+ *   previous ply, then it is likely that the last ply will *
+ *   be the last complete ply searched, and the next ply    *
+ *   will only be a partial search.  In this case, extend   *
+ *   the search time giving the next ply the same amount of *
+ *   time as the previous ply.  This should be enough time  *
+ *   to get a good search on the best move and allow for a  *
+ *   fail-low.  If the next ply actually finishes before    *
+ *   the timeout, then allow for a second extension (limit  *
+ *   2 times) and search again.                             *
  *                                                          *
  ************************************************************
  */
-          time_used = ReadClock() - start_time;
-/*
-          if (time_used > (5 * time_limit / 8) &&
-              time_used < time_limit) {
-            time_limit = 3 * time_used / 2;
-            if (time_limit > absolute_time_limit)
-              time_limit = absolute_time_limit;
-          }
-*/
+          if (iteration_depth > 3) {
+            int time_left, prev_ply;
+            time_used = ReadClock() - start_time;
+            time_left = time_limit - time_used;
+            prev_ply = ReadClock() - prev_time;
+
+            if (time_left < prev_ply) {
+              if (extended++ < 2) {
+                time_limit = time_used + prev_ply;
+                if (time_limit > absolute_time_limit)
+                  time_limit = absolute_time_limit;
+              } else
+                time_limit = time_used;
+            }
+          } else
+            extended = 0;
+          prev_time = ReadClock();
+
           if (time_limit > absolute_time_limit)
             time_limit = absolute_time_limit;
+/*
+ ************************************************************
+ *                                                          *
+ *   Check for the case where we get a score back that is   *
+ *   greater than or equal to beta.  This is called a fail  *
+ *   high condition and requires a re-search with a better  *
+ *   (more optimistic) beta value so that we can discover   *
+ *   just how good this move really is.                     *
+ *                                                          *
+ ************************************************************
+ */
           if (value >= root_beta) {
             if (!(root_moves[0].status & 8)) {
               root_moves[0].status |= 8;
@@ -332,6 +368,17 @@ int Iterate(int wtm, int search_type, int root_list_done)
                   tree->nodes_searched, tree->egtb_probes_successful,
                   kibitz_text);
             }
+/*
+ ************************************************************
+ *                                                          *
+ *   Check for the case where we get a score back that is   *
+ *   less than or equal to alpha.  This is called a fail    *
+ *   low condition and requires a re-search with a better   *
+ *   more pessimistic)) alpha value so that we can discover *
+ *   just how bad this move really is.                      *
+ *                                                          *
+ ************************************************************
+ */
           } else if (value <= root_alpha) {
             if (!(root_moves[0].status & 0x38)) {
               if (!(root_moves[0].status & 1)) {
@@ -379,8 +426,8 @@ int Iterate(int wtm, int search_type, int root_list_done)
 /*
  ************************************************************
  *                                                          *
- *   if we are running a test suite, check to see if we can *
- *   exit the search.  this happens when N successive       *
+ *   If we are running a test suite, check to see if we can *
+ *   exit the search.  This happens when N successive       *
  *   iterations produce the correct solution.  N is set by  *
  *   the test command in Option().                          *
  *                                                          *
@@ -401,7 +448,7 @@ int Iterate(int wtm, int search_type, int root_list_done)
 /*
  ************************************************************
  *                                                          *
- *   if the search terminated normally, then dump the PV    *
+ *   If the search terminated normally, then dump the PV    *
  *   and search statistics (we don't do this if the search  *
  *   aborts because the opponent doesn't make the predicted *
  *   move...)                                               *
@@ -424,8 +471,8 @@ int Iterate(int wtm, int search_type, int root_list_done)
 /*
  ************************************************************
  *                                                          *
- *   notice if there are multiple moves that are producing  *
- *   large trees.  if so, don't search those in parallel by *
+ *   Notice if there are multiple moves that are producing  *
+ *   large trees.  If so, don't search those in parallel by *
  *   setting the flag to avoid this.                        *
  *                                                          *
  ************************************************************
@@ -443,7 +490,7 @@ int Iterate(int wtm, int search_type, int root_list_done)
 /*
  ************************************************************
  *                                                          *
- *   if requested, print the ply=1 move list along with the *
+ *   If requested, print the ply=1 move list along with the *
  *   node counts for the tree each move produced.           *
  *                                                          *
  ************************************************************
@@ -501,7 +548,7 @@ int Iterate(int wtm, int search_type, int root_list_done)
 /*
  ************************************************************
  *                                                          *
- *   search done, now display statistics, depending on the  *
+ *   Search done, now display statistics, depending on the  *
  *   verbosity level set.                                   *
  *                                                          *
  ************************************************************

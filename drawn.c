@@ -5,10 +5,10 @@
  *******************************************************************************
  *                                                                             *
  *   Drawn() is used to answer the question "is this position a hopeless draw?"*
- *   several considerations are included in making this decision, but the most *
- *   basic one is simple the remaining material for each side.  if either side *
- *   has pawns, it's not a draw.  with no pawns, equal material is a draw.     *
- *   otherwise, the superior side must have enough material to be able to force*
+ *   Several considerations are included in making this decision, but the most *
+ *   basic one is simply the remaining material for each side.  If either side *
+ *   has pawns, it's not a draw.  With no pawns, equal material is a draw.     *
+ *   Otherwise, the superior side must have enough material to be able to force*
  *   a mate.                                                                   *
  *                                                                             *
  *******************************************************************************
@@ -18,7 +18,7 @@ int Drawn(TREE * RESTRICT tree, int value)
 /*
  ************************************************************
  *                                                          *
- *   if either side has pawns, the game is not a draw for   *
+ *   If either side has pawns, the game is not a draw for   *
  *   lack of material.                                      *
  *                                                          *
  ************************************************************
@@ -28,7 +28,7 @@ int Drawn(TREE * RESTRICT tree, int value)
 /*
  ************************************************************
  *                                                          *
- *   the search result must indicate a draw also, otherwise *
+ *   The search result must indicate a draw also, otherwise *
  *   it could be a tactical win or loss.                    *
  *                                                          *
  ************************************************************
@@ -38,7 +38,7 @@ int Drawn(TREE * RESTRICT tree, int value)
 /*
  ************************************************************
  *                                                          *
- *   if neither side has pawns, and one side has some sort  *
+ *   If neither side has pawns, and one side has some sort  *
  *   of material superiority, then determine if the winning *
  *   side has enough material to win.                       *
  *                                                          *
@@ -56,7 +56,7 @@ int Drawn(TREE * RESTRICT tree, int value)
 /*
  ************************************************************
  *                                                          *
- *   if neither side has pawns, then one side must have     *
+ *   If neither side has pawns, then one side must have     *
  *   some sort of material superiority, otherwise it is a   *
  *   draw.                                                  *
  *                                                          *

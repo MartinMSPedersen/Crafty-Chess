@@ -5,21 +5,21 @@
 #if defined(UNIX)
 #  include <unistd.h>
 #endif
-/* last modified 07/06/06 */
+/* last modified 01/17/09 */
 /*
  *******************************************************************************
  *                                                                             *
  *   LearnBook() is used to accumulate the evaluations for the first N moves   *
- *   out of book.  after these moves have been played, the evaluations are then*
- *   used to decide whether the last book move played was a reasonable choice  *
- *   or not.  (N is set by the #define LEARN_INTERVAL definition.)             *
+ *   out of book.  After these moves have been played, the evaluations are     *
+ *   then used to decide whether the last book move played was a reasonable    *
+ *   choice or not.  (N is set by the #define LEARN_INTERVAL definition.)      *
  *                                                                             *
- *   there are three cases to be handled.  (1) if the evaluation is bad right  *
- *   out of book, or it drops enough to be considered a bad line, then the book*
- *   move will have its "learn" value reduced to discourage playing this move  *
- *   again.  (2) if the evaluation is even after N moves, then the learn       *
+ *   There are three cases to be handled.  (1) If the evaluation is bad right  *
+ *   out of book, or it drops enough to be considered a bad line, then the     *
+ *   book move will have its "learn" value reduced to discourage playing this  *
+ *   move again.  (2) If the evaluation is even after N moves, then the learn  *
  *   value will be increased, but by a relatively modest amount, so that a few *
- *   even results will offset one bad result.  (3) if the evaluation is very   *
+ *   even results will offset one bad result.  (3) If the evaluation is very   *
  *   good after N moves, the learn value will be increased by a large amount   *
  *   so that this move will be favored the next time the game is played.       *
  *                                                                             *
@@ -33,7 +33,7 @@ void LearnBook(int search_value, int search_depth, int lv, int force)
 /*
  ************************************************************
  *                                                          *
- *   if we have not been "out of book" for N moves, all     *
+ *   If we have not been "out of book" for N moves, all     *
  *   we need to do is take the search evaluation for the    *
  *   search just completed and tuck it away in the book     *
  *   learning array (book_learn_eval[]) for use later.      *
@@ -55,10 +55,10 @@ void LearnBook(int search_value, int search_depth, int lv, int force)
 /*
  ************************************************************
  *                                                          *
- *   check the evaluations we've seen so far.  if they are  *
+ *   Check the evaluations we've seen so far.  If they are  *
  *   within reason (+/- 1/3 of a pawn or so) we simply keep *
- *   playing and leave the book alone.  if the eval is much *
- *   better or worse, we need to update the learning count. *
+ *   playing and leave the book alone.  If the eval is much *
+ *   better or worse, we need to update the learning data.  *
  *                                                          *
  ************************************************************
  */
@@ -113,10 +113,10 @@ void LearnBook(int search_value, int search_depth, int lv, int force)
 /*
  ************************************************************
  *                                                          *
- *   we now have the best eval for the first N moves out    *
+ *   We now have the best eval for the first N moves out    *
  *   of book, the worst eval for the first N moves out of   *
  *   book, and the worst eval that follows the best eval.   *
- *   this will be used to recognize the following cases of  *
+ *   This will be used to recognize the following cases of  *
  *   results that follow a book move:                       *
  *                                                          *
  ************************************************************
@@ -124,8 +124,8 @@ void LearnBook(int search_value, int search_depth, int lv, int force)
 /*
  ************************************************************
  *                                                          *
- *   (1) the best score is very good, and it doesn't drop   *
- *   after following the game further.  this case detects   *
+ *   (1) The best score is very good, and it doesn't drop   *
+ *   after following the game further.  This case detects   *
  *   those moves in book that are "good" and should be      *
  *   played whenever possible.                              *
  *                                                          *
@@ -140,7 +140,7 @@ void LearnBook(int search_value, int search_depth, int lv, int force)
 /*
  ************************************************************
  *                                                          *
- *   (2) the worst score is bad, and doesn't improve any    *
+ *   (2) The worst score is bad, and doesn't improve any    *
  *   after the worst point, indicating that the book move   *
  *   chosen was "bad" and should be avoided in the future.  *
  *                                                          *
@@ -155,8 +155,8 @@ void LearnBook(int search_value, int search_depth, int lv, int force)
 /*
  ************************************************************
  *                                                          *
- *   (3) things seem even out of book and remain that way   *
- *   for N moves.  we will just average the 10 scores and   *
+ *   (3) Things seem even out of book and remain that way   *
+ *   for N moves.  We will just average the 10 scores and   *
  *   use that as an approximation.                          *
  *                                                          *
  ************************************************************
@@ -181,15 +181,16 @@ void LearnBook(int search_value, int search_depth, int lv, int force)
 /*
  ************************************************************
  *                                                          *
- *   now we build a vector of book learning results.  we    *
+ *   Now we build a vector of book learning results.  We    *
  *   give every book move below the last point where there  *
  *   were alternatives 100% of the learned score.  We give  *
  *   the book move played at that point 100% of the learned *
- *   score as well.  then we divide the learned score by    *
+ *   score as well.  Then we divide the learned score by    *
  *   the number of alternatives, and propagate this score   *
  *   back until there was another alternative, where we do  *
  *   this again and again until we reach the top of the     *
  *   book tree.                                             *
+ *                                                          *
  ************************************************************
  */
     t_learn_value = ((float) learn_value) / 100.0;
@@ -204,7 +205,7 @@ void LearnBook(int search_value, int search_depth, int lv, int force)
 /*
  ************************************************************
  *                                                          *
- *   now find the appropriate cluster, find the key we were *
+ *   Now find the appropriate cluster, find the key we were *
  *   passed, and update the resulting learn value.          *
  *                                                          *
  ************************************************************
@@ -232,12 +233,12 @@ void LearnBook(int search_value, int search_depth, int lv, int force)
   }
 }
 
-/* last modified 08/07/05 */
+/* last modified 01/17/09 */
 /*
  *******************************************************************************
  *                                                                             *
  *   LearnFunction() is called to compute the adjustment value added to the    *
- *   learn counter in the opening book.  it takes three pieces of information  *
+ *   learn counter in the opening book.  It takes three pieces of information  *
  *   into consideration to do this:  the search value, the search depth that   *
  *   produced this value, and the rating difference (Crafty-opponent) so that  *
  *   + numbers means Crafty is expected to win, - numbers mean Crafty is ex-   *

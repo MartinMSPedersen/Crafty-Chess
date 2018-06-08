@@ -221,10 +221,6 @@ typedef struct {
 typedef struct {
   BITBOARD word1;
   BITBOARD word2;
-} TABLE_ENTRY;
-typedef struct {
-  TABLE_ENTRY prefer;
-  TABLE_ENTRY always[2];
 } HASH_ENTRY;
 typedef struct {
   BITBOARD key;
@@ -237,7 +233,12 @@ typedef struct {
   unsigned char passed[2];
   unsigned char candidates[2];
   unsigned char open_files;
+  unsigned char filler;
 } PAWN_HASH_ENTRY;
+typedef struct {
+  BITBOARD entry[4];
+} PXOR;
+
 typedef struct {
   int path[MAXPLY];
   unsigned char pathh;
@@ -328,7 +329,7 @@ struct tree {
 #  if (CPUS > 1)
   lock_t lock;
 #  endif
-  int thread_id;
+  long thread_id;
   volatile int stop;
   char root_move_text[16];
   char remaining_moves_text[16];
@@ -340,6 +341,7 @@ struct tree {
   int wtm;
   int depth;
   int ply;
+  int cutmove;
   volatile int used;
 };
 typedef struct tree TREE;
@@ -386,7 +388,7 @@ char *AnnotateVtoNAG(int, int, int, int);
 void AnnotateHeaderTeX(char *, FILE *);
 void AnnotateFooterTeX(FILE *);
 void AnnotatePositionTeX(TREE *, int, FILE *);
-int Attacked(TREE * RESTRICT, int, int);
+int Attacks(TREE * RESTRICT, int, int);
 BITBOARD AttacksTo(TREE * RESTRICT, int);
 void Bench(void);
 int Book(TREE * RESTRICT, int, int);
@@ -451,7 +453,6 @@ int EvaluateKingsFile(TREE * RESTRICT, int, int);
 void EvaluateKnights(TREE * RESTRICT, int);
 void EvaluateMate(TREE * RESTRICT, int);
 void EvaluateMaterial(TREE * RESTRICT, int);
-void EvaluateMaterialDynamic(TREE * RESTRICT, int);
 void EvaluatePassedPawns(TREE * RESTRICT, int);
 void EvaluatePassedPawnRaces(TREE * RESTRICT, int);
 void EvaluatePawns(TREE * RESTRICT, int);
@@ -468,8 +469,8 @@ int *GenerateCheckEvasions(TREE * RESTRICT, int, int, int *);
 int *GenerateChecks(TREE * RESTRICT, int, int, int *);
 int *GenerateNoncaptures(TREE * RESTRICT, int, int, int *);
 int HashProbe(TREE * RESTRICT, int, int, int, int *, int);
-void HashStore(TREE * RESTRICT, int, int, int, int, int);
-void HashStorePV(TREE * RESTRICT, int, int);
+void HashStore(TREE * RESTRICT, int, int, int, int, int, int);
+void HashStorePV(TREE * RESTRICT, int, int, int);
 int EvaluateHasOpposition(int, int, int);
 int IInitializeTb(char *);
 void Initialize(void);
@@ -552,7 +553,6 @@ int SetRootAlpha(unsigned char, int);
 int SetRootBeta(unsigned char, int);
 void *SharedMalloc(size_t, int);
 void SharedFree(void *address);
-void SignalInterrupt(int);
 int StrCnt(char *, char);
 int Swap(TREE * RESTRICT, int, int, int);
 void Test(char *);
@@ -565,7 +565,7 @@ void *STDCALL ThreadInit(void *);
 void ThreadMalloc(int);
 #  endif
 void ThreadStop(TREE * RESTRICT);
-int ThreadWait(int, TREE * RESTRICT);
+int ThreadWait(long, TREE * RESTRICT);
 void TimeAdjust(int, PLAYER);
 int TimeCheck(TREE * RESTRICT, int);
 void TimeSet(int);
@@ -614,7 +614,7 @@ extern void WinFreeInterleaved(void *, size_t);
     *mptr++ = t | (to << 6) | (Abs(PcOnSq(to)) << 15);                     \
     Clear(to, m);                                                          \
   }
-#  define Check(wtm) Attacked(tree, KingSQ(wtm), Flip(wtm))
+#  define Check(wtm) Attacks(tree, KingSQ(wtm), Flip(wtm))
 #  define Attack(from,to) (!(obstructed[from][to] & OccupiedSquares))
 #  define AttacksBishop(square, occ) *(magic_bishop_indices[square]+((((occ)&magic_bishop_mask[square])*magic_bishop[square])>>magic_bishop_shift[square]))
 #  define AttacksKnight(square) knight_attacks[square]

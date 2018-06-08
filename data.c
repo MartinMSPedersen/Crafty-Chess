@@ -106,7 +106,7 @@ int OOOsqs[2][3] = { {E8, D8, C8}, {E1, D1, C1} };
 int OOfrom[2] = { E8, E1 };
 int OOto[2] = { G8, G1 };
 int OOOto[2] = { C8, C1 };
-#define    VERSION                             "22.8"
+#define    VERSION                             "22.9"
 char version[8] = { VERSION };
 PLAYING_MODE mode = normal_mode;
 int batch_mode = 0;             /* no asynch reads */
@@ -538,16 +538,18 @@ int capleft[2] = { +9, -7 };
 int capright[2] = { +7, -9 };
 const char empty_sqs[9] = { 0, '1', '2', '3', '4', '5', '6', '7', '8' };
 int imbalance[9][9] = {
-  {-105, -105, -105, -105, -105, -105, -105,  -70, -35},
-  {-105, -105, -105, -105, -105, -105,  -70,  -35,  35},
-  {-105, -105, -105, -105, -105,  -70,  -35,  35,   70},
-  {-105, -105, -105, -105,  -87,  -35,   35,  70,  105},
-  {-105, -105, -105,  -74,    0,   74,  105,  105, 105},
-  {-105,  -70,  -35,   35,   87,  105,  105,  105, 105},
-  { -70,  -35,   35,   70,  105,  105,  105,  105, 105},
-  { -35,   35,   70,  105,  105,  105,  105,  105, 105},
-  {  35,  70,   105,  105,  105,  105,  105,  105, 105}
+  {-126, -126, -126, -126, -126, -126, -126, -126,  -42},
+  {-126, -126, -126, -126, -126, -126, -126,  -42,   42},
+  {-126, -126, -126, -126, -126, -126,  -42,   42,   84},
+  {-126, -126, -126, -126, -104,  -42,   42,   84,  126},
+  {-126, -126, -126,  -88,    0,   88,  126,  126,  126},
+  {-126,  -84,  -42,   42,  104,  126,  126,  126,  126},
+  { -84,  -42,   42,  126,  126,  126,  126,  126,  126},
+  { -42,   42,  126,  126,  126,  126,  126,  126,  126},
+  {  42,  126,  126,  126,  126,  126,  126,  126,  126}
 };
+int pp_rank_bonus[8] = {0,0,0,2,6,12,20,0};
+int pp_dist_bonus[8] = {0,0,0,2,6,15,24,0};
 int king_tropism_n[8] = { 0, 3, 3, 2, 1, 0, 0, 0 };
 int king_tropism_b[8] = { 0, 2, 2, 1, 0, 0, 0, 0 };
 int king_tropism_r[8] = { 0, 4, 3, 2, 1, 1, 1, 1 };
@@ -561,8 +563,8 @@ int passed_pawn_candidate[2][2][8] = {
 int passed_pawn_value[2][2][8] = {
  {{0, 200, 120,  80,  20,   0,   0, 0},   /* [mg][black][8] */
   {0,   0,   0,  20,  80, 120, 200, 0}},  /* [mg][white][8] */
- {{0, 200, 120,  80,  20,   0,   0, 0},   /* [eg][black][8] */
-  {0,   0,   0,  20,  80, 120, 200, 0}}   /* [eg][white][8] */
+ {{0, 234, 140,  95,  24,   2,   2, 0},   /* [eg][black][8] */
+  {0,   2,   2,  24,  95, 140, 234, 0}}   /* [eg][white][8] */
 };
 int connected_passed_pawn_value[2] = { 1, 3 };
 int passed_pawn_hidden[2] = {0, 40};
@@ -893,36 +895,30 @@ int piece_values[2][7] = {
 int pawn_can_promote = 525;
 int bad_trade = 90;
 int wtm_bonus[2] = {5, 8};
-int lower_n = 16;
-int lower_b = 10;
-int lower_r = 16;
-int mobility_score_b[2][4] = {{1, 2, 3, 4}, {2, 3, 4, 5}};
-int mobility_score_n[4] = {1, 2, 3, 4};
-int mobility_score_r[4] = {1, 2, 3, 4};
 int undeveloped_piece = 12;
-int friendly_queen[8] = {2, 2, 2, 1, 0, 0, -1, -1};
 int pawn_duo[2] = {4, 8};
 int pawn_isolated[2] = {12, 18};
 int pawn_weak[2] = {16, 24};
-int king_king_tropism = 10;
+int lower_n = 16;
+int knight_pair = 11;
+int mobility_score_n[4] = {1, 2, 3, 4};
+int lower_b = 10;
+int bishop_pair = 13;
 int bishop_trapped = 174;
 int bishop_with_wing_pawns[2] = {18, 36};
+int mobility_score_b[2][4] = {{1, 2, 3, 4}, {2, 3, 4, 5}};
+int lower_r = 16;
+int mobility_score_r[4] = {1, 2, 3, 4};
 int rook_on_7th[2] = {20, 40};
-/*
-    each row contains values for a rook occupying a specific open
-    file starting with file A and going through file H.  Row 0 is
-    not used, row 1 is used when there is only one open file on
-    the board, row 2 is used when there are two openfiles on the
-    board, etc.  obviously control of a file is more important if
-    there is only one or two files available.
-*/
 int rook_open_file[2] = {40, 20};
 int rook_half_open_file[2] = {10, 10};
 int rook_behind_passed_pawn[2] = {10, 36};
 int rook_trapped = 60;
 int open_file[8] = { 6, 5, 4, 4, 4, 4, 5, 6 };
 int half_open_file[8] = { 4, 4, 3, 3, 3, 3, 4, 4 };
+int friendly_queen[8] = {2, 2, 2, 1, 0, 0, -1, -1};
 int king_safety_mate_threat = 600;
+int king_king_tropism = 10;
 int development_thematic = 12;
 int development_losing_castle = 20;
 int development_not_castled = 20;

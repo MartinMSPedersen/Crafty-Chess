@@ -9,13 +9,13 @@
  *******************************************************************************
  *                                                                             *
  *   Book() is used to determine if the current position is in the book data-  *
- *   base.  it simply takes the set of moves produced by root_moves() and then *
+ *   base.  It simply takes the set of moves produced by root_moves() and then *
  *   tries each position's hash key to see if it can be found in the data-     *
- *   base.  if so, such a move represents a "book move."  the set of flags is  *
+ *   base.  If so, such a move represents a "book move."  The set of flags is  *
  *   used to decide on a sub-set of moves to be used as the "book move pool"   *
  *   from which a move is chosen randomly.                                     *
  *                                                                             *
- *   the format of a book position is as follows:                              *
+ *   The format of a book position is as follows:                              *
  *                                                                             *
  *   64 bits:  hash key for this position.                                     *
  *                                                                             *
@@ -34,7 +34,7 @@
  *                                                                             *
  *   32 bits:  learned value (floating point).                                 *
  *                                                                             *
- *     (note:  counts are normalized to a max of 255.                          *
+ *     (Note:  counts are normalized to a max of 255.                          *
  *                                                                             *
  *******************************************************************************
  */
@@ -69,7 +69,7 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
 /*
  ************************************************************
  *                                                          *
- *   if we have been out of book for several moves, return  *
+ *   If we have been out of book for several moves, return  *
  *   and start the normal tree search.                      *
  *                                                          *
  ************************************************************
@@ -79,8 +79,8 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
 /*
  ************************************************************
  *                                                          *
- *   position is known, read the start book file and save   *
- *   each move found.  these will be used later to augment  *
+ *   Position is known, read the start book file and save   *
+ *   each move found.  These will be used later to augment  *
  *   the flags in the normal book to offer better control.  *
  *                                                          *
  ************************************************************
@@ -119,8 +119,8 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
 /*
  ************************************************************
  *                                                          *
- *   position is known, read in the appropriate cluster.    *
- *   note that this cluster will have all possible book     *
+ *   Position is known, read in the appropriate cluster.    *
+ *   Note that this cluster will have all possible book     *
  *   moves from current position in it (as well as others   *
  *   of course.)                                            *
  *                                                          *
@@ -144,7 +144,7 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
 /*
  ************************************************************
  *                                                          *
- *   now add any moves from books.bin to the end of the     *
+ *   Now add any moves from books.bin to the end of the     *
  *   cluster so that they will be played even if not in the *
  *   regular database of moves.                             *
  *                                                          *
@@ -164,7 +164,7 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
 /*
  ************************************************************
  *                                                          *
- *   first cycle through the root move list, make each      *
+ *   First cycle through the root move list, make each      *
  *   move, and see if the resulting hash key is in the book *
  *   database.                                              *
  *                                                          *
@@ -226,7 +226,7 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
 /*
  ************************************************************
  *                                                          *
- *   if any moves have a very bad or a very good learn      *
+ *   If any moves have a very bad or a very good learn      *
  *   value, set the appropriate ? or ! flag so the move     *
  *   be played or avoided as appropriate.                   *
  *                                                          *
@@ -256,7 +256,7 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
 /*
  ************************************************************
  *                                                          *
- *   we have the book moves, now it's time to decide how    *
+ *   We have the book moves, now it's time to decide how    *
  *   they are supposed to be sorted and compute the sort    *
  *   index.                                                 *
  *                                                          *
@@ -289,7 +289,7 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
 /*
  ************************************************************
  *                                                          *
- *   if there are any ! moves, make their popularity count  *
+ *   If there are any ! moves, make their popularity count  *
  *   huge since they have to be considered.                 *
  *                                                          *
  ************************************************************
@@ -308,7 +308,7 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
 /*
  ************************************************************
  *                                                          *
- *   now sort the moves based on the complete sort value.   *
+ *   Now sort the moves based on the complete sort value.   *
  *                                                          *
  ************************************************************
  */
@@ -353,7 +353,7 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
 /*
  ************************************************************
  *                                                          *
- *   display the book moves, and total counts, etc. if the  *
+ *   Display the book moves, and total counts, etc. if the  *
  *   operator has requested it.                             *
  *                                                          *
  ************************************************************
@@ -398,9 +398,9 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
 /*
  ************************************************************
  *                                                          *
- *   check for book moves with the play % value set.  if    *
+ *   Check for book moves with the play % value set.  if    *
  *   there are any such moves, then exclude all moves that  *
- *   do not have a play %.                                  *
+ *   do not have a play % or a !/!! flag set.               *
  *                                                          *
  ************************************************************
  */
@@ -410,8 +410,8 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
 /*
  ************************************************************
  *                                                          *
- *   delete ? and ?? moves first, which includes those      *
- *   moves with bad learned results.  here is where we also *
+ *   Delete ? and ?? moves first, which includes those      *
+ *   moves with bad learned results.  Here is where we also *
  *   exclude moves with no play % if we find at least one   *
  *   with a non-zero value.                                 *
  *                                                          *
@@ -450,7 +450,7 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
 /*
  ************************************************************
  *                                                          *
- *   if this is a real search (not a puzzling search to     *
+ *   If this is a real search (not a puzzling search to     *
  *   find a move by the opponent to ponder) then we need to *
  *   set up the whisper info for later.                     *
  *                                                          *
@@ -477,19 +477,16 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
 /*
  ************************************************************
  *                                                          *
- *   now select a move from the set of moves just found. do *
- *   this in four distinct passes:  (2) look for !! moves;  *
+ *   Now select a move from the set of moves just found. Do *
+ *   this in three distinct passes:  (1) look for !! moves; *
  *   (2) look for ! moves;  (3) look for any other moves.   *
- *   note: book_accept_mask *should* have a bit set for any *
+ *   Note: book_accept_mask *should* have a bit set for any *
  *   move that is selected, including !! and ! type moves   *
- *   so that they *can* be excluded if desired.  note also  *
+ *   so that they *can* be excluded if desired.  Note also  *
  *   that book_reject_mask should have ?? and ? set (at a   *
  *   minimum) to exclude these types of moves.              *
  *                                                          *
  ************************************************************
- */
-/*
- first, check for !! moves
  */
     num_selected = 0;
     if (!num_selected && !puzzling)
@@ -503,9 +500,6 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
             selected_key[num_selected] = book_key[i];
             selected[num_selected++] = book_moves[i];
           }
-/*
- if none, then check for ! moves
- */
     if (!num_selected && !puzzling)
       if (book_accept_mask & 8)
         for (i = 0; i < nmoves; i++)
@@ -517,9 +511,6 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
             selected_key[num_selected] = book_key[i];
             selected[num_selected++] = book_moves[i];
           }
-/*
- if none, then check for = moves
- */
     if (!num_selected && !puzzling)
       if (book_accept_mask & 4)
         for (i = 0; i < nmoves; i++)
@@ -530,9 +521,6 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
             selected_key[num_selected] = book_key[i];
             selected[num_selected++] = book_moves[i];
           }
-/*
- if none, then check for any flagged moves
- */
     if (!num_selected && !puzzling)
       for (i = 0; i < nmoves; i++)
         if (book_status[i] & book_accept_mask) {
@@ -542,9 +530,6 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
           selected_key[num_selected] = book_key[i];
           selected[num_selected++] = book_moves[i];
         }
-/*
- if none, then any book move is acceptable
- */
     if (!num_selected)
       for (i = 0; i < nmoves; i++) {
         selected_status[num_selected] = book_status[i];
@@ -555,9 +540,6 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
       }
     if (!num_selected)
       return (0);
-/*
- now copy moves to the right place.
- */
     for (i = 0; i < num_selected; i++) {
       book_status[i] = selected_status[i];
       book_moves[i] = selected[i];
@@ -592,7 +574,7 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
 /*
  ************************************************************
  *                                                          *
- *   we have the book moves, if any have specified percents *
+ *   We have the book moves, if any have specified percents *
  *   for play, then adjust the bs_value[] to reflect this   *
  *   percentage.                                            *
  *                                                          *
@@ -616,7 +598,7 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
 /*
  ************************************************************
  *                                                          *
- *   display the book moves, and total counts, etc. if the  *
+ *   Display the book moves, and total counts, etc. if the  *
  *   operator has requested it.                             *
  *                                                          *
  ************************************************************
@@ -658,7 +640,7 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
 /*
  ************************************************************
  *                                                          *
- *   if random=0, then we search the set of legal book      *
+ *   If random=0, then we search the set of legal book      *
  *   moves with the normal search engine (but with a short  *
  *   time limit) to choose among them.                      *
  *                                                          *
@@ -695,9 +677,9 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
 /*
  ************************************************************
  *                                                          *
- *   if puzzling, in tournament mode we try to find the     *
+ *   If puzzling, in tournament mode we try to find the     *
  *   best non-book move, because a book move will produce   *
- *   a quick move anyway.  we therefore would rather search *
+ *   a quick move anyway.  We therefore would rather search *
  *   for a non-book move, just in case the opponent goes    *
  *   out of book here.                                      *
  *                                                          *
@@ -731,7 +713,7 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
 /*
  ************************************************************
  *                                                          *
- *   compute a random value and use this to generate a      *
+ *   Compute a random value and use this to generate a      *
  *   book move based on a probability distribution of       *
  *   the number of games won by each book move.             *
  *                                                          *
@@ -804,7 +786,7 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
  *                                                                             *
  *   BookPonderMove() is used to find a move to ponder, to avoid the overhead  *
  *   of a "puzzling" search early in the game (unless there are no book moves  *
- *   found, of course.)  the algorithm is much simpler than the normal book    *
+ *   found, of course.)  The algorithm is much simpler than the normal book    *
  *   move code...  just find the move with the largest frequency counter and   *
  *   assume that will be played.                                               *
  *                                                                             *
@@ -848,7 +830,7 @@ int BookPonderMove(TREE * RESTRICT tree, int wtm)
 /*
  ************************************************************
  *                                                          *
- *   first cycle through the root move list, make each      *
+ *   First cycle through the root move list, make each      *
  *   move, and see if the resulting hash key is in the book *
  *   database.                                              *
  *                                                          *
@@ -883,42 +865,42 @@ int BookPonderMove(TREE * RESTRICT tree, int wtm)
  *   BookUp() is used to create/add to the opening book file.  typing "<file>  *
  *   create" will erase the old book file and start from scratch,              *
  *                                                                             *
- *   the format of the input data is a left bracket ("[") followed by any title*
+ *   The format of the input data is a left bracket ("[") followed by any title*
  *   information desired, followed by a right bracket ("]") followed by a      *
- *   sequence of moves.  the sequence of moves is assumed to start at ply=1,   *
+ *   sequence of moves.  The sequence of moves is assumed to start at ply=1,   *
  *   with white-to-move (normal opening position) and can contain as many moves*
- *   as desired (no limit on the depth of each variation.)  the file *must* be *
+ *   as desired (no limit on the depth of each variation.)  The file *must* be *
  *   terminated with a line that begins with "end", since handling the EOF     *
  *   condition makes portable code difficult.                                  *
  *                                                                             *
- *   book moves can either be typed in by hand, directly into book_add(), by   *
- *   using the "book create/add" command.  using the command "book add/create  *
+ *   Book moves can either be typed in by hand, directly into book_add(), by   *
+ *   using the "book create/add" command.  Using the command "book add/create  *
  *   filename" will cause book_add() to read its opening text moves from       *
  *   filename rather than from the keyboard                                    *
  *                                                                             *
- *   in addition to the normal text for a move (reduced or full algebraic is   *
+ *   In addition to the normal text for a move (reduced or full algebraic is   *
  *   accepted, ie, e4, ed, exd4, e3d4, etc. are all acceptable) some special   *
  *   characters can be appended to a move.                                     *
  *                                                                             *
- *      ?? ->  never play this move.  since the same book is used for both     *
+ *      ?? ->  Never play this move.  since the same book is used for both     *
  *             black and white, you can enter moves in that white might play,  *
  *             but prevent the program from choosing them on its own.          *
- *      ?  ->  avoid this move except for non-important games.  these openings *
+ *      ?  ->  Avoid this move except for non-important games.  These openings *
  *             are historically those that the program doesn't play very well, *
  *             but which aren't outright losing.                               *
- *      =  ->  drawish move, only play this move if drawish moves are allowed  *
- *             by the operator.  this is used to encourage the program to play *
+ *      =  ->  Drawish move, only play this move if drawish moves are allowed  *
+ *             by the operator.  This is used to encourage the program to play *
  *             drawish openings (Petrov's comes to mind) when the program needs*
  *             to draw or is facing a formidable opponent (deep thought comes  *
  *             to mind.)                                                       *
- *      !  ->  always play this move, if there isn't a move with the !! flag   *
- *             set also.  this is a strong move, but not as strong as a !!     *
- *             moveing traps.                                                  *
- *      !! ->  always play this move.  this can be used to make the program    *
+ *      !  ->  Always play this move, if there isn't a move with the !! flag   *
+ *             set also.  This is a strong move, but not as strong as a !!     *
+ *             move.                                                           *
+ *      !! ->  Always play this move.  This can be used to make the program    *
  *             favor particular lines, or to mark a strong move for certain    *
  *             opening traps.                                                  *
  *                                                                             *
- *  {play nn%} is used to force this specific book move to be played a specific*
+ *  {Play nn%} is used to force this specific book move to be played a specific*
  *             percentage of the time, and override the frequency of play that *
  *             comes from the large pgn database.                              *
  *                                                                             *
@@ -947,7 +929,7 @@ void BookUp(TREE * RESTRICT tree, int nargs, char **args)
 /*
  ************************************************************
  *                                                          *
- *   open the correct book file for writing/reading         *
+ *   Open the correct book file for writing/reading         *
  *                                                          *
  ************************************************************
  */
@@ -1062,14 +1044,14 @@ void BookUp(TREE * RESTRICT tree, int nargs, char **args)
 /*
  ************************************************************
  *                                                          *
- *   now, read in a series of moves (terminated by the "["  *
+ *   Now, read in a series of moves (terminated by the "["  *
  *   of the next title or by "end" for end of the file)     *
- *   and make them.  after each MakeMove(), we can grab     *
+ *   and make them.  After each MakeMove(), we can grab     *
  *   the hash key, and use it to access the book data file  *
- *   to add this position.  note that we have to check the  *
+ *   to add this position.  Note that we have to check the  *
  *   last character of a move for the special flags and     *
  *   set the correct bit in the status for this position.   *
- *   when we reach the end of a book line, we back up to    *
+ *   When we reach the end of a book line, we back up to    *
  *   the starting position and start over.                  *
  *                                                          *
  ************************************************************
@@ -1224,7 +1206,7 @@ void BookUp(TREE * RESTRICT tree, int nargs, char **args)
 /*
  ************************************************************
  *                                                          *
- *   now merge these "chunks" into book.bin, keeping all of *
+ *   Now merge these "chunks" into book.bin, keeping all of *
  *   the "flags" as well as counting the number of times    *
  *   that each move was played.                             *
  *                                                          *
@@ -1354,7 +1336,7 @@ void BookUp(TREE * RESTRICT tree, int nargs, char **args)
 /*
  ************************************************************
  *                                                          *
- *   now clean up, remove the sort.n files, and print the   *
+ *   Now clean up, remove the sort.n files, and print the   *
  *   statistics for building the book.                      *
  *                                                          *
  ************************************************************
@@ -1446,7 +1428,7 @@ void BookSort(BB_POSITION * buffer, int number, int fileno)
  *******************************************************************************
  *                                                                             *
  *   BookUpNextPosition() is the heart of the "merge" operation that is done   *
- *   after the chunks of the parsed/hashed move file are sorted.  this code    *
+ *   after the chunks of the parsed/hashed move file are sorted.  This code    *
  *   opens the sort.n files, and returns the least (lexically) position key to *
  *   counted/merged into the main book database.                               *
  *                                                                             *

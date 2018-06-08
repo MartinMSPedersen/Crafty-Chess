@@ -1,20 +1,20 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 08/07/05 */
+/* last modified 01/18/09 */
 /*
  *******************************************************************************
  *                                                                             *
  *   Ponder() is the driver for "pondering" (thinking on the opponent's time.) *
- *   its operation is simple:  find a predicted move by (a) taking the second  *
+ *   its operation is simple:  Find a predicted move by (a) taking the second  *
  *   move from the principal variation, or (b) call lookup to see if it finds  *
- *   a suggested move from the transposition table.  then, make this move and  *
- *   do a search from the resulting position.  while pondering, one of three   *
- *   things can happen:  (1) a move is entered, and it matches the predicted   *
- *   move.  we then switch from pondering to thinking and search as normal;    *
- *   (2) a move is entered, but it does not match the predicted move.  we then *
+ *   a suggested move from the transposition table.  Then, make this move and  *
+ *   do a search from the resulting position.  While pondering, one of three   *
+ *   things can happen:  (1) A move is entered, and it matches the predicted   *
+ *   move.  We then switch from pondering to thinking and search as normal;    *
+ *   (2) A move is entered, but it does not match the predicted move.  We then *
  *   abort the search, unmake the pondered move, and then restart with the move*
- *   entered.  (3) a command is entered.  if it is a simple command, it can be *
- *   done without aborting the search or losing time.  if not, we abort the    *
+ *   entered.  (3) A command is entered.  If it is a simple command, it can be *
+ *   done without aborting the search or losing time.  If not, we abort the    *
  *   search, execute the command, and then attempt to restart pondering if the *
  *   command didn't make that impossible.                                      *
  *                                                                             *
@@ -29,7 +29,7 @@ int Ponder(int wtm)
 /*
  ************************************************************
  *                                                          *
- *   first, let's check to see if pondering is allowed, or  *
+ *   First, let's check to see if pondering is allowed, or  *
  *   if we should avoid pondering on this move since it is  *
  *   the first move of a game, or if the game is over, or   *
  *   "force" mode is active, or there is input in the queue *
@@ -43,10 +43,10 @@ int Ponder(int wtm)
 /*
  ************************************************************
  *                                                          *
- *   if we don't have a predicted move to ponder, try two   *
- *   sources:  (1) look up the current position in the      *
+ *   If we don't have a predicted move to ponder, try two   *
+ *   sources:  (1) Look up the current position in the      *
  *   transposition table and see if it has a suggested best *
- *   move;  (2) do a short tree search to calculate a move  *
+ *   move;  (2) Do a short tree search to calculate a move  *
  *   that we should ponder.                                 *
  *                                                          *
  ************************************************************
@@ -110,7 +110,7 @@ int Ponder(int wtm)
 /*
  ************************************************************
  *                                                          *
- *   display the move we are going to "ponder".             *
+ *   Display the move we are going to "ponder".             *
  *                                                          *
  ************************************************************
  */
@@ -126,7 +126,7 @@ int Ponder(int wtm)
 /*
  ************************************************************
  *                                                          *
- *   set the ponder move list and eliminate illegal moves.  *
+ *   Set the ponder move list and eliminate illegal moves.  *
  *                                                          *
  ************************************************************
  */
@@ -144,7 +144,7 @@ int Ponder(int wtm)
 /*
  ************************************************************
  *                                                          *
- *   now, perform an iterated search, but with the special  *
+ *   Now, perform an iterated search, but with the special  *
  *   "pondering" flag set which changes the time controls   *
  *   since there is no need to stop searching until the     *
  *   opponent makes a move.                                 *
@@ -169,24 +169,24 @@ int Ponder(int wtm)
 /*
  ************************************************************
  *                                                          *
- *   search completed. the possible return values are:      *
+ *   Search completed. the possible return values are:      *
  *                                                          *
- *   (0) no pondering was done, period.                     *
+ *   (0) No pondering was done, period.                     *
  *                                                          *
- *   (1) pondering was done, opponent made the predicted    *
+ *   (1) Pondering was done, opponent made the predicted    *
  *       move, and we searched until time ran out in a      *
  *       normal manner.                                     *
  *                                                          *
- *   (2) pondering was done, but the ponder search          *
+ *   (2) Pondering was done, but the ponder search          *
  *       terminated due to either finding a mate, or the    *
- *       maximum search depth was reached.  the result of   *
+ *       maximum search depth was reached.  The result of   *
  *       this ponder search are valid, but only if the      *
  *       opponent makes the correct (predicted) move.       *
  *                                                          *
- *   (3) pondering was done, but the opponent either made   *
+ *   (3) Pondering was done, but the opponent either made   *
  *       a different move, or entered a command that has to *
  *       interrupt the pondering search before the command  *
- *       (or move) can be processed.  this forces Main() to *
+ *       (or move) can be processed.  This forces Main() to *
  *       avoid reading in a move/command since one has been *
  *       read into the command buffer already.              *
  *                                                          *

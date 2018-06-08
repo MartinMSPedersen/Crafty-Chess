@@ -1,16 +1,16 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 12/08/07 */
+/* last modified 01/17/09 */
 /*
  *******************************************************************************
  *                                                                             *
  *   InputMove() is responsible for converting a move from a text string to    *
- *   the internal move format.  it allows the so-called "reduced algebraic     *
+ *   the internal move format.  It allows the so-called "reduced algebraic     *
  *   move format" which makes the origin square optional unless required for   *
- *   clarity.  it also accepts as little as required to remove ambiguity from  *
+ *   clarity.  It also accepts as little as required to remove ambiguity from  *
  *   the move, by using GenerateMoves() to produce a set of legal moves        *
  *   that the text can be applied against to eliminate those moves not         *
- *   intended.  hopefully, only one move will remain after the elimination     *
+ *   intended.  Hopefully, only one move will remain after the elimination     *
  *   and legality checks.                                                      *
  *                                                                             *
  *******************************************************************************
@@ -33,15 +33,25 @@ int InputMove(TREE * RESTRICT tree, char *text, int ply, int wtm, int silent,
     'K', 'k', '\0'
   };
 /*
- first strip off things like !!/??/!? and so forth, to avoid
- confusing the parsing.
+ ************************************************************
+ *                                                          *
+ *   First, we need to strip off the special characters for *
+ *   check, mate, bad move, good move, and such that might  *
+ *   come from a PGN input file.                            *
+ *                                                          *
+ ************************************************************
  */
   if ((tc = strchr(text, '!')))
     *tc = 0;
   if ((tc = strchr(text, '?')))
     *tc = 0;
 /*
- check for fully-qualified input (f1e1) and handle if needed.
+ ************************************************************
+ *                                                          *
+ *   Check for full coordinate input (f1e1) and handle that *
+ *   if needed.                                             *
+ *                                                          *
+ ************************************************************
  */
   if (strlen(text) == 0)
     return (0);
@@ -50,7 +60,13 @@ int InputMove(TREE * RESTRICT tree, char *text, int ply, int wtm, int silent,
       (text[3] >= '1') && (text[3] <= '8'))
     return (InputMoveICS(tree, text, ply, wtm, silent, ponder_list));
 /*
- initialize move structure in case an error is found
+ ************************************************************
+ *                                                          *
+ *   Initialize move structure.  If we discover a parsing   *
+ *   error, this will cause us to return a move of "0" to   *
+ *   indicate some sort of error was detected.              *
+ *                                                          *
+ ************************************************************
  */
   tree->position[MAXPLY] = tree->position[ply];
   strcpy(movetext, text);
@@ -67,8 +83,12 @@ int InputMove(TREE * RESTRICT tree, char *text, int ply, int wtm, int silent,
   if (goodchar)
     *goodchar = 0;
 /*
- first, figure out what each character means.  the first thing to
- do is eliminate castling moves
+ ************************************************************
+ *                                                          *
+ *   First we look for castling moves which are a special   *
+ *   case with an unusual syntax compared to normal moves.  *
+ *                                                          *
+ ************************************************************
  */
   if (!strcmp(movetext, "o-o") || !strcmp(movetext, "o-o+") ||
       !strcmp(movetext, "O-O") || !strcmp(movetext, "O-O+") ||
@@ -102,22 +122,38 @@ int InputMove(TREE * RESTRICT tree, char *text, int ply, int wtm, int silent,
     }
   } else {
 /*
- ok, it's not a castling.  check for the first two characters of "bb" which
- indicates that the first "b" really means "B" since pawn advances don't
- require a source file.
+ ************************************************************
+ *                                                          *
+ *   OK, it is not a castling move.  Check for two "b"      *
+ *   characters which might be a piece (bishop) and a file  *
+ *   (b-file).  The first "b" should be "B" but we allow    *
+ *   this to make typing input simpler.                     *
+ *                                                          *
+ ************************************************************
  */
     if ((movetext[0] == 'b') && (movetext[1] == 'b'))
       movetext[0] = 'B';
 /*
- now, start by picking off the check indicator (+) if one is present.
+ ************************************************************
+ *                                                          *
+ *   Check to see if there is a "+" character which means   *
+ *   that this move is a check.  We can use this to later   *
+ *   eliminate all non-checking moves as possibilities.     *
+ *                                                          *
+ ************************************************************
  */
     if (strchr(movetext, '+')) {
       *strchr(movetext, '+') = 0;
       give_check = 1;
     }
 /*
- now, continue by picking off the promotion piece if one is present.  this
- is indicated by something like =q on the end of the move string.
+ ************************************************************
+ *                                                          *
+ *   If this is a promotion, indicated by an "=" in the     *
+ *   text, we can pick up the promote-to piece and save it  *
+ *   to use later when eliminating moves.                   *
+ *                                                          *
+ ************************************************************
  */
     if (strchr(movetext, '=')) {
       goodchar = strchr(movetext, '=');
@@ -126,9 +162,15 @@ int InputMove(TREE * RESTRICT tree, char *text, int ply, int wtm, int silent,
       *strchr(movetext, '=') = 0;
     }
 /*
- now, for a kludge.  ChessBase can't follow the PGN standard and likes to
- export pawn promotions as axb8Q, omitting the required '=' character.  this
- fix handles that particular ChessBase error.
+ ************************************************************
+ *                                                          *
+ *   Now for a kludge.  ChessBase (and others) can't follow *
+ *   the PGN standard of bxc8=Q for promotion, and instead  *
+ *   will produce "bxc8Q" omitting the PGN-standard "="     *
+ *   character.  We handle that here so that we can read    *
+ *   their non-standard moves.                              *
+ *                                                          *
+ ************************************************************
  */
     else {
       char *prom = strchr(pro_pieces, movetext[strlen(movetext) - 1]);
@@ -139,8 +181,14 @@ int InputMove(TREE * RESTRICT tree, char *text, int ply, int wtm, int silent,
       }
     }
 /*
- the next thing to do is extract the last rank/file designators since
- the destination is required.  note that we can have either or both.
+ ************************************************************
+ *                                                          *
+ *   Next we extract the last rank/file designators from    *
+ *   the text, since the destination is required for all    *
+ *   valid non-castling moves.  Note that we might not have *
+ *   both a rank and file but we must have at least one.    *
+ *                                                          *
+ ************************************************************
  */
     current = strlen(movetext) - 1;
     trank = movetext[current] - '1';
@@ -156,8 +204,13 @@ int InputMove(TREE * RESTRICT tree, char *text, int ply, int wtm, int silent,
       tfile = -1;
     if (strlen(movetext)) {
 /*
- now check the first character to see if it's a piece indicator
- (PpNnBbRrQqKk).  if so, strip it off.
+ ************************************************************
+ *                                                          *
+ *   The first character is the moving piece, unless it is  *
+ *   a pawn.  In this case, the moving piece is omitted and *
+ *   we know what it has to be.                             *
+ *                                                          *
+ ************************************************************
  */
       if (strchr("  PpNnBBRrQqKk", *movetext)) {
         piece = (strchr(pieces, movetext[0]) - pieces) >> 1;
@@ -165,10 +218,14 @@ int InputMove(TREE * RESTRICT tree, char *text, int ply, int wtm, int silent,
           movetext[i] = movetext[i + 1];
       }
 /*
- now that we have the destination and the moving piece (if any)
- the next step is to see if the last character is now an "x"
- indicating a capture   if so, set the capture flag, remove the
- trailing "x" and continue.
+ ************************************************************
+ *                                                          *
+ *   It is also possible that this move is a capture, which *
+ *   is indicated by a "x" between either the source and    *
+ *   destination squares, or between the moving piece and   *
+ *   the destination.                                       *
+ *                                                          *
+ ************************************************************
  */
       if ((strlen(movetext)) && (movetext[strlen(movetext) - 1] == 'x')) {
         capture = 1;
@@ -176,9 +233,13 @@ int InputMove(TREE * RESTRICT tree, char *text, int ply, int wtm, int silent,
       } else
         capture = 0;
 /*
- now, all that can be left is a rank designator, a file designator
- or both.  if the last character a number, then the first (if present)
- has to be a letter.
+ ************************************************************
+ *                                                          *
+ *   It is possible to have no source square, but we could  *
+ *   have a complete algebraic square designation, or just  *
+ *   rank or file, needed to disambiguate the move.         *
+ *                                                          *
+ ************************************************************
  */
       if (strlen(movetext)) {
         ffile = movetext[0] - 'a';
@@ -197,6 +258,21 @@ int InputMove(TREE * RESTRICT tree, char *text, int ply, int wtm, int silent,
       }
     }
   }
+/*
+ ************************************************************
+ *                                                          *
+ *   Now for the easy part.  We first generate all moves    *
+ *   if not pondering, or else use a pre-computed list of   *
+ *   moves (if pondering) since the board position is not   *
+ *   correct for move input analysis.  We then loop through *
+ *   the list of moves, using the information we extracted  *
+ *   previously, and eliminate all moves that are (a) the   *
+ *   wrong piece type;  (b) wrong source or destination     *
+ *   square;  (c) wrong promotion type;  (d) should be a    *
+ *   capture/check/promotion but is not or vice-versa.      *
+ *                                                          *
+ ************************************************************
+ */
   if (!piece)
     piece = 1;
   if (!ponder_list) {
@@ -231,6 +307,18 @@ int InputMove(TREE * RESTRICT tree, char *text, int ply, int wtm, int silent,
         UnmakeMove(tree, MAXPLY, *mv, wtm);
     }
   }
+/*
+ ************************************************************
+ *                                                          *
+ *   Once we have completed eliminating incorrect moves, we *
+ *   hope to have exactly one move left.  If none or left,  *
+ *   the entered move is illegal.  If more than one is      *
+ *   left, the move entered is ambiguous.  If appropriate,  *
+ *   we output some sort of diagnostic message and then     *
+ *   return.                                                *
+ *                                                          *
+ ************************************************************
+ */
   nleft = 0;
   for (mv = &moves[0]; mv < mvp; mv++) {
     if (*mv) {
@@ -251,7 +339,7 @@ int InputMove(TREE * RESTRICT tree, char *text, int ply, int wtm, int silent,
   return (0);
 }
 
-/* last modified 03/11/97 */
+/* last modified 01/17/09 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -273,7 +361,13 @@ int InputMoveICS(TREE * RESTRICT tree, char *text, int ply, int wtm, int silent,
     'Q', 'q', 'K', 'k', '\0'
   };
 /*
- initialize move structure in case an error is found
+ ************************************************************
+ *                                                          *
+ *   Initialize move structure.  If we discover a parsing   *
+ *   error, this will cause us to return a move of "0" to   *
+ *   indicate some sort of error was detected.              *
+ *                                                          *
+ ************************************************************
  */
   if (strlen(text) == 0)
     return (0);
@@ -282,8 +376,12 @@ int InputMoveICS(TREE * RESTRICT tree, char *text, int ply, int wtm, int silent,
   moves[0] = 0;
   promote = 0;
 /*
- first, figure out what each character means.  the first thing to
- do is eliminate castling moves
+ ************************************************************
+ *                                                          *
+ *   First we look for castling moves which are a special   *
+ *   case with an unusual syntax compared to normal moves.  *
+ *                                                          *
+ ************************************************************
  */
   if (!strcmp(movetext, "o-o") || !strcmp(movetext, "O-O") ||
       !strcmp(movetext, "0-0")) {
@@ -315,22 +413,47 @@ int InputMoveICS(TREE * RESTRICT tree, char *text, int ply, int wtm, int silent,
     }
   } else {
 /*
- the next thing to do is extract the last rank/file designators since
- the destination is required.  note that we can have either or both.
+ ************************************************************
+ *                                                          *
+ *   Next we extract both rank/file designators from the    *
+ *   text, since the destination is required for all valid  *
+ *   non-castling moves.                                    *
+ *                                                          *
+ ************************************************************
  */
     ffile = movetext[0] - 'a';
     frank = movetext[1] - '1';
     tfile = movetext[2] - 'a';
     trank = movetext[3] - '1';
 /*
- now, continue by picking off the promotion piece if one is present.  this
- is indicated by something like q on the end of the move string.
+ ************************************************************
+ *                                                          *
+ *   If this is a promotion, indicated by an "=" in the     *
+ *   text, we can pick up the promote-to piece and save it  *
+ *   to use later when eliminating moves.                   *
+ *                                                          *
+ ************************************************************
  */
     if (movetext[4] == '=')
       promote = (strchr(pieces, movetext[5]) - pieces) >> 1;
     else if ((movetext[4] != 0) && (movetext[4] != ' '))
       promote = (strchr(pieces, movetext[4]) - pieces) >> 1;
   }
+/*
+ ************************************************************
+ *                                                          *
+ *   Now for the easy part.  We first generate all moves    *
+ *   if not pondering, or else use a pre-computed list of   *
+ *   moves (if pondering) since the board position is not   *
+ *   correct for move input analysis.  We then loop through *
+ *   the list of moves, using the information we extracted  *
+ *   previously, and eliminate all moves that are (a) the   *
+ *   wrong piece type;  (b) wrong source or destination     *
+ *   square;  (c) wrong promotion type;  (d) should be a    *
+ *   capture/check/promotion but is not or vice-versa.      *
+ *                                                          *
+ ************************************************************
+ */
   if (!ponder_list) {
     mvp = GenerateCaptures(tree, MAXPLY, wtm, moves);
     mvp = GenerateNoncaptures(tree, MAXPLY, wtm, mvp);
@@ -359,6 +482,18 @@ int InputMoveICS(TREE * RESTRICT tree, char *text, int ply, int wtm, int silent,
         UnmakeMove(tree, MAXPLY, *mv, wtm);
     }
   }
+/*
+ ************************************************************
+ *                                                          *
+ *   Once we have completed eliminating incorrect moves, we *
+ *   hope to have exactly one move left.  If none or left,  *
+ *   the entered move is illegal.  If more than one is      *
+ *   left, the move entered is ambiguous.  If appropriate,  *
+ *   we output some sort of diagnostic message and then     *
+ *   return.                                                *
+ *                                                          *
+ ************************************************************
+ */
   nleft = 0;
   for (mv = &moves[0]; mv < mvp; mv++) {
     if (*mv) {

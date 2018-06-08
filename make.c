@@ -1,16 +1,16 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 03/06/08 */
+/* last modified 01/16/09 */
 /*
  *******************************************************************************
  *                                                                             *
  *   MakeMove() is responsible for updating the position database whenever a   *
- *   piece is moved.  it performs the following operations:  (1) update the    *
+ *   piece is moved.  It performs the following operations:  (1) update the    *
  *   board structure itself by moving the piece and removing any captured      *
  *   piece.  (2) update the hash keys.  (3) update material counts.  (4) update*
  *   castling status.  (5) update number of moves since last reversible move.  *
  *                                                                             *
- *   there are some special-cases handled here, such as en passant captures    *
+ *   There are some special-cases handled here, such as en passant captures    *
  *   where the enemy pawn is not on the <target> square, castling which moves  *
  *   both the king and rook, and then rook moves/captures which give up the    *
  *   castling right to that side when the rook is moved.                       *
@@ -33,18 +33,18 @@ void MakeMove(TREE * RESTRICT tree, int ply, int move, int wtm)
 /*
  ************************************************************
  *                                                          *
- *   first, some basic information is updated for all moves *
- *   before we do the piece-specific stuff.  we need to     *
+ *   First, some basic information is updated for all moves *
+ *   before we do the piece-specific stuff.  We need to     *
  *   save the current position and both hash signatures,    *
  *   and add the current position to the repetition-list    *
  *   for the side on move, before the move is actually made *
- *   on the board.  we also update the 50 move rule         *
+ *   on the board.  We also update the 50 move rule         *
  *   counter, which will be reset if a capture or pawn move *
  *   is made here.                                          *
  *                                                          *
- *   if the en passant flag was set the previous ply, we    *
+ *   If the en passant flag was set the previous ply, we    *
  *   have already used it to generate moves at this ply,    *
- *   and we need to clear it before continuing.  if it is   *
+ *   and we need to clear it before continuing.  If it is   *
  *   set, we also need to update the hash signature since   *
  *   the EP opportunity no longer exists after making any   *
  *   move at this ply (one ply deeper than when a pawn was  *
@@ -67,7 +67,7 @@ void MakeMove(TREE * RESTRICT tree, int ply, int move, int wtm)
 /*
  ************************************************************
  *                                                          *
- *   now do the things that are common to all pieces, such  *
+ *   Now do the things that are common to all pieces, such  *
  *   as updating the bitboards and hash signature.          *
  *                                                          *
  ************************************************************
@@ -88,7 +88,7 @@ void MakeMove(TREE * RESTRICT tree, int ply, int move, int wtm)
 /*
  ************************************************************
  *                                                          *
- *   now do the piece-specific things by calling the        *
+ *   Now do the piece-specific things by jumping to the     *
  *   appropriate routine.                                   *
  *                                                          *
  ************************************************************
@@ -197,12 +197,13 @@ void MakeMove(TREE * RESTRICT tree, int ply, int move, int wtm)
     break;
   }
 /*
- *******************************************************************************
- *                                                                             *
- *   now it is time to "gracefully" remove a piece from the game board since   *
- *   it is being captured.  this includes updating the board structure.        *
- *                                                                             *
- *******************************************************************************
+ ************************************************************
+ *                                                          *
+ *   If this is a capture move, we also have to update the  *
+ *   information that must change when a piece is removed   *
+ *   from the board.                                        *
+ *                                                          *
+ ************************************************************
  */
   if (captured) {
     Rule50Moves(ply + 1) = 0;
@@ -272,11 +273,11 @@ void MakeMove(TREE * RESTRICT tree, int ply, int move, int wtm)
  *******************************************************************************
  *                                                                             *
  *   MakeMoveRoot() is used to make a move at the root of the game tree,       *
- *   before any searching is done.  it uses MakeMove() to execute the move,    *
+ *   before any searching is done.  It uses MakeMove() to execute the move,    *
  *   but then copies the resulting position back to position[0], the actual    *
- *   board position.  it handles the special-case of the draw-by-repetition    *
- *   rule by maintaining a list of previous positions, which is reset each time*
- *   a non-reversible (pawn move or capture move) is made.                     *
+ *   board position.  It handles the special-case of the draw-by-repetition    *
+ *   rule by clearing the repetition list when a non-reversible move is made,  *
+ *   since no repetitions are possible once such a move is played.             *
  *                                                                             *
  *******************************************************************************
  */
@@ -287,7 +288,7 @@ void MakeMoveRoot(TREE * RESTRICT tree, int move, int wtm)
 /*
  ************************************************************
  *                                                          *
- *   first, make the move and replace position[0] with the  *
+ *   First, make the move and replace position[0] with the  *
  *   new position.                                          *
  *                                                          *
  ************************************************************
@@ -296,8 +297,13 @@ void MakeMoveRoot(TREE * RESTRICT tree, int move, int wtm)
 /*
  ************************************************************
  *                                                          *
- *   now, if this is a non-reversible move, reset the       *
+ *   Now, if this is a non-reversible move, reset the       *
  *   repetition list pointer to start the count over.       *
+ *                                                          *
+ *   One odd action is to note if the castle status is      *
+ *   currently negative, which indicates that that side     *
+ *   castled during the previous search.  We simply set the *
+ *   castle status for that side to zero and we are done.   *
  *                                                          *
  ************************************************************
  */

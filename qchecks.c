@@ -1,15 +1,29 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 08/25/08 */
+/* last modified 12/04/08 */
 /*
  *******************************************************************************
  *                                                                             *
- *   QuiesceChecks() is the recursive routine used to implement the alpha/beta *
- *   negamax search (similar to minimax but simpler to code.)  QuiesceChecks() *
- *   is called at leaf nodes and tries the usual captures, plus any other moves*
- *   that give check.  If a move searched is a check, the next ply will be a   *
- *   full-width search to escape the check.  Once QuiesceChecks() has been     *
- *   called in any path, it will not be called again.                          *
+ *   QuieceChecks() is the recursive routine used to implement the quiescence  *
+ *   search part of the alpha/beta negamax search.  It has three essential     *
+ *   functions:                                                                *
+ *                                                                             *
+ *   (1) it computes a stand-pat score, which gives the side-on-move the       *
+ *   choice *   of standing pat and not playing any move at all and just       *
+ *   accepting the current static evaluation, or else it may try captures      *
+ *   and/or checking moves to see if it can improve the stand-pat score by     *
+ *   making a move that leads to some sort of positional or material gain.     *
+ *                                                                             *
+ *   (2) the first phase is to generate all possible capture moves and then    *
+ *   use SEE (Static Exchange Evaluator) to screen out moves that appear to    *
+ *   lose material, such as QxN where the N is defended and the resulting      *
+ *   trade will lose material.  Any of these moves can improve the stand-pat   *
+ *   score.                                                                    *
+ *                                                                             *
+ *   (3) after captures have been tried then we will try adding on the non-    *
+ *   capture checking moves to see if one of those will improve on the stand-  *
+ *   pat score since checking moves often expose dangerous weaknesses that a   *
+ *   static evaluation might miss.                                             *
  *                                                                             *
  *******************************************************************************
  */
@@ -71,7 +85,7 @@ int QuiesceChecks(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply)
   value = Evaluate(tree, ply, wtm, alpha, beta);
 #if defined(TRACE)
   if (trace_level >= 99)
-    Trace(tree, ply, value, wtm, alpha, beta, "qchecks", EVALUATION);
+    Trace(tree, ply, value, wtm, alpha, beta, "QuiesceChecks", EVALUATION);
 #endif
   if (value > alpha) {
     if (value >= beta)
@@ -106,13 +120,13 @@ int QuiesceChecks(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply)
         ((wtm) ? TotalPieces(black, occupied) : TotalPieces(white,
                 occupied)) - p_vals[Captured(*movep)] == 0) {
       *goodmv++ = *movep;
-      *sortv++ = pc_values[Captured(*movep)];
+      *sortv++ = 128 * pc_values[Captured(*movep)] - pc_values[Piece(*movep)];
       moves++;
     } else {
       temp = Swap(tree, From(*movep), To(*movep), wtm);
       if (temp >= 0) {
         *goodmv++ = *movep;
-        *sortv++ = temp;
+        *sortv++ = 128 * pc_values[Captured(*movep)] - pc_values[Piece(*movep)];
         moves++;
       }
     }
@@ -206,11 +220,8 @@ int QuiesceChecks(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply)
 #endif
       MakeMove(tree, ply, tree->curmv[ply], wtm);
       if (!Check(wtm)) {
-        if (Check(Flip(wtm))) {
-          tree->qsearch_check_extensions_done++;
-          value = -QuiesceEvasions(tree, -beta, -alpha, Flip(wtm), ply + 1);
-        } else
-          value = -Quiesce(tree, -beta, -alpha, Flip(wtm), ply + 1);
+        tree->qsearch_check_extensions_done++;
+        value = -QuiesceEvasions(tree, -beta, -alpha, Flip(wtm), ply + 1);
       }
       UnmakeMove(tree, ply, tree->curmv[ply], wtm);
       if (value > alpha) {

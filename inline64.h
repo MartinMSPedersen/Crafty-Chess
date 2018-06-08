@@ -12,9 +12,9 @@ asm("          bsrq    %1, %0" "\n\t"
     "          jnz     1f" "\n\t"
     "          movq    $64, %0" "\n\t"
     "1:"
-:"=&r"(dummy), "=&r" (dummy2)
-:    "1"((long) (word))
-:    "cc");
+:   "=&r"(dummy), "=&r" (dummy2)
+:   "1"((long) (word))
+:   "cc");
   return (dummy);
 }
 int static __inline__ LSB(long word)
@@ -25,9 +25,9 @@ asm("          bsfq    %1, %0" "\n\t"
     "          jnz     1f" "\n\t"
     "          movq    $64, %0" "\n\t"
     "1:"
-:"=&r"(dummy), "=&r" (dummy2)
-:    "1"((long) (word))
-:    "cc");
+:   "=&r"(dummy), "=&r" (dummy2)
+:   "1"((long) (word))
+:   "cc");
   return (dummy);
 }
 int static __inline__ PopCnt(long word)
@@ -42,11 +42,10 @@ asm("          xorq    %0, %0" "\n\t"
     "          andq    %2, %1" "\n\t"
     "          jnz     1b"
     "\n\t" "2:                      "
-    "\n\t":"=&r"(dummy), "=&r"(dummy2),
-      "=&r"
-      (dummy3)
-:    "1"((long) (word))
-:    "cc");
+    "\n\t"
+:   "=&r"(dummy), "=&r"(dummy2), "=&r"(dummy3)
+:   "1"((long) (word))
+:   "cc");
   return (dummy);
 }
 /* *INDENT-ON* */

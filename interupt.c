@@ -1,15 +1,15 @@
 #include <signal.h>
 #include "chess.h"
 #include "data.h"
-/* last modified 08/07/05 */
+/* last modified 01/17/09 */
 /*
  *******************************************************************************
  *                                                                             *
  *   Interrupt() is used to read in a move when the operator types something   *
- *   while a search is in progress (during pondering as one example.)  this    *
+ *   while a search is in progress (during pondering as one example.)  This    *
  *   routine reads in a command (move) and then makes two attempts to use this *
  *   input:  (1) call Option() to see if the command can be executed;  (2) try *
- *   InputMove() to see if this input is a legal move;  if so, and we are      *
+ *   InputMove() to see if this input is a legal move;  If so, and we are      *
  *   pondering see if it matches the move we are pondering.                    *
  *                                                                             *
  *******************************************************************************
@@ -23,7 +23,7 @@ void Interrupt(int ply)
 /*
  ************************************************************
  *                                                          *
- *   if trying to find a move to ponder, and the operator   *
+ *   If trying to find a move to ponder, and the operator   *
  *   types a command, exit a.s.a.p.                         *
  *                                                          *
  ************************************************************
@@ -33,7 +33,7 @@ void Interrupt(int ply)
 /*
  ************************************************************
  *                                                          *
- *   first check to see if this is a command by calling     *
+ *   First check to see if this is a command by calling     *
  *   Option().  Option() will return a 0 if it didn't       *
  *   recognize the command; otherwise it returns a 1 if     *
  *   the command was executed, or a 2 if we need to abort   *
@@ -119,7 +119,7 @@ void Interrupt(int ply)
 /*
  ************************************************************
  *                                                          *
- *   next see if Option() recognizes this as a command.     *
+ *   Next see if Option() recognizes this as a command.     *
  *                                                          *
  ************************************************************
  */
@@ -145,9 +145,9 @@ void Interrupt(int ply)
 /*
  ************************************************************
  *                                                          *
- *   now, check to see if the operator typed a move.  if    *
+ *   Now, check to see if the operator typed a move.  If    *
  *   so, and it matched the predicted move, switch from     *
- *   pondering to thinking to start the timer.  if the      *
+ *   pondering to thinking to start the timer.  If this     *
  *   is a move, but not the predicted move, abort the       *
  *   search, and start over with the right move.            *
  *                                                          *
