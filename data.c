@@ -73,6 +73,11 @@
    int            bishop_value_b[64];
    int            rook_value_b[64];
    int            queen_value_b[64];
+   int            king_value_w[64];
+   int            king_value_b[64];
+   int            king_value_bn[64];
+   int            king_value_bk[64];
+   int            king_value_bq[64];
    int            king_value_b[64];
    signed char    directions[64][64];
    BITBOARD       w_pawn_attacks[64];
@@ -138,12 +143,16 @@
    BITBOARD       left_side_mask[8];
    BITBOARD       right_side_empty_mask[8];
    BITBOARD       left_side_empty_mask[8];
-   BITBOARD       mask_fgh, mask_abc;
+   BITBOARD       mask_efgh, mask_fgh, mask_abc,mask_abcd;
    BITBOARD       mask_abs7_w, mask_abs7_b;
    BITBOARD       mask_advance_2_w;
    BITBOARD       mask_advance_2_b;
    BITBOARD       mask_left_edge;
    BITBOARD       mask_right_edge;
+   BITBOARD       mask_F3H3;
+   BITBOARD       mask_A3C3;
+   BITBOARD       mask_F6H6;
+   BITBOARD       mask_A6C6;
    BITBOARD       mask_G2G3;
    BITBOARD       mask_B2B3;
    BITBOARD       mask_G6G7;
@@ -187,7 +196,7 @@
 
    BITBOARD       mask_clear_entry;
 
-#  if !defined(CRAY1) && !defined(USE_ASSEMBLY_B)
+#  if (!defined(CRAY1) && !defined(USE_ASSEMBLY_B)) || defined(VC_INLINE_ASM)
      unsigned char  first_ones[65536];
      unsigned char  last_ones[65536];
 #  endif
@@ -228,7 +237,7 @@
    unsigned int   max_split_blocks;
    volatile unsigned int   splitting;
 
-# define    VERSION                             "16.5"
+# define    VERSION                             "16.6"
   char      version[6] =                    {VERSION};
   PLAYING_MODE mode =                     normal_mode;
 
@@ -432,7 +441,6 @@
   int       EGTB_draw =                             0;
   int       EGTB_cache_size =      EGTB_CACHE_DEFAULT;
   void      *EGTB_cache =                    (void*)0;
-  int       EGTB_maxdepth =                        32;
   int       xboard =                                0;
   int       whisper =                               0;
   int       channel =                               0;
@@ -542,6 +550,27 @@
   const char xlate[15] = {'q','r','b',0,'k','n','p',0,'P','N','K',0,'B','R','Q'};
   const char empty[9]  = {' ','1','2','3','4','5','6','7','8'};
 
+  const int king_tropism_n[8]      = {0,3,3,2,1,0,0,0};
+  const int king_tropism_b[8]      = {0,3,3,2,1,0,0,0};
+  const int king_tropism_r[8]      = {0,3,3,2,1,0,0,0};
+  const int king_tropism_q[8]      = {0,6,6,4,2,1,0,0};
+  const int king_tropism_file_q[8] = {0,0,0,0,2,4,4,4};
+  const int tropism[64] =       {  0,  5, 10, 15, 22, 30, 40, 50,
+                                  55, 60, 65, 70, 75, 80, 85, 90,
+                                  95,100,105,110,115,120,125,130,
+                                 135,140,145,150,150,150,150,150,
+                                 150,150,150,150,150,150,150,150,
+                                 150,150,150,150,150,150,150,150,
+                                 150,150,150,150,150,150,150,150,
+                                 150,150,150,150,150,150,150,150};
+
+  const int connected_passed_pawn_value[8] = { 0, 0, 0,
+                                     PAWN_CONNECTED_PASSED,
+                                     PAWN_CONNECTED_PASSED*2,
+                                     PAWN_CONNECTED_PASSED*3,
+                                     PAWN_CONNECTED_PASSED*4,
+                                     0};
+
   const int passed_pawn_value[8] = { 0,
                                      PAWN_PASSED, PAWN_PASSED*2,
                                      PAWN_PASSED*3, PAWN_PASSED*4,
@@ -550,9 +579,14 @@
 
   const int isolated_pawn_value[9] = { 0,
                                        PAWN_ISOLATED,   PAWN_ISOLATED*2,
-                                       PAWN_ISOLATED*4, PAWN_ISOLATED*6,
-                                       PAWN_ISOLATED*9,PAWN_ISOLATED*12,
-                                       PAWN_ISOLATED*15,PAWN_ISOLATED*20};
+                                       PAWN_ISOLATED*4, PAWN_ISOLATED*5,
+                                       PAWN_ISOLATED*6,PAWN_ISOLATED*7,
+                                       PAWN_ISOLATED*8,PAWN_ISOLATED*10};
+
+  const int doubled_pawn_value[7] = { 0,
+                                      0, PAWN_DOUBLED,
+                                      PAWN_DOUBLED*2, PAWN_DOUBLED*4,
+                                      PAWN_DOUBLED*5,PAWN_DOUBLED*6};
 
   const int supported_passer[8] =  { 0,
                                      PAWN_SUPPORTED_PASSED_RANK2,
@@ -634,6 +668,25 @@
                                     14, 14, 14, 14, 14, 14, 14, 14,
                                     14, 14, 14, 14, 14, 14, 14, 14};
 
+  const int missing[7] =         {0, KING_SAFETY_1PAWN_ADV,
+                                     KING_SAFETY_2PAWNS_ADV,
+                                     KING_SAFETY_3PAWNS_ADV,
+                                     KING_SAFETY_4PAWNS_ADV,
+                                     KING_SAFETY_5PAWNS_ADV,
+                                     KING_SAFETY_6PAWNS_ADV};
+ 
+  const int openf[4] =           {0, KING_SAFETY_1OPEN_FILE,
+                                     KING_SAFETY_2OPEN_FILES,
+                                     KING_SAFETY_3OPEN_FILES};
+
+  const int hopenf[4] =          {0, KING_SAFETY_1HALF_OPEN_FILE,
+                                     KING_SAFETY_2HALF_OPEN_FILES,
+                                     KING_SAFETY_3HALF_OPEN_FILES};
+
+  const int hopenfo[4] =          {0, KING_SAFETY_1HALF_OPEN_FILE_OPP,
+                                      KING_SAFETY_2HALF_OPEN_FILES_OPP,
+                                      KING_SAFETY_3HALF_OPEN_FILES_OPP};
+
   const char square_color[64]  = { 1, 0, 1, 0, 1, 0, 1, 0,
                                    0, 1, 0, 1, 0, 1, 0, 1,
                                    1, 0, 1, 0, 1, 0, 1, 0,
@@ -708,14 +761,14 @@
                               0,  0,  0,  0,  0,  0,  0,  0,
                               0,  0,  0,  0,  0,  0,  0,  0};
 
-  int  knight_value_w[64] = {-15,-15, -3, -3, -3, -3,-15,-15,
+  int  knight_value_w[64] = {-15,-15, -8, -8, -8, -8,-15,-15,
                              -15,-15,  0,  0,  0,  0,-15,-15,
-                              -5,  2,  2,  2,  2,  2,  2, -5,
-                               0,  2,  4,  4,  4,  4,  2,  0,
-                               0,  2,  6,  6,  6,  6,  2,  0,
-                               0,  2,  6,  6,  6,  6,  2,  0,
+                              -8,  2,  2,  2,  2,  2,  2, -8,
+                              -5,  2,  4,  4,  4,  4,  2, -5,
+                              -5,  2,  6,  6,  6,  6,  2, -5,
+                             -10,  2,  6,  6,  6,  6,  2,-10,
                              -25,-25,  4,  4,  4,  4,-25,-25,
-                             -25,-25,  2,  2,  2,  2,-25,-25};
+                             -25,-25, -5, -5, -5, -5,-25,-25};
 
   int  bishop_value_w[64] = {-15,-15, -3, -3, -3, -3,-15,-15,
                              -15,  2,  0,  0,  0,  0,  2,-15,
@@ -726,14 +779,14 @@
                              -15,  2,  4,  4,  4,  4,  2,-15,
                              -15,-15,  0,  0,  0,  0,-15,-15};
 
-  int    rook_value_w[64] = {  1,  2,  4,  6,  6,  4,  2,  1,
-                              -8,  2,  4,  6,  6,  4,  2, -8,
-                              -8,  2,  4,  6,  6,  4,  2, -8,
-                              -8,  2,  4,  6,  6,  4,  2, -8,
-                               0,  2,  4,  6,  6,  4,  2,  0,
-                               0,  2,  4,  6,  6,  4,  2,  0,
-                               0,  2,  4,  6,  6,  4,  2,  0,
-                               0,  2,  4,  6,  6,  4,  2,  0};
+  int    rook_value_w[64] = {  0,  0,  3,  6,  6,  3,  0,  0,
+                              -8,  0,  3,  6,  6,  3,  0, -8,
+                              -8,  0,  3,  6,  6,  3,  0, -8,
+                              -8,  0,  3,  6,  6,  3,  0, -8,
+                              -8,  0,  3,  6,  6,  3,  0, -8,
+                               0,  0,  3,  6,  6,  3,  0,  0,
+                               0,  0,  3,  6,  6,  3,  0,  0,
+                               0,  0,  3,  6,  6,  3,  0,  0};
 
   int   queen_value_w[64] = {-10, -8,  0,  0,  0,  0, -8,-10,
                              -10,  2,  8,  8,  8,  8,  2,-10,
@@ -744,7 +797,7 @@
                                0,  2,  4,  5,  5,  4,  2,  0,
                                0,  0,  0,  0,  0,  0,  0,  0};
 
-  int    king_value_w[64] = {-50,-40,-30,-20,-20,-30,-40,-50,
+  int    king_value_wn[64] ={-50,-40,-30,-20,-20,-30,-40,-50,
                              -30,-20,-10,  0,  0,-10,-20,-30,
                              -30,-10,  0, 10, 10,  0,-10,-30,
                              -30,-10, 10, 20, 20, 10,-10,-30,
@@ -752,6 +805,24 @@
                              -30,-10, 20, 30, 30, 20,-10,-30,
                              -30,-30,-10,-10,-10,-10,-30,-30,
                              -50,-30,-30,-30,-30,-30,-30,-50};
+
+  int    king_value_wk[64] ={-90,-70,-50,-40,-30,-20,-20,-30,
+                             -70,-50,-30,-20,-10,-10,-10,-10,
+                             -70,-50,-30,-10, 10, 20, 20,  0,
+                             -70,-50,-30,-10, 20, 30, 30,  0,
+                             -70,-50,-30,-10, 20, 30, 30,  0,
+                             -70,-50,-30,-10, 10, 20, 20,  0,
+                             -70,-50,-30,-30,-10,-10,-10,-10,
+                             -90,-70,-50,-30,-30,-30,-30,-30};
+
+  int    king_value_wq[64] ={-30,-20,-20,-30,-40,-50,-70,-90,
+                             -10,-10,-10,-10,-20,-30,-50,-70,
+                               0, 20, 20, 10,-10,-30,-50,-70,
+                               0, 30, 30, 20,-10,-30,-50,-70,
+                               0, 30, 30, 20,-10,-30,-50,-70,
+                               0, 20, 20, 10,-10,-30,-50,-70,
+                             -10,-10,-10,-10,-20,-30,-50,-70,
+                             -30,-30,-30,-30,-30,-50,-70,-90};
 
 /* note that black piece/square values are copied from white, but
    reflected */
@@ -778,11 +849,6 @@
                                   KING_VALUE,KNIGHT_VALUE,PAWN_VALUE,
                                   0,PAWN_VALUE,KNIGHT_VALUE,KING_VALUE,
                                   0, BISHOP_VALUE,ROOK_VALUE,QUEEN_VALUE};
-
-  const int unblocked_pawns[9] = {-PAWN_UNBLOCKED*2,0,PAWN_UNBLOCKED*2,
-                                   PAWN_UNBLOCKED*3,  PAWN_UNBLOCKED*4,
-                                   PAWN_UNBLOCKED*4,  PAWN_UNBLOCKED*4,
-                                   PAWN_UNBLOCKED*4,  PAWN_UNBLOCKED*4};
 
 #if !defined(COMPACT_ATTACKS)
   int            bishop_shift_rl45[64] = { 63, 61, 58, 54, 49, 43, 36, 28,

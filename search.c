@@ -120,7 +120,7 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
 |                                                          |
  ----------------------------------------------------------
 */
-  if (ply > 3 && TotalPieces<=EGTB_use && ply<EGTB_maxdepth) {
+  if (ply<=iteration_depth && TotalPieces<=EGTB_use) {
     int egtb_value;
     tree->egtb_probes++;
     if (EGTBProbe(tree, ply, wtm, &egtb_value)) {
@@ -276,8 +276,10 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
  ----------------------------------------------------------
 */
     extensions=-60;
-    if (threat) 
+    if (threat) {
       extensions+=(full_extension) ? threat_depth : threat_depth>>1;
+      tree->threat_extensions_done++;
+    }
 /*
  ----------------------------------------------------------
 |                                                          |

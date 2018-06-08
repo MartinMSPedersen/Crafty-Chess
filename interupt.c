@@ -181,7 +181,7 @@ void Interrupt(int ply)
           temp=InputMove(tree,args[0],0,ChangeSide(root_wtm),1,1);
           if (temp) {
             if (auto232) {
-              const char *mv=OutputMoveICS(tree,temp);
+              const char *mv=OutputMoveICS(temp);
               DelayTime(auto232_delay);
               if (!wtm) fprintf(auto_file,"\t");
               fprintf(auto_file, " %c%c-%c%c", mv[0], mv[1], mv[2], mv[3]);

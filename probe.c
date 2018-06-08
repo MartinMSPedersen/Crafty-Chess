@@ -16,7 +16,7 @@
 #define  C_PIECES  3  /* Maximum # of pieces of one color OTB */
 
 typedef unsigned int INDEX;
-typedef unsigned int square;
+typedef unsigned int squaret;
 
 /* Those declarations necessary because Crafty is C, not C++ program */
 
@@ -53,7 +53,7 @@ typedef  signed char tb_t;
 #define bev_li0     (-tbbe_ssL)   /* mated in 0 moves */
 
 typedef INDEX (TB_FASTCALL * PfnCalcIndex)
-    (square*, square*, square, int fInverse);
+    (squaret*, squaret*, squaret, int fInverse);
 
 extern int IDescFindFromCounters (int*);
 extern int FRegisteredFun (int, color);
@@ -66,8 +66,8 @@ extern int TB_FASTCALL L_TbtProbeTable (int, color, INDEX);
 int EGTBProbe (TREE *tree, int ply, int wtm, int *score) {
   int       rgiCounters[10], iTb, fInvert;
   color     side;
-  square    rgsqWhite[C_PIECES*5+1], rgsqBlack[C_PIECES*5+1];
-  square    *psqW, *psqB, sqEnP;
+  squaret   rgsqWhite[C_PIECES*5+1], rgsqBlack[C_PIECES*5+1];
+  squaret   *psqW, *psqB, sqEnP;
   INDEX     ind;
   int       tbValue;
 /*

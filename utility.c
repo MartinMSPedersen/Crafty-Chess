@@ -2123,6 +2123,7 @@ void CopyFromSMP(TREE *p, TREE *c) {
   p->egtb_probes+=c->egtb_probes;
   p->egtb_probes_successful+=c->egtb_probes_successful;
   p->check_extensions_done+=c->check_extensions_done;
+  p->threat_extensions_done+=c->threat_extensions_done;
   p->recapture_extensions_done+=c->recapture_extensions_done;
   p->passed_pawn_extensions_done+=c->passed_pawn_extensions_done;
   p->one_reply_extensions_done+=c->one_reply_extensions_done;
@@ -2188,6 +2189,7 @@ TREE* CopyToSMP(TREE *p) {
   c->egtb_probes=0;
   c->egtb_probes_successful=0;
   c->check_extensions_done=0;
+  c->threat_extensions_done=0;
   c->recapture_extensions_done=0;
   c->passed_pawn_extensions_done=0;
   c->one_reply_extensions_done=0;

@@ -47,7 +47,6 @@ typedef  int  piece;
 /*
   All defined, now include probing code
 */
-
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -60,10 +59,6 @@ typedef  int  piece;
 
 #if defined (SMP)
 static	lock_t	lock_egtb;
-#else
-#define	LockInit(x)
-#define Lock(x)
-#define UnLock(x)
 #endif
 
 // Declarations
@@ -3034,7 +3029,7 @@ public:
 
 // Compression
 
-#include "tbdecode.c"
+#include "tbdecode.h"
 
 #if !defined (CPUS)
 #define	CPUS	1

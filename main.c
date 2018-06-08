@@ -14,16 +14,18 @@
 /*
 *******************************************************************************
 *                                                                             *
-*  Crafty, copyrighted 1996 by Robert M. Hyatt, Ph.D., Associate Professor    *
+*  Crafty, copyright 1996-1999 by Robert M. Hyatt, Ph.D., Associate Professor *
 *  of Computer and Information Sciences, University of Alabama at Birmingham. *
 *                                                                             *
 *  All rights reserved.  No part of this program may be reproduced in any     *
-*  form or by any means, for any commercial (for profit/sale) reasons.  This  *
-*  program may be freely distributed, used, and modified, so long as such use *
-*  does not in any way result in the sale of all or any part of the source,   *
-*  the executables, or other distributed materials that are a part of this    *
-*  package.  any changes made to this program must also be made public in     *
-*  the spirit that the original source is distributed.                        *
+*  form or by any means, for other than your personal use.  If you want to    *
+*  distribute this software in any form, you must first obtain the written    *
+*  permission of the author, and you must distribute this program with all of *
+*  the original copyright notice intact.  Any changes made to this software   *
+*  must also be made public to comply with the original intent of this soft-  *
+*  ware distribution project.  These restrictions apply whether the           *
+*  distribution is being done for free or as part or all of a commercial      *
+*  product.                                                                   *
 *                                                                             *
 *  Crafty is the "son" (direct descendent) of Cray Blitz.  it is designed     *
 *  totally around the bit-board data structure for reasons of speed of ex-    *
@@ -2334,13 +2336,25 @@
 *           CRAFTY_RC_PATH should point to where these files are located and  *
 *           offer an alternative to specifying them on the command line.      *
 *           final version of the EGTB code is included in this version.  this *
-*           allows Crafty to use either compressed (using Eugene Nalimov's    *
+*           allows Crafty to use either compressed (using Andrew Kadatch's    *
 *           compressor, _not_ zip or gzip) or non-compressed tablebases.  it  *
 *           will use non-compressed files when available, and will also use   *
 *           compressed files that are available so long as there is no non-   *
 *           compressed version of the same file.  it is allowable to mix and  *
 *           match as you see fit, but with all of the files compressed, the   *
 *           savings is tremendous, roughly a factor of 5 in space reduction.  *
+*                                                                             *
+*   16.6    major rewrite of king-safety pawn shelter code to emphasize open  *
+*           files (and half-open files) moreso than just pawns that have been *
+*           moved.  dynamic EGTB probe depth removed.  this caused far too    *
+*           many search inconsistencies.  a fairly serious SMP bug that could *
+*           produce a few hash glitches was found.  rewrite of the 'king-     *
+*           tropism' code completed.  now the pieces that are 'crowding' the  *
+*           king get a bigger bonus if there are more of them.  ie it is more *
+*           than twice as good if we have two pieces close to the king, while *
+*           before this was purely 'linear'.  minor fix to book.c to cure an  *
+*           annotate command bug that would produce odd output in multi-game  *
+*           PGN files.                                                        *
 *                                                                             *
 *******************************************************************************
 */
@@ -2360,7 +2374,9 @@ int main(int argc, char **argv)
     struct passwd *pwd;
 #  endif
 
-char crafty_rc_file_spec[FILENAME_MAX];
+#if !defined(UNIX)
+  char crafty_rc_file_spec[FILENAME_MAX];
+#endif
   /* Collect environmental variables */
   char *directory_spec=getenv("CRAFTY_BOOK_PATH");
   if (directory_spec)
@@ -2466,7 +2482,8 @@ char crafty_rc_file_spec[FILENAME_MAX];
     }
   if (input_stream)
 #else
-  if ((input_stream=fopen("crafty.rc","r")))
+  sprintf (crafty_rc_file_spec, "%s/crafty.rc", rc_path);
+  if ((input_stream = fopen (crafty_rc_file_spec, "r")))
 #endif
   while (1) {
     readstat=Read(1,buffer);
@@ -2544,7 +2561,7 @@ char crafty_rc_file_spec[FILENAME_MAX];
           nargs=ReadParse(buffer,args," 	;");
           move=InputMove(tree,args[0],0,wtm,0,0);
           if (auto232 && presult!=3) {
-            const char *mv=OutputMoveICS(tree,move);
+            const char *mv=OutputMoveICS(move);
             DelayTime(auto232_delay);
             if (!wtm) fprintf(auto_file,"\t");
             fprintf(auto_file, " %c%c-%c%c", mv[0], mv[1], mv[2], mv[3]);
@@ -2684,7 +2701,7 @@ char crafty_rc_file_spec[FILENAME_MAX];
           printf("%s",Normal());
           Print(4095,"\n");
           if (auto232) { 
-            const char *mv=OutputMoveICS(tree,last_pv.path[1]);
+            const char *mv=OutputMoveICS(last_pv.path[1]);
             DelayTime(auto232_delay);
             fprintf(auto_file, " %c%c-%c%c", mv[0],mv[1],mv[2],mv[3]);
             if ((mv[4]!=' ') && (mv[4]!=0))
@@ -2696,7 +2713,7 @@ char crafty_rc_file_spec[FILENAME_MAX];
         else if (xboard) {
           if (log_file) fprintf(log_file,"White(%d): %s\n",move_number,
                                 OutputMove(tree,last_pv.path[1],0,wtm));
-          printf("move %s\n",OutputMoveICS(tree,last_pv.path[1]));
+          printf("move %s\n",OutputMoveICS(last_pv.path[1]));
         }
         else Print(4095,"*%s\n",OutputMove(tree,last_pv.path[1],0,wtm));
       }
@@ -2709,7 +2726,7 @@ char crafty_rc_file_spec[FILENAME_MAX];
           printf("%s",Normal());
           Print(4095,"\n");
           if (auto232) { 
-            const char *mv=OutputMoveICS(tree,last_pv.path[1]);
+            const char *mv=OutputMoveICS(last_pv.path[1]);
             DelayTime(auto232_delay);
             fprintf(auto_file, "\t %c%c-%c%c", mv[0],mv[1],mv[2],mv[3]);
             if ((mv[4]!=' ') && (mv[4]!=0))
@@ -2721,7 +2738,7 @@ char crafty_rc_file_spec[FILENAME_MAX];
         else {
           if (log_file) fprintf(log_file,"Black(%d): %s\n",move_number,
                                 OutputMove(tree,last_pv.path[1],0,wtm));
-          printf("move %s\n",OutputMoveICS(tree,last_pv.path[1]));
+          printf("move %s\n",OutputMoveICS(last_pv.path[1]));
         }
       }
       if (value == MATE-2) {
@@ -2818,7 +2835,7 @@ char crafty_rc_file_spec[FILENAME_MAX];
 |                                                          |
  ----------------------------------------------------------
 */
-    ResignOrDraw(tree,value,wtm);
+    ResignOrDraw(tree,value);
     if (moves_out_of_book) 
       LearnBook(tree,crafty_is_white,last_value,
                 last_pv.pathd+2,0,0);

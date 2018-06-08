@@ -4,7 +4,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 01/27/99 */
+/* last modified 03/14/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -155,6 +155,11 @@ void Annotate() {
     ponder_move=0;
     last_pv.pathd=0;
     last_pv.pathl=0;
+    player_pv.pathd=0;
+    player_pv.pathl=0;
+    tree->pv[0].pathl=0;
+    tree->pv[0].pathd=0;
+    analysis_printed=0;
     InitializeChessBoard(&tree->position[0]);
     tree->position[1]=tree->position[0];
     wtm=1;
@@ -199,7 +204,7 @@ void Annotate() {
       if (!strcmp(colors,"w")) annotate_wtm=1;
       else if (!strcmp(colors,"b")) annotate_wtm=0;
       else if (!strcmp(colors,"wb")) annotate_wtm=2;
-      else if (!strcmp(colors,"bb")) annotate_wtm=2;
+      else if (!strcmp(colors,"bw")) annotate_wtm=2;
       else {
         Print(4095, "invalid color specification, retry\n");
         fclose(annotate_out);

@@ -165,7 +165,7 @@ char* OutputMove(TREE *tree, int move, int ply, int wtm) {
 *                                                                              *
 ********************************************************************************
 */
-char* OutputMoveICS(TREE *tree, int move) {
+char* OutputMoveICS(int move) {
   static char text_move[10];
   char *text;
   static const char piece_names[8] = { ' ','P','N','K',' ','B','R','Q'};

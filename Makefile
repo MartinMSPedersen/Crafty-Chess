@@ -93,7 +93,7 @@
 #LDFLAGS = $(OPT) $(CFLAGS)
 #opt     = 
  
-# LINUX
+# LINUX (pgcc)
 # Note: You have to uncomment exactly ONE of the `asm' lines below.
 target  = LINUX
 CC      = gcc
@@ -107,6 +107,21 @@ opt     = -DCOMPACT_ATTACKS -DUSE_SPLIT_SHIFTS -DUSE_ATTACK_FUNCTIONS \
 #
 #asm     = X86-aout.o
 asm     = X86-elf.o
+ 
+# LINUX (gcc)
+# Note: You have to uncomment exactly ONE of the `asm' lines below.
+#target  = LINUX
+#CC      = gcc
+#CFLAGS  = -pipe -D_REENTRANT -O
+#LDFLAGS = -lpthread
+#opt     = -DCOMPACT_ATTACKS -DUSE_SPLIT_SHIFTS -DUSE_ATTACK_FUNCTIONS \
+#          -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST -DSMP -DCPUS=4
+
+# Uncomment the FIRST `asm' line for a.out systems.
+# Uncomment the SECOND `asm' line for ELF systems.
+#
+#asm     = X86-aout.o
+#asm     = X86-elf.o
 
 # NEXT
 #target  = NEXT
@@ -174,7 +189,7 @@ dgt:    dgtdrv.o
 
 egtb.o: egtb.cpp
 	@echo $(CC) -c $(CFLAGS) egtb.cpp
-	@$(CC) -c -$(CFLAGS) $(opts) egtb.cpp
+	@$(CC) -c $(CFLAGS) $(opts) egtb.cpp
 clean:
 	-rm -f *.o crafty X86-elf.X X86-aout.S
 

@@ -86,6 +86,7 @@ int Iterate(int wtm, int search_type, int root_list_done)
     tree->egtb_probes=0;
     tree->egtb_probes_successful=0;
     tree->check_extensions_done=0;
+    tree->threat_extensions_done=0;
     tree->recapture_extensions_done=0;
     tree->passed_pawn_extensions_done=0;
     tree->one_reply_extensions_done=0;
@@ -142,7 +143,6 @@ int Iterate(int wtm, int search_type, int root_list_done)
           iteration_depth);
     time_abort=0;
     abort_search=0;
-    EGTB_maxdepth=Max(iteration_depth,4);
     program_start_time=ReadClock(time_type);
     start_time=ReadClock(time_type);
     elapsed_start=ReadClock(elapsed);
@@ -154,7 +154,7 @@ int Iterate(int wtm, int search_type, int root_list_done)
 |                                                          |
  ----------------------------------------------------------
 */
-    LearnPositionLoad(tree);
+    LearnPositionLoad();
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -200,7 +200,6 @@ int Iterate(int wtm, int search_type, int root_list_done)
     }
 #endif
     for (;iteration_depth<=60;iteration_depth++) {
-      if (!tree->egtb_probes) EGTB_maxdepth=iteration_depth+4;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -336,9 +335,8 @@ int Iterate(int wtm, int search_type, int root_list_done)
       end_time=ReadClock(time_type)-start_time;
       if (thinking && (int)end_time>=time_limit) break;
       if (correct_count >= early_exit) break;
-      if (iteration_depth>4 && TotalPieces<=5 && TB_use_ok &&
-          EGTBlimit && EGTBProbe(tree, 1, wtm, &i) && EGTB_use &&
-          value>last_mate_score) break;
+      if (iteration_depth>3 && TotalPieces<=5 && TB_use_ok &&
+          EGTBlimit && EGTBProbe(tree, 1, wtm, &i) && EGTB_use) break;
       do {
         sorted=1;
         for (mvp=tree->last[0]+1;mvp<tree->last[1]-1;mvp++) {
@@ -401,13 +399,14 @@ int Iterate(int wtm, int search_type, int root_list_done)
       Print(8,"  n=%u", tree->nodes_searched);
       Print(8,"  fh=%u%%", tree->fail_high_first*100/tree->fail_high);
       Print(8,"  nps=%d\n", nodes_per_second);
-      Print(16,"              ext-> checks=%d recaps=%d pawns=%d 1rep=%d\n",
+      Print(16,"              ext-> checks=%d recaps=%d pawns=%d 1rep=%d thrt:%d\n",
             tree->check_extensions_done, tree->recapture_extensions_done,
-            tree->passed_pawn_extensions_done, tree->one_reply_extensions_done);
+            tree->passed_pawn_extensions_done, tree->one_reply_extensions_done,
+            tree->threat_extensions_done);
       Print(16,"              predicted=%d  nodes=%u  evals=%u\n", 
              predicted, tree->nodes_searched, tree->evaluations);
-      Print(16,"              endgame tablebase-> probes done=%d  successful=%d  plimit=%d\n",
-            tree->egtb_probes, tree->egtb_probes_successful, EGTB_maxdepth);
+      Print(16,"              endgame tablebase-> probes done=%d  successful=%d\n",
+            tree->egtb_probes, tree->egtb_probes_successful);
 #if !defined(FAST)
       Print(16,"              hashing-> trans/ref=%d%%  pawn=%d%%  used=%d%%\n",
             100*tree->transposition_hits/(tree->transposition_probes+1),

@@ -42,7 +42,6 @@
    extern int            EGTB_use;
    extern void           *EGTB_cache;
    extern int            EGTB_cache_size;
-   extern int            EGTB_maxdepth;
    extern int            DGT_active;
    extern int            to_dgt;
    extern int            from_dgt;
@@ -211,25 +210,37 @@
 
    extern int            history_w[4096], history_b[4096];
 
-   extern int            unblocked_pawns[9];
-   extern int            p_values[15];
+   extern const int      p_values[15];
    extern PATH           last_pv;
    extern int            last_value;
 
    extern const char     xlate[15];
    extern const char     empty[9];
 
-   extern char           white_outpost[64];
-   extern char           black_outpost[64];
-   extern char           square_color[64];
+   extern const char     white_outpost[64];
+   extern const char     black_outpost[64];
+   extern const char     square_color[64];
+   extern const int      connected_passed_pawn_value[8];
    extern const int      passed_pawn_value[8];
    extern const int      isolated_pawn_value[9];
+   extern const int      doubled_pawn_value[7];
    extern const int      supported_passer[8];
    extern const int      reduced_material_passer[20];
    extern const int      outside_passed[128];
    extern const int      scale_down[128];
    extern const int      scale_up[128];
    extern const int      temper[128];
+   extern const int      missing[7];
+   extern const int      openf[4];
+   extern const int      hopenf[4];
+   extern const int      hopenfo[4];
+   extern const int      king_tropism_n[8];
+   extern const int      king_tropism_b[8];
+   extern const int      king_tropism_r[8];
+   extern const int      king_tropism_q[8];
+   extern const int      king_tropism_file_q[8];
+   extern const int      tropism[64];
+
    extern int            pawn_value_w[64];
    extern int            pawn_value_b[64];
    extern int            knight_value_w[64];
@@ -241,9 +252,15 @@
    extern int            queen_value_w[64];
    extern int            queen_value_b[64];
    extern int            king_value_w[64];
+   extern int            king_value_wn[64];
+   extern int            king_value_wk[64];
+   extern int            king_value_wq[64];
    extern int            king_value_b[64];
-   extern char           king_defects_w[64];
-   extern char           king_defects_b[64];
+   extern int            king_value_bn[64];
+   extern int            king_value_bk[64];
+   extern int            king_value_bq[64];
+   extern const char     king_defects_w[64];
+   extern const char     king_defects_b[64];
 
    extern const int      b_n_mate_dark_squares[64];
    extern const int      b_n_mate_light_squares[64];
@@ -322,12 +339,16 @@
    extern BITBOARD       left_side_mask[8];
    extern BITBOARD       right_side_empty_mask[8];
    extern BITBOARD       left_side_empty_mask[8];
-   extern BITBOARD       mask_fgh, mask_abc;
+   extern BITBOARD       mask_efgh, mask_fgh, mask_abc,mask_abcd;
    extern BITBOARD       mask_abs7_w, mask_abs7_b;
    extern BITBOARD       mask_advance_2_w;
    extern BITBOARD       mask_advance_2_b;
    extern BITBOARD       mask_left_edge;
    extern BITBOARD       mask_right_edge;
+   extern BITBOARD       mask_F3H3;
+   extern BITBOARD       mask_A3C3;
+   extern BITBOARD       mask_F6H6;
+   extern BITBOARD       mask_A6C6;
    extern BITBOARD       mask_G2G3;
    extern BITBOARD       mask_B2B3;
    extern BITBOARD       mask_G6G7;

@@ -391,6 +391,7 @@ struct tree {
   unsigned int    recapture_extensions_done;
   unsigned int    passed_pawn_extensions_done;
   unsigned int    one_reply_extensions_done;
+  unsigned int    threat_extensions_done;
   int             killer_move1[MAXPLY];
   int             killer_move2[MAXPLY];
   int             move_list[5120];
@@ -586,7 +587,7 @@ void           LearnImport(TREE*, int, char**);
 void           LearnImportBook(TREE*, int, char**);
 void           LearnImportPosition(TREE*, int, char**);
 void           LearnPosition(TREE*, int, int, int);
-void           LearnPositionLoad(TREE*);
+void           LearnPositionLoad(void);
 void           LearnResult(TREE*, int);
 int            LegalMove(TREE*, int, int, int);
 void           MakeMove(TREE*, int, int, int);
@@ -600,7 +601,7 @@ int            Option(TREE*);
 int            OptionMatch(char*, char*);
 void           OptionPerft(TREE*, int, int, int);
 char*          OutputMove(TREE*, int, int, int);
-char*          OutputMoveICS(TREE*, int);
+char*          OutputMoveICS(int);
 int            OutputGood(TREE*, char*, int, int);
 int            ParseTime(char*);
 void           Pass(void);
@@ -622,7 +623,7 @@ int            ReadParse(char*, char *args[], char*);
 int            ReadInput();
 int            RepetitionCheck(TREE*, int, int);
 int            RepetitionDraw(TREE*, int);
-void           ResignOrDraw(TREE*, int, int);
+void           ResignOrDraw(TREE*, int);
 void           RestoreGame(void);
 char*          Reverse(void);
 void           RootMoveList(int);
@@ -1026,7 +1027,7 @@ void           Whisper(int, int, int, int, unsigned int, int, int, char*);
   int  cPieces = 0;\
   BITBOARD bbTemp = (bitboard);\
   while (bbTemp) {\
-    const square sq = FirstOne (bbTemp);\
+    const squaret sq = FirstOne (bbTemp);\
     (rgSquares)[(piece)*C_PIECES+cPieces] = sq;\
     cPieces ++;\
     Clear (sq, bbTemp);\

@@ -74,6 +74,7 @@ void EVTest(char *filename)
     }
     else if (!strcmp(args[0],"setboard")) {
       SetBoard(nargs-1,args+1,0);
+      PreEvaluate(tree,wtm);
       DisplayChessBoard(stdout,tree->pos);
       Print(4095,"Evaluation=%d\n",Evaluate(tree,0,wtm,-999999,999999));
     }

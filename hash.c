@@ -14,7 +14,7 @@
 *   bits given in the table below:                                             *
 *                                                                              *
 *     bits     name  SL  description                                           *
-*       3       age  61  search id to identify old trans/ref entried.          *
+*       3       age  61  search id to identify old trans/ref entries.          *
 *       2      type  59  0->value is worthless; 1-> value represents a fail-   *
 *                        low bound; 2-> value represents a fail-high bound;    *
 *                        3-> value is an exact score.                          *
@@ -37,7 +37,8 @@
 int HashProbe(TREE *tree, int ply, int depth, int wtm, int *alpha,
            int *beta, int *threat) {
   register BITBOARD word1, word2;
-  register int type, draft, avoid_null=WORTHLESS, val, word1l, word1r;
+  register int type, draft, avoid_null=0, val;
+  register unsigned int word1l, word1r;
   BITBOARD temp_hashkey;
   HASH_ENTRY *htable;
 /*
@@ -186,7 +187,8 @@ void HashStore(TREE *tree, int ply, int depth, int wtm, int type,
                int value, int threat) {
   register BITBOARD word1, word2;
   register HASH_ENTRY *htablea, *htableb;
-  register int draft, age, word1l, word1r;
+  register int draft, age;
+  register unsigned int word1l, word1r;
 /*
  ----------------------------------------------------------
 |                                                          |

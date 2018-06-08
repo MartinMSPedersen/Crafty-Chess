@@ -645,6 +645,9 @@ int Option(TREE *tree) {
         egtbsetup=1;
       }
     }
+    else {
+      if (nargs==2) EGTBlimit=atoi(args[1]);
+    }
   }
 /*
  ----------------------------------------------------------
@@ -965,8 +968,8 @@ int Option(TREE *tree) {
       new_hash_size=atoi(args[1]);
       if (strchr(args[1],'K') || strchr(args[1],'k')) new_hash_size*=1<<10;
       if (strchr(args[1],'M') || strchr(args[1],'m')) new_hash_size*=1<<20;
-      if (new_hash_size < 65536) {
-        printf("ERROR.  Minimum hash table size is 64K bytes.\n");
+      if (new_hash_size < 48*1024) {
+        printf("ERROR.  Minimum hash table size is 48K bytes.\n");
         return(1);
       }
       if (new_hash_size > 0) {
@@ -1032,44 +1035,45 @@ int Option(TREE *tree) {
       new_hash_size=atoi(args[1]);
       if (strchr(args[1],'K') || strchr(args[1],'k')) new_hash_size*=1<<10;
       if (strchr(args[1],'M') || strchr(args[1],'m')) new_hash_size*=1<<20;
-      if (new_hash_size > 0) {
-        if (pawn_hash_table) {
-          free(pawn_hash_table_orig);
-          pawn_hash_table_size=0;
-          log_pawn_hash=0;
-          pawn_hash_table=0;
-        }
-        new_hash_size/=sizeof(PAWN_HASH_ENTRY);
-        for (log_pawn_hash=0;
-             log_pawn_hash<(int) (8*sizeof(int));
-             log_pawn_hash++)
-          if ((1<<(log_pawn_hash+1)) > new_hash_size) break;
-        pawn_hash_table_size=1<<log_pawn_hash;
-        pawn_hash_table_orig=(PAWN_HASH_ENTRY *) malloc(sizeof(PAWN_HASH_ENTRY)*pawn_hash_table_size+15);
-        pawn_hash_table=(PAWN_HASH_ENTRY*) (((unsigned long) pawn_hash_table_orig+15)&~15);
-        if (!pawn_hash_table) {
-          printf("malloc() failed, not enough memory.\n");
-          free(pawn_hash_table_orig);
-          pawn_hash_table_size=0;
-          log_pawn_hash=0;
-          pawn_hash_table=0;
-        }
-        pawn_hash_mask=(1<<log_pawn_hash)-1;
-        for (i=0;i<pawn_hash_table_size;i++) {
-          (pawn_hash_table+i)->key=0;
-          (pawn_hash_table+i)->p_score=0;
-          (pawn_hash_table+i)->black_protected=0;
-          (pawn_hash_table+i)->white_protected=0;
-          (pawn_hash_table+i)->black_defects_k=0;
-          (pawn_hash_table+i)->black_defects_q=0;
-          (pawn_hash_table+i)->white_defects_k=0;
-          (pawn_hash_table+i)->white_defects_q=0;
-          (pawn_hash_table+i)->passed_w=0;
-          (pawn_hash_table+i)->passed_w=0;
-          (pawn_hash_table+i)->outside=0;
-        }
+      if (new_hash_size < 16*1024) {
+        printf("ERROR.  Minimum pawn hash table size is 16K bytes.\n");
+        return(1);
       }
-      else Print(4095,"ERROR:  pawn hash table size must be > 0\n");
+      if (pawn_hash_table) {
+        free(pawn_hash_table_orig);
+        pawn_hash_table_size=0;
+        log_pawn_hash=0;
+        pawn_hash_table=0;
+      }
+      new_hash_size/=sizeof(PAWN_HASH_ENTRY);
+      for (log_pawn_hash=0;
+           log_pawn_hash<(int) (8*sizeof(int));
+           log_pawn_hash++)
+        if ((1<<(log_pawn_hash+1)) > new_hash_size) break;
+      pawn_hash_table_size=1<<log_pawn_hash;
+      pawn_hash_table_orig=(PAWN_HASH_ENTRY *) malloc(sizeof(PAWN_HASH_ENTRY)*pawn_hash_table_size+15);
+      pawn_hash_table=(PAWN_HASH_ENTRY*) (((unsigned long) pawn_hash_table_orig+15)&~15);
+      if (!pawn_hash_table) {
+        printf("malloc() failed, not enough memory.\n");
+        free(pawn_hash_table_orig);
+        pawn_hash_table_size=0;
+        log_pawn_hash=0;
+        pawn_hash_table=0;
+      }
+      pawn_hash_mask=(1<<log_pawn_hash)-1;
+      for (i=0;i<pawn_hash_table_size;i++) {
+        (pawn_hash_table+i)->key=0;
+        (pawn_hash_table+i)->p_score=0;
+        (pawn_hash_table+i)->black_protected=0;
+        (pawn_hash_table+i)->white_protected=0;
+        (pawn_hash_table+i)->black_defects_k=0;
+        (pawn_hash_table+i)->black_defects_q=0;
+        (pawn_hash_table+i)->white_defects_k=0;
+        (pawn_hash_table+i)->white_defects_q=0;
+        (pawn_hash_table+i)->passed_w=0;
+        (pawn_hash_table+i)->passed_w=0;
+        (pawn_hash_table+i)->outside=0;
+      }
     }
     if (pawn_hash_table_size*sizeof(PAWN_HASH_ENTRY) < 1<<20)
       Print(4095,"pawn hash table memory = %dK bytes.\n",
@@ -1375,6 +1379,7 @@ int Option(TREE *tree) {
       printf("list                      update/display GM/IM/computer lists.\n");
       printf("load <file> <title>       load a position from problem file.\n");
       printf("log on|off................turn logging on/off.\n");
+      printf("ls [wildcard].............list files that match <wildcard>.\n");
       printf("mode normal|tournament....toggles tournament mode.\n");
       printf("move......................initiates search (same as go).\n");
 # if defined(SMP)
@@ -1411,6 +1416,7 @@ int Option(TREE *tree) {
       printf("st n......................sets absolute search time.\n");
       printf("swindle on|off............enables/disables swindle mode.\n");
       printf("test <file> [N]...........test a suite of problems. [help]\n");
+      printf("tags......................list PGN header tags.\n");
       printf("time......................time controls. [help]\n");
       printf("trace n...................display search tree below depth n.\n");
       printf("usage <percentage>........adjusts crafty's time usage up or down.\n");
@@ -1496,14 +1502,14 @@ int Option(TREE *tree) {
     Print(4095,"Crafty version %s\n",version);
     if (hash_table_size*6*sizeof(HASH_ENTRY) < 1<<20)
       Print(4095,"hash table memory = %dK bytes.\n",
-            hash_table_size*6*sizeof(HASH_ENTRY)/(1<<10));
+            hash_table_size*3*sizeof(HASH_ENTRY)/(1<<10));
     else {
       if (hash_table_size*6*sizeof(HASH_ENTRY)%(1<<20))
         Print(4095,"hash table memory = %.1fM bytes.\n",
-              (float) hash_table_size*6*sizeof(HASH_ENTRY)/(1<<20));
+              (float) hash_table_size*3*sizeof(HASH_ENTRY)/(1<<20));
       else
         Print(4095,"hash table memory = %dM bytes.\n",
-              hash_table_size*6*sizeof(HASH_ENTRY)/(1<<20));
+              hash_table_size*3*sizeof(HASH_ENTRY)/(1<<20));
     }
     if (pawn_hash_table_size*sizeof(PAWN_HASH_ENTRY) < 1<<20)
       Print(4095,"pawn hash table memory = %dK bytes.\n",
@@ -1513,7 +1519,7 @@ int Option(TREE *tree) {
         Print(4095,"pawn hash table memory = %.1fM bytes.\n",
               (float) pawn_hash_table_size*sizeof(PAWN_HASH_ENTRY)/(1<<20));
       else
-        Print(4095,"hash table memory = %dM bytes.\n",
+        Print(4095,"pawn hash table memory = %dM bytes.\n",
               pawn_hash_table_size*sizeof(PAWN_HASH_ENTRY)/(1<<20));
     }
     if (!tc_sudden_death) {
@@ -1991,6 +1997,23 @@ int Option(TREE *tree) {
 /*
  ----------------------------------------------------------
 |                                                          |
+|   "ls" command is used to list files, ie perhaps to find |
+|   all the *.pgn files.  (wildcards are accepted here.)   |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  else if (OptionMatch("ls",*args)) {
+    char command[256];
+#if defined(UNIX)
+    sprintf(command,"ls %s",args[1]);
+#else
+    sprintf(command,"dir %s",args[1]);
+#endif
+    system(command);
+  }
+/*
+ ----------------------------------------------------------
+|                                                          |
 |   "mt" command is used to set the maximum number of      |
 |   parallel threads to use, assuming that Crafty was      |
 |   compiled with -DSMP.  this value can not be set        |
@@ -2169,6 +2192,9 @@ int Option(TREE *tree) {
           break;
         }
       }
+    if (strstr(pgn_white,"guest") || strstr(pgn_black,"guest")) {
+      if (tc_time == 40*6000 && tc_increment == 60*100) draw_score=-100;
+    }
   }
 /*
  ----------------------------------------------------------
@@ -3140,6 +3166,29 @@ int Option(TREE *tree) {
     if (!strcmp(args[1],"on")) swindle_mode=1;
     else if (!strcmp(args[1],"off")) swindle_mode=0;
     else printf("usage:  swindle on|off\n");
+  }
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   "tags" command lists the current PGN header tags.      |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  else if (OptionMatch("tags",*args)) {
+    struct tm *timestruct;
+    int secs;
+    secs=time(0);
+    timestruct=localtime((time_t*) &secs);
+    printf("[Event \"%s\"]\n",pgn_event);
+    printf("[Site \"%s\"]\n",pgn_site);
+    printf("[Date \"%4d.%02d.%02d\"]\n",timestruct->tm_year+1900,
+            timestruct->tm_mon+1,timestruct->tm_mday);
+    printf("[Round \"%s\"]\n",pgn_round);
+    printf("[White \"%s\"]\n",pgn_white);
+    printf("[WhiteElo \"%s\"]\n",pgn_white_elo);
+    printf("[Black \"%s\"]\n",pgn_black);
+    printf("[BlackElo \"%s\"]\n",pgn_black_elo);
+    printf("[Result \"%s\"]\n",pgn_result);
   }
 /*
  ----------------------------------------------------------

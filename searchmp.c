@@ -57,7 +57,10 @@ int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
  ----------------------------------------------------------
 */
     extensions=-60;
-    if (threat) extensions+=threat_depth;
+    if (threat) {
+      extensions+=threat_depth;
+      tree->threat_extensions_done++;
+    }
     if (Captured(tree->current_move[ply]) && Captured(tree->current_move[ply-1]) &&
         To(tree->current_move[ply-1]) == To(tree->current_move[ply]) &&
         (p_values[Captured(tree->current_move[ply-1])+7] == 
@@ -151,6 +154,16 @@ int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
           break;
         }
       }
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   now we check for an undesirable case, that of failing  |
+|   high while doing a parallel (threaded) search.  this   |
+|   means our 'helpers' are doing stuff that is not needed |
+|   so we 'stop' them now.                                 |
+|                                                          |
+ ----------------------------------------------------------
+*/
       if (value > alpha) {
         if(value >= beta) {
           register int proc;

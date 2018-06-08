@@ -960,7 +960,7 @@ void LearnPosition(TREE *tree, int wtm, int last_value, int value) {
 *                                                                              *
 ********************************************************************************
 */
-void LearnPositionLoad(TREE *tree) {
+void LearnPositionLoad(void) {
   BITBOARD word1, word2;
   register HASH_ENTRY *htable;
   int n, positions;

@@ -3,7 +3,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 01/18/99 */
+/* last modified 02/14/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -13,9 +13,8 @@
 */
 int NextRootMove(TREE *tree, int wtm)
 {
-  register int nodes_per_second, done, *movep;
+  register int done, *movep;
   char remaining_moves[10];
-  static int adjusted=0;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -37,39 +36,6 @@ int NextRootMove(TREE *tree, int wtm)
     abort_search=1;
     return(NONE);
   }
-  if (!adjusted) {
-    if (iteration_depth>4 && tree->egtb_probes) {
-      time_used=ReadClock(time_type)-program_start_time+1;
-      nodes_per_second=(BITBOARD) tree->nodes_searched*100/time_used;
-      if (nodes_per_second<average_nps/8) {
-        EGTB_maxdepth=Max(EGTB_maxdepth-3,6);
-        adjusted=3;
-      }
-      else if (nodes_per_second<average_nps/4) {
-        EGTB_maxdepth=Max(EGTB_maxdepth-2,6);
-        adjusted=3;
-      }
-      else if (nodes_per_second<average_nps/2) {
-        EGTB_maxdepth=Max(EGTB_maxdepth-1,6);
-        adjusted=3;
-      }
-      else if (EGTB_maxdepth<32 && nodes_per_second>3*average_nps/4) {
-        if (adjusted >= 0) {
-          EGTB_maxdepth=Min(EGTB_maxdepth+1,iteration_depth+4);
-          adjusted=3;
-        }
-        else adjusted=0;
-      }
-      else adjusted=0;
-#if defined(DEBUG)
-      if (adjusted) {
-        Print(128,"nps=%d  avgnps=%d\n",nodes_per_second,average_nps);
-        Print(128,"limiting EGTB probes to first %d plies.\n",EGTB_maxdepth);
-      }
-#endif
-    }
-  }
-  else adjusted--;
   for (movep=tree->last[0];movep<tree->last[1];movep++)
     if (tree->searched_this_root_move[movep-tree->last[0]]) done++;
   if ((done==1) && tree->searched_this_root_move[0] &&

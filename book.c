@@ -8,7 +8,7 @@
 #  include <unistd.h>
 #endif
 
-/* last modified 09/16/98 */
+/* last modified 03/14/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -587,6 +587,7 @@ int Book(TREE *tree, int wtm, int root_list_done) {
         else {
           tree->pv[1].path[1]=book_moves[0];
           tree->pv[1].pathl=1;
+          tree->pv[1].pathd=0;
         }
         return(1);
       }
@@ -621,6 +622,7 @@ int Book(TREE *tree, int wtm, int root_list_done) {
       else {
         tree->pv[1].path[1]=book_moves[0];
         tree->pv[1].pathl=1;
+        tree->pv[1].pathd=0;
       }
       return(1);
     }
@@ -654,6 +656,7 @@ int Book(TREE *tree, int wtm, int root_list_done) {
     total_played=bs_played[which];
     m1_status=book_status[which];
     tree->pv[1].pathl=1;
+    tree->pv[1].pathd=0;
     MakeMove(tree,1,book_moves[which],wtm);
     UnMakeMove(tree,1,book_moves[which],wtm);
     Print(128,"               book   0.0s    %3d%%   ", percent_played);

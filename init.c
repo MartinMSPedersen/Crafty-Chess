@@ -330,7 +330,9 @@ void Initialize(int continuing) {
       bishop_value_b[i*8+j]=bishop_value_w[(7-i)*8+j];
       rook_value_b[i*8+j]=  rook_value_w[(7-i)*8+j];
       queen_value_b[i*8+j]= queen_value_w[(7-i)*8+j];
-      king_value_b[i*8+j]=  king_value_w[(7-i)*8+j];
+      king_value_bn[i*8+j]= king_value_wn[(7-i)*8+j];
+      king_value_bk[i*8+j]= king_value_wk[(7-i)*8+j];
+      king_value_bq[i*8+j]= king_value_wq[(7-i)*8+j];
     }
 }
 
@@ -1124,7 +1126,11 @@ void InitializeMasks(void) {
       left_side_empty_mask[i]=Or(left_side_empty_mask[i],file_mask[j]);
   }
   mask_fgh=Or(Or(file_mask[FILEF],file_mask[FILEG]),file_mask[FILEH]);
+  mask_efgh=Or(Or(file_mask[FILEE],file_mask[FILEF]),
+               Or(file_mask[FILEG],file_mask[FILEH]));
   mask_abc=Or(Or(file_mask[FILEA],file_mask[FILEB]),file_mask[FILEC]);
+  mask_abcd=Or(Or(file_mask[FILEA],file_mask[FILEB]),
+               Or(file_mask[FILEC],file_mask[FILED]));
   mask_kr_trapped_w[0]=SetMask(H2);
   mask_kr_trapped_w[1]=Or(SetMask(H1),SetMask(H2));
   mask_kr_trapped_w[2]=Or(Or(SetMask(G1),SetMask(H1)),SetMask(H2));
@@ -1244,6 +1250,11 @@ void InitializePawnMasks(void)
   mask_right_edge=Compl(file_mask[FILEH]);
   mask_advance_2_w=rank_mask[RANK3];
   mask_advance_2_b=rank_mask[RANK6];
+
+  mask_A3C3=Or(set_mask[A3],set_mask[C3]);
+  mask_A6C6=Or(set_mask[A6],set_mask[C6]);
+  mask_F3H3=Or(set_mask[F3],set_mask[H3]);
+  mask_F6H6=Or(set_mask[F6],set_mask[H6]);
 /* 
   these masks have 1's on the squares where it is useful to have a bishop
   when the b or g pawn is missing or pushed one square.

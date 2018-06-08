@@ -25,8 +25,9 @@ void PreEvaluate(TREE *tree, int wtm)
   static int hashing_opening = 0;
   static int hashing_middle_game = 0;
   static int hashing_end_game = 0;
+  static int hashing_kings = 0;
   static int last_wtm = 0;
-  int hash_pawns=0;
+  int hash_pawns=0, hash_kings=0;
   int pawn_advance[8], pawn_base[8];
 /*
  ----------------------------------------------------------
@@ -91,7 +92,7 @@ void PreEvaluate(TREE *tree, int wtm)
 /*
  ----------------------------------------------------------
 |                                                          |
-|   white pawns.                                           |
+|   pawns.                                                 |
 |                                                          |
  ----------------------------------------------------------
 */
@@ -100,18 +101,40 @@ void PreEvaluate(TREE *tree, int wtm)
       pawn_value_w[i*8+j]=pawn_base[j]+pawn_advance[j]*(i-3);
   for (j=A6;j<A8;j++)
     pawn_value_w[j]+=PAWN_JAM;
-/*
- ----------------------------------------------------------
-|                                                          |
-|   black pawns.                                           |
-|                                                          |
- ----------------------------------------------------------
-*/
   for (i=6;i>0;i--)
     for (j=0;j<8;j++)
       pawn_value_b[i*8+j]=pawn_base[j]+pawn_advance[j]*(4-i);
   for (j=A2;j<A4;j++)
     pawn_value_b[j]+=PAWN_JAM;
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   kings.                                                 |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  if (And(Or(WhitePawns,BlackPawns),mask_efgh) &&
+      And(Or(WhitePawns,BlackPawns),mask_abcd)) {
+    hash_kings=1;
+    for (i=0;i<64;i++) {
+      king_value_w[i]=king_value_wn[i];
+      king_value_b[i]=king_value_bn[i];
+    }
+  }
+  else if (And(Or(WhitePawns,BlackPawns),mask_efgh)) {
+    hash_kings=2;
+    for (i=0;i<64;i++) {
+      king_value_w[i]=king_value_wk[i];
+      king_value_b[i]=king_value_bk[i];
+    }
+  }
+  else if (And(Or(WhitePawns,BlackPawns),mask_abcd)) {
+    hash_kings=3;
+    for (i=0;i<64;i++) {
+      king_value_w[i]=king_value_wq[i];
+      king_value_b[i]=king_value_bq[i];
+    }
+  }
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -123,6 +146,7 @@ void PreEvaluate(TREE *tree, int wtm)
 */
   if (((last_wtm            != wtm) ||
        (hashing_pawns       != hash_pawns) ||
+       (hashing_kings       != hash_kings) ||
        (hashing_opening     != opening) ||
        (hashing_middle_game != middle_game) ||
        (hashing_end_game    != end_game)) && !test_mode) {
@@ -138,6 +162,7 @@ void PreEvaluate(TREE *tree, int wtm)
     ClearHashTables();
   }
   hashing_pawns=hash_pawns;
+  hashing_kings=hash_kings;
   hashing_opening=opening;
   hashing_middle_game=middle_game;
   hashing_end_game=end_game;
