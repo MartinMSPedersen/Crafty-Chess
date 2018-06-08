@@ -4,7 +4,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 05/12/99 */
+/* last modified 10/18/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -45,7 +45,7 @@ void Analyze() {
     do {
       last_pv.pathd=0;
       last_pv.pathl=0;
-      analyze_move_read=0;
+      input_status=0;
       pondering=1;
       tree->position[1]=tree->position[0];
       (void) Iterate(wtm,think,0);
@@ -66,7 +66,7 @@ void Analyze() {
 |                                                          |
  ----------------------------------------------------------
 */
-      if (!analyze_move_read) do {
+      if (!input_status) do {
         readstat=Read(1,buffer);
         if (readstat < 0) break;
         nargs=ReadParse(buffer,args," 	;");
@@ -84,33 +84,13 @@ void Analyze() {
 /*
  ----------------------------------------------------------
 |                                                          |
-|  if InputMove() can recognize this as a move, make it,   |
-|  swap sides, and return to the top of the loop to call   |
-|  search from this new position.                          |
+|  First, check for the special analyze command "back n"   |
+|  and handle it if present, otherwise try Option() to see |
+|  if it recognizes the input as a command.                |
 |                                                          |
  ----------------------------------------------------------
 */
-      move=InputMove(tree,args[0],0,wtm,1,0);
-      if (move) {
-        fseek(history_file,((move_number-1)*2+1-wtm)*10,SEEK_SET);
-        fprintf(history_file,"%9s\n",OutputMove(tree,move,0,wtm));
-        if (wtm) Print(128,"White(%d): ",move_number);
-        else Print(128,"Black(%d): ",move_number);
-        Print(128,"%s\n",OutputMove(tree,move,0,wtm));
-        MakeMoveRoot(tree,move,wtm);
-        display=tree->pos;
-        last_mate_score=0;
-      }
-/*
- ----------------------------------------------------------
-|                                                          |
-|  InputMove() didn't successfully parse the input, so it  |
-|  must be either a special analyze mode command (ie back) |
-|  or else an option that needs to be handled by Option(). |
-|                                                          |
- ----------------------------------------------------------
-*/
-      else if (OptionMatch("back",args[0])) {
+      if (OptionMatch("back",args[0])) {
         if (nargs > 1) back_number=atoi(args[1]);
         else back_number=1;
         for (i=0;i<back_number;i++) {
@@ -125,7 +105,28 @@ void Analyze() {
         (void) Option(tree);
         display=tree->pos;
       }
-      else if (Option(tree));
+      else if (Option(tree)) {
+        display=tree->pos;
+      }
+/*
+ ----------------------------------------------------------
+|                                                          |
+|  if InputMove() can recognize this as a move, make it,   |
+|  swap sides, and return to the top of the loop to call   |
+|  search from this new position.                          |
+|                                                          |
+ ----------------------------------------------------------
+*/
+      else if ((move=InputMove(tree,args[0],0,wtm,1,0))) {
+        fseek(history_file,((move_number-1)*2+1-wtm)*10,SEEK_SET);
+        fprintf(history_file,"%9s\n",OutputMove(tree,move,0,wtm));
+        if (wtm) Print(128,"White(%d): ",move_number);
+        else Print(128,"Black(%d): ",move_number);
+        Print(128,"%s\n",OutputMove(tree,move,0,wtm));
+        MakeMoveRoot(tree,move,wtm);
+        display=tree->pos;
+        last_mate_score=0;
+      }
 /*
  ----------------------------------------------------------
 |                                                          |

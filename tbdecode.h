@@ -559,7 +559,7 @@ decode_block;
 static void do_decode (decode_info *info, decode_block *block, uchar *e)
 {
   BITIO_LOCALS;
-  uchar *p, *s;
+  uchar *p, *s=0;
   int ch;
 
   if ((p = block->emit.ptr) >= e)

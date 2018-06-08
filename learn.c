@@ -420,7 +420,7 @@ int LearnFunction(int sv, int search_depth, int rating_difference,
   return((int) (sv*multiplier));
 }
 
-/* last modified 03/11/98 */
+/* last modified 10/03/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -442,6 +442,10 @@ int LearnFunction(int sv, int search_depth, int rating_difference,
 *  "setboard" command in the file as well as the word "position" in the first  *
 *  eight bytes of the file, then the positions and scores are read in and      *
 *  added to the position.bin file.                                             *
+*                                                                              *
+*  LearnImport() also will import data from the C.A.P. project by Dan Corbitt  *
+*  and add the scores to book positions in book.bin, when these positions are  *
+*  found.                                                                      *
 *                                                                              *
 ********************************************************************************
 */
@@ -474,7 +478,9 @@ void LearnImport(TREE *tree, int nargs, char **args) {
   fclose(learn_in);
   if  (eof == 0) return;
   if (!strcmp(text,"position")) LearnImportPosition(tree,nargs,args);
-  else LearnImportBook(tree,nargs,args);
+  else if (strstr(text,"[White")) LearnImportBook(tree,nargs,args);
+  else LearnImportCAP(tree,nargs,args);
+  InitializeChessBoard(&tree->position[0]);
 }
 
 /* last modified 03/11/98 */
@@ -609,6 +615,172 @@ void LearnImportBook(TREE *tree, int nargs, char **args) {
   }
   move_number=1;
   Print(4095,"\nadded %d learned book lines to book.bin\n",added_lines);
+}
+
+/* last modified 10/03/99 */
+/*
+********************************************************************************
+*                                                                              *
+*   LearnImportCAP() is used to import data from Dan Corbitt's C.A.P. project  *
+*   and update the opening book with the scores of these searches.  we are     *
+*   interested in three fields of a CAP record:  the FEN position string that  *
+*   includes the position, castling rights and en passant target; the "ce"     *
+*   field that contains the 'centipawn evaluation'; and finally, the "pm"      *
+*   field that contains the best (preferred) move in this position according   *
+*   to the search results.                                                     *
+*                                                                              *
+*   the FEN is used to set the current board position, then the usual book     *
+*   indexing scheme is used to index to see if the position _after_ the "pm"
+*   is in the book.  If so, the CAP score for that move will be set to the     *
+*   "ce" score and written back to disk.                                       *
+*                                                                              *
+*   Note that these scores are not adjusted by Crafty in any way, so that the  *
+*   data is 'constant' unless the C.A.P. project revises the scores as faster  *
+*   hardware comes along.  re-importing new data will simply overwrite any     *
+*   existing CAP scores that are in the new data, but will not bother the old  *
+*   scores, unless the 'clear' option is used, as in other import functions.   *
+*                                                                              *
+********************************************************************************
+*/
+void LearnImportCAP(TREE *tree, int nargs, char **args) {
+  BITBOARD temp_hash_key, common;
+  char *eof, *pmp, *acd, buffer[2048];
+  int ce, move, CAP_used=0, CAP_found=0, key, cluster, test, i;
+  FILE *CAP_in;
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   if the 'clear' option was given, first run through     |
+|   book.bin and clear every CAP score.  this should not   |
+|   be a common event.                                     |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  if (nargs>1 && !strcmp(args[1],"clear")) {
+#if defined(MACOS)
+    int i, j, cluster;
+#else
+    int index[32768], i, j, cluster;
+#endif
+    fseek(book_file,0,SEEK_SET);
+    fread(index,sizeof(int),32768,book_file);
+    for (i=0;i<32768;i++)
+      if (index[i] > 0) {
+        fseek(book_file,index[i],SEEK_SET);
+        fread(&cluster,sizeof(int),1,book_file);
+        fread(book_buffer,sizeof(BOOK_POSITION),cluster,book_file);
+        for (j=0;j<cluster;j++) book_buffer[j].CAP_score=-2*MATE;
+        fseek(book_file,index[i]+sizeof(int),SEEK_SET);
+        fwrite(book_buffer,sizeof(BOOK_POSITION),cluster,book_file);
+      }
+  }
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   loop through the file, reading in a CAP record.  from  |
+|   this we extract the FEN position string, the score     |
+|   (ce) and the preferred move (pm).                      |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  CAP_in=fopen(args[0],"r");
+  while (1) {
+    CAP_found++;
+    if ((CAP_found)%1000==0) {
+      printf(".");
+      fflush(stdout);
+    }
+    if ((CAP_found)%60000 == 0) printf(" (%d)\n",CAP_found);
+    eof=fgets(buffer,512,CAP_in);
+    if (eof) {
+      char *delim;
+      delim=strchr(buffer,'\n');
+      if (delim) *delim=0;
+      delim=strchr(buffer,'\r');
+      if (delim) *delim=' ';
+    }
+    else break;
+    if (!strstr(buffer,"ce ")) {
+      Print(4095,"\nERROR  CAP input line with no ce field\n");
+      Print(4095,"line number %d\n",CAP_found);
+      continue;
+    }
+    ce=atoi(strstr(buffer,"ce ")+2);
+    pmp=strstr(buffer,"pm")+2;
+    if (!pmp) {
+      Print(4095,"\nERROR  CAP input line with no pm field\n");
+      Print(4095,"line number %d\n",CAP_found);
+      continue;
+    }
+    else while (*pmp == ' ') pmp++;
+    if (!strchr(pmp,';')) {
+      Print(4095,"\nERROR  CAP input line with partial pm field\n");
+      Print(4095,"line number %d\n",CAP_found);
+      continue;
+    }
+    *strchr(pmp,';')=0;
+    if (!strlen(pmp)) continue;
+    acd=strstr(buffer,"acd ");
+    if (!acd) {
+      Print(4095,"\nERROR  CAP input line with no acd field\n");
+      Print(4095,"line number %d\n",CAP_found);
+      continue;
+    }
+    *acd=0;
+    nargs=ReadParse(buffer,args," 	;");
+    SetBoard(nargs,args,0);
+    move=InputMove(tree,pmp,0,wtm,1,0);
+    if (!move) {
+      Print(4095,"\nERROR  bad move in CAP input file\n");
+      Print(4095,"line number %d  pm=/%s/  wtm=%d\n",CAP_found,pmp,wtm);
+      DisplayChessBoard(stdout,tree->pos);
+      continue;
+    }
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   now we have the right position.  time to find the      |
+|   position (if it is present) and update the CAP_score   |
+|   field.                                                 |
+|                                                          |
+ ----------------------------------------------------------
+*/
+    test=HashKey>>49;
+    fseek(book_file,test*sizeof(int),SEEK_SET);
+    fread(&key,sizeof(int),1,book_file);
+    if (key > 0) {
+      fseek(book_file,key,SEEK_SET);
+      fread(&cluster,sizeof(int),1,book_file);
+      fread(book_buffer,sizeof(BOOK_POSITION),cluster,book_file);
+    }
+    else cluster=0;
+    if (!cluster) return;
+    common=HashKey & mask_16;
+    MakeMove(tree,0,move,wtm);
+    temp_hash_key=HashKey ^ wtm_random[wtm];
+    temp_hash_key=(temp_hash_key & ~mask_16) | common;
+    for (i=0;i<cluster;i++) {
+      if (!(temp_hash_key ^ book_buffer[i].position)) {
+        book_buffer[i].CAP_score=ce;
+        fseek(book_file,key+sizeof(int),SEEK_SET);
+        fwrite(book_buffer,sizeof(BOOK_POSITION),cluster,book_file);
+        CAP_used++;
+        break;
+      }
+    }
+    UnMakeMove(tree,0,move,wtm);
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   now update the position.lrn file so that the position  |
+|   is saved in a form that can be imported later in other |
+|   versions of crafty on different machines.              |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  }
+  Print(4095,"updated   %d book CAP scores.\n",CAP_used);
+  Print(4095,"processed %d book CAP scores.\n",CAP_found-1);
 }
 
 /* last modified 03/11/98 */
@@ -950,7 +1122,7 @@ void LearnPosition(TREE *tree, int wtm, int last_value, int value) {
   fflush(position_lrn_file);
 }
 
-/* last modified 01/26/99 */
+/* last modified 10/25/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -997,8 +1169,8 @@ void LearnPositionLoad(void) {
     fread(&word1,sizeof(BITBOARD),1,position_file);
     fread(&word2,sizeof(BITBOARD),1,position_file);
     htable=trans_ref_a+(((int) word2)&hash_maska);
-    htable->word1=(BITBOARD) word1 & (~((BITBOARD)1<<63));
-    htable->word2=word2;
+    htable->word1=((BITBOARD) word1 & ((~(BITBOARD)0)>>3)) | ((BITBOARD)3<<59);
+    htable->word2=word2 ^ htable->word1;
   }
 }
 

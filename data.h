@@ -124,7 +124,10 @@
   extern int            analyze_mode;
   extern int            annotate_mode;
   extern int            test_mode;
-  extern int            analyze_move_read;
+  extern int            input_status;  /* 0=no input; 
+                                          1=predicted move read;
+                                          2=unpredicted move read;
+                                          3=something read, not executed. */
   extern signed char    resign;
   extern signed char    resign_counter;
   extern signed char    resign_count;
@@ -153,8 +156,6 @@
   extern signed char    abort_search;
   extern int            ponder;
   extern int            ponder_move;
-  extern int            made_predicted_move;
-  extern int            made_unexpected_move;
   extern int            force;
   extern int            ponder_moves[220];
   extern int            num_ponder_moves;
@@ -236,6 +237,7 @@
   extern const char     connected_passed_pawn_value[8];
   extern const char     passed_pawn_value[8];
   extern const char     isolated_pawn_value[9];
+  extern const char     isolated_pawn_of_value[9];
   extern const char     doubled_pawn_value[7];
   extern const char     pawn_rams_v[9];
   extern char           pawn_rams[9];
@@ -261,7 +263,6 @@
   extern const char     king_tropism_at_r[8];
   extern const char     king_tropism_q[8];
   extern const char     king_tropism_at_q[8];
-  extern const char     king_tropism_file_q[8];
   extern const signed char king_tropism[128];
   extern int            tropism[128];
 
@@ -367,10 +368,6 @@
   extern BITBOARD       mask_advance_2_b;
   extern BITBOARD       mask_left_edge;
   extern BITBOARD       mask_right_edge;
-  extern BITBOARD       mask_G2G3;
-  extern BITBOARD       mask_B2B3;
-  extern BITBOARD       mask_G6G7;
-  extern BITBOARD       mask_B6B7;
   extern BITBOARD       mask_A7H7;
   extern BITBOARD       mask_A2H2;
   extern BITBOARD       mask_A3B3;

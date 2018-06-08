@@ -3,7 +3,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 03/14/96 */
+/* last modified 10/18/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -27,7 +27,7 @@ void Phase(void) {
 /*
  ----------------------------------------------------------
 |                                                          |
-|   if the side-to-move has not yet lost the right to      |
+|   if both  sides have not yet lost the right to          |
 |   castle, then this is still an opening position.        |
 |                                                          |
  ----------------------------------------------------------
@@ -38,16 +38,8 @@ void Phase(void) {
   if (opening) {
     do {
       if (move_number < 26) {
-        if (root_wtm) {
-          if (WhiteCastle(1)>0) break;
-          if (WhiteBishops & white_minor_pieces) break;
-          if (WhiteKnights & white_minor_pieces) break;
-        }
-        else {
-          if (BlackCastle(1)>0) break;
-          if (BlackBishops & black_minor_pieces) break;
-          if (BlackKnights & black_minor_pieces) break;
-        }
+        if (WhiteCastle(1)>0) break;
+        if (BlackCastle(1)>0) break;
       }
       opening=0;
       middle_game=1;
@@ -62,7 +54,7 @@ void Phase(void) {
 |                                                          |
  ----------------------------------------------------------
 */
-  if (TotalWhitePieces < 14 && TotalBlackPieces < 14) {
+  if (TotalWhitePieces < 15 && TotalBlackPieces < 15) {
     opening=0;
     middle_game=0;
     end_game=1;

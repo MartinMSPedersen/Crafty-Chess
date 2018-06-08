@@ -217,6 +217,7 @@ void ClearHashTableScores(void) {
       (pawn_hash_table+i)->candidates_b=0;
     }
   }
+  local[0]->pawn_score.key=0;
 }
 
 void DelayTime(int ms) {
@@ -539,6 +540,7 @@ void Display2BitBoards(BITBOARD board1, BITBOARD board2) {
 */
 void EGTBPV(TREE *tree, int wtm) {
   int moves[1024], current[256];
+  BITBOARD hk[1024], phk[1024];
   char buffer[1024], *next;
   BITBOARD pos[1024];
   int value;
@@ -599,6 +601,8 @@ void EGTBPV(TREE *tree, int wtm) {
         sprintf(buffer+strlen(buffer)," %d.",t_move_number);
       sprintf(buffer+strlen(buffer)," %s",OutputMove(tree,bestmv,1,wtm));
       if (bang && optimal_mv) sprintf(buffer+strlen(buffer),"!");
+      hk[ply]=HashKey;
+      phk[ply]=PawnHashKey;
       MakeMove(tree,1,bestmv,wtm);
       tree->position[1]=tree->position[2];
       wtm=ChangeSide(wtm);
@@ -616,6 +620,8 @@ void EGTBPV(TREE *tree, int wtm) {
   nmoves=ply;
   for (;ply>0;ply--) {
     wtm=ChangeSide(wtm);
+      tree->save_hash_key[1]=hk[ply];
+      tree->save_pawn_hash_key[1]=phk[ply];
     UnMakeMove(tree,1,moves[ply],wtm);
     tree->position[2]=tree->position[1];
   }
@@ -1460,6 +1466,7 @@ int ReadPGN(FILE *input, int option) {
         if (bracket1 == 0) return(1);
         bracket2=strchr(bracket1+1,'\"');
         if (bracket2 == 0) return(1);
+        *bracket1=0;
         *bracket2=0;
         strcpy(value,bracket1+1);
         if (strstr(input_buffer,"Event")) strcpy(pgn_event,value);

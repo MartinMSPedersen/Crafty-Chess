@@ -4,7 +4,7 @@
 #include "data.h"
 #include "evaluate.h"
 
-/* last modified 06/06/99 */
+/* last modified 10/20/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -41,25 +41,12 @@ void PreEvaluate(TREE *tree, int wtm) {
 /*
  ----------------------------------------------------------
 |                                                          |
-|   pawn advances.  before castling, moving the king-side  |
-|   pawns is a no-no.  also, the b-pawn is restrained just |
-|   in case we castle queen-side.                          |
+|   pawn advances.                                         |
 |                                                          |
  ----------------------------------------------------------
 */
-  if (opening) {
+  if (opening || middle_game) {
     hash_pawns=1;
-    pawn_advance[0]=PAWN_ADVANCE_BC_A;
-    pawn_advance[1]=PAWN_ADVANCE_BC_B;
-    pawn_advance[2]=PAWN_ADVANCE_BC_C;
-    pawn_advance[3]=PAWN_ADVANCE_BC_D;
-    pawn_advance[4]=PAWN_ADVANCE_BC_E;
-    pawn_advance[5]=PAWN_ADVANCE_BC_F;
-    pawn_advance[6]=PAWN_ADVANCE_BC_G;
-    pawn_advance[7]=PAWN_ADVANCE_BC_H;
-  }
-  else if (middle_game) {
-    hash_pawns=2;
     pawn_advance[0]=PAWN_ADVANCE_A;
     pawn_advance[1]=PAWN_ADVANCE_B;
     pawn_advance[2]=PAWN_ADVANCE_C;
@@ -70,7 +57,7 @@ void PreEvaluate(TREE *tree, int wtm) {
     pawn_advance[7]=PAWN_ADVANCE_H;
   }
   else {
-    hash_pawns=3;
+    hash_pawns=2;
     pawn_advance[0]=PAWN_ADVANCE_EG_A;
     pawn_advance[1]=PAWN_ADVANCE_EG_B;
     pawn_advance[2]=PAWN_ADVANCE_EG_C;

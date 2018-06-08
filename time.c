@@ -272,7 +272,7 @@ void TimeSet(int search_type) {
 |                                                          |
  ----------------------------------------------------------
 */
-  if (mode!=tournament_mode && !tc_increment && !computer_opponent) {
+  if (mode!=tournament_mode && !computer_opponent) {
     for (i=0;i<6;i++) {
       if ((float)tc_time_remaining*behind[i] <
           (float)tc_time_remaining_opponent) {

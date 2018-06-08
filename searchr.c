@@ -5,7 +5,7 @@
 #include "data.h"
 #include "epdglue.h"
 
-/* modified 09/21/99 */
+/* modified 10/18/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -188,9 +188,9 @@ int SearchRoot(TREE *tree, int alpha, int beta, int wtm, int depth) {
 |                                                          |
  ----------------------------------------------------------
 */
-  if (abort_search) return(0);
+  if (abort_search || time_abort) return(0);
   if (first_move == 1) {
-    value=(Check(wtm)) ? -(MATE-1) : DrawScore(root_wtm==wtm);
+    value=(Check(wtm)) ? -(MATE-1) : DrawScore(1);
     if (value >=alpha && value <beta) {
       tree->pv[0].pathl=0;
       tree->pv[0].pathh=0;

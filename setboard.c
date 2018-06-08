@@ -83,8 +83,8 @@ void SetBoard(int nargs, char *args[], int special) {
 */
     else if (match == 24) {
       num=0;
+      if (whichsq > 6) break;
       square=firstsq[++whichsq];
-      if (whichsq > 7) break;
     }
 /*
    "1-8" -> empty squares.

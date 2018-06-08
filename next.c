@@ -3,7 +3,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 05/03/99 */
+/* last modified 10/20/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -12,8 +12,8 @@
 ********************************************************************************
 */
 int NextMove(TREE *tree, int ply, int wtm) {
-  register int *bestp, *movep, *sortv, temp;
-  register int history_value, bestval, done, index;
+  register int *bestp, *movep, *sortv;
+  register int history_value, bestval, index;
 
   switch (tree->next_status[ply].phase) {
 /*
@@ -80,26 +80,33 @@ int NextMove(TREE *tree, int ply, int wtm) {
 /*
  ----------------------------------------------------------
 |                                                          |
-|   don't disdain the lowly bubble sort here.  the list of |
-|   captures is always short, and experiments with other   |
-|   algorithms are always slightly slower.                 |
+|   this is a simple insertion sort algorithm.  it seems   |
+|   be no faster than a normal bubble sort, but using this |
+|   eliminated a lot of explaining about "why?". :)        |
 |                                                          |
  ----------------------------------------------------------
 */
-    do {
-      done=1;
-      for (movep=tree->last[ply-1],sortv=tree->sort_value;
-           movep<tree->last[ply]-1;movep++,sortv++)
-        if (*sortv < *(sortv+1)) {
-          temp=*sortv;
-          *sortv=*(sortv+1);
-          *(sortv+1)=temp;
-          temp=*movep;
-          *movep=*(movep+1);
-          *(movep+1)=temp;
-          done=0;
+    if (tree->last[ply] > tree->last[ply-1]+1) {
+      int temp1, temp2, *movep, *tmovep, *sortv, *tsortv;
+      int *end;
+      sortv=tree->sort_value+1;
+      movep=tree->last[ply-1]+1;
+      end=tree->last[ply];
+      for (;movep<end;movep++,sortv++) {
+        temp1=*movep;
+        temp2=*sortv;
+        tmovep=movep-1;
+        tsortv=sortv-1;
+        while (tmovep>=tree->last[ply-1] && *tsortv<temp2) {
+          *(tsortv+1)=*tsortv;
+          *(tmovep+1)=*tmovep;
+          tmovep--;
+          tsortv--;
         }
-    } while(!done);
+        *(tmovep+1)=temp1;
+        *(tsortv+1)=temp2;
+      }
+    }
     tree->next_status[ply].last=tree->last[ply-1];
 /*
  ----------------------------------------------------------

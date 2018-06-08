@@ -1,8 +1,7 @@
 #if !defined(EVALUATE_INCLUDED)
 #  define    EVALUATE_INCLUDED
  
-#  define                                 MAXO           (6)
-#  define                            BAD_TRADE         (132)
+#  define                            BAD_TRADE         (160)
 #  define                          EIGHT_PAWNS          (12)
 #  define                        PAWNS_BLOCKED          (12)
 #  define                  CENTER_PAWN_UNMOVED          (16)
@@ -32,15 +31,6 @@
 #  define                       PAWN_ADVANCE_G           (1)
 #  define                       PAWN_ADVANCE_H           (1)
  
-#  define                    PAWN_ADVANCE_BC_A          (-3)
-#  define                    PAWN_ADVANCE_BC_B          (-3)
-#  define                    PAWN_ADVANCE_BC_C           (1)
-#  define                    PAWN_ADVANCE_BC_D           (1)
-#  define                    PAWN_ADVANCE_BC_E           (1)
-#  define                    PAWN_ADVANCE_BC_F           (1)
-#  define                    PAWN_ADVANCE_BC_G          (-4)
-#  define                    PAWN_ADVANCE_BC_H          (-4)
-
 #  define                    PAWN_ADVANCE_EG_A           (3)
 #  define                    PAWN_ADVANCE_EG_B           (3)
 #  define                    PAWN_ADVANCE_EG_C           (3)
@@ -62,7 +52,7 @@
 
 #  define                    KING_KING_TROPISM          (15)
   
-#  define                       BISHOP_TRAPPED         (150)
+#  define                       BISHOP_TRAPPED         (175)
 #  define           BISHOP_PLUS_PAWNS_ON_COLOR           (2)
 #  define           BISHOP_OVER_KNIGHT_ENDGAME          (20)
 #  define                      BISHOP_MOBILITY           (1)
@@ -82,6 +72,7 @@
 #  define                    QUEEN_KING_SAFETY           (6)
 #  define                     QUEEN_VS_2_ROOKS          (60)
 #  define                      QUEEN_IS_STRONG          (30)
+#  define                QUEEN_OFFSIDE_TROPISM           (8)
  
 #  define                KING_SAFETY_MATE_G2G7           (3)
 #  define              KING_SAFETY_MATE_THREAT         (600)

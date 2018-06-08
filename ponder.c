@@ -4,7 +4,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 07/08/98 */
+/* last modified 10/18/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -193,7 +193,7 @@ int Ponder(int wtm) {
 |                                                          |
  ----------------------------------------------------------
 */
-  if (made_predicted_move) return(1);
-  if (made_unexpected_move) return(3);
+  if (input_status == 1) return(1);
+  if (input_status == 2) return(3);
   return(2);
 }

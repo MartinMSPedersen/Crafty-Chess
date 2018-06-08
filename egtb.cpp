@@ -59,6 +59,10 @@ typedef  int  piece;
 
 #if defined (SMP)
 static	lock_t	lockLRU;
+#else
+#define	LockInit(x)
+#define Lock(x)
+#define UnLock(x)
 #endif
 
 // Declarations
@@ -2342,7 +2346,7 @@ public:
 
 #endif	// T41
 
-#if defined (EGTB6)
+#if defined (T33_INCLUDE)
 
 template <int piw1, int piw2, int pib1, int pib2> class T33
 	{
@@ -2356,6 +2360,7 @@ public:
 		)
 		{
 		square sqwk, sqw1, sqw2, sqbk, sqb1, sqb2, sqMask;
+		INDEX ind;
 
 		sqwk = SqFindKing (psqW);
 		if (piw1 == piw2)
@@ -2396,16 +2401,21 @@ public:
 			sqb1 = reflect_xy(sqb1);
 			sqb2 = reflect_xy(sqb2);
 			}
+		ind = TEnumerate2<piw1,piw2,false,false>::Index(sqwk,sqw1,sqw2,sqbk);
+#if defined (ILLEGAL_POSSIBLE)
+		if (INF_PAIR == ind)
+			return (INDEX) -1;
+#endif
 		if (pib1 == pib2)
 			{
 			SORT (sqb1, sqb2);
 			sqb2 = EXCLUDE4(sqb2,sqwk,sqbk,sqw1,sqw2);	// 60
-			return	TEnumerate2<piw1,piw2,false,false>::Index(sqwk,sqw1,sqw2,sqbk)*(i60*i59/2) +
+			return	ind*(i60*i59/2) +
 					sqb2*(sqb2-1)/2+
 					EXCLUDE4(sqb1,sqwk,sqbk,sqw1,sqw2);	// 60*59/2
 			}
 		else
-			return	TEnumerate2<piw1,piw2,false,false>::Index(sqwk,sqw1,sqw2,sqbk)*i60*i59 +
+			return	ind*(i60*i59) +
 					EXCLUDE4(sqb1,sqwk,sqbk,sqw1,sqw2)*i59 +	// 60
 					EXCLUDE5(sqb2,sqwk,sqbk,sqw1,sqw2,sqb1);	// 59
 		}
@@ -2419,6 +2429,7 @@ public:
 		)
 		{
 		square sqwk, sqw1, sqw2, sqbk, sqb1, sqb2, sqMask;
+		INDEX ind;
 
 		sqwk = SqFindKing (psqW);
 		if (piw1 == piw2)
@@ -2459,16 +2470,21 @@ public:
 			sqb1 = reflect_xy(sqb1);
 			sqb2 = reflect_xy(sqb2);
 			}
+		ind = TEnumerate2<pib1,pib2,false,false>::Index(sqbk,sqb1,sqb2,sqwk);
+#if defined (ILLEGAL_POSSIBLE)
+		if (INF_PAIR == ind)
+			return (INDEX) -1;
+#endif
 		if (piw1 == piw2)
 			{
 			SORT (sqw1, sqw2);
 			sqw2 = EXCLUDE4(sqw2,sqbk,sqwk,sqb1,sqb2);	// 60
-			return	TEnumerate2<pib1,pib2,false,false>::Index(sqbk,sqb1,sqb2,sqwk)*(i60*i59/2) +
+			return	ind*(i60*i59/2) +
 					sqw2*(sqw2-1)/2+
 					EXCLUDE4(sqw1,sqbk,sqwk,sqb1,sqb2);	// 60*59/2
 			}
 		else
-			return	TEnumerate2<pib1,pib2,false,false>::Index(sqbk,sqb1,sqb2,sqwk)*i60*i59 +
+			return	ind*(i60*i59) +
 					EXCLUDE4(sqw1,sqbk,sqwk,sqb1,sqb2)*i59 +	// 60
 					EXCLUDE5(sqw2,sqbk,sqwk,sqb1,sqb2,sqw1);	// 59
 		}
@@ -3157,7 +3173,7 @@ public:
 #define tbid_kqqqk 145
 #endif
 
-#if defined (EGTB6)
+#if defined (T33_INCLUDE)
 #if defined (T41_INCLUDE)
 #define	BASE_33	145
 #else
@@ -3218,13 +3234,13 @@ public:
 #if defined (SMP)
 static	lock_t	lockDecode;
 #endif
-extern "C" int TB_CRC_CHECK = 0;
+#define TB_CRC_CHECK 0
 static int cCompressed = 0;
 static decode_block *rgpdbDecodeBlocks[CPUS];
 
 // Information about tablebases
 
-#if defined (EGTB6)
+#if defined (T33_INCLUDE)
 #define	MAX_TOTAL_PIECES		6	/* Maximum # of pieces on the board */
 #else
 #define	MAX_TOTAL_PIECES		5	/* Maximum # of pieces on the board */
@@ -3235,8 +3251,12 @@ static decode_block *rgpdbDecodeBlocks[CPUS];
 #define	TB_DIRECTORY_SIZE		32	/* # of cache buckets */
 #endif
 
+#if !defined (PFNCALCINDEX_DECLARED)
 typedef INDEX (TB_FASTCALL * PfnCalcIndex) (square *psqW, square *psqB,
 										 square sqEnP, int fInverse);
+#define	PFNCALCINDEX_DECLARED
+#endif
+
 struct CTbCache;
 
 typedef struct		// Hungarian: tbcb
@@ -3251,7 +3271,8 @@ typedef struct		// Hungarian: tbcb
 typedef struct		// Hungarian: tbd
 	{
 	int				m_iTbId;
-	bool			m_fSymmetric;
+	int				m_fSymmetric:1;
+	int				m_f16bit:1;
 	PfnCalcIndex	m_rgpfnCalcIndex[2];
 	char			m_rgchName[MAX_TOTAL_PIECES+1];
 	INDEX			m_rgcbLength[2];
@@ -3266,7 +3287,7 @@ typedef struct		// Hungarian: tbd
 	}
 	CTbDesc;
 
-#define	TB(name, fSym, funW, funB, cbW, cbB)	{ tbid_##name, fSym, { funW, funB }, #name, { cbW, cbB } },
+#define	TB(name, fSym, f16bit, funW, funB, cbW, cbB)	{ tbid_##name, fSym, f16bit, { funW, funB }, #name, { cbW, cbB } },
 
 #define	P	x_piecePawn
 #define	N	x_pieceKnight
@@ -3276,197 +3297,197 @@ typedef struct		// Hungarian: tbd
 
 CTbDesc	rgtbdDesc[cTb] =
 	{
-	TB (kk, true, NULL, NULL, 0, 0)
+	TB (kk, true, false, NULL, NULL, 0, 0)
 
-	TB (kpk, false, (T21<P>::IndCalcW), (T21<P>::IndCalcB), 81664, 84012)
-	TB (knk, false, (T21<N>::IndCalcW), (T21<N>::IndCalcB), 26282, 28644)
-	TB (kbk, false, (T21<B>::IndCalcW), (T21<B>::IndCalcB), 27243, 28644)
-	TB (krk, false, (T21<R>::IndCalcW), (T21<R>::IndCalcB), 27030, 28644)
-	TB (kqk, false, (T21<Q>::IndCalcW), (T21<Q>::IndCalcB), 25629, 28644)
+	TB (kpk, false, false, (T21<P>::IndCalcW), (T21<P>::IndCalcB), 81664, 84012)
+	TB (knk, false, false, (T21<N>::IndCalcW), (T21<N>::IndCalcB), 26282, 28644)
+	TB (kbk, false, false, (T21<B>::IndCalcW), (T21<B>::IndCalcB), 27243, 28644)
+	TB (krk, false, false, (T21<R>::IndCalcW), (T21<R>::IndCalcB), 27030, 28644)
+	TB (kqk, false, false, (T21<Q>::IndCalcW), (T21<Q>::IndCalcB), 25629, 28644)
 
-	TB (kpkp, false, (T22<P, P>::IndCalcW), (T22<P, P>::IndCalcB), 3863492, 3863492)
-	TB (knkp, false, (T22<N, P>::IndCalcW), (T22<N, P>::IndCalcB), 4931904, 4981504)
-	TB (knkn, true,  (T22<N, N>::IndCalcW), (T22<N, N>::IndCalcB), 1603202, 1603202)
-	TB (kbkp, false, (T22<B, P>::IndCalcW), (T22<B, P>::IndCalcB), 5112000, 4981504)
-	TB (kbkn, false, (T22<B, N>::IndCalcW), (T22<B, N>::IndCalcB), 1661823, 1603202)
-	TB (kbkb, true,  (T22<B, B>::IndCalcW), (T22<B, B>::IndCalcB), 1661823, 1661823)
-	TB (krkp, false, (T22<R, P>::IndCalcW), (T22<R, P>::IndCalcB), 5072736, 4981504)
-	TB (krkn, false, (T22<R, N>::IndCalcW), (T22<R, N>::IndCalcB), 1649196, 1603202)
-	TB (krkb, false, (T22<R, B>::IndCalcW), (T22<R, B>::IndCalcB), 1649196, 1661823)
-	TB (krkr, true,  (T22<R, R>::IndCalcW), (T22<R, R>::IndCalcB), 1649196, 1649196)
-	TB (kqkp, false, (T22<Q, P>::IndCalcW), (T22<Q, P>::IndCalcB), 4810080, 4981504)
-	TB (kqkn, false, (T22<Q, N>::IndCalcW), (T22<Q, N>::IndCalcB), 1563735, 1603202)
-	TB (kqkb, false, (T22<Q, B>::IndCalcW), (T22<Q, B>::IndCalcB), 1563735, 1661823)
-	TB (kqkr, false, (T22<Q, R>::IndCalcW), (T22<Q, R>::IndCalcB), 1563735, 1649196)
-	TB (kqkq, true,  (T22<Q, Q>::IndCalcW), (T22<Q, Q>::IndCalcB), 1563735, 1563735)
-	TB (kppk, false, (T31<P, P>::IndCalcW), (T31<P, P>::IndCalcB), 1806671, 1912372)
-	TB (knpk, false, (T31<N, P>::IndCalcW), (T31<N, P>::IndCalcB), 4648581, 5124732)
-	TB (knnk, false, (T31<N, N>::IndCalcW), (T31<N, N>::IndCalcB),  735304,  873642)
-	TB (kbpk, false, (T31<B, P>::IndCalcW), (T31<B, P>::IndCalcB), 4817128, 5124732)
-	TB (kbnk, false, (T31<B, N>::IndCalcW), (T31<B, N>::IndCalcB), 1550620, 1747284)
-	TB (kbbk, false, (T31<B, B>::IndCalcW), (T31<B, B>::IndCalcB),  789885,  873642)
-	TB (krpk, false, (T31<R, P>::IndCalcW), (T31<R, P>::IndCalcB), 4779530, 5124732)
-	TB (krnk, false, (T31<R, N>::IndCalcW), (T31<R, N>::IndCalcB), 1538479, 1747284)
-	TB (krbk, false, (T31<R, B>::IndCalcW), (T31<R, B>::IndCalcB), 1594560, 1747284)
-	TB (krrk, false, (T31<R, R>::IndCalcW), (T31<R, R>::IndCalcB),  777300,  873642)
-	TB (kqpk, false, (T31<Q, P>::IndCalcW), (T31<Q, P>::IndCalcB), 4533490, 5124732)
-	TB (kqnk, false, (T31<Q, N>::IndCalcW), (T31<Q, N>::IndCalcB), 1459616, 1747284)
-	TB (kqbk, false, (T31<Q, B>::IndCalcW), (T31<Q, B>::IndCalcB), 1512507, 1747284)
-	TB (kqrk, false, (T31<Q, R>::IndCalcW), (T31<Q, R>::IndCalcB), 1500276, 1747284)
-	TB (kqqk, false, (T31<Q, Q>::IndCalcW), (T31<Q, Q>::IndCalcB),  698739,  873642)
+	TB (kpkp, false, false, (T22<P, P>::IndCalcW), (T22<P, P>::IndCalcB), 3863492, 3863492)
+	TB (knkp, false, false, (T22<N, P>::IndCalcW), (T22<N, P>::IndCalcB), 4931904, 4981504)
+	TB (knkn, true,  false, (T22<N, N>::IndCalcW), (T22<N, N>::IndCalcB), 1603202, 1603202)
+	TB (kbkp, false, false, (T22<B, P>::IndCalcW), (T22<B, P>::IndCalcB), 5112000, 4981504)
+	TB (kbkn, false, false, (T22<B, N>::IndCalcW), (T22<B, N>::IndCalcB), 1661823, 1603202)
+	TB (kbkb, true,  false, (T22<B, B>::IndCalcW), (T22<B, B>::IndCalcB), 1661823, 1661823)
+	TB (krkp, false, false, (T22<R, P>::IndCalcW), (T22<R, P>::IndCalcB), 5072736, 4981504)
+	TB (krkn, false, false, (T22<R, N>::IndCalcW), (T22<R, N>::IndCalcB), 1649196, 1603202)
+	TB (krkb, false, false, (T22<R, B>::IndCalcW), (T22<R, B>::IndCalcB), 1649196, 1661823)
+	TB (krkr, true,  false, (T22<R, R>::IndCalcW), (T22<R, R>::IndCalcB), 1649196, 1649196)
+	TB (kqkp, false, false, (T22<Q, P>::IndCalcW), (T22<Q, P>::IndCalcB), 4810080, 4981504)
+	TB (kqkn, false, false, (T22<Q, N>::IndCalcW), (T22<Q, N>::IndCalcB), 1563735, 1603202)
+	TB (kqkb, false, false, (T22<Q, B>::IndCalcW), (T22<Q, B>::IndCalcB), 1563735, 1661823)
+	TB (kqkr, false, false, (T22<Q, R>::IndCalcW), (T22<Q, R>::IndCalcB), 1563735, 1649196)
+	TB (kqkq, true,  false, (T22<Q, Q>::IndCalcW), (T22<Q, Q>::IndCalcB), 1563735, 1563735)
+	TB (kppk, false, false, (T31<P, P>::IndCalcW), (T31<P, P>::IndCalcB), 1806671, 1912372)
+	TB (knpk, false, false, (T31<N, P>::IndCalcW), (T31<N, P>::IndCalcB), 4648581, 5124732)
+	TB (knnk, false, false, (T31<N, N>::IndCalcW), (T31<N, N>::IndCalcB),  735304,  873642)
+	TB (kbpk, false, false, (T31<B, P>::IndCalcW), (T31<B, P>::IndCalcB), 4817128, 5124732)
+	TB (kbnk, false, false, (T31<B, N>::IndCalcW), (T31<B, N>::IndCalcB), 1550620, 1747284)
+	TB (kbbk, false, false, (T31<B, B>::IndCalcW), (T31<B, B>::IndCalcB),  789885,  873642)
+	TB (krpk, false, false, (T31<R, P>::IndCalcW), (T31<R, P>::IndCalcB), 4779530, 5124732)
+	TB (krnk, false, false, (T31<R, N>::IndCalcW), (T31<R, N>::IndCalcB), 1538479, 1747284)
+	TB (krbk, false, false, (T31<R, B>::IndCalcW), (T31<R, B>::IndCalcB), 1594560, 1747284)
+	TB (krrk, false, false, (T31<R, R>::IndCalcW), (T31<R, R>::IndCalcB),  777300,  873642)
+	TB (kqpk, false, false, (T31<Q, P>::IndCalcW), (T31<Q, P>::IndCalcB), 4533490, 5124732)
+	TB (kqnk, false, false, (T31<Q, N>::IndCalcW), (T31<Q, N>::IndCalcB), 1459616, 1747284)
+	TB (kqbk, false, false, (T31<Q, B>::IndCalcW), (T31<Q, B>::IndCalcB), 1512507, 1747284)
+	TB (kqrk, false, false, (T31<Q, R>::IndCalcW), (T31<Q, R>::IndCalcB), 1500276, 1747284)
+	TB (kqqk, false, false, (T31<Q, Q>::IndCalcW), (T31<Q, Q>::IndCalcB),  698739,  873642)
 
 #if !defined (KPPKP_16BIT)
-	TB (kppkp, false, (T32<P, P, P>::IndCalcW), (T32<P, P, P>::IndCalcB),  84219361,  89391280)
+	TB (kppkp, false, false, (T32<P, P, P>::IndCalcW), (T32<P, P, P>::IndCalcB),  84219361,  89391280)
 #else
-	TB (kppkp, false, (T32<P, P, P>::IndCalcW), (T32<P, P, P>::IndCalcB), 2*84219361, 2*89391280)
+	TB (kppkp, false, true,  (T32<P, P, P>::IndCalcW), (T32<P, P, P>::IndCalcB),  84219361,  89391280)
 #endif
-	TB (kppkn, false, (T32<P, P, N>::IndCalcW), (T32<P, P, N>::IndCalcB), 108400260, 115899744)
-	TB (kppkb, false, (T32<P, P, B>::IndCalcW), (T32<P, P, B>::IndCalcB), 108400260, 120132000)
-	TB (kppkr, false, (T32<P, P, R>::IndCalcW), (T32<P, P, R>::IndCalcB), 108400260, 119209296)
-	TB (kppkq, false, (T32<P, P, Q>::IndCalcW), (T32<P, P, Q>::IndCalcB), 108400260, 113036880)
-	TB (knpkp, false, (T32<N, P, P>::IndCalcW), (T32<N, P, P>::IndCalcB), 219921779, 231758952)
-	TB (knpkn, false, (T32<N, P, N>::IndCalcW), (T32<N, P, N>::IndCalcB), 278914860, 295914240)
-	TB (knpkb, false, (T32<N, P, B>::IndCalcW), (T32<N, P, B>::IndCalcB), 278914860, 306720000)
-	TB (knpkr, false, (T32<N, P, R>::IndCalcW), (T32<N, P, R>::IndCalcB), 278914860, 304369920)
-	TB (knpkq, false, (T32<N, P, Q>::IndCalcW), (T32<N, P, Q>::IndCalcB), 278914860, 288610560)
-	TB (knnkp, false, (T32<N, N, P>::IndCalcW), (T32<N, N, P>::IndCalcB), 137991648, 149445120)
-	TB (knnkn, false, (T32<N, N, N>::IndCalcW), (T32<N, N, N>::IndCalcB),  44118240,  48096060)
-	TB (knnkb, false, (T32<N, N, B>::IndCalcW), (T32<N, N, B>::IndCalcB),  44118240,  49854690)
-	TB (knnkr, false, (T32<N, N, R>::IndCalcW), (T32<N, N, R>::IndCalcB),  44118240,  49475880)
-	TB (knnkq, false, (T32<N, N, Q>::IndCalcW), (T32<N, N, Q>::IndCalcB),  44118240,  46912050)
-	TB (kbpkp, false, (T32<B, P, P>::IndCalcW), (T32<B, P, P>::IndCalcB), 227896016, 231758952)
-	TB (kbpkn, false, (T32<B, P, N>::IndCalcW), (T32<B, P, N>::IndCalcB), 289027680, 295914240)
-	TB (kbpkb, false, (T32<B, P, B>::IndCalcW), (T32<B, P, B>::IndCalcB), 289027680, 306720000)
-	TB (kbpkr, false, (T32<B, P, R>::IndCalcW), (T32<B, P, R>::IndCalcB), 289027680, 304369920)
-	TB (kbpkq, false, (T32<B, P, Q>::IndCalcW), (T32<B, P, Q>::IndCalcB), 289027680, 288610560)
-	TB (kbnkp, false, (T32<B, N, P>::IndCalcW), (T32<B, N, P>::IndCalcB), 290989584, 298890240)
-	TB (kbnkn, false, (T32<B, N, N>::IndCalcW), (T32<B, N, N>::IndCalcB),  93037200,  96192120)
-	TB (kbnkb, false, (T32<B, N, B>::IndCalcW), (T32<B, N, B>::IndCalcB),  93037200,  99709380)
-	TB (kbnkr, false, (T32<B, N, R>::IndCalcW), (T32<B, N, R>::IndCalcB),  93037200,  98951760)
-	TB (kbnkq, false, (T32<B, N, Q>::IndCalcW), (T32<B, N, Q>::IndCalcB),  93037200,  93824100)
-	TB (kbbkp, false, (T32<B, B, P>::IndCalcW), (T32<B, B, P>::IndCalcB), 148223520, 149445120)
-	TB (kbbkn, false, (T32<B, B, N>::IndCalcW), (T32<B, B, N>::IndCalcB),  47393100,  48096060)
-	TB (kbbkb, false, (T32<B, B, B>::IndCalcW), (T32<B, B, B>::IndCalcB),  47393100,  49854690)
-	TB (kbbkr, false, (T32<B, B, R>::IndCalcW), (T32<B, B, R>::IndCalcB),  47393100,  49475880)
-	TB (kbbkq, false, (T32<B, B, Q>::IndCalcW), (T32<B, B, Q>::IndCalcB),  47393100,  46912050)
-	TB (krpkp, false, (T32<R, P, P>::IndCalcW), (T32<R, P, P>::IndCalcB), 226121876, 231758952)
-	TB (krpkn, false, (T32<R, P, N>::IndCalcW), (T32<R, P, N>::IndCalcB), 286777440, 295914240)
-	TB (krpkb, false, (T32<R, P, B>::IndCalcW), (T32<R, P, B>::IndCalcB), 286777440, 306720000)
-	TB (krpkr, false, (T32<R, P, R>::IndCalcW), (T32<R, P, R>::IndCalcB), 286777440, 304369920)
-	TB (krpkq, false, (T32<R, P, Q>::IndCalcW), (T32<R, P, Q>::IndCalcB), 286777440, 288610560)
-	TB (krnkp, false, (T32<R, N, P>::IndCalcW), (T32<R, N, P>::IndCalcB), 288692928, 298890240)
-	TB (krnkn, false, (T32<R, N, N>::IndCalcW), (T32<R, N, N>::IndCalcB),  92308740,  96192120)
-	TB (krnkb, false, (T32<R, N, B>::IndCalcW), (T32<R, N, B>::IndCalcB),  92308740,  99709380)
-	TB (krnkr, false, (T32<R, N, R>::IndCalcW), (T32<R, N, R>::IndCalcB),  92308740,  98951760)
-	TB (krnkq, false, (T32<R, N, Q>::IndCalcW), (T32<R, N, Q>::IndCalcB),  92308740,  93824100)
-	TB (krbkp, false, (T32<R, B, P>::IndCalcW), (T32<R, B, P>::IndCalcB), 299203200, 298890240)
-	TB (krbkn, false, (T32<R, B, N>::IndCalcW), (T32<R, B, N>::IndCalcB),  95673600,  96192120)
-	TB (krbkb, false, (T32<R, B, B>::IndCalcW), (T32<R, B, B>::IndCalcB),  95673600,  99709380)
-	TB (krbkr, false, (T32<R, B, R>::IndCalcW), (T32<R, B, R>::IndCalcB),  95673600,  98951760)
-	TB (krbkq, false, (T32<R, B, Q>::IndCalcW), (T32<R, B, Q>::IndCalcB),  95673600,  93824100)
-	TB (krrkp, false, (T32<R, R, P>::IndCalcW), (T32<R, R, P>::IndCalcB), 145901232, 149445120)
-	TB (krrkn, false, (T32<R, R, N>::IndCalcW), (T32<R, R, N>::IndCalcB),  46658340,  48096060)
-	TB (krrkb, false, (T32<R, R, B>::IndCalcW), (T32<R, R, B>::IndCalcB),  46658340,  49854690)
-	TB (krrkr, false, (T32<R, R, R>::IndCalcW), (T32<R, R, R>::IndCalcB),  46658340,  49475880)
-	TB (krrkq, false, (T32<R, R, Q>::IndCalcW), (T32<R, R, Q>::IndCalcB),  46658340,  46912050)
-	TB (kqpkp, false, (T32<Q, P, P>::IndCalcW), (T32<Q, P, P>::IndCalcB), 214481388, 231758952)
-	TB (kqpkn, false, (T32<Q, P, N>::IndCalcW), (T32<Q, P, N>::IndCalcB), 272015040, 295914240)
-	TB (kqpkb, false, (T32<Q, P, B>::IndCalcW), (T32<Q, P, B>::IndCalcB), 272015040, 306720000)
-	TB (kqpkr, false, (T32<Q, P, R>::IndCalcW), (T32<Q, P, R>::IndCalcB), 272015040, 304369920)
-	TB (kqpkq, false, (T32<Q, P, Q>::IndCalcW), (T32<Q, P, Q>::IndCalcB), 272015040, 288610560)
-	TB (kqnkp, false, (T32<Q, N, P>::IndCalcW), (T32<Q, N, P>::IndCalcB), 273904512, 298890240)
-	TB (kqnkn, false, (T32<Q, N, N>::IndCalcW), (T32<Q, N, N>::IndCalcB),  87576960,  96192120)
-	TB (kqnkb, false, (T32<Q, N, B>::IndCalcW), (T32<Q, N, B>::IndCalcB),  87576960,  99709380)
-	TB (kqnkr, false, (T32<Q, N, R>::IndCalcW), (T32<Q, N, R>::IndCalcB),  87576960,  98951760)
-	TB (kqnkq, false, (T32<Q, N, Q>::IndCalcW), (T32<Q, N, Q>::IndCalcB),  87576960,  93824100)
-	TB (kqbkp, false, (T32<Q, B, P>::IndCalcW), (T32<Q, B, P>::IndCalcB), 283818240, 298890240)
-	TB (kqbkn, false, (T32<Q, B, N>::IndCalcW), (T32<Q, B, N>::IndCalcB),  90750420,  96192120)
-	TB (kqbkb, false, (T32<Q, B, B>::IndCalcW), (T32<Q, B, B>::IndCalcB),  90750420,  99709380)
-	TB (kqbkr, false, (T32<Q, B, R>::IndCalcW), (T32<Q, B, R>::IndCalcB),  90750420,  98951760)
-	TB (kqbkq, false, (T32<Q, B, Q>::IndCalcW), (T32<Q, B, Q>::IndCalcB),  90750420,  93824100)
-	TB (kqrkp, false, (T32<Q, R, P>::IndCalcW), (T32<Q, R, P>::IndCalcB), 281568240, 298890240)
-	TB (kqrkn, false, (T32<Q, R, N>::IndCalcW), (T32<Q, R, N>::IndCalcB),  90038460,  96192120)
-	TB (kqrkb, false, (T32<Q, R, B>::IndCalcW), (T32<Q, R, B>::IndCalcB),  90038460,  99709380)
-	TB (kqrkr, false, (T32<Q, R, R>::IndCalcW), (T32<Q, R, R>::IndCalcB),  90038460,  98951760)
-	TB (kqrkq, false, (T32<Q, R, Q>::IndCalcW), (T32<Q, R, Q>::IndCalcB),  90038460,  93824100)
-	TB (kqqkp, false, (T32<Q, Q, P>::IndCalcW), (T32<Q, Q, P>::IndCalcB), 131170128, 149445120)
-	TB (kqqkn, false, (T32<Q, Q, N>::IndCalcW), (T32<Q, Q, N>::IndCalcB),  41944320,  48096060)
-	TB (kqqkb, false, (T32<Q, Q, B>::IndCalcW), (T32<Q, Q, B>::IndCalcB),  41944320,  49854690)
-	TB (kqqkr, false, (T32<Q, Q, R>::IndCalcW), (T32<Q, Q, R>::IndCalcB),  41944320,  49475880)
-	TB (kqqkq, false, (T32<Q, Q, Q>::IndCalcW), (T32<Q, Q, Q>::IndCalcB),  41944320,  46912050)
+	TB (kppkn, false, false, (T32<P, P, N>::IndCalcW), (T32<P, P, N>::IndCalcB), 108400260, 115899744)
+	TB (kppkb, false, false, (T32<P, P, B>::IndCalcW), (T32<P, P, B>::IndCalcB), 108400260, 120132000)
+	TB (kppkr, false, false, (T32<P, P, R>::IndCalcW), (T32<P, P, R>::IndCalcB), 108400260, 119209296)
+	TB (kppkq, false, false, (T32<P, P, Q>::IndCalcW), (T32<P, P, Q>::IndCalcB), 108400260, 113036880)
+	TB (knpkp, false, false, (T32<N, P, P>::IndCalcW), (T32<N, P, P>::IndCalcB), 219921779, 231758952)
+	TB (knpkn, false, false, (T32<N, P, N>::IndCalcW), (T32<N, P, N>::IndCalcB), 278914860, 295914240)
+	TB (knpkb, false, false, (T32<N, P, B>::IndCalcW), (T32<N, P, B>::IndCalcB), 278914860, 306720000)
+	TB (knpkr, false, false, (T32<N, P, R>::IndCalcW), (T32<N, P, R>::IndCalcB), 278914860, 304369920)
+	TB (knpkq, false, false, (T32<N, P, Q>::IndCalcW), (T32<N, P, Q>::IndCalcB), 278914860, 288610560)
+	TB (knnkp, false, false, (T32<N, N, P>::IndCalcW), (T32<N, N, P>::IndCalcB), 137991648, 149445120)
+	TB (knnkn, false, false, (T32<N, N, N>::IndCalcW), (T32<N, N, N>::IndCalcB),  44118240,  48096060)
+	TB (knnkb, false, false, (T32<N, N, B>::IndCalcW), (T32<N, N, B>::IndCalcB),  44118240,  49854690)
+	TB (knnkr, false, false, (T32<N, N, R>::IndCalcW), (T32<N, N, R>::IndCalcB),  44118240,  49475880)
+	TB (knnkq, false, false, (T32<N, N, Q>::IndCalcW), (T32<N, N, Q>::IndCalcB),  44118240,  46912050)
+	TB (kbpkp, false, false, (T32<B, P, P>::IndCalcW), (T32<B, P, P>::IndCalcB), 227896016, 231758952)
+	TB (kbpkn, false, false, (T32<B, P, N>::IndCalcW), (T32<B, P, N>::IndCalcB), 289027680, 295914240)
+	TB (kbpkb, false, false, (T32<B, P, B>::IndCalcW), (T32<B, P, B>::IndCalcB), 289027680, 306720000)
+	TB (kbpkr, false, false, (T32<B, P, R>::IndCalcW), (T32<B, P, R>::IndCalcB), 289027680, 304369920)
+	TB (kbpkq, false, false, (T32<B, P, Q>::IndCalcW), (T32<B, P, Q>::IndCalcB), 289027680, 288610560)
+	TB (kbnkp, false, false, (T32<B, N, P>::IndCalcW), (T32<B, N, P>::IndCalcB), 290989584, 298890240)
+	TB (kbnkn, false, false, (T32<B, N, N>::IndCalcW), (T32<B, N, N>::IndCalcB),  93037200,  96192120)
+	TB (kbnkb, false, false, (T32<B, N, B>::IndCalcW), (T32<B, N, B>::IndCalcB),  93037200,  99709380)
+	TB (kbnkr, false, false, (T32<B, N, R>::IndCalcW), (T32<B, N, R>::IndCalcB),  93037200,  98951760)
+	TB (kbnkq, false, false, (T32<B, N, Q>::IndCalcW), (T32<B, N, Q>::IndCalcB),  93037200,  93824100)
+	TB (kbbkp, false, false, (T32<B, B, P>::IndCalcW), (T32<B, B, P>::IndCalcB), 148223520, 149445120)
+	TB (kbbkn, false, false, (T32<B, B, N>::IndCalcW), (T32<B, B, N>::IndCalcB),  47393100,  48096060)
+	TB (kbbkb, false, false, (T32<B, B, B>::IndCalcW), (T32<B, B, B>::IndCalcB),  47393100,  49854690)
+	TB (kbbkr, false, false, (T32<B, B, R>::IndCalcW), (T32<B, B, R>::IndCalcB),  47393100,  49475880)
+	TB (kbbkq, false, false, (T32<B, B, Q>::IndCalcW), (T32<B, B, Q>::IndCalcB),  47393100,  46912050)
+	TB (krpkp, false, false, (T32<R, P, P>::IndCalcW), (T32<R, P, P>::IndCalcB), 226121876, 231758952)
+	TB (krpkn, false, false, (T32<R, P, N>::IndCalcW), (T32<R, P, N>::IndCalcB), 286777440, 295914240)
+	TB (krpkb, false, false, (T32<R, P, B>::IndCalcW), (T32<R, P, B>::IndCalcB), 286777440, 306720000)
+	TB (krpkr, false, false, (T32<R, P, R>::IndCalcW), (T32<R, P, R>::IndCalcB), 286777440, 304369920)
+	TB (krpkq, false, false, (T32<R, P, Q>::IndCalcW), (T32<R, P, Q>::IndCalcB), 286777440, 288610560)
+	TB (krnkp, false, false, (T32<R, N, P>::IndCalcW), (T32<R, N, P>::IndCalcB), 288692928, 298890240)
+	TB (krnkn, false, false, (T32<R, N, N>::IndCalcW), (T32<R, N, N>::IndCalcB),  92308740,  96192120)
+	TB (krnkb, false, false, (T32<R, N, B>::IndCalcW), (T32<R, N, B>::IndCalcB),  92308740,  99709380)
+	TB (krnkr, false, false, (T32<R, N, R>::IndCalcW), (T32<R, N, R>::IndCalcB),  92308740,  98951760)
+	TB (krnkq, false, false, (T32<R, N, Q>::IndCalcW), (T32<R, N, Q>::IndCalcB),  92308740,  93824100)
+	TB (krbkp, false, false, (T32<R, B, P>::IndCalcW), (T32<R, B, P>::IndCalcB), 299203200, 298890240)
+	TB (krbkn, false, false, (T32<R, B, N>::IndCalcW), (T32<R, B, N>::IndCalcB),  95673600,  96192120)
+	TB (krbkb, false, false, (T32<R, B, B>::IndCalcW), (T32<R, B, B>::IndCalcB),  95673600,  99709380)
+	TB (krbkr, false, false, (T32<R, B, R>::IndCalcW), (T32<R, B, R>::IndCalcB),  95673600,  98951760)
+	TB (krbkq, false, false, (T32<R, B, Q>::IndCalcW), (T32<R, B, Q>::IndCalcB),  95673600,  93824100)
+	TB (krrkp, false, false, (T32<R, R, P>::IndCalcW), (T32<R, R, P>::IndCalcB), 145901232, 149445120)
+	TB (krrkn, false, false, (T32<R, R, N>::IndCalcW), (T32<R, R, N>::IndCalcB),  46658340,  48096060)
+	TB (krrkb, false, false, (T32<R, R, B>::IndCalcW), (T32<R, R, B>::IndCalcB),  46658340,  49854690)
+	TB (krrkr, false, false, (T32<R, R, R>::IndCalcW), (T32<R, R, R>::IndCalcB),  46658340,  49475880)
+	TB (krrkq, false, false, (T32<R, R, Q>::IndCalcW), (T32<R, R, Q>::IndCalcB),  46658340,  46912050)
+	TB (kqpkp, false, false, (T32<Q, P, P>::IndCalcW), (T32<Q, P, P>::IndCalcB), 214481388, 231758952)
+	TB (kqpkn, false, false, (T32<Q, P, N>::IndCalcW), (T32<Q, P, N>::IndCalcB), 272015040, 295914240)
+	TB (kqpkb, false, false, (T32<Q, P, B>::IndCalcW), (T32<Q, P, B>::IndCalcB), 272015040, 306720000)
+	TB (kqpkr, false, false, (T32<Q, P, R>::IndCalcW), (T32<Q, P, R>::IndCalcB), 272015040, 304369920)
+	TB (kqpkq, false, false, (T32<Q, P, Q>::IndCalcW), (T32<Q, P, Q>::IndCalcB), 272015040, 288610560)
+	TB (kqnkp, false, false, (T32<Q, N, P>::IndCalcW), (T32<Q, N, P>::IndCalcB), 273904512, 298890240)
+	TB (kqnkn, false, false, (T32<Q, N, N>::IndCalcW), (T32<Q, N, N>::IndCalcB),  87576960,  96192120)
+	TB (kqnkb, false, false, (T32<Q, N, B>::IndCalcW), (T32<Q, N, B>::IndCalcB),  87576960,  99709380)
+	TB (kqnkr, false, false, (T32<Q, N, R>::IndCalcW), (T32<Q, N, R>::IndCalcB),  87576960,  98951760)
+	TB (kqnkq, false, false, (T32<Q, N, Q>::IndCalcW), (T32<Q, N, Q>::IndCalcB),  87576960,  93824100)
+	TB (kqbkp, false, false, (T32<Q, B, P>::IndCalcW), (T32<Q, B, P>::IndCalcB), 283818240, 298890240)
+	TB (kqbkn, false, false, (T32<Q, B, N>::IndCalcW), (T32<Q, B, N>::IndCalcB),  90750420,  96192120)
+	TB (kqbkb, false, false, (T32<Q, B, B>::IndCalcW), (T32<Q, B, B>::IndCalcB),  90750420,  99709380)
+	TB (kqbkr, false, false, (T32<Q, B, R>::IndCalcW), (T32<Q, B, R>::IndCalcB),  90750420,  98951760)
+	TB (kqbkq, false, false, (T32<Q, B, Q>::IndCalcW), (T32<Q, B, Q>::IndCalcB),  90750420,  93824100)
+	TB (kqrkp, false, false, (T32<Q, R, P>::IndCalcW), (T32<Q, R, P>::IndCalcB), 281568240, 298890240)
+	TB (kqrkn, false, false, (T32<Q, R, N>::IndCalcW), (T32<Q, R, N>::IndCalcB),  90038460,  96192120)
+	TB (kqrkb, false, false, (T32<Q, R, B>::IndCalcW), (T32<Q, R, B>::IndCalcB),  90038460,  99709380)
+	TB (kqrkr, false, false, (T32<Q, R, R>::IndCalcW), (T32<Q, R, R>::IndCalcB),  90038460,  98951760)
+	TB (kqrkq, false, false, (T32<Q, R, Q>::IndCalcW), (T32<Q, R, Q>::IndCalcB),  90038460,  93824100)
+	TB (kqqkp, false, false, (T32<Q, Q, P>::IndCalcW), (T32<Q, Q, P>::IndCalcB), 131170128, 149445120)
+	TB (kqqkn, false, false, (T32<Q, Q, N>::IndCalcW), (T32<Q, Q, N>::IndCalcB),  41944320,  48096060)
+	TB (kqqkb, false, false, (T32<Q, Q, B>::IndCalcW), (T32<Q, Q, B>::IndCalcB),  41944320,  49854690)
+	TB (kqqkr, false, false, (T32<Q, Q, R>::IndCalcW), (T32<Q, Q, R>::IndCalcB),  41944320,  49475880)
+	TB (kqqkq, false, false, (T32<Q, Q, Q>::IndCalcW), (T32<Q, Q, Q>::IndCalcB),  41944320,  46912050)
 
 #if defined (T41_INCLUDE)
-	TB (kpppk, false, (T41<P, P, P>::IndCalcW), (T41<P, P, P>::IndCalcB),  26061704,  28388716)
-	TB (knppk, false, (T41<N, P, P>::IndCalcW), (T41<N, P, P>::IndCalcB), 102898651, 114742320)
-	TB (knnpk, false, (T41<N, N, P>::IndCalcW), (T41<N, N, P>::IndCalcB), 130135501, 153741960)
-	TB (knnnk, false, (T41<N, N, N>::IndCalcW), (T41<N, N, N>::IndCalcB),  13486227,  17472840)
-	TB (kbppk, false, (T41<B, P, P>::IndCalcW), (T41<B, P, P>::IndCalcB), 106602156, 114742320)
-	TB (kbnpk, false, (T41<B, N, P>::IndCalcW), (T41<B, N, P>::IndCalcB), 274352939, 307483920)
-	TB (kbnnk, false, (T41<B, N, N>::IndCalcW), (T41<B, N, N>::IndCalcB),  43406294, 52418520)
-	TB (kbbpk, false, (T41<B, B, P>::IndCalcW), (T41<B, B, P>::IndCalcB), 139715040, 153741960)
-	TB (kbbnk, false, (T41<B, B, N>::IndCalcW), (T41<B, B, N>::IndCalcB),  44983618,  52418520)
-	TB (kbbbk, false, (T41<B, B, B>::IndCalcW), (T41<B, B, B>::IndCalcB),  15010230,  17472840)
-	TB (krppk, false, (T41<R, P, P>::IndCalcW), (T41<R, P, P>::IndCalcB), 105758666, 114742320)
-	TB (krnpk, false, (T41<R, N, P>::IndCalcW), (T41<R, N, P>::IndCalcB), 272153675, 307483920)
-	TB (krnnk, false, (T41<R, N, N>::IndCalcW), (T41<R, N, N>::IndCalcB),  43056198,  52418520)
-	TB (krbpk, false, (T41<R, B, P>::IndCalcW), (T41<R, B, P>::IndCalcB), 281991360, 307483920)
-	TB (krbnk, false, (T41<R, B, N>::IndCalcW), (T41<R, B, N>::IndCalcB),  90787358, 104837040)
-	TB (krbbk, false, (T41<R, B, B>::IndCalcW), (T41<R, B, B>::IndCalcB),  46242089,  52418520)
-	TB (krrpk, false, (T41<R, R, P>::IndCalcW), (T41<R, R, P>::IndCalcB), 137491197, 153741960)
-	TB (krrnk, false, (T41<R, R, N>::IndCalcW), (T41<R, R, N>::IndCalcB),  44265261,  52418520)
-	TB (krrbk, false, (T41<R, R, B>::IndCalcW), (T41<R, R, B>::IndCalcB),  45873720,  52418520)
-	TB (krrrk, false, (T41<R, R, R>::IndCalcW), (T41<R, R, R>::IndCalcB),  14644690,  17472840)
-	TB (kqppk, false, (T41<Q, P, P>::IndCalcW), (T41<Q, P, P>::IndCalcB), 100347220, 114742320)
-	TB (kqnpk, false, (T41<Q, N, P>::IndCalcW), (T41<Q, N, P>::IndCalcB), 258294639, 307483920)
-	TB (kqnnk, false, (T41<Q, N, N>::IndCalcW), (T41<Q, N, N>::IndCalcB),  40873646,  52418520)
-	TB (kqbpk, false, (T41<Q, B, P>::IndCalcW), (T41<Q, B, P>::IndCalcB), 267576632, 307483920)
-	TB (kqbnk, false, (T41<Q, B, N>::IndCalcW), (T41<Q, B, N>::IndCalcB),  86166717, 104837040)
-	TB (kqbbk, false, (T41<Q, B, B>::IndCalcW), (T41<Q, B, B>::IndCalcB),  43879679,  52418520)
-	TB (kqrpk, false, (T41<Q, R, P>::IndCalcW), (T41<Q, R, P>::IndCalcB), 265421907, 307483920)
-	TB (kqrnk, false, (T41<Q, R, N>::IndCalcW), (T41<Q, R, N>::IndCalcB),  85470603, 104837040)
-	TB (kqrbk, false, (T41<Q, R, B>::IndCalcW), (T41<Q, R, B>::IndCalcB),  88557959, 104837040)
-	TB (kqrrk, false, (T41<Q, R, R>::IndCalcW), (T41<Q, R, R>::IndCalcB),  43157690,  52418520)
-	TB (kqqpk, false, (T41<Q, Q, P>::IndCalcW), (T41<Q, Q, P>::IndCalcB), 123688859, 153741960)
-	TB (kqqnk, false, (T41<Q, Q, N>::IndCalcW), (T41<Q, Q, N>::IndCalcB),  39840787,  52418520)
-	TB (kqqbk, false, (T41<Q, Q, B>::IndCalcW), (T41<Q, Q, B>::IndCalcB),  41270973,  52418520)
-	TB (kqqrk, false, (T41<Q, Q, R>::IndCalcW), (T41<Q, Q, R>::IndCalcB),  40916820,  52418520)
-	TB (kqqqk, false, (T41<Q, Q, Q>::IndCalcW), (T41<Q, Q, Q>::IndCalcB),  12479974,  17472840)
+	TB (kpppk, false, false, (T41<P, P, P>::IndCalcW), (T41<P, P, P>::IndCalcB),  26061704,  28388716)
+	TB (knppk, false, false, (T41<N, P, P>::IndCalcW), (T41<N, P, P>::IndCalcB), 102898651, 114742320)
+	TB (knnpk, false, false, (T41<N, N, P>::IndCalcW), (T41<N, N, P>::IndCalcB), 130135501, 153741960)
+	TB (knnnk, false, false, (T41<N, N, N>::IndCalcW), (T41<N, N, N>::IndCalcB),  13486227,  17472840)
+	TB (kbppk, false, false, (T41<B, P, P>::IndCalcW), (T41<B, P, P>::IndCalcB), 106602156, 114742320)
+	TB (kbnpk, false, false, (T41<B, N, P>::IndCalcW), (T41<B, N, P>::IndCalcB), 274352939, 307483920)
+	TB (kbnnk, false, false, (T41<B, N, N>::IndCalcW), (T41<B, N, N>::IndCalcB),  43406294, 52418520)
+	TB (kbbpk, false, false, (T41<B, B, P>::IndCalcW), (T41<B, B, P>::IndCalcB), 139715040, 153741960)
+	TB (kbbnk, false, false, (T41<B, B, N>::IndCalcW), (T41<B, B, N>::IndCalcB),  44983618,  52418520)
+	TB (kbbbk, false, false, (T41<B, B, B>::IndCalcW), (T41<B, B, B>::IndCalcB),  15010230,  17472840)
+	TB (krppk, false, false, (T41<R, P, P>::IndCalcW), (T41<R, P, P>::IndCalcB), 105758666, 114742320)
+	TB (krnpk, false, false, (T41<R, N, P>::IndCalcW), (T41<R, N, P>::IndCalcB), 272153675, 307483920)
+	TB (krnnk, false, false, (T41<R, N, N>::IndCalcW), (T41<R, N, N>::IndCalcB),  43056198,  52418520)
+	TB (krbpk, false, false, (T41<R, B, P>::IndCalcW), (T41<R, B, P>::IndCalcB), 281991360, 307483920)
+	TB (krbnk, false, false, (T41<R, B, N>::IndCalcW), (T41<R, B, N>::IndCalcB),  90787358, 104837040)
+	TB (krbbk, false, false, (T41<R, B, B>::IndCalcW), (T41<R, B, B>::IndCalcB),  46242089,  52418520)
+	TB (krrpk, false, false, (T41<R, R, P>::IndCalcW), (T41<R, R, P>::IndCalcB), 137491197, 153741960)
+	TB (krrnk, false, false, (T41<R, R, N>::IndCalcW), (T41<R, R, N>::IndCalcB),  44265261,  52418520)
+	TB (krrbk, false, false, (T41<R, R, B>::IndCalcW), (T41<R, R, B>::IndCalcB),  45873720,  52418520)
+	TB (krrrk, false, false, (T41<R, R, R>::IndCalcW), (T41<R, R, R>::IndCalcB),  14644690,  17472840)
+	TB (kqppk, false, false, (T41<Q, P, P>::IndCalcW), (T41<Q, P, P>::IndCalcB), 100347220, 114742320)
+	TB (kqnpk, false, false, (T41<Q, N, P>::IndCalcW), (T41<Q, N, P>::IndCalcB), 258294639, 307483920)
+	TB (kqnnk, false, false, (T41<Q, N, N>::IndCalcW), (T41<Q, N, N>::IndCalcB),  40873646,  52418520)
+	TB (kqbpk, false, false, (T41<Q, B, P>::IndCalcW), (T41<Q, B, P>::IndCalcB), 267576632, 307483920)
+	TB (kqbnk, false, false, (T41<Q, B, N>::IndCalcW), (T41<Q, B, N>::IndCalcB),  86166717, 104837040)
+	TB (kqbbk, false, false, (T41<Q, B, B>::IndCalcW), (T41<Q, B, B>::IndCalcB),  43879679,  52418520)
+	TB (kqrpk, false, false, (T41<Q, R, P>::IndCalcW), (T41<Q, R, P>::IndCalcB), 265421907, 307483920)
+	TB (kqrnk, false, false, (T41<Q, R, N>::IndCalcW), (T41<Q, R, N>::IndCalcB),  85470603, 104837040)
+	TB (kqrbk, false, false, (T41<Q, R, B>::IndCalcW), (T41<Q, R, B>::IndCalcB),  88557959, 104837040)
+	TB (kqrrk, false, false, (T41<Q, R, R>::IndCalcW), (T41<Q, R, R>::IndCalcB),  43157690,  52418520)
+	TB (kqqpk, false, false, (T41<Q, Q, P>::IndCalcW), (T41<Q, Q, P>::IndCalcB), 123688859, 153741960)
+	TB (kqqnk, false, false, (T41<Q, Q, N>::IndCalcW), (T41<Q, Q, N>::IndCalcB),  39840787,  52418520)
+	TB (kqqbk, false, false, (T41<Q, Q, B>::IndCalcW), (T41<Q, Q, B>::IndCalcB),  41270973,  52418520)
+	TB (kqqrk, false, false, (T41<Q, Q, R>::IndCalcW), (T41<Q, Q, R>::IndCalcB),  40916820,  52418520)
+	TB (kqqqk, false, false, (T41<Q, Q, Q>::IndCalcW), (T41<Q, Q, Q>::IndCalcB),  12479974,  17472840)
 #endif
 
-#if defined (EGTB6)
-	TB (knnknn, true,  (T33<N, N, N, N>::IndCalcW), (T33<N, N, N, N>::IndCalcB),  1301488080,  1301488080)
-	TB (kbnknn, false, (T33<B, N, N, N>::IndCalcW), (T33<B, N, N, N>::IndCalcB),  2744597400,  2602976160)
-	TB (kbbknn, false, (T33<B, B, N, N>::IndCalcW), (T33<B, B, N, N>::IndCalcB),  1398096450,  1301488080)
-	TB (kbbkbn, false, (T33<B, B, B, N>::IndCalcW), (T33<B, B, B, N>::IndCalcB),  2796192900,  2744597400)
-	TB (kbbkbb, true,  (T33<B, B, B, B>::IndCalcW), (T33<B, B, B, B>::IndCalcB),  1398096450,  1398096450)
-	TB (krnknn, false, (T33<R, N, N, N>::IndCalcW), (T33<R, N, N, N>::IndCalcB),  2723107830,  2602976160)
-	TB (krnkbb, false, (T33<R, N, B, B>::IndCalcW), (T33<R, N, B, B>::IndCalcB),  2723107830,  2796192900)
-	TB (krbknn, false, (T33<R, B, N, N>::IndCalcW), (T33<R, B, N, N>::IndCalcB),  2822371200,  2602976160)
-	TB (krbkbb, false, (T33<R, B, B, B>::IndCalcW), (T33<R, B, B, B>::IndCalcB),  2822371200,  2796192900)
-	TB (krrknn, false, (T33<R, R, N, N>::IndCalcW), (T33<R, R, N, N>::IndCalcB),  1376421030,  1301488080)
-	TB (krrkbn, false, (T33<R, R, B, N>::IndCalcW), (T33<R, R, B, N>::IndCalcB),  2752842060,  2744597400)
-	TB (krrkbb, false, (T33<R, R, B, B>::IndCalcW), (T33<R, R, B, B>::IndCalcB),  1376421030,  1398096450)
-	TB (krrkrn, false, (T33<R, R, R, N>::IndCalcW), (T33<R, R, R, N>::IndCalcB),  2752842060,  2723107830)
-	TB (krrkrr, true,  (T33<R, R, R, R>::IndCalcW), (T33<R, R, R, R>::IndCalcB),  1376421030,  1376421030)
-	TB (kqnknn, false, (T33<Q, N, N, N>::IndCalcW), (T33<Q, N, N, N>::IndCalcB),  2583520320,  2602976160)
-	TB (kqnkbb, false, (T33<Q, N, B, B>::IndCalcW), (T33<Q, N, B, B>::IndCalcB),  2583520320,  2796192900)
-	TB (kqnkrr, false, (T33<Q, N, R, R>::IndCalcW), (T33<Q, N, R, R>::IndCalcB),  2583520320,  2752842060)
-	TB (kqbknn, false, (T33<Q, B, N, N>::IndCalcW), (T33<Q, B, N, N>::IndCalcB),  2677137390,  2602976160)
-	TB (kqbkbb, false, (T33<Q, B, B, B>::IndCalcW), (T33<Q, B, B, B>::IndCalcB),  2677137390,  2796192900)
-	TB (kqbkrr, false, (T33<Q, B, R, R>::IndCalcW), (T33<Q, B, R, R>::IndCalcB),  2677137390,  2752842060)
-	TB (kqrknn, false, (T33<Q, R, N, N>::IndCalcW), (T33<Q, R, N, N>::IndCalcB),  2656134570,  2602976160)
-	TB (kqrkbb, false, (T33<Q, R, B, B>::IndCalcW), (T33<Q, R, B, B>::IndCalcB),  2656134570,  2796192900)
-	TB (kqrkrr, false, (T33<Q, R, R, R>::IndCalcW), (T33<Q, R, R, R>::IndCalcB),  2656134570,  2752842060)
-	TB (kqqknn, false, (T33<Q, Q, N, N>::IndCalcW), (T33<Q, Q, N, N>::IndCalcB),  1237357440,  1301488080)
-	TB (kqqkbn, false, (T33<Q, Q, B, N>::IndCalcW), (T33<Q, Q, B, N>::IndCalcB),  2474714880,  2744597400)
-	TB (kqqkbb, false, (T33<Q, Q, B, B>::IndCalcW), (T33<Q, Q, B, B>::IndCalcB),  1237357440,  1398096450)
-	TB (kqqkrn, false, (T33<Q, Q, R, N>::IndCalcW), (T33<Q, Q, R, N>::IndCalcB),  2474714880,  2723107830)
-	TB (kqqkrb, false, (T33<Q, Q, R, B>::IndCalcW), (T33<Q, Q, R, B>::IndCalcB),  2474714880,  2822371200)
-	TB (kqqkrr, false, (T33<Q, Q, R, R>::IndCalcW), (T33<Q, Q, R, R>::IndCalcB),  1237357440,  1376421030)
-	TB (kqqkqn, false, (T33<Q, Q, Q, N>::IndCalcW), (T33<Q, Q, Q, N>::IndCalcB),  2474714880,  2583520320)
-	TB (kqqkqb, false, (T33<Q, Q, Q, B>::IndCalcW), (T33<Q, Q, Q, B>::IndCalcB),  2474714880,  2677137390)
-	TB (kqqkqr, false, (T33<Q, Q, Q, R>::IndCalcW), (T33<Q, Q, Q, R>::IndCalcB),  2474714880,  2656134570)
-	TB (kqqkqq, true,  (T33<Q, Q, Q, Q>::IndCalcW), (T33<Q, Q, Q, Q>::IndCalcB),  1237357440,  1237357440)
+#if defined (T33_INCLUDE)
+	TB (knnknn, true,  false, (T33<N, N, N, N>::IndCalcW), (T33<N, N, N, N>::IndCalcB),  1301488080,  1301488080)
+	TB (kbnknn, false, false, (T33<B, N, N, N>::IndCalcW), (T33<B, N, N, N>::IndCalcB),  2744597400,  2602976160)
+	TB (kbbknn, false, false, (T33<B, B, N, N>::IndCalcW), (T33<B, B, N, N>::IndCalcB),  1398096450,  1301488080)
+	TB (kbbkbn, false, false, (T33<B, B, B, N>::IndCalcW), (T33<B, B, B, N>::IndCalcB),  2796192900,  2744597400)
+	TB (kbbkbb, true,  false, (T33<B, B, B, B>::IndCalcW), (T33<B, B, B, B>::IndCalcB),  1398096450,  1398096450)
+	TB (krnknn, false, true,  (T33<R, N, N, N>::IndCalcW), (T33<R, N, N, N>::IndCalcB),  2723107830,  2602976160)
+	TB (krnkbb, false, true,  (T33<R, N, B, B>::IndCalcW), (T33<R, N, B, B>::IndCalcB),  2723107830,  2796192900)
+	TB (krbknn, false, true,  (T33<R, B, N, N>::IndCalcW), (T33<R, B, N, N>::IndCalcB),  2822371200,  2602976160)
+	TB (krbkbb, false, false, (T33<R, B, B, B>::IndCalcW), (T33<R, B, B, B>::IndCalcB),  2822371200,  2796192900)
+	TB (krrknn, false, false, (T33<R, R, N, N>::IndCalcW), (T33<R, R, N, N>::IndCalcB),  1376421030,  1301488080)
+	TB (krrkbn, false, false, (T33<R, R, B, N>::IndCalcW), (T33<R, R, B, N>::IndCalcB),  2752842060,  2744597400)
+	TB (krrkbb, false, false, (T33<R, R, B, B>::IndCalcW), (T33<R, R, B, B>::IndCalcB),  1376421030,  1398096450)
+	TB (krrkrn, false, true,  (T33<R, R, R, N>::IndCalcW), (T33<R, R, R, N>::IndCalcB),  2752842060,  2723107830)
+	TB (krrkrr, true,  false, (T33<R, R, R, R>::IndCalcW), (T33<R, R, R, R>::IndCalcB),  1376421030,  1376421030)
+	TB (kqnknn, false, false, (T33<Q, N, N, N>::IndCalcW), (T33<Q, N, N, N>::IndCalcB),  2583520320,  2602976160)
+	TB (kqnkbb, false, false, (T33<Q, N, B, B>::IndCalcW), (T33<Q, N, B, B>::IndCalcB),  2583520320,  2796192900)
+	TB (kqnkrr, false, true,  (T33<Q, N, R, R>::IndCalcW), (T33<Q, N, R, R>::IndCalcB),  2583520320,  2752842060)
+	TB (kqbknn, false, false, (T33<Q, B, N, N>::IndCalcW), (T33<Q, B, N, N>::IndCalcB),  2677137390,  2602976160)
+	TB (kqbkbb, false, false, (T33<Q, B, B, B>::IndCalcW), (T33<Q, B, B, B>::IndCalcB),  2677137390,  2796192900)
+	TB (kqbkrr, false, false, (T33<Q, B, R, R>::IndCalcW), (T33<Q, B, R, R>::IndCalcB),  2677137390,  2752842060)
+	TB (kqrknn, false, false, (T33<Q, R, N, N>::IndCalcW), (T33<Q, R, N, N>::IndCalcB),  2656134570,  2602976160)
+	TB (kqrkbb, false, false, (T33<Q, R, B, B>::IndCalcW), (T33<Q, R, B, B>::IndCalcB),  2656134570,  2796192900)
+	TB (kqrkrr, false, false, (T33<Q, R, R, R>::IndCalcW), (T33<Q, R, R, R>::IndCalcB),  2656134570,  2752842060)
+	TB (kqqknn, false, false, (T33<Q, Q, N, N>::IndCalcW), (T33<Q, Q, N, N>::IndCalcB),  1237357440,  1301488080)
+	TB (kqqkbn, false, false, (T33<Q, Q, B, N>::IndCalcW), (T33<Q, Q, B, N>::IndCalcB),  2474714880,  2744597400)
+	TB (kqqkbb, false, false, (T33<Q, Q, B, B>::IndCalcW), (T33<Q, Q, B, B>::IndCalcB),  1237357440,  1398096450)
+	TB (kqqkrn, false, false, (T33<Q, Q, R, N>::IndCalcW), (T33<Q, Q, R, N>::IndCalcB),  2474714880,  2723107830)
+	TB (kqqkrb, false, false, (T33<Q, Q, R, B>::IndCalcW), (T33<Q, Q, R, B>::IndCalcB),  2474714880,  2822371200)
+	TB (kqqkrr, false, false, (T33<Q, Q, R, R>::IndCalcW), (T33<Q, Q, R, R>::IndCalcB),  1237357440,  1376421030)
+	TB (kqqkqn, false, false, (T33<Q, Q, Q, N>::IndCalcW), (T33<Q, Q, Q, N>::IndCalcB),  2474714880,  2583520320)
+	TB (kqqkqb, false, false, (T33<Q, Q, Q, B>::IndCalcW), (T33<Q, Q, Q, B>::IndCalcB),  2474714880,  2677137390)
+	TB (kqqkqr, false, false, (T33<Q, Q, Q, R>::IndCalcW), (T33<Q, Q, Q, R>::IndCalcB),  2474714880,  2656134570)
+	TB (kqqkqq, true,  false, (T33<Q, Q, Q, Q>::IndCalcW), (T33<Q, Q, Q, Q>::IndCalcB),  1237357440,  1237357440)
 #endif
 	};
 
@@ -3804,13 +3825,18 @@ static void	VUnmapFile
 #define	LOG2_TB_CB_CACHE_CHUNK		13
 #endif
 
-#define	TB_DIRECTORY_ENTRY(index)	(((index) >> LOG2_TB_CB_CACHE_CHUNK) % TB_DIRECTORY_SIZE)
+#define TB_CHUNK(index)             ((index) >> LOG2_TB_CB_CACHE_CHUNK)
+#define TB_OFFSET(index)            ((index) % TB_CB_CACHE_CHUNK)
+#define	TB_DIRECTORY_ENTRY(chunk)	((chunk) % TB_DIRECTORY_SIZE)
+
+#define WIDE_TB_CHUNK(index)             ((index) >> (LOG2_TB_CB_CACHE_CHUNK-1))
+#define WIDE_TB_OFFSET(index)            ((index) % (TB_CB_CACHE_CHUNK/2))*2
 
 struct CTbCache			//Hungarian: tbc
 	{
 	volatile	int			m_iTb;
 	volatile	color		m_color;
-				INDEX		m_indStart;
+				INDEX		m_indChunk;
 	volatile	CTbCache	*m_ptbcNext;	// Next element in double-linked general LRU list
 	volatile	CTbCache	*m_ptbcPrev;	// Previous element in double-linked general LRU list
 	volatile	CTbCache	*m_ptbcTbNext;	// Next element in double-linked cache bucket LRU list
@@ -3912,7 +3938,7 @@ extern "C" int FTbSetCacheSize
 
 // Table registered
 
-#define	FRegistered(iTb, side)	(rgtbdDesc[iTb].m_fSymmetric && NULL != rgtbdDesc[iTb].m_rgpchFileName[x_colorWhite] || NULL != rgtbdDesc[iTb].m_rgpchFileName[side])
+#define	FRegistered(iTb, side)	(NULL != rgtbdDesc[iTb].m_rgpchFileName[rgtbdDesc[iTb].m_fSymmetric ? x_colorWhite : (side)])
 extern "C" int FRegisteredFun
 	(
 	int		iTb,
@@ -3961,7 +3987,7 @@ extern "C" int FReadTableToMemory
 	// Find database size
 #if defined (NEW)
 	cb = rgtbdDesc[iTb].m_rgcbLength[side];
-	if (0 != cb)
+	if (0 == cb)
 		{
 #endif
 		if (0 != fseek (fp, 0L, SEEK_END))
@@ -3970,7 +3996,7 @@ extern "C" int FReadTableToMemory
 			exit (1);
 			}
 		cb = ftell (fp);
-		if (-1 == cb)
+		if ((unsigned) -1 == cb)
 			{
 			printf ("*** Cannot find length of %s\n", pszName);
 			exit (1);
@@ -3982,6 +4008,16 @@ extern "C" int FReadTableToMemory
 			}
 #if defined (NEW)
 		}
+#if defined (T33_INCLUDE) || defined (KPPKP_16BIT)
+    else if (rgtbdDesc[iTb].m_f16bit)
+        {
+        if (cb * 2 / 2 != cb)   // Overflow
+		    {
+		    printf ("*** %s too big to read into memory\n", pszName);
+		    exit (1);
+		    }
+        }
+#endif
 #endif
 	
 	// If buffer not specified, allocate memory for it
@@ -4084,38 +4120,23 @@ int FUnMapTableFromMemory
 
 #endif
 
-// Probe TB
+// Probe TB - lower level (not exportable) function
 
-static int	TB_FASTCALL TbtProbeTable
+static int TB_FASTCALL TbtProbeTable
 	(
 	int		iTb,
 	color	side,
-	INDEX	indOffset
+	INDEX	indChunk,
+	INDEX	indInChunk
 	)
 	{
 	CTbDesc	*ptbd;
-	int		iDirectory;
+	int iDirectory;
 	volatile CTbCache	*ptbc;
 	volatile CTbCache	*ptbcTbFirst;
 
-	assert (iTb > 0 && iTb < cTb);
 	ptbd = & rgtbdDesc[iTb];
-	if (ptbd->m_fSymmetric)
-		side = x_colorWhite;
-
-	// It's better for offset be smaller than TB size
-	assert (!FRegistered (iTb, side) || indOffset < ptbd->m_rgcbLength[side]);
-
-	// Entire file read/mapped to memory?
-	if (NULL != ptbd->m_rgpbRead[side])
-		return (tb_t) ptbd->m_rgpbRead[side][indOffset];
-
-	// Cache initialized? TB registered?
-	if (0 == ctbcTbCache || NULL == ptbd->m_prgtbcbBuckets[side])
-		return bev_broken;
-
-	// Calculate cache bucket
-	iDirectory = TB_DIRECTORY_ENTRY (indOffset);
+	iDirectory = TB_DIRECTORY_ENTRY (indChunk);
 
 	// Head of the cache bucket LRU list
 	Lock (ptbd->m_prgtbcbBuckets[side][iDirectory].m_lock);
@@ -4124,7 +4145,7 @@ static int	TB_FASTCALL TbtProbeTable
 	// First, search entry in the cache
 	for (ptbc = ptbcTbFirst; NULL != ptbc; ptbc = ptbc->m_ptbcTbNext)
 		{
-		if ((indOffset >= ptbc->m_indStart) && (indOffset < ptbc->m_indStart + TB_CB_CACHE_CHUNK))
+		if (indChunk == ptbc->m_indChunk)
 			{
 			// Found - move cache entry to the head of the general LRU list
 			Lock (lockLRU);
@@ -4158,7 +4179,7 @@ static int	TB_FASTCALL TbtProbeTable
 				}
 			int	tb;
 
-			tb = (tb_t) (ptbc->m_pbData[(ULONG)(indOffset-ptbc->m_indStart)]);
+			tb = (tb_t) (ptbc->m_pbData[(ULONG)indInChunk]);
 			UnLock (ptbd->m_prgtbcbBuckets[side][iDirectory].m_lock);
 			return tb;
 			}
@@ -4195,7 +4216,7 @@ static int	TB_FASTCALL TbtProbeTable
 			{
 			ptbc = ptbcTail;
 			iTailTb = ptbc->m_iTb;
-			iTailDirectory = TB_DIRECTORY_ENTRY (ptbc->m_indStart);
+			iTailDirectory = TB_DIRECTORY_ENTRY (ptbc->m_indChunk);
 			colorTail = ptbc->m_color;
 			// To avoid deadlocks, have to first acquire cache buckets lock,
 			// and only then general LRU lock. So, free general LRU lock and
@@ -4210,7 +4231,7 @@ static int	TB_FASTCALL TbtProbeTable
 			// proper locks).
 			if (ptbc == ptbcTail && ptbc->m_iTb == iTailTb &&
 				ptbc->m_color == colorTail &&
-				TB_DIRECTORY_ENTRY (ptbc->m_indStart) == iTailDirectory)
+				TB_DIRECTORY_ENTRY (ptbc->m_indChunk) == (unsigned) iTailDirectory)
 				break;
 			// Sorry - try once again...
 			UnLock (rgtbdDesc[iTailTb].m_prgtbcbBuckets[colorTail][iTailDirectory].m_lock);
@@ -4218,7 +4239,7 @@ static int	TB_FASTCALL TbtProbeTable
 #else
 		ptbc = ptbcTail;
 		iTailTb = ptbc->m_iTb;
-		iTailDirectory = TB_DIRECTORY_ENTRY (ptbc->m_indStart);
+		iTailDirectory = TB_DIRECTORY_ENTRY (ptbc->m_indChunk);
 		colorTail = ptbc->m_color;
 #endif
 
@@ -4244,7 +4265,7 @@ static int	TB_FASTCALL TbtProbeTable
 	// so other threads will never touch it.
 	ptbc->m_iTb = iTb;
 	ptbc->m_color = side;
-	ptbc->m_indStart = indOffset / (INDEX) (TB_CB_CACHE_CHUNK) * TB_CB_CACHE_CHUNK;
+	ptbc->m_indChunk = indChunk;
 
 	// Now read it from the disk
 	FILE	*fp;
@@ -4286,16 +4307,16 @@ static int	TB_FASTCALL TbtProbeTable
 	if (NULL == ptbd->m_rgpdiDecodeInfo[side])
 		{
 		// Read uncompressed file
-		if (fseek (fp, (long) ptbc->m_indStart, SEEK_SET))
+		if (fseek (fp, (long) indChunk*TB_CB_CACHE_CHUNK, SEEK_SET))
 			goto ERROR_LABEL;
 		cb = fread (ptbc->m_pbData, 1, TB_CB_CACHE_CHUNK, fp);
 		if (cb != TB_CB_CACHE_CHUNK)
 			{
 			// Could not read TB_CB_CACHE_CHUNK - check for error
-			if (ferror (fp) || (cb != ptbd->m_rgcbLength[side] - ptbc->m_indStart))
+			if (ferror (fp) || ((ULONG) -1 == cb))
 				goto ERROR_LABEL;
 			}
-		assert (cb > (indOffset-ptbc->m_indStart));
+		assert (cb > indChunk);
 		UnLock (ptbd->m_rglockFiles[side]);
 		}
 	else
@@ -4322,7 +4343,7 @@ static int	TB_FASTCALL TbtProbeTable
 
 		// Initialize decode block and read chunk
 		fWasError = 0 != comp_init_block (block, TB_CB_CACHE_CHUNK, ptbc->m_pbData) ||
-					0 != comp_read_block (block, info, fp, indOffset / TB_CB_CACHE_CHUNK);
+					0 != comp_read_block (block, info, fp, indChunk);
 		
 		// Release lock on file, so other threads can proceed with that file
 		UnLock (ptbd->m_rglockFiles[side]);
@@ -4366,7 +4387,7 @@ static int	TB_FASTCALL TbtProbeTable
 	// All done
 	int tb;
 
-	tb = (tb_t) (ptbc->m_pbData[(ULONG)(indOffset-ptbc->m_indStart)]);
+	tb = (tb_t) (ptbc->m_pbData[indInChunk]);
 	// Release locks
 	UnLock (ptbd->m_prgtbcbBuckets[side][iDirectory].m_lock);
 	UnLock (lockLRU);
@@ -4382,10 +4403,54 @@ ERROR_LABEL_2:
 	ptbc->m_ptbcNext = ptbcFree;
 	ptbcFree = ptbc;
 	UnLock (lockLRU);
-	return bev_broken;
+	return L_bev_broken;
+	}
+
+// Probe TB - upper level function
+
+static int	TB_FASTCALL TbtProbeTable
+	(
+	int		iTb,
+	color	side,
+	INDEX	indOffset
+	)
+	{
+	CTbDesc	*ptbd;
+
+	assert (iTb > 0 && iTb < cTb);
+	ptbd = & rgtbdDesc[iTb];
+	if (ptbd->m_fSymmetric)
+		side = x_colorWhite;
+
+	// It's better for offset be smaller than TB size
+	assert (!FRegistered (iTb, side) || indOffset < ptbd->m_rgcbLength[side]);
+
+	// Entire file read/mapped to memory?
+	if (NULL != ptbd->m_rgpbRead[side])
+		return (tb_t) ptbd->m_rgpbRead[side][indOffset];
+
+	// Cache initialized? TB registered?
+	if (0 == ctbcTbCache || NULL == ptbd->m_prgtbcbBuckets[side])
+		return bev_broken;
+
+#if defined (T33_INCLUDE) || defined (KPPKP_16BIT)
+    if (ptbd->m_f16bit)
+        return bev_broken;
+#endif
+
+	int tb;
+
+	tb = TbtProbeTable (iTb, side, TB_CHUNK (indOffset), TB_OFFSET (indOffset));
+	return (L_bev_broken == tb) ? bev_broken : (tb_t) tb;
 	}
 
 // 16-bit version (recommended)
+
+#define FOutOfBound(iTb, side, indOffset)\
+		(tbid_kppkp == iTb && x_colorBlack == side &&\
+		 (indOffset == 0x0362BC7C || indOffset == 0x0362DE44 || indOffset == 0x03637648 ||\
+		  indOffset == 0x03639810 || indOffset == 0x038D4F29 || indOffset == 0x040A2CAB ||\
+		  indOffset == 0x043C778C))
 
 extern "C" int TB_FASTCALL L_TbtProbeTable
 	(
@@ -4395,21 +4460,87 @@ extern "C" int TB_FASTCALL L_TbtProbeTable
 	)
 	{
 	int	tbtScore;
+	CTbDesc	*ptbd;
 
+	assert (iTb > 0 && iTb < cTb);
+	ptbd = & rgtbdDesc[iTb];
+	if (ptbd->m_fSymmetric)
+		side = x_colorWhite;
+
+	// Entire file read/mapped to memory?
+	if (NULL != ptbd->m_rgpbRead[side])
+        {
+#if defined (KPPKP_16BIT)
+    	if (!ptbd->m_f16bit)
+			{
+			tbtScore = (tb_t) ptbd->m_rgpbRead[side][indOffset];
+	    	return S_to_L (tbtScore);
+			}
+        else
+	    	return (((int) (((signed char) ptbd->m_rgpbRead[side][indOffset*2+1]))) << 8) +
+                    ptbd->m_rgpbRead[side][indOffset*2];
+#elif defined (T33_INCLUDE)
+    	if (!ptbd->m_f16bit)
+            {
+		    if (FOutOfBound (iTb, side, indOffset))
+			    return -32639;
+            else
+				{
+				tbtScore = (tb_t) ptbd->m_rgpbRead[side][indOffset];
+	    	    return S_to_L (tbtScore);
+				}
+            }
+        else
+	    	return (((int) (((signed char) ptbd->m_rgpbRead[side][indOffset*2+1]))) << 8) +
+                    ptbd->m_rgpbRead[side][indOffset*2];
+#else
+		if (FOutOfBound (iTb, side, indOffset))
+			return -32639;
+        else
+			{
+			tbtScore = (tb_t) ptbd->m_rgpbRead[side][indOffset];
+	    	return S_to_L (tbtScore);
+			}
+#endif
+        }
+
+	// Cache initialized? TB registered?
+	if (0 == ctbcTbCache || NULL == ptbd->m_prgtbcbBuckets[side])
+		return L_bev_broken;
+
+#if defined (T33_INCLUDE)
+	if (ptbd->m_f16bit)
+		{
+		// Inefficient, but very simple, code
+		int	iLo;
+		int	iHi;
+		INDEX	indChunk;
+		INDEX	indInChunk;
+		
+		iLo = TbtProbeTable (iTb, side, WIDE_TB_CHUNK (indOffset), WIDE_TB_OFFSET (indOffset));
+		iHi = TbtProbeTable (iTb, side, WIDE_TB_CHUNK (indOffset), WIDE_TB_OFFSET (indOffset)+1);
+        tbtScore = (L_bev_broken == iLo || L_bev_broken == iHi) ? L_bev_broken : ((iHi << 8) + (iLo & 0xFF));
+		}
+	else
+		{
 #if !defined (KPPKP_16BIT)
-	if (tbid_kppkp == iTb && x_colorBlack == side &&
-		(indOffset == 0x0362BC7C || indOffset == 0x0362DE44 || indOffset == 0x03637648 ||
-		 indOffset == 0x03639810 || indOffset == 0x038D4F29 || indOffset == 0x040A2CAB ||
-		 indOffset == 0x043C778C))
+		if (FOutOfBound (iTb, side, indOffset))
+			return -32639;
+#endif
+		tbtScore = TbtProbeTable (iTb, side, TB_CHUNK (indOffset), TB_OFFSET (indOffset));
+		tbtScore = L_bev_broken == tbtScore ? L_bev_broken : S_to_L (tbtScore);
+		}
+#elif !defined (KPPKP_16BIT)
+	if (FOutOfBound (iTb, side, indOffset))
 		return -32639;
-	tbtScore = TbtProbeTable (iTb, side, indOffset);
-	tbtScore = S_to_L (tbtScore);
+	tbtScore = TbtProbeTable (iTb, side, TB_CHUNK (indOffset), TB_OFFSET (indOffset));
+	tbtScore = L_bev_broken == tbtScore ? L_bev_broken : S_to_L (tbtScore);
 #else
 	if (tbid_kppkp != iTb)
 		{
 		// All tables but kppkp are 8-bit tables
-		tbtScore = TbtProbeTable (iTb, side, indOffset);
-		tbtScore = S_to_L (tbtScore);
+		tbtScore = TbtProbeTable (iTb, side, TB_CHUNK (indOffset), TB_OFFSET (indOffset));
+		tbtScore = L_bev_broken == tbtScore ? L_bev_broken : S_to_L (tbtScore);
 		}
 	else
 		{
@@ -4418,10 +4549,9 @@ extern "C" int TB_FASTCALL L_TbtProbeTable
 		int	iLo;
 		int	iHi;
 		
-		indOffset *= 2;
-		iLo = TbtProbeTable (iTb, side, indOffset);
-		iHi = TbtProbeTable (iTb, side, indOffset+1);
-		tbtScore = (bev_broken == iHi) ? L_bev_broken : (iHi << 8) + (iLo & 0xFF);
+		iLo = TbtProbeTable (iTb, side, WIDE_TB_CHUNK (indOffset), WIDE_TB_OFFSET (indOffset));
+		iHi = TbtProbeTable (iTb, side, WIDE_TB_CHUNK (indOffset), WIDE_TB_OFFSET (indOffset)+1);
+        tbtScore = (L_bev_broken == iLo || L_bev_broken == iHi) ? L_bev_broken : ((iHi << 8) + (iLo & 0xFF));
 		}
 #endif
 	return tbtScore;
@@ -4475,18 +4605,23 @@ int FCheckExistance
 	if (NULL != fp)
 		{
 		// Found uncompressed table
-		if (0 != fseek (fp, 0L, SEEK_END))
-			{
-			printf ("*** Seek in %s failed\n", rgchTbName);
-			exit (1);
-			}
-		cb = (INDEX) ftell (fp);
+		if (rgtbdDesc[iTb].m_f16bit) // Do not check the length for 16-bit file
+			cb = rgtbdDesc[iTb].m_rgcbLength[side];
+		else
+            {
+            if (0 != fseek (fp, 0L, SEEK_END))
+			    {
+			    printf ("*** Seek in %s failed\n", rgchTbName);
+			    exit (1);
+			    }
+		    cb = (INDEX) ftell (fp);
 #if defined (NEW)
-		if (0 != rgtbdDesc[iTb].m_rgcbLength[side] && cb != rgtbdDesc[iTb].m_rgcbLength[side])
-			{
-			printf ("*** %s corrupted\n", rgchTbName);
-			exit (1);
-			}
+		    if (0 != rgtbdDesc[iTb].m_rgcbLength[side] && cb != rgtbdDesc[iTb].m_rgcbLength[side])
+			    {
+			    printf ("*** %s corrupted\n", rgchTbName);
+			    exit (1);
+			    }
+            }
 #endif
 		}
 	else
@@ -4539,16 +4674,30 @@ int FCheckExistance
 			printf ("*** %s: Unsupported block size %d\n", rgchTbName, comp_info->block_size);
 			exit (1);
 			}
-		cb = comp_info->block_size*(comp_info->n_blk-1) + comp_info->last_block_size;
+        if (rgtbdDesc[iTb].m_f16bit)
+            {
+    		cb = comp_info->block_size/2*(comp_info->n_blk-1) + comp_info->last_block_size/2;
 #if defined (NEW)
-		if (0 != rgtbdDesc[iTb].m_rgcbLength[side] && cb != rgtbdDesc[iTb].m_rgcbLength[side])
-			{
-			printf ("*** %s corrupted\n", rgchTbName);
-			exit (1);
-			}
+	    	if (0 != rgtbdDesc[iTb].m_rgcbLength[side] && cb != rgtbdDesc[iTb].m_rgcbLength[side])
+		    	{
+			    printf ("*** %s corrupted\n", rgchTbName);
+    			exit (1);
+	    		}
 #endif
+			}
+		else
+            {
+    		cb = comp_info->block_size*(comp_info->n_blk-1) + comp_info->last_block_size;
+#if defined (NEW)
+	    	if (0 != rgtbdDesc[iTb].m_rgcbLength[side] && cb != rgtbdDesc[iTb].m_rgcbLength[side])
+		    	{
+			    printf ("*** %s corrupted\n", rgchTbName);
+    			exit (1);
+	    		}
+#endif
+            }
 		}
-	rgtbdDesc[iTb].m_rgcbLength[side] = cb;
+   	rgtbdDesc[iTb].m_rgcbLength[side] = cb;
 	fclose (fp);
 	if (FRegisterTb (& (rgtbdDesc[iTb])))
 		{
@@ -4685,15 +4834,15 @@ extern "C" int IInitializeTb
 		}
 
 	// All done!
-#if defined(EGTB6)
+#if defined T33_INCLUDE
 	if (iMaxTb >= tbid_knnknn)
 		return 6;
 #endif
 	if (iMaxTb >= tbid_kppkp)
 		return 5;
-	else if (iMaxTb >= tbid_kpkp)
+	if (iMaxTb >= tbid_kpkp)
 		return 4;
-	else if (iMaxTb >= tbid_kpk)
+	if (iMaxTb >= tbid_kpk)
 		return 3;
 	return 0;
 	}

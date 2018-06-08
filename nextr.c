@@ -3,7 +3,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 04/19/99 */
+/* last modified 10/18/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -25,10 +25,7 @@ int NextRootMove(TREE *tree, int wtm) {
  ----------------------------------------------------------
 */
   time_abort+=TimeCheck(1);
-  if (time_abort) {
-    abort_search=1;
-    return(NONE);
-  }
+  if (time_abort) return(NONE);
   if (!annotate_mode && !pondering && !booking &&
       n_root_moves==1 && iteration_depth>4) {
     abort_search=1;

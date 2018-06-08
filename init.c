@@ -213,8 +213,8 @@ void Initialize(int continuing) {
     fread(&major,sizeof(int),1,book_file);
     minor=major&65535;
     major=major>>16;
-    if (major<16 || (major==16 && minor<20)) {
-      Print(4095,"\nERROR!  book.bin not made by version 16.20 or later\n");
+    if (major<17 || (major==17 && minor<0)) {
+      Print(4095,"\nERROR!  book.bin not made by version 17.0 or later\n");
       fclose(book_file);
       fclose(books_file);
       book_file=0;
@@ -1292,14 +1292,6 @@ void InitializePawnMasks(void) {
   good_bishop_qw=SetMask(A1) | SetMask(C1) | SetMask(B2);
   good_bishop_kb=SetMask(G7) | SetMask(F8) | SetMask(H8);
   good_bishop_qb=SetMask(B7) | SetMask(A8) | SetMask(C8);
-/*
-  these masks are used to test for the presence of a pawn at g2/g3, etc.
-  and are used in evaluating a bishop potentially trapped at h2, etc.
-*/
-  mask_G2G3=SetMask(G2) | SetMask(G3);
-  mask_B2B3=SetMask(B2) | SetMask(B3);
-  mask_G6G7=SetMask(G6) | SetMask(G7);
-  mask_B6B7=SetMask(B6) | SetMask(B7);
 /*
   these masks are used to detect that opponent pawns are getting very
   close to the king.

@@ -48,8 +48,6 @@
   int            next_time_check;
   int            burp;
   int            ponder_move;
-  int            made_predicted_move;
-  int            made_unexpected_move;
   int            ponder_moves[220];
   int            num_ponder_moves;
   unsigned int   opponent_start_time, opponent_end_time;
@@ -154,10 +152,6 @@
   BITBOARD       mask_advance_2_b;
   BITBOARD       mask_left_edge;
   BITBOARD       mask_right_edge;
-  BITBOARD       mask_G2G3;
-  BITBOARD       mask_B2B3;
-  BITBOARD       mask_G6G7;
-  BITBOARD       mask_B6B7;
   BITBOARD       mask_A7H7;
   BITBOARD       mask_A2H2;
   BITBOARD       mask_A3B3;
@@ -313,7 +307,7 @@
   char      computer_list[512][20] = {
                                       {""}};
 
-  int       number_of_GMs =                       31;
+  int       number_of_GMs =                       32;
   char      GM_list[512][20] =       {{"anat"},
                                       {"badviking"},
                                       {"blatny"},
@@ -322,6 +316,7 @@
                                       {"dlugy"},
                                       {"dr"},
                                       {"flamingskull"},
+                                      {"flyingpiket"},
                                       {"gasch"},
                                       {"gmalex"},
                                       {"gmsoffer"},
@@ -408,7 +403,7 @@
   int       analyze_mode =                          0;
   int       annotate_mode =                         0;
   int       test_mode =                             0;
-  int       analyze_move_read =                     0;
+  int       input_status =                          0;
   signed char resign =                              9;
   signed char resign_counter =                      0;
   signed char resign_count =                        5;
@@ -478,9 +473,8 @@
   const char king_tropism_at_r[8]   = {4,3,1,0,0,0,0,0};
   const char king_tropism_q[8]      = {4,4,4,2,1,0,0,0};
   const char king_tropism_at_q[8]   = {5,5,3,0,0,0,0,0};
-  const char king_tropism_file_q[8] = {0,0,0,0,0,6,6,8};
   const signed char king_tropism[128] =
-                                { -40, -35, -30, -25, -20, -15, -10,  -5,
+                                { -25, -25, -20, -20, -15, -15, -10,  -5,
                                     0,   2,   5,  10,  12,  16,  20,  25,
                                    30,  35,  40,  45,  50,  55,  60,  65,
                                    70,  75,  80,  85,  90,  95, 100, 105,
@@ -510,7 +504,8 @@
                                      PAWN_PASSED*8,PAWN_PASSED*13,
                                      0};
 
-  const char isolated_pawn_value[9] = {0, 14, 30, 50, 65, 80, 100, 120, 150};
+  const char isolated_pawn_value[9] = {0,  8, 12, 24, 36, 50, 60, 80, 100};
+  const char isolated_pawn_of_value[9] = {0, 10, 20, 30, 40, 45, 50, 60, 65};
 
   const char doubled_pawn_value[7] ={ 0,
                                       0, PAWN_DOUBLED,
@@ -711,14 +706,14 @@
                                 96, 80, 70, 60, 60, 70, 80, 96,
                                100, 96, 93, 90, 90, 93, 96,100};
 
-  signed char     white_outpost[64] = { 0, 0, 0,   0,   0, 0, 0, 0,
-                                        0, 0, 0,   0,   0, 0, 0, 0,
-                                        0, 0, 0,   0,   0, 0, 0, 0,
-                                        0, 0, 0,   2,   2, 0, 0, 0,
-                                        0, 0, 4,   5,   5, 4, 0, 0,
-                                        0, 0, 3,MAXO,MAXO, 3, 0, 0,
-                                        0, 0, 1,   2,   2, 1, 0, 0,
-                                        0, 0, 0,   0,   0, 0, 0, 0 };
+  signed char     white_outpost[64] = { 0, 0, 0, 0, 0, 0, 0, 0,
+                                        0, 0, 0, 0, 0, 0, 0, 0,
+                                        0, 0, 0, 0, 0, 0, 0, 0,
+                                        0, 0, 0, 4, 4, 0, 0, 0,
+                                        0, 0, 8,10,10, 8, 0, 0,
+                                        0, 0, 8,12,12, 8, 0, 0,
+                                        0, 0, 2, 4, 4, 2, 0, 0,
+                                        0, 0, 0, 0, 0, 0, 0, 0 };
 
   const char     push_extensions[64] = { 0, 0, 0, 0, 0, 0, 0, 0,
                                          1, 1, 1, 1, 1, 1, 1, 1,
@@ -747,7 +742,7 @@
                              -25,-25,  4,  4,  4,  4,-25,-25,
                              -25,-25, -8, -8, -8, -8,-25,-25};
 
-  signed char  bval_w[64] = {-25,-15, -3, -3, -3, -3,-15,-25,
+  signed char  bval_w[64] = {-25,-15, -8, -4, -4, -8,-15,-25,
                              -15,  2,  0,  0,  0,  0,  2,-15,
                               -4,  2,  2,  2,  2,  2,  2, -4,
                               -4,  2,  4,  4,  4,  4,  2, -4,

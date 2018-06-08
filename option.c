@@ -10,7 +10,7 @@
 #endif
 #include "epdglue.h"
 
-/* last modified 01/14/99 */
+/* last modified 10/25/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -81,7 +81,6 @@ int Option(TREE *tree) {
  ----------------------------------------------------------
 */
   else if (OptionMatch("alarm",*args)) {
-    RestoreGame();
     if (!strcmp(args[1],"on")) audible_alarm=0x07;
     else if (!strcmp(args[1],"off")) audible_alarm=0x00;
     else printf("usage:  alarm on|off\n");
@@ -361,7 +360,7 @@ int Option(TREE *tree) {
   else if (OptionMatch("computer",*args)) {
     Print(128,"playing a computer!\n");
     computer_opponent=1;
-    book_selection_width=2;
+    book_selection_width=1;
     usage_level=0;
     book_weight_freq=1.0;
     book_weight_eval=.1;
@@ -850,10 +849,6 @@ int Option(TREE *tree) {
  ----------------------------------------------------------
 */
   else if (OptionMatch("extensions",*args)) {
-    if (nargs < 3) {
-      printf("usage:  ext/name=n\n");
-      return(1);
-    }
     if (OptionMatch("incheck",args[1])) {
       const float ext=atof(args[2]);
       incheck_depth=60.0*ext;
@@ -1583,6 +1578,7 @@ int Option(TREE *tree) {
       printf("show book.................toggle book statistics.\n");
       printf("sn n......................sets absolute search node limit.\n");
       printf("st n......................sets absolute search time.\n");
+      printf("store <val>...............stores position/score (position.bin).\n");
       printf("swindle on|off............enables/disables swindle mode.\n");
       printf("test <file> [N]...........test a suite of problems. [help]\n");
       printf("tags......................list PGN header tags.\n");
@@ -2111,7 +2107,7 @@ int Option(TREE *tree) {
       if (readstat == NULL) break;
       nargs=ReadParse(buffer,args," 	;\n");
       if (!strcmp(args[0],"setboard")) {
-        Option(tree);
+        (void) Option(tree);
         break;
       }
     }
@@ -3300,8 +3296,11 @@ int Option(TREE *tree) {
     tree->position[1]=tree->position[0];
     PreEvaluate(tree,wtm);
     s7=Evaluate(tree,1,1,-99999,99999);
-    s1=Material;
-    if (opening) s2=EvaluateDevelopment(tree,1);
+    s1=EvaluateMaterial(tree);
+    if (opening) {
+      s2=EvaluateDevelopmentB(tree,1);
+      s2+=EvaluateDevelopmentW(tree,1);
+    }
     if (TotalWhitePawns+TotalBlackPawns) {
       s3=EvaluatePawns(tree);
       s4=EvaluatePassedPawns(tree);
@@ -3399,7 +3398,7 @@ int Option(TREE *tree) {
 |                                                          |
  ----------------------------------------------------------
 */
-  else if (OptionMatch("st",*args)) {
+  else if (!strcmp("st",*args)) {
     int fract;
     if (nargs < 2) {
       printf("usage:  st <time>\n");
@@ -3412,6 +3411,33 @@ int Option(TREE *tree) {
       search_time_limit+=fract;
     }
     Print(4095,"search time set to %.2f.\n",(float)search_time_limit/100.0);
+  }
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   "store" command is used to store the current position, |
+|   side to move, and the specified score, in the          |
+|   position.bin (position learning) file.  this will end  |
+|   up in the hash table and influence any future searches.|
+|                                                          |
+ ----------------------------------------------------------
+*/
+  else if (OptionMatch("store",*args)) {
+    int score, temp1, temp2;
+    if (thinking || pondering) return(2);
+    if (nargs < 2) {
+      printf("usage:  store <value>\n");
+      return(1);
+    }
+    score=100*atof(args[1]);
+    learning|=position_learning;
+    temp1=tree->pv[0].pathd;
+    temp2=tree->pv[0].path[1];
+    tree->pv[0].pathd=60;
+    tree->pv[0].path[1]=0;
+    LearnPosition(tree,wtm,Max(score+100,0),score);
+    tree->pv[0].pathd=temp1;
+    tree->pv[0].path[1]=temp2;
   }
 /*
  ----------------------------------------------------------
@@ -3675,7 +3701,7 @@ int Option(TREE *tree) {
       TimeAdjust(time_used,opponent);
       TimeAdjust(time_used,crafty);
       sprintf(buffer,"clock");
-      Option(tree);
+      (void) Option(tree);
       move_number++;
     } while (time_used >= 0);
   }

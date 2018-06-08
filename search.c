@@ -5,7 +5,7 @@
 #include "data.h"
 #include "epdglue.h"
 
-/* last modified 09/03/99 */
+/* last modified 10/18/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -42,8 +42,8 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
   if (--next_time_check <= 0) {
     next_time_check=nodes_between_time_checks;
     if (CheckInput()) Interrupt(ply);
-    time_abort+=TimeCheck(0);
-    if (time_abort) {
+    if (TimeCheck(0)) {
+      time_abort++;
       abort_search=1;
       return(0);
     }
@@ -57,7 +57,7 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
  ----------------------------------------------------------
 */
   if (RepetitionCheck(tree,ply,wtm)) {
-    value=DrawScore(root_wtm==wtm);
+    value=DrawScore(ply&1);
     if (value < beta) SavePV(tree,ply,value,0);
 #if defined(TRACE)
     if(ply <= trace_level) printf("draw by repetition detected, ply=%d.\n",ply);
@@ -128,7 +128,7 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
       tree->egtb_probes_successful++;
       alpha=egtb_value;
       if (abs(alpha) > MATE-300) alpha+=(alpha > 0) ? -ply+1 : ply;
-      else if (alpha == 0) alpha=DrawScore(root_wtm==wtm);
+      else if (alpha == 0) alpha=DrawScore(ply&1);
       if(alpha < beta) SavePV(tree,ply,alpha,2);
       return(alpha);
     }
@@ -467,7 +467,7 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
  ----------------------------------------------------------
 */
   if (moves_searched == 0) {
-    value=(Check(wtm)) ? -(MATE-ply) : DrawScore(root_wtm==wtm);
+    value=(Check(wtm)) ? -(MATE-ply) : DrawScore(ply&1);
     if (value>=alpha && value<beta) {
       SavePV(tree,ply,value,0);
 #if defined(TRACE)

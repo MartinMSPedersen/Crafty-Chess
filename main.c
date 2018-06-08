@@ -10,7 +10,7 @@
 #endif
 #include <signal.h>
 
-/* last modified 09/09/99 */
+/* last modified 10/18/99 */
 /*
 *******************************************************************************
 *                                                                             *
@@ -2560,7 +2560,24 @@
 *           this affects book move ordering/selection.  a new import command  *
 *           will take the raw CAPS data and merge it into the book.bin after  *
 *           the file has been built.  serious bug in SetBoard() would leave   *
-*           old EP status set in test suites.  this has been fixed.           *
+*           old EP status set in test suites.  this has been fixed.  outpost  *
+*           knight code was modified so that a knight in a hole is good, a    *
+*           knight in a hole supported by a pawn is better, supported by two  *
+*           pawns is still better, and if the opponent has no knights or a    *
+*           bishop that can attack this knight it is even better.  the out-   *
+*           post bonus for a bishop was removed.  a pretty serious parallel   *
+*           search bug surfaced.  in non-parallel searches, Crafty _always_   *
+*           completed the current ply=1 move after the time limit is reached, *
+*           just to be sure that this move isn't going to become a new best   *
+*           move.  however, when parallel searching, this was broken, and at  *
+*           the moment time runs out, the search would be stopped if the      *
+*           parallel split was done at the root of the tree, which means that *
+*           where the search would normally find a new best move, it would    *
+*           not.  this has been fixed.  new "store <val>" command can be used *
+*           to make "position learning" remember the current position and the *
+*           score (val) you supply.  this is useful in analyze mode to move   *
+*           into the game, then let crafty know that the current position is  *
+*           either lost or won (with a specific score).                       *
 *                                                                             *
 *******************************************************************************
 */
@@ -2733,8 +2750,7 @@ int main(int argc, char **argv) {
     do {
       if (new_game) NewGame(0);
       opponent_start_time=ReadClock(elapsed);
-      made_predicted_move=0;
-      made_unexpected_move=0;
+      input_status=0;
       display=tree->pos;
       move=0;
       presult=0;
@@ -2795,15 +2811,15 @@ int main(int argc, char **argv) {
         last_opponent_move=move;
         if (RepetitionDraw(tree,ChangeSide(wtm))==1) {
           Print(4095,"%sgame is a draw by repetition.%s\n",Reverse(),Normal());
-          value=DrawScore(crafty_is_white);
+          value=DrawScore(1);
           if (xboard) Print(4095,"1/2-1/2 {Drawn by 3-fold repetition}\n");
         }
         if (RepetitionDraw(tree,ChangeSide(wtm))==2) {
           Print(4095,"%sgame is a draw by the 50 move rule.%s\n",Reverse(),Normal());
-          value=DrawScore(crafty_is_white);
+          value=DrawScore(1);
           if (xboard) Print(4095,"1/2-1/2 {Drawn by 50-move rule}\n");
         }
-        if (Drawn(tree,DrawScore(crafty_is_white)) == 2) {
+        if (Drawn(tree,DrawScore(1)) == 2) {
           Print(4095,"%sgame is a draw due to insufficient material.%s\n",
                 Reverse(),Normal());
           if (xboard) Print(4095,"1/2-1/2 {Insufficient material}\n");
@@ -2975,14 +2991,14 @@ int main(int argc, char **argv) {
       if (RepetitionDraw(tree,ChangeSide(wtm))==1) {
         Print(128,"%sgame is a draw by repetition.%s\n",Reverse(),Normal());
         if (xboard) Print(4095,"1/2-1/2 {Drawn by 3-fold repetition}\n");
-        value=DrawScore(crafty_is_white);
+        value=DrawScore(1);
       }
       if (RepetitionDraw(tree,ChangeSide(wtm))==2) {
         Print(128,"%sgame is a draw by the 50 move rule.%s\n",Reverse(),Normal());
         if (xboard) Print(4095,"1/2-1/2 {Drawn by 50-move rule}\n");
-        value=DrawScore(crafty_is_white);
+        value=DrawScore(1);
       }
-      if (Drawn(tree,DrawScore(crafty_is_white)) == 2) {
+      if (Drawn(tree,DrawScore(1)) == 2) {
         Print(4095,"%sgame is a draw due to insufficient material.%s\n",
               Reverse(),Normal());
         if (xboard) Print(4095,"1/2-1/2 {Insufficient material}\n");

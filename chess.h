@@ -187,7 +187,7 @@
 #define      LEARN_COUNTER_BAD            -80
 #define     LEARN_COUNTER_GOOD           +100
 #define         CAP_SCORE_GOOD           +150
-#define          CAP_SCORE_BAD           -150
+#define          CAP_SCORE_BAD           -100
 
 /*
   fractional ply extensions.  these should be in units based on the
@@ -352,6 +352,7 @@ typedef struct {
   BITBOARD position;
   unsigned int status_played;
   float learn;
+  int CAP_score;
 } BOOK_POSITION;
 
 typedef struct {
@@ -543,10 +544,12 @@ int            EGTBProbe(TREE*, int, int, int*);
 void           EGTBPV(TREE*, int);
 int            EnPrise(int, int);
 int            Evaluate(TREE*, int, int, int, int);
-int            EvaluateDevelopment(TREE*, int);
+int            EvaluateDevelopmentB(TREE*, int);
+int            EvaluateDevelopmentW(TREE*, int);
 int            EvaluateDraws(TREE*);
 int            EvaluateKingSafety(TREE*, int);
 int            EvaluateMate(TREE*);
+int            EvaluateMaterial(TREE*);
 int            EvaluatePassedPawns(TREE*);
 int            EvaluatePassedPawnRaces(TREE*, int);
 int            EvaluatePawns(TREE*);
@@ -825,7 +828,7 @@ void           Whisper(int, int, int, int, unsigned int, int, int, char*);
 #define FileDistance(a,b) abs(((a)&7) - ((b)&7))
 #define RankDistance(a,b) abs(((a)>>3) - ((b)>>3))
 #define Distance(a,b) Max(FileDistance(a,b),RankDistance(a,b))
-#define DrawScore(wtm)                 ((wtm)?draw_score:-draw_score)
+#define DrawScore(ctm)                 ((ctm)?draw_score:-draw_score)
 
 /*  
     the following macro is used to determine if one side is in check.  it

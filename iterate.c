@@ -109,8 +109,8 @@ int Iterate(int wtm, int search_type, int root_list_done) {
         last_search_value=-(MATE-1);
       }
       else {
-        root_value=DrawScore(crafty_is_white);
-        last_search_value=DrawScore(crafty_is_white);
+        root_value=DrawScore(1);
+        last_search_value=DrawScore(1);
       }
       Print(6,"              depth   time  score   variation\n");
       Print(6,"                                    (no moves)\n");

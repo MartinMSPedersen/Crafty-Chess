@@ -5,7 +5,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 05/06/98 */
+/* last modified 10/18/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -154,13 +154,13 @@ void Interrupt(int ply) {
           Print(4095,"command not legal now.\n");
         else {
           abort_search=1;
-          analyze_move_read=1;
+          input_status=3;
           break;
         }
       }
       else if ((result != 1) && analyze_mode) {
         abort_search=1;
-        analyze_move_read=1;
+        input_status=3;
         break;
       }
 /*
@@ -195,7 +195,7 @@ void Interrupt(int ply) {
                 (Captured(temp) == Captured(ponder_move)) &&
                 (Promote(temp) == Promote(ponder_move))) {
               predicted++;
-              made_predicted_move=1;
+              input_status=1;
               pondering=0;
               thinking=1;
               opponent_end_time=ReadClock(elapsed);
@@ -203,7 +203,7 @@ void Interrupt(int ply) {
               Print(128,"predicted move made.\n");
             }
             else {
-              made_unexpected_move=1;
+              input_status=2;
               abort_search=1;
               break;
             }

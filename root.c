@@ -41,7 +41,7 @@ void RootMoveList(int wtm) {
   EGTB_draw=0;
   if (swindle_mode && EGTBlimit && TotalPieces<=EGTBlimit &&
       EGTBProbe(tree, 1, wtm, &tb_value)) {
-    if (tb_value == 0)
+    if (tb_value == DrawScore(1))
       if ((wtm && Material>0) || (!wtm && Material<0)) EGTB_draw=1;
     if (tb_value > MATE-300)
         mating_via_tb=-tb_value-1;
@@ -73,12 +73,12 @@ void RootMoveList(int wtm) {
       tree->current_move[1]=*mvp;
       if (TotalPieces<=EGTBlimit && EGTB_draw) {
         i=EGTBProbe(tree, 2, ChangeSide(wtm), &tb_value);
-        if (tb_value != 0) break;
+        if (tb_value != DrawScore(0)) break;
       }
       if (mating_via_tb && TotalPieces<=EGTBlimit) {
         i=EGTBProbe(tree, 2, ChangeSide(wtm), &tb_value);
-        if (i && ((mating_via_tb > 0 && tb_value < mating_via_tb) ||
-                  (mating_via_tb < 0 && tb_value > mating_via_tb))) break;
+        if (i && ((mating_via_tb > DrawScore(0) && tb_value < mating_via_tb) ||
+                  (mating_via_tb < DrawScore(0) && tb_value > mating_via_tb))) break;
       }
       value=-Evaluate(tree,2,ChangeSide(wtm),-99999,99999);
 /*
@@ -195,17 +195,20 @@ void RootMoveList(int wtm) {
 |                                                          |
  ----------------------------------------------------------
 */
-  for (i=0;i<n_root_moves;i++) {
-    tree->current_move[1]=rmoves[i];
-    MakeMove(tree, 1, rmoves[i], wtm);
-    if (mating_via_tb && TotalPieces <= EGTBlimit)
-      temp=EGTBProbe(tree, 2, ChangeSide(wtm), &tb_value);
-    else
-      temp=0;
-    UnMakeMove(tree, 1, rmoves[i], wtm);
-    if (temp) break;
+  if (mating_via_tb) {
+    for (i=0;i<n_root_moves;i++) {
+      tree->current_move[1]=rmoves[i];
+      MakeMove(tree, 1, rmoves[i], wtm);
+      if (mating_via_tb && TotalPieces <= EGTBlimit)
+        temp=EGTBProbe(tree, 2, ChangeSide(wtm), &tb_value);
+      else
+        temp=0;
+      UnMakeMove(tree, 1, rmoves[i], wtm);
+      if (temp) break;
+    }
+    EGTB_search=(i==n_root_moves);
   }
-  EGTB_search=(i==n_root_moves);
+  else EGTB_search=0;
 /*
  ----------------------------------------------------------
 |                                                          |

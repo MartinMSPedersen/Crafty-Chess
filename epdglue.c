@@ -2653,6 +2653,7 @@ if (flag)
 
 				s = EPDEncode(epdptr);
 				fprintf(fptr1, "%s\n", s);
+				fflush(fptr1);
 				EPDMemoryFree(s);
 				};
 
