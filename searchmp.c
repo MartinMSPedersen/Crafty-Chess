@@ -53,11 +53,11 @@ int SearchSMP(TREE * RESTRICT tree, int alpha, int beta, int value, int wtm,
     Unlock(tree->parent->lock);
     if (!tree->phase[ply])
       break;
-#  if defined(TRACE)
+#if defined(TRACE)
     if (ply <= trace_level)
       SearchTrace(tree, ply, depth, wtm, alpha, beta, "SearchSMP",
           tree->phase[ply]);
-#  endif
+#endif
 /*
  ************************************************************
  *                                                          *
@@ -89,11 +89,11 @@ int SearchSMP(TREE * RESTRICT tree, int alpha, int beta, int value, int wtm,
  ************************************************************
  */
       begin_root_nodes = tree->nodes_searched;
-#  if !defined(NOFUTILITY)
+#if !defined(NOFUTILITY)
       tree->fprune = 0;
-#  endif
+#endif
       extensions = extended - PLY;
-#  if !defined(NOFUTILITY)
+#if !defined(NOFUTILITY)
       if (!tree->in_check[ply] && !tree->in_check[ply + 1]) {
         if (abs(alpha) < (MATE - 500) && ply > 4 && !tree->in_check[ply]) {
           if (wtm) {
@@ -111,11 +111,11 @@ int SearchSMP(TREE * RESTRICT tree, int alpha, int beta, int value, int wtm,
           }
         }
       }
-#  endif
+#endif
       if (depth + extensions >= PLY
-#  if !defined(NOFUTILITY)
+#if !defined(NOFUTILITY)
           && !tree->fprune
-#  endif
+#endif
           ) {
         value =
             -Search(tree, -alpha - 1, -alpha, Flip(wtm), depth + extensions,

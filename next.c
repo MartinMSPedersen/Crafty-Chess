@@ -29,9 +29,7 @@ int NextMove(TREE * RESTRICT tree, int ply, int wtm)
     tree->next_status[ply].phase = GENERATE_CAPTURE_MOVES;
     if (tree->hash_move[ply]) {
       tree->current_move[ply] = tree->hash_move[ply];
-#if defined(DEBUG)
       if (ValidMove(tree, ply, wtm, tree->current_move[ply]))
-#endif
         return (HASH_MOVE);
 #if defined(DEBUG)
       else

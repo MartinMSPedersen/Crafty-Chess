@@ -61,9 +61,7 @@ int NextEvasion(TREE * RESTRICT tree, int ply, int wtm)
     if (tree->hash_move[ply]) {
       tree->next_status[ply].phase = SORT_ALL_MOVES;
       tree->current_move[ply] = tree->hash_move[ply];
-#if defined(DEBUG)
       if (ValidMove(tree, ply, wtm, tree->current_move[ply]))
-#endif
         return (HASH_MOVE);
 #if defined(DEBUG)
       else

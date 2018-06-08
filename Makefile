@@ -412,7 +412,7 @@ profile:
 #
 
 #objects = searchr.o search.o thread.o searchmp.o repeat.o next.o nexte.o      \
-       nextr.o history.o killer.o quiesce.o evaluate.o movgen.o make.o unmake.o\
+       nextr.o killer.o quiesce.o evaluate.o movgen.o make.o unmake.o          \
        hash.o attacks.o swap.o boolean.o utility.o probe.o book.o              \
        data.o drawn.o edit.o epd.o epdglue.o init.o input.o interupt.o         \
        iterate.o main.o option.o output.o ponder.o preeval.o resign.o root.o   \

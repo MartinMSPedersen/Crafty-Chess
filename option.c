@@ -614,6 +614,10 @@ int Option(TREE * RESTRICT tree)
   else if (OptionMatch("draw", *args)) {
     if (nargs == 1) {
       draw_offer_pending = 1;
+      if (draw_offered) {
+        Print(4095, "1/2-1/2 {Draw agreed}\n");
+        strcpy(pgn_result, "1/2-1/2");
+      }
     } else {
       if (!strcmp(args[1], "accept")) {
         accept_draws = 1;
@@ -1538,8 +1542,7 @@ int Option(TREE * RESTRICT tree)
             fseek(book_file, index[i] + sizeof(int), SEEK_SET);
             BookClusterOut(book_file, cluster, book_buffer);
           }
-      }
-      else {
+      } else {
         learning = atoi(args[1]);
         if (learning & book_learning)
           Print(128, "book learning enabled\n");
@@ -2727,11 +2730,6 @@ int Option(TREE * RESTRICT tree)
  *   "mindepth" sub-option sets the min depth remaining     *
  *   required before a search depth reduction can be used.  *
  *                                                          *
- *   "history" sub-option sets the history value threshold. *
- *   if a history value is less than this threshold, then a *
- *   search reduction on this move is allowed, otherwose    *
- *   a reduction can not be done.                           *
- *                                                          *
  *   "value" sets the actual reduction depth, which is the  *
  *   amount the search depth will be decreased by, if the   *
  *   various reduction criteria are met.  this should be    *
@@ -2746,19 +2744,15 @@ int Option(TREE * RESTRICT tree)
       printf("usage:  reduce option value\n");
       printf("current values are:\n");
       printf("reduce mindepth %3.1f\n", (float) reduce_min_depth / PLY);
-      printf("reduce history  %3d%%\n", reduce_hist);
       printf("reduce value    %3.1f\n", (float) reduce_value / PLY);
       return (1);
     }
     if (OptionMatch("mindepth", args[1]))
       reduce_min_depth = (int) atof(args[2]) * PLY + .1;
-    else if (OptionMatch("history", args[1]))
-      reduce_hist = atoi(args[2]);
     else if (OptionMatch("value", args[1]))
       reduce_value = atoi(args[2]);
     Print(128, "current values are:\n");
     Print(128, "reduce mindepth %3.1f\n", (float) reduce_min_depth / PLY);
-    Print(128, "reduce history  %3d%%\n", reduce_hist);
     Print(128, "reduce value    %3.1f\n", (float) reduce_value / PLY);
   }
 /*
@@ -3340,17 +3334,17 @@ int Option(TREE * RESTRICT tree)
  ************************************************************
  */
   else if (OptionMatch("score", *args)) {
-    int s1, s2 = 0, s3 = 0, s4 = 0, s5 = 0, s6 = 0;
-    int n, b, r, q, k;
+    int s1, s2 = 0, s3 = 0, s4 = 0, s5 = 0, s6 = 0, s7 = 0;
+    int a, n, b, r, q, k;
 
     if (shared->thinking || shared->pondering)
       return (2);
     shared->root_wtm = Flip(wtm);
     tree->position[1] = tree->position[0];
     PreEvaluate(tree);
-    s6 = Evaluate(tree, 1, wtm, -99999, 99999);
+    s7 = Evaluate(tree, 1, wtm, -99999, 99999);
     if (!wtm)
-      s6 = -s6;
+      s7 = -s7;
     s1 = EvaluateMaterial(tree);
     if (BlackCastle(1))
       s2 = EvaluateDevelopmentB(tree, 1);
@@ -3364,11 +3358,13 @@ int Option(TREE * RESTRICT tree)
         s5 = EvaluatePassedPawnRaces(tree, wtm);
       }
     }
+    s6 = EvaluateMobility(tree);
     tree->w_tropism = 0;
     tree->b_tropism = 0;
+    a = EvaluateAll(tree);
     n = EvaluateKnights(tree);
     b = EvaluateBishops(tree);
-    r = 9 * EvaluateRooks(tree) / 10;
+    r = EvaluateRooks(tree);
     q = EvaluateQueens(tree);
     k = EvaluateKings(tree, wtm, 1);
     Print(128, "note: scores are for the white side\n");
@@ -3379,7 +3375,7 @@ int Option(TREE * RESTRICT tree)
     Print(128, "pawn evaluation.....................%s\n", DisplayEvaluation(s3,
             1));
     Print(128, "passed pawn evaluation..............%s",
-            DisplayEvaluation(ScaleEG(s4),1));
+        DisplayEvaluation(ScaleEG(s4), 1));
     Print(128, " (%.2f)\n", (float) s4 / 100.0);
     Print(128, "passed pawn race evaluation.........%s\n", DisplayEvaluation(s5,
             1));
@@ -3393,7 +3389,11 @@ int Option(TREE * RESTRICT tree)
             1));
     Print(128, "king evaluation.....................%s\n", DisplayEvaluation(k,
             1));
-    Print(128, "total evaluation....................%s\n", DisplayEvaluation(s6,
+    Print(128, "mobility evaluation.................%s\n", DisplayEvaluation(s6,
+            1));
+    Print(128, "combined evaluation.................%s\n", DisplayEvaluation(a,
+            1));
+    Print(128, "total evaluation....................%s\n", DisplayEvaluation(s7,
             1));
   }
 /*

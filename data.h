@@ -1,5 +1,5 @@
 #if !defined(DATA_INCLUDED)
-# define DATA_INCLUDED
+#  define DATA_INCLUDED
 extern SHARED *shared;
 extern char version[8];
 extern PLAYING_MODE mode;
@@ -34,7 +34,8 @@ extern FILE *auto_file;
 extern FILE *position_file;
 extern int log_id;
 extern int output_format;
-#if !defined(NOEGTB)
+
+#  if !defined(NOEGTB)
 extern int EGTBlimit;
 extern int EGTB_draw;
 extern int EGTB_search;
@@ -42,7 +43,7 @@ extern int EGTB_use;
 extern void *EGTB_cache;
 extern size_t EGTB_cache_size;
 extern int EGTB_setup;
-#endif
+#  endif
 extern int DGT_active;
 extern int to_dgt;
 extern int from_dgt;
@@ -58,7 +59,6 @@ extern int null_min;
 extern int null_max;
 extern int reduce_min_depth;
 extern int reduce_value;
-extern int reduce_hist;
 extern int pgn_suggested_percent;
 extern char pgn_event[128];
 extern char pgn_date[128];
@@ -117,6 +117,7 @@ extern int resign_count;
 extern int draw_counter;
 extern int draw_count;
 extern int draw_offer_pending;
+extern int draw_offered;
 extern char audible_alarm;
 extern char speech;
 extern char hint[512];
@@ -124,6 +125,7 @@ extern char book_hint[512];
 extern int post;
 extern int search_depth;
 extern unsigned int search_nodes;
+extern unsigned int temp_search_nodes;
 extern int search_move;
 extern int ponder;
 extern int ponder_move;
@@ -176,23 +178,6 @@ extern const char empty[9];
 extern const char square_color[64];
 extern int white_outpost[64];
 extern int black_outpost[64];
-// Slider stuff.
-extern int sqrvalB[64];
-extern int sqrvalR[64];
-extern int up_right[64];
-extern int up_left[64];
-extern int down_right[64];
-extern int down_left[64];
-// Directions.
-extern int UP;
-extern int UP_RIGHT;
-extern int RIGHT;
-extern int DOWN_RIGHT;
-extern int DOWN;
-extern int DOWN_LEFT;
-extern int LEFT;
-extern int UP_LEFT;
-
 extern int connected_passed_pawn_value[8];
 extern int hidden_passed_pawn_value[8];
 extern int passed_pawn_value[8];
@@ -223,13 +208,16 @@ extern int kval_bq[64];
 extern int king_safety[16][16];
 extern int safety_vector[16];
 extern int tropism_vector[16];
-extern int bishop_pair[3];
+
+//extern int bishop_pair[3];
 extern const char b_n_mate_dark_squares[64];
 extern const char b_n_mate_light_squares[64];
-extern const char mate[64];
+extern const int mate[64];
 extern BITBOARD magic_rook[64];
 extern BITBOARD magic_rook_mask[64];
 extern unsigned magic_rook_shift[64];
+extern BITBOARD mobility_mask_b[4];
+extern BITBOARD mobility_mask_r[4];
 extern BITBOARD *magic_rook_indices[64];
 extern BITBOARD magic_rook_table[102400];
 extern BITBOARD magic_bishop[64];
@@ -307,10 +295,11 @@ extern BITBOARD minus8dir[65];
 extern BITBOARD minus9dir[65];
 extern BITBOARD mask_eptest[64];
 extern BITBOARD mask_clear_entry;
-# if !defined(_M_AMD64) && !defined (_M_IA64) && !defined(INLINE32)
+
+#  if !defined(_M_AMD64) && !defined (_M_IA64) && !defined(INLINE32)
 extern unsigned char msb[65536];
 extern unsigned char lsb[65536];
-# endif
+#  endif
 extern unsigned char msb_8bit[256];
 extern unsigned char lsb_8bit[256];
 extern unsigned char islands[256];
@@ -333,9 +322,10 @@ extern BITBOARD black_pawn_race_wtm[64];
 extern BITBOARD black_pawn_race_btm[64];
 extern BOOK_POSITION book_buffer[BOOK_CLUSTER_SIZE];
 extern BOOK_POSITION book_buffer_char[BOOK_CLUSTER_SIZE];
-#if !defined(NOEGTB)
+
+#  if !defined(NOEGTB)
 extern int cbEGTBCompBytes;
-#endif
+#  endif
 extern int pawn_value;
 extern int knight_value;
 extern int bishop_value;
@@ -343,9 +333,24 @@ extern int rook_value;
 extern int queen_value;
 extern int king_value;
 extern int bad_trade;
+extern int dented_armor;
+extern int wtm_bonus;
+extern int gen_trop;
+extern int gen_trop_mid;
+extern int max_pair_b;
+extern int pair_b_min;
+extern int lower_b1;
+extern int lower_b2;
+extern int lower_r;
+extern int lower_r_percent;
+extern int supports_slider;
+extern int attacks_enemy;
+extern int mobility_score_b[4];
+extern int mobility_score_r[4];
+extern int undeveloped_piece;
+extern int friendly_queen[8];
 extern int center_pawn_unmoved;
 extern int pawn_can_promote;
-extern int bad_trade;
 extern int eight_pawns;
 extern int pawns_blocked;
 extern int center_pawn_unmoved;
@@ -377,7 +382,5 @@ extern int blocked_center_pawn;
 extern int development_losing_castle;
 extern int development_not_castled;
 extern struct eval_term eval_packet[256];
-signed char w_push_extensions[64];
-signed char b_push_extensions[64];
 
 #endif

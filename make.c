@@ -18,6 +18,7 @@
 void MakeMove(TREE * RESTRICT tree, int ply, int move, int wtm)
 {
   register int piece, from, to, captured, promote;
+  register int i;
   BITBOARD bit_move;
 
 /*
@@ -59,7 +60,7 @@ MakePieceMove:
 /*
  *******************************************************************************
  *                                                                             *
- *   make pawn moves.  there are two special cases:  (a) enpassant captures    *
+ *   make pawn moves.  there are two special cases:  (a) en passant captures   *
  *   where the captured pawn is not on the "to" square and must be removed in  *
  *   a different way, and (2) pawn promotions (where the "Promote" variable    *
  *   is non-zero) requires updating the appropriate bit boards since we are    *
@@ -110,7 +111,7 @@ MakePieceMove:
           HashNW(to, HashKey);
           PcOnSq(to) = knight;
           TotalWhitePieces += knight_v;
-          Minors++;
+          TotalWhiteKnights++;
           Material += knight_value;
           break;
         case bishop:
@@ -119,7 +120,7 @@ MakePieceMove:
           HashBW(to, HashKey);
           PcOnSq(to) = bishop;
           TotalWhitePieces += bishop_v;
-          Minors++;
+          TotalWhiteBishops++;
           Material += bishop_value;
           break;
         case rook:
@@ -128,7 +129,7 @@ MakePieceMove:
           HashRW(to, HashKey);
           PcOnSq(to) = rook;
           TotalWhitePieces += rook_v;
-          Majors++;
+          TotalWhiteRooks++;
           Material += rook_value;
           break;
         case queen:
@@ -138,7 +139,7 @@ MakePieceMove:
           HashQW(to, HashKey);
           PcOnSq(to) = queen;
           TotalWhitePieces += queen_v;
-          Majors += 2;
+          TotalWhiteQueens++;
           Material += queen_value;
           break;
         }
@@ -188,7 +189,7 @@ MakePieceMove:
           HashNB(to, HashKey);
           PcOnSq(to) = -knight;
           TotalBlackPieces += knight_v;
-          Minors--;
+          TotalBlackKnights++;
           Material -= knight_value;
           break;
         case bishop:
@@ -197,7 +198,7 @@ MakePieceMove:
           HashBB(to, HashKey);
           PcOnSq(to) = -bishop;
           TotalBlackPieces += bishop_v;
-          Minors--;
+          TotalBlackBishops++;
           Material -= bishop_value;
           break;
         case rook:
@@ -206,7 +207,7 @@ MakePieceMove:
           HashRB(to, HashKey);
           PcOnSq(to) = -rook;
           TotalBlackPieces += rook_v;
-          Majors--;
+          TotalBlackRooks++;
           Material -= rook_value;
           break;
         case queen:
@@ -216,7 +217,7 @@ MakePieceMove:
           HashQB(to, HashKey);
           PcOnSq(to) = -queen;
           TotalBlackPieces += queen_v;
-          Majors -= 2;
+          TotalBlackQueens++;
           Material -= queen_value;
           break;
         }
@@ -467,14 +468,14 @@ MakePieceMove:
         Clear(to, BlackPieces);
         HashNB(to, HashKey);
         TotalBlackPieces -= knight_v;
-        Minors++;
+        TotalBlackKnights--;
         Material += knight_value;
       } else {
         Clear(to, WhiteKnights);
         Clear(to, WhitePieces);
         HashNW(to, HashKey);
         TotalWhitePieces -= knight_v;
-        Minors--;
+        TotalWhiteKnights--;
         Material -= knight_value;
       }
       break;
@@ -493,14 +494,14 @@ MakePieceMove:
         Clear(to, BlackPieces);
         HashBB(to, HashKey);
         TotalBlackPieces -= bishop_v;
-        Minors++;
+        TotalBlackBishops--;
         Material += bishop_value;
       } else {
         Clear(to, WhiteBishops);
         Clear(to, WhitePieces);
         HashBW(to, HashKey);
         TotalWhitePieces -= bishop_v;
-        Minors--;
+        TotalWhiteBishops--;
         Material -= bishop_value;
       }
       break;
@@ -528,7 +529,7 @@ MakePieceMove:
           }
         }
         TotalBlackPieces -= rook_v;
-        Majors++;
+        TotalBlackRooks--;
         Material += rook_value;
       } else {
         Clear(to, WhiteRooks);
@@ -544,7 +545,7 @@ MakePieceMove:
           }
         }
         TotalWhitePieces -= rook_v;
-        Majors--;
+        TotalWhiteRooks--;
         Material -= rook_value;
       }
       break;
@@ -565,14 +566,14 @@ MakePieceMove:
         Clear(to, BlackPieces);
         HashQB(to, HashKey);
         TotalBlackPieces -= queen_v;
-        Majors += 2;
+        TotalBlackQueens--;
         Material += queen_value;
       } else {
         Clear(to, WhiteQueens);
         Clear(to, WhitePieces);
         HashQW(to, HashKey);
         TotalWhitePieces -= queen_v;
-        Majors -= 2;
+        TotalWhiteQueens--;
         Material -= queen_value;
       }
       break;
@@ -584,12 +585,18 @@ MakePieceMove:
  ************************************************************
  */
     case king:
-      Print(128, "captured a king\n");
-      Print(128, "piece=%d,from=%d,to=%d,captured=%d\n", piece, from, to,
-          captured);
-      Print(128, "ply=%d\n", ply);
+#if defined(DEBUG)
+      Print(128, "captured a king (Make)\n");
+      for (i = 1; i <= ply; i++)
+        Print(128, "ply=%2d, piece=%2d,from=%2d,to=%2d,captured=%2d\n", i,
+            Piece(tree->current_move[i]), From(tree->current_move[i]),
+            To(tree->current_move[i]), Captured(tree->current_move[i]));
+      Print(128, "ply=%2d, piece=%2d,from=%2d,to=%2d,captured=%2d\n", i, piece,
+          from, to, captured);
       if (log_file)
         DisplayChessBoard(log_file, tree->pos);
+#endif
+      break;
     }
   }
 #if defined(DEBUG)

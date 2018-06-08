@@ -152,7 +152,7 @@ BITBOARD black_pawn_race_btm[64];
 BOOK_POSITION book_buffer[BOOK_CLUSTER_SIZE];
 BOOK_POSITION book_buffer_char[BOOK_CLUSTER_SIZE];
 
-#define    VERSION                             "21.5"
+#define    VERSION                             "21.6"
 char version[8] = { VERSION };
 PLAYING_MODE mode = normal_mode;
 int batch_mode = 0;             /* no asynch reads */
@@ -220,9 +220,9 @@ int null_min = 3 * PLY;         /* R=2 */
 int null_max = 4 * PLY;         /* R=3 */
 int reduce_min_depth = PLY;     /* leave 1 good ply after reductions */
 int reduce_value = PLY;         /* reduce 1 ply */
-int reduce_hist = 80;           /* ok if move fails high < 80% of time */
 int search_depth = 0;
 unsigned int search_nodes = 0;
+unsigned int temp_search_nodes = 0;
 int search_move = 0;
 int predicted = 0;
 int time_used = 0;
@@ -236,6 +236,7 @@ int resign_count = 5;
 int draw_counter = 0;
 int draw_count = 5;
 int draw_offer_pending = 0;
+int draw_offered = 0;
 int offer_draws = 1;
 int adaptive_hash = 0;
 size_t adaptive_hash_min = 0;
@@ -275,8 +276,7 @@ int abs_draw_score = 1;
 int accept_draws = 1;
 const char xlate[15] =
     { 'q', 'r', 'b', 0, 'k', 'n', 'p', 0, 'P', 'N', 'K', 0, 'B', 'R', 'Q' };
-BITBOARD magic_bishop[64] =
-{
+BITBOARD magic_bishop[64] = {
   0x0002020202020200ULL, 0x0002020202020000ULL, 0x0004010202000000ULL,
   0x0004040080000000ULL, 0x0001104000000000ULL, 0x0000821040000000ULL,
   0x0000410410400000ULL, 0x0000104104104000ULL, 0x0000040404040400ULL,
@@ -300,8 +300,7 @@ BITBOARD magic_bishop[64] =
   0x0000000010020200ULL, 0x0000000404080200ULL, 0x0000040404040400ULL,
   0x0002020202020200ULL
 };
-BITBOARD magic_bishop_mask[64] =
-{
+BITBOARD magic_bishop_mask[64] = {
   0x0040201008040200ULL, 0x0000402010080400ULL, 0x0000004020100A00ULL,
   0x0000000040221400ULL, 0x0000000002442800ULL, 0x0000000204085000ULL,
   0x0000020408102000ULL, 0x0002040810204000ULL, 0x0020100804020000ULL,
@@ -325,61 +324,89 @@ BITBOARD magic_bishop_mask[64] =
   0x0028440200000000ULL, 0x0050080402000000ULL, 0x0020100804020000ULL,
   0x0040201008040200ULL
 };
-unsigned int magic_bishop_shift[64]=
-{
-	58, 59, 59, 59, 59, 59, 59, 58,
-	59, 59, 59, 59, 59, 59, 59, 59,
-	59, 59, 57, 57, 57, 57, 59, 59,
-	59, 59, 57, 55, 55, 57, 59, 59,
-	59, 59, 57, 55, 55, 57, 59, 59,
-	59, 59, 57, 57, 57, 57, 59, 59,
-	59, 59, 59, 59, 59, 59, 59, 59,
-	58, 59, 59, 59, 59, 59, 59, 58
+unsigned int magic_bishop_shift[64] = {
+  58, 59, 59, 59, 59, 59, 59, 58,
+  59, 59, 59, 59, 59, 59, 59, 59,
+  59, 59, 57, 57, 57, 57, 59, 59,
+  59, 59, 57, 55, 55, 57, 59, 59,
+  59, 59, 57, 55, 55, 57, 59, 59,
+  59, 59, 57, 57, 57, 57, 59, 59,
+  59, 59, 59, 59, 59, 59, 59, 59,
+  58, 59, 59, 59, 59, 59, 59, 58
 };
 
 BITBOARD magic_bishop_table[5248];
-BITBOARD *magic_bishop_indices[64]=
-{
-	magic_bishop_table+4992, magic_bishop_table+2624,  magic_bishop_table+256,  magic_bishop_table+896,
-	magic_bishop_table+1280, magic_bishop_table+1664, magic_bishop_table+4800, magic_bishop_table+5120,
-	magic_bishop_table+2560, magic_bishop_table+2656,  magic_bishop_table+288,  magic_bishop_table+928,
-	magic_bishop_table+1312, magic_bishop_table+1696, magic_bishop_table+4832, magic_bishop_table+4928,
-	magic_bishop_table+0,     magic_bishop_table+128,  magic_bishop_table+320,  magic_bishop_table+960,
-	magic_bishop_table+1344, magic_bishop_table+1728, magic_bishop_table+2304, magic_bishop_table+2432,
-	magic_bishop_table+32,    magic_bishop_table+160,  magic_bishop_table+448, magic_bishop_table+2752,
-	magic_bishop_table+3776, magic_bishop_table+1856, magic_bishop_table+2336, magic_bishop_table+2464,
-	magic_bishop_table+64,    magic_bishop_table+192,  magic_bishop_table+576, magic_bishop_table+3264,
-	magic_bishop_table+4288, magic_bishop_table+1984, magic_bishop_table+2368, magic_bishop_table+2496,
-	magic_bishop_table+96,    magic_bishop_table+224,  magic_bishop_table+704, magic_bishop_table+1088,
-	magic_bishop_table+1472, magic_bishop_table+2112, magic_bishop_table+2400, magic_bishop_table+2528,
-	magic_bishop_table+2592, magic_bishop_table+2688,  magic_bishop_table+832, magic_bishop_table+1216,
-	magic_bishop_table+1600, magic_bishop_table+2240, magic_bishop_table+4864, magic_bishop_table+4960,
-	magic_bishop_table+5056, magic_bishop_table+2720,  magic_bishop_table+864, magic_bishop_table+1248,
-	magic_bishop_table+1632, magic_bishop_table+2272, magic_bishop_table+4896, magic_bishop_table+5184
+BITBOARD *magic_bishop_indices[64] = {
+  magic_bishop_table + 4992, magic_bishop_table + 2624,
+  magic_bishop_table + 256, magic_bishop_table + 896,
+  magic_bishop_table + 1280, magic_bishop_table + 1664,
+  magic_bishop_table + 4800, magic_bishop_table + 5120,
+  magic_bishop_table + 2560, magic_bishop_table + 2656,
+  magic_bishop_table + 288, magic_bishop_table + 928,
+  magic_bishop_table + 1312, magic_bishop_table + 1696,
+  magic_bishop_table + 4832, magic_bishop_table + 4928,
+  magic_bishop_table + 0, magic_bishop_table + 128, magic_bishop_table + 320,
+  magic_bishop_table + 960,
+  magic_bishop_table + 1344, magic_bishop_table + 1728,
+  magic_bishop_table + 2304, magic_bishop_table + 2432,
+  magic_bishop_table + 32, magic_bishop_table + 160, magic_bishop_table + 448,
+  magic_bishop_table + 2752,
+  magic_bishop_table + 3776, magic_bishop_table + 1856,
+  magic_bishop_table + 2336, magic_bishop_table + 2464,
+  magic_bishop_table + 64, magic_bishop_table + 192, magic_bishop_table + 576,
+  magic_bishop_table + 3264,
+  magic_bishop_table + 4288, magic_bishop_table + 1984,
+  magic_bishop_table + 2368, magic_bishop_table + 2496,
+  magic_bishop_table + 96, magic_bishop_table + 224, magic_bishop_table + 704,
+  magic_bishop_table + 1088,
+  magic_bishop_table + 1472, magic_bishop_table + 2112,
+  magic_bishop_table + 2400, magic_bishop_table + 2528,
+  magic_bishop_table + 2592, magic_bishop_table + 2688,
+  magic_bishop_table + 832, magic_bishop_table + 1216,
+  magic_bishop_table + 1600, magic_bishop_table + 2240,
+  magic_bishop_table + 4864, magic_bishop_table + 4960,
+  magic_bishop_table + 5056, magic_bishop_table + 2720,
+  magic_bishop_table + 864, magic_bishop_table + 1248,
+  magic_bishop_table + 1632, magic_bishop_table + 2272,
+  magic_bishop_table + 4896, magic_bishop_table + 5184
 };
 
 BITBOARD magic_rook_table[102400];
-BITBOARD *magic_rook_indices[64]=
-{
-	magic_rook_table+86016, magic_rook_table+73728, magic_rook_table+36864, magic_rook_table+43008,
-	magic_rook_table+47104, magic_rook_table+51200, magic_rook_table+77824, magic_rook_table+94208,
-	magic_rook_table+69632, magic_rook_table+32768, magic_rook_table+38912, magic_rook_table+10240,
-	magic_rook_table+14336, magic_rook_table+53248, magic_rook_table+57344, magic_rook_table+81920,
-	magic_rook_table+24576, magic_rook_table+33792,  magic_rook_table+6144, magic_rook_table+11264,
-	magic_rook_table+15360, magic_rook_table+18432, magic_rook_table+58368, magic_rook_table+61440,
-	magic_rook_table+26624,  magic_rook_table+4096,  magic_rook_table+7168,     magic_rook_table+0,
-	 magic_rook_table+2048, magic_rook_table+19456, magic_rook_table+22528, magic_rook_table+63488,
-	magic_rook_table+28672,  magic_rook_table+5120,  magic_rook_table+8192,  magic_rook_table+1024,
-	 magic_rook_table+3072, magic_rook_table+20480, magic_rook_table+23552, magic_rook_table+65536,
-	magic_rook_table+30720, magic_rook_table+34816,  magic_rook_table+9216, magic_rook_table+12288,
-	magic_rook_table+16384, magic_rook_table+21504, magic_rook_table+59392, magic_rook_table+67584,
-	magic_rook_table+71680, magic_rook_table+35840, magic_rook_table+39936, magic_rook_table+13312,
-	magic_rook_table+17408, magic_rook_table+54272, magic_rook_table+60416, magic_rook_table+83968,
-	magic_rook_table+90112, magic_rook_table+75776, magic_rook_table+40960, magic_rook_table+45056,
-	magic_rook_table+49152, magic_rook_table+55296, magic_rook_table+79872, magic_rook_table+98304
+BITBOARD *magic_rook_indices[64] = {
+  magic_rook_table + 86016, magic_rook_table + 73728, magic_rook_table + 36864,
+  magic_rook_table + 43008,
+  magic_rook_table + 47104, magic_rook_table + 51200, magic_rook_table + 77824,
+  magic_rook_table + 94208,
+  magic_rook_table + 69632, magic_rook_table + 32768, magic_rook_table + 38912,
+  magic_rook_table + 10240,
+  magic_rook_table + 14336, magic_rook_table + 53248, magic_rook_table + 57344,
+  magic_rook_table + 81920,
+  magic_rook_table + 24576, magic_rook_table + 33792, magic_rook_table + 6144,
+  magic_rook_table + 11264,
+  magic_rook_table + 15360, magic_rook_table + 18432, magic_rook_table + 58368,
+  magic_rook_table + 61440,
+  magic_rook_table + 26624, magic_rook_table + 4096, magic_rook_table + 7168,
+  magic_rook_table + 0,
+  magic_rook_table + 2048, magic_rook_table + 19456, magic_rook_table + 22528,
+  magic_rook_table + 63488,
+  magic_rook_table + 28672, magic_rook_table + 5120, magic_rook_table + 8192,
+  magic_rook_table + 1024,
+  magic_rook_table + 3072, magic_rook_table + 20480, magic_rook_table + 23552,
+  magic_rook_table + 65536,
+  magic_rook_table + 30720, magic_rook_table + 34816, magic_rook_table + 9216,
+  magic_rook_table + 12288,
+  magic_rook_table + 16384, magic_rook_table + 21504, magic_rook_table + 59392,
+  magic_rook_table + 67584,
+  magic_rook_table + 71680, magic_rook_table + 35840, magic_rook_table + 39936,
+  magic_rook_table + 13312,
+  magic_rook_table + 17408, magic_rook_table + 54272, magic_rook_table + 60416,
+  magic_rook_table + 83968,
+  magic_rook_table + 90112, magic_rook_table + 75776, magic_rook_table + 40960,
+  magic_rook_table + 45056,
+  magic_rook_table + 49152, magic_rook_table + 55296, magic_rook_table + 79872,
+  magic_rook_table + 98304
 };
-BITBOARD magic_rook[64] =
-    {
+BITBOARD magic_rook[64] = {
   0x0080001020400080ULL, 0x0040001000200040ULL, 0x0080081000200080ULL,
   0x0080040800100080ULL, 0x0080020400080080ULL, 0x0080010200040080ULL,
   0x0080008001000200ULL, 0x0080002040800100ULL, 0x0000800020400080ULL,
@@ -403,8 +430,7 @@ BITBOARD magic_rook[64] =
   0x0001000204080011ULL, 0x0001000204000801ULL, 0x0001000082000401ULL,
   0x0001FFFAABFAD1A2ULL
 };
-BITBOARD magic_rook_mask[64] =
-    {
+BITBOARD magic_rook_mask[64] = {
   0x000101010101017EULL, 0x000202020202027CULL, 0x000404040404047AULL,
   0x0008080808080876ULL, 0x001010101010106EULL, 0x002020202020205EULL,
   0x004040404040403EULL, 0x008080808080807EULL, 0x0001010101017E00ULL,
@@ -428,17 +454,24 @@ BITBOARD magic_rook_mask[64] =
   0x6E10101010101000ULL, 0x5E20202020202000ULL, 0x3E40404040404000ULL,
   0x7E80808080808000ULL
 };
-unsigned int magic_rook_shift[64]=
-{
-	52, 53, 53, 53, 53, 53, 53, 52,
-	53, 54, 54, 54, 54, 54, 54, 53,
-	53, 54, 54, 54, 54, 54, 54, 53,
-	53, 54, 54, 54, 54, 54, 54, 53,
-	53, 54, 54, 54, 54, 54, 54, 53,
-	53, 54, 54, 54, 54, 54, 54, 53,
-	53, 54, 54, 54, 54, 54, 54, 53,
-	53, 54, 54, 53, 53, 53, 53, 53
+unsigned int magic_rook_shift[64] = {
+  52, 53, 53, 53, 53, 53, 53, 52,
+  53, 54, 54, 54, 54, 54, 54, 53,
+  53, 54, 54, 54, 54, 54, 54, 53,
+  53, 54, 54, 54, 54, 54, 54, 53,
+  53, 54, 54, 54, 54, 54, 54, 53,
+  53, 54, 54, 54, 54, 54, 54, 53,
+  53, 54, 54, 54, 54, 54, 54, 53,
+  53, 54, 54, 53, 53, 53, 53, 53
 };
+BITBOARD mobility_mask_b[4] = { 0xFF818181818181FFULL,
+                                0x007E424242427E00ULL,
+                                0x00003C24243C0000ULL,
+                                0x0000001818000000ULL };
+BITBOARD mobility_mask_r[4] = { 0x8181818181818181ULL,
+                                0x4242424242424242ULL,
+                                0x2424242424242424ULL,
+                                0x1818181818181818ULL };
 const char empty[9] = { 0, '1', '2', '3', '4', '5', '6', '7', '8' };
 int king_tropism_n[8] = { 0, 3, 3, 2, 1, 0, 0, 0 };
 int king_tropism_b[8] = { 0, 2, 2, 1, 0, 0, 0, 0 };
@@ -450,7 +483,7 @@ int connected_passed_pawn_value[8] = { 0, 0, 20, 40, 80, 140, 200, 0 };
 int hidden_passed_pawn_value[8] = { 0, 0, 0, 0, 20, 40, 0, 0 };
 int passed_pawn_value[8] = { 0, 12, 20, 48, 72, 120, 150, 0 };
 int blockading_passed_pawn_value[8] = { 0, 6, 10, 24, 36, 60, 75, 0 };
-int doubled_pawn_value[9] = { 0, 0, 4, 7, 10, 10, 10, 10, 10 };
+int doubled_pawn_value[9] = { 0, 0, 5, 8, 11, 11, 11, 11, 11 }; //{ 0, 0, 4, 7, 10, 10, 10, 10, 10 };
 int supported_passer[8] = { 0, 0, 0, 20, 40, 60, 100, 0 };
 int outside_passed = 100;
 const char square_color[64] = {
@@ -464,54 +497,34 @@ const char square_color[64] = {
   0, 1, 0, 1, 0, 1, 0, 1
 };
 const char b_n_mate_dark_squares[64] = {
-  100, 90, 80, 70, 60, 50, 40,  30,
-   90, 80, 70, 60, 50, 40, 30,  40,
-   80, 70, 60, 50, 40, 30, 40,  50,
-   70, 60, 50, 40, 30, 40, 50,  60,
-   60, 50, 40, 30, 40, 50, 60,  70,
-   50, 40, 30, 40, 50, 60, 70,  80,
-   40, 30, 40, 50, 60, 70, 80,  90,
-   30, 40, 50, 60, 70, 80, 90, 100
+  99, 90, 80, 70, 60, 50, 40, 30,
+  90, 80, 70, 60, 50, 40, 30, 40,
+  80, 70, 60, 50, 40, 30, 40, 50,
+  70, 60, 50, 40, 30, 40, 50, 60,
+  60, 50, 40, 30, 40, 50, 60, 70,
+  50, 40, 30, 40, 50, 60, 70, 80,
+  40, 30, 40, 50, 60, 70, 80, 90,
+  30, 40, 50, 60, 70, 80, 90, 99
 };
 const char b_n_mate_light_squares[64] = {
-   30, 40, 50, 60, 70, 80, 90, 100,
-   40, 30, 40, 50, 60, 70, 80,  90,
-   50, 40, 30, 40, 50, 60, 70,  80,
-   60, 50, 40, 30, 40, 50, 60,  70,
-   70, 60, 50, 40, 30, 40, 50,  60,
-   80, 70, 60, 50, 40, 30, 40,  50,
-   90, 80, 70, 60, 50, 40, 30,  40,
-  100, 90, 80, 70, 60, 50, 40,  30
+  30, 40, 50, 60, 70, 80, 90, 99,
+  40, 30, 40, 50, 60, 70, 80, 90,
+  50, 40, 30, 40, 50, 60, 70, 80,
+  60, 50, 40, 30, 40, 50, 60, 70,
+  70, 60, 50, 40, 30, 40, 50, 60,
+  80, 70, 60, 50, 40, 30, 40, 50,
+  90, 80, 70, 60, 50, 40, 30, 40,
+  99, 90, 80, 70, 60, 50, 40, 30
 };
-const char mate[64] = {
-  100, 96, 93, 90, 90, 93, 96, 100,
-   96, 80, 70, 60, 60, 70, 80,  96,
-   93, 70, 60, 50, 50, 60, 70,  93,
-   90, 60, 50, 40, 40, 50, 60,  90,
-   90, 60, 50, 40, 40, 50, 60,  90,
-   93, 70, 60, 50, 50, 60, 70,  93,
-   96, 80, 70, 60, 60, 70, 80,  96,
-  100, 96, 93, 90, 90, 93, 96, 100
-};
-int sqrvalB[64] = {
-    0,   1,   1,   1,   1,   1,   1,   0,
-    1,   2,   2,   2,   2,   2,   2,   1,
-    1,   2,   3,   3,   3,   3,   2,   1,
-    1,   2,   3,   5,   5,   3,   2,   1,
-    1,   2,   3,   5,   5,   3,   2,   1,
-    1,   2,   3,   3,   3,   3,   2,   1,
-    1,   2,   2,   2,   2,   2,   2,   1,
-    0,   1,   1,   1,   1,   1,   1,   0
-};
-int sqrvalR[64] = {
-    10,   20,   30,   40,   40,   30,   20,   10,
-    10,   20,   30,   40,   40,   30,   20,   10,
-    10,   20,   30,   40,   40,   30,   20,   10,
-    10,   20,   30,   40,   40,   30,   20,   10,
-    10,   20,   30,   40,   40,   30,   20,   10,
-    10,   20,   30,   40,   40,   30,   20,   10,
-    10,   20,   30,   40,   40,   30,   20,   10,
-    10,   20,   30,   40,   40,   30,   20,   10
+const int mate[64] = {
+  200, 180, 160, 140, 140, 160, 180, 200,
+  180, 160, 140, 120, 120, 140, 160, 180,
+  160, 140, 120, 100, 100, 120, 140, 160,
+  140, 120, 100, 100, 100, 100, 120, 140,
+  140, 120, 100, 100, 100, 100, 120, 140,
+  160, 140, 120, 100, 100, 120, 140, 160,
+  180, 160, 140, 120, 120, 140, 160, 180,
+  200, 180, 160, 140, 140, 160, 180, 200
 };
 int white_outpost[64] = {
   0, 0,  0,  0,  0,  0, 0, 0,
@@ -524,14 +537,14 @@ int white_outpost[64] = {
   0, 0,  0,  0,  0,  0, 0, 0
 };
 int pval_w[64] = {
-   0,  0,  0,   0,   0,  0,  0,  0,
-   0,  0,  0, -12, -12,  0,  0,  0,
-   1,  1,  1,  10,  10,  1,  1,  1,
-   3,  3,  3,  13,  13,  3,  3,  3,
-   6,  6,  6,  16,  16,  6,  6,  6,
+  0,   0,  0,   0,   0,  0,  0,  0,
+  0,   0,  0, -12, -12,  0,  0,  0,
+  1,   1,  1,  10,  10,  1,  1,  1,
+  3,   3,  3,  13,  13,  3,  3,  3,
+  6,   6,  6,  16,  16,  6,  6,  6,
   10, 10, 10,  30,  30, 10, 10, 10,
   70, 70, 70,  70,  70, 70, 70, 70,
-   0,  0,  0,   0,   0,  0,  0,  0
+  0,   0,  0,   0,   0,  0,  0,  0
 };
 int nval[64] = {
   -60, -30, -30, -30, -30, -30, -30, -60,
@@ -544,14 +557,14 @@ int nval[64] = {
   -60, -30, -30, -30, -30, -30, -30, -60,
 };
 int qval[64] = {
-  -20, -20,   0,   0,   0,   0, -20, -20,
-  -20,   0,   8,   8,   8,   8,   0, -20,
-     0,  8,   8,  12,  12,   8,   8,   0,
-     0,  8,  12,  16,  16,  12,   8,   0,
-     0,  8,  12,  16,  16,  12,   8,   0,
-     0,  8,   8,  12,  12,   8,   8,   0,
-  -20,   0,   8,   8,   8,   8,   0, -20,
-  -20, -20,   0,   0,   0,   0, -20, -20,
+  -20, -20,  0,  0,  0,  0, -20, -20,
+  -20,   0,  8,  8,  8,  8,   0, -20,
+    0,   8,  8, 12, 12,  8,   8,   0,
+    0,   8, 12, 16, 16, 12,   8,   0,
+    0,   8, 12, 16, 16, 12,   8,   0,
+    0,   8,  8, 12, 12,  8,   8,   0,
+  -20,   0,  8,  8,  8,  8,   0, -20,
+  -20, -20,  0,  0,  0,  0, -20, -20,
 };
 int kval_wn[64] = {
   -40, -40, -40, -40, -40, -40, -40, -40,
@@ -584,31 +597,13 @@ int kval_wq[64] = {
   -20, -20, -20, -20, -20, -20, -40, -60
 };
 int safety_vector[16] = {
-    0,  7, 14, 21, 28, 35, 42, 49,
-   56, 63, 70, 77, 84, 91, 98, 105
+  0, 7, 14, 21, 28, 35, 42, 49,
+  56, 63, 70, 77, 84, 91, 98, 105
 };
 int tropism_vector[16] = {
-   0,  1,  2,  3,   4,   5,  11,  20,
+  0, 1, 2, 3, 4, 5, 11, 20,
   32, 47, 65, 86, 110, 137, 167, 200
 };
-signed char    w_push_extensions[64] =     {0, 0, 0, 0, 0, 0, 0, 0,
-                                            0, 0, 0, 0, 0, 0, 0, 0,
-                                            0, 0, 0, 0, 0, 0, 0, 0,
-                                            0, 0, 0, 0, 0, 0, 0, 0,
-                                            0, 0, 0, 0, 0, 0, 0, 0,
-                                            1, 1, 1, 1, 1, 1, 1, 1,
-                                            1, 1, 1, 1, 1, 1, 1, 1,
-                                            0, 0, 0, 0, 0, 0, 0, 0};
-
-signed char    b_push_extensions[64] =    { 0, 0, 0, 0, 0, 0, 0, 0,
-                                            1, 1, 1, 1, 1, 1, 1, 1,
-                                            1, 1, 1, 1, 1, 1, 1, 1,
-                                            0, 0, 0, 0, 0, 0, 0, 0,
-                                            0, 0, 0, 0, 0, 0, 0, 0,
-                                            0, 0, 0, 0, 0, 0, 0, 0,
-                                            0, 0, 0, 0, 0, 0, 0, 0,
-                                            0, 0, 0, 0, 0, 0, 0, 0 };
-
 
 /* note that black piece/square values are copied from white, but
    reflected */
@@ -626,26 +621,42 @@ int rook_value = ROOK_VALUE;
 int queen_value = QUEEN_VALUE;
 int king_value = KING_VALUE;
 int pawn_can_promote = 525;
-int bad_trade = 70;
+int bad_trade = 90;
+int dented_armor = 6;
+int wtm_bonus = 5;
+int gen_trop = 2;
+int gen_trop_mid = 7;
+int max_pair_b = 70;
+int pair_b_min = 8;
+int lower_b1 = 16;
+int lower_b2 = 32;
+int lower_r = 16;               //15;
+int lower_r_percent = 6;
+int supports_slider = 3;
+int attacks_enemy = 4;
+int mobility_score_b[4] = { 1, 2, 3, 5 };
+int mobility_score_r[4] = { 1, 2, 3, 4 };
+int undeveloped_piece = 12;
+int friendly_queen[8] = { 2, 2, 2, 1, 0, 0, -1, -1 };
 int pawns_blocked = 2;
 int center_pawn_unmoved = 8;
 int pawn_duo = 2;
-int pawn_weak[9] = {0, 10, 20, 30, 40, 50, 60, 70, 80};
-int pawn_islands[5] = {0, 0, 0, 15, 30};
-
+int pawn_weak[9] = { 0, 10, 20, 30, 40, 50, 60, 70, 80 };
+int pawn_islands[5] = { 0, 0, 0, 15, 30 };
 int pawn_protected_passer_wins = 50;
 int won_kp_ending = 200;
 int split_passed = 50;
-int king_king_tropism = 15;
+int king_king_tropism = 10;
 int bishop_trapped = 174;
 int slider_with_wing_pawns = 36;
+
 /*
     this is indexed by the center status (open, ..., blocked)
     as a bishop pair is more important when the board has opened
     up so that mobility is high.  0 is blocked, 60 is open, middle
     value is in-between.
 */
-int bishop_pair[3] = { 0, 30, 60 };
+//int bishop_pair[3] = { 0, 30, 60 };
 int rook_on_7th = 24;
 int rook_connected_7th_rank = 10;
 
@@ -658,15 +669,15 @@ int rook_connected_7th_rank = 10;
     there is only one or two files available.
 */
 int rook_open_file[9][8] = {
-  {  0,  0,  0,  0,  0,  0,  0,  0 },
-  { 20, 27, 35, 40, 40, 35, 27, 20 },
-  { 13, 18, 23, 26, 26, 23, 18, 13 },
-  { 10, 13, 17, 20, 20, 17, 13, 10 },
-  { 10, 13, 17, 20, 20, 17, 13, 10 },
-  { 10, 13, 17, 20, 20, 17, 13, 10 },
-  { 10, 13, 17, 20, 20, 17, 13, 10 },
-  { 10, 13, 17, 20, 20, 17, 13, 10 },
-  { 10, 13, 17, 20, 20, 17, 13, 10 }
+  {0, 0, 0, 0, 0, 0, 0, 0},
+  {20, 27, 35, 40, 40, 35, 27, 20},
+  {13, 18, 23, 26, 26, 23, 18, 13},
+  {10, 13, 17, 20, 20, 17, 13, 10},
+  {10, 13, 17, 20, 20, 17, 13, 10},
+  {10, 13, 17, 20, 20, 17, 13, 10},
+  {10, 13, 17, 20, 20, 17, 13, 10},
+  {10, 13, 17, 20, 20, 17, 13, 10},
+  {10, 13, 17, 20, 20, 17, 13, 10}
 };
 int rook_reaches_open_file = 16;
 int rook_half_open_file = 10;
@@ -681,16 +692,6 @@ int development_thematic = 12;
 int blocked_center_pawn = 12;
 int development_losing_castle = 20;
 int development_not_castled = 20;
-
-// Directions.
-int UP = +8;
-int UP_RIGHT = +9;
-int RIGHT = +1;
-int DOWN_RIGHT = -7;
-int DOWN = -8;
-int DOWN_LEFT = -9;
-int LEFT = -1;
-int UP_LEFT = +7;
 
 /*
    First term is a character string explaining what the eval
@@ -711,7 +712,7 @@ struct eval_term eval_packet[256] = {
   {"rook value                      ", 0, &rook_value},
   {"queen value                     ", 0, &queen_value},
   {"bad trade bonus/penalty         ", 0, &bad_trade},
-  {NULL, 0, NULL},
+  {"wtm bonus                       ", 0, &wtm_bonus},
   {NULL, 0, NULL},
   {NULL, 0, NULL},
   {NULL, 0, NULL},
@@ -767,9 +768,9 @@ struct eval_term eval_packet[256] = {
   {"bishop scoring------------------", 0, NULL},        /* 60 */
   {"bishop over knight endgame      ", 0, &slider_with_wing_pawns},
   {"bishop trapped                  ", 0, &bishop_trapped},
-  {"bishop pair                     ", 3, bishop_pair},
   {"king tropism [distance]         ", 8, king_tropism_b},
-  {"bishop mobility/square table    ", -64, sqrvalB},
+  {"bishop mobility/square table    ", 4, mobility_score_b},
+  {NULL, 0, NULL},
   {NULL, 0, NULL},
   {NULL, 0, NULL},
   {NULL, 0, NULL},
@@ -784,7 +785,7 @@ struct eval_term eval_packet[256] = {
   {"rook reaches open file          ", 0, &rook_reaches_open_file},
   {"king tropism [distance]         ", 8, king_tropism_r},
   {"king file tropism [distance]    ", 0, &king_tropism_at_r},
-  {"rook mobility/square table      ", -64, sqrvalR},
+  {"rook mobility/square table      ", 4, mobility_score_r},
   {NULL, 0, NULL},
   {NULL, 0, NULL},
   {NULL, 0, NULL},

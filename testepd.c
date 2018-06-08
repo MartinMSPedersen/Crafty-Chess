@@ -29,13 +29,13 @@
  */
 void TestEPD(char *filename)
 {
-  FILE     *test_input;
-  int       i, move, right = 0, wrong = 0, correct;
-  int       time = 0, len;
-  BITBOARD  nodes = 0;
-  char     *eof, *mvs, *title;
-  float     avg_depth = 0.0;
-  TREE     *RESTRICT const tree = local[0];
+  FILE *test_input;
+  int i, move, right = 0, wrong = 0, correct;
+  int time = 0, len;
+  BITBOARD nodes = 0;
+  char *eof, *mvs, *title;
+  float avg_depth = 0.0;
+  TREE *RESTRICT const tree = local[0];
 
 /*
  ************************************************************
@@ -61,7 +61,7 @@ void TestEPD(char *filename)
   while (1) {
     eof = fgets(buffer, 512, test_input);
     if (eof) {
-      char     *delim;
+      char *delim;
 
       delim = strchr(buffer, '\n');
       if (delim)

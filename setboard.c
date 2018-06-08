@@ -259,7 +259,7 @@ void SetBoard(SEARCH_POSITION * position, int nargs, char *args[], int special)
     position->rule_50_moves = 0;
     if (!special) {
       last_mate_score = 0;
-      InitializeHistoryKillers();
+      InitializeKillers();
       last_pv.pathd = 0;
       last_pv.pathl = 0;
       tree->pv[0].pathd = 0;

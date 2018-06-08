@@ -120,7 +120,7 @@ void Initialize()
   InitializePawnMasks();
   InitializePieceMasks();
   InitializeChessBoard(&tree->position[0]);
-  InitializeHistoryKillers();
+  InitializeKillers();
 #if defined(NT_i386)
   _fmode = _O_BINARY;   /* set file mode binary to avoid text translation */
 #endif
@@ -443,7 +443,8 @@ void InitializeMagic(void)
       BITBOARD abit = temp & -temp;
 
       squares[numsquares++] =
-          initmagicmoves_bitpos64_database[(abit * 0x07EDD5E59A4E28C2ULL) >> 58];
+          initmagicmoves_bitpos64_database[(abit *
+              0x07EDD5E59A4E28C2ULL) >> 58];
       temp ^= abit;
     }
     for (temp = 0; temp < (((BITBOARD) (1)) << numsquares); temp++) {
@@ -463,7 +464,8 @@ void InitializeMagic(void)
       BITBOARD abit = temp & -temp;
 
       squares[numsquares++] =
-          initmagicmoves_bitpos64_database[(abit * 0x07EDD5E59A4E28C2ULL) >> 58];
+          initmagicmoves_bitpos64_database[(abit *
+              0x07EDD5E59A4E28C2ULL) >> 58];
       temp ^= abit;
     }
     for (temp = 0; temp < (((BITBOARD) (1)) << numsquares); temp++) {
@@ -522,7 +524,7 @@ BITBOARD InitializeMagicBishop(int square, BITBOARD occupied)
     else
       break;
   } while (abit && !(abit & occupied));
-  return ret;
+  return (ret);
 }
 
 BITBOARD InitializeMagicOccupied(int *squares, int numSquares,
@@ -534,7 +536,7 @@ BITBOARD InitializeMagicOccupied(int *squares, int numSquares,
   for (i = 0; i < numSquares; i++)
     if (linoccupied & (((BITBOARD) (1)) << i))
       ret |= (((BITBOARD) (1)) << squares[i]);
-  return ret;
+  return (ret);
 }
 
 BITBOARD InitializeMagicRook(int square, BITBOARD occupied)
@@ -569,7 +571,7 @@ BITBOARD InitializeMagicRook(int square, BITBOARD occupied)
     else
       break;
   } while (!(abit & occupied));
-  return ret;
+  return (ret);
 }
 
 void InitializeChessBoard(SEARCH_POSITION * new_pos)
@@ -795,8 +797,19 @@ void SetChessBitBoards(SEARCH_POSITION * new_pos)
   tree->pos.white_pawns = 0;
   tree->pos.black_pieces = 0;
   tree->pos.black_pawns = 0;
-  tree->pos.majors = 0;
-  tree->pos.minors = 0;
+
+//TLR
+//  tree->pos.majors = 0;
+//  tree->pos.minors = 0;
+  tree->pos.num_w_knights = 0;
+  tree->pos.num_b_knights = 0;
+  tree->pos.num_w_bishops = 0;
+  tree->pos.num_b_bishops = 0;
+  tree->pos.num_w_rooks = 0;
+  tree->pos.num_b_rooks = 0;
+  tree->pos.num_w_queens = 0;
+  tree->pos.num_b_queens = 0;
+
   tree->pos.material_evaluation = 0;
   for (i = 0; i < 64; i++) {
     switch (tree->pos.board[i]) {
@@ -807,22 +820,22 @@ void SetChessBitBoards(SEARCH_POSITION * new_pos)
     case knight:
       tree->pos.material_evaluation += knight_value;
       tree->pos.white_pieces += knight_v;
-      tree->pos.minors++;
+      tree->pos.num_w_knights++;
       break;
     case bishop:
       tree->pos.material_evaluation += bishop_value;
       tree->pos.white_pieces += bishop_v;
-      tree->pos.minors++;
+      tree->pos.num_w_bishops++;
       break;
     case rook:
       tree->pos.material_evaluation += rook_value;
       tree->pos.white_pieces += rook_v;
-      tree->pos.majors++;
+      tree->pos.num_w_rooks++;
       break;
     case queen:
       tree->pos.material_evaluation += queen_value;
       tree->pos.white_pieces += queen_v;
-      tree->pos.majors += 2;
+      tree->pos.num_w_queens++;
       break;
     case -pawn:
       tree->pos.material_evaluation -= pawn_value;
@@ -831,22 +844,22 @@ void SetChessBitBoards(SEARCH_POSITION * new_pos)
     case -knight:
       tree->pos.material_evaluation -= knight_value;
       tree->pos.black_pieces += knight_v;
-      tree->pos.minors--;
+      tree->pos.num_b_knights++;
       break;
     case -bishop:
       tree->pos.material_evaluation -= bishop_value;
       tree->pos.black_pieces += bishop_v;
-      tree->pos.minors--;
+      tree->pos.num_b_bishops++;
       break;
     case -rook:
       tree->pos.material_evaluation -= rook_value;
       tree->pos.black_pieces += rook_v;
-      tree->pos.majors--;
+      tree->pos.num_b_rooks++;
       break;
     case -queen:
       tree->pos.material_evaluation -= queen_value;
       tree->pos.black_pieces += queen_v;
-      tree->pos.majors -= 2;
+      tree->pos.num_b_queens++;
       break;
     default:
       ;
@@ -955,7 +968,7 @@ int InitializeGetLogID(void)
       tlog = fopen(tfn, "r+");
       if (tlog) {
         i = fstat(fileno(tlog), fileinfo);
-        if (fileinfo->st_size < 1200)
+        if (fileinfo->st_size < 1300)
           log_id--;
       }
     }
@@ -998,14 +1011,10 @@ void InitializeHashTables(void)
   }
 }
 
-void InitializeHistoryKillers(void)
+void InitializeKillers(void)
 {
   int i;
 
-  for (i = 0; i < 8192; i++) {
-    shared->history[i].fh = 0;
-    shared->history[i].count = 1;
-  }
   for (i = 0; i < MAXPLY; i++) {
     shared->local[0]->killers[i].move1 = 0;
     shared->local[0]->killers[i].move2 = 0;

@@ -122,6 +122,7 @@ void ResignOrDraw(TREE * RESTRICT tree, int value)
     }
   }
   if (offer_draws && result == 2) {
+    draw_offered = 1;
     if (!ics && !xboard) {
       Print(128, "\nI offer a draw.\n\n");
       if (audible_alarm)
@@ -137,5 +138,6 @@ void ResignOrDraw(TREE * RESTRICT tree, int value)
       Print(4095, "offer draw\n");
     else
       Print(4095, "\n*draw\n");
-  }
+  } else
+    draw_offered = 0;
 }

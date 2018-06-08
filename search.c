@@ -10,7 +10,7 @@
 #  define F_MARGIN ((bishop_value+1)/2)
 #endif
 
-/* last modified 01/07/07 */
+/* last modified 03/01/06 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -30,7 +30,6 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
   register int o_alpha, value = 0;
   register int extensions, extended, pieces;
   int mate_threat = 0;
-  int searched[256], count = 0;
 
 /*
  ************************************************************
@@ -46,6 +45,14 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
  ************************************************************
  */
   tree->nodes_searched++;
+#if defined(NODES)
+  temp_search_nodes--;
+  if (temp_search_nodes <= 0) {
+    shared->time_abort++;
+    shared->abort_search = 1;
+    return (0);
+  }
+#endif
   if (tree->thread_id == 0) {
     if (--shared->next_time_check <= 0) {
       shared->next_time_check = shared->nodes_between_time_checks;
@@ -344,7 +351,6 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
  *                                                          *
  ************************************************************
  */
-      searched[count++] = tree->current_move[ply];
       extended = SearchControl(tree, wtm, ply, depth, mate_threat);
 /*
  ************************************************************
@@ -427,8 +433,6 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
         }
       }
       if (value > alpha) {
-        HistoryUpdateFH(tree, wtm, searched, count);
-        count = 0;
         if (value >= beta) {
           Killer(tree, ply, tree->current_move[ply]);
           UnmakeMove(tree, ply, tree->current_move[ply], wtm);
@@ -460,7 +464,6 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
           Interrupt(ply);
         value = tree->search_value;
         if (value > alpha) {
-          HistoryUpdateFH(tree, wtm, &tree->current_move[ply], 1);
           if (value >= beta) {
             Killer(tree, ply, tree->current_move[ply]);
             HashStore(tree, ply, depth, wtm, LOWER, value, mate_threat);
@@ -506,7 +509,7 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
   }
 }
 
-/* last modified 02/22/06 */
+/* last modified 04/18/07 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -534,7 +537,7 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
 int SearchControl(TREE * RESTRICT tree, int wtm, int ply, int depth,
     int mate_threat)
 {
-  register int adjustment = 0, move, index, fh_percent, square;
+  register int adjustment = 0, move, square;
 
 /*
  ************************************************************
@@ -565,31 +568,6 @@ int SearchControl(TREE * RESTRICT tree, int wtm, int ply, int depth,
     adjustment += incheck_depth;
   } else
     tree->in_check[ply + 1] = 0;
-  move = tree->current_move[ply];
-  square = To(move);
-  if (Piece(move) == pawn && (TotalWhitePieces < (WhiteQueens ? 15 : 12) || TotalBlackPieces < (BlackQueens ? 15 : 12)) )
-  {
-    if(wtm)
-    {
-      if (w_push_extensions[square]
-        && !(mask_pawn_passed_w[square] & BlackPawns)
-        && !PcOnSq(square+8))
-      {
-        tree->passed_pawn_extensions_done++;
-        adjustment += pushpp_depth;
-      }
-    }
-    else
-    {
-      if (b_push_extensions[square]
-        && !(mask_pawn_passed_b[square] & WhitePawns)
-        && !PcOnSq(square-8))
-      {
-        tree->passed_pawn_extensions_done++;
-        adjustment += pushpp_depth;
-      }
-    }
-  }
 /*
  ************************************************************
  *                                                          *
@@ -646,15 +624,13 @@ int SearchControl(TREE * RESTRICT tree, int wtm, int ply, int depth,
  *       balance, that is it can not be a capture or pawn   *
  *       promotion;                                         *
  *                                                          *
- *   (7) the current move must have a history counter value *
- *       less than "reduction_threshold" which means it has *
- *       not been a consistent "fail-high" or "PV" type     *
- *       move;                                              *
- *                                                          *
  ************************************************************
  */
   if (tree->phase[ply] != REMAINING_MOVES)
     return (0);
+  tree->reductions_attempted++;
+  move = tree->current_move[ply];
+  square = To(move);
   if (depth - PLY - reduce_value < reduce_min_depth || tree->in_check[ply] ||
       CaptureOrPromote(move))
     return (0);
@@ -678,16 +654,10 @@ int SearchControl(TREE * RESTRICT tree, int wtm, int ply, int depth,
 /*
  ************************************************************
  *                                                          *
- *   check the history value to see if the move can be      *
- *   reduced.                                               *
+ *   move is safe to reduce.                                *
  *                                                          *
  ************************************************************
  */
-  tree->reductions_attempted++;
-  index = HistoryIndex(move, wtm);
-  fh_percent = shared->history[index].fh / shared->history[index].count;
-  if (fh_percent > reduce_hist)
-    return (0);
   tree->reductions_done++;
   return (-reduce_value);
 }

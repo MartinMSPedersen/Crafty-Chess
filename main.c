@@ -13,18 +13,27 @@
 #endif
 #include <signal.h>
 
-/* last modified 10/10/05 */
+/* last modified 03/08/07 */
 /*
  *******************************************************************************
  *                                                                             *
- *  Crafty, copyright 1996-2006 by Robert M. Hyatt, Ph.D., Associate Professor *
+ *  Crafty, copyright 1996-2007 by Robert M. Hyatt, Ph.D., Associate Professor *
  *  of Computer and Information Sciences, University of Alabama at Birmingham. *
+ *                                                                             *
+ *  Crafty is a team project consisting of the following members.  These are   *
+ *  the people involved in the continuing development of this program, there   *
+ *  are no particular members responsible for any specific aspect of Crafty.   *
+ *                                                                             *
+ *     Michael Byrne, Pen Argyle, PA.                                          *
+ *     Robert Hyatt, University of Alabama at Birmingham.                      *
+ *     Tracy Riegle, Houston, TX.                                              *
+ *     Peter Skinner, Edmonton, AB  Canada.                                    *
  *                                                                             *
  *  All rights reserved.  No part of this program may be reproduced in any     *
  *  form or by any means, for other than your personal use, without the        *
- *  express written permission of the author.  This program may not be used in *
- *  whole, nor in part, to enter any computer chess competition without        *
- *  written permission from the author.  Such permission will include the      *
+ *  express written permission of the authors.  This program may not be used   *
+ *  in whole, nor in part, to enter any computer chess competition without     *
+ *  written permission from the authors.  Such permission will include the     *
  *  requirement that the program be entered under the name "Crafty" so that    *
  *  the program's ancestry will be known.                                      *
  *                                                                             *
@@ -33,7 +42,7 @@
  *  Any changes made to this software must also be made public to comply with  *
  *  the original intent of this software distribution project.  These          *
  *  restrictions apply whether the distribution is being done for free or as   *
- *  part or all of a commercial product.  The author retains sole ownership    *
+ *  part or all of a commercial product.  The authors retain sole ownership    *
  *  and copyright on this program except for 'personal use' explained below.   *
  *                                                                             *
  *  personal use includes any use you make of the program yourself, either by  *
@@ -3515,7 +3524,10 @@
  *           but it is far simpler overall.  Original code by Pradu Kannan as  *
  *           posted on CCC/Winboard forums, modified to work with Crafty.      *
  *                                                                             *
- *   21.4    minor eval changes.                                               *
+ *   21.4    misc eval changes.  more king safety changes to include a tropism *
+ *           distance of 1 for bishops or rooks that can slide to intercept    *
+ *           any square surrounding the enemy king.  reduced rook slide score  *
+ *           by 40%.
  *                                                                             *
  *   21.5    passed pawn extension revisited.  bad trade was giving a penalty  *
  *           for being down an exchange (or a bonus for being up an exchange)  *
@@ -3525,6 +3537,23 @@
  *           been initialized.  now the "egtb" command is the only thing that  *
  *           triggers initialization, and is only processed during the second  *
  *           pass over the RC file after paths have been properly set up.      *
+ *           Abs() function bug fix.                                           *
+ *                                                                             *
+ *   21.6    passed pawn evaluation changed with respect to distant passed     *
+ *           pawns and distant majorities.  now, if both have a pawn majority  *
+ *           we check to see if one is "distant" (away from the enemy king) as *
+ *           this represents a significant time advantage because the other    *
+ *           side has to waste moves to reach and capture the pawn to prevent  *
+ *           promotion.  LMR no longer uses the history counters, which proved *
+ *           to be essentially random numbers.  LMR decisions are now based    *
+ *           solely on static characteristics of an individual move, rather    *
+ *           than trying to determine how the move affected the search at      *
+ *           other points in the tree.  new wtm bonus added to evaluation.     *
+ *           EvaluateMate() bug fixed where the score was set to a non-zero    *
+ *           value which broke EvaluateMate() completely.  new mobility code   *
+ *           for bishops/rooks encourages better piece placement.  note that   *
+ *           there are many other evaluation changes too numerous to list here *
+ *           in detail.                                                        *
  *                                                                             *
  *******************************************************************************
  */
@@ -3818,7 +3847,7 @@ int main(int argc, char **argv)
 /*
  ************************************************************
  *                                                          *
- *   make the move (using internal form returned by         *
+ *   make the move (using internal form) returned by        *
  *   InputMove() and then change the side on move (wtm).    *
  *                                                          *
  ************************************************************

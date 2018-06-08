@@ -31,6 +31,14 @@ int Quiesce(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply)
   if (ply >= MAXPLY - 1)
     return (beta);
   tree->nodes_searched++;
+#if defined(NODES)
+  temp_search_nodes--;
+  if (temp_search_nodes <= 0) {
+    shared->time_abort++;
+    shared->abort_search = 1;
+    return (0);
+  }
+#endif
   if (tree->thread_id == 0)
     shared->next_time_check--;
   tree->last[ply] = tree->last[ply - 1];

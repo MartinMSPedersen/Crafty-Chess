@@ -81,7 +81,14 @@ int NextRootMove(TREE * RESTRICT tree, TREE * RESTRICT mytree, int wtm)
           printf("... ");
         strcpy(mytree->root_move_text, OutputMove(tree, tree->current_move[1],
                 1, wtm));
-        printf("%s      \r", mytree->root_move_text);
+        shared->nodes_per_second =
+            tree->nodes_searched * 100 / Max(shared->end_time -
+            shared->start_time, 1);
+        i = strlen(mytree->root_move_text);
+        i = (i < 8) ? i : 8;
+        strncat(mytree->root_move_text, "          ", 8 - i);
+        printf("%s", mytree->root_move_text);
+        printf("(%snps)             \r", DisplayKM(shared->nodes_per_second));
         fflush(stdout);
         Unlock(shared->lock_io);
       }

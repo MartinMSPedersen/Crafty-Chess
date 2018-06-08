@@ -6,7 +6,6 @@
 #include "next.c"
 #include "nexte.c"
 #include "nextr.c"
-#include "history.c"
 #include "killer.c"
 #include "quiesce.c"
 #include "evaluate.c"
@@ -47,4 +46,3 @@
 #include "test.c"
 #include "time.c"
 #include "validate.c"
-

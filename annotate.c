@@ -179,6 +179,7 @@ void Annotate()
   temp_search_depth = search_depth;
   read_status = ReadPGN(0, 0);
   read_status = ReadPGN(annotate_in, 0);
+  player_pv.path[1] = 0;
   while (read_status != -1) {
     ponder_move = 0;
     last_pv.pathd = 0;

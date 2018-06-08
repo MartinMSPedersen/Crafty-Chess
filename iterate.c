@@ -50,6 +50,9 @@ int Iterate(int wtm, int search_type, int root_list_done)
     shared->draw_score[0] = abs_draw_score;
     shared->draw_score[1] = -abs_draw_score;
   }
+#if defined(NODES)
+  temp_search_nodes = search_nodes;
+#endif
   shared->time_abort = 0;
   shared->abort_search = 0;
   book_move = 0;
@@ -203,19 +206,21 @@ int Iterate(int wtm, int search_type, int root_list_done)
         for (proc = shared->smp_threads + 1; proc < shared->max_threads; proc++) {
           Print(128, "starting thread %d\n", proc);
           shared->thread[proc] = 0;
-#  if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32) || defined(_WIN64)
           NumaStartThread(ThreadInit, (void *) proc);
-#  else
+#else
           if (fork() == 0) {
             ThreadInit((void *) proc);
             exit(0);
           }
-#  endif
+#endif
           shared->smp_threads++;
         }
       }
       WaitForAllThreadsInitialized();
       shared->root_print_ok = 0;
+      if (search_nodes)
+        shared->nodes_between_time_checks = search_nodes;
       for (; shared->iteration_depth <= MAXPLY - 5; shared->iteration_depth++) {
 /*
  ************************************************************
@@ -253,8 +258,6 @@ int Iterate(int wtm, int search_type, int root_list_done)
           shared->nodes_between_time_checks =
               shared->nodes_per_second / Max(1, shared->max_threads);
           shared->nodes_between_time_checks =
-              Min(shared->nodes_between_time_checks, MAX_TC_NODES);
-          shared->nodes_between_time_checks =
               Max(shared->nodes_between_time_checks, 50000);
           if (!analyze_mode) {
             if (shared->time_limit > 300);
@@ -269,7 +272,11 @@ int Iterate(int wtm, int search_type, int root_list_done)
                 Min(shared->nodes_per_second / Max(1, shared->max_threads),
                 50000);
         }
-
+        if (search_nodes)
+          shared->nodes_between_time_checks =
+              search_nodes - tree->nodes_searched;
+        shared->nodes_between_time_checks =
+            Min(shared->nodes_between_time_checks, MAX_TC_NODES);
         while (1) {
           shared->thread[0] = shared->local[0];
           value =
@@ -501,7 +508,7 @@ int Iterate(int wtm, int search_type, int root_list_done)
             && EGTB_use && !EGTB_search && EGTBProbe(tree, 1, wtm, &i))
           break;
 #endif
-        if (search_nodes && tree->nodes_searched > search_nodes)
+        if (search_nodes && tree->nodes_searched >= search_nodes)
           break;
       }
 /*
@@ -557,7 +564,7 @@ int Iterate(int wtm, int search_type, int root_list_done)
         Print(16, "1rep=%s ", DisplayKM(tree->one_reply_extensions_done));
         Print(16, "mate=%s ", DisplayKM(tree->mate_extensions_done));
         Print(16, "pp=%s ", DisplayKM(tree->passed_pawn_extensions_done));
-        Print(16, "reduct=%s", DisplayKM(tree->reductions_attempted));
+        Print(16, "reduce=%s", DisplayKM(tree->reductions_attempted));
 
         Print(16, "/%s\n", DisplayKM(tree->reductions_done));
         Print(16, "              predicted=%d  evals=%s  50move=%d", predicted,

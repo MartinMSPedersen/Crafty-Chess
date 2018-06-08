@@ -88,18 +88,57 @@ void ValidatePosition(TREE * RESTRICT tree, int ply, int move, char *caller)
         TotalWhitePieces);
     error = 1;
   }
-  temp_score = PopCnt(WhiteKnights) - PopCnt(BlackKnights);
-  temp_score += PopCnt(WhiteBishops) - PopCnt(BlackBishops);
-  if (temp_score != Minors) {
-    Print(128, "ERROR  minors is wrong, good=%d, bad=%d\n", temp_score, Minors);
+
+//TLR
+  temp_score = PopCnt(WhiteKnights);
+  if (temp_score != TotalWhiteKnights) {
+    Print(128, "ERROR  TotalWhiteKnights is wrong, good=%d, bad=%d\n",
+        temp_score, TotalWhiteKnights);
     error = 1;
   }
-  temp_score = PopCnt(WhiteRooks) - PopCnt(BlackRooks);
-  temp_score += PopCnt(WhiteQueens) * 2 - PopCnt(BlackQueens) * 2;
-  if (temp_score != Majors) {
-    Print(128, "ERROR  majors is wrong, good=%d, bad=%d\n", temp_score, Majors);
+  temp_score = PopCnt(BlackKnights);
+  if (temp_score != TotalBlackKnights) {
+    Print(128, "ERROR  TotalBlackKnights is wrong, good=%d, bad=%d\n",
+        temp_score, TotalBlackKnights);
     error = 1;
   }
+  temp_score = PopCnt(WhiteBishops);
+  if (temp_score != TotalWhiteBishops) {
+    Print(128, "ERROR  TotalWhiteBishops is wrong, good=%d, bad=%d\n",
+        temp_score, TotalWhiteBishops);
+    error = 1;
+  }
+  temp_score = PopCnt(BlackBishops);
+  if (temp_score != TotalBlackBishops) {
+    Print(128, "ERROR  TotalBlackBishops is wrong, good=%d, bad=%d\n",
+        temp_score, TotalBlackBishops);
+    error = 1;
+  }
+  temp_score = PopCnt(WhiteRooks);
+  if (temp_score != TotalWhiteRooks) {
+    Print(128, "ERROR  TotalWhiteRooks is wrong, good=%d, bad=%d\n", temp_score,
+        TotalWhiteRooks);
+    error = 1;
+  }
+  temp_score = PopCnt(BlackRooks);
+  if (temp_score != TotalBlackRooks) {
+    Print(128, "ERROR  TotalBlackRooks is wrong, good=%d, bad=%d\n", temp_score,
+        TotalBlackRooks);
+    error = 1;
+  }
+  temp_score = PopCnt(WhiteQueens);
+  if (temp_score != TotalWhiteQueens) {
+    Print(128, "ERROR  TotalWhiteQueens is wrong, good=%d, bad=%d\n",
+        temp_score, TotalWhiteQueens);
+    error = 1;
+  }
+  temp_score = PopCnt(BlackQueens);
+  if (temp_score != TotalBlackQueens) {
+    Print(128, "ERROR  TotalBlackQueens is wrong, good=%d, bad=%d\n",
+        temp_score, TotalBlackQueens);
+    error = 1;
+  }
+
   temp_score = PopCnt(WhitePawns);
   if (temp_score != TotalWhitePawns) {
     Print(128, "ERROR  white_pawns is wrong, good=%d, bad=%d\n", temp_score,

@@ -49,9 +49,6 @@
 #  include <sys/wait.h>
 #endif
 #if defined(UNIX)
-#  if !defined(CLK_TCK)
-static clock_t clk_tck = 0;
-#  endif
 #  include <sys/ipc.h>
 #  include <sys/shm.h>
 #endif
@@ -357,20 +354,14 @@ void ClearHashTableScores(int dopawnstoo)
 
   if (trans_ref) {
     for (i = 0; i < hash_table_size; i++) {
-      (trans_ref + i)->prefer.word2 ^= (trans_ref + i)->prefer.word1;
       (trans_ref + i)->prefer.word1 =
           ((trans_ref + i)->prefer.word1 & mask_clear_entry) | (BITBOARD) 65536;
-      (trans_ref + i)->prefer.word2 ^= (trans_ref + i)->prefer.word1;
-      (trans_ref + i)->always[0].word2 ^= (trans_ref + i)->always[0].word1;
       (trans_ref + i)->always[0].word1 =
           ((trans_ref +
               i)->always[0].word1 & mask_clear_entry) | (BITBOARD) 65536;
-      (trans_ref + i)->always[0].word2 ^= (trans_ref + i)->always[0].word1;
-      (trans_ref + i)->always[1].word2 ^= (trans_ref + i)->always[1].word1;
       (trans_ref + i)->always[1].word1 =
           ((trans_ref +
               i)->always[1].word1 & mask_clear_entry) | (BITBOARD) 65536;
-      (trans_ref + i)->always[1].word2 ^= (trans_ref + i)->always[1].word1;
     }
     if (dopawnstoo) {
       for (i = 0; i < pawn_hash_table_size; i++) {
@@ -2426,6 +2417,7 @@ void Kibitz(int level, int wtm, int depth, int time, int value, BITBOARD nodes,
     fflush(stdout);
   }
 }
+
 /* last modified 07/07/98 */
 /*
  *******************************************************************************
@@ -2651,7 +2643,6 @@ int VerifyMove(TREE * RESTRICT tree, int ply, int wtm, int move)
   }
   return (0);
 }
-
 
 /*
  *******************************************************************************
@@ -2890,11 +2881,11 @@ void *SharedMalloc(size_t size, int tid)
 
 void SharedFree(void *address)
 {
-#  if defined(UNIX)
+#if defined(UNIX)
   shmdt(address);
-#  else
+#else
   VirtualFree(address, 0, MEM_RELEASE);
-#  endif
+#endif
 }
 
 #if defined(UNIX)

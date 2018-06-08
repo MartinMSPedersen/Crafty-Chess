@@ -82,7 +82,7 @@ int TimeCheck(TREE * RESTRICT tree, int abort)
  *                                                          *
  ************************************************************
  */
-  if (search_nodes && tree->nodes_searched > search_nodes)
+  if (search_nodes && tree->nodes_searched >= search_nodes)
     return (1);
   if (shared->n_root_moves == 1 && !shared->booking && !annotate_mode &&
       !shared->pondering && shared->iteration_depth > 4)
@@ -119,7 +119,8 @@ int TimeCheck(TREE * RESTRICT tree, int abort)
     if ((shared->display_options & 32) && (shared->display_options & 64) &&
         Flip(shared->root_wtm))
       printf("... ");
-    printf("%s      \r", tree->root_move_text);
+    printf("%s(%snps)             \r", tree->root_move_text,
+        DisplayKM(shared->nodes_per_second));
     shared->burp = (time_used / 1500) * 1500 + 1500;
     fflush(stdout);
     Unlock(shared->lock_io);
@@ -238,10 +239,15 @@ void TimeSet(int search_type)
  */
   if (shared->tc_sudden_death == 1) {
     if (shared->tc_increment) {
-      shared->time_limit =
-          (shared->tc_time_remaining -
-          shared->tc_operator_time * shared->tc_moves_remaining) / (ponder ? 24 : 29) +
-          shared->tc_increment;
+      shared->time_limit = (shared->tc_time_remaining -
+//TLR        shared->tc_operator_time * shared->tc_moves_remaining) / 35 +
+          shared->tc_operator_time * shared->tc_moves_remaining) /
+          (ponder ? 23 : 28) + shared->tc_increment;
+/*
+      if (shared->tc_time_remaining < 3000)
+        shared->time_limit = shared->tc_increment;
+      if (shared->tc_time_remaining < 1500)
+*/
       if (shared->tc_time_remaining < 600)
         shared->time_limit = shared->tc_increment;
       if (shared->tc_time_remaining < 300)
@@ -249,7 +255,8 @@ void TimeSet(int search_type)
 
       shared->absolute_time_limit = shared->tc_time_remaining / 2;
     } else {
-      shared->time_limit = shared->tc_time_remaining / (ponder ? 30 : 36);
+//TLR     shared->time_limit = shared->tc_time_remaining / 40;
+      shared->time_limit = shared->tc_time_remaining / (ponder ? 29 : 35);
       shared->absolute_time_limit =
           Min(shared->time_limit * 6, shared->tc_time_remaining / 2);
     }
@@ -280,11 +287,11 @@ void TimeSet(int search_type)
           (shared->tc_operator_time * shared->tc_moves_remaining)) /
           shared->tc_secondary_moves;
     surplus =
-        Max(shared->tc_time_remaining - 1000 -
+        Max(shared->tc_time_remaining -
         (shared->tc_operator_time * shared->tc_moves_remaining) -
         simple_average * shared->tc_moves_remaining, 0);
     average =
-        (shared->tc_time_remaining - 1000 -
+        (shared->tc_time_remaining -
         (shared->tc_operator_time * shared->tc_moves_remaining) +
         shared->tc_moves_remaining * shared->tc_increment)
         / shared->tc_moves_remaining;
@@ -302,12 +309,12 @@ void TimeSet(int search_type)
   if (shared->time_limit <= 0)
     shared->time_limit = 5;
   shared->absolute_time_limit =
-      shared->time_limit + surplus / 2 + ((shared->tc_time_remaining - 1000 -
+      shared->time_limit + surplus / 2 + ((shared->tc_time_remaining -
           shared->tc_operator_time * shared->tc_moves_remaining) / 4);
   if (shared->absolute_time_limit > 7 * shared->time_limit)
     shared->absolute_time_limit = 7 * shared->time_limit;
-  if (shared->absolute_time_limit > (shared->tc_time_remaining - 1000) / 2)
-    shared->absolute_time_limit = (shared->tc_time_remaining - 1000) / 2;
+  if (shared->absolute_time_limit > shared->tc_time_remaining / 2)
+    shared->absolute_time_limit = shared->tc_time_remaining / 2;
 /*
  ************************************************************
  *                                                          *
