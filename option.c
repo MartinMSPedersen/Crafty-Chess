@@ -226,25 +226,6 @@ int Option(TREE * RESTRICT tree)
 /*
  ************************************************************
  *                                                          *
- *   "asymmetry" command turns asymmetry on/off.            *
- *                                                          *
- ************************************************************
- */
-  else if (OptionMatch("asymmetry", *args)) {
-    if (nargs < 2)
-      printf("usage:  asymmetry on|off\n");
-    if (!strcmp(args[1], "on"))
-      shared->use_asymmetry = 1;
-    else if (!strcmp(args[1], "off"))
-      shared->use_asymmetry = 0;
-    if (shared->use_asymmetry)
-      Print(4095, "asymmetric evaluation enabled\n");
-    else
-      Print(4095, "asymmetric evaluation enabled\n");
-  }
-/*
- ************************************************************
- *                                                          *
  *   "batch" command disables asynchronous I/O so that a    *
  *   stream of commands can be put into a file and they are *
  *   not executed instantly.                                *
@@ -815,18 +796,18 @@ int Option(TREE * RESTRICT tree)
  */
     if (nargs == 2 && !strcmp(args[1], "list")) {
       for (i = 0; i < 256; i++) {
-        if (!evalterm_description[i])
+        if (!eval_packet[i].description)
           continue;
-        if (evalterm_value[i]) {
-          if (evalterm_size[i] == 0)
-            printf("%3d  %s %7d\n", i, evalterm_description[i],
-                *evalterm_value[i]);
+        if (eval_packet[i].value) {
+          if (eval_packet[i].size == 0)
+            printf("%3d  %s %7d\n", i, eval_packet[i].description,
+                *eval_packet[i].value);
           else {
-            printf("%3d  %s\n", i, evalterm_description[i]);
-            DisplayArray(evalterm_value[i], evalterm_size[i]);
+            printf("%3d  %s\n", i, eval_packet[i].description);
+            DisplayArray(eval_packet[i].value, eval_packet[i].size);
           }
         } else
-          printf("------------%s\n", evalterm_description[i]);
+          printf("------------%s\n", eval_packet[i].description);
       }
       printf("\n");
       return (1);
@@ -852,21 +833,21 @@ int Option(TREE * RESTRICT tree)
       }
       printf("saving to file \"%s\"\n", filename);
       for (i = 0; i < 256; i++) {
-        if (!evalterm_description[i])
+        if (!eval_packet[i].description)
           continue;
-        if (evalterm_value[i]) {
-          if (evalterm_size[i] == 0)
-            fprintf(file, "evaluation %3d %7d\n", i, *evalterm_value[i]);
-          else if (evalterm_size[i] > 0) {
+        if (eval_packet[i].value) {
+          if (eval_packet[i].size == 0)
+            fprintf(file, "evaluation %3d %7d\n", i, *eval_packet[i].value);
+          else if (eval_packet[i].size > 0) {
             fprintf(file, "evaluation %3d ", i);
-            for (j = 0; j < evalterm_size[i]; j++)
-              fprintf(file, "%d ", evalterm_value[i][j]);
+            for (j = 0; j < eval_packet[i].size; j++)
+              fprintf(file, "%d ", eval_packet[i].value[j]);
             fprintf(file, "\n");
           } else {
             fprintf(file, "evaluation %3d ", i);
             for (j = 0; j < 8; j++)
               for (k = 0; k < 8; k++)
-                fprintf(file, "%d ", evalterm_value[i][(7 - j) * 8 + k]);
+                fprintf(file, "%d ", eval_packet[i].value[(7 - j) * 8 + k]);
             fprintf(file, "\n");
           }
         }
@@ -885,15 +866,15 @@ int Option(TREE * RESTRICT tree)
  */
     param = atoi(args[1]);
     value = atoi(args[2]);
-    if (evalterm_size[param] == 0) {
+    if (eval_packet[param].size == 0) {
       if (nargs > 3) {
         printf("this eval term requires exactly 1 value.\n");
         return (1);
       }
       if (!silent)
-        Print(128, "%s old:%d  new:%d\n", evalterm_description[param],
-            *evalterm_value[param], value);
-      *evalterm_value[param] = value;
+        Print(128, "%s old:%d  new:%d\n", eval_packet[param].description,
+            *eval_packet[param].value, value);
+      *eval_packet[param].value = value;
     }
 /*
  **************************************************
@@ -905,27 +886,27 @@ int Option(TREE * RESTRICT tree)
  */
     else {
       index = nargs - 2;
-      if (index != abs(evalterm_size[param])) {
+      if (index != abs(eval_packet[param].size)) {
         printf("this eval term (%s [%d]) requires exactly %d values.\n",
-            evalterm_description[param], param, abs(evalterm_size[param]));
+            eval_packet[param].description, param, abs(eval_packet[param].size));
         return (1);
       }
       if (!silent)
-        printf("%2d  %s\n", param, evalterm_description[param]);
+        printf("%2d  %s\n", param, eval_packet[param].description);
       if (!silent) {
         printf("old:\n");
-        DisplayArray(evalterm_value[param], evalterm_size[param]);
+        DisplayArray(eval_packet[param].value, eval_packet[param].size);
       }
-      if (evalterm_size[param] > 0)
+      if (eval_packet[param].size > 0)
         for (i = 0; i < index; i++) {
-          evalterm_value[param][i] = atoi(args[i + 2]);
+          eval_packet[param].value[i] = atoi(args[i + 2]);
       } else
         for (i = 0; i < 8; i++)
           for (j = 0; j < 8; j++)
-            evalterm_value[param][(7 - i) * 8 + j] = atoi(args[i * 8 + j + 2]);
+            eval_packet[param].value[(7 - i) * 8 + j] = atoi(args[i * 8 + j + 2]);
       if (!silent) {
         printf("new:\n");
-        DisplayArray(evalterm_value[param], evalterm_size[param]);
+        DisplayArray(eval_packet[param].value, eval_packet[param].size);
       }
     }
     InitializeEvaluation();
@@ -2168,11 +2149,6 @@ int Option(TREE * RESTRICT tree)
     }
     if (mode != tournament_mode) {
       for (i = 0; i < 128; i++)
-        if (B_list[i] && !strcmp(B_list[i], args[1])) {
-          blocked_scale *= 1.5;
-          break;
-        }
-      for (i = 0; i < 128; i++)
         if (AK_list[i] && !strcmp(AK_list[i], args[1])) {
           kibitz = 4;
           break;
@@ -2557,21 +2533,21 @@ int Option(TREE * RESTRICT tree)
       fprintf(file, "selective             %d %d\n", null_min / INCPLY - 1,
           null_max / INCPLY - 1);
       for (i = 0; i < 256; i++) {
-        if (!evalterm_description[i])
+        if (!eval_packet[i].description)
           continue;
-        if (evalterm_value[i]) {
-          if (evalterm_size[i] == 0)
-            fprintf(file, "evaluation %3d %7d\n", i, *evalterm_value[i]);
-          else if (evalterm_size[i] > 0) {
+        if (eval_packet[i].value) {
+          if (eval_packet[i].size == 0)
+            fprintf(file, "evaluation %3d %7d\n", i, *eval_packet[i].value);
+          else if (eval_packet[i].size > 0) {
             fprintf(file, "evaluation %3d ", i);
-            for (j = 0; j < evalterm_size[i]; j++)
-              fprintf(file, "%d ", evalterm_value[i][j]);
+            for (j = 0; j < eval_packet[i].size; j++)
+              fprintf(file, "%d ", eval_packet[i].value[j]);
             fprintf(file, "\n");
           } else {
             fprintf(file, "evaluation %3d ", i);
             for (j = 0; j < 8; j++)
               for (k = 0; k < 8; k++)
-                fprintf(file, "%d ", evalterm_value[i][(7 - j) * 8 + k]);
+                fprintf(file, "%d ", eval_packet[i].value[(7 - j) * 8 + k]);
             fprintf(file, "\n");
           }
         }

@@ -2544,9 +2544,9 @@ static void WinNumaInit(void)
         printf("Current ideal CPU is %u\n", dwCPU);
         pSetThreadIdealProcessor(GetCurrentThread(), dwCPU);
         if ((((DWORD) - 1) != dwCPU) && (MAXIMUM_PROCESSORS != dwCPU) &&
-            !(ullProcessorMask[0] & (1u i64 << dwCPU))) {
+            !(ullProcessorMask[0] & (1u << dwCPU))) {
           for (ulNode = 1; ulNode <= ulNumaNodes; ulNode++) {
-            if (ullProcessorMask[ulNode] & (1u i64 << dwCPU)) {
+            if (ullProcessorMask[ulNode] & (1u << dwCPU)) {
               printf("Exchanging nodes 0 and %d\n", ulNode);
               ullMask = ullProcessorMask[ulNode];
               ullProcessorMask[ulNode] = ullProcessorMask[0];

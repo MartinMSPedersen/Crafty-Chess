@@ -3258,12 +3258,11 @@ int main(int argc, char **argv)
   shared->booking = 0;
   shared->trojan_check = 0;
   shared->computer_opponent = 0;
-  shared->use_asymmetry = 1;
   shared->max_threads = 0;
   shared->min_thread_depth = 3 * INCPLY;
   shared->max_thread_group = 4;
   shared->split_at_root = 1;
-  shared->noise_level = 1000000;
+  shared->noise_level = 200000;
   shared->quit = 0;
   shared->display_options = 4095 - 256 - 512;
   shared->tc_moves = 60;

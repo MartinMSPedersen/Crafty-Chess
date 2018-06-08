@@ -268,12 +268,11 @@ White(1): evaluation list
   5  queen value                          900
 ------------evaluation scale factors--------
  11  blocked pawn scale factor            100
- 12  king safety asymmetry                -20
- 13  king safety scale factor             100
- 14  king safety tropism scale factor     100
- 15  passed pawn scoring scale factor     100
- 16  pawn scoring scale factor            100
- 17  bad trade bonus/penalty              120
+ 12  king safety scale factor             100
+ 13  king safety tropism scale factor     100
+ 14  passed pawn scoring scale factor     100
+ 15  pawn scoring scale factor            100
+ 16  bad trade bonus/penalty              120
 ------------pawn evaluation-----------------
  21  eight pawns penalty                   10
  22  center pawn blocked                   12

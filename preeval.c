@@ -7,48 +7,18 @@
 /*
  *******************************************************************************
  *                                                                             *
- *   PreEvaluate() is used to set some scoring information that can be user-   *
- *   modified by changing the asymmetry and scaling parameters.  all we need   *
- *   to do is perform the scaling of the values, based on user parameters and  *
- *   then return.  this code also recognizes a potential "trojan horse" attack *
- *   and turns on the flag that forces Evaluate() to handle this.              *
+ *   PreEvaluate() is used to recognize positions where the "Trojan horse  -   *
+ *   attack" is threatened, and it enables the specific code to handle that    *
+ *   case.                                                                     *
  *                                                                             *
  *******************************************************************************
  */
 void PreEvaluate(TREE * RESTRICT tree, int crafty_is_white)
 {
-  int i;
   static int last_crafty_is_white = 0;
   static int last_trojan_check = 0;
   static int last_clear = 0;
 
-/*
- ************************************************************
- *                                                          *
- *   now we set the king safety values based on the values  *
- *   set by the user, or the default values.                *
- *                                                          *
- ************************************************************
- */
-  if (crafty_is_white) {
-    for (i = 0; i < 64; i++) {
-      temper_w[i] = temper[i];
-      temper_b[i] = temper[i] + temper[i] * king_safety_asymmetry / 100;
-    }
-  } else {
-    for (i = 0; i < 64; i++) {
-      temper_w[i] = temper[i] + temper[i] * king_safety_asymmetry / 100;
-      temper_b[i] = temper[i];
-    }
-  }
-  for (i = 0; i < 64; i++) {
-    temper_w[i] = temper_w[i] * king_safety_scale / 100;
-    temper_b[i] = temper_b[i] * king_safety_scale / 100;
-  }
-  for (i = 0; i < 128; i++)
-    tropism[i] = king_tropism[i] * king_safety_tropism / 100;
-  for (i = 0; i < 9; i++)
-    pawn_rams[i] = blocked_scale * pawn_rams_v[i] / 100;
 /*
  ************************************************************
  *                                                          *

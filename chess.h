@@ -342,6 +342,11 @@ typedef struct {
   unsigned char percent_play;
 } BB_POSITION;
 
+struct eval_term {
+  char *description;
+  int  size;
+  int *value;
+};
 struct tree {
   POSITION  pos;
   BITBOARD  save_hash_key[MAXPLY + 2];
@@ -451,7 +456,6 @@ typedef struct {
   int       booking;
   int       trojan_check;
   int       computer_opponent;
-  int       use_asymmetry;
   int       display_options;
   int       max_threads;
   int       min_thread_depth;

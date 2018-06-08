@@ -613,7 +613,7 @@ void InitializeAttackBoards(void)
       }
       for (pcs = 0; pcs < 64; pcs++) {
         bishop_mobility_rl45[square][pcs] =
-            PopCnt(bishop_attacks_rl45[square][pcs]) - 3;
+            PopCnt(bishop_attacks_rl45[square][pcs]);
       }
     }
 /*
@@ -643,7 +643,16 @@ void InitializeAttackBoards(void)
       }
       for (pcs = 0; pcs < 64; pcs++) {
         bishop_mobility_rr45[square][pcs] =
-            PopCnt(bishop_attacks_rr45[square][pcs]) - 3;
+            PopCnt(bishop_attacks_rr45[square][pcs]);
+      }
+    }
+  }
+  {
+    int mobility_index[8] = {0, 0, 0, 1, 1, 1, 2, 2};
+    for (i = 0; i < 64; i++) {
+      for (j = 0; j < 64; j++) {
+        bishop_mobility_rl45[i][j] = mobility_index[bishop_mobility_rl45[i][j]];
+        bishop_mobility_rr45[i][j] = mobility_index[bishop_mobility_rr45[i][j]];
       }
     }
   }
@@ -955,10 +964,6 @@ void InitializeEvaluation(void)
   for (i = 0; i < 8; i++)
     for (j = 0; j < 8; j++) {
       pval_b[i * 8 + j] = pval_w[(7 - i) * 8 + j];
-      nval_b[i * 8 + j] = nval_w[(7 - i) * 8 + j];
-      bval_b[i * 8 + j] = bval_w[(7 - i) * 8 + j];
-      rval_b[i * 8 + j] = rval_w[(7 - i) * 8 + j];
-      qval_b[i * 8 + j] = qval_w[(7 - i) * 8 + j];
       kval_bn[i * 8 + j] = kval_wn[(7 - i) * 8 + j];
       kval_bk[i * 8 + j] = kval_wk[(7 - i) * 8 + j];
       kval_bq[i * 8 + j] = kval_wq[(7 - i) * 8 + j];

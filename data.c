@@ -43,12 +43,7 @@ size_t cb_trans_ref;
 size_t cb_pawn_hash_table;
 PATH last_pv;
 int last_value;
-int temper_b[64], temper_w[64];
 int pval_b[64];
-int nval_b[64];
-int bval_b[64];
-int rval_b[64];
-int qval_b[64];
 int kval_bn[64];
 int kval_bk[64];
 int kval_bq[64];
@@ -187,7 +182,7 @@ BITBOARD black_pawn_race_btm[64];
 BOOK_POSITION book_buffer[BOOK_CLUSTER_SIZE];
 BOOK_POSITION book_buffer_char[BOOK_CLUSTER_SIZE];
 
-#define    VERSION                             "20.1"
+#define    VERSION                             "20.2"
 char version[6] = { VERSION };
 PLAYING_MODE mode = normal_mode;
 int batch_mode = 0;             /* no asynch reads */
@@ -401,14 +396,13 @@ int majority[128] = {
 };
 
 /*
- the following values are for king safety.  The 'temper' array is used
- to scale the number of defects found into some sort of 'sane' score so that
- small pertubations in king safety can produce signficant scoring changes,
- but large pertubations won't cause Crafty to sacrifice pieces.
+ the following values are for king safety.  The 'king_safety' array is used
+ to scale the piece tropism into a useful score that escalates quickly as
+ more pieces join the action.
  */
-int temper[64] = {
-  0, 4, 15, 24, 36, 42, 54, 72, /*   0-   7 */
-  81, 90, 99, 108, 117, 126, 135, 144,  /*   8-  15 */
+int king_safety[64] = {
+    0,   4,   8,  12,  18,  24,  30,  40,       /*   0-   7 */
+   52,  64,  72,  84,  96, 112, 128, 144,       /*   8-  15 */
   148, 152, 156, 160, 164, 168, 172, 175,       /*  16-  23 */
   180, 180, 180, 180, 180, 180, 180, 180,       /*  24-  31 */
   180, 180, 180, 180, 180, 180, 180, 180,       /*  32-  39 */
@@ -418,86 +412,27 @@ int temper[64] = {
 };
 
 /*
- the following array cuts the king safety term down to a value that can
- be used in the king tropism calculation.  this lets the safety of a king
- influence how important getting pieces closer to the king really is.  and
- is primarily used to help when both sides castle to the same side of the
- board which means that if I disrupt my kingside, I am also disrupting my
- opponent's kingside.  now I can figure out who comes out better in such
- situations. These values are in units of 1/16th.  Which means that a value
- of 16 will use the entire tropism value, a value of 32 will use 2x the
- normal tropism value, and a value of 8 will use 1/2 the normal value.
- this array is indexed by the tempered king safety value, and lower-
- numbered elements correspond to safe king positions, while higher-numbered
- elements represent disrupted kingsides.
+ the following array provides the scores for king-safety pawn structure.
+ it is indexed by the "defect" count and simply produces a score reflecting
+ the state of the king-side pawn structure.
  */
-int ttemper[64] = {
-  16, 16, 16, 16, 17, 17, 18, 18,       /*   0-   7 */
-  19, 19, 20, 20, 21, 21, 22, 22,       /*   8-  15 */
-  23, 23, 24, 24, 25, 25, 26, 26,       /*  16-  23 */
-  27, 27, 28, 28, 29, 29, 30, 30,       /*  24-  31 */
-  31, 31, 32, 32, 32, 32, 32, 32,       /*  32-  39 */
-  32, 32, 32, 32, 32, 32, 32, 32,       /*  40-  47 */
-  32, 32, 32, 32, 32, 32, 32, 32,       /*  48-  55 */
-  32, 32, 32, 32, 32, 32, 32, 32        /*  56-  63 */
+int king_safety_p[32] = {
+   0,  0, 10, 16, 24, 32, 40, 45,       /*   0-   7 */
+  50, 55, 60, 65, 70, 75, 80, 85,       /*   8-  15 */
+  90, 95,100,100,100,100,100,100,       /*  16-  23 */
+ 100,100,100,100,100,100,100,100,       /*  24-  31 */
 };
 
 /*
  penalty for a fully open file in front of the castled king.
  */
-int openf[4] = { 0, 6, 8, 16 };
+int openf[3] = { 3, 5, 2 };
 
 /*
  penalty for a half-open (one side's pawn is missing) file in front of
  the castled king.
  */
-int hopenf[4] = { 0, 1, 8, 8 };
-
-/*
- this value controls king safety asymmetry.  0 is fully symmetrical.
- this works by modifying the king safety scores for the opponent by
- the amount specified.  -20 reduces the opponent's king safety scores,
- making crafty's king safety more important.  +20 increases the opponent's
- king safety, making Crafty's less important (this will tend to increase
- aggressiveness while - values will make Crafty more passive/defensive.)
- */
-int king_safety_asymmetry = 0;
-
-/*
- this value scales king safety up or down equally for both sides.  A
- value of 100 leaves the values as they are.  values below 100 drop
- the king safety scores for both sides proportionally.
- */
-int king_safety_scale = 100;
-
-/*
- this value scales blocked pawn scores up/down.  Increasing this value
- will make Crafty try harder to not block pawn positions, which will aim
- for more open positions.
- */
-int blocked_scale = 100;
-
-/*
- this value scales passed pawn scores up/down.  Increasing this value
- will make Crafty evaluate some passed pawn scores higher, such as the
- "outside passed pawn scoring."
- */
-int passed_scale = 100;
-
-/*
- this value scales pawn scores up/down.  Increasing this value will
- make Crafty try harder to preserve its pawn structure / wreck the
- opponent's pawn structure.
- */
-int pawn_scale = 100;
-
-/*
- this value scales king tropism up or down.  the default is 100 which
- uses the built-in scores.  150 will increase tropism scores by 50%
- which will make the program more aggressive, but probably less
- positionally aware as a result.
- */
-int king_safety_tropism = 100;
+int hopenf[3] = { 1, 2, 0 };
 
 /*
  the following is basically a 'defect' table for kings on a specific
@@ -559,10 +494,10 @@ int white_outpost[64] = {
   0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 6, 6, 0, 0, 0,
-  0, 0, 12, 15, 15, 12, 0, 0,
-  0, 0, 12, 15, 15, 12, 0, 0,
-  0, 0, 6, 10, 10, 6, 0, 0,
+  0, 1, 2, 4, 4, 2, 1, 0,
+  0, 1, 2, 4, 4, 2, 1, 0,
+  0, 0, 2, 1, 1, 2, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0
 };
 int pval_w[64] = {
@@ -575,45 +510,45 @@ int pval_w[64] = {
   18, 18, 18, 18, 18, 18, 18, 18,
   0, 0, 0, 0, 0, 0, 0, 0
 };
-int nval_w[64] = {
-  -32, -10, -10, -10, -10, -10, -10, -32,
-  -10, -8, 0, 0, 0, 0, -8, -10,
-  -10, 2, 2, 2, 2, 2, 2, -10,
-  -10, 2, 4, 4, 4, 4, 2, -10,
-  -10, 2, 6, 6, 6, 6, 2, -10,
-  -10, 2, 6, 6, 6, 6, 2, -10,
-  -24, -24, 4, 4, 4, 4, -24, -24,
-  -32, -16, -10, -10, -10, -10, -16, -32
+int nval[64] = {
+   0,  1,  1,  1,  1,  1,  1,  0,
+   1,  2,  2,  2,  2,  2,  2,  1,
+   1,  2,  4,  4,  4,  4,  2,  1,
+   1,  2,  4,  8,  8,  4,  2,  1,
+   1,  2,  4,  8,  8,  4,  2,  1,
+   1,  2,  4,  4,  4,  4,  2,  1,
+   1,  2,  2,  2,  2,  2,  2,  1,
+   0,  1,  1,  1,  1,  1,  1,  0,
 };
-int bval_w[64] = {
-  -16, -16, -8, -8, -8, -8, -16, -16,
-  -16, 2, 0, 0, 0, 0, 2, -16,
-  -4, 2, 2, 2, 2, 2, 2, -4,
-  -4, 2, 4, 4, 4, 4, 2, -4,
-  -4, 2, 6, 6, 6, 6, 2, -4,
-  -4, 2, 6, 6, 6, 6, 2, -4,
-  -16, 2, 4, 4, 4, 4, 2, -16,
-  -16, -16, 0, 0, 0, 0, -16, -16
+int bval[64] = {
+   0,  0,  0,  0,  0,  0,  0,  0,
+   0,  2,  2,  1,  1,  2,  2,  0,
+   0,  2,  3,  2,  2,  3,  2,  0,
+   0,  1,  2,  4,  4,  2,  1,  0,
+   0,  1,  2,  4,  4,  2,  1,  0,
+   0,  2,  3,  2,  2,  3,  2,  0,
+   0,  2,  2,  1,  1,  2,  2,  0,
+   0,  0,  0,  0,  0,  0,  0,  0,
 };
-int rval_w[64] = {
-  -3, -3, 1, 3, 3, 1, -3, -3,
-  -3, -3, 1, 3, 3, 1, -3, -3,
-  -3, -3, 1, 3, 3, 1, -3, -3,
-  -3, -3, 1, 3, 3, 1, -3, -3,
-  -3, -3, 1, 3, 3, 1, -3, -3,
-  -3, -3, 1, 3, 3, 1, -3, -3,
-  -3, -3, 1, 3, 3, 1, -3, -3,
-  -3, -3, 1, 3, 3, 1, -3, -3
+int rval[64] = {
+   0,  0, 1, 2, 2, 1,  0,  0,
+   0,  0, 1, 2, 2, 1,  0,  0,
+   0,  0, 1, 2, 2, 1,  0,  0,
+   0,  0, 1, 2, 2, 1,  0,  0,
+   0,  0, 1, 2, 2, 1,  0,  0,
+   0,  0, 1, 2, 2, 1,  0,  0,
+   0,  0, 1, 2, 2, 1,  0,  0,
+   0,  0, 1, 2, 2, 1,  0,  0
 };
-int qval_w[64] = {
-  -10, -8, 0, 0, 0, 0, -8, -10,
-  -10, 2, 8, 8, 8, 8, 2, -10,
-  -10, -10, 4, 10, 10, 4, -10, -10,
-  -10, 2, 10, 12, 12, 10, 2, -10,
-  0, 2, 10, 12, 12, 10, 2, 0,
-  0, 2, 4, 10, 10, 4, 2, 0,
-  -15, 0, 4, 5, 5, 4, 0, -15,
-  0, 0, 0, 0, 0, 0, 0, 0
+int qval[64] = {
+   0,  0,  0,  0,  0,  0,  0,  0,
+   0,  0,  1,  1,  1,  1,  0,  0,
+   0,  1,  1,  2,  2,  1,  1,  0,
+   0,  1,  2,  3,  3,  2,  1,  0,
+   0,  1,  2,  3,  3,  2,  1,  0,
+   0,  1,  1,  2,  2,  1,  1,  0,
+   0,  0,  1,  1,  1,  1,  0,  0,
+   0,  0,  0,  0,  0,  0,  0,  0,
 };
 int kval_wn[64] = {
   -20, -10, -10, -10, -10, -10, -10, -20,
@@ -646,9 +581,6 @@ int kval_wq[64] = {
   -10, -10, -10, -10, -10, -10, -20, -30
 };
 
-/*  score for bishop pair varies depending on how many pawns are
-   on the board (0-8)                                           */
-int bishop_pair[9] = { 20, 20, 20, 20, 20, 20, 20, 8, 0 };
 
 /* note that black piece/square values are copied from white, but
    reflected */
@@ -674,188 +606,164 @@ int won_kp_ending = 150;
 int split_passed = 50;
 int king_king_tropism = 15;
 int bishop_trapped = 174;
-int bishop_plus_pawns_on_color = 2;
-int bishop_over_knight_endgame = 30;
-int bishop_mobility = 3;
-int bishop_king_safety = 10;
-int rook_on_7th = 20;
-int rook_absolute_7th = 10;
-int rook_connected_7th_rank = 8;
-int rook_open_file[8] = { 3, 3, 4, 5, 5, 4, 3, 3 };
-int rook_half_open_file[8] = { 1, 1, 2, 3, 3, 2, 1, 1 };
-int rook_behind_passed_pawn = 20;
+int bishop_over_knight_endgame = 2;
+int bishop_pair = 4;
+int rook_on_7th = 4;
+int rook_connected_7th_rank = 3;
+int rook_open_file = 4;
+int rook_reaches_open_file = 2;
+int rook_half_open_file = 2;
+int rook_behind_passed_pawn = 4;
 int rook_trapped = 30;
-int rook_limited = 20;
-int queen_rook_on_7th_rank = 10;
+int rook_not_limited = 3;
+int queen_rook_on_7th_rank = 5;
 int queen_king_safety = 6;
 int queen_vs_2_rooks = 40;
-int queen_is_strong = 20;
+int queen_is_strong = 5;
 int queen_offside_tropism = 8;
 int king_safety_mate_g2g7 = 3;
 int king_safety_mate_threat = 600;
 int king_safety_open_file = 4;
 int development_thematic = 6;
 int development_unmoved = 7;
-int blocked_center_pawn = 12;
+int blocked_center_pawn = 3;
 int development_losing_castle = 10;
 int development_not_castled = 6;
 int development_queen_early = 10;
 int development_castle_bonus = 10;
-int *evalterm_value[256] = { NULL, &pawn_value,
-  &knight_value, &bishop_value,
-  &rook_value, &queen_value,
-  NULL, NULL,
-  NULL, NULL,
-  NULL, &blocked_scale,
-  &king_safety_asymmetry, &king_safety_scale,
-  &king_safety_tropism, &passed_scale,
-  &pawn_scale, &bad_trade,
-  NULL, NULL,
-  NULL, NULL,
-  &pawns_blocked, &center_pawn_unmoved,
-  &pawn_duo, &pawn_protected_passer_wins,
-  &pawn_weak_p1, &pawn_weak_p2,
-  &pawn_can_promote, &won_kp_ending,
-  &split_passed, pval_w,
-  connected_passed_pawn_value, hidden_passed_pawn_value,
-  passed_pawn_value, blockading_passed_pawn_value,
-  isolated_pawn_value, isolated_pawn_of_value,
-  doubled_pawn_value, pawn_rams_v,
-  supported_passer, outside_passed,
-  majority, pawn_space,
-  NULL, NULL,
-  NULL, NULL,
-  NULL, NULL,
-  NULL, king_tropism_n,
-  nval_w, white_outpost,
-  NULL, NULL,
-  NULL, NULL,
-  NULL, NULL,
-  NULL, &bishop_king_safety,
-  &bishop_mobility, &bishop_over_knight_endgame,
-  &bishop_plus_pawns_on_color, &bishop_trapped,
-  bishop_pair, king_tropism_b,
-  bval_w, NULL,
-  NULL, &rook_on_7th,
-  &rook_absolute_7th, &rook_connected_7th_rank,
-  &rook_trapped, &rook_limited,
-  &rook_behind_passed_pawn, rook_half_open_file,
-  rook_open_file, king_tropism_r,
-  king_tropism_at_r, rval_w,
-  NULL, NULL,
-  NULL, NULL,
-  NULL, NULL,
-  NULL, NULL,
-  NULL, &queen_rook_on_7th_rank,
-  &queen_king_safety, &queen_vs_2_rooks,
-  &queen_is_strong, &queen_offside_tropism,
-  king_tropism_q, king_tropism_at_q,
-  qval_w, NULL,
-  NULL, &king_king_tropism,
-  &king_safety_mate_g2g7, &king_safety_mate_threat,
-  &king_safety_open_file, king_tropism,
-  king_defects_w, kval_wn,
-  kval_wk, kval_wq,
-  hopenf, openf,
-  temper, ttemper,
-  NULL, NULL,
-  NULL, NULL,
-  NULL, NULL,
-  NULL, &development_thematic,
-  &development_unmoved, &blocked_center_pawn,
-  &development_losing_castle, &development_not_castled,
-  &development_queen_early, &development_castle_bonus,
-};
-char *evalterm_description[256] =
-    { "piece values--------------------", "pawn value                      ",
-  "knight value                    ", "bishop value                    ",
-  "rook value                      ", "queen value                     ",
-  NULL, NULL,
-  NULL, NULL,
-  "evaluation scale factors--------", "blocked pawn scale factor       ",
-  "king safety asymmetry           ", "king safety scale factor        ",
-  "king safety tropism scale factor", "passed pawn scoring scale factor",
-  "pawn scoring scale factor       ", "bad trade bonus/penalty         ",
-  NULL, NULL,
-  "pawn evaluation-----------------", NULL,
-  "center pawn blocked             ", "center pawn unmoved             ",
-  "pawn duo                        ", "protected passed pawn wins      ",
-  "pawn weak (one pawn blocking)   ", "pawn weak (two pawns blocking)  ",
-  "pawn can promote                ", "won kp ending                   ",
-  "split passed pawn bonus         ", "pawn piece/square table         ",
-  "connected passed pawn [rank]    ", "hidden passed pawn [rank]       ",
-  "passed pawn [rank]              ", "blockading a passed pawn [rank] ",
-  "isolated pawn [n]               ", "isolated pawn on open file [n]  ",
-  "doubled pawn [n]                ", "pawn ram [n]                    ",
-  "supported passed pawn [rank]    ", "outside passed pawn [matrl]     ",
-  "pawn majority [matrl]           ", "pawn space [rank]               ",
-  NULL, NULL,
-  NULL, NULL,
-  NULL, NULL,
-  "knight scoring------------------", "king tropism [distance]         ",
-  "knight piece/square table       ", "outpost [square]                ",
-  NULL, NULL,
-  NULL, NULL,
-  NULL, NULL,
-  "bishop scoring------------------", "fianchettoed bishop value       ",
-  "bishop mobility                 ", "bishop over knight endgame      ",
-  "bishop plus pawns on color      ", "bishop trapped                  ",
-  "bishop pair [npawns]            ", "king tropism [distance]         ",
-  "bishop piece/square table       ", NULL,
-  "rook scoring--------------------", "rook on 7th                     ",
-  "rook absolute 7th               ", "rook connected 7th rank         ",
-  "rook trapped                    ", "rook limited mobility           ",
-  "rook behind passed pawn         ", "rook half open file             ",
-  "rook open file                  ", "king tropism [distance]         ",
-  "king file tropism [distance]    ", "rook piece/square table         ",
-  NULL, NULL,
-  NULL, NULL,
-  NULL, NULL,
-  NULL, NULL,
-  "queen scoring-------------------", "queen rook on 7th rank          ",
-  "queen king tropism              ", "queen vs 2 rooks                ",
-  "queen is strong                 ", "queen offside tropism           ",
-  "king tropism [distance]         ", "king file tropism [distance]    ",
-  "queen piece/square table        ", NULL,
-  "king scoring--------------------", "king king tropism (endgame)     ",
-  "king safety mate g2g7           ", "king safety trojan horse threat ",
-  "king safety open file           ", "king tropism [defects]          ",
-  "king defects (white - mirror B) ", "king piece/square normal        ",
-  "king piece/square kside pawns   ", "king piece/square qside pawns   ",
-  "king safety half-open file def  ", "king safety open file defects   ",
-  "king safety indirect temper     ", "king safety tropism temper      ",
-  NULL, NULL,
-  NULL, NULL,
-  NULL, NULL,
-  "development scoring-------------", "development thematic            ",
-  "development unmoved             ", "development blocked center pawn ",
-  "development losing castle       ", "development not castled         ",
-  "development moved queen early   ", "development castle bonus        ",
-};
-int evalterm_size[256] = {
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, -64, 8, 8, 8, 8, 9, 9, 9, 9,
-  8, 128, 128, 8, 0, 0, 0, 0, 0, 0,
-  0, 8, -64, -64, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 9, 8, -64, 0,
-  0, 0, 0, 0, 0, 0, 0, 8, 8, 8,
-  8, -64, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 8, 8, -64, 0,
-  0, 0, 0, 0, 0, 0, 128, -64, -64, -64,
-  -64, 4, 4, 64, 64, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0
-};
+
+struct eval_term eval_packet[256] = {
+{"raw piece values----------------",    0, NULL},                /* 0 */
+{"pawn value                      ",    0, &pawn_value},
+{"knight value                    ",    0, &knight_value},
+{"bishop value                    ",    0, &bishop_value},
+{"rook value                      ",    0, &rook_value},
+{"queen value                     ",    0, &queen_value},
+{"bad trade bonus/penalty         ",    0, &bad_trade},
+{NULL,                                  0, NULL},
+{NULL,                                  0, NULL},
+{NULL,                                  0, NULL},
+{NULL,                                  0, NULL},
+{NULL,                                  0, NULL},
+{NULL,                                  0, NULL},
+{NULL,                                  0, NULL},
+{NULL,                                  0, NULL},
+{NULL,                                  0, NULL},
+{NULL,                                  0, NULL},
+{NULL,                                  0, NULL},
+{NULL,                                  0, NULL},
+{"pawn evaluation-----------------",    0, NULL},                /* 20 */
+{"center pawn blocked             ",    0, &pawns_blocked},
+{"center pawn unmoved             ",    0, &center_pawn_unmoved},
+{"pawn duo                        ",    0, &pawn_duo},
+{"protected passed pawn wins      ",    0, &pawn_protected_passer_wins},
+{"pawn weak (one pawn blocking)   ",    0, &pawn_weak_p1},
+{"pawn weak (two pawns blocking)  ",    0, &pawn_weak_p2},
+{"pawn can promote                ",    0, &pawn_can_promote},
+{"won kp ending                   ",    0, &won_kp_ending},
+{"split passed pawn bonus         ",    0, &split_passed},
+{"pawn piece/square table         ",  -64, pval_w},
+{"connected passed pawn [rank]    ",    8, connected_passed_pawn_value},
+{"hidden passed pawn [rank]       ",    8, hidden_passed_pawn_value},
+{"passed pawn [rank]              ",    8, passed_pawn_value},
+{"blockading a passed pawn [rank] ",    8, blockading_passed_pawn_value},
+{"isolated pawn [n]               ",    9, isolated_pawn_value},
+{"isolated pawn on open file [n]  ",    9, isolated_pawn_of_value},
+{"doubled pawn [n]                ",    9, doubled_pawn_value},
+{"pawn ram [n]                    ",    9, pawn_rams_v},
+{"supported passed pawn [rank]    ",    8, supported_passer},
+{"outside passed pawn [matrl]     ",  128, outside_passed},
+{"pawn majority [matrl]           ",  128, majority},
+{"pawn space [rank]               ",    8, pawn_space},
+
+{NULL,                                  0, NULL},
+{NULL,                                  0, NULL},
+{NULL,                                  0, NULL},
+{NULL,                                  0, NULL},
+{NULL,                                  0, NULL},
+{NULL,                                  0, NULL},
+{NULL,                                  0, NULL},
+{"knight scoring------------------",    0, NULL},                /* 50 */
+{"king tropism [distance]         ",    8, king_tropism_n},
+{"knight piece/square table       ",  -64, nval},
+{"outpost [square]                ",  -64, white_outpost},
+{NULL,                                  0, NULL},
+{NULL,                                  0, NULL},
+{NULL,                                  0, NULL},
+{NULL,                                  0, NULL},
+{NULL,                                  0, NULL},
+{NULL,                                  0, NULL},
+
+{"bishop scoring------------------",    0, NULL},                /* 60 */
+{"bishop over knight endgame      ",    0, &bishop_over_knight_endgame},
+{"bishop trapped                  ",    0, &bishop_trapped},
+{"bishop pair                     ",    0, &bishop_pair},
+{"king tropism [distance]         ",    8, king_tropism_b},
+{"bishop piece/square table       ",  -64, bval},
+{NULL,                                  0, NULL},
+{NULL,                                  0, NULL},
+{NULL,                                  0, NULL},
+{NULL,                                  0, NULL},
+
+{"rook scoring--------------------",    0, NULL},                /* 70 */
+{"rook on 7th                     ",    0, &rook_on_7th},
+{"rook connected 7th rank         ",    0, &rook_connected_7th_rank},
+{"rook trapped                    ",    0, &rook_trapped},
+{"rook mobility not limited       ",    0, &rook_not_limited},
+{"rook behind passed pawn         ",    0, &rook_behind_passed_pawn},
+{"rook half open file             ",    0, &rook_half_open_file},
+{"rook open file                  ",    0, &rook_open_file},
+{"rook reaches open file          ",    0, &rook_reaches_open_file},
+{"king tropism [distance]         ",    8, king_tropism_r},
+{"king file tropism [distance]    ",    8, king_tropism_at_r},
+{"rook piece/square table         ",  -64, rval},
+{NULL,                                  0, NULL},
+{NULL,                                  0, NULL},
+{NULL,                                  0, NULL},
+{NULL,                                  0, NULL},
+{NULL,                                  0, NULL},
+{NULL,                                  0, NULL},
+{NULL,                                  0, NULL},
+{NULL,                                  0, NULL},
+
+{"queen scoring-------------------",    0, NULL},                /* 90 */
+{"queen rook on 7th rank          ",    0, &queen_rook_on_7th_rank},
+{"queen king tropism              ",    0, &queen_king_safety},
+{"queen vs 2 rooks                ",    0, &queen_vs_2_rooks},
+{"queen is strong                 ",    0, &queen_is_strong},
+{"queen offside tropism           ",    0, &queen_offside_tropism},
+{"king tropism [distance]         ",    8, king_tropism_q},
+{"king file tropism [distance]    ",    8, king_tropism_at_q},
+{"queen piece/square table        ",  -64, qval},
+{NULL,                                  0, NULL},
+
+{"king scoring--------------------",    0, NULL},                /* 100 */
+{"king king tropism (endgame)     ",    0, &king_king_tropism},
+{"king safety mate g2g7           ",    0, &king_safety_mate_g2g7},
+{"king safety trojan horse threat ",    0, &king_safety_mate_threat},
+{"king safety open file           ",    0, &king_safety_open_file},
+{"king tropism [defects]          ",  128, king_tropism},
+{"king defects (white - mirror B) ",  -64, king_defects_w},
+{"king piece/square normal        ",  -64, kval_wn},
+{"king piece/square kside pawns   ",  -64, kval_wk},
+{"king piece/square qside pawns   ",  -64, kval_wq},
+{"king safety half-open file def  ",    3, hopenf},
+{"king safety open file defects   ",    3, openf},
+{"king safety total piece tropism ",   64, king_safety},
+{"king safety pawn structure      ",   32, king_safety_p},
+{NULL,                                  0, NULL},
+{NULL,                                  0, NULL},
+{NULL,                                  0, NULL},
+{NULL,                                  0, NULL},
+{NULL,                                  0, NULL},
+{NULL,                                  0, NULL},
+
+{"development scoring-------------",    0, NULL},                /* 120 */
+{"development thematic            ",    0, &development_thematic},
+{"development unmoved             ",    0, &development_unmoved},
+{"development blocked center pawn ",    0, &blocked_center_pawn},
+{"development losing castle       ",    0, &development_losing_castle},
+{"development not castled         ",    0, &development_not_castled},
+{"development moved queen early   ",    0, &development_queen_early},
+{"development castle bonus        ",    0, &development_castle_bonus}};
+
