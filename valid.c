@@ -133,13 +133,13 @@ int ValidMove(TREE *tree, int ply, int wtm, int move)
         if ((PieceOnSquare(From(move)) == pawn) &&
             (PieceOnSquare(To(move)) == 0) &&
             (PieceOnSquare(To(move)-8) == -pawn) &&
-            And(EnPassantTarget(ply),set_mask[To(move)])) return(1);
+            And(EnPassantTarget(ply),SetMask(To(move)))) return(1);
       }
       else {
         if ((PieceOnSquare(From(move)) == -pawn) &&
             (PieceOnSquare(To(move)) == 0) &&
             (PieceOnSquare(To(move)+8) == pawn) &&
-            And(EnPassantTarget(ply),set_mask[To(move)])) return(1);
+            And(EnPassantTarget(ply),SetMask(To(move)))) return(1);
       }
 /*
  ----------------------------------------------------------
@@ -167,13 +167,13 @@ int ValidMove(TREE *tree, int ply, int wtm, int move)
     if (Piece(move) == PieceOnSquare(From(move)) &&
         Captured(move) == -PieceOnSquare(To(move)) &&
         Captured(move) != -king &&
-        And(AttacksFrom(tree,From(move),wtm),set_mask[To(move)])) return(1);
+        And(AttacksFrom(tree,From(move),wtm),SetMask(To(move)))) return(1);
   }
   else {
     if (Piece(move) == -PieceOnSquare(From(move)) &&
         Captured(move) == PieceOnSquare(To(move)) &&
         Captured(move) != king &&
-        And(AttacksFrom(tree,From(move),wtm),set_mask[To(move)])) return(1);
+        And(AttacksFrom(tree,From(move),wtm),SetMask(To(move)))) return(1);
   }
   return(0);
 }

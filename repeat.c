@@ -3,7 +3,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 03/11/98 */
+/* last modified 10/22/98 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -30,12 +30,12 @@ int RepetitionCheck(TREE *tree, int ply, int wtm)
 /*
  ----------------------------------------------------------
 |                                                          |
-|   check for trivial draws, like insufficient material.   |
+|   if the 50-move rule has been reached, then adjust the  |
+|   score to reflect the impending draw.                   |
 |                                                          |
  ----------------------------------------------------------
 */
-  if (!(TotalWhitePawns+TotalBlackPawns) &&
-      TotalWhitePieces<5 && TotalBlackPieces<5) return(1);
+  if (Rule50Moves(ply) > 99) return(1);
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -71,7 +71,7 @@ int RepetitionDraw(TREE *tree, int wtm)
 /*
  ----------------------------------------------------------
 |                                                          |
-|   if the 50-move rule is drawing close, then adjust the  |
+|   if the 50-move rule has been reached, then adjust the  |
 |   score to reflect the impending draw.                   |
 |                                                          |
  ----------------------------------------------------------

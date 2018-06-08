@@ -298,7 +298,8 @@ char* DisplayEvaluation(int value)
 {
   static char out[10];
 
-  if (abs(value) < MATE-100) 
+  if (value == DrawScore(root_wtm)) sprintf(out,"   draw");
+  else if (abs(value) < MATE-300) 
     sprintf(out,"%7.2f",((float) value)/100.0);
   else if (abs(value) > MATE) {
     if (value < 0) sprintf(out," -infnty");
@@ -315,7 +316,8 @@ char* DisplayEvaluationWhisper(int value)
 {
   static char out[10];
 
-  if (abs(value) < MATE-100)
+  if (value == DrawScore(root_wtm)) sprintf(out,"draw");
+  else if (abs(value) < MATE-300)
     sprintf(out,"%+.2f",((float) value)/100.0);
   else if (abs(value) > MATE) {
     if (value < 0) sprintf(out,"-infnty");
@@ -352,7 +354,7 @@ void DisplayPieceBoards(int *white, int *black)
 ********************************************************************************
 */
 void DisplayPV(TREE *tree, int level, int wtm, int time, int value, PATH *pv) {
-#define PrintOK() (tree->nodes_searched>noise_level || value>(MATE-100))
+#define PrintOK() (tree->nodes_searched>noise_level || value>(MATE-300))
   char buffer[512], *buffp, *bufftemp;
   int i, t_move_number, type, j, dummy;
 /*
@@ -387,7 +389,7 @@ void DisplayPV(TREE *tree, int level, int wtm, int time, int value, PATH *pv) {
 */
   if(pv->path_hashed == 1) {
     for (i=pv->path_length+1;i<MAXPLY;i++) {
-      LookUp(tree,i,0,wtm,&dummy,&dummy,&dummy);
+      HashProbe(tree,i,0,wtm,&dummy,&dummy,&dummy);
       if (tree->hash_move[i] && LegalMove(tree,i,wtm,tree->hash_move[i])) {
         pv->path[i]=tree->hash_move[i];
         for (j=1;j<i;j++) 
@@ -427,12 +429,22 @@ void DisplayPV(TREE *tree, int level, int wtm, int time, int value, PATH *pv) {
       if (bufftemp) Print(type,"                                    ");
     } while(bufftemp);
     Whisper(level,iteration_depth,end_time-start_time,whisper_value,
-            tree->nodes_searched,0,whisper_text);
+            tree->nodes_searched,0,predicted,tree->tb_probes_successful,
+            whisper_text);
   }
   for (i=pv->path_length;i>0;i--) {
     wtm=ChangeSide(wtm);
     UnMakeMove(tree,i,pv->path[i],wtm);
   }
+}
+
+char* DisplaySQ(unsigned int sq)
+{
+  static char out[3];
+  out[0]=(From(sq) & 7)+'a';
+  out[1]=(From(sq) / 8)+'1';
+  out[2]=0;
+  return(out);
 }
 
 char* DisplayHHMM(unsigned int time)
@@ -456,8 +468,7 @@ char* DisplayTime(unsigned int time)
   return(out);
 }
 
-char* DisplayTimeWhisper(unsigned int time)
-{
+char* DisplayTimeWhisper(unsigned int time) {
   static char out[10];
 
   if (time < 6000) sprintf(out,"%.2f",(float) time/100.0);
@@ -466,6 +477,38 @@ char* DisplayTimeWhisper(unsigned int time)
     sprintf(out,"%u:%02u", time/60, time%60);
   }
   return(out);
+}
+
+void DisplayTreeState(TREE *tree, int sply, int spos, int maxply) {
+  int left, i, *mvp, parallel=0;
+  char buf[1024];
+  buf[0]=0;
+  if (sply == 1) {
+    for (left=0,mvp=tree->last[0];mvp<tree->last[1];mvp++) 
+      if (!tree->searched_this_root_move[mvp-tree->last[0]]) left++;
+    sprintf(buf,"%d:%d/%d  ",1,left,tree->last[1]-tree->last[0]);
+  }
+  else {
+    for (i=0;i<spos-6;i++) sprintf(buf+strlen(buf)," ");
+    sprintf(buf+strlen(buf),"[p%2d] ",tree->thread_id);
+  }
+  for (i=Max(sply,2);i<=maxply;i++) {
+    left=0;
+    for (mvp=tree->last[i-1];mvp<tree->last[i];mvp++) 
+      if (*mvp) left++;
+    sprintf(buf+strlen(buf),"%d:%d/%d  ",i,left,tree->last[i]-tree->last[i-1]);
+    if (!(i%8)) sprintf(buf+strlen(buf),"\n");
+    if (tree->nprocs>1 && tree->ply==i) {
+      parallel=strlen(buf);
+      break;
+    }
+    if (sply > 1) break;
+  }
+  printf("%s\n",buf);
+  if (sply == 1 && tree->nprocs) {
+    for (i=0;i<max_threads;i++) if (tree->siblings[i])
+        DisplayTreeState(tree->siblings[i], tree->ply+1,parallel, maxply);
+  }
 }
 
 void Display64bitWord(BITBOARD word)
@@ -545,7 +588,7 @@ void DisplayChessMove(char *title, int move)
 ********************************************************************************
 */
 char *FormatPV(TREE *tree, int wtm, PATH pv) {
-#define PrintOK() (tree->nodes_searched>noise_level || value>(MATE-100))
+#define PrintOK() (tree->nodes_searched>noise_level || value>(MATE-300))
   static char buffer[512];
   int i, t_move_number;
 /*
@@ -770,8 +813,10 @@ void NewGame(int save) {
       LearnBook(tree,crafty_is_white,last_search_value,0,0,1);
     if (ics) printf("*whisper Hello from Crafty v%s !\n",version);
     if (xboard) {
+      printf("tellics set 1 Crafty v%s (%d cpus)\n",version,CPUS);
 #if defined(SMP)
-      printf("kibitz Hello from Crafty v%s! (%d cpus)\n",version,CPUS);
+      printf("kibitz Hello from Crafty v%s! (%d cpus)\n",
+             version,Max(1,max_threads));
 #else
       printf("kibitz Hello from Crafty v%s!\n",version);
 #endif
@@ -828,6 +873,8 @@ void NewGame(int save) {
     whisper_depth=0;
     whisper_value=0;
     tree->nodes_searched=0;
+    tree->fail_high=0;
+    tree->fail_high_first=0;
     cpu_percent=0;
     whisper_text[0]=0;
   }
@@ -1293,7 +1340,7 @@ int ReadNextMove(TREE *tree, char *text, int ply, int wtm) {
 int ReadPGN(FILE *input, int option) {
   static int data=0, lines_read=0;
   static char input_buffer[512];
-  char temp[512], *eof, analysis_move[16];
+  char temp[512], *eof, analysis_move[64];
   int braces=0, parens=0, brackets=0, analysis=0, last_good_line;
   
 /*
@@ -1424,7 +1471,7 @@ int ReadPGN(FILE *input, int option) {
         if (analysis && analysis_move[0]==0) {
           if (strspn(buffer," ") != strlen(buffer)) {
             char *tmove=analysis_move;
-            sscanf(buffer,"%s",analysis_move);
+            sscanf(buffer,"%64s",analysis_move);
             strcpy(buffer,analysis_move);
             if (strcmp(buffer,"0-0") && strcmp(buffer,"0-0-0"))
               tmove=buffer+strspn(buffer,"0123456789.");
@@ -1920,8 +1967,7 @@ void ComputeAttacksAndMobility ()
 ********************************************************************************
 */
 void Whisper(int level,int depth,int time,int value,unsigned int nodes,
-             int cpu,char* pv)
-{
+             int cpu, int predicted, int tb_hits, char *pv) {
   if (!puzzling) {
     char prefix[128];
 
@@ -1947,15 +1993,17 @@ void Whisper(int level,int depth,int time,int value,unsigned int nodes,
     case 2:
       if (kibitz >= 2) {
         if (ics) printf("*");
-        printf("kibitz d%d; %s; nps %d; time %s; cpu %d%%; p:%d\n",
+        printf("kibitz d%d; %s; nps %d; time %s; cpu %d%%; p:%d; egtb:%d\n",
                depth,DisplayEvaluationWhisper(value),
-               (time)?100*nodes/time:nodes,DisplayTimeWhisper(time),cpu,predicted);
+               (int) ((time)?100*(BITBOARD)nodes/(BITBOARD)time:nodes),
+               DisplayTimeWhisper(time),cpu,predicted,tb_hits);
       }
       else if (whisper >= 2) {
         if (ics) printf("*");
-        printf("%s d%d; %s; nps %d; time %s; cpu %d%%; p:%d\n",
+        printf("%s d%d; %s; nps %d; time %s; cpu %d%%; p:%d; egtb:%d\n",
                prefix,depth,DisplayEvaluationWhisper(value),
-               (time)?100*nodes/time:nodes,DisplayTimeWhisper(time),cpu,predicted);
+               (int) ((time)?100*(BITBOARD)nodes/(BITBOARD)time:nodes),
+               DisplayTimeWhisper(time),cpu,predicted,tb_hits);
       }
     case 3:
       if ((kibitz >= 3) && (nodes>5000 || level==2)) {
@@ -2042,6 +2090,8 @@ void CopyFromSMP(TREE *p, TREE *c) {
     }
   }
   p->nodes_searched+=c->nodes_searched;
+  p->fail_high+=c->fail_high;
+  p->fail_high_first+=c->fail_high_first;
   p->evaluations+=c->evaluations;
   p->transposition_probes+=c->transposition_probes;
   p->transposition_hits+=c->transposition_hits;
@@ -2073,6 +2123,7 @@ TREE* CopyToSMP(TREE *p) {
     Print(128, "ERROR.  no SMP block can be allocated\n");
     return(0);
   }
+  max_split_blocks=Max(max_split_blocks,i);
   c=local[i];
   c->used=1;
   c->stop=0;
@@ -2104,6 +2155,8 @@ TREE* CopyToSMP(TREE *p) {
     c->killer_move2[i]=p->killer_move2[i];
   }
   c->nodes_searched=0;
+  c->fail_high=0;
+  c->fail_high_first=0;
   c->evaluations=0;
   c->transposition_probes=0;
   c->transposition_hits=0;

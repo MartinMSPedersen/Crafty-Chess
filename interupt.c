@@ -20,7 +20,7 @@
 */
 void Interrupt(int ply)
 {
-  int temp, *mvp, i, left, readstat, result, time_used;
+  int temp, *mvp, left, readstat, result, time_used;
   int save_move_number;
   TREE *tree=local[0];
   static int busy=0;
@@ -108,17 +108,7 @@ void Interrupt(int ply)
         time_used=(end_time-start_time);
         printf("time:%s ",DisplayTime(time_used));
         printf("nodes:%d\n",tree->nodes_searched);
-        for (left=0,mvp=tree->last[0];mvp<tree->last[1];mvp++) 
-          if (!tree->searched_this_root_move[mvp-tree->last[0]]) left++;
-        printf("%d:%d/%d  ",1,left,tree->last[1]-tree->last[0]);
-        for (i=2;i<=ply;i++) {
-          left=0;
-          for (mvp=tree->last[i-1];mvp<tree->last[i];mvp++) 
-            if (*mvp) left++;
-          printf("%d:%d/%d  ",i,left,tree->last[i]-tree->last[i-1]);
-          if (!(i%8)) printf("\n");
-        }
-        printf("\n");
+        DisplayTreeState(local[0],1,0,ply);
       }
     }
 /*

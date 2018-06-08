@@ -46,7 +46,7 @@ UnMakePieceMove:
   ClearRL90(to,OccupiedRL90);
   ClearRL45(to,OccupiedRL45);
   ClearRR45(to,OccupiedRR45);
-  bit_move=Or(set_mask[from],set_mask[to]);
+  bit_move=Or(SetMask(from),SetMask(to));
   PieceOnSquare(to)=0;
   switch (piece) {
 
@@ -94,18 +94,21 @@ UnMakePieceMove:
         case knight:
           Clear(to,WhiteKnights);
           TotalWhitePieces-=knight_v;
+          WhiteMinors--;
           Material-=KNIGHT_VALUE;
           break;
         case bishop:
           Clear(to,WhiteBishops);
           Clear(to,BishopsQueens);
           TotalWhitePieces-=bishop_v;
+          WhiteMinors--;
           Material-=BISHOP_VALUE;
           break;
         case rook:
           Clear(to,WhiteRooks);
           Clear(to,RooksQueens);
           TotalWhitePieces-=rook_v;
+          WhiteMajors--;
           Material-=ROOK_VALUE;
           break;
         case queen:
@@ -113,6 +116,7 @@ UnMakePieceMove:
           Clear(to,BishopsQueens);
           Clear(to,RooksQueens);
           TotalWhitePieces-=queen_v;
+          WhiteMajors-=2;
           Material-=QUEEN_VALUE;
           break;
         }
@@ -154,18 +158,21 @@ UnMakePieceMove:
         case knight:
           Clear(to,BlackKnights);
           TotalBlackPieces-=knight_v;
+          BlackMinors--;
           Material+=KNIGHT_VALUE;
           break;
         case bishop:
           Clear(to,BlackBishops);
           Clear(to,BishopsQueens);
           TotalBlackPieces-=bishop_v;
+          BlackMinors--;
           Material+=BISHOP_VALUE;
           break;
         case rook:
           Clear(to,BlackRooks);
           Clear(to,RooksQueens);
           TotalBlackPieces-=rook_v;
+          BlackMajors--;
           Material+=ROOK_VALUE;
           break;
         case queen:
@@ -173,6 +180,7 @@ UnMakePieceMove:
           Clear(to,BishopsQueens);
           Clear(to,RooksQueens);
           TotalBlackPieces-=queen_v;
+          BlackMajors-=2;
           Material+=QUEEN_VALUE;
           break;
         }
@@ -358,6 +366,7 @@ UnMakePieceMove:
         Set(to,BlackPieces);
         PieceOnSquare(to)=-knight;
         TotalBlackPieces+=knight_v;
+        BlackMinors++;
         Material-=KNIGHT_VALUE;
       }
       else {
@@ -365,6 +374,7 @@ UnMakePieceMove:
         Set(to,WhitePieces);
         PieceOnSquare(to)=knight;
         TotalWhitePieces+=knight_v;
+        WhiteMinors++;
         Material+=KNIGHT_VALUE;
       }
     break;
@@ -382,6 +392,7 @@ UnMakePieceMove:
         Set(to,BlackPieces);
         PieceOnSquare(to)=-bishop;
         TotalBlackPieces+=bishop_v;
+        BlackMinors++;
         Material-=BISHOP_VALUE;
       }
       else {
@@ -389,6 +400,7 @@ UnMakePieceMove:
         Set(to,WhitePieces);
         PieceOnSquare(to)=bishop;
         TotalWhitePieces+=bishop_v;
+        WhiteMinors++;
         Material+=BISHOP_VALUE;
       }
     break;
@@ -406,6 +418,7 @@ UnMakePieceMove:
         Set(to,BlackPieces);
         PieceOnSquare(to)=-rook;
         TotalBlackPieces+=rook_v;
+        BlackMajors++;
         Material-=ROOK_VALUE;
       }
       else {
@@ -413,6 +426,7 @@ UnMakePieceMove:
         Set(to,WhitePieces);
         PieceOnSquare(to)=rook;
         TotalWhitePieces+=rook_v;
+        WhiteMajors++;
         Material+=ROOK_VALUE;
       }
     break;
@@ -431,6 +445,7 @@ UnMakePieceMove:
         Set(to,BlackPieces);
         PieceOnSquare(to)=-queen;
         TotalBlackPieces+=queen_v;
+        BlackMajors+=2;
         Material-=QUEEN_VALUE;
       }
       else {
@@ -438,6 +453,7 @@ UnMakePieceMove:
         Set(to,WhitePieces);
         PieceOnSquare(to)=queen;
         TotalWhitePieces+=queen_v;
+        WhiteMajors+=2;
         Material+=QUEEN_VALUE;
       }
       break;

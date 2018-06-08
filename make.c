@@ -58,7 +58,7 @@ MakePieceMove:
   SetRL90(to,OccupiedRL90);
   SetRL45(to,OccupiedRL45);
   SetRR45(to,OccupiedRR45);
-  bit_move=Or(set_mask[from],set_mask[to]);
+  bit_move=Or(SetMask(from),SetMask(to));
   PieceOnSquare(from)=0;
   switch (piece) {
 /*
@@ -80,9 +80,8 @@ MakePieceMove:
       HashPW32(from,PawnHashKey);
       HashPW(to,HashKey);
       HashPW32(to,PawnHashKey);
-      PieceOnSquare(to)=pawn;
       if (captured == 1) {
-        if(!And(BlackPawns,set_mask[to])) {
+        if(!PieceOnSquare(to)) {
           ClearRL90(to-8,OccupiedRL90);
           ClearRL45(to-8,OccupiedRL45);
           ClearRR45(to-8,OccupiedRR45);
@@ -97,6 +96,7 @@ MakePieceMove:
           captured=0;
         }
       }
+      PieceOnSquare(to)=pawn;
   /*
    --------------------------------------------------------------------
   |                                                                    |
@@ -118,6 +118,7 @@ MakePieceMove:
           HashNW(to,HashKey);
           PieceOnSquare(to)=knight;
           TotalWhitePieces+=knight_v;
+          WhiteMinors++;
           Material+=KNIGHT_VALUE;
           break;
         case bishop:
@@ -126,6 +127,7 @@ MakePieceMove:
           HashBW(to,HashKey);
           PieceOnSquare(to)=bishop;
           TotalWhitePieces+=bishop_v;
+          WhiteMinors++;
           Material+=BISHOP_VALUE;
           break;
         case rook:
@@ -134,6 +136,7 @@ MakePieceMove:
           HashRW(to,HashKey);
           PieceOnSquare(to)=rook;
           TotalWhitePieces+=rook_v;
+          WhiteMajors++;
           Material+=ROOK_VALUE;
           break;
         case queen:
@@ -143,6 +146,7 @@ MakePieceMove:
           HashQW(to,HashKey);
           PieceOnSquare(to)=queen;
           TotalWhitePieces+=queen_v;
+          WhiteMajors+=2;
           Material+=QUEEN_VALUE;
           break;
         }
@@ -160,9 +164,8 @@ MakePieceMove:
       HashPB32(from,PawnHashKey);
       HashPB(to,HashKey);
       HashPB32(to,PawnHashKey);
-      PieceOnSquare(to)=-pawn;
       if (captured == 1) {
-        if(!And(WhitePawns,set_mask[to])) {
+        if(!PieceOnSquare(to)) {
           ClearRL90(to+8,OccupiedRL90);
           ClearRL45(to+8,OccupiedRL45);
           ClearRR45(to+8,OccupiedRR45);
@@ -177,6 +180,7 @@ MakePieceMove:
           captured=0;
         }
       }
+      PieceOnSquare(to)=-pawn;
 /*
  --------------------------------------------------------------------
 |                                                                    |
@@ -198,6 +202,7 @@ MakePieceMove:
           HashNB(to,HashKey);
           PieceOnSquare(to)=-knight;
           TotalBlackPieces+=knight_v;
+          BlackMinors++;
           Material-=KNIGHT_VALUE;
           break;
         case bishop:
@@ -206,6 +211,7 @@ MakePieceMove:
           HashBB(to,HashKey);
           PieceOnSquare(to)=-bishop;
           TotalBlackPieces+=bishop_v;
+          BlackMinors++;
           Material-=BISHOP_VALUE;
           break;
         case rook:
@@ -214,6 +220,7 @@ MakePieceMove:
           HashRB(to,HashKey);
           PieceOnSquare(to)=-rook;
           TotalBlackPieces+=rook_v;
+          BlackMajors++;
           Material-=ROOK_VALUE;
           break;
         case queen:
@@ -223,6 +230,7 @@ MakePieceMove:
           HashQB(to,HashKey);
           PieceOnSquare(to)=-queen;
           TotalBlackPieces+=queen_v;
+          BlackMajors+=2;
           Material-=QUEEN_VALUE;
           break;
         }
@@ -474,6 +482,7 @@ MakePieceMove:
         Clear(to,BlackPieces);
         HashNB(to,HashKey);
         TotalBlackPieces-=knight_v;
+        BlackMinors--;
         Material+=KNIGHT_VALUE;
       }
       else {
@@ -481,6 +490,7 @@ MakePieceMove:
         Clear(to,WhitePieces);
         HashNW(to,HashKey);
         TotalWhitePieces-=knight_v;
+        WhiteMinors--;
         Material-=KNIGHT_VALUE;
       }
     break;
@@ -499,6 +509,7 @@ MakePieceMove:
         Clear(to,BlackPieces);
         HashBB(to,HashKey);
         TotalBlackPieces-=bishop_v;
+        BlackMinors--;
         Material+=BISHOP_VALUE;
       }
       else {
@@ -506,6 +517,7 @@ MakePieceMove:
         Clear(to,WhitePieces);
         HashBW(to,HashKey);
         TotalWhitePieces-=bishop_v;
+        WhiteMinors--;
         Material-=BISHOP_VALUE;
       }
     break;
@@ -534,6 +546,7 @@ MakePieceMove:
           }
         }
         TotalBlackPieces-=rook_v;
+        BlackMajors--;
         Material+=ROOK_VALUE;
       }
       else {
@@ -551,6 +564,7 @@ MakePieceMove:
           }
         }
         TotalWhitePieces-=rook_v;
+        WhiteMajors--;
         Material-=ROOK_VALUE;
       }
     break;
@@ -571,6 +585,7 @@ MakePieceMove:
         Clear(to,BlackPieces);
         HashQB(to,HashKey);
         TotalBlackPieces-=queen_v;
+        BlackMajors-=2;
         Material+=QUEEN_VALUE;
       }
       else {
@@ -578,6 +593,7 @@ MakePieceMove:
         Clear(to,WhitePieces);
         HashQW(to,HashKey);
         TotalWhitePieces-=queen_v;
+        WhiteMajors-=2;
         Material-=QUEEN_VALUE;
       }
       break;

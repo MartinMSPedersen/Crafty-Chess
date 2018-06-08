@@ -18,6 +18,7 @@
 int Iterate(int wtm, int search_type, int root_list_done)
 {
   int *mvp;
+  int wpawn, bpawn, TB_use_ok;
   int i, value=0, time_used;
   int twtm, used_w, used_b;
   int correct, correct_count, material=0, sorted, temp;
@@ -43,6 +44,21 @@ int Iterate(int wtm, int search_type, int root_list_done)
   elapsed_start=ReadClock(elapsed);
   PreEvaluate(tree,wtm);
   tree->nodes_searched=0;
+  tree->fail_high=0;
+  tree->fail_high_first=0;
+  parallel_splits=0;
+  parallel_stops=0;
+  max_split_blocks=0;
+  TB_use_ok=1;
+  if (TotalWhitePawns && TotalBlackPawns) {
+    wpawn=FirstOne(WhitePawns);
+    bpawn=FirstOne(BlackPawns);
+    if (FileDistance(wpawn,bpawn) == 1) {
+      if(((Rank(wpawn)==RANK2) && (Rank(bpawn)>RANK3)) ||
+         ((Rank(bpawn)==RANK7) && (Rank(wpawn)<RANK6)) || 
+         EnPassant(1)) TB_use_ok=0;
+    }
+  }
   if (booking || !Book(tree,wtm,root_list_done)) do {
     if (abort_search) break;
     if (!root_list_done) RootMoveList(wtm);
@@ -174,13 +190,15 @@ int Iterate(int wtm, int search_type, int root_list_done)
     if (max_threads>smp_idle+1) {
       pthread_t pt;
       int proc;
-      if (!EGTBScore(tree, 1, wtm, &i)) 
+      if (!EGTB_use || !(TotalPieces<=5 && TB_use_ok &&
+          EGTBlimit && EGTBProbe(tree, 1, wtm, &i))) {
         for (proc=smp_threads+1;proc<max_threads;proc++) {
           Print(128,"starting thread %d\n",proc);
           thread[proc]=0;
           tfork(pt,ThreadInit,(void *) proc);
           smp_threads++;
         }
+      }
     }
 #endif
     for (;iteration_depth<=60;iteration_depth++) {
@@ -202,7 +220,7 @@ int Iterate(int wtm, int search_type, int root_list_done)
                 Piece(tree->pv[i].path[i]));
           break;
         }
-        StorePV(tree, i, twtm);
+        HashStorePV(tree, i, twtm);
         MakeMove(tree, i,tree->pv[0].path[i],twtm);
         twtm=ChangeSide(twtm);
       }
@@ -236,7 +254,7 @@ int Iterate(int wtm, int search_type, int root_list_done)
 #endif
         thread_start_time[0]=ReadClock(cpu);
         value=SearchRoot(tree,root_alpha, root_beta, wtm,
-                         iteration_depth*INCREMENT_PLY+30);
+                         iteration_depth*INCREMENT_PLY+45);
         cpu_time_used+=ReadClock(cpu)-thread_start_time[0];
         if (value >= root_beta) {
           search_failed_high=1;
@@ -305,22 +323,22 @@ int Iterate(int wtm, int search_type, int root_list_done)
       else
         nodes_per_second=10000;
       if (!time_abort && !abort_search && (tree->nodes_searched>noise_level ||
-          correct_count>=early_exit || value>MATE-100 || tree->pv[0].path_hashed==2)) {
+          correct_count>=early_exit || value>MATE-300 || tree->pv[0].path_hashed==2)) {
         if (value != -(MATE-1))
           DisplayPV(tree,5,wtm,end_time-start_time,value,&tree->pv[0]);
       }
       root_alpha=value-40;
       root_value=root_alpha;
       root_beta=value+40;
-      if ((iteration_depth > 1) && (value > MATE-100) &&
+      if ((iteration_depth > 1) && (value > MATE-300) &&
           (value > last_mate_score)) break;
       if ((iteration_depth >= search_depth) && search_depth) break;
       if (time_abort || abort_search) break;
       end_time=ReadClock(time_type)-start_time;
       if (thinking && ((int) end_time >= time_limit)) break;
       if (correct_count >= early_exit) break;
-      if (iteration_depth>=2 && TotalPieces<5 &&
-          EGTBScore(tree, 1, wtm, &i) && EGTBlimit) break;
+      if (iteration_depth>=2 && TotalPieces<=5 && TB_use_ok &&
+          EGTBlimit && EGTBProbe(tree, 1, wtm, &i) && EGTB_use) break;
       do {
         sorted=1;
         for (mvp=tree->last[0]+1;mvp<tree->last[1]-1;mvp++) {
@@ -368,24 +386,33 @@ int Iterate(int wtm, int search_type, int root_list_done)
       nodes_per_second=(BITBOARD) tree->nodes_searched*100/(BITBOARD) elapsed_end;
     tree->evaluations=(tree->evaluations) ? tree->evaluations : 1;
     if ((!abort_search || time_abort) && !puzzling) {
+      tree->fail_high++;
+      tree->fail_high_first++;
       material=Material/PAWN_VALUE;
       if (ChangeSide(wtm)) material=-material;
-      Print(8,"              time:%s  cpu:%d%%  mat:%d",
-            DisplayTime(end_time-start_time), cpu_percent, material); 
-      Print(8,"  n:%u", tree->nodes_searched);
-      Print(8,"  nps:%d\n", nodes_per_second);
-      Print(16,"              ext-> checks:%d recaps:%d pawns:%d 1rep:%d\n",
+      Print(8,"              time=%s  cpu=%d%%  mat=%d",
+            DisplayTimeWhisper(end_time-start_time), cpu_percent, material); 
+      Print(8,"  n=%u", tree->nodes_searched);
+      Print(8,"  fh=%u%%", tree->fail_high_first*100/tree->fail_high);
+      Print(8,"  nps=%d\n", nodes_per_second);
+      Print(16,"              ext-> checks=%d recaps=%d pawns=%d 1rep=%d\n",
             tree->check_extensions_done, tree->recapture_extensions_done,
             tree->passed_pawn_extensions_done, tree->one_reply_extensions_done);
-      Print(16,"              predicted:%d  nodes:%u  evals:%u\n", 
+      Print(16,"              predicted=%d  nodes=%u  evals=%u\n", 
              predicted, tree->nodes_searched, tree->evaluations);
-      Print(16,"              endgame tablebase-> probes done: %d  successful: %d\n",
+      Print(16,"              endgame tablebase-> probes done=%d  successful=%d\n",
             tree->tb_probes, tree->tb_probes_successful);
 #if !defined(FAST)
-      Print(16,"              hashing-> trans/ref:%d%%  pawn:%d%%  used:w%d%% b%d%%\n",
+      Print(16,"              hashing-> trans/ref=%d%%  pawn=%d%%  used=w%d%% b%d%%\n",
             100*tree->transposition_hits/(tree->transposition_probes+1),
             100*tree->pawn_hits/(tree->pawn_probes+1),
             used_w*100/(hash_table_size+1), used_b*100/(hash_table_size+1));
+#endif
+#if defined(SMP)
+      Print(16,"              SMP->  split=%d  stop=%d  data=%d/%d  ",
+            parallel_splits, parallel_stops,max_split_blocks,MAX_BLOCKS);
+      Print(16,"cpu=%s  ", DisplayTimeWhisper(cpu_time_used));
+      Print(16,"elap=%s\n", DisplayTimeWhisper(elapsed_end));
 #endif
     }
   } while(0);
@@ -394,15 +421,17 @@ int Iterate(int wtm, int search_type, int root_list_done)
     last_search_value=0;
     book_move=1;
     tree->pv[0]=tree->pv[1];
-    if (analyze_mode) Whisper(4,0,0,0,0,0,whisper_text);
+    if (analyze_mode) Whisper(4,0,0,0,0,0,0,0,whisper_text);
   }
   program_end_time=ReadClock(time_type);
 #if defined(SMP)
-  if (EGTBScore(tree, 1, wtm, &i)) {
+  if (EGTBlimit && TB_use_ok && EGTB_use && TotalPieces<= 5 &&
+      EGTBProbe(tree, 1, wtm, &i)) {
     int proc;
     for (proc=1;proc<CPUS;proc++) thread[proc]=(TREE*)-1;
     smp_threads=0;
   }
 #endif
+  search_move=0;
   return(last_search_value);
 }

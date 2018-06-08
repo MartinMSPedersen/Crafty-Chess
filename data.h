@@ -40,6 +40,8 @@
    extern int            EGTBlimit;
    extern int            EGTB_draw;
    extern int            EGTB_use;
+   extern void           *EGTB_cache;
+   extern int            EGTB_cache_size;
    extern char           whisper_text[512];
    extern int            whisper_value;
    extern int            whisper_depth;
@@ -190,6 +192,7 @@
    extern int            tc_safety_margin;
    extern int            no_tricks;
    extern int            computer_opponent;
+   extern int            draw_score_normal;
    extern int            usage_level;
    extern int            log_hash;
    extern int            log_pawn_hash;
@@ -215,6 +218,7 @@
    extern char           black_outpost[64];
    extern char           square_color[64];
    extern int            passed_pawn_value[8];
+   extern int            isolated_pawn_value[9];
    extern int            supported_passer[8];
    extern int            reduced_material_passer[20];
    extern int            pawn_advance[8];
@@ -247,13 +251,7 @@
    extern BITBOARD       bishop_attacks[64];
 #if defined(COMPACT_ATTACKS)
   /* Stuff these into a structure to make the addressing slightly cheaper */
-  extern struct at {
-    unsigned char which_attack[8][64];
-    BITBOARD      file_attack_bitboards[8][MAX_ATTACKS_FROM_SQUARE];
-    unsigned char rank_attack_bitboards[8][MAX_ATTACKS_FROM_SQUARE];
-    unsigned char length8_mobility[8][MAX_ATTACKS_FROM_SQUARE];
-    unsigned char short_mobility[NSHORT_MOBILITY];
-  } at;
+  extern struct at at;
 
   extern BITBOARD       diag_attack_bitboards[NDIAG_ATTACKS];
   extern BITBOARD       anti_diag_attack_bitboards[NDIAG_ATTACKS];
@@ -309,13 +307,13 @@
 
    extern BITBOARD       threat_flag;
    extern BITBOARD       clear_mask[65];
+   extern BITBOARD       clear_mask_rl90[65];
    extern BITBOARD       clear_mask_rl45[65];
    extern BITBOARD       clear_mask_rr45[65];
-   extern BITBOARD       clear_mask_rl90[65];
    extern BITBOARD       set_mask[65];
+   extern BITBOARD       set_mask_rl90[65];
    extern BITBOARD       set_mask_rl45[65];
    extern BITBOARD       set_mask_rr45[65];
-   extern BITBOARD       set_mask_rl90[65];
    extern BITBOARD       file_mask[8];
    extern BITBOARD       rank_mask[8];
    extern BITBOARD       mask_not_rank8;
@@ -324,7 +322,8 @@
    extern BITBOARD       left_side_mask[8];
    extern BITBOARD       right_side_empty_mask[8];
    extern BITBOARD       left_side_empty_mask[8];
-   extern BITBOARD       right_half_mask, left_half_mask;
+   extern BITBOARD       mask_efgh, mask_abcd;
+   extern BITBOARD       mask_fgh, mask_abc;
    extern BITBOARD       mask_abs7_w, mask_abs7_b;
    extern BITBOARD       pawns_cramp_black;
    extern BITBOARD       pawns_cramp_white;
@@ -339,16 +338,14 @@
    extern BITBOARD       mask_B2B3;
    extern BITBOARD       mask_G6G7;
    extern BITBOARD       mask_B6B7;
-   extern BITBOARD       mask_F3H3;
-   extern BITBOARD       mask_F6H6;
-   extern BITBOARD       mask_A3C3;
-   extern BITBOARD       mask_A6C6;
    extern BITBOARD       mask_A7H7;
    extern BITBOARD       mask_A2H2;
    extern BITBOARD       center;
 
    extern BITBOARD       stonewall_white;
    extern BITBOARD       stonewall_black;
+   extern BITBOARD       closed_white;
+   extern BITBOARD       closed_black;
 
    extern BITBOARD       mask_kr_trapped_w[3];
    extern BITBOARD       mask_qr_trapped_w[3];
@@ -415,6 +412,7 @@
 
    extern BITBOARD       mask_pawn_protected_b[64];
    extern BITBOARD       mask_pawn_protected_w[64];
+   extern BITBOARD       mask_pawn_duo[64];
    extern BITBOARD       mask_pawn_isolated[64];
    extern BITBOARD       mask_pawn_passed_w[64];
    extern BITBOARD       mask_pawn_passed_b[64];
@@ -439,16 +437,21 @@
    extern BITBOARD       mask_wk_4th, mask_wq_4th, mask_bk_4th, mask_bq_4th;
    extern BITBOARD       mask_wk_5th, mask_wq_5th, mask_bk_5th, mask_bq_5th;
    extern BOOK_POSITION  book_buffer[BOOK_CLUSTER_SIZE];
+   extern BOOK_POSITION  books_buffer[BOOK_CLUSTER_SIZE];
 
    extern unsigned int   thread_start_time[CPUS];
 #  if defined(SMP)
-   extern TREE               *local[MAX_BLOCKS+1];
-   extern TREE               *volatile thread[CPUS];
-   extern lock_t             lock_hash, lock_pawn_hash, lock_smp, lock_io;
-   extern volatile int       smp_idle;
-   extern volatile int       smp_threads;
-   extern pthread_attr_t     pthread_attr;
+   extern TREE           *local[MAX_BLOCKS+1];
+   extern TREE           *volatile thread[CPUS];
+   extern lock_t         lock_hasha, lock_hashb, lock_pawn_hash, lock_smp, lock_io;
+   extern volatile int   smp_idle;
+   extern volatile int   smp_threads;
+   extern pthread_attr_t pthread_attr;
 #  else
-   extern TREE               local_data[1], *local[1];
+   extern TREE           local_data[1], *local[1];
 #  endif
+   extern unsigned int   parallel_splits;
+   extern unsigned int   parallel_stops;
+   extern unsigned int   max_split_blocks;
+   extern volatile unsigned int   splitting;
 #endif

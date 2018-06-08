@@ -66,7 +66,7 @@ int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
         !(tree->extended_reason[ply-1]&recapture_extension)) {
       tree->extended_reason[ply]|=recapture_extension;
       tree->recapture_extensions_done++;
-      extensions+=recap_depth;
+      extensions+=(ply<=2*iteration_depth) ? recap_depth : recap_depth>>1;
     }
 /*
  ----------------------------------------------------------
@@ -86,7 +86,7 @@ int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
            p_values[Captured(tree->current_move[ply])+7]) {
       tree->extended_reason[ply]|=passed_pawn_extension;
       tree->passed_pawn_extensions_done++;
-      extensions+=pushpp_depth;
+      extensions+=(ply<=2*iteration_depth) ? pushpp_depth : pushpp_depth>>1;
     }
 /*
  ----------------------------------------------------------
@@ -114,7 +114,7 @@ int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
         tree->in_check[ply+1]=1;
         tree->extended_reason[ply+1]=check_extension;
         tree->check_extensions_done++;
-        extensions+=incheck_depth;
+        extensions+=(ply<=2*iteration_depth) ? incheck_depth : incheck_depth>>1;
       }
       else {
         tree->in_check[ply+1]=0;
@@ -154,6 +154,7 @@ int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
       if (value > alpha) {
         if(value >= beta) {
           register int proc;
+          parallel_stops++;
           UnMakeMove(tree,ply,tree->current_move[ply],wtm);
           tree->search_value=value;
           Lock(tree->parent->lock);

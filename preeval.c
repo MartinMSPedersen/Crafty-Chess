@@ -90,7 +90,7 @@ void PreEvaluate(TREE *tree, int wtm)
     for (j=0;j<8;j++)
       pawn_value_w[i*8+j]=pawn_advance[j]*(i-3);
   for (j=A6;j<A8;j++)
-    pawn_value_w[j]+=PAWN_JAM;
+    pawn_value_w[j]=PAWN_JAM;
   if (!end_game) {
     pawn_value_w[E4]+=CENTER_PAWNS;
     pawn_value_w[E5]+=CENTER_PAWNS;
@@ -110,7 +110,7 @@ void PreEvaluate(TREE *tree, int wtm)
     for (j=0;j<8;j++)
       pawn_value_b[i*8+j]=pawn_advance[j]*(4-i);
   for (j=A2;j<A4;j++)
-    pawn_value_b[j]+=PAWN_JAM;
+    pawn_value_b[j]=PAWN_JAM;
   if (!end_game) {
     pawn_value_b[E3]+=CENTER_PAWNS;
     pawn_value_b[E4]+=CENTER_PAWNS;

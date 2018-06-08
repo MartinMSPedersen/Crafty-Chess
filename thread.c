@@ -61,6 +61,8 @@ int Thread(TREE *tree) {
 |                                                          |
  ----------------------------------------------------------
 */
+  splitting=1;
+  parallel_splits++;
   thread[tree->thread_id]=0;
   tree->nprocs=0;
   tree->done=0;
@@ -85,6 +87,7 @@ int Thread(TREE *tree) {
   if (!nblocks) {
     UnLock(lock_smp);
     thread[tree->thread_id]=tree;
+    splitting=0;
     return(0);
   }
 /*
@@ -99,6 +102,7 @@ int Thread(TREE *tree) {
   for (proc=0;proc<max_threads;proc++)
     if (tree->siblings[proc])
       thread[proc]=tree->siblings[proc];
+  splitting=0;
 /*
  ----------------------------------------------------------
 |                                                          |

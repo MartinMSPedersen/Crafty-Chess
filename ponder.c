@@ -63,7 +63,7 @@ int Ponder(int wtm)
     }
   }
   if (!ponder_move) {
-    (void) LookUp(tree,0,0,wtm,&dummy,&dummy,&dummy);
+    (void) HashProbe(tree,0,0,wtm,&dummy,&dummy,&dummy);
     if (tree->hash_move[0]) ponder_move=tree->hash_move[0];
     if (ponder_move) {
       if (!LegalMove(tree,1,wtm,ponder_move)) {

@@ -140,14 +140,13 @@ int SearchRoot(TREE *tree, int alpha, int beta, int wtm, int depth) {
       if(value >= beta) {
         History(tree,1,depth,wtm,tree->current_move[1]);
         UnMakeMove(tree,1,tree->current_move[1],wtm);
-        StoreRefutation(tree,1,depth,wtm,value,0);
         return(value);
       }
       alpha=value;
-      root_value=alpha;
-      beta=alpha+30;
-      root_beta=beta;
     }
+    root_value=alpha;
+    beta=alpha+40;
+    root_beta=beta;
     UnMakeMove(tree,1,tree->current_move[1],wtm);
   }
 /*
@@ -176,7 +175,6 @@ int SearchRoot(TREE *tree, int alpha, int beta, int wtm, int depth) {
       memcpy(&tree->pv[0].path_hashed,&tree->pv[1].path_hashed,3);
       History(tree,1,depth,wtm,tree->pv[1].path[1]);
     }
-    StoreBest(tree,1,depth,wtm,alpha,initial_alpha,0);
     return(alpha);
   }
 }
@@ -196,7 +194,7 @@ int SearchRoot(TREE *tree, int alpha, int beta, int wtm, int depth) {
 */
 void SearchOutput(TREE *tree, int value, int bound)
 {
-#define PrintOK() (tree->nodes_searched>noise_level || value>(MATE-100))
+#define PrintOK() (tree->nodes_searched>noise_level || value>(MATE-300))
   register int *mv, *mvp;
   register int wtm;
   int temp_root_nodes;
@@ -256,7 +254,8 @@ void SearchOutput(TREE *tree, int value, int bound)
                 OutputMove(tree,tree->current_move[1],1,wtm));
         MakeMove(tree,1,tree->current_move[1],wtm);
         Whisper(6,iteration_depth,end_time-start_time,whisper_value,
-                tree->nodes_searched,-1,whisper_text);
+                tree->nodes_searched,-1,predicted, 
+                tree->tb_probes_successful, whisper_text);
       }
       if (tree->current_move[1] != tree->pv[1].path[1]) {
         tree->pv[1].path[1]=tree->current_move[1];

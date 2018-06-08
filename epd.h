@@ -143,9 +143,6 @@ refreqT EPDFetchRefreqIndex(charptrT s);
 refcomT EPDExtractRefcomIndex(epdptrT epdptr);
 refreqT EPDExtractRefreqIndex(epdptrT epdptr);
 siT EPDComm(refintptrT refintptr, charptrT pipebase);
-siT EPDTBIsFilePresent(tbidT tbid, cT c);
-cpevT EPDTBScore(void);
-void EPDTBCacheFlush(void);
 void EPDInit(void);
 void EPDTerm(void);
 

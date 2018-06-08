@@ -55,7 +55,7 @@ void ResignOrDraw(TREE *tree, int value, int wtm)
       if (value < -(MATE-15)) {
         if (++resign_counter >= resign_count) returnv=1;
       }
-      else if (value<-resign*100 && value>-(MATE-100)) {
+      else if (value<-resign*100 && value>-(MATE-300)) {
         if (++resign_counter >= resign_count) returnv=1;
       }
       else resign_counter=0;

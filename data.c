@@ -13,6 +13,7 @@
    FILE           *position_file;
    FILE           *position_lrn_file;
    char           whisper_text[512];
+   void           *EGTB_cache;
    int            whisper_value;
    int            whisper_depth;
    int            total_moves;
@@ -90,13 +91,7 @@
 
 #if defined(COMPACT_ATTACKS)
   /* Stuff these into a structure to make the addressing slightly cheaper */
-  struct at {
-    unsigned char which_attack[8][64];
-    BITBOARD      file_attack_bitboards[8][MAX_ATTACKS_FROM_SQUARE];
-    unsigned char rank_attack_bitboards[8][MAX_ATTACKS_FROM_SQUARE];
-    unsigned char length8_mobility[8][MAX_ATTACKS_FROM_SQUARE];
-    unsigned char short_mobility[NSHORT_MOBILITY];
-  } at;
+  struct at at;
   BITBOARD       diag_attack_bitboards[NDIAG_ATTACKS];
   BITBOARD       anti_diag_attack_bitboards[NDIAG_ATTACKS];
   DIAG_INFO      diag_info[64];
@@ -145,13 +140,13 @@
    BITBOARD       b_rooks_random;
    BITBOARD       threat_flag;
    BITBOARD       clear_mask[65];
+   BITBOARD       clear_mask_rl90[65];
    BITBOARD       clear_mask_rl45[65];
    BITBOARD       clear_mask_rr45[65];
-   BITBOARD       clear_mask_rl90[65];
    BITBOARD       set_mask[65];
+   BITBOARD       set_mask_rl90[65];
    BITBOARD       set_mask_rl45[65];
    BITBOARD       set_mask_rr45[65];
-   BITBOARD       set_mask_rl90[65];
    BITBOARD       file_mask[8];
    BITBOARD       rank_mask[8];
    BITBOARD       mask_not_rank8;
@@ -160,7 +155,8 @@
    BITBOARD       left_side_mask[8];
    BITBOARD       right_side_empty_mask[8];
    BITBOARD       left_side_empty_mask[8];
-   BITBOARD       right_half_mask, left_half_mask;
+   BITBOARD       mask_efgh, mask_abcd;
+   BITBOARD       mask_fgh, mask_abc;
    BITBOARD       mask_abs7_w, mask_abs7_b;
    BITBOARD       pawns_cramp_black;
    BITBOARD       pawns_cramp_white;
@@ -175,15 +171,13 @@
    BITBOARD       mask_B2B3;
    BITBOARD       mask_G6G7;
    BITBOARD       mask_B6B7;
-   BITBOARD       mask_F3H3;
-   BITBOARD       mask_F6H6;
-   BITBOARD       mask_A3C3;
-   BITBOARD       mask_A6C6;
    BITBOARD       mask_A7H7;
    BITBOARD       mask_A2H2;
    BITBOARD       center;
    BITBOARD       stonewall_white;
    BITBOARD       stonewall_black;
+   BITBOARD       closed_white;
+   BITBOARD       closed_black;
    BITBOARD       mask_kr_trapped_w[3];
    BITBOARD       mask_qr_trapped_w[3];
    BITBOARD       mask_kr_trapped_b[3];
@@ -246,6 +240,7 @@
    BITBOARD       mask_queenside_attack_b2;
    BITBOARD       mask_pawn_protected_b[64];
    BITBOARD       mask_pawn_protected_w[64];
+   BITBOARD       mask_pawn_duo[64];
    BITBOARD       mask_pawn_isolated[64];
    BITBOARD       mask_pawn_passed_w[64];
    BITBOARD       mask_pawn_passed_b[64];
@@ -269,18 +264,23 @@
    BITBOARD       mask_wk_4th, mask_wq_4th, mask_bk_4th, mask_bq_4th;
    BITBOARD       mask_wk_5th, mask_wq_5th, mask_bk_5th, mask_bq_5th;
    BOOK_POSITION  book_buffer[BOOK_CLUSTER_SIZE];
+   BOOK_POSITION  books_buffer[BOOK_CLUSTER_SIZE];
    unsigned int   thread_start_time[CPUS];
 
 #  if defined(SMP)
    TREE           *local[MAX_BLOCKS+1];
    TREE           *volatile thread[CPUS];
-   lock_t         lock_hash, lock_pawn_hash, lock_smp, lock_io;
+   lock_t         lock_hasha, lock_hashb, lock_pawn_hash, lock_smp, lock_io;
    pthread_attr_t pthread_attr;
 #  else
    TREE           *local[1];
 #  endif
+   unsigned int   parallel_splits;
+   unsigned int   parallel_stops;
+   unsigned int   max_split_blocks;
+   volatile unsigned int   splitting;
 
-# define    VERSION                            "15.17"
+# define    VERSION                             "16.0"
   char      version[6] =                    {VERSION};
   PLAYING_MODE mode =                     normal_mode;
 
@@ -328,100 +328,9 @@
                                       {"zarkovx"}};
   
 
-  int       number_of_computers =                  92;
+  int       number_of_computers =                   0;
   char      computer_list[512][20] = {
-                                      {"abner"},
-                                      {"aha"},
-                                      {"afisher"},
-                                      {"aragorn"},
-                                      {"babyblue"},
-                                      {"ban"},
-                                      {"bigblue"},
-                                      {"bikerbabe"},
-                                      {"bobbyfischer"},
-                                      {"bountyhunter"},
-                                      {"braincan"},
-                                      {"brause"},
-                                      {"carokann"},
-                                      {"chameleon"},
-                                      {"chesskid"},
-                                      {"chesst"},
-                                      {"chessica"},
-                                      {"chesscomputer"},
-                                      {"chinook"},
-                                      {"comet"},
-                                      {"crazyb"},
-                                      {"crazyknight"},
-                                      {"cstal-x"},
-                                      {"deep-modem"},
-                                      {"deepviolet"},
-                                      {"diep"},
-                                      {"diepx"},
-                                      {"destroyer"},
-                                      {"doctorwho"},
-                                      {"dominator"},
-                                      {"dustbin"},
-                                      {"ego-crusher"},
-                                      {"ferret"},
-                                      {"fitter"},
-                                      {"fritzpentium"},
-                                      {"futuregm"},
-                                      {"gammaray"},
-                                      {"gazaboy"},
-                                      {"gballa"},
-                                      {"gnusurf"},
-                                      {"hiarcs"},
-                                      {"judgeturpin"},
-                                      {"kerrigan"},
-                                      {"knightattack"},
-                                      {"knightc"},
-                                      {"knightcap"},
-                                      {"kingtwoft"},
-                                      {"killerchess"},
-                                      {"killergrob"},
-                                      {"klamath"},
-                                      {"lightpurple"},
-                                      {"lonnie"},
-                                      {"lynnett"},
-                                      {"mchesspro"},
-                                      {"mephistoiii"},
-                                      {"mink"},
-                                      {"netsurfer"},
-                                      {"norpico"},
-                                      {"nowx"},
-                                      {"otter"},
-                                      {"pecabale"},
-                                      {"pescao"},
-                                      {"phibs"},
-                                      {"penguinwarden"},
-                                      {"purigr"},
-                                      {"rajah"},
-                                      {"ratbert"},
-                                      {"rdx"},
-                                      {"rebel"},
-                                      {"rebel8"},
-                                      {"robocop"},
-                                      {"roborvl"},
-                                      {"selectric"},
-                                      {"shredder"},
-                                      {"silmaril"},
-                                      {"spectronic"},
-                                      {"stobor"},
-                                      {"stuspar"},
-                                      {"tcb"},
-                                      {"theextreme"},
-                                      {"tingle"},
-                                      {"turbocrafty"},
-                                      {"turbogm"},
-                                      {"ultragnu"},
-                                      {"viktor2000"},
-                                      {"virtualmachine"},
-                                      {"wchess"},
-                                      {"wchessx"},
-                                      {"wheeler"},
-                                      {"whoknows"},
-                                      {"zarkovx"},
-                                      {"zuntsu"}};
+                                      {""}};
 
   int       number_of_GMs =                       125;
   char      GM_list[512][20] =       {{"agdestein"},
@@ -566,24 +475,19 @@
 
   int       ics =                                   0;
   int       output_format =                         0;
-  int       EGTBlimit =                             5;
-  int       EGTB_use =                              5;
+  int       EGTBlimit =                             0;
+  int       EGTB_use =                              0;
   int       EGTB_draw =                             0;
+  int       EGTB_cache_size =               1024*1024;
   int       xboard =                                0;
   int       whisper =                               0;
   int       channel =                               0;
   int       early_exit =                           99;
   int       new_game =                              0;
   char      channel_title[32] =                  {""};
-#if defined(MACOS)
   char      book_path[128] =                {BOOKDIR};
   char      log_path[128] =                  {LOGDIR};
   char      tb_path[128] =                    {TBDIR};
-#else
-  char      book_path[128] =                    {"."};
-  char      log_path[128] =                     {"."};
-  char      tb_path[128] =                   {"./TB"};
-#endif
   int       initialized =                           0;
   int       kibitz =                                0;
   int       post =                                  0;
@@ -623,7 +527,7 @@
   int       annotate_mode =                         0;
   int       test_mode =                             0;
   int       analyze_move_read =                     0;
-  signed char resign =                              5;
+  signed char resign =                              9;
   signed char resign_counter =                      0;
   signed char resign_count =                        5;
   signed char draw_counter =                        0;
@@ -643,10 +547,11 @@
   int       force =                                 0;
   char      initial_position[80] =               {""};
   char      hint[512] =                          {""};
-  char      book_hint[512] =                     {""};;
+  char      book_hint[512] =                     {""};
   int       over =                                  0;
   int       no_tricks =                             1;
   int       computer_opponent =                     0;
+  int       draw_score_normal =                     0;
   int       usage_level =                           0;
   char      audible_alarm =                      0x07;
 #if defined(MACOS)
@@ -658,8 +563,8 @@
   int       book_reject_mask =                      3;
   int       book_random =                           1;
   float     book_weight_freq =                    1.0;
-  float     book_weight_eval =                    1.0;
-  float     book_weight_learn =                   1.0;
+  float     book_weight_eval =                    0.1;
+  float     book_weight_learn =                   0.3;
   int       book_search_trigger =                  20;
   int       learning =                              7;
   int       moves_out_of_book =                     0;
@@ -669,7 +574,7 @@
   int       trace_level =                           0;
   int       display_options =                    4095;
   int       max_threads =                           0;
-  int       min_thread_depth =                      2;
+  int       min_thread_depth =        2*INCREMENT_PLY;
   unsigned int noise_level =                    10000;
  
   int       hash_table_size =                   65536;
@@ -681,10 +586,16 @@
   int       accept_draws =                          0;
 
   int       passed_pawn_value[8] = { 0,
-                                       PAWN_PASSED, PAWN_PASSED*2,
-                                     PAWN_PASSED*3, PAWN_PASSED*6,
-                                     PAWN_PASSED*8,PAWN_PASSED*16,
+                                     PAWN_PASSED, PAWN_PASSED*2,
+                                     PAWN_PASSED*3, PAWN_PASSED*4,
+                                     PAWN_PASSED*6,PAWN_PASSED*9,
                                      0};
+
+  int       isolated_pawn_value[9] = { 0,
+                                       -PAWN_ISOLATED,   -PAWN_ISOLATED*2,
+                                       -PAWN_ISOLATED*4, -PAWN_ISOLATED*7,
+                                       -PAWN_ISOLATED*10,-PAWN_ISOLATED*15,
+                                       -PAWN_ISOLATED*20,-PAWN_ISOLATED*25};
 
   int       supported_passer[8] =  { 0,
                                      PAWN_SUPPORTED_PASSED_RANK2,
@@ -698,22 +609,22 @@
   int       reduced_material_passer[20] = { 10,10,9,9,8,8,7,7,6,6,
                                              5,5,4,4,3,3,2,2,1,1};
 
-  int       outside_passed[128] = { 50, 48, 46, 44, 42, 40, 38, 36,
-                                    34, 32, 30, 28, 26, 24, 22, 20,
-                                    18, 17, 16, 15, 14, 13, 12, 11,
-                                    10,  9,  8,  7,  6,  5,  4,  3,
-                                     1,  1,  1,  1,  1,  1,  1,  1,
-                                     1,  1,  1,  1,  1,  1,  1,  1,
-                                     1,  1,  1,  1,  1,  1,  1,  1,
-                                     1,  1,  1,  1,  1,  1,  1,  1,
-                                     1,  1,  1,  1,  1,  1,  1,  1,
-                                     1,  1,  1,  1,  1,  1,  1,  1,
-                                     1,  1,  1,  1,  1,  1,  1,  1,
-                                     1,  1,  1,  1,  1,  1,  1,  1,
-                                     1,  1,  1,  1,  1,  1,  1,  1,
-                                     1,  1,  1,  1,  1,  1,  1,  1,
-                                     1,  1,  1,  1,  1,  1,  1,  1,
-                                     1,  1,  1,  1,  1,  1,  1,  1};
+  int       outside_passed[128] = { 80, 50, 50, 50, 45, 42, 40, 40,
+                                    36, 36, 32, 32, 28, 28, 24, 24,
+                                    20, 20, 16, 16, 12, 12, 12, 12,
+                                    12, 12, 12, 12, 12, 12, 12, 12,
+                                    12, 12, 12, 12, 12, 12, 12, 12,
+                                    12, 12, 12, 12, 12, 12, 12, 12,
+                                    12, 12, 12, 12, 12, 12, 12, 12,
+                                    12, 12, 12, 12, 12, 12, 12, 12,
+                                    12, 12, 12, 12, 12, 12, 12, 12,
+                                    12, 12, 12, 12, 12, 12, 12, 12,
+                                    12, 12, 12, 12, 12, 12, 12, 12,
+                                    12, 12, 12, 12, 12, 12, 12, 12,
+                                    12, 12, 12, 12, 12, 12, 12, 12,
+                                    12, 12, 12, 12, 12, 12, 12, 12,
+                                    12, 12, 12, 12, 12, 12, 12, 12,
+                                    12, 12, 12, 12, 12, 12, 12, 12};
 
   char      square_color[64]  = { 1, 0, 1, 0, 1, 0, 1, 0,
                                   0, 1, 0, 1, 0, 1, 0, 1,
@@ -725,33 +636,33 @@
                                   0, 1, 0, 1, 0, 1, 0, 1 };
 
   int       b_n_mate_dark_squares[64] = 
-                             { 20, 15, 10,  5, -5,-10,-15,-20,
-                               15, 15, 10,  5, -5,-10,-15,-15,
-                               10, 10, 10,  5, -5,-10,-10,-10,
-                                5,  5,  5,  5, -5, -5, -5, -5,
-                               -5, -5, -5, -5,  5,  5,  5,  5,
-                              -10,-10,-10, -5,  5, 10, 10, 10,
-                              -15,-15,-10, -5,  5, 10, 15, 15,
-                              -20,-15,-10, -5,  5, 10, 15, 20};
+                             { 100,  90,  80,  70,  60,  50,  40,  30,
+                                90,  80,  70,  60,  50,  40,  30,  40,
+                                80,  70,  60,  50,  40,  30,  40,  50,
+                                70,  60,  50,  40,  30,  40,  50,  60,
+                                60,  50,  40,  30,  40,  50,  60,  70,
+                                50,  40,  30,  40,  50,  60,  70,  80,
+                                40,  30,  40,  50,  60,  70,  80,  90,
+                                30,  40,  50,  60,  70,  80,  90, 100};
 
   int       b_n_mate_light_squares[64] =
-                             {-20,-15,-10, -5,  5, 10, 15, 20,
-                              -15,-15,-10, -5,  5, 10, 15, 15,
-                              -10,-10,-10, -5,  5, 10, 10, 10,
-                               -5, -5, -5, -5,  5,  5,  5,  5,
-                                5,  5,  5,  5, -5, -5, -5, -5,
-                               10, 10, 10,  5, -5,-10,-10,-10,
-                               15, 15, 10,  5, -5,-10,-15,-15,
-                               20, 15, 10,  5, -5,-10,-15,-20};
+                             {  30,  40,  50,  60,  70,  80,  90, 100,
+                                40,  30,  40,  50,  60,  70,  80,  90,
+                                50,  40,  30,  40,  50,  60,  70,  80,
+                                60,  50,  40,  30,  40,  50,  60,  70,
+                                70,  60,  50,  40,  30,  40,  50,  60,
+                                80,  70,  60,  50,  40,  30,  40,  50,
+                                90,  80,  70,  60,  50,  40,  30,  40,
+                               100,  90,  80,  70,  60,  50,  40,  30};
 
-  int       mate[64] =        {28, 26, 24, 22, 22, 24, 26, 28,
-                               26, 16, 14, 12, 12, 14, 16, 26,
-                               24, 14,  4,  2,  2,  4, 14, 24,
-                               22, 12,  2,  0,  0,  2, 12, 22,
-                               22, 12,  2,  0,  0,  2, 12, 22,
-                               24, 14,  4,  2,  2,  4, 14, 24,
-                               26, 16, 14, 12, 12, 14, 16, 26,
-                               28, 26, 24, 22, 22, 24, 26, 28};
+  int       mate[64] =        {100, 96, 93, 90, 90, 93, 96,100,
+                                96, 80, 70, 60, 60, 70, 80, 96,
+                                93, 70, 60, 50, 50, 60, 70, 93,
+                                90, 60, 50, 40, 40, 50, 60, 90,
+                                90, 60, 50, 40, 40, 50, 60, 90,
+                                93, 70, 60, 50, 50, 60, 70, 93,
+                                96, 80, 70, 60, 60, 70, 80, 96,
+                               100, 96, 93, 90, 90, 93, 96,100};
 
   char            white_outpost[64] = { 0, 0, 0, 0, 0, 0, 0, 0,
                                         0, 0, 0, 0, 0, 0, 0, 0,
@@ -789,23 +700,23 @@
                               0,  0,  0,  0,  0,  0,  0,  0,
                               0,  0,  0,  0,  0,  0,  0,  0};
 
-  int  knight_value_w[64] = {-10, 10, 10, 10, 10, 10, 10,-10,
-                              10, 22, 22, 22, 22, 22, 22, 10,
-                              10, 22, 25, 25, 25, 25, 22, 10,
-                              10, 22, 25, 28, 28, 25, 22, 10,
-                              10, 22, 25, 28, 28, 25, 22, 10,
-                              10, 22, 25, 25, 25, 25, 22, 10,
-                              10, 22, 22, 22, 22, 22, 22, 10,
-                             -10, 10, 10, 10, 10, 10, 10,-10};
+  int  knight_value_w[64] = { 10, 10, 18, 18, 18, 18, 10, 10,
+                              10, 10, 22, 22, 22, 22, 10, 10,
+                              18, 22, 25, 25, 25, 25, 22, 18,
+                              18, 22, 25, 28, 28, 25, 22, 18,
+                              18, 22, 25, 28, 28, 25, 22, 18,
+                              18, 22, 25, 25, 25, 25, 22, 18,
+                               0,  0, 22, 22, 22, 22,  0,  0,
+                               0,  0, 18, 18, 18, 18,  0,  0};
 
-  int  bishop_value_w[64] = {-10, 10, 10, 10, 10, 10, 10,-10,
-                              10, 22, 22, 22, 22, 22, 22, 10,
-                              10, 22, 25, 25, 25, 25, 22, 10,
-                              10, 22, 25, 28, 28, 25, 22, 10,
-                              10, 22, 25, 28, 28, 25, 22, 10,
-                              10, 22, 25, 25, 25, 25, 22, 10,
-                              10, 22, 22, 22, 22, 22, 22, 10,
-                             -10, 10, 10, 10, 10, 10, 10,-10};
+  int  bishop_value_w[64] = { 10, 18, 18, 18, 18, 18, 18, 10,
+                              18, 22, 22, 22, 22, 22, 22, 18,
+                              18, 22, 25, 25, 25, 25, 22, 18,
+                              18, 22, 25, 25, 25, 25, 22, 18,
+                              18, 22, 25, 25, 25, 25, 22, 18,
+                              18, 22, 25, 25, 25, 25, 22, 18,
+                              18, 22, 22, 22, 22, 22, 22, 18,
+                              10, 18, 18, 18, 18, 18, 18, 10};
 
   int    rook_value_w[64] = {  0,  2,  3,  4,  4,  3,  2,  0,
                               -4,  2,  3,  4,  4,  3,  2, -4,
@@ -837,33 +748,33 @@
 /* note that black piece/square values are copied from white, but
    reflected */
 
-   char king_defects_w[64]= { 4, 2, 3, 4, 4, 2, 1, 2,
-                              4, 3, 3, 7, 7, 3, 2, 2,
-                              6, 4, 6, 7, 7, 6, 4, 6,
-                              8, 5, 6, 8, 8, 6, 5, 8,
-                              8, 5, 6, 8, 8, 6, 5, 8,
-                              8, 5, 6, 8, 8, 6, 5, 8,
-                              8, 5, 6, 8, 8, 6, 5, 8,
-                              8, 5, 6, 8, 8, 6, 5, 8};
+   char king_defects_w[64]= { 1, 0, 1, 3, 3, 1, 0, 1,
+                              1, 1, 1, 3, 3, 1, 1, 1,
+                              3, 3, 3, 3, 3, 3, 3, 3,
+                              4, 4, 4, 4, 4, 4, 4, 4,
+                              5, 5, 5, 5, 5, 5, 5, 5,
+                              6, 6, 6, 6, 6, 6, 6, 6,
+                              7, 7, 7, 7, 7, 7, 7, 7,
+                              8, 8, 8, 8, 8, 8, 8, 8};
 
-   char king_defects_b[64]= { 8, 5, 6, 8, 8, 6, 5, 8,
-                              8, 5, 6, 8, 8, 6, 5, 8,
-                              8, 5, 6, 8, 8, 6, 5, 8,
-                              8, 5, 6, 8, 8, 6, 5, 8,
-                              8, 5, 6, 8, 8, 6, 5, 8,
-                              6, 4, 6, 7, 7, 6, 4, 6,
-                              4, 3, 3, 7, 7, 3, 2, 2,
-                              4, 2, 3, 4, 4, 2, 1, 2};
+   char king_defects_b[64]= { 8, 8, 8, 8, 8, 8, 8, 8,
+                              7, 7, 7, 7, 7, 7, 7, 7,
+                              6, 6, 6, 6, 6, 6, 6, 6,
+                              5, 5, 5, 5, 5, 5, 5, 5,
+                              4, 4, 4, 4, 4, 4, 4, 4,
+                              3, 3, 3, 3, 3, 3, 3, 3,
+                              1, 1, 1, 3, 3, 1, 1, 1,
+                              1, 0, 1, 3, 3, 1, 0, 1};
 
   int       p_values[15] =       {QUEEN_VALUE,ROOK_VALUE,BISHOP_VALUE,0,
                                   KING_VALUE,KNIGHT_VALUE,PAWN_VALUE,
                                   0,PAWN_VALUE,KNIGHT_VALUE,KING_VALUE,
                                   0, BISHOP_VALUE,ROOK_VALUE,QUEEN_VALUE};
 
-  int       unblocked_pawns[9] = {-PAWN_UNBLOCKED*2,0,PAWN_UNBLOCKED,
-                                   PAWN_UNBLOCKED*2, PAWN_UNBLOCKED*3,
-                                   PAWN_UNBLOCKED*4, PAWN_UNBLOCKED*5,
-                                   PAWN_UNBLOCKED*6, PAWN_UNBLOCKED*7};
+  int       unblocked_pawns[9] = {-PAWN_UNBLOCKED*2,0,PAWN_UNBLOCKED*2,
+                                   PAWN_UNBLOCKED*3,  PAWN_UNBLOCKED*4,
+                                   PAWN_UNBLOCKED*4,  PAWN_UNBLOCKED*4,
+                                   PAWN_UNBLOCKED*4,  PAWN_UNBLOCKED*4};
 
 #if !defined(COMPACT_ATTACKS)
   int            bishop_shift_rl45[64] = { 63, 61, 58, 54, 49, 43, 36, 28,

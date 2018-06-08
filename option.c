@@ -20,8 +20,8 @@
 *                                                                              *
 ********************************************************************************
 */
-int Option(TREE *tree)
-{
+int Option(TREE *tree) {
+  static int egtbsetup=0;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -43,6 +43,7 @@ int Option(TREE *tree)
       }
     }
   }
+  
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -273,6 +274,27 @@ int Option(TREE *tree)
 /*
  ----------------------------------------------------------
 |                                                          |
+|   "cache" is used to set the EGTB cache size.  as always |
+|   bigger is better.  the default is 1mb.  sizes can be   |
+|   specified in bytes, Kbytes or Mbytes as with the hash  |
+|   commands.                                              |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  else if (OptionMatch("cache",*args)) {
+    EGTB_cache_size=atoi(args[1]);
+    if (strchr(args[1],'K') || strchr(args[1],'k')) EGTB_cache_size*=1<<10;
+    if (strchr(args[1],'M') || strchr(args[1],'m')) EGTB_cache_size*=1<<20;
+    if (EGTB_cache) free(EGTB_cache);
+    EGTB_cache=malloc(EGTB_cache_size);
+    if (EGTB_cache_size < 1<<20)
+      Print(4095,"EGTB cache memory = %dK bytes.\n", EGTB_cache_size/(1<<10));
+    else 
+      Print(4095,"EGTB cache memory = %dM bytes.\n", EGTB_cache_size/(1<<20));
+  }
+/*
+ ----------------------------------------------------------
+|                                                          |
 |   "clock" command displays chess clock.                  |
 |                                                          |
  ----------------------------------------------------------
@@ -295,6 +317,23 @@ int Option(TREE *tree)
           DisplayHHMM(tc_time_remaining_opponent));
     Print(4095,"%d moves to next time control (Crafty)\n",
           tc_moves_remaining);
+  }
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   "computer" lets crafty know it is playing a computer.  |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  else if (OptionMatch("computer",*args)) {
+    Print(128,"playing a computer!\n");
+    computer_opponent=1;
+    draw_score_normal=1;
+    book_selection_width=2;
+    usage_level=0;
+    book_weight_freq=1.0;
+    book_weight_eval=.1;
+    book_weight_learn=.2;
   }
 /*
  ----------------------------------------------------------
@@ -569,11 +608,17 @@ int Option(TREE *tree)
  ----------------------------------------------------------
 */
   else if (OptionMatch("egtb",*args)) {
-    if (nargs < 2) printf("usage:  tb <n>\n");
-    EGTBlimit=atoi(args[1]);
-    if (EGTBlimit!=0 && EGTBlimit!=4 && EGTBlimit!=5) {
-      Print(4095,"egtb value must be 0, 4 or 5 *only*\n");
-      EGTBlimit=0;
+    Print(128,"EGTB access enabled\n");
+    if (!egtbsetup) {
+      Print(128,"using tbpath=%s\n",tb_path);
+      EGTBlimit=IInitializeTb(tb_path);
+      Print(128,"%d piece tablebase files found\n",EGTBlimit);
+      if (EGTBlimit) {
+        EGTB_cache=malloc(EGTB_cache_size);
+        if (EGTB_cache) FTbSetCacheSize(EGTB_cache,EGTB_cache_size);
+        else Print(4095,"ERROR  EGTB cache malloc failed\n");
+        egtbsetup=1;
+      }
     }
   }
 /*
@@ -1081,13 +1126,16 @@ int Option(TREE *tree)
         printf("contains selected lines that are well-suited to Crafty's\n");
         printf("style of play.  the <flags> can further refine how this\n");
         printf("small book file is used to encourage/avoid specific lines.\n");
-        printf("book[s] create [<filename>] [maxply] [mp]...creates a new\n");
-        printf("   book by first removing the old book.bin.  it then will\n");
-        printf("   parse <filename> and add the moves to either book.bin (if\n");
+        printf("book[s] create [<filename>] [maxply] [mp] [wpc]...creates a\n");
+        printf("   new book by first removing the old book.bin.  it then\n");
+        printf("   will parse <filename> and add the moves to book.bin (if\n");
         printf("   the book create command was used) or to books.bin (if the\n");
         printf("   books create command was used.)  <maxply> truncates book\n");
         printf("   lines after that many plies (typically 60).  <mp> will \n");
         printf("   exclude *any* move not appearing <mp> times in the input.\n");
+        printf("   <wpc> is the winning percentage.  50 means exclude any\n");
+        printf("   book move that doesn't have at least 50%% as many wins as\n");
+        printf("   losses.\n");
         printf("book mask accept <chars>...............sets the accept mask to\n");
         printf("   the flag characters in <chars> (see flags below.)  any flags\n");
         printf("   set in this mask will include either (a) moves with the \n");
@@ -2016,6 +2064,7 @@ int Option(TREE *tree)
     if (nargs > 1) {
       if (!strcmp(args[1],"tournament")) {
         mode=tournament_mode;
+        draw_score_normal=1;
         printf("use 'settc' command if a game is restarted after crafty\n");
         printf("has been terminated for any reason.\n");
       }
@@ -2074,14 +2123,14 @@ int Option(TREE *tree)
         }
       for (i=0;i<number_of_computers;i++)
         if (!strcmp(computer_list[i],args[1])) {
-          book_selection_width=2;
           Print(128,"playing a computer!\n");
           computer_opponent=1;
+          draw_score_normal=1;
+          book_selection_width=1;
           usage_level=0;
           book_weight_freq=1.0;
           book_weight_eval=.1;
           book_weight_learn=.2;
-          book_selection_width=1;
           break;
         }
       for (i=0;i<number_of_GMs;i++)
@@ -2236,10 +2285,22 @@ int Option(TREE *tree)
         printf("usage:  bookpath|logpath|tbpath <path>\n");
         return(1);
       }
-      if (strstr(args[0],"bookpath")) strcpy(book_path,args[1]);
-      else if (strstr(args[0],"logpath")) strcpy(log_path,args[1]);
-      else if (strstr(args[0],"tbpath")) strcpy(tb_path,args[1]);
+      if (!strchr(args[1],'(')) {
+        if (strstr(args[0],"bookpath")) strcpy(book_path,args[1]);
+        else if (strstr(args[0],"logpath")) strcpy(log_path,args[1]);
+        else if (strstr(args[0],"tbpath")) strcpy(tb_path,args[1]);
+      }
+      else {
+        if (strchr(args[1],')')) {
+          *strchr(args[1],')')=0;
+          if (strstr(args[0],"bookpath")) strcpy(book_path,args[1]+1);
+          else if (strstr(args[0],"logpath")) strcpy(log_path,args[1]+1);
+          else if (strstr(args[0],"tbpath")) strcpy(tb_path,args[1]+1);
+        }
+        else Print(4095,"ERROR multiple paths must be enclosed in ( and )\n");
+      }
     }
+printf("tbpath=%s\n",tb_path);
   }
 /*
  ----------------------------------------------------------
@@ -2388,6 +2449,8 @@ int Option(TREE *tree)
     }
     else {
       ponder_move=InputMove(tree,args[1],0,wtm,0,0);
+      last_pv.path_iteration_depth=0;
+      last_pv.path_length=0;
     }
   }
 /*
@@ -2605,6 +2668,7 @@ int Option(TREE *tree)
       if (!strcmp(buffer,"exit")) break;
     } while (1);
     moves_out_of_book=0;
+    root_wtm=!wtm;
     if (read_input != stdin) {
       printf("\n");
       fclose(read_input);
@@ -3220,14 +3284,13 @@ int Option(TREE *tree)
   else if (OptionMatch("trace",*args)) {
 #if defined(FAST)
     printf("Sorry, but I can't display traces when compiled with -DFAST\n");
-#else
+#endif
     if (nargs < 2) {
       printf("usage:  trace <depth>\n");
       return(1);
     }
     trace_level=atoi(args[1]);
     printf("trace=%d\n",trace_level);
-#endif
   }
 /*
  ----------------------------------------------------------
@@ -3456,8 +3519,8 @@ void OptionPerft(TREE *tree, int ply,int depth,int wtm)
         for (i=1;i<ply;i++) printf("  ");
         printf("%s\n", OutputMove(tree,*mv,ply,wtm));
       }
-      total_moves++;
       if (depth-1) OptionPerft(tree,ply+1,depth-1,ChangeSide(wtm));
+      else total_moves++;
     }
     UnMakeMove(tree,ply,*mv,wtm);
   }

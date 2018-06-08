@@ -666,14 +666,14 @@
 *           in Crafty.  for porting, I'll provide a small test run which can  *
 *           be used to validate Crafty once it's been compiled.               *
 *                                                                             *
-*    8.23   cleanup/speedup in hashing.  LookUp() and Store*() now carefully  *
-*           cast the boolean operations to the most efficient size to avoid   *
-*           64bit operations when only the right 32 bits are significant.     *
-*           RepetitionCheck() code completely re-written to maintain two      *
-*           repetition lists, one for each side.  Quiesce() now handles the   *
-*           repetition check a little different, being careful to not call    *
-*           it when it's unimportant, but calling it when repetitions are     *
-*           possible.                                                         *
+*    8.23   cleanup/speedup in hashing.  HashProbe() and HashStore() now      *
+*           carefully  cast the boolean operations to the most efficient size *
+*           to avoid 64bit operations when only the right 32 bits are         *
+*           significant. RepetitionCheck() code completely re-written to      *
+*           maintain two repetition lists, one for each side.  Quiesce() now  *
+*           handles the repetition check a little different, being careful to *
+*           not call it when it's unimportant, but calling it when            *
+*           repetitions are possible.                                         *
 *                                                                             *
 *    8.24   tweaks for king tropism to encourage pieces to collect near the   *
 *           king, or to encourage driving them away when being attacked.  a   *
@@ -2184,6 +2184,91 @@
 *           Macintosh platform dealing with '\r' as a record terminator       *
 *           rather than the industry/POSIX-standard \n terminator character.  *
 *                                                                             *
+*   15.18   fix to the "material balance" evaluation term so that it will not *
+*           like two pieces for a rook (plus pawn) nor will it like trading a *
+*           piece for multiple pawns.  a rather gross bug in the repetition   *
+*           code (dealing with 50 move rule) could overwrite random places in *
+*           memory when the 50 move rule approached, because the arrays were  *
+*           not long enough to hold 50 moves, plus allow the search to go     *
+*           beyond the 50-move rule (which is legal and optional) and then    *
+*           output moves (which uses ply=65 data structures).  this let the   *
+*           repetition (50-move-rule part) overwrite things by storing well   *
+*           beyond the end of the repetition list for either side.  minor fix *
+*           to EGTB "swindle" code.  it now only tries the searches if it is  *
+*           the side with swindling chances.  ie it is pointless to try for   *
+*           a swindle in KRP vs KR if you don't have the P.  :)  some very    *
+*           substantial changes to evaluate.c to get things back into some    *
+*           form of synch with each other.                                    *
+*                                                                             *
+*   15.19   more evaluation changes.  slight change to the Lock() facility    *
+*           as it is used to lock the hash table.  modifications to the book  *
+*           selection logic so that any move in books.bin that is not in the  *
+*           regular book.bin file still can be played, and will be played if  *
+*           it has a {play xxx%} or ! option.  new option added to the book   *
+*           create command to allow the creation of a better book.  this      *
+*           option lets you specify a percentage that says "exclude a book    *
+*           move it if didn't win xx% as many games as it lost.  IE, if the   *
+*           book move has 100 losses, and you use 50% for the new option, the *
+*           move will only be included if there are at least 50 wins.  this   *
+*           allows culling lines that only lost, for example.  new bad trade  *
+*           scoring that is simpler.  if one side has one extra minor piece   *
+*           and major pieces are equal, the other side has traded a minor for *
+*           pawns and made a mistake.  if major pieces are not matched, and   *
+*           one side has two or more extra minors, we have seen either a rook *
+*           for two minor pieces (bad) or a queen for three minor pieces (bad *
+*           also).  horrible bug in initializing min_thread_depth, which is   *
+*           supposed to control thrashing.  the SMP search won't split the    *
+*           tree within "min_thread_depth" of the leaf positions.  due to a   *
+*           gross bug, however, this was initialized to "2", and would have   *
+*           been the right value except that a ply in Crafty is 60.  the      *
+*           mtmin command that adjusts this correctly multiplied it by 60,    *
+*           but in data.c, it was left at "2" which lets the search split way *
+*           too deeply and can cause thrashing.  it now correctly defaults to *
+*           120 (2*INCREMENT_PLY) as planned.  Crafty now *only* supports     *
+*           winboard/xboard 4.0 or higher, by sending the string "move xxx"   *
+*           to indicate its move.  this was done to eliminate older xboard    *
+*           versions that had some incompatibilities with crafty that were    *
+*           causing lots of questions/problems.  xboard 4.0 works perfectly   *
+*           and is the only recommended GUI now.                              *
+*                                                                             *
+*   15.20   new evaluation term to ensure that pawns are put on squares of    *
+*           the opposite color as the bishop in endings where one side only   *
+*           has a single bishop.  another new evaluation term to favor        *
+*           bishops over knights in endings with pawns on both sides of the   *
+*           board.  search extensions now constrained so that when doing an   *
+*           N-ply search, the first 2N plies can extend normally, but beyond  *
+*           that the extensions are reduced by one-half.  this eliminates a   *
+*           few tree explosions that wasted lots of time but didn't produce   *
+*           any useful results.  this version solves 299/300 of the Win at    *
+*           Chess positions on a single-cpu pentium pro 200mhz machine now.   *
+*           new evaluation term to reward "pawn duos" (two pawns side by side *
+*           which gives them the most flexibility in advancing.  a change to  *
+*           the bishops of opposite color to not just consider B vs B drawish *
+*           when the B's are on opposite colors, but to also consider other   *
+*           positons like RB vs RB drawish with opposite B's.                 *
+*                                                                             *
+*   16.0    hash functions renamed to HashProbe() and HashStore().  The store *
+*           functions (2) were combined to eliminate some duplicate code and  *
+*           shrink the cache footprint a bit.  adjustment to "losing the      *
+*           right to castle" so that the penalty is much less if this is done *
+*           when trading queens, since a king in the center becomes less of a *
+*           problem there. several eval tweaks.  support for Eugene Nalimov's *
+*           new endgame databases that reduce the size by 50%.  added a new   *
+*           cache=xxx command to set the tablebase cache (more memory means   *
+*           less I/O of course).  the "egtb" command now has two uses.  if    *
+*           use egtb=0, you can disable tablebases for testing.  otherwise,   *
+*           you just add "egtb" to your command line or .craftyrc file and    *
+*           Crafty automatically recognizes the files that are present and    *
+*           sets up to probe them properly. added an eval term to catch a     *
+*           closed position with pawns at e4/d3/c4 and then avoiding the      *
+*           temptation to castle into an attack.  most of the evaluation      *
+*           discontinuities have been removed, using the two new macros       *
+*           ScaleToMaterial() and InverseScaleToMaterial().  Scale() is used  *
+*           to reduce scores as material is removed from the board, while     *
+*           InverseScale() is used to increase the score as material is       *
+*           removed.  this removed a few ugly effects of things happening     *
+*           right around the EG_MAT threshold.                                *
+*                                                                             *
 *******************************************************************************
 */
 int main(int argc, char **argv)
@@ -2212,6 +2297,10 @@ int main(int argc, char **argv)
 */
   local[0]=(TREE*) malloc(sizeof(TREE));
   local[0]->used=1;
+  local[0]->stop=0;
+  local[0]->ply=1;
+  local[0]->nprocs=0;
+  local[0]->thread_id=0;
   tree=local[0];
   input_stream=stdin;
   for (i=0;i<32;i++) args[i]=malloc(128);
@@ -2250,11 +2339,6 @@ int main(int argc, char **argv)
 */
   if (cont) Initialize(1);
   else Initialize(0);
-#if defined(SMP)
-  Print(128,"\nCrafty v%s (%d cpus)\n\n",version,CPUS);
-#else
-  Print(128,"\nCrafty v%s\n\n",version);
-#endif
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -2315,9 +2399,11 @@ int main(int argc, char **argv)
   if (xboard) signal(SIGINT,SIG_IGN);
   signal(SIGTERM,SignalInterrupt);
 #if defined(SMP)
-  if (ics) printf("*whisper Hello from Crafty v%s! (SMP=%d)\n",
-                  version,CPUS);
+  Print(128,"\nCrafty v%s (%d cpus)\n\n",version,Max(max_threads,1));
+  if (ics) printf("*whisper Hello from Crafty v%s! (%d cpus)\n",
+                  version,Max(max_threads,1));
 #else
+  Print(128,"\nCrafty v%s\n\n",version);
   if (ics) printf("*whisper Hello from Crafty v%s!\n",
                   version);
 #endif
@@ -2369,7 +2455,6 @@ int main(int argc, char **argv)
         if (result == 0) {
           nargs=ReadParse(buffer,args," 	;");
           move=InputMove(tree,args[0],0,wtm,0,0);
-          last_opponent_move=move;
           if (auto232 && presult!=3) {
             char *mv=OutputMoveICS(tree,move);
             Delay232(auto232_delay);
@@ -2397,6 +2482,7 @@ int main(int argc, char **argv)
         fseek(history_file,((move_number-1)*2+1-wtm)*10,SEEK_SET);
         fprintf(history_file,"%9s\n",OutputMove(tree,move,0,wtm));
         MakeMoveRoot(tree,move,wtm);
+        last_opponent_move=move;
         if (RepetitionDraw(tree,ChangeSide(wtm))==1) {
           Print(4095,"%sgame is a draw by repetition.%s\n",Reverse(),Normal());
           value=DrawScore(crafty_is_white);
@@ -2467,7 +2553,7 @@ int main(int argc, char **argv)
 */
     last_pv=tree->pv[0];
     last_value=value;
-    if (abs(last_value) > (MATE-100)) last_mate_score=last_value;
+    if (abs(last_value) > (MATE-300)) last_mate_score=last_value;
     thinking=0;
     if (!last_pv.path_length) {
       if (value == -MATE+1) {
@@ -2492,13 +2578,13 @@ int main(int argc, char **argv)
       }
     }
     else {
-      if ((value > MATE-100) && (value < MATE-2)) {
+      if ((value > MATE-300) && (value < MATE-2)) {
         Print(128,"\nmate in %d moves.\n\n",(MATE-value)/2);
-        Whisper(1,0,0,(MATE-value)/2,tree->nodes_searched,0," ");
+        Whisper(1,0,0,(MATE-value)/2,tree->nodes_searched,0,0,0," ");
       }
-      else if ((-value > MATE-100) && (-value < MATE-1)) {
+      else if ((-value > MATE-300) && (-value < MATE-1)) {
         Print(128,"\nmated in %d moves.\n\n",(MATE+value)/2);
-        Whisper(1,0,0,-(MATE+value)/2,tree->nodes_searched,0," ");
+        Whisper(1,0,0,-(MATE+value)/2,tree->nodes_searched,0,0,0," ");
       }
       if (wtm) {
         if (!xboard && !ics) {
@@ -2522,7 +2608,7 @@ int main(int argc, char **argv)
         else if (xboard) {
           if (log_file) fprintf(log_file,"White(%d): %s\n",move_number,
                                 OutputMove(tree,last_pv.path[1],0,wtm));
-          printf("%d. ... %s\n",move_number,OutputMoveICS(tree,last_pv.path[1]));
+          printf("move %s\n",OutputMoveICS(tree,last_pv.path[1]));
         }
         else Print(4095,"*%s\n",OutputMove(tree,last_pv.path[1],0,wtm));
       }
@@ -2547,7 +2633,7 @@ int main(int argc, char **argv)
         else {
           if (log_file) fprintf(log_file,"Black(%d): %s\n",move_number,
                                 OutputMove(tree,last_pv.path[1],0,wtm));
-          printf("%d. ... %s\n",move_number,OutputMoveICS(tree,last_pv.path[1]));
+          printf("move %s\n",OutputMoveICS(tree,last_pv.path[1]));
         }
       }
       if (value == MATE-2) {
@@ -2630,9 +2716,10 @@ int main(int argc, char **argv)
     if (kibitz || whisper) {
       if (tree->nodes_searched)
         Whisper(2,whisper_depth,end_time-start_time,whisper_value,
-                tree->nodes_searched,cpu_percent,whisper_text);
+                tree->nodes_searched,cpu_percent,predicted,
+                tree->tb_probes_successful,whisper_text);
       else
-        Whisper(4,0,0,0,0,0,whisper_text);
+        Whisper(4,0,0,0,0,0,0,0,whisper_text);
     }
 /*
  ----------------------------------------------------------

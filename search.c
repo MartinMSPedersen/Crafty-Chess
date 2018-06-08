@@ -22,7 +22,7 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
            int ply, int do_null) {
   register int moves_searched=0;
   register BITBOARD save_hash_key;
-  register int initial_alpha, value=0;
+  register int o_alpha, value=0;
   register int extensions, pieces;
   int threat=0;
 /*
@@ -67,43 +67,43 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
 /*
  ----------------------------------------------------------
 |                                                          |
-|   now call LookUp() to see if this position has been     |
+|   now call HashProbe() to see if this position has been  |
 |   searched before.  if so, we may get a real score,      |
 |   produce a cutoff, or get nothing more than a good move |
 |   to try first.  there are four cases to handle:         |
 |                                                          |
-|   1. LookUp() returned "EXACT_SCORE" if this score is    |
+|   1. HashProbe() returned "EXACT" if this score is       |
 |   greater than beta, return beta.  otherwise, return the |
 |   score.  In either case, no further searching is needed |
 |   from this position.  note that lookup verified that    |
 |   the table position has sufficient "draft" to meet the  |
 |   requirements of the current search depth remaining.    |
 |                                                          |
-|   2.  LookUp() returned "UPPER_BOUND" which means that   |
+|   2. HashProbe() returned "UPPER" which means that       |
 |   when this position was searched previously, every move |
 |   was "refuted" by one of its descendents.  as a result, |
 |   when the search was completed, we returned alpha at    |
 |   that point.  we simply return alpha here as well.      |
 |                                                          |
-|   3.  LookUp() returned "LOWER_BOUND" which means that   |
+|   3. HashProbe() returned "LOWER" which means that       |
 |   when we encountered this position before, we searched  |
 |   one branch (probably) which promptly refuted the move  |
 |   at the previous ply.                                   |
 |                                                          |
-|   4.  LookUp() returned "AVOID_NULL_MOVE" which means    |
+|   4. HashProbe() returned "AVOID_NULL_MOVE" which means  |
 |   the hashed score/bound was no good, but it indicated   |
 |   that trying a null-move in this position will be a     |
 |   waste of time.                                         |
 |                                                          |
  ----------------------------------------------------------
 */
-  switch (LookUp(tree,ply,depth,wtm,&alpha,&beta,&threat)) {
-    case EXACT_SCORE:
+  switch (HashProbe(tree,ply,depth,wtm,&alpha,&beta,&threat)) {
+    case EXACT:
       if(alpha < beta) SavePV(tree,ply,alpha,1);
       return(alpha);
-    case LOWER_BOUND:
+    case LOWER:
       return(beta);
-    case UPPER_BOUND:
+    case UPPER:
       return(alpha);
     case AVOID_NULL_MOVE:
       do_null=0;
@@ -120,39 +120,17 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
 |                                                          |
  ----------------------------------------------------------
 */
-  if (EGTB_use) {
-    if (TotalPieces<=EGTB_use &&
-        (TotalPieces<5 || (WhiteRooks && BlackRooks))) do {
-      register int wpawn, bpawn;
-      int tb_value;
-      if (TotalWhitePawns && TotalBlackPawns) {
-        wpawn=FirstOne(WhitePawns);
-        bpawn=FirstOne(BlackPawns);
-        if (FileDistance(wpawn,bpawn) == 1) {
-          if(((Rank(wpawn)==RANK2) && (Rank(bpawn)>RANK3)) ||
-             ((Rank(bpawn)==RANK7) && (Rank(wpawn)<RANK6)) || 
-             EnPassant(ply)) break;
-        }
-      }
-      tree->tb_probes++;
-#if defined(SMP)
-      Lock(lock_io);
-#endif
-      if (EGTBScore(tree, ply, wtm, &tb_value)) {
-#if defined(SMP)
-        UnLock(lock_io);
-#endif
-        tree->tb_probes_successful++;
-        alpha=tb_value;
-        if (abs(alpha) > MATE-100) alpha+=(alpha > 0) ? -(ply-1) : +(ply-1);
-        else if (alpha == 0) alpha=DrawScore(root_wtm==wtm);
-        if(alpha < beta) SavePV(tree,ply,alpha,2);
-        return(alpha);
-      }
-#if defined(SMP)
-      UnLock(lock_io);
-#endif
-    } while(0);
+  if (TotalPieces<=EGTB_use && TotalWhitePawns+TotalBlackPawns < 3) {
+    int tb_value;
+    tree->tb_probes++;
+    if (EGTBProbe(tree, ply, wtm, &tb_value)) {
+      tree->tb_probes_successful++;
+      alpha=tb_value;
+      if (abs(alpha) > MATE-300) alpha+=(alpha > 0) ? -(ply-1) : +(ply);
+      else if (alpha == 0) alpha=DrawScore(root_wtm==wtm);
+      if(alpha < beta) SavePV(tree,ply,alpha,2);
+      return(alpha);
+    }
   }
 /*
  ----------------------------------------------------------
@@ -163,7 +141,7 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
 */
   tree->in_check[ply+1]=0;
   tree->extended_reason[ply+1]=no_extension;
-  initial_alpha=alpha;
+  o_alpha=alpha;
   tree->last[ply]=tree->last[ply-1];
 /*
  ----------------------------------------------------------
@@ -226,7 +204,7 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
     HashKey=save_hash_key;
     if (abort_search || tree->stop) return(0);
     if (value >= beta) {
-      StoreRefutation(tree,ply,depth,wtm,value,threat);
+      HashStore(tree,ply,depth,wtm,LOWER,value,threat);
       return(value);
     }
     if (value < -MATE+30) threat=1;
@@ -295,7 +273,8 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
  ----------------------------------------------------------
 */
     extensions=-60;
-    if (threat) extensions+=threat_depth;
+    if (threat) 
+      extensions+=(ply<=2*iteration_depth) ? threat_depth : threat_depth>>1;
     if (Captured(tree->current_move[ply]) && Captured(tree->current_move[ply-1]) &&
         To(tree->current_move[ply-1]) == To(tree->current_move[ply]) &&
         (p_values[Captured(tree->current_move[ply-1])+7] == 
@@ -304,7 +283,7 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
         !(tree->extended_reason[ply-1]&recapture_extension)) {
       tree->extended_reason[ply]|=recapture_extension;
       tree->recapture_extensions_done++;
-      extensions+=recap_depth;
+      extensions+=(ply<=2*iteration_depth) ? recap_depth : recap_depth>>1;
     }
 /*
  ----------------------------------------------------------
@@ -324,7 +303,7 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
            p_values[Captured(tree->current_move[ply])+7]) {
       tree->extended_reason[ply]|=passed_pawn_extension;
       tree->passed_pawn_extensions_done++;
-      extensions+=pushpp_depth;
+      extensions+=(ply<=2*iteration_depth) ? pushpp_depth : pushpp_depth>>1;
     }
 /*
  ----------------------------------------------------------
@@ -352,7 +331,7 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
         tree->in_check[ply+1]=1;
         tree->extended_reason[ply+1]=check_extension;
         tree->check_extensions_done++;
-        extensions+=incheck_depth;
+        extensions+=(ply<=2*iteration_depth) ? incheck_depth : incheck_depth>>1;
       }
       else {
         tree->in_check[ply+1]=0;
@@ -386,7 +365,7 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
         if (tree->last[ply]-tree->last[ply-1] == 1) {
           tree->extended_reason[ply]|=one_reply_extension;
           tree->one_reply_extensions_done++;
-          extensions+=onerep_depth;
+          extensions+=(ply<=2*iteration_depth) ? onerep_depth : onerep_depth>>1;
         }
         extensions=Min(extensions,0);
         value=-ABSearch(tree,-beta,-alpha,ChangeSide(wtm),
@@ -417,7 +396,9 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
         if(value >= beta) {
           History(tree,ply,depth,wtm,tree->current_move[ply]);
           UnMakeMove(tree,ply,tree->current_move[ply],wtm);
-          StoreRefutation(tree,ply,depth,wtm,value,threat);
+          HashStore(tree,ply,depth,wtm,LOWER,value,threat);
+          tree->fail_high++;
+          if (!moves_searched) tree->fail_high_first++;
           return(value);
         }
         alpha=value;
@@ -442,7 +423,8 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
           if (value > alpha) {
             if(value >= beta) {
               History(tree,ply,depth,wtm,tree->current_move[ply]);
-              StoreRefutation(tree,ply,depth,wtm,value,threat);
+              HashStore(tree,ply,depth,wtm,LOWER,value,threat);
+              tree->fail_high++;
               return(value);
             }
             alpha=value;
@@ -473,29 +455,13 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
     return(value);
   }
   else {
-    if (alpha != initial_alpha) {
+    if (alpha != o_alpha) {
       memcpy(&tree->pv[ply-1].path[ply],&tree->pv[ply].path[ply],(tree->pv[ply].path_length-ply+1)*4);
       memcpy(&tree->pv[ply-1].path_hashed,&tree->pv[ply].path_hashed,3);
       tree->pv[ply-1].path[ply-1]=tree->current_move[ply-1];
       History(tree,ply,depth,wtm,tree->pv[ply].path[ply]);
     }
-    StoreBest(tree,ply,depth,wtm,alpha,initial_alpha,threat);
-/*
- ----------------------------------------------------------
-|                                                          |
-|   if the 50-move rule is drawing close, then adjust the  |
-|   score to reflect the impending draw.                   |
-|                                                          |
- ----------------------------------------------------------
-*/
-    if (Rule50Moves(ply) >= 99) {
-      value=DrawScore(root_wtm==wtm);
-      if (value < beta) SavePV(tree,ply,value,0);
-#if !defined(FAST)
-      if(ply <= trace_level) printf("draw by 50-move rule detected, ply=%d.\n",ply);
-#endif
-      return(value);
-    }
+    HashStore(tree,ply,depth,wtm,(alpha==o_alpha)?UPPER:EXACT,alpha,threat);
     return(alpha);
   }
 }

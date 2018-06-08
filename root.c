@@ -23,7 +23,7 @@
 void RootMoveList(int wtm)
 {
   int *mvp, tempm;
-  int square, side, i, done, temp, value;
+  int square, i, side, done, temp, value;
   TREE *tree=local[0];
   int tb_value;
 /*
@@ -39,8 +39,20 @@ void RootMoveList(int wtm)
  ----------------------------------------------------------
 */
   EGTB_draw=0;
-  if (EGTBScore(tree, 1, wtm, &tb_value)) {
-    if (tb_value == 0) EGTB_draw=1;
+  if (EGTBlimit && TotalPieces<=5 && EGTBProbe(tree, 1, wtm, &tb_value)) {
+    register int wpawn, bpawn;
+    if (TotalWhitePawns && TotalBlackPawns) {
+      wpawn=FirstOne(WhitePawns);
+      bpawn=FirstOne(BlackPawns);
+      if (FileDistance(wpawn,bpawn) == 1) {
+        if(((Rank(wpawn)==RANK2) && (Rank(bpawn)>RANK3)) ||
+           ((Rank(bpawn)==RANK7) && (Rank(wpawn)<RANK6)) || 
+           EnPassant(1)) tb_value=1;
+      }
+    }
+    if (tb_value == 0) {
+      if ((wtm && Material>0) || (!wtm && Material<0)) EGTB_draw=1;
+    }
   }
 /*
  ----------------------------------------------------------
@@ -66,9 +78,8 @@ void RootMoveList(int wtm)
     value=-4000000;
     MakeMove(tree, 1, *mvp, wtm);
     if (!Check(wtm)) do {
-      if (EGTB_draw) {
-        int i=EGTBScore(tree, 2, ChangeSide(wtm), &tb_value);
-if (i==0) Print(4095,"fucked up, EGTB failed\n");
+      if (EGTBlimit && EGTB_draw) {
+        i=EGTBProbe(tree, 2, ChangeSide(wtm), &tb_value);
         if (tb_value != 0) break;
       }
       tree->current_move[1]=*mvp;
@@ -152,7 +163,7 @@ if (i==0) Print(4095,"fucked up, EGTB failed\n");
   for (;tree->last[1]>tree->last[0];tree->last[1]--) 
     if (tree->sort_value[tree->last[1]-tree->last[0]-1] > -3000000) break;
   if (tree->sort_value[0] > 1000000) tree->sort_value[0]-=2000000;
-  if (tree->sort_value[0] > tree->sort_value[1]+2000 &&
+  if (tree->sort_value[0] > tree->sort_value[1]+200 &&
       ((To(*tree->last[0]) == To(last_opponent_move) &&
         Captured(*tree->last[0]) == Piece(last_opponent_move)) || 
       tree->sort_value[0] < PAWN_VALUE)) easy_move=1;
@@ -167,6 +178,7 @@ if (i==0) Print(4095,"fucked up, EGTB failed\n");
       if (!((mvp-tree->last[0]+1) % 5)) printf("\n");
       UnMakeMove(tree, 1, *mvp, wtm);
     }
+    printf("\n");
   }
   return;
 }

@@ -1329,42 +1329,6 @@ if (!(*flagptr))
 return (epdptr1);
 }
 
-/*--> EGTBScore: fetch a tablebase score for the indicated position */
-nonstatic
-int
-EGTBScore(TREE *tree, int posdex, int active, int *scoreptr)
-{
-siT flag;
-cpevT cpev;
-
-/* this routine is called from Crafty at various points in the search */
-
-/* set default return value: score unfound */
-
-flag = 0;
-*scoreptr = 0;
-
-/* copy the indexed host position as the EPD Kit new current position */
-
-EGGetIndexedHostPosition(tree, (siT)posdex, active);
-
-/* perform the probe */
-
-cpev = EPDTBScore();
-if (cpev != cpev_wrck)
-	{
-	/* set return value */
-
-	flag = 1;
-
-	/* convert and copy score */
-
-	*scoreptr = EGMapToHostScore(cpev);
-	};
-
-return (flag);
-}
-
 /*--> EGProcessAPGN: process the EG command epdapgn */
 static
 siT
@@ -1521,152 +1485,6 @@ if (fptr0 != NULL)
 
 if (fptr1 != NULL)
 	fclose(fptr1);
-
-return (flag);
-}
-
-/*--> EGProcessCERT: process the EG command epdcert */
-static
-siT
-EGProcessCERT(void)
-{
-siT flag;
-siT done;
-cpevT cpev=0;
-mptrT mptr;
-mT m;
-sanT san;
-
-/* this is an internal EPD glue routine */
-
-/* set the default return value: success */
-
-flag = 1;
-
-/* clear the completion flag */
-
-done = 0;
-
-/* parameter count check */
-
-if (EPDTokenCount() != 1)
-	{
-	EGPL("This command takes no parameters.");
-	flag = 0;
-	};
-
-/* process the epdcert command */
-
-if (flag)
-	{
-	/* copy the host position into the EPD Kit */
-
-	EGGetHostPosition();
-
-	/* check for legality */
-
-	if (!EPDIsLegal())
-		{
-		EGPL("This position is illegal.");
-		done = 1;
-		flag = 0;
-		};
-
-	/* check for checkmate */
-
-	if (flag && !done)
-		if (EPDIsCheckmate())
-			{
-			sprintf(tbufv, "%s is checkmated.\n",
-				EPDPlayerString(EPDFetchACTC()));
-			EGPrintTB();
-			cpev = synth_loss(0);
-			done = 1;
-			};
-
-	/* check for stalemate */
-
-	if (flag && !done)
-		if (EPDIsStalemate())
-			{
-			sprintf(tbufv, "%s is stalemated.\n",
-				EPDPlayerString(EPDFetchACTC()));
-			EGPrintTB();
-			cpev = cpev_draw;
-			done = 1;
-			};
-
-	/* check for insufficient material */
-
-	if (flag && !done)
-		if (EPDIsInsufficientMaterial())
-			{
-			EGPL("Position is drawn: insufficient mating material.");
-			cpev = cpev_draw;
-			done = 1;
-			};
-
-	/* check for mate in one */
-
-	if (flag && !done)
-		if ((mptr = EPDMateInOne()) != NULL)
-			{
-			m = *mptr;
-			EPDSANEncode(&m, san);
-			sprintf(tbufv, "%s can checkmate in one move with %s.\n",
-				EPDPlayerString(EPDFetchACTC()), san);
-			EGPrintTB();
-			cpev = synth_mate(1);
-			done = 1;
-			};
-
-	/* probe the tablebases */
-
-	if (flag && !done)
-		{
-		cpev = EPDTBScore();
-		if (cpev != cpev_wrck)
-			{
-			EGPL("The position score was located in a tablebase file.");
-			if (cpev == cpev_draw)
-				EGPL("The position is a draw with best play.");
-			else
-				if (forced_mate(cpev))
-					{
-					sprintf(tbufv, "%s can mate in %hd move%s.\n",
-						EPDPlayerString(EPDFetchACTC()),
-						synth_distance_mate(cpev),
-						((synth_distance_mate(cpev) == 1) ? "" : "s"));
-					EGPrintTB();
-					}
-				else
-					{
-					sprintf(tbufv, "%s can be mated in %hd move%s.\n",
-						EPDPlayerString(EPDFetchACTC()),
-						synth_distance_loss(cpev),
-						((synth_distance_loss(cpev) == 1) ? "" : "s"));
-					EGPrintTB();
-					};
-			done = 1;
-			};
-		};
-
-	/* output score if available */
-
-	if (flag && done)
-		{
-		/* output score */
-
-		sprintf(tbufv, "Centipawn evaluation: %hd\n", cpev);
-		EGPrintTB();
-		}
-	else
-		{
-		/* output diagnostic */
-
-		EGPL("No certain evaluation is available.");
-		};
-	};
 
 return (flag);
 }
@@ -3500,10 +3318,6 @@ else
 			flag = EGProcessBFIX();
 			break;
 
-		case egcomm_epdcert:
-			flag = EGProcessCERT();
-			break;
-
 		case egcomm_epdcics:
 			flag = EGProcessCICS();
 			break;
@@ -3616,9 +3430,6 @@ nonstatic
 void
 EGInit(void)
 {
-tbidT tbid;
-cT c;
-siT count;
 
 /* this is called by Initialize() in init.c */
 
@@ -3718,29 +3529,6 @@ egparmcountv[egcomm_epdtest] = 1;
 /* set up the default game structure */
 
 default_gamptr = EPDGameOpen();
-
-/* tablebase survey */
-
-count = 0;
-for (tbid = 0; tbid < tbidL; tbid++)
-	for (c = c_w; c <= c_b; c++)
-		if (EPDTBIsFilePresent(tbid, c))
-			count++;
-
-if (count == 0)
-	{
-	sprintf(tbufv,
-		"No tablebase files found in the %s directory.\n",
-		tb_path);
-	EGPrintTB();
-	}
-else
-	{
-	sprintf(tbufv,
-		"%hd tablebase file(s) found in the %s directory.\n",
-		count, tb_path);
-	EGPrintTB();
-	};
 
 return;
 }

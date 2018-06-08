@@ -28,6 +28,7 @@ void Analyze() {
 */
     ponder_move=0;
     analyze_mode=1;
+    draw_score_normal=1;
     if (!xboard) display_options|=1+2+4;
     printf("Analyze Mode: type \"exit\" to terminate.\n");
 /*

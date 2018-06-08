@@ -287,8 +287,8 @@ void Initialize(int continuing) {
       printf("\nsorry.  nothing to continue.\n\n");
       sprintf(log_filename,"%s/log.%03d",log_path,1);
       sprintf(history_filename,"%s/game.%03d",log_path,1);
-      log_file=fopen("log_filename","w");
-      history_file=fopen("history_filename","w+");
+      log_file=fopen(log_filename,"w");
+      history_file=fopen(history_filename,"w+");
     }
     else {
       sprintf(buffer,"read %s/game.%03d", log_path, log_id);
@@ -460,11 +460,11 @@ void InitializeAttackBoards(void)
     king_attacks_2[i]=0;
     for (j=0;j<64;j++) {
       if (Distance(i,j) == 1)
-        king_attacks[i]=Or(king_attacks[i],set_mask[j]);
+        king_attacks[i]=Or(king_attacks[i],SetMask(j));
       if (Distance(i,j) <= 1)
-        king_attacks_1[i]=Or(king_attacks_1[i],set_mask[j]);
+        king_attacks_1[i]=Or(king_attacks_1[i],SetMask(j));
       if (Distance(i,j) <= 2)
-        king_attacks_2[i]=Or(king_attacks_2[i],set_mask[j]);
+        king_attacks_2[i]=Or(king_attacks_2[i],SetMask(j));
     }
   }
 /*
@@ -588,7 +588,7 @@ void InitializeAttackBoards(void)
         while (attacks) {
           sq=first_ones_8bit[attacks];
           rook_attacks_r0[square][pcs]=
-            Or(rook_attacks_r0[square][pcs],set_mask[(square&56)+sq]);
+            Or(rook_attacks_r0[square][pcs],SetMask((square&56)+sq));
           attacks=attacks&(~(1<<(7-sq)));
         }
         rook_mobility_r0[square][pcs]=PopCnt(rook_attacks_r0[square][pcs]);
@@ -610,7 +610,7 @@ void InitializeAttackBoards(void)
           sq=first_ones_8bit[attacks];
           rook_attacks_rl90[square][pcs]=
             Or(rook_attacks_rl90[square][pcs],
-               set_mask[init_r90[((square&7)<<3)+sq]]);
+               SetMask(init_r90[((square&7)<<3)+sq]));
           attacks=attacks&(~(1<<(7-sq)));
         }
         rook_mobility_rl90[square][pcs]=PopCnt(rook_attacks_rl90[square][pcs]);
@@ -635,7 +635,7 @@ void InitializeAttackBoards(void)
           sq=first_ones_8bit[attacks];
           bishop_attacks_rl45[square][pcs]=
             Or(bishop_attacks_rl45[square][pcs],
-               set_mask[init_ul45[sq+bias_rl45[rsq]]]);
+               SetMask(init_ul45[sq+bias_rl45[rsq]]));
           attacks=attacks&(~(1<<(7-sq)));
         }
       }
@@ -667,7 +667,7 @@ void InitializeAttackBoards(void)
           sq=first_ones_8bit[attacks];
           bishop_attacks_rr45[square][pcs]=
             Or(bishop_attacks_rr45[square][pcs],
-               set_mask[init_ur45[sq+bias_rl45[rsq]]]);
+               SetMask(init_ur45[sq+bias_rl45[rsq]]));
           attacks=attacks&(~(1<<(7-sq)));
         }
       }
@@ -775,12 +775,12 @@ void SetChessBitBoards(SEARCH_POSITION *new_pos)
   tree->pos.b_pawn=0;
   for (i=0;i<64;i++) {
     if(tree->pos.board[i]==pawn) {
-      tree->pos.w_pawn=Or(tree->pos.w_pawn,set_mask[i]);
+      tree->pos.w_pawn=Or(tree->pos.w_pawn,SetMask(i));
       tree->pos.hash_key=Xor(tree->pos.hash_key,w_pawn_random[i]);
       tree->pos.pawn_hash_key=tree->pos.pawn_hash_key^w_pawn_random32[i];
     }
     if(tree->pos.board[i]==-pawn) {
-      tree->pos.b_pawn=Or(tree->pos.b_pawn,set_mask[i]);
+      tree->pos.b_pawn=Or(tree->pos.b_pawn,SetMask(i));
       tree->pos.hash_key=Xor(tree->pos.hash_key,b_pawn_random[i]);
       tree->pos.pawn_hash_key=tree->pos.pawn_hash_key^b_pawn_random32[i];
     }
@@ -792,11 +792,11 @@ void SetChessBitBoards(SEARCH_POSITION *new_pos)
   tree->pos.b_knight=0;
   for (i=0;i<64;i++) {
     if(tree->pos.board[i] == knight) {
-      tree->pos.w_knight=Or(tree->pos.w_knight,set_mask[i]);
+      tree->pos.w_knight=Or(tree->pos.w_knight,SetMask(i));
       tree->pos.hash_key=Xor(tree->pos.hash_key,w_knight_random[i]);
     }
     if(tree->pos.board[i] == -knight) {
-      tree->pos.b_knight=Or(tree->pos.b_knight,set_mask[i]);
+      tree->pos.b_knight=Or(tree->pos.b_knight,SetMask(i));
       tree->pos.hash_key=Xor(tree->pos.hash_key,b_knight_random[i]);
     }
   }
@@ -807,11 +807,11 @@ void SetChessBitBoards(SEARCH_POSITION *new_pos)
   tree->pos.b_bishop=0;
   for (i=0;i<64;i++) {
     if(tree->pos.board[i] == bishop) {
-      tree->pos.w_bishop=Or(tree->pos.w_bishop,set_mask[i]);
+      tree->pos.w_bishop=Or(tree->pos.w_bishop,SetMask(i));
       tree->pos.hash_key=Xor(tree->pos.hash_key,w_bishop_random[i]);
     }
     if(tree->pos.board[i] == -bishop) {
-      tree->pos.b_bishop=Or(tree->pos.b_bishop,set_mask[i]);
+      tree->pos.b_bishop=Or(tree->pos.b_bishop,SetMask(i));
       tree->pos.hash_key=Xor(tree->pos.hash_key,b_bishop_random[i]);
     }
   }
@@ -822,11 +822,11 @@ void SetChessBitBoards(SEARCH_POSITION *new_pos)
   tree->pos.b_rook=0;
   for (i=0;i<64;i++) {
     if(tree->pos.board[i] == rook) {
-      tree->pos.w_rook=Or(tree->pos.w_rook,set_mask[i]);
+      tree->pos.w_rook=Or(tree->pos.w_rook,SetMask(i));
       tree->pos.hash_key=Xor(tree->pos.hash_key,w_rook_random[i]);
     }
     if(tree->pos.board[i] == -rook) {
-      tree->pos.b_rook=Or(tree->pos.b_rook,set_mask[i]);
+      tree->pos.b_rook=Or(tree->pos.b_rook,SetMask(i));
       tree->pos.hash_key=Xor(tree->pos.hash_key,b_rook_random[i]);
     }
   }
@@ -837,11 +837,11 @@ void SetChessBitBoards(SEARCH_POSITION *new_pos)
   tree->pos.b_queen=0;
   for (i=0;i<64;i++) {
     if(tree->pos.board[i] == queen) {
-      tree->pos.w_queen=Or(tree->pos.w_queen,set_mask[i]);
+      tree->pos.w_queen=Or(tree->pos.w_queen,SetMask(i));
       tree->pos.hash_key=Xor(tree->pos.hash_key,w_queen_random[i]);
     }
     if(tree->pos.board[i] == -queen) {
-      tree->pos.b_queen=Or(tree->pos.b_queen,set_mask[i]);
+      tree->pos.b_queen=Or(tree->pos.b_queen,SetMask(i));
       tree->pos.hash_key=Xor(tree->pos.hash_key,b_queen_random[i]);
     }
   }
@@ -870,9 +870,9 @@ void SetChessBitBoards(SEARCH_POSITION *new_pos)
   tree->pos.bishops_queens=Or(Or(Or(tree->pos.w_bishop,tree->pos.w_queen),tree->pos.b_bishop),tree->pos.b_queen);
   tree->pos.rooks_queens=Or(Or(Or(tree->pos.w_rook,tree->pos.w_queen),tree->pos.b_rook),tree->pos.b_queen);
   tree->pos.w_occupied=Or(Or(Or(Or(Or(tree->pos.w_pawn,tree->pos.w_knight),tree->pos.w_bishop),tree->pos.w_rook),
-                                   tree->pos.w_queen),set_mask[tree->pos.white_king]);
+                                   tree->pos.w_queen),SetMask(tree->pos.white_king));
   tree->pos.b_occupied=Or(Or(Or(Or(Or(tree->pos.b_pawn,tree->pos.b_knight),tree->pos.b_bishop),tree->pos.b_rook),
-                                   tree->pos.b_queen),set_mask[tree->pos.black_king]);
+                                   tree->pos.b_queen),SetMask(tree->pos.black_king));
 /*
   now initialize rotated occupied bitboards.
 */
@@ -881,17 +881,21 @@ void SetChessBitBoards(SEARCH_POSITION *new_pos)
   tree->pos.occupied_rr45=0;
   for (i=0;i<64;i++) {
     if (tree->pos.board[i]) {
-      tree->pos.occupied_rl90=Or(tree->pos.occupied_rl90,set_mask_rl90[i]);
-      tree->pos.occupied_rl45=Or(tree->pos.occupied_rl45,set_mask_rl45[i]);
-      tree->pos.occupied_rr45=Or(tree->pos.occupied_rr45,set_mask_rr45[i]);
+      tree->pos.occupied_rl90=Or(tree->pos.occupied_rl90,SetMaskRL90(i));
+      tree->pos.occupied_rl45=Or(tree->pos.occupied_rl45,SetMaskRL45(i));
+      tree->pos.occupied_rr45=Or(tree->pos.occupied_rr45,SetMaskRR45(i));
     }
   }
 /*
    initialize black/white piece counts.
 */
   tree->pos.white_pieces=0;
+  tree->pos.white_majors=0;
+  tree->pos.white_minors=0;
   tree->pos.white_pawns=0;
   tree->pos.black_pieces=0;
+  tree->pos.black_majors=0;
+  tree->pos.black_minors=0;
   tree->pos.black_pawns=0;
   tree->pos.material_evaluation=0;
   for (i=0;i<64;i++) {
@@ -903,18 +907,22 @@ void SetChessBitBoards(SEARCH_POSITION *new_pos)
       case knight:
         tree->pos.material_evaluation+=KNIGHT_VALUE;
         tree->pos.white_pieces+=knight_v;
+        tree->pos.white_minors++;
         break;
       case bishop:
         tree->pos.material_evaluation+=BISHOP_VALUE;
         tree->pos.white_pieces+=bishop_v;
+        tree->pos.white_minors++;
         break;
       case rook:
         tree->pos.material_evaluation+=ROOK_VALUE;
         tree->pos.white_pieces+=rook_v;
+        tree->pos.white_majors++;
         break;
       case queen:
         tree->pos.material_evaluation+=QUEEN_VALUE;
         tree->pos.white_pieces+=queen_v;
+        tree->pos.white_majors+=2;
         break;
       case -pawn:
         tree->pos.material_evaluation-=PAWN_VALUE;
@@ -923,18 +931,22 @@ void SetChessBitBoards(SEARCH_POSITION *new_pos)
       case -knight:
         tree->pos.material_evaluation-=KNIGHT_VALUE;
         tree->pos.black_pieces+=knight_v;
+        tree->pos.black_minors++;
         break;
       case -bishop:
         tree->pos.material_evaluation-=BISHOP_VALUE;
         tree->pos.black_pieces+=bishop_v;
+        tree->pos.black_minors++;
         break;
       case -rook:
         tree->pos.material_evaluation-=ROOK_VALUE;
         tree->pos.black_pieces+=rook_v;
+        tree->pos.black_majors++;
         break;
       case -queen:
         tree->pos.material_evaluation-=QUEEN_VALUE;
         tree->pos.black_pieces+=queen_v;
+        tree->pos.black_majors+=2;
         break;
       default:
         ;
@@ -1063,23 +1075,23 @@ void InitializeMasks(void) {
   masks to set/clear a bit on a specific square
 */
   for (i=0;i<64;i++) {
-    clear_mask[i]=Compl(Shiftr(mask_1,i));
-    clear_mask_rl45[i]=Compl(Shiftr(mask_1,init_l45[i]));
-    clear_mask_rr45[i]=Compl(Shiftr(mask_1,init_r45[i]));
-    clear_mask_rl90[i]=Compl(Shiftr(mask_1,init_l90[i]));
-    set_mask[i]=Shiftr(mask_1,i);
-    set_mask_rl45[i]=Shiftr(mask_1,init_l45[i]);
-    set_mask_rr45[i]=Shiftr(mask_1,init_r45[i]);
-    set_mask_rl90[i]=Shiftr(mask_1,init_l90[i]);
+    ClearMask(i)=Compl(Shiftr(mask_1,i));
+    ClearMaskRL45(i)=Compl(Shiftr(mask_1,init_l45[i]));
+    ClearMaskRR45(i)=Compl(Shiftr(mask_1,init_r45[i]));
+    ClearMaskRL90(i)=Compl(Shiftr(mask_1,init_l90[i]));
+    SetMask(i)=Shiftr(mask_1,i);
+    SetMaskRL45(i)=Shiftr(mask_1,init_l45[i]);
+    SetMaskRR45(i)=Shiftr(mask_1,init_r45[i]);
+    SetMaskRL90(i)=Shiftr(mask_1,init_l90[i]);
   }
-  clear_mask[BAD_SQUARE]=0;
-  clear_mask_rl45[BAD_SQUARE]=0;
-  clear_mask_rr45[BAD_SQUARE]=0;
-  clear_mask_rl90[BAD_SQUARE]=0;
-  set_mask[BAD_SQUARE]=0;
-  set_mask_rl45[BAD_SQUARE]=0;
-  set_mask_rr45[BAD_SQUARE]=0;
-  set_mask_rl90[BAD_SQUARE]=0;
+  ClearMask(BAD_SQUARE)=0;
+  ClearMaskRL45(BAD_SQUARE)=0;
+  ClearMaskRR45(BAD_SQUARE)=0;
+  ClearMaskRL90(BAD_SQUARE)=0;
+  SetMask(BAD_SQUARE)=0;
+  SetMaskRL45(BAD_SQUARE)=0;
+  SetMaskRR45(BAD_SQUARE)=0;
+  SetMaskRL90(BAD_SQUARE)=0;
 /*
   masks to select bits on a specific rank or file
 */
@@ -1090,12 +1102,30 @@ void InitializeMasks(void) {
   for (i=1;i<8;i++) file_mask[i]=Shiftr(file_mask[i-1],1);
 /*
   masks to determine if a pawn is protected by another pawn or not.
+  also masks to detect "duos" (pawns side-by-side only).
 */
   for (i=8;i<56;i++) {
-   mask_pawn_protected_w[i]=Or(set_mask[i-1],set_mask[i+1]);
-   if (i > 15) mask_pawn_protected_w[i]|=Or(set_mask[i-7],set_mask[i-9]);
-   mask_pawn_protected_b[i]=Or(set_mask[i-1],set_mask[i+1]);
-   if (i < 48) mask_pawn_protected_b[i]|=Or(set_mask[i+7],set_mask[i+9]);
+    if (File(i)>0 && File(i)<7) {
+      mask_pawn_duo[i]=Or(SetMask(i-1),SetMask(i+1));
+      mask_pawn_protected_w[i]=Or(SetMask(i-1),SetMask(i+1));
+      if (i > 15) mask_pawn_protected_w[i]|=Or(SetMask(i-7),SetMask(i-9));
+      mask_pawn_protected_b[i]=Or(SetMask(i-1),SetMask(i+1));
+      if (i < 48) mask_pawn_protected_b[i]|=Or(SetMask(i+7),SetMask(i+9));
+    }
+    else if (File(i) == 0) {
+      mask_pawn_duo[i]=SetMask(i+1);
+      mask_pawn_protected_w[i]=SetMask(i+1);
+      if (i > 15) mask_pawn_protected_w[i]|=SetMask(i-7);
+      mask_pawn_protected_b[i]=SetMask(i+1);
+      if (i < 48) mask_pawn_protected_b[i]|=SetMask(i+9);
+    }
+    else if (File(i) == 7) {
+      mask_pawn_duo[i]=SetMask(i-1);
+      mask_pawn_protected_w[i]=SetMask(i-1);
+      if (i > 15) mask_pawn_protected_w[i]|=SetMask(i-9);
+      mask_pawn_protected_b[i]=SetMask(i-1);
+      if (i < 48) mask_pawn_protected_b[i]|=SetMask(i+7);
+    }
   }
 /*
   masks to select bits on either half of board
@@ -1116,35 +1146,33 @@ void InitializeMasks(void) {
     for (j=i-1;j>=0;j--)
       left_side_empty_mask[i]=Or(left_side_empty_mask[i],file_mask[j]);
   }
-  right_half_mask=Or(Or(Or(file_mask[FILEE],file_mask[FILEF]),file_mask[FILEG]),file_mask[FILEH]);
-  left_half_mask=Or(Or(Or(file_mask[FILEA],file_mask[FILEB]),file_mask[FILEC]),file_mask[FILED]);
-  mask_kr_trapped_w[0]=set_mask[H2];
-  mask_kr_trapped_w[1]=Or(set_mask[H1],set_mask[H2]);
-  mask_kr_trapped_w[2]=Or(Or(set_mask[G1],set_mask[H1]),set_mask[H2]);
-  mask_qr_trapped_w[0]=set_mask[A2];
-  mask_qr_trapped_w[1]=Or(set_mask[A1],set_mask[A2]);
-  mask_qr_trapped_w[2]=Or(Or(set_mask[A1],set_mask[B1]),set_mask[A2]);
-  mask_kr_trapped_b[0]=set_mask[H7];
-  mask_kr_trapped_b[1]=Or(set_mask[H8],set_mask[H7]);
-  mask_kr_trapped_b[2]=Or(Or(set_mask[H8],set_mask[G8]),set_mask[H7]);
-  mask_qr_trapped_b[0]=set_mask[A7];
-  mask_qr_trapped_b[1]=Or(set_mask[A8],set_mask[A7]);
-  mask_qr_trapped_b[2]=Or(Or(set_mask[A8],set_mask[B8]),set_mask[A7]);
+  mask_efgh=Or(Or(Or(file_mask[FILEE],file_mask[FILEF]),file_mask[FILEG]),file_mask[FILEH]);
+  mask_fgh=Or(Or(file_mask[FILEF],file_mask[FILEG]),file_mask[FILEH]);
+  mask_abcd=Or(Or(Or(file_mask[FILEA],file_mask[FILEB]),file_mask[FILEC]),file_mask[FILED]);
+  mask_abc=Or(Or(file_mask[FILEA],file_mask[FILEB]),file_mask[FILEC]);
+  mask_kr_trapped_w[0]=SetMask(H2);
+  mask_kr_trapped_w[1]=Or(SetMask(H1),SetMask(H2));
+  mask_kr_trapped_w[2]=Or(Or(SetMask(G1),SetMask(H1)),SetMask(H2));
+  mask_qr_trapped_w[0]=SetMask(A2);
+  mask_qr_trapped_w[1]=Or(SetMask(A1),SetMask(A2));
+  mask_qr_trapped_w[2]=Or(Or(SetMask(A1),SetMask(B1)),SetMask(A2));
+  mask_kr_trapped_b[0]=SetMask(H7);
+  mask_kr_trapped_b[1]=Or(SetMask(H8),SetMask(H7));
+  mask_kr_trapped_b[2]=Or(Or(SetMask(H8),SetMask(G8)),SetMask(H7));
+  mask_qr_trapped_b[0]=SetMask(A7);
+  mask_qr_trapped_b[1]=Or(SetMask(A8),SetMask(A7));
+  mask_qr_trapped_b[2]=Or(Or(SetMask(A8),SetMask(B8)),SetMask(A7));
 
-  mask_abs7_w=Xor(rank_mask[RANK7],Or(set_mask[H7],set_mask[A7]));
-  mask_abs7_b=Xor(rank_mask[RANK2],Or(set_mask[H2],set_mask[A2]));
+  mask_abs7_w=Xor(rank_mask[RANK7],Or(SetMask(H7),SetMask(A7)));
+  mask_abs7_b=Xor(rank_mask[RANK2],Or(SetMask(H2),SetMask(A2)));
 
   mask_not_rank8=~rank_mask[RANK8];
   mask_not_rank1=~rank_mask[RANK1];
 
-  mask_F3H3=Or(set_mask[F3],set_mask[H3]);
-  mask_F6H6=Or(set_mask[F6],set_mask[H6]);
-  mask_A3C3=Or(set_mask[A3],set_mask[C3]);
-  mask_A6C6=Or(set_mask[A6],set_mask[C6]);
-  mask_A7H7=Or(set_mask[A7],set_mask[H7]);
-  mask_A2H2=Or(set_mask[A2],set_mask[H2]);
-  center=Or(Or(set_mask[D4],set_mask[E4]),
-            Or(set_mask[D5],set_mask[E5]));
+  mask_A7H7=Or(SetMask(A7),SetMask(H7));
+  mask_A2H2=Or(SetMask(A2),SetMask(H2));
+  center=Or(Or(SetMask(D4),SetMask(E4)),
+            Or(SetMask(D5),SetMask(E5)));
   threat_flag=Shiftl((BITBOARD) 1, 58);
 }
 
@@ -1168,17 +1196,17 @@ void InitializePawnMasks(void)
 */
   for (i=8;i<56;i++) {
     if (((i&7)>0) && ((i&7)<7))
-      mask_pawn_connected[i]=Or(Or(Or(Or(Or(set_mask[i-9],set_mask[i-7]),
-                                         set_mask[i-1]),
-                                      set_mask[i+1]),
-                                   set_mask[i+7]),
-                                set_mask[i+9]);
+      mask_pawn_connected[i]=Or(Or(Or(Or(Or(SetMask(i-9),SetMask(i-7)),
+                                         SetMask(i-1)),
+                                      SetMask(i+1)),
+                                   SetMask(i+7)),
+                                SetMask(i+9));
     else if ((i&7)==0)
-      mask_pawn_connected[i]=Or(Or(set_mask[i-7],set_mask[i+1]),
-                                set_mask[i+9]);
+      mask_pawn_connected[i]=Or(Or(SetMask(i-7),SetMask(i+1)),
+                                SetMask(i+9));
     else if ((i&7)==7)
-      mask_pawn_connected[i]=Or(Or(set_mask[i-9],set_mask[i-1]),
-                                set_mask[i+7]);
+      mask_pawn_connected[i]=Or(Or(SetMask(i-9),SetMask(i-1)),
+                                SetMask(i+7));
   }
 /*
     initialize passed pawn masks, which are nothing more than 1's on
@@ -1224,12 +1252,12 @@ void InitializePawnMasks(void)
     on the same rank.                                          
 */
   for (i=0;i<64;i++) mask_eptest[i]=0;
-  for (i=25;i<31;i++) mask_eptest[i]=Or(set_mask[i-1],set_mask[i+1]);
-  for (i=33;i<39;i++) mask_eptest[i]=Or(set_mask[i-1],set_mask[i+1]);
-  mask_eptest[A4]=set_mask[B4];
-  mask_eptest[H4]=set_mask[G4];
-  mask_eptest[A5]=set_mask[B5];
-  mask_eptest[H5]=set_mask[G5];
+  for (i=25;i<31;i++) mask_eptest[i]=Or(SetMask(i-1),SetMask(i+1));
+  for (i=33;i<39;i++) mask_eptest[i]=Or(SetMask(i-1),SetMask(i+1));
+  mask_eptest[A4]=SetMask(B4);
+  mask_eptest[H4]=SetMask(G4);
+  mask_eptest[A5]=SetMask(B5);
+  mask_eptest[H5]=SetMask(G5);
 
 /*
   masks to detect pawns bearing down on the king
@@ -1255,10 +1283,10 @@ void InitializePawnMasks(void)
   white, especially if there are no pawns that can attack
   these pawns.
 */
-  pawns_cramp_black=Or(Or(set_mask[D5],set_mask[E5]),
-                       set_mask[F5]);
-  pawns_cramp_white=Or(Or(set_mask[D4],set_mask[E4]),
-                       set_mask[F4]);
+  pawns_cramp_black=Or(Or(SetMask(D5),SetMask(E5)),
+                       SetMask(F5));
+  pawns_cramp_white=Or(Or(SetMask(D4),SetMask(E4)),
+                       SetMask(F4));
 /* 
   these two masks have 1's on dark squares and light squares
   to test to see if pawns/bishops are on them.
@@ -1300,16 +1328,16 @@ void InitializePawnMasks(void)
   the king sitting right in the corner where it's easier to get
   mated.
 */
-  mask_corner_squares=Or(Or(set_mask[A1],set_mask[H1]),
-                         Or(set_mask[A8],set_mask[H8]));
+  mask_corner_squares=Or(Or(SetMask(A1),SetMask(H1)),
+                         Or(SetMask(A8),SetMask(H8)));
 /* 
   these masks have 1's on the squares where it is useful to have a bishop
   when the b or g pawn is missing or pushed one square.
 */
-  good_bishop_kw=Or(Or(set_mask[F1],set_mask[H1]),set_mask[G2]);
-  good_bishop_qw=Or(Or(set_mask[A1],set_mask[C1]),set_mask[B2]);
-  good_bishop_kb=Or(Or(set_mask[G7],set_mask[F8]),set_mask[H8]);
-  good_bishop_qb=Or(Or(set_mask[B7],set_mask[A8]),set_mask[C8]);
+  good_bishop_kw=Or(Or(SetMask(F1),SetMask(H1)),SetMask(G2));
+  good_bishop_qw=Or(Or(SetMask(A1),SetMask(C1)),SetMask(B2));
+  good_bishop_kb=Or(Or(SetMask(G7),SetMask(F8)),SetMask(H8));
+  good_bishop_qb=Or(Or(SetMask(B7),SetMask(A8)),SetMask(C8));
 /*
     these masks are used to detect when a passed pawn reaches the 6th or
     7th rank with a connected neighboring pawn also on the 6th or 7th rank
@@ -1321,26 +1349,26 @@ void InitializePawnMasks(void)
   }
   for (i=8;i<24;i++) {
     if (!(i&7)) {
-      mask_promotion_threat_b[i]=Or(set_mask[B2],set_mask[B3]);
+      mask_promotion_threat_b[i]=Or(SetMask(B2),SetMask(B3));
     }
     else if ((i&7) == 7) {
-      mask_promotion_threat_b[i]=Or(set_mask[G2],set_mask[G3]);
+      mask_promotion_threat_b[i]=Or(SetMask(G2),SetMask(G3));
     }
     else {
-      mask_promotion_threat_b[i]=Or(Or(set_mask[(i&7)+7],set_mask[(i&7)+9]),
-                                    Or(set_mask[(i&7)+15],set_mask[(i&7)+17]));
+      mask_promotion_threat_b[i]=Or(Or(SetMask((i&7)+7),SetMask((i&7)+9)),
+                                    Or(SetMask((i&7)+15),SetMask((i&7)+17)));
     }
   }
   for (i=40;i<56;i++) {
     if (!(i&7)) {
-      mask_promotion_threat_w[i]=Or(set_mask[B6],set_mask[B7]);
+      mask_promotion_threat_w[i]=Or(SetMask(B6),SetMask(B7));
     }
     else if ((i&7) == 7) {
-      mask_promotion_threat_w[i]=Or(set_mask[G6],set_mask[G7]);
+      mask_promotion_threat_w[i]=Or(SetMask(G6),SetMask(G7));
     }
     else {
-      mask_promotion_threat_w[i]=Or(Or(set_mask[(i&7)+39],set_mask[(i&7)+47]),
-                                    Or(set_mask[(i&7)+41],set_mask[(i&7)+49]));
+      mask_promotion_threat_w[i]=Or(Or(SetMask((i&7)+39),SetMask((i&7)+47)),
+                                    Or(SetMask((i&7)+41),SetMask((i&7)+49)));
     }
   }
 /*
@@ -1353,22 +1381,22 @@ void InitializePawnMasks(void)
   these masks are used to test for the presence of a pawn at g2/g3, etc.
   and are used in evaluating a bishop potentially trapped at h2, etc.
 */
-  mask_G2G3=Or(set_mask[G2],set_mask[G3]);
-  mask_B2B3=Or(set_mask[B2],set_mask[B3]);
-  mask_G6G7=Or(set_mask[G6],set_mask[G7]);
-  mask_B6B7=Or(set_mask[B6],set_mask[B7]);
+  mask_G2G3=Or(SetMask(G2),SetMask(G3));
+  mask_B2B3=Or(SetMask(B2),SetMask(B3));
+  mask_G6G7=Or(SetMask(G6),SetMask(G7));
+  mask_B6B7=Or(SetMask(B6),SetMask(B7));
 /*
   these masks are used to detect that opponent pawns are getting very
   close to the king.
 */
-  mask_wq_4th=Or(Or(set_mask[A4],set_mask[B4]),
-                 Or(set_mask[C4],set_mask[D4]));
-  mask_wq_5th=Or(Or(set_mask[A5],set_mask[B5]),
-                 Or(set_mask[C5],set_mask[D5]));
-  mask_wk_4th=Or(Or(set_mask[E4],set_mask[F4]),
-                 Or(set_mask[G4],set_mask[H4]));
-  mask_wk_5th=Or(Or(set_mask[E5],set_mask[F5]),
-                 Or(set_mask[G5],set_mask[H5]));
+  mask_wq_4th=Or(Or(SetMask(A4),SetMask(B4)),
+                 SetMask(C4));
+  mask_wq_5th=Or(Or(SetMask(A5),SetMask(B5)),
+                 SetMask(C5));
+  mask_wk_4th=Or(Or(SetMask(F4),SetMask(G4)),
+                 SetMask(H4));
+  mask_wk_5th=Or(Or(SetMask(F5),SetMask(G5)),
+                 SetMask(H5));
   mask_bk_4th=mask_wk_5th;
   mask_bq_4th=mask_wq_5th;
   mask_bk_5th=mask_wk_4th;
@@ -1378,8 +1406,10 @@ void InitializePawnMasks(void)
   these masks are used to detect that the opponent is trying to set up
   a stonewall type pawn formation.
 */
-  stonewall_white=Or(Or(set_mask[D4],set_mask[E3]),set_mask[F4]);
-  stonewall_black=Or(Or(set_mask[D5],set_mask[E6]),set_mask[F5]);
+  stonewall_white=Or(Or(SetMask(D4),SetMask(E3)),SetMask(F4));
+  closed_white=Or(Or(SetMask(E4),SetMask(D3)),SetMask(C4));
+  stonewall_black=Or(Or(SetMask(D5),SetMask(E6)),SetMask(F5));
+  closed_black=Or(Or(SetMask(E5),SetMask(D6)),SetMask(C5));
 }
 
 void InitializePieceMasks(void)
@@ -1417,38 +1447,38 @@ void InitializePieceMasks(void)
 /* white pawn, wtm */
       if (j < 16) {
         if (KingPawnSquare(j+8,i,(j&7)+56,1)) 
-          white_pawn_race_wtm[j]=Or(white_pawn_race_wtm[j],set_mask[i]);
+          white_pawn_race_wtm[j]=Or(white_pawn_race_wtm[j],SetMask(i));
       }
       else {
         if (KingPawnSquare(j,i,(j&7)+56,1)) 
-          white_pawn_race_wtm[j]=Or(white_pawn_race_wtm[j],set_mask[i]);
+          white_pawn_race_wtm[j]=Or(white_pawn_race_wtm[j],SetMask(i));
       }
 /* white pawn, ChangeSide(wtm) */
       if (j < 16) {
         if (KingPawnSquare(j+8,i,(j&7)+56,0)) 
-          white_pawn_race_btm[j]=Or(white_pawn_race_btm[j],set_mask[i]);
+          white_pawn_race_btm[j]=Or(white_pawn_race_btm[j],SetMask(i));
       }
       else {
         if (KingPawnSquare(j,i,(j&7)+56,0)) 
-          white_pawn_race_btm[j]=Or(white_pawn_race_btm[j],set_mask[i]);
+          white_pawn_race_btm[j]=Or(white_pawn_race_btm[j],SetMask(i));
       }
 /* black pawn, wtm */
       if (j > 47) {
         if (KingPawnSquare(j-8,i,j&7,0)) 
-          black_pawn_race_wtm[j]=Or(black_pawn_race_wtm[j],set_mask[i]);
+          black_pawn_race_wtm[j]=Or(black_pawn_race_wtm[j],SetMask(i));
       }
       else {
         if (KingPawnSquare(j,i,j&7,0)) 
-          black_pawn_race_wtm[j]=Or(black_pawn_race_wtm[j],set_mask[i]);
+          black_pawn_race_wtm[j]=Or(black_pawn_race_wtm[j],SetMask(i));
       }
 /* black pawn, ChangeSide(wtm) */
       if (j > 47) {
         if (KingPawnSquare(j-8,i,j&7,1)) 
-          black_pawn_race_btm[j]=Or(black_pawn_race_btm[j],set_mask[i]);
+          black_pawn_race_btm[j]=Or(black_pawn_race_btm[j],SetMask(i));
       }
       else {
         if (KingPawnSquare(j,i,j&7,1)) 
-          black_pawn_race_btm[j]=Or(black_pawn_race_btm[j],set_mask[i]);
+          black_pawn_race_btm[j]=Or(black_pawn_race_btm[j],SetMask(i));
       }
     }
   }
@@ -1518,7 +1548,8 @@ void InitializeSMP(void) {
   pthread_attr_setdetachstate(&pthread_attr, PTHREAD_CREATE_DETACHED);
   pthread_attr_setscope(&pthread_attr, PTHREAD_SCOPE_SYSTEM);
 #endif
-  LockInit(lock_hash);
+  LockInit(lock_hasha);
+  LockInit(lock_hashb);
   LockInit(lock_pawn_hash);
   LockInit(lock_smp);
   LockInit(lock_io);

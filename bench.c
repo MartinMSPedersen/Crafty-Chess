@@ -20,8 +20,7 @@
 ********************************************************************************
 */
 
-void Bench(void)
-{
+void Bench(void) {
   double nodes=0.0;
   int old_do, old_st;
   TREE *tree=local[0];

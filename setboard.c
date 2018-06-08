@@ -217,4 +217,8 @@ void SetBoard(int nargs, char *args[], int special)
     end_game=0;
     wtm=twtm;
   }
+  if (Check(!wtm)) {
+    Print(4095,"ERROR side not on move is in check!\n");
+    InitializeChessBoard(&tree->position[0]);
+  }
 }

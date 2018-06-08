@@ -8,7 +8,7 @@
 #  include <unistd.h>
 #endif
 
-/* last modified 06/18/98 */
+/* last modified 09/16/98 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -47,10 +47,10 @@
 
 int Book(TREE *tree, int wtm, int root_list_done) {
   static int book_moves[200];
-  static BOOK_POSITION start_moves[20];
+  static BOOK_POSITION start_moves[200];
   static int selected[200];
   static int selected_order_played[200], selected_value[200];
-  static int selected_status[200], book_development[200];
+  static int selected_status[200], selected_percent[200], book_development[200];
   static int bs_played[200], bs_percent[200];
   static int book_status[200], evaluations[200], bs_learn[200];
   static float bs_value[200], total_value;
@@ -59,7 +59,7 @@ int Book(TREE *tree, int wtm, int root_list_done) {
   int done, i, j, last_move, temp, which, minlv=999999, maxlv=-999999;
   int maxp=-999999, minev=999999, maxev=-999999;
   int *mv, mp, value, np;
-  int cluster, test;
+  int cluster, scluster, test;
   BITBOARD temp_hash_key, common;
   int key, nmoves, num_selected, st;
   int percent_played, total_played, total_moves, smoves;
@@ -92,8 +92,8 @@ int Book(TREE *tree, int wtm, int root_list_done) {
     fread(&key,sizeof(int),1,books_file);
     if (key > 0) {
       fseek(books_file,key,SEEK_SET);
-      fread(&cluster,sizeof(int),1,books_file);
-      fread(book_buffer,sizeof(BOOK_POSITION),cluster,books_file);
+      fread(&scluster,sizeof(int),1,books_file);
+      fread(books_buffer,sizeof(BOOK_POSITION),scluster,books_file);
       for (mv=tree->last[0];mv<tree->last[1];mv++) {
         common=And(HashKey,mask_16);
         MakeMove(tree,1,*mv,wtm);
@@ -103,9 +103,9 @@ int Book(TREE *tree, int wtm, int root_list_done) {
         }
         temp_hash_key=Xor(HashKey,wtm_random[wtm]);
         temp_hash_key=Or(And(temp_hash_key,Compl(mask_16)),common);
-        for (i=0;i<cluster;i++)
-          if (!Xor(temp_hash_key,book_buffer[i].position)) {
-            start_moves[smoves++]=book_buffer[i];
+        for (i=0;i<scluster;i++)
+          if (!Xor(temp_hash_key,books_buffer[i].position)) {
+            start_moves[smoves++]=books_buffer[i];
             break;
           }
         UnMakeMove(tree,1,*mv,wtm);
@@ -133,6 +133,25 @@ int Book(TREE *tree, int wtm, int root_list_done) {
     }
     else cluster=0;
     if (!cluster) return(0);
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   now add any moves from books.bin to the end of the     |
+|   cluster so that they will be played even if not in the |
+|   regular database of moves.                             |
+|                                                          |
+ ----------------------------------------------------------
+*/
+    for (i=0;i<smoves;i++) {
+      for (j=0;j<cluster;j++) 
+        if (!Xor(book_buffer[j].position,start_moves[i].position)) break;
+      if (j >= cluster) {
+        book_buffer[cluster]=start_moves[i];
+        book_buffer[cluster].status_played=
+          book_buffer[cluster].status_played&037700000000;
+        cluster++;
+      }
+    }
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -206,10 +225,10 @@ int Book(TREE *tree, int wtm, int root_list_done) {
       bs_value[i]+=bs_played[i]/(float) maxp*1000.0*book_weight_freq;
       if (minlv < maxlv)
         bs_value[i]+=(bs_learn[i]-minlv)/
-                            (float) (Max(maxlv-minlv,50))*1000.0*book_weight_learn;
+                     (float) (Max(maxlv-minlv,50))*1000.0*book_weight_learn;
       if (minev < maxev)
         bs_value[i]+=(evaluations[i]-minev)/(float)(Max(maxev-minev,50))*
-                            1000.0*book_weight_eval;
+                     1000.0*book_weight_eval;
     }
     total_played=total_moves;
 /*
@@ -222,16 +241,17 @@ int Book(TREE *tree, int wtm, int root_list_done) {
  ----------------------------------------------------------
 */
     for (i=0;i<nmoves;i++) {
-      if (bs_learn[i] <= LEARN_COUNTER_BAD &&
+      if (bs_learn[i] <= LEARN_COUNTER_BAD && !bs_percent[i] &&
           !(book_status[i] & 030)) book_status[i]|=BAD_MOVE;
-      if (wtm && !(book_status[i]&0200) && 
+      if (wtm && !(book_status[i]&0200) && !bs_percent[i] &&
           !(book_status[i] & 030)) book_status[i]|=BAD_MOVE;
-      if (!wtm && !(book_status[i]&040) && 
+      if (!wtm && !(book_status[i]&040) && !bs_percent[i] &&
           !(book_status[i] & 030)) book_status[i]|=BAD_MOVE;
-      if (bs_played[i] < maxp/10 && bs_percent[i]==0 &&
+      if (bs_played[i] < maxp/10 && !bs_percent[i] && book_random &&
           !(book_status[i] & 030)) book_status[i]|=BAD_MOVE;
       if (bs_learn[i] >= LEARN_COUNTER_GOOD &&
           !(book_status[i] & 003)) book_status[i]|=GOOD_MOVE;
+      if (bs_percent[i]) book_status[i]|=GOOD_MOVE;
     }
 /*
  ----------------------------------------------------------
@@ -242,9 +262,13 @@ int Book(TREE *tree, int wtm, int root_list_done) {
  ----------------------------------------------------------
 */
     mp=0;
-    for (i=0;i<nmoves;i++) {
-      if (book_status[i] & 030) bs_value[i]+=8000.0;
-      if (!(book_status[i] & 003)) bs_value[i]+=4000.0;
+    for (i=0;i<nmoves;i++) 
+      if (book_status[i] & 030) break;
+    if (i < nmoves){
+      for (i=0;i<nmoves;i++) {
+        if (book_status[i] & 030) bs_value[i]+=8000.0;
+        if (!(book_status[i] & 003)) bs_value[i]+=4000.0;
+      }
     }
 /*
  ----------------------------------------------------------
@@ -318,7 +342,8 @@ int Book(TREE *tree, int wtm, int root_list_done) {
         if ((book_status[i]&book_accept_mask &&
              !(book_status[i]&book_reject_mask)) || 
               (!(book_status[i]&book_reject_mask) && 
-              ((wtm && book_status[i]&0200) ||
+              (bs_percent[i] || book_status[i]&030 ||
+               (wtm && book_status[i]&0200) ||
                (!wtm && book_status[i]&040))))
           Print(128,"  Y");
         else Print(128,"  N");
@@ -335,16 +360,18 @@ int Book(TREE *tree, int wtm, int root_list_done) {
 */
     num_selected=0;
     for (i=0;i<nmoves;i++)
-      if (!(book_status[i] & 003)) {
+      if (!(book_status[i] & 003) || bs_percent[i]) {
         selected_status[num_selected]=book_status[i];
         selected_order_played[num_selected]=bs_played[i];
         selected_value[num_selected]=bs_value[i];
+        selected_percent[num_selected]=bs_percent[i];
         selected[num_selected++]=book_moves[i];
       }
     for (i=0;i<num_selected;i++) {
       book_status[i]=selected_status[i];
       bs_played[i]=selected_order_played[i];
       bs_value[i]=selected_value[i];
+      bs_percent[i]=selected_percent[i];
       book_moves[i]=selected[i];
     }
     nmoves=num_selected;
@@ -646,7 +673,7 @@ int Book(TREE *tree, int wtm, int root_list_done) {
   return(0);
 }
 
-/* last modified 06/18/98 */
+/* last modified 08/22/98 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -702,15 +729,18 @@ void BookUp(TREE *tree, char *output_filename, int nargs, char **args) {
   char fname[64], *start, *ch, schar[2]={"."};
   int result=0, played, i, mask_word, total_moves;
   int move, move_num, wtm, book_positions, major, minor;
-  int cluster, max_cluster, discarded=0, discarded_mp=0, errors, data_read;
-  int start_cpu_time, start_elapsed_time, following, ply, max_ply=256;
+  int cluster, max_cluster, discarded=0, discarded_mp=0, discarded_lose=0;
+  int errors, data_read;
+  int start_cpu_time, start_elapsed_time, ply, max_ply=256;
   int stat, files=0, buffered=0, min_played=0, games_parsed=0;
+  int wins, losses;
   BOOK_POSITION current, next;
   BB_POSITION temp;
   int last, cluster_seek, next_cluster;
   int counter, *index, max_search_depth;
   POSITION cp_save;
   SEARCH_POSITION sp_save;
+  double wl_percent=0.0;
 
 /*
  ----------------------------------------------------------
@@ -721,11 +751,17 @@ void BookUp(TREE *tree, char *output_filename, int nargs, char **args) {
 */
   if (!strcmp(args[0],"create")) {
     if (nargs < 3) {
-      Print(4095,"usage:  book|books create filename maxply [minplay]\n");
+      Print(4095,"usage:  book|books create filename ");
+      Print(4095,"maxply [minplay] [win/lose %]\n");
       return;
     }
     max_ply=atoi(args[2]);
-    if (nargs == 4) min_played=atoi(args[3]);
+    if (nargs >= 4) {
+      min_played=atoi(args[3]);
+    }
+    if (nargs > 4) {
+      wl_percent=atof(args[4])/100.0;
+    }
   }
   else if (!strcmp(args[0],"off")) {
     if (book_file) fclose(book_file);
@@ -873,7 +909,6 @@ void BookUp(TREE *tree, char *output_filename, int nargs, char **args) {
         move_num=1;
         tree->position[2]=tree->position[1];
         ply=0;
-        following=1;
         data_read=0;
         while (data_read==0) {
           mask_word=0;
@@ -882,7 +917,9 @@ void BookUp(TREE *tree, char *output_filename, int nargs, char **args) {
             *ch=0;
           }
           if (!strchr(buffer,'$') && !strchr(buffer,'*')) {
-            move=ReadNextMove(tree,buffer,2,wtm);
+            if (ply < max_ply)
+              move=ReadNextMove(tree,buffer,2,wtm);
+            else move=0;
             if (move) {
               ply++;
               max_search_depth=Max(max_search_depth,ply);
@@ -890,8 +927,7 @@ void BookUp(TREE *tree, char *output_filename, int nargs, char **args) {
               common=And(HashKey,mask_16);
               MakeMove(tree,2,move,wtm);
               tree->position[2]=tree->position[3];
-              if ((ply <= max_ply) ||
-                  (following && (Captured(move) || Promote(move)))) {
+              if (ply <= max_ply) {
                 temp_hash_key=Xor(HashKey,wtm_random[wtm]);
                 temp_hash_key=Or(And(temp_hash_key,Compl(mask_16)),common);
                 memcpy(bbuffer[buffered].position,(char*)&temp_hash_key,8);
@@ -899,7 +935,7 @@ void BookUp(TREE *tree, char *output_filename, int nargs, char **args) {
                 else if (result&2) mask_word|=0200;
                 else if (result&1) mask_word|=040;
                 bbuffer[buffered].status=mask_word;
-                bbuffer[buffered++].percent_play=pgn_suggested_percent;
+                bbuffer[buffered++].percent_play=pgn_suggested_percent+(wtm<<7);
                 if (buffered >= SORT_BLOCK) {
                   BookSort(bbuffer,buffered,++files);
                   buffered=0;
@@ -907,7 +943,6 @@ void BookUp(TREE *tree, char *output_filename, int nargs, char **args) {
                 }
               }
               else {
-                following=0;
                 discarded++;
               }
               if (!(total_moves % 10000)) {
@@ -919,7 +954,8 @@ void BookUp(TREE *tree, char *output_filename, int nargs, char **args) {
               wtm=ChangeSide(wtm);
               if (wtm) move_num++;
             }
-            else if (strspn(buffer,"0123456789/-.*") != strlen(buffer)) {
+            else if (strspn(buffer,"0123456789/-.*") != strlen(buffer) &&
+                     ply < max_ply) {
               errors++;
               Print(4095,"ERROR!  move %d: %s is illegal (line %d)\n",
                     move_num,buffer,ReadPGN(book_input,-2));
@@ -975,11 +1011,17 @@ void BookUp(TREE *tree, char *output_filename, int nargs, char **args) {
     cluster_seek=sizeof(int)*32768;
     fseek(book_file,cluster_seek+sizeof(int),SEEK_SET);
     max_cluster=0;
+    wins=0;
+    losses=0;
+    if (temp.status&128  && temp.percent_play&128) wins++;
+    if (temp.status&128  && !(temp.percent_play&128)) losses++;
+    if (temp.status&32  && !(temp.percent_play&128)) wins++;
+    if (temp.status&32  && temp.percent_play&128) losses++;
     while (1) {
       temp=BookUpNextPosition(files,0);
       memcpy((char*)&next.position,temp.position,8);
       next.status_played=temp.status<<24;
-      if (start) next.status_played+=temp.percent_play;
+      if (start) next.status_played+=temp.percent_play&127;
       next.learn=0.0;
       counter++;
       if (counter%10000 == 0) {
@@ -990,9 +1032,13 @@ void BookUp(TREE *tree, char *output_filename, int nargs, char **args) {
       if (current.position == next.position) {
         current.status_played=current.status_played|next.status_played;
         played++;
+        if (temp.status&128  && temp.percent_play&128) wins++;
+        if (temp.status&128  && !(temp.percent_play&128)) losses++;
+        if (temp.status&32  && !(temp.percent_play&128)) wins++;
+        if (temp.status&32  && temp.percent_play&128) losses++;
       }
       else {
-        if (played >= min_played) {
+        if (played>=min_played && wins>=(losses*wl_percent)) {
           book_positions++;
           cluster++;
           max_cluster=Max(max_cluster,cluster);
@@ -1002,7 +1048,8 @@ void BookUp(TREE *tree, char *output_filename, int nargs, char **args) {
           if (stat != 1)
             Print(4095,"ERROR!  write failed, disk probably full.\n");
         }
-        else discarded_mp++;
+        else if (played < min_played) discarded_mp++;
+        else discarded_lose++;
         if (last != (int) (next.position>>49)) {
           next_cluster=ftell(book_file);
           fseek(book_file,cluster_seek,SEEK_SET);
@@ -1016,6 +1063,12 @@ void BookUp(TREE *tree, char *output_filename, int nargs, char **args) {
           index[last]=next_cluster;
           cluster=0;
         }
+        wins=0;
+        losses=0;
+        if (temp.status&128  && temp.percent_play&128) wins++;
+        if (temp.status&128  && !(temp.percent_play&128)) losses++;
+        if (temp.status&32  && !(temp.percent_play&128)) wins++;
+        if (temp.status&32  && temp.percent_play&128) losses++;
         current=next;
         played=1;
         if (next.position == 0) break;
@@ -1047,6 +1100,8 @@ void BookUp(TREE *tree, char *output_filename, int nargs, char **args) {
     Print(4095,"found %d errors during parsing.\n",errors);
     Print(4095,"discarded %d moves (maxply=%d).\n",discarded,max_ply);
     Print(4095,"discarded %d moves (minplayed=%d).\n",discarded_mp,min_played);
+    Print(4095,"discarded %d moves (win/lose=%.1f%%).\n",discarded_lose,
+          wl_percent*100);
     Print(4095,"book contains %d unique positions.\n",book_positions);
     Print(4095,"deepest book line was %d plies.\n",max_search_depth);
     Print(4095,"longest cluster of moves was %d.\n",max_cluster);
@@ -1148,7 +1203,8 @@ BB_POSITION BookUpNextPosition(int files, int init) {
         exit(1);
       }
       fseek(input_file[i],0,SEEK_SET);
-      data_read[i]=fread(buffer[i],sizeof(BB_POSITION),MERGE_BLOCK,input_file[i]);
+      data_read[i]=fread(buffer[i],sizeof(BB_POSITION),MERGE_BLOCK,
+                         input_file[i]);
       next[i]=0;
     }
   }

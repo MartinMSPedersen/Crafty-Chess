@@ -97,6 +97,7 @@ void Annotate() {
     Print(4095,"unable to open %s for output\n", text);
     return;
   }
+  draw_score_normal=1;
   strcpy(colors,args[2]);
   line1=1;
   line2=999;
@@ -134,6 +135,7 @@ void Annotate() {
     last_pv.path_iteration_depth=0;
     last_pv.path_length=0;
     InitializeChessBoard(&tree->position[0]);
+    tree->position[1]=tree->position[0];
     wtm=1;
     move_number=1;
 /*

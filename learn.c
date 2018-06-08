@@ -756,7 +756,7 @@ void LearnImportPosition(TREE *tree, int nargs, char **args) {
 |                                                          |
  ----------------------------------------------------------
 */
-    if (abs(value) < MATE-100)
+    if (abs(value) < MATE-300)
       word1=Shiftl((BITBOARD) (value+65536),43);
     else if (value > 0)
       word1=Shiftl((BITBOARD) (value+65536),43);
@@ -922,8 +922,8 @@ void LearnPosition(TREE *tree, int wtm, int last_value, int value) {
 |                                                          |
  ----------------------------------------------------------
 */
-  fprintf(position_lrn_file,"[Black \"%s\"]\n",pgn_white);
-  fprintf(position_lrn_file,"[White \"%s\"]\n",pgn_black);
+  fprintf(position_lrn_file,"[White \"%s\"]\n",pgn_white);
+  fprintf(position_lrn_file,"[Black \"%s\"]\n",pgn_black);
   secs=time(0);
   timestruct=localtime((time_t*) &secs);
   fprintf(position_lrn_file,"[Date \"%4d.%02d.%02d\"]\n",timestruct->tm_year+1900,

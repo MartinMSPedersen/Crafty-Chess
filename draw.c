@@ -26,7 +26,7 @@ int DrawScore(int crafty_is_white)
 |                                                          |
  ----------------------------------------------------------
 */
-  if (!computer_opponent) {
+  if (!draw_score_normal) {
     if (move_number <= 30) 
       draw_score=default_draw_score-66;
     else if (middle_game)
@@ -40,10 +40,6 @@ int DrawScore(int crafty_is_white)
 |   opponent's remaining time and set the draw score to a  |
 |   lower value if his time is low.                        |
 |                                                          |
-|   the first test:  if both have less than one minute on  |
-|   the clock, then if crafty has 2x the opponent's time   |
-|   the draw should be avoided if possible.                |
-|                                                          |
  ----------------------------------------------------------
 */
     if (tc_increment == 0) {
@@ -54,7 +50,6 @@ int DrawScore(int crafty_is_white)
     }
   }
 /*
-
  ----------------------------------------------------------
 |                                                          |
 |   if playing a computer, return the default draw score   |

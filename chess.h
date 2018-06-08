@@ -55,6 +55,9 @@
 
 #define TYPES_INCLUDED
 
+#define CDECL
+#define STDCALL
+
 #if defined(AIX)
 #  undef  HAS_64BITS           /* machine has 64-bit integers / operators     */
 #  define HAS_LONGLONG         /* machine has 32-bit/64-bit integers          */
@@ -126,6 +129,16 @@
 #  define HAS_LONGLONG         /* machine has 32-bit/64-bit integers          */
 #  define LITTLE_ENDIAN_ARCH   /* machine stores bytes in "PC" order          */
 #  undef  UNIX                 /* system is unix-based                        */
+#  undef  STDCALL
+#  define STDCALL __stdcall
+#  ifdef  VC_INLINE_ASM
+#    undef  CDECL
+#    define CDECL __cdecl
+#    define COMPACT_ATTACKS
+#    define USE_ATTACK_FUNCTIONS
+#    define USE_ASSEMBLY_A
+#    define USE_ASSEMBLY_B
+#  endif
 #endif
 #if defined(OS2)
 #  undef  HAS_64BITS           /* machine has 64-bit integers / operators     */
@@ -178,6 +191,10 @@
 #define MAX_BLOCKS            64
 #define MAX_TC_NODES      300000
 
+#if !defined(SMP)
+#  define lock_t int
+#endif
+
 #if defined(SMP)
 
 #if (defined(NT_i386) || defined(NT_AXP))
@@ -186,8 +203,8 @@
 #  define pthread_t       HANDLE
 #  define thread_t        HANDLE
 #  define tfork(t,f,p)    do {                                             \
-			    (pthread_t)_beginthreadex(0,0,(void *)(f),(void *)(p),0,0);  \
-			  } while (0)
+                            (pthread_t)_beginthreadex(0,0,(void *)(f),(void *)(p),0,0);  \
+                          } while (0)
 
 #if (defined (_M_ALPHA) && !defined(NT_INTEREX))
    
@@ -208,7 +225,7 @@
           "    stl_c v0,(a0);"
           "    beq v0,lp;"
           "    mb;",
-		  hPtr);
+                  hPtr);
    }
 
 #elif (defined (_M_IX86) && !defined(NT_INTEREX))
@@ -242,7 +259,8 @@ __inline void Lock (volatile int *hPtr)
 #  define lock_t           volatile int
 #  define LockInit(v)      ((v) = 0)
 #  define Lock(v)          do {                                         \
-                             while(InterlockedExchange((LPLONG)&(v),1) != 0);   \
+                             while(InterlockedExchange((LPLONG)&(v),1) != 0);  
+\
                            } while (0)
 #  define UnLock(v)        ((v) = 0)
 
@@ -307,12 +325,6 @@ __inline void Lock (volatile int *hPtr)
 #define INCREMENT_PLY            60  /* 1.00 */
 #define NULL_MOVE_DEPTH         120  /* 2.00 */
 #define RAZORING_DEPTH           60  /* 1.00 */
-#define IN_CHECK                 45  /* 0.75 */
-#define ONE_REPLY_TO_CHECK       45  /* 0.75 */
-#define RECAPTURE                45  /* 0.75 */
-#define PUSH_PASSED_PAWN         45  /* 0.75 */
-#define MATE_THREAT              45  /* 0.75 */
-#define SINGULAR                 45  /* 0.75 */
 
 #define MATE                  32768
 #define PAWN_VALUE              100
@@ -321,6 +333,7 @@ __inline void Lock (volatile int *hPtr)
 #define ROOK_VALUE              500
 #define QUEEN_VALUE             900
 #define KING_VALUE            40000
+#define EG_MAT                   14
   
 #if defined(HAS_64BITS)
   typedef unsigned long BITBOARD;
@@ -402,8 +415,12 @@ typedef  struct {
   signed char    black_king;
   signed char    board[64];
   signed char    white_pieces;
+  signed char    white_minors;
+  signed char    white_majors;
   signed char    white_pawns;
   signed char    black_pieces;
+  signed char    black_minors;
+  signed char    black_majors;
   signed char    black_pawns;
   signed char    total_pieces;
 } POSITION;
@@ -461,8 +478,8 @@ struct tree {
   PAWN_HASH_ENTRY pawn_score;
   NEXT_MOVE       next_status[MAXPLY];
   BITBOARD        save_hash_key[MAXPLY+2];
-  BITBOARD        replist_w[64];
-  BITBOARD        replist_b[64];
+  BITBOARD        replist_w[128];
+  BITBOARD        replist_b[128];
   BITBOARD        *rephead_w;
   BITBOARD        *rephead_b;
   BITBOARD        all_pawns;
@@ -473,6 +490,8 @@ struct tree {
   int             *last[MAXPLY];
   PATH            pv[MAXPLY];
   unsigned int    nodes_searched;
+  unsigned int    fail_high;
+  unsigned int    fail_high_first;
   unsigned int    evaluations;
   unsigned int    transposition_probes;
   unsigned int    transposition_hits;
@@ -496,13 +515,10 @@ struct tree {
   int             search_value;
   int             w_safety, b_safety;
   int             w_kingsq, b_kingsq;
-#if defined(SMP)
   lock_t          lock;
-#endif
   int             thread_id;
   volatile char   stop;
   volatile char   done;
-#if defined(SMP)
   struct tree     *volatile siblings[CPUS], *parent;
   volatile int    nprocs;
   int             alpha;
@@ -512,7 +528,6 @@ struct tree {
   int             depth;
   int             ply;
   int             threat;
-#endif
   int             used;
 };
   
@@ -527,6 +542,13 @@ typedef struct tree TREE;
 
 #  define MAX_ATTACKS_FROM_SQUARE 12
 
+  struct at {
+    unsigned char which_attack[8][64];
+    BITBOARD      file_attack_bitboards[8][MAX_ATTACKS_FROM_SQUARE];
+    unsigned char rank_attack_bitboards[8][MAX_ATTACKS_FROM_SQUARE];
+    unsigned char length8_mobility[8][MAX_ATTACKS_FROM_SQUARE];
+    unsigned char short_mobility[NSHORT_MOBILITY];
+  };
   typedef struct {
 /* Fields for the diagonal */
     BITBOARD *d_attacks;
@@ -550,9 +572,9 @@ typedef struct tree TREE;
 */
 
 #define WORTHLESS                 0
-#define LOWER_BOUND               1
-#define UPPER_BOUND               2
-#define EXACT_SCORE               3
+#define LOWER                     1
+#define UPPER                     2
+#define EXACT                     3
 #define AVOID_NULL_MOVE           4
 
 #define NULL_MOVE                 0
@@ -575,9 +597,9 @@ typedef struct tree TREE;
  
 #if !defined(CRAY1)
   BITBOARD     Mask(int);
-  int          PopCnt(BITBOARD);
-  int          FirstOne(BITBOARD);
-  int          LastOne(BITBOARD);
+  int CDECL    PopCnt(BITBOARD);
+  int CDECL    FirstOne(BITBOARD);
+  int CDECL    LastOne(BITBOARD);
 #endif
   
 void           Analyze();
@@ -585,7 +607,7 @@ void           Annotate();
 int            Attacked(TREE*, int, int);
 BITBOARD       AttacksFrom(TREE*, int, int);
 BITBOARD       AttacksTo(TREE*, int);
-void           Bench();
+void           Bench(void);
 int            Book(TREE*,int,int);
 int            BookMask(char*);
 void           BookUp(TREE*, char*, int, char**);
@@ -610,13 +632,16 @@ void           DisplayFT(int, int, int);
 char*          DisplayHHMM(unsigned int);
 void           DisplayPieceBoards(int*, int*);
 void           DisplayPV(TREE*, int, int, int, int, PATH*);
+char*          DisplaySQ(unsigned int);
 char*          DisplayTime(unsigned int);
 char*          DisplayTimeWhisper(unsigned int);
+void           DisplayTreeState(TREE*, int, int, int);
 void           Display2BitBoards(BITBOARD, BITBOARD);
 void           DisplayChessMove(char*, int);
 int            DrawScore(int);
 int            Drawn(TREE*, int);
 void           Edit(void);
+int            EGTBProbe(TREE*, int, int, int*);
 int            EnPrise(int, int);
 int            Evaluate(TREE*, int, int, int, int);
 int            EvaluateDevelopment(TREE*, int);
@@ -629,12 +654,16 @@ int            EvaluatePawns(TREE*);
 void           EVTest(char *);
 int            FindBlockID(TREE*);
 char*          FormatPV(TREE*,int,PATH);
+void           FTbSetCacheSize(void*,int);
 int*           GenerateCaptures(TREE*, int, int, int*);
 int*           GenerateCheckEvasions(TREE*, int, int, int*);
 int*           GenerateNonCaptures(TREE*, int, int, int*);
-unsigned int   ReadClock(TIME_TYPE);
+int            HashProbe(TREE*, int, int, int, int*, int*, int*);
+void           HashStore(TREE*, int, int, int, int, int, int);
+void           HashStorePV(TREE*, int,int);
 int            HasOpposition(int, int, int);
 void           History(TREE*, int, int, int, int);
+int            IInitializeTb(char*);
 void           Initialize(int);
 void           InitializeAttackBoards(void);
 void           InitializeChessBoard(SEARCH_POSITION*);
@@ -662,7 +691,6 @@ void           LearnPosition(TREE*, int, int, int);
 void           LearnPositionLoad(TREE*);
 void           LearnResult(TREE*, int);
 int            LegalMove(TREE*, int, int, int);
-int            LookUp(TREE*, int, int, int, int*, int*, int*);
 void           MakeMove(TREE*, int, int, int);
 void           MakeMoveRoot(TREE*, int, int);
 void           NewGame(int);
@@ -689,6 +717,7 @@ BITBOARD       Random64(void);
 int            Read(int, char*);
 int            ReadChessMove(TREE*, FILE*, int, int);
 void           ReadClear();
+unsigned int   ReadClock(TIME_TYPE);
 int            ReadPGN(FILE*,int);
 int            ReadNextMove(TREE*, char*, int, int);
 int            ReadParse(char*, char *args[], char*);
@@ -706,9 +735,6 @@ int            SearchSMP(TREE*, int, int, int, int, int, int, int);
 void           SearchTrace(TREE*, int, int, int, int, int, char*, int);
 void           SetBoard(int,char**,int);
 void           SetChessBitBoards(SEARCH_POSITION*);
-void           StoreBest(TREE*, int, int, int, int, int, int);
-void           StorePV(TREE*, int,int);
-void           StoreRefutation(TREE*, int, int, int, int, int);
 int            Swap(TREE*, int, int, int);
 BITBOARD       SwapXray(TREE*, BITBOARD, int, int);
 void           Test(char *);
@@ -724,7 +750,7 @@ int            ValidMove(TREE*, int, int, int);
 void           ValidatePosition(TREE*, int, int, char*);
 BITBOARD       ValidateComputeBishopAttacks(TREE*, int);
 BITBOARD       ValidateComputeRookAttacks(TREE*, int);
-void           Whisper(int, int, int, int, unsigned int, int, char*);
+void           Whisper(int, int, int, int, unsigned int, int, int, int, char*);
   
 #if defined(HAS_64BITS) || defined(HAS_LONGLONG)
 #  define And(a,b)    ((a) & (b))
@@ -736,7 +762,7 @@ void           Whisper(int, int, int, int, unsigned int, int, char*);
 #  if defined(CRAY1)
 #    define PopCnt(a)     _popcnt(a)
 #    define FirstOne(a)   _leadz(a)
-#    define LastOne(a)    _leadz((a)^(a-1))
+#    define LastOne(a)    _leadz(a&~((a)&(a-1)))
 #    define Mask(a)       _mask(a)
 #    define mask_1        _mask(1)
 #    define mask_2        _mask(2)
@@ -769,6 +795,9 @@ void           Whisper(int, int, int, int, unsigned int, int, char*);
 #define FileDistance(a,b) abs(((a)&7) - ((b)&7))
 #define RankDistance(a,b) abs(((a)>>3) - ((b)>>3))
 #define Distance(a,b) Max(FileDistance(a,b),RankDistance(a,b))
+#define KingSafety(s,p)      ((s)*(p-EG_MAT))
+#define InverseScaleByMaterial(s,m)    ((s)*(31-(m))/31)
+#define ScaleByMaterial(s,m)           ((s)*(m)/31)
 
 /*  
     the following macro is used to determine if one side is in check.  it
@@ -791,8 +820,8 @@ void           Whisper(int, int, int, int, unsigned int, int, char*);
     Or'ed together to produce the attack bitmaps for bishops, rooks and queens.
 */
 #if defined(COMPACT_ATTACKS) && defined(USE_ATTACK_FUNCTIONS)
-  extern BITBOARD AttacksRookFunc(int, POSITION *);
-  extern BITBOARD AttacksBishopFunc(DIAG_INFO *, POSITION *);
+  extern BITBOARD CDECL AttacksRookFunc(int, POSITION *);
+  extern BITBOARD CDECL AttacksBishopFunc(DIAG_INFO *, POSITION *);
 #  define AttacksRook(a) AttacksRookFunc(a,&tree->pos)
 #  define AttacksBishop(a) AttacksBishopFunc(&diag_info[a],&tree->pos)
 #else
@@ -868,10 +897,10 @@ void           Whisper(int, int, int, int, unsigned int, int, char*);
      (File(~(a))<<3)+1),0x3f)]],File(~(a)) )
 
 #  if defined(USE_ATTACK_FUNCTIONS)
-    extern BITBOARD AttacksRankFunc(int, POSITION *);
-    extern BITBOARD AttacksFileFunc(int, POSITION *);
-    extern BITBOARD AttacksDiaga1Func(DIAG_INFO *, POSITION *);
-    extern BITBOARD AttacksDiagh1Func(DIAG_INFO *, POSITION *);
+    extern BITBOARD CDECL AttacksRankFunc(int, POSITION *);
+    extern BITBOARD CDECL AttacksFileFunc(int, POSITION *);
+    extern BITBOARD CDECL AttacksDiaga1Func(DIAG_INFO *, POSITION *);
+    extern BITBOARD CDECL AttacksDiagh1Func(DIAG_INFO *, POSITION *);
 
 #    define AttacksRank(a) AttacksRankFunc(a,&tree->pos)
 #    define AttacksFile(a) AttacksFileFunc(a,&tree->pos)
@@ -887,7 +916,8 @@ void           Whisper(int, int, int, int, unsigned int, int, char*);
 #else
 
 #  define AttacksRank(a)                                               \
-      rook_attacks_r0[(a)][And(Shiftr(Or(tree->pos.w_occupied,tree->pos.b_occupied),\
+      rook_attacks_r0[(a)][And(Shiftr(Or(tree->pos.w_occupied,         \
+                                         tree->pos.b_occupied),        \
                                       56-((a)&56)),255)]
 #  define AttacksFile(a)                                               \
       rook_attacks_rl90[(a)][And(Shiftr(tree->pos.occupied_rl90,       \
@@ -923,22 +953,22 @@ void           Whisper(int, int, int, int, unsigned int, int, char*);
      And (SplitShiftr ((boardp)->occupied_rr45,                             \
      (diagp)->d_shift),(diagp)->d_mask)]]
 
-#  define MobilityRankInt(a,boardp)                                             \
+#  define MobilityRankInt(a,boardp)                                         \
      at.length8_mobility[File(a)][                                          \
      at.which_attack[File(a)][                                              \
      And(SplitShiftr(Or((boardp)->w_occupied,                               \
      (boardp)->b_occupied),(Rank(~(a))<<3)+1),0x3f)]]
 
-#  define MobilityFileInt(a,boardp)                                             \
+#  define MobilityFileInt(a,boardp)                                         \
      at.length8_mobility[Rank(a)][                                          \
      at.which_attack[Rank(a)] [                                             \
      And(SplitShiftr((boardp)->occupied_rl90,(File(~(a))<<3)+1),0x3f)]]
 
 #  if defined(USE_ATTACK_FUNCTIONS)
-    extern unsigned MobilityRankFunc(int, POSITION *);
-    extern unsigned MobilityFileFunc(int, POSITION *);
-    extern unsigned MobilityDiaga1Func(DIAG_INFO *, POSITION *);
-    extern unsigned MobilityDiagh1Func(DIAG_INFO *, POSITION *);
+    extern unsigned CDECL MobilityRankFunc(int, POSITION *);
+    extern unsigned CDECL MobilityFileFunc(int, POSITION *);
+    extern unsigned CDECL MobilityDiaga1Func(DIAG_INFO *, POSITION *);
+    extern unsigned CDECL MobilityDiagh1Func(DIAG_INFO *, POSITION *);
 
 #    define MobilityRank(a) MobilityRankFunc(a,&tree->pos)
 #    define MobilityFile(a) MobilityFileFunc(a,&tree->pos)
@@ -980,7 +1010,13 @@ void           Whisper(int, int, int, int, unsigned int, int, char*);
 #define Promote(a)          (((a)>>18)&7)
 #define CaptureOrPromote(a) (((a)>>15)&63)
 #define SetMask(a)          (set_mask[a])
+#define SetMaskRL90(a)      (set_mask_rl90[a])
+#define SetMaskRL45(a)      (set_mask_rl45[a])
+#define SetMaskRR45(a)      (set_mask_rr45[a])
 #define ClearMask(a)        (clear_mask[a])
+#define ClearMaskRL90(a)    (clear_mask_rl90[a])
+#define ClearMaskRL45(a)    (clear_mask_rl45[a])
+#define ClearMaskRR45(a)    (clear_mask_rr45[a])
 
 /*  
     the following macros are used to extract the correct bits for the piece
@@ -992,26 +1028,30 @@ void           Whisper(int, int, int, int, unsigned int, int, char*);
 #define BlackBishops          (tree->pos.b_bishop)
 #define BlackRooks            (tree->pos.b_rook)
 #define BlackQueens           (tree->pos.b_queen)
-#define BlackKing             (set_mask[tree->pos.black_king])
+#define BlackKing             (SetMask(tree->pos.black_king))
 #define BlackKingSQ           (tree->pos.black_king)
 #define BlackCastle(ply)      (tree->position[ply].b_castle)
 #define TotalBlackPawns       (tree->pos.black_pawns)
 #define TotalBlackPieces      (tree->pos.black_pieces)
 #define TotalBlackMaterial    (tree->pos.black_pieces+tree->black_pawns)
 #define BlackPieces           (tree->pos.b_occupied)
+#define BlackMinors           (tree->pos.black_minors)
+#define BlackMajors           (tree->pos.black_majors)
 
 #define WhitePawns            (tree->pos.w_pawn)
 #define WhiteKnights          (tree->pos.w_knight)
 #define WhiteBishops          (tree->pos.w_bishop)
 #define WhiteRooks            (tree->pos.w_rook)
 #define WhiteQueens           (tree->pos.w_queen)
-#define WhiteKing             (set_mask[tree->pos.white_king])
+#define WhiteKing             (SetMask(tree->pos.white_king))
 #define WhiteKingSQ           (tree->pos.white_king)
 #define WhiteCastle(ply)      (tree->position[ply].w_castle)
 #define TotalWhitePawns       (tree->pos.white_pawns)
 #define TotalWhitePieces      (tree->pos.white_pieces)
 #define TotalWhiteMaterial    (tree->pos.white_pieces+tree->white_pawns)
 #define WhitePieces           (tree->pos.w_occupied)
+#define WhiteMinors           (tree->pos.white_minors)
+#define WhiteMajors           (tree->pos.white_majors)
 
 #define TotalPieces           (tree->pos.total_pieces)
 
@@ -1020,7 +1060,7 @@ void           Whisper(int, int, int, int, unsigned int, int, char*);
 #define HashKey               (tree->pos.hash_key)
 #define PawnHashKey           (tree->pos.pawn_hash_key)
 #define EnPassant(ply)        (tree->position[ply].enpassant_target)
-#define EnPassantTarget(ply)  (EnPassant(ply) ? set_mask[EnPassant(ply)] : 0)
+#define EnPassantTarget(ply)  (EnPassant(ply) ? SetMask(EnPassant(ply)) : 0)
 #define PieceOnSquare(sq)     (tree->pos.board[sq])
 #define BishopsQueens         (tree->pos.bishops_queens)
 #define RooksQueens           (tree->pos.rooks_queens)
@@ -1038,14 +1078,14 @@ void           Whisper(int, int, int, int, unsigned int, int, char*);
     than to make it faster.
 */
 #define ClearSet(a,b)       b=Xor(a,b)
-#define Clear(a,b)          b=And(clear_mask[a],b)
-#define ClearRL90(a,b)      b=And(clear_mask_rl90[a],b)
-#define ClearRL45(a,b)      b=And(clear_mask_rl45[a],b)
-#define ClearRR45(a,b)      b=And(clear_mask_rr45[a],b)
-#define Set(a,b)            b=Or(set_mask[a],b)
-#define SetRL90(a,b)        b=Or(set_mask_rl90[a],b)
-#define SetRL45(a,b)        b=Or(set_mask_rl45[a],b)
-#define SetRR45(a,b)        b=Or(set_mask_rr45[a],b)
+#define Clear(a,b)          b=And(ClearMask(a),b)
+#define ClearRL90(a,b)      b=And(ClearMaskRL90(a),b)
+#define ClearRL45(a,b)      b=And(ClearMaskRL45(a),b)
+#define ClearRR45(a,b)      b=And(ClearMaskRR45(a),b)
+#define Set(a,b)            b=Or(SetMask(a),b)
+#define SetRL90(a,b)        b=Or(SetMaskRL90(a),b)
+#define SetRL45(a,b)        b=Or(SetMaskRL45(a),b)
+#define SetRR45(a,b)        b=Or(SetMaskRR45(a),b)
 
 #define HashPB32(a,b)       b=b_pawn_random32[a]^(b)
 #define HashPW32(a,b)       b=w_pawn_random32[a]^(b)
@@ -1075,5 +1115,25 @@ void           Whisper(int, int, int, int, unsigned int, int, char*);
           tree->pv[ply-1].path_hashed=ph;                                   \
           tree->pv[ply-1].path_iteration_depth=iteration_depth;             \
           SearchOutput(tree,value,beta);} while(0)
+
+/*
+  Service macro - initialize squares of the particular piece as well as
+  counter for that piece. Note: dual initialization saves some time when
+  TB is present, but waste for non-present TB. If we often will call
+  probing function for an absent TB, maybe we shall split that code.
+*/
+
+#define  VInitSqCtr(rgCtr, rgSquares, piece, bitboard) {\
+  int  cPieces = 0;\
+  BITBOARD bbTemp = (bitboard);\
+  while (bbTemp) {\
+    square sq = FirstOne (bbTemp);\
+    (rgSquares)[(piece)*C_PIECES+cPieces] = sq;\
+    cPieces ++;\
+    Clear (sq, bbTemp);\
+  }\
+  (rgCtr)[(piece)] = cPieces;\
+}
+
 
 #endif /* if defined(TYPES_INCLUDED) */

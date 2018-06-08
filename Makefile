@@ -80,7 +80,7 @@
 # FreeBSD (pgcc)
 #target  = FreeBSD
 #CC      = gcc
-#CFLAGS  = -pipe -D_REENTRANT -mpentiumpro -O -Wall
+#CFLAGS  = -pipe -D_REENTRANT -mpentium -O -Wall
 #LDFLAGS = 
 #opt     = -DCOMPACT_ATTACKS -DUSE_SPLIT_SHIFTS -DUSE_ATTACK_FUNCTIONS \
 #          -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST
@@ -97,7 +97,7 @@
 # Note: You have to uncomment exactly ONE of the `asm' lines below.
 target  = LINUX
 CC      = gcc
-CFLAGS  = -pipe -D_REENTRANT -mpentiumpro -O -Wall
+CFLAGS  = -pipe -D_REENTRANT -m486 -O -Wall
 LDFLAGS = -lpthread
 opt     = -DCOMPACT_ATTACKS -DUSE_SPLIT_SHIFTS -DUSE_ATTACK_FUNCTIONS \
           -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST -DSMP -DCPUS=4
@@ -151,11 +151,11 @@ opts = $(opt) -D$(target)
 
 objects = searchr.o search.o thread.o searchmp.o repeat.o next.o nexte.o      \
         nextr.o history.o quiesce.o evaluate.o movgen.o make.o unmake.o       \
-        lookup.o store.o attacks.o swap.o boolean.o draw.o utility.o valid.o  \
-        book.o data.o drawn.o edit.o enprise.o epd.o epdglue.o init.o input.o \
+        hash.o attacks.o swap.o boolean.o draw.o utility.o valid.o book.o     \
+        data.o drawn.o edit.o enprise.o epd.o epdglue.o init.o input.o        \
         interupt.o iterate.o main.o option.o output.o phase.o ponder.o        \
         preeval.o resign.o root.o learn.o setboard.o test.o time.o validate.o \
-        annotate.o analyze.o evtest.o bench.o $(asm)
+        annotate.o analyze.o evtest.o bench.o egtb.o probe.o $(asm)
 
 includes = data.h chess.h
 
@@ -169,6 +169,8 @@ crafty:	$(objects)
 	@rm -f X86-elf.S
 	@rm -f X86-aout.S
 
+egtb.o: egtb.cpp
+	cc -c -O egtb.cpp
 clean:
 	-rm -f *.o crafty X86-elf.X X86-aout.S
 

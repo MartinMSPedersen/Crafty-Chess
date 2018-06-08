@@ -36,9 +36,9 @@ void ValidatePosition(TREE *tree, int ply, int move, char *caller)
   temp_occ_rr45=0;
   for (i=0;i<64;i++) {
     if (PieceOnSquare(i)) {
-      temp_occ_rl90=Or(temp_occ_rl90,set_mask_rl90[i]);
-      temp_occ_rl45=Or(temp_occ_rl45,set_mask_rl45[i]);
-      temp_occ_rr45=Or(temp_occ_rr45,set_mask_rr45[i]);
+      temp_occ_rl90=Or(temp_occ_rl90,SetMaskRL90(i));
+      temp_occ_rl45=Or(temp_occ_rl45,SetMaskRL45(i));
+      temp_occ_rr45=Or(temp_occ_rr45,SetMaskRR45(i));
     }
   }
   if(Xor(OccupiedRL90,temp_occ_rl90)) {
@@ -116,6 +116,20 @@ void ValidatePosition(TREE *tree, int ply, int move, char *caller)
            temp_score,TotalWhitePieces);
     error=1;
   }
+  temp_score=PopCnt(WhiteKnights);
+  temp_score+=PopCnt(WhiteBishops);
+  if(temp_score != WhiteMinors) {
+    Print(128,"ERROR  white_minors is wrong, good=%d, bad=%d\n",
+           temp_score,WhiteMinors);
+    error=1;
+  }
+  temp_score=PopCnt(WhiteRooks);
+  temp_score+=PopCnt(WhiteQueens)*2;
+  if(temp_score != WhiteMajors) {
+    Print(128,"ERROR  white_majors is wrong, good=%d, bad=%d\n",
+           temp_score,WhiteMajors);
+    error=1;
+  }
   temp_score=PopCnt(WhitePawns);
   if(temp_score != TotalWhitePawns) {
     Print(128,"ERROR  white_pawns is wrong, good=%d, bad=%d\n",
@@ -129,6 +143,20 @@ void ValidatePosition(TREE *tree, int ply, int move, char *caller)
   if(temp_score != TotalBlackPieces) {
     Print(128,"ERROR  black_pieces is wrong, good=%d, bad=%d\n",
            temp_score,TotalBlackPieces);
+    error=1;
+  }
+  temp_score=PopCnt(BlackKnights);
+  temp_score+=PopCnt(BlackBishops);
+  if(temp_score != BlackMinors) {
+    Print(128,"ERROR  black_minors is wrong, good=%d, bad=%d\n",
+           temp_score,BlackMinors);
+    error=1;
+  }
+  temp_score=PopCnt(BlackRooks);
+  temp_score+=PopCnt(BlackQueens)*2;
+  if(temp_score != BlackMajors) {
+    Print(128,"ERROR  black_majors is wrong, good=%d, bad=%d\n",
+           temp_score,BlackMajors);
     error=1;
   }
   temp_score=PopCnt(BlackPawns);
@@ -336,73 +364,73 @@ void ValidatePosition(TREE *tree, int ply, int move, char *caller)
   for (i=0;i<64;i++)
   switch (PieceOnSquare(i)) {
     case -king:
-      if (!And(BlackKing,set_mask[i])) {
+      if (!And(BlackKing,SetMask(i))) {
         Print(128,"ERROR!  b_king/board[%d] don't agree!\n",i);
         error=1;
       }
       break;
     case -queen:
-      if (!And(BlackQueens,set_mask[i])) {
+      if (!And(BlackQueens,SetMask(i))) {
         Print(128,"ERROR!  b_queen/board[%d] don't agree!\n",i);
         error=1;
       }
       break;
     case -rook:
-      if (!And(BlackRooks,set_mask[i])) {
+      if (!And(BlackRooks,SetMask(i))) {
         Print(128,"ERROR!  b_rook/board[%d] don't agree!\n",i);
         error=1;
       }
       break;
     case -bishop:
-      if (!And(BlackBishops,set_mask[i])) {
+      if (!And(BlackBishops,SetMask(i))) {
         Print(128,"ERROR!  b_bishop/board[%d] don't agree!\n",i);
         error=1;
       }
       break;
     case -knight:
-      if (!And(BlackKnights,set_mask[i])) {
+      if (!And(BlackKnights,SetMask(i))) {
         Print(128,"ERROR!  b_knight/board[%d] don't agree!\n",i);
         error=1;
       }
       break;
     case -pawn:
-      if (!And(BlackPawns,set_mask[i])) {
+      if (!And(BlackPawns,SetMask(i))) {
         Print(128,"ERROR!  b_pawn/board[%d] don't agree!\n",i);
         error=1;
       }
       break;
     case king:
-      if (!And(WhiteKing,set_mask[i])) {
+      if (!And(WhiteKing,SetMask(i))) {
         Print(128,"ERROR!  w_king/board[%d] don't agree!\n",i);
         error=1;
       }
       break;
     case queen:
-      if (!And(WhiteQueens,set_mask[i])) {
+      if (!And(WhiteQueens,SetMask(i))) {
         Print(128,"ERROR!  w_queen/board[%d] don't agree!\n",i);
         error=1;
       }
       break;
     case rook:
-      if (!And(WhiteRooks,set_mask[i])) {
+      if (!And(WhiteRooks,SetMask(i))) {
         Print(128,"ERROR!  w_rook/board[%d] don't agree!\n",i);
         error=1;
       }
       break;
     case bishop:
-      if (!And(WhiteBishops,set_mask[i])) {
+      if (!And(WhiteBishops,SetMask(i))) {
         Print(128,"ERROR!  w_bishop/board[%d] don't agree!\n",i);
         error=1;
       }
       break;
     case knight:
-      if (!And(WhiteKnights,set_mask[i])) {
+      if (!And(WhiteKnights,SetMask(i))) {
         Print(128,"ERROR!  w_knight/board[%d] don't agree!\n",i);
         error=1;
       }
       break;
     case pawn:
-      if (!And(WhitePawns,set_mask[i])) {
+      if (!And(WhitePawns,SetMask(i))) {
         Print(128,"ERROR!  w_pawn/board[%d] don't agree!\n",i);
         error=1;
       }
