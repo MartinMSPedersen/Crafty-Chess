@@ -3572,6 +3572,9 @@
  *           a few even removed as cluster testing helped us find optimal      *
  *           values.  There are a few new terms, with more planned.            *
  *                                                                             *
+ *   22.3    corrected a bug in analysis mode where "back n" would crash.  A   *
+ *           bad array reference broke this during recent changes.             *
+ *                                                                             *
  *******************************************************************************
  */
 int main(int argc, char **argv)

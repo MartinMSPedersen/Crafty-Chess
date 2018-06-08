@@ -112,7 +112,7 @@ int OOOsqs[2][3] = { {E8, D8, C8}, {E1, D1, C1} };
 int OOfrom[2] = { E8, E1 };
 int OOto[2] = { G8, G1 };
 int OOOto[2] = { C8, C1 };
-#define    VERSION                             "22.2"
+#define    VERSION                             "22.3"
 char version[8] = { VERSION };
 PLAYING_MODE mode = normal_mode;
 int batch_mode = 0;             /* no asynch reads */
@@ -899,8 +899,8 @@ int mobility_score_q[4] = {1, 2, 3, 4};
 int undeveloped_piece = 12;
 int friendly_queen[8] = {2, 2, 2, 1, 0, 0, -1, -1};
 int pawn_duo[2] = {4, 8};
-int pawn_isolated[2] = {16,24};
-int pawn_weak[2] = {16,24};
+int pawn_isolated[2] = {12, 18};
+int pawn_weak[2] = {16, 24};
 int pawn_islands[2][5] = { 0, 0, 0, 10, 20,
                            0, 0, 0, 20, 30 };
 int split_passed[2] = {0, 50};

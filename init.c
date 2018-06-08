@@ -486,25 +486,6 @@ void InitializeChessBoard(TREE * tree)
   int i;
 
   if (strlen(initial_position)) {
-    static char a1[80], a2[16], a3[16], a4[16], a5[16];
-    static char *args[256] =
-        { a1, a2, a3, a4, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5,
-      a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5,
-      a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5,
-      a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5,
-      a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5,
-      a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5,
-      a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5,
-      a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5,
-      a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5,
-      a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5,
-      a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5,
-      a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5,
-      a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5,
-      a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5,
-      a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5,
-      a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5
-    };
     int nargs;
 
     nargs = ReadParse(initial_position, args, " ;");

@@ -496,7 +496,7 @@ int Option(TREE * RESTRICT tree)
           Print(128, "display statistics at end of each search.\n");
         } else if (OptionMatch("nostats", args[1])) {
           display_options &= 4095 - 8;
-          Print(128, "don't.display statistics at end of each search.\n");
+          Print(128, "don't display statistics at end of each search.\n");
         } else if (OptionMatch("extstats", args[1])) {
           display_options |= 16;
           Print(128, "display extended statistics at end of each search.\n");
