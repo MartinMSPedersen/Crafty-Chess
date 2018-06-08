@@ -213,7 +213,7 @@
 #endif
 #include "lock.h"
 
-#define      BOOK_CLUSTER_SIZE            600
+#define      BOOK_CLUSTER_SIZE           2000
 #define            MERGE_BLOCK           1000
 #define             SORT_BLOCK        4000000
 #define         LEARN_INTERVAL             10
@@ -1020,26 +1020,26 @@ void           Whisper(int, int, int, int, int, unsigned int, int, int, char*);
 #    define MobilityDiaga1(a) MobilityDiaga1Func(&diag_info[a],&tree->pos)
 #    define MobilityDiagh1(a) MobilityDiagh1Func(&diag_info[a],&tree->pos)
 #  else
-#    define MobilityRank(a) MobilityRankInt(a,&tree->pos)
-#    define MobilityFile(a) MobilityFileInt(a,&tree->pos)
-#    define MobilityDiaga1(a) MobilityDiaga1Int(&diag_info[a],&tree->pos)
-#    define MobilityDiagh1(a) MobilityDiagh1Int(&diag_info[a],&tree->pos)
+#    define MobilityRank(a) (MobilityRankInt(a,&tree->pos))
+#    define MobilityFile(a) (MobilityFileInt(a,&tree->pos))
+#    define MobilityDiaga1(a) (MobilityDiaga1Int(&diag_info[a],&tree->pos))
+#    define MobilityDiagh1(a) (MobilityDiagh1Int(&diag_info[a],&tree->pos))
 #  endif
 
 #else
 
 #  define MobilityRank(a)                                                   \
-     rook_mobility_r0[(a)][tree->pos.w_occupied|tree->pos.b_occupied)>>     \
-                           (56-((a)&56))&255]
+     (rook_mobility_r0[(a)][(tree->pos.w_occupied|tree->pos.b_occupied)>>   \
+                            (56-((a)&56))&255])
 #  define MobilityFile(a)                                                   \
-     rook_mobility_rl90[(a)][tree->pos.occupied_rl90>>                      \
-                             (56-(((a)&7)<<3))&255]
+     (rook_mobility_rl90[(a)][tree->pos.occupied_rl90>>                     \
+                             (56-(((a)&7)<<3))&255])
 #  define MobilityDiaga1(a)                                                 \
-     bishop_mobility_rl45[(a)][tree->pos.occupied_rl45>>                    \
-                               bishop_shift_rl45[(a)]&255]
+     (bishop_mobility_rl45[(a)][tree->pos.occupied_rl45>>                   \
+                               bishop_shift_rl45[(a)]&255])
 #  define MobilityDiagh1(a)                                                 \
-     bishop_mobility_rr45[(a)][tree->pos.occupied_rr45>>                    \
-                               bishop_shift_rr45[(a)]&255]
+     (bishop_mobility_rr45[(a)][tree->pos.occupied_rr45>>                   \
+                               bishop_shift_rr45[(a)]&255])
 #endif
 
 /*  

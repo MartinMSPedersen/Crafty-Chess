@@ -213,7 +213,7 @@ linux-i686-elf:
 		LDFLAGS='$(LDFLAGS) -lpthread' \
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
 		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST \
-		     -DSMP -DCPUS=4 -DDGT' \
+		     -DRECAPTURE -DSMP -DCPUS=4 -DDGT' \
 		asm=X86-elf.o \
 		crafty-make
 

@@ -4,7 +4,7 @@
 #include "evaluate.h"
 #include "data.h"
 
-/* last modified 02/26/01 */
+/* last modified 03/14/01 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -62,8 +62,8 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
 #ifdef DEBUGEV
     printf("score[mater]=                     %4d (%+d)\n",score,score-lastsc);
 #endif
-    if (score>0 && drawn_ending==-1) return(DrawScore(wtm));
-    if (score<0 && drawn_ending==-2) return(DrawScore(wtm));
+    if (score>DrawScore(1) && drawn_ending==-1) return(DrawScore(wtm));
+    if (score<DrawScore(1) && drawn_ending==-2) return(DrawScore(wtm));
     return((wtm) ? score : -score);
   } while(0);
 #if !defined(FAST)
@@ -95,23 +95,14 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
 */
   if (tree->pawn_score.passed_b || tree->pawn_score.passed_w) {
     int pscore=EvaluatePassedPawns(tree);
-    int wmult=0, bmult=0;
-    if (tree->pawn_score.outside&12) {
-      wmult=outside_passed[(int) TotalBlackPieces];
-      if (!BlackQueens && !BlackRooks && !BlackBishops) wmult*=2;
-    }
-    if (tree->pawn_score.outside&192) {
-      bmult=outside_passed[(int) TotalWhitePieces];
-      if (!WhiteQueens && !WhiteRooks && !WhiteBishops) bmult*=2;
-    }
     if (tree->pawn_score.outside&8)
-      pscore+=2*wmult;
+      pscore+=2*outside_passed[(int) TotalBlackPieces];
     else if (tree->pawn_score.outside&4)
-      pscore+=wmult;
+      pscore+=outside_passed[(int) TotalBlackPieces];
     if (tree->pawn_score.outside&128)
-      pscore-=2*bmult;
+      pscore-=2*outside_passed[(int) TotalWhitePieces];
     else if (tree->pawn_score.outside&64)
-      pscore-=bmult;
+      pscore-=outside_passed[(int) TotalWhitePieces];
     if ((TotalWhitePieces==0 && tree->pawn_score.passed_b) ||
         (TotalBlackPieces==0 && tree->pawn_score.passed_w))
       pscore+=EvaluatePassedPawnRaces(tree,wtm);
@@ -1099,8 +1090,8 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
     }
   }
   if (drawn_ending < 0) {
-    if (drawn_ending == -1 && score > 0) score=DrawScore(1);
-    else if (drawn_ending == -2 && score < 0) score=DrawScore(1);
+    if (drawn_ending==-1 && score>DrawScore(1)) score=DrawScore(1);
+    else if (drawn_ending==-2 && score<DrawScore(1)) score=DrawScore(1);
   }
 #ifdef DEBUGEV
   if (score != lastsc)

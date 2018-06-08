@@ -52,7 +52,7 @@
 #  define                    KING_KING_TROPISM          (15)
   
 #  define                       BISHOP_TRAPPED         (175)
-#  define           BISHOP_PLUS_PAWNS_ON_COLOR           (2)
+#  define           BISHOP_PLUS_PAWNS_ON_COLOR           (5)
 #  define           BISHOP_OVER_KNIGHT_ENDGAME          (30)
 #  define                      BISHOP_MOBILITY           (1)
 #  define                          BISHOP_PAIR          (30)

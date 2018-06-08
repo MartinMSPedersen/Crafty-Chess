@@ -788,7 +788,7 @@ int BookPonderMove(TREE *tree, int wtm) {
   return(book_ponder_move);
 }
 
-/* last modified 07/04/00 */
+/* last modified 03/19/01 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -989,7 +989,7 @@ void BookUp(TREE *tree, char *output_filename, int nargs, char **args) {
  ----------------------------------------------------------
 */
   start=!strstr(output_filename,"book.bin");
-  printf("parsing pgn move file (10000 moves/dot)\n");
+  printf("parsing pgn move file (100k moves/dot)\n");
   start_cpu_time=ReadClock(cpu);
   start_elapsed_time=ReadClock(elapsed);
   if (book_file) {
@@ -1060,10 +1060,10 @@ void BookUp(TREE *tree, char *output_filename, int nargs, char **args) {
               else {
                 discarded++;
               }
-              if (!(total_moves % 10000)) {
+              if (!(total_moves % 100000)) {
                 printf(schar);
                 strcpy(schar,".");
-                if (!(total_moves % 600000)) printf(" (%d)\n",total_moves);
+                if (!(total_moves % 6000000)) printf(" (%dk)\n",total_moves/1000);
                 fflush(stdout);
               }
               wtm=ChangeSide(wtm);
@@ -1104,7 +1104,7 @@ void BookUp(TREE *tree, char *output_filename, int nargs, char **args) {
 |                                                          |
  ----------------------------------------------------------
 */
-    printf("merging sorted files (%d) (10K/dot)\n",files);
+    printf("merging sorted files (%d) (100k/dot)\n",files);
     counter=0;
     index=(int *) malloc(32768*sizeof(int));
     if (!index) {
@@ -1142,9 +1142,9 @@ void BookUp(TREE *tree, char *output_filename, int nargs, char **args) {
       next.learn=0.0;
       next.CAP_score=-MATE*2;
       counter++;
-      if (counter%10000 == 0) {
+      if (counter%100000 == 0) {
         printf(".");
-        if (counter%600000 == 0) printf(" (%d)\n",counter);
+        if (counter%6000000 == 0) printf(" (%dk)\n",counter/1000);
         fflush(stdout);
       }
       if (current.position == next.position) {

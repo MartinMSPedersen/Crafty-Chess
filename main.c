@@ -2777,6 +2777,10 @@
 *           cause missed outside pawn cases to happen.  this has been there   *
 *           a long time.                                                      *
 *                                                                             *
+*   18.7    BOOK_CLUSTER_SIZE increased to 2000 to handle making really large *
+*           books.  a book made without this change could produce clusters    *
+*           that would cause memory overwrites.                               *
+*                                                                             *
 *******************************************************************************
 */
 int main(int argc, char **argv) {
