@@ -1,7 +1,7 @@
 #if !defined(EVALUATE_INCLUDED)
 #  define    EVALUATE_INCLUDED
  
-#  define                            BAD_TRADE         (160)
+#  define                            BAD_TRADE         (120)
 #  define                          EIGHT_PAWNS          (12)
 #  define                        PAWNS_BLOCKED          (12)
 #  define                  CENTER_PAWN_UNMOVED          (16)

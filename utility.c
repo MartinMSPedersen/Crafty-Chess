@@ -528,7 +528,7 @@ void Display2BitBoards(BITBOARD board1, BITBOARD board2) {
   }
 }
 
-/* last modified 09/21/99 */
+/* last modified 11/20/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -606,7 +606,7 @@ void EGTBPV(TREE *tree, int wtm) {
       MakeMove(tree,1,bestmv,wtm);
       tree->position[1]=tree->position[2];
       wtm=ChangeSide(wtm);
-      for (j=1;j<ply;j++) 
+      for (j=2-(ply&1);j<ply;j+=2)
         if (pos[ply] == pos[j]) break;
       if (j < ply) break;
       if (wtm) t_move_number++;
@@ -2061,14 +2061,14 @@ void Whisper(int level,int depth,int time,int value,unsigned int nodes,
     case 2:
       if (kibitz >= 2) {
         if (ics) printf("*");
-        printf("kibitz ply=%d; eval=%s; nps=%dK; time=%s; cpu=%d%%; egtb=%d\n",
+        printf("kibitz ply=%d; eval=%s; nps=%dk; time=%s; cpu=%d%%; egtb=%d\n",
                depth,DisplayEvaluationWhisper(value),
                (int) ((time)?100*(BITBOARD)nodes/(BITBOARD)time:nodes)/1000,
                DisplayTimeWhisper(time),cpu,tb_hits);
       }
       else if (whisper >= 2) {
         if (ics) printf("*");
-        printf("%s ply=%d; eval=%s; nps=%dK; time=%s; cpu=%d%%; egtb=%d\n",
+        printf("%s ply=%d; eval=%s; nps=%dk; time=%s; cpu=%d%%; egtb=%d\n",
                prefix,depth,DisplayEvaluationWhisper(value),
                (int) ((time)?100*(BITBOARD)nodes/(BITBOARD)time:nodes)/1000,
                DisplayTimeWhisper(time),cpu,tb_hits);

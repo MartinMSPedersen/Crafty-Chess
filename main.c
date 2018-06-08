@@ -2584,6 +2584,9 @@
 *           serious eval bug that could produce gross scores when one side    *
 *           had two queens was fixed.                                         *
 *                                                                             *
+*   17.2    isolated pawn scoring tweaked a bit, plus a couple of bugs in the *
+*           way EvaluateDevelopment() was called were fixed.                  *
+*                                                                             *
 *******************************************************************************
 */
 int main(int argc, char **argv) {

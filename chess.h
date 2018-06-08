@@ -349,7 +349,7 @@ typedef struct {
 } ROOT_MOVE;
 
 #if (defined(NT_i386) || defined(NT_AXP))
-#pragma pack(1)
+#pragma pack(4)
 #endif
 typedef struct {
   BITBOARD position;

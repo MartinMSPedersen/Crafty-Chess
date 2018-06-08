@@ -244,7 +244,7 @@
   unsigned int   max_split_blocks;
   volatile unsigned int   splitting;
 
-# define    VERSION                            "17.1"
+# define    VERSION                            "17.2"
   char      version[6] =                    {VERSION};
   PLAYING_MODE mode =                     normal_mode;
 
@@ -290,16 +290,14 @@
                                       {"nudnick"},
                                       {"sabalero"}};
 
-  int       number_auto_kibitzers =                 8;
+  int       number_auto_kibitzers =                 6;
 
   char      auto_kibitz_list[64][20] = {
                                       {"diepx"},
                                       {"ferret"},
                                       {"hossa"},
-                                      {"judgeturpin"},
+                                      {"lambchop"},
                                       {"moron"},
-                                      {"rajah"},
-                                      {"tcb"},
                                       {"zarkovx"}};
   
 
@@ -381,7 +379,7 @@
   int       singular_depth =                       45;
   int       largest_positional_score =            100;
   int       search_depth =                          0;
-  int       search_nodes =                          0;
+  unsigned int search_nodes =                       0;
   int       search_move =                           0;
   TIME_TYPE time_type =                       elapsed;
   int       nodes_between_time_checks =         10000;
@@ -504,8 +502,8 @@
                                      PAWN_PASSED*8,PAWN_PASSED*13,
                                      0};
 
-  const char isolated_pawn_value[9] = {0,  8, 12, 24, 36, 50, 60, 80, 100};
-  const char isolated_pawn_of_value[9] = {0, 10, 20, 30, 40, 45, 50, 60, 65};
+  const char isolated_pawn_value[9] = {0, 10, 17, 36, 48, 56, 68, 84, 100};
+  const char isolated_pawn_of_value[9] = {0, 10, 20, 25, 30, 35, 40, 45, 50};
 
   const char doubled_pawn_value[7] ={ 0,
                                       0, PAWN_DOUBLED,

@@ -25,7 +25,7 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
   register int square, file, score, tscore, w_tropism=0, b_tropism=0;
   register int w_spread, b_spread, trop, drawn_ending=0;
 #if defined(DEBUGEV)
-  int lastsc=Material;
+  int lastsc;
 #endif
 /*
 **********************************************************************
@@ -43,6 +43,7 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
   score=EvaluateMaterial(tree);
 #ifdef DEBUGEV
   printf("score[material]=                  %4d\n",score);
+  lastsc=score;
 #endif
 /*
 **********************************************************************
@@ -155,8 +156,8 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
 *                                                                    *
 **********************************************************************
 */
-  if (WhiteCastle(ply)) score+=EvaluateDevelopmentW(tree,ply);
-  if (BlackCastle(ply)) score+=EvaluateDevelopmentB(tree,ply);
+  if (WhiteCastle(1)) score+=EvaluateDevelopmentW(tree,ply);
+  if (BlackCastle(1)) score+=EvaluateDevelopmentB(tree,ply);
 #ifdef DEBUGEV
   if (score != lastsc)
     printf("score[development]=               %4d (%+d)\n",score,score-lastsc);
@@ -557,18 +558,18 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
       }
       if (tree->all_pawns&mask_fgh && tree->all_pawns&mask_abc &&
           TotalWhitePieces==3 && TotalBlackPieces==2) 
-          score+=BISHOP_OVER_KNIGHT_ENDGAME;
+        score+=BISHOP_OVER_KNIGHT_ENDGAME;
     }
     if (!tree->endgame) {
       if (File(tree->w_kingsq) > FILEE) {
         if (!(WhitePawns&SetMask(G2)) && (WhitePawns&SetMask(G3)) &&
             Distance(tree->w_kingsq,G2)==1 && WhiteBishops&good_bishop_kw)
-              score+=BISHOP_KING_SAFETY;
+          score+=BISHOP_KING_SAFETY;
       }
       else if (File(tree->w_kingsq) < FILED) {
         if (!(WhitePawns&SetMask(B2)) && (WhitePawns&SetMask(B3)) &&
             Distance(tree->w_kingsq,B2)==1 && WhiteBishops&good_bishop_qw)
-              score+=BISHOP_KING_SAFETY;
+          score+=BISHOP_KING_SAFETY;
       }
     }
   }
@@ -591,12 +592,12 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
       if (File(tree->b_kingsq) > FILEE) {
         if (!(BlackPawns&SetMask(G7)) && (BlackPawns& SetMask(G6)) &&
             Distance(tree->b_kingsq,G7)==1 && BlackBishops&good_bishop_kb)
-              score-=BISHOP_KING_SAFETY;
+          score-=BISHOP_KING_SAFETY;
       }
       else if (File(tree->b_kingsq) < FILED) {
         if (!(BlackPawns&SetMask(B7)) && (BlackPawns&SetMask(B6)) &&
             Distance(tree->b_kingsq,B7)==1 && BlackBishops&good_bishop_qb)
-              score-=BISHOP_KING_SAFETY;
+          score-=BISHOP_KING_SAFETY;
       }
     }
   }
