@@ -6,7 +6,7 @@
 int static __inline__ PopCnt(BITBOARD word)
 {
 /*  r0=result, %1=tmp, %2=first input, %3=second input */
-  long      dummy, dummy2;
+  long      dummy1, dummy2, dummy3, dummy4;
 
 asm("        xorl    %0, %0"                    "\n\t"
     "        testl   %2, %2"                    "\n\t"
@@ -22,43 +22,44 @@ asm("        xorl    %0, %0"                    "\n\t"
     "        andl    %1, %3"                    "\n\t"
     "        jnz     3b"                        "\n\t"
     "4:"                                        "\n\t"
-  : "=&q" (dummy), "=&q" (dummy2)
-  : "q" ((int) (word>>32)), "q" ((int) word)
+  : "=&q" (dummy1), "=&q" (dummy2), "=&q" (dummy3), "=&q" (dummy4)
+  : "2" ((int) (word>>32)), "3" ((int) word)
   : "cc");
-  return (dummy);
+  return (dummy1);
 }
 
 int static __inline__ FirstOne(BITBOARD word) {
-  int dummy, dummy2;
-       asm ("movl    $-1, %1"             "\n\t"
-            "bsr     %3, %0"              "\n\t"
-            "cmovz   %1, %0"              "\n\t"
-            "bsr     %2, %1"              "\n\t"
-	    "setnz   %b3"                 "\n\t"
-	    "addl    $32,%1"              "\n\t"
-	    "testb   %b3, %b3"            "\n\t"
-            "cmovz   %0, %1"              "\n\t"
-            "movl    $63, %0"             "\n\t"
-            "subl    %1, %0"              "\n\t"
-  : "=&q" (dummy), "=&q" (dummy2)
-  : "q" ((int) (word>>32)), "q" ((int) word)
+  int dummy1, dummy2, dummy3, dummy4;
+       asm ("        movl    $63, %0"     "\n\t"
+            "        bsr     %2, %1"      "\n\t"
+            "        jnz     1f"          "\n\t"
+            "        bsr     %3, %1"      "\n\t"
+            "        jnz     2f"          "\n\t"
+            "        movl    $64, %0"     "\n\t"
+            "        jmp     3f"          "\n\t"
+            "1:      addl    $32,%1"      "\n\t"
+            "2:      subl    %1, %0"      "\n\t"
+            "3:"
+  : "=&q" (dummy1), "=&q" (dummy2), "=&q" (dummy3), "=&q" (dummy4)
+  : "2" ((int) (word>>32)), "3" ((int) word)
   : "cc");
-  return (dummy);
+  return (dummy1);
 }
+
 int static __inline__ LastOne(BITBOARD word) {
-  int dummy, dummy2;
-       asm ("movl    $-1, %1"             "\n\t"
-            "bsf     %2, %0"              "\n\t"
-            "setnz   %b2"                 "\n\t"
-            "addl    $32,%0"              "\n\t"
-            "testb   %b2, %b2"            "\n\t"
-            "cmovz   %1, %0"              "\n\t"
-            "bsf     %3, %1"              "\n\t"
-            "cmovz   %0, %1"              "\n\t"
-            "movl    $63, %0"             "\n\t"
-            "subl    %1, %0"              "\n\t"
-  : "=&q" (dummy), "=&q" (dummy2)
-  : "q" ((int) (word>>32)), "q" ((int) word)
+  int dummy1, dummy2, dummy3, dummy4;
+       asm ("        movl    $63, %0"     "\n\t"
+            "        bsf     %3, %1"      "\n\t"
+            "        jnz     2f"          "\n\t"
+            "        bsf     %2, %1"      "\n\t"
+            "        jnz     1f"          "\n\t"
+            "        movl    $64, %0"     "\n\t"
+            "        jmp     3f"          "\n\t"
+            "1:      addl    $32,%1"      "\n\t"
+            "2:      subl    %1, %0"      "\n\t"
+            "3:"
+  : "=&q" (dummy1), "=&q" (dummy2), "=&q" (dummy3), "=&q" (dummy4)
+  : "2" ((int) (word>>32)), "3" ((int) word)
   : "cc");
-  return (dummy);
+  return (dummy1);
 }

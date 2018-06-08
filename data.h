@@ -400,7 +400,7 @@ extern BITBOARD mask_112;
 extern BITBOARD mask_120;
 # endif
 extern BITBOARD mask_clear_entry;
-# if !defined(_M_AMD64) && !defined(USE_ASSEMBLY)
+# if !defined(_M_AMD64) && !defined(INLINE_ASM)
 extern unsigned char first_one[65536];
 extern unsigned char last_one[65536];
 # endif

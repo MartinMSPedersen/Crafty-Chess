@@ -1993,7 +1993,7 @@ int EvaluatePassedPawnRaces(TREE * RESTRICT tree, int wtm)
   register int white_pawn = 0, black_pawn = 0, queen_distance;
   register int pawnsq;
   register BITBOARD tempw, tempb;
-  register int passed;
+  register int passed, realw, realb;
 
 /*
  ************************************************************
@@ -2149,6 +2149,7 @@ int EvaluatePassedPawnRaces(TREE * RESTRICT tree, int wtm)
  ************************************************************
  */
   if (!TotalWhitePieces && tree->pawn_score.passed_b) {
+    realb=0;
     passed = tree->pawn_score.passed_b;
     while ((file = FirstOne8Bit(passed)) != 8) {
       passed &= ~(128 >> file);
@@ -2167,6 +2168,7 @@ int EvaluatePassedPawnRaces(TREE * RESTRICT tree, int wtm)
           black_queener = queen_distance;
           black_square = file;
           black_pawn = square;
+          realb=1;
         }
       }
     }
@@ -2215,6 +2217,7 @@ int EvaluatePassedPawnRaces(TREE * RESTRICT tree, int wtm)
  ************************************************************
  */
   if (!TotalBlackPieces && tree->pawn_score.passed_w) {
+    realw=0;
     passed = tree->pawn_score.passed_w;
     while ((file = FirstOne8Bit(passed)) != 8) {
       passed &= ~(128 >> file);
@@ -2233,6 +2236,7 @@ int EvaluatePassedPawnRaces(TREE * RESTRICT tree, int wtm)
           white_queener = queen_distance;
           white_square = file + A8;
           white_pawn = square;
+          realw=1;
         }
       }
     }
@@ -2267,11 +2271,18 @@ int EvaluatePassedPawnRaces(TREE * RESTRICT tree, int wtm)
       }
     }
   }
+  if (realw && !realb) {
+    black_queener = 8;
+    black_square = 0;
+  }
+  if (realb && !realw) {
+    white_queener = 8;
+    white_square = 0;
+  }
 #ifdef DEBUGPP
   printf("white pawn on %d can promote at %d in %d moves.\n", white_pawn,
       white_square, white_queener);
 #endif
-
   do {
     if ((white_queener == 8) && (black_queener == 8))
       break;

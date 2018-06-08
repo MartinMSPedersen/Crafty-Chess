@@ -3020,6 +3020,11 @@
  *           lost and learning won't help at this point.  this is the CCT-6    *
  *           version exactly as played in the CCT-6 tournament.                *
  *                                                                             *
+ *   19.11   a fix to the Annotate() code that could, in certain cases, fail   *
+ *           to display N moves when asked.  this happened when there were     *
+ *           fewer than N moves total, and on occasion it would not display    *
+ *           all the moves that were possible, omitting the last one.          *
+ *                                                                             *
  *******************************************************************************
  */
 int main(int argc, char **argv)

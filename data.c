@@ -188,7 +188,7 @@ BITBOARD  mask_112;
 BITBOARD  mask_120;
 # endif
 BITBOARD  mask_clear_entry;
-# if (!defined(_M_AMD64) && !defined(USE_ASSEMBLY)) || defined(VC_INLINE_ASM)
+# if (!defined(_M_AMD64) && !defined(INLINE_ASM)) || defined(VC_INLINE_ASM)
 unsigned char first_one[65536];
 unsigned char last_one[65536];
 # endif
@@ -232,7 +232,7 @@ unsigned int parallel_splits;
 unsigned int parallel_stops;
 unsigned int max_split_blocks;
 volatile unsigned int splitting;
-# define    VERSION                             "19.10"
+# define    VERSION                             "19.11"
 char      version[6] = { VERSION };
 PLAYING_MODE mode = normal_mode;
 #if defined(SMP)

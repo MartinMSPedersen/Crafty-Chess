@@ -1464,7 +1464,7 @@ void InitializeZeroMasks(void)
 {
   int i, j, dist, maxd;
 
-#if !defined(CRAY1) && !defined(_M_AMD64) && !defined(USE_ASSEMBLY)
+#if !defined(CRAY1) && !defined(_M_AMD64) && !defined(INLINE_ASM)
   int maskl, maskr;
 
   first_one[0] = 16;

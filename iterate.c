@@ -435,7 +435,7 @@ int Iterate(int wtm, int search_type, int root_list_done)
         if (correct_count >= early_exit)
           break;
         if (iteration_depth > 3 && TotalPieces <= EGTBlimit && TB_use_ok &&
-            EGTB_use && !EGTB_search && 0)
+            EGTB_use && !EGTB_search && EGTBProbe(tree, 1, wtm, &i))
           break;
         if (search_nodes && tree->nodes_searched > search_nodes)
           break;
@@ -496,8 +496,8 @@ int Iterate(int wtm, int search_type, int root_list_done)
             tree->check_extensions_done, tree->recapture_extensions_done,
             tree->passed_pawn_extensions_done, tree->one_reply_extensions_done,
             tree->mate_extensions_done);
-        Print(16, "              predicted=%d  nodes=" BMF "  evals=%u\n",
-            predicted, tree->nodes_searched, tree->evaluations);
+        Print(16, "              predicted=%d  nodes=" BMF "  evals=%u  50move=%d\n",
+            predicted, tree->nodes_searched, tree->evaluations,Rule50Moves(0));
         Print(16, "              endgame tablebase-> probes=%d  hits=%d\n",
             tree->egtb_probes, tree->egtb_probes_successful);
 #if !defined(FAST)

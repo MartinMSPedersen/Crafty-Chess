@@ -16,7 +16,7 @@ BITBOARD Mask(int arg1)
     return (i << (64 - arg1));
 }
 
-#if (!defined(USE_ASSEMBLY) && !defined(ALPHA)) || (defined(ALPHA) && !defined(PopCnt))
+#if (!defined(INLINE_ASM) && !defined(ALPHA)) || (defined(ALPHA) && !defined(PopCnt))
 
 #  if defined (_M_IA64)
 
@@ -56,7 +56,7 @@ int PopCnt(register BITBOARD a)
 
 #  else
 
-#    if !defined(USE_ASSEMBLY)
+#    if !defined(INLINE_ASM)
 int PopCnt(register BITBOARD a)
 {
   register int c = 0;
@@ -102,7 +102,7 @@ int LastOne(BITBOARD arg1)
 
 #  else
 
-#    if !defined(USE_ASSEMBLY)
+#    if !defined(INLINE_ASM)
 int FirstOne(BITBOARD arg1)
 {
   if (arg1 >> 48)

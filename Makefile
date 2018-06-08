@@ -66,15 +66,12 @@
 #                     are found.  default = "./TB"
 #   -DTRACE           This enables the "trace" command so that the search tree
 #                     can be dumped while running.
-#   -DUSE_ASSEMBLY    Compiles with the Intel assembly code for FirstOne(),
-#                     LastOne() and PopCnt().
 #   -INLINE_AMD       Compiles with the Intel assembly code for FirstOne(),
 #                     LastOne() and PopCnt() for the AMD opteron, only tested
 #                     with the 64-bit opteron GCC compiler.
 #   -INLINE_ASM       Compiles with the Intel assembly code for FirstOne(),
 #                     LastOne() and PopCnt().  This is for gcc-style inlining
-#                     and thoroughly breaks the Intel C/C++ compiler at the
-#                     present (version 8.0).
+#                     and now works with the Intel C/C++ compiler as well.
 #   
 
 default:
@@ -159,7 +156,6 @@ freebsd:
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS=$(LDFLAGS) \
 		opt='$(opt) -DFUTILITY -DUSE_ASSEMBLY -DFAST' \
-		asm=X86.o \
 		crafty-make
 
 freebsd-pgcc:
@@ -169,7 +165,6 @@ freebsd-pgcc:
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS=$(LDFLAGS) \
 		opt='$(opt) -DFUTILITY -DUSE_ASSEMBLY -DFAST' \
-		asm=X86.o \
 		crafty-make
 
 hpux:
@@ -190,7 +185,6 @@ linux:
 		LDFLAGS='$(LDFLAGS) -lpthread -lstdc++' \
 		opt='$(opt) -DFUTILITY -DUSE_ASSEMBLY -DFAST \
 		     -DPOSIX -DSMP -DCPUS=4' \
-		asm=X86.o \
 		crafty-make
 
 linux-amd64:
@@ -214,19 +208,18 @@ linux-profile:
 		LDFLAGS='$(LDFLAGS) -fprofile-arcs -lstdc++ -lpthread' \
 		opt='$(opt) -DFUTILITY -DUSE_ASSEMBLY -DFAST \
 		     -DPOSIX -DSMP -DCPUS=4' \
-		asm= \
 		crafty-make
 
 linux-icc-profile:
 	$(MAKE) target=LINUX \
 		CC=icc CXX=icc \
 		CFLAGS='$(CFLAGS) -D_REENTRANT -O2 \
-                        -prof_genx -prof_dir ./profdir \
+                        -xN -prof_genx -prof_dir ./profdir \
                         -Ob2 -fno-alias' \
 		CXFLAGS='$(CFLAGS) -D_REENTRANT -O2 \
-                        -prof_genx -prof_dir ./profdir' \
+                        -xN -prof_genx -prof_dir ./profdir' \
 		LDFLAGS='$(LDFLAGS) -lpthread' \
-		opt='$(opt) -DFUTILITY -DFAST \
+		opt='$(opt) -DFUTILITY -DFAST -DINLINE_ASM \
                          -DPOSIX -DSMP -DCPUS=4' \
 		crafty-make
 
@@ -234,12 +227,12 @@ linux-icc:
 	$(MAKE) target=LINUX \
 		CC=icc CXX=icc \
 		CFLAGS='$(CFLAGS) -D_REENTRANT -O2 \
-                        -prof_use -prof_dir ./profdir \
+                        -xN -prof_use -prof_dir ./profdir \
                         -Ob2 -fno-alias' \
 		CXFLAGS='$(CFLAGS) -D_REENTRANT -O2 \
-                        -prof_use -prof_dir ./profdir' \
+                        -xN -prof_use -prof_dir ./profdir' \
 		LDFLAGS='$(LDFLAGS) -lpthread' \
-		opt='$(opt) -DFUTILITY -DFAST \
+		opt='$(opt) -DFUTILITY -DFAST -DINLINE_ASM \
                          -DPOSIX -DSMP -DCPUS=4' \
 		crafty-make
 
@@ -274,7 +267,6 @@ netbsd-i386:
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS=$(LDFLAGS) \
 		opt='$(opt) -DFUTILITY -DFAST -DUSE_ASSEMBLY' \
-		asm=X86.o \
 		crafty-make
 
 netbsd-sparc:
@@ -286,7 +278,6 @@ netbsd-sparc:
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS=$(LDFLAGS) \
 		opt='$(opt) -DFUTILITY -DFAST' \
-		asm=Sparc.o \
 		crafty-make
 
 next:
@@ -305,7 +296,6 @@ os2:
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS='$(LDFLAGS) -Zexe -Zcrtdll -s' \
 		opt='$(opt) -DFUTILITY -DUSE_ASSEMBLY -DFAST' \
-		asm=X86.o \
 		crafty-make
 
 sgi:
@@ -443,14 +433,14 @@ profile:
 #  compiling both ways to see which way produces the fastest code.
 #
 
-objects = searchr.o search.o thread.o searchmp.o repeat.o next.o nexte.o      \
+#objects = searchr.o search.o thread.o searchmp.o repeat.o next.o nexte.o      \
        nextr.o history.o quiesce.o evaluate.o movgen.o make.o unmake.o hash.o  \
-       attacks.o swap.o boolean.o utility.o valid.o book.o data.o      \
+       attacks.o swap.o boolean.o utility.o valid.o probe.o book.o data.o      \
        drawn.o edit.o epd.o epdglue.o init.o input.o interupt.o iterate.o      \
        main.o option.o output.o phase.o ponder.o preeval.o resign.o root.o     \
        learn.o setboard.o test.o time.o validate.o annotate.o analyze.o        \
-       evtest.o bench.o dgt.o $(asm)
-#objects = crafty.o $(asm)
+       evtest.o bench.o egtb.o dgt.o
+objects = crafty.o egtb.o
 
 # Do not change anything below this line!
 
@@ -459,7 +449,7 @@ opts = $(opt) -D$(target)
 includes = data.h chess.h
 
 crafty-make:
-	@$(MAKE) opt='$(opt)' asm='$(asm)' crafty
+	@$(MAKE) opt='$(opt)' crafty
 
 crafty:	$(objects) 
 	$(CC) $(LDFLAGS) -o crafty $(objects) -lm  $(LIBS)

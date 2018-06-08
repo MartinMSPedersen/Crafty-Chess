@@ -3,7 +3,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* modified 03/23/99 */
+/* modified 02/09/04 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -20,7 +20,7 @@ int *GenerateCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
 {
   register BITBOARD target, piecebd, moves;
   register BITBOARD promotions, pcapturesl, pcapturesr;
-  register int from, to, temp;
+  register int from, to, temp, common;
 
 /*
  ************************************************************
@@ -335,7 +335,7 @@ int *GenerateCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
   return (move);
 }
 
-/* modified 08/23/99 */
+/* modified 02/09/04 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -364,7 +364,7 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move)
   register BITBOARD target, targetc, targetp, piecebd, moves;
   register BITBOARD padvances1, padvances2, pcapturesl, pcapturesr;
   register BITBOARD padvances1_all, empty, checksqs;
-  register int from, to, temp;
+  register int from, to, temp, common;
   register int king_square, checkers, checking_square;
   register int check_direction1 = 0, check_direction2 = 0;
 
@@ -563,13 +563,14 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move)
       while (padvances1) {
         to = LastOne(padvances1);
         if (!PinnedOnKing(tree, wtm, to - 8)) {
+          common = (to - 8) | (to << 6) | (pawn << 12);
           if (to < 56)
-            *move++ = (to - 8) | (to << 6) | (pawn << 12);
+            *move++ = common;
           else {
-            *move++ = (to - 8) | (to << 6) | (pawn << 12) | (queen << 18);
-            *move++ = (to - 8) | (to << 6) | (pawn << 12) | (rook << 18);
-            *move++ = (to - 8) | (to << 6) | (pawn << 12) | (bishop << 18);
-            *move++ = (to - 8) | (to << 6) | (pawn << 12) | (knight << 18);
+            *move++ = common | (queen << 18);
+            *move++ = common | (rook << 18);
+            *move++ = common | (bishop << 18);
+            *move++ = common | (knight << 18);
           }
         }
         Clear(to, padvances1);
@@ -584,19 +585,15 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move)
       while (pcapturesl) {
         to = LastOne(pcapturesl);
         if (!PinnedOnKing(tree, wtm, to - 7)) {
+          common = (to - 7) | (to << 6) | (pawn << 12);
           if (to < 56) {
             register int cap = (PcOnSq(to)) ? -PcOnSq(to) : pawn;
-
-            *move++ = (to - 7) | (to << 6) | (pawn << 12) | (cap << 15);
+            *move++ = common | (cap << 15);
           } else {
-            *move++ = (to - 7) | (to << 6) | (pawn << 12) |
-              ((-PcOnSq(to)) << 15) | (queen << 18);
-            *move++ = (to - 7) | (to << 6) | (pawn << 12) |
-              ((-PcOnSq(to)) << 15) | (rook << 18);
-            *move++ = (to - 7) | (to << 6) | (pawn << 12) |
-              ((-PcOnSq(to)) << 15) | (bishop << 18);
-            *move++ = (to - 7) | (to << 6) | (pawn << 12) |
-              ((-PcOnSq(to)) << 15) | (knight << 18);
+            *move++ = common | ((-PcOnSq(to)) << 15) | (queen << 18);
+            *move++ = common | ((-PcOnSq(to)) << 15) | (rook << 18);
+            *move++ = common | ((-PcOnSq(to)) << 15) | (bishop << 18);
+            *move++ = common | ((-PcOnSq(to)) << 15) | (knight << 18);
           }
         }
         Clear(to, pcapturesl);
@@ -604,19 +601,16 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move)
       while (pcapturesr) {
         to = LastOne(pcapturesr);
         if (!PinnedOnKing(tree, wtm, to - 9)) {
+          common = (to - 9) | (to << 6) | (pawn << 12);
           if (to < 56) {
             register int cap = (PcOnSq(to)) ? -PcOnSq(to) : pawn;
 
-            *move++ = (to - 9) | (to << 6) | (pawn << 12) | (cap << 15);
+            *move++ = common | (cap << 15);
           } else {
-            *move++ = (to - 9) | (to << 6) | (pawn << 12) |
-              ((-PcOnSq(to)) << 15) | (queen << 18);
-            *move++ = (to - 9) | (to << 6) | (pawn << 12) |
-              ((-PcOnSq(to)) << 15) | (rook << 18);
-            *move++ = (to - 9) | (to << 6) | (pawn << 12) |
-              ((-PcOnSq(to)) << 15) | (bishop << 18);
-            *move++ = (to - 9) | (to << 6) | (pawn << 12) |
-              ((-PcOnSq(to)) << 15) | (knight << 18);
+            *move++ = common | ((-PcOnSq(to)) << 15) | (queen << 18);
+            *move++ = common | ((-PcOnSq(to)) << 15) | (rook << 18);
+            *move++ = common | ((-PcOnSq(to)) << 15) | (bishop << 18);
+            *move++ = common | ((-PcOnSq(to)) << 15) | (knight << 18);
           }
         }
         Clear(to, pcapturesr);
@@ -822,13 +816,14 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move)
       while (padvances1) {
         to = FirstOne(padvances1);
         if (!PinnedOnKing(tree, wtm, to + 8)) {
+          common = (to + 8) | (to << 6) | (pawn << 12);
           if (to > 7)
-            *move++ = (to + 8) | (to << 6) | (pawn << 12);
+            *move++ = common;
           else {
-            *move++ = (to + 8) | (to << 6) | (pawn << 12) | (queen << 18);
-            *move++ = (to + 8) | (to << 6) | (pawn << 12) | (rook << 18);
-            *move++ = (to + 8) | (to << 6) | (pawn << 12) | (bishop << 18);
-            *move++ = (to + 8) | (to << 6) | (pawn << 12) | (knight << 18);
+            *move++ = common | (queen << 18);
+            *move++ = common | (rook << 18);
+            *move++ = common | (bishop << 18);
+            *move++ = common | (knight << 18);
           }
         }
         Clear(to, padvances1);
@@ -843,19 +838,16 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move)
       while (pcapturesl) {
         to = FirstOne(pcapturesl);
         if (!PinnedOnKing(tree, wtm, to + 9)) {
+          common = (to + 9) | (to << 6) | (pawn << 12);
           if (to > 7) {
             register int cap = (PcOnSq(to)) ? PcOnSq(to) : pawn;
 
-            *move++ = (to + 9) | (to << 6) | (pawn << 12) | (cap << 15);
+            *move++ = common | (cap << 15);
           } else {
-            *move++ = (to + 9) | (to << 6) | (pawn << 12) |
-              (PcOnSq(to) << 15) | (queen << 18);
-            *move++ = (to + 9) | (to << 6) | (pawn << 12) |
-              (PcOnSq(to) << 15) | (rook << 18);
-            *move++ = (to + 9) | (to << 6) | (pawn << 12) |
-              (PcOnSq(to) << 15) | (bishop << 18);
-            *move++ = (to + 9) | (to << 6) | (pawn << 12) |
-              (PcOnSq(to) << 15) | (knight << 18);
+            *move++ = common | (PcOnSq(to) << 15) | (queen << 18);
+            *move++ = common | (PcOnSq(to) << 15) | (rook << 18);
+            *move++ = common | (PcOnSq(to) << 15) | (bishop << 18);
+            *move++ = common | (PcOnSq(to) << 15) | (knight << 18);
           }
         }
         Clear(to, pcapturesl);
@@ -863,19 +855,16 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move)
       while (pcapturesr) {
         to = FirstOne(pcapturesr);
         if (!PinnedOnKing(tree, wtm, to + 7)) {
+          common = (to + 7) | (to << 6) | (pawn << 12);
           if (to > 7) {
             register int cap = (PcOnSq(to)) ? PcOnSq(to) : pawn;
 
-            *move++ = (to + 7) | (to << 6) | (pawn << 12) | (cap << 15);
+            *move++ = common | (cap << 15);
           } else {
-            *move++ = (to + 7) | (to << 6) | (pawn << 12) |
-              (PcOnSq(to) << 15) | (queen << 18);
-            *move++ = (to + 7) | (to << 6) | (pawn << 12) |
-              (PcOnSq(to) << 15) | (rook << 18);
-            *move++ = (to + 7) | (to << 6) | (pawn << 12) |
-              (PcOnSq(to) << 15) | (bishop << 18);
-            *move++ = (to + 7) | (to << 6) | (pawn << 12) |
-              (PcOnSq(to) << 15) | (knight << 18);
+            *move++ = common | (PcOnSq(to) << 15) | (queen << 18);
+            *move++ = common | (PcOnSq(to) << 15) | (rook << 18);
+            *move++ = common | (PcOnSq(to) << 15) | (bishop << 18);
+            *move++ = common | (PcOnSq(to) << 15) | (knight << 18);
           }
         }
         Clear(to, pcapturesr);
@@ -885,7 +874,7 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move)
   return (move);
 }
 
-/* modified 03/11/97 */
+/* modified 02/09/04 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -912,7 +901,7 @@ int *GenerateNonCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
 {
   register BITBOARD target, piecebd, moves;
   register BITBOARD padvances1, padvances2, pcapturesl, pcapturesr;
-  register int from, to, temp;
+  register int from, to, temp, common;
 
   if (wtm) {
 /*
@@ -1102,22 +1091,18 @@ int *GenerateNonCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
     pcapturesr = (WhitePawns & mask_right_edge) >> 9 & target;
     while (pcapturesl) {
       to = LastOne(pcapturesl);
-      *move++ = (to - 7) | (to << 6) | (pawn << 12) |
-        ((-PcOnSq(to)) << 15) | (rook << 18);
-      *move++ = (to - 7) | (to << 6) | (pawn << 12) |
-        ((-PcOnSq(to)) << 15) | (bishop << 18);
-      *move++ = (to - 7) | (to << 6) | (pawn << 12) |
-        ((-PcOnSq(to)) << 15) | (knight << 18);
+      common = (to - 7) | (to << 6) | (pawn << 12);
+      *move++ = common | ((-PcOnSq(to)) << 15) | (rook << 18);
+      *move++ = common | ((-PcOnSq(to)) << 15) | (bishop << 18);
+      *move++ = common | ((-PcOnSq(to)) << 15) | (knight << 18);
       Clear(to, pcapturesl);
     }
     while (pcapturesr) {
       to = LastOne(pcapturesr);
-      *move++ = (to - 9) | (to << 6) | (pawn << 12) |
-        ((-PcOnSq(to)) << 15) | (rook << 18);
-      *move++ = (to - 9) | (to << 6) | (pawn << 12) |
-        ((-PcOnSq(to)) << 15) | (bishop << 18);
-      *move++ = (to - 9) | (to << 6) | (pawn << 12) |
-        ((-PcOnSq(to)) << 15) | (knight << 18);
+      common = (to - 9) | (to << 6) | (pawn << 12);
+      *move++ = common | ((-PcOnSq(to)) << 15) | (rook << 18);
+      *move++ = common | ((-PcOnSq(to)) << 15) | (bishop << 18);
+      *move++ = common | ((-PcOnSq(to)) << 15) | (knight << 18);
       Clear(to, pcapturesr);
     }
   }
@@ -1285,12 +1270,13 @@ int *GenerateNonCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
     }
     while (padvances1) {
       to = FirstOne(padvances1);
+      common = (to + 8) | (to << 6) | (pawn << 12);
       if (to > 7)
-        *move++ = (to + 8) | (to << 6) | (pawn << 12);
+        *move++ = common;
       else {
-        *move++ = (to + 8) | (to << 6) | (pawn << 12) | (rook << 18);
-        *move++ = (to + 8) | (to << 6) | (pawn << 12) | (bishop << 18);
-        *move++ = (to + 8) | (to << 6) | (pawn << 12) | (knight << 18);
+        *move++ = common | (rook << 18);
+        *move++ = common | (bishop << 18);
+        *move++ = common | (knight << 18);
       }
       Clear(to, padvances1);
     }
@@ -1308,22 +1294,18 @@ int *GenerateNonCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
     pcapturesr = (BlackPawns & mask_right_edge) << 7 & target;
     while (pcapturesl) {
       to = FirstOne(pcapturesl);
-      *move++ = (to + 9) | (to << 6) | (pawn << 12) |
-        (PcOnSq(to) << 15) | (rook << 18);
-      *move++ = (to + 9) | (to << 6) | (pawn << 12) |
-        (PcOnSq(to) << 15) | (bishop << 18);
-      *move++ = (to + 9) | (to << 6) | (pawn << 12) |
-        (PcOnSq(to) << 15) | (knight << 18);
+      common = (to + 9) | (to << 6) | (pawn << 12);
+      *move++ = common | (PcOnSq(to) << 15) | (rook << 18);
+      *move++ = common | (PcOnSq(to) << 15) | (bishop << 18);
+      *move++ = common | (PcOnSq(to) << 15) | (knight << 18);
       Clear(to, pcapturesl);
     }
     while (pcapturesr) {
       to = FirstOne(pcapturesr);
-      *move++ = (to + 7) | (to << 6) | (pawn << 12) |
-        (PcOnSq(to) << 15) | (rook << 18);
-      *move++ = (to + 7) | (to << 6) | (pawn << 12) |
-        (PcOnSq(to) << 15) | (bishop << 18);
-      *move++ = (to + 7) | (to << 6) | (pawn << 12) |
-        (PcOnSq(to) << 15) | (knight << 18);
+      common = (to + 7) | (to << 6) | (pawn << 12);
+      *move++ = common | (PcOnSq(to) << 15) | (rook << 18);
+      *move++ = common | (PcOnSq(to) << 15) | (bishop << 18);
+      *move++ = common | (PcOnSq(to) << 15) | (knight << 18);
       Clear(to, pcapturesr);
     }
   }

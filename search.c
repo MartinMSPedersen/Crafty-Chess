@@ -141,6 +141,31 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
  *                                                          *
  ************************************************************
  */
+  if (ply <= iteration_depth && TotalPieces <= EGTB_use &&
+      WhiteCastle(ply) + BlackCastle(ply) == 0 &&
+      (CaptureOrPromote(tree->current_move[ply - 1]) || ply < 3)) {
+    int egtb_value;
+
+    tree->egtb_probes++;
+    if (EGTBProbe(tree, ply, wtm, &egtb_value)) {
+      tree->egtb_probes_successful++;
+      alpha = egtb_value;
+      if (abs(alpha) > MATE - 300)
+        alpha += (alpha > 0) ? -ply + 1 : ply;
+      else if (alpha == 0) {
+        alpha = DrawScore(wtm);
+        if (Material > 0)
+          alpha += (wtm) ? 1 : -1;
+        else if (Material < 0)
+          alpha -= (wtm) ? 1 : -1;
+      }
+      if (alpha < beta)
+        SavePV(tree, ply, 2);
+      tree->pv[ply].pathl = 0;
+      HashStore(tree, ply, MAX_DRAFT, wtm, EXACT, alpha, mate_threat);
+      return (alpha);
+    }
+  }
 /*
  ************************************************************
  *                                                          *

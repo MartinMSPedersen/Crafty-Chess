@@ -426,6 +426,7 @@ int Option(TREE * RESTRICT tree)
       EGTB_cache = malloc(EGTB_CACHE_DEFAULT);
     }
     Print(128, "EGTB cache memory = %s bytes.\n", PrintKM(EGTB_cache_size, 1));
+    FTbSetCacheSize(EGTB_cache, EGTB_cache_size);
   }
 /*
  ************************************************************
@@ -729,6 +730,40 @@ int Option(TREE * RESTRICT tree)
     last_pv.pathl = 0;
     strcpy(buffer, "savepos *");
     (void) Option(tree);
+  }
+/*
+ ************************************************************
+ *                                                          *
+ *   "egtb" command enables/disables tablebases and sets    *
+ *   the number of pieces available for probing.            *
+ *                                                          *
+ ************************************************************
+ */
+  else if (OptionMatch("egtb", *args)) {
+    if (!EGTB_setup) {
+      Print(128, "EGTB access enabled\n");
+      Print(128, "using tbpath=%s\n", tb_path);
+      EGTBlimit = IInitializeTb(tb_path);
+      Print(128, "%d piece tablebase files found\n", EGTBlimit);
+      if (0 != cbEGTBCompBytes)
+        Print(128, "%dkb of RAM used for TB indices and decompression tables\n",
+            (cbEGTBCompBytes + 1023) / 1024);
+      if (EGTBlimit) {
+        if (!EGTB_cache)
+          EGTB_cache = malloc(EGTB_cache_size);
+        if (!EGTB_cache) {
+          Print(128, "ERROR  EGTB cache malloc failed\n");
+          EGTB_cache = malloc(EGTB_CACHE_DEFAULT);
+        } else
+          FTbSetCacheSize(EGTB_cache, EGTB_cache_size);
+        EGTB_setup = 1;
+      }
+    } else {
+      if (nargs == 1)
+        EGTBPV(tree, wtm);
+      else if (nargs == 2)
+        EGTBlimit = Min(atoi(args[1]), 5);
+    }
   }
 /*
  ************************************************************
@@ -2779,6 +2814,22 @@ int Option(TREE * RESTRICT tree)
         strcpy(log_path, args[1]);
       else if (strstr(args[0], "tbpath")) {
         strcpy(tb_path, args[1]);
+        EGTBlimit = IInitializeTb(tb_path);
+        Print(128, "%d piece tablebase files found\n", EGTBlimit);
+        if (0 != cbEGTBCompBytes)
+          Print(128,
+              "%dkb of RAM used for TB indices and decompression tables\n",
+              (cbEGTBCompBytes + 1023) / 1024);
+        if (EGTBlimit) {
+          if (!EGTB_cache)
+            EGTB_cache = malloc(EGTB_cache_size);
+          if (!EGTB_cache) {
+            Print(4095, "ERROR  EGTB cache malloc failed\n");
+            EGTB_cache = malloc(EGTB_CACHE_DEFAULT);
+          } else
+            FTbSetCacheSize(EGTB_cache, EGTB_cache_size);
+          EGTB_setup = 1;
+        }
       }
     } else {
       if (strchr(args[1], ')')) {
@@ -2789,6 +2840,22 @@ int Option(TREE * RESTRICT tree)
           strcpy(log_path, args[1] + 1);
         else if (strstr(args[0], "tbpath")) {
           strcpy(tb_path, args[1] + 1);
+          EGTBlimit = IInitializeTb(tb_path);
+          Print(128, "%d piece tablebase files found\n", EGTBlimit);
+          if (0 != cbEGTBCompBytes)
+            Print(128,
+                "%dkb of RAM used for TB indices and decompression tables\n",
+                (cbEGTBCompBytes + 1023) / 1024);
+          if (EGTBlimit) {
+            if (!EGTB_cache)
+              EGTB_cache = malloc(EGTB_cache_size);
+            if (!EGTB_cache) {
+              Print(4095, "ERROR  EGTB cache malloc failed\n");
+              EGTB_cache = malloc(EGTB_CACHE_DEFAULT);
+            } else
+              FTbSetCacheSize(EGTB_cache, EGTB_cache_size);
+            EGTB_setup = 1;
+          }
         }
       } else
         Print(4095, "ERROR multiple paths must be enclosed in ( and )\n");
@@ -2801,7 +2868,7 @@ int Option(TREE * RESTRICT tree)
  *                                                          *
  ************************************************************
  */
-#define PERF_CYCLES 1000000
+#define PERF_CYCLES 4000000
   else if (OptionMatch("perf", *args)) {
     int i, *mv, clock_before, clock_after;
     float time_used;

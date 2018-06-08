@@ -689,6 +689,8 @@ void EGTBPV(TREE * RESTRICT tree, int wtm)
   tree->position[1] = tree->position[0];
   if (WhiteCastle(1) + BlackCastle(1))
     return;
+  if (!EGTBProbe(tree, 1, wtm, &value))
+    return;
   t_move_number = move_number;
   if (display_options & 64)
     sprintf(buffer, "%d.", move_number);
@@ -719,7 +721,7 @@ void EGTBPV(TREE * RESTRICT tree, int wtm)
       MakeMove(tree, 1, current[i], wtm);
       if (!Check(wtm)) {
         legal++;
-        if (TotalPieces == 2 ) {
+        if (TotalPieces == 2 || EGTBProbe(tree, 2, Flip(wtm), &value)) {
           if (TotalPieces > 2)
             value = -value;
           else
