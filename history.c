@@ -3,7 +3,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 05/03/99 */
+/* last modified 12/26/03 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -39,8 +39,8 @@ void History(TREE * RESTRICT tree, int ply, int depth, int wtm, int move) {
  ----------------------------------------------------------
 */
   index=move & 4095;
-  if (wtm) history_w[index]+=depth*depth;
-  else history_b[index]+=depth*depth;
+  if (wtm) tree->history_w[index]+=depth*depth;
+  else tree->history_b[index]+=depth*depth;
 /*
  ----------------------------------------------------------
 |                                                          |

@@ -65,7 +65,6 @@
   size_t          cb_trans_ref;
   PAWN_HASH_ENTRY *pawn_hash_table_orig;
   size_t          cb_pawn_hash_table;
-  int            history_w[4096], history_b[4096];
   PATH           last_pv;
   int            last_value;
   int            temper_b[64], temper_w[64];
@@ -248,7 +247,7 @@
   unsigned int   max_split_blocks;
   volatile unsigned int   splitting;
 
-# define    VERSION                             "19.7"
+# define    VERSION                             "19.8"
   char      version[6] =                    {VERSION};
   PLAYING_MODE mode =                     normal_mode;
 

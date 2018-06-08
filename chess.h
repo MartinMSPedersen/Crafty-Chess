@@ -46,16 +46,11 @@
 #endif
 
 #if defined(SMP)
-#  if (defined(NT_i386) || defined(NT_AXP))
+#  if defined(NT_i386)
 #    include <windows.h>
 #    include <process.h>
-#  elif defined(LINUX) || defined(ALPHA) || defined(POSIX)
-#    if !defined(CLONE)
-#      include <pthread.h>
-#    endif
-#    if defined(CLONE)
-#      include <sched.h>
-#    endif
+#  elif defined(POSIX)
+#    include <pthread.h>
 #  endif
 #endif
 
@@ -84,11 +79,6 @@
 #  undef  HAS_64BITS           /* machine has 64-bit integers / operators     */
 #  define HAS_LONGLONG         /* machine has 32-bit/64-bit integers          */
 #  undef  UNIX                 /* system is unix-based                        */
-#endif
-#if defined(CRAY1)
-#  define HAS_64BITS           /* machine has 64-bit integers / operators     */
-#  undef  HAS_LONGLONG         /* machine has 32-bit/64-bit integers          */
-#  define UNIX                 /* system is unix-based                        */
 #endif
 #if defined(FreeBSD)
 #  undef  HAS_64BITS           /* machine has 64-bit integers / operators     */
@@ -126,11 +116,6 @@
 #  define HAS_LONGLONG        /* machine has 32-bit/64-bit integers          */
 #  define UNIX                /* system is unix-based                        */
 #endif
-#if defined(NT_AXP)
-#  undef  HAS_64BITS           /* machine has 64-bit integers / operators     */
-#  define HAS_LONGLONG         /* machine has 32-bit/64-bit integers          */
-#  undef  UNIX                 /* system is unix-based                        */
-#endif
 #if defined(NT_i386)
 #  undef  HAS_64BITS           /* machine has 64-bit integers / operators     */
 #  define HAS_LONGLONG         /* machine has 32-bit/64-bit integers          */
@@ -161,23 +146,13 @@
 #  define HAS_LONGLONG         /* machine has 32-bit/64-bit integers          */
 #  define UNIX                 /* system is unix-based                        */
 #endif
-#if defined(SUN_BSD)
-#  undef  HAS_64BITS           /* machine has 64-bit integers / operators     */
-#  define HAS_LONGLONG         /* machine has 32-bit/64-bit integers          */
-#  define UNIX                 /* system is unix-based                        */
-#endif
-
 #if defined(__MWERKS__)
 #  define MACOS
 #endif
-
 #if defined(MACOS)
 #  undef  HAS_64BITS           /* machine has 64-bit integers / operators     */
 #  define HAS_LONGLONG         /* machine has 32-bit/64-bit integers          */
 #  undef  UNIX                 /* system is unix-based                        */
-
-#  define COMPACT_ATTACKS
-#  define USE_ATTACK_FUNCTIONS  
 #endif
 
 #if defined(MACOS)
@@ -243,13 +218,12 @@
   
 #if defined(HAS_64BITS)
   typedef unsigned long BITBOARD;
+#elif defined(NT_i386)
+  typedef unsigned __int64 BITBOARD;
 #else
-#  if defined(NT_i386) || defined(NT_AXP)
-    typedef unsigned __int64 BITBOARD;
-#  else
-    typedef unsigned long long BITBOARD;
-#  endif
+  typedef unsigned long long BITBOARD;
 #endif
+
 #if defined(NT_i386)
 #   define BMF   "%I64u"
 #   define BMF6  "%6I64u"
@@ -402,7 +376,7 @@ typedef struct {
   unsigned char status;
 } ROOT_MOVE;
 
-#if (defined(NT_i386) || defined(NT_AXP))
+#if defined(NT_i386)
 #pragma pack(4)
 #endif
 typedef struct {
@@ -411,7 +385,7 @@ typedef struct {
   float learn;
   int CAP_score;
 } BOOK_POSITION;
-#if (defined(NT_i386) || defined(NT_AXP))
+#if defined(NT_i386)
 #pragma pack()
 #endif
 
@@ -456,6 +430,7 @@ struct tree {
   unsigned int    one_reply_extensions_done;
   unsigned int    mate_extensions_done;
   KILLER          killers[MAXPLY];
+  unsigned int    history_w[4096], history_b[4096];
   int             move_list[5120];
   int             sort_value[256];
   signed char     in_check[MAXPLY];
@@ -547,16 +522,14 @@ typedef struct tree TREE;
 #define REMAINING_MOVES          10
 #define ROOT_MOVES               11
  
-#if !defined(CRAY1)
   BITBOARD     Mask(int);
-#  if defined(VC_INLINE_ASM)
-#    include "vcinline.h"
-#  else
-#    if !defined(AMD_INLINE)
-       int CDECL PopCnt(BITBOARD);
-       int CDECL FirstOne(BITBOARD);
-       int CDECL LastOne(BITBOARD);
-#    endif
+#if defined(VC_INLINE_ASM)
+#  include "vcinline.h"
+#else
+#  if !defined(AMD_INLINE)
+     int CDECL PopCnt(BITBOARD);
+     int CDECL FirstOne(BITBOARD);
+     int CDECL LastOne(BITBOARD);
 #  endif
 #endif
   
@@ -575,7 +548,7 @@ int            BookPonderMove(TREE*,int);
 int            BookRejectMove(TREE*,int,int);
 void           BookUp(TREE*, int, char**);
 void           BookSort(BB_POSITION*, int, int);
-#if defined(NT_i386) || defined(NT_AXP)
+#if defined(NT_i386)
   int _cdecl     BookUpCompare(const void *, const void *);
 #else
   int            BookUpCompare(const void *, const void *);
@@ -716,11 +689,7 @@ void           Test(char *);
 void           TestEPD(char *);
 int            Thread(TREE*);
 void           WaitForAllThreadsInitialized(void);
-#if defined(CLONE)
-int            ThreadInit(void*);
-#else
 void* STDCALL  ThreadInit(void*);
-#endif
 void           ThreadMalloc(int);
 void           ThreadStop(TREE*);
 int            ThreadWait(int, TREE*);
@@ -751,30 +720,6 @@ extern void WinFreeInterleaved(void *, size_t);
 #endif
   
 #if defined(HAS_64BITS) || defined(HAS_LONGLONG)
-#  if defined(CRAY1)
-#    define PopCnt(a)     _popcnt(a)
-#    define FirstOne(a)   _leadz(a)
-#    define LastOne(a)    _leadz(a&~((a)&(a-1)))
-#    define Mask(a)       _mask(a)
-#    define mask_1        _mask(1)
-#    define mask_2        _mask(2)
-#    define mask_3        _mask(3)
-#    define mask_4        _mask(4)
-#    define mask_8        _mask(8)
-#    define mask_16       _mask(16)
-#    define mask_32       _mask(32)
-#    define mask_72       _mask(72)
-#    define mask_80       _mask(80)
-#    define mask_85       _mask(85)
-#    define mask_96       _mask(96)
-#    define mask_107      _mask(107)
-#    define mask_108      _mask(108)
-#    define mask_112      _mask(112)
-#    define mask_118      _mask(118)
-#    define mask_120      _mask(120)
-#    define mask_121      _mask(121)
-#    define mask_127      _mask(127)
-#  endif
 #  if defined(ALPHA)
 #    include <machine/builtins.h>
 #    define MaskL(a)      (((unsigned long)(-1L))<<(a))
@@ -1208,7 +1153,7 @@ extern void WinFreeInterleaved(void *, size_t);
 #define HashEP(a,b)         b=enpassant_random[a]^(b)
 #define HashCastleW(a,b)    b=castle_random_w[a]^(b)
 #define HashCastleB(a,b)    b=castle_random_b[a]^(b)
-#define SavePV(tree,ply,value,ph) do {                                      \
+#define SavePV(tree,ply,ph) do {                                      \
           tree->pv[ply-1].path[ply-1]=tree->current_move[ply-1];            \
           tree->pv[ply-1].pathl=ply-1;                                      \
           tree->pv[ply-1].pathh=ph;                                         \

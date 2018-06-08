@@ -20,16 +20,18 @@
 */
 
 #if defined(FUTILITY)
-#define RAZOR_MARGIN (QUEEN_VALUE+1)
-#define F_MARGIN (BISHOP_VALUE+1)
+#  define RAZOR_MARGIN (QUEEN_VALUE+1)
+#  define F_MARGIN (BISHOP_VALUE+1)
 #endif
 
 int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
-           int ply, int do_null, int lp_recapture) {
-  register int moves_searched=0;
-  register int o_alpha, value=0;
+    int ply, int do_null, int lp_recapture)
+{
+  register int moves_searched = 0;
+  register int o_alpha, value = 0;
   register int extensions, extended, recapture, pieces;
-  int mate_threat=0;
+  int mate_threat = 0;
+
 #if defined(FUTILITY)
   int fprune;
 #endif
@@ -49,16 +51,18 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
   tree->nodes_searched++;
   if (tree->thread_id == 0) {
     if (--tree->next_time_check <= 0) {
-      tree->next_time_check=nodes_between_time_checks/Max(1,max_threads);
-      if (CheckInput()) Interrupt(ply);
-      if (TimeCheck(tree,0)) {
+      tree->next_time_check = nodes_between_time_checks / Max(1, max_threads);
+      if (CheckInput())
+        Interrupt(ply);
+      if (TimeCheck(tree, 0)) {
         time_abort++;
-        abort_search=1;
-        return(0);
+        abort_search = 1;
+        return (0);
       }
     }
   }
-  if (ply >= MAXPLY-1) return(beta);
+  if (ply >= MAXPLY - 1)
+    return (beta);
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -66,13 +70,15 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
 |                                                          |
  ----------------------------------------------------------
 */
-  if (RepetitionCheck(tree,ply)) {
-    value=DrawScore(wtm);
-    if (value < beta) SavePV(tree,ply,value,0);
+  if (RepetitionCheck(tree, ply)) {
+    value = DrawScore(wtm);
+    if (value < beta)
+      SavePV(tree, ply, 0);
 #if defined(TRACE)
-    if(ply <= trace_level) printf("draw by repetition detected, ply=%d.\n",ply);
+    if (ply <= trace_level)
+      printf("draw by repetition detected, ply=%d.\n", ply);
 #endif
-    return(value);
+    return (value);
   }
 /*
  ----------------------------------------------------------
@@ -107,19 +113,21 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
 |                                                          |
  ----------------------------------------------------------
 */
-  switch (HashProbe(tree,ply,depth,wtm,&alpha,&beta,&mate_threat)) {
-    case EXACT:
-      if(alpha < beta) SavePV(tree,ply,alpha,1);
-      return(alpha);
-    case EXACTEGTB:
-      if(alpha < beta) SavePV(tree,ply,alpha,2);
-      return(alpha);
-    case LOWER:
-      return(beta);
-    case UPPER:
-      return(alpha);
-    case AVOID_NULL_MOVE:
-      do_null=0;
+  switch (HashProbe(tree, ply, depth, wtm, &alpha, &beta, &mate_threat)) {
+  case EXACT:
+    if (alpha < beta)
+      SavePV(tree, ply, 1);
+    return (alpha);
+  case EXACTEGTB:
+    if (alpha < beta)
+      SavePV(tree, ply, 2);
+    return (alpha);
+  case LOWER:
+    return (beta);
+  case UPPER:
+    return (alpha);
+  case AVOID_NULL_MOVE:
+    do_null = 0;
   }
 /*
  ----------------------------------------------------------
@@ -133,28 +141,30 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
 |                                                          |
  ----------------------------------------------------------
 */
-  if (ply<=iteration_depth && TotalPieces<=EGTB_use &&
-      WhiteCastle(ply)+BlackCastle(ply)==0 &&
-      (CaptureOrPromote(tree->current_move[ply-1]) || ply<3)) {
+  if (ply <= iteration_depth && TotalPieces <= EGTB_use &&
+      WhiteCastle(ply) + BlackCastle(ply) == 0 &&
+      (CaptureOrPromote(tree->current_move[ply - 1]) || ply < 3)) {
     int egtb_value;
+
     tree->egtb_probes++;
     if (EGTBProbe(tree, ply, wtm, &egtb_value)) {
       tree->egtb_probes_successful++;
-      alpha=egtb_value;
-      if (abs(alpha) > MATE-300) alpha+=(alpha > 0) ? -ply+1 : ply;
+      alpha = egtb_value;
+      if (abs(alpha) > MATE - 300)
+        alpha += (alpha > 0) ? -ply + 1 : ply;
       else if (alpha == 0) {
-        alpha=DrawScore(wtm);
+        alpha = DrawScore(wtm);
         if (Material > 0) {
-          alpha+=(wtm) ? 1 : -1;
-        }
-        else if (Material < 0) {
-          alpha-=(wtm) ? 1 : -1;
+          alpha += (wtm) ? 1 : -1;
+        } else if (Material < 0) {
+          alpha -= (wtm) ? 1 : -1;
         }
       }
-      if(alpha < beta) SavePV(tree,ply,alpha,2);
-      tree->pv[ply].pathl=0;
-      HashStore(tree,ply,MAX_DRAFT,wtm,EXACT,alpha,mate_threat);
-      return(alpha);
+      if (alpha < beta)
+        SavePV(tree, ply, 2);
+      tree->pv[ply].pathl = 0;
+      HashStore(tree, ply, MAX_DRAFT, wtm, EXACT, alpha, mate_threat);
+      return (alpha);
     }
   }
 /*
@@ -164,9 +174,9 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
 |                                                          |
  ----------------------------------------------------------
 */
-  tree->in_check[ply+1]=0;
-  o_alpha=alpha;
-  tree->last[ply]=tree->last[ply-1];
+  tree->in_check[ply + 1] = 0;
+  o_alpha = alpha;
+  tree->last[ply] = tree->last[ply - 1];
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -206,38 +216,42 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
 |                                                          |
  ----------------------------------------------------------
 */
-  pieces=(wtm) ? TotalWhitePieces : TotalBlackPieces;
-  if (do_null && !tree->in_check[ply] && pieces &&
-      (pieces>5 || depth<7*INCPLY)) {
+  pieces = (wtm) ? TotalWhitePieces : TotalBlackPieces;
+  if (do_null && !tree->in_check[ply] && pieces && (pieces > 5 ||
+          depth < 7 * INCPLY)) {
     register BITBOARD save_hash_key;
     int null_depth;
-    tree->current_move[ply]=0;
-    tree->phase[ply]=NULL_MOVE;
+
+    tree->current_move[ply] = 0;
+    tree->phase[ply] = NULL_MOVE;
 #if defined(TRACE)
     if (ply <= trace_level)
-      SearchTrace(tree,ply,depth,wtm,beta-1,beta,"Search",0);
+      SearchTrace(tree, ply, depth, wtm, beta - 1, beta, "Search", 0);
 #endif
-    tree->position[ply+1]=tree->position[ply];
-    Rule50Moves(ply+1)++;
-    save_hash_key=HashKey;
+    tree->position[ply + 1] = tree->position[ply];
+    Rule50Moves(ply + 1)++;
+    save_hash_key = HashKey;
     if (EnPassant(ply)) {
-      HashEP(EnPassant(ply+1),HashKey);
-      EnPassant(ply+1)=0;
+      HashEP(EnPassant(ply + 1), HashKey);
+      EnPassant(ply + 1) = 0;
     }
-    null_depth=(depth>6*INCPLY && pieces>8) ? null_max : null_min;
+    null_depth = (depth > 6 * INCPLY && pieces > 8) ? null_max : null_min;
     if (null_depth) {
-      if (depth-null_depth >= INCPLY)
-        value=-Search(tree,-beta,1-beta,Flip(wtm),
-                      depth-null_depth,ply+1,NO_NULL,0);
+      if (depth - null_depth >= INCPLY)
+        value =
+            -Search(tree, -beta, 1 - beta, Flip(wtm), depth - null_depth,
+            ply + 1, NO_NULL, 0);
       else
-        value=-Quiesce(tree,-beta,1-beta,Flip(wtm),ply+1);
-      HashKey=save_hash_key;
-      if (abort_search || tree->stop) return(0);
+        value = -Quiesce(tree, -beta, 1 - beta, Flip(wtm), ply + 1);
+      HashKey = save_hash_key;
+      if (abort_search || tree->stop)
+        return (0);
       if (value >= beta) {
-        HashStore(tree,ply,depth,wtm,LOWER,value,mate_threat);
-        return(value);
+        HashStore(tree, ply, depth, wtm, LOWER, value, mate_threat);
+        return (value);
       }
-      if (value == -MATE+ply+2) mate_threat=1;
+      if (value == -MATE + ply + 2)
+        mate_threat = 1;
     }
   }
 /*
@@ -255,40 +269,47 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
 |                                                          |
  ----------------------------------------------------------
 */
-  tree->next_status[ply].phase=HASH_MOVE;
-  if (tree->hash_move[ply]==0 && do_null && depth>=3*INCPLY) do {
-    if (ply & 1) {
-      if (alpha!=root_alpha || beta!=root_beta) break;
-    }
-    else {
-      if (alpha!=-root_beta || beta!=-root_alpha) break;
-    }
-    tree->current_move[ply]=0;
-    if (depth-2*INCPLY >= INCPLY)
-      value=Search(tree,alpha,beta,wtm,depth-2*INCPLY,ply,DO_NULL,0);
-    else
-      value=Quiesce(tree,alpha,beta,wtm,ply);
-    if (abort_search || tree->stop) return(0);
-    if (value <= alpha) {
-      if (depth-2*INCPLY >= INCPLY)
-        value=Search(tree,-MATE,beta,wtm,depth-2*INCPLY,ply,DO_NULL,0);
-      else
-        value=Quiesce(tree,-MATE,beta,wtm,ply);
-      if (abort_search || tree->stop) return(0);
-      if (value < beta) {
-        if ((int) tree->pv[ply-1].pathl >= ply) 
-          tree->hash_move[ply]=tree->pv[ply-1].path[ply];
+  tree->next_status[ply].phase = HASH_MOVE;
+  if (tree->hash_move[ply] == 0 && do_null && depth >= 3 * INCPLY)
+    do {
+      if (ply & 1) {
+        if (alpha != root_alpha || beta != root_beta)
+          break;
+      } else {
+        if (alpha != -root_beta || beta != -root_alpha)
+          break;
       }
-      else tree->hash_move[ply]=tree->current_move[ply];
+      tree->current_move[ply] = 0;
+      if (depth - 2 * INCPLY >= INCPLY)
+        value =
+            Search(tree, alpha, beta, wtm, depth - 2 * INCPLY, ply, DO_NULL, 0);
+      else
+        value = Quiesce(tree, alpha, beta, wtm, ply);
+      if (abort_search || tree->stop)
+        return (0);
+      if (value <= alpha) {
+        if (depth - 2 * INCPLY >= INCPLY)
+          value =
+              Search(tree, -MATE, beta, wtm, depth - 2 * INCPLY, ply, DO_NULL,
+              0);
+        else
+          value = Quiesce(tree, -MATE, beta, wtm, ply);
+        if (abort_search || tree->stop)
+          return (0);
+        if (value < beta) {
+          if ((int) tree->pv[ply - 1].pathl >= ply)
+            tree->hash_move[ply] = tree->pv[ply - 1].path[ply];
+        } else
+          tree->hash_move[ply] = tree->current_move[ply];
+      } else if (value < beta) {
+        if ((int) tree->pv[ply - 1].pathl >= ply)
+          tree->hash_move[ply] = tree->pv[ply - 1].path[ply];
+      } else
+        tree->hash_move[ply] = tree->current_move[ply];
+      tree->last[ply] = tree->last[ply - 1];
+      tree->next_status[ply].phase = HASH_MOVE;
     }
-    else if (value < beta) {
-      if ((int) tree->pv[ply-1].pathl >= ply) 
-        tree->hash_move[ply]=tree->pv[ply-1].path[ply];
-    }
-    else tree->hash_move[ply]=tree->current_move[ply];
-    tree->last[ply]=tree->last[ply-1];
-    tree->next_status[ply].phase=HASH_MOVE;
-  } while(0);
+    while (0);
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -300,11 +321,13 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
 |                                                          |
  ----------------------------------------------------------
 */
-  while ((tree->phase[ply]=(tree->in_check[ply]) ?
-         NextEvasion(tree,ply,wtm) : NextMove(tree,ply,wtm))) {
+  while ((tree->phase[ply] =
+          (tree->in_check[ply]) ? NextEvasion(tree, ply, wtm) : NextMove(tree,
+              ply, wtm))) {
 #if defined(TRACE)
     if (ply <= trace_level)
-      SearchTrace(tree,ply,depth,wtm,alpha,beta,"Search",tree->phase[ply]);
+      SearchTrace(tree, ply, depth, wtm, alpha, beta, "Search",
+          tree->phase[ply]);
 #endif
 /*
  ----------------------------------------------------------
@@ -317,7 +340,7 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
 |                                                          |
  ----------------------------------------------------------
 */
-    MakeMove(tree,ply,tree->current_move[ply],wtm);
+    MakeMove(tree, ply, tree->current_move[ply], wtm);
     if (tree->in_check[ply] || !Check(wtm)) {
 /*
  ----------------------------------------------------------
@@ -329,9 +352,9 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
 |                                                          |
  ----------------------------------------------------------
 */
-      extended=0;
+      extended = 0;
       if (mate_threat) {
-        extended+=mate_depth;
+        extended += mate_depth;
         tree->mate_extensions_done++;
       }
 /*
@@ -344,11 +367,11 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
  ----------------------------------------------------------
 */
       if (Check(Flip(wtm))) {
-        tree->in_check[ply+1]=1;
+        tree->in_check[ply + 1] = 1;
         tree->check_extensions_done++;
-        extended+=incheck_depth;
-      }
-      else tree->in_check[ply+1]=0;
+        extended += incheck_depth;
+      } else
+        tree->in_check[ply + 1] = 0;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -359,16 +382,15 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
 |                                                          |
  ----------------------------------------------------------
 */
-      recapture=0;
-      if (!extended && Captured(tree->current_move[ply-1]) &&
-          To(tree->current_move[ply-1]) == To(tree->current_move[ply]) &&
-          (p_values[Captured(tree->current_move[ply-1])+7] == 
-           p_values[Captured(tree->current_move[ply])+7] ||
-           Promote(tree->current_move[ply-1])) &&
-          !lp_recapture) {
+      recapture = 0;
+      if (!extended && Captured(tree->current_move[ply - 1]) &&
+          To(tree->current_move[ply - 1]) == To(tree->current_move[ply])
+          && (p_values[Captured(tree->current_move[ply - 1]) + 7] ==
+              p_values[Captured(tree->current_move[ply]) + 7]
+              || Promote(tree->current_move[ply - 1])) && !lp_recapture) {
         tree->recapture_extensions_done++;
-        extended+=recap_depth;
-        recapture=1;
+        extended += recap_depth;
+        recapture = 1;
       }
 /*
  ----------------------------------------------------------
@@ -378,10 +400,10 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
 |                                                          |
  ----------------------------------------------------------
 */
-      if (Piece(tree->current_move[ply])==pawn &&
-        push_extensions[To(tree->current_move[ply])]) {
+      if (Piece(tree->current_move[ply]) == pawn &&
+          push_extensions[To(tree->current_move[ply])]) {
         tree->passed_pawn_extensions_done++;
-        extended+=pushpp_depth;
+        extended += pushpp_depth;
       }
 /*
  ----------------------------------------------------------
@@ -392,12 +414,13 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
  ----------------------------------------------------------
 */
 #if defined(FUTILITY)
-      fprune=0;
+      fprune = 0;
 #endif
       if (!moves_searched) {
-        if (tree->in_check[ply] && tree->last[ply]-tree->last[ply-1] == 1) {
+        if (tree->in_check[ply]
+            && tree->last[ply] - tree->last[ply - 1] == 1) {
           tree->one_reply_extensions_done++;
-          extended+=onerep_depth;
+          extended += onerep_depth;
         }
 /*
  ----------------------------------------------------------
@@ -408,101 +431,111 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
  ----------------------------------------------------------
 */
         if (extended) {
-          LimitExtensions(extended,ply);
+          LimitExtensions(extended, ply);
         }
-        extensions=extended-INCPLY;
-        if (depth+extensions>=INCPLY || tree->in_check[ply+1])
-          value=-Search(tree,-beta,-alpha,Flip(wtm),
-                        depth+extensions,ply+1,DO_NULL,recapture);
+        extensions = extended - INCPLY;
+        if (depth + extensions >= INCPLY || tree->in_check[ply + 1])
+          value =
+              -Search(tree, -beta, -alpha, Flip(wtm), depth + extensions,
+              ply + 1, DO_NULL, recapture);
         else
-          value=-Quiesce(tree,-beta,-alpha,Flip(wtm),ply+1);
+          value = -Quiesce(tree, -beta, -alpha, Flip(wtm), ply + 1);
         if (abort_search || tree->stop) {
-          UnmakeMove(tree,ply,tree->current_move[ply],wtm);
-          return(0);
+          UnmakeMove(tree, ply, tree->current_move[ply], wtm);
+          return (0);
         }
-      }
-      else {
+      } else {
         if (extended) {
-          LimitExtensions(extended,ply);
+          LimitExtensions(extended, ply);
         }
 #if defined(FUTILITY)
         else {
-          if (abs(alpha) < (MATE-500) && ply > 4 && !tree->in_check[ply]) {
+          if (abs(alpha) < (MATE - 500) && ply > 4 && !tree->in_check[ply]) {
             if (wtm) {
-              if (depth<3*INCPLY && (Material+F_MARGIN)<=alpha) fprune=1;
-              else if (depth>=3*INCPLY && depth<5*INCPLY &&
-                      (Material+RAZOR_MARGIN)<=alpha) extended-=60;
-            }
-            else {
-              if (depth<3*INCPLY && (-Material+F_MARGIN)<=alpha) fprune=1;
-              else if (depth>=3*INCPLY && depth<5*INCPLY &&
-                       (-Material+RAZOR_MARGIN)<=alpha) extended-=60;
+              if (depth < 3 * INCPLY && (Material + F_MARGIN) <= alpha)
+                fprune = 1;
+              else if (depth >= 3 * INCPLY && depth < 5 * INCPLY &&
+                  (Material + RAZOR_MARGIN) <= alpha)
+                extended -= 60;
+            } else {
+              if (depth < 3 * INCPLY && (-Material + F_MARGIN) <= alpha)
+                fprune = 1;
+              else if (depth >= 3 * INCPLY && depth < 5 * INCPLY &&
+                  (-Material + RAZOR_MARGIN) <= alpha)
+                extended -= 60;
             }
           }
         }
 #endif
-        extensions=extended-INCPLY;
+        extensions = extended - INCPLY;
 #if defined(FUTILITY)
-        if ((depth+extensions>=INCPLY || tree->in_check[ply+1]) && !fprune)
+        if ((depth + extensions >= INCPLY || tree->in_check[ply + 1])
+            && !fprune)
 #else
-        if (depth+extensions>=INCPLY || tree->in_check[ply+1])
+        if (depth + extensions >= INCPLY || tree->in_check[ply + 1])
 #endif
-          value=-Search(tree,-alpha-1,-alpha,Flip(wtm),
-                        depth+extensions,ply+1,DO_NULL,recapture);
+          value =
+              -Search(tree, -alpha - 1, -alpha, Flip(wtm), depth + extensions,
+              ply + 1, DO_NULL, recapture);
         else
-          value=-Quiesce(tree,-alpha-1,-alpha,Flip(wtm),ply+1);
+          value = -Quiesce(tree, -alpha - 1, -alpha, Flip(wtm), ply + 1);
         if (abort_search || tree->stop) {
-          UnmakeMove(tree,ply,tree->current_move[ply],wtm);
-          return(0);
+          UnmakeMove(tree, ply, tree->current_move[ply], wtm);
+          return (0);
         }
-        if (value>alpha && value<beta) {
-          if ((depth+extensions>=INCPLY || tree->in_check[ply+1]))
-            value=-Search(tree,-beta,-alpha,Flip(wtm),
-                          depth+extensions,ply+1,DO_NULL,recapture);
+        if (value > alpha && value < beta) {
+          if ((depth + extensions >= INCPLY || tree->in_check[ply + 1]))
+            value =
+                -Search(tree, -beta, -alpha, Flip(wtm), depth + extensions,
+                ply + 1, DO_NULL, recapture);
           else
-            value=-Quiesce(tree,-beta,-alpha,Flip(wtm),ply+1);
+            value = -Quiesce(tree, -beta, -alpha, Flip(wtm), ply + 1);
           if (abort_search || tree->stop) {
-            UnmakeMove(tree,ply,tree->current_move[ply],wtm);
-            return(0);
+            UnmakeMove(tree, ply, tree->current_move[ply], wtm);
+            return (0);
           }
         }
       }
       if (value > alpha) {
-        if(value >= beta) {
-          History(tree,ply,depth,wtm,tree->current_move[ply]);
-          UnmakeMove(tree,ply,tree->current_move[ply],wtm);
-          HashStore(tree,ply,depth,wtm,LOWER,value,mate_threat);
+        if (value >= beta) {
+          History(tree, ply, depth, wtm, tree->current_move[ply]);
+          UnmakeMove(tree, ply, tree->current_move[ply], wtm);
+          HashStore(tree, ply, depth, wtm, LOWER, value, mate_threat);
           tree->fail_high++;
-          if (!moves_searched) tree->fail_high_first++;
-          return(value);
+          if (!moves_searched)
+            tree->fail_high_first++;
+          return (value);
         }
-        alpha=value;
+        alpha = value;
       }
       moves_searched++;
-    } else tree->nodes_searched++;
-    UnmakeMove(tree,ply,tree->current_move[ply],wtm);
+    } else
+      tree->nodes_searched++;
+    UnmakeMove(tree, ply, tree->current_move[ply], wtm);
 #if defined(SMP)
-    if (smp_idle && moves_searched && min_thread_depth<=depth) {
-      tree->alpha=alpha;
-      tree->beta=beta;
-      tree->value=alpha;
-      tree->wtm=wtm;
-      tree->ply=ply;
-      tree->depth=depth;
-      tree->mate_threat=mate_threat;
-      tree->lp_recapture=lp_recapture;
-      if(Thread(tree)) {
-        if (abort_search || tree->stop) return(0);
-        if (tree->thread_id==0 && CheckInput()) Interrupt(ply);
-        value=tree->search_value;
+    if (smp_idle && moves_searched && min_thread_depth <= depth) {
+      tree->alpha = alpha;
+      tree->beta = beta;
+      tree->value = alpha;
+      tree->wtm = wtm;
+      tree->ply = ply;
+      tree->depth = depth;
+      tree->mate_threat = mate_threat;
+      tree->lp_recapture = lp_recapture;
+      if (Thread(tree)) {
+        if (abort_search || tree->stop)
+          return (0);
+        if (tree->thread_id == 0 && CheckInput())
+          Interrupt(ply);
+        value = tree->search_value;
         if (value > alpha) {
-          if(value >= beta) {
-            History(tree,ply,depth,wtm,tree->current_move[ply]);
-            HashStore(tree,ply,depth,wtm,LOWER,value,mate_threat);
+          if (value >= beta) {
+            History(tree, ply, depth, wtm, tree->current_move[ply]);
+            HashStore(tree, ply, depth, wtm, LOWER, value, mate_threat);
             tree->fail_high++;
-            return(value);
+            return (value);
           }
-          alpha=value;
+          alpha = value;
           break;
         }
       }
@@ -519,23 +552,25 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
  ----------------------------------------------------------
 */
   if (moves_searched == 0) {
-    value=(Check(wtm)) ? -(MATE-ply) : DrawScore(wtm);
-    if (value>=alpha && value<beta) {
-      SavePV(tree,ply,value,0);
+    value = (Check(wtm)) ? -(MATE - ply) : DrawScore(wtm);
+    if (value >= alpha && value < beta) {
+      SavePV(tree, ply, 0);
 #if defined(TRACE)
-      if (ply <= trace_level) printf("Search() no moves!  ply=%d\n",ply);
+      if (ply <= trace_level)
+        printf("Search() no moves!  ply=%d\n", ply);
 #endif
     }
-    return(value);
-  }
-  else {
+    return (value);
+  } else {
     if (alpha != o_alpha) {
-      memcpy(&tree->pv[ply-1].path[ply],&tree->pv[ply].path[ply],(tree->pv[ply].pathl-ply+1)*sizeof(int));
-      memcpy(&tree->pv[ply-1].pathh,&tree->pv[ply].pathh,3);
-      tree->pv[ply-1].path[ply-1]=tree->current_move[ply-1];
-      History(tree,ply,depth,wtm,tree->pv[ply].path[ply]);
+      memcpy(&tree->pv[ply - 1].path[ply], &tree->pv[ply].path[ply],
+          (tree->pv[ply].pathl - ply + 1) * sizeof(int));
+      memcpy(&tree->pv[ply - 1].pathh, &tree->pv[ply].pathh, 3);
+      tree->pv[ply - 1].path[ply - 1] = tree->current_move[ply - 1];
+      History(tree, ply, depth, wtm, tree->pv[ply].path[ply]);
     }
-    HashStore(tree,ply,depth,wtm,(alpha==o_alpha)?UPPER:EXACT,alpha,mate_threat);
-    return(alpha);
+    HashStore(tree, ply, depth, wtm, (alpha == o_alpha) ? UPPER : EXACT, alpha,
+        mate_threat);
+    return (alpha);
   }
 }

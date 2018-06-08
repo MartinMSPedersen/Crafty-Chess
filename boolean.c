@@ -3,8 +3,6 @@
 #include "chess.h"
 #include "data.h"
 
-#if !defined(CRAY1)
-
 BITBOARD Mask(int arg1) {
   register BITBOARD i;
   i=(BITBOARD) -1;
@@ -148,7 +146,6 @@ int LastOne(BITBOARD arg1) {
       return (last_one[(arg1>>32)&65535]+16);
     return (last_one[arg1>>48]);
 }
-#endif
 #endif
 #endif
 #endif

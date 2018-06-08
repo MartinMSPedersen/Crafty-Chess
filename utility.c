@@ -15,7 +15,7 @@
 #if defined(OS2)
 #  include <sys/select.h>
 #endif
-#if defined(NT_i386) || defined(NT_AXP)
+#if defined(NT_i386)
 #  include <windows.h>
 #  include <winbase.h>
 #  include <wincon.h>
@@ -97,7 +97,7 @@ int _kbhit(void) {
 }
 #endif   /* if defined(AMIGA)  */
 
-# if defined(NT_i386) || defined(NT_AXP)
+# if defined(NT_i386)
 #  include <windows.h>
 #  include <conio.h>
 int CheckInput(void) {
@@ -711,7 +711,7 @@ unsigned int ReadClock(TIME_TYPE type) {
 #if defined(MACOS)
   return(clock() * 100 / CLOCKS_PER_SEC);
 #endif
-#if defined(NT_i386) || defined(NT_AXP)
+#if defined(NT_i386)
   HANDLE hThread;
   FILETIME ftCreate, ftExit, ftKernel, ftUser;
   unsigned int cputime;
@@ -738,7 +738,7 @@ unsigned int ReadClock(TIME_TYPE type) {
       gettimeofday(&timeval, &timezone);
       return(timeval.tv_sec*100+(timeval.tv_usec/10000));
 #endif
-#if defined(NT_i386) || defined(NT_AXP)
+#if defined(NT_i386)
     case cpu:
       hThread = GetCurrentThread();
       if (GetThreadTimes(hThread, &ftCreate, &ftExit, &ftKernel,
@@ -969,7 +969,7 @@ void NewGame(int save) {
 }
 
 char* Normal(void) {
-#if defined(NT_i386) || defined(NT_AXP)
+#if defined(NT_i386)
   HANDLE  std_console;
   std_console = GetStdHandle(STD_OUTPUT_HANDLE);
 #endif
@@ -977,7 +977,7 @@ char* Normal(void) {
   if (ansi) {
 #if defined(UNIX) || defined(AMIGA)
     return("\033[0m");
-#elif defined(NT_i386) || defined(NT_AXP)
+#elif defined(NT_i386)
     SetConsoleTextAttribute(std_console, FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
     return("");
 #else
@@ -1688,7 +1688,7 @@ void RestoreGame(void) {
   Phase();
 }
 char* Reverse(void) {
-#if defined(NT_i386) || defined(NT_AXP)
+#if defined(NT_i386)
   HANDLE  std_console;
   std_console = GetStdHandle(STD_OUTPUT_HANDLE);
 #endif
@@ -1696,7 +1696,7 @@ char* Reverse(void) {
   if (ansi) {
 #if defined(UNIX) || defined(AMIGA)
     return("\033[7m");
-#elif defined(NT_i386) || defined(NT_AXP)
+#elif defined(NT_i386)
     SetConsoleTextAttribute(std_console, BACKGROUND_RED | BACKGROUND_GREEN | BACKGROUND_BLUE | BACKGROUND_INTENSITY);
     return("");
 #else
@@ -2075,6 +2075,10 @@ void CopyFromSMP(TREE *p, TREE *c) {
     p->pv[p->ply]=c->pv[p->ply];
     p->search_value=c->search_value;
     for (i=1;i<MAXPLY;i++) p->killers[i]=c->killers[i];
+    for (i=0;i<4096;i++) {
+      p->history_w[i]=c->history_w[i];
+      p->history_b[i]=c->history_b[i];
+    }
   }
   p->nodes_searched+=c->nodes_searched;
   p->fail_high+=c->fail_high;
@@ -2148,6 +2152,10 @@ TREE* CopyToSMP(TREE *p, int thread) {
     c->phase[i]=p->phase[i];
   }
   for (i=1;i<MAXPLY;i++) c->killers[i]=p->killers[i];
+  for (i=0;i<4096;i++) {
+    c->history_w[i]=p->history_w[i];
+    c->history_b[i]=p->history_b[i];
+  }
   c->nodes_searched=0;
   c->fail_high=0;
   c->fail_high_first=0;
@@ -2248,7 +2256,7 @@ void Kibitz(int level, int wtm, int depth, int time, int value,
     case 5:
       if ((kibitz&15)>=5 && nodes>5000) {
         if (ics) printf("*");
-        printf("%s d%d-> %dK/s %s %s %s ",prefix,depth,snps,
+        printf("%s d%d-> %s/s %s %s %s ",prefix,depth,snps,
                DisplayTimeKibitz(time),
                DisplayEvaluationKibitz(value,wtm),pv);
         if (tb_hits) printf("egtb=%d",tb_hits);
@@ -2513,9 +2521,7 @@ void * WinMallocInterleaved(size_t cbBytes, int cThreads) {
 // Free interleaved memory
 
 void WinFreeInterleaved(void *pMemory, size_t cBytes) {
-  VirtualFree(pMemory,                      // base address of block
-              cBytes,                       // bytes of committed pages
-              MEM_DECOMMIT|MEM_RELEASE);    // decommit the pages
+  VirtualFree(pMemory, 0, MEM_RELEASE);
 }
 
 #endif

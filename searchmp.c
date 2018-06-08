@@ -24,13 +24,15 @@
 #    define F_MARGIN (BISHOP_VALUE+1)
 #  endif
 
-int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
-              int depth, int ply, int mate_threat, int lp_recapture) {
+int SearchSMP(TREE * tree, int alpha, int beta, int value, int wtm, int depth,
+    int ply, int mate_threat, int lp_recapture)
+{
   register int extensions, extended, recapture;
   BITBOARD begin_root_nodes;
-#if defined(FUTILITY)
+
+#  if defined(FUTILITY)
   int fprune;
-#endif
+#  endif
 
 /*
  ----------------------------------------------------------
@@ -46,20 +48,21 @@ int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
   while (1) {
     Lock(tree->parent->lock);
     if (ply == 1) {
-      tree->phase[ply]=NextRootMove(tree->parent,tree,wtm);
-      tree->root_move=tree->parent->root_move;
-    }
-    else
-      tree->phase[ply]=(tree->in_check[ply]) ? 
-                               NextEvasion((TREE*)tree->parent,ply,wtm) : 
-                               NextMove((TREE*)tree->parent,ply,wtm);
-    tree->current_move[ply]=tree->parent->current_move[ply];
+      tree->phase[ply] = NextRootMove(tree->parent, tree, wtm);
+      tree->root_move = tree->parent->root_move;
+    } else
+      tree->phase[ply] =
+          (tree->in_check[ply]) ? NextEvasion((TREE *) tree->parent, ply,
+          wtm) : NextMove((TREE *) tree->parent, ply, wtm);
+    tree->current_move[ply] = tree->parent->current_move[ply];
     Unlock(tree->parent->lock);
-    if (!tree->phase[ply]) break;
-#if defined(TRACE)
+    if (!tree->phase[ply])
+      break;
+#  if defined(TRACE)
     if (ply <= trace_level)
-      SearchTrace(tree,ply,depth,wtm,alpha,beta,"SearchSMP",tree->phase[ply]);
-#endif
+      SearchTrace(tree, ply, depth, wtm, alpha, beta, "SearchSMP",
+          tree->phase[ply]);
+#  endif
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -71,7 +74,7 @@ int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
 |                                                          |
  ----------------------------------------------------------
 */
-    MakeMove(tree,ply,tree->current_move[ply],wtm);
+    MakeMove(tree, ply, tree->current_move[ply], wtm);
     if (tree->in_check[ply] || !Check(wtm)) {
 /*
  ----------------------------------------------------------
@@ -83,9 +86,9 @@ int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
 |                                                          |
  ----------------------------------------------------------
 */
-      extended=0;
+      extended = 0;
       if (mate_threat) {
-        extended+=mate_depth;
+        extended += mate_depth;
         tree->mate_extensions_done++;
       }
 /*
@@ -98,11 +101,11 @@ int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
  ----------------------------------------------------------
 */
       if (Check(Flip(wtm))) {
-        tree->in_check[ply+1]=1;
+        tree->in_check[ply + 1] = 1;
         tree->check_extensions_done++;
-        extended+=incheck_depth;
-      }
-      else tree->in_check[ply+1]=0;
+        extended += incheck_depth;
+      } else
+        tree->in_check[ply + 1] = 0;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -113,16 +116,15 @@ int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
 |                                                          |
  ----------------------------------------------------------
 */
-      recapture=0;
-      if (ply>1 && !extended && Captured(tree->current_move[ply-1]) &&
-          To(tree->current_move[ply-1]) == To(tree->current_move[ply]) &&
-          (p_values[Captured(tree->current_move[ply-1])+7] == 
-           p_values[Captured(tree->current_move[ply])+7] ||
-           Promote(tree->current_move[ply-1])) &&
-          !lp_recapture) {
+      recapture = 0;
+      if (ply > 1 && !extended && Captured(tree->current_move[ply - 1]) &&
+          To(tree->current_move[ply - 1]) == To(tree->current_move[ply]) &&
+          (p_values[Captured(tree->current_move[ply - 1]) + 7] ==
+              p_values[Captured(tree->current_move[ply]) + 7] ||
+              Promote(tree->current_move[ply - 1])) && !lp_recapture) {
         tree->recapture_extensions_done++;
-        extended+=recap_depth;
-        recapture=1;
+        extended += recap_depth;
+        recapture = 1;
       }
 /*
  ----------------------------------------------------------
@@ -132,10 +134,10 @@ int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
 |                                                          |
  ----------------------------------------------------------
 */
-      if (Piece(tree->current_move[ply])==pawn &&
-        push_extensions[To(tree->current_move[ply])]) {
+      if (Piece(tree->current_move[ply]) == pawn &&
+          push_extensions[To(tree->current_move[ply])]) {
         tree->passed_pawn_extensions_done++;
-        extended+=pushpp_depth;
+        extended += pushpp_depth;
       }
 /*
  ----------------------------------------------------------
@@ -145,54 +147,56 @@ int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
 |                                                          |
  ----------------------------------------------------------
 */
-#if defined(FUTILITY)
-      fprune=0;
-#endif
-      begin_root_nodes=tree->nodes_searched;
+#  if defined(FUTILITY)
+      fprune = 0;
+#  endif
+      begin_root_nodes = tree->nodes_searched;
       if (extended) {
-        LimitExtensions(extended,ply);
+        LimitExtensions(extended, ply);
       }
-#if defined(FUTILITY)
+#  if defined(FUTILITY)
       else {
-        if (abs(alpha) < (MATE-500) && ply > 4 && !tree->in_check[ply]) {
+        if (abs(alpha) < (MATE - 500) && ply > 4 && !tree->in_check[ply]) {
           if (wtm) {
-            if (depth<3*INCPLY && (Material+F_MARGIN)<=alpha) fprune=1;
-            else if (depth>=3*INCPLY && depth<5*INCPLY &&
-                     (Material+RAZOR_MARGIN)<=alpha) extended-=60;
-          }
-          else {
-            if (depth<3*INCPLY && (-Material+F_MARGIN)<=alpha) fprune=1;
-            else if (depth>=3*INCPLY && depth<5*INCPLY &&
-                     (-Material+RAZOR_MARGIN)<=alpha) extended-=60;
+            if (depth < 3 * INCPLY && (Material + F_MARGIN) <= alpha)
+              fprune = 1;
+            else if (depth >= 3 * INCPLY && depth < 5 * INCPLY &&
+                (Material + RAZOR_MARGIN) <= alpha)
+              extended -= 60;
+          } else {
+            if (depth < 3 * INCPLY && (-Material + F_MARGIN) <= alpha)
+              fprune = 1;
+            else if (depth >= 3 * INCPLY && depth < 5 * INCPLY &&
+                (-Material + RAZOR_MARGIN) <= alpha)
+              extended -= 60;
           }
         }
       }
-#endif
-      extensions=extended-INCPLY;
-#if defined(FUTILITY)
-      if ((depth+extensions>=INCPLY ||
-          tree->in_check[ply+1]) && !fprune)
-#else
-      if (depth+extensions>=INCPLY ||
-          tree->in_check[ply+1])
-#endif
-        value=-Search(tree,-alpha-1,-alpha,Flip(wtm),
-                      depth+extensions,ply+1,DO_NULL,recapture);
+#  endif
+      extensions = extended - INCPLY;
+#  if defined(FUTILITY)
+      if ((depth + extensions >= INCPLY || tree->in_check[ply + 1]) && !fprune)
+#  else
+      if (depth + extensions >= INCPLY || tree->in_check[ply + 1])
+#  endif
+        value =
+            -Search(tree, -alpha - 1, -alpha, Flip(wtm), depth + extensions,
+            ply + 1, DO_NULL, recapture);
       else
-        value=-Quiesce(tree,-alpha-1,-alpha,Flip(wtm),ply+1);
+        value = -Quiesce(tree, -alpha - 1, -alpha, Flip(wtm), ply + 1);
       if (abort_search || tree->stop) {
-        UnmakeMove(tree,ply,tree->current_move[ply],wtm);
+        UnmakeMove(tree, ply, tree->current_move[ply], wtm);
         break;
       }
-      if (value>alpha && value<beta) {
-        if (depth+extensions>=INCPLY ||
-            tree->in_check[ply+1])
-          value=-Search(tree,-beta,-alpha,Flip(wtm),
-                        depth+extensions,ply+1,DO_NULL,recapture);
+      if (value > alpha && value < beta) {
+        if (depth + extensions >= INCPLY || tree->in_check[ply + 1])
+          value =
+              -Search(tree, -beta, -alpha, Flip(wtm), depth + extensions,
+              ply + 1, DO_NULL, recapture);
         else
-          value=-Quiesce(tree,-beta,-alpha,Flip(wtm),ply+1);
+          value = -Quiesce(tree, -beta, -alpha, Flip(wtm), ply + 1);
         if (abort_search || tree->stop) {
-          UnmakeMove(tree,ply,tree->current_move[ply],wtm);
+          UnmakeMove(tree, ply, tree->current_move[ply], wtm);
           break;
         }
       }
@@ -207,25 +211,27 @@ int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
  ----------------------------------------------------------
 */
       if (ply == 1)
-        root_moves[tree->root_move].nodes=tree->nodes_searched-begin_root_nodes;
+        root_moves[tree->root_move].nodes =
+            tree->nodes_searched - begin_root_nodes;
       if (value > alpha) {
         if (ply == 1) {
           Lock(lock_root);
           if (value > root_value) {
-            SearchOutput(tree,value,beta);
-            root_value=value;
+            SearchOutput(tree, value, beta);
+            root_value = value;
           }
           Unlock(lock_root);
         }
-        if(value >= beta) {
+        if (value >= beta) {
           register int proc;
+
           parallel_stops++;
-          UnmakeMove(tree,ply,tree->current_move[ply],wtm);
-          tree->search_value=value;
+          UnmakeMove(tree, ply, tree->current_move[ply], wtm);
+          tree->search_value = value;
           Lock(lock_smp);
           Lock(tree->parent->lock);
           if (!tree->stop) {
-            for (proc=0;proc<max_threads;proc++)
+            for (proc = 0; proc < max_threads; proc++)
               if (tree->parent->siblings[proc] && proc != tree->thread_id)
                 ThreadStop(tree->parent->siblings[proc]);
           }
@@ -233,13 +239,14 @@ int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
           Unlock(lock_smp);
           break;
         }
-        alpha=value;
+        alpha = value;
       }
     }
-    UnmakeMove(tree,ply,tree->current_move[ply],wtm);
-    tree->search_value=alpha;
+    UnmakeMove(tree, ply, tree->current_move[ply], wtm);
+    tree->search_value = alpha;
   }
-  if (tree->stop && ply==1) root_moves[tree->root_move].status&=255-128;
-  return(0);
+  if (tree->stop && ply == 1)
+    root_moves[tree->root_move].status &= 255 - 128;
+  return (0);
 }
 #endif

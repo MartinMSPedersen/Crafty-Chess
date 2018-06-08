@@ -10,7 +10,7 @@
 #endif
 #include <signal.h>
 
-/* last modified 12/01/03 */
+/* last modified 12/26/03 */
 /*
 *******************************************************************************
 *                                                                             *
@@ -2965,13 +2965,23 @@
 *           support my AMD Opteron inline assembly for FirstOne(), LastOne()  *
 *           and PopCnt() procedures.                                          *
 *                                                                             *
+*   19.8    changes to lock.h to (a) eliminate NT/alpha, since Microsoft no   *
+*           longer supports the alpha, which makes lock.h much more readable. *
+*           CLONE is no longer an option either, further simplyfying the .h   *
+*           files.  new mode option "match" which sets an aggressive learning *
+*           mode, which is now the default.  the old learning mode can be set *
+*           by using the command "mode normal".  memory leak in new windows   *
+*           NUMA code fixed by Eugene Nalimov.  AMD fix to make the history   *
+*           counts thread-local rather than global (to avoid excessive cache  *
+*           invalidate traffic).                                              *
+*                                                                             *
 *******************************************************************************
 */
 int main(int argc, char **argv) {
   int move, presult, readstat;
   int value=0, i, cont=0, result;
   TREE *tree;
-#  if defined(NT_i386) || defined(NT_AXP)
+#  if defined(NT_i386)
   extern void _cdecl SignalInterrupt(int);
 #  else
   extern void SignalInterrupt(int);
@@ -3505,8 +3515,8 @@ int main(int argc, char **argv) {
       LearnBook(tree,wtm,val,0,1,2);
     }
     for (i=0;i<4096;i++) {
-      history_w[i]=history_w[i]>>8;
-      history_b[i]=history_b[i]>>8;
+      tree->history_w[i]=tree->history_w[i]>>8;
+      tree->history_b[i]=tree->history_b[i]>>8;
     }
     if (mode == tournament_mode) {
       strcpy(buffer,"clock");

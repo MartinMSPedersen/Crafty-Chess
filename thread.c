@@ -159,11 +159,7 @@ void WaitForAllThreadsInitialized(void) {
 ********************************************************************************
 */
 
-#if defined(CLONE)
-int ThreadInit(void *tid) {
-#else
 void * STDCALL ThreadInit(void *tid) {
-#endif
   ThreadMalloc((int) tid);
   WaitForAllThreadsInitialized();
   ThreadWait((int) tid, (TREE*) 0);

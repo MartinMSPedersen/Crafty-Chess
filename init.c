@@ -11,7 +11,7 @@
 #  include <sys/stat.h>
 #endif
 #include "epdglue.h"
-#if defined(NT_i386) || defined(NT_AXP)
+#if defined(NT_i386)
 #  include <fcntl.h>  /* needed for definition of "_O_BINARY" */
 #endif
 
@@ -150,7 +150,7 @@ void Initialize(int continuing) {
   InitializePawnMasks();
   InitializePieceMasks();
   InitializeChessBoard(&tree->position[0]);
-#if defined(NT_i386) || defined(NT_AXP)
+#if defined(NT_i386)
   _fmode = _O_BINARY;  /* set global file mode to binary to avoid text translation */
 #endif
 
@@ -1081,8 +1081,8 @@ void InitializeHashTables(void) {
 void InitializeHistoryKillers(void) {
   int i;
   for (i=0;i<4096;i++) {
-    history_w[i]=0;
-    history_b[i]=0;
+    local[0]->history_w[i]=0;
+    local[0]->history_b[i]=0;
   }
   for (i=0;i<MAXPLY;i++) {
     local[0]->killers[i].move1=0;

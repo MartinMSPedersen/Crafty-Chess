@@ -234,9 +234,6 @@
   extern size_t          cb_trans_ref;
   extern PAWN_HASH_ENTRY *pawn_hash_table_orig;
   extern size_t          cb_pawn_hash_table;
-
-  extern int            history_w[4096], history_b[4096];
-
   extern const int      p_values[15];
   extern PATH           last_pv;
   extern int            last_value;
@@ -428,7 +425,7 @@
   extern BITBOARD       minus9dir[65];
 
   extern BITBOARD       mask_eptest[64];
-# if !defined(CRAY1) && !defined(ALPHA)
+# if !defined(ALPHA)
     extern BITBOARD       mask_1;
     extern BITBOARD       mask_2;
     extern BITBOARD       mask_3;
@@ -439,7 +436,7 @@
 # endif
   extern BITBOARD       mask_clear_entry;
 
-# if !defined(CRAY1) && !defined(_M_AMD64) && !defined(USE_ASSEMBLY_B)
+# if !defined(_M_AMD64) && !defined(USE_ASSEMBLY_B)
     extern unsigned char  first_one[65536];
     extern unsigned char  last_one[65536];
 # endif

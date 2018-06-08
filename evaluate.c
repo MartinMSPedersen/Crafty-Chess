@@ -60,7 +60,7 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta) {
 /*
 **********************************************************************
 *                                                                    *
-*   determine if this is position should be evaluated to force mate  *
+*   determine if this position should be evaluated to force mate     *
 *   (neither side has pawns) or if it should be evaluated normally.  *
 *   call EvaluatePawns() to evaluate the current pawn position.      *
 *   this routine modifies the "passed" pawn bit-vector which         *
@@ -1208,8 +1208,8 @@ int EvaluateDevelopmentB(TREE * RESTRICT tree, int ply) {
 |                                                          |
 |   if it *is* a castle move, penalize the king if it is   |
 |   castling to one side when the other side is much safer |
-|   but will it will take longer to prepare to castle in   |
-|   that safer direction.                                  |
+|   but it will take longer to prepare to castle in that   |
+|   safer direction.                                       |
 |                                                          |
 |   the final test is to see if castling rights have been  |
 |   lost due to moving one rook.  if so, check to see if   |
@@ -1319,8 +1319,8 @@ int EvaluateDevelopmentW(TREE * RESTRICT tree, int ply) {
 |                                                          |
 |   if it *is* a castle move, penalize the king if it is   |
 |   castling to one side when the other side is much safer |
-|   but will it will take longer to prepare to castle in   |
-|   that safer direction.                                  |
+|   but it will take longer to prepare to castle in that   |
+|   safer direction.                                       |
 |                                                          |
 |   the final test is to see if castling rights have been  |
 |   lost due to moving one rook.  if so, check to see if   |
@@ -1462,9 +1462,10 @@ int EvaluateMaterial(TREE * RESTRICT tree) {
 /*
 **********************************************************************
 *                                                                    *
-*   check 1.  if one side is a whole piece ahead, this is good, as a *
-*   piece for 3 pawns is generally bad, unless the pawns are so far  *
-*   advanced that the search can see them causing problems already.  *
+*   check 1.  if one side is a whole piece ahead, this is good, as   *
+*   trading a piece for 3 pawns is generally bad, unless the pawns   *
+*   are so far advanced that the search can see them causing         *
+*   problems already.                                                *
 *                                                                    *
 *   check 2.  if one side has a rook more than the other side, then  *
 *   determine if the other side has two extra pieces.  this is a bad *
@@ -1693,7 +1694,7 @@ int EvaluatePassedPawns(TREE * RESTRICT tree) {
 |                                                          |
 |   check to see if black has any passed pawns.  if so,    |
 |   and the king supports the pawn, then the pawn is even  |
-|   more valuable.  at the same time, check to see if the  |
+|   more valuable.  at the same time, check to see if it   |
 |   is blockaded by an enemy piece.  if so then the pawn   |
 |   is less valuable since it can't advance easily.  as    |
 |   material is removed, passed pawns also become more     |
@@ -1761,7 +1762,7 @@ int EvaluatePassedPawns(TREE * RESTRICT tree) {
 |                                                          |
 |   check to see if white has any passed pawns.  if so,    |
 |   and the king supports the pawn, then the pawn is even  |
-|   more valuable.  at the same time, check to see if the  |
+|   more valuable.  at the same time, check to see if it   |
 |   is blockaded by an enemy piece.  if so then the pawn   |
 |   is less valuable since it can't advance easily.  as    |
 |   material is removed, passed pawns also become more     |
@@ -1847,7 +1848,7 @@ int EvaluatePassedPawns(TREE * RESTRICT tree) {
 /*
 ********************************************************************************
 *                                                                              *
-*   EvaluatePassedPawnRaces() is used to evalaute passed pawns when one        *
+*   EvaluatePassedPawnRaces() is used to evaluate passed pawns when one        *
 *   side has passed pawns and the other side (or neither) has pieces.  in      *
 *   such a case, the critical question is can the defending king stop the pawn *
 *   from queening or is it too far away?  if only one side has pawns that can  *
@@ -3139,7 +3140,7 @@ int EvaluatePawns(TREE * RESTRICT tree) {
 |                                                          |
 |   now look for the "stonewall" formation in the white    |
 |   pawns and penalize the kingside safety if this type of |
-|   pawn position is found.  this also catched closed type |
+|   pawn position is found.  this also catches closed type |
 |   positions also.                                        |
 |                                                          |
  ----------------------------------------------------------
@@ -3682,7 +3683,7 @@ int EvaluateDraws(TREE * RESTRICT tree, int wtm) {
         if (Rank(square) >= RANK4) {
           rdist=7-Rank(square);
           fdist=FileDistance(square,BlackKingSQ);
-          if (rdist < max(fdist,7-Rank(BlackKingSQ))-(1-wtm) ||
+          if (rdist < Max(fdist,7-Rank(BlackKingSQ))-(1-wtm) ||
             (Rank(WhiteKingSQ) >= Rank(square) && kingpath))
             return(NODRAW);
         }
@@ -3698,7 +3699,7 @@ int EvaluateDraws(TREE * RESTRICT tree, int wtm) {
       if (Rank(square) >= RANK4) {
         rdist=7-Rank(square);
         fdist=FileDistance(square,BlackKingSQ);
-        if (rdist < max(fdist,7-Rank(BlackKingSQ))-(1-wtm) ||
+        if (rdist < Max(fdist,7-Rank(BlackKingSQ))-(1-wtm) ||
           (Rank(WhiteKingSQ) >= Rank(square) && kingpath))
           return(NODRAW);
         else if (!noblockb[0] && !kingpath && !WhiteMajors && WhiteMinors<=1)
@@ -3717,7 +3718,7 @@ int EvaluateDraws(TREE * RESTRICT tree, int wtm) {
         square=noblockb[1];
         if (Rank(square) <= RANK5) {
           fdist=FileDistance(square,WhiteKingSQ);
-          if (Rank(square) < max(fdist,Rank(WhiteKingSQ))-wtm ||
+          if (Rank(square) < Max(fdist,Rank(WhiteKingSQ))-wtm ||
             (Rank(BlackKingSQ) <= Rank(square) && kingpath))
             return(NODRAW);
         }
@@ -3732,7 +3733,7 @@ int EvaluateDraws(TREE * RESTRICT tree, int wtm) {
       square=noblockb[0];
       if (Rank(square) <= RANK5) {
         fdist=FileDistance(square,WhiteKingSQ);
-        if (Rank(square) < max(fdist,Rank(WhiteKingSQ))-wtm ||
+        if (Rank(square) < Max(fdist,Rank(WhiteKingSQ))-wtm ||
           (Rank(BlackKingSQ) <= Rank(square) && kingpath))
           return(NODRAW);
         else if (!noblockw[0] && !kingpath && !BlackMajors && BlackMinors<=1)

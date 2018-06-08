@@ -2,34 +2,35 @@
 #
 #	  You want to set up for maximum optimization, but typically you will
 #	  need to experiment to see which options provide the fastest code.
-#	  This is optimized for pgcc, which is a fairly current compiler.
+#	  This is optimized for gcc, which is a fairly current compiler.
 #   
 #   The currently available targets:
 #
-#     AIX        {IBM machines running AIX}
-#     ALPHA      {DEC Alpha running OSF/1-Digital Unix}
-#     ALPHALINUX {DEC Alpha running Linux}
-#     CRAY1      {any Cray-1 compatible architecture including XMP, YMP, 
-#                 C90, etc.}
-#     HP         {HP workstation running HP_UX operating system (Unix)}
-#     LINUX      {80X86 architecture running LINUX (Unix)}
-#     NT_i386    {80X86 architecture running Windows 95 or NT}
-#     NT_AXP     {DEC Alpha running Windows NT}
-#     NEXT       {NextStep}
-#     OS/2       {IBM OS/2 warp}
-#     SGI        {SGI Workstation running Irix (SYSV/R4) Unix}
-#     SUN        {Sun SparcStation running Solaris (SYSV/R4) Unix}
-#     SUN_GCC    {Sun SparcStation running Solaris but using gcc
-#     FreeBSD    {80X86 architecture running FreeBSD (Unix)}
+#     aix          {IBM machines running AIX}
+#     alpha        {DEC Alpha running OSF/1-Digital Unix}
+#     darwin       {PPC on Mac OSX}
+#     freebsd      {80X86 architecture running FreeBSD (Unix)}
+#     hpux         {HP workstation running HP_UX operating system (Unix)}
+#     linux        {80X86 architecture running LINUX (Unix) (gcc)}
+#     linux-alpha  {Digital Alpha processor running LINUX (Unix)}
+#     linux-amd64  {AMD X86-64 (opteron) running LINUX (Unix)}
+#     linux-icc    {80X86 architecture running LINUX (Unix) (Intel compiler)}
+#     netbsd       {80X86 architecture running netbsd(Unix)}
+#     netbsd-sparc {sparc architecture running netbsd(Unix)}
+#     next         {NextStep}
+#     os2          {IBM OS/2 warp}
+#     sgi          {SGI Workstation running Irix (SYSV/R4) Unix}
+#     solaris      {Sun SparcStation running Solaris (SYSV/R4) Unix}
+#     solaris-gcc  {Sun SparcStation running Solaris but using gcc}
 #   
 #   The next options are optimizations inside Crafty that you will have
 #   test to see if they help.  on some machines, these will slow things
 #   by up to 10%, while on other machines these options will result in
 #   improving search speed up to 20%.  NOTE:  if you are running Linux
-#   or have a SUN Sparc-20 machine, the default configurations below
+#   or have a SUN Ultra-Sparc machine, the default configurations below
 #   will use the hand-written assembly modules.  Typical performance
 #   improvement is 33%, but this only applies to X86 machines and the
-#   Sun Sparc-20.
+#   Sun Ultra-Sparc.
 #   
 #   -DCOMPACT_ATTACKS This option turns on the compact attacks option
 #                     which is more cache-friendly, but takes more
@@ -44,8 +45,10 @@
 #                     to use in a SMP system.  Note that this is the max you
 #                     will be able to use.  You need to use the smpmt=n command
 #                     to make crafty use more than the default 1 thread.
-#   -DPOSIX           This enables POSIX threads support. 
-#   -DCLONE           This uses the linux clone() thread support instead.
+#   -DPOSIX           This enables POSIX threads support.  You must have either
+#                     -DPOSIX or custom-written lock.h code to support your 
+#                     system.
+#   -DEPD             if you want full EPD support built in.
 #   -DMUTEX           This uses posix threads MUTEX locks, which are not as
 #                     efficient as spinlocks, but are very portable.  If this
 #                     option is not chosen, then lock.h has to be modified to
@@ -72,7 +75,7 @@
 #   
 
 default:
-	$(MAKE) -j linux-icc
+	$(MAKE) -j linux
 help:
 	@echo "You must specify the system which you want to compile for:"
 	@echo ""
@@ -80,16 +83,13 @@ help:
 	@echo "make alpha            DEC Alpha with OSF/1-Digital UNIX"
 	@echo "make alpha-host       Alpha DECstation optimized for host"
 	@echo "make alpha-host-nocix Alpha DECstation optimezed for host, no CIX insn"
-	@echo "make cygwin           Cygwin under Win32"
-	@echo "make dos              DOS on i386 with DJGPP"
+	@echo "make darwin           Darwin on OSX"
 	@echo "make hpux             HP/UX 9/10, /7xx"
 	@echo "make linux            Linux optimized for i386, ELF format"
-	@echo "make linux-i686       Linux optimized for i686, ELF format"
 	@echo "make linux-alpha      Linux optimized for alpha"
+	@echo "make linux-AMD64      Linux optimized for AMD opteron
 	@echo "make freebsd          FreeBSD"
-	@echo "make freebsd-pgcc     FreeBSD using Pentium GNU cc"
 	@echo "make netbsd           NetBSD"
-	@echo "make netbsd-i386      NetBSD optimized for i386, ELF format"
 	@echo "make netbsd-sparc     NetBSD optimized for sparc"
 	@echo "make next             NeXTSTEP"
 	@echo "make os2              IBM OS/2 Warp"
@@ -103,7 +103,7 @@ help:
 
 aix:
 	$(MAKE) target=AIX \
-		CC=cc CXX=$$(CC) \
+		CC=cc CXX=$(CC) \
 		CFLAGS='$(CFLAGS) -O2' \
 		CXFLAGS=$(CFLAGS) \
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS' \
@@ -140,9 +140,19 @@ alpha-host-nocix:
 		opt='$(opt) -DSMP -DCPUS=8 -DFAST -DPOSIX' \
 		crafty-make
 
+darwin:
+	$(MAKE) target=FreeBSD \
+		CC=gcc CXX=g++ \
+		CFLAGS='$(CFLAGS) -Wall -pipe -O3' \
+		CXFLAGS=$(CFLAGS) \
+		LDFLAGS=$(LDFLAGS) \
+		LIBS='-lstdc++' \
+		opt='$(opt) -DFAST' \
+		crafty-make
+		
 freebsd:
 	$(MAKE) target=FreeBSD \
-		CC=gcc CXX='$$(CC)' \
+		CC=gcc CXX='$(CC)' \
 		CFLAGS='$(CFLAGS) -fomit-frame-pointer -m486 -O3 -Wall' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS=$(LDFLAGS) \
@@ -153,7 +163,7 @@ freebsd:
 
 freebsd-pgcc:
 	$(MAKE) target=FreeBSD \
-		CC=gcc CXX='$$(CC)' \
+		CC=gcc CXX='$(CC)' \
 		CFLAGS='$(CFLAGS) -pipe -D_REENTRANT -mpentium -O -Wall' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS=$(LDFLAGS) \
@@ -164,7 +174,7 @@ freebsd-pgcc:
 
 hpux:
 	$(MAKE) target=HP \
-		CC=cc CXX='$$(CC)' \
+		CC=cc CXX='$(CC)' \
 		CFLAGS='$(CFLAGS) +ESlit -Ae +w1' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS='$(LDFLAGS) +O3 +Onolimit $(CFLAGS)' \
@@ -173,41 +183,29 @@ hpux:
 linux:
 	$(MAKE) target=LINUX \
 		CC=gcc CXX=g++ \
-		CFLAGS='$(CFLAGS) -Wall -pipe -D_REENTRANT -O3 \
-			-fforce-mem -fomit-frame-pointer' \
-		CXFLAGS=$(CFLAGS) \
-		LDFLAGS='$(LDFLAGS) -lpthread' \
-		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
-		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST' \
-		asm=X86.o \
-		crafty-make
-
-linux-amd64:
-        $(MAKE) target=LINUX \
-                CC=gcc CXX=g++ \
-                CFLAGS='$(CFLAGS) -Wall -pipe -D_REENTRANT \
-                -fomit-frame-pointer -O3' \
-                CXFLAGS='$(CFLAGS)' \
-                LDFLAGS='$(LDFLAGS) -lpthread -lstdc++' \
-                opt='$(opt) -DPOSIX -DFAST -DSMP -DCPUS=4 \
-                     -DAMD_INLINE' \
-                crafty-make
-
-linux-i686:
-	$(MAKE) target=LINUX \
-		CC=gcc CXX=g++ \
 		CFLAGS='$(CFLAGS) -Wall -pipe -D_REENTRANT -march=i686 -O3 \
-			-fbranch-probabilities -fforce-mem -fomit-frame-pointer \
+			-fforce-mem -fomit-frame-pointer \
 			-fno-gcse -mpreferred-stack-boundary=2' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS='$(LDFLAGS) -lpthread -lstdc++' \
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
 		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST \
-		     -DSMP -DCPUS=4 -DDGT -DTRACE' \
+		     -DPOSIX -DSMP -DCPUS=4 -DDGT -DTRACE' \
 		asm=X86.o \
 		crafty-make
 
-linux-i686-profile:
+linux-amd64:
+	$(MAKE) target=LINUX \
+		CC=gcc CXX=g++ \
+		CFLAGS='$(CFLAGS) -Wall -pipe -D_REENTRANT \
+		-fomit-frame-pointer -O3' \
+		CXFLAGS='$(CFLAGS)' \
+		LDFLAGS='$(LDFLAGS) -lpthread -lstdc++' \
+		opt='$(opt) -DPOSIX -DFAST -DSMP -DCPUS=4 \
+		-DAMD_INLINE' \
+		crafty-make
+
+linux-profile:
 	$(MAKE) target=LINUX \
 		CC=gcc CXX=g++ \
 		CFLAGS='$(CFLAGS) -Wall -pipe -D_REENTRANT -march=i686 -O3 \
@@ -217,7 +215,7 @@ linux-i686-profile:
 		LDFLAGS='$(LDFLAGS) -fprofile-arcs -lstdc++ -lpthread' \
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
 		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST \
-		     -DSMP -DCPUS=4 -DDGT' \
+		     -DPOSIX -DSMP -DCPUS=4 -DDGT' \
 		asm=X86.o \
 		crafty-make
 
@@ -252,34 +250,6 @@ linux-icc:
 		     -DPOSIX -DSMP -DCPUS=4 -DDGT' \
 		asm=X86.o \
 		crafty-make
-
-icc:
-	$(MAKE) target=LINUX \
-		CC=icc CXX=icc \
-		CFLAGS='$(CFLAGS) -D_REENTRANT -O2 -march=pentium4 \
-                        -mcpu=pentium4 -fno-alias -tpp7' \
-		CXFLAGS='$(CFLAGS) -D_REENTRANT -O2 -march=pentium4 \
-                        -mcpu=pentium4 -tpp7' \
-		LDFLAGS='$(LDFLAGS) -lpthread' \
-		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
-		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST \
-		     -DSMP -DCPUS=4 -DDGT' \
-		asm=X86.o \
-		crafty-make
-
-# You may wish to add additional targets called linux-alpha-<your_cpu>
-# to produce optimized code for your CPU.  Just copy the linux-alpha target
-# and add -mcpu=<your_cpu> to the CFLAGS, where the type of your CPU is
-# ev4,ev45... or 21064,21064A...  Or, just type
-#
-# 	make linux-alpha CFLAGS='-mcpu=<your_cpu>'
-#
-# If you have the Compaq C Compiler for AlphaLinux you can link the
-# machine/builtins.h from ccc's private include file to /usr/include/alpha,
-# link the directory alpha to machine and remove -DNOBUILTINS from the
-# opt-line.
-#
-# THIS TARGET IS EXPERIMENTAL !!!
 
 linux-alpha:
 	$(MAKE) target=ALPHA \
@@ -330,7 +300,7 @@ netbsd-sparc:
 
 next:
 	$(MAKE) target=NEXT \
-		CC=/bin/cc CXX='$$(CC)' \
+		CC=/bin/cc CXX='$(CC)' \
 		CFLAGS='$(CFLAGS) -O2' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS='$(LDFLAGS) $(CFLAGS)'
@@ -339,7 +309,7 @@ next:
 
 os2:
 	$(MAKE) target=OS2 \
-		CC=gcc CXX='$$(CC)' \
+		CC=gcc CXX='$(CC)' \
 		CFLAGS='$(CFLAGS) -fomit-frame-pointer -m486 -O3 -Wall' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS='$(LDFLAGS) -Zexe -Zcrtdll -s' \
@@ -350,7 +320,7 @@ os2:
 
 sgi:
 	$(MAKE) target=SGI \
-		AS=/bin/as CC=cc CXX='$$(CC)' \
+		AS=/bin/as CC=cc CXX='$(CC)' \
 		AFLAGS='-P' \
 		CFLAGS='$(CFLAGS) -32 -mips2 -cckr' \
 		CXFLAGS=$(CFLAGS) \
@@ -360,7 +330,7 @@ sgi:
 
 solaris:
 	$(MAKE) target=SUN \
-		AS=/usr/ccs/bin/as CC=cc CXX='$$(CC)' \
+		AS=/usr/ccs/bin/as CC=cc CXX='$(CC)' \
 		AFLAGS='-P' \
 		CFLAGS='$(CFLAGS) -fast -xO5 -xunroll=20' \
 		CXFLAGS=$(CFLAGS) \
@@ -377,7 +347,7 @@ solaris-gcc:
 		CFLAGS='$(CFLAGS) -Wall -pipe -D_REENTRANT -O2 \
 			-fforce-mem -fomit-frame-pointer' \
 		CXFLAGS=$(CFLAGS) \
-		LDFLAGS=$(LDFLAGS) \
+		LDFLAGS='$(LDFLAGS) -lstdc++' \
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
 		     -DUSE_ASSEMBLY_A' \
 		asm=Sparc.o \
@@ -390,16 +360,16 @@ generic:
 		crafty-make
 
 profile:
-
 	@rm -rf profdir
 	@rm -rf position.bin
 	@mkdir profdir
 	@touch *.c *.cpp *.h
 	$(MAKE) linux-icc-profile
 	@echo "#!/bin/csh" > runprof
-	@echo "crafty <<EOF" >>runprof
+	@echo "./crafty <<EOF" >>runprof
 	@echo "st=10" >>runprof
 	@echo "ponder=off" >>runprof
+	@echo "display nomoves" >>runprof
 	@echo "setboard rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq" >>runprof
 	@echo "move" >>runprof
 	@echo "book off" >>runprof
@@ -463,7 +433,7 @@ profile:
 	@chmod +x runprof
 	@./runprof
 	@echo "#!/bin/csh" > runprof
-	@echo "crafty <<EOF" >>runprof
+	@echo "./crafty <<EOF" >>runprof
 	@echo "st=10" >>runprof
 	@echo "ponder=off" >>runprof
 	@echo "mt=4" >>runprof
@@ -478,9 +448,14 @@ profile:
 	@touch *.c *.cpp *.h
 	$(MAKE) linux-icc
 
-# Do not change anything below this line!
-
-opts = $(opt) -D$(target)
+#
+#  one of the two following definitions for "objects" should be used.  The
+#  default is to compile everything separately.  However, if you use the 
+#  definition that refers to crafty.o, that will compile using the file crafty.c
+#  which #includes every source file into one large glob.  This gives the
+#  compiler max opportunity to inline functions as appropriate.  You should try
+#  compiling both ways to see which way produces the fastest code.
+#
 
 objects = searchr.o search.o thread.o searchmp.o repeat.o next.o nexte.o      \
        nextr.o history.o quiesce.o evaluate.o movgen.o make.o unmake.o hash.o \
@@ -489,6 +464,11 @@ objects = searchr.o search.o thread.o searchmp.o repeat.o next.o nexte.o      \
        main.o option.o output.o phase.o ponder.o preeval.o resign.o root.o    \
        learn.o setboard.o test.o testepd.o time.o validate.o annotate.o       \
        analyze.o evtest.o bench.o egtb.o dgt.o $(asm)
+#objects = crafty.o egtb.o $(asm)
+
+# Do not change anything below this line!
+
+opts = $(opt) -D$(target)
 
 includes = data.h chess.h
 
@@ -497,9 +477,7 @@ epdincludes = epd.h epddefs.h epdglue.h
 eval_users = data.o evaluate.o preeval.o 
 
 crafty-make:
-	@$(MAKE) \
-		opt='$(opt)' asm='$(asm)' \
-		crafty
+	@$(MAKE) opt='$(opt)' asm='$(asm)' crafty
 
 crafty:	$(objects) 
 	$(CC) $(LDFLAGS) -o crafty $(objects) -lm  $(LIBS)

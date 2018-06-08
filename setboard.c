@@ -4,7 +4,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 11/20/01 */
+/* last modified 12/26/03 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -213,8 +213,8 @@ void SetBoard(SEARCH_POSITION *position, int nargs, char *args[], int special) {
   if (!special) {
     last_mate_score=0;
     for (i=0;i<4096;i++) {
-      history_w[i]=0;
-      history_b[i]=0;
+      tree->history_w[i]=0;
+      tree->history_b[i]=0;
     }
     for (i=0;i<MAXPLY;i++) {
       tree->killers[i].move1=0;

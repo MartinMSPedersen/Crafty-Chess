@@ -30,13 +30,13 @@ generic PC running Linux 1.2.9 and using the gcc 2.6.3 compiler.
 
 #include <stdio.h>
 #include <stdlib.h>
-#if !defined(NT_i386) && !defined(NT_AXP)
+#if !defined(NT_i386)
 #include <unistd.h>
 #endif
 #include <string.h>
 #include <ctype.h>
 #include <time.h>
-#if defined(NT_i386) || defined(NT_AXP)
+#if defined(NT_i386)
 #include <process.h>
 #endif
 /* Crafty includes */
@@ -813,7 +813,7 @@ last_mate_score = 0;
 /* clear the host history */
 
 for (index = 0; index < (sqL * sqL); index++)
-	history_w[index] = history_b[index] = 0;
+	local[0]->history_w[index] = local[0]->history_b[index] = 0;
 
 /* clear the host killer information */
 

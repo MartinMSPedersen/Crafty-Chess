@@ -40,6 +40,27 @@ int Option(TREE *tree) {
 /*
  ----------------------------------------------------------
 |                                                          |
+|   EPD implementation interface code.  EPD commands can   |
+|   not be handled if the program is actually searching in |
+|   a real game, and if Crafty is "pondering" this has to  |
+|   be stopped.                                            |
+|                                                          |
+ ----------------------------------------------------------
+*/
+#if defined(EPD)
+  if (initialized) {
+    if (EGCommandCheck(buffer)) {
+      if (thinking || pondering) return (2);
+      else {
+        (void) EGCommand(buffer);
+        return (1);
+      }
+    }
+  }
+#endif
+/*
+ ----------------------------------------------------------
+|                                                          |
 |   "!" character is a 'shell escape' that passes the rest |
 |   of the command to a shell for execution.               |
 |                                                          |
@@ -710,16 +731,8 @@ int Option(TREE *tree) {
  ----------------------------------------------------------
 */
   else if (OptionMatch("end",*args) || OptionMatch("quit",*args)) {
-#if defined(CLONE)
-    int i;
-#endif
     abort_search=1;
     quit=1;  
-#if defined(CLONE)
-    for (i=0;i<smp_threads;i++) {
-      if (pids[i]) kill(pids[i],15);
-    }
-#endif
     last_search_value=(crafty_is_white) ? last_search_value:-last_search_value;
     if (moves_out_of_book)
       LearnBook(tree,wtm,last_search_value,0,0,1);
@@ -2373,10 +2386,25 @@ int Option(TREE *tree) {
       }
       else if (!strcmp(args[1],"normal")) {
         mode=normal_mode;
+        book_weight_learn=1.0;
+        book_weight_freq=1.0;
+        book_weight_CAP=0.7;
+        book_weight_eval=0.5;
+      }
+      else if (!strcmp(args[1],"match")) {
+        mode=normal_mode;
+        book_weight_learn=1.0;
+        book_weight_freq=0.2;
+        book_weight_CAP=0.1;
+        book_weight_eval=0.1;
       }
       else {
         printf("usage:  mode normal|tournament\n");
         mode=normal_mode;
+        book_weight_learn=1.0;
+        book_weight_freq=1.0;
+        book_weight_CAP=0.7;
+        book_weight_eval=0.5;
       }
     }
     if (mode == tournament_mode) printf("tournament mode.\n");
@@ -3126,8 +3154,10 @@ int Option(TREE *tree) {
       return(1);
     }
     resign=atoi(args[1]);
+    if (nargs == 3) resign_count=atoi(args[2]);
     if (resign)
-      Print(128,"threshold set to %d pawns.\n",resign);
+      Print(128,"resign after %d consecutive moves with score < %d.\n",
+            resign_count,-resign);
     else
       Print(128,"disabled resignations.\n");
   }
@@ -4004,27 +4034,6 @@ int Option(TREE *tree) {
 */
   else if (OptionMatch("?",*args)) {
   }
-/*
- ----------------------------------------------------------
-|                                                          |
-|   EPD implementation interface code.  EPD commands can   |
-|   not be handled if the program is actually searching in |
-|   a real game, and if Crafty is "pondering" this has to  |
-|   be stopped.                                            |
-|                                                          |
- ----------------------------------------------------------
-*/
-#if defined(EPD)
-  else if (initialized) {
-    if (EGCommandCheck(buffer)) {
-      if (thinking || pondering) return (2);
-      else {
-        (void) EGCommand(buffer);
-        return (1);
-      }
-    }
-  }
-#endif
 /*
  ----------------------------------------------------------
 |                                                          |

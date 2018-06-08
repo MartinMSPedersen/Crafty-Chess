@@ -189,9 +189,7 @@ int Iterate(int wtm, int search_type, int root_list_done) {
 */
 #if defined(SMP)
     if (max_threads>smp_idle+1) {
-#     if !defined(CLONE)
-        pthread_t pt;
-#     endif
+      pthread_t pt;
       int proc;
       for (proc=smp_threads+1;proc<max_threads;proc++) {
         Print(128,"starting thread %d\n",proc);
