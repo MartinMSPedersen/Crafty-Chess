@@ -4,7 +4,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 08/07/05 */
+/* last modified 10/31/07 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -14,7 +14,7 @@
  */
 int NextRootMove(TREE * RESTRICT tree, TREE * RESTRICT mytree, int wtm)
 {
-  register int done, i;
+  register int done, which, i;
 
 /*
  ************************************************************
@@ -35,35 +35,28 @@ int NextRootMove(TREE * RESTRICT tree, TREE * RESTRICT mytree, int wtm)
     return (NONE);
   }
   done = 0;
-  for (i = 0; i < shared->n_root_moves; i++)
-    if (shared->root_moves[i].status & 128)
+  for (which = 0; which < shared->n_root_moves; which++)
+    if (shared->root_moves[which].status & 256)
       done++;
-  if (done == 1 && (shared->root_moves[0].status & 128) &&
+  if (done == 1 && (shared->root_moves[0].status & 256) &&
       shared->root_value == shared->root_alpha &&
       !(shared->root_moves[0].status & 0x38))
     return (NONE);
-  for (i = 0; i < shared->n_root_moves; i++)
-    if (!(shared->root_moves[i].status & 128)) {
+  for (which = 0; which < shared->n_root_moves; which++)
+    if (!(shared->root_moves[which].status & 256)) {
       if (search_move) {
-        if (search_move > 0) {
-          if (shared->root_moves[i].move != search_move) {
-            shared->root_moves[i].status |= 128;
-            continue;
-          }
-        } else {
-          if (shared->root_moves[i].move == -search_move) {
-            shared->root_moves[i].status |= 128;
-            continue;
-          }
+        if (shared->root_moves[which].move != search_move) {
+          shared->root_moves[which].status |= 256;
+          continue;
         }
       }
-      tree->current_move[1] = shared->root_moves[i].move;
-      tree->root_move = i;
-      shared->root_moves[i].status |= 128;
+      tree->curmv[1] = shared->root_moves[which].move;
+      tree->root_move = which;
+      shared->root_moves[which].status |= 256;
       if ((tree->nodes_searched > shared->noise_level) &&
           (shared->display_options & 32)) {
         Lock(shared->lock_io);
-        sprintf(mytree->remaining_moves_text, "%d/%d", i + 1,
+        sprintf(mytree->remaining_moves_text, "%d/%d", which + 1,
             shared->n_root_moves);
         shared->end_time = ReadClock();
         if (shared->pondering)
@@ -79,8 +72,8 @@ int NextRootMove(TREE * RESTRICT tree, TREE * RESTRICT mytree, int wtm)
         if ((shared->display_options & 32) && (shared->display_options & 64) &&
             Flip(wtm))
           printf("... ");
-        strcpy(mytree->root_move_text, OutputMove(tree, tree->current_move[1],
-                1, wtm));
+        strcpy(mytree->root_move_text, OutputMove(tree, tree->curmv[1], 1,
+                wtm));
         shared->nodes_per_second =
             tree->nodes_searched * 100 / Max(shared->end_time -
             shared->start_time, 1);
@@ -92,7 +85,10 @@ int NextRootMove(TREE * RESTRICT tree, TREE * RESTRICT mytree, int wtm)
         fflush(stdout);
         Unlock(shared->lock_io);
       }
-      return (ROOT_MOVES);
+      if (!(shared->root_moves[which].status & 128))
+        return (HASH_MOVE);
+      else
+        return (REMAINING_MOVES);
     }
   return (NONE);
 }
@@ -124,7 +120,7 @@ int NextRootMoveParallel(void)
  ************************************************************
  */
   for (which = 0; which < shared->n_root_moves; which++)
-    if (!(shared->root_moves[which].status & 128))
+    if (!(shared->root_moves[which].status & 256))
       break;
   if (which < shared->n_root_moves && shared->root_moves[which].status & 64)
     return (0);

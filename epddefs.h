@@ -568,8 +568,8 @@ typedef siT eobT;
 #    define eobL 2
 #    define eob_nil (-1)
 
-#    define eob_string 0/* quoted string */
-#    define eob_symbol 1/* unquoted symbol */
+#    define eob_string 0        /* quoted string */
+#    define eob_symbol 1        /* unquoted symbol */
 
 /* EPD operand value type */
 
@@ -608,57 +608,57 @@ typedef siT epdsoT, *epdsoptrT;
 #    define epdsoL 51
 #    define epdso_nil (-1)
 
-#    define epdso_acd          0/* analysis count: depth */
-#    define epdso_acn          1/* analysis count: nodes */
-#    define epdso_acs          2/* analysis count: seconds */
-#    define epdso_am           3/* avoid move(s) */
-#    define epdso_bm           4/* best move(s) */
-#    define epdso_c0           5/* comment slot 0 */
-#    define epdso_c1           6/* comment slot 1 */
-#    define epdso_c2           7/* comment slot 2 */
-#    define epdso_c3           8/* comment slot 3 */
-#    define epdso_c4           9/* comment slot 4 */
-#    define epdso_c5          10/* comment slot 5 */
-#    define epdso_c6          11/* comment slot 6 */
-#    define epdso_c7          12/* comment slot 7 */
-#    define epdso_c8          13/* comment slot 8 */
-#    define epdso_c9          14/* comment slot 9 */
-#    define epdso_cc          15/* chess clock */
-#    define epdso_ce          16/* centipawn evaluation */
-#    define epdso_dm          17/* direct move count */
-#    define epdso_draw_accept 18/* draw accept */
-#    define epdso_draw_claim  19/* draw claim */
-#    define epdso_draw_offer  20/* draw offer */
-#    define epdso_draw_reject 21/* draw reject */
-#    define epdso_eco         22/* ECO code */
-#    define epdso_fmvn        23/* fullmove number */
-#    define epdso_hmvc        24/* halfmove clock */
-#    define epdso_id          25/* position identification */
-#    define epdso_nic         26/* NIC code */
-#    define epdso_noop        27/* no operation */
-#    define epdso_pm          28/* predicted move */
-#    define epdso_ptp         29/* PGN tag pair(s) */
-#    define epdso_pv          30/* predicted variation */
-#    define epdso_rc          31/* repetition count */
-#    define epdso_refcom      32/* referee command */
-#    define epdso_refreq      33/* referee request */
-#    define epdso_resign      34/* resign */
-#    define epdso_sm          35/* supplied move */
-#    define epdso_sv          36/* supplied variation */
-#    define epdso_tcgs        37/* telecommunications: game selector */
-#    define epdso_tcri        38/* telecommunications: receiver identification */
-#    define epdso_tcsi        39/* telecommunications: sender identification */
-#    define epdso_ts          40/* timestamp */
-#    define epdso_v0          41/* variation slot 0 */
-#    define epdso_v1          42/* variation slot 1 */
-#    define epdso_v2          43/* variation slot 2 */
-#    define epdso_v3          44/* variation slot 3 */
-#    define epdso_v4          45/* variation slot 4 */
-#    define epdso_v5          46/* variation slot 5 */
-#    define epdso_v6          47/* variation slot 6 */
-#    define epdso_v7          48/* variation slot 7 */
-#    define epdso_v8          49/* variation slot 8 */
-#    define epdso_v9          50/* variation slot 9 */
+#    define epdso_acd          0        /* analysis count: depth */
+#    define epdso_acn          1        /* analysis count: nodes */
+#    define epdso_acs          2        /* analysis count: seconds */
+#    define epdso_am           3        /* avoid move(s) */
+#    define epdso_bm           4        /* best move(s) */
+#    define epdso_c0           5        /* comment slot 0 */
+#    define epdso_c1           6        /* comment slot 1 */
+#    define epdso_c2           7        /* comment slot 2 */
+#    define epdso_c3           8        /* comment slot 3 */
+#    define epdso_c4           9        /* comment slot 4 */
+#    define epdso_c5          10        /* comment slot 5 */
+#    define epdso_c6          11        /* comment slot 6 */
+#    define epdso_c7          12        /* comment slot 7 */
+#    define epdso_c8          13        /* comment slot 8 */
+#    define epdso_c9          14        /* comment slot 9 */
+#    define epdso_cc          15        /* chess clock */
+#    define epdso_ce          16        /* centipawn evaluation */
+#    define epdso_dm          17        /* direct move count */
+#    define epdso_draw_accept 18        /* draw accept */
+#    define epdso_draw_claim  19        /* draw claim */
+#    define epdso_draw_offer  20        /* draw offer */
+#    define epdso_draw_reject 21        /* draw reject */
+#    define epdso_eco         22        /* ECO code */
+#    define epdso_fmvn        23        /* fullmove number */
+#    define epdso_hmvc        24        /* halfmove clock */
+#    define epdso_id          25        /* position identification */
+#    define epdso_nic         26        /* NIC code */
+#    define epdso_noop        27        /* no operation */
+#    define epdso_pm          28        /* predicted move */
+#    define epdso_ptp         29        /* PGN tag pair(s) */
+#    define epdso_pv          30        /* predicted variation */
+#    define epdso_rc          31        /* repetition count */
+#    define epdso_refcom      32        /* referee command */
+#    define epdso_refreq      33        /* referee request */
+#    define epdso_resign      34        /* resign */
+#    define epdso_sm          35        /* supplied move */
+#    define epdso_sv          36        /* supplied variation */
+#    define epdso_tcgs        37        /* telecommunications: game selector */
+#    define epdso_tcri        38        /* telecommunications: receiver identification */
+#    define epdso_tcsi        39        /* telecommunications: sender identification */
+#    define epdso_ts          40        /* timestamp */
+#    define epdso_v0          41        /* variation slot 0 */
+#    define epdso_v1          42        /* variation slot 1 */
+#    define epdso_v2          43        /* variation slot 2 */
+#    define epdso_v3          44        /* variation slot 3 */
+#    define epdso_v4          45        /* variation slot 4 */
+#    define epdso_v5          46        /* variation slot 5 */
+#    define epdso_v6          47        /* variation slot 6 */
+#    define epdso_v7          48        /* variation slot 7 */
+#    define epdso_v8          49        /* variation slot 8 */
+#    define epdso_v9          50        /* variation slot 9 */
 
 /* referee commands */
 

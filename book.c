@@ -197,7 +197,7 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
             bs_learn[nmoves] *= -1;
           if (shared->puzzling)
             bs_played[nmoves] += 1;
-          tree->current_move[1] = shared->root_moves[im].move;
+          tree->curmv[1] = shared->root_moves[im].move;
           if (!Captured(shared->root_moves[im].move))
             book_development[nmoves] =
                 ((wtm) ? EvaluateDevelopmentW(tree,

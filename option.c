@@ -11,7 +11,7 @@
 #endif
 #include "epdglue.h"
 
-/* last modified 01/03/07 */
+/* last modified 10/31/07 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -927,7 +927,7 @@ int Option(TREE * RESTRICT tree)
     if (shared->thinking || shared->pondering)
       return (2);
     if (nargs < 2) {
-      printf("usage:  evtest <filename> [exitcnt]\n");
+      printf("usage:  evtest <filename>\n");
       return (1);
     }
     EVTest(args[1]);
@@ -1994,6 +1994,10 @@ int Option(TREE * RESTRICT tree)
  *   machine with a large number of processors.  it should  *
  *   be tested, of course.                                  *
  *                                                          *
+ *   "smpnice" command turns on "nice" mode where idle      *
+ *   processors are terminated between searches to avoid    *
+ *   burning CPU time in the idle loop.                     *
+ *                                                          *
  ************************************************************
  */
   else if (OptionMatch("smpgroup", *args)) {
@@ -2033,6 +2037,16 @@ int Option(TREE * RESTRICT tree)
     for (proc = 1; proc < CPUS; proc++)
       if (proc >= shared->max_threads)
         shared->thread[proc] = (TREE *) - 1;
+  } else if (OptionMatch("smpnice", *args)) {
+    if (nargs < 2) {
+      printf("usage:  smpnice 0|1\n");
+      return (1);
+    }
+    shared->nice = atoi(args[1]);
+    if (shared->nice)
+      Print(128, "SMP terminate extra processes when idle\n");
+    else
+      Print(128, "SMP keep extra processes when idle\n");
   } else if (OptionMatch("smproot", *args)) {
     if (nargs < 2) {
       printf("usage:  smproot 0|1\n");
@@ -3243,10 +3257,6 @@ int Option(TREE * RESTRICT tree)
     } else {
       null_min = (atoi(args[1]) + 1) * PLY;
       null_max = (atoi(args[2]) + 1) * PLY;
-      if (null_min == PLY)
-        null_min = 0;
-      if (null_max == PLY)
-        null_max = 0;
     }
     if (!silent) {
       if (null_min + null_max)

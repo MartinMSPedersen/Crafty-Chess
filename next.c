@@ -28,8 +28,8 @@ int NextMove(TREE * RESTRICT tree, int ply, int wtm)
   case HASH_MOVE:
     tree->next_status[ply].phase = GENERATE_CAPTURE_MOVES;
     if (tree->hash_move[ply]) {
-      tree->current_move[ply] = tree->hash_move[ply];
-      if (ValidMove(tree, ply, wtm, tree->current_move[ply]))
+      tree->curmv[ply] = tree->hash_move[ply];
+      if (ValidMove(tree, ply, wtm, tree->curmv[ply]))
         return (HASH_MOVE);
 #if defined(DEBUG)
       else
@@ -122,7 +122,7 @@ int NextMove(TREE * RESTRICT tree, int ply, int wtm)
  */
   case CAPTURE_MOVES:
     if (tree->next_status[ply].remaining) {
-      tree->current_move[ply] = *(tree->next_status[ply].last);
+      tree->curmv[ply] = *(tree->next_status[ply].last);
       *tree->next_status[ply].last++ = 0;
       tree->next_status[ply].remaining--;
       if (!tree->next_status[ply].remaining)
@@ -142,14 +142,14 @@ int NextMove(TREE * RESTRICT tree, int ply, int wtm)
   case KILLER_MOVE_1:
     if ((tree->hash_move[ply] != tree->killers[ply].move1) &&
         ValidMove(tree, ply, wtm, tree->killers[ply].move1)) {
-      tree->current_move[ply] = tree->killers[ply].move1;
+      tree->curmv[ply] = tree->killers[ply].move1;
       tree->next_status[ply].phase = KILLER_MOVE_2;
       return (KILLER_MOVE_1);
     }
   case KILLER_MOVE_2:
     if ((tree->hash_move[ply] != tree->killers[ply].move2) &&
         ValidMove(tree, ply, wtm, tree->killers[ply].move2)) {
-      tree->current_move[ply] = tree->killers[ply].move2;
+      tree->curmv[ply] = tree->killers[ply].move2;
       tree->next_status[ply].phase = GENERATE_ALL_MOVES;
       return (KILLER_MOVE_2);
     }
@@ -176,7 +176,7 @@ int NextMove(TREE * RESTRICT tree, int ply, int wtm)
     for (; tree->next_status[ply].last < tree->last[ply];
         tree->next_status[ply].last++)
       if (*tree->next_status[ply].last) {
-        tree->current_move[ply] = *tree->next_status[ply].last;
+        tree->curmv[ply] = *tree->next_status[ply].last;
         *tree->next_status[ply].last++ = 0;
         return (REMAINING_MOVES);
       }

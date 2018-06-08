@@ -80,6 +80,7 @@ typedef int piece;
 #  define   NDEBUG
 #endif
 #include <assert.h>
+#define     lock_t volatile int
 
 static	lock_t	lockLRU;
 

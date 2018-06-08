@@ -71,15 +71,15 @@ void RootMoveList(int wtm)
     value = -4000000;
 #if defined(TRACE)
     if (trace_level >= 1) {
-      tree->current_move[1] = *mvp;
+      tree->curmv[1] = *mvp;
       tree->phase[1] = HASH_MOVE;
-      SearchTrace(tree, 1, 0, wtm, -MATE, MATE, "RootMoves()", tree->phase[1]);
+      Trace(tree, 1, 0, wtm, -MATE, MATE, "RootMoves()", tree->phase[1]);
     }
 #endif
     MakeMove(tree, 1, *mvp, wtm);
     if (!Check(wtm))
       do {
-        tree->current_move[1] = *mvp;
+        tree->curmv[1] = *mvp;
 #if !defined(NOEGTB)
         if (TotalPieces <= EGTBlimit && EGTB_draw &&
             WhiteCastle(1) + BlackCastle(1) == 0) {
@@ -183,7 +183,7 @@ void RootMoveList(int wtm)
     Print(512, "%d moves at root\n", shared->n_root_moves);
     Print(512, "        move   score\n");
     for (i = 0; i < shared->n_root_moves; i++) {
-      tree->current_move[1] = rmoves[i];
+      tree->curmv[1] = rmoves[i];
       Print(512, "%12s", OutputMove(tree, rmoves[i], 1, wtm));
       Print(512, "%8d\n", sort_value[i]);
     }
@@ -199,7 +199,7 @@ void RootMoveList(int wtm)
 #if !defined(NOEGTB)
   if (mating_via_tb) {
     for (i = 0; i < shared->n_root_moves; i++) {
-      tree->current_move[1] = rmoves[i];
+      tree->curmv[1] = rmoves[i];
       MakeMove(tree, 1, rmoves[i], wtm);
       if (mating_via_tb && TotalPieces <= EGTBlimit &&
           WhiteCastle(1) + BlackCastle(1) == 0)
@@ -226,7 +226,8 @@ void RootMoveList(int wtm)
   for (i = 0; i < shared->n_root_moves; i++) {
     shared->root_moves[i].move = rmoves[i];
     shared->root_moves[i].nodes = 0;
-    shared->root_moves[i].status = 0;
+    shared->root_moves[i].status = 128;
   }
+  shared->root_moves[0].status = 0;
   return;
 }

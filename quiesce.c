@@ -1,10 +1,8 @@
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include "chess.h"
 #include "data.h"
 
-/* last modified 05/10/06 */
+/* last modified 11/08/07 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -69,9 +67,9 @@ int Quiesce(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply)
  *   generate captures and sort them based on (a) the value *
  *   of the captured piece - the value of the capturing     *
  *   piece if this is > 0; or, (b) the value returned by    *
- *   Swap().  if the capture leaves the opponent with one   *
- *   minor piece or less, then we search that capture       *
- *   always since the endgame might be won or lost.         *
+ *   Swap().  if the capture leaves the opponent with no    *
+ *   minor pieces, then we search that capture always since *
+ *   the endgame might be won or lost with no pieces left.  *
  *                                                          *
  ************************************************************
  */
@@ -83,25 +81,35 @@ int Quiesce(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply)
       return (beta);
     if (p_values[Piece(*movep) + 7] < p_values[Captured(*movep) + 7] ||
         ((wtm) ? TotalBlackPieces : TotalWhitePieces) -
-        p_vals[Captured(*movep)] < bishop_v) {
+        p_vals[Captured(*movep)] == 0) {
       *goodmv++ = *movep;
       *sortv++ = p_values[Captured(*movep) + 7];
       moves++;
     } else {
       temp = Swap(tree, From(*movep), To(*movep), wtm);
       if (temp >= 0) {
-        *sortv++ = temp;
         *goodmv++ = *movep;
+        *sortv++ = temp;
         moves++;
       }
     }
+  }
+  if (!moves) {
+    if (alpha != o_alpha) {
+      memcpy(&tree->pv[ply - 1].path[ply], &tree->pv[ply].path[ply],
+          (tree->pv[ply].pathl - ply + 1) * sizeof(int));
+      memcpy(&tree->pv[ply - 1].pathh, &tree->pv[ply].pathh, 3);
+      tree->pv[ply - 1].path[ply - 1] = tree->curmv[ply - 1];
+    }
+    return (value);
   }
 /*
  ************************************************************
  *                                                          *
  *   don't disdain the lowly bubble sort here.  the list of *
  *   captures is always short, and experiments with other   *
- *   algorithms are always slightly slower.                 *
+ *   algorithms are always slightly slower.  this is very   *
+ *   cache-friendly and runs quickly.                       *
  *                                                          *
  ************************************************************
  */
@@ -134,14 +142,14 @@ int Quiesce(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply)
  ************************************************************
  */
   while (moves--) {
-    tree->current_move[ply] = *(next_move++);
+    tree->curmv[ply] = *(next_move++);
 #if defined(TRACE)
     if (ply <= trace_level)
-      SearchTrace(tree, ply, 0, wtm, alpha, beta, "quiesce", CAPTURE_MOVES);
+      Trace(tree, ply, 0, wtm, alpha, beta, "quiesce", CAPTURE_MOVES);
 #endif
-    MakeMove(tree, ply, tree->current_move[ply], wtm);
+    MakeMove(tree, ply, tree->curmv[ply], wtm);
     value = -Quiesce(tree, -beta, -alpha, Flip(wtm), ply + 1);
-    UnmakeMove(tree, ply, tree->current_move[ply], wtm);
+    UnmakeMove(tree, ply, tree->curmv[ply], wtm);
     if (value > alpha) {
       if (value >= beta)
         return (value);
@@ -164,7 +172,7 @@ int Quiesce(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply)
     memcpy(&tree->pv[ply - 1].path[ply], &tree->pv[ply].path[ply],
         (tree->pv[ply].pathl - ply + 1) * sizeof(int));
     memcpy(&tree->pv[ply - 1].pathh, &tree->pv[ply].pathh, 3);
-    tree->pv[ply - 1].path[ply - 1] = tree->current_move[ply - 1];
+    tree->pv[ply - 1].path[ply - 1] = tree->curmv[ply - 1];
   }
   return (alpha);
 }

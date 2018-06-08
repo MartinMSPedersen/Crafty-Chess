@@ -78,14 +78,10 @@ void EVTest(char *filename)
       BlackCastle(0) = 0;
       BlackCastle(1) = 0;
       shared->root_wtm = wtm;
+
       PreEvaluate(tree);
       tree->pawn_score.key = 0;
-      printf("Mobility = %d\n", EvaluateMobility(tree));
-/*
       s1 = Evaluate(tree, 0, wtm, -99999, 99999);
-      printf("===============================================\n");
-      DisplayChessBoard(stdout, tree->pos);
-      DisplayBitBoard(tree->pawn_score.weak_pawns);
 
       strcpy(buffer, "flop");
       (void) Option(tree);
@@ -115,7 +111,6 @@ void EVTest(char *filename)
         Print(4095, "wtm=%d  score=%d  %d (flop)  %d (flip)  %d (flop)\n", wtm,
             s1, s2, s3, s4);
       }
-*/
     }
   }
   input_stream = stdin;

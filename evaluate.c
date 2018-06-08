@@ -38,7 +38,6 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta)
   tree->w_safety = 0;
   tree->b_safety = 0;
   tree->evaluations++;
-//TLR
   score = (wtm) ? wtm_bonus : -wtm_bonus;
 /*
  **********************************************************************
@@ -215,6 +214,9 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta)
       }
     }
   }
+#ifdef DEBUGEV
+  printf("score[pieces]=                    %4d\n", score);
+#endif
 /*
  **********************************************************************
  *                                                                    *
@@ -1277,7 +1279,8 @@ int EvaluateMaterial(TREE * RESTRICT tree)
  *                                                                             *
  *******************************************************************************
  */
-int EvaluateMobility(TREE * RESTRICT tree) {
+int EvaluateMobility(TREE * RESTRICT tree)
+{
   register long long bishops, rooks, moves;
   register int square, score = 0, tscore, i;
   register int score1 = 0, score2 = 0;
@@ -1294,12 +1297,12 @@ int EvaluateMobility(TREE * RESTRICT tree) {
     square = LSB(bishops);
     bishops &= bishops - 1;
     moves = AttacksBishopSpecial(square, Occupied ^ WhiteQueens);
-    tscore = attacks_enemy *
-      PopCnt(moves & (BlackRooks | BlackKing | BlackQueens));
+    tscore =
+        attacks_enemy * PopCnt(moves & (BlackRooks | BlackKing | BlackQueens));
     tscore += supports_slider * PopCnt(moves & WhiteQueens);
     moves &= ~(WhitePieces ^ WhiteQueens);
     moves |= SetMask(square);
-    for (i=0; i<4; i++) {
+    for (i = 0; i < 4; i++) {
       tscore += PopCnt(moves & mobility_mask_b[i]) * mobility_score_b[i];
     }
     if (!score1)
@@ -1330,12 +1333,12 @@ int EvaluateMobility(TREE * RESTRICT tree) {
     square = LSB(bishops);
     bishops &= bishops - 1;
     moves = AttacksBishopSpecial(square, Occupied ^ BlackQueens);
-    tscore = attacks_enemy *
-      PopCnt(moves & (WhiteRooks | WhiteKing | WhiteQueens));
+    tscore =
+        attacks_enemy * PopCnt(moves & (WhiteRooks | WhiteKing | WhiteQueens));
     tscore += supports_slider * PopCnt(moves & BlackQueens);
     moves &= ~(BlackPieces ^ BlackQueens);
     moves |= SetMask(square);
-    for (i=0; i<4; i++) {
+    for (i = 0; i < 4; i++) {
       tscore += PopCnt(moves & mobility_mask_b[i]) * mobility_score_b[i];
     }
     if (!score1)
@@ -1365,12 +1368,11 @@ int EvaluateMobility(TREE * RESTRICT tree) {
     square = LSB(rooks);
     rooks &= rooks - 1;
     moves = AttacksRookSpecial(square, Occupied ^ WhiteQueens ^ WhiteRooks);
-    tscore += attacks_enemy *
-      PopCnt(moves & (BlackKing | BlackQueens));
+    tscore += attacks_enemy * PopCnt(moves & (BlackKing | BlackQueens));
     tscore += supports_slider * PopCnt(moves & (WhiteQueens | WhiteRooks));
     moves &= ~(WhitePieces ^ WhiteQueens ^ WhiteRooks);
     moves |= SetMask(square);
-    for (i=0; i<4; i++) {
+    for (i = 0; i < 4; i++) {
       tscore += PopCnt(moves & mobility_mask_r[i]) * mobility_score_r[i];
     }
     tscore -= lower_r;
@@ -1388,12 +1390,11 @@ int EvaluateMobility(TREE * RESTRICT tree) {
     square = LSB(rooks);
     rooks &= rooks - 1;
     moves = AttacksRookSpecial(square, Occupied ^ BlackQueens ^ BlackRooks);
-    tscore -= attacks_enemy *
-      PopCnt(moves & (WhiteKing | WhiteQueens));
+    tscore -= attacks_enemy * PopCnt(moves & (WhiteKing | WhiteQueens));
     tscore -= supports_slider * PopCnt(moves & (BlackQueens | BlackRooks));
     moves &= ~(BlackPieces ^ BlackQueens ^ BlackRooks);
     moves |= SetMask(square);
-    for (i=0; i<4; i++) {
+    for (i = 0; i < 4; i++) {
       tscore -= PopCnt(moves & mobility_mask_r[i]) * mobility_score_r[i];
     }
     tscore += lower_r;
@@ -1403,7 +1404,7 @@ int EvaluateMobility(TREE * RESTRICT tree) {
   return (score);
 }
 
-/* last modified 08/28/06 */
+/* last modified 11/07/07 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -2799,19 +2800,6 @@ int EvaluatePawns(TREE * RESTRICT tree)
         tree->pawn_score.outside |= 8;
       else if (bop)
         tree->pawn_score.outside |= 4;
-    } else {
-      int wq1, wq2, wdist, bq1, bq2, bdist;
-
-      wq1 = Distance(56 + MSB8Bit(tree->pawn_score.passed_w), BlackKingSQ);
-      wq2 = Distance(56 + LSB8Bit(tree->pawn_score.passed_w), BlackKingSQ);
-      bdist = Max(wq1, wq2) - Flip(wtm);
-      bq1 = Distance(MSB8Bit(tree->pawn_score.passed_b), WhiteKingSQ);
-      bq2 = Distance(LSB8Bit(tree->pawn_score.passed_b), WhiteKingSQ);
-      wdist = Max(bq1, bq2) - wtm;
-      if (wdist > bdist + 2)
-        tree->pawn_score.outside |= 4;
-      else if (bdist > wdist + 2)
-        tree->pawn_score.outside |= 1;
     }
   }
   wop = is_outside_c[tree->pawn_score.candidates_w][tree->pawn_score.allb];
@@ -2826,19 +2814,6 @@ int EvaluatePawns(TREE * RESTRICT tree)
         tree->pawn_score.outside |= 128;
       else if (bop)
         tree->pawn_score.outside |= 64;
-    } else {
-      int wq1, wq2, wdist, bq1, bq2, bdist;
-
-      wq1 = Distance(56 + MSB8Bit(tree->pawn_score.candidates_w), BlackKingSQ);
-      wq2 = Distance(56 + LSB8Bit(tree->pawn_score.candidates_w), BlackKingSQ);
-      bdist = Max(wq1, wq2) - Flip(wtm);
-      bq1 = Distance(MSB8Bit(tree->pawn_score.candidates_b), WhiteKingSQ);
-      bq2 = Distance(LSB8Bit(tree->pawn_score.candidates_b), WhiteKingSQ);
-      wdist = Max(bq1, bq2) - wtm;
-      if (wdist > bdist + 2)
-        tree->pawn_score.outside |= 64;
-      else if (bdist > wdist + 2)
-        tree->pawn_score.outside |= 16;
     }
   }
 /*

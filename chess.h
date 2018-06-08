@@ -42,48 +42,48 @@
 /* Architecture-specific definitions */
 #  if defined(AIX)
 #    undef  HAS_64BITS  /* machine has 64-bit integers / operators    */
-#    define UNIX/* system is unix-based                       */
+#    define UNIX        /* system is unix-based                       */
 #  endif
 #  if defined(ALPHA)
 #    define HAS_64BITS  /* machine has 64-bit integers / operators    */
-#    define UNIX/* system is unix-based                       */
+#    define UNIX        /* system is unix-based                       */
 #  endif
 #  if defined(AMIGA)
 #    undef  HAS_64BITS  /* machine has 64-bit integers / operators    */
-#    undef  UNIX/* system is unix-based                       */
+#    undef  UNIX        /* system is unix-based                       */
 #  endif
 #  if defined(FreeBSD)
 #    undef  HAS_64BITS  /* machine has 64-bit integers / operators    */
-#    define UNIX/* system is unix-based                       */
+#    define UNIX        /* system is unix-based                       */
 #  endif
 #  if defined(HP)
 #    undef  HAS_64BITS  /* machine has 64-bit integers / operators    */
-#    define UNIX/* system is unix-based                       */
+#    define UNIX        /* system is unix-based                       */
 #  endif
 #  if defined(LINUX)
 #    undef  HAS_64BITS  /* machine has 64-bit integers / operators    */
-#    define UNIX/* system is unix-based                       */
+#    define UNIX        /* system is unix-based                       */
 #  endif
 #  if defined(MIPS)
 #    undef  HAS_64BITS  /* machine has 64-bit integers / operators    */
-#    define UNIX/* system is unix-based                       */
+#    define UNIX        /* system is unix-based                       */
 #  endif
 #  if defined(NetBSD)
 #    if defined(__alpha__)
-#      define HAS_64BITS/* machine has 64-bit integers / operators   */
+#      define HAS_64BITS        /* machine has 64-bit integers / operators   */
 #      define UNIX      /* system is unix-based                      */
 #    else
-#      undef  HAS_64BITS/* machine has 64-bit integers / operators   */
+#      undef  HAS_64BITS        /* machine has 64-bit integers / operators   */
 #      define UNIX      /* system is unix-based                      */
 #    endif
 #  endif
 #  if defined(NEXT)
 #    undef  HAS_64BITS  /* machine has 64-bit integers / operators    */
-#    define UNIX/* system is unix-based                       */
+#    define UNIX        /* system is unix-based                       */
 #  endif
 #  if defined(NT_i386)
 #    undef  HAS_64BITS  /* machine has 64-bit integers / operators    */
-#    undef  UNIX/* system is unix-based                       */
+#    undef  UNIX        /* system is unix-based                       */
 #    undef  STDCALL
 #    define STDCALL __stdcall
 #    ifdef  VC_INLINE32
@@ -93,15 +93,15 @@
 #  endif
 #  if defined(OS2)
 #    undef  HAS_64BITS  /* machine has 64-bit integers / operators    */
-#    define UNIX/* system is unix-based                       */
+#    define UNIX        /* system is unix-based                       */
 #  endif
 #  if defined(SGI)
 #    undef  HAS_64BITS  /* machine has 64-bit integers / operators    */
-#    define UNIX/* system is unix-based                       */
+#    define UNIX        /* system is unix-based                       */
 #  endif
 #  if defined(SUN)
 #    undef  HAS_64BITS  /* machine has 64-bit integers / operators    */
-#    define UNIX/* system is unix-based                       */
+#    define UNIX        /* system is unix-based                       */
 #  endif
 #  if !defined(BOOKDIR)
 #    define     BOOKDIR        "."
@@ -144,10 +144,10 @@
 #  define KNIGHT_VALUE            325
 #  define BISHOP_VALUE            325
 #  define ROOK_VALUE              500
-#  define QUEEN_VALUE             950
+#  define QUEEN_VALUE             970
 #  define KING_VALUE            40000
 #  define EG_MAT                   14
-#  define MAX_DRAFT             32000
+#  define MAX_DRAFT               256
 #  if defined(HAS_64BITS)
 typedef unsigned long BITBOARD;
 #  elif defined(NT_i386)
@@ -251,10 +251,6 @@ typedef struct {
   TABLE_ENTRY always[2];
 } HASH_ENTRY;
 typedef struct {
-  unsigned int fh;
-  unsigned int count;
-} HISTORY;
-typedef struct {
   BITBOARD key;
   BITBOARD weak_pawns;
   int p_score;
@@ -298,16 +294,17 @@ typedef struct {
   BITBOARD nodes;
   int move;
 /*
-   xxxx xxx1 = failed low once
-   xxxx xx1x = failed low twice
-   xxxx x1xx = failed low three times
-   xxxx 1xxx = failed high once
-   xxx1 xxxx = failed high twice
-   xx1x xxxx = failed high three times
-   x1xx xxxx = don't search in parallel
-   1xxx xxxx = move has been searched
+   x..xx xxxx xxx1 = failed low once
+   x..xx xxxx xx1x = failed low twice
+   x..xx xxxx x1xx = failed low three times
+   x..xx xxxx 1xxx = failed high once
+   x..xx xxx1 xxxx = failed high twice
+   x..xx xx1x xxxx = failed high three times
+   x..xx x1xx xxxx = don't search in parallel
+   x..xx 1xxx xxxx = do not reduce this move
+   x..x1 xxxx xxxx = move has been searched
  */
-  unsigned char status;
+  unsigned int status;
 } ROOT_MOVE;
 
 #  if defined(NT_i386)
@@ -345,7 +342,7 @@ struct tree {
   NEXT_MOVE next_status[MAXPLY];
   PATH pv[MAXPLY];
   int rep_game;
-  int current_move[MAXPLY];
+  int curmv[MAXPLY];
   int hash_move[MAXPLY];
   int *last[MAXPLY];
 #  if !defined(NOFUTILITY)
@@ -375,7 +372,7 @@ struct tree {
   KILLER killers[MAXPLY];
   int move_list[5120];
   int sort_value[256];
-  signed char in_check[MAXPLY];
+  signed char inchk[MAXPLY];
   signed char phase[MAXPLY];
   int search_value;
   int w_safety, b_safety;
@@ -413,7 +410,6 @@ typedef struct {
   int root_wtm;
   int last_root_value;
   ROOT_MOVE root_moves[256];
-  HISTORY history[65536];
   int n_root_moves;
   int easy_move;
   int time_limit;
@@ -472,6 +468,7 @@ typedef struct {
   int moves_out_of_book;
   int first_nonbook_factor;
   int first_nonbook_span;
+  int nice;
 } SHARED;
 
 /*
@@ -684,10 +681,10 @@ char *Reverse(void);
 void RootMoveList(int);
 int Search(TREE * RESTRICT, int, int, int, int, int, int);
 int SearchControl(TREE * RESTRICT, int, int, int, int);
-void SearchOutput(TREE * RESTRICT, int, int);
+void Output(TREE * RESTRICT, int, int);
 int SearchRoot(TREE * RESTRICT, int, int, int, int);
 int SearchSMP(TREE * RESTRICT, int, int, int, int, int, int, int);
-void SearchTrace(TREE * RESTRICT, int, int, int, int, int, char *, int);
+void Trace(TREE * RESTRICT, int, int, int, int, int, char *, int);
 void SetBoard(SEARCH_POSITION *, int, char **, int);
 void SetChessBitBoards(SEARCH_POSITION *);
 int SetRootAlpha(unsigned char, int);
@@ -762,7 +759,7 @@ extern void WinFreeInterleaved(void *, size_t);
    current iteration depth and current ply in the tree.
  */
 #  if !defined(LIMITEXT)
-#    define LimitExtensions(extended,ply)                                        \
+#    define LimitExtensions(extended,ply)                                    \
       extended=Min(extended,PLY);                                            \
       if (ply > 2*shared->iteration_depth && !tree->no_limit) {              \
         if (ply <= 4*shared->iteration_depth)                                \
@@ -772,7 +769,7 @@ extern void WinFreeInterleaved(void *, size_t);
           extended=0;                                                        \
       }
 #  else
-#    define LimitExtensions(extended,ply)                                        \
+#    define LimitExtensions(extended,ply)                                    \
       extended=Min(extended,PLY);                                            \
       if (ply > 2*shared->iteration_depth) {                                 \
         if (ply <= 4*shared->iteration_depth)                                \
@@ -837,25 +834,6 @@ extern void WinFreeInterleaved(void *, size_t);
 #  define Rank(x)       ((x)>>3)
 #  define File(x)       ((x)&7)
 #  define Flip(x)       ((x)^1)
-
-// Slider stuff.
-#  define Num_up(x)         (7-Rank(x))
-#  define Num_down(x)       (Rank(x))
-#  define Num_right(x)      (7-File(x))
-#  define Num_left(x)       (File(x))
-#  define Num_up_left(x)    (Min(Num_up(x),Num_left(x)))
-#  define Num_up_right(x)   (Min(Num_up(x),Num_right(x)))
-#  define Num_down_left(x)  (Min(Num_down(x),Num_left(x)))
-#  define Num_down_right(x) (Min(Num_down(x),Num_right(x)))
-
-#define UP (+8)
-#define UP_RIGHT (+9)
-#define RIGHT (+1)
-#define DOWN_RIGHT (-7)
-#define DOWN (-8)
-#define DOWN_LEFT (-9)
-#define LEFT (-1)
-#define UP_LEFT (+7)
 
 #  define WhitePawnAttacks(x)   (b_pawn_attacks[(x)] & WhitePawns)
 #  define BlackPawnAttacks(x)   (w_pawn_attacks[(x)] & BlackPawns)
@@ -953,7 +931,7 @@ extern void WinFreeInterleaved(void *, size_t);
 #  define HashCastleW(a,b)    b=castle_random_w[a]^(b)
 #  define HashCastleB(a,b)    b=castle_random_b[a]^(b)
 #  define SavePV(tree,ply,ph) do {                                            \
-          tree->pv[ply-1].path[ply-1]=tree->current_move[ply-1];            \
+          tree->pv[ply-1].path[ply-1]=tree->curmv[ply-1];            \
           tree->pv[ply-1].pathl=ply-1;                                      \
           tree->pv[ply-1].pathh=ph;                                         \
           tree->pv[ply-1].pathd=shared->iteration_depth;} while(0)

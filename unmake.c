@@ -440,8 +440,8 @@ UnmakePieceMove:
       Print(128, "captured a king (Unmake)\n");
       for (i = 1; i <= ply; i++)
         Print(128, "ply=%2d, piece=%2d,from=%2d,to=%2d,captured=%2d\n", i,
-            Piece(tree->current_move[i]), From(tree->current_move[i]),
-            To(tree->current_move[i]), Captured(tree->current_move[i]));
+            Piece(tree->curmv[i]), From(tree->curmv[i]), To(tree->curmv[i]),
+            Captured(tree->curmv[i]));
       Print(128, "ply=%2d, piece=%2d,from=%2d,to=%2d,captured=%2d\n", i, piece,
           from, to, captured);
       if (log_file)

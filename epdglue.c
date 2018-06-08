@@ -750,13 +750,6 @@ void EGPutHostPosition(void)
   shared->moves_out_of_book = 0;
   last_mate_score = 0;
 
-/* clear the host history */
-
-  for (index = 0; index < 2 * (sqL * sqL); index++) {
-    shared->history[index].fh = 0;
-    shared->history[index].count = 1;
-  }
-
 /* clear the host killer information */
 
   for (index = 0; index < MAXPLY; index++) {

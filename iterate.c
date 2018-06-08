@@ -9,7 +9,7 @@
 #  include <sys/types.h>
 #endif
 
-/* last modified 08/07/05 */
+/* last modified 10/31/07 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -40,7 +40,7 @@ int Iterate(int wtm, int search_type, int root_list_done)
  *                                                          *
  ************************************************************
  */
-  tree->current_move[0] = 0;
+  tree->curmv[0] = 0;
   if (shared->average_nps == 0)
     shared->average_nps = 150000 * shared->max_threads;
   if (wtm) {
@@ -211,10 +211,15 @@ int Iterate(int wtm, int search_type, int root_list_done)
 #else
           if (fork() == 0) {
             ThreadInit((void *) proc);
+            Lock(shared->lock_smp);
+            shared->smp_threads--;
+            Unlock(shared->lock_smp);
             exit(0);
           }
 #endif
+          Lock(shared->lock_smp);
           shared->smp_threads++;
+          Unlock(shared->lock_smp);
         }
       }
       WaitForAllThreadsInitialized();
@@ -279,6 +284,10 @@ int Iterate(int wtm, int search_type, int root_list_done)
             Min(shared->nodes_between_time_checks, MAX_TC_NODES);
         while (1) {
           shared->thread[0] = shared->local[0];
+          for (i = 0; i < shared->n_root_moves; i++)
+            if (!(shared->root_moves[i].status & 256))
+              break;
+          shared->root_moves[i].status &= 4095 - 128;
           value =
               SearchRoot(tree, shared->root_alpha, shared->root_beta, wtm,
               shared->iteration_depth * PLY + PLY / 2);
@@ -298,7 +307,7 @@ int Iterate(int wtm, int search_type, int root_list_done)
             shared->root_value = shared->root_alpha;
             shared->root_beta =
                 SetRootBeta(shared->root_moves[0].status, shared->root_beta);
-            shared->root_moves[0].status &= 255 - 128;
+            shared->root_moves[0].status &= 4095 - 256;
             shared->root_moves[0].nodes = 0;
             if (shared->root_print_ok) {
               if (wtm) {
@@ -351,7 +360,7 @@ int Iterate(int wtm, int search_type, int root_list_done)
               shared->root_value = shared->root_alpha;
               shared->root_beta =
                   SetRootBeta(shared->root_moves[0].status, shared->root_beta);
-              shared->root_moves[0].status &= 255 - 128;
+              shared->root_moves[0].status &= 4095 - 256;
               shared->root_moves[0].nodes = 0;
               shared->root_value = shared->root_alpha;
               shared->easy_move = 0;
@@ -444,11 +453,14 @@ int Iterate(int wtm, int search_type, int root_list_done)
  ************************************************************
  */
         for (i = 0; i < shared->n_root_moves; i++)
-          shared->root_moves[i].status = 0;
+          shared->root_moves[i].status &= 128;
         if (shared->root_moves[0].nodes > 1000)
-          for (i = 0; i < Min(shared->n_root_moves, 16); i++) {
-            if (shared->root_moves[i].nodes > shared->root_moves[0].nodes / 3)
+          for (i = 0; i < shared->n_root_moves; i++) {
+            if (i < Min(shared->n_root_moves, 16) &&
+                shared->root_moves[i].nodes > shared->root_moves[0].nodes / 3)
               shared->root_moves[i].status |= 64;
+            if (i > shared->n_root_moves / 4)
+              shared->root_moves[i].status |= 128;
           }
 /*
  ************************************************************
@@ -461,14 +473,15 @@ int Iterate(int wtm, int search_type, int root_list_done)
         if (shared->display_options & 256) {
           BITBOARD total_nodes = 0;
 
-          Print(128, "       move       nodes      hi/low\n");
+          Print(128, "       move       nodes      hi/low   reduce\n");
           for (i = 0; i < shared->n_root_moves; i++) {
             total_nodes += shared->root_moves[i].nodes;
-            Print(128, " %10s  " BMF10 "       %d   %d\n", OutputMove(tree,
-                    shared->root_moves[i].move, 1, wtm),
+            Print(128, " %10s  " BMF10 "       %d   %d     %d\n",
+                OutputMove(tree, shared->root_moves[i].move, 1, wtm),
                 shared->root_moves[i].nodes,
                 (shared->root_moves[i].status & 0x38) > 0,
-                (shared->root_moves[i].status & 7) > 0);
+                (shared->root_moves[i].status & 7) > 0,
+                (shared->root_moves[i].status & 128) > 0);
           }
           Print(256, "      total  " BMF10 "\n", total_nodes);
         }
@@ -602,6 +615,13 @@ int Iterate(int wtm, int search_type, int root_list_done)
     tree->pv[0] = tree->pv[1];
     if (analyze_mode)
       Kibitz(4, wtm, 0, 0, 0, 0, 0, shared->kibitz_text);
+  }
+  if (shared->nice) {
+    Print(128, "terminating SMP processes.");
+    shared->quit = 1;
+    while (shared->smp_threads);
+    shared->quit = 0;
+    shared->smp_idle = 0;
   }
   shared->program_end_time = ReadClock();
   search_move = 0;

@@ -89,7 +89,7 @@ int TimeCheck(TREE * RESTRICT tree, int abort)
     return (1);
   ndone = 0;
   for (i = 0; i < shared->n_root_moves; i++)
-    if (shared->root_moves[i].status & 128)
+    if (shared->root_moves[i].status & 256)
       ndone++;
   if (ndone == 1)
     abort = 1;

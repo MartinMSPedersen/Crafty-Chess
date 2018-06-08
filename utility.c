@@ -620,7 +620,7 @@ void DisplayPV(TREE * RESTRICT tree, int level, int wtm, int time, int value,
  ************************************************************
  */
   for (i = 0; i < shared->n_root_moves; i++)
-    if (!(shared->root_moves[i].status & 128) &&
+    if (!(shared->root_moves[i].status & 256) &&
         shared->root_moves[i].status & 64)
       nskip++;
   if (level == 5)
@@ -782,7 +782,7 @@ void DisplayTreeState(TREE * RESTRICT tree, int sply, int spos, int maxply)
   if (sply == 1) {
     left = 0;
     for (i = 0; i < shared->n_root_moves; i++)
-      if (!(shared->root_moves[i].status & 128))
+      if (!(shared->root_moves[i].status & 256))
         left++;
     sprintf(buf, "%d:%d/%d  ", 1, left, shared->n_root_moves);
   } else {
@@ -2276,8 +2276,8 @@ TREE *CopyToSMP(TREE * RESTRICT p, int thread)
   c->hash_move[p->ply] = p->hash_move[p->ply];
   for (i = 1; i <= p->ply + 1; i++) {
     c->position[i] = p->position[i];
-    c->current_move[i] = p->current_move[i];
-    c->in_check[i] = p->in_check[i];
+    c->curmv[i] = p->curmv[i];
+    c->inchk[i] = p->inchk[i];
     c->phase[i] = p->phase[i];
   }
   for (i = 1; i < MAXPLY; i++)
@@ -2416,6 +2416,103 @@ void Kibitz(int level, int wtm, int depth, int time, int value, BITBOARD nodes,
     }
     fflush(stdout);
   }
+}
+
+/* modified 08/07/05 */
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   Output() is used to print the principal variation whenever it changes.    *
+ *   one additional feature is that Output() will try to do something about    *
+ *   variations truncated by the transposition table.  if the variation was    *
+ *   cut short by a transposition table hit, then we can make the last move,   *
+ *   add it to the end of the variation and extend the depth of the variation  *
+ *   to cover it.                                                              *
+ *                                                                             *
+ *******************************************************************************
+ */
+void Output(TREE * RESTRICT tree, int value, int bound)
+{
+  register int wtm;
+  int i;
+  ROOT_MOVE temp_rm;
+
+/*
+ ************************************************************
+ *                                                          *
+ *   first, move the best move to the top of the ply-1 move *
+ *   list if it's not already there, so that it will be the *
+ *   first move tried in the next iteration.                *
+ *                                                          *
+ ************************************************************
+ */
+  shared->root_print_ok = shared->root_print_ok ||
+      tree->nodes_searched > shared->noise_level;
+  wtm = shared->root_wtm;
+  if (!shared->abort_search) {
+    shared->kibitz_depth = shared->iteration_depth;
+    for (i = 0; i < shared->n_root_moves; i++)
+      if (tree->curmv[1] == shared->root_moves[i].move)
+        break;
+    if (i && i < shared->n_root_moves) {
+      temp_rm = shared->root_moves[i];
+      for (; i > 0; i--)
+        shared->root_moves[i] = shared->root_moves[i - 1];
+      shared->root_moves[0] = temp_rm;
+      shared->easy_move = 0;
+    }
+    shared->end_time = ReadClock();
+/*
+ ************************************************************
+ *                                                          *
+ *   if this is not a fail-high move, then output the PV    *
+ *   by walking down the path being backed up.              *
+ *                                                          *
+ ************************************************************
+ */
+    if (value < bound) {
+      UnmakeMove(tree, 1, tree->pv[1].path[1], shared->root_wtm);
+      DisplayPV(tree, 6, wtm, shared->end_time - shared->start_time, value,
+          &tree->pv[1]);
+      MakeMove(tree, 1, tree->pv[1].path[1], shared->root_wtm);
+    } else {
+      if (tree->curmv[1] != tree->pv[1].path[1]) {
+        tree->pv[1].path[1] = tree->curmv[1];
+        tree->pv[1].pathl = 1;
+        tree->pv[1].pathh = 0;
+        tree->pv[1].pathd = shared->iteration_depth;
+      }
+    }
+    tree->pv[0] = tree->pv[1];
+    shared->local[0]->pv[0] = tree->pv[1];
+  }
+}
+
+/* modified 08/07/05 */
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   Trace() is used to print the search trace output each time a node is*
+ *   traversed in the tree.                                                    *
+ *                                                                             *
+ *******************************************************************************
+ */
+void Trace(TREE * RESTRICT tree, int ply, int depth, int wtm, int alpha,
+    int beta, char *name, int phase)
+{
+  int i;
+
+  Lock(shared->lock_io);
+  for (i = 1; i < ply; i++)
+    printf("  ");
+  printf("%d  %s d:%5.2f [%s,", ply, OutputMove(tree, tree->curmv[ply], ply,
+          wtm), (float) depth / (float) PLY, DisplayEvaluation(alpha, 1));
+  printf("%s] n:" BMF " %s(%d)", DisplayEvaluation(beta, 1),
+      (tree->nodes_searched), name, phase);
+  if (shared->max_threads > 1)
+    printf(" (t=%d) ", tree->thread_id);
+  printf("\n");
+  Unlock(shared->lock_io);
 }
 
 /* last modified 07/07/98 */

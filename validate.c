@@ -88,7 +88,6 @@ void ValidatePosition(TREE * RESTRICT tree, int ply, int move, char *caller)
         TotalWhitePieces);
     error = 1;
   }
-
 //TLR
   temp_score = PopCnt(WhiteKnights);
   if (temp_score != TotalWhiteKnights) {
@@ -480,7 +479,7 @@ void ValidatePosition(TREE * RESTRICT tree, int ply, int move, char *caller)
     Print(4095, "node=" BMF "\n", tree->nodes_searched);
     Print(4095, "active path:\n");
     for (i = 1; i <= ply; i++)
-      DisplayChessMove("move=", tree->current_move[i]);
+      DisplayChessMove("move=", tree->curmv[i]);
     i = 99999999;
     tree->move_list[i] = 0;
     CraftyExit(1);

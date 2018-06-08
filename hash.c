@@ -268,7 +268,7 @@ void HashStore(TREE * RESTRICT tree, int ply, int depth, int wtm, int type,
     if ((int) tree->pv[ply].pathl >= ply)
       word1l |= tree->pv[ply].path[ply];
   } else if (type == LOWER) {
-    word1l |= tree->current_move[ply];
+    word1l |= tree->curmv[ply];
   }
   word1r = (depth << 17) + value + 65536;
   word1 = word1r + ((BITBOARD) word1l << 32);

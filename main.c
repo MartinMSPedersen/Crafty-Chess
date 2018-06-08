@@ -2547,7 +2547,7 @@
  *           were removed.                                                     *
  *                                                                             *
  *   16.17   minor "hole" in SMP code fixed.  it was possible that a move      *
- *           displayed as the best in SearchOutput() would not get played.     *
+ *           displayed as the best in Output() would not get played.     *
  *           very subtle timing issue dealing with the search timing out and   *
  *           forgetting to copy the best move back to the right data area.     *
  *           minor fixes to the modified -USE_ATTACK_FUNCTIONS option that     *
@@ -3555,6 +3555,21 @@
  *           there are many other evaluation changes too numerous to list here *
  *           in detail.                                                        *
  *                                                                             *
+ *   21.7    new reduce at root code added to do reductions at the root, but   *
+ *           not on any move that has been a "best move" during the current    *
+ *           search, unless the move drops too far in the move list.  new nice *
+ *           mode for parallel search terminates threads while waiting on the  *
+ *           opponent's move to avoid burning unnecessary CPU time (this nice  *
+ *           mode is NOT the default mode however.) -DNOFUTILITY removed as    *
+ *           futility is on by default and should not be removed.  All of the  *
+ *           search() code has been cleaned up and streamlined a bit for more  *
+ *           clarity when reading the code.  nasty bug in EvaluatePawns() that *
+ *           unfortunattely used the king squares to make a decision dealing   *
+ *           with outside passed pawns, but the hash signature for pawns does  *
+ *           not include king position.  this code was deemed unnecessary and  *
+ *           was summarily removed (not summarily executed, it has had that    *
+ *           done far too many times already).                                 *
+ *                                                                             *
  *******************************************************************************
  */
 int main(int argc, char **argv)
@@ -4133,9 +4148,10 @@ int main(int argc, char **argv)
       MakeMoveRoot(tree, last_pv.path[1], wtm);
       move_actually_played = 1;
 #if !defined(TEST)
-      if (log_file && shared->time_limit > 300)
+      if (shared->time_limit > 300)
 #endif
-        DisplayChessBoard(log_file, tree->pos);
+        if (log_file)
+          DisplayChessBoard(log_file, tree->pos);
 #if defined(TEST)
       strcpy(buffer, "score");
       Option(tree);

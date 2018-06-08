@@ -60,8 +60,8 @@ int NextEvasion(TREE * RESTRICT tree, int ply, int wtm)
  */
     if (tree->hash_move[ply]) {
       tree->next_status[ply].phase = SORT_ALL_MOVES;
-      tree->current_move[ply] = tree->hash_move[ply];
-      if (ValidMove(tree, ply, wtm, tree->current_move[ply]))
+      tree->curmv[ply] = tree->hash_move[ply];
+      if (ValidMove(tree, ply, wtm, tree->curmv[ply]))
         return (HASH_MOVE);
 #if defined(DEBUG)
       else
@@ -142,7 +142,7 @@ int NextEvasion(TREE * RESTRICT tree, int ply, int wtm)
     for (; tree->next_status[ply].last < tree->last[ply];
         tree->next_status[ply].last++)
       if ((*tree->next_status[ply].last)) {
-        tree->current_move[ply] = *tree->next_status[ply].last++;
+        tree->curmv[ply] = *tree->next_status[ply].last++;
         return (REMAINING_MOVES);
       }
     return (NONE);
