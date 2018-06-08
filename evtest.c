@@ -80,25 +80,25 @@ void EVTest(char *filename)
       shared->root_wtm = wtm;
       PreEvaluate(tree);
       tree->pawn_score.key = 0;
-      s1 = Evaluate(tree, 0, wtm);
+      s1 = Evaluate(tree, 0, wtm, -99999, 99999);
 
       strcpy(buffer, "flop");
       (void) Option(tree);
       PreEvaluate(tree);
       tree->pawn_score.key = 0;
-      s2 = Evaluate(tree, 0, wtm);
+      s2 = Evaluate(tree, 0, wtm, -99999, 99999);
 
       strcpy(buffer, "flip");
       (void) Option(tree);
       PreEvaluate(tree);
       tree->pawn_score.key = 0;
-      s3 = Evaluate(tree, 0, wtm);
+      s3 = Evaluate(tree, 0, wtm, -99999, 99999);
 
       strcpy(buffer, "flop");
       (void) Option(tree);
       PreEvaluate(tree);
       tree->pawn_score.key = 0;
-      s4 = Evaluate(tree, 0, wtm);
+      s4 = Evaluate(tree, 0, wtm, -99999, 99999);
 
       if (s1 != s2 || s1 != s3 || s1 != s4 || s2 != s3 || s2 != s4 ||
           s3 != s4) {

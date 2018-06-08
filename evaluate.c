@@ -19,10 +19,11 @@
  *******************************************************************************
  */
 
-int Evaluate(TREE * RESTRICT tree, int ply, int wtm)
+int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta)
 {
   register int score;
   register int can_win = 3;
+  register int full_eval = 1;
 
 /*
  **********************************************************************
@@ -163,11 +164,19 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm)
  */
   tree->w_tropism = 0;
   tree->b_tropism = 0;
-  score += EvaluateKnights(tree);
-  score += EvaluateBishops(tree);
-  score += EvaluateRooks(tree);
-  score += EvaluateQueens(tree);
-  score += EvaluateKings(tree, wtm, ply);
+  if (can_win == 3) {
+    int lscore = (wtm) ? score : -score;
+    if ((lscore - lazy_eval_cutoff >= beta) ||
+        (lscore + lazy_eval_cutoff <= alpha))
+      full_eval = 0;
+  }
+  if (full_eval) {
+    score += EvaluateKnights(tree);
+    score += EvaluateBishops(tree);
+    score += EvaluateRooks(tree);
+    score += EvaluateQueens(tree);
+    score += EvaluateKings(tree, wtm, ply);
+  }
 /*
  **********************************************************************
  *                                                                    *

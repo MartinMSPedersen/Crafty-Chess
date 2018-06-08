@@ -46,7 +46,7 @@ int Quiesce(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply)
  *                                                          *
  ************************************************************
  */
-  value = Evaluate(tree, ply, wtm);
+  value = Evaluate(tree, ply, wtm, alpha, beta);
   if (value > alpha) {
     if (value >= beta)
       return (value);

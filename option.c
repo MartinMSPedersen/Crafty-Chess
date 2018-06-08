@@ -3404,7 +3404,7 @@ int Option(TREE * RESTRICT tree)
     shared->root_wtm = Flip(wtm);
     tree->position[1] = tree->position[0];
     PreEvaluate(tree);
-    s6 = Evaluate(tree, 1, wtm);
+    s6 = Evaluate(tree, 1, wtm, -99999, 99999);
     if (!wtm)
       s6 = -s6;
     s1 = EvaluateMaterial(tree);

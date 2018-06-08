@@ -3329,6 +3329,11 @@
  *           a smaller amount, since bishops + rooks + knights are still a     *
  *           dangerous threat.                                                 *
  *                                                                             *
+ *   20.9    simple lazy eval (Mike Byrne) added.  this simply avoids the more *
+ *           expensive piece evaluations if the pawn scoring and material      *
+ *           leave the score well outside the alpha/beta search window.  looks *
+ *           like a 20% speed improvement in general.                          *
+ *                                                                             *
  *******************************************************************************
  */
 int main(int argc, char **argv)

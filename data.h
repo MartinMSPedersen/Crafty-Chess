@@ -102,6 +102,7 @@ extern int nargs;
 extern int kibitz;
 extern int wtm;
 extern int last_search_value;
+extern int lazy_eval_cutoff;
 extern int ponder_value;
 extern int move_actually_played;
 extern int analyze_mode;

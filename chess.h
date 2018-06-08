@@ -586,7 +586,7 @@ int       EGTBProbe(TREE * RESTRICT, int, int, int *);
 void      EGTBPV(TREE * RESTRICT, int);
 #endif
 int       EnPrise(int, int);
-int       Evaluate(TREE * RESTRICT, int, int);
+int       Evaluate(TREE * RESTRICT, int, int, int, int);
 int       EvaluateBishops(TREE * RESTRICT);
 int       EvaluateDevelopmentB(TREE * RESTRICT, int);
 int       EvaluateDevelopmentW(TREE * RESTRICT, int);

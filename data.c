@@ -162,7 +162,7 @@ BITBOARD black_pawn_race_btm[64];
 BOOK_POSITION book_buffer[BOOK_CLUSTER_SIZE];
 BOOK_POSITION book_buffer_char[BOOK_CLUSTER_SIZE];
 
-#define    VERSION                             "20.8"
+#define    VERSION                             "20.9"
 char version[6] = { VERSION };
 PLAYING_MODE mode = normal_mode;
 int batch_mode = 0;             /* no asynch reads */
@@ -171,6 +171,7 @@ int call_flag = 0;
 int crafty_rating = 2500;
 int opponent_rating = 2500;
 int last_search_value = 0;
+int lazy_eval_cutoff = 350;
 int DGT_active = 0;
 int to_dgt = 0;
 int from_dgt = 0;

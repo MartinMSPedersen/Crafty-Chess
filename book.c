@@ -206,7 +206,7 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
           else
             book_development[nmoves] = 0;
           total_moves += bs_played[nmoves];
-          evaluations[nmoves] = Evaluate(tree, 2, wtm);
+          evaluations[nmoves] = Evaluate(tree, 2, wtm, -99999, 99999);
           evaluations[nmoves] -= (wtm) ? Material : -Material;
           bs_percent[nmoves] = 0;
           for (j = 0; j < smoves; j++) {
