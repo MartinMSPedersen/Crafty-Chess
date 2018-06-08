@@ -196,20 +196,20 @@ void ClearHashTables(void)
   if (trans_ref_ba && trans_ref_wa) {
     for (i=0;i<hash_table_size;i++) {
       (trans_ref_ba+i)->word1=Or(And((trans_ref_ba+i)->word1,
-			      mask_clear_entry),Shiftl((BITBOARD) 65536,21));
+			      mask_clear_entry),(BITBOARD) 65536);
 	      (trans_ref_wa+i)->word1=Or(And((trans_ref_wa+i)->word1,
-			      mask_clear_entry),Shiftl((BITBOARD) 65536,21));
+			      mask_clear_entry),(BITBOARD) 65536);
     }
     for (i=0;i<2*hash_table_size;i++) {
       (trans_ref_bb+i)->word1=Or(And((trans_ref_bb+i)->word1,
-                      mask_clear_entry),Shiftl((BITBOARD) 65536,21));
+                      mask_clear_entry),(BITBOARD) 65536);
       (trans_ref_wb+i)->word1=Or(And((trans_ref_wb+i)->word1,
-                      mask_clear_entry),Shiftl((BITBOARD) 65536,21));
+                      mask_clear_entry),(BITBOARD) 65536);
     }
   }
 }
 
-void Delay(int ms)
+void DelayTime(int ms)
 {
   int old,new;
   old=ReadClock(elapsed);
@@ -303,8 +303,7 @@ void DisplayChessBoard(FILE *display_file, POSITION pos)
 char* DisplayEvaluation(int value) {
   static char out[10];
 
-  if (value == DrawScore(root_wtm)) sprintf(out,"   draw");
-  else if (abs(value) < MATE-300) 
+  if (abs(value) < MATE-300) 
     sprintf(out,"%7.2f",((float) value)/100.0);
   else if (abs(value) > MATE) {
     if (value < 0) sprintf(out," -infnty");
@@ -321,8 +320,7 @@ char* DisplayEvaluationWhisper(int value)
 {
   static char out[10];
 
-  if (value == DrawScore(root_wtm)) sprintf(out,"draw");
-  else if (abs(value) < MATE-300)
+  if (abs(value) < MATE-300)
     sprintf(out,"%+.2f",((float) value)/100.0);
   else if (abs(value) > MATE) {
     if (value < 0) sprintf(out,"-infnty");

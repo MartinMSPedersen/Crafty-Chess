@@ -5,7 +5,7 @@
 #include "data.h"
 #include "epdglue.h"
 
-/* last modified 06/05/98 */
+/* last modified 12/19/98 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -408,7 +408,7 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
     UnMakeMove(tree,ply,tree->current_move[ply],wtm);
 #if defined(SMP)
     if (smp_idle) {
-      if (moves_searched>0 && min_thread_depth<=depth && 
+      if (moves_searched && min_thread_depth<=depth && 
         (!tree->in_check[ply] || tree->last[ply]-tree->last[ply-1]>1)) {
         tree->alpha=alpha;
         tree->beta=beta;

@@ -17,6 +17,15 @@
 #  define           PAWN_PROTECTED_PASSER_WINS          (50)
 #  define                         CENTER_PAWNS           (4)
  
+#  define                          PAWN_BASE_A          (-4)
+#  define                          PAWN_BASE_B           (0)
+#  define                          PAWN_BASE_C           (4)
+#  define                          PAWN_BASE_D           (8)
+#  define                          PAWN_BASE_E           (8)
+#  define                          PAWN_BASE_F           (4)
+#  define                          PAWN_BASE_G           (0)
+#  define                          PAWN_BASE_H          (-4)
+
 #  define                       PAWN_ADVANCE_A          (-3)
 #  define                       PAWN_ADVANCE_B          (-3)
 #  define                       PAWN_ADVANCE_C           (1)
@@ -75,7 +84,7 @@
 #  define              ROOK_CONNECTED_7TH_RANK          (10)
 #  define                       ROOK_OPEN_FILE          (10)
 #  define                  ROOK_HALF_OPEN_FILE           (5)
-#  define             ROOK_CONNECTED_OPEN_FILE           (8)
+#  define             ROOK_CONNECTED_OPEN_FILE           (5)
 #  define              ROOK_BEHIND_PASSED_PAWN          (16)
 #  define                         ROOK_TRAPPED          (40)
   

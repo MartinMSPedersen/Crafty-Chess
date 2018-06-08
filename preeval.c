@@ -27,6 +27,7 @@ void PreEvaluate(TREE *tree, int wtm)
   static int hashing_end_game = 0;
   static int last_wtm = 0;
   int hash_pawns=0;
+  int pawn_advance[8], pawn_base[8];
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -79,6 +80,14 @@ void PreEvaluate(TREE *tree, int wtm)
     pawn_advance[6]=PAWN_ADVANCE_EG_G;
     pawn_advance[7]=PAWN_ADVANCE_EG_H;
   }
+  pawn_base[0]=PAWN_BASE_A;
+  pawn_base[1]=PAWN_BASE_B;
+  pawn_base[2]=PAWN_BASE_C;
+  pawn_base[3]=PAWN_BASE_D;
+  pawn_base[4]=PAWN_BASE_E;
+  pawn_base[5]=PAWN_BASE_F;
+  pawn_base[6]=PAWN_BASE_G;
+  pawn_base[7]=PAWN_BASE_H;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -88,7 +97,7 @@ void PreEvaluate(TREE *tree, int wtm)
 */
   for (i=1;i<7;i++)
     for (j=0;j<8;j++)
-      pawn_value_w[i*8+j]=pawn_advance[j]*(i-3);
+      pawn_value_w[i*8+j]=pawn_base[j]+pawn_advance[j]*(i-3);
   for (j=A6;j<A8;j++)
     pawn_value_w[j]=PAWN_JAM;
   if (!end_game) {
@@ -108,7 +117,7 @@ void PreEvaluate(TREE *tree, int wtm)
 */
   for (i=6;i>0;i--)
     for (j=0;j<8;j++)
-      pawn_value_b[i*8+j]=pawn_advance[j]*(4-i);
+      pawn_value_b[i*8+j]=pawn_base[j]+pawn_advance[j]*(4-i);
   for (j=A2;j<A4;j++)
     pawn_value_b[j]=PAWN_JAM;
   if (!end_game) {

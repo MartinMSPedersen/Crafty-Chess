@@ -1066,7 +1066,7 @@ void InitializeMasks(void) {
     mask_121=Mask(121);
     mask_127=Mask(127);
 #  endif
-  mask_clear_entry=Compl(Or(Shiftl(Mask(109),21),Shiftr(Mask(3),3)));
+  mask_clear_entry=Compl(Or(Mask(109),Shiftr(Mask(3),3)));
 /*
   masks to set/clear a bit on a specific square
 */

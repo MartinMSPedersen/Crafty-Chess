@@ -112,7 +112,7 @@ unsigned int ReadClock() {
   return(timeval.tv_sec*100+(timeval.tv_usec/10000));
 }
 
-void Delay(int ms)
+void DelayTime(int ms)
 {
   int old,new;
   old=ReadClock();

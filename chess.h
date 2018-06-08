@@ -483,9 +483,13 @@ typedef struct tree TREE;
  
 #if !defined(CRAY1)
   BITBOARD     Mask(int);
+#  if defined(VC_INLINE_ASM)
+# include "vcinline.h"
+#  else
   int CDECL    PopCnt(BITBOARD);
   int CDECL    FirstOne(BITBOARD);
   int CDECL    LastOne(BITBOARD);
+#  endif
 #endif
   
 void           Analyze();
@@ -509,7 +513,7 @@ void           ClearHashTables(void);
 void           ComputeAttacksAndMobility(void);
 void           CopyFromSMP(TREE*, TREE*);
 TREE*          CopyToSMP(TREE*);
-void           Delay(int);
+void           DelayTime(int);
 void           DGTInit(int,char**);
 int            DGTCheckInput(void);
 void           DGTRead(void);
@@ -543,7 +547,7 @@ int            EvaluatePawns(TREE*);
 void           EVTest(char *);
 int            FindBlockID(TREE*);
 char*          FormatPV(TREE*,int,PATH);
-void           FTbSetCacheSize(void*,int);
+int            FTbSetCacheSize(void*,unsigned long);
 int*           GenerateCaptures(TREE*, int, int, int*);
 int*           GenerateCheckEvasions(TREE*, int, int, int*);
 int*           GenerateNonCaptures(TREE*, int, int, int*);
@@ -628,7 +632,7 @@ int            Swap(TREE*, int, int, int);
 BITBOARD       SwapXray(TREE*, BITBOARD, int, int);
 void           Test(char *);
 int            Thread(TREE*);
-void*          ThreadInit(void*);
+void* STDCALL  ThreadInit(void*);
 void           ThreadStop(TREE*);
 int            ThreadWait(int, TREE*);
 void           TimeAdjust(int,PLAYER);

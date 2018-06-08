@@ -143,7 +143,7 @@ int Thread(TREE *tree) {
 *                                                                              *
 ********************************************************************************
 */
-void *ThreadInit(void *tid) {
+void * STDCALL ThreadInit(void *tid) {
   ThreadWait((int) tid, (TREE*) 0);
   return(0);
 }

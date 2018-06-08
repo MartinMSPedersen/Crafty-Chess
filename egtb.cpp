@@ -5,7 +5,10 @@
 
 #define  NEW
 #define  XX  127
+
+#if !defined(SMP)
 #define  lock_t volatile int
+#endif
 
 typedef unsigned int INDEX;
 typedef unsigned int square;

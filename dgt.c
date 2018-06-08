@@ -66,9 +66,9 @@ void DGTInit(int nargs, char *args[]) {
   close(tp[0]);
   close(fp[1]);
   write(to_dgt,"reset\n",6);
-  Delay(200);
+  DelayTime(200);
   write(to_dgt,"set\n",4);
-  Delay(300);
+  DelayTime(300);
   write(to_dgt,"update\n",7);
   DGT_active=1;
 }

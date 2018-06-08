@@ -225,7 +225,6 @@
    extern int            isolated_pawn_value[9];
    extern int            supported_passer[8];
    extern int            reduced_material_passer[20];
-   extern int            pawn_advance[8];
    extern int            outside_passed[128];
    extern int            scale_down[128];
    extern int            scale_up[128];

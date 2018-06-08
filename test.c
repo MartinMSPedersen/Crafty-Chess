@@ -153,14 +153,14 @@ void Test(char *filename)
   if (right+wrong) {
     Print(4095,"\n\n\n");
     Print(4095,"test results summary:\n\n");
-    Print(4095,"total positions searched..........%10d\n",right+wrong);
-    Print(4095,"number right......................%10d\n",right);
-    Print(4095,"number wrong......................%10d\n",wrong);
-    Print(4095,"percentage right..................%10d\n",right*100/(right+wrong));
-    Print(4095,"percentage wrong..................%10d\n",wrong*100/(right+wrong));
-    Print(4095,"total nodes searched..............%10.1f\n",nodes);
-    Print(4095,"average search depth..............%10.1f\n",avg_depth/(right+wrong));
-    Print(4095,"nodes per second..................%10d\n",(int) ((float) nodes/(float) time*100.0));
+    Print(4095,"total positions searched..........%12d\n",right+wrong);
+    Print(4095,"number right......................%12d\n",right);
+    Print(4095,"number wrong......................%12d\n",wrong);
+    Print(4095,"percentage right..................%12d\n",right*100/(right+wrong));
+    Print(4095,"percentage wrong..................%12d\n",wrong*100/(right+wrong));
+    Print(4095,"total nodes searched..............%12.1f\n",nodes);
+    Print(4095,"average search depth..............%12.1f\n",avg_depth/(right+wrong));
+    Print(4095,"nodes per second..................%12d\n",(int) ((float) nodes/(float) time*100.0));
   }
   input_stream=stdin;
   early_exit=99;

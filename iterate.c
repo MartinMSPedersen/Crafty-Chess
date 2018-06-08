@@ -22,7 +22,7 @@ int Iterate(int wtm, int search_type, int root_list_done)
   int i, value=0, time_used;
   int twtm, used_w, used_b;
   int correct, correct_count, material=0, sorted, temp;
-  static int average_nps=0;
+  static int average_nps=600000;
   TREE *tree=local[0];
 
 /*
@@ -345,14 +345,14 @@ int Iterate(int wtm, int search_type, int root_list_done)
       root_alpha=value-40;
       root_value=root_alpha;
       root_beta=value+40;
-      if ((iteration_depth > 1) && (value > MATE-300) &&
+      if ((iteration_depth > 3) && (value > MATE-300) &&
           (value > last_mate_score)) break;
       if ((iteration_depth >= search_depth) && search_depth) break;
       if (time_abort || abort_search) break;
       end_time=ReadClock(time_type)-start_time;
       if (thinking && ((int) end_time >= time_limit)) break;
       if (correct_count >= early_exit) break;
-      if (iteration_depth>=2 && TotalPieces<=5 && TB_use_ok &&
+      if (iteration_depth>3 && TotalPieces<=5 && TB_use_ok &&
           EGTBlimit && EGTBProbe(tree, 1, wtm, &i) && EGTB_use) break;
       do {
         sorted=1;

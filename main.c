@@ -2285,6 +2285,14 @@
 *           problem with moving an entry from tablea to tableb, but to the    *
 *           wrong address 50% of the time (thanks to J. Wesley Cleveland).    *
 *                                                                             *
+*   16.3    performance tweaks plus a few evaluation changes.  An oversight   *
+*           would let crafty play a move like exd5 when cxd5 was playable.    *
+*           IE it didn't follow the general rule "capture toward the center." *
+*           this has been fixed.  one restriction on extensions has been      *
+*           removed, so that extensions are used regardless of how far out in *
+*           the tree search things have reached.  king safety ramped up just  *
+*           a bit.                                                            *
+*                                                                             *
 *******************************************************************************
 */
 int main(int argc, char **argv)
@@ -2473,7 +2481,7 @@ int main(int argc, char **argv)
           move=InputMove(tree,args[0],0,wtm,0,0);
           if (auto232 && presult!=3) {
             char *mv=OutputMoveICS(tree,move);
-            Delay(auto232_delay);
+            DelayTime(auto232_delay);
             if (!wtm) fprintf(auto_file,"\t");
             fprintf(auto_file, " %c%c-%c%c", mv[0], mv[1], mv[2], mv[3]);
             if ((mv[4] != ' ') && (mv[4] != 0))
@@ -2613,7 +2621,7 @@ int main(int argc, char **argv)
           Print(4095,"\n");
           if (auto232) { 
             char *mv=OutputMoveICS(tree,last_pv.path[1]);
-            Delay(auto232_delay);
+            DelayTime(auto232_delay);
             fprintf(auto_file, " %c%c-%c%c", mv[0],mv[1],mv[2],mv[3]);
             if ((mv[4]!=' ') && (mv[4]!=0))
               fprintf(auto_file, "/%c", mv[4]);
@@ -2638,7 +2646,7 @@ int main(int argc, char **argv)
           Print(4095,"\n");
           if (auto232) { 
             char *mv=OutputMoveICS(tree,last_pv.path[1]);
-            Delay(auto232_delay);
+            DelayTime(auto232_delay);
             fprintf(auto_file, "\t %c%c-%c%c", mv[0],mv[1],mv[2],mv[3]);
             if ((mv[4]!=' ') && (mv[4]!=0))
               fprintf(auto_file, "/%c", mv[4]);

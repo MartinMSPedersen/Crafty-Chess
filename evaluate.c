@@ -571,7 +571,6 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
       if (FileDistance(square,tree->b_kingsq) <=1 )
         score+=ScaleDown(tree->b_safety*2,TotalWhitePieces);
       else score+=ROOK_OPEN_FILE;
-      if (And(AttacksFile(square),WhiteRooks)) score+=ROOK_CONNECTED_OPEN_FILE;
     }
     else if (!And(file_mask[file],WhitePawns)) score+=ROOK_HALF_OPEN_FILE;
 /*
@@ -651,7 +650,6 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
       if (FileDistance(square,tree->w_kingsq) <= 1)
         score-=ScaleDown(tree->w_safety*2,TotalBlackPieces);
       else score-=ROOK_OPEN_FILE;
-      if (And(AttacksFile(square),BlackRooks)) score-=ROOK_CONNECTED_OPEN_FILE;
     }
     else if (!And(file_mask[file],BlackPawns)) score-=ROOK_HALF_OPEN_FILE;
 /*

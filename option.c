@@ -43,7 +43,6 @@ int Option(TREE *tree) {
       }
     }
   }
-  
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -300,7 +299,7 @@ int Option(TREE *tree) {
     }
     if (EGTB_cache_size < 1<<20)
       Print(4095,"EGTB cache memory = %dK bytes.\n", EGTB_cache_size/(1<<10));
-    else 
+    else
       Print(4095,"EGTB cache memory = %dM bytes.\n", EGTB_cache_size/(1<<20));
     FTbSetCacheSize(EGTB_cache,EGTB_cache_size);
   }
@@ -320,7 +319,7 @@ int Option(TREE *tree) {
         Print(4095,"ERROR:  use \"operator n\" command to correct after time control\n");
         tc_operator_time=0;
       }
-      
+
     if (nargs > 2)
       tc_time_remaining_opponent=ParseTime(args[2])*6000;
     Print(4095,"time remaining %s (Crafty)",
@@ -783,7 +782,6 @@ int Option(TREE *tree) {
     }
     if (!strcmp(args[1],"on")) call_flag=1;
     else if (!strcmp(args[1],"off")) call_flag=0;
-   
     if (call_flag) Print(4095,"end game on time forfeits\n");
     else Print(4095,"ignore time forfeits\n");
   }
@@ -956,7 +954,7 @@ int Option(TREE *tree) {
  ----------------------------------------------------------
 */
   else if (OptionMatch("hash",*args)) {
-    int i, new_hash_size;
+    int new_hash_size;
 
     if (thinking || pondering) return(2);
     if (nargs > 1) {
@@ -998,18 +996,7 @@ int Option(TREE *tree) {
           }
           hash_maska=(1<<log_hash)-1;
           hash_maskb=(1<<(log_hash+1))-1;
-          for (i=0;i<hash_table_size;i++) {
-            (trans_ref_wa+i)->word1=Shiftl((BITBOARD) 7,61);
-            (trans_ref_wa+i)->word2=0;
-            (trans_ref_ba+i)->word1=Shiftl((BITBOARD) 7,61);
-            (trans_ref_ba+i)->word2=0;
-          }
-          for (i=0;i<2*hash_table_size;i++) {
-            (trans_ref_wb+i)->word1=0;
-            (trans_ref_wb+i)->word2=0;
-            (trans_ref_bb+i)->word1=0;
-            (trans_ref_bb+i)->word2=0;
-          }
+          ClearHashTables();
         }
         else {
           trans_ref_wa=0;
@@ -1672,7 +1659,6 @@ int Option(TREE *tree) {
     strcpy(listname,args[1]);
     nargs-=2;
     targs+=2;
-    
     if (nargs) {
       if (!strcmp(listname,"GM")) {
         if (targs[0][0] == '-') {
@@ -1713,7 +1699,6 @@ int Option(TREE *tree) {
               number_of_specials--;
               i=0;
               Print(4095,"%s removed from special list.\n",targs[0]+1);
- 
               break;
             }
         }
@@ -1729,7 +1714,7 @@ int Option(TREE *tree) {
             strcpy(special_list[number_of_specials++],targs[0]+1);
             Print(4095,"%s added to special list.\n",targs[0]+1);
           }
-        }         
+        }
         else if (!strcmp(targs[0],"clear")) {
           number_of_specials=0;
         }
@@ -1744,7 +1729,6 @@ int Option(TREE *tree) {
               number_of_IMs--;
               i=0;
               Print(4095,"%s removed from IM list.\n",targs[0]+1);
- 
               break;
             }
         }
@@ -1760,7 +1744,7 @@ int Option(TREE *tree) {
             strcpy(IM_list[number_of_IMs++],targs[0]+1);
             Print(4095,"%s added to IM list.\n",targs[0]+1);
           }
-        }         
+        }
         else if (!strcmp(targs[0],"clear")) {
           number_of_IMs=0;
         }
@@ -1796,7 +1780,6 @@ int Option(TREE *tree) {
         }
         else Print(4095,"error, name must be preceeded by +/- flag.\n");
       }
-      
       if (!strcmp(listname,"AK")) {
         if (targs[0][0] == '-') {
           for (i=0;i<number_auto_kibitzers;i++)
@@ -2136,7 +2119,6 @@ int Option(TREE *tree) {
       *next=tolower(*next);
       next++;
     }
-#include "test.inc"
     if (mode != tournament_mode) {
       for (i=0;i<number_auto_kibitzers;i++)
         if (!strcmp(auto_kibitz_list[i],args[1])) {
@@ -2300,7 +2282,6 @@ int Option(TREE *tree) {
   else if (OptionMatch("logpath",*args) ||
            OptionMatch("bookpath",*args) ||
            OptionMatch("tbpath",*args)) {
-    
     if (OptionMatch("logpath",*args) ||
         OptionMatch("bookpath",*args)) {
       if (log_file)
@@ -2373,7 +2354,7 @@ int Option(TREE *tree) {
       tree->last[1]=GenerateNonCaptures(tree, 0, wtm, tree->last[1]);
     }
     clock_after=clock();
-    time_used=((float) clock_after-(float) clock_before) / 
+    time_used=((float) clock_after-(float) clock_before) /
               (float) CLOCKS_PER_SEC;
     printf("generated %d moves, time=%.2f seconds\n",
            (tree->last[1]-tree->last[0])*PERF_CYCLES,time_used);
@@ -2391,7 +2372,7 @@ int Option(TREE *tree) {
       }
     }
     clock_after=clock();
-    time_used=((float) clock_after-(float) clock_before) / 
+    time_used=((float) clock_after-(float) clock_before) /
               (float) CLOCKS_PER_SEC;
     printf("generated/made/unmade %d moves, time=%.2f seconds\n",
       (tree->last[1]-tree->last[0])*PERF_CYCLES, time_used);
@@ -2630,7 +2611,7 @@ int Option(TREE *tree) {
       wtm=ChangeSide(wtm);
       if (wtm) move_number++;
       Phase();
-    } 
+    }
     moves_out_of_book=0;
     tc_moves_remaining=tc_moves-move_number+1;
     while (tc_moves_remaining <= 0) tc_moves_remaining+=tc_secondary_moves;
@@ -2884,7 +2865,6 @@ int Option(TREE *tree) {
     char empty[9]={' ','1','2','3','4','5','6','7','8'};
     int rank, file, nempty;
     FILE *output_file;
-  
     output_file=stdout;
     if (nargs > 1) {
       if (!strcmp(args[1],"*")) {
@@ -2960,7 +2940,6 @@ int Option(TREE *tree) {
                 Rank(EnPassant(0))+'1');
     }
     if (output_file) fprintf(output_file,"\n");
- 
     if (output_file && output_file != stdout) {
       fprintf(output_file,"exit\n");
       fclose(output_file);

@@ -95,7 +95,8 @@ int TimeCheck(int abort)
  ----------------------------------------------------------
 */
   time_used=(ReadClock(time_type)-start_time);
-  if (tree->nodes_searched>noise_level && (display_options&32) && time_used>burp) {
+  if (tree->nodes_searched>noise_level &&
+      display_options&32 && time_used>burp) {
     Lock(lock_io);
 #if defined(MACOS)
     printf("               %2i   %s\n",iteration_depth,DisplayTime(time_used));

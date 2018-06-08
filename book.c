@@ -1002,6 +1002,7 @@ void BookUp(TREE *tree, char *output_filename, int nargs, char **args) {
     if (start) current.status_played+=temp.percent_play;
     current.learn=0.0;
     played=1;
+    fclose(book_file);
     book_file=fopen(output_filename,"wb+");
     fseek(book_file,sizeof(int)*32768,SEEK_SET);
     last=current.position>>49;
