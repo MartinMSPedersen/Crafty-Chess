@@ -20,7 +20,7 @@
 */
 #if defined(SMP)
 int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
-              int depth, int ply, int threat) {
+              int depth, int ply, int mate_threat) {
   register int extensions, begin_root_nodes;
   register int full_extension=ply<=2*iteration_depth;
 /*
@@ -63,9 +63,9 @@ int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
  ----------------------------------------------------------
 */
     extensions=-60;
-    if (threat) {
-      extensions+=threat_depth;
-      tree->threat_extensions_done++;
+    if (mate_threat) {
+      extensions+=mate_depth;
+      tree->mate_extensions_done++;
     }
 /*
  ----------------------------------------------------------

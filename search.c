@@ -23,7 +23,7 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
   register int moves_searched=0;
   register int o_alpha, value=0;
   register int extensions, pieces;
-  int threat=0;
+  int mate_threat=0;
   register int full_extension=ply<=2*iteration_depth;
 /*
  ----------------------------------------------------------
@@ -97,7 +97,7 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
 |                                                          |
  ----------------------------------------------------------
 */
-  switch (HashProbe(tree,ply,depth,wtm,&alpha,&beta,&threat)) {
+  switch (HashProbe(tree,ply,depth,wtm,&alpha,&beta,&mate_threat)) {
     case EXACT:
       if(alpha < beta) SavePV(tree,ply,alpha,1);
       return(alpha);
@@ -139,7 +139,7 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
       }
       if(alpha < beta) SavePV(tree,ply,alpha,2);
       tree->pv[ply].pathl=0;
-      HashStore(tree,ply,32000,wtm,EXACT,alpha,threat);
+      HashStore(tree,ply,32000,wtm,EXACT,alpha,mate_threat);
       return(alpha);
     }
   }
@@ -220,10 +220,10 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
     HashKey=save_hash_key;
     if (abort_search || tree->stop) return(0);
     if (value >= beta) {
-      HashStore(tree,ply,depth,wtm,LOWER,value,threat);
+      HashStore(tree,ply,depth,wtm,LOWER,value,mate_threat);
       return(value);
     }
-    if (value == -MATE+ply+2) threat=1;
+    if (value == -MATE+ply+2) mate_threat=1;
   }
 # endif
 /*
@@ -304,9 +304,9 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
  ----------------------------------------------------------
 */
     extensions=-60;
-    if (threat) {
-      extensions+=(full_extension) ? threat_depth : threat_depth>>1;
-      tree->threat_extensions_done++;
+    if (mate_threat) {
+      extensions+=(full_extension) ? mate_depth : mate_depth>>1;
+      tree->mate_extensions_done++;
     }
 /*
  ----------------------------------------------------------
@@ -318,6 +318,7 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
 |                                                          |
  ----------------------------------------------------------
 */
+#if defined(RECAPTURE)
     if (Captured(tree->current_move[ply]) &&
         Captured(tree->current_move[ply-1]) &&
         To(tree->current_move[ply-1]) == To(tree->current_move[ply]) &&
@@ -329,6 +330,7 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
       tree->recapture_extensions_done++;
       extensions+=(full_extension) ? recap_depth : recap_depth>>1;
     }
+#endif
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -435,7 +437,7 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
         if(value >= beta) {
           History(tree,ply,depth,wtm,tree->current_move[ply]);
           UnMakeMove(tree,ply,tree->current_move[ply],wtm);
-          HashStore(tree,ply,depth,wtm,LOWER,value,threat);
+          HashStore(tree,ply,depth,wtm,LOWER,value,mate_threat);
           tree->fail_high++;
           if (!moves_searched) tree->fail_high_first++;
           return(value);
@@ -453,7 +455,7 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
       tree->wtm=wtm;
       tree->ply=ply;
       tree->depth=depth;
-      tree->threat=threat;
+      tree->mate_threat=mate_threat;
       if(Thread(tree)) {
         if (abort_search || tree->stop) return(0);
         if (CheckInput()) Interrupt(ply);
@@ -461,7 +463,7 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
         if (value > alpha) {
           if(value >= beta) {
             History(tree,ply,depth,wtm,tree->current_move[ply]);
-            HashStore(tree,ply,depth,wtm,LOWER,value,threat);
+            HashStore(tree,ply,depth,wtm,LOWER,value,mate_threat);
             tree->fail_high++;
             return(value);
           }
@@ -498,7 +500,7 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
       tree->pv[ply-1].path[ply-1]=tree->current_move[ply-1];
       History(tree,ply,depth,wtm,tree->pv[ply].path[ply]);
     }
-    HashStore(tree,ply,depth,wtm,(alpha==o_alpha)?UPPER:EXACT,alpha,threat);
+    HashStore(tree,ply,depth,wtm,(alpha==o_alpha)?UPPER:EXACT,alpha,mate_threat);
     return(alpha);
   }
 }

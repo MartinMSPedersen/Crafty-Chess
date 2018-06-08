@@ -2735,6 +2735,17 @@
 *           it was possible for a move like h8=Q to be rejected even though   *
 *           it was perfectly legal.                                           *
 *                                                                             *
+*   18.2    minor bug in analyze mode would break the "h" command when black  *
+*           was on move, and show one less move for either side that had      *
+*           actually been played in the game.  another bug also reversed the  *
+*           sign of a score whispered in analysis mode.  recapture extension  *
+*           is disabled by default.  to turn it on, it is necessary to use    *
+*           -DRECAPTURE when compiling search.c and option.c.  LearnBook()    *
+*           has been modified to 'speed up' learning.  see the comments in    *
+*           that module to see how it was changed.  LearnResult() has been    *
+*           removed.  LearnBook() is now used to do the same thing, except    *
+*           that a good (or bad) score is used.                               *
+*                                                                             *
 *******************************************************************************
 */
 int main(int argc, char **argv) {
@@ -3167,7 +3178,7 @@ int main(int argc, char **argv) {
               Reverse(),Normal());
         if (xboard) Print(4095,"1/2-1/2 {Insufficient material}\n");
       }
-      if (log_file && time_limit > 500) DisplayChessBoard(log_file,tree->pos);
+      if (log_file && time_limit > 300) DisplayChessBoard(log_file,tree->pos);
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -3207,7 +3218,7 @@ int main(int argc, char **argv) {
     ValidatePosition(tree,0,last_pv.path[1],"Main(2)");
     if (kibitz || whisper) {
       if (tree->nodes_searched)
-        Whisper(2,!wtm,whisper_depth,end_time-start_time,whisper_value,
+        Whisper(2,!wtm,whisper_depth,end_time-start_time,value,
                 tree->nodes_searched,cpu_percent,
                 tree->egtb_probes_successful,whisper_text);
       else
@@ -3224,9 +3235,9 @@ int main(int argc, char **argv) {
 */
     ResignOrDraw(tree,value);
     if (moves_out_of_book) 
-      LearnBook(tree,crafty_is_white,last_value,
-                last_pv.pathd+2,0,0);
-    if (value <= -MATE+10) LearnResult(tree,crafty_is_white);
+      LearnBook(tree,wtm,last_value,last_pv.pathd+2,0,0);
+    if (value <= -MATE+10)
+      LearnBook(tree,wtm,-300,0,1,2);
     for (i=0;i<4096;i++) {
       history_w[i]=history_w[i]>>8;
       history_b[i]=history_b[i]>>8;

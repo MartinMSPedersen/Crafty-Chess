@@ -1,7 +1,7 @@
 #if !defined(EVALUATE_INCLUDED)
 #  define    EVALUATE_INCLUDED
  
-#  define                            BAD_TRADE         (140)
+#  define                            BAD_TRADE         (240)
 #  define                          EIGHT_PAWNS          (12)
 #  define                        PAWNS_BLOCKED          (12)
 #  define                  CENTER_PAWN_UNMOVED          (16)
@@ -41,7 +41,6 @@
 #  define                    PAWN_ADVANCE_EG_H           (3)
 
 #  define          PAWN_CONNECTED_PASSED_6TH  (PAWN_VALUE/2)
-#  define              PAWN_CONNECTED_PASSED             (6)
   
 #  define          PAWN_SUPPORTED_PASSED_RANK2           (0)
 #  define          PAWN_SUPPORTED_PASSED_RANK3           (0)

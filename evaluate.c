@@ -1547,9 +1547,8 @@ int EvaluateMaterial(TREE *tree) {
       if (WhiteMajors == BlackMajors) {
         if (WhiteMinors > BlackMinors)
           score+=BAD_TRADE;
-        else {
+        else
           score-=BAD_TRADE;
-        }
       }
       else if (abs(WhiteMajors-BlackMajors) == 1) {
         if (WhiteMinors > BlackMinors+1) score+=BAD_TRADE;
@@ -1564,6 +1563,10 @@ int EvaluateMaterial(TREE *tree) {
     else if (WhiteMajors == BlackMajors) {
       if (WhiteQueens && !BlackQueens) score+=BAD_TRADE>>1;
       else if (!WhiteQueens && BlackQueens) score-=BAD_TRADE>>1;
+    }
+    else {
+      if (WhiteMajors>BlackMajors && WhiteMinors==BlackMinors) score+=BAD_TRADE;
+      else if (BlackMajors>WhiteMajors && WhiteMinors==BlackMinors) score-=BAD_TRADE;
     }
   } while(0);
 #ifdef DEBUGM
@@ -1784,22 +1787,19 @@ int EvaluatePassedPawns(TREE *tree) {
       score-=connected_passed_pawn_value[7-Max(Rank(square1),Rank(square2))];
       if (Rank(square1) > RANK3) continue;
       if (Rank(square2) > RANK3) continue;
-      score-=PAWN_CONNECTED_PASSED_6TH>>1;
       if (TotalWhitePieces < queen_v &&
           !(SetMask(square1-8)&WhitePieces) &&
           !(SetMask(square2-8)&WhitePieces)) {
         score-=2*PAWN_CONNECTED_PASSED_6TH;
-        if (TotalWhitePieces <= rook_v) {
-          if (wtm) {
-            if (!(WhiteKing&black_pawn_race_wtm[square1]) &&
-                     !(WhiteKing&black_pawn_race_wtm[square2]))
-              score-=6*PAWN_CONNECTED_PASSED_6TH;
-          }
-          else {
-            if (!(WhiteKing&black_pawn_race_btm[square1]) ||
-               !(WhiteKing&black_pawn_race_btm[square2]))
-              score-=6*PAWN_CONNECTED_PASSED_6TH;
-          }
+        if (wtm) {
+          if (!(WhiteKing&black_pawn_race_wtm[square1]) &&
+              !(WhiteKing&black_pawn_race_wtm[square2]))
+            score-=2*PAWN_CONNECTED_PASSED_6TH;
+        }
+        else {
+          if (!(WhiteKing&black_pawn_race_btm[square1]) ||
+              !(WhiteKing&black_pawn_race_btm[square2]))
+            score-=2*PAWN_CONNECTED_PASSED_6TH;
         }
       }
     }
@@ -1855,22 +1855,19 @@ int EvaluatePassedPawns(TREE *tree) {
       score+=connected_passed_pawn_value[Min(Rank(square1),Rank(square2))];
       if (Rank(square1) < RANK6) continue;
       if (Rank(square2) < RANK6) continue;
-      score+=PAWN_CONNECTED_PASSED_6TH>>1;
       if (TotalBlackPieces < queen_v &&
           !(SetMask(square1+8)&BlackPieces) &&
           !(SetMask(square2+8)&BlackPieces)) {
         score+=2*PAWN_CONNECTED_PASSED_6TH;
-        if (TotalBlackPieces <= rook_v) {
-          if (wtm) {
-            if (!(BlackKing&white_pawn_race_wtm[square1]) &&
-                !(BlackKing&white_pawn_race_wtm[square2]))
-              score+=6*PAWN_CONNECTED_PASSED_6TH;
-          }
-          else {
-            if (!(BlackKing&white_pawn_race_btm[square1]) ||
-                !(BlackKing&white_pawn_race_btm[square2]))
-              score+=6*PAWN_CONNECTED_PASSED_6TH;
-          }
+        if (wtm) {
+          if (!(BlackKing&white_pawn_race_wtm[square1]) &&
+              !(BlackKing&white_pawn_race_wtm[square2]))
+            score+=2*PAWN_CONNECTED_PASSED_6TH;
+        }
+        else {
+          if (!(BlackKing&white_pawn_race_btm[square1]) ||
+              !(BlackKing&white_pawn_race_btm[square2]))
+            score+=2*PAWN_CONNECTED_PASSED_6TH;
         }
       }
     }

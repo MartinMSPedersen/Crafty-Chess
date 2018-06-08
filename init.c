@@ -1448,7 +1448,7 @@ void InitializeSMP(void) {
   LockInit(lock_smp);
   LockInit(lock_io);
   LockInit(lock_root);
-  for (i=0;i<64+1;i++)
+  for (i=0;i<MAX_BLOCKS+1;i++)
     LockInit(local[i]->lock);
 }
 #endif

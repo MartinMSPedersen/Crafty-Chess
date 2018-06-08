@@ -11,8 +11,8 @@
 #define  NEW
 #define  XX  127
 
-#if !defined(SMP)
-#define  lock_t volatile int
+#if !defined(SMP) && !defined(SUN)
+#define  lock_t int
 #endif
 
 typedef unsigned int INDEX;

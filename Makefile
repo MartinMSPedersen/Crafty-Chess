@@ -1,4 +1,3 @@
-
 # To build crafty:
 #
 #	  You want to set up for maximum optimization, but typically you will
@@ -24,6 +23,7 @@
 #     SUN_GCC    {Sun SparcStation running Solaris but using gcc
 #     FreeBSD    {80X86 architecture running FreeBSD (Unix)}
 #     NetBSD     {multi-architecture running NetBSD (Unix)}
+#     Cygwin     {80X86 running Cygwin under Win32 (Unix)}
 #   
 #   The next options are optimizations inside Crafty that you will have
 #   test to see if they help.  on some machines, these will slow things
@@ -53,6 +53,7 @@ help:
 	@echo "make alpha            DEC Alpha with OSF/1-Digital UNIX"
 	@echo "make alpha-host       Alpha DECstation optimized for host"
 	@echo "make alpha-host-nocix Alpha DECstation optimezed for host, no CIX insn"
+	@echo "make cygwin           Cygwin under Win32"
 	@echo "make dos              DOS on i386 with DJGPP"
 	@echo "make hpux             HP/UX 9/10, /7xx"
 	@echo "make linux            Linux optimized for i386"
@@ -121,6 +122,16 @@ alpha-host-nocix:
 		opt='$(opt) -DSMP -DCPUS=8 -DFAST -DPOSIX' \
 		crafty-make
 
+cygwin:
+	$(MAKE) target=LINUX \
+		CC=gcc CXX='$$(CC)' \
+		CFLAGS='$(CFLAGS) -pipe -D_REENTRANT -mpentium -O2 -Wall' \
+		LDFLAGS='$(LDFLAGS)' \
+		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
+		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST' \
+		asm=X86-aout.o \
+		crafty-make
+
 dos:
 	$(MAKE) target=DOS \
 		CC=gcc CXX='$$(CC)' \
@@ -138,6 +149,7 @@ freebsd:
 		LDFLAGS='$(LDFLAGS)' \
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
 		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST' \
+		asm=X86-elf.o \
 		crafty-make
 
 freebsd-pgcc:
@@ -147,6 +159,7 @@ freebsd-pgcc:
 		LDFLAGS='$(LDFLAGS)' \
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
 		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST' \
+		asm=X86-elf.o \
 		crafty-make
 
 hpux:

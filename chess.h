@@ -278,7 +278,8 @@ typedef enum {empty_v=0, pawn_v=1, knight_v=3,
               bishop_v=3, rook_v=5, queen_v=9} PIECE_V;
   
 typedef enum {no_extension=0, check_extension=1, recapture_extension=2,
-              passed_pawn_extension=4, one_reply_extension=8} EXTENSIONS;
+              passed_pawn_extension=4, one_reply_extension=8,
+              mate_extension=16} EXTENSIONS;
   
 typedef enum {cpu, elapsed, microseconds} TIME_TYPE;
 
@@ -434,7 +435,7 @@ struct tree {
   unsigned int    recapture_extensions_done;
   unsigned int    passed_pawn_extensions_done;
   unsigned int    one_reply_extensions_done;
-  unsigned int    threat_extensions_done;
+  unsigned int    mate_extensions_done;
   KILLER          killers[MAXPLY];
   int             move_list[5120];
   int             sort_value[256];
@@ -460,7 +461,7 @@ struct tree {
   int             wtm;
   int             depth;
   int             ply;
-  int             threat;
+  int             mate_threat;
   int             used;
 };
   
@@ -639,7 +640,6 @@ void           LearnImportCAP(TREE*, int, char**);
 void           LearnImportPosition(TREE*, int, char**);
 void           LearnPosition(TREE*, int, int, int);
 void           LearnPositionLoad(void);
-void           LearnResult(TREE*, int);
 int            LegalMove(TREE*, int, int, int);
 void           MakeMove(TREE*, int, int, int);
 void           MakeMoveRoot(TREE*, int, int);
@@ -695,6 +695,7 @@ int            Thread(TREE*);
 void* STDCALL  ThreadInit(void*);
 void           ThreadStop(TREE*);
 int            ThreadWait(int, TREE*);
+int            Threat(TREE*, int, int, int, int, int, int);
 void           TimeAdjust(int,PLAYER);
 int            TimeCheck(TREE*,int);
 void           TimeSet(int);

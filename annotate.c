@@ -96,8 +96,8 @@ void Annotate() {
   save_swindle_mode=swindle_mode;
   save_asymmetry=king_safety_asymmetry;
   if (!strcmp(args[0],"annotateh")) {
-	  html_mode = 1;
-	  strcpy(html_br,"<br>");
+    html_mode = 1;
+    strcpy(html_br,"<br>");
   }
   strcpy(tbuffer,buffer);
   nargs=ReadParse(tbuffer,args," 	;");
@@ -481,55 +481,55 @@ void AnnotatePositionHTML(TREE *tree, int wtm, FILE *annotate_out) {
       switch(html_piece) {
       case 'p':
         strcat(filename,"bp");
-	strcpy(alt, "*P");
+        strcpy(alt, "*P");
         break;
       case 'r':
         strcat(filename,"br");
-	strcpy(alt, "*R");
+        strcpy(alt, "*R");
         break;
       case 'n':
         strcat(filename,"bn");
-	strcpy(alt, "*N");
+        strcpy(alt, "*N");
         break;
       case 'b':
         strcat(filename,"bb");
-	strcpy(alt, "*B");
+        strcpy(alt, "*B");
         break;
       case 'q':
         strcat(filename,"bq");
-	strcpy(alt, "*Q");
+        strcpy(alt, "*Q");
         break;
       case 'k':
         strcat(filename,"bk");
-	strcpy(alt, "*K");
+        strcpy(alt, "*K");
         break;
       case 'P':
         strcat(filename,"wp");
-	strcpy(alt, "P");
+        strcpy(alt, "P");
         break;
       case 'R':
         strcat(filename,"wr");
-	strcpy(alt, "R");
+        strcpy(alt, "R");
         break;
       case 'N':
         strcat(filename,"wn");
-	strcpy(alt, "N");
+        strcpy(alt, "N");
         break;
       case 'B':
         strcat(filename,"wb");
-	strcpy(alt, "B");
+        strcpy(alt, "B");
         break;
       case 'Q':
         strcat(filename,"wq");
-	strcpy(alt, "Q");
+        strcpy(alt, "Q");
         break;
       case 'K':
         strcat(filename,"wk");
-	strcpy(alt, "K");
+        strcpy(alt, "K");
         break;
       default:
         strcat(filename,"sq");
-	strcpy(alt, " ");
+        strcpy(alt, " ");
         break;
       }
       strcat(filename,".gif");

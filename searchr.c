@@ -160,7 +160,7 @@ int SearchRoot(TREE *tree, int alpha, int beta, int wtm, int depth) {
       tree->wtm=wtm;
       tree->ply=1;
       tree->depth=depth;
-      tree->threat=0;
+      tree->mate_threat=0;
       if(Thread(tree)) {
         if (abort_search || tree->stop) return(0);
         if (CheckInput()) Interrupt(1);
@@ -237,7 +237,6 @@ void SearchOutput(TREE *tree, int value, int bound) {
                 abs(value)>MATE-300;
   wtm=root_wtm;
   if (!abort_search) {
-    whisper_value=(analyze_mode && !root_wtm) ? -value : value;
     whisper_depth=iteration_depth;
     for (i=0;i<n_root_moves;i++)
       if (tree->current_move[1] == root_moves[i].move) break;

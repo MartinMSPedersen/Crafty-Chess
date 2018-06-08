@@ -275,7 +275,7 @@ int ThreadWait(int tid, TREE *waiting) {
 */
     SearchSMP(thread[tid], thread[tid]->alpha, thread[tid]->beta,
               thread[tid]->value, thread[tid]->wtm, thread[tid]->depth,
-              thread[tid]->ply, thread[tid]->threat);
+              thread[tid]->ply, thread[tid]->mate_threat);
     Lock(lock_smp);
     Lock(thread[tid]->parent->lock);
 #if defined(DEBUGSMP)

@@ -439,7 +439,7 @@ void DisplayPV(TREE *tree, int level, int wtm, int time, int value, PATH *pv) {
       buffp=bufftemp+1;
       if (bufftemp) Print(type,"                                    ");
     } while(bufftemp);
-    Whisper(level,twtm,iteration_depth,end_time-start_time,whisper_value,
+    Whisper(level,twtm,iteration_depth,end_time-start_time,value,
             tree->nodes_searched,0,tree->egtb_probes_successful,
             whisper_text);
   }
@@ -963,7 +963,6 @@ void NewGame(int save) {
     largest_positional_score=100;
     predicted=0;
     whisper_depth=0;
-    whisper_value=0;
     tree->nodes_searched=0;
     tree->fail_high=0;
     tree->fail_high_first=0;
@@ -2146,6 +2145,7 @@ void Whisper(int level,int wtm, int depth,int time,int value,
       }
       break;
     }
+    value=(wtm)?value:-value;
     if (post && level>1) {
       if (strstr(pv,"book"))
         printf("	%2d  %5d %7d %6u %s\n",depth,value,time,nodes,pv+10);
@@ -2185,10 +2185,10 @@ void CopyFromSMP(TREE *p, TREE *c) {
   p->egtb_probes+=c->egtb_probes;
   p->egtb_probes_successful+=c->egtb_probes_successful;
   p->check_extensions_done+=c->check_extensions_done;
-  p->threat_extensions_done+=c->threat_extensions_done;
   p->recapture_extensions_done+=c->recapture_extensions_done;
   p->passed_pawn_extensions_done+=c->passed_pawn_extensions_done;
   p->one_reply_extensions_done+=c->one_reply_extensions_done;
+  p->mate_extensions_done+=c->mate_extensions_done;
   strcpy(c->root_move_text,p->root_move_text);
   c->used=0;
 }
@@ -2249,7 +2249,7 @@ TREE* CopyToSMP(TREE *p) {
   c->egtb_probes=0;
   c->egtb_probes_successful=0;
   c->check_extensions_done=0;
-  c->threat_extensions_done=0;
+  c->mate_extensions_done=0;
   c->recapture_extensions_done=0;
   c->passed_pawn_extensions_done=0;
   c->one_reply_extensions_done=0;
@@ -2259,7 +2259,7 @@ TREE* CopyToSMP(TREE *p) {
   c->wtm=p->wtm;
   c->ply=p->ply;
   c->depth=p->depth;
-  c->threat=p->threat;
+  c->mate_threat=p->mate_threat;
   c->search_value=0;
   strcpy(c->root_move_text,p->root_move_text);
   strcpy(c->remaining_moves_text,p->remaining_moves_text);

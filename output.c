@@ -4,7 +4,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 03/11/98 */
+/* last modified 01/22/01 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -31,40 +31,123 @@ char* OutputMove(TREE *tree, int move, int ply, int wtm) {
     strcpy(text,"null");
     return(text);
   }
+  do {
 /*
    check for castling first
 */
-  if ((Piece(move) == king) &&
-      (abs(From(move)-To(move)) == 2)) {
-    if (wtm) {
-      if (To(move) == 2) strcpy(text,"O-O-O");
-      else strcpy(text,"O-O");
+    if ((Piece(move) == king) &&
+        (abs(From(move)-To(move)) == 2)) {
+      if (wtm) {
+        if (To(move) == 2) strcpy(text_move,"O-O-O");
+        else strcpy(text_move,"O-O");
+      }
+      else {
+        if (To(move) == 58) strcpy(text_move,"O-O-O");
+        else strcpy(text_move,"O-O");
+      }
+      break;
     }
-    else {
-      if (To(move) == 58) strcpy(text,"O-O-O");
-      else strcpy(text,"O-O");
-    }
-    return(text);
-  }
 /*
    not a castling move.  convert to fully-qualified algebraic form
    first.
 */
-  text=new_text;
-  if ((int) Piece(move) > pawn) *text++=piece_names[Piece(move)];
-  *text++=(From(move) & 7)+'a';
-  *text++=(From(move) / 8)+'1';
-  if (Captured(move)) *text++='x';
-  *text++=(To(move) & 7)+'a';
-  *text++=(To(move) / 8)+'1';
-  if (Promote(move)) {
-    *text++='=';
-    *text++=piece_names[Promote(move)];
-  }
+    text=new_text;
+    if ((int) Piece(move) > pawn) *text++=piece_names[Piece(move)];
+    *text++=(From(move) & 7)+'a';
+    *text++=(From(move) / 8)+'1';
+    if (Captured(move)) *text++='x';
+    *text++=(To(move) & 7)+'a';
+    *text++=(To(move) / 8)+'1';
+    if (Promote(move)) {
+      *text++='=';
+      *text++=piece_names[Promote(move)];
+    }
+    *text='\0';
+    strcpy(text_move,text);
+    if (output_format > 0) break;
+/*
+   now, try some short forms.  if the moving piece is a pawn, and
+   it is not capturing anything, simply try the destination square
+   first: (e2e4->e4)
+*/
+    if (Piece(move) == pawn) {
+      if (!Captured(move)) {
+        strcpy(text_move,new_text+2);
+        if (OutputGood(tree,text_move,ply,wtm)) break;
+      }
+/*
+   if the move is a pawn capturing a piece, try the short-form for pawn
+   capture moves: (e4xf5->exf5)
+*/
+      text_move[0]=new_text[0];
+      strcpy(text_move+1,new_text+2);
+      if (OutputGood(tree,text_move,ply,wtm)) break;
+/*
+   punt, return the fully-qualified move.
+*/
+      strcpy(text_move,new_text);
+      break;
+    }
+/*
+   if the move is a piece move, but not a capture, then try the short-
+   form for non-capturing moves:  (Ng1f3->Nf3)
+*/
+    if (!Captured(move)) {
+      text_move[0]=new_text[0];
+      strcpy(text_move+1,new_text+3);
+      if (OutputGood(tree,text_move,ply,wtm)) break;
+/*
+   now try to qualify with the origin file only: (Ng1f3->Ngf3)
+*/
+      text_move[0]=new_text[0];
+      text_move[1]=new_text[1];
+      strcpy(text_move+2,new_text+3);
+      if (OutputGood(tree,text_move,ply,wtm)) break;
+/*
+   now try to qualify with the origin rank only: (Ng1f3->N1f3)
+*/
+      text_move[0]=new_text[0];
+      strcpy(text_move+1,new_text+2);
+      if (OutputGood(tree,text_move,ply,wtm)) break;
+/*
+   punt, return the fully-qualified move.
+*/
+      strcpy(text_move,new_text);
+      break;
+    }
+    else {
+/*
+   if the move is a piece move, and a capture, then try the short-
+   form for capturing moves:  (Ng1xf3->Nxf3)
+*/
+      text_move[0]=new_text[0];
+      strcpy(text_move+1,new_text+3);
+      if (OutputGood(tree,text_move,ply,wtm)) break;
+/*
+   next, try adding in the origin file: (Ng1xf3->Ngxf3)
+*/
+      text_move[0]=new_text[0];
+      text_move[1]=new_text[1];
+      strcpy(text_move+2,new_text+3);
+      if (OutputGood(tree,text_move,ply,wtm)) break;
+/*
+   next, try adding in the origin rank: (Ng1xf3->N1xf3)
+*/
+      text_move[0]=new_text[0];
+      strcpy(text_move+1,new_text+2);
+      if (OutputGood(tree,text_move,ply,wtm)) break;
+/*
+   punt, return the fully-qualified move.
+*/
+      strcpy(text_move,new_text);
+      break;
+    }
+  } while (0);
 /*
    determine if it's a checking move, or if it's mate.  if so, 
    append "+" or "#" as appropriate.
 */
+  text=text_move+strlen(text_move);
   tree->position[MAXPLY]=tree->position[ply];
   MakeMove(tree, MAXPLY, move, wtm);
   if (Check(ChangeSide(wtm))) {
@@ -75,85 +158,8 @@ char* OutputMove(TREE *tree, int move, int ply, int wtm) {
       *text++='+';
   }
   UnMakeMove(tree, MAXPLY, move, wtm);
-  *text='\0';
-  if (output_format > 0) return (new_text);
-/*
-   now, try some short forms.  if the moving piece is a pawn, and
-   it is not capturing anything, simply try the destination square
-   first: (e2e4->e4)
-*/
-  if (Piece(move) == pawn) {
-    if (!Captured(move)) {
-      strcpy(text_move,new_text+2);
-      if (OutputGood(tree,text_move,ply,wtm)) return (text_move);
-    }
-/*
-   if the move is a pawn capturing a piece, try the short-form for pawn
-   capture moves: (e4xf5->exf5)
-*/
-    text_move[0]=new_text[0];
-    strcpy(text_move+1,new_text+2);
-    if (OutputGood(tree,text_move,ply,wtm)) return (text_move);
-/*
-   punt, return the fully-qualified move.
-*/
-    strcpy(text_move,new_text);
-    return (text_move);
-  }
-/*
-   if the move is a piece move, but not a capture, then try the short-
-   form for non-capturing moves:  (Ng1f3->Nf3)
-*/
-  if (!Captured(move)) {
-    text_move[0]=new_text[0];
-    strcpy(text_move+1,new_text+3);
-    if (OutputGood(tree,text_move,ply,wtm)) return (text_move);
-/*
-   now try to qualify with the origin file only: (Ng1f3->Ngf3)
-*/
-    text_move[0]=new_text[0];
-    text_move[1]=new_text[1];
-    strcpy(text_move+2,new_text+3);
-    if (OutputGood(tree,text_move,ply,wtm)) return (text_move);
-/*
-   now try to qualify with the origin rank only: (Ng1f3->N1f3)
-*/
-    text_move[0]=new_text[0];
-    strcpy(text_move+1,new_text+2);
-    if (OutputGood(tree,text_move,ply,wtm)) return (text_move);
-/*
-   punt, return the fully-qualified move.
-*/
-    strcpy(text_move,new_text);
-    return (text_move);
-  }
-  else {
-/*
-   if the move is a piece move, and a capture, then try the short-
-   form for capturing moves:  (Ng1xf3->Nxf3)
-*/
-    text_move[0]=new_text[0];
-    strcpy(text_move+1,new_text+3);
-    if (OutputGood(tree,text_move,ply,wtm)) return (text_move);
-/*
-   next, try adding in the origin file: (Ng1xf3->Ngxf3)
-*/
-    text_move[0]=new_text[0];
-    text_move[1]=new_text[1];
-    strcpy(text_move+2,new_text+3);
-    if (OutputGood(tree,text_move,ply,wtm)) return (text_move);
-/*
-   next, try adding in the origin rank: (Ng1xf3->N1xf3)
-*/
-    text_move[0]=new_text[0];
-    strcpy(text_move+1,new_text+2);
-    if (OutputGood(tree,text_move,ply,wtm)) return (text_move);
-/*
-   punt, return the fully-qualified move.
-*/
-    strcpy(text_move,new_text);
-    return (text_move);
-  }
+  *text=0;
+  return (text_move);
 }
 
 /* last modified 03/11/98 */

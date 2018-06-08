@@ -94,7 +94,7 @@ int Iterate(int wtm, int search_type, int root_list_done) {
     tree->egtb_probes=0;
     tree->egtb_probes_successful=0;
     tree->check_extensions_done=0;
-    tree->threat_extensions_done=0;
+    tree->mate_extensions_done=0;
     tree->recapture_extensions_done=0;
     tree->passed_pawn_extensions_done=0;
     tree->one_reply_extensions_done=0;
@@ -278,7 +278,7 @@ int Iterate(int wtm, int search_type, int root_list_done) {
               sprintf(whisper_text+strlen(whisper_text)," ...");
             sprintf(whisper_text+strlen(whisper_text)," %s!!",
                     OutputMove(tree,tree->pv[1].path[1],1,wtm));
-            Whisper(6,wtm,iteration_depth,end_time-start_time,whisper_value,
+            Whisper(6,wtm,iteration_depth,end_time-start_time,value,
                     tree->nodes_searched,-1, tree->egtb_probes_successful,
                     whisper_text);
           }
@@ -449,10 +449,10 @@ int Iterate(int wtm, int search_type, int root_list_done) {
       Print(8,"  n=%u", tree->nodes_searched);
       Print(8,"  fh=%u%%", tree->fail_high_first*100/tree->fail_high);
       Print(8,"  nps=%d\n", nodes_per_second);
-      Print(16,"              ext-> checks=%d recaps=%d pawns=%d 1rep=%d thrt:%d\n",
+      Print(16,"              ext-> chk=%d cap=%d pp=%d 1rep=%d mate=%d\n",
             tree->check_extensions_done, tree->recapture_extensions_done,
             tree->passed_pawn_extensions_done, tree->one_reply_extensions_done,
-            tree->threat_extensions_done);
+            tree->mate_extensions_done);
       Print(16,"              predicted=%d  nodes=%u  evals=%u\n", 
              predicted, tree->nodes_searched, tree->evaluations);
       Print(16,"              endgame tablebase-> probes done=%d  successful=%d\n",

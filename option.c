@@ -870,7 +870,7 @@ int Option(TREE *tree) {
  ----------------------------------------------------------
 */
   else if (OptionMatch("extensions",*args)) {
-    if (OptionMatch("incheck",args[1])) {
+    if (OptionMatch("check",args[1])) {
       const float ext=atof(args[2]);
       incheck_depth=60.0*ext;
       if (incheck_depth < 0) incheck_depth=0;
@@ -888,30 +888,27 @@ int Option(TREE *tree) {
       if (pushpp_depth < 0) pushpp_depth=0;
       if (pushpp_depth > 60) pushpp_depth=60;
     }
+#if defined(RECAPTURE)
     if (OptionMatch("recapture",args[1])) {
       const float ext=atof(args[2]);
       recap_depth=60.0*ext;
       if (recap_depth < 0) recap_depth=0;
       if (recap_depth > 60) recap_depth=60;
     }
-    if (OptionMatch("singular",args[1])) {
+#endif
+    if (OptionMatch("mate",args[1])) {
       const float ext=atof(args[2]);
-      singular_depth=60.0*ext;
-      if (singular_depth < 0) singular_depth=0;
-      if (singular_depth > 60) singular_depth=60;
-    }
-    if (OptionMatch("threat",args[1])) {
-      const float ext=atof(args[2]);
-      threat_depth=60.0*ext;
-      if (threat_depth < 0) threat_depth=0;
-      if (threat_depth > 60) threat_depth=60;
+      mate_depth=60.0*ext;
+      if (mate_depth < 0) mate_depth=0;
+      if (mate_depth > 60) mate_depth=60;
     }
     Print(1,"one-reply extension..................%4.2f\n",(float) onerep_depth/60.0);
-    Print(1," in-check extension..................%4.2f\n",(float) incheck_depth/60.0);
+    Print(1,"in-check extension...................%4.2f\n",(float) incheck_depth/60.0);
+#if defined(RECAPTURE)
     Print(1,"recapture extension..................%4.2f\n",(float) recap_depth/60.0);
-    Print(1,"   pushpp extension..................%4.2f\n",(float) pushpp_depth/60.0);
-    Print(1,"mate thrt extension..................%4.2f\n",(float) threat_depth/60.0);
-    Print(1," singular extension..................%4.2f\n",(float) singular_depth/60.0);
+#endif
+    Print(1,"pushpp extension.....................%4.2f\n",(float) pushpp_depth/60.0);
+    Print(1,"mate threat extension................%4.2f\n",(float) mate_depth/60.0);
   }
 /*
  ----------------------------------------------------------
@@ -1573,11 +1570,6 @@ int Option(TREE *tree) {
       printf("log on|off................turn logging on/off.\n");
       printf("mode normal|tournament....toggles tournament mode.\n");
       printf("move......................initiates search (same as go).\n");
-# if defined(SMP)
-      printf("mt n......................sets max parallel threads to use.\n");
-      printf("mtmin n...................don't thread last n plies.\n");
-      printf("mtmax n...................keep threads within n plies.\n");
-# endif
       printf("name......................sets opponent's name.\n");
       printf("new.......................initialize and start new game.\n");
       printf("noise n...................no status until n nodes searched.\n");
@@ -1605,6 +1597,11 @@ int Option(TREE *tree) {
       printf("setboard <FEN>............sets board position to FEN position. [help]\n");
       printf("settc.....................set time controls.\n");
       printf("show book.................toggle book statistics.\n");
+# if defined(SMP)
+      printf("smpmt n...................sets max parallel threads to use.\n");
+      printf("smpmin n..................don't thread last n plies.\n");
+      printf("smpmax n..................keep threads within n plies.\n");
+# endif
       printf("sn n......................sets absolute search node limit.\n");
       printf("st n......................sets absolute search time.\n");
       printf("store <val>...............stores position/score (position.bin).\n");
@@ -2410,12 +2407,10 @@ int Option(TREE *tree) {
  ----------------------------------------------------------
 */
   else if (OptionMatch("new",*args) || OptionMatch("AN",*args)) {
-    if (!wtm || move_number!=1) {
-      new_game=1;
-      if (thinking || pondering) return(3);
-      NewGame(0);
-      return(3);
-    }
+    new_game=1;
+    if (thinking || pondering) return(3);
+    NewGame(0);
+    return(3);
   }
 /*
  ----------------------------------------------------------
@@ -2784,7 +2779,8 @@ int Option(TREE *tree) {
         Print(4095,"feature ping=1 setboard=1 san=1 time=1 draw=1\n");
         Print(4095,"feature sigint=0 sigterm=0 reuse=1 analyze=1\n");
         Print(4095,"feature myname=\"Crafty-%s\" name=1\n",version);
-        Print(4095,"feature playother=1 colors=0 variants=\"nocastle\"\n");
+        Print(4095,"feature playother=1 colors=0\n");
+        Print(4095,"variants=\"normal,nocastle\"\n");
       }
     }
     else Print(4095,"ERROR, bogus xboard protocol version received.\n");
@@ -3058,11 +3054,11 @@ int Option(TREE *tree) {
     if (nargs > 1) {
       if (!strcmp(args[1],"1-0")) {
         strcpy(pgn_result,"1-0");
-        if (!crafty_is_white) LearnResult(tree,crafty_is_white);
+        if (!crafty_is_white) LearnBook(tree,crafty_is_white,-300,0,1,2);
       }
       else if (!strcmp(args[1],"0-1")) {
         strcpy(pgn_result,"0-1");
-        if (crafty_is_white) LearnResult(tree,crafty_is_white);
+        if (crafty_is_white) LearnBook(tree,crafty_is_white,-300,0,1,2);
       }
       else if (!strcmp(args[1],"1/2-1/2")) {
         strcpy(pgn_result,"1/2-1/2");
@@ -3988,7 +3984,6 @@ void OptionPerft(TREE *tree, int ply,int depth,int wtm) {
   int *mv;
   static char line[256], *p[64];
 #if defined(TRACE)
-  int r;
   static char move[16];
 #endif
 

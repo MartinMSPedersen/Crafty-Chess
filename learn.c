@@ -9,7 +9,7 @@
 #  include <unistd.h>
 #endif
 
-/* last modified 04/15/99 */
+/* last modified 02/06/01 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -31,6 +31,8 @@
 */
 void LearnBook(TREE *tree, int wtm, int search_value, int search_depth, int lv,
                int force) {
+  const int t_wtm=wtm;
+  int nplies=0, thisply=0;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -41,9 +43,9 @@ void LearnBook(TREE *tree, int wtm, int search_value, int search_depth, int lv,
 |                                                          |
  ----------------------------------------------------------
 */
-  const int t_wtm=wtm;
   if (!book_file) return;
-  if (!(learning&book_learning)) return;
+  if (!(learning&book_learning) && force!=2) return;
+  if (!(learning&result_learning) && force==2) return;
   if (moves_out_of_book <= LEARN_INTERVAL && !force) {
     if (moves_out_of_book) {
       book_learn_eval[moves_out_of_book-1]=search_value;
@@ -74,7 +76,8 @@ void LearnBook(TREE *tree, int wtm, int search_value, int search_depth, int lv,
 
     if (moves_out_of_book < 1) return;
     Print(128,"LearnBook() executed\n");
-    learning&=~book_learning;
+    if (force != 2) learning&=~book_learning;
+    else learning&=~result_learning;
     interval=Min(LEARN_INTERVAL,moves_out_of_book);
     if (interval < 2)  return;
 
@@ -172,12 +175,11 @@ void LearnBook(TREE *tree, int wtm, int search_value, int search_depth, int lv,
       learn_value/=interval;
       search_depth/=interval;
     }
-    if (lv) learn_value=search_value;
-    if (lv == 0)
-      learn_value=LearnFunction(learn_value,search_depth,
-                                crafty_rating-opponent_rating,
-                                learn_value<0);
+    if (!lv) learn_value=LearnFunction(learn_value,search_depth,
+                                       crafty_rating-opponent_rating,
+                                       learn_value<0);
     else learn_value=search_value;
+printf("learn_value=%d\n",search_value);
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -246,12 +248,10 @@ void LearnBook(TREE *tree, int wtm, int search_value, int search_depth, int lv,
  ----------------------------------------------------------
 */
     t_learn_value=((float) learn_value)/100.0;
-    for (i=511;i>=0;i--) {
-      book_learn[i]=t_learn_value;
-/*
-      if (n_book_moves[i] > 1) t_learn_value/=Max(n_book_moves[i]>>1,1);
-*/
-      if (n_book_moves[i] > 1) t_learn_value=3*t_learn_value/4;
+    for (i=0;i<512;i++) if (n_book_moves[i] > 1) nplies++;
+    for (i=0;i<512;i++) {
+      if (n_book_moves[i] > 1) thisply++;
+      book_learn[i]=t_learn_value*thisply/nplies;
     }
 /*
  ----------------------------------------------------------
@@ -607,17 +607,14 @@ void LearnImportBook(TREE *tree, int nargs, char **args) {
     crafty_rating=rating_difference;
     opponent_rating=0;
     learning|=book_learning;
-    if (abs(learn_value) != 99900)
-      LearnBook(tree, wtm, (wtm) ? learn_value : -learn_value, depth, 1, 1);
-    else
-      LearnResult(tree, learn_value < 0);
+    LearnBook(tree, wtm, (wtm) ? learn_value : -learn_value, depth, 1, 1);
     added_lines++;
   }
   move_number=1;
   Print(4095,"\nadded %d learned book lines to book.bin\n",added_lines);
 }
 
-/* last modified 10/03/99 */
+/* last modified 02/06/01 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -644,7 +641,7 @@ void LearnImportBook(TREE *tree, int nargs, char **args) {
 */
 void LearnImportCAP(TREE *tree, int nargs, char **args) {
   BITBOARD temp_hash_key, common;
-  char *eof, *pmp, *acd, buffer[2048];
+  char *eof, *pvp, *pmp, *acd, buffer[2048];
   int ce, move, CAP_used=0, CAP_found=0, key, cluster, test, i;
   FILE *CAP_in;
 /*
@@ -706,15 +703,30 @@ void LearnImportCAP(TREE *tree, int nargs, char **args) {
       continue;
     }
     ce=atoi(strstr(buffer,"ce ")+2);
-    pmp=strstr(buffer,"pm")+2;
-    if (!pmp) {
-      Print(4095,"\nERROR  CAP input line with no pm field\n");
-      Print(4095,"line number %d\n",CAP_found);
-      continue;
+    pvp=strstr(buffer,"pv");
+    pmp=strstr(buffer,"pm");
+    if (pmp) {
+      pmp+=2;
+      while (*pmp==' ') pmp++;
+      if (!strchr(pmp,';')) {
+        Print(4095,"\nERROR  CAP input line with partial pm field\n");
+        Print(4095,"line number %d\n",CAP_found);
+        continue;
+      }
     }
-    else while (*pmp == ' ') pmp++;
-    if (!strchr(pmp,';')) {
-      Print(4095,"\nERROR  CAP input line with partial pm field\n");
+    else if (pvp) {
+      pvp+=2;
+      while (*pvp==' ') pvp++;
+      if (!strchr(pvp,';')) {
+        Print(4095,"\nERROR  CAP input line with partial pv field\n");
+        Print(4095,"line number %d\n",CAP_found);
+        continue;
+      }
+      if (strchr(pvp,' ')) *strchr(pvp,' ')=';';
+      pmp=pvp;
+    }
+    if (!pmp) {
+      Print(4095,"\nERROR  CAP input line with neither pm nor pv field\n");
       Print(4095,"line number %d\n",CAP_found);
       continue;
     }
@@ -1174,165 +1186,4 @@ void LearnPositionLoad(void) {
     htable->word1=word1;
     htable->word2=word2 ^ word1;
   }
-}
-
-/* last modified 11/27/00 */
-/*
-********************************************************************************
-*                                                                              *
-*   LearnResult() is used to learn from the result of a game that was played   *
-*   to mate or resignation.  Crafty will use the result (if it lost the game)  *
-*   to mark the book move made at the last position where it had more than one *
-*   book move, so that that particular move won't be played again, just as if  *
-*   the learned-value was extremely bad.                                       *
-*                                                                              *
-********************************************************************************
-*/
-void LearnResult(TREE *tree, int wtm) {
-  int move, i, j;
-  int secs, last_choice;
-  float tval;
-  char cmd[32], buff[80], *nextc;
-  struct tm *timestruct;
-  int n_book_moves[512];
-  const int t_wtm=wtm;
-/*
- ----------------------------------------------------------
-|                                                          |
-|   first, we are going to find every book move in the     |
-|   game, and note how many alternatives there were at     |
-|   every book move.                                       |
-|                                                          |
- ----------------------------------------------------------
-*/
-  if (!book_file) return;
-  if (!(learning & result_learning)) return;
-  Print(128,"LearnResult() executed\n");
-  learning&=~result_learning;
-  InitializeChessBoard(&tree->position[0]);
-  for (i=0;i<512;i++) n_book_moves[i]=0;
-  wtm=1;
-  for (i=0;i<512;i++) {
-    int *mv, cluster, key, test;
-    BITBOARD common, temp_hash_key;
-
-    n_book_moves[i]=0;
-    strcpy(cmd,"");
-    fseek(history_file,i*10,SEEK_SET);
-    fscanf(history_file,"%s",cmd);
-    if (strcmp(cmd,"pass")) {
-      move=InputMove(tree,cmd,0,wtm,1,0);
-      if (!move) break;
-      tree->position[1]=tree->position[0];
-      tree->last[1]=GenerateCaptures(tree, 1, wtm, tree->last[0]);
-      tree->last[1]=GenerateNonCaptures(tree, 1, wtm, tree->last[1]);
-      test=HashKey>>49;
-      fseek(book_file,test*sizeof(int),SEEK_SET);
-      fread(&key,sizeof(int),1,book_file);
-      if (key > 0) {
-        fseek(book_file,key,SEEK_SET);
-        fread(&cluster,sizeof(int),1,book_file);
-        fread(book_buffer,sizeof(BOOK_POSITION),cluster,book_file);
-      }
-      else cluster=0;
-      for (mv=tree->last[0];mv<tree->last[1];mv++) {
-        common=HashKey & mask_16;
-        MakeMove(tree, 1,*mv,wtm);
-        temp_hash_key=HashKey ^ wtm_random[wtm];
-        temp_hash_key=(temp_hash_key & ~mask_16) | common;
-        for (j=0;j<cluster;j++)
-          if (!(temp_hash_key ^ book_buffer[j].position) &&
-              book_buffer[j].learn > (float) LEARN_COUNTER_BAD/100.0)
-            n_book_moves[i]++;
-        UnMakeMove(tree, 1,*mv,wtm);
-      }
-      if (move) MakeMoveRoot(tree, move,wtm);
-    }
-    wtm=ChangeSide(wtm);
-  } 
-/*
- ----------------------------------------------------------
-|                                                          |
-|   now, find the last book move where there was more than |
-|   one alternative to choose from.                        |
-|                                                          |
- ----------------------------------------------------------
-*/
-  if (!t_wtm) {
-    for (last_choice=511;last_choice>=0;last_choice-=2)
-      if (n_book_moves[last_choice] > 1) break;
-  }
-  else {
-    for (last_choice=510;last_choice>=0;last_choice-=2)
-      if (n_book_moves[last_choice] > 1) break;
-  }
-  if (last_choice < 0) return;
-/*
- ----------------------------------------------------------
-|                                                          |
-|   finally, we run thru the book file and update each     |
-|   book move learned value based on the computation we    |
-|   calculated above.                                      |
-|                                                          |
- ----------------------------------------------------------
-*/
-  InitializeChessBoard(&tree->position[0]);
-  wtm=1;
-  tval=(wtm)?.1:-.1;
-  for (i=0;i<512;i++) {
-    tval=-tval;
-    strcpy(cmd,"");
-    fseek(history_file,i*10,SEEK_SET);
-    strcpy(cmd,"");
-    fscanf(history_file,"%s",cmd);
-    if (strcmp(cmd,"pass")) {
-      move=InputMove(tree,cmd,0,wtm,1,0);
-      if (!move) break;
-      tree->position[1]=tree->position[0];
-      if (i == last_choice) LearnBookUpdate(tree,wtm,move,-999.0);
-      else LearnBookUpdate(tree,wtm,move,tval);
-      MakeMoveRoot(tree,move,wtm);
-    }
-    wtm=ChangeSide(wtm);
-  } 
-/*
- ----------------------------------------------------------
-|                                                          |
-|   now update the "book.lrn" file so that this can be     |
-|   shared with other crafty users or else saved in case.  |
-|   the book must be re-built.                             |
-|                                                          |
- ----------------------------------------------------------
-*/
-  fprintf(book_lrn_file,"[White \"%s\"]\n",pgn_white);
-  fprintf(book_lrn_file,"[Black \"%s\"]\n",pgn_black);
-  secs=time(0);
-  timestruct=localtime((time_t*) &secs);
-  fprintf(book_lrn_file,"[Date \"%4d.%02d.%02d\"]\n",timestruct->tm_year+1900,
-          timestruct->tm_mon+1,timestruct->tm_mday);
-  nextc=buff;
-  for (i=0;i<=last_choice;i++) {
-    fseek(history_file,i*10,SEEK_SET);
-    fscanf(history_file,"%s",cmd);
-    if (strchr(cmd,' ')) *strchr(cmd,' ')=0;
-    sprintf(nextc," %s",cmd);
-    nextc=buff+strlen(buff);
-    if (nextc-buff > 60) {
-      fprintf(book_lrn_file,"%s\n",buff);
-      nextc=buff;
-      strcpy(buff,"");
-    }
-  }
-  fprintf(book_lrn_file,"%s {%d %d %d}\n",
-          buff, (t_wtm) ? -99900:99900, 10, 0);
-  fflush(book_lrn_file);
-/*
- ----------------------------------------------------------
-|                                                          |
-|   done.  now restore the game back to where it was       |
-|   before we started all this nonsense.  :)               |
-|                                                          |
- ----------------------------------------------------------
-*/
-  RestoreGame();
 }

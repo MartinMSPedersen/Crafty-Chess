@@ -146,7 +146,7 @@ void Interrupt(int ply) {
 */
     else {
       save_move_number=move_number;
-      if (!wtm) move_number--;
+      if (!analyze_mode && !wtm) move_number--;
       result=Option(tree);
       move_number=save_move_number;
       if (result >= 2) {

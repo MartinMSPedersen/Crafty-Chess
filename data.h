@@ -50,7 +50,6 @@
   extern int            to_dgt;
   extern int            from_dgt;
   extern char           whisper_text[512];
-  extern int            whisper_value;
   extern int            whisper_depth;
   extern int            last_mate_score;
   extern int            last_opponent_move;
@@ -60,8 +59,7 @@
   extern int            onerep_depth;
   extern int            pushpp_depth;
   extern int            recap_depth;
-  extern int            singular_depth;
-  extern int            threat_depth;
+  extern int            mate_depth;
 
   extern int            null_min;
   extern int            null_max;

@@ -15,7 +15,6 @@
   FILE           *position_file;
   FILE           *position_lrn_file;
   char           whisper_text[512];
-  int            whisper_value;
   int            whisper_depth;
   int            total_moves;
   int            last_mate_score;
@@ -247,7 +246,7 @@
   unsigned int   max_split_blocks;
   volatile unsigned int   splitting;
 
-# define    VERSION                             "18.1"
+# define    VERSION                             "18.2"
   char      version[6] =                    {VERSION};
   PLAYING_MODE mode =                     normal_mode;
 
@@ -369,8 +368,7 @@
   int       onerep_depth =                         45;
   int       recap_depth =                          45;
   int       pushpp_depth =                         45;
-  int       threat_depth =                         45;
-  int       singular_depth =                       45;
+  int       mate_depth =                           45;
   int       null_min =                       3*INCPLY;  /* R=2 */
   int       null_max =                       4*INCPLY;  /* R=3 */
   int       largest_positional_score =            100;
@@ -486,12 +484,7 @@
                                   125, 125, 125, 125, 125, 125, 125, 125,
                                   125, 125, 125, 125, 125, 125, 125, 125};
 
-  const char connected_passed_pawn_value[8] = { 0, 0, 0,
-                                     PAWN_CONNECTED_PASSED,
-                                     PAWN_CONNECTED_PASSED*2,
-                                     PAWN_CONNECTED_PASSED*3,
-                                     PAWN_CONNECTED_PASSED*4,
-                                     0};
+  const char connected_passed_pawn_value[8] = { 0, 0, 0, 12, 24, 48, 100, 0};
 
   const int hidden_passed_pawn_value[8] ={ 0, 0, 0, 0, 0, 32, 48, 0};
   const int passed_pawn_value[8] ={ 0, 8, 16, 32, 60, 120, 160, 0};
