@@ -191,10 +191,13 @@ void ClearHashTableScores(void) {
 
   if (trans_ref_a && trans_ref_b) {
     for (i=0;i<hash_table_size;i++) {
-      (trans_ref_a+i)->word2^=(trans_ref_a+i)->word1;
-      (trans_ref_a+i)->word1=((trans_ref_a+i)->word1 &
-                              mask_clear_entry) | (BITBOARD) 65536;
-      (trans_ref_a+i)->word2^=(trans_ref_a+i)->word1;
+      int age=(trans_ref_a+i)->word1>>61;
+      if (age) {
+        (trans_ref_a+i)->word2^=(trans_ref_a+i)->word1;
+        (trans_ref_a+i)->word1=((trans_ref_a+i)->word1 &
+                                mask_clear_entry) | (BITBOARD) 65536;
+        (trans_ref_a+i)->word2^=(trans_ref_a+i)->word1;
+      }
     }
     for (i=0;i<2*hash_table_size;i++) {
       (trans_ref_b+i)->word2^=(trans_ref_b+i)->word1;
@@ -585,7 +588,7 @@ void EGTBPV(TREE *tree, int wtm) {
       if (!Check(wtm)) {
         if(TotalPieces==2 || EGTBProbe(tree, 2, ChangeSide(wtm), &value)) {
           if (TotalPieces > 2) value=-value;
-          else value=DrawScore(root_wtm==wtm);
+          else value=DrawScore(wtm);
           if (value > best) {
             best=value;
             bestmv=current[i];
@@ -906,7 +909,8 @@ void NewGame(int save) {
     trojan_check=0;
     computer_opponent=0;
     books_file=normal_bs_file;
-    draw_score=0;
+    draw_score[0]=0;
+    draw_score[1]=0;
     wtm=1;
     move_number=1;
     tc_time_remaining=tc_time;

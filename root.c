@@ -41,7 +41,7 @@ void RootMoveList(int wtm) {
   EGTB_draw=0;
   if (swindle_mode && EGTBlimit && TotalPieces<=EGTBlimit &&
       EGTBProbe(tree, 1, wtm, &tb_value)) {
-    if (tb_value == DrawScore(1))
+    if (tb_value == DrawScore(wtm))
       if ((wtm && Material>0) || (!wtm && Material<0)) EGTB_draw=1;
     if (tb_value > MATE-300)
         mating_via_tb=-tb_value-1;
@@ -73,12 +73,12 @@ void RootMoveList(int wtm) {
       tree->current_move[1]=*mvp;
       if (TotalPieces<=EGTBlimit && EGTB_draw) {
         i=EGTBProbe(tree, 2, ChangeSide(wtm), &tb_value);
-        if (i && tb_value != DrawScore(0)) break;
+        if (i && tb_value != DrawScore(ChangeSide(wtm))) break;
       }
       if (mating_via_tb && TotalPieces<=EGTBlimit) {
         i=EGTBProbe(tree, 2, ChangeSide(wtm), &tb_value);
-        if (i && ((mating_via_tb > DrawScore(0) && tb_value < mating_via_tb) ||
-                  (mating_via_tb < DrawScore(0) && tb_value > mating_via_tb))) break;
+        if (i && ((mating_via_tb > DrawScore(ChangeSide(wtm)) && tb_value < mating_via_tb) ||
+                  (mating_via_tb < DrawScore(ChangeSide(wtm)) && tb_value > mating_via_tb))) break;
       }
       value=-Evaluate(tree,2,ChangeSide(wtm),-99999,99999);
 /*
@@ -200,7 +200,7 @@ void RootMoveList(int wtm) {
       tree->current_move[1]=rmoves[i];
       MakeMove(tree, 1, rmoves[i], wtm);
       if (mating_via_tb && TotalPieces <= EGTBlimit)
-        temp=(EGTBProbe(tree, 2, ChangeSide(wtm), &tb_value) != DrawScore(0));
+        temp=(EGTBProbe(tree, 2, ChangeSide(wtm), &tb_value) != DrawScore(ChangeSide(wtm)));
       else
         temp=0;
       UnMakeMove(tree, 1, rmoves[i], wtm);

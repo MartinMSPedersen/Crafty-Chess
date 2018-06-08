@@ -273,7 +273,8 @@ void HashStorePV(TREE *tree, int ply, int wtm) {
 |                                                          |
  ----------------------------------------------------------
 */
-  if ((htablea->word2^htablea->word1) == temp_hashkey) {
+  if ((htablea->word2^htablea->word1) == temp_hashkey &&
+      (htablea->word1>>61)) {
     htablea->word2=htablea->word2^htablea->word1;
     htablea->word1&=~((BITBOARD) 07777777<<32);
     htablea->word1|=(BITBOARD) tree->pv[ply].path[ply]<<32;

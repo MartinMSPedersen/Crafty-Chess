@@ -80,7 +80,6 @@
   signed char    kval_bn[64];
   signed char    kval_bk[64];
   signed char    kval_bq[64];
-  signed char    kval_b[64];
   signed char    black_outpost[64];
   signed char    king_defects_b[64];
   signed char    directions[64][64];
@@ -210,6 +209,7 @@
 
   unsigned char  first_ones_8bit[256];
   unsigned char  last_ones_8bit[256];
+  unsigned char  pop_cnt_8bit[256];
   unsigned char  connected_passed[256];
   unsigned char  file_spread[256];
   signed char    is_outside[256][256];
@@ -246,7 +246,7 @@
   unsigned int   max_split_blocks;
   volatile unsigned int   splitting;
 
-# define    VERSION                            "17.6"
+# define    VERSION                            "17.7"
   char      version[6] =                    {VERSION};
   PLAYING_MODE mode =                     normal_mode;
 
@@ -461,7 +461,8 @@
   int       pawn_hash_table_size =              32768;
   int       log_pawn_hash =                        15;
 
-  int       draw_score =                            0;
+  int       draw_score[2] =                    {0, 0};
+  int       abs_draw_score =                        0;
   int       accept_draws =                          0;
 
   const char xlate[15] = {'q','r','b',0,'k','n','p',0,'P','N','K',0,'B','R','Q'};

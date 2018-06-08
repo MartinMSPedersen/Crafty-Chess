@@ -834,7 +834,7 @@ void           Whisper(int, int, int, int, unsigned int, int, int, char*);
 #define FileDistance(a,b) abs(((a)&7) - ((b)&7))
 #define RankDistance(a,b) abs(((a)>>3) - ((b)>>3))
 #define Distance(a,b) Max(FileDistance(a,b),RankDistance(a,b))
-#define DrawScore(ctm)                 ((ctm)?draw_score:-draw_score)
+#define DrawScore(wtm)                 (draw_score[wtm])
 
 /*  
     the following macro is used to determine if one side is in check.  it
@@ -849,7 +849,7 @@ void           Whisper(int, int, int, int, unsigned int, int, int, char*);
     square in case this pawn prevents the other pawn from safely queening on
     the next move.
 */
-#define Attack(square,queen,ply) !(obstructed[square][queen] & Occupied)
+#define Attack(square,queen) !(obstructed[square][queen] & Occupied)
 /*  
     the following macros are used to construct the attacks from a square.
     the attacks are computed as four separate bit vectors, one for each of the

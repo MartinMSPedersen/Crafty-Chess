@@ -582,7 +582,7 @@ int Option(TREE *tree) {
 */
   else if (OptionMatch("draw",*args)) {
     if (nargs == 1) {
-      int drawsc=DrawScore(1);
+      int drawsc=DrawScore(wtm);
       if (move_number<40 || !accept_draws) drawsc=-300;
       if (last_search_value<=drawsc && (tc_increment!=0 ||
           tc_time_remaining_opponent>=1000)) {
@@ -624,9 +624,9 @@ int Option(TREE *tree) {
       printf("usage:  drawscore <n>\n");
       return(1);
     }
-    if (nargs == 2) draw_score=atoi(args[1]);
+    if (nargs == 2) abs_draw_score=atoi(args[1]);
     printf("draw score set to %7.2f pawns.\n",
-           ((float) draw_score) / 100.0);
+           ((float) abs_draw_score) / 100.0);
   }
 /*
  ----------------------------------------------------------
@@ -2658,6 +2658,10 @@ int Option(TREE *tree) {
     tree->position[1]=tree->position[0];
     tree->last[0]=tree->move_list;
     i=atoi(args[1]);
+    if (i <= 0) {
+      Print(4095,"usage:  perft <maxply>\n");
+      return(1);
+    }
     total_moves=0;
     OptionPerft(tree,1,i,wtm);
     printf("total moves=%d\n",total_moves);
@@ -2785,11 +2789,11 @@ int Option(TREE *tree) {
     }
     crafty_rating=atoi(args[1]);
     opponent_rating=atoi(args[2]);
-    if (crafty_rating-opponent_rating < 0) draw_score=+20;
-    else if (crafty_rating-opponent_rating < 200) draw_score=0;
-    else if (crafty_rating-opponent_rating < 400) draw_score=-20;
-    else if (crafty_rating-opponent_rating < 600) draw_score=-30;
-    else draw_score=-50;
+    if (crafty_rating-opponent_rating < 0) abs_draw_score=+20;
+    else if (crafty_rating-opponent_rating < 200) abs_draw_score=0;
+    else if (crafty_rating-opponent_rating < 400) abs_draw_score=-20;
+    else if (crafty_rating-opponent_rating < 600) abs_draw_score=-30;
+    else abs_draw_score=-50;
     if (log_file) {
       fprintf(log_file,"Crafty's rating: %d.\n",crafty_rating);
       fprintf(log_file,"opponent's rating: %d.\n",opponent_rating);
@@ -3769,7 +3773,6 @@ int Option(TREE *tree) {
       return(1);
     }
     whisper=atoi(args[1]);
-    whisper=0;
   }
 /*
  ----------------------------------------------------------

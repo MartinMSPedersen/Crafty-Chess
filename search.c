@@ -57,7 +57,7 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
  ----------------------------------------------------------
 */
   if (RepetitionCheck(tree,ply,wtm)) {
-    value=DrawScore(ply&1);
+    value=DrawScore(wtm);
     if (value < beta) SavePV(tree,ply,value,0);
 #if defined(TRACE)
     if(ply <= trace_level) printf("draw by repetition detected, ply=%d.\n",ply);
@@ -128,7 +128,7 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
       tree->egtb_probes_successful++;
       alpha=egtb_value;
       if (abs(alpha) > MATE-300) alpha+=(alpha > 0) ? -ply+1 : ply;
-      else if (alpha == 0) alpha=DrawScore(ply&1);
+      else if (alpha == 0) alpha=DrawScore(wtm);
       if(alpha < beta) SavePV(tree,ply,alpha,2);
       return(alpha);
     }
@@ -467,7 +467,7 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
  ----------------------------------------------------------
 */
   if (moves_searched == 0) {
-    value=(Check(wtm)) ? -(MATE-ply) : DrawScore(ply&1);
+    value=(Check(wtm)) ? -(MATE-ply) : DrawScore(wtm);
     if (value>=alpha && value<beta) {
       SavePV(tree,ply,value,0);
 #if defined(TRACE)

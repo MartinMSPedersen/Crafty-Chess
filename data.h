@@ -81,7 +81,8 @@
   extern int            number_of_solutions;
   extern int            solutions[10];
   extern int            solution_type;
-  extern int            draw_score;
+  extern int            draw_score[2];
+  extern int            abs_draw_score;
   extern int            accept_draws;
   extern int            over;
   extern int            ics;
@@ -430,6 +431,7 @@
 # endif
   extern unsigned char  first_ones_8bit[256];
   extern unsigned char  last_ones_8bit[256];
+  extern unsigned char  pop_cnt_8bit[256];
   extern unsigned char  connected_passed[256];
   extern unsigned char  file_spread[256];
   extern signed char    is_outside[256][256];

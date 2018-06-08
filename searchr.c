@@ -190,7 +190,7 @@ int SearchRoot(TREE *tree, int alpha, int beta, int wtm, int depth) {
 */
   if (abort_search || time_abort) return(0);
   if (first_move == 1) {
-    value=(Check(wtm)) ? -(MATE-1) : DrawScore(1);
+    value=(Check(wtm)) ? -(MATE-1) : DrawScore(wtm);
     if (value >=alpha && value <beta) {
       tree->pv[0].pathl=0;
       tree->pv[0].pathh=0;

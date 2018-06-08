@@ -2609,6 +2609,22 @@
 *           "centipawns".   minor bug in "drawn.c" could mis-classify some    *
 *           positions as drawn when they were not.                            *
 *                                                                             *
+*   17.7    repair to DrawScore() logic to stop the occasional backward sign  *
+*           that could create some funny-looking scores (-20 and +20 for      *
+*           example).  minor fix to majority code to recognize the advantage  *
+*           of having a majority when the opponent has no passers or majority *
+*           even if the candidate in the majority is not an 'outside' passer  *
+*           candidate.  minor change to passed pawns so that a protected      *
+*           passed pawn is not considered a winning advantage if the          *
+*           opponent has two or more passed pawns.  but in input_status       *
+*           would cause an infinite loop if you reset a game to a position    *
+*           that was in book, after searching a position that was not in      *
+*           the book.  bug in position learning fixed also.  this was caused  *
+*           by the new hashing scheme Tim Mann introduced to avoid locking    *
+*           the hash table.  I completed the changes he suggested, but forgot *
+*           about how it might affect the position learning since it is also  *
+*           hash-based.  needless to say, I broke it quite nicely, thank you. *
+*                                                                             *
 *******************************************************************************
 */
 int main(int argc, char **argv) {
@@ -2823,7 +2839,10 @@ int main(int argc, char **argv) {
           }
           result=!move;
         }
-        else if (result == 3) presult=0;
+        else {
+          input_status=0;
+          if (result == 3) presult=0;
+        }
       } while (result > 0);
       if (presult == 1) move=ponder_move;
 /*
@@ -2841,12 +2860,12 @@ int main(int argc, char **argv) {
         last_opponent_move=move;
         if (RepetitionDraw(tree,ChangeSide(wtm))==1) {
           Print(4095,"%sgame is a draw by repetition.%s\n",Reverse(),Normal());
-          value=DrawScore(1);
+          value=DrawScore(wtm);
           if (xboard) Print(4095,"1/2-1/2 {Drawn by 3-fold repetition}\n");
         }
         if (RepetitionDraw(tree,ChangeSide(wtm))==2) {
           Print(4095,"%sgame is a draw by the 50 move rule.%s\n",Reverse(),Normal());
-          value=DrawScore(1);
+          value=DrawScore(wtm);
           if (xboard) Print(4095,"1/2-1/2 {Drawn by 50-move rule}\n");
         }
         if (Drawn(tree,last_search_value) == 2) {
@@ -3021,12 +3040,12 @@ int main(int argc, char **argv) {
       if (RepetitionDraw(tree,ChangeSide(wtm))==1) {
         Print(128,"%sgame is a draw by repetition.%s\n",Reverse(),Normal());
         if (xboard) Print(4095,"1/2-1/2 {Drawn by 3-fold repetition}\n");
-        value=DrawScore(1);
+        value=DrawScore(wtm);
       }
       if (RepetitionDraw(tree,ChangeSide(wtm))==2) {
         Print(128,"%sgame is a draw by the 50 move rule.%s\n",Reverse(),Normal());
         if (xboard) Print(4095,"1/2-1/2 {Drawn by 50-move rule}\n");
-        value=DrawScore(1);
+        value=DrawScore(wtm);
       }
       if (Drawn(tree,last_search_value) == 2) {
         Print(4095,"%sgame is a draw due to insufficient material.%s\n",

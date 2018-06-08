@@ -999,7 +999,7 @@ void LearnImportPosition(TREE *tree, int nargs, char **args) {
   fflush(position_lrn_file);
 }
 
-/* last modified 01/26/99 */
+/* last modified 01/19/00 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -1063,8 +1063,9 @@ void LearnPosition(TREE *tree, int wtm, int last_value, int value) {
 */
   Print(4095,"learning position, wtm=%d  value=%d\n",wtm,value);
   word1=(BITBOARD) (value+65536);
-  word1=word1 | (BITBOARD) (tree->pv[0].pathd*INCPLY-INCPLY)<<17;
-  word1=word1 | (BITBOARD) tree->pv[0].path[1]<<32;
+  word1|=((BITBOARD) (tree->pv[0].pathd*INCPLY))<<17;
+  word1|=((BITBOARD) tree->pv[0].path[1])<<32;
+  word1|=((BITBOARD) EXACT)<<59;
   word2=(wtm) ? HashKey : ~HashKey;
   fseek(position_file,0,SEEK_SET);
   fread(&positions,sizeof(int),1,position_file);
@@ -1169,8 +1170,8 @@ void LearnPositionLoad(void) {
     fread(&word1,sizeof(BITBOARD),1,position_file);
     fread(&word2,sizeof(BITBOARD),1,position_file);
     htable=trans_ref_a+(((int) word2)&hash_maska);
-    htable->word1=((BITBOARD) word1 & ((~(BITBOARD)0)>>3)) | ((BITBOARD)3<<59);
-    htable->word2=word2 ^ htable->word1;
+    htable->word1=word1;
+    htable->word2=word2 ^ word1;
   }
 }
 

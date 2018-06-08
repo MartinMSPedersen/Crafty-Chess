@@ -74,7 +74,7 @@ void ResignOrDraw(TREE *tree, int value) {
  ----------------------------------------------------------
 */
   if ((tc_increment > 200) || (tc_time_remaining_opponent >= 3000)) {
-    if (value==DrawScore(1) && moves_out_of_book>3) {
+    if (value==DrawScore(wtm) && moves_out_of_book>3) {
       if (++draw_counter >= draw_count) {
         draw_counter=0;
         returnv=3;

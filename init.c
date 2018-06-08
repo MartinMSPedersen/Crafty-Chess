@@ -1466,9 +1466,13 @@ void InitializeZeroMasks(void) {
 #endif
   first_ones_8bit[0]=8;
   last_ones_8bit[0]=8;
+  pop_cnt_8bit[0]=0;
   connected_passed[0]=0;
   for (i=0;i<256;i++){
+    pop_cnt_8bit[i]=0;
     connected_passed[i]=0;
+    for (j=0;j<8;j++)
+      if (i & (1<<j)) pop_cnt_8bit[i]++;
     for (j=0;j<8;j++){
       if (i & (1<<(7-j))){
         first_ones_8bit[i]=j;

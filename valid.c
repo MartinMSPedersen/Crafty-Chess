@@ -3,7 +3,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 02/27/97 */
+/* last modified 01/03/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -150,6 +150,8 @@ int ValidMove(TREE *tree, int ply, int wtm, int move) {
     case queen:
     case rook:
     case bishop:
+      if (Attack(From(move),To(move))) break;
+      return(0);
     case knight:
       break;
   }
@@ -165,14 +167,12 @@ int ValidMove(TREE *tree, int ply, int wtm, int move) {
   if (wtm) {
     if (Piece(move) == PcOnSq(From(move)) &&
         Captured(move) == -PcOnSq(To(move)) &&
-        Captured(move) != king &&
-        (AttacksFrom(tree,From(move),wtm) & SetMask(To(move)))) return(1);
+        Captured(move) != king) return(1);
   }
   else {
     if (Piece(move) == -PcOnSq(From(move)) &&
         Captured(move) == PcOnSq(To(move)) &&
-        Captured(move) != king &&
-        (AttacksFrom(tree,From(move),wtm) & SetMask(To(move)))) return(1);
+        Captured(move) != king) return(1);
   }
   return(0);
 }

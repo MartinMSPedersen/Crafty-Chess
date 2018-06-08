@@ -34,7 +34,7 @@ int Drawn(TREE *tree, int value) {
 |                                                          |
  ----------------------------------------------------------
 */
-  if (value != DrawScore(crafty_is_white)) return(0);
+  if (value != DrawScore(wtm)) return(0);
 /*
  ----------------------------------------------------------
 |                                                          |

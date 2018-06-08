@@ -39,7 +39,7 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
       (TotalWhitePieces==6 && TotalBlackPieces==6 &&
        !WhiteBishops && !BlackBishops))
     drawn_ending=EvaluateDraws(tree);
-  if (drawn_ending > 0) return(DrawScore(root_wtm==wtm));
+  if (drawn_ending > 0) return(DrawScore(wtm));
   score=EvaluateMaterial(tree);
 #ifdef DEBUGEV
   printf("score[material]=                  %4d\n",score);
@@ -178,7 +178,7 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
 *                                                                    *
 **********************************************************************
 */
-  tree->endgame=(TotalWhitePieces<EG_MAT || TotalBlackPieces<EG_MAT);
+  tree->endgame=(TotalWhitePieces<=EG_MAT || TotalBlackPieces<=EG_MAT);
   tree->w_kingsq=WhiteKingSQ;
   tree->b_kingsq=BlackKingSQ;
   tree->w_safety=0;
@@ -1014,8 +1014,8 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
     }
   }
   if (drawn_ending < 0) {
-    if (drawn_ending == -1 && score > 0) score=DrawScore(root_wtm==wtm);
-    else if (drawn_ending == -2 && score < 0) score=DrawScore(root_wtm==wtm);
+    if (drawn_ending == -1 && score > 0) score=DrawScore(1);
+    else if (drawn_ending == -2 && score < 0) score=DrawScore(1);
   }
 #ifdef DEBUGEV
   if (score != lastsc)
@@ -1354,7 +1354,7 @@ int EvaluateDraws(TREE *tree) {
 ********************************************************************************
 */
 int EvaluateMate(TREE *tree) {
-  register int mate_score=DrawScore(root_wtm==wtm);
+  register int mate_score=DrawScore(1);
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -2092,12 +2092,12 @@ int EvaluatePassedPawnRaces(TREE *tree, int wtm) {
       tempb=BlackPieces;
       Clear(black_pawn,BlackPieces);
       BlackPieces=BlackPieces|SetMask(black_square);
-      if (Attack(BlackKingSQ,white_square,ply)) {
+      if (Attack(BlackKingSQ,white_square)) {
         WhitePieces=tempw;
         BlackPieces=tempb;
         return(QUEEN_VALUE-BISHOP_VALUE+(5-white_queener)*PAWN_VALUE/10);
       }
-      if (Attack(black_square,white_square,ply) &&
+      if (Attack(black_square,white_square) &&
           !(king_attacks[black_square]&BlackKing)) {
         WhitePieces=tempw;
         BlackPieces=tempb;
@@ -2124,12 +2124,12 @@ int EvaluatePassedPawnRaces(TREE *tree, int wtm) {
       tempb=BlackPieces;
       Clear(black_pawn,BlackPieces);
       BlackPieces=BlackPieces|SetMask(black_square);
-      if (Attack(WhiteKingSQ,black_square,ply)) {
+      if (Attack(WhiteKingSQ,black_square)) {
         WhitePieces=tempw;
         BlackPieces=tempb;
         return(-(QUEEN_VALUE-BISHOP_VALUE+(5-black_queener)*PAWN_VALUE/10));
       }
-      if (Attack(white_square,black_square,ply) &&
+      if (Attack(white_square,black_square) &&
           !(king_attacks[white_square]&WhiteKing)) {
         WhitePieces=tempw;
         BlackPieces=tempb;
@@ -2142,7 +2142,7 @@ int EvaluatePassedPawnRaces(TREE *tree, int wtm) {
   return(0);
 }
 
-/* last modified 12/16/99 */
+/* last modified 01/12/00 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -3088,8 +3088,8 @@ int EvaluatePawns(TREE *tree) {
 |  tree->pawn_score.outside is a bitmap with 4 bits:       |
 |                                                          |
 |        xxxx xxx1 (1) -> white has outside passer         |
-|        xxxx xx1x (2) -> white has outside candidate      |
-|        xxxx x1xx (4) -> black has outside passer         |
+|        xxxx xx1x (2) -> black has outside passer         |
+|        xxxx x1xx (4) -> white has outside candidate      |
 |        xxxx 1xxx (8) -> black has outside candidate      |
 |                                                          |
  ----------------------------------------------------------
@@ -3108,10 +3108,17 @@ int EvaluatePawns(TREE *tree) {
     else if (bop) tree->pawn_score.outside|=8;
   }
 
+  if (tree->pawn_score.candidates_w && !tree->pawn_score.candidates_b)
+    tree->pawn_score.outside|=4;
+  if (tree->pawn_score.candidates_b && !tree->pawn_score.candidates_w)
+    tree->pawn_score.outside|=8;
+
   if (!tree->pawn_score.outside) {
-    if (tree->pawn_score.protected&1 && !(tree->pawn_score.protected&2))
+    if (tree->pawn_score.protected&1 && !(tree->pawn_score.protected&2) &&
+        pop_cnt_8bit[(int)(tree->pawn_score.passed_b)]<2)
       tree->pawn_score.outside|=1;
-    if (tree->pawn_score.protected&2 && !(tree->pawn_score.protected&1))
+    if (tree->pawn_score.protected&2 && !(tree->pawn_score.protected&1) &&
+        pop_cnt_8bit[(int)(tree->pawn_score.passed_w)]<2)
       tree->pawn_score.outside|=2;
   }
 /*

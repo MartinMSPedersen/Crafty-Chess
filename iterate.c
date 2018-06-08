@@ -35,6 +35,14 @@ int Iterate(int wtm, int search_type, int root_list_done) {
 */
   largest_positional_score=Max(largest_positional_score>>1,100);
   if (average_nps == 0) average_nps=150000*max_threads;
+  if (wtm) {
+    draw_score[0]=-abs_draw_score;
+    draw_score[1]=abs_draw_score;
+  }
+  else {
+    draw_score[0]=abs_draw_score;
+    draw_score[1]=-abs_draw_score;
+  }
   time_abort=0;
   abort_search=0;
   book_move=0;
@@ -108,7 +116,7 @@ int Iterate(int wtm, int search_type, int root_list_done) {
         root_value=-(MATE-1);
       }
       else {
-        root_value=DrawScore(1);
+        root_value=DrawScore(wtm);
       }
       Print(6,"              depth   time  score   variation\n");
       Print(6,"                                    (no moves)\n");
@@ -189,7 +197,7 @@ int Iterate(int wtm, int search_type, int root_list_done) {
       for (proc=smp_threads+1;proc<max_threads;proc++) {
         Print(128,"starting thread %d\n",proc);
         thread[proc]=0;
-        tfork(pt,ThreadInit,(void *) proc);
+        tfork(pt,ThreadInit,proc);
         smp_threads++;
       }
     }
