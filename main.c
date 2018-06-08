@@ -2434,6 +2434,13 @@
 *           other adjustable evaluation scaling parameters now (again, use    *
 *           "help evaluation" to see the options.)                            *
 *                                                                             *
+*   16.13   bug in Evaluate() fixed.  king safety could produce impossibly    *
+*           large scores due to negative subscript values.  minor change to   *
+*           root.c to allow partial tablebase sets while avoiding the ugly    *
+*           potential draw problem.  this was supplied by Tim Hoooebeek and   *
+*           seems to work ok for those wanting to have files like kpk with-   *
+*           out the corresponding promotion files.                            *
+*                                                                             *
 *******************************************************************************
 */
 int main(int argc, char **argv) {
@@ -2579,7 +2586,6 @@ int main(int argc, char **argv) {
   }
   input_stream=stdin;
   if (xboard) signal(SIGINT,SIG_IGN);
-  signal(SIGTERM,SignalInterrupt);
 #if defined(SMP)
   Print(128,"\nCrafty v%s (%d cpus)\n\n",version,Max(max_threads,1));
   if (ics) printf("*whisper Hello from Crafty v%s! (%d cpus)\n",

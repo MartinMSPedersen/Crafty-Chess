@@ -1294,9 +1294,12 @@ int Option(TREE *tree) {
       else if (!strcmp("display",args[1])) {
         printf("display changes   -> display variation when it changes.\n");
         printf("display extstats  -> display search extension statistics.\n");
+        printf("display general   -> display general info messages.\n");
         printf("display hashstats -> display search hashing statistics.\n");
         printf("display movenum   -> display move numbers in PV.\n");
         printf("display moves     -> display moves as they are searched.\n");
+        printf("display nodes     -> display nodes for each move searched.\n");
+        printf("display ply1      -> display ply-1 move list/sorting info.\n");
         printf("display stats     -> display basic search statistics.\n");
         printf("display time      -> display time for moves.\n");
         printf("display variation -> display variation at end of iteration.\n");

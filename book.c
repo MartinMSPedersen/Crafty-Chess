@@ -531,7 +531,7 @@ int Book(TREE *tree, int wtm, int root_list_done) {
  ----------------------------------------------------------
 */
     if (show_book) {
-      Print(128,"  move     played    %%  score    learn     sortv  P%%  P\n");
+      Print(128,"  move     played    %%  score     sortv  P%%  P\n");
       for (i=0;i<nmoves;i++) {
         Print(128,"%6s", OutputMove(tree,book_moves[i],1,wtm));
         st=book_status[i];
@@ -546,7 +546,6 @@ int Book(TREE *tree, int wtm, int root_list_done) {
         Print(128,"   %6d",bs_played[i]);
         Print(128,"  %3d",100*bs_played[i]/Max(total_moves,1));
         Print(128,"%s",DisplayEvaluation(evaluations[i]));
-        Print(128,"%9.2f",(float)bs_learn[i]/100.0);
         Print(128," %9.1f",bs_value[i]);
         Print(128," %3d",bs_percent[i]);
         if ((book_status[i]&book_accept_mask &&

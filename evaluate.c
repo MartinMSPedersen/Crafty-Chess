@@ -2699,14 +2699,22 @@ int EvaluatePawns(TREE *tree) {
 |                                                          |
  ----------------------------------------------------------
 */
-  if ((mask_F3G3 & WhitePawns) == mask_F3G3) kmissw--;
-  else if ((mask_G3H3 & WhitePawns) == mask_G3H3) kmissw--;
-  if ((mask_A3B3 & WhitePawns) == mask_A3B3) qmissw--;
-  else if ((mask_B3C3 & WhitePawns) == mask_B3C3) qmissw--;
-  if ((mask_F6G6 & BlackPawns) == mask_F6G6) kmissb--;
-  else if ((mask_G6H6 & BlackPawns) == mask_G6H6) kmissb--;
-  if ((mask_A6B6 & BlackPawns) == mask_A6B6) qmissb--;
-  else if ((mask_B6C6 & BlackPawns) == mask_B6C6) qmissb--;
+  if (kmissw) {
+    if ((mask_F3G3 & WhitePawns) == mask_F3G3) kmissw--;
+    else if ((mask_G3H3 & WhitePawns) == mask_G3H3) kmissw--;
+  }
+  if (qmissw) {
+    if ((mask_A3B3 & WhitePawns) == mask_A3B3) qmissw--;
+    else if ((mask_B3C3 & WhitePawns) == mask_B3C3) qmissw--;
+  }
+  if (kmissb) {
+    if ((mask_F6G6 & BlackPawns) == mask_F6G6) kmissb--;
+    else if ((mask_G6H6 & BlackPawns) == mask_G6H6) kmissb--;
+  }
+  if (qmissb) {
+    if ((mask_A6B6 & BlackPawns) == mask_A6B6) qmissb--;
+    else if ((mask_B6C6 & BlackPawns) == mask_B6C6) qmissb--;
+  }
 /*
  ----------------------------------------------------------
 |                                                          |

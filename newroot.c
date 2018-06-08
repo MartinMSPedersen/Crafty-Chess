@@ -21,11 +21,11 @@
 ********************************************************************************
 */
 void RootMoveList(int wtm) {
-  int *mvp, *lastm, rmoves[256];
+  int *mvp, tempm;
   int square, i, side, done, temp, value;
   TREE * const tree=local[0];
   int tb_value;
-  int mating_via_tb=0;
+  int mating_via_tb = 0;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -44,7 +44,7 @@ void RootMoveList(int wtm) {
     if (tb_value == 0)
       if ((wtm && Material>0) || (!wtm && Material<0)) EGTB_draw=1;
     if (tb_value > MATE-100)
-        mating_via_tb=-tb_value-1;
+	mating_via_tb = -tb_value-1;
   }
 /*
  ----------------------------------------------------------
@@ -55,9 +55,9 @@ void RootMoveList(int wtm) {
  ----------------------------------------------------------
 */
   easy_move=0;
-  lastm=GenerateCaptures(tree, 1, wtm, rmoves);
-  lastm=GenerateNonCaptures(tree, 1, wtm, lastm);
-  n_root_moves=lastm-rmoves;
+  tree->last[1]=GenerateCaptures(tree, 1, wtm, tree->last[0]);
+  tree->last[1]=GenerateNonCaptures(tree, 1, wtm, tree->last[1]);
+  if (tree->last[1] == tree->last[0]+1) return;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -66,7 +66,7 @@ void RootMoveList(int wtm) {
 |                                                          |
  ----------------------------------------------------------
 */
-  for (mvp=rmoves;mvp<lastm;mvp++) {
+  for (mvp=tree->last[0];mvp<tree->last[1];mvp++) {
     value=-4000000;
     MakeMove(tree, 1, *mvp, wtm);
     if (!Check(wtm)) do {
@@ -74,13 +74,14 @@ void RootMoveList(int wtm) {
         i=EGTBProbe(tree, 2, ChangeSide(wtm), &tb_value);
         if (tb_value != 0) break;
       }
-      tree->current_move[1]=*mvp;
       if (mating_via_tb) {
-          i=EGTBProbe(tree, 2, ChangeSide(wtm), &tb_value);
-          if (i && ((mating_via_tb > 0 && tb_value < mating_via_tb) ||
-                    (mating_via_tb < 0 && tb_value > mating_via_tb)))
-              break;
+	  i=EGTBProbe(tree, 2, ChangeSide(wtm), &tb_value);
+	  
+	  if (i && ((mating_via_tb > 0 && tb_value < mating_via_tb) ||
+		    (mating_via_tb < 0 && tb_value > mating_via_tb)))
+	      break;
       }
+      tree->current_move[1]=*mvp;
       value=-Evaluate(tree,2,ChangeSide(wtm),-99999,99999);
 /*
  ----------------------------------------------------------
@@ -124,7 +125,7 @@ void RootMoveList(int wtm) {
 */
       if (Promote(*mvp) && (Promote(*mvp) != queen)) value-=50;
     } while(0);
-    tree->sort_value[mvp-rmoves]=value;
+    tree->sort_value[mvp-tree->last[0]]=value;
     UnMakeMove(tree, 1, *mvp, wtm);
   }
 /*
@@ -138,14 +139,14 @@ void RootMoveList(int wtm) {
 */
   do {
     done=1;
-    for (i=0;i<lastm-rmoves-1;i++) {
+    for (i=0;i<tree->last[1]-tree->last[0]-1;i++) {
       if (tree->sort_value[i] < tree->sort_value[i+1]) {
         temp=tree->sort_value[i];
         tree->sort_value[i]=tree->sort_value[i+1];
         tree->sort_value[i+1]=temp;
-        temp=rmoves[i];
-        rmoves[i]=rmoves[i+1];
-        rmoves[i+1]=temp;
+        tempm=*(tree->last[0]+i);
+        *(tree->last[0]+i)=*(tree->last[0]+i+1);
+        *(tree->last[0]+i+1)=tempm;
         done=0;
       }
     }
@@ -158,64 +159,25 @@ void RootMoveList(int wtm) {
 |                                                          |
  ----------------------------------------------------------
 */
-  for (;n_root_moves;n_root_moves--)
-    if (tree->sort_value[n_root_moves-1] > -3000000) break;
+  for (;tree->last[1]>tree->last[0];tree->last[1]--) 
+    if (tree->sort_value[tree->last[1]-tree->last[0]-1] > -3000000) break;
   if (tree->sort_value[0] > 1000000) tree->sort_value[0]-=2000000;
   if (tree->sort_value[0] > tree->sort_value[1]+200 &&
-      ((To(rmoves[0]) == To(last_opponent_move) &&
-        Captured(rmoves[0]) == Piece(last_opponent_move)) || 
+      ((To(*tree->last[0]) == To(last_opponent_move) &&
+        Captured(*tree->last[0]) == Piece(last_opponent_move)) || 
       tree->sort_value[0] < PAWN_VALUE)) easy_move=1;
-/*
- ----------------------------------------------------------
-|                                                          |
-|   debugging output to dump root move list and the stuff  |
-|   used to sort them, for testing and debugging.          |
-|                                                          |
- ----------------------------------------------------------
-*/
-  if (display_options & 512) {
-    int score;
-    int orig_score=Evaluate(tree,1,wtm,-99999,99999)-Material;
-    Print(512,"%d moves at root\n",n_root_moves);
-    Print(512,"        move   score      eval     (+/-)\n");
-    for (i=0;i<n_root_moves;i++) {
-      tree->current_move[1]=rmoves[i];
-      Print(512,"%12s",OutputMove(tree,rmoves[i],1,wtm));
-      MakeMove(tree, 1, rmoves[i], wtm);
-      score=-Evaluate(tree,2,ChangeSide(wtm),-99999,99999);
-      Print(512,"%8d  %8d  %8d\n",tree->sort_value[i], score,
-            score-orig_score-Material);
-      UnMakeMove(tree, 1, rmoves[i], wtm);
+  if (trace_level > 0) {
+    printf("produced %d moves at root\n",tree->last[1]-tree->last[0]);
+    for (mvp=tree->last[0];mvp<tree->last[1];mvp++) {
+      tree->current_move[1]=*mvp;
+      printf("%s",OutputMove(tree,*mvp,1,wtm));
+      MakeMove(tree, 1, *mvp, wtm);
+      printf("/%d/%d  ",tree->sort_value[mvp-tree->last[0]],
+             -Evaluate(tree,2,ChangeSide(wtm),-99999,99999));
+      if (!((mvp-tree->last[0]+1) % 5)) printf("\n");
+      UnMakeMove(tree, 1, *mvp, wtm);
     }
-  }
-/*
- ----------------------------------------------------------
-|                                                          |
-|   now check to see if we are in the special mode where   |
-|   moves need to be searched because of missing EGTBs.    |
-|                                                          |
- ----------------------------------------------------------
-*/
-  for (i=0;i<n_root_moves;i++) {
-    tree->current_move[1]=rmoves[i];
-    MakeMove(tree, 1, rmoves[i], wtm);
-    temp=EGTBProbe(tree, 2, ChangeSide(wtm), &tb_value);
-    UnMakeMove(tree, 1, rmoves[i], wtm);
-    if (temp) break;
-  }
-  EGTB_search=i==n_root_moves;
-/*
- ----------------------------------------------------------
-|                                                          |
-|   now copy the root moves into the root_move structure   |
-|   array for use by NextRootMove().                       |
-|                                                          |
- ----------------------------------------------------------
-*/
-  for (i=0;i<n_root_moves;i++) {
-    root_moves[i].move=rmoves[i];
-    root_moves[i].nodes=0;
-    root_moves[i].status=0;
+    printf("\n");
   }
   return;
 }

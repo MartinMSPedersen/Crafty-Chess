@@ -41,6 +41,7 @@
   extern int            output_format;
   extern int            EGTBlimit;
   extern int            EGTB_draw;
+  extern int            EGTB_search;
   extern int            EGTB_use;
   extern void           *EGTB_cache;
   extern int            EGTB_cache_size;

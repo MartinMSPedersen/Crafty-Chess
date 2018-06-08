@@ -246,7 +246,7 @@
   unsigned int   max_split_blocks;
   volatile unsigned int   splitting;
 
-# define    VERSION                            "16.12"
+# define    VERSION                            "16.13"
   char      version[6] =                    {VERSION};
   PLAYING_MODE mode =                     normal_mode;
 
@@ -303,10 +303,11 @@
   char      computer_list[512][20] = {
                                       {""}};
 
-  int       number_of_GMs =                       30;
+  int       number_of_GMs =                       31;
   char      GM_list[512][20] =       {{"anat"},
                                       {"badviking"},
                                       {"blatny"},
+                                      {"cptnbluebear"},
                                       {"davenogood"},
                                       {"dlugy"},
                                       {"dr"},
@@ -344,6 +345,7 @@
   int       EGTBlimit =                             0;
   int       EGTB_use =                              0;
   int       EGTB_draw =                             0;
+  int       EGTB_search =                           0;
   int       EGTB_cache_size =      EGTB_CACHE_DEFAULT;
   void      *EGTB_cache =                    (void*)0;
   int       xboard =                                0;

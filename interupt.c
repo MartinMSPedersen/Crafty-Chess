@@ -221,33 +221,3 @@ void Interrupt(int ply) {
   if (log_file) fflush(log_file);
   busy=0;
 }
-/*
-********************************************************************************
-*                                                                              *
-*   SignalInterrupt() is used to catch SIGINT and SIGTERM which are used by    *
-*   Xboard.  SIGINT is used when the operator clicks the "move now" button,    *
-*   while SIGTERM is used to detect when Crafty is terminating.                *
-*                                                                              *
-********************************************************************************
-*/
-#if defined(NT_i386) || defined(NT_AXP)
-void _cdecl SignalInterrupt(int signal_type)
-#else
-void SignalInterrupt(int signal_type)
-#endif
-{
-  switch (signal_type) {
-  case SIGINT:
-    if (xboard) {
-      if (thinking) {
-        time_abort=1;
-        abort_search=1;
-      }
-      signal(SIGINT,SignalInterrupt);
-      break;
-    }
-    break;
-  default:
-    break;
-  }
-}
