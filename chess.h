@@ -239,7 +239,7 @@ typedef enum {RANK1, RANK2, RANK3, RANK4, RANK5, RANK6, RANK7, RANK8} ranks;
 typedef enum {none=0, pawn=1, knight=2, king=3, 
               bishop=5, rook=6, queen=7} PIECE;
   
-typedef enum {empty_v=0, pawn_v=1, knight_v=2, 
+typedef enum {empty_v=0, pawn_v=1, knight_v=3, 
               bishop_v=3, rook_v=5, queen_v=9} PIECE_V;
   
 typedef enum {no_extension=0, check_extension=1, recapture_extension=2,

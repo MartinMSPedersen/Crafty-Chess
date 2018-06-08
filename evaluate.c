@@ -1676,7 +1676,7 @@ int EvaluatePassedPawns(TREE *tree) {
           Rank(black_king_sq)<=Rank(square))
         score-=supported_passer[RANK8-Rank(square)];
       if (SetMask(square-8)&WhitePieces) {
-        score+=passed_pawn_value[RANK8-Rank(square)-1];
+        score+=blockading_passed_pawn_value[RANK8-Rank(square)];
         if (TotalWhitePieces < 20)
           score-=(reduced_material_passer[TotalWhitePieces]*
                  (RANK8-Rank(square)))>>1;
@@ -1744,7 +1744,7 @@ int EvaluatePassedPawns(TREE *tree) {
           Rank(white_king_sq)>=Rank(square)) 
         score+=supported_passer[Rank(square)];
       if (SetMask(square+8)&BlackPieces) {
-        score-=passed_pawn_value[Rank(square)-1];
+        score-=blockading_passed_pawn_value[Rank(square)];
         if (TotalBlackPieces < 20)
           score+=(reduced_material_passer[TotalBlackPieces]*Rank(square))>>1;
       }
@@ -2429,6 +2429,8 @@ int EvaluatePawns(TREE *tree) {
       tree->pawn_score.passed_w|=128>>file;
 #ifdef DEBUGP
       printf("white pawn[passed]            file=%d\n", file);
+      if (score != lastsc)
+        printf("white pawn[passed]            score=%d\n", score);
 #endif
     }
 /*
@@ -2702,6 +2704,8 @@ int EvaluatePawns(TREE *tree) {
       tree->pawn_score.passed_b|=128>>file;
 #ifdef DEBUGP
       printf("black pawn[passed]            file=%d\n", file);
+      if (score != lastsc)
+        printf("black pawn[passed]            score=%d\n", score);
 #endif
     }
 /*

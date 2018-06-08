@@ -203,10 +203,10 @@ void Initialize(int continuing) {
   computer_bs_file=fopen(log_filename,"rb");
 #if defined(MACOS)
   if (computer_bs_file)
-    printf("found computer opening book file [:%s:books.bin].\n",book_path);
+    printf("found computer opening book file [:%s:bookc.bin].\n",book_path);
 #else
   if (computer_bs_file)
-    printf("found computer opening book file [%s/books.bin].\n",book_path);
+    printf("found computer opening book file [%s/bookc.bin].\n",book_path);
 #endif
   if (book_file) {
     fseek(book_file,-sizeof(int),SEEK_END);

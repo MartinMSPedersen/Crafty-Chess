@@ -2587,6 +2587,8 @@
 *   17.2    isolated pawn scoring tweaked a bit, plus a couple of bugs in the *
 *           way EvaluateDevelopment() was called were fixed.                  *
 *                                                                             *
+*   17.3    passed pawn scores increased somewhat to improve endgame play.    *
+*                                                                             *
 *******************************************************************************
 */
 int main(int argc, char **argv) {

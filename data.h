@@ -236,6 +236,7 @@
   extern const char     square_color[64];
   extern const char     connected_passed_pawn_value[8];
   extern const char     passed_pawn_value[8];
+  extern const char     blockading_passed_pawn_value[8];
   extern const char     isolated_pawn_value[9];
   extern const char     isolated_pawn_of_value[9];
   extern const char     doubled_pawn_value[7];

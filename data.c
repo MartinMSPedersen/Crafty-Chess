@@ -244,7 +244,7 @@
   unsigned int   max_split_blocks;
   volatile unsigned int   splitting;
 
-# define    VERSION                            "17.2"
+# define    VERSION                            "17.3"
   char      version[6] =                    {VERSION};
   PLAYING_MODE mode =                     normal_mode;
 
@@ -373,8 +373,8 @@
   int       average_nps =                           0;
   int       incheck_depth =                        60;
   int       onerep_depth =                         45;
-  int       recap_depth =                          45;
-  int       pushpp_depth =                         45;
+  int       recap_depth =                          60;
+  int       pushpp_depth =                         60;
   int       threat_depth =                         45;
   int       singular_depth =                       45;
   int       largest_positional_score =            100;
@@ -496,14 +496,11 @@
                                      PAWN_CONNECTED_PASSED*4,
                                      0};
 
-  const char passed_pawn_value[8] ={ 0,
-                                     PAWN_PASSED, PAWN_PASSED*2,
-                                     PAWN_PASSED*3, PAWN_PASSED*4,
-                                     PAWN_PASSED*8,PAWN_PASSED*13,
-                                     0};
+  const char passed_pawn_value[8] ={ 0, 8, 16, 32, 64, 92, 127, 0};
+  const char blockading_passed_pawn_value[8] = { 0, 8, 16, 24, 32, 40, 48, 0};
 
   const char isolated_pawn_value[9] = {0, 10, 17, 36, 48, 56, 68, 84, 100};
-  const char isolated_pawn_of_value[9] = {0, 10, 20, 25, 30, 35, 40, 45, 50};
+  const char isolated_pawn_of_value[9] = {0, 5, 10, 15, 20, 25, 30, 35, 40};
 
   const char doubled_pawn_value[7] ={ 0,
                                       0, PAWN_DOUBLED,
@@ -521,8 +518,8 @@
                                      PAWN_SUPPORTED_PASSED_RANK7,
                                      0};
 
-  const char reduced_material_passer[20] = { 10,10,9,9,8,8,7,7,6,6,
-                                              5,5,4,4,3,3,2,2,1,1};
+  const char reduced_material_passer[20] = { 10,10,10,9,9,9,8,8,7,7,
+                                              6,6,6,5,5,5,4,4,4,3};
 
   const char outside_passed[128] ={ 96, 48, 48, 48, 45, 42, 40, 40,
                                     36, 36, 32, 32, 28, 28, 24, 24,
