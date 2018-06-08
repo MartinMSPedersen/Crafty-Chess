@@ -10,7 +10,7 @@
 #endif
 #include <signal.h>
 
-/* last modified 10/18/99 */
+/* last modified 02/10/00 */
 /*
 *******************************************************************************
 *                                                                             *
@@ -2631,6 +2631,10 @@
 *           non-engine syntax changes to eliminate warnings and fix a bad bug *
 *           in 'bench.c' that would crash if there was no books.bin file.     *
 *                                                                             *
+*   17.9    LearnPosition() called with wrong arguments from main() which     *
+*           effectively disabled position learning.  this was broken in 17.7  *
+*           but is now fixed.                                                 *
+*                                                                             *
 *******************************************************************************
 */
 int main(int argc, char **argv) {
@@ -3040,7 +3044,7 @@ int main(int argc, char **argv) {
 |                                                          |
  ----------------------------------------------------------
 */
-      LearnPosition(tree,wtm,value,last_root_value);
+      LearnPosition(tree,wtm,last_search_value,value);
       last_search_value=value;
       MakeMoveRoot(tree,last_pv.path[1],wtm);
       if (RepetitionDraw(tree,ChangeSide(wtm))==1) {

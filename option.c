@@ -2790,9 +2790,9 @@ int Option(TREE *tree) {
     crafty_rating=atoi(args[1]);
     opponent_rating=atoi(args[2]);
     if (crafty_rating-opponent_rating < 0) abs_draw_score=+20;
-    else if (crafty_rating-opponent_rating < 200) abs_draw_score=0;
-    else if (crafty_rating-opponent_rating < 400) abs_draw_score=-20;
-    else if (crafty_rating-opponent_rating < 600) abs_draw_score=-30;
+    else if (crafty_rating-opponent_rating < 100) abs_draw_score=0;
+    else if (crafty_rating-opponent_rating < 300) abs_draw_score=-20;
+    else if (crafty_rating-opponent_rating < 500) abs_draw_score=-30;
     else abs_draw_score=-50;
     if (log_file) {
       fprintf(log_file,"Crafty's rating: %d.\n",crafty_rating);

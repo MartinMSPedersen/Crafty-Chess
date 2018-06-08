@@ -754,21 +754,22 @@ void LearnImportCAP(TREE *tree, int nargs, char **args) {
       fread(book_buffer,sizeof(BOOK_POSITION),cluster,book_file);
     }
     else cluster=0;
-    if (!cluster) return;
-    common=HashKey & mask_16;
-    MakeMove(tree,0,move,wtm);
-    temp_hash_key=HashKey ^ wtm_random[wtm];
-    temp_hash_key=(temp_hash_key & ~mask_16) | common;
-    for (i=0;i<cluster;i++) {
-      if (!(temp_hash_key ^ book_buffer[i].position)) {
-        book_buffer[i].CAP_score=ce;
-        fseek(book_file,key+sizeof(int),SEEK_SET);
-        fwrite(book_buffer,sizeof(BOOK_POSITION),cluster,book_file);
-        CAP_used++;
-        break;
+    if (cluster) {
+      common=HashKey & mask_16;
+      MakeMove(tree,0,move,wtm);
+      temp_hash_key=HashKey ^ wtm_random[wtm];
+      temp_hash_key=(temp_hash_key & ~mask_16) | common;
+      for (i=0;i<cluster;i++) {
+	if (!(temp_hash_key ^ book_buffer[i].position)) {
+	  book_buffer[i].CAP_score=ce;
+	  fseek(book_file,key+sizeof(int),SEEK_SET);
+	  fwrite(book_buffer,sizeof(BOOK_POSITION),cluster,book_file);
+	  CAP_used++;
+	  break;
+	}
       }
+      UnMakeMove(tree,0,move,wtm);
     }
-    UnMakeMove(tree,0,move,wtm);
 /*
  ----------------------------------------------------------
 |                                                          |

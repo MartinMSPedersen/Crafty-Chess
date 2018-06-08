@@ -103,7 +103,7 @@ int NextEvasion(TREE *tree, int ply, int wtm) {
  ----------------------------------------------------------
 */
     if (tree->last[ply] > tree->last[ply-1]+1) {
-      int temp1, temp2, *movep, *tmovep, *sortv, *tsortv;
+      int temp1, temp2, *tmovep, *tsortv;
       int *end;
       sortv=tree->sort_value+1;
       movep=tree->last[ply-1]+1;

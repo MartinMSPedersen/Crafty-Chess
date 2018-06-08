@@ -130,6 +130,8 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
       if (abs(alpha) > MATE-300) alpha+=(alpha > 0) ? -ply+1 : ply;
       else if (alpha == 0) alpha=DrawScore(wtm);
       if(alpha < beta) SavePV(tree,ply,alpha,2);
+      tree->pv[ply].pathl=0;
+      HashStore(tree,ply,32000,wtm,EXACT,alpha,threat);
       return(alpha);
     }
   }
