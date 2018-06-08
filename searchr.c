@@ -5,7 +5,7 @@
 #include "data.h"
 #include "epdglue.h"
 
-/* modified 08/26/99 */
+/* modified 09/21/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -47,11 +47,11 @@ int SearchRoot(TREE *tree, int alpha, int beta, int wtm, int depth) {
 |                                                          |
  ----------------------------------------------------------
 */
-  while ((tree->current_phase[1]=NextRootMove(tree,wtm))) {
+  while ((tree->phase[1]=NextRootMove(tree,wtm))) {
     tree->extended_reason[1]=0;
 #if defined(TRACE)
     if (1 <= trace_level)
-      SearchTrace(tree,1,depth,wtm,alpha,beta,"SearchRoot",tree->current_phase[1]);
+      SearchTrace(tree,1,depth,wtm,alpha,beta,"SearchRoot",tree->phase[1]);
 #endif
 /*
  ----------------------------------------------------------
@@ -192,7 +192,10 @@ int SearchRoot(TREE *tree, int alpha, int beta, int wtm, int depth) {
   if (first_move == 1) {
     value=(Check(wtm)) ? -(MATE-1) : DrawScore(root_wtm==wtm);
     if (value >=alpha && value <beta) {
-      SavePVS(tree,1,value,0);
+      tree->pv[0].pathl=0;
+      tree->pv[0].pathh=0;
+      tree->pv[0].pathd=iteration_depth;
+      SearchOutput(tree,value,beta);
 #if defined(TRACE)
       if (1 <= trace_level) printf("Search() no moves!  ply=1\n");
 #endif
@@ -219,11 +222,9 @@ int SearchRoot(TREE *tree, int alpha, int beta, int wtm, int depth) {
 ********************************************************************************
 */
 void SearchOutput(TREE *tree, int value, int bound) {
-#define PrintOK() (tree->nodes_searched>noise_level || value>(MATE-300))
   register int wtm;
   int i;
   ROOT_MOVE temp_rm;
-
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -233,6 +234,8 @@ void SearchOutput(TREE *tree, int value, int bound) {
 |                                                          |
  ----------------------------------------------------------
 */
+  root_print_ok=root_print_ok || tree->nodes_searched>noise_level ||
+                abs(value)>MATE-300;
   wtm=root_wtm;
   if (!abort_search) {
     whisper_value=(analyze_mode && !root_wtm) ? -value : value;
@@ -260,7 +263,7 @@ void SearchOutput(TREE *tree, int value, int bound) {
       MakeMove(tree,1,tree->pv[1].path[1],root_wtm);
     }
     else {
-      if (PrintOK()) {
+      if (root_print_ok) {
         Print(2,"               %2i   %s     ++   ",iteration_depth,
         DisplayTime(end_time-start_time));
         UnMakeMove(tree,1,tree->current_move[1],wtm);

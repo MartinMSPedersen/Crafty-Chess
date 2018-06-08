@@ -41,11 +41,15 @@
 #   add -DSMP to the opt definition for your make configuration, and then
 #   add -DCPUS=N where N is the number of processors (max) you will use.
 #   
+#   if you want 6 man EGTB support, you will need to add -DEGTB6 to the
+#   options above.
+#   
+#   
 # AIX
 #target  = AIX
 #CC      = cc
 #CFLAGS  = -O2
-#CXX	 = $(CC)
+#CPP	 = $(CC)
 #LDFLAGS =
 #opt     = -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS
 #opt     = -DCOMPACT_ATTACKS
@@ -53,11 +57,18 @@
 # ALPHA
 #target  = ALPHA
 #CC      = cc
-#CFLAGS  = -std -O4 -pthread -newc -tune host
-#CXX	 = cxx
+#Note: "-arch host" assumes you will run the binary on exactly the
+# same kind of ALPHA you compiled it on.  Omit it if you want to run
+# the same binary on several kinds of Alpha.  If you are on an early
+# EV6 that does not have the CIX instruction set extension, a compiler
+# bug (?) causes these instructions to be generated anyway.  If this
+# happens you'll see a message about "instr emulated" after starting
+# crafty; to fix it, change "-arch host" to "-arch ev56 -tune host"
+# and recompile.
+#CFLAGS  = -std -fast -O4 -pthread -newc -arch host
+#CPP	 = cxx
 #LDFLAGS = $(CFLAGS)
 #LIBS    = -lpthread -lexc
-##opt    = -DSMP -DCPUS=8 -DMUTEX -DFAST -DPOSIX
 #opt     = -DSMP -DCPUS=8 -DFAST -DPOSIX
 
 
@@ -65,7 +76,7 @@
 # target  = DOS
 # CC      = gcc
 # CFLAGS  = -fomit-frame-pointer -m486 -O3
-# CXX	  = $(CC)
+# CPP	  = $(CC)
 # LDFLAGS =
 # opt     = -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
 #           -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B
@@ -75,7 +86,7 @@
 #target  = FreeBSD
 #CC      = gcc
 #CFLAGS  = -fomit-frame-pointer -m486 -O3 -Wall
-#CXX	 = $(CC)
+#CPP	 = $(CC)
 #LDFLAGS = 
 #opt     = -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
 #          -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST
@@ -84,7 +95,7 @@
 #target  = FreeBSD
 #CC      = gcc
 #CFLAGS  = -pipe -D_REENTRANT -mpentium -O -Wall
-#CXX	 = $(CC)
+#CPP	 = $(CC)
 #LDFLAGS = 
 #opt     = -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
 #          -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST
@@ -94,20 +105,17 @@
 #CC      = cc
 #OPT     = +O3 +Onolimit
 #CFLAGS  = +ESlit -Ae +w1
-#CXX	 = $(CC)
+#CPP	 = $(CC)
 #LDFLAGS = $(OPT) $(CFLAGS)
 #opt     = 
  
-# LINUX (pgcc)
+# LINUX (gcc 2.95)
 # Note: You have to uncomment exactly ONE of the `asm' lines below.
 target  = LINUX
 CC      = gcc
-CXX	= $(CC)
-#CFLAGS = -Wall -pipe -D_REENTRANT -march=i686 -O \
-#         -malign-double -malign-loops=4 -malign-jumps=4 -malign-functions=4\
-#         -mpreferred-stack-boundary=4
-CFLAGS = -Wall -pipe -D_REENTRANT -march=i686 -O -fforce-mem -fomit-frame-pointer
-
+CPP	= g++
+CFLAGS  = -Wall -pipe -D_REENTRANT -march=i686 -O -fforce-mem \
+          -fomit-frame-pointer
 LDFLAGS = -lpthread
 opt     = -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
           -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST -DSMP -DCPUS=4 -DDGT
@@ -118,27 +126,11 @@ opt     = -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
 #asm     = X86-aout.o
 asm     = X86-elf.o
  
-# LINUX (gcc)
-# Note: You have to uncomment exactly ONE of the `asm' lines below.
-#target  = LINUX
-#CC      = gcc
-#CFLAGS  = -pipe -D_REENTRANT -O
-#CXX	 = $(CC)
-#LDFLAGS = -lpthread
-#opt     = -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
-#          -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST -DSMP -DCPUS=4
-
-# Uncomment the FIRST `asm' line for a.out systems.
-# Uncomment the SECOND `asm' line for ELF systems.
-#
-#asm     = X86-aout.o
-#asm     = X86-elf.o
-
 # NEXT
 #target  = NEXT
 #CC      = /bin/cc
 #CFLAGS  = -O2
-#CXX	 = $(CC)
+#CPP	 = $(CC)
 #LDFLAGS = $(CFLAGS)
 #opt     = -DCOMPACT_ATTACKS
 
@@ -146,7 +138,7 @@ asm     = X86-elf.o
 #  target  = OS2
 #  CC      = gcc
 #  CFLAGS  = -fomit-frame-pointer -m486 -O3 -Wall
-#  CXX     = $(CC)
+#  CPP     = $(CC)
 #  LDFLAGS = -Zexe -Zcrtdll -s
 #  opt = -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
 #        -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST -DOS2
@@ -158,7 +150,7 @@ asm     = X86-elf.o
 #CC      = cc
 #AFLAGS  = -P
 #CFLAGS  = -g -32 -mips2 -cckr
-#CXX	 = $(CC)
+#CPP	 = $(CC)
 #LDFLAGS = 
 #opt     = -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS
 #opt     = 
@@ -168,7 +160,7 @@ asm     = X86-elf.o
 #AS      = /usr/ccs/bin/as
 #CC      = cc
 #AFLAGS  = -P
-#CXX	 = $(CC)
+#CPP	 = $(CC)
 #CFLAGS  = -fast -xO5 -xunroll=20
 #LDFLAGS = -lpthread
 #opt     = -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
@@ -180,12 +172,12 @@ asm     = X86-elf.o
 opts = $(opt) -D$(target)
 
 objects = searchr.o search.o thread.o searchmp.o repeat.o next.o nexte.o      \
-        nextr.o history.o quiesce.o evaluate.o movgen.o make.o unmake.o       \
-        hash.o attacks.o swap.o boolean.o utility.o valid.o book.o            \
-        data.o drawn.o edit.o enprise.o epd.o epdglue.o init.o input.o        \
-        interupt.o iterate.o main.o option.o output.o phase.o ponder.o        \
-        preeval.o resign.o root.o learn.o setboard.o test.o time.o validate.o \
-        annotate.o analyze.o evtest.o bench.o egtb.o probe.o dgt.o $(asm)
+       nextr.o history.o quiesce.o evaluate.o movgen.o make.o unmake.o hash.o \
+       attacks.o swap.o boolean.o utility.o valid.o probe.o book.o data.o     \
+       drawn.o edit.o enprise.o epd.o epdglue.o init.o input.o interupt.o     \
+       iterate.o main.o option.o output.o phase.o ponder.o preeval.o resign.o \
+       root.o learn.o setboard.o test.o time.o validate.o annotate.o          \
+       analyze.o evtest.o bench.o egtb.o egtbpv.o dgt.o $(asm)
 
 includes = data.h chess.h
 
@@ -202,7 +194,7 @@ dgt:    dgtdrv.o
 	@cc -O -o dgt dgtdrv.c
 
 egtb.o: egtb.cpp
-	$(CXX) -c $(CFLAGS) $(opts) egtb.cpp
+	$(CPP) -c $(CFLAGS) $(opts) egtb.cpp
 clean:
 	-rm -f *.o crafty X86-elf.X X86-aout.S
 
@@ -219,11 +211,11 @@ epd.o epdglue.o option.o init.o : $(epdincludes)
 	$(AS) $(AFLAGS) -o $*.o $*.s
 
 X86-aout.o:
-	@cp X86.s X86-aout.S
+	sed -e 's/ALIGN/4/' X86.s > X86-aout.S
 	$(CC) -c X86-aout.S
 	@rm X86-aout.S
 
 X86-elf.o:
-	@sed -e '/ _/s// /' -e '/^_/s///' X86.s > X86-elf.S
+	sed -e '/ _/s// /' -e '/^_/s///' -e 's/ALIGN/16/' X86.s > X86-elf.S
 	$(CC) -c X86-elf.S
 	@rm X86-elf.S

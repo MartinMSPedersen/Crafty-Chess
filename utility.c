@@ -191,18 +191,21 @@ void ClearHashTableScores(void) {
 
   if (trans_ref_a && trans_ref_b) {
     for (i=0;i<hash_table_size;i++) {
+      (trans_ref_a+i)->word2^=(trans_ref_a+i)->word1;
       (trans_ref_a+i)->word1=((trans_ref_a+i)->word1 &
                               mask_clear_entry) | (BITBOARD) 65536;
+      (trans_ref_a+i)->word2^=(trans_ref_a+i)->word1;
     }
     for (i=0;i<2*hash_table_size;i++) {
+      (trans_ref_b+i)->word2^=(trans_ref_b+i)->word1;
       (trans_ref_b+i)->word1=((trans_ref_b+i)->word1 &
                               mask_clear_entry) | (BITBOARD) 65536;
+      (trans_ref_b+i)->word2^=(trans_ref_b+i)->word1;
     }
     for (i=0;i<pawn_hash_table_size;i++) {
       (pawn_hash_table+i)->key=0;
       (pawn_hash_table+i)->p_score=0;
-      (pawn_hash_table+i)->black_protected=0;
-      (pawn_hash_table+i)->white_protected=0;
+      (pawn_hash_table+i)->protected=0;
       (pawn_hash_table+i)->black_defects_k=0;
       (pawn_hash_table+i)->black_defects_q=0;
       (pawn_hash_table+i)->white_defects_k=0;
@@ -210,6 +213,8 @@ void ClearHashTableScores(void) {
       (pawn_hash_table+i)->passed_w=0;
       (pawn_hash_table+i)->passed_w=0;
       (pawn_hash_table+i)->outside=0;
+      (pawn_hash_table+i)->candidates_w=0;
+      (pawn_hash_table+i)->candidates_b=0;
     }
   }
 }
@@ -357,10 +362,11 @@ void DisplayPieceBoards(signed char *white, signed char *black) {
 ********************************************************************************
 */
 void DisplayPV(TREE *tree, int level, int wtm, int time, int value, PATH *pv) {
-#define PrintOK() (tree->nodes_searched>noise_level || value>(MATE-300))
   char buffer[512], *buffp, *bufftemp;
   int i, t_move_number, type, j, dummy;
   int nskip=0;
+  root_print_ok=root_print_ok || tree->nodes_searched>noise_level ||
+                abs(value)>MATE-300;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -418,7 +424,7 @@ void DisplayPV(TREE *tree, int level, int wtm, int time, int value, PATH *pv) {
   else if(pv->pathh == 2) 
     sprintf(buffer+strlen(buffer)," <EGTB>");
   strcpy(whisper_text,buffer);
-  if (PrintOK()) {
+  if (root_print_ok) {
     if (nskip <= 1)
       Print(type,"               ");
     else
@@ -595,7 +601,6 @@ void DisplayChessMove(char *title, int move) {
 ********************************************************************************
 */
 char *FormatPV(TREE *tree, int wtm, PATH pv) {
-#define PrintOK() (tree->nodes_searched>noise_level || value>(MATE-300))
   static char buffer[512];
   int i, t_move_number;
 /*
@@ -821,7 +826,8 @@ void NewGame(int save) {
       LearnBook(tree,crafty_is_white,last_search_value,0,0,1);
     if (ics) printf("*whisper Hello from Crafty v%s !\n",version);
     if (xboard) {
-      printf("tellics set 1 Crafty v%s (%d cpus)\n",version,CPUS);
+      printf("tellics set 1 Crafty v%s (%d cpus)\n",
+             version,Max(1,max_threads));
 #if defined(SMP)
       printf("kibitz Hello from Crafty v%s! (%d cpus)\n",
              version,Max(1,max_threads));
@@ -2149,7 +2155,7 @@ TREE* CopyToSMP(TREE *p) {
     c->current_move[i]=p->current_move[i];
     c->extended_reason[i]=p->extended_reason[i];
     c->in_check[i]=p->in_check[i];
-    c->current_phase[i]=p->current_phase[i];
+    c->phase[i]=p->phase[i];
   }
   for (i=1;i<MAXPLY;i++) c->killers[i]=p->killers[i];
   c->nodes_searched=0;
@@ -2208,4 +2214,18 @@ int LegalMove(TREE *tree, int ply, int wtm, int move) {
     UnMakeMove(tree,MAXPLY, *mv, wtm);
   }
   return(0);
+}
+
+/* last modified 07/07/98 */
+/*
+********************************************************************************
+*                                                                              *
+*   StrCnt() counts the number of times a character occurs in a string.        *
+*                                                                              *
+********************************************************************************
+*/
+int StrCnt(char *string, char testchar) {
+  int count=0, i;
+  for (i=0;i<strlen(string);i++)  if (string[i] == testchar) count++;
+  return(count);
 }

@@ -187,17 +187,15 @@ int Iterate(int wtm, int search_type, int root_list_done) {
     if (max_threads>smp_idle+1) {
       pthread_t pt;
       int proc;
-      if (!EGTB_use || !(TotalPieces<=EGTBlimit && TB_use_ok && 
-          !EGTB_search && EGTBProbe(tree, 1, wtm, &i))) {
-        for (proc=smp_threads+1;proc<max_threads;proc++) {
-          Print(128,"starting thread %d\n",proc);
-          thread[proc]=0;
-          tfork(pt,ThreadInit,(void *) proc);
-          smp_threads++;
-        }
+      for (proc=smp_threads+1;proc<max_threads;proc++) {
+        Print(128,"starting thread %d\n",proc);
+        thread[proc]=0;
+        tfork(pt,ThreadInit,(void *) proc);
+        smp_threads++;
       }
     }
 #endif
+    root_print_ok=0;
     for (;iteration_depth<=60;iteration_depth++) {
 /*
  ----------------------------------------------------------
@@ -248,6 +246,7 @@ int Iterate(int wtm, int search_type, int root_list_done) {
         thread_start_time[0]=ReadClock(cpu);
         value=SearchRoot(tree,root_alpha, root_beta, wtm,
                          iteration_depth*INCPLY+45);
+        root_print_ok=tree->nodes_searched > noise_level;
         cpu_time_used+=ReadClock(cpu)-thread_start_time[0];
         if (value >= root_beta) {
           root_moves[0].status|=2;
@@ -267,7 +266,7 @@ int Iterate(int wtm, int search_type, int root_list_done) {
             root_alpha=-MATE-1;
             root_value=root_alpha;
             easy_move=0;
-            if (tree->nodes_searched>noise_level && !time_abort && !abort_search) {
+            if (root_print_ok && !time_abort && !abort_search) {
               Print(4,"               %2i   %s     --   ",iteration_depth,
                     DisplayTime(ReadClock(time_type)-start_time));
               if (display_options&64) Print(4,"%d. ",move_number);
@@ -356,7 +355,7 @@ int Iterate(int wtm, int search_type, int root_list_done) {
         nodes_per_second=(BITBOARD) tree->nodes_searched*100/(BITBOARD) (end_time-start_time);
       else
         nodes_per_second=10000;
-      if (!time_abort && !abort_search && (tree->nodes_searched>noise_level ||
+      if (!time_abort && !abort_search && (root_print_ok ||
           correct_count>=early_exit || value>MATE-300 || tree->pv[0].pathh==2)) {
         if (value != -(MATE-1))
           DisplayPV(tree,5,wtm,end_time-start_time,value,&tree->pv[0]);
@@ -446,14 +445,6 @@ int Iterate(int wtm, int search_type, int root_list_done) {
     if (analyze_mode) Whisper(4,0,0,0,0,0,0,whisper_text);
   }
   program_end_time=ReadClock(time_type);
-#if defined(SMP)
-  if (TB_use_ok && EGTB_use && TotalPieces<=EGTBlimit &&
-      !EGTB_search && EGTBProbe(tree, 1, wtm, &i)) {
-    int proc;
-    for (proc=1;proc<CPUS;proc++) thread[proc]=(TREE*)-1;
-    smp_threads=0;
-  }
-#endif
   search_move=0;
   return(last_search_value);
 }

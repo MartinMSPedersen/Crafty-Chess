@@ -45,6 +45,7 @@
   extern int            EGTB_use;
   extern void           *EGTB_cache;
   extern int            EGTB_cache_size;
+  extern int            EGTB_setup;
   extern int            DGT_active;
   extern int            to_dgt;
   extern int            from_dgt;
@@ -110,6 +111,7 @@
   extern int            root_beta;
   extern int            root_value;
   extern int            root_wtm;
+  extern int            root_print_ok;
   extern ROOT_MOVE      root_moves[256];
   extern int            n_root_moves;
   extern int            nodes_per_second;
@@ -227,37 +229,36 @@
   extern signed char    white_outpost[64];
   extern signed char    black_outpost[64];
   extern const char     square_color[64];
-  extern const int      connected_passed_pawn_value[8];
-  extern const int      passed_pawn_value[8];
-  extern const int      isolated_pawn_value[9];
-  extern const int      doubled_pawn_value[7];
-  extern const int      pawn_rams_v[9];
-  extern int            pawn_rams[9];
-  extern const int      supported_passer[8];
-  extern const int      reduced_material_passer[20];
-  extern const int      outside_passed[128];
-  extern const int      ks_scale_down[128];
-  extern const int      temper[64];
-  extern int            temper_w[64];
-  extern int            temper_b[64];
-  extern const int      ttemper[64];
+  extern const char     connected_passed_pawn_value[8];
+  extern const char     passed_pawn_value[8];
+  extern const char     isolated_pawn_value[9];
+  extern const char     doubled_pawn_value[7];
+  extern const char     pawn_rams_v[9];
+  extern char           pawn_rams[9];
+  extern const char     supported_passer[8];
+  extern const char     reduced_material_passer[20];
+  extern const char     outside_passed[128];
+  extern const char     majority[128];
+  extern const char     temper[64];
+  extern int            temper_b[64], temper_w[64];
+  extern const char     ttemper[64];
   extern int            king_safety_asymmetry;
   extern int            king_safety_scale;
   extern int            king_safety_tropism;
   extern int            blocked_scale;
   extern int            pawn_scale;
   extern int            passed_scale;
-  extern const int      missing[8];
-  extern const int      openf[4];
-  extern const int      hopenf[4];
-  extern const int      king_tropism_n[8];
-  extern const int      king_tropism_b[8];
-  extern const int      king_tropism_r[8];
-  extern const int      king_tropism_at_r[8];
-  extern const int      king_tropism_q[8];
-  extern const int      king_tropism_at_q[8];
-  extern const int      king_tropism_file_q[8];
-  extern const int      king_tropism[128];
+  extern const char     missing[8];
+  extern const char     openf[4];
+  extern const char     hopenf[4];
+  extern const char     king_tropism_n[8];
+  extern const char     king_tropism_b[8];
+  extern const char     king_tropism_r[8];
+  extern const char     king_tropism_at_r[8];
+  extern const char     king_tropism_q[8];
+  extern const char     king_tropism_at_q[8];
+  extern const char     king_tropism_file_q[8];
+  extern const signed char king_tropism[128];
   extern int            tropism[128];
 
   extern signed char    pval_w[64];
@@ -281,9 +282,9 @@
   extern signed char    king_defects_w[64];
   extern signed char    king_defects_b[64];
 
-  extern const int      b_n_mate_dark_squares[64];
-  extern const int      b_n_mate_light_squares[64];
-  extern const int      mate[64];
+  extern const char     b_n_mate_dark_squares[64];
+  extern const char     b_n_mate_light_squares[64];
+  extern const char     mate[64];
 
   extern const char     push_extensions[64];
 
@@ -308,8 +309,8 @@
   extern BITBOARD       rook_attacks_rl90[64][256];
   extern int            bishop_mobility_rl45[64][256];
   extern int            bishop_mobility_rr45[64][256];
-  extern int            bishop_shift_rl45[64];
-  extern int            bishop_shift_rr45[64];
+  extern char           bishop_shift_rl45[64];
+  extern char           bishop_shift_rr45[64];
   extern int            rook_mobility_r0[64][256];
   extern int            rook_mobility_rl90[64][256];
 #endif
@@ -356,7 +357,7 @@
   extern BITBOARD       left_side_mask[8];
   extern BITBOARD       right_side_empty_mask[8];
   extern BITBOARD       left_side_empty_mask[8];
-  extern BITBOARD       mask_efgh, mask_fgh, mask_abc,mask_abcd;
+  extern BITBOARD       mask_efgh, mask_fgh, mask_abc, mask_abcd;
   extern BITBOARD       mask_abs7_w, mask_abs7_b;
   extern BITBOARD       mask_advance_2_w;
   extern BITBOARD       mask_advance_2_b;
@@ -410,7 +411,7 @@
   extern BITBOARD       minus9dir[65];
 
   extern BITBOARD       mask_eptest[64];
-# if !defined(CRAY1)
+# if !defined(CRAY1) && !defined(ALPHA)
     extern BITBOARD       mask_1;
     extern BITBOARD       mask_2;
     extern BITBOARD       mask_3;
@@ -452,7 +453,6 @@
 # if defined(SMP)
   extern TREE           *local[MAX_BLOCKS+1];
   extern TREE           *volatile thread[CPUS];
-  extern lock_t         lock_hasha, lock_hashb, lock_pawn_hash;
   extern lock_t         lock_smp, lock_io, lock_root;
   extern volatile int   smp_idle;
   extern volatile int   smp_threads;

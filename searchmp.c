@@ -37,20 +37,20 @@ int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
   while (1) {
     Lock(tree->parent->lock);
     if (ply == 1) {
-      tree->current_phase[ply]=NextRootMove((TREE*)tree->parent,wtm);
+      tree->phase[ply]=NextRootMove((TREE*)tree->parent,wtm);
       tree->root_move=tree->parent->root_move;
     }
     else
-      tree->current_phase[ply]=(tree->in_check[ply]) ? 
+      tree->phase[ply]=(tree->in_check[ply]) ? 
                                NextEvasion((TREE*)tree->parent,ply,wtm) : 
                                NextMove((TREE*)tree->parent,ply,wtm);
     tree->current_move[ply]=tree->parent->current_move[ply];
     UnLock(tree->parent->lock);
-    if (!tree->current_phase[ply]) break;
+    if (!tree->phase[ply]) break;
     tree->extended_reason[ply]&=check_extension;
 #if defined(TRACE)
     if (ply <= trace_level)
-      SearchTrace(tree,ply,depth,wtm,alpha,beta,"SearchSMP",tree->current_phase[ply]);
+      SearchTrace(tree,ply,depth,wtm,alpha,beta,"SearchSMP",tree->phase[ply]);
 #endif
 /*
  ----------------------------------------------------------
@@ -171,7 +171,6 @@ int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
           Lock(lock_root);
           if (value > root_value) {
             SearchOutput(tree,value,beta);
-            tree->parent->pv[0]=tree->pv[0];
             root_value=value;
           }
           UnLock(lock_root);

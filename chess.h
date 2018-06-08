@@ -330,17 +330,18 @@ typedef struct {
 typedef struct {
   unsigned int key;
   short    p_score;
-  unsigned char black_protected;
   unsigned char passed_b;
   unsigned char black_defects_k;
   unsigned char black_defects_q;
-  unsigned char white_protected;
   unsigned char passed_w;
   unsigned char white_defects_k;
   unsigned char white_defects_q;
+  unsigned char protected;
   unsigned char outside;
+  unsigned char candidates_w;
+  unsigned char candidates_b;
 } PAWN_HASH_ENTRY;
-  
+
 typedef struct {
   int path[MAXPLY];
   unsigned char pathh;
@@ -414,7 +415,7 @@ struct tree {
   int             sort_value[256];
   signed char     in_check[MAXPLY];
   signed char     extended_reason[MAXPLY];
-  signed char     current_phase[MAXPLY];
+  signed char     phase[MAXPLY];
   int             search_value;
   int             w_safety, b_safety;
   int             w_kingsq, b_kingsq;
@@ -488,7 +489,6 @@ typedef struct tree TREE;
 #define NO_NULL                   0
 
 #define NONE                      0
-#define FIRST_PHASE               1
 #define HASH_MOVE                 1
 #define GENERATE_CAPTURE_MOVES    2
 #define CAPTURE_MOVES             3
@@ -558,6 +558,7 @@ void           DisplayChessMove(char*, int);
 int            Drawn(TREE*, int);
 void           Edit(void);
 int            EGTBProbe(TREE*, int, int, int*);
+void           EGTBPV(TREE*, int);
 int            EnPrise(int, int);
 int            Evaluate(TREE*, int, int, int, int);
 int            EvaluateDevelopment(TREE*, int);
@@ -652,6 +653,7 @@ int            SearchSMP(TREE*, int, int, int, int, int, int, int);
 void           SearchTrace(TREE*, int, int, int, int, int, char*, int);
 void           SetBoard(int,char**,int);
 void           SetChessBitBoards(SEARCH_POSITION*);
+int            StrCnt(char*, char);
 int            Swap(TREE*, int, int, int);
 BITBOARD       SwapXray(TREE*, BITBOARD, int, int);
 void           Test(char *);
@@ -691,6 +693,147 @@ void           Whisper(int, int, int, int, unsigned int, int, int, char*);
 #    define mask_120      _mask(120)
 #    define mask_121      _mask(121)
 #    define mask_127      _mask(127)
+#  endif
+#  if defined(ALPHA)
+#    include <machine/builtins.h>
+#    define MaskL(a)      (((unsigned long)(-1L))<<(a))
+#    define MaskR(a)      (((unsigned long)(-1L))>>(a))
+
+#    define mask_0        0
+#    define mask_1        MaskL(63)
+#    define mask_2        MaskL(62)
+#    define mask_3        MaskL(61)
+#    define mask_4        MaskL(60)
+#    define mask_5        MaskL(59)
+#    define mask_6        MaskL(58)
+#    define mask_7        MaskL(57)
+#    define mask_8        MaskL(56)
+#    define mask_9        MaskL(55)
+#    define mask_10       MaskL(54)
+#    define mask_11       MaskL(53)
+#    define mask_12       MaskL(52)
+#    define mask_13       MaskL(51)
+#    define mask_14       MaskL(50)
+#    define mask_15       MaskL(49)
+#    define mask_16       MaskL(48)
+#    define mask_17       MaskL(47)
+#    define mask_18       MaskL(46)
+#    define mask_19       MaskL(45)
+#    define mask_20       MaskL(44)
+#    define mask_21       MaskL(43)
+#    define mask_22       MaskL(42)
+#    define mask_23       MaskL(41)
+#    define mask_24       MaskL(40)
+#    define mask_25       MaskL(39)
+#    define mask_26       MaskL(38)
+#    define mask_27       MaskL(37)
+#    define mask_28       MaskL(36)
+#    define mask_29       MaskL(35)
+#    define mask_30       MaskL(34)
+#    define mask_31       MaskL(33)
+#    define mask_32       MaskL(32)
+#    define mask_33       MaskL(31)
+#    define mask_34       MaskL(30)
+#    define mask_35       MaskL(29)
+#    define mask_36       MaskL(28)
+#    define mask_37       MaskL(27)
+#    define mask_38       MaskL(26)
+#    define mask_39       MaskL(25)
+#    define mask_40       MaskL(24)
+#    define mask_41       MaskL(23)
+#    define mask_42       MaskL(22)
+#    define mask_43       MaskL(21)
+#    define mask_44       MaskL(20)
+#    define mask_45       MaskL(19)
+#    define mask_46       MaskL(18)
+#    define mask_47       MaskL(17)
+#    define mask_48       MaskL(16)
+#    define mask_49       MaskL(15)
+#    define mask_50       MaskL(14)
+#    define mask_51       MaskL(13)
+#    define mask_52       MaskL(12)
+#    define mask_53       MaskL(11)
+#    define mask_54       MaskL(10)
+#    define mask_55       MaskL(9)
+#    define mask_56       MaskL(8)
+#    define mask_57       MaskL(7)
+#    define mask_58       MaskL(6)
+#    define mask_59       MaskL(5)
+#    define mask_60       MaskL(4)
+#    define mask_61       MaskL(3)
+#    define mask_62       MaskL(2)
+#    define mask_63       MaskL(1)
+#    define mask_64       MaskR(0)
+#    define mask_65       MaskR(1)
+#    define mask_66       MaskR(2)
+#    define mask_67       MaskR(3)
+#    define mask_68       MaskR(4)
+#    define mask_69       MaskR(5)
+#    define mask_70       MaskR(6)
+#    define mask_71       MaskR(7)
+#    define mask_72       MaskR(8)
+#    define mask_73       MaskR(9)
+#    define mask_74       MaskR(10)
+#    define mask_75       MaskR(11)
+#    define mask_76       MaskR(12)
+#    define mask_77       MaskR(13)
+#    define mask_78       MaskR(14)
+#    define mask_79       MaskR(15)
+#    define mask_80       MaskR(16)
+#    define mask_81       MaskR(17)
+#    define mask_82       MaskR(18)
+#    define mask_83       MaskR(19)
+#    define mask_84       MaskR(20)
+#    define mask_85       MaskR(21)
+#    define mask_86       MaskR(22)
+#    define mask_87       MaskR(23)
+#    define mask_88       MaskR(24)
+#    define mask_89       MaskR(25)
+#    define mask_90       MaskR(26)
+#    define mask_91       MaskR(27)
+#    define mask_92       MaskR(28)
+#    define mask_93       MaskR(29)
+#    define mask_94       MaskR(30)
+#    define mask_95       MaskR(31)
+#    define mask_96       MaskR(32)
+#    define mask_97       MaskR(33)
+#    define mask_98       MaskR(34)
+#    define mask_99       MaskR(35)
+#    define mask_100      MaskR(36)
+#    define mask_101      MaskR(37)
+#    define mask_102      MaskR(38)
+#    define mask_103      MaskR(39)
+#    define mask_104      MaskR(40)
+#    define mask_105      MaskR(41)
+#    define mask_106      MaskR(42)
+#    define mask_107      MaskR(43)
+#    define mask_108      MaskR(44)
+#    define mask_109      MaskR(45)
+#    define mask_110      MaskR(46)
+#    define mask_111      MaskR(47)
+#    define mask_112      MaskR(48)
+#    define mask_113      MaskR(49)
+#    define mask_114      MaskR(50)
+#    define mask_115      MaskR(51)
+#    define mask_116      MaskR(52)
+#    define mask_117      MaskR(53)
+#    define mask_118      MaskR(54)
+#    define mask_119      MaskR(55)
+#    define mask_120      MaskR(56)
+#    define mask_121      MaskR(57)
+#    define mask_122      MaskR(58)
+#    define mask_123      MaskR(59)
+#    define mask_124      MaskR(60)
+#    define mask_125      MaskR(61)
+#    define mask_126      MaskR(62)
+#    define mask_127      MaskR(63)
+#    define mask_128      0
+/* The following are defined only on Unix 4.0E and later. */
+#    ifdef _int_mult_upper /* kludge to identify version of builtins.h */
+#      define PopCnt(a)     _popcnt(a)
+#      define FirstOne(a)   _leadz(a)
+#      define LastOne(a)    (63 - _trailz(a))
+#    endif
 #  endif
 #endif
 
@@ -977,12 +1120,6 @@ void           Whisper(int, int, int, int, unsigned int, int, int, char*);
           tree->pv[ply-1].pathl=ply-1;                                      \
           tree->pv[ply-1].pathh=ph;                                         \
           tree->pv[ply-1].pathd=iteration_depth;} while(0)
-#define SavePVS(tree,ply,value,ph) do {                                     \
-          tree->pv[ply-1].path[ply-1]=tree->current_move[ply-1];            \
-          tree->pv[ply-1].pathl=ply-1;                                      \
-          tree->pv[ply-1].pathh=ph;                                         \
-          tree->pv[ply-1].pathd=iteration_depth;                            \
-          SearchOutput(tree,value,beta);} while(0)
 
 /*
   Service macro - initialize squares of the particular piece as well as

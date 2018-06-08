@@ -1,8 +1,7 @@
-alignment = 4
+alignment = ALIGN
 
         .text
         .align  alignment, 0x90
-	.align 16
 .globl _PopCnt
 _PopCnt:
         movl    4(%esp), %ecx
@@ -43,8 +42,8 @@ _FirstOne:
 l4:     movl    $64, %eax
         ret
 
+        .align  alignment, 0x90
         .globl  _LastOne
-
 _LastOne:
         bsf     4(%esp),%edx
         jz      l5

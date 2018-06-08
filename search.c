@@ -188,7 +188,7 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
     register BITBOARD save_hash_key;
     int null_depth;
     tree->current_move[ply]=0;
-    tree->current_phase[ply]=NULL_MOVE;
+    tree->phase[ply]=NULL_MOVE;
 #if defined(TRACE)
     if (ply <= trace_level)
       SearchTrace(tree,ply,depth,wtm,beta-1,beta,"Search",0);
@@ -230,7 +230,7 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
 |                                                          |
  ----------------------------------------------------------
 */
-  tree->next_status[ply].phase=FIRST_PHASE;
+  tree->next_status[ply].phase=HASH_MOVE;
   if (tree->hash_move[ply]==0 && do_null && depth>=3*INCPLY) do {
     if (ply & 1) {
       if (alpha!=root_alpha || beta!=root_beta) break;
@@ -257,7 +257,7 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
     }
     else tree->hash_move[ply]=tree->current_move[ply];
     tree->last[ply]=tree->last[ply-1];
-    tree->next_status[ply].phase=FIRST_PHASE;
+    tree->next_status[ply].phase=HASH_MOVE;
   } while(0);
 /*
  ----------------------------------------------------------
@@ -270,12 +270,12 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
 |                                                          |
  ----------------------------------------------------------
 */
-  while ((tree->current_phase[ply]=(tree->in_check[ply]) ?
+  while ((tree->phase[ply]=(tree->in_check[ply]) ?
          NextEvasion(tree,ply,wtm) : NextMove(tree,ply,wtm))) {
     tree->extended_reason[ply]&=check_extension;
 #if defined(TRACE)
     if (ply <= trace_level)
-      SearchTrace(tree,ply,depth,wtm,alpha,beta,"Search",tree->current_phase[ply]);
+      SearchTrace(tree,ply,depth,wtm,alpha,beta,"Search",tree->phase[ply]);
 #endif
 /*
  ----------------------------------------------------------

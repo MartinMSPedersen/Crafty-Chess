@@ -341,8 +341,7 @@ void Initialize(int continuing) {
     }
 }
 
-void InitializeAttackBoards(void)
-{
+void InitializeAttackBoards(void) {
 
   int i, j, frank, ffile, trank, tfile;
   int sq, lastsq;
@@ -687,8 +686,7 @@ void InitializeAttackBoards(void)
 #endif
 }
 
-void InitializeChessBoard(SEARCH_POSITION *new_pos)
-{
+void InitializeChessBoard(SEARCH_POSITION *new_pos) {
   int i;
   TREE * const tree=local[0];
 
@@ -765,8 +763,7 @@ void InitializeChessBoard(SEARCH_POSITION *new_pos)
   }
 }
 
-void SetChessBitBoards(SEARCH_POSITION *new_pos)
-{
+void SetChessBitBoards(SEARCH_POSITION *new_pos) {
   int i;
   TREE * const tree=local[0];
   tree->pos.hash_key=0;
@@ -975,8 +972,7 @@ void SetChessBitBoards(SEARCH_POSITION *new_pos)
 *                                                                              *
 ********************************************************************************
 */
-int InitializeFindAttacks(int square, int pieces, int length)
-{
+int InitializeFindAttacks(int square, int pieces, int length) {
   int result, start;
   result=0;
 /*
@@ -1017,8 +1013,7 @@ int InitializeFindAttacks(int square, int pieces, int length)
   return(result&((1<<length)-1));
 }
 
-void InitializeHashTables(void)
-{
+void InitializeHashTables(void) {
   int i;
   transposition_id=0;
   if (!trans_ref_a || !trans_ref_b) return;
@@ -1034,8 +1029,7 @@ void InitializeHashTables(void)
   for (i=0;i<pawn_hash_table_size;i++) {
     (pawn_hash_table+i)->key=0;
     (pawn_hash_table+i)->p_score=0;
-    (pawn_hash_table+i)->black_protected=0;
-    (pawn_hash_table+i)->white_protected=0;
+    (pawn_hash_table+i)->protected=0;
     (pawn_hash_table+i)->black_defects_k=0;
     (pawn_hash_table+i)->black_defects_q=0;
     (pawn_hash_table+i)->white_defects_k=0;
@@ -1043,6 +1037,8 @@ void InitializeHashTables(void)
     (pawn_hash_table+i)->passed_w=0;
     (pawn_hash_table+i)->passed_w=0;
     (pawn_hash_table+i)->outside=0;
+    (pawn_hash_table+i)->candidates_w=0;
+    (pawn_hash_table+i)->candidates_b=0;
   }
 }
 
@@ -1051,7 +1047,7 @@ void InitializeMasks(void) {
 /*
   specific masks to avoid Mask() procedure call if possible.
 */
-#  if !defined(CRAY1)
+#  if !defined(CRAY1) && !defined(ALPHA)
     mask_1=Mask(1);
     mask_2=Mask(2);
     mask_3=Mask(3);
@@ -1175,8 +1171,7 @@ void InitializeMasks(void) {
   mask_black_OOO=SetMask(B8) | SetMask(C8) | SetMask(D8);
 }
 
-void InitializePawnMasks(void)
-{
+void InitializePawnMasks(void) {
   int i;
   BITBOARD m1,m2;
 /*
@@ -1307,8 +1302,7 @@ void InitializePawnMasks(void)
   closed_black=SetMask(E5) | SetMask(D6) | SetMask(C5);
 }
 
-void InitializePieceMasks(void)
-{
+void InitializePieceMasks(void) {
   int i, j;
 /*
     initialize masks used to evaluate development, which includes
@@ -1380,8 +1374,7 @@ void InitializePieceMasks(void)
 *                                                                              *
 ********************************************************************************
 */
-void InitializeRandomHash(void)
-{
+void InitializeRandomHash(void) {
   int i;
   for (i=0;i<64;i++) {
     w_pawn_random[i]=Random64();
@@ -1429,9 +1422,6 @@ void InitializeSMP(void) {
   pthread_attr_setdetachstate(&pthread_attr, PTHREAD_CREATE_DETACHED);
   pthread_attr_setscope(&pthread_attr, PTHREAD_SCOPE_SYSTEM);
 #endif
-  LockInit(lock_hasha);
-  LockInit(lock_hashb);
-  LockInit(lock_pawn_hash);
   LockInit(lock_smp);
   LockInit(lock_io);
   LockInit(lock_root);
@@ -1440,8 +1430,7 @@ void InitializeSMP(void) {
 }
 #endif
 
-void InitializeZeroMasks(void)
-{
+void InitializeZeroMasks(void) {
   int i,j;
 #if !defined(CRAY1) && !defined(USE_ASSEMBLY_B)
   int maskl,maskr;

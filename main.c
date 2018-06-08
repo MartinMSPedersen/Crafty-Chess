@@ -2491,6 +2491,32 @@
 *           as soon as a mate is found, so that it can find the shortest mate *
 *           possible.                                                         *
 *                                                                             *
+*   16.19   savepos now pads each rank to 8 characters so that programs that  *
+*           don't handle abbreviated FEN will be able to parse Crafty's FEN   *
+*           output without problems.  threads are no longer started and       *
+*           stopped before after searches that seem to not need multiple      *
+*           threads (such as when the starting position is in the databases   *
+*           or whatever) because in fast games, it can start and stop them    *
+*           after each search, due to puzzling for a ponder move, and this is *
+*           simply to inefficient to deal with, and burning the extra cpus is *
+*           only bad if the machine is used for other purposes.  and when the *
+*           machine is not dedicated to chess only, the SMP search is very    *
+*           poor anyway.  new lockless hashing (written by Tim Mann) added    *
+*           to improve SMP performance.  new eval term that handles various   *
+*           types of candidate passed pawns, most commonly the result of a    *
+*           position where one side has an offside majority that later turns  *
+*           into an outside passed pawn.  new EGTBPV() procedure added.  this *
+*           code will print the entire PV of a tablebase mating line.  if it  *
+*           given an option of ! (command is "egtb !") it will add a ! to any *
+*           move where there is only one optimal choice.  Crafty will now     *
+*           automatically display the EGTB PV if you give it a setboard FEN   *
+*           command, or if you just give it a raw FEN string (the setboard    *
+*           command is now optional except in test suites).  this version now *
+*           supports the 6 piece database files.  to include this support,    *
+*           you need to -DEGTB6 when compiling everything.  the majority code *
+*           has been temporarily removed so that this version can be released *
+*           to get the 6 piece ending stuff out.                              *
+*                                                                             *
 *******************************************************************************
 */
 int main(int argc, char **argv) {

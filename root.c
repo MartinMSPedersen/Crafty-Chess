@@ -43,7 +43,7 @@ void RootMoveList(int wtm) {
       EGTBProbe(tree, 1, wtm, &tb_value)) {
     if (tb_value == 0)
       if ((wtm && Material>0) || (!wtm && Material<0)) EGTB_draw=1;
-    if (tb_value > MATE-100)
+    if (tb_value > MATE-300)
         mating_via_tb=-tb_value-1;
   }
 /*

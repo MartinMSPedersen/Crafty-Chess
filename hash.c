@@ -3,7 +3,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 06/01/99 */
+/* last modified 09/14/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -63,10 +63,8 @@ int HashProbe(TREE *tree, int ply, int depth, int wtm, int *alpha,
 */
   temp_hashkey=(wtm) ? HashKey : ~HashKey;
   htable=trans_ref_a+((int) temp_hashkey&hash_maska);
-  Lock(lock_hasha);
   word1=htable->word1;
-  word2=htable->word2;
-  UnLock(lock_hasha);
+  word2=word1^htable->word2;
   if (word2 == temp_hashkey) do {
 #if !defined(FAST)
     tree->transposition_hits++;
@@ -107,10 +105,8 @@ int HashProbe(TREE *tree, int ply, int depth, int wtm, int *alpha,
   } while(0);
 
   htable=trans_ref_b+((int)temp_hashkey&hash_maskb);
-  Lock(lock_hashb);
   word1=htable->word1;
-  word2=htable->word2;
-  UnLock(lock_hashb);
+  word2=word1^htable->word2;
   if (word2 == temp_hashkey) {
 #if !defined(FAST)
     tree->transposition_hits++;
@@ -152,7 +148,7 @@ int HashProbe(TREE *tree, int ply, int depth, int wtm, int *alpha,
   return(avoid_null);
 }
 
-/* last modified 09/09/99 */
+/* last modified 09/14/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -231,24 +227,18 @@ void HashStore(TREE *tree, int ply, int depth, int wtm, int type,
   age=htablea->word1>>61;
   age=age && (age!=transposition_id);
   if (age || (depth >= draft)) {
-    Lock(lock_hasha);
-    if (word2 != htablea->word2) {
+    if ((word1^word2) != htablea->word2) {
       htableb=trans_ref_b+((int) (htablea->word2)&hash_maskb);
-      Lock(lock_hashb);
       htableb->word1=htablea->word1;
       htableb->word2=htablea->word2;
-      UnLock(lock_hashb);
     }
     htablea->word1=word1;
-    htablea->word2=word2;
-    UnLock(lock_hasha);
+    htablea->word2=word1^word2;
   }
   else {
     htableb=trans_ref_b+((int) word2&hash_maskb);
-    Lock(lock_hashb);
     htableb->word1=word1;
-    htableb->word2=word2;
-    UnLock(lock_hashb);
+    htableb->word2=word1^word2;
   }
 }
 
@@ -283,18 +273,22 @@ void HashStorePV(TREE *tree, int ply, int wtm) {
 |                                                          |
  ----------------------------------------------------------
 */
-  if (htablea->word2 == temp_hashkey) {
+  if ((htablea->word2^htablea->word1) == temp_hashkey) {
+    htablea->word2=htablea->word2^htablea->word1;
     htablea->word1&=~((BITBOARD) 07777777<<32);
     htablea->word1|=(BITBOARD) tree->pv[ply].path[ply]<<32;
+    htablea->word2=htablea->word2^htablea->word1;
   }
-  else if (htableb->word2 == temp_hashkey) {
+  else if ((htableb->word2^htableb->word1) == temp_hashkey) {
+    htableb->word2=htableb->word2^htableb->word1;
     htableb->word1&=~((BITBOARD) 07777777<<32);
     htableb->word1|=(BITBOARD) tree->pv[ply].path[ply]<<32;
+    htableb->word2=htableb->word2^htableb->word1;
   }
   else {
     htableb->word1=(BITBOARD) 65536;
     htableb->word1|=((BITBOARD) ((transposition_id<<2)+WORTHLESS))<<59;
     htableb->word1|=(BITBOARD) tree->pv[ply].path[ply]<<32;
-    htableb->word2=HashKey;
+    htableb->word2=temp_hashkey^htableb->word1;
   }
 }

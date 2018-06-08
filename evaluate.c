@@ -4,7 +4,7 @@
 #include "evaluate.h"
 #include "data.h"
 
-/* last modified 08/29/99 */
+/* last modified 09/20/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -125,12 +125,14 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
         (TotalBlackPieces==0 && tree->pawn_score.passed_w))
       pscore+=EvaluatePassedPawnRaces(tree,wtm);
     score+=pscore*passed_scale/100;
-#ifdef DEBUGEV
-    if (pscore)
-      printf("score[passed pawns]=              %4d (%+d)\n",score,score-lastsc);
-    lastsc=score;
-#endif
   }
+#ifdef DEBUGEV
+  if (score != lastsc) {
+    printf("score[passed pawns]=              %4d (%+d)\n",score,score-lastsc);
+    printf("score[passed pawns] (flags) =     %4x\n",tree->pawn_score.outside);
+    lastsc=score;
+  }
+#endif
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -1481,6 +1483,8 @@ int EvaluateKingSafety(TREE *tree, int ply) {
       if (!(tree->all_pawns&file_mask[FILEF]))
         tree->b_safety+=KING_SAFETY_OPEN_FILE>>1;
     }
+    if (!WhiteQueens) tree->b_safety>>=1;
+    if (!BlackQueens) tree->w_safety>>=1;
   }
   else {
     tree->w_safety=0;
@@ -1994,7 +1998,7 @@ int EvaluatePassedPawnRaces(TREE *tree, int wtm) {
   return(0);
 }
 
-/* last modified 05/13/99 */
+/* last modified 09/20/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -2014,6 +2018,7 @@ int EvaluatePawns(TREE *tree) {
   register BITBOARD wp_moves, bp_moves;
   register int pns, square, file;
   register int w_isolated, b_isolated;
+  register int ks_equal=1, qs_equal=1;
   register int w_unblocked, b_unblocked;
   register int w_file_l, w_file_r, b_file_l, b_file_r;
   register int defenders, attackers, weakness, blocked, sq;
@@ -2046,13 +2051,14 @@ int EvaluatePawns(TREE *tree) {
   tree->pawn_score.p_score=0;
   tree->pawn_score.passed_w=0;
   tree->pawn_score.passed_b=0;
-  tree->pawn_score.white_protected=0;
-  tree->pawn_score.black_protected=0;
+  tree->pawn_score.protected=0;
   tree->pawn_score.white_defects_k=0;
   tree->pawn_score.white_defects_q=0;
   tree->pawn_score.black_defects_k=0;
   tree->pawn_score.black_defects_q=0;
   tree->pawn_score.outside=0;
+  tree->pawn_score.candidates_w=0;
+  tree->pawn_score.candidates_b=0;
   w_isolated=0;
   b_isolated=0;
   w_unblocked=0;
@@ -2114,6 +2120,8 @@ int EvaluatePawns(TREE *tree) {
     }
     Clear(square,pawns);
   }
+  qs_equal=(PopCnt(mask_abcd&WhitePawns)==PopCnt(mask_abcd&BlackPawns));
+  ks_equal=(PopCnt(mask_efgh&WhitePawns)==PopCnt(mask_efgh&BlackPawns));
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -2277,15 +2285,12 @@ int EvaluatePawns(TREE *tree) {
       if (minus8dir[square]&WhitePawns)
         tree->pawn_score.p_score-=passed_pawn_value[Rank(square)]>>1;
       if (mask_pawn_protected_w[square]&WhitePawns)
-        tree->pawn_score.white_protected=1;
+        tree->pawn_score.protected|=1;
       tree->pawn_score.passed_w|=128>>file;
-    }
 #ifdef DEBUGP
-    if (tree->pawn_score.p_score != lastsc)
-      printf("white pawn[passed] file=%d,   score=%d\n",
-             file,tree->pawn_score.p_score);
-    lastsc=tree->pawn_score.p_score;
+      printf("white pawn[passed]            file=%d\n", file);
 #endif
+    }
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -2500,15 +2505,12 @@ int EvaluatePawns(TREE *tree) {
       if (plus8dir[square]&BlackPawns)
         tree->pawn_score.p_score+=passed_pawn_value[RANK8-Rank(square)]>>1;
       if (mask_pawn_protected_b[square]&BlackPawns)
-        tree->pawn_score.black_protected=1;
+        tree->pawn_score.protected|=2;
       tree->pawn_score.passed_b|=128>>file;
-    }
 #ifdef DEBUGP
-    if (tree->pawn_score.p_score != lastsc)
-      printf("black pawn[passed] file=%d,   score=%d\n",
-             file,tree->pawn_score.p_score);
-    lastsc=tree->pawn_score.p_score;
+      printf("black pawn[passed]            file=%d\n", file);
 #endif
+    }
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -2817,10 +2819,11 @@ int EvaluatePawns(TREE *tree) {
 */
   w_file_l=first_ones_8bit[tree->pawn_score.passed_w];
   if (w_file_l == 8) w_file_l=9;
-  b_file_l=first_ones_8bit[tree->pawn_score.passed_b];
-  if (b_file_l == 8) b_file_l=9;
   w_file_r=last_ones_8bit[tree->pawn_score.passed_w];
   if (w_file_r == 8) w_file_r=-9;
+
+  b_file_l=first_ones_8bit[tree->pawn_score.passed_b];
+  if (b_file_l == 8) b_file_l=9;
   b_file_r=last_ones_8bit[tree->pawn_score.passed_b];
   if (b_file_r == 8) b_file_r=-9;
 /*
@@ -2846,20 +2849,21 @@ int EvaluatePawns(TREE *tree) {
       if (w_file_l < 4) {
         if(tree->all_pawns&right_side_mask[w_file_l] &&
            !(BlackPawns&left_side_empty_mask[w_file_l])) {
-          if (!tree->pawn_score.black_protected ||
-              tree->pawn_score.white_protected) tree->pawn_score.outside|=1;
+          if (!(tree->pawn_score.protected&2) ||
+              tree->pawn_score.protected&1) tree->pawn_score.outside|=1;
           break;
         }
       }
       if (w_file_r > 3) {
         if (tree->all_pawns&left_side_mask[w_file_r] &&
             !(BlackPawns&right_side_empty_mask[w_file_r])) {
-          if (!tree->pawn_score.black_protected ||
-              tree->pawn_score.white_protected) tree->pawn_score.outside|=1;
+          if (!(tree->pawn_score.protected&2) ||
+              tree->pawn_score.protected&1) tree->pawn_score.outside|=1;
         }
       }
     } while(0);
   }
+
   if (b_file_l != 9) {
     if (b_file_l!=b_file_r &&
         b_file_l <w_file_l-1 && b_file_r>w_file_r+1) {
@@ -2869,27 +2873,26 @@ int EvaluatePawns(TREE *tree) {
       if (b_file_l < 4) {
         if(tree->all_pawns&right_side_mask[b_file_l] &&
            !(WhitePawns&left_side_empty_mask[b_file_l])) {
-          if (!tree->pawn_score.white_protected ||
-              tree->pawn_score.black_protected) tree->pawn_score.outside|=2;
+          if (!(tree->pawn_score.protected&1) ||
+              tree->pawn_score.protected&2) tree->pawn_score.outside|=2;
           break;
         }
       }
       if (b_file_r > 3) {
         if (tree->all_pawns&left_side_mask[b_file_r] &&
             !(WhitePawns&right_side_empty_mask[b_file_r])) {
-          if (!tree->pawn_score.white_protected ||
-              tree->pawn_score.black_protected) tree->pawn_score.outside|=2;
+          if (!(tree->pawn_score.protected&1) ||
+              tree->pawn_score.protected&2) tree->pawn_score.outside|=2;
         }
       }
     } while(0);
   }
   if (!tree->pawn_score.outside) {
-    if (tree->pawn_score.white_protected && !tree->pawn_score.black_protected)
+    if (tree->pawn_score.protected&1 && !(tree->pawn_score.protected&2))
       tree->pawn_score.outside|=1;
-    if (tree->pawn_score.black_protected && !tree->pawn_score.white_protected)
+    if (tree->pawn_score.protected&2 && !(tree->pawn_score.protected&1))
       tree->pawn_score.outside|=2;
   }
-
 /*
  ----------------------------------------------------------
 |                                                          |

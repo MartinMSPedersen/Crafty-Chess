@@ -3,91 +3,92 @@
 #include "chess.h"
 #include "evaluate.h"
   
-   FILE           *input_stream;
-   FILE           *book_file;
-   FILE           *books_file;
-   FILE           *history_file;
-   FILE           *log_file;
-   FILE           *auto_file;
-   FILE           *book_lrn_file;
-   FILE           *position_file;
-   FILE           *position_lrn_file;
-   char           whisper_text[512];
-   int            whisper_value;
-   int            whisper_depth;
-   int            total_moves;
-   int            last_mate_score;
-   int            time_abort;
-   int            auto232;
-   int            auto232_delay;
-   signed char    abort_search;
-   char           log_filename[64];
-   char           history_filename[64];
-   int            number_of_solutions;
-   int            solutions[10];
-   int            solution_type;
-   char           cmd_buffer[512];
-   char           *args[32];
-   char           buffer[512];
-   int            nargs;
-   int            iteration_depth;
-   int            previous_search_value;
-   int            root_alpha;
-   int            root_beta;
-   int            root_value;
-   int            root_wtm;
-   ROOT_MOVE      root_moves[256];
-   int            n_root_moves;
-   int            cpu_percent;
-   int            easy_move;
-   int            absolute_time_limit;
-   int            search_time_limit;
-   int            next_time_check;
-   int            burp;
-   int            ponder_move;
-   int            made_predicted_move;
-   int            ponder_moves[220];
-   int            num_ponder_moves;
-   unsigned int   opponent_start_time, opponent_end_time;
-   unsigned int   program_start_time, program_end_time;
-   unsigned int   start_time, end_time;
-   unsigned int   elapsed_start, elapsed_end;
-   int            book_move;
-   int            book_learn_eval[LEARN_INTERVAL];
-   int            book_learn_depth[LEARN_INTERVAL];
-   int            hash_maska;
-   int            hash_maskb;
-   unsigned int   pawn_hash_mask;
-   HASH_ENTRY      *trans_ref_a;
-   HASH_ENTRY      *trans_ref_b;
-   PAWN_HASH_ENTRY *pawn_hash_table;
-   HASH_ENTRY      *trans_ref_a_orig;
-   HASH_ENTRY      *trans_ref_b_orig;
-   PAWN_HASH_ENTRY *pawn_hash_table_orig;
-   int            history_w[4096], history_b[4096];
-   PATH           last_pv;
-   int            last_value;
-   int            temper_b[64], temper_w[64];
-   signed char    pval_b[64];
-   signed char    nval_b[64];
-   signed char    bval_b[64];
-   signed char    rval_b[64];
-   signed char    qval_b[64];
-   signed char    kval_w[64];
-   signed char    kval_b[64];
-   signed char    kval_bn[64];
-   signed char    kval_bk[64];
-   signed char    kval_bq[64];
-   signed char    kval_b[64];
-   signed char    black_outpost[64];
-   signed char    king_defects_b[64];
-   signed char    directions[64][64];
-   int            tropism[128];
-   int            pawn_rams[9];
-   BITBOARD       w_pawn_attacks[64];
-   BITBOARD       b_pawn_attacks[64];
-   BITBOARD       knight_attacks[64];
-   BITBOARD       bishop_attacks[64];
+  FILE           *input_stream;
+  FILE           *book_file;
+  FILE           *books_file;
+  FILE           *history_file;
+  FILE           *log_file;
+  FILE           *auto_file;
+  FILE           *book_lrn_file;
+  FILE           *position_file;
+  FILE           *position_lrn_file;
+  char           whisper_text[512];
+  int            whisper_value;
+  int            whisper_depth;
+  int            total_moves;
+  int            last_mate_score;
+  int            time_abort;
+  int            auto232;
+  int            auto232_delay;
+  signed char    abort_search;
+  char           log_filename[64];
+  char           history_filename[64];
+  int            number_of_solutions;
+  int            solutions[10];
+  int            solution_type;
+  char           cmd_buffer[512];
+  char           *args[32];
+  char           buffer[512];
+  int            nargs;
+  int            iteration_depth;
+  int            previous_search_value;
+  int            root_alpha;
+  int            root_beta;
+  int            root_value;
+  int            root_wtm;
+  int            root_print_ok;
+  ROOT_MOVE      root_moves[256];
+  int            n_root_moves;
+  int            cpu_percent;
+  int            easy_move;
+  int            absolute_time_limit;
+  int            search_time_limit;
+  int            next_time_check;
+  int            burp;
+  int            ponder_move;
+  int            made_predicted_move;
+  int            ponder_moves[220];
+  int            num_ponder_moves;
+  unsigned int   opponent_start_time, opponent_end_time;
+  unsigned int   program_start_time, program_end_time;
+  unsigned int   start_time, end_time;
+  unsigned int   elapsed_start, elapsed_end;
+  int            book_move;
+  int            book_learn_eval[LEARN_INTERVAL];
+  int            book_learn_depth[LEARN_INTERVAL];
+  int            hash_maska;
+  int            hash_maskb;
+  unsigned int   pawn_hash_mask;
+  HASH_ENTRY      *trans_ref_a;
+  HASH_ENTRY      *trans_ref_b;
+  PAWN_HASH_ENTRY *pawn_hash_table;
+  HASH_ENTRY      *trans_ref_a_orig;
+  HASH_ENTRY      *trans_ref_b_orig;
+  PAWN_HASH_ENTRY *pawn_hash_table_orig;
+  int            history_w[4096], history_b[4096];
+  PATH           last_pv;
+  int            last_value;
+  int            temper_b[64], temper_w[64];
+  signed char    pval_b[64];
+  signed char    nval_b[64];
+  signed char    bval_b[64];
+  signed char    rval_b[64];
+  signed char    qval_b[64];
+  signed char    kval_w[64];
+  signed char    kval_b[64];
+  signed char    kval_bn[64];
+  signed char    kval_bk[64];
+  signed char    kval_bq[64];
+  signed char    kval_b[64];
+  signed char    black_outpost[64];
+  signed char    king_defects_b[64];
+  signed char    directions[64][64];
+  int            tropism[128];
+  char           pawn_rams[9];
+  BITBOARD       w_pawn_attacks[64];
+  BITBOARD       b_pawn_attacks[64];
+  BITBOARD       knight_attacks[64];
+  BITBOARD       bishop_attacks[64];
 
 # if defined(COMPACT_ATTACKS)
     struct at    at;
@@ -193,7 +194,7 @@
   BITBOARD       minus9dir[65];
   BITBOARD       mask_eptest[64];
 
-# if !defined(CRAY1)
+# if !defined(CRAY1) && !defined(ALPHA)
     BITBOARD     mask_1;
     BITBOARD     mask_2;
     BITBOARD     mask_3;
@@ -235,7 +236,6 @@
 # if defined(SMP)
     TREE         *local[MAX_BLOCKS+1];
     TREE         *volatile thread[CPUS];
-    lock_t       lock_hasha, lock_hashb, lock_pawn_hash;
     lock_t       lock_smp, lock_io, lock_root;
     pthread_attr_t pthread_attr;
 # else
@@ -246,7 +246,7 @@
   unsigned int   max_split_blocks;
   volatile unsigned int   splitting;
 
-# define    VERSION                            "16.18"
+# define    VERSION                            "16.19"
   char      version[6] =                    {VERSION};
   PLAYING_MODE mode =                     normal_mode;
 
@@ -275,9 +275,10 @@
   char      pgn_black_elo[32] = {""};
   char      pgn_result[32] = {"*"};
 
-  int       number_of_blockers =                    1;
+  int       number_of_blockers =                    2;
 
   char      blocker_list[512][20] = {
+                                      {"cptnbluebear"},
                                       {"kingway"}};
 
   int       number_of_specials =                    7;
@@ -353,6 +354,7 @@
   int       EGTB_search =                           0;
   int       EGTB_cache_size =      EGTB_CACHE_DEFAULT;
   void      *EGTB_cache =                    (void*)0;
+  int       EGTB_setup =                            0;
   int       xboard =                                0;
   int       whisper =                               0;
   int       channel =                               0;
@@ -463,55 +465,56 @@
   int       accept_draws =                          0;
 
   const char xlate[15] = {'q','r','b',0,'k','n','p',0,'P','N','K',0,'B','R','Q'};
-  const char empty[9]  = {' ','1','2','3','4','5','6','7','8'};
+  const char empty[9]  = {0,'1','2','3','4','5','6','7','8'};
 
-  const int king_tropism_n[8]      = {3,3,3,2,1,0,0,0};
-  const int king_tropism_b[8]      = {3,3,3,2,1,0,0,0};
-  const int king_tropism_r[8]      = {3,3,3,2,1,0,0,0};
-  const int king_tropism_at_r[8]   = {4,3,1,0,0,0,0,0};
-  const int king_tropism_q[8]      = {4,4,4,2,1,0,0,0};
-  const int king_tropism_at_q[8]   = {5,5,3,0,0,0,0,0};
-  const int king_tropism_file_q[8] = {0,0,0,0,0,6,6,8};
-  const int king_tropism[128] = { -40, -35, -30, -25, -20, -15, -10,  -5,
+  const char king_tropism_n[8]      = {3,3,3,2,1,0,0,0};
+  const char king_tropism_b[8]      = {3,3,3,2,1,0,0,0};
+  const char king_tropism_r[8]      = {3,3,3,2,1,0,0,0};
+  const char king_tropism_at_r[8]   = {4,3,1,0,0,0,0,0};
+  const char king_tropism_q[8]      = {4,4,4,2,1,0,0,0};
+  const char king_tropism_at_q[8]   = {5,5,3,0,0,0,0,0};
+  const char king_tropism_file_q[8] = {0,0,0,0,0,6,6,8};
+  const signed char king_tropism[128] =
+                                { -40, -35, -30, -25, -20, -15, -10,  -5,
                                     0,   2,   5,  10,  12,  16,  20,  25,
                                    30,  35,  40,  45,  50,  55,  60,  65,
                                    70,  75,  80,  85,  90,  95, 100, 105,
-                                  110, 115, 120, 125, 130, 135, 140, 145,
-                                  150, 150, 150, 150, 150, 150, 150, 150,
-                                  150, 150, 150, 150, 150, 150, 150, 150,
-                                  150, 150, 150, 150, 150, 150, 150, 150,
-                                  150, 150, 150, 150, 150, 150, 150, 150,
-                                  150, 150, 150, 150, 150, 150, 150, 150,
-                                  150, 150, 150, 150, 150, 150, 150, 150,
-                                  150, 150, 150, 150, 150, 150, 150, 150,
-                                  150, 150, 150, 150, 150, 150, 150, 150,
-                                  150, 150, 150, 150, 150, 150, 150, 150,
-                                  150, 150, 150, 150, 150, 150, 150, 150,
-                                  150, 150, 150, 150, 150, 150, 150, 150};
+                                  110, 115, 120, 125, 125, 125, 125, 125,
+                                  125, 125, 125, 125, 125, 125, 125, 125,
+                                  125, 125, 125, 125, 125, 125, 125, 125,
+                                  125, 125, 125, 125, 125, 125, 125, 125,
+                                  125, 125, 125, 125, 125, 125, 125, 125,
+                                  125, 125, 125, 125, 125, 125, 125, 125,
+                                  125, 125, 125, 125, 125, 125, 125, 125,
+                                  125, 125, 125, 125, 125, 125, 125, 125,
+                                  125, 125, 125, 125, 125, 125, 125, 125,
+                                  125, 125, 125, 125, 125, 125, 125, 125,
+                                  125, 125, 125, 125, 125, 125, 125, 125,
+                                  125, 125, 125, 125, 125, 125, 125, 125};
 
-  const int connected_passed_pawn_value[8] = { 0, 0, 0,
+  const char connected_passed_pawn_value[8] = { 0, 0, 0,
                                      PAWN_CONNECTED_PASSED,
                                      PAWN_CONNECTED_PASSED*2,
                                      PAWN_CONNECTED_PASSED*3,
                                      PAWN_CONNECTED_PASSED*4,
                                      0};
 
-  const int passed_pawn_value[8] = { 0,
+  const char passed_pawn_value[8] ={ 0,
                                      PAWN_PASSED, PAWN_PASSED*2,
                                      PAWN_PASSED*3, PAWN_PASSED*4,
                                      PAWN_PASSED*8,PAWN_PASSED*13,
                                      0};
 
-  const int isolated_pawn_value[9] =  {0, 14, 30, 50, 65, 80, 100, 120, 150};
+  const char isolated_pawn_value[9] = {0, 14, 30, 50, 65, 80, 100, 120, 150};
 
-  const int doubled_pawn_value[7] = { 0,
+  const char doubled_pawn_value[7] ={ 0,
                                       0, PAWN_DOUBLED,
                                       PAWN_DOUBLED*2, PAWN_DOUBLED*4,
                                       PAWN_DOUBLED*5,PAWN_DOUBLED*6};
 
-  const int pawn_rams_v[9] =       { 0, 0, 6, 20, 36, 60, 72, 84, 96};
+  const char pawn_rams_v[9] =      { 0, 0, 6, 24, 40, 64, 80, 94, 96};
 
-  const int supported_passer[8] =  { 0,
+  const char supported_passer[8] = { 0,
                                      PAWN_SUPPORTED_PASSED_RANK2,
                                      PAWN_SUPPORTED_PASSED_RANK3,
                                      PAWN_SUPPORTED_PASSED_RANK4,
@@ -520,10 +523,10 @@
                                      PAWN_SUPPORTED_PASSED_RANK7,
                                      0};
 
-  const int reduced_material_passer[20] = { 10,10,9,9,8,8,7,7,6,6,
-                                             5,5,4,4,3,3,2,2,1,1};
+  const char reduced_material_passer[20] = { 10,10,9,9,8,8,7,7,6,6,
+                                              5,5,4,4,3,3,2,2,1,1};
 
-  const int outside_passed[128] = { 80, 50, 50, 50, 45, 42, 40, 40,
+  const char outside_passed[128] ={ 96, 48, 48, 48, 45, 42, 40, 40,
                                     36, 36, 32, 32, 28, 28, 24, 24,
                                     20, 20, 16, 16, 12, 12, 12, 12,
                                     12, 12, 12, 12, 12, 12, 12, 12,
@@ -540,21 +543,38 @@
                                     12, 12, 12, 12, 12, 12, 12, 12,
                                     12, 12, 12, 12, 12, 12, 12, 12};
 
+  const char majority[128] =      { 72, 36, 36, 36, 34, 31, 30, 30,
+                                    27, 27, 24, 24, 21, 21, 18, 18,
+                                    15, 15, 12, 12, 10, 10, 10, 10,
+                                    10, 10, 10, 10, 10, 10, 10, 10,
+                                    10, 10, 10, 10, 10, 10, 10, 10,
+                                    10, 10, 10, 10, 10, 10, 10, 10,
+                                    10, 10, 10, 10, 10, 10, 10, 10,
+                                    10, 10, 10, 10, 10, 10, 10, 10,
+                                    10, 10, 10, 10, 10, 10, 10, 10,
+                                    10, 10, 10, 10, 10, 10, 10, 10,
+                                    10, 10, 10, 10, 10, 10, 10, 10,
+                                    10, 10, 10, 10, 10, 10, 10, 10,
+                                    10, 10, 10, 10, 10, 10, 10, 10,
+                                    10, 10, 10, 10, 10, 10, 10, 10,
+                                    10, 10, 10, 10, 10, 10, 10, 10,
+                                    10, 10, 10, 10, 10, 10, 10, 10};
+
 /*
    the following values are for king safety.  The 'temper' array is used
    to scale the number of defects found into some sort of 'sane' score so that
    small pertubations in king safety can produce signficant scoring changes,
    but large pertubations won't cause Crafty to sacrifice pieces.
 */
-  const int temper[64] = 
-    {   0,   5,  20,  32,  48,  56,  72,  96, /*   0-   7 */
-      108, 112, 116, 120, 124, 128, 132, 136, /*   8-  15 */
-      140, 144, 148, 152, 156, 160, 160, 160, /*  16-  23 */
-      160, 160, 160, 160, 160, 160, 160, 160, /*  24-  31 */
-      160, 160, 160, 160, 160, 160, 160, 160, /*  32-  39 */
-      160, 160, 160, 160, 160, 160, 160, 160, /*  40-  47 */
-      160, 160, 160, 160, 160, 160, 160, 160, /*  48-  55 */
-      160, 160, 160, 160, 160, 160, 160, 160};/*  56-  63 */
+  const char temper[64] = 
+    {   0,   4,  15,  24,  36,  42,  54,  72, /*   0-   7 */
+       81,  84,  87,  90,  93,  96,  99, 102, /*   8-  15 */
+      105, 108, 111, 114, 117, 120, 124, 127, /*  16-  23 */
+      127, 127, 127, 127, 127, 127, 127, 127, /*  24-  31 */
+      127, 127, 127, 127, 127, 127, 127, 127, /*  32-  39 */
+      127, 127, 127, 127, 127, 127, 127, 127, /*  47-  47 */
+      127, 127, 127, 127, 127, 127, 127, 127, /*  48-  55 */
+      127, 127, 127, 127, 127, 127, 127, 127};/*  56-  63 */
 /*
    the following array cuts the king safety term down to a value that can
    be used in the king tropism calculation.  this lets the safety of a king
@@ -569,7 +589,7 @@
    numbered elements correspond to safe king positions, while higher-numbered
    elements represent disrupted kingsides.
 */
-  const int ttemper[64] =    { 16, 16, 16, 16, 17, 17, 18, 18, /*   0-   7 */
+  const char ttemper[64] =   { 16, 16, 16, 16, 17, 17, 18, 18, /*   0-   7 */
                                19, 19, 20, 20, 21, 21, 22, 22, /*   8-  15 */
                                23, 23, 24, 24, 25, 25, 26, 26, /*  16-  23 */
                                27, 27, 27, 27, 27, 27, 27, 27, /*  24-  31 */
@@ -583,16 +603,16 @@
    h4 counts as two since two squares in front of the king are now missing
    a pawn shelter.
 */
-  const int missing[8] =         { 0, 1, 2, 3, 4, 5, 6, 7};
+  const char missing[8] =         { 0, 1, 2, 3, 4, 5, 6, 7};
 /*
    penalty for a fully open file in front of the castled king.
 */
-  const int openf[4] =           { 0, 8, 13, 16};
+  const char openf[4] =           { 0, 8, 13, 16};
 /*
    penalty for a half-open (one side's pawn is missing) file in front of
    the castled king.
 */
-  const int hopenf[4] =          { 0, 3, 7, 9};
+  const char hopenf[4] =          { 0, 3, 7, 9};
 /*
    this value controls king safety asymmetry.  0 is fully symmetrical.
    this works by modifying the king safety scores for the opponent by
@@ -657,7 +677,7 @@
                                    1, 0, 1, 0, 1, 0, 1, 0,
                                    0, 1, 0, 1, 0, 1, 0, 1 };
 
-  const int b_n_mate_dark_squares[64] = 
+  const char b_n_mate_dark_squares[64] = 
                              { 100,  90,  80,  70,  60,  50,  40,  30,
                                 90,  80,  70,  60,  50,  40,  30,  40,
                                 80,  70,  60,  50,  40,  30,  40,  50,
@@ -667,7 +687,7 @@
                                 40,  30,  40,  50,  60,  70,  80,  90,
                                 30,  40,  50,  60,  70,  80,  90, 100};
 
-  const int b_n_mate_light_squares[64] =
+  const char b_n_mate_light_squares[64] =
                               { 30,  40,  50,  60,  70,  80,  90, 100,
                                 40,  30,  40,  50,  60,  70,  80,  90,
                                 50,  40,  30,  40,  50,  60,  70,  80,
@@ -677,7 +697,7 @@
                                 90,  80,  70,  60,  50,  40,  30,  40,
                                100,  90,  80,  70,  60,  50,  40,  30};
 
-  const int mate[64] =        {100, 96, 93, 90, 90, 93, 96,100,
+  const char mate[64] =       {100, 96, 93, 90, 90, 93, 96,100,
                                 96, 80, 70, 60, 60, 70, 80, 96,
                                 93, 70, 60, 50, 50, 60, 70, 93,
                                 90, 60, 50, 40, 40, 50, 60, 90,
@@ -785,7 +805,7 @@
                                   0, BISHOP_VALUE,ROOK_VALUE,QUEEN_VALUE};
 
 #if !defined(COMPACT_ATTACKS)
-  int       bishop_shift_rl45[64] = { 63, 61, 58, 54, 49, 43, 36, 28,
+  char      bishop_shift_rl45[64] = { 63, 61, 58, 54, 49, 43, 36, 28,
                                       61, 58, 54, 49, 43, 36, 28, 21,
                                       58, 54, 49, 43, 36, 28, 21, 15,
                                       54, 49, 43, 36, 28, 21, 15, 10,
@@ -794,7 +814,7 @@
                                       36, 28, 21, 15, 10,  6,  3,  1,
                                       28, 21, 15, 10,  6,  3,  1,  0 };
 
-  int       bishop_shift_rr45[64] = { 28, 36, 43, 49, 54, 58, 61, 63,
+  char      bishop_shift_rr45[64] = { 28, 36, 43, 49, 54, 58, 61, 63,
                                       21, 28, 36, 43, 49, 54, 58, 61,
                                       15, 21, 28, 36, 43, 49, 54, 58,
                                       10, 15, 21, 28, 36, 43, 49, 54,

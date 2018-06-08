@@ -21,7 +21,6 @@
 ********************************************************************************
 */
 int Option(TREE *tree) {
-  static int egtbsetup=0;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -32,7 +31,10 @@ int Option(TREE *tree) {
 |                                                          |
  ----------------------------------------------------------
 */
-  nargs=ReadParse(buffer,args," 	;=/");
+  if (StrCnt(buffer,'/') >= 7)
+    nargs=ReadParse(buffer,args," 	;=");
+  else
+    nargs=ReadParse(buffer,args," 	;=/");
   if (!nargs) return(1);
   if (args[0][0] == '#') return(1);
   if (initialized) {
@@ -52,7 +54,7 @@ int Option(TREE *tree) {
 |                                                          |
  ----------------------------------------------------------
 */
-  if (strchr(buffer,'!')) {
+  if (buffer[0] == '!') {
     system(strchr(buffer,'!')+1);
   }
 /*
@@ -661,7 +663,7 @@ int Option(TREE *tree) {
  ----------------------------------------------------------
 */
   else if (OptionMatch("egtb",*args)) {
-    if (!egtbsetup) {
+    if (!EGTB_setup) {
       Print(128,"EGTB access enabled\n");
       Print(128,"using tbpath=%s\n",tb_path);
       EGTBlimit=IInitializeTb(tb_path);
@@ -676,11 +678,12 @@ int Option(TREE *tree) {
           EGTB_cache=malloc(EGTB_CACHE_DEFAULT);
         }
         else FTbSetCacheSize(EGTB_cache,EGTB_cache_size);
-        egtbsetup=1;
+        EGTB_setup=1;
       }
     }
     else {
-      if (nargs==2) EGTBlimit=Min(atoi(args[1]),5);
+      if (nargs==1 || !strcmp(args[1],"!")) EGTBPV(tree,wtm);
+      else if (nargs==2) EGTBlimit=Min(atoi(args[1]),5);
     }
   }
 /*
@@ -1176,8 +1179,7 @@ int Option(TREE *tree) {
       for (i=0;i<pawn_hash_table_size;i++) {
         (pawn_hash_table+i)->key=0;
         (pawn_hash_table+i)->p_score=0;
-        (pawn_hash_table+i)->black_protected=0;
-        (pawn_hash_table+i)->white_protected=0;
+        (pawn_hash_table+i)->protected=0;
         (pawn_hash_table+i)->black_defects_k=0;
         (pawn_hash_table+i)->black_defects_q=0;
         (pawn_hash_table+i)->white_defects_k=0;
@@ -1185,6 +1187,8 @@ int Option(TREE *tree) {
         (pawn_hash_table+i)->passed_w=0;
         (pawn_hash_table+i)->passed_w=0;
         (pawn_hash_table+i)->outside=0;
+        (pawn_hash_table+i)->candidates_w=0;
+        (pawn_hash_table+i)->candidates_b=0;
       }
     }
     if (pawn_hash_table_size*sizeof(PAWN_HASH_ENTRY) < 1<<20)
@@ -2539,7 +2543,7 @@ int Option(TREE *tree) {
             EGTB_cache=malloc(EGTB_CACHE_DEFAULT);
           }
           else FTbSetCacheSize(EGTB_cache,EGTB_cache_size);
-          egtbsetup=1;
+          EGTB_setup=1;
         }
       }
     }
@@ -2562,7 +2566,7 @@ int Option(TREE *tree) {
               EGTB_cache=malloc(EGTB_CACHE_DEFAULT);
             }
             else FTbSetCacheSize(EGTB_cache,EGTB_cache_size);
-            egtbsetup=1;
+            EGTB_setup=1;
           }
         }
       }
@@ -3110,8 +3114,8 @@ int Option(TREE *tree) {
             if (output_file)
               fprintf(output_file,"%c",empty[nempty]);
             else
-              sprintf(initial_position+strlen(initial_position),"%c",
-                      empty[nempty]);
+                sprintf(initial_position+strlen(initial_position),"%c",
+                        empty[nempty]);
             nempty=0;
           }
           if (output_file)
@@ -3122,10 +3126,18 @@ int Option(TREE *tree) {
         }
         else nempty++;
       }
-      if (output_file)
-        fprintf(output_file,"/");
-      else
-        sprintf(initial_position+strlen(initial_position),"%c",'/');
+      if (empty[nempty]) {
+        if (output_file)
+          fprintf(output_file,"%c",empty[nempty]);
+        else
+          sprintf(initial_position+strlen(initial_position),"%c",empty[nempty]);
+      }
+      if (rank != RANK1) {
+        if (output_file)
+          fprintf(output_file,"/");
+        else
+          sprintf(initial_position+strlen(initial_position),"/");
+      }
     }
     if (output_file)
       fprintf(output_file," %c ",(wtm)?'w':'b');
@@ -3236,6 +3248,24 @@ int Option(TREE *tree) {
     over=0;
     strcpy(buffer,"savepos *");
     (void) Option(tree);
+    EGTBPV(tree,wtm);
+  }
+  else if (StrCnt(*args,'/') > 3) {
+    if (thinking || pondering) return(2);
+    nargs=ReadParse(buffer,args," 	;=");
+    SetBoard(nargs,args,0);
+    move_number=1;
+    if (!wtm) {
+      wtm=1;
+      Pass();
+    }
+    ponder_move=0;
+    last_pv.pathd=0;
+    last_pv.pathl=0;
+    over=0;
+    strcpy(buffer,"savepos *");
+    (void) Option(tree);
+    EGTBPV(tree,wtm);
   }
 /*
  ----------------------------------------------------------
@@ -3748,8 +3778,15 @@ int Option(TREE *tree) {
       display_options&=4095-1-2-4-8-16-32-128;
       ansi=0;
       printf("\n");
-      printf("kibitz Hello from Crafty v%s! (%d cpus)\n",version,CPUS);
-      printf("tellics set 1 Crafty v%s (%d cpus)\n",version,CPUS);
+#if defined(SMP)
+      printf("tellics set 1 Crafty v%s (%d cpus)\n",
+             version,Max(1,max_threads));
+      printf("kibitz Hello from Crafty v%s! (%d cpus)\n",
+             version,Max(1,max_threads));
+#else
+      printf("tellics set 1 Crafty v%s\n",version);
+      printf("kibitz Hello from Crafty v%s!\n",version);
+#endif
       fflush(stdout);
     }
   }

@@ -49,7 +49,7 @@ int PopCnt(register BITBOARD a) {
 }
 
 #else
-#if !defined(USE_ASSEMBLY_B)
+#if (!defined(USE_ASSEMBLY_B) && !defined(ALPHA)) || (defined(ALPHA) && !defined(PopCnt))
 int PopCnt(register BITBOARD a) {
   register int c=0;
 
