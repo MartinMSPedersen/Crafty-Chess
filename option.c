@@ -1841,8 +1841,10 @@ int Option(TREE *tree) {
     tc_time*=60;
     tc_time_remaining=tc_time;
     tc_secondary_time*=60;
+/*
     if (tc_time > 30000 || tc_increment > 300) whisper=0;
     if (tc_time <= 6000 && tc_increment <= 100) whisper=0;
+*/
   }
 /*
  ----------------------------------------------------------

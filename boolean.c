@@ -62,22 +62,22 @@ int PopCnt(register BITBOARD a) {
 
 int FirstOne(BITBOARD arg1) {
     if (arg1>>48)
-      return (first_ones[arg1>>48]);
+      return (first_one[arg1>>48]);
     if ((arg1>>32)&65535)
-      return (first_ones[(arg1>>32)&65535]+16);
+      return (first_one[(arg1>>32)&65535]+16);
     if ((arg1>>16)&65535)
-      return (first_ones[(arg1>>16)&65535]+32);
-    return (first_ones[arg1&65535]+48);
+      return (first_one[(arg1>>16)&65535]+32);
+    return (first_one[arg1&65535]+48);
 }
   
 int LastOne(BITBOARD arg1) {
     if (arg1&65535)
-      return (last_ones[arg1&65535]+48);
+      return (last_one[arg1&65535]+48);
     if ((arg1>>16)&65535)
-      return (last_ones[(arg1>>16)&65535]+32);
+      return (last_one[(arg1>>16)&65535]+32);
     if ((arg1>>32)&65535)
-      return (last_ones[(arg1>>32)&65535]+16);
-    return (last_ones[arg1>>48]);
+      return (last_one[(arg1>>32)&65535]+16);
+    return (last_one[arg1>>48]);
 }
 #endif
 #endif

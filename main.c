@@ -2595,12 +2595,6 @@
 *           ment in how EvaluateKingSafety() is called.  code for "bk"        *
 *           from xboard was somehow lost.  it now provides a book hint.       *
 *                                                                             *
-*   17.4    minor bug with "black" command (extra line from unknown origin)   *
-*           would make "black" command fail to do anything.  minor tweaks to  *
-*           passed pawn scoring again...  and a slight performance improve-   *
-*           ment in how EvaluateKingSafety() is called.  code for "bk"        *
-*           from xboard was somehow lost.  it now provides a book hint.       *
-*                                                                             *
 *   17.5    rewrite of outside passed pawn/pawn majority code.  it is now     *
 *           much faster by using pre-computed bitmaps to recognize the right  *
 *           patterns.                                                         *
@@ -2764,7 +2758,7 @@
 *           has been beefed up a bit to avoid these drawish endings.          *
 *                                                                             *
 *   18.5    minor change to RootMove() to use Quiesce() rather than the more  *
-*           complicated was it was ordering with Evaluate()/EnPrise().  this  *
+*           complicated way it was ordering with Evaluate()/EnPrise().  this  *
 *           is no faster, but it is simpler and eliminated the need for the   *
 *           EnPrise() function totally, making the code a bit smaller.  bug   *
 *           in EvaluateDraws() would let it think that the bishop+wrong rook  *
@@ -2848,8 +2842,15 @@
 *           always stay in the square of one if it has to capture the other.  *
 *           pawn hash signature restored to 64 bits after testing proved that *
 *           32 was producing an unacceptable number of collisions.  search    *
-*           node counter is now 64 bits as well to avoid overflows.  but in   *
+*           node counter is now 64 bits as well to avoid overflows.  bug in   *
 *           the outside passed pawn code fixed (bad mask).                    *
+*                                                                             *
+*   18.14   Minor bug in ResignOrDraw() code caused Crafty to not offer draws *
+*           although it would accept them when appropriate.  Rook vs Minor    *
+*           is now evaluated as "neither side can win" an oversight in the    *
+*           EvaluateWinner() code.  minor bug in ResignOrDraw() would fail to *
+*           offer draws due to the +0.01/-0.01 draw scores returned by the    *
+*           EGTB probe code.                                                  *
 *                                                                             *
 *******************************************************************************
 */
@@ -2996,8 +2997,10 @@ int main(int argc, char **argv) {
     if (input_stream == stdin) break;
   }
   input_stream=stdin;
+#if defined(UNIX)
   if (xboard) signal(SIGINT,SIG_IGN);
   else signal(SIGINT,SigInt);
+#endif
 #if defined(SMP)
   Print(128,"\nCrafty v%s (%d cpus)\n\n",version,Max(max_threads,1));
   if (ics) printf("*whisper Hello from Crafty v%s! (%d cpus)\n",

@@ -207,7 +207,9 @@ linux-i686:
 linux-i686-elf:
 	$(MAKE) target=LINUX \
 		CC=gcc CXX=g++ \
-		CFLAGS='$(CFLAGS) -Wall -pipe -D_REENTRANT -O' \
+		CFLAGS='$(CFLAGS) -Wall -pipe -D_REENTRANT -march=i686 -O \
+			-fforce-mem -fomit-frame-pointer \
+			-fno-gcse -mpreferred-stack-boundary=2' \
 		LDFLAGS='$(LDFLAGS)' \
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
 		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST \

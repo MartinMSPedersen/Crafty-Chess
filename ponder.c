@@ -26,7 +26,7 @@
 */
 int Ponder(int wtm) {
   int dalpha=-999999, dbeta=999999, dthreat=0, i, *n_ponder_moves, *mv;
-  int save_move_number;
+  int save_move_number, tlom;
   TREE * const tree=local[0];
 /*
  ----------------------------------------------------------
@@ -146,6 +146,7 @@ int Ponder(int wtm) {
  ----------------------------------------------------------
 */
   MakeMove(tree,0,ponder_move,wtm);
+  tlom=last_opponent_move;
   last_opponent_move=ponder_move;
   if (ChangeSide(wtm))
     *tree->rephead_w++=HashKey;
@@ -164,7 +165,7 @@ int Ponder(int wtm) {
     tree->rephead_w--;
   else
     tree->rephead_b--;
-  last_opponent_move=0;
+  last_opponent_move=tlom;
   UnMakeMove(tree,0,ponder_move,wtm);
 /*
  ----------------------------------------------------------

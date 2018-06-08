@@ -250,6 +250,15 @@
     typedef unsigned long long BITBOARD;
 #  endif
 #endif
+#if defined(NT_i386)
+#   define BMF   "%I64u"
+#   define BMF6  "%6I64u"
+#   define BMF10 "%10I64u"
+#else
+#   define BMF   "%llu"
+#   define BMF6  "%6llu"
+#   define BMF10 "%10llu"
+#endif
 
 #include <time.h>
 #if !defined(CLOCKS_PER_SEC)
@@ -706,7 +715,7 @@ void           TimeSet(int);
 void           UnMakeMove(TREE*, int, int, int);
 int            ValidMove(TREE*, int, int, int);
 void           ValidatePosition(TREE*, int, int, char*);
-void           Whisper(int, int, int, int, int, unsigned int, int, int, char*);
+void           Whisper(int, int, int, int, int, BITBOARD , int, int, char*);
   
 #if defined(HAS_64BITS) || defined(HAS_LONGLONG)
 #  if defined(CRAY1)

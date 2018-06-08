@@ -581,6 +581,7 @@ void EGTBPV(TREE *tree, int wtm) {
 */
   if (!EGTB_setup) return;
   tree->position[1]=tree->position[0];
+  if (WhiteCastle(1)+BlackCastle(1)) return;
   if(!EGTBProbe(tree, 1, wtm, &value)) return;
   t_move_number=move_number;
   if (display_options&64) sprintf(buffer,"%d.",move_number);
@@ -2063,7 +2064,7 @@ void ComputeAttacksAndMobility () {
 ********************************************************************************
 */
 void Whisper(int level,int wtm, int depth,int time,int value,
-             unsigned int nodes, int cpu, int tb_hits, char *pv) {
+             BITBOARD nodes, int cpu, int tb_hits, char *pv) {
   if (!puzzling) {
     char prefix[128];
 
@@ -2157,9 +2158,9 @@ void Whisper(int level,int wtm, int depth,int time,int value,
     value=(wtm)?value:-value;
     if (post && level>1) {
       if (strstr(pv,"book"))
-        printf("	%2d  %5d %7d %6u %s\n",depth,value,time,nodes,pv+10);
+        printf("	%2d  %5d %7d " BMF6 " %s\n",depth,value,time,nodes,pv+10);
       else
-        printf("	%2d  %5d %7d %6u %s\n",depth,value,time,nodes,pv);
+        printf("	%2d  %5d %7d " BMF6 " %s\n",depth,value,time,nodes,pv);
     }
     fflush(stdout);
   }

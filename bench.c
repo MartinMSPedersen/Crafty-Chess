@@ -154,7 +154,7 @@ void Bench(void) {
   total_time_used+=(program_end_time-program_start_time);
 
   printf("\n");
-  Print(4095,"Total nodes: %lld\n", nodes);
+  Print(4095,"Total nodes: " BMF "\n", nodes);
   Print(4095,"Raw nodes per second: %d\n", nodes / (total_time_used / 100));
   Print(4095,"Total elapsed time: %d\n", (total_time_used / 100));
   Print(4095,"SMP time-to-ply measurement: %f\n", (640.0 / (total_time_used / 100)));

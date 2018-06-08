@@ -248,7 +248,7 @@
   unsigned int   max_split_blocks;
   volatile unsigned int   splitting;
 
-# define    VERSION                            "18.13"
+# define    VERSION                            "18.14"
   char      version[6] =                    {VERSION};
   PLAYING_MODE mode =                     normal_mode;
 
@@ -689,9 +689,9 @@
   signed char     white_outpost[64] = { 0, 0, 0, 0, 0, 0, 0, 0,
                                         0, 0, 0, 0, 0, 0, 0, 0,
                                         0, 0, 0, 0, 0, 0, 0, 0,
-                                        0, 0, 0, 6, 6, 0, 0, 0,
-                                        0, 0,12,16,16,12, 0, 0,
-                                        0, 0,12,20,20,12, 0, 0,
+                                        0, 0, 0, 4, 4, 0, 0, 0,
+                                        0, 0, 8,10,10, 8, 0, 0,
+                                        0, 0, 8,12,12, 8, 0, 0,
                                         0, 0, 4, 8, 8, 4, 0, 0,
                                         0, 0, 0, 0, 0, 0, 0, 0 };
 

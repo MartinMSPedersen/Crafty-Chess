@@ -480,7 +480,7 @@ void ValidatePosition(TREE *tree, int ply, int move, char *caller) {
     DisplayChessMove("move=",move);
     DisplayChessBoard(stdout,tree->pos);
     Print(4095,"called from %s, ply=%d\n",caller,ply);
-    Print(4095,"node=%lld\n",tree->nodes_searched);
+    Print(4095,"node=" BMF "\n",tree->nodes_searched);
     Print(4095,"active path:\n");
     for (i=1;i<=ply;i++)
       DisplayChessMove("move=",move);

@@ -381,12 +381,12 @@ int Iterate(int wtm, int search_type, int root_list_done) {
         Print(4095,"       move       nodes      hi/low\n");
         for (i=0;i<n_root_moves;i++) {
           total_nodes+=root_moves[i].nodes;
-          Print(4095," %10s  %10llu       %d   %d\n",
+          Print(4095," %10s  " BMF10 "       %d   %d\n",
             OutputMove(tree,root_moves[i].move,1,wtm),
                        root_moves[i].nodes,
                        (root_moves[i].status&2)>0,(root_moves[i].status&1)>0);
         }
-        Print(256,"      total  %10llu\n",total_nodes);
+        Print(256,"      total  " BMF10 "\n",total_nodes);
       }
       for (i=0;i<n_root_moves;i++) root_moves[i].nodes=0;
       if (end_time-start_time > 10)
@@ -449,14 +449,14 @@ int Iterate(int wtm, int search_type, int root_list_done) {
       material=Material/PAWN_VALUE;
       Print(8,"              time=%s  cpu=%d%%  mat=%d",
             DisplayTimeWhisper(end_time-start_time), cpu_percent, material); 
-      Print(8,"  n=%llu", tree->nodes_searched);
+      Print(8,"  n=" BMF "\n", tree->nodes_searched);
       Print(8,"  fh=%u%%", (int) ((BITBOARD) tree->fail_high_first*100/(BITBOARD) tree->fail_high));
       Print(8,"  nps=%dk\n", nodes_per_second/1000);
       Print(16,"              ext-> chk=%d cap=%d pp=%d 1rep=%d mate=%d\n",
             tree->check_extensions_done, tree->recapture_extensions_done,
             tree->passed_pawn_extensions_done, tree->one_reply_extensions_done,
             tree->mate_extensions_done);
-      Print(16,"              predicted=%d  nodes=%llu  evals=%u\n", 
+      Print(16,"              predicted=%d  nodes=" BMF "  evals=%u\n", 
              predicted, tree->nodes_searched, tree->evaluations);
       Print(16,"              endgame tablebase-> probes done=%d  successful=%d\n",
             tree->egtb_probes, tree->egtb_probes_successful);

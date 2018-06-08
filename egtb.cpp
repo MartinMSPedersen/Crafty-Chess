@@ -5,6 +5,10 @@
 #if defined(SMP) && defined(MUTEX)
 #include <pthread.h>
 #endif
+#if defined(_WIN32)
+#include <windows.h>
+#endif
+
 
 #define T41_INCLUDE
 #define T33_INCLUDE
@@ -3753,8 +3757,6 @@ static bool FRegisterTb
 // File mapping - Win32 code only
 
 #if defined (_WIN32)
-
-#include <windows.h>
 
 static BYTE * PbMapFileForRead
 	(

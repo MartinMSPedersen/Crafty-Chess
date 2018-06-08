@@ -124,9 +124,9 @@ int TimeCheck(TREE *tree, int abort) {
   if (pondering || analyze_mode) return(0);
   if (time_used > absolute_time_limit) return(1);
   if (easy_move && !search_time_limit) {
-    if (time_limit>100 && time_used<time_limit/3) return (0);
+    if (time_limit>100 && time_used>=time_limit/3) return (1);
   }
-  else if (time_used < time_limit) return(0);
+  if (time_used < time_limit) return(0);
   if (search_time_limit) return(1);
 /*
  ----------------------------------------------------------

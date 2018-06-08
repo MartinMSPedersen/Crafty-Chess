@@ -120,6 +120,7 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
  ----------------------------------------------------------
 */
   if (ply<=iteration_depth && TotalPieces<=EGTB_use &&
+      WhiteCastle(ply)+BlackCastle(ply)==0 &&
       (CaptureOrPromote(tree->current_move[ply-1]) || ply<3)) {
     int egtb_value;
     tree->egtb_probes++;

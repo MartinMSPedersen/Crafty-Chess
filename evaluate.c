@@ -35,8 +35,15 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
 *                                                                    *
 **********************************************************************
 */
-  if (TotalWhitePieces<9 && TotalBlackPieces<9)
+  if (TotalWhitePieces<9 && TotalBlackPieces<9) {
     can_win=EvaluateWinner(tree);
+/*
+    if (can_win & 1) {
+      printf("\n\n-----------------white can win this:\n");
+      DisplayChessBoard(stdout,tree->pos);
+    }
+*/
+  }
   if (can_win == 0) return(DrawScore(wtm));
   score=EvaluateMaterial(tree);
 #ifdef DEBUGEV
@@ -730,22 +737,16 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
 */
     if (128>>file&tree->pawn_score.passed_w) {
       register const int pawnsq=LastOne(WhitePawns&file_mask[file]);
-      register const int rbp=(AttacksFile(square)&SetMask(pawnsq)) != 0;
-      if (rbp) {
-        if (pawnsq > square) {
-          if (!(BlackPieces&SetMask(pawnsq+8)))
-            score+=ROOK_BEHIND_PASSED_PAWN;
-        }
-        else score-=ROOK_BEHIND_PASSED_PAWN>>1;
+      if (square < pawnsq) {
+        if (!(BlackPieces&SetMask(pawnsq+8)))
+          score+=ROOK_BEHIND_PASSED_PAWN;
+        else
+          score+=ROOK_BEHIND_PASSED_PAWN>>1;
       }
     }
     if (128>>file&tree->pawn_score.passed_b) {
       register const int pawnsq=FirstOne(BlackPawns&file_mask[file]);
-      register const int rbp=(AttacksFile(square)&SetMask(pawnsq)) != 0;
-      if (rbp) {
-        if (pawnsq < square) score+=ROOK_BEHIND_PASSED_PAWN;
-        else score-=ROOK_BEHIND_PASSED_PAWN>>1;
-      }
+      if (pawnsq < square) score+=ROOK_BEHIND_PASSED_PAWN;
     }
 /*
  ----------------------------------------------------------
@@ -841,24 +842,18 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
 |                                                          |
  ----------------------------------------------------------
 */
-    if ((128>>file)&tree->pawn_score.passed_b) {
+    if (128>>file&tree->pawn_score.passed_b) {
       register const int pawnsq=FirstOne(BlackPawns&file_mask[file]);
-      register const int rbp=(AttacksFile(square)&SetMask(pawnsq)) != 0;
-      if (rbp) {
-        if (pawnsq < square) {
-          if (!(WhitePieces&SetMask(pawnsq-8)))
-            score-=ROOK_BEHIND_PASSED_PAWN;
-        }
-        else score+=ROOK_BEHIND_PASSED_PAWN>>1;
+      if (square > pawnsq) {
+        if (!(WhitePieces&SetMask(pawnsq-8)))
+          score-=ROOK_BEHIND_PASSED_PAWN;
+        else
+          score-=ROOK_BEHIND_PASSED_PAWN>>1;
       }
     }
-    if ((128>>file)&tree->pawn_score.passed_w) {
+    if (128>>file&tree->pawn_score.passed_w) {
       register const int pawnsq=LastOne(WhitePawns&file_mask[file]);
-      register const int rbp=(AttacksFile(square)&SetMask(pawnsq)) != 0;
-      if (rbp) {
-        if (pawnsq > square) score-=ROOK_BEHIND_PASSED_PAWN;
-        else score+=ROOK_BEHIND_PASSED_PAWN>>1;
-      }
+      if (pawnsq > square) score-=ROOK_BEHIND_PASSED_PAWN;
     }
 /*
  ----------------------------------------------------------
@@ -3432,5 +3427,17 @@ int EvaluateWinner(TREE *tree) {
       TotalWhitePieces-TotalBlackPieces==3) can_win&=2;
   if (TotalBlackPawns==0 && TotalBlackPieces<=6 &&
       TotalBlackPieces-TotalWhitePieces==3) can_win&=1;
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   if one side has only a rook and the other side has one |
+|   minor piece, neither side can win.                     |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  if (TotalWhitePawns+TotalBlackPawns==0) {
+    if (TotalWhitePieces==5 && TotalBlackPieces==3) can_win=0;
+    if (TotalWhitePieces==3 && TotalBlackPieces==5) can_win=0;
+  }
   return(can_win);
 }

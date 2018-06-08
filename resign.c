@@ -4,7 +4,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 06/05/98 */
+/* last modified 03/11/02 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -22,7 +22,7 @@
 ********************************************************************************
 */
 void ResignOrDraw(TREE *tree, int value) {
-  int returnv=0;
+  int result=0;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -31,7 +31,7 @@ void ResignOrDraw(TREE *tree, int value) {
 |                                                          |
  ----------------------------------------------------------
 */
-  if(Drawn(tree,value) == 1) returnv=2;
+  if(Drawn(tree,value) == 1) result=2;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -52,10 +52,10 @@ void ResignOrDraw(TREE *tree, int value) {
   if ((tc_increment > 200) || (tc_time_remaining_opponent >= 3000)) {
     if (resign) {
       if (value < -(MATE-15)) {
-        if (++resign_counter >= resign_count) returnv=1;
+        if (++resign_counter >= resign_count) result=1;
       }
       else if (value<-resign*100 && value>-(MATE-300)) {
-        if (++resign_counter >= resign_count) returnv=1;
+        if (++resign_counter >= resign_count) result=1;
       }
       else resign_counter=0;
     }
@@ -63,7 +63,7 @@ void ResignOrDraw(TREE *tree, int value) {
 /*
  ----------------------------------------------------------
 |                                                          |
-|   if the value is exactly equal to the draw score, then  |
+|   if the value is almost equal to the draw score, then   |
 |   crafty should offer the opponent a draw.  note that  . |
 |   it is necessary that the draw score occur on exactly   |
 |   <draw_count> moves in a row before making the offer.   |
@@ -74,10 +74,10 @@ void ResignOrDraw(TREE *tree, int value) {
  ----------------------------------------------------------
 */
   if ((tc_increment > 200) || (tc_time_remaining_opponent >= 3000)) {
-    if (value==DrawScore(wtm) && moves_out_of_book>3) {
+    if (abs(abs(value)-abs(DrawScore(wtm)))<2 && moves_out_of_book>3) {
       if (++draw_counter >= draw_count) {
         draw_counter=0;
-        returnv=3;
+        result=2;
       }
     }
     else draw_counter=0;
@@ -91,7 +91,7 @@ void ResignOrDraw(TREE *tree, int value) {
 |                                                          |
  ----------------------------------------------------------
 */
-  if (returnv == 1) {
+  if (result == 1) {
     int val=(crafty_is_white)?-300:300;
     LearnBook(tree,crafty_is_white,val,0,1,2);
     if (xboard) Print(4095,"tellics resign\n");
@@ -104,7 +104,7 @@ void ResignOrDraw(TREE *tree, int value) {
       strcpy(pgn_result,"1-0");
     }
   }
-  if (returnv == 2) {
+  if (result == 2) {
     if (!ics && !xboard) Print(4095,"\nI offer a draw.\n\n");
     else if (xboard) Print(4095,"offer draw\n");
     else Print(4095,"\n*draw\n");
