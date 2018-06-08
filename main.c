@@ -5,9 +5,6 @@
 #  include <pwd.h>
 #  include <sys/types.h>
 #endif
-#if defined(NUMA) && defined(UNIX)
-#  include <numa.h>
-#endif
 #include <signal.h>
 /* last modified 02/24/14 */
 /*
@@ -380,7 +377,7 @@
  *           recursively called, avoiding the MakeMove() work only to          *
  *           discover that the resulting position won't be searched further.   *
  *                                                                             *
- *    5.4    New Swap() function that now understands indirect attacks through *
+ *    5.4    New SEE() function that now understands indirect attacks through  *
  *           the primary attacking piece(s).  This corrects a lot of sloppy    *
  *           move ordering as well as make the "futility" cutoffs added in     *
  *           in version 5.3 much more reliable.                                *
@@ -394,7 +391,7 @@
  *    5.6    Improved move ordering by using the old "killer move" idea.  An   *
  *           additional advantage is that the killers can be tried before      *
  *           generating any moves (after the captures.)  Quiescence now only   *
- *           includes "safe" checks (using Swap() to determine if it is a safe *
+ *           includes "safe" checks (using SEE() to determine if it is a safe  *
  *           checking move.                                                    *
  *                                                                             *
  *    5.7    King safety now "hates" a pawn at b3/g3 (white) or b6/g6 (black)  *
@@ -637,10 +634,10 @@
  *           Makefile, extract the new source, copy in your makefile and you   *
  *           will be ready, except for those rare occasions where I add a new  *
  *           source module.  Other changes are performance tweaks.  One is a   *
- *           simple trick to order captures while avoiding Swap() if possible. *
+ *           simple trick to order captures while avoiding SEE() if possible.  *
  *           If the captured piece is more valuable than the capturing piece,  *
  *           we can simply use the difference (pessimistic value) rather than  *
- *           calling Swap() since this pessimistic value is still > 0.  Other  *
+ *           calling SEE() since this pessimistic value is still > 0.  Other   *
  *           tweaks to the various Next_*() routines to avoid a little un-     *
  *           necessary work.                                                   *
  *                                                                             *
@@ -921,7 +918,7 @@
  *           trapped on one of the four corner squares, much like a bishop     *
  *           trapped at a2/a7/h2/h7.  If a knight is on a corner square, and   *
  *           neither of the two potential flight squares are safe (checked by  *
- *           Swap()) then a large penalty is given.  This was done to avoid    *
+ *           SEE()) then a large penalty is given.  This was done to avoid     *
  *           positions where Crafty would give up a piece to fork the king and *
  *           rook at (say) c7, and pick up the rook at a8 and think it was an  *
  *           exchange ahead, when often the knight was trapped and it was      *
@@ -1649,7 +1646,7 @@
  *           total number of pieces on the board, as it's much faster to inc   *
  *           and dec that value rather than count 1 bits.  Tweaks to MakeMove  *
  *           and UnmakeMove to make things a couple of percent faster, but a   *
- *           whole lot cleaner.  Ditto for Swap and Quiesce.  More speed, and  *
+ *           whole lot cleaner.  Ditto for SEE and Quiesce.  More speed, and   *
  *           cleaner code.  Outside passed pawn scored scaled down except when *
  *           the opponent has no pieces at all.  "Lazy eval" cleaned up.  We   *
  *           now have two early exits, one before king safety and one after    *
@@ -1670,7 +1667,7 @@
  *           Serious book bug fixed.  Bookup() was not counting wins and       *
  *           losses correctly, a bug introduced to make small.pgn work. Minor  *
  *           bug in the "trapped bishop" (a2/h2/a7/h7) code fixed.  Minor bug  *
- *           in Swap() also fixed (early exit that was not safe in rare cases.)*
+ *           in SEE() also fixed (early exit that was not safe in rare cases.) *
  *                                                                             *
  *   11.18   EvaluatePawns() modified to recognize that if there are two white *
  *           pawns "rammed" by black pawns at (say) c4/c5 and e4/e5, then any  *
@@ -3520,7 +3517,7 @@
  *                                                                             *
  *   22.0    Redesign of the data structures completed so that Crafty will no  *
  *           longer have duplicated code for wtm and btm cases.  This has      *
- *           already resulted in a rewrite of movgen(), swap(), make() and     *
+ *           already resulted in a rewrite of movgen(), SEE(), Make() and      *
  *           Unmake() and cut that code size by almost exactly 50%. The result *
  *           has been slightly faster speeds, but also the future benefits     *
  *           will be enormous by eliminating a lot of debugging caused by the  *
@@ -3732,7 +3729,7 @@
  *           pruning margins (tuned on the cluster) where anytime the depth is *
  *           less than "pruning_depth" we try the futility test.  If the test  *
  *           succeeds, that move is discarded and not searched at all.  Move   *
- *           ordering code modified slightly to call Swap() fewer times if the *
+ *           ordering code modified slightly to call SEE() fewer times if the  *
  *           goodness of the capture can still be accurately assessed without  *
  *           the call.  Hash table has been changed to use a bucket of 4       *
  *           entries similar to a 4-way set associative cache.  When a store   *
@@ -4193,6 +4190,22 @@
  *           game move numbers in the PV.  Penalty for pawns on same color as  *
  *           bishop now only applies when there is one bishop.                 *
  *                                                                             *
+ *    25.0.1 Cleanup of NextMove() plus a minor ordering bug fix that would    *
+ *           skip counter moves at ply = 2. Added NUMA code to force the hash  *
+ *           tables to be spread across the numa nodes as equally as possible  *
+ *           rather than all of the data sitting on just onenode.  This makes  *
+ *           one specific user policy important.  BEFORE you set the hash size *
+ *           for any of the four hash tables, you should ALWAYS set the max    *
+ *           threads limit first, so that the NUMA trick works correctly.  Of  *
+ *           course, if you do not use -DAFFINITY this is all irrelevant.  The *
+ *           -DNUMA option has been removed.  I no longer use any libnuma      *
+ *           routines.  A new "smpnuma" command is now used to enable/disable  *
+ *           NUMA mode (which really only affects how the hash tables are      *
+ *           cleared, all the other NUMA code works just fine no matter        *
+ *           whether this is enabled or disabled.  Fixed a bug with the xboard *
+ *           memory command that could overflow and cause preposterous malloc  *
+ *           requests.                                                         *
+ *                                                                             *
  *******************************************************************************
  */
 int main(int argc, char **argv) {
@@ -4239,12 +4252,8 @@ int main(int argc, char **argv) {
  */
   AlignedMalloc((void *) ((void *) &tree), 2048, (size_t) sizeof(TREE));
   block[0] = tree;
-  tree->parent = 0;
-  tree->stop = 0;
-  tree->joinable = 0;
+  memset((void *) block[0], 0, sizeof(TREE));
   tree->ply = 1;
-  tree->nprocs = 0;
-  tree->thread_id = 0;
   input_stream = stdin;
   for (i = 0; i < 512; i++)
     args[i] = (char *) malloc(256);
@@ -4294,23 +4303,6 @@ int main(int argc, char **argv) {
       if (input_stream == stdin)
         break;
     }
-/*
- ************************************************************
- *                                                          *
- *  If NUMA is enabled, report on the current machine       *
- *  configuration.                                          *
- *                                                          *
- ************************************************************
- */
-#if defined(NUMA) && defined(UNIX)
-  if (numa_available() >= 0) {
-    unsigned long cpus[8];
-
-    numa_node_to_cpus(0, cpus, 64);
-    Print(32, "\nMachine is NUMA, %d nodes (%d cpus/node)\n\n",
-        numa_max_node() + 1, PopCnt(cpus[0]));
-  }
-#endif
 /*
  ************************************************************
  *                                                          *

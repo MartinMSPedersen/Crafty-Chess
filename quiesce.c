@@ -1,6 +1,6 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 10/09/15 */
+/* last modified 01/10/16 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -22,7 +22,7 @@
  *                                                                             *
  *   (3) When we get ready to actually search each capture, we analyze each    *
  *   move to see if it appears reasonable.  Small pieces can capture larger    *
- *   ones safely, ditto for equal exchanges.  For the rest, we use Swap() to   *
+ *   ones safely, ditto for equal exchanges.  For the rest, we use SEE() to    *
  *   compute the SEE score.  If this is less than zero, we do not search this  *
  *   move at all to avoid wasting time, since a losing capture rarely helps    *
  *   improve the score in the q-search.  The goal here is to find a capture    *
@@ -54,7 +54,7 @@ int Quiesce(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta,
   if (ply >= MAXPLY - 1)
     return beta;
 #if defined(NODES)
-  if (--temp_search_nodes <= 0) {
+  if (search_nodes && --temp_search_nodes <= 0) {
     abort_search = 1;
     return 0;
   }
@@ -99,14 +99,8 @@ int Quiesce(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta,
  */
   value = Evaluate(tree, ply, wtm, alpha, beta);
 #if defined(TRACE)
-  if (ply <= trace_level) {
-    if (!checks)
-      Trace(tree, ply, value, wtm, alpha, beta, "Quiesce", serial, EVALUATION,
-          0);
-    else
-      Trace(tree, ply, value, wtm, alpha, beta, "Quiesce+checks", serial,
-          EVALUATION, 0);
-  }
+  if (ply <= trace_level)
+    Trace(tree, ply, value, wtm, alpha, beta, "Quiesce", serial, EVALUATION, 0);
 #endif
   if (value > alpha) {
     if (value >= beta)
@@ -127,10 +121,10 @@ int Quiesce(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta,
  *                                                          *
  *  Note that later we use the value of the capturing       *
  *  piece, the value of the captured piece, and possibly    *
- *  Swap() to exclude captures that appear to lose          *
- *  material, but we delay expending this effort as long as *
- *  possible, since beta cutoffs make it unnecessary to     *
- *  search all of these moves anyway.                       *
+ *  SEE() to exclude captures that appear to lose material, *
+ *  but we delay expending this effort as long as possible, *
+ *  since beta cutoffs make it unnecessary to search all of *
+ *  these moves anyway.                                     *
  *                                                          *
  ************************************************************
  */
@@ -148,7 +142,6 @@ int Quiesce(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta,
     return value;
   }
   NextSort(tree, ply);
-  tree->next_status[ply].last = tree->last[ply - 1];
 /*
  ************************************************************
  *                                                          *
@@ -168,7 +161,7 @@ int Quiesce(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta,
  *  opponent has no piece to catch it.                      *
  *                                                          *
  *  (3) Otherwise, If the capturing piece is more valuable  *
- *  than the captured piece, we use Swap() to determine if  *
+ *  than the captured piece, we use SEE() to determine if   *
  *  the capture is losing or not so that we don't search    *
  *  hopeless moves.                                         *
  *                                                          *
@@ -179,17 +172,12 @@ int Quiesce(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta,
     if (pcval[Piece(tree->curmv[ply])] > pcval[Captured(tree->curmv[ply])] &&
         TotalPieces(Flip(wtm), occupied)
         - p_vals[Captured(tree->curmv[ply])] > 0 &&
-        Swap(tree, wtm, tree->curmv[ply]) < 0)
+        SEE(tree, wtm, tree->curmv[ply]) < 0)
       continue;
 #if defined(TRACE)
-    if (ply <= trace_level) {
-      if (!checks)
-        Trace(tree, ply, 0, wtm, alpha, beta, "Quiesce", serial, CAPTURES,
-            next - tree->last[ply - 1] + 1);
-      else
-        Trace(tree, ply, 0, wtm, alpha, beta, "Quiesce+checks", serial,
-            CAPTURES, next - tree->last[ply - 1] + 1);
-    }
+    if (ply <= trace_level)
+      Trace(tree, ply, 0, wtm, alpha, beta, "Quiesce", serial, CAPTURES,
+          next - tree->last[ply - 1] + 1);
 #endif
     MakeMove(tree, ply, wtm, tree->curmv[ply]);
     tree->nodes_searched++;
@@ -219,7 +207,7 @@ int Quiesce(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta,
  *  with no further searching.                              *
  *                                                          *
  *  Generate just the moves (non-captures) that give check  *
- *  and search the ones that Swap() says are safe.  Subtle  *
+ *  and search the ones that SEE() says are safe.  Subtle   *
  *  trick:  we discard the captures left over from the      *
  *  above search since we labeled them "losing moves."      *
  *                                                          *
@@ -238,7 +226,7 @@ int Quiesce(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta,
  */
     for (next = tree->last[ply - 1]; next < tree->last[ply]; next++) {
       tree->curmv[ply] = Move(*next);
-      if (Swap(tree, wtm, tree->curmv[ply]) >= 0) {
+      if (SEE(tree, wtm, tree->curmv[ply]) >= 0) {
 #if defined(TRACE)
         if (ply <= trace_level)
           Trace(tree, ply, 0, wtm, alpha, beta, "Quiesce+checks", serial,
@@ -278,7 +266,7 @@ int Quiesce(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta,
   return alpha;
 }
 
-/* last modified 09/21/14 */
+/* last modified 01/10/16 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -309,7 +297,7 @@ int QuiesceEvasions(TREE * RESTRICT tree, int ply, int wtm, int alpha,
   if (ply >= MAXPLY - 1)
     return beta;
 #if defined(NODES)
-  if (--temp_search_nodes <= 0) {
+  if (search_nodes && --temp_search_nodes <= 0) {
     abort_search = 1;
     return 0;
   }

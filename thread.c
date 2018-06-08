@@ -379,28 +379,13 @@ int Join(int64_t tid) {
  *******************************************************************************
  */
 void *STDCALL ThreadInit(void *t) {
-  int i, tid = (int64_t) t, which;
-#  if defined(AFFINITY)
-  int64_t k;
-  cpu_set_t cpuset;
-  pthread_t current_thread = pthread_self();
+  int tid = (int64_t) t;
 
-  if (smp_affinity >= 0) {
-    k = (int64_t) tid;
-    CPU_ZERO(&cpuset);
-    CPU_SET(k + smp_affinity, &cpuset);
-    pthread_setaffinity_np(current_thread, sizeof(cpu_set_t), &cpuset);
-  }
-#  endif
+  ThreadAffinity(tid);
 #  if !defined(UNIX)
   ThreadMalloc((uint64_t) tid);
 #  endif
   thread[tid].blocks = 0xffffffffffffffffull;
-  for (i = 0; i < 64; i++) {
-    which = tid * 64 + i + 1;
-    memset((void *) block[which], 0, sizeof(TREE));
-    LockInit(block[which]->lock);
-  }
   Lock(lock_smp);
   initialized_threads++;
   Unlock(lock_smp);
@@ -410,6 +395,33 @@ void *STDCALL ThreadInit(void *t) {
   smp_threads--;
   Unlock(lock_smp);
   return 0;
+}
+
+/* modified 01/08/15 */
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   ThreadAffinity() is called to "pin" a thread to a specific processor.  It *
+ *   is a "noop" (no-operation) if Crafty was not compiled with -DAFFINITY, or *
+ *   if smp_affinity is negative (smpaffinity=-1 disables affinity).  It       *
+ *   simply sets the affinity for the current thread to the requested CPU and  *
+ *   returns.  NOTE:  If hyperthreading is enabled, there is no guarantee that *
+ *   this will work as expected and pin one thread per physical core.  It      *
+ *   depends on how the O/S numbers the SMT cores.                             *
+ *                                                                             *
+ *******************************************************************************
+ */
+void ThreadAffinity(int cpu) {
+#  if defined(AFFINITY)
+  cpu_set_t cpuset;
+  pthread_t current_thread = pthread_self();
+
+  if (smp_affinity >= 0) {
+    CPU_ZERO(&cpuset);
+    CPU_SET(cpu + smp_affinity, &cpuset);
+    pthread_setaffinity_np(current_thread, sizeof(cpu_set_t), &cpuset);
+  }
+#  endif
 }
 
 /* modified 11/04/15 */
@@ -960,7 +972,6 @@ extern void *WinMalloc(size_t, int);
 void ThreadMalloc(int64_t tid) {
   int i;
 
-  thread[tid].blocks = 0xffffffffffffffffull;
   for (i = tid * 64 + 1; i < tid * 64 + 65; i++) {
     if (block[i] == NULL)
       block[i] =

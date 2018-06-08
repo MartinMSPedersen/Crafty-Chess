@@ -900,11 +900,12 @@ int Option(TREE * RESTRICT tree) {
  ************************************************************
  *                                                          *
  *  "hash" command controls the transposition table size.   *
- *  The size can be entered in one of three ways:           *
+ *  The size can be entered in one of four ways:            *
  *                                                          *
  *     hash=nnn  where nnn is in bytes.                     *
  *     hash=nnnK where nnn is in K bytes.                   *
  *     hash=nnnM where nnn is in M bytes.                   *
+ *     hash=nnnG where nnn is in G bytes.                   *
  *                                                          *
  *  the only restriction is that the hash table is computed *
  *  as a perfect power of 2.  Any value that is not a       *
@@ -914,42 +915,43 @@ int Option(TREE * RESTRICT tree) {
  ************************************************************
  */
   else if (OptionMatch("hash", *args)) {
-    size_t new_hash_size;
+    size_t old_hash_size = hash_table_size, new_hash_size;
 
     if (thinking || pondering)
       return 2;
     if (nargs > 1) {
       allow_memory = 0;
-      Print(4095, "Warning--  xboard 'memory' option disabled\n");
+      if (xboard)
+        Print(4095, "Warning--  xboard 'memory' option disabled\n");
       new_hash_size = atoiKMB(args[1]);
       if (new_hash_size < 64 * 1024) {
         printf("ERROR.  Minimum hash table size is 64K bytes.\n");
         return 1;
       }
       hash_table_size = ((1ull) << MSB(new_hash_size)) / 16;
-      AlignedRemalloc((void *) ((void *) &trans_ref), 64,
+      AlignedRemalloc((void *) ((void *) &hash_table), 64,
           hash_table_size * sizeof(HASH_ENTRY));
-      if (!trans_ref) {
+      if (!hash_table) {
         printf("AlignedRemalloc() failed, not enough memory.\n");
         exit(1);
       }
       hash_mask = (hash_table_size - 1) & ~3;
-      InitializeHashTables();
     }
     Print(32, "hash table memory = %s bytes",
         DisplayKMB(hash_table_size * sizeof(HASH_ENTRY), 1));
     Print(32, " (%s entries).\n", DisplayKMB(hash_table_size, 1));
-    InitializeHashTables();
+    InitializeHashTables(old_hash_size != hash_table_size);
   }
 /*
  ************************************************************
  *                                                          *
  *  "phash" command controls the path hash table size. The  *
- *  size can be entered in one of three ways:               *
+ *  size can be entered in one of four ways:                *
  *                                                          *
  *     phash=nnn  where nnn is in bytes.                    *
  *     phash=nnnK where nnn is in K bytes.                  *
  *     phash=nnnM where nnn is in M bytes.                  *
+ *     phash=nnnG where nnn is in G bytes.                  *
  *                                                          *
  *  the only restriction is that the path hash table must   *
  *  have a perfect power of 2 entries.  The value entered   *
@@ -958,8 +960,7 @@ int Option(TREE * RESTRICT tree) {
  ************************************************************
  */
   else if (OptionMatch("phash", *args)) {
-    size_t new_hash_size;
-    int i;
+    size_t old_hash_size = hash_path_size, new_hash_size;
 
     if (thinking || pondering)
       return 2;
@@ -978,12 +979,11 @@ int Option(TREE * RESTRICT tree) {
         hash_path = 0;
       }
       hash_path_mask = (hash_path_size - 1) & ~15;
-      for (i = 0; i < hash_path_size; i++)
-        (hash_path + i)->hash_path_age = -99;
     }
     Print(32, "hash path table memory = %s bytes",
         DisplayKMB(hash_path_size * sizeof(HPATH_ENTRY), 1));
     Print(32, " (%s entries).\n", DisplayKMB(hash_path_size, 1));
+    InitializeHashTables(old_hash_size != hash_path_size);
   }
 /*
  ************************************************************
@@ -993,14 +993,14 @@ int Option(TREE * RESTRICT tree) {
  ************************************************************
  */
   else if (OptionMatch("hashp", *args)) {
-    size_t new_hash_size;
-    int i, side;
+    size_t old_hash_size = pawn_hash_table_size, new_hash_size;
 
     if (thinking || pondering)
       return 2;
     if (nargs > 1) {
       allow_memory = 0;
-      Print(4095, "Warning--  xboard 'memory' option disabled\n");
+      if (xboard)
+        Print(4095, "Warning--  xboard 'memory' option disabled\n");
       new_hash_size = atoiKMB(args[1]);
       if (new_hash_size < 16 * 1024) {
         printf("ERROR.  Minimum pawn hash table size is 16K bytes.\n");
@@ -1015,21 +1015,11 @@ int Option(TREE * RESTRICT tree) {
         exit(1);
       }
       pawn_hash_mask = pawn_hash_table_size - 1;
-      for (i = 0; i < pawn_hash_table_size; i++) {
-        (pawn_hash_table + i)->key = 0;
-        (pawn_hash_table + i)->score_mg = 0;
-        (pawn_hash_table + i)->score_eg = 0;
-        for (side = black; side <= white; side++) {
-          (pawn_hash_table + i)->passed[side] = 0;
-          (pawn_hash_table + i)->defects_k[side] = 0;
-          (pawn_hash_table + i)->defects_m[side] = 0;
-          (pawn_hash_table + i)->defects_q[side] = 0;
-        }
-      }
     }
     Print(32, "pawn hash table memory = %s bytes",
         DisplayKMB(pawn_hash_table_size * sizeof(PAWN_HASH_ENTRY), 1));
     Print(32, " (%s entries).\n", DisplayKMB(pawn_hash_table_size, 1));
+    InitializeHashTables(old_hash_size != pawn_hash_table_size);
   }
 /*
  ************************************************************
@@ -1039,36 +1029,32 @@ int Option(TREE * RESTRICT tree) {
  ************************************************************
  */
   else if (OptionMatch("hashe", *args)) {
-    size_t new_hash_size;
-    int i;
+    size_t old_hash_size = eval_hash_table_size, new_hash_size;
 
     if (thinking || pondering)
       return 2;
     if (nargs > 1) {
       allow_memory = 0;
-      Print(4095, "Warning--  xboard 'memory' option disabled\n");
+      if (xboard)
+        Print(4095, "Warning--  xboard 'memory' option disabled\n");
       new_hash_size = atoiKMB(args[1]);
       if (new_hash_size < 16 * 1024) {
         printf("ERROR.  Minimum eval hash table size is 16K bytes.\n");
         return 1;
       }
-      eval_hash_table_size =
-          1ull << MSB(new_hash_size / sizeof(EVAL_HASH_ENTRY));
+      eval_hash_table_size = 1ull << MSB(new_hash_size / sizeof(uint64_t));
       AlignedRemalloc((void *) ((void *) &eval_hash_table), 64,
-          sizeof(EVAL_HASH_ENTRY) * eval_hash_table_size);
+          sizeof(uint64_t) * eval_hash_table_size);
       if (!eval_hash_table) {
         printf("AlignedRemalloc() failed, not enough memory.\n");
         exit(1);
       }
       eval_hash_mask = eval_hash_table_size - 1;
-      for (i = 0; i < eval_hash_table_size; i++) {
-        (eval_hash_table + i)->key = 0;
-        (eval_hash_table + i)->score = 0;
-      }
     }
     Print(32, "eval hash table memory = %s bytes",
-        DisplayKMB(eval_hash_table_size * sizeof(EVAL_HASH_ENTRY), 1));
+        DisplayKMB(eval_hash_table_size * sizeof(uint64_t), 1));
     Print(32, " (%s entries).\n", DisplayKMB(eval_hash_table_size, 1));
+    InitializeHashTables(old_hash_size != eval_hash_table_size);
   }
 /*
  ************************************************************
@@ -1800,7 +1786,7 @@ int Option(TREE * RESTRICT tree) {
       return 1;
     }
     if (allow_memory) {
-      size = atoi(args[1]) * 1024 * 1024;
+      size = (uint64_t) atoi(args[1]);
       if (size == 0) {
         Print(4095, "ERROR - memory size can not be zero\n");
         return 1;
@@ -1808,12 +1794,10 @@ int Option(TREE * RESTRICT tree) {
       hmemory = (1ull) << MSB(size);
       size &= ~hmemory;
       pmemory = (1ull) << MSB(size);
-      if (pmemory < 1024 * 1024)
-        pmemory = 0;
-      sprintf(buffer, "hash %" PRIu64 "\n", (uint64_t) hmemory);
+      sprintf(buffer, "hash %" PRIu64 "M\n", (uint64_t) hmemory);
       Option(tree);
       if (pmemory) {
-        sprintf(buffer, "hashp %" PRIu64 "\n", (uint64_t) pmemory);
+        sprintf(buffer, "hashp %" PRIu64 "M\n", (uint64_t) pmemory);
         Option(tree);
       }
     } else
@@ -3501,6 +3485,12 @@ int Option(TREE * RESTRICT tree) {
  *   processors are terminated between searches to avoid    *
  *   burning CPU time in the idle loop.                     *
  *                                                          *
+ *   "smpnuma" command enables NUMA mode which distributes  *
+ *   hash tables across all NUMA nodes evenly.  If your     *
+ *   machine is not NUMA, or only has one socket (node) you *
+ *   should set this to zero as it will be slightly more    *
+ *   efficient when you change hash sizes.                  *
+ *                                                          *
  *   "smproot" command is used to enable (1) or disable (0) *
  *   splitting the tree at the root (ply=1).  Splitting at  *
  *   the root is more efficient, but might slow finding the *
@@ -3553,12 +3543,18 @@ int Option(TREE * RESTRICT tree) {
     if (thinking || pondering)
       return 3;
     allow_cores = 0;
-    Print(4095, "Warning--  xboard 'cores' option disabled\n");
+    if (xboard)
+      Print(4095, "Warning--  xboard 'cores' option disabled\n");
     smp_max_threads = atoi(args[1]);
     if (smp_max_threads > CPUS) {
       Print(4095, "ERROR - Crafty was compiled with CPUS=%d.", CPUS);
       Print(4095, "  mt can not exceed this value.\n");
       smp_max_threads = CPUS;
+    }
+    if (smp_max_threads == 1) {
+      Print(4095, "ERROR - max threads can be set to zero (0) to");
+      Print(4095, " disable parallel search, otherwise it must be > 1.\n");
+      smp_max_threads = 0;
     }
     if (smp_max_threads)
       Print(32, "max threads set to %d.\n", smp_max_threads);
@@ -3577,6 +3573,16 @@ int Option(TREE * RESTRICT tree) {
       Print(32, "SMP terminate extra threads when idle.\n");
     else
       Print(32, "SMP keep extra threads spinning when idle.\n");
+  } else if (OptionMatch("smpnuma", *args)) {
+    if (nargs < 2) {
+      printf("usage:  smpnuma 0|1\n");
+      return 1;
+    }
+    smp_numa = atoi(args[1]);
+    if (smp_numa)
+      Print(32, "SMP NUMA mode enabled.\n");
+    else
+      Print(32, "SMP NUMA mode disabled.\n");
   } else if (OptionMatch("smproot", *args)) {
     if (nargs < 2) {
       printf("usage:  smproot 0|1\n");

@@ -19,7 +19,7 @@
  */
 void Initialize() {
   TREE *tree;
-  int i, j, v, major, id;
+  int i, j, v, major, id, node;
 
   tree = block[0];
   for (j = 1; j <= MAX_BLOCKS; j++)
@@ -87,19 +87,19 @@ void Initialize() {
     printf("ERROR, unable to open game history file, exiting\n");
     CraftyExit(1);
   }
-  AlignedMalloc((void *) ((void *) &trans_ref), 64,
+  AlignedMalloc((void *) ((void *) &hash_table), 64,
       sizeof(HASH_ENTRY) * hash_table_size);
   AlignedMalloc((void *) ((void *) &hash_path), 64,
       sizeof(HPATH_ENTRY) * hash_path_size);
   AlignedMalloc((void *) ((void *) &pawn_hash_table), 64,
       sizeof(PAWN_HASH_ENTRY) * pawn_hash_table_size);
   AlignedMalloc((void *) ((void *) &eval_hash_table), 64,
-      sizeof(EVAL_HASH_ENTRY) * eval_hash_table_size);
-  if (!trans_ref) {
+      sizeof(uint64_t) * eval_hash_table_size);
+  if (!hash_table) {
     Print(2048,
         "AlignedMalloc() failed, not enough memory (primary trans/ref table).\n");
     hash_table_size = 0;
-    trans_ref = 0;
+    hash_table = 0;
   }
   if (!pawn_hash_table) {
     Print(2048,
@@ -127,15 +127,7 @@ void Initialize() {
  ************************************************************
  */
 #if (CPUS > 1)
-#  if defined(AFFINITY)
-  cpu_set_t cpuset;
-  pthread_t current_thread = pthread_self();
-  if (smp_affinity >= 0) {
-    CPU_ZERO(&cpuset);
-    CPU_SET(smp_affinity, &cpuset);
-    pthread_setaffinity_np(current_thread, sizeof(cpu_set_t), &cpuset);
-  }
-#  endif
+  ThreadAffinity(smp_affinity);
 #  if !defined(UNIX)
   ThreadMalloc((int) 0);
 #  else
@@ -145,15 +137,23 @@ void Initialize() {
           (size_t) sizeof(TREE));
     }
   }
-  thread[0].blocks = 0xffffffffffffffffull;
   for (i = 1; i < 64; i++) {
     memset((void *) block[i], 0, sizeof(TREE));
     LockInit(block[i]->lock);
   }
+  for (node = 1; node < CPUS; node++) {
+    ThreadAffinity(node);
+    for (i = 0; i < 64; i++) {
+      memset((void *) block[node * 64 + i], 0, sizeof(TREE));
+      LockInit(block[node * 64 + i]->lock);
+    }
+  }
+  ThreadAffinity(smp_affinity);
 #  endif
 #endif
+  thread[0].blocks = 0xffffffffffffffffull;
   initialized_threads++;
-  InitializeHashTables();
+  InitializeHashTables(1);
   InitializeKingSafety();
   InitializeReductions();
 }
@@ -786,32 +786,137 @@ int InitializeGetLogID(void) {
  *   that no old information remains to interefere with a new game or test     *
  *   position.                                                                 *
  *                                                                             *
+ *   Whenever any hash table size is changed, they are initialized by calling  *
+ *   this procedure to make sure that in the case of NUMA hardware, the trick  *
+ *   explained below is always executed.                                       *
+ *                                                                             *
+ *   This code uses the NUMA fix when using MT threads.  It clears size / MT   *
+ *   bytes per cpu, after pinning the current thread to the correct cpu, so    *
+ *   that the data will fault in to the correct NUMA node.  If the size is not *
+ *   perfectly divisible by MT (max threads) it clears the final piece at the  *
+ *   end of each loop.                                                         *
+ *                                                                             *
+ *   Note that if no size has changed, (fault_in = 0) then we skip the NUMA    *
+ *   stuff and just clear the tables, period.                                  *
+ *                                                                             *
  *******************************************************************************
  */
-void InitializeHashTables(void) {
-  int i, side;
+void InitializeHashTables(fault_in) {
+  uint64_t mem_per_node;
+  int node;
 
   transposition_age = 0;
-  if (!trans_ref)
-    return;
-  for (i = 0; i < hash_table_size; i++) {
-    (trans_ref + i)->word1 = 0;
-    (trans_ref + i)->word2 = 0;
-  }
-  for (i = 0; i < hash_path_size; i++)
-    (hash_path + i)->hash_path_age = -99;
-  if (!pawn_hash_table)
-    return;
-  for (i = 0; i < pawn_hash_table_size; i++) {
-    (pawn_hash_table + i)->key = 0;
-    (pawn_hash_table + i)->score_mg = 0;
-    (pawn_hash_table + i)->score_eg = 0;
-    for (side = black; side <= white; side++) {
-      (pawn_hash_table + i)->passed[side] = 0;
-      (pawn_hash_table + i)->defects_k[side] = 0;
-      (pawn_hash_table + i)->defects_m[side] = 0;
-      (pawn_hash_table + i)->defects_q[side] = 0;
+  if (fault_in && smp_numa) {
+/*
+ ************************************************************
+ *                                                          *
+ *  First, initialize the primary transposition/refutation  *
+ *  (hash) table, using the NUMA trick to place part of     *
+ *  the trans/ref on each node of the NUMA system.          *
+ *                                                          *
+ ************************************************************
+ */
+    mem_per_node =
+        hash_table_size * sizeof(HASH_ENTRY) / Max(smp_max_threads, 1);
+    for (node = 0; node < smp_max_threads; node++) {
+      ThreadAffinity(node);
+      memset((void *) hash_table + node * mem_per_node, 0, mem_per_node);
     }
+    ThreadAffinity(0);
+    if (mem_per_node * Max(smp_max_threads,
+            1) < hash_table_size * sizeof(HASH_ENTRY))
+      memset((void *) hash_table + smp_max_threads * mem_per_node, 0,
+          hash_table_size * sizeof(HASH_ENTRY) -
+          mem_per_node * smp_max_threads);
+/*
+ ************************************************************
+ *                                                          *
+ *  Second, initialize the primary hash path table, using   *
+ *  the NUMA trick to place part of the hash path table on  *
+ *  each node of the NUMA system.                           *
+ *                                                          *
+ ************************************************************
+ */
+    mem_per_node =
+        hash_path_size * sizeof(HPATH_ENTRY) / Max(smp_max_threads, 1);
+    for (node = 0; node < smp_max_threads; node++) {
+      ThreadAffinity(node);
+      memset((void *) hash_path + node * mem_per_node, 0, mem_per_node);
+    }
+    ThreadAffinity(1 % Min(1, smp_max_threads));
+    if (mem_per_node * Max(smp_max_threads,
+            1) < hash_path_size * sizeof(HPATH_ENTRY))
+      memset((void *) hash_path + smp_max_threads * mem_per_node, 0,
+          hash_path_size * sizeof(HPATH_ENTRY) -
+          mem_per_node * smp_max_threads);
+/*
+ ************************************************************
+ *                                                          *
+ *  Third, initialize the primary pawn hash table, using    *
+ *  the NUMA trick to place part of the pawn hash table on  *
+ *  each node of the NUMA system.                           *
+ *                                                          *
+ ************************************************************
+ */
+    mem_per_node =
+        pawn_hash_table_size * sizeof(PAWN_HASH_ENTRY) / Max(smp_max_threads,
+        1);
+    for (node = 0; node < smp_max_threads; node++) {
+      ThreadAffinity(node);
+      memset((void *) pawn_hash_table + node * mem_per_node, 0, mem_per_node);
+    }
+    ThreadAffinity(4 % Min(4, smp_max_threads));
+    if (mem_per_node * Max(smp_max_threads,
+            1) < pawn_hash_table_size * sizeof(PAWN_HASH_ENTRY))
+      memset((void *) pawn_hash_table + smp_max_threads * mem_per_node, 0,
+          pawn_hash_table_size * sizeof(PAWN_HASH_ENTRY) -
+          mem_per_node * smp_max_threads);
+/*
+ ************************************************************
+ *                                                          *
+ *  Finally, initialize the eval hash table, using the NUMA *
+ *  trick to place part of the eval hash table on each node *
+ *  of the NUMA system.                                     *
+ *                                                          *
+ ************************************************************
+ */
+    mem_per_node =
+        eval_hash_table_size * sizeof(uint64_t) / Max(smp_max_threads, 1);
+    for (node = 0; node < smp_max_threads; node++) {
+      ThreadAffinity(node);
+      memset((void *) eval_hash_table + node * mem_per_node, 0, mem_per_node);
+    }
+    ThreadAffinity(4 % Min(4, smp_max_threads));
+    if (mem_per_node * Max(smp_max_threads,
+            1) < eval_hash_table_size * sizeof(uint64_t))
+      memset((void *) eval_hash_table + smp_max_threads * mem_per_node, 0,
+          eval_hash_table_size * sizeof(uint64_t) -
+          mem_per_node * smp_max_threads);
+/*
+ ************************************************************
+ *                                                          *
+ *  Before we return, we need to re-pin this thread to the  *
+ *  correct processor.                                      *
+ *                                                          *
+ ************************************************************
+ */
+    ThreadAffinity(smp_affinity);
+  } else {
+/*
+ ************************************************************
+ *                                                          *
+ *  Otherwise we only need to use memset() to clear the     *
+ *  tables since they have already been faulted in to the   *
+ *  correct NUMA node.                                      *
+ *                                                          *
+ ************************************************************
+ */
+    memset((void *) hash_table, 0, hash_table_size * sizeof(HASH_ENTRY));
+    memset((void *) hash_path, 0, hash_path_size * sizeof(HPATH_ENTRY));
+    memset((void *) pawn_hash_table, 0,
+        pawn_hash_table_size * sizeof(PAWN_HASH_ENTRY));
+    memset((void *) eval_hash_table, 0,
+        eval_hash_table_size * sizeof(uint64_t));
   }
 }
 

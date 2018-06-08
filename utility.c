@@ -340,12 +340,12 @@ int CheckInput(void) {
 void ClearHashTableScores(void) {
   int i;
 
-  if (trans_ref)
+  if (hash_table)
     for (i = 0; i < hash_table_size; i++) {
-      (trans_ref + i)->word2 ^= (trans_ref + i)->word1;
-      (trans_ref + i)->word1 =
-          ((trans_ref + i)->word1 & mask_clear_entry) | (uint64_t) 65536;
-      (trans_ref + i)->word2 ^= (trans_ref + i)->word1;
+      (hash_table + i)->word2 ^= (hash_table + i)->word1;
+      (hash_table + i)->word1 =
+          ((hash_table + i)->word1 & mask_clear_entry) | (uint64_t) 65536;
+      (hash_table + i)->word2 ^= (hash_table + i)->word1;
     }
 }
 
@@ -932,7 +932,7 @@ void DisplayPV(TREE * RESTRICT tree, int level, int wtm, int time, PATH * pv,
   for (i = 0; i < 4096; i++)
     buffer[i] = ' ';
   t_move_number = move_number;
-  if (!pondering) {
+  if (!pondering || analyze_mode) {
     sprintf(buffer, "%d.", move_number);
     if (!wtm)
       sprintf(buffer + strlen(buffer), " ...");
@@ -1616,7 +1616,7 @@ void NewGame(int save) {
     last_pv.pathl = 0;
     strcpy(initial_position, "");
     InitializeChessBoard(tree);
-    InitializeHashTables();
+    InitializeHashTables(0);
     force = 0;
     books_file = normal_bs_file;
     draw_score[0] = 0;

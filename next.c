@@ -1,6 +1,6 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 10/09/15 */
+/* last modified 12/29/15 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -17,6 +17,17 @@ int NextMove(TREE * RESTRICT tree, int ply, int depth, int side, int in_check) {
   unsigned *movep, *bestp;
   int hist, bestval, possible;
 
+/*
+ ************************************************************
+ *                                                          *
+ *  The following "big switch" controls the finate state    *
+ *  machine that selects moves.  The "phase" value in the   *
+ *  next_status[ply] structure is always set after a move   *
+ *  is selected, and it defines the next state of the FSM   *
+ *  so select the next move in a sequenced order.           *
+ *                                                          *
+ ************************************************************
+ */
   switch (tree->next_status[ply].phase) {
 /*
  ************************************************************
@@ -30,12 +41,11 @@ int NextMove(TREE * RESTRICT tree, int ply, int depth, int side, int in_check) {
  */
     case HASH:
       tree->next_status[ply].order = 0;
-      tree->next_status[ply].excluded = 0;
+      tree->next_status[ply].exclude = &tree->next_status[ply].done[0];
       tree->next_status[ply].phase = GENERATE_CAPTURES;
       if (tree->hash_move[ply]) {
         tree->curmv[ply] = tree->hash_move[ply];
-        tree->next_status[ply].done[tree->next_status[ply].excluded++]
-            = tree->curmv[ply];
+        *(tree->next_status[ply].exclude++) = tree->curmv[ply];
         if (ValidMove(tree, ply, side, tree->curmv[ply])) {
           tree->phase[ply] = HASH;
           return ++tree->next_status[ply].order;
@@ -74,7 +84,10 @@ int NextMove(TREE * RESTRICT tree, int ply, int depth, int side, int in_check) {
  ************************************************************
  *                                                          *
  *  Now make a pass over the moves to assign the sort value *
- *  for each.  We simply use MVV/LVA move order here.       *
+ *  for each.  We simply use MVV/LVA move order here.  A    *
+ *  simple optimization is to use the pre-computed array    *
+ *  MVV_LVA[victim][attacker] which returns a simple value  *
+ *  that indicates MVV/LVA order.                           *
  *                                                          *
  ************************************************************
  */
@@ -82,7 +95,7 @@ int NextMove(TREE * RESTRICT tree, int ply, int depth, int side, int in_check) {
       for (movep = tree->last[ply - 1]; movep < tree->last[ply]; movep++)
         if (*movep == tree->hash_move[ply]) {
           *movep = 0;
-          tree->next_status[ply].excluded = 0;
+          tree->next_status[ply].exclude = &tree->next_status[ply].done[0];
         } else {
           *movep += MVV_LVA[Captured(*movep)][Piece(*movep)];
           tree->next_status[ply].remaining++;
@@ -96,7 +109,7 @@ int NextMove(TREE * RESTRICT tree, int ply, int depth, int side, int in_check) {
  *                                                          *
  *  Try the captures moves, which are in order based on     *
  *  MVV/LVA ordering.  If a larger-valued piece captures a  *
- *  lesser-valued piece, and Swap() says it loses material, *
+ *  lesser-valued piece, and SEE() says it loses material,  *
  *  this capture will be deferred until later.              *
  *                                                          *
  *  If we are in check, we jump down to the history moves   *
@@ -111,12 +124,13 @@ int NextMove(TREE * RESTRICT tree, int ply, int depth, int side, int in_check) {
         tree->curmv[ply] = Move(*(tree->next_status[ply].last++));
         if (!--tree->next_status[ply].remaining)
           tree->next_status[ply].phase = KILLER1;
-        if (pcval[Piece(tree->curmv[ply])] > pcval[Captured(tree->curmv[ply])]
-            && Swap(tree, side, tree->curmv[ply]) < 0)
-          continue;
-        *(tree->next_status[ply].last - 1) = 0;
-        tree->phase[ply] = CAPTURES;
-        return ++tree->next_status[ply].order;
+        if (pcval[Piece(tree->curmv[ply])] <=
+            pcval[Captured(tree->curmv[ply])]
+            || SEE(tree, side, tree->curmv[ply]) >= 0) {
+          *(tree->next_status[ply].last - 1) = 0;
+          tree->phase[ply] = CAPTURES;
+          return ++tree->next_status[ply].order;
+        }
       }
 /*
  ************************************************************
@@ -131,44 +145,41 @@ int NextMove(TREE * RESTRICT tree, int ply, int depth, int side, int in_check) {
  ************************************************************
  */
     case KILLER1:
-      if (!Exclude(tree, ply, tree->killers[ply].move1) &&
-          ValidMove(tree, ply, side, tree->killers[ply].move1)) {
-        tree->curmv[ply] = tree->killers[ply].move1;
-        tree->next_status[ply].done[tree->next_status[ply].excluded++]
-            = tree->curmv[ply];
+      possible = tree->killers[ply].move1;
+      if (!Exclude(tree, ply, possible) &&
+          ValidMove(tree, ply, side, possible)) {
+        tree->curmv[ply] = possible;
+        *(tree->next_status[ply].exclude++) = possible;
         tree->next_status[ply].phase = KILLER2;
         tree->phase[ply] = KILLER1;
         return ++tree->next_status[ply].order;
       }
     case KILLER2:
-      if (!Exclude(tree, ply, tree->killers[ply].move2) &&
-          ValidMove(tree, ply, side, tree->killers[ply].move2)) {
-        tree->curmv[ply] = tree->killers[ply].move2;
-        tree->next_status[ply].done[tree->next_status[ply].excluded++]
-            = tree->curmv[ply];
-        if (ply < 3) {
-          tree->next_status[ply].phase = GENERATE_QUIET;
-        } else
-          tree->next_status[ply].phase = KILLER3;
+      possible = tree->killers[ply].move2;
+      if (!Exclude(tree, ply, possible) &&
+          ValidMove(tree, ply, side, possible)) {
+        tree->curmv[ply] = possible;
+        *(tree->next_status[ply].exclude++) = possible;
+        tree->next_status[ply].phase = (ply < 3) ? COUNTER_MOVE1 : KILLER3;
         tree->phase[ply] = KILLER2;
         return ++tree->next_status[ply].order;
       }
     case KILLER3:
-      if (!Exclude(tree, ply, tree->killers[ply - 2].move1) &&
-          ValidMove(tree, ply, side, tree->killers[ply - 2].move1)) {
-        tree->curmv[ply] = tree->killers[ply - 2].move1;
-        tree->next_status[ply].done[tree->next_status[ply].excluded++]
-            = tree->curmv[ply];
+      possible = tree->killers[ply - 2].move1;
+      if (!Exclude(tree, ply, possible) &&
+          ValidMove(tree, ply, side, possible)) {
+        tree->curmv[ply] = possible;
+        *(tree->next_status[ply].exclude++) = possible;
         tree->next_status[ply].phase = KILLER4;
         tree->phase[ply] = KILLER3;
         return ++tree->next_status[ply].order;
       }
     case KILLER4:
-      if (!Exclude(tree, ply, tree->killers[ply - 2].move2) &&
-          ValidMove(tree, ply, side, tree->killers[ply - 2].move2)) {
-        tree->curmv[ply] = tree->killers[ply - 2].move2;
-        tree->next_status[ply].done[tree->next_status[ply].excluded++]
-            = tree->curmv[ply];
+      possible = tree->killers[ply - 2].move2;
+      if (!Exclude(tree, ply, possible) &&
+          ValidMove(tree, ply, side, possible)) {
+        tree->curmv[ply] = possible;
+        *(tree->next_status[ply].exclude++) = possible;
         tree->next_status[ply].phase = COUNTER_MOVE1;
         tree->phase[ply] = KILLER4;
         return ++tree->next_status[ply].order;
@@ -187,8 +198,7 @@ int NextMove(TREE * RESTRICT tree, int ply, int depth, int side, int in_check) {
       if (!Exclude(tree, ply, possible) &&
           ValidMove(tree, ply, side, possible)) {
         tree->curmv[ply] = possible;
-        tree->next_status[ply].done[tree->next_status[ply].excluded++]
-            = tree->curmv[ply];
+        *(tree->next_status[ply].exclude++) = possible;
         tree->next_status[ply].phase = COUNTER_MOVE2;
         tree->phase[ply] = COUNTER_MOVE1;
         return ++tree->next_status[ply].order;
@@ -198,8 +208,7 @@ int NextMove(TREE * RESTRICT tree, int ply, int depth, int side, int in_check) {
       if (!Exclude(tree, ply, possible) &&
           ValidMove(tree, ply, side, possible)) {
         tree->curmv[ply] = possible;
-        tree->next_status[ply].done[tree->next_status[ply].excluded++]
-            = tree->curmv[ply];
+        *(tree->next_status[ply].exclude++) = possible;
         tree->next_status[ply].phase = MOVE_PAIR1;
         tree->phase[ply] = COUNTER_MOVE2;
         return ++tree->next_status[ply].order;
@@ -218,8 +227,7 @@ int NextMove(TREE * RESTRICT tree, int ply, int depth, int side, int in_check) {
       if (!Exclude(tree, ply, possible) &&
           ValidMove(tree, ply, side, possible)) {
         tree->curmv[ply] = possible;
-        tree->next_status[ply].done[tree->next_status[ply].excluded++]
-            = tree->curmv[ply];
+        *(tree->next_status[ply].exclude++) = possible;
         tree->next_status[ply].phase = MOVE_PAIR2;
         tree->phase[ply] = MOVE_PAIR1;
         return ++tree->next_status[ply].order;
@@ -229,8 +237,7 @@ int NextMove(TREE * RESTRICT tree, int ply, int depth, int side, int in_check) {
       if (!Exclude(tree, ply, possible) &&
           ValidMove(tree, ply, side, possible)) {
         tree->curmv[ply] = possible;
-        tree->next_status[ply].done[tree->next_status[ply].excluded++]
-            = tree->curmv[ply];
+        *(tree->next_status[ply].exclude++) = possible;
         tree->next_status[ply].phase = GENERATE_QUIET;
         tree->phase[ply] = MOVE_PAIR2;
         return ++tree->next_status[ply].order;
@@ -255,8 +262,8 @@ int NextMove(TREE * RESTRICT tree, int ply, int depth, int side, int in_check) {
  *  complete move list, and passes over them in a classic   *
  *  selection-sort, choosing the move with the highest      *
  *  history score.  This phase is only done one time, as it *
- *  also purges the hashi, killer, counter and paired       *
- *   moves from the list.                                   *
+ *  also purges the hash, killer, counter and paired moves  *
+ *  from the list.                                          *
  *                                                          *
  ************************************************************
  */
@@ -528,7 +535,9 @@ int NextRootMoveParallel(void) {
  *  set, we are forced to use all processors to search this *
  *  move so that it is completed quickly rather than being  *
  *  searched by just one processor, and taking much longer  *
- *  to get a score back.                                    *
+ *  to get a score back.  We do this to give the search the *
+ *  best opportunity to fail high on this move before we    *
+ *  run out of time.                                        *
  *                                                          *
  ************************************************************
  */
@@ -557,11 +566,12 @@ int NextRootMoveParallel(void) {
  *******************************************************************************
  */
 int Exclude(TREE * RESTRICT tree, int ply, int move) {
-  int i;
+  unsigned *i;
 
-  if (tree->next_status[ply].excluded)
-    for (i = 0; i < tree->next_status[ply].excluded; i++)
-      if (move == tree->next_status[ply].done[i])
+  if (tree->next_status[ply].exclude > &tree->next_status[ply].done[0])
+    for (i = &tree->next_status[ply].done[0];
+        i < tree->next_status[ply].exclude; i++)
+      if (move == *i)
         return 1;
   return 0;
 }

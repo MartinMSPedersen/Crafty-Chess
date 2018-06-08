@@ -41,10 +41,6 @@
 #                  terminates as if time ran out.
 #   -DNOEGTB       Eliminates the egtb code for compilers that can't deal
 #                  with the large egtb.cpp code/templates.
-#   -DNUMA         Says this system is NUMA, which is mainly used for Linux
-#                  or Windows systems, and references libnuma, needed for the
-#                  NUMA calls (crafty doesn't use many of these, it does the
-#                  memory setup stuff itself)
 #   -DPOPCNT       Says this system is a newer Intel/AMD processor with the
 #                  built-in hardware popcnt instruction.
 #   -DPOSITIONS    Causes Crafty to emit FEN strings, one per book line, as
@@ -183,7 +179,7 @@ profile:
 
 #objects = main.o iterate.o time.o search.o quiesce.o evaluate.o thread.o \
        repeat.o hash.o next.o history.o movgen.o make.o unmake.o attacks.o \
-       swap.o boolean.o utility.o probe.o book.o drawn.o epd.o epdglue.o \
+       see.o boolean.o utility.o probe.o book.o drawn.o epd.o epdglue.o \
        init.o input.o autotune.o interrupt.o option.o output.o ponder.o \
        resign.o root.o learn.o setboard.o test.o validate.o annotate.o \
        analyze.o evtest.o bench.o edit.o data.o

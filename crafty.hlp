@@ -638,6 +638,12 @@ The default is currently 5 (which could change with future generations of
 Intel hardware) but values between 4 and 8 will work.  Larger values allow
 somewhat fewer splits, which reduces overhead, but it also increases the
 percentage of the time where a thread is waiting on work.
+
+smpnuma <n> enables (a) or disables (0) NUMA mode.  This defaults to zero, 
+which is best for most users.  If you have a multiple-socket machine, or one
+that is NUMA even though it only has one socket, you should enable this.  This
+will cause Crafty to split the hash tables across all NUMA nodes to prevent
+the formation of "hot spots" that would cause unnecessary conflicts.
                    
 smproot <n> enables (1) or disables (0) splitting the tree at the root.  This
 defaults to 1 which produces the best performance by a signficiant margin. 

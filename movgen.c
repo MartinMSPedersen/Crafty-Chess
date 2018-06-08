@@ -1,6 +1,6 @@
 #include "chess.h"
 #include "data.h"
-/* modified 02/22/14 */
+/* modified 12/31/15 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -37,10 +37,11 @@ unsigned *GenerateCaptures(TREE * RESTRICT tree, int ply, int side,
 /*
  ************************************************************
  *                                                          *
- *  We produce bishop moves by locating the most advanced   *
- *  bishop and then using that square in a magic multiply   *
- *  move generation to quickly identify all the squares a   *
- *  bishop can reach.  We repeat for each bishop.           *
+ *  We produce sliding piece moves by locating each piece   *
+ *  type in turn.  We then start with the most advanced     *
+ *  piece and generate moves from that square.  This uses   *
+ *  "magic move generation" to produce the destination      *
+ *  squares.                                                *
  *                                                          *
  ************************************************************
  */
@@ -50,32 +51,12 @@ unsigned *GenerateCaptures(TREE * RESTRICT tree, int ply, int side,
     temp = from + (bishop << 12);
     Extract(side, move, moves, temp);
   }
-/*
- ************************************************************
- *                                                          *
- *  We produce rook moves by locating the most advanced     *
- *  rook and then using that square in a magic multiply     *
- *  move generation to quickly identify all the squares a   *
- *  rook can reach.  We repeat for each rook.               *
- *                                                          *
- ************************************************************
- */
   for (piecebd = Rooks(side); piecebd; Clear(from, piecebd)) {
     from = MostAdvanced(side, piecebd);
     moves = RookAttacks(from, OccupiedSquares) & Occupied(enemy);
     temp = from + (rook << 12);
     Extract(side, move, moves, temp);
   }
-/*
- ************************************************************
- *                                                          *
- *  We produce queen moves by locating the most advanced    *
- *  queen and then using that square in a magic multiply    *
- *  move generation to quickly identify all the squares a   *
- *  queen can reach.  We repeat for each queen.             *
- *                                                          *
- ************************************************************
- */
   for (piecebd = Queens(side); piecebd; Clear(from, piecebd)) {
     from = MostAdvanced(side, piecebd);
     moves = QueenAttacks(from, OccupiedSquares) & Occupied(enemy);
@@ -142,7 +123,7 @@ unsigned *GenerateCaptures(TREE * RESTRICT tree, int ply, int side,
   return move;
 }
 
-/* modified 02/22/14 */
+/* modified 12/31/15 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -215,7 +196,7 @@ unsigned *GenerateChecks(TREE * RESTRICT tree, int side, unsigned *move) {
 /*
  ************************************************************
  *                                                          *
- *  Bishop direct checks.                                   *
+ *  Sliding piece direct checks.                            *
  *                                                          *
  ************************************************************
  */
@@ -226,13 +207,6 @@ unsigned *GenerateChecks(TREE * RESTRICT tree, int side, unsigned *move) {
     temp = from + (bishop << 12);
     Extract(side, move, moves, temp);
   }
-/*
- ************************************************************
- *                                                          *
- *  Rook direct checks.                                     *
- *                                                          *
- ************************************************************
- */
   temp_target = target & RookAttacks(KingSQ(enemy), OccupiedSquares);
   for (piecebd = Rooks(side); piecebd; Clear(from, piecebd)) {
     from = MostAdvanced(side, piecebd);
@@ -240,13 +214,6 @@ unsigned *GenerateChecks(TREE * RESTRICT tree, int side, unsigned *move) {
     temp = from + (rook << 12);
     Extract(side, move, moves, temp);
   }
-/*
- ************************************************************
- *                                                          *
- *  Queen direct checks.                                    *
- *                                                          *
- ************************************************************
- */
   temp_target = target & QueenAttacks(KingSQ(enemy), OccupiedSquares);
   for (piecebd = Queens(side); piecebd; Clear(from, piecebd)) {
     from = MostAdvanced(side, piecebd);
@@ -283,11 +250,6 @@ unsigned *GenerateChecks(TREE * RESTRICT tree, int side, unsigned *move) {
  *  searched.  We do the same for vertical / horizontal     *
  *  rays that are blocked by bishops, knights or pawns that *
  *  would hide a discovered check by a rook or queen.       *
- *                                                          *
- ************************************************************
- */
-/*
- ************************************************************
  *                                                          *
  *  First we look for diagonal discovered attacks.  Once we *
  *  know which squares hold pieces that create a discovered *
@@ -452,7 +414,7 @@ unsigned *GenerateChecks(TREE * RESTRICT tree, int side, unsigned *move) {
   return move;
 }
 
-/* modified 02/22/14 */
+/* modified 12/31/15 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -560,10 +522,11 @@ unsigned *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int side,
 /*
  ************************************************************
  *                                                          *
- *  We produce bishop moves by locating the most advanced   *
- *  bishop and then using that square in a magic multiply   *
- *  move generation to quickly identify all the squares a   *
- *  bishop can reach.  We repeat for each bishop.           *
+ *  We produce sliding piece moves by locating each piece   *
+ *  type in turn.  We then start with the most advanced     *
+ *  piece and generate moves from that square.  This uses   *
+ *  "magic move generation" to produce the destination      *
+ *  squares.                                                *
  *                                                          *
  ************************************************************
  */
@@ -575,16 +538,6 @@ unsigned *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int side,
         Extract(side, move, moves, temp);
       }
     }
-/*
- ************************************************************
- *                                                          *
- *  We produce rook moves by locating the most advanced     *
- *  rook and then using that square in a magic multiply     *
- *  move generation to quickly identify all the squares     *
- *  rook can reach.  We repeat for each rook.               *
- *                                                          *
- ************************************************************
- */
     for (piecebd = Rooks(side); piecebd; Clear(from, piecebd)) {
       from = MostAdvanced(side, piecebd);
       if (!PinnedOnKing(tree, side, from)) {
@@ -593,16 +546,6 @@ unsigned *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int side,
         Extract(side, move, moves, temp);
       }
     }
-/*
- ************************************************************
- *                                                          *
- *  We produce queen moves by locating the most advanced    *
- *  queen and then using that square in a magic multiply    *
- *  move generation to quickly identify all the squares a   *
- *  queen can reach.  We repeat for each queen.             *
- *                                                          *
- ************************************************************
- */
     for (piecebd = Queens(side); piecebd; Clear(from, piecebd)) {
       from = MostAdvanced(side, piecebd);
       if (!PinnedOnKing(tree, side, from)) {
@@ -662,6 +605,14 @@ unsigned *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int side,
         }
       }
     }
+/*
+ ************************************************************
+ *                                                          *
+ *  And then we try to see if the checking piece can be     *
+ *  captured by a friendly pawn.                            *
+ *                                                          *
+ ************************************************************
+ */
     targetc = Occupied(enemy) | EnPassantTarget(ply);
     targetc = targetc & target;
     if (Pawns(enemy) & target & ((side) ? EnPassantTarget(ply) >> 8 :
@@ -702,7 +653,7 @@ unsigned *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int side,
   return move;
 }
 
-/* modified 02/22/14 */
+/* modified 12/31/15 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -710,9 +661,7 @@ unsigned *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int side,
  *   current position.                                                         *
  *                                                                             *
  *   Once the valid destination squares are known, we have to locate a         *
- *   friendly piece to get a attacks_to[] entry.  We then produce the moves    *
- *   for this piece by using the source square as [from] and enumerating each  *
- *   square it attacks into [to].                                              *
+ *   friendly piece to compute the squares it attacks.                         *
  *                                                                             *
  *   Pawns are handled differently.  Regular pawn moves are produced by        *
  *   shifting the pawn bitmap 8 bits "forward" and anding this with the        *
@@ -720,8 +669,9 @@ unsigned *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int side,
  *   produced by anding the pawn bitmap with a mask containing 1's on the      *
  *   second rank, shifting this 16 bits "forward" and then anding this with    *
  *   the complement of the occupied squares bitmap as before.  If [to] reaches *
- *   the 8th rank, we produce a set of four moves, promoting the pawn to       *
- *   knight, bishop, rook and queen.                                           *
+ *   the 8th rank, we produce a set of three moves, promoting the pawn to      *
+ *   knight, bishop and rook (queen promotions were generated earlier by       *
+ *   GenerateCaptures()).                                                      *
  *                                                                             *
  *******************************************************************************
  */
@@ -734,7 +684,7 @@ unsigned *GenerateNoncaptures(TREE * RESTRICT tree, int ply, int side,
 /*
  ************************************************************
  *                                                          *
- *  First, produce castling moves if it is legal.           *
+ *  First, produce castling moves when they are legal.      *
  *                                                          *
  ************************************************************
  */
@@ -772,10 +722,11 @@ unsigned *GenerateNoncaptures(TREE * RESTRICT tree, int ply, int side,
 /*
  ************************************************************
  *                                                          *
- *  We produce bishop moves by locating the most advanced   *
- *  bishop and then using that square in a magic multiply   *
- *  move generation to quickly identify all the squares a   *
- *  bishop can reach.  We repeat for each bishop.           *
+ *  We produce sliding piece moves by locating each piece   *
+ *  type in turn.  We then start with the most advanced     *
+ *  piece and generate moves from that square.  This uses   *
+ *  "magic move generation" to produce the destination      *
+ *  squares.                                                *
  *                                                          *
  ************************************************************
  */
@@ -785,32 +736,12 @@ unsigned *GenerateNoncaptures(TREE * RESTRICT tree, int ply, int side,
     temp = from + (bishop << 12);
     Extract(side, move, moves, temp);
   }
-/*
- ************************************************************
- *                                                          *
- *  We produce rook moves by locating the most advanced     *
- *  rook and then using that square in a magic multiply     *
- *  move generation to quickly identify all the squares     *
- *  rook can reach.  We repeat for each rook.               *
- *                                                          *
- ************************************************************
- */
   for (piecebd = Rooks(side); piecebd; Clear(from, piecebd)) {
     from = MostAdvanced(side, piecebd);
     moves = RookAttacks(from, OccupiedSquares) & target;
     temp = from + (rook << 12);
     Extract(side, move, moves, temp);
   }
-/*
- ************************************************************
- *                                                          *
- *  We produce queen moves by locating the most advanced    *
- *  queen and then using that square in a magic multiply    *
- *  move generation to quickly identify all the squares a   *
- *  queen can reach.  We repeat for each queen.             *
- *                                                          *
- ************************************************************
- */
   for (piecebd = Queens(side); piecebd; Clear(from, piecebd)) {
     from = MostAdvanced(side, piecebd);
     moves = QueenAttacks(from, OccupiedSquares) & target;
@@ -880,8 +811,8 @@ unsigned *GenerateNoncaptures(TREE * RESTRICT tree, int ply, int side,
 /*
  ************************************************************
  *                                                          *
- *  Generate the rest of the capture/promotions here since  *
- *  GenerateCaptures() only generates captures that are     *
+ *  Generate the rest of the promotions here since          *
+ *  GenerateCaptures() only generated captures or           *
  *  promotions to a queen.                                  *
  *                                                          *
  ************************************************************
@@ -910,7 +841,7 @@ unsigned *GenerateNoncaptures(TREE * RESTRICT tree, int ply, int side,
   return move;
 }
 
-/* modified 02/22/14 */
+/* modified 12/31/15 */
 /*
  *******************************************************************************
  *                                                                             *

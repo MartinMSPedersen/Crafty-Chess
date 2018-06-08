@@ -1,6 +1,6 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 02/22/14 */
+/* last modified 01/06/16 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -19,8 +19,8 @@ void UnmakeMove(TREE * RESTRICT tree, int ply, int side, int move) {
  ************************************************************
  *                                                          *
  *  First, restore the hash signatures to their state prior *
- *  to this move being made, and remove the current         *
- *  position from the repetition list.                      *
+ *  to this move being made by simply copying the old       *
+ *  values.                                                 *
  *                                                          *
  ************************************************************
  */
@@ -48,7 +48,8 @@ void UnmakeMove(TREE * RESTRICT tree, int ply, int side, int move) {
  ************************************************************
  *                                                          *
  *  Now do the piece-specific things by jumping to the      *
- *  appropriate routine.                                    *
+ *  appropriate routine (this only has to deal with pawns   *
+ *  and king moves that are castling moves.                 *
  *                                                          *
  ************************************************************
  */

@@ -40,10 +40,10 @@ int learn_nmoves[64];
 int book_learn_nmoves;
 int book_learn_seekto;
 uint64_t book_learn_key;
-HASH_ENTRY *trans_ref;
+HASH_ENTRY *hash_table;
 HPATH_ENTRY *hash_path;
 PAWN_HASH_ENTRY *pawn_hash_table;
-EVAL_HASH_ENTRY *eval_hash_table;
+uint64_t *eval_hash_table;
 void * segments[MAX_BLOCKS + 32][2];
 int nsegments = 0;
 PATH last_pv;
@@ -445,7 +445,7 @@ const int OOOsqs[2][3] = {{E8, D8, C8}, {E1, D1, C1}};
 const int OOfrom[2] = {E8, E1};
 const int OOto[2] =   {G8, G1};
 const int OOOto[2] =  {C8, C1};
-#define VERSION      "25.0"
+#define VERSION      "25.0.1"
 char version[8] = {VERSION};
 PLAYING_MODE mode = normal_mode;
 int batch_mode = 0;                  /* no asynch reads */
@@ -583,6 +583,8 @@ unsigned int smp_min_split_depth = 5;   /* don't split within 5 plies of tips */
 unsigned int smp_gratuitous_depth = 10; /* gratuitous splits if depth > 10    */
 unsigned int smp_gratuitous_limit = 6;  /* max gratuitous splits / thread     */
 int smp_affinity = 0;                   /* anything >= 0 is enabled           */
+int smp_numa = 0;                       /* disables NUMA mode by default      */
+                                        /* enable if you really have NUMA     */
 /*
       This is the autotune configuration section.  Each line represents one
       smp search parameter that can be tuned.  The first three values are the

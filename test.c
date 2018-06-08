@@ -132,7 +132,7 @@ void Test(char *filename, FILE * unsolved, int screen, int margin) {
           DisplayChessBoard(stdout, tree->position);
       }
       Print(4095, "\n");
-      InitializeHashTables();
+      InitializeHashTables(0);
       last_pv.pathd = 0;
       thinking = 1;
       tree->status[1] = tree->status[0];
@@ -344,7 +344,7 @@ void TestEPD(char *filename, FILE * unsolved, int screen, int margin) {
       }
     }
     Print(4095, "\n");
-    InitializeHashTables();
+    InitializeHashTables(0);
     last_pv.pathd = 0;
     thinking = 1;
     tree->status[1] = tree->status[0];

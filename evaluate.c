@@ -1,7 +1,7 @@
 #include "chess.h"
 #include "evaluate.h"
 #include "data.h"
-/* last modified 11/27/15 */
+/* last modified 12/31/15 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -11,8 +11,8 @@
  *   placement of pawns and also evaluates passed pawns, particularly in end-  *
  *   game situations;  (3) piece scoring which evaluates the placement of each *
  *   piece as well as things like piece mobility;  (4) king safety which       *
- *   considers the pawn shelter around the king along with material present to *
- *   facilitate an attack.                                                     *
+ *   considers the pawn shelter around the king and enemy pieces and how close *
+ *   they are to assist in a king-side attack.                                 *
  *                                                                             *
  *******************************************************************************
  */
@@ -21,7 +21,7 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta) {
   PXOR *pxtable;
   int score, side, can_win = 3, phase, lscore, cutoff;
   int full = 0;
-  EVAL_HASH_ENTRY *etable;
+  uint64_t *etable;
   uint64_t temp_hashkey;
 
 /*
@@ -57,18 +57,20 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta) {
 */
   temp_hashkey = (wtm) ? HashKey : ~HashKey;
   etable = eval_hash_table + (temp_hashkey & eval_hash_mask);
-  if (etable->key == temp_hashkey >> 32)
-    return etable->score;
+  if (*etable >> 16 == temp_hashkey >> 16) {
+    score = (*etable & 0xffff) - 32768;
+    return (wtm) ? score : -score;
+  }
 /*
  *************************************************************
  *                                                           *
- *  Initialize.  If the meterial score is way below alpha or *
- *  way above beta (way above means so far above it is very  *
- *  unlikely the positional score can bring the total score  *
- *  back into the alpha / beta window) then we take what is  *
- *  known as a "lazy evaluation exit" and avoid the          *
- *  computational cost of a full evaluation in a position    *
- *  where one side is way ahead or behind in material.       *
+ *  First lazy cutoff attempt.  If the material score is way *
+ *  below alpha or way above beta (way above means so far    *
+ *  above it is very unlikely the positional score can bring *
+ *  the total score back into the alpha / beta window) then  *
+ *  we take what is known as a "lazy evaluation exit" and    *
+ *  avoid the computational cost of a full evaluation in a   *
+ *  position where one side is way ahead or behind.          *
  *                                                           *
  *************************************************************
  */
@@ -79,10 +81,6 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta) {
     return alpha;
   if (lscore - cutoff > beta)
     return beta;
-  tree->evaluations++;
-  tree->score_mg = 0;
-  tree->score_eg = 0;
-  EvaluateMaterial(tree, wtm);
 /*
  *************************************************************
  *                                                           *
@@ -106,6 +104,10 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta) {
  *                                                           *
  *************************************************************
  */
+  tree->evaluations++;
+  tree->score_mg = 0;
+  tree->score_eg = 0;
+  EvaluateMaterial(tree, wtm);
   if (TotalPieces(white, occupied) < 13 && TotalPieces(black, occupied) < 13)
     for (side = black; side <= white; side++)
       if (!EvaluateWinningChances(tree, side, wtm))
@@ -243,8 +245,8 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta) {
  *                                                           *
  *  The "dangerous" flag simply indicates whether that side  *
  *  has enough material to whip up a mating attack if the    *
- *  other side is careless (Q + minor or better, or RR + R   *
- *  or better).                                              *
+ *  other side is careless (Q + minor or better, or RR + two *
+ *  minors or better).                                       *
  *                                                           *
  *************************************************************
  */
@@ -255,16 +257,12 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta) {
 /*
  *************************************************************
  *                                                           *
- *  Then evaluate pieces.                                    *
- *                                                           *
- *  Note 1:  if the current score is way below alpha or way  *
- *  above beta, there is no point in doing the piece         *
- *  scoring, so we take a "lazy" approach and skip pieces in *
- *  that case.                                               *
- *                                                           *
- *  Note 2:  We MUST evaluate kings last, since their        *
- *  scoring depends on the tropism scores computed by the    *
- *  other piece evaluators.                                  *
+ *  Second lazy evaluation test.  We have computed the large *
+ *  positional scores (except for king safety).  If the      *
+ *  score is too far outside the alpha/beta window, we skip  *
+ *  the piece scoring which is the most expensive of all the *
+ *  evaluation terms, and simply use what we have at this    *
+ *  point.                                                   *
  *                                                           *
  *************************************************************
  */
@@ -279,6 +277,21 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta) {
   cutoff = 72 + (w_mat + b_mat) * 8 + abs(w_mat - b_mat) * 16;
   if (tree->dangerous[white] || tree->dangerous[black])
     cutoff += 35;
+/*
+ *************************************************************
+ *                                                           *
+ *  Then evaluate pieces if the lazy eval test fails.        *
+ *                                                           *
+ *  Note:  We MUST evaluate kings last, since their scoring  *
+ *  depends on the tropism scores computed by the other      *
+ *  piece evaluators.  Do NOT try to collapse the following  *
+ *  loops into one loop.  That will break things since it    *
+ *  would violate the kings last rule.  More importantly     *
+ *  there is no benefit as the loops below are unrolled by   *
+ *  the compiler anyway.                                     *
+ *                                                           *
+ *************************************************************
+ */
   if (lscore + cutoff > alpha && lscore - cutoff < beta) {
     tree->tropism[white] = 0;
     tree->tropism[black] = 0;
@@ -315,10 +328,8 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta) {
             skill) * PAWN_VALUE * (uint64_t) Random32() / 0x100000000ull) /
         100;
 #endif
-  if (full) {
-    etable->key = temp_hashkey >> 32;
-    etable->score = (wtm) ? score : -score;
-  }
+  if (full)
+    *etable = (temp_hashkey & 0xffffffffffff0000) + score + 32768;
   return (wtm) ? score : -score;
 }
 
@@ -338,7 +349,7 @@ void EvaluateBishops(TREE * RESTRICT tree, int side) {
  ************************************************************
  *                                                          *
  *  First, locate each bishop and add in its piece/square   *
- *  score.                                                  *
+ *  table score.                                            *
  *                                                          *
  ************************************************************
  */

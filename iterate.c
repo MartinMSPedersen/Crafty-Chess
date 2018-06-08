@@ -42,10 +42,6 @@
  */
 int Iterate(int wtm, int search_type, int root_list_done) {
   TREE *const tree = block[0];
-#if defined(AFFINITY)
-  cpu_set_t cpuset;
-  pthread_t current_thread = pthread_self();
-#endif
   ROOT_MOVE temp_rm;
   int i, alpha, beta, current_rm = 0, force_print = 0;
   int value = 0, twtm, correct, correct_count, npc, cpl, max;
@@ -252,13 +248,7 @@ int Iterate(int wtm, int search_type, int root_list_done) {
         Print(32, " <done>\n");
       }
       WaitForAllThreadsInitialized();
-#  if defined(AFFINITY)
-      if (smp_affinity >= 0) {
-        CPU_ZERO(&cpuset);
-        CPU_SET(smp_affinity, &cpuset);
-        pthread_setaffinity_np(current_thread, sizeof(cpu_set_t), &cpuset);
-      }
-#  endif
+      ThreadAffinity(smp_affinity);
 #endif
       if (search_nodes)
         nodes_between_time_checks = search_nodes;

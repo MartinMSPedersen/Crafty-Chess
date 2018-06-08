@@ -816,7 +816,7 @@ static epdptrT EGCommHandler(epdptrT epdptr0, siptrT flagptr) {
       last_pv.pathd = 0;
       last_pv.pathl = 0;
       InitializeChessBoard(tree);
-      InitializeHashTables();
+      InitializeHashTables(0);
       game_wtm = 1;
       move_number = 1;
 /* open the temporary history file */

@@ -1,6 +1,6 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 07/01/15 */
+/* last modified 01/10/16 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -35,7 +35,7 @@ int Search(TREE * RESTRICT tree, int ply, int depth, int wtm, int alpha,
  ************************************************************
  */
 #if defined(NODES)
-  if (--temp_search_nodes <= 0) {
+  if (search_nodes && --temp_search_nodes <= 0) {
     abort_search = 1;
     return 0;
   }
@@ -134,7 +134,10 @@ int Search(TREE * RESTRICT tree, int ply, int depth, int wtm, int alpha,
  *                                                          *
  *  EGTBs.  Now it's time to try a probe into the endgame   *
  *  tablebase files.  This is done if we notice that there  *
- *  are 6 or fewer pieces left on the board.  EGTB_use      *
+ *  are 6 or fewer pieces left on the board AND the move at *
+ *  the previous ply was a capture.  If it was not, then we *
+ *  would have already probed the EGTBs so if it was a miss *
+ *  when we probed then, it will also miss here.  EGTB_use  *
  *  tells us how many pieces to probe on.  Note that this   *
  *  can be zero when trying to swindle the opponent, so     *
  *  that no probes are done since we know it is a draw.     *
@@ -162,7 +165,7 @@ int Search(TREE * RESTRICT tree, int ply, int depth, int wtm, int alpha,
 #if !defined(NOEGTB)
     if (depth > EGTB_depth && TotalAllPieces <= EGTB_use &&
         !Castle(ply, white) && !Castle(ply, black) &&
-        (CaptureOrPromote(tree->curmv[ply - 1]) || ply < 3)) {
+        (Captured(tree->curmv[ply - 1]) || ply < 3)) {
       int egtb_value;
 
       tree->egtb_probes++;
@@ -225,8 +228,8 @@ int Search(TREE * RESTRICT tree, int ply, int depth, int wtm, int alpha,
  */
 
     tree->last[ply] = tree->last[ply - 1];
-    n_depth = 1 + ((TotalPieces(wtm, occupied) > 9 || n_root_moves > 17 ||
-            depth > 3) ? 0 : 2);
+    n_depth = (TotalPieces(wtm, occupied) > 9 || n_root_moves > 17 ||
+            depth > 3) ? 1 : 3;
     if (do_null && !pv_node && depth > n_depth && !in_check &&
         TotalPieces(wtm, occupied)) {
       uint64_t save_hash_key;
@@ -301,6 +304,9 @@ int Search(TREE * RESTRICT tree, int ply, int depth, int wtm, int alpha,
  *                                                          *
  *  Search moves.  Now we call SearchMoveList() to interate *
  *  through the move list and search each new position.     *
+ *  Note that this is done in a separate procedure because  *
+ *  this is also the code that is used to do the parallel   *
+ *  search.                                                 *
  *                                                          *
  ************************************************************
  */
@@ -346,7 +352,7 @@ int SearchMoveList(TREE * RESTRICT tree, int ply, int depth, int wtm,
   TREE *current;
   int extend, reduce, check, original_alpha = alpha, t_beta;
   int i, value = 0, pv_node = alpha != beta - 1, status, order;
-  int moves_done = 0, phase;
+  int moves_done = 0, phase, bestmove, type;
 
 /*
  ************************************************************
@@ -400,10 +406,8 @@ int SearchMoveList(TREE * RESTRICT tree, int ply, int depth, int wtm,
       break;
     if (mode == parallel)
       Lock(current->lock);
-    if (ply > 1)
-      order = NextMove(current, ply, depth, wtm, in_check);
-    else
-      order = NextRootMove(current, tree, wtm);
+    order = (ply > 1) ? NextMove(current, ply, depth, wtm, in_check) :
+      NextRootMove(current, tree, wtm);
     phase = current->phase[ply];
     if (mode == parallel) {
       tree->curmv[ply] = tree->parent->curmv[ply];
@@ -424,8 +428,6 @@ int SearchMoveList(TREE * RESTRICT tree, int ply, int depth, int wtm,
         searched[0]++;
         moves_done++;
         status = LEGAL;
-        if (moves_done == 1)
-          tree->first_move[ply] = tree->curmv[ply];
         searched[searched[0]] = tree->curmv[ply];
 /*
  ************************************************************
@@ -435,8 +437,8 @@ int SearchMoveList(TREE * RESTRICT tree, int ply, int depth, int wtm,
  *  extend the depth by one ply for him to get out.         *
  *                                                          *
  *  We do not extend unsafe checking moves (as indicated by *
- *  Swap(), a SEE algorithm, since these are usually a      *
- *  waste of time and simply blow up the tree search space. *
+ *  the SEE algorithm), since these are usually a waste of  *
+ *  time and simply blow up the tree search space.          *
  *                                                          *
  *  Note that extending here disables any potential foward  *
  *  pruning or reductions for this move.                    *
@@ -447,8 +449,9 @@ int SearchMoveList(TREE * RESTRICT tree, int ply, int depth, int wtm,
         reduce = 0;
         if (Check(Flip(wtm))) {
           check = 1;
-          if (SwapO(tree, wtm, tree->curmv[ply]) -
-              pcval[Captured(tree->curmv[ply])] <= 0) {
+          if (SEEO(tree, wtm,
+                  tree->curmv[ply]) - pcval[Captured(tree->curmv[ply])] <=
+              0) {
             extend = check_depth;
             tree->extensions_done++;
           }
@@ -834,10 +837,9 @@ int SearchMoveList(TREE * RESTRICT tree, int ply, int depth, int wtm,
     }
     return value;
   } else {
-    int bestmove, type;
     bestmove =
         (alpha ==
-        original_alpha) ? tree->first_move[ply] : tree->pv[ply].path[ply];
+        original_alpha) ? tree->hash_move[ply] : tree->pv[ply].path[ply];
     type = (alpha == original_alpha) ? UPPER : EXACT;
     if (repeat == 2 && alpha != -(MATE - ply - 1)) {
       value = DrawScore(wtm);

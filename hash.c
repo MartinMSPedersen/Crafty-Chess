@@ -76,7 +76,7 @@ int HashProbe(TREE * RESTRICT tree, int ply, int depth, int side, int alpha,
  */
   tree->hash_move[ply] = 0;
   temp_hashkey = (side) ? HashKey : ~HashKey;
-  htable = trans_ref + (temp_hashkey & hash_mask);
+  htable = hash_table + (temp_hashkey & hash_mask);
   for (entry = 0; entry < 4; entry++) {
     word1 = htable[entry].word1;
     word2 = htable[entry].word2 ^ word1;
@@ -276,7 +276,7 @@ void HashStore(TREE * RESTRICT tree, int ply, int depth, int side, int type,
  *                                                          *
  ************************************************************
  */
-  htable = trans_ref + (temp_hashkey & hash_mask);
+  htable = hash_table + (temp_hashkey & hash_mask);
   for (entry = 0; entry < 4; entry++) {
     if (temp_hashkey == (htable[entry].word1 ^ htable[entry].word2)) {
       replace = htable + entry;
@@ -401,7 +401,7 @@ void HashStorePV(TREE * RESTRICT tree, int side, int ply) {
  *                                                          *
  ************************************************************
  */
-  htable = trans_ref + (temp_hashkey & hash_mask);
+  htable = hash_table + (temp_hashkey & hash_mask);
   for (entry = 0; entry < 4; entry++) {
     if ((htable[entry].word2 ^ htable[entry].word1) == temp_hashkey) {
       htable[entry].word1 &= ~((uint64_t) 0x1fffff << 32);

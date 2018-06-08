@@ -316,7 +316,7 @@ void Annotate() {
             Print(4095, "\n              Searching all legal moves.");
             Print(4095, "----------------------------------\n");
             tree->status[1] = tree->status[0];
-            InitializeHashTables();
+            InitializeHashTables(0);
             annotate_score[searches_done] = Iterate(wtm, annotate, 1);
             if (tree->pv[0].path[1] == move) {
               player_score = annotate_score[searches_done];
@@ -354,7 +354,7 @@ void Annotate() {
             search_depth = temp[0].pathd;
             if (search_depth == temp_search_depth)
               search_time_limit = annotate_search_time_limit;
-            InitializeHashTables();
+            InitializeHashTables(0);
             player_score = Iterate(wtm, annotate, 1);
             player_pv = tree->pv[0];
             search_depth = temp_search_depth;
@@ -449,7 +449,7 @@ void Annotate() {
           search_move = suggested;
           search_time_limit = 3 * annotate_search_time_limit;
           search_depth = temp[0].pathd;
-          InitializeHashTables();
+          InitializeHashTables(0);
           annotate_score[0] = Iterate(wtm, annotate, 0);
           search_depth = temp_search_depth;
           search_time_limit = annotate_search_time_limit;

@@ -4,7 +4,7 @@
 /*
  *******************************************************************************
  *                                                                             *
- *   Swap() is used to analyze capture moves to see whether or not they appear *
+ *   SEE() is used to analyze capture moves to see whether or not they appear  *
  *   to be profitable.  The basic algorithm is extremely fast since it uses    *
  *   the bitmaps to determine which squares are attacking the [target] square. *
  *                                                                             *
@@ -20,13 +20,13 @@
  *                                                                             *
  *******************************************************************************
  */
-int Swap(TREE * RESTRICT tree, int wtm, int move) {
+int SEE(TREE * RESTRICT tree, int wtm, int move) {
   uint64_t attacks, temp = 0, toccupied = OccupiedSquares;
   uint64_t bsliders =
       Bishops(white) | Bishops(black) | Queens(white) | Queens(black);
   uint64_t rsliders =
       Rooks(white) | Rooks(black) | Queens(white) | Queens(black);
-  int attacked_piece, piece, nc = 1, swap_list[32];
+  int attacked_piece, piece, nc = 1, see_list[32];
   int source = From(move), target = To(move);
 
 /*
@@ -49,7 +49,7 @@ int Swap(TREE * RESTRICT tree, int wtm, int move) {
  ************************************************************
  */
   wtm = Flip(wtm);
-  swap_list[0] = attacked_piece;
+  see_list[0] = attacked_piece;
   piece = Piece(move);
   attacked_piece = pcval[piece];
   Clear(source, toccupied);
@@ -67,7 +67,7 @@ int Swap(TREE * RESTRICT tree, int wtm, int move) {
  *  behind the attacker we are removing.                    *
  *                                                          *
  *  Once we know there is a piece attacking the last        *
- *  capturing piece, add it to the swap list and repeat     *
+ *  capturing piece, add it to the see list and repeat      *
  *  until one side has no more captures.                    *
  *                                                          *
  ************************************************************
@@ -83,9 +83,9 @@ int Swap(TREE * RESTRICT tree, int wtm, int move) {
       attacks |= BishopAttacks(target, toccupied) & bsliders;
     if (piece != king && piece & 4)
       attacks |= RookAttacks(target, toccupied) & rsliders;
-    swap_list[nc] = -swap_list[nc - 1] + attacked_piece;
+    see_list[nc] = -see_list[nc - 1] + attacked_piece;
     attacked_piece = pcval[piece];
-    if (swap_list[nc++] - attacked_piece > 0)
+    if (see_list[nc++] - attacked_piece > 0)
       break;
     wtm = Flip(wtm);
   }
@@ -99,28 +99,28 @@ int Swap(TREE * RESTRICT tree, int wtm, int move) {
  ************************************************************
  */
   while (--nc)
-    swap_list[nc - 1] = -Max(-swap_list[nc - 1], swap_list[nc]);
-  return swap_list[0];
+    see_list[nc - 1] = -Max(-see_list[nc - 1], see_list[nc]);
+  return see_list[0];
 }
 
 /* last modified 05/16/14 */
 /*
  *******************************************************************************
  *                                                                             *
- *   SwapO() is used to analyze a move already made to see if it appears to be *
- *   safe.  It is similar to Swap() except that the move has already been made *
+ *   SEEO() is used to analyze a move already made to see if it appears to be  *
+ *   safe.  It is similar to SEE() except that the move has already been made  *
  *   and we are checking to see whether the opponent can gain material by      *
  *   capturing the piece just moved.                                           *
  *                                                                             *
  *******************************************************************************
  */
-int SwapO(TREE * RESTRICT tree, int wtm, int move) {
+int SEEO(TREE * RESTRICT tree, int wtm, int move) {
   uint64_t attacks, temp = 0, toccupied = OccupiedSquares;
   uint64_t bsliders =
       Bishops(white) | Bishops(black) | Queens(white) | Queens(black);
   uint64_t rsliders =
       Rooks(white) | Rooks(black) | Queens(white) | Queens(black);
-  int attacked_piece, piece, nc = 1, swap_list[32], target = To(move);
+  int attacked_piece, piece, nc = 1, see_list[32], target = To(move);
 
 /*
  ************************************************************
@@ -143,7 +143,7 @@ int SwapO(TREE * RESTRICT tree, int wtm, int move) {
  ************************************************************
  */
   wtm = Flip(wtm);
-  swap_list[0] = attacked_piece;
+  see_list[0] = attacked_piece;
   for (piece = pawn; piece <= king; piece++)
     if ((temp = Pieces(wtm, piece) & attacks))
       break;
@@ -166,7 +166,7 @@ int SwapO(TREE * RESTRICT tree, int wtm, int move) {
  *  behind the attacker we are removing.                    *
  *                                                          *
  *  Once we know there is a piece attacking the last        *
- *  capturing piece, add it to the swap list and repeat     *
+ *  capturing piece, add it to the see list and repeat      *
  *  until one side has no more captures.                    *
  *                                                          *
  ************************************************************
@@ -182,9 +182,9 @@ int SwapO(TREE * RESTRICT tree, int wtm, int move) {
       attacks |= BishopAttacks(target, toccupied) & bsliders;
     if (piece != king && piece & 4)
       attacks |= RookAttacks(target, toccupied) & rsliders;
-    swap_list[nc] = -swap_list[nc - 1] + attacked_piece;
+    see_list[nc] = -see_list[nc - 1] + attacked_piece;
     attacked_piece = pcval[piece];
-    if (swap_list[nc++] - attacked_piece > 0)
+    if (see_list[nc++] - attacked_piece > 0)
       break;
     wtm = Flip(wtm);
   }
@@ -198,6 +198,6 @@ int SwapO(TREE * RESTRICT tree, int wtm, int move) {
  ************************************************************
  */
   while (--nc)
-    swap_list[nc - 1] = -Max(-swap_list[nc - 1], swap_list[nc]);
-  return swap_list[0];
+    see_list[nc - 1] = -Max(-see_list[nc - 1], see_list[nc]);
+  return see_list[0];
 }

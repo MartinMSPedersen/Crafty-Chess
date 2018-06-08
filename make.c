@@ -1,6 +1,6 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 02/22/14 */
+/* last modified 01/06/16 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -228,7 +228,7 @@ void MakeMove(TREE * RESTRICT tree, int ply, int side, int move) {
   return;
 }
 
-/* last modified 05/08/14 */
+/* last modified 01/06/16 */
 /*
  *******************************************************************************
  *                                                                             *

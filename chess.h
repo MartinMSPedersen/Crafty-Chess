@@ -156,10 +156,6 @@ typedef struct {
   uint64_t entry[3];
 } PXOR;
 typedef struct {
-  uint32_t key;
-  int32_t score;
-} EVAL_HASH_ENTRY;
-typedef struct {
   int path[MAXPLY];
   int pathh;
   int pathl;
@@ -178,7 +174,7 @@ typedef struct {
   int remaining;
   unsigned *last;
   unsigned done[10];
-  int excluded;
+  unsigned *exclude;
 } NEXT_MOVE;
 /*
    root_move.status:
@@ -237,7 +233,6 @@ typedef struct tree {
   int phase[MAXPLY];
   int hash_move[MAXPLY];
   unsigned *last[MAXPLY];
-  unsigned first_move[MAXPLY];
   unsigned move_list[5120];
   PATH pv[MAXPLY];
 /* variables used by Evaluate() */
@@ -423,7 +418,7 @@ void Initialize(void);
 void InitializeAttackBoards(void);
 void InitializeChessBoard(TREE *);
 int InitializeGetLogID();
-void InitializeHashTables(void);
+void InitializeHashTables(int);
 void InitializeKillers(void);
 void InitializeKingSafety(void);
 void InitializeMagic(void);
@@ -497,20 +492,20 @@ void SharedFree(void *address);
 void SortRootMoves(void);
 int Split(TREE *RESTRICT);
 int StrCnt(char *, char);
-int Swap(TREE *RESTRICT, int, int);
-int SwapO(TREE *RESTRICT, int, int);
+int SEE(TREE *RESTRICT, int, int);
+int SEEO(TREE *RESTRICT, int, int);
 void Test(char *, FILE *, int, int);
 void TestEPD(char *, FILE *, int, int);
-void ThreadTrace(TREE * RESTRICT, int, int);
-int Threat(TREE *, int, int, int, int);
-void WaitForAllThreadsInitialized(void);
+void ThreadAffinity(int);
 void *STDCALL ThreadInit(void *);
 #  if !defined(UNIX)
 void ThreadMalloc(int64_t);
 #  endif
 int ThreadSplit(TREE *RESTRICT, int, int, int, int, int);
 void ThreadStop(TREE *RESTRICT);
+void ThreadTrace(TREE * RESTRICT, int, int);
 int ThreadWait(int, TREE *RESTRICT);
+int Threat(TREE *, int, int, int, int);
 void TimeAdjust(int, int);
 int TimeCheck(TREE *RESTRICT, int);
 void TimeSet(int);
@@ -518,6 +513,7 @@ void UnmakeMove(TREE *RESTRICT, int, int, int);
 int ValidMove(TREE *RESTRICT, int, int, int);
 int VerifyMove(TREE *RESTRICT, int, int, int);
 void ValidatePosition(TREE *RESTRICT, int, int, char *);
+void WaitForAllThreadsInitialized(void);
 #  if !defined(UNIX)
 extern void *WinMallocInterleaved(size_t, int);
 extern void WinFreeInterleaved(void *, size_t);

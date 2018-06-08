@@ -62,6 +62,8 @@ __forceinline int PopCnt(uint64_t a) {
 __forceinline int PopCnt(uint64_t a) {
   int c = 1;
 
+  if (!a)
+    return 0;
   while (a &= a - 1)
     c++;
   return c;

@@ -70,11 +70,10 @@ int Bench(int increase, int autotune) {
     nargs = ReadParse(buffer, args, " \t;=");
     SetBoard(tree, nargs, args, 0);
     search_depth = fen_depth[pos] + increase;
-    InitializeHashTables();
     last_pv.pathd = 0;
     thinking = 1;
     tree->status[1] = tree->status[0];
-    InitializeHashTables();
+    InitializeHashTables(0);
     Iterate(game_wtm, think, 0);
     thinking = 0;
     nodes += tree->nodes_searched;
@@ -235,11 +234,10 @@ int Bench_PGO(int increase, int autotune) {
     nargs = ReadParse(buffer, args, " \t;=");
     SetBoard(tree, nargs, args, 0);
     search_depth = fen_depth + increase;
-    InitializeHashTables();
     last_pv.pathd = 0;
     thinking = 1;
     tree->status[1] = tree->status[0];
-    InitializeHashTables();
+    InitializeHashTables(0);
     Iterate(game_wtm, think, 0);
     thinking = 0;
     nodes += tree->nodes_searched;
@@ -281,11 +279,10 @@ int Bench_PGO(int increase, int autotune) {
     nargs = ReadParse(buffer, args, " \t;=");
     SetBoard(tree, nargs, args, 0);
     search_depth = fen_depth + increase;
-    InitializeHashTables();
     last_pv.pathd = 0;
     thinking = 1;
     tree->status[1] = tree->status[0];
-    InitializeHashTables();
+    InitializeHashTables(0);
     Iterate(game_wtm, think, 0);
     thinking = 0;
     nodes += tree->nodes_searched;
