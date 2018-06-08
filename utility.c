@@ -45,19 +45,15 @@
 #  else
 #    include <sys/ioctl.h>
 #  endif
-#  if defined(SMP)
-#    include <signal.h>
-#    include <sys/wait.h>
-#  endif
+#  include <signal.h>
+#  include <sys/wait.h>
 #endif
 #if defined(UNIX)
 #  if !defined(CLK_TCK)
 static clock_t clk_tck = 0;
 #  endif
-#  if defined(SMP)
-#    include <sys/ipc.h>
-#    include <sys/shm.h>
-#  endif
+#  include <sys/ipc.h>
+#  include <sys/shm.h>
 #endif
 
 #if defined(__EMX__)
@@ -89,8 +85,6 @@ void BookClusterIn(FILE * file, int positions, BOOK_POSITION * buffer)
     buffer[i].learn =
         BookIn32f((unsigned char *) (file_buffer + i * BOOK_POSITION_SIZE +
             12));
-    buffer[i].CAP_score =
-        BookIn32((unsigned char *) (file_buffer + i * BOOK_POSITION_SIZE + 16));
   }
 }
 
@@ -115,8 +109,6 @@ void BookClusterOut(FILE * file, int positions, BOOK_POSITION * buffer)
         BookOut32(buffer[i].status_played), 4);
     memcpy(file_buffer + i * BOOK_POSITION_SIZE + 12,
         BookOut32f(buffer[i].learn), 4);
-    memcpy(file_buffer + i * BOOK_POSITION_SIZE + 16,
-        BookOut32(buffer[i].CAP_score), 4);
   }
   fwrite(file_buffer, positions, BOOK_POSITION_SIZE, file);
 }
@@ -467,10 +459,8 @@ void DisplayBitBoard(BITBOARD board)
 {
   int i, j, x;
 
-  for (i = 7; i >= 0; i--) {
-    printf("  %2d ", i * 8);
-    x = board & 255;
-    board >>= 8;
+  for (i = 56; i >= 0; i -= 8) {
+    x = (board >> i) & 255;
     for (j = 128; j > 0; j = j >> 1)
       if (x & j)
         printf("X ");
@@ -638,12 +628,10 @@ void DisplayPV(TREE * RESTRICT tree, int level, int wtm, int time, int value,
  *                                                          *
  ************************************************************
  */
-#if defined(SMP)
   for (i = 0; i < shared->n_root_moves; i++)
     if (!(shared->root_moves[i].status & 128) &&
         shared->root_moves[i].status & 64)
       nskip++;
-#endif
   if (level == 5)
     type = 4;
   else
@@ -678,7 +666,7 @@ void DisplayPV(TREE * RESTRICT tree, int level, int wtm, int time, int value,
   if (pv->pathh == 1) {
     for (i = pv->pathl + 1; i < MAXPLY; i++) {
       HashProbe(tree, i, 0, wtm, &dummy, dummy, &dummy);
-      if (tree->hash_move[i] && LegalMove(tree, i, wtm, tree->hash_move[i])) {
+      if (tree->hash_move[i] && ValidMove(tree, i, wtm, tree->hash_move[i])) {
         pv->path[i] = tree->hash_move[i];
         for (j = 1; j < i; j++)
           if (pv->path[i] == pv->path[j])
@@ -704,9 +692,7 @@ void DisplayPV(TREE * RESTRICT tree, int level, int wtm, int time, int value,
   if (nskip > 1 && shared->max_threads > 1)
     sprintf(buffer + strlen(buffer), " (s=%d)", nskip);
   if (shared->root_print_ok) {
-#if defined(SMP)
     Lock(shared->lock_io);
-#endif
     Print(type, "               ");
     if (level == 6)
       Print(type, "%2i   %s%s   ", shared->iteration_depth, DisplayTime(time),
@@ -730,9 +716,7 @@ void DisplayPV(TREE * RESTRICT tree, int level, int wtm, int time, int value,
     Kibitz(level, twtm, shared->iteration_depth,
         shared->end_time - shared->start_time, value, tree->nodes_searched,
         tree->egtb_probes_successful, shared->kibitz_text);
-#if defined(SMP)
     Unlock(shared->lock_io);
-#endif
   }
   for (i = pv->pathl; i > 0; i--) {
     wtm = Flip(wtm);
@@ -839,27 +823,19 @@ void DisplayTreeState(TREE * RESTRICT tree, int sply, int spos, int maxply)
   }
 }
 
-void Display64bitWord(BITBOARD word)
-{
-  printf("%08x%08x\n", (int) (word >> 32), (int) word);
-}
-
 void Display2BitBoards(BITBOARD board1, BITBOARD board2)
 {
   int i, j, x, y;
 
-  for (i = 7; i >= 0; i--) {
-    printf("  %2d ", i * 8);
-    x = board1 & 255;
-    board1 >>= 8;
+  for (i = 56; i >= 0; i -= 8) {
+    x = (board1 >> i) & 255;
     for (j = 128; j > 0; j = j >> 1)
       if (x & j)
         printf("X ");
       else
         printf("- ");
-    printf("     %2d ", i * 8);
-    y = board2 & 255;
-    board2 >>= 8;
+    printf("    ");
+    y = (board2 >> i) & 255;
     for (j = 128; j > 0; j = j >> 1)
       if (y & j)
         printf("X ");
@@ -1075,7 +1051,6 @@ unsigned int ReadClock(void)
 #endif
 }
 
-#if defined(SMP)
 /*
  *******************************************************************************
  *                                                                             *
@@ -1093,7 +1068,6 @@ int FindBlockID(TREE * RESTRICT block)
       return (i);
   return (-1);
 }
-#endif
 
 /*
  *******************************************************************************
@@ -1343,6 +1317,7 @@ void NewGame(int save)
     }
     over = 0;
     shared->moves_out_of_book = 0;
+    learn_positions_count = 0;
     ponder_move = 0;
     last_search_value = 0;
     last_pv.pathd = 0;
@@ -1518,8 +1493,8 @@ int PinnedOnKing(TREE * RESTRICT tree, int wtm, int square)
       else
         return (0);
     case 7:
-      if (AttacksDiaga1(square) & WhiteKing)
-        return ((AttacksDiaga1(square) & BishopsQueens & BlackPieces) != 0);
+      if (AttacksDiagh1(square) & WhiteKing)
+        return ((AttacksDiagh1(square) & BishopsQueens & BlackPieces) != 0);
       else
         return (0);
     case 8:
@@ -1528,8 +1503,8 @@ int PinnedOnKing(TREE * RESTRICT tree, int wtm, int square)
       else
         return (0);
     case 9:
-      if (AttacksDiagh1(square) & WhiteKing)
-        return ((AttacksDiagh1(square) & BishopsQueens & BlackPieces) != 0);
+      if (AttacksDiaga1(square) & WhiteKing)
+        return ((AttacksDiaga1(square) & BishopsQueens & BlackPieces) != 0);
       else
         return (0);
     }
@@ -1562,8 +1537,8 @@ int PinnedOnKing(TREE * RESTRICT tree, int wtm, int square)
       else
         return (0);
     case 7:
-      if (AttacksDiaga1(square) & BlackKing)
-        return ((AttacksDiaga1(square) & BishopsQueens & WhitePieces) != 0);
+      if (AttacksDiagh1(square) & BlackKing)
+        return ((AttacksDiagh1(square) & BishopsQueens & WhitePieces) != 0);
       else
         return (0);
     case 8:
@@ -1572,8 +1547,8 @@ int PinnedOnKing(TREE * RESTRICT tree, int wtm, int square)
       else
         return (0);
     case 9:
-      if (AttacksDiagh1(square) & BlackKing)
-        return ((AttacksDiagh1(square) & BishopsQueens & WhitePieces) != 0);
+      if (AttacksDiaga1(square) & BlackKing)
+        return ((AttacksDiaga1(square) & BishopsQueens & WhitePieces) != 0);
       else
         return (0);
     }
@@ -2217,8 +2192,6 @@ char *Reverse(void)
   return ("");
 }
 
-#if defined(SMP)
-
 /*
  *******************************************************************************
  *                                                                             *
@@ -2347,8 +2320,6 @@ TREE *CopyToSMP(TREE * RESTRICT p, int thread)
   return (c);
 }
 
-#endif
-
 /*
  *******************************************************************************
  *                                                                             *
@@ -2453,18 +2424,210 @@ void Kibitz(int level, int wtm, int depth, int time, int value, BITBOARD nodes,
     fflush(stdout);
   }
 }
+/* last modified 07/07/98 */
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   StrCnt() counts the number of times a character occurs in a string.       *
+ *                                                                             *
+ *******************************************************************************
+ */
+int StrCnt(char *string, char testchar)
+{
+  int count = 0, i;
+
+  for (i = 0; i < strlen(string); i++)
+    if (string[i] == testchar)
+      count++;
+  return (count);
+}
+
+/* last modified 03/22/01 */
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   ValidMove() is used to verify that a move is playable.  it is mainly      *
+ *   used to confirm that a move retrieved from the transposition/refutation   *
+ *   and/or killer move is valid in the current position by checking the move  *
+ *   against the current chess board, castling status, en passant status, etc. *
+ *                                                                             *
+ *******************************************************************************
+ */
+int ValidMove(TREE * RESTRICT tree, int ply, int wtm, int move)
+{
+/*
+ ************************************************************
+ *                                                          *
+ *   make sure that the piece on <from> is the right color. *
+ *                                                          *
+ ************************************************************
+ */
+  if (wtm) {
+    if (PcOnSq(From(move)) != Piece(move))
+      return (0);
+  } else {
+    if (PcOnSq(From(move)) != -Piece(move))
+      return (0);
+  }
+  switch (Piece(move)) {
+/*
+ ************************************************************
+ *                                                          *
+ *   null-moves are caught as it is possible for a killer   *
+ *   move entry to be zero at certain times.                *
+ *                                                          *
+ ************************************************************
+ */
+  case none:
+    return (0);
+/*
+ ************************************************************
+ *                                                          *
+ *   king moves are validated here if the king is moving    *
+ *   two squares at one time (castling moves).  otherwise   *
+ *   fall into the normal piece validation routine below.   *
+ *   for castling moves, we need to verify that the         *
+ *   castling status is correct to avoid "creating" a new   *
+ *   rook or king.                                          *
+ *                                                          *
+ ************************************************************
+ */
+  case king:
+    if (abs(From(move) - To(move)) == 2) {
+      if (wtm) {
+        if (WhiteCastle(ply) > 0) {
+          if (To(move) == C1) {
+            if ((!(WhiteCastle(ply) & 2)) || (Occupied & mask_white_OOO) ||
+                (AttacksTo(tree, C1) & BlackPieces) ||
+                (AttacksTo(tree, D1) & BlackPieces) ||
+                (AttacksTo(tree, E1) & BlackPieces))
+              return (0);
+          } else if (To(move) == G1) {
+            if ((!(WhiteCastle(ply) & 1)) || (Occupied & mask_white_OO) ||
+                (AttacksTo(tree, E1) & BlackPieces) ||
+                (AttacksTo(tree, F1) & BlackPieces) ||
+                (AttacksTo(tree, G1) & BlackPieces))
+              return (0);
+          }
+        } else
+          return (0);
+      } else {
+        if (BlackCastle(ply) > 0) {
+          if (To(move) == C8) {
+            if ((!(BlackCastle(ply) & 2)) || (Occupied & mask_black_OOO) ||
+                (AttacksTo(tree, C8) & WhitePieces) ||
+                (AttacksTo(tree, D8) & WhitePieces) ||
+                (AttacksTo(tree, E8) & WhitePieces))
+              return (0);
+          }
+          if (To(move) == 62) {
+            if ((!(BlackCastle(ply) & 1)) || (Occupied & mask_black_OO) ||
+                (AttacksTo(tree, E8) & WhitePieces) ||
+                (AttacksTo(tree, F8) & WhitePieces) ||
+                (AttacksTo(tree, G8) & WhitePieces))
+              return (0);
+          }
+        } else
+          return (0);
+      }
+      return (1);
+    }
+    break;
+/*
+ ************************************************************
+ *                                                          *
+ *   check for a normal pawn advance.                       *
+ *                                                          *
+ ************************************************************
+ */
+  case pawn:
+    if (abs(From(move) - To(move)) == 8) {
+      if (wtm) {
+        if ((From(move) < To(move)) && !PcOnSq(To(move)))
+          return (1);
+      } else {
+        if ((From(move) > To(move)) && !PcOnSq(To(move)))
+          return (1);
+      }
+      return (0);
+    } else if (abs(From(move) - To(move)) == 16) {
+      if (wtm) {
+        if (!PcOnSq(To(move) - 8) && !PcOnSq(To(move)))
+          return (1);
+      } else {
+        if (!PcOnSq(To(move) + 8) && !PcOnSq(To(move)))
+          return (1);
+      }
+      return (0);
+    }
+    if (!Captured(move))
+      return (0);
+
+/*
+ ************************************************************
+ *                                                          *
+ *   check for an en passant capture which is somewhat      *
+ *   unusual in that the [to] square does not contain the   *
+ *   pawn being captured.  make sure that the pawn being    *
+ *   captured advanced two ranks the previous move.         *
+ *                                                          *
+ ************************************************************
+ */
+    if (wtm) {
+      if ((PcOnSq(To(move)) == 0) && (PcOnSq(To(move) - 8) == -pawn) &&
+          (EnPassantTarget(ply) & SetMask(To(move))))
+        return (1);
+    } else {
+      if ((PcOnSq(To(move)) == 0) && (PcOnSq(To(move) + 8) == pawn) &&
+          (EnPassantTarget(ply) & SetMask(To(move))))
+        return (1);
+    }
+/*
+ ************************************************************
+ *                                                          *
+ *   normal moves are all checked the same way.             *
+ *                                                          *
+ ************************************************************
+ */
+  case queen:
+  case rook:
+  case bishop:
+    if (Attack(From(move), To(move)))
+      break;
+    return (0);
+  case knight:
+    break;
+  }
+/*
+ ************************************************************
+ *                                                          *
+ *   all normal moves are validated in the same manner, by  *
+ *   checking the from and to squares and also the attack   *
+ *   status for completeness.                               *
+ *                                                          *
+ ************************************************************
+ */
+  if (wtm) {
+    if (Captured(move) == -PcOnSq(To(move)) && Captured(move) != king)
+      return (1);
+  } else {
+    if (Captured(move) == PcOnSq(To(move)) && Captured(move) != king)
+      return (1);
+  }
+  return (0);
+}
 
 /* last modified 07/07/98 */
 /*
  *******************************************************************************
  *                                                                             *
- *   LegalMove() tests a move to confirm it is absolutely legal.  it should not*
+ *   VerifyMove() tests a move to confirm it is absolutely legal. it shouldn't *
  *   be used inside the search, but can be used to check a 21-bit (compressed) *
  *   move to be sure it is safe to make it on the permanent game board.        *
  *                                                                             *
  *******************************************************************************
  */
-int LegalMove(TREE * RESTRICT tree, int ply, int wtm, int move)
+int VerifyMove(TREE * RESTRICT tree, int ply, int wtm, int move)
 {
   int moves[220], *mv, *mvp;
 
@@ -2487,23 +2650,6 @@ int LegalMove(TREE * RESTRICT tree, int ply, int wtm, int move)
   return (0);
 }
 
-/* last modified 07/07/98 */
-/*
- *******************************************************************************
- *                                                                             *
- *   StrCnt() counts the number of times a character occurs in a string.       *
- *                                                                             *
- *******************************************************************************
- */
-int StrCnt(char *string, char testchar)
-{
-  int count = 0, i;
-
-  for (i = 0; i < strlen(string); i++)
-    if (string[i] == testchar)
-      count++;
-  return (count);
-}
 
 /*
  *******************************************************************************
@@ -2513,7 +2659,7 @@ int StrCnt(char *string, char testchar)
  *******************************************************************************
  */
 
-#if (defined(_WIN32) || defined(_WIN64)) && defined(SMP)
+#if defined(_WIN32) || defined(_WIN64)
 
 lock_t ThreadsLock;
 
@@ -2711,13 +2857,11 @@ void WinFreeInterleaved(void *pMemory, size_t cBytes)
 {
   VirtualFree(pMemory, 0, MEM_RELEASE);
 }
-
 #endif
 
 void *SharedMalloc(size_t size, int tid)
 {
 #if defined(UNIX)
-#  if defined(SMP)
   int shmid;
   void *shared;
 
@@ -2737,32 +2881,21 @@ void *SharedMalloc(size_t size, int tid)
   shared = shmat(shmid, 0, 0);
   shmctl(shmid, IPC_RMID, 0);
   return (shared);
-#  else
-  return (malloc(size));
-#  endif
 #else
-#  if !defined(SMP)
-  return (malloc(size));
-#  else
   return WinMalloc(size, tid);
-#  endif
 #endif
 }
 
 void SharedFree(void *address)
 {
-#if defined(SMP)
 #  if defined(UNIX)
   shmdt(address);
 #  else
   VirtualFree(address, 0, MEM_RELEASE);
 #  endif
-#else
-  free(address);
-#endif
 }
 
-#if defined(UNIX) && defined(SMP)
+#if defined(UNIX)
 void SignalInterrupt(int sigtype)
 {
   signal(SIGCHLD, SignalInterrupt);

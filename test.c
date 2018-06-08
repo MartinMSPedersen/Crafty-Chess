@@ -38,7 +38,7 @@ void Test(char *filename)
   int i, move, right = 0, wrong = 0, correct;
   int time = 0, len;
   BITBOARD nodes = 0;
-  char *eof;
+  char *eof, *delim;
   float avg_depth = 0.0;
   TREE *const tree = shared->local[0];
 
@@ -72,10 +72,7 @@ void Test(char *filename)
     books_file = 0;
   }
   while (1) {
-    eof = fgets(buffer, 512, test_input);
     if (eof) {
-      char *delim;
-
       delim = strchr(buffer, '\n');
       if (delim)
         *delim = 0;
@@ -159,6 +156,7 @@ void Test(char *filename)
             right, right + wrong);
       }
     }
+    eof = fgets(buffer, 512, test_input);
   }
 /*
  ************************************************************

@@ -5,7 +5,7 @@
 
 void ValidatePosition(TREE * RESTRICT tree, int ply, int move, char *caller)
 {
-  BITBOARD temp, temp1, temp_occ, temp_occ_rl90, temp_occ_rl45;
+  BITBOARD temp, temp1, temp_occ, temp_occ_rr90, temp_occ_rl45;
   BITBOARD temp_occ_rr45, temp_occx;
   int i, square, error;
   int temp_score;
@@ -33,19 +33,19 @@ void ValidatePosition(TREE * RESTRICT tree, int ply, int move, char *caller)
 /*
  now test rotated occupied bitboards.
  */
-  temp_occ_rl90 = 0;
+  temp_occ_rr90 = 0;
   temp_occ_rl45 = 0;
   temp_occ_rr45 = 0;
   for (i = 0; i < 64; i++) {
     if (PcOnSq(i)) {
-      temp_occ_rl90 = temp_occ_rl90 | SetMaskRL90(i);
+      temp_occ_rr90 = temp_occ_rr90 | SetMaskRR90(i);
       temp_occ_rl45 = temp_occ_rl45 | SetMaskRL45(i);
       temp_occ_rr45 = temp_occ_rr45 | SetMaskRR45(i);
     }
   }
-  if (OccupiedRL90 ^ temp_occ_rl90) {
+  if (OccupiedRR90 ^ temp_occ_rr90) {
     Print(128, "ERROR occupied squares (rotated left 90) is bad!\n");
-    Display2BitBoards(temp_occ_rl90, OccupiedRL90);
+    Display2BitBoards(temp_occ_rr90, OccupiedRR90);
     error = 1;
   }
   if (OccupiedRL45 ^ temp_occ_rl45) {
@@ -469,7 +469,7 @@ void ValidatePosition(TREE * RESTRICT tree, int ply, int move, char *caller)
     Print(4095, "node=" BMF "\n", tree->nodes_searched);
     Print(4095, "active path:\n");
     for (i = 1; i <= ply; i++)
-      DisplayChessMove("move=", move);
+      DisplayChessMove("move=", tree->current_move[i]);
     i = 99999999;
     tree->move_list[i] = 0;
     CraftyExit(1);

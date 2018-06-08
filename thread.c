@@ -18,7 +18,6 @@
  *                                                                             *
  *******************************************************************************
  */
-#if defined(SMP)
 int Thread(TREE * RESTRICT tree)
 {
   TREE *block;
@@ -142,7 +141,7 @@ int Thread(TREE * RESTRICT tree)
  *******************************************************************************
  *                                                                             *
  *   WaitForAllThreadsInitialized() waits till all max_threads are initialized.*
- *   Otherwise we can try to use not yest initialized local[] data.            *
+ *   Otherwise we can try to use not yet initialized local[] data.             *
  *                                                                             *
  *******************************************************************************
  */
@@ -168,12 +167,13 @@ void WaitForAllThreadsInitialized(void)
 
 void *STDCALL ThreadInit(void *tid)
 {
-  int i, j;
+  int i;
+  long j;
 
 #  if defined(_WIN32) || defined(_WIN64)
   ThreadMalloc((int) tid);
 #  endif
-  j = (int) tid;
+  j = (long) tid;
   for (i = 0; i < MAX_BLOCKS_PER_CPU; i++) {
     memset((void *) shared->local[j * MAX_BLOCKS_PER_CPU + i + 1], 0,
         sizeof(TREE));
@@ -185,7 +185,7 @@ void *STDCALL ThreadInit(void *tid)
   shared->initialized_threads++;
   Unlock(shared->lock_smp);
   WaitForAllThreadsInitialized();
-  ThreadWait((int) tid, (TREE *) 0);
+  ThreadWait((long) tid, (TREE *) 0);
   return (0);
 }
 
@@ -304,8 +304,7 @@ int ThreadWait(int tid, TREE * RESTRICT waiting)
  ************************************************************
  */
     while (!shared->thread[tid] && !shared->quit && (!waiting ||
-            waiting->nprocs))
-      Pause();
+            waiting->nprocs));
     if (shared->quit)
       return (0);
     Lock(shared->lock_smp);
@@ -390,4 +389,3 @@ int ThreadWait(int tid, TREE * RESTRICT waiting)
     Unlock(shared->lock_smp);
   }
 }
-#endif

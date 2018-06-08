@@ -9,7 +9,7 @@
 #  include <unistd.h>
 #endif
 
-/* last modified 08/07/05 */
+/* last modified 07/06/06 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -68,17 +68,12 @@ void LearnBook(TREE * RESTRICT tree, int wtm, int search_value,
  ************************************************************
  */
   else if (shared->moves_out_of_book == LEARN_INTERVAL + 1 || force) {
-    int move, i, j, learn_value, read;
-    time_t secs;
-    int interval, last_book_move = -1;
-    float temp_value;
-    char cmd[32], buff[80], *nextc;
+    int i, j, learn_value, cluster;
+    int interval;
     int best_eval = -999999, best_eval_p = 0;
     int worst_eval = 999999, worst_eval_p = 0;
     int best_after_worst_eval = -999999, worst_after_best_eval = 999999;
-    struct tm *timestruct;
-    int n_book_moves[512];
-    float book_learn[512], t_learn_value;
+    float book_learn[64], t_learn_value;
 
     if (shared->moves_out_of_book < 1)
       return;
@@ -195,65 +190,6 @@ void LearnBook(TREE * RESTRICT tree, int wtm, int search_value,
 /*
  ************************************************************
  *                                                          *
- *   first, we are going to find every book move in the     *
- *   game, and note how many alternatives there were at     *
- *   every book move.                                       *
- *                                                          *
- ************************************************************
- */
-    InitializeChessBoard(&tree->position[0]);
-    for (i = 0; i < 512; i++)
-      n_book_moves[i] = 0;
-    wtm = 1;
-    for (i = 0; i < 512; i++) {
-      int *mv, cluster, key, test;
-      BITBOARD common, temp_hash_key;
-
-      n_book_moves[i] = 0;
-      fseek(history_file, i * 10, SEEK_SET);
-      strcpy(cmd, "");
-      read = fscanf(history_file, "%s", cmd);
-      if (read != 1)
-        break;
-      if (strcmp(cmd, "pass")) {
-        move = InputMove(tree, cmd, 0, wtm, 1, 0);
-        if (!move)
-          break;
-        tree->position[1] = tree->position[0];
-        tree->last[1] = GenerateCaptures(tree, 1, wtm, tree->last[0]);
-        tree->last[1] = GenerateNonCaptures(tree, 1, wtm, tree->last[1]);
-        test = HashKey >> 49;
-        fseek(book_file, test * 4, SEEK_SET);
-        fread(buf32, 4, 1, book_file);
-        key = BookIn32(buf32);
-        if (key > 0) {
-          fseek(book_file, key, SEEK_SET);
-          fread(buf32, 4, 1, book_file);
-          cluster = BookIn32(buf32);
-          BookClusterIn(book_file, cluster, book_buffer);
-        } else
-          cluster = 0;
-        for (mv = tree->last[0]; mv < tree->last[1]; mv++) {
-          common = HashKey & ((BITBOARD) 65535 << 48);
-          MakeMove(tree, 1, *mv, wtm);
-          temp_hash_key = HashKey ^ wtm_random[wtm];
-          temp_hash_key = (temp_hash_key & ~((BITBOARD) 65535 << 48)) | common;
-          for (j = 0; j < cluster; j++)
-            if (!(temp_hash_key ^ book_buffer[j].position) &&
-                book_buffer[j].learn > (float) LEARN_COUNTER_BAD / 100.0) {
-              n_book_moves[i]++;
-              last_book_move = i;
-            }
-          UnmakeMove(tree, 1, *mv, wtm);
-        }
-        if (move)
-          MakeMoveRoot(tree, move, wtm);
-      }
-      wtm = Flip(wtm);
-    }
-/*
- ************************************************************
- *                                                          *
  *   now we build a vector of book learning results.  we    *
  *   give every book move below the last point where there  *
  *   were alternatives 100% of the learned score.  We give  *
@@ -266,155 +202,41 @@ void LearnBook(TREE * RESTRICT tree, int wtm, int search_value,
  ************************************************************
  */
     t_learn_value = ((float) learn_value) / 100.0;
-    for (i = 0; i < 512; i++)
-      if (n_book_moves[i] > 1)
+    for (i = 0; i < 64; i++)
+      if (learn_nmoves[i] > 1)
         nplies++;
-    for (i = 0; i < 512; i++) {
-      if (n_book_moves[i] > 1)
+    for (i = 0; i < 64; i++) {
+      if (learn_nmoves[i] > 1)
         thisply++;
-      book_learn[i] = t_learn_value * thisply / nplies;
+      book_learn[i] = t_learn_value * (float) thisply / (float) nplies;
     }
 /*
  ************************************************************
  *                                                          *
- *   finally, we run thru the book file and update each     *
- *   book move learned value based on the computation we    *
- *   calculated above.                                      *
+ *   now find the appropriate cluster, find the key we were *
+ *   passed, and update the resulting learn value.          *
  *                                                          *
  ************************************************************
  */
-    InitializeChessBoard(&tree->position[0]);
-    wtm = 1;
-    for (i = 0; i < 512; i++) {
-      strcpy(cmd, "");
-      fseek(history_file, i * 10, SEEK_SET);
-      strcpy(cmd, "");
-      read = fscanf(history_file, "%s", cmd);
-      if (read != 1)
-        break;
-      if (strcmp(cmd, "pass")) {
-        move = InputMove(tree, cmd, 0, wtm, 1, 0);
-        if (!move)
-          break;
-        tree->position[1] = tree->position[0];
-/*
- ************************************************************
- *                                                          *
- *   now call LearnBookUpdate() to find this position in    *
- *   the book database and update the learn stuff.          *
- *                                                          *
- ************************************************************
- */
-        temp_value = book_learn[i];
-        LearnBookUpdate(tree, wtm, move, temp_value);
-        MakeMoveRoot(tree, move, wtm);
+    for (i = 0; i < 64 && learn_seekto[i]; i++) {
+      if (learn_seekto[i] > 0) {
+        fseek(book_file, learn_seekto[i], SEEK_SET);
+        fread(buf32, 4, 1, book_file);
+        cluster = BookIn32(buf32);
+        BookClusterIn(book_file, cluster, book_buffer);
+        for (j = 0; j < cluster; j++)
+          if (!(learn_key[i] ^ book_buffer[j].position))
+            break;
+        if (j >= cluster)
+          return;
+        if (fabs(book_buffer[j].learn) < 0.0001)
+          book_buffer[j].learn = book_learn[i];
+        else
+          book_buffer[j].learn = (book_buffer[j].learn + book_learn[i]) / 2.0;
+        fseek(book_file, learn_seekto[i] + 4, SEEK_SET);
+        BookClusterOut(book_file, cluster, book_buffer);
+        fflush(book_file);
       }
-      wtm = Flip(wtm);
-    }
-/*
- ************************************************************
- *                                                          *
- *   now update the "book.lrn" file so that this can be     *
- *   shared with other crafty users or else saved in case.  *
- *   the book must be re-built.                             *
- *                                                          *
- ************************************************************
- */
-    fprintf(book_lrn_file, "[White \"%s\"]\n", pgn_white);
-    fprintf(book_lrn_file, "[Black \"%s\"]\n", pgn_black);
-    secs = time(0);
-    timestruct = localtime((time_t *) & secs);
-    fprintf(book_lrn_file, "[Date \"%4d.%02d.%02d\"]\n",
-        timestruct->tm_year + 1900, timestruct->tm_mon + 1,
-        timestruct->tm_mday);
-    nextc = buff;
-    for (i = 0; i <= last_book_move; i++) {
-      fseek(history_file, i * 10, SEEK_SET);
-      strcpy(cmd, "");
-      read = fscanf(history_file, "%s", cmd);
-      if (read != 1)
-        break;
-      if (strchr(cmd, ' '))
-        *strchr(cmd, ' ') = 0;
-      sprintf(nextc, " %s", cmd);
-      nextc = buff + strlen(buff);
-      if (nextc - buff > 60) {
-        fprintf(book_lrn_file, "%s\n", buff);
-        nextc = buff;
-        strcpy(buff, "");
-      }
-    }
-    fprintf(book_lrn_file, "%s {%d %d %d}\n", buff, learn_value, search_depth,
-        crafty_rating - opponent_rating);
-    fflush(book_lrn_file);
-/*
- ************************************************************
- *                                                          *
- *   done.  now restore the game back to where it was       *
- *   before we started all this nonsense.  :)               *
- *                                                          *
- ************************************************************
- */
-    RestoreGame();
-  }
-}
-
-/* last modified 08/07/05 */
-/*
- *******************************************************************************
- *                                                                             *
- *   LearnBookUpdate() is called to find the current position in the book and  *
- *   update the learn counter.  if it is supposed to mark a move as not to be  *
- *   played, and after marking such a move there are no more left at this point*
- *   in the database, it returns (0) which will force LearnBook() to back up   *
- *   two plies and update that position as well, since no more choices at the  *
- *   current position doesn't really do much for us...                         *
- *                                                                             *
- *******************************************************************************
- */
-void LearnBookUpdate(TREE * RESTRICT tree, int wtm, int move, float learn_value)
-{
-  int cluster, test, move_index, key;
-  BITBOARD temp_hash_key, common;
-  unsigned char buf32[4];
-
-/*
- ************************************************************
- *                                                          *
- *   first find the appropriate cluster, make the move we   *
- *   were passed, and find the resulting position in the    *
- *   database.                                              *
- *                                                          *
- ************************************************************
- */
-  test = HashKey >> 49;
-  if (book_file) {
-    fseek(book_file, test * 4, SEEK_SET);
-    fread(buf32, 4, 1, book_file);
-    key = BookIn32(buf32);
-    if (key > 0) {
-      fseek(book_file, key, SEEK_SET);
-      fread(buf32, 4, 1, book_file);
-      cluster = BookIn32(buf32);
-      BookClusterIn(book_file, cluster, book_buffer);
-      common = HashKey & ((BITBOARD) 65535 << 48);
-      MakeMove(tree, 1, move, wtm);
-      temp_hash_key = HashKey ^ wtm_random[wtm];
-      temp_hash_key = (temp_hash_key & ~((BITBOARD) 65535 << 48)) | common;
-      for (move_index = 0; move_index < cluster; move_index++)
-        if (!(temp_hash_key ^ book_buffer[move_index].position))
-          break;
-      UnmakeMove(tree, 1, move, wtm);
-      if (move_index >= cluster)
-        return;
-      if (fabs(book_buffer[move_index].learn) < 0.0001)
-        book_buffer[move_index].learn = learn_value;
-      else
-        book_buffer[move_index].learn =
-            (book_buffer[move_index].learn + learn_value) / 2.0;
-      fseek(book_file, key + 4, SEEK_SET);
-      BookClusterOut(book_file, cluster, book_buffer);
-      fflush(book_file);
     }
   }
 }
@@ -458,642 +280,6 @@ int LearnFunction(int sv, int search_depth, int rating_difference,
 /*
  *******************************************************************************
  *                                                                             *
- *  LearnImport() is used to read in a learn data file (*.lrn) and apply       *
- *  it to either book.bin (book.lrn file) or position.bin (position.lrn file). *
- *  this allows users to create a new book.bin at any time, adding more games  *
- *  as needed, without losing all of the "learned" openings in the database.   *
- *                                                                             *
- *  the second intent is to allow users to "share" *.lrn files, and to allow me*
- *  to keep several of them on the ftp machine, so that anyone can use those   *
- *  file(s) and have their version of Crafty (or any other program that wants  *
- *  to participate in this) "learn" what other crafty's have already found out *
- *  about which openings and positions are good and bad.                       *
- *                                                                             *
- *  the basic idea is to (a) stuff each book opening line into the game history*
- *  for LearnBook(), then set things up so that LearnBook() can be called and  *
- *  it will behave just as though this book line was just "learned".  if the   *
- *  file is a position.lrn type of file (which is recognized by finding a      *
- *  "setboard" command in the file as well as the word "position" in the first *
- *  eight bytes of the file, then the positions and scores are read in and     *
- *  added to the position.bin file.                                            *
- *                                                                             *
- *  LearnImport() also will import data from the C.A.P. project by Dan Corbitt *
- *  and add the scores to book positions in book.bin, when these positions are *
- *  found.                                                                     *
- *                                                                             *
- *******************************************************************************
- */
-void LearnImport(TREE * RESTRICT tree, int nargs, char **args)
-{
-  FILE *learn_in;
-  char text[128];
-  int eof = 0;
-
-/*
- ************************************************************
- *                                                          *
- *   first, get the name of the file that contains the      *
- *   learned book lines.                                    *
- *                                                          *
- ************************************************************
- */
-  shared->display_options &= 4095 - 128;
-  if (!strcmp(*args, "book.lrn") || !strcmp(*args, "position.lrn")) {
-    Print(4095, "ERROR  you must not import either book.lrn or position.lrn\n");
-    Print(4095, "       if you really want to do this, first rename them to\n");
-    Print(4095, "       another filename and import those files.\n");
-    return;
-  }
-  learn_in = fopen(*args, "r");
-  if (learn_in == NULL) {
-    Print(4095, "unable to open %s for input\n", *args);
-    return;
-  }
-  eof = fscanf(learn_in, "%s", text);
-  fclose(learn_in);
-  if (eof == 0)
-    return;
-  if (!strcmp(text, "position"))
-    LearnImportPosition(tree, nargs, args);
-  else if (strstr(text, "[White"))
-    LearnImportBook(tree, nargs, args);
-  else
-    LearnImportCAP(tree, nargs, args);
-  InitializeChessBoard(&tree->position[0]);
-}
-
-/* last modified 08/07/05 */
-/*
- *******************************************************************************
- *                                                                             *
- *   LearnImportBook() is used to import book learning and save it in the      *
- *   book.bin file (see LearnBook for details.)                                *
- *                                                                             *
- *******************************************************************************
- */
-
-void LearnImportBook(TREE * RESTRICT tree, int nargs, char **args)
-{
-  FILE *learn_in;
-  char nextc, text[128], *eof;
-  int wtm, learn_value, depth, rating_difference, move = 0, i, added_lines = 0;
-  unsigned char buf32[4];
-
-/*
- ************************************************************
- *                                                          *
- *   if the <clear> option was given, first we cycle thru   *
- *   the entire book and clear every learned value.         *
- *                                                          *
- ************************************************************
- */
-  learn_in = fopen(args[0], "r");
-  if (nargs > 1 && !strcmp(args[1], "clear")) {
-    int index[32768], i, j, cluster;
-
-    fclose(book_lrn_file);
-    sprintf(text, "%s/book.lrn", book_path);
-    book_lrn_file = fopen(text, "w");
-    fseek(book_file, 0, SEEK_SET);
-    for (i = 0; i < 32768; i++) {
-      fread(buf32, 4, 1, book_file);
-      index[i] = BookIn32(buf32);
-    }
-    for (i = 0; i < 32768; i++)
-      if (index[i] > 0) {
-        fseek(book_file, index[i], SEEK_SET);
-        fread(buf32, 4, 1, book_file);
-        cluster = BookIn32(buf32);
-        BookClusterIn(book_file, cluster, book_buffer);
-        for (j = 0; j < cluster; j++)
-          book_buffer[j].learn = 0.0;
-        fseek(book_file, index[i] + sizeof(int), SEEK_SET);
-        BookClusterOut(book_file, cluster, book_buffer);
-      }
-  }
-/*
- ************************************************************
- *                                                          *
- *   outer loop loops thru the games (opening lines) one by *
- *   one, while the inner loop stuffs the game history file *
- *   with moves that were played.  the series of moves in a *
- *   line is terminated by the {x y z} data values.         *
- *                                                          *
- ************************************************************
- */
-  while (1) {
-    if (added_lines % 10 == 0) {
-      printf(".");
-      fflush(stdout);
-    }
-    if ((added_lines + 1) % 600 == 0)
-      printf(" (%d)\n", added_lines + 1);
-    InitializeChessBoard(&tree->position[0]);
-    wtm = 0;
-    shared->move_number = 0;
-    for (i = 0; i < 100; i++) {
-      fseek(history_file, i * 10, SEEK_SET);
-      fprintf(history_file, "         \n");
-    }
-    for (i = 0; i < 3; i++) {
-      eof = fgets(text, 80, learn_in);
-      if (eof) {
-        char *delim;
-
-        delim = strchr(text, '\n');
-        if (delim)
-          *delim = 0;
-        delim = strchr(text, '\r');
-        if (delim)
-          *delim = ' ';
-      } else
-        break;
-      if (strchr(text, '['))
-        do {
-          char *bracket1, *bracket2;
-          char value[32];
-
-          bracket1 = strchr(text, '\"');
-          bracket2 = strchr(bracket1 + 1, '\"');
-          if (bracket1 == 0 || bracket2 == 0)
-            break;
-          *bracket2 = 0;
-          strcpy(value, bracket1 + 1);
-          if (bracket2 == 0)
-            break;
-          if (strstr(text, "White"))
-            strcpy(pgn_white, value);
-          if (strstr(text, "Black"))
-            strcpy(pgn_black, value);
-        } while (0);
-    }
-    if (eof == 0)
-      break;
-    do {
-      wtm = Flip(wtm);
-      if (wtm)
-        shared->move_number++;
-      do {
-        nextc = fgetc(learn_in);
-      } while (nextc == ' ' || nextc == '\n');
-      if (nextc == '{')
-        break;
-      ungetc(nextc, learn_in);
-      move = ReadChessMove(tree, learn_in, wtm, 1);
-      if (move < 0)
-        break;
-      strcpy(text, OutputMove(tree, move, 0, wtm));
-      fseek(history_file, ((shared->move_number - 1) * 2 + 1 - wtm) * 10,
-          SEEK_SET);
-      fprintf(history_file, "%9s\n", text);
-      shared->moves_out_of_book = 0;
-      MakeMoveRoot(tree, move, wtm);
-    } while (1);
-    if (move < 0)
-      break;
-    fscanf(learn_in, "%d %d %d}\n", &learn_value, &depth, &rating_difference);
-    shared->moves_out_of_book = LEARN_INTERVAL + 1;
-    shared->move_number += LEARN_INTERVAL + 1 - wtm;
-    for (i = 0; i < LEARN_INTERVAL; i++)
-      book_learn_eval[i] = learn_value;
-    crafty_rating = rating_difference;
-    opponent_rating = 0;
-    learning |= book_learning;
-    LearnBook(tree, wtm, learn_value, depth, 1, 1);
-    added_lines++;
-  }
-  shared->move_number = 1;
-  Print(4095, "\nadded %d learned book lines to book.bin\n", added_lines);
-}
-
-/* last modified 08/07/05 */
-/*
- *******************************************************************************
- *                                                                             *
- *   LearnImportCAP() is used to import data from Dan Corbitt's C.A.P. project *
- *   and update the opening book with the scores of these searches.  we are    *
- *   interested in three fields of a CAP record:  the FEN position string that *
- *   includes the position, castling rights and en passant target; the "ce"    *
- *   field that contains the 'centipawn evaluation'; and finally, the "pm"     *
- *   field that contains the best (preferred) move in this position according  *
- *   to the search results.                                                    *
- *                                                                             *
- *   the FEN is used to set the current board position, then the usual book    *
- *   indexing scheme is used to index to see if the position _after_ the "pm"  *
- *   is in the book.  If so, the CAP score for that move will be set to the    *
- *   "ce" score and written back to disk.                                      *
- *                                                                             *
- *   Note that these scores are not adjusted by Crafty in any way, so that the *
- *   data is 'constant' unless the C.A.P. project revises the scores as faster *
- *   hardware comes along.  re-importing new data will simply overwrite any    *
- *   existing CAP scores that are in the new data, but will not bother the old *
- *   scores, unless the 'clear' option is used, as in other import functions.  *
- *                                                                             *
- *******************************************************************************
- */
-void LearnImportCAP(TREE * RESTRICT tree, int nargs, char **args)
-{
-  BITBOARD temp_hash_key, common;
-  char *eof, *pvp, *pmp, *acd, buffer[2048];
-  int ce, move, CAP_used = 0, CAP_found = 0, key, cluster, test, i;
-  FILE *CAP_in;
-  unsigned char buf32[4];
-
-/*
- ************************************************************
- *                                                          *
- *   if the 'clear' option was given, first run through     *
- *   book.bin and clear every CAP score.  this should not   *
- *   be a common event.                                     *
- *                                                          *
- ************************************************************
- */
-  if (nargs > 1 && !strcmp(args[1], "clear")) {
-    int index[32768], i, j, cluster;
-
-    fseek(book_file, 0, SEEK_SET);
-    for (i = 0; i < 32768; i++) {
-      fread(buf32, 4, 1, book_file);
-      index[i] = BookIn32(buf32);
-    }
-    for (i = 0; i < 32768; i++)
-      if (index[i] > 0) {
-        fseek(book_file, index[i], SEEK_SET);
-        fread(buf32, 4, 1, book_file);
-        cluster = BookIn32(buf32);
-        BookClusterIn(book_file, cluster, book_buffer);
-        for (j = 0; j < cluster; j++)
-          book_buffer[j].CAP_score = -2 * MATE;
-        fseek(book_file, index[i] + sizeof(int), SEEK_SET);
-        BookClusterOut(book_file, cluster, book_buffer);
-      }
-  }
-/*
- ************************************************************
- *                                                          *
- *   loop through the file, reading in a CAP record.  from  *
- *   this we extract the FEN position string, the score     *
- *   (ce) and the preferred move (pm).                      *
- *                                                          *
- ************************************************************
- */
-  CAP_in = fopen(args[0], "r");
-  while (1) {
-    CAP_found++;
-    if ((CAP_found) % 1000 == 0) {
-      printf(".");
-      fflush(stdout);
-    }
-    if ((CAP_found) % 60000 == 0)
-      printf(" (%d)\n", CAP_found);
-    eof = fgets(buffer, 512, CAP_in);
-    if (eof) {
-      char *delim;
-
-      delim = strchr(buffer, '\n');
-      if (delim)
-        *delim = 0;
-      delim = strchr(buffer, '\r');
-      if (delim)
-        *delim = ' ';
-    } else
-      break;
-    if (!strstr(buffer, "ce ")) {
-      Print(4095, "\nERROR  CAP input line with no ce field\n");
-      Print(4095, "line number %d\n", CAP_found);
-      continue;
-    }
-    ce = atoi(strstr(buffer, "ce ") + 2);
-    pvp = strstr(buffer, "pv");
-    pmp = strstr(buffer, "pm");
-    if (pmp) {
-      pmp += 2;
-      while (*pmp == ' ')
-        pmp++;
-      if (!strchr(pmp, ';')) {
-        Print(4095, "\nERROR  CAP input line with partial pm field\n");
-        Print(4095, "line number %d\n", CAP_found);
-        continue;
-      }
-    } else if (pvp) {
-      pvp += 2;
-      while (*pvp == ' ')
-        pvp++;
-      if (!strchr(pvp, ';')) {
-        Print(4095, "\nERROR  CAP input line with partial pv field\n");
-        Print(4095, "line number %d\n", CAP_found);
-        continue;
-      }
-      if (strchr(pvp, ' '))
-        *strchr(pvp, ' ') = ';';
-      pmp = pvp;
-    }
-    if (!pmp) {
-      Print(4095, "\nERROR  CAP input line with neither pm nor pv field\n");
-      Print(4095, "line number %d\n", CAP_found);
-      continue;
-    }
-    *strchr(pmp, ';') = 0;
-    if (!strlen(pmp))
-      continue;
-    acd = strstr(buffer, "acd ");
-    if (!acd) {
-      Print(4095, "\nERROR  CAP input line with no acd field\n");
-      Print(4095, "line number %d\n", CAP_found);
-      continue;
-    }
-    *acd = 0;
-    nargs = ReadParse(buffer, args, " 	;");
-    SetBoard(&tree->position[0], nargs, args, 0);
-    move = InputMove(tree, pmp, 0, wtm, 1, 0);
-    if (!move) {
-      Print(4095, "\nERROR  bad move in CAP input file\n");
-      Print(4095, "line number %d  pm=/%s/  wtm=%d\n", CAP_found, pmp, wtm);
-      DisplayChessBoard(stdout, tree->pos);
-      continue;
-    }
-/*
- ************************************************************
- *                                                          *
- *   now we have the right position.  time to find the      *
- *   position (if it is present) and update the CAP_score   *
- *   field.                                                 *
- *                                                          *
- ************************************************************
- */
-    test = HashKey >> 49;
-    fseek(book_file, test * sizeof(int), SEEK_SET);
-    fread(buf32, 4, 1, book_file);
-    key = BookIn32(buf32);
-    if (key > 0) {
-      fseek(book_file, key, SEEK_SET);
-      fread(&cluster, sizeof(int), 1, book_file);
-      fread(buf32, 4, 1, book_file);
-      cluster = BookIn32(buf32);
-      BookClusterIn(book_file, cluster, book_buffer);
-    } else
-      cluster = 0;
-    if (cluster) {
-      common = HashKey & ((BITBOARD) 65535 << 48);
-      MakeMove(tree, 0, move, wtm);
-      temp_hash_key = HashKey ^ wtm_random[wtm];
-      temp_hash_key = (temp_hash_key & ~((BITBOARD) 65535 << 48)) | common;
-      for (i = 0; i < cluster; i++) {
-        if (!(temp_hash_key ^ book_buffer[i].position)) {
-          book_buffer[i].CAP_score = ce;
-          fseek(book_file, key + sizeof(int), SEEK_SET);
-          BookClusterOut(book_file, cluster, book_buffer);
-          CAP_used++;
-          break;
-        }
-      }
-      UnmakeMove(tree, 0, move, wtm);
-    }
-/*
- ************************************************************
- *                                                          *
- *   now update the position.lrn file so that the position  *
- *   is saved in a form that can be imported later in other *
- *   versions of crafty on different machines.              *
- *                                                          *
- ************************************************************
- */
-  }
-  Print(128, "updated   %d book CAP scores.\n", CAP_used);
-  Print(128, "processed %d book CAP scores.\n", CAP_found - 1);
-}
-
-/* last modified 08/07/05 */
-/*
- *******************************************************************************
- *                                                                             *
- *   LearnImportPosition() is used to import positions and save them in the    *
- *   position.bin file.  (see LearnPosition for details.)                      *
- *                                                                             *
- *******************************************************************************
- */
-void LearnImportPosition(TREE * RESTRICT tree, int nargs, char **args)
-{
-  BITBOARD word1, word2;
-  time_t secs;
-  int positions, nextp;
-  struct tm *timestruct;
-  int i, rank, file, nempty, value, move, depth, added_positions = 0;
-  char *eof, text[80];
-  FILE *learn_in;
-
-/*
- ************************************************************
- *                                                          *
- *   open the input file and skip the "position" signature, *
- *   since we know it's a position.lrn file because we are  *
- *   *here*.                                                *
- *                                                          *
- ************************************************************
- */
-  learn_in = fopen(args[0], "r");
-  eof = fgets(text, 80, learn_in);
-  if (eof) {
-    char *delim;
-
-    delim = strchr(text, '\n');
-    if (delim)
-      *delim = 0;
-    delim = strchr(text, '\r');
-    if (delim)
-      *delim = ' ';
-  }
-  if (nargs > 1 && !strcmp(args[1], "clear")) {
-    fclose(position_file);
-    sprintf(text, "%s/position.lrn", book_path);
-    position_lrn_file = fopen(text, "w");
-    if (!position_lrn_file) {
-      printf("unable to open position learning file [%s/position.lrn].\n",
-          book_path);
-      return;
-    }
-    fprintf(position_lrn_file, "position\n");
-    sprintf(text, "%s/position.bin", book_path);
-    position_file = fopen(text, "wb+");
-    if (position_file) {
-      i = 0;
-      fseek(position_file, 0, SEEK_SET);
-      fwrite(&i, sizeof(int), 1, position_file);
-      i--;
-      fwrite(&i, sizeof(int), 1, position_file);
-    } else {
-      printf("unable to open position learning file [%s/position.bin].\n",
-          book_path);
-      return;
-    }
-  }
-/*
- ************************************************************
- *                                                          *
- *   loop through the file, reading in 5 records at a time, *
- *   the White, Black, Date PGN tags, the setboard FEN, and *
- *   the search value/depth to store.                       *
- *                                                          *
- ************************************************************
- */
-  while (1) {
-    for (i = 0; i < 3; i++) {
-      eof = fgets(text, 80, learn_in);
-      if (eof) {
-        char *delim;
-
-        delim = strchr(text, '\n');
-        if (delim)
-          *delim = 0;
-        delim = strchr(text, '\r');
-        if (delim)
-          *delim = ' ';
-      } else
-        break;
-      if (strchr(text, '['))
-        do {
-          char *bracket1, *bracket2;
-          char value[32];
-
-          bracket1 = strchr(text, '\"');
-          bracket2 = strchr(bracket1 + 1, '\"');
-          if (bracket1 == 0 || bracket2 == 0)
-            break;
-          *bracket2 = 0;
-          strcpy(value, bracket1 + 1);
-          if (bracket2 == 0)
-            break;
-          if (strstr(text, "White"))
-            strcpy(pgn_white, value);
-          if (strstr(text, "Black"))
-            strcpy(pgn_black, value);
-        } while (0);
-    }
-    if (eof == 0)
-      break;
-    eof = fgets(text, 80, learn_in);
-    if (eof) {
-      char *delim;
-
-      delim = strchr(text, '\n');
-      if (delim)
-        *delim = 0;
-      delim = strchr(text, '\r');
-      if (delim)
-        *delim = ' ';
-    }
-    nargs = ReadParse(text, args, " 	;\n");
-    if (strcmp(args[0], "setboard"))
-      Print(4095, "ERROR.  missing setboard command in file.\n");
-    SetBoard(&tree->position[0], nargs - 1, args + 1, 0);
-    eof = fgets(text, 80, learn_in);
-    if (eof) {
-      char *delim;
-
-      delim = strchr(text, '\n');
-      if (delim)
-        *delim = 0;
-      delim = strchr(text, '\r');
-      if (delim)
-        *delim = ' ';
-    } else
-      break;
-    nargs = ReadParse(text + 1, args, " 	,;{}\n");
-    value = atoi(args[0]);
-    move = atoi(args[1]);
-    depth = atoi(args[2]);
-/*
- ************************************************************
- *                                                          *
- *   now "fill in the blank" and build a table entry from   *
- *   current search information.                            *
- *                                                          *
- ************************************************************
- */
-    if (abs(value) < MATE - 300)
-      word1 = (BITBOARD) (value + 65536) << 43;
-    else if (value > 0)
-      word1 = (BITBOARD) (value + 65536) << 43;
-    else
-      word1 = (BITBOARD) (value + 65536) << 43;
-    word1 = word1 | (BITBOARD) wtm << 63;
-    word1 = word1 | (BITBOARD) move << 16;
-    word1 = word1 | (BITBOARD) depth;
-
-    word2 = HashKey;
-
-    fseek(position_file, 0, SEEK_SET);
-    fread(&positions, sizeof(int), 1, position_file);
-    fread(&nextp, sizeof(int), 1, position_file);
-    if (positions < 65536)
-      positions++;
-    fseek(position_file, 0, SEEK_SET);
-    fwrite(&positions, sizeof(int), 1, position_file);
-    nextp++;
-    if (nextp == 65536)
-      nextp = 0;
-    fwrite(&nextp, sizeof(int), 1, position_file);
-    fseek(position_file, 2 * (nextp - 1) * sizeof(BITBOARD) + 2 * sizeof(int),
-        SEEK_SET);
-    fwrite(&word1, sizeof(BITBOARD), 1, position_file);
-    fwrite(&word2, sizeof(BITBOARD), 1, position_file);
-    added_positions++;
-/*
- ************************************************************
- *                                                          *
- *   now update the position.lrn file so that the position  *
- *   is saved in a form that can be imported later in other *
- *   versions of crafty on different machines.              *
- *                                                          *
- ************************************************************
- */
-    fprintf(position_lrn_file, "[Black \"%s\"]\n", pgn_white);
-    fprintf(position_lrn_file, "[White \"%s\"]\n", pgn_black);
-    secs = time(0);
-    timestruct = localtime((time_t *) & secs);
-    fprintf(position_lrn_file, "[Date \"%4d.%02d.%02d\"]\n",
-        timestruct->tm_year + 1900, timestruct->tm_mon + 1,
-        timestruct->tm_mday);
-    fprintf(position_lrn_file, "setboard ");
-    for (rank = RANK8; rank >= RANK1; rank--) {
-      nempty = 0;
-      for (file = FILEA; file <= FILEH; file++) {
-        if (PcOnSq((rank << 3) + file)) {
-          if (nempty) {
-            fprintf(position_lrn_file, "%c", empty[nempty]);
-            nempty = 0;
-          }
-          fprintf(position_lrn_file, "%c",
-              xlate[PcOnSq((rank << 3) + file) + 7]);
-        } else
-          nempty++;
-      }
-      fprintf(position_lrn_file, "/");
-    }
-    fprintf(position_lrn_file, " %c ", (wtm) ? 'w' : 'b');
-    if (WhiteCastle(0) & 1)
-      fprintf(position_lrn_file, "K");
-    if (WhiteCastle(0) & 2)
-      fprintf(position_lrn_file, "Q");
-    if (BlackCastle(0) & 1)
-      fprintf(position_lrn_file, "k");
-    if (BlackCastle(0) & 2)
-      fprintf(position_lrn_file, "q");
-    if (EnPassant(0))
-      fprintf(position_lrn_file, " %c%c", File(EnPassant(0)) + 'a',
-          Rank(EnPassant(0)) + ((wtm) ? -1 : +1) + '1');
-    fprintf(position_lrn_file, "\n{%d %d %d}\n", value, move, depth);
-  }
-  Print(128, "added %d new positions to position.bin\n", added_positions);
-  Print(128, "      %d total positions in position.bin\n", positions);
-  fflush(position_file);
-  fflush(position_lrn_file);
-}
-
-/* last modified 08/07/05 */
-/*
- *******************************************************************************
- *                                                                             *
  *   LearnPosition() is the driver for the second phase of Crafty's learning   *
  *   code.  this procedure takes the result of selected (or all) searches that *
  *   are done during a game and stores them in a permanent hash table that is  *
@@ -1125,10 +311,7 @@ void LearnImportPosition(TREE * RESTRICT tree, int nargs, char **args)
 void LearnPosition(TREE * RESTRICT tree, int wtm, int last_value, int value)
 {
   BITBOARD word1, word2;
-  time_t secs;
   int positions, nextp;
-  struct tm *timestruct;
-  int rank, file, nempty;
 
 /*
  ************************************************************
@@ -1144,7 +327,7 @@ void LearnPosition(TREE * RESTRICT tree, int wtm, int last_value, int value)
  */
   if (!(learning & position_learning))
     return;
-  if ((!position_lrn_file) || (!position_file))
+  if (!position_file)
     return;
   if (last_value < learning_cutoff)
     return;
@@ -1182,51 +365,6 @@ void LearnPosition(TREE * RESTRICT tree, int wtm, int last_value, int value)
   fwrite(&word1, sizeof(BITBOARD), 1, position_file);
   fwrite(&word2, sizeof(BITBOARD), 1, position_file);
   fflush(position_file);
-/*
- ************************************************************
- *                                                          *
- *   now update the position.lrn file so that the position  *
- *   is saved in a form that can be imported later in other *
- *   versions of crafty on different machines.              *
- *                                                          *
- ************************************************************
- */
-  fprintf(position_lrn_file, "[White \"%s\"]\n", pgn_white);
-  fprintf(position_lrn_file, "[Black \"%s\"]\n", pgn_black);
-  secs = time(0);
-  timestruct = localtime((time_t *) & secs);
-  fprintf(position_lrn_file, "[Date \"%4d.%02d.%02d\"]\n",
-      timestruct->tm_year + 1900, timestruct->tm_mon + 1, timestruct->tm_mday);
-  fprintf(position_lrn_file, "setboard ");
-  for (rank = RANK8; rank >= RANK1; rank--) {
-    nempty = 0;
-    for (file = FILEA; file <= FILEH; file++) {
-      if (PcOnSq((rank << 3) + file)) {
-        if (nempty) {
-          fprintf(position_lrn_file, "%c", empty[nempty]);
-          nempty = 0;
-        }
-        fprintf(position_lrn_file, "%c", xlate[PcOnSq((rank << 3) + file) + 7]);
-      } else
-        nempty++;
-    }
-    fprintf(position_lrn_file, "/");
-  }
-  fprintf(position_lrn_file, " %c ", (wtm) ? 'w' : 'b');
-  if (WhiteCastle(0) & 1)
-    fprintf(position_lrn_file, "K");
-  if (WhiteCastle(0) & 2)
-    fprintf(position_lrn_file, "Q");
-  if (BlackCastle(0) & 1)
-    fprintf(position_lrn_file, "k");
-  if (BlackCastle(0) & 2)
-    fprintf(position_lrn_file, "q");
-  if (EnPassant(0))
-    fprintf(position_lrn_file, " %c%c", File(EnPassant(0)) + 'a',
-        Rank(EnPassant(0)) + '1');
-  fprintf(position_lrn_file, "\n{%d %d %d}\n", value, tree->pv[0].path[1],
-      tree->pv[0].pathd * PLY);
-  fflush(position_lrn_file);
 }
 
 /* last modified 08/07/05 */

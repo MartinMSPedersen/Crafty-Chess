@@ -17,8 +17,19 @@
 #endif
 
 int init_r90[64] = {
-  56, 48, 40, 32, 24, 16, 8, 0,
-  57, 49, 41, 33, 25, 17, 9, 1,
+  7, 15, 23, 31, 39, 47, 55, 63,
+  6, 14, 22, 30, 38, 46, 54, 62,
+  5, 13, 21, 29, 37, 45, 53, 61,
+  4, 12, 20, 28, 36, 44, 52, 60,
+  3, 11, 19, 27, 35, 43, 51, 59,
+  2, 10, 18, 26, 34, 42, 50, 58,
+  1,  9, 17, 25, 33, 41, 49, 57,
+  0,  8, 16, 24, 32, 40, 48, 56
+};
+
+int init_ur90[64] = {
+  56, 48, 40, 32, 24, 16,  8, 0,
+  57, 49, 41, 33, 25, 17,  9, 1,
   58, 50, 42, 34, 26, 18, 10, 2,
   59, 51, 43, 35, 27, 19, 11, 3,
   60, 52, 44, 36, 28, 20, 12, 4,
@@ -27,56 +38,45 @@ int init_r90[64] = {
   63, 55, 47, 39, 31, 23, 15, 7
 };
 
-int init_l90[64] = {
-  7, 15, 23, 31, 39, 47, 55, 63,
-  6, 14, 22, 30, 38, 46, 54, 62,
-  5, 13, 21, 29, 37, 45, 53, 61,
-  4, 12, 20, 28, 36, 44, 52, 60,
-  3, 11, 19, 27, 35, 43, 51, 59,
-  2, 10, 18, 26, 34, 42, 50, 58,
-  1, 9, 17, 25, 33, 41, 49, 57,
-  0, 8, 16, 24, 32, 40, 48, 56
-};
-
-int init_l45[64] = {
-  0, 2, 5, 9, 14, 20, 27, 35,
-  1, 4, 8, 13, 19, 26, 34, 42,
-  3, 7, 12, 18, 25, 33, 41, 48,
-  6, 11, 17, 24, 32, 40, 47, 53,
+int init_r45[64] = {
+   0,  2,  5,  9, 14, 20, 27, 35,
+   1,  4,  8, 13, 19, 26, 34, 42,
+   3,  7, 12, 18, 25, 33, 41, 48,
+   6, 11, 17, 24, 32, 40, 47, 53,
   10, 16, 23, 31, 39, 46, 52, 57,
   15, 22, 30, 38, 45, 51, 56, 60,
   21, 29, 37, 44, 50, 55, 59, 62,
   28, 36, 43, 49, 54, 58, 61, 63
 };
 
-int init_ul45[64] = {
-  0, 8, 1, 16, 9, 2, 24, 17,
-  10, 3, 32, 25, 18, 11, 4, 40,
-  33, 26, 19, 12, 5, 48, 41, 34,
-  27, 20, 13, 6, 56, 49, 42, 35,
-  28, 21, 14, 7, 57, 50, 43, 36,
+int init_ur45[64] = {
+   0,  8,  1, 16,  9,  2, 24, 17,
+  10,  3, 32, 25, 18, 11,  4, 40,
+  33, 26, 19, 12,  5, 48, 41, 34,
+  27, 20, 13,  6, 56, 49, 42, 35,
+  28, 21, 14,  7, 57, 50, 43, 36,
   29, 22, 15, 58, 51, 44, 37, 30,
   23, 59, 52, 45, 38, 31, 60, 53,
   46, 39, 61, 54, 47, 62, 55, 63
 };
 
-int init_r45[64] = {
-  28, 21, 15, 10, 6, 3, 1, 0,
-  36, 29, 22, 16, 11, 7, 4, 2,
-  43, 37, 30, 23, 17, 12, 8, 5,
-  49, 44, 38, 31, 24, 18, 13, 9,
+int init_l45[64] = {
+  28, 21, 15, 10,  6,  3,  1,  0,
+  36, 29, 22, 16, 11,  7,  4,  2,
+  43, 37, 30, 23, 17, 12,  8,  5,
+  49, 44, 38, 31, 24, 18, 13,  9,
   54, 50, 45, 39, 32, 25, 19, 14,
   58, 55, 51, 46, 40, 33, 26, 20,
   61, 59, 56, 52, 47, 41, 34, 27,
   63, 62, 60, 57, 53, 48, 42, 35
 };
 
-int init_ur45[64] = {
-  7, 6, 15, 5, 14, 23, 4, 13,
-  22, 31, 3, 12, 21, 30, 39, 2,
-  11, 20, 29, 38, 47, 1, 10, 19,
-  28, 37, 46, 55, 0, 9, 18, 27,
-  36, 45, 54, 63, 8, 17, 26, 35,
+int init_ul45[64] = {
+   7,  6, 15,  5, 14, 23,  4, 13,
+  22, 31,  3, 12, 21, 30, 39,  2,
+  11, 20, 29, 38, 47,  1, 10, 19,
+  28, 37, 46, 55,  0,  9, 18, 27,
+  36, 45, 54, 63,  8, 17, 26, 35,
   44, 53, 62, 16, 25, 34, 43, 52,
   61, 24, 33, 42, 51, 60, 32, 41,
   50, 59, 40, 49, 58, 48, 57, 56
@@ -105,19 +105,14 @@ void Initialize()
 {
   int i, major, minor, id;
   TREE *tree;
-
-#if defined(SMP)
   void *mem;
   int j;
-#endif
 
   tree = shared->local[0];
   InitializeSharedData();
   i = 0;
   InitializeZeroMasks();
-#if defined(SMP)
   InitializeSMP();
-#endif
   InitializeMasks();
   InitializeRandomHash();
   InitializeAttackBoards();
@@ -165,20 +160,13 @@ void Initialize()
     major = BookIn32((unsigned char *) &maj_min);
     minor = major & 65535;
     major = major >> 16;
-    if (major < 17 || (major == 17 && minor < 0)) {
-      Print(4095, "\nERROR!  book.bin not made by version 17.0 or later\n");
+    if (major < 20 || (major == 20 && minor < 17)) {
+      Print(4095, "\nERROR!  book.bin not made by version 20.17 or later\n");
       fclose(book_file);
       fclose(books_file);
       book_file = 0;
       books_file = 0;
     }
-  }
-  sprintf(log_filename, "%s/book.lrn", book_path);
-  book_lrn_file = fopen(log_filename, "a");
-  if (!book_lrn_file) {
-    Print(128, "unable to open book learning file [%s/book.lrn].\n", book_path);
-    Print(128, "learning disabled.\n");
-    learning &= ~(book_learning + result_learning);
   }
   if (learning & position_learning) {
     sprintf(log_filename, "%s/position.bin", book_path);
@@ -203,22 +191,6 @@ void Initialize()
         Print(128, "learning disabled.\n");
         learning &= ~position_learning;
       }
-    }
-    sprintf(log_filename, "%s/position.lrn", book_path);
-    position_lrn_file = fopen(log_filename, "r");
-    if (!position_lrn_file) {
-      position_lrn_file = fopen(log_filename, "a");
-      if (position_lrn_file)
-        fprintf(position_lrn_file, "position\n");
-      else {
-        Print(128, "unable to open position learning file [%s/position.bin].\n",
-            book_path);
-        Print(128, "learning disabled.\n");
-        learning &= ~position_learning;
-      }
-    } else {
-      fclose(position_lrn_file);
-      position_lrn_file = fopen(log_filename, "a");
     }
   }
   id = InitializeGetLogID();
@@ -260,10 +232,9 @@ void Initialize()
  *                                                          *
  ************************************************************
  */
-#if defined(SMP)
-#  if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32) || defined(_WIN64)
   ThreadMalloc((int) 0);
-#  else
+#else
   for (i = 0; i < CPUS; i++) {
     mem = SharedMalloc(MAX_BLOCKS_PER_CPU * ((sizeof(TREE) + 2047)) & ~2047, 0);
     for (j = 0; j < MAX_BLOCKS_PER_CPU; j++) {
@@ -277,9 +248,8 @@ void Initialize()
     shared->local[i + 1]->parent = (TREE *) - 1;
     LockInit(shared->local[i + 1]->lock);
   }
-#  endif
-  shared->initialized_threads++;
 #endif
+  shared->initialized_threads++;
   InitializeHashTables();
   hash_mask = (1 << log_hash) - 1;
   pawn_hash_mask = (1 << (log_pawn_hash)) - 1;
@@ -307,7 +277,7 @@ void InitializeAttackBoards(void)
         sq = i + bishopsq[j];
         if ((abs(Rank(sq) - Rank(i)) == 1) && (abs(File(sq) - File(i)) == 1) &&
             (sq < 64) && (sq > -1))
-          w_pawn_attacks[i] = w_pawn_attacks[i] | ((BITBOARD) 1 << 63) >> sq;
+          w_pawn_attacks[i] = w_pawn_attacks[i] | (BITBOARD) 1 << sq;
       }
     b_pawn_attacks[i] = 0;
     if (i > 7)
@@ -315,7 +285,7 @@ void InitializeAttackBoards(void)
         sq = i + bishopsq[j];
         if ((abs(Rank(sq) - Rank(i)) == 1) && (abs(File(sq) - File(i)) == 1) &&
             (sq < 64) && (sq > -1))
-          b_pawn_attacks[i] = b_pawn_attacks[i] | ((BITBOARD) 1 << 63) >> sq;
+          b_pawn_attacks[i] = b_pawn_attacks[i] | (BITBOARD) 1 << sq;
       }
   }
 /*
@@ -333,7 +303,7 @@ void InitializeAttackBoards(void)
       tfile = File(sq);
       if ((abs(frank - trank) > 2) || (abs(ffile - tfile) > 2))
         continue;
-      knight_attacks[i] = knight_attacks[i] | ((BITBOARD) 1 << 63) >> sq;
+      knight_attacks[i] = knight_attacks[i] | (BITBOARD) 1 << sq;
     }
   }
 /*
@@ -347,13 +317,13 @@ void InitializeAttackBoards(void)
       while ((abs(Rank(sq) - Rank(lastsq)) == 1) &&
           (abs(File(sq) - File(lastsq)) == 1) && (sq < 64) && (sq > -1)) {
         if (bishopsq[j] == 7)
-          plus7dir[i] = plus7dir[i] | ((BITBOARD) 1 << 63) >> sq;
+          plus7dir[i] = plus7dir[i] | (BITBOARD) 1 << sq;
         else if (bishopsq[j] == 9)
-          plus9dir[i] = plus9dir[i] | ((BITBOARD) 1 << 63) >> sq;
+          plus9dir[i] = plus9dir[i] | (BITBOARD) 1 << sq;
         else if (bishopsq[j] == -7)
-          minus7dir[i] = minus7dir[i] | ((BITBOARD) 1 << 63) >> sq;
+          minus7dir[i] = minus7dir[i] | (BITBOARD) 1 << sq;
         else
-          minus9dir[i] = minus9dir[i] | ((BITBOARD) 1 << 63) >> sq;
+          minus9dir[i] = minus9dir[i] | (BITBOARD) 1 << sq;
         lastsq = sq;
         sq = sq + bishopsq[j];
       }
@@ -381,13 +351,13 @@ void InitializeAttackBoards(void)
                   (abs(File(sq) - File(lastsq)) == 1))) && (sq < 64) &&
           (sq > -1)) {
         if (rooksq[j] == 1)
-          plus1dir[i] = plus1dir[i] | ((BITBOARD) 1 << 63) >> sq;
+          plus1dir[i] = plus1dir[i] | (BITBOARD) 1 << sq;
         else if (rooksq[j] == 8)
-          plus8dir[i] = plus8dir[i] | ((BITBOARD) 1 << 63) >> sq;
+          plus8dir[i] = plus8dir[i] | (BITBOARD) 1 << sq;
         else if (rooksq[j] == -1)
-          minus1dir[i] = minus1dir[i] | ((BITBOARD) 1 << 63) >> sq;
+          minus1dir[i] = minus1dir[i] | (BITBOARD) 1 << sq;
         else
-          minus8dir[i] = minus8dir[i] | ((BITBOARD) 1 << 63) >> sq;
+          minus8dir[i] = minus8dir[i] | (BITBOARD) 1 << sq;
         lastsq = sq;
         sq = sq + rooksq[j];
       }
@@ -473,6 +443,16 @@ void InitializeAttackBoards(void)
   }
   {
     int diag_sq[64] = {
+      0, 0, 1, 0, 1, 2, 0, 1,
+      2, 3, 0, 1, 2, 3, 4, 0,
+      1, 2, 3, 4, 5, 0, 1, 2,
+      3, 4, 5, 6, 0, 1, 2, 3,
+      4, 5, 6, 7, 0, 1, 2, 3,
+      4, 5, 6, 0, 1, 2, 3, 4,
+      5, 0, 1, 2, 3, 4, 0, 1,
+      2, 3, 0, 1, 2, 0, 1, 0
+    };
+/*
       0, 1, 0, 2, 1, 0, 3, 2,
       1, 0, 4, 3, 2, 1, 0, 5,
       4, 3, 2, 1, 0, 6, 5, 4,
@@ -481,11 +461,11 @@ void InitializeAttackBoards(void)
       2, 1, 0, 5, 4, 3, 2, 1,
       0, 4, 3, 2, 1, 0, 3, 2,
       1, 0, 2, 1, 0, 1, 0, 0
-    };
+*/
 
-    int bias_rl45[64] = {
-      0, 1, 1, 3, 3, 3, 6, 6,
-      6, 6, 10, 10, 10, 10, 10, 15,
+    int bias_rot45[64] = {
+       0,  1,  1,  3,  3,  3,  6,  6,
+       6,  6, 10, 10, 10, 10, 10, 15,
       15, 15, 15, 15, 15, 21, 21, 21,
       21, 21, 21, 21, 28, 28, 28, 28,
       28, 28, 28, 28, 36, 36, 36, 36,
@@ -499,105 +479,77 @@ void InitializeAttackBoards(void)
 
 /*
  initialize the rotated attack board that is based on the
- normal chess
+ normal chess board (non-rotated since a rank is already in
+ adjacent bit positions.)
  */
     for (square = 0; square < 64; square++) {
-      for (i = 0; i < 64; i++) {
-        rook_attacks_r0[square][i] = 0;
-        rook_mobility_r0[square][i] = 0;
-      }
       for (pcs = 0; pcs < 64; pcs++) {
-        attacks = InitializeFindAttacks(7 - File(square), pcs << 1, 8);
+        rook_attacks_r0[square][pcs] = 0;
+        attacks = InitializeFindAttacks(File(square), pcs << 1, 8);
         while (attacks) {
-          sq = msb_8bit[attacks];
-          rook_attacks_r0[square][pcs] =
-              rook_attacks_r0[square][pcs] | SetMask((square & 56) + sq);
-          attacks = attacks & (~(1 << (7 - sq)));
+          sq = lsb_8bit[attacks];
+          rook_attacks_r0[square][pcs] |= SetMask((square & 56) + sq);
+          attacks &= (attacks - 1);
         }
-        rook_mobility_r0[square][pcs] = PopCnt(rook_attacks_r0[square][pcs]);
       }
     }
 /*
  initialize the rotated attack board that is based on one that
- rotated left 90 degrees (which lines up a file horizontally,
+ rotated right 90 degrees (which lines up a file horizontally,
  rather than its normal vertical orientation.)
  */
     for (square = 0; square < 64; square++) {
-      for (i = 0; i < 64; i++) {
-        rook_attacks_rl90[square][i] = 0;
-        rook_mobility_rl90[square][i] = 0;
-      }
       for (pcs = 0; pcs < 64; pcs++) {
-        attacks = InitializeFindAttacks(Rank(square), pcs << 1, 8);
+        rook_attacks_rr90[square][pcs] = 0;
+        attacks = InitializeFindAttacks(7 - Rank(square), pcs << 1, 8);
         while (attacks) {
-          sq = msb_8bit[attacks];
-          rook_attacks_rl90[square][pcs] =
-              rook_attacks_rl90[square][pcs] | SetMask(init_r90[(File(square) <<
-                      3) + sq]);
-          attacks = attacks & (~(1 << (7 - sq)));
+          sq = lsb_8bit[attacks];
+          rook_attacks_rr90[square][pcs] |=
+            SetMask(init_ur90[((File(square)) << 3) + sq]);
+          attacks &= attacks - 1;
         }
-        rook_mobility_rl90[square][pcs] =
-            PopCnt(rook_attacks_rl90[square][pcs]);
       }
     }
 /*
  initialize the rotated attack board that is based on one that is
- rotated left 45 degrees (which lines up the (a8-h1) diagonal
+ rotated right 45 degrees (which lines up the (a8-h1) diagonal
  horizontally.
  */
     for (square = 0; square < 64; square++) {
-      for (i = 0; i < 64; i++) {
-        bishop_attacks_rl45[square][i] = 0;
-        bishop_mobility_rl45[square][i] = 0;
-      }
-      mask = (1 << diagonal_length[init_l45[square]]) - 1;
+      mask = (1 << diagonal_length[init_r45[square]]) - 1;
       for (pcs = 0; pcs < 64; pcs++) {
-        rsq = init_l45[square];
+        bishop_attacks_rr45[square][pcs] = 0;
+        rsq = init_r45[square];
         tsq = diag_sq[rsq];
         attacks =
-            InitializeFindAttacks(tsq, (pcs << 1) & mask,
-            diagonal_length[rsq]) << (8 - diagonal_length[rsq]);
+            InitializeFindAttacks(tsq, (pcs << 1) & mask, diagonal_length[rsq]);
         while (attacks) {
-          sq = msb_8bit[attacks];
-          bishop_attacks_rl45[square][pcs] =
-              bishop_attacks_rl45[square][pcs] | SetMask(init_ul45[sq +
-                  bias_rl45[rsq]]);
-          attacks = attacks & (~(1 << (7 - sq)));
+          sq = lsb_8bit[attacks];
+          bishop_attacks_rr45[square][pcs] |=
+            SetMask(init_ur45[sq + bias_rot45[rsq]]);
+          attacks &= attacks - 1;
         }
-      }
-      for (pcs = 0; pcs < 64; pcs++) {
-        bishop_mobility_rl45[square][pcs] =
-            PopCnt(bishop_attacks_rl45[square][pcs]);
       }
     }
 /*
  initialize the rotated attack board that is based on one that is
- rotated right 45 degrees (which lines up the (a1-h8) diagonal
+ rotated left 45 degrees (which lines up the (a1-h8) diagonal
  horizontally,
  */
     for (square = 0; square < 64; square++) {
-      for (i = 0; i < 64; i++) {
-        bishop_attacks_rr45[square][i] = 0;
-        bishop_mobility_rr45[square][i] = 0;
-      }
-      mask = (1 << diagonal_length[init_r45[square]]) - 1;
+      mask = (1 << diagonal_length[init_l45[square]]) - 1;
       for (pcs = 0; pcs < 64; pcs++) {
-        rsq = init_r45[square];
+        bishop_attacks_rl45[square][pcs] = 0;
+        rsq = init_l45[square];
         tsq = diag_sq[rsq];
         attacks =
-            InitializeFindAttacks(tsq, (pcs << 1) & mask,
-            diagonal_length[rsq]) << (8 - diagonal_length[rsq]);
+            InitializeFindAttacks(tsq, (pcs << 1) & mask, diagonal_length[rsq]);
         while (attacks) {
-          sq = msb_8bit[attacks];
-          bishop_attacks_rr45[square][pcs] =
-              bishop_attacks_rr45[square][pcs] | SetMask(init_ur45[sq +
-                  bias_rl45[rsq]]);
-          attacks = attacks & (~(1 << (7 - sq)));
+          sq = lsb_8bit[attacks];
+          bishop_attacks_rl45[square][pcs] |=
+              SetMask(init_ul45[sq + bias_rot45[rsq]]);
+          attacks &= attacks - 1;
         }
-      }
-      for (pcs = 0; pcs < 64; pcs++) {
-        bishop_mobility_rr45[square][pcs] =
-            PopCnt(bishop_attacks_rr45[square][pcs]);
       }
     }
   }
@@ -822,12 +774,12 @@ void SetChessBitBoards(SEARCH_POSITION * new_pos)
 /*
  now initialize rotated occupied bitboards.
  */
-  tree->pos.occupied_rl90 = 0;
+  tree->pos.occupied_rr90 = 0;
   tree->pos.occupied_rl45 = 0;
   tree->pos.occupied_rr45 = 0;
   for (i = 0; i < 64; i++) {
     if (tree->pos.board[i]) {
-      tree->pos.occupied_rl90 = tree->pos.occupied_rl90 | SetMaskRL90(i);
+      tree->pos.occupied_rr90 = tree->pos.occupied_rr90 | SetMaskRR90(i);
       tree->pos.occupied_rl45 = tree->pos.occupied_rl45 | SetMaskRL45(i);
       tree->pos.occupied_rr45 = tree->pos.occupied_rr45 | SetMaskRR45(i);
     }
@@ -1047,9 +999,8 @@ void InitializeHistoryKillers(void)
   int i;
 
   for (i = 0; i < 8192; i++) {
-    shared->history[i] = 0;
-    shared->history_fh[i] = 0;
-    shared->history_count[i] = 1;
+    shared->history[i].fh = 0;
+    shared->history[i].count = 1;
   }
   for (i = 0; i < MAXPLY; i++) {
     shared->local[0]->killers[i].move1 = 0;
@@ -1073,18 +1024,13 @@ void InitializeHistoryKillers(void)
  */
 void InitializeKingSafety()
 {
-  int safety, tropism, edge;
+  int safety, tropism;
 
-  for (edge = 0; edge < 32; edge++) {
-    safety = edge;
-    tropism = 0;
-    while (tropism <= edge) {
-      if (tropism < 16 && safety < 16)
-        king_safety[safety][tropism] =
-            (safety * safety_vector[Min(edge, 15)] +
-            tropism * tropism_vector[Min(edge, 15)]) / Max(safety + tropism, 1);
-      safety--;
-      tropism++;
+  for (safety = 0; safety < 16; safety++) {
+    for (tropism = 0; tropism < 16; tropism++) {
+      king_safety[safety][tropism] =
+          (safety_vector[safety] + 100) * (tropism_vector[tropism] +
+          100) / 100 - 100;
     }
   }
 /*
@@ -1112,34 +1058,34 @@ void InitializeMasks(void)
  masks to set/clear a bit on a specific square
  */
   for (i = 0; i < 64; i++) {
-    ClearMask(i) = ~(((BITBOARD) 1 << 63) >> i);
-    ClearMaskRL45(i) = ~(((BITBOARD) 1 << 63) >> init_l45[i]);
-    ClearMaskRR45(i) = ~(((BITBOARD) 1 << 63) >> init_r45[i]);
-    ClearMaskRL90(i) = ~(((BITBOARD) 1 << 63) >> init_l90[i]);
-    SetMask(i) = ((BITBOARD) 1 << 63) >> i;
-    SetMaskRL45(i) = ((BITBOARD) 1 << 63) >> init_l45[i];
-    SetMaskRR45(i) = ((BITBOARD) 1 << 63) >> init_r45[i];
-    SetMaskRL90(i) = ((BITBOARD) 1 << 63) >> init_l90[i];
+    ClearMask(i) = ~((BITBOARD) 1 << i);
+    ClearMaskRL45(i) = ~((BITBOARD) 1 << init_l45[i]);
+    ClearMaskRR45(i) = ~((BITBOARD) 1 << init_r45[i]);
+    ClearMaskRR90(i) = ~((BITBOARD) 1 << init_r90[i]);
+    SetMask(i) = (BITBOARD) 1 << i;
+    SetMaskRL45(i) = (BITBOARD) 1 << init_l45[i];
+    SetMaskRR45(i) = (BITBOARD) 1 << init_r45[i];
+    SetMaskRR90(i) = (BITBOARD) 1 << init_r90[i];
   }
   ClearMask(BAD_SQUARE) = 0;
   ClearMaskRL45(BAD_SQUARE) = 0;
   ClearMaskRR45(BAD_SQUARE) = 0;
-  ClearMaskRL90(BAD_SQUARE) = 0;
+  ClearMaskRR90(BAD_SQUARE) = 0;
   SetMask(BAD_SQUARE) = 0;
   SetMaskRL45(BAD_SQUARE) = 0;
   SetMaskRR45(BAD_SQUARE) = 0;
-  SetMaskRL90(BAD_SQUARE) = 0;
+  SetMaskRR90(BAD_SQUARE) = 0;
 /*
  masks to select bits on a specific rank or file
  */
-  rank_mask[0] = (BITBOARD) 255 << 56;
+  rank_mask[0] = (BITBOARD) 255;
   for (i = 1; i < 8; i++)
-    rank_mask[i] = rank_mask[i - 1] >> 8;
-  file_mask[FILEA] = ((BITBOARD) 1 << 63);
+    rank_mask[i] = rank_mask[i - 1] << 8;
+  file_mask[FILEA] = (BITBOARD) 1;
   for (i = 1; i < 8; i++)
-    file_mask[FILEA] = file_mask[FILEA] | file_mask[FILEA] >> 8;
+    file_mask[FILEA] = file_mask[FILEA] | file_mask[FILEA] << 8;
   for (i = 1; i < 8; i++)
-    file_mask[i] = file_mask[i - 1] >> 1;
+    file_mask[i] = file_mask[i - 1] << 1;
 /*
  masks to determine if a pawn is protected by another pawn or not.
  also masks to detect "duos" (pawns side-by-side only).
@@ -1497,7 +1443,7 @@ void InitializeSharedData(void)
   shared->trojan_check = 0;
   shared->computer_opponent = 0;
   shared->max_threads = 0;
-  shared->min_thread_depth = 3 * PLY;
+  shared->min_thread_depth = 40;
   shared->max_thread_group = 4;
   shared->split_at_root = 1;
   shared->noise_level = 200000;
@@ -1522,7 +1468,6 @@ void InitializeSharedData(void)
   shared->first_nonbook_span = 0;
 }
 
-#if defined(SMP)
 /*
  *******************************************************************************
  *                                                                             *
@@ -1537,77 +1482,58 @@ void InitializeSMP(void)
   LockInit(shared->lock_root);
   LockInit(shared->local[0]->lock);
 }
-#endif
 
 void InitializeZeroMasks(void)
 {
-  int i, j, dist, maxd;
+  int i, j, k;
 
 #if !defined(CRAY1) && !defined(_M_AMD64) && !defined (_M_IA64) && !defined(INLINE32)
-  int maskl, maskr;
 
   msb[0] = 16;
   lsb[0] = 16;
   for (i = 1; i < 65536; i++) {
-    maskl = 32768;
-    for (j = 0; j < 16; j++) {
-      if ((maskl & i)) {
+    lsb[i] = 16;
+    for (j = 0; j < 16; j++)
+      if (i & (1 << j)) {
         msb[i] = j;
-        break;
+        if (lsb[i] == 16)
+          lsb[i] = j;
       }
-      maskl = maskl >> 1;
-    }
-    maskr = 1;
-    for (j = 0; j < 16; j++) {
-      if ((maskr & i)) {
-        lsb[i] = 15 - j;
-        break;
-      }
-      maskr = maskr << 1;
-    }
   }
 #endif
   msb_8bit[0] = 8;
   lsb_8bit[0] = 8;
   pop_cnt_8bit[0] = 0;
   connected_passed[0] = 0;
-  for (i = 0; i < 256; i++) {
+  for (i = 1; i < 256; i++) {
     pop_cnt_8bit[i] = 0;
-    connected_passed[i] = 0;
     for (j = 0; j < 8; j++)
       if (i & (1 << j))
         pop_cnt_8bit[i]++;
+    lsb_8bit[i] = 8;
     for (j = 0; j < 8; j++) {
-      if (i & (1 << (7 - j))) {
+      if (i & (1 << j)) {
         msb_8bit[i] = j;
-        break;
+        if (lsb_8bit[i] == 8)
+          lsb_8bit[i] = j;
       }
     }
-    for (j = 7; j >= 0; j--) {
-      if (i & (1 << (7 - j))) {
-        lsb_8bit[i] = j;
+    connected_passed[i] = 0;
+    for (j = 0; j < 8; j++)
+      if ((i & (3 << j)) == (3 << j)) {
+        connected_passed[i] = j + 1;
         break;
       }
-    }
-    for (j = 7; j > 0; j--) {
-      if ((i & (3 << (7 - j))) == (3 << (7 - j))) {
-        connected_passed[i] = j;
+    for (j = 0; j < 8; j++)
+      if (i & (1 << j))
         break;
-      }
-    }
-    dist = 0;
-    maxd = 0;
-    for (j = 1; j < 256; j <<= 1)
-      if (i & j)
+    for (k = 7; k >= 0; k--)
+      if (i & (1 << k))
         break;
-    for (; j < 256; j <<= 1) {
-      if (j & i) {
-        maxd = (maxd > dist) ? maxd : dist;
-        dist = 0;
-      } else
-        dist++;
-    }
-    file_spread[i] = maxd;
+    if (k > j)
+      file_spread[i] = k - j - 1;
+    else
+      file_spread[i] = 0;
   }
 /*
  is_outside[p][a] /is_outside_c[p][a] values:
@@ -1633,17 +1559,17 @@ void InitializeZeroMasks(void)
 
       is_outside[i][j] = 0;
       is_outside_c[i][j] = 0;
-      ppsq1 = msb_8bit[i];
+      ppsq1 = lsb_8bit[i];
       if (ppsq1 < 8) {
-        psql = msb_8bit[j & (255 - (128 >> ppsq1))];
+        psql = lsb_8bit[j & (255 - (1 << ppsq1))];
         if (ppsq1 < psql - 1)
           is_outside[i][j] += 1;
         if (ppsq1 <= psql + 1)
           is_outside_c[i][j] += 1;
       }
-      ppsq2 = lsb_8bit[i];
+      ppsq2 = msb_8bit[i];
       if (ppsq2 < 8) {
-        psqr = lsb_8bit[j & (255 - (128 >> ppsq2))];
+        psqr = msb_8bit[j & (255 - (1 << ppsq2))];
         if (ppsq2 > psqr + 1)
           is_outside[i][j] += 1;
         if (ppsq2 >= psqr - 1)

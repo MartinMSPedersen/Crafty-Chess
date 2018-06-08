@@ -121,7 +121,7 @@ int SearchRoot(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth)
       SearchOutput(tree, value, beta);
       shared->root_value = alpha;
       if (value >= beta) {
-        History(tree, 1, depth, wtm, tree->current_move[1]);
+        Killer(tree, 1, tree->current_move[1]);
         UnmakeMove(tree, 1, tree->current_move[1], wtm);
         return (value);
       }
@@ -146,7 +146,7 @@ int SearchRoot(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth)
         value = tree->search_value;
         if (value > alpha) {
           if (value >= beta) {
-            History(tree, 1, depth, wtm, tree->current_move[1]);
+            Killer(tree, 1, tree->current_move[1]);
             tree->fail_high++;
             return (value);
           }
@@ -182,7 +182,7 @@ int SearchRoot(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth)
     }
     return (value);
   } else {
-    History(tree, 1, depth, wtm, tree->pv[1].path[1]);
+    Killer(tree, 1, tree->pv[1].path[1]);
     return (alpha);
   }
 }

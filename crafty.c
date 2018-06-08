@@ -7,6 +7,7 @@
 #include "nexte.c"
 #include "nextr.c"
 #include "history.c"
+#include "killer.c"
 #include "quiesce.c"
 #include "evaluate.c"
 #include "movgen.c"
@@ -17,7 +18,6 @@
 #include "swap.c"
 #include "boolean.c"
 #include "utility.c"
-#include "valid.c"
 #include "probe.c"
 #include "book.c"
 

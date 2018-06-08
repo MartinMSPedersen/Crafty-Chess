@@ -196,7 +196,6 @@ int Iterate(int wtm, int search_type, int root_list_done)
  *                                                          *
  ************************************************************
  */
-#if defined(SMP)
       if (shared->max_threads > shared->smp_idle + 1) {
         long proc;
 
@@ -215,7 +214,6 @@ int Iterate(int wtm, int search_type, int root_list_done)
         }
       }
       WaitForAllThreadsInitialized();
-#endif
       shared->root_print_ok = 0;
       for (; shared->iteration_depth <= MAXPLY - 5; shared->iteration_depth++) {
 /*
@@ -229,7 +227,7 @@ int Iterate(int wtm, int search_type, int root_list_done)
         twtm = wtm;
         for (i = 1; i <= (int) tree->pv[0].pathl; i++) {
           tree->pv[i] = tree->pv[i - 1];
-          if (!LegalMove(tree, i, twtm, tree->pv[i].path[i])) {
+          if (!VerifyMove(tree, i, twtm, tree->pv[i].path[i])) {
             Print(4095, "ERROR, not installing bogus move at ply=%d\n", i);
             Print(4095, "not installing from=%d  to=%d  piece=%d\n",
                 From(tree->pv[i].path[i]), To(tree->pv[i].path[i]),
@@ -272,9 +270,7 @@ int Iterate(int wtm, int search_type, int root_list_done)
         }
 
         while (1) {
-#if defined(SMP)
           shared->thread[0] = shared->local[0];
-#endif
           value =
               SearchRoot(tree, shared->root_alpha, shared->root_beta, wtm,
               shared->iteration_depth * PLY + PLY / 2);
@@ -586,12 +582,10 @@ int Iterate(int wtm, int search_type, int root_list_done)
             (int) (100 * (BITBOARD) tree->transposition_uppers /
                 (BITBOARD) (tree->transposition_probes + 1)));
 #endif
-#if defined(SMP)
         Print(16, "              SMP->  splits=%d  aborts=%d  data=%d/%d  ",
             shared->parallel_splits, shared->parallel_aborts,
             shared->max_split_blocks, MAX_BLOCKS);
         Print(16, "elap=%s\n", DisplayTimeKibitz(shared->elapsed_end));
-#endif
       }
     } while (0);
   else {

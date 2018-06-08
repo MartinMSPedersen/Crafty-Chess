@@ -357,7 +357,6 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
 #if !defined(NOFUTILITY)
       tree->fprune = 0;
 #endif
-
       extensions = extended - PLY;
       if (!moves_searched) {
         if (depth + extensions >= PLY) {
@@ -431,7 +430,7 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
         HistoryUpdateFH(tree, wtm, searched, count);
         count = 0;
         if (value >= beta) {
-          History(tree, ply, depth, wtm, tree->current_move[ply]);
+          Killer(tree, ply, tree->current_move[ply]);
           UnmakeMove(tree, ply, tree->current_move[ply], wtm);
           HashStore(tree, ply, depth, wtm, LOWER, value, mate_threat);
           tree->fail_high++;
@@ -445,8 +444,8 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
     } else
       tree->nodes_searched++;
     UnmakeMove(tree, ply, tree->current_move[ply], wtm);
-#if defined(SMP)
-    if (shared->smp_idle && moves_searched && shared->min_thread_depth <= depth) {
+    if (shared->smp_idle && moves_searched &&
+        depth >= shared->min_thread_depth * (PLY * ply + depth) / 100) {
       tree->alpha = alpha;
       tree->beta = beta;
       tree->value = alpha;
@@ -463,7 +462,7 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
         if (value > alpha) {
           HistoryUpdateFH(tree, wtm, &tree->current_move[ply], 1);
           if (value >= beta) {
-            History(tree, ply, depth, wtm, tree->current_move[ply]);
+            Killer(tree, ply, tree->current_move[ply]);
             HashStore(tree, ply, depth, wtm, LOWER, value, mate_threat);
             tree->fail_high++;
             return (value);
@@ -473,7 +472,6 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
         }
       }
     }
-#endif
   }
 /*
  ************************************************************
@@ -500,7 +498,7 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
           (tree->pv[ply].pathl - ply + 1) * sizeof(int));
       memcpy(&tree->pv[ply - 1].pathh, &tree->pv[ply].pathh, 3);
       tree->pv[ply - 1].path[ply - 1] = tree->current_move[ply - 1];
-      History(tree, ply, depth, wtm, tree->pv[ply].path[ply]);
+      Killer(tree, ply, tree->pv[ply].path[ply]);
     }
     HashStore(tree, ply, depth, wtm, (alpha == o_alpha) ? UPPER : EXACT, alpha,
         mate_threat);
@@ -663,7 +661,7 @@ int SearchControl(TREE * RESTRICT tree, int wtm, int ply, int depth,
  */
   tree->reductions_attempted++;
   index = HistoryIndex(move, wtm);
-  fh_percent = shared->history_fh[index] / shared->history_count[index];
+  fh_percent = shared->history[index].fh / shared->history[index].count;
   if (fh_percent > reduce_hist)
     return (0);
   tree->reductions_done++;

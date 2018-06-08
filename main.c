@@ -61,6 +61,78 @@
  *  the input was a command and was executed, otherwise the input should be    *
  *  passed to input() for conversion to the internal move format.              *
  *                                                                             *
+ *  the following diagrams show how the bits are numbered in Crafty's bitboard *
+ *  data structures, and how the bits are numbered and rotated.  Note that bit *
+ *  zero (0) is the LSB of a BITBOARD value.                                   *
+ *                                                                             *
+ *  Normal:                                                                    *
+ *                                                                             *
+ *  H8 G8 F8 E8 D8 C8 B8 A8                                                    *
+ *  H7 G7 F7 E7 D7 C7 B7 A7                                                    *
+ *  H6 G6 F6 E6 D6 C6 B6 A6                                                    *
+ *  H5 G5 F5 E5 D5 C5 B5 A5                                                    *
+ *  H4 G4 F4 E4 D4 C4 B4 A4                                                    *
+ *  H3 G3 F3 E3 D3 C3 B3 A3                                                    *
+ *  H2 G2 F2 E2 D2 C2 B2 A2                                                    *
+ *  H1 G1 F1 E1 D1 C1 B1 A1                                                    *
+ *                                                                             *
+ *  63 62 61 60 59 58 57 56                                                    *
+ *  55 54 53 52 51 50 49 48                                                    *
+ *  47 46 45 44 43 42 41 40                                                    *
+ *  39 38 37 36 35 34 33 32                                                    *
+ *  31 30 29 28 27 26 25 24                                                    *
+ *  23 22 21 20 19 18 17 16                                                    *
+ *  15 14 13 12 11 10  9  8                                                    *
+ *   7  6  5  4  3  2  1  0                                                    *
+ *                                                                             *
+ *  Right 90:                                                                  *
+ *                                                                             *
+ *   7 15 23 31 39 47 55 63                                                    *
+ *   6 14 22 30 38 46 54 62                                                    *
+ *   5 13 21 29 37 45 53 61                                                    *
+ *   4 12 20 28 36 44 52 60                                                    *
+ *   3 11 19 27 35 43 51 59                                                    *
+ *   2 10 18 26 34 42 50 58                                                    *
+ *   1  9 17 25 33 41 49 57                                                    *
+ *   0  8 16 24 32 40 48 56                                                    *
+ *                                                                             *
+ *  Right 45:                                                                  *
+ *                                                                             *
+ *                63                                                           *
+ *              55  62                                                         *
+ *            47  54  61                                                       *
+ *          39  46  53  60             63  55  62  47  54  61  39  46          *
+ *        31  38  45  52  59           53  60  31  38  45  52  59  23          *
+ *      23  30  37  44  51  58         30  37  44  51  58  15  22  29          *
+ *    15  22  29  36  43  50  57       36  43  50  57   7  14  21  28          *
+ *   7  14  21  28  35  42  49  56     35  42  49  56   6  13  20  27          *
+ *     6  13  20  27  34  41  48       34  41  48   5  12  19  26  33          *
+ *       5  12  19  26  33  40         40   4  11  18  25  32   3  10          *
+ *         4  11  18  25  32           17  24   2   9  16   1   8   0          *
+ *           3  10  17  24                                                     *
+ *             2   9  16                                                       *
+ *               1   8                                                         *
+ *                 0                                                           *
+ *                                                                             *
+ *  Left 45:                                                                   *
+ *                                                                             *
+ *                56                                                           *
+ *              57  48                                                         *
+ *            58  49  40                                                       *
+ *          59  50  41  32             56  57  48  58  49  40  59  50          *
+ *        60  51  42  33  24           41  32  60  51  42  33  24  61          *
+ *      61  52  43  34  25  16         52  43  34  25  16  62  53  44          *
+ *    62  53  44  35  26  17   8       35  26  17   8  63  54  45  36          *
+ *  63  54  45  36  27  18   9   0     27  18   9   0  55  46  37  28          *
+ *    55  46  37  28  19  10   1       19  10   1  47  38  29  20  11          *
+ *      47  38  29  20  11   2          2  39  30  21  12   3  31  22          *
+ *        39  30  21  12   3           13   4  23  14   5  15   6   7          *
+ *          31  22  13   4                                                     *
+ *            23  14   5                                                       *
+ *              15   6                                                         *
+ *                 7                                                           *
+ *                                                                             *
+ *                                                                             *
  *  version  description                                                       *
  *                                                                             *
  *    1.0    first version of the bit-board program to play a legitimate game  *
@@ -3380,6 +3452,48 @@
  *           illegal position has been set up.  it caught every possible       *
  *           problem except for positions with a king (or kings) missing.      *
  *                                                                             *
+ *   20.15   change to how Crafty chooses where to split.  previously, there   *
+ *           was a min remaining depth limit to prevent Crafty from trying to  *
+ *           split too close to the frontier nodes.  now that is specified as  *
+ *           a percentage of the nominal search depth.  for example, the       *
+ *           default value is 50%, which says that on a 16 ply search, we can  *
+ *           split if at least 8 plies of search are left.  this provides      *
+ *           better split overhead than a simple limit that doesn't take the   *
+ *           actual search depth into consideration.  history data arranged to *
+ *           be more cache friendly.  the three values for a common history    *
+ *           index value are now stored in adjacent memory words to take       *
+ *           advantage of pre-fetching within a cache line.  Additional        *
+ *           tuning of the king safety matrix.                                 *
+ *                                                                             *
+ *   20.16   Evaluation of knights, bishops, rooks, queens and kings is now    *
+ *           done on a 1000 point scale, then the sum is divided by 10.  This  *
+ *           allows us to use the same hashing mechanism, but with finer       *
+ *           tuning precision.  minor queen eval tweak for 7th rank position.  *
+ *                                                                             *
+ *   20.17   New book learning, with a simplified book system.  the export     *
+ *           files (book.lrn, position.lrn) no longer are created/used, the    *
+ *           learn mechanism no longer touches the real chess board which      *
+ *           could cause problems in certain xboard/winboard timing            *
+ *           situations.  one major learning change is that we now only learn  *
+ *           things from "crafty's perspective".  that is, if Crafty loses a   *
+ *           game as black, it won't think that opening is good when it plays  *
+ *           white since it might well not understand how to win using that    *
+ *           particular opening.  it will only "learn" on the actual moves it  *
+ *           plays in a game.  old "history heuristic" removed.  testing       *
+ *           showed that the LMR idea produced better results without the      *
+ *           history ordering, since now more moves are reduced, but moves     *
+ *           with good history values don't get reduced.                       *
+ *                                                                             *
+ *   21.0    finally did the bit-renumbering task so that bit 0 = LSB = A1,    *
+ *           to eliminate the 63-n translation to the numbering scheme used    *
+ *           on the Cray architecture.  for all bit operations now, LSB=0,     *
+ *           MSB=7, 15, 31 or 63 depending on the data size.  a few minor      *
+ *           bugs were fixed along the way as these changes were debugged.     *
+ *           minor bug in EvaluateKings() where it tested for a "won ending"   *
+ *           and used a test that was too aggressive.  this test did not get   *
+ *           things quite right when the two kings were very close together    *
+ *           and "opposition" prevented one king from moving closer to the     *
+ *           pawns.                                                            *
  *                                                                             *
  *******************************************************************************
  */
@@ -3536,21 +3650,13 @@ int main(int argc, char **argv)
 #if defined(UNIX)
   if (xboard)
     signal(SIGINT, SIG_IGN);
-#  if defined(SMP)
   signal(SIGCHLD, SignalInterrupt);
-#  endif
 #endif
-#if defined(SMP)
   Print(128, "\nCrafty v%s (%d cpus)\n\n", version, Max(shared->max_threads,
           1));
   if (ics)
     printf("*whisper Hello from Crafty v%s! (%d cpus)\n", version,
         Max(shared->max_threads, 1));
-#else
-  Print(128, "\nCrafty v%s\n\n", version);
-  if (ics)
-    printf("*whisper Hello from Crafty v%s!\n", version);
-#endif
   NewGame(1);
 /*
  ************************************************************
@@ -3960,7 +4066,7 @@ int main(int argc, char **argv)
  *                                                          *
  ************************************************************
  */
-      if (last_pv.pathl > 1 && LegalMove(tree, 0, Flip(wtm), last_pv.path[2])) {
+      if (last_pv.pathl > 1 && VerifyMove(tree, 0, Flip(wtm), last_pv.path[2])) {
         ponder_move = last_pv.path[2];
         for (i = 1; i <= (int) last_pv.pathl - 2; i++)
           last_pv.path[i] = last_pv.path[i + 2];
@@ -4006,6 +4112,10 @@ int main(int argc, char **argv)
  */
     if (shared->moves_out_of_book) {
       LearnBook(tree, wtm, last_value, last_pv.pathd + 2, 0, 0);
+    } else if (learn_positions_count < 63) {
+      learn_seekto[learn_positions_count] = book_learn_seekto;
+      learn_key[learn_positions_count] = book_learn_key;
+      learn_nmoves[learn_positions_count++] = book_learn_nmoves;
     }
     if (abs(value) > MATE - 200) {
       int val = (shared->crafty_is_white) ? 300 : -300;

@@ -193,10 +193,10 @@ linux:
 	$(MAKE) target=LINUX \
 		CC=gcc CXX=g++ \
 		CFLAGS='$(CFLAGS) -Wall -pipe -D_REENTRANT -march=i686 -O3 \
-			-fbranch-probabilities -fforce-mem \
-			-g -fno-gcse -mpreferred-stack-boundary=2' \
+			-fbranch-probabilities -fforce-mem -fomit-frame-pointer\
+			-fno-gcse -mpreferred-stack-boundary=2' \
 		CXFLAGS=$(CFLAGS) \
-		LDFLAGS='$(LDFLAGS) -g -lstdc++' \
+		LDFLAGS='$(LDFLAGS) -lstdc++' \
 		opt='$(opt) -DINLINE32 -DSMP -DCPUS=2' \
 		crafty-make
 
@@ -204,10 +204,10 @@ linux-profile:
 	$(MAKE) target=LINUX \
 		CC=gcc CXX=g++ \
 		CFLAGS='$(CFLAGS) -Wall -pipe -D_REENTRANT -march=i686 -O3 \
-			-fprofile-arcs -fforce-mem \
-			-g -fno-gcse -mpreferred-stack-boundary=2' \
+			-fprofile-arcs -fforce-mem -fomit-frame-pointer \
+			-fno-gcse -mpreferred-stack-boundary=2' \
 		CXFLAGS=$(CFLAGS) \
-		LDFLAGS='$(LDFLAGS) -g -fprofile-arcs -lstdc++ ' \
+		LDFLAGS='$(LDFLAGS) -fprofile-arcs -lstdc++ ' \
 		opt='$(opt) -DINLINE32 -DSMP -DCPUS=2' \
 		crafty-make
 
@@ -220,7 +220,7 @@ linux-icc:
 		CXFLAGS='$(CFLAGS) -D_REENTRANT -O2 \
 			-w -xN -prof_use -prof_dir ./profdir' \
 		LDFLAGS='$(LDFLAGS) -lstdc++' \
-		opt='$(opt) -DINLINE32 -DSMP -DCPUS=2' \
+		opt='$(opt) -DTRACE -DINLINE32 -DSMP -DCPUS=2' \
 		crafty-make
 
 linux-icc-profile:
@@ -321,7 +321,7 @@ profile:
 	@rm -rf position.bin
 	@mkdir profdir
 	@touch *.c *.cpp *.h
-	$(MAKE) linux-profile
+	$(MAKE) linux-icc-profile
 	@echo "#!/bin/csh" > runprof
 	@echo "./crafty <<EOF" >>runprof
 	@echo "st=10" >>runprof
@@ -403,7 +403,7 @@ profile:
 	@./runprof
 	@rm runprof
 	@touch *.c *.cpp *.h
-	$(MAKE) linux
+	$(MAKE) linux-icc
 
 #
 #  one of the two following definitions for "objects" should be used.  The
@@ -415,12 +415,12 @@ profile:
 #
 
 #objects = searchr.o search.o thread.o searchmp.o repeat.o next.o nexte.o      \
-       nextr.o history.o quiesce.o evaluate.o movgen.o make.o unmake.o hash.o  \
-       attacks.o swap.o boolean.o utility.o valid.o probe.o book.o data.o      \
-       drawn.o edit.o epd.o epdglue.o init.o input.o interupt.o iterate.o      \
-       main.o option.o output.o ponder.o preeval.o resign.o root.o learn.o     \
-       setboard.o test.o time.o validate.o annotate.o analyze.o evtest.o       \
-       bench.o egtb.o dgt.o
+       nextr.o history.o killer.o quiesce.o evaluate.o movgen.o make.o unmake.o\
+       hash.o attacks.o swap.o boolean.o utility.o probe.o book.o      \
+       data.o drawn.o edit.o epd.o epdglue.o init.o input.o interupt.o         \
+       iterate.o main.o option.o output.o ponder.o preeval.o resign.o root.o   \
+       learn.o setboard.o test.o time.o validate.o annotate.o analyze.o        \
+       evtest.o bench.o egtb.o dgt.o
 objects = crafty.o egtb.o
 
 # Do not change anything below this line!

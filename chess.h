@@ -8,18 +8,8 @@
  *   including leading-zero hardware, population count, etc.  ie, a Cray-like  *
  *   machine.                                                                  *
  *                                                                             *
- *   HAS_LONGLONG:  define this for a 32-bit machine with a compiler that      *
- *   supports the long long (64-bit) integer data and allows bitwise operations*
- *   on this data type.  this provides significantly faster execution time as  *
- *   the bitwise operators are done by the compiler rather than by procedure   *
- *   calls.                                                                    *
- *                                                                             *
  *   UNIX:  define this if the program is being run on a unix-based system,    *
  *   which causes the executable to use unix-specific runtime utilities.       *
- *                                                                             *
- *   SMP:  this enables the symmetric multiprocessing code that allows Crafty  *
- *   to spawn threads and execute a parallel search.  Note that if this is set,*
- *   then the next variable must be defined as well.                           *
  *                                                                             *
  *   CPUS=N:  this sets up data structures to the appropriate size to support  *
  *   up to N simultaneous search engines.  note that you can set this to a     *
@@ -37,76 +27,62 @@
 #  define RESTRICT
 #endif
 #if !defined(CPUS)
-#  define CPUS 1
+#  define CPUS=1
 #endif
-#if defined(SMP)
-#  if defined(NT_i386)
-#    include <windows.h>
-#    include <process.h>
-#  endif
+#if defined(NT_i386)
+#  include <windows.h>
+#  include <process.h>
 #endif
 #define TYPES_INCLUDED
 #define CDECL
 #define STDCALL
 /* Provide reasonable defaults for UNIX systems. */
 #undef  HAS_64BITS      /* machine has 64-bit integers / operators    */
-#define HAS_LONGLONG    /* machine has 32-bit/64-bit integers         */
 #define UNIX            /* system is unix-based                       */
 /* Architecture-specific definitions */
 #if defined(AIX)
 #  undef  HAS_64BITS    /* machine has 64-bit integers / operators    */
-#  define HAS_LONGLONG  /* machine has 32-bit/64-bit integers         */
 #  define UNIX          /* system is unix-based                       */
 #endif
 #if defined(ALPHA)
 #  define HAS_64BITS    /* machine has 64-bit integers / operators    */
-#  undef  HAS_LONGLONG  /* machine has 32-bit/64-bit integers         */
 #  define UNIX          /* system is unix-based                       */
 #endif
 #if defined(AMIGA)
 #  undef  HAS_64BITS    /* machine has 64-bit integers / operators    */
-#  define HAS_LONGLONG  /* machine has 32-bit/64-bit integers         */
 #  undef  UNIX          /* system is unix-based                       */
 #endif
 #if defined(FreeBSD)
 #  undef  HAS_64BITS    /* machine has 64-bit integers / operators    */
-#  define HAS_LONGLONG  /* machine has 32-bit/64-bit integers         */
 #  define UNIX          /* system is unix-based                       */
 #endif
 #if defined(HP)
 #  undef  HAS_64BITS    /* machine has 64-bit integers / operators    */
-#  define HAS_LONGLONG  /* machine has 32-bit/64-bit integers         */
 #  define UNIX          /* system is unix-based                       */
 #endif
 #if defined(LINUX)
 #  undef  HAS_64BITS    /* machine has 64-bit integers / operators    */
-#  define HAS_LONGLONG  /* machine has 32-bit/64-bit integers         */
 #  define UNIX          /* system is unix-based                       */
 #endif
 #if defined(MIPS)
 #  undef  HAS_64BITS    /* machine has 64-bit integers / operators    */
-#  define HAS_LONGLONG  /* machine has 32-bit/64-bit integers         */
 #  define UNIX          /* system is unix-based                       */
 #endif
 #if defined(NetBSD)
 #  if defined(__alpha__)
 #    define HAS_64BITS   /* machine has 64-bit integers / operators   */
-#    undef  HAS_LONGLONG /* machine has 32-bit/64-bit integers        */
 #    define UNIX         /* system is unix-based                      */
 #  else
 #    undef  HAS_64BITS   /* machine has 64-bit integers / operators   */
-#    define HAS_LONGLONG /* machine has 32-bit/64-bit integers        */
 #    define UNIX         /* system is unix-based                      */
 #  endif
 #endif
 #if defined(NEXT)
 #  undef  HAS_64BITS    /* machine has 64-bit integers / operators    */
-#  define HAS_LONGLONG  /* machine has 32-bit/64-bit integers         */
 #  define UNIX          /* system is unix-based                       */
 #endif
 #if defined(NT_i386)
 #  undef  HAS_64BITS    /* machine has 64-bit integers / operators    */
-#  define HAS_LONGLONG  /* machine has 32-bit/64-bit integers         */
 #  undef  UNIX          /* system is unix-based                       */
 #  undef  STDCALL
 #  define STDCALL __stdcall
@@ -117,17 +93,14 @@
 #endif
 #if defined(OS2)
 #  undef  HAS_64BITS    /* machine has 64-bit integers / operators    */
-#  define HAS_LONGLONG  /* machine has 32-bit/64-bit integers         */
 #  define UNIX          /* system is unix-based                       */
 #endif
 #if defined(SGI)
 #  undef  HAS_64BITS    /* machine has 64-bit integers / operators    */
-#  define HAS_LONGLONG  /* machine has 32-bit/64-bit integers         */
 #  define UNIX          /* system is unix-based                       */
 #endif
 #if defined(SUN)
 #  undef  HAS_64BITS    /* machine has 64-bit integers / operators    */
-#  define HAS_LONGLONG  /* machine has 32-bit/64-bit integers         */
 #  define UNIX          /* system is unix-based                       */
 #endif
 #if !defined(BOOKDIR)
@@ -149,15 +122,13 @@
 #define     EGTB_CACHE_DEFAULT               1024*1024
 #endif
 #define     MAXPLY                                  65
+#define     MAX_TC_NODES                       3000000
 #define     MAX_BLOCKS_PER_CPU                      64
 #define     MAX_BLOCKS         MAX_BLOCKS_PER_CPU*CPUS
-#define     MAX_TC_NODES                       3000000
-#if !defined(SMP) && !defined(SUN)
-#  define lock_t volatile int
-#endif
+#define     lock_t volatile int
 #include "lock.h"
 #define      BOOK_CLUSTER_SIZE           8000
-#define     BOOK_POSITION_SIZE             20
+#define     BOOK_POSITION_SIZE             16
 #define            MERGE_BLOCK           1000
 #define             SORT_BLOCK        4000000
 #define         LEARN_INTERVAL             10
@@ -238,7 +209,7 @@ typedef struct {
 typedef struct {
   BITBOARD  w_occupied;
   BITBOARD  b_occupied;
-  BITBOARD  occupied_rl90;
+  BITBOARD  occupied_rr90;
   BITBOARD  occupied_rl45;
   BITBOARD  occupied_rr45;
   BITBOARD  rooks_queens;
@@ -275,6 +246,10 @@ typedef struct {
   TABLE_ENTRY prefer;
   TABLE_ENTRY always[2];
 } HASH_ENTRY;
+typedef struct {
+  unsigned int fh;
+  unsigned int count;
+} HISTORY;
 typedef struct {
   BITBOARD key;
   int      p_score;
@@ -333,7 +308,6 @@ typedef struct {
   BITBOARD  position;
   unsigned int status_played;
   float     learn;
-  int       CAP_score;
 } BOOK_POSITION;
 
 #if defined(NT_i386)
@@ -426,6 +400,7 @@ typedef struct {
   int       root_wtm;
   int       last_root_value;
   ROOT_MOVE root_moves[256];
+  HISTORY   history[8192];
   int       n_root_moves;
   int       easy_move;
   int       time_limit;
@@ -437,16 +412,9 @@ typedef struct {
   unsigned int program_start_time, program_end_time;
   unsigned int start_time, end_time;
   unsigned int elapsed_start, elapsed_end;
-# if defined(SMP)
-    TREE     *local[MAX_BLOCKS + 1];
-    TREE     *volatile thread[CPUS];
-    lock_t    lock_smp, lock_io, lock_root;
-# else
-    TREE     *local[1];
-#  endif
-  unsigned int history[8192];
-  unsigned int history_fh[8192];
-  unsigned int history_count[8192];
+  TREE    *local[MAX_BLOCKS + 1];
+  TREE    *volatile thread[CPUS];
+  lock_t   lock_smp, lock_io, lock_root;
   unsigned int parallel_splits;
   unsigned int parallel_aborts;
   unsigned int max_split_blocks;
@@ -513,10 +481,8 @@ typedef struct {
 #define KILLER_MOVE_2             5
 #define GENERATE_ALL_MOVES        6
 #define SORT_ALL_MOVES            7
-#define HISTORY_MOVES_1           8
-#define HISTORY_MOVES_2           9
-#define REMAINING_MOVES          10
-#define ROOT_MOVES               11
+#define REMAINING_MOVES           8
+#define ROOT_MOVES                9
 
 #if defined(VC_INLINE32)
 #  include "vcinline.h"
@@ -570,7 +536,6 @@ int       DGTCheckInput(void);
 void      DGTRead(void);
 void      DisplayArray(int*, int);
 void      DisplayBitBoard(BITBOARD);
-void      Display64BitWord(BITBOARD);
 void      DisplayChessBoard(FILE *, POSITION);
 char     *DisplayEvaluation(int, int);
 char     *DisplayEvaluationKibitz(int, int);
@@ -621,7 +586,6 @@ int       HashProbe(TREE * RESTRICT, int, int, int, int *, int, int *);
 void      HashStore(TREE * RESTRICT, int, int, int, int, int, int);
 void      HashStorePV(TREE * RESTRICT, int, int);
 int       HasOpposition(int, int, int);
-void      History(TREE * RESTRICT, int, int, int, int);
 void      HistoryAge(TREE * RESTRICT);
 void      HistoryUpdateFH(TREE * RESTRICT, int, int*, int);
 int       IInitializeTb(char *);
@@ -647,17 +611,13 @@ BITBOARD  InterposeSquares(int, int, int);
 void      Interrupt(int);
 int       InvalidPosition(TREE * RESTRICT);
 int       Iterate(int, int, int);
+void      Killer(TREE * RESTRICT, int, int);
 int       KingPawnSquare(int, int, int, int);
 void      LearnBook(TREE * RESTRICT, int, int, int, int, int);
-void      LearnBookUpdate(TREE * RESTRICT, int, int, float);
+void      LearnBookUpdate(TREE*, int, BITBOARD, float);
 int       LearnFunction(int, int, int, int);
-void      LearnImport(TREE * RESTRICT, int, char **);
-void      LearnImportBook(TREE * RESTRICT, int, char **);
-void      LearnImportCAP(TREE * RESTRICT, int, char **);
-void      LearnImportPosition(TREE * RESTRICT, int, char **);
 void      LearnPosition(TREE * RESTRICT, int, int, int);
 void      LearnPositionLoad(void);
-int       LegalMove(TREE * RESTRICT, int, int, int);
 void      MakeMove(TREE * RESTRICT, int, int, int);
 void      MakeMoveRoot(TREE * RESTRICT, int, int);
 void      NewGame(int);
@@ -718,7 +678,7 @@ void      TestEPD(char *);
 int       Thread(TREE * RESTRICT);
 void      WaitForAllThreadsInitialized(void);
 void     *STDCALL ThreadInit(void *);
-#if (defined(_WIN32) || defined(_WIN64)) && defined(SMP)
+#if defined(_WIN32) || defined(_WIN64)
 void      ThreadMalloc(int);
 #endif
 void      ThreadStop(TREE * RESTRICT);
@@ -729,12 +689,13 @@ int       TimeCheck(TREE * RESTRICT, int);
 void      TimeSet(int);
 void      UnmakeMove(TREE * RESTRICT, int, int, int);
 int       ValidMove(TREE * RESTRICT, int, int, int);
+int       VerifyMove(TREE * RESTRICT, int, int, int);
 void      ValidatePosition(TREE * RESTRICT, int, int, char *);
 void      Kibitz(int, int, int, int, int, BITBOARD, int, char *);
 
 #define HistoryIndex(move, wtm) ((move & 4095) + wtm * 4096)
 
-#if (defined(_WIN32) || defined(_WIN64)) && defined(SMP)
+#if defined(_WIN32) || defined(_WIN64)
 extern void *WinMallocInterleaved(size_t, int);
 extern void WinFreeInterleaved(void *, size_t);
 
@@ -751,15 +712,13 @@ extern void WinFreeInterleaved(void *, size_t);
 #    define FreeInterleaved(pMemory, cBytes)    free(pMemory)
 #  endif
 #endif
-#if defined(HAS_64BITS) || defined(HAS_LONGLONG)
-#  if defined(ALPHA)
-#    include <machine/builtins.h>
+#if defined(ALPHA)
+#  include <machine/builtins.h>
 /* The following are defined only on Unix 4.0E and later. */
-#    ifdef _int_mult_upper      /* kludge to identify version of builtins.h */
-#      define PopCnt(a)     _popcnt(a)
-#      define MSB(a)   _leadz(a)
-#      define LSB(a)    (63 - _trailz(a))
-#    endif
+#  ifdef _int_mult_upper      /* kludge to identify version of builtins.h */
+#  define PopCnt(a)     _popcnt(a)
+#  define MSB(a)   _leadz(a)
+#  define LSB(a)    (63 - _trailz(a))
 #  endif
 #endif
 #define Max(a,b)  (((a) > (b)) ? (a) : (b))
@@ -823,37 +782,16 @@ extern void WinFreeInterleaved(void *, size_t);
 #define Flip(x)       ((x)^1)
 #  define AttacksRank(a)                                                   \
       rook_attacks_r0[(a)][((tree->pos.w_occupied|tree->pos.b_occupied)>>  \
-                           (57-((a)&56)))&63]
+                           (((a)&56)+1))&63]
 #  define AttacksFile(a)                                                   \
-      rook_attacks_rl90[(a)][(tree->pos.occupied_rl90>>                    \
-                             (57-(File(a)<<3)))&63]
+      rook_attacks_rr90[(a)][(tree->pos.occupied_rr90>>                    \
+                             ((File(a)<<3)+1))&63]
 #  define AttacksDiaga1(a)                                                 \
       bishop_attacks_rl45[(a)][(tree->pos.occupied_rl45>>                  \
                                 bishop_shift_rl45[(a)])&63]
 #  define AttacksDiagh1(a)                                                 \
       bishop_attacks_rr45[(a)][(tree->pos.occupied_rr45>>                  \
                                 bishop_shift_rr45[(a)])&63]
-/*
-   the following macros are used to compute the mobility for a sliding piece.
-   The basic idea is the same as the attack vectors above, but the result is
-   an integer mobility factor rather than a bitboard.  this saves having to
-   do a PopCnt() on the attack bit vector, which is much slower.
- */
-#define MobilityRook(a)   (MobilityRank(a)+MobilityFile(a))
-#define MobilityBishop(a) (MobilityDiaga1(a)+MobilityDiagh1(a))
-#define MobilityQueen(a)  (MobilityBishop(a)+MobilityRook(a))
-#  define MobilityRank(a)                                                   \
-     (rook_mobility_r0[(a)][(tree->pos.w_occupied|tree->pos.b_occupied)>>   \
-                            (57-((a)&56))&63])
-#  define MobilityFile(a)                                                   \
-     (rook_mobility_rl90[(a)][tree->pos.occupied_rl90>>                     \
-                             (57-(File(a)<<3))&63])
-#  define MobilityDiaga1(a)                                                 \
-     (bishop_mobility_rl45[(a)][(tree->pos.occupied_rl45>>                  \
-                                bishop_shift_rl45[(a)])&63])
-#  define MobilityDiagh1(a)                                                 \
-     (bishop_mobility_rr45[(a)][(tree->pos.occupied_rr45>>                  \
-                                bishop_shift_rr45[(a)])&63])
 /*
    the following macros are used to extract the pieces of a move that are
    kept compressed into the rightmost 21 bits of a simple integer.
@@ -865,11 +803,11 @@ extern void WinFreeInterleaved(void *, size_t);
 #define Promote(a)          (((a)>>18)&7)
 #define CaptureOrPromote(a) (((a)>>15)&63)
 #define SetMask(a)          (set_mask[a])
-#define SetMaskRL90(a)      (set_mask_rl90[a])
+#define SetMaskRR90(a)      (set_mask_rr90[a])
 #define SetMaskRL45(a)      (set_mask_rl45[a])
 #define SetMaskRR45(a)      (set_mask_rr45[a])
 #define ClearMask(a)        (clear_mask[a])
-#define ClearMaskRL90(a)    (clear_mask_rl90[a])
+#define ClearMaskRR90(a)    (clear_mask_rr90[a])
 #define ClearMaskRL45(a)    (clear_mask_rl45[a])
 #define ClearMaskRR45(a)    (clear_mask_rr45[a])
 /*
@@ -913,7 +851,7 @@ extern void WinFreeInterleaved(void *, size_t);
 #define BishopsQueens         (tree->pos.bishops_queens)
 #define RooksQueens           (tree->pos.rooks_queens)
 #define Occupied              (tree->pos.w_occupied|tree->pos.b_occupied)
-#define OccupiedRL90          (tree->pos.occupied_rl90)
+#define OccupiedRR90          (tree->pos.occupied_rr90)
 #define OccupiedRL45          (tree->pos.occupied_rl45)
 #define OccupiedRR45          (tree->pos.occupied_rr45)
 #define Sliding(piece)        ((piece) & 4)
@@ -926,11 +864,11 @@ extern void WinFreeInterleaved(void *, size_t);
  */
 #define ClearSet(a,b)       b=((a)^(b))
 #define Clear(a,b)          b=ClearMask(a)&(b)
-#define ClearRL90(a,b)      b=ClearMaskRL90(a)&(b)
+#define ClearRR90(a,b)      b=ClearMaskRR90(a)&(b)
 #define ClearRL45(a,b)      b=ClearMaskRL45(a)&(b)
 #define ClearRR45(a,b)      b=ClearMaskRR45(a)&(b)
 #define Set(a,b)            b=SetMask(a)|(b)
-#define SetRL90(a,b)        b=SetMaskRL90(a)|(b)
+#define SetRR90(a,b)        b=SetMaskRR90(a)|(b)
 #define SetRL45(a,b)        b=SetMaskRL45(a)|(b)
 #define SetRR45(a,b)        b=SetMaskRR45(a)|(b)
 #define HashPB(a,b)         b=b_pawn_random[a]^(b)

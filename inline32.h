@@ -29,37 +29,33 @@ asm("        xorl    %0, %0"                    "\n\t"
 }
 
 int static __inline__ MSB(BITBOARD word) {
-  int dummy1, dummy2, dummy3, dummy4;
-       asm ("        movl    $63, %0"     "\n\t"
-            "        bsr     %2, %1"      "\n\t"
+  int dummy1, dummy2, dummy3;
+       asm ("        bsr     %1, %0"      "\n\t"
             "        jnz     1f"          "\n\t"
-            "        bsr     %3, %1"      "\n\t"
+            "        bsr     %2, %0"      "\n\t"
             "        jnz     2f"          "\n\t"
             "        movl    $64, %0"     "\n\t"
-            "        jmp     3f"          "\n\t"
-            "1:      addl    $32,%1"      "\n\t"
-            "2:      subl    %1, %0"      "\n\t"
-            "3:"
-  : "=&q" (dummy1), "=&q" (dummy2), "=&q" (dummy3), "=&q" (dummy4)
-  : "2" ((int) (word>>32)), "3" ((int) word)
+            "        jmp     2f"          "\n\t"
+            "1:      addl    $32,%0"      "\n\t"
+            "2:"
+  : "=&q" (dummy1), "=&q" (dummy2), "=&q" (dummy3)
+  : "1" ((int) (word>>32)), "2" ((int) word)
   : "cc");
   return (dummy1);
 }
 
 int static __inline__ LSB(BITBOARD word) {
-  int dummy1, dummy2, dummy3, dummy4;
-       asm ("        movl    $63, %0"     "\n\t"
-            "        bsf     %3, %1"      "\n\t"
+  int dummy1, dummy2, dummy3;
+       asm ("        bsf     %2, %0"      "\n\t"
             "        jnz     2f"          "\n\t"
-            "        bsf     %2, %1"      "\n\t"
+            "        bsf     %1, %0"      "\n\t"
             "        jnz     1f"          "\n\t"
             "        movl    $64, %0"     "\n\t"
-            "        jmp     3f"          "\n\t"
-            "1:      addl    $32,%1"      "\n\t"
-            "2:      subl    %1, %0"      "\n\t"
-            "3:"
-  : "=&q" (dummy1), "=&q" (dummy2), "=&q" (dummy3), "=&q" (dummy4)
-  : "2" ((int) (word>>32)), "3" ((int) word)
+            "        jmp     2f"          "\n\t"
+            "1:      addl    $32,%0"      "\n\t"
+            "2:"
+  : "=&q" (dummy1), "=&q" (dummy2), "=&q" (dummy3)
+  : "1" ((int) (word>>32)), "2" ((int) word)
   : "cc");
   return (dummy1);
 }

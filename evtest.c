@@ -81,6 +81,7 @@ void EVTest(char *filename)
       PreEvaluate(tree);
       tree->pawn_score.key = 0;
       s1 = Evaluate(tree, 0, wtm, -99999, 99999);
+printf("eval=%d\n", s1);
 
       strcpy(buffer, "flop");
       (void) Option(tree);
@@ -100,16 +101,15 @@ void EVTest(char *filename)
       tree->pawn_score.key = 0;
       s4 = Evaluate(tree, 0, wtm, -99999, 99999);
 
-      if (s1 != s2 || s1 != s3 || s1 != s4 || s2 != s3 || s2 != s4 ||
-          s3 != s4) {
+      if (s1 != s2 || s1 != s3 || s1 != s4 || s2 != s3 || s2 != s4 || s3 != s4) {
         strcpy(buffer, "flip");
         (void) Option(tree);
         printf("FEN = %s\n", buff);
         DisplayChessBoard(stdout, tree->pos);
         if (id)
           Print(4095, "id=%s  ", args[id + 1]);
-        Print(4095, "wtm=%d  score=%d  %d (flop)  %d (flip)  %d (flop)\n", wtm, s1, s2, s3,
-            s4);
+        Print(4095, "wtm=%d  score=%d  %d (flop)  %d (flip)  %d (flop)\n", wtm,
+            s1, s2, s3, s4);
       }
     }
   }

@@ -23,8 +23,6 @@
  *                                                                             *
  *******************************************************************************
  */
-#if defined(SMP)
-
 int SearchSMP(TREE * RESTRICT tree, int alpha, int beta, int value, int wtm,
     int depth, int ply, int mate_threat)
 {
@@ -192,4 +190,3 @@ int SearchSMP(TREE * RESTRICT tree, int alpha, int beta, int value, int wtm,
     shared->root_moves[tree->root_move].status &= 255 - 128;
   return (alpha);
 }
-#endif

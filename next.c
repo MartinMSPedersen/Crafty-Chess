@@ -13,8 +13,7 @@
  */
 int NextMove(TREE * RESTRICT tree, int ply, int wtm)
 {
-  register int *bestp, *movep, *sortv;
-  register int history_value, bestval;
+  register int *movep, *sortv;
 
   switch (tree->next_status[ply].phase) {
 /*
@@ -166,74 +165,6 @@ int NextMove(TREE * RESTRICT tree, int ply, int wtm)
  */
   case GENERATE_ALL_MOVES:
     tree->last[ply] = GenerateNonCaptures(tree, ply, wtm, tree->last[ply]);
-    tree->next_status[ply].phase = HISTORY_MOVES_1;
-/*
- ************************************************************
- *                                                          *
- *   now, try the history moves.  this phase takes the      *
- *   complete move list, and passes over them in a classic  *
- *   selection-sort, choosing the move with the highest     *
- *   history score.  this phase is only done one time, as   *
- *   it also purges the hash and killer moves from the list.*
- *                                                          *
- ************************************************************
- */
-  case HISTORY_MOVES_1:
-    tree->next_status[ply].remaining = 1;
-    tree->next_status[ply].phase = HISTORY_MOVES_2;
-    bestval = 0;
-    bestp = 0;
-    for (movep = tree->last[ply - 1]; movep < tree->last[ply]; movep++)
-      if (*movep) {
-        if (*movep == tree->hash_move[ply] || *movep == tree->killers[ply].move1
-            || *movep == tree->killers[ply].move2)
-          *movep = 0;
-        else {
-          history_value = shared->history[HistoryIndex(*movep, wtm)];
-          if (history_value > bestval) {
-            bestval = history_value;
-            bestp = movep;
-          }
-        }
-      }
-    if (bestp) {
-      tree->current_move[ply] = *bestp;
-      *bestp = 0;
-      return (HISTORY_MOVES_1);
-    }
-    goto remaining_moves;
-/*
- ************************************************************
- *                                                          *
- *   now, continue with the history moves, but since one    *
- *   pass has been made over the complete move list, there  *
- *   are no hash/killer moves left in the list, so the test *
- *   for these can be avoided.                              *
- *                                                          *
- ************************************************************
- */
-  case HISTORY_MOVES_2:
-    bestval = 0;
-    bestp = 0;
-    for (movep = tree->last[ply - 1]; movep < tree->last[ply]; movep++)
-      if (*movep) {
-        history_value = shared->history[HistoryIndex(*movep, wtm)];
-        if (history_value > bestval) {
-          bestval = history_value;
-          bestp = movep;
-        }
-      }
-    if (bestval) {
-      tree->current_move[ply] = *bestp;
-      *bestp = 0;
-      tree->next_status[ply].remaining++;
-      if (tree->next_status[ply].remaining > 3) {
-        tree->next_status[ply].phase = REMAINING_MOVES;
-        tree->next_status[ply].last = tree->last[ply - 1];
-      }
-      return (HISTORY_MOVES_2);
-    }
-  remaining_moves:
     tree->next_status[ply].phase = REMAINING_MOVES;
     tree->next_status[ply].last = tree->last[ply - 1];
 /*

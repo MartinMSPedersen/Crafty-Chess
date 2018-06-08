@@ -62,6 +62,10 @@ int Option(TREE * RESTRICT tree)
     }
   }
 #endif
+  if (!strcmp(buffer,"db")) {
+    printf("swap(f7) = %d\n", Swap(tree, 36, 53, 1));
+    return(1);
+  }
 /*
  ************************************************************
  *                                                          *
@@ -750,12 +754,8 @@ int Option(TREE * RESTRICT tree)
       fclose(book_file);
     if (books_file)
       fclose(books_file);
-    if (book_lrn_file)
-      fclose(book_lrn_file);
     if (position_file)
       fclose(position_file);
-    if (position_lrn_file)
-      fclose(position_lrn_file);
     if (history_file)
       fclose(history_file);
     if (log_file)
@@ -867,6 +867,10 @@ int Option(TREE * RESTRICT tree)
  */
     param = atoi(args[1]);
     value = atoi(args[2]);
+    if (!eval_packet[param].value) {
+      Print(4095, "ERROR.  evaluation term %d is not defined\n", param);
+      return (1);
+    }
     if (eval_packet[param].size == 0) {
       if (nargs > 3) {
         printf("this eval term requires exactly 1 value.\n");
@@ -1401,26 +1405,6 @@ int Option(TREE * RESTRICT tree)
 /*
  ************************************************************
  *                                                          *
- *   "import" <filename> command is used to import a .lrn   *
- *   file (either book.lrn or position.lrn) and store the   *
- *   results in crafty's binary files (book.bin or          *
- *   position.bin) just as though it had learned those      *
- *   results by itself.                                     *
- *                                                          *
- ************************************************************
- */
-  else if (OptionMatch("import", *args)) {
-    if (shared->thinking || shared->pondering)
-      return (2);
-    nargs = ReadParse(buffer, args, " 	;=");
-    if (nargs < 2)
-      printf("usage:  import <filename> [clear]\n");
-    else
-      LearnImport(tree, nargs - 1, args + 1);
-  }
-/*
- ************************************************************
- *                                                          *
  *   "input" command directs the program to read input from *
  *   a file until eof is reached or an "exit" command is    *
  *   encountered while reading the file.                    *
@@ -1543,19 +1527,42 @@ int Option(TREE * RESTRICT tree)
  */
   else if (OptionMatch("learn", *args)) {
     if (nargs == 2) {
-      learning = atoi(args[1]);
-      if (learning & book_learning)
-        Print(128, "book learning enabled\n");
-      else
-        Print(128, "book learning disabled\n");
-      if (learning & result_learning)
-        Print(128, "result learning enabled\n");
-      else
-        Print(128, "result learning disabled\n");
-      if (learning & position_learning)
-        Print(128, "position learning enabled\n");
-      else
-        Print(128, "position learning disabled\n");
+      if (OptionMatch("clear", *(args + 1))) {
+        int index[32768], i, j, cluster;
+        unsigned char buf32[4];
+
+        fseek(book_file, 0, SEEK_SET);
+        for (i = 0; i < 32768; i++) {
+          fread(buf32, 4, 1, book_file);
+          index[i] = BookIn32(buf32);
+        }
+        for (i = 0; i < 32768; i++)
+          if (index[i] > 0) {
+            fseek(book_file, index[i], SEEK_SET);
+            fread(buf32, 4, 1, book_file);
+            cluster = BookIn32(buf32);
+            BookClusterIn(book_file, cluster, book_buffer);
+            for (j = 0; j < cluster; j++)
+              book_buffer[j].learn = 0.0;
+            fseek(book_file, index[i] + sizeof(int), SEEK_SET);
+            BookClusterOut(book_file, cluster, book_buffer);
+          }
+      }
+      else {
+        learning = atoi(args[1]);
+        if (learning & book_learning)
+          Print(128, "book learning enabled\n");
+        else
+          Print(128, "book learning disabled\n");
+        if (learning & result_learning)
+          Print(128, "result learning enabled\n");
+        else
+          Print(128, "result learning disabled\n");
+        if (learning & position_learning)
+          Print(128, "position learning enabled\n");
+        else
+          Print(128, "position learning disabled\n");
+      }
     } else if (nargs == 3) {
       learning_trigger = atof(args[1]) * 100;
       learning_cutoff = atof(args[2]) * 100;
@@ -1896,6 +1903,7 @@ int Option(TREE * RESTRICT tree)
     }
     if (!strcmp(args[1], "on")) {
       int id;
+
       id = InitializeGetLogID();
       sprintf(log_filename, "%s/log.%03d", log_path, id);
       sprintf(history_filename, "%s/game.%03d", log_path, id);
@@ -1968,7 +1976,6 @@ int Option(TREE * RESTRICT tree)
         fclose(output_file);
     }
   }
-#if defined(SMP)
 /*
  ************************************************************
  *                                                          *
@@ -2012,8 +2019,8 @@ int Option(TREE * RESTRICT tree)
       printf("usage:  smpmin <plies>\n");
       return (1);
     }
-    shared->min_thread_depth = PLY * atoi(args[1]);
-    Print(128, "minimum thread depth set to %d\n", shared->min_thread_depth);
+    shared->min_thread_depth = atoi(args[1]);
+    Print(128, "minimum thread depth set to %d%\n", shared->min_thread_depth);
   } else if (OptionMatch("smpmt", *args) || OptionMatch("mt", *args)) {
     int proc;
 
@@ -2047,7 +2054,6 @@ int Option(TREE * RESTRICT tree)
     else
       Print(128, "SMP search split at ply > 1\n");
   }
-#endif
 /*
  ************************************************************
  *                                                          *
@@ -2198,12 +2204,8 @@ int Option(TREE * RESTRICT tree)
           break;
         }
     }
-#if defined(SMP)
     printf("tellicsnoalias kibitz Hello from Crafty v%s! (%d cpus)\n", version,
         Max(1, shared->max_threads));
-#else
-    printf("tellicsnoalias kibitz Hello from Crafty v%s!\n", version);
-#endif
   }
 /*
  ************************************************************
@@ -2216,7 +2218,6 @@ int Option(TREE * RESTRICT tree)
     new_game = 1;
     if (shared->thinking || shared->pondering)
       return (3);
-#if defined(SMP)
     if (shared->max_threads) {
       int proc;
 
@@ -2225,7 +2226,6 @@ int Option(TREE * RESTRICT tree)
         shared->thread[proc] = (TREE *) - 1;
       shared->smp_threads = 0;
     }
-#endif
     NewGame(0);
     return (3);
   }
@@ -3424,7 +3424,7 @@ int Option(TREE * RESTRICT tree)
     tree->b_tropism = 0;
     n = EvaluateKnights(tree);
     b = EvaluateBishops(tree);
-    r = EvaluateRooks(tree);
+    r = 9 * EvaluateRooks(tree) / 10;
     q = EvaluateQueens(tree);
     k = EvaluateKings(tree, wtm, 1);
     Print(128, "note: scores are for the white side\n");
@@ -4014,15 +4014,10 @@ int Option(TREE * RESTRICT tree)
       shared->display_options &= 4095 - 1 - 2 - 4 - 8 - 16 - 32 - 128;
       ansi = 0;
       printf("\n");
-#if defined(SMP)
       printf("tellicsnoalias set 1 Crafty v%s (%d cpus)\n", version, Max(1,
               shared->max_threads));
       printf("tellicsnoalias kibitz Hello from Crafty v%s! (%d cpus)\n",
           version, Max(1, shared->max_threads));
-#else
-      printf("tellicsnoalias set 1 Crafty v%s\n", version);
-      printf("tellicsnoalias kibitz Hello from Crafty v%s!\n", version);
-#endif
       fflush(stdout);
     }
   }

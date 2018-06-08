@@ -3,7 +3,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 08/23/99 */
+/* last modified 07/18/06 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -18,7 +18,7 @@
 void MakeMove(TREE * RESTRICT tree, int ply, int move, int wtm)
 {
   register int piece, from, to, captured, promote;
-  BITBOARD bit_move, bit_move_rl45, bit_move_rr45, bit_move_rl90;
+  BITBOARD bit_move, bit_move_rl45, bit_move_rr45, bit_move_rr90;
 
 /*
  ************************************************************
@@ -56,10 +56,10 @@ MakePieceMove:
   bit_move = SetMask(from) | SetMask(to);
   bit_move_rl45 = SetMaskRL45(from) | SetMaskRL45(to);
   bit_move_rr45 = SetMaskRR45(from) | SetMaskRR45(to);
-  bit_move_rl90 = SetMaskRL90(from) | SetMaskRL90(to);
+  bit_move_rr90 = SetMaskRR90(from) | SetMaskRR90(to);
   ClearSet(bit_move_rl45, OccupiedRL45);
   ClearSet(bit_move_rr45, OccupiedRR45);
-  ClearSet(bit_move_rl90, OccupiedRL90);
+  ClearSet(bit_move_rr90, OccupiedRR90);
   PcOnSq(from) = 0;
   switch (piece) {
 /*
@@ -83,7 +83,7 @@ MakePieceMove:
       HashPW(to, PawnHashKey);
       if (captured == 1) {
         if (!PcOnSq(to)) {
-          ClearRL90(to - 8, OccupiedRL90);
+          ClearRR90(to - 8, OccupiedRR90);
           ClearRL45(to - 8, OccupiedRL45);
           ClearRR45(to - 8, OccupiedRR45);
           Clear(to - 8, BlackPawns);
@@ -164,7 +164,7 @@ MakePieceMove:
       HashPB(to, PawnHashKey);
       if (captured == 1) {
         if (!PcOnSq(to)) {
-          ClearRL90(to + 8, OccupiedRL90);
+          ClearRR90(to + 8, OccupiedRR90);
           ClearRL45(to + 8, OccupiedRL45);
           ClearRR45(to + 8, OccupiedRR45);
           Clear(to + 8, WhitePawns);
@@ -443,7 +443,7 @@ MakePieceMove:
       piece = promote;
     SetRL45(to, OccupiedRL45);
     SetRR45(to, OccupiedRR45);
-    SetRL90(to, OccupiedRL90);
+    SetRR90(to, OccupiedRR90);
     switch (captured) {
 /*
  ************************************************************

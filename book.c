@@ -38,8 +38,6 @@
  *                                                                             *
  *   32 bits:  learned value (floating point).                                 *
  *                                                                             *
- *   32 bits:  CAP score for this move (integer).                              *
- *                                                                             *
  *     (note:  counts are normalized to a max of 255.                          *
  *                                                                             *
  *******************************************************************************
@@ -51,21 +49,22 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
 {
   static int book_moves[200];
   static BOOK_POSITION start_moves[200];
+  static BITBOARD selected_key[200];
   static int selected[200];
   static int selected_order_played[200], selected_value[200];
   static int selected_status[200], selected_percent[200], book_development[200];
   static int bs_played[200], bs_percent[200];
-  static int book_status[200], evaluations[200], bs_learn[200], bs_CAP[200];
+  static int book_status[200], evaluations[200], bs_learn[200];
   static float bs_value[200], total_value;
+  static BITBOARD book_key[200], bs_key[200];
   int m1_status, forced = 0, total_percent, play_percentage = 0;
   float tempr;
-  int done, i, j, last_move, temp, which, minlv = 999999, maxlv = -999999, cap;
-  int mincap = 999999, maxcap = -999999, maxp = -999999, minev = 999999, maxev =
-      -999999;
+  int done, i, j, last_move, temp, which, minlv = 999999, maxlv = -999999;
+  int maxp = -999999, minev = 999999, maxev = -999999;
   int nflagged, im, value, np, book_ponder_move;
   int cluster, scluster, test;
   unsigned char buf32[4];
-  BITBOARD temp_hash_key, common;
+  BITBOARD temp_hash_key, common, tempk;
   int key, nmoves, num_selected, st;
   int percent_played, total_played, total_moves, smoves;
   int distribution;
@@ -138,6 +137,7 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
     fread(buf32, 4, 1, book_file);
     key = BookIn32(buf32);
     if (key > 0) {
+      book_learn_seekto = key;
       fseek(book_file, key, SEEK_SET);
       fread(buf32, 4, 1, book_file);
       cluster = BookIn32(buf32);
@@ -195,7 +195,6 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
           bs_learn[nmoves] = (int) (book_buffer[i].learn * 100.0);
           if (!wtm)
             bs_learn[nmoves] *= -1;
-          bs_CAP[nmoves] = book_buffer[i].CAP_score;
           if (shared->puzzling)
             bs_played[nmoves] += 1;
           tree->current_move[1] = shared->root_moves[im].move;
@@ -217,6 +216,7 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
             }
           }
           book_moves[nmoves] = shared->root_moves[im].move;
+          book_key[nmoves] = temp_hash_key;
           nmoves++;
           break;
         }
@@ -225,6 +225,7 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
     }
     if (!nmoves)
       return (0);
+    book_learn_nmoves = nmoves;
 /*
  ************************************************************
  *                                                          *
@@ -248,15 +249,10 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
           !(book_status[i] & 0x18))
         book_status[i] |= BAD_MOVE;
       if (bs_played[i] < maxp / 10 && !bs_percent[i] && book_random &&
-          !(book_status[i] & 0x18) && bs_CAP[i] == -2 * MATE)
+          !(book_status[i] & 0x18))
         book_status[i] |= BAD_MOVE;
       if (bs_learn[i] >= LEARN_COUNTER_GOOD && !(book_status[i] & 0x03))
         book_status[i] |= GOOD_MOVE;
-      if (bs_CAP[i] >= CAP_SCORE_GOOD && !(book_status[i] & 0x03))
-        book_status[i] |= GOOD_MOVE;
-      if (bs_CAP[i] <= CAP_SCORE_BAD && bs_CAP[i] != -2 * MATE &&
-          !(book_status[i] & 0x03))
-        book_status[i] |= BAD_MOVE;
       if (bs_percent[i])
         book_status[i] |= GOOD_MOVE;
     }
@@ -273,22 +269,13 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
       if (!(book_status[i] & BAD_MOVE)) {
         minlv = Min(minlv, bs_learn[i]);
         maxlv = Max(maxlv, bs_learn[i]);
-        if (bs_CAP[i] != -2 * MATE)
-          mincap = Min(mincap, bs_CAP[i]);
-        if (bs_CAP[i] != -2 * MATE)
-          maxcap = Max(maxcap, bs_CAP[i]);
         minev = Min(minev, evaluations[i]);
         maxev = Max(maxev, evaluations[i]);
         maxp = Max(maxp, bs_played[i]);
       }
     }
-    if (mincap == -2 * MATE)
-      mincap = 0;
-    if (maxcap < 0)
-      maxcap = 0;
     maxp++;
     for (i = 0; i < nmoves; i++) {
-      cap = 0;
       bs_value[i] = 1;
       bs_value[i] += bs_played[i] / (float) maxp *1000.0 * book_weight_freq;
 
@@ -296,12 +283,6 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
         bs_value[i] +=
             (bs_learn[i] - minlv) / (float) (maxlv -
             minlv) * 1000.0 * book_weight_learn;
-      if (bs_CAP[i] != -2 * MATE) {
-        cap = bs_CAP[i];
-        bs_value[i] +=
-            (cap - mincap) / (float) (Max(maxcap - mincap,
-                50)) * 1000.0 * book_weight_CAP;
-      }
       if (minev < maxev)
         bs_value[i] +=
             (evaluations[i] - minev) / (float) (Max(maxev - minev,
@@ -353,9 +334,6 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
             temp = bs_learn[i];
             bs_learn[i] = bs_learn[i + 1];
             bs_learn[i + 1] = temp;
-            temp = bs_CAP[i];
-            bs_CAP[i] = bs_CAP[i + 1];
-            bs_CAP[i + 1] = temp;
             temp = book_development[i];
             book_development[i] = book_development[i + 1];
             book_development[i + 1] = temp;
@@ -368,6 +346,9 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
             temp = bs_percent[i];
             bs_percent[i] = bs_percent[i + 1];
             bs_percent[i + 1] = temp;
+            tempk = book_key[i];
+            book_key[i] = book_key[i + 1];
+            book_key[i + 1] = tempk;
             done = 0;
           }
         }
@@ -383,8 +364,7 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
     if (show_book) {
       Print(128, "  after screening, the following moves can be played\n");
       Print(128,
-          "  move     played    %%  score    learn     "
-          "CAP     sortv   P%%  P\n");
+          "  move     played    %%  score    learn    " "sortv   P%%  P\n");
       for (i = 0; i < nmoves; i++) {
         Print(128, "%6s", OutputMove(tree, book_moves[i], 1, wtm));
         st = book_status[i];
@@ -405,7 +385,6 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
         Print(128, "  %3d", 100 * bs_played[i] / Max(total_moves, 1));
         Print(128, "%s", DisplayEvaluation(evaluations[i], wtm));
         Print(128, "%9.2f", (float) bs_learn[i] / 100.0);
-        Print(128, "%9.2f", (float) bs_CAP[i] / 100.0);
         Print(128, " %9.1f", bs_value[i]);
         Print(128, " %3d", bs_percent[i]);
         if ((book_status[i] & book_accept_mask &&
@@ -449,16 +428,17 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
           selected_order_played[num_selected] = bs_played[i];
           selected_value[num_selected] = bs_value[i];
           selected_percent[num_selected] = bs_percent[i];
+          selected_key[num_selected] = book_key[i];
           selected[num_selected++] = book_moves[i];
         }
-     }
-     else {
+    } else {
       for (i = 0; i < nmoves; i++)
         if (bs_percent[i]) {
           selected_status[num_selected] = book_status[i];
           selected_order_played[num_selected] = bs_played[i];
           selected_value[num_selected] = bs_value[i];
           selected_percent[num_selected] = bs_percent[i];
+          selected_key[num_selected] = book_key[i];
           selected[num_selected++] = book_moves[i];
         }
     }
@@ -523,6 +503,7 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
             selected_status[num_selected] = book_status[i];
             selected_order_played[num_selected] = bs_played[i];
             selected_value[num_selected] = bs_value[i];
+            selected_key[num_selected] = book_key[i];
             selected[num_selected++] = book_moves[i];
           }
 /*
@@ -536,6 +517,7 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
             selected_status[num_selected] = book_status[i];
             selected_order_played[num_selected] = bs_played[i];
             selected_value[num_selected] = bs_value[i];
+            selected_key[num_selected] = book_key[i];
             selected[num_selected++] = book_moves[i];
           }
 /*
@@ -548,6 +530,7 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
             selected_status[num_selected] = book_status[i];
             selected_order_played[num_selected] = bs_played[i];
             selected_value[num_selected] = bs_value[i];
+            selected_key[num_selected] = book_key[i];
             selected[num_selected++] = book_moves[i];
           }
 /*
@@ -559,6 +542,7 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
           selected_status[num_selected] = book_status[i];
           selected_order_played[num_selected] = bs_played[i];
           selected_value[num_selected] = bs_value[i];
+          selected_key[num_selected] = book_key[i];
           selected[num_selected++] = book_moves[i];
         }
 /*
@@ -569,6 +553,7 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
         selected_status[num_selected] = book_status[i];
         selected_order_played[num_selected] = bs_played[i];
         selected_value[num_selected] = bs_value[i];
+        selected_key[num_selected] = book_key[i];
         selected[num_selected++] = book_moves[i];
       }
     if (!num_selected)
@@ -581,6 +566,7 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
       book_moves[i] = selected[i];
       bs_played[i] = selected_order_played[i];
       bs_value[i] = selected_value[i];
+      bs_key[i] = selected_key[i];
     }
     nmoves = num_selected;
     if (nmoves == 0)
@@ -790,6 +776,7 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
       }
       UnmakeMove(tree, 1, book_moves[which], wtm);
     }
+    book_learn_key = bs_key[which];
     Print(128, "               book   0.0s    %3d%%   ", percent_played);
     Print(128, " %s", OutputMove(tree, tree->pv[1].path[1], 1, wtm));
     st = m1_status & book_accept_mask & (~224);
@@ -1152,7 +1139,8 @@ void BookUp(TREE * RESTRICT tree, int nargs, char **args)
                 tree->position[2] = tree->position[3];
                 if (ply <= max_ply) {
                   temp_hash_key = HashKey ^ wtm_random[wtm];
-                  temp_hash_key = (temp_hash_key & ~((BITBOARD) 65535 << 48)) | common;
+                  temp_hash_key =
+                      (temp_hash_key & ~((BITBOARD) 65535 << 48)) | common;
                   memcpy(bbuffer[buffered].position, (char *) &temp_hash_key,
                       8);
                   if (result & 1)
@@ -1263,7 +1251,6 @@ void BookUp(TREE * RESTRICT tree, int nargs, char **args)
       if (start)
         next.status_played += temp.percent_play & 127;
       next.learn = 0.0;
-      next.CAP_score = -MATE * 2;
       counter++;
       if (counter % 100000 == 0) {
         printf(".");
@@ -1290,15 +1277,12 @@ void BookUp(TREE * RESTRICT tree, int nargs, char **args)
           if (!start)
             current.status_played += played;
           current.learn = 0.0;
-          current.CAP_score = -MATE * 2;
           memcpy((void *) &book_buffer_char[0].position,
               (void *) BookOut64(current.position), 8);
           memcpy((void *) &book_buffer_char[0].status_played,
               (void *) BookOut32(current.status_played), 4);
           memcpy((void *) &book_buffer_char[0].learn,
               (void *) BookOut32(current.learn), 4);
-          memcpy((void *) &book_buffer_char[0].CAP_score,
-              (void *) BookOut32(current.CAP_score), 4);
           stat = fwrite(book_buffer_char, BOOK_POSITION_SIZE, 1, book_file);
           if (stat != 1)
             Print(4095, "ERROR!  write failed, disk probably full.\n");

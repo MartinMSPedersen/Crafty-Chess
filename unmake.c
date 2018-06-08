@@ -3,7 +3,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 03/11/98 */
+/* last modified 07/18/06 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -15,7 +15,7 @@
 void UnmakeMove(TREE * RESTRICT tree, int ply, int move, int wtm)
 {
   register int piece, from, to, captured, promote;
-  BITBOARD bit_move, bit_move_rl45, bit_move_rr45, bit_move_rl90;
+  BITBOARD bit_move, bit_move_rl45, bit_move_rr45, bit_move_rr90;
 
 /*
  ************************************************************
@@ -44,10 +44,10 @@ UnmakePieceMove:
   bit_move = SetMask(from) | SetMask(to);
   bit_move_rl45 = SetMaskRL45(from) | SetMaskRL45(to);
   bit_move_rr45 = SetMaskRR45(from) | SetMaskRR45(to);
-  bit_move_rl90 = SetMaskRL90(from) | SetMaskRL90(to);
+  bit_move_rr90 = SetMaskRR90(from) | SetMaskRR90(to);
   ClearSet(bit_move_rl45, OccupiedRL45);
   ClearSet(bit_move_rr45, OccupiedRR45);
-  ClearSet(bit_move_rl90, OccupiedRL90);
+  ClearSet(bit_move_rr90, OccupiedRR90);
   PcOnSq(to) = 0;
   switch (piece) {
 /*
@@ -65,7 +65,7 @@ UnmakePieceMove:
       if (captured == 1) {
         if (EnPassant(ply) == to) {
           TotalPieces++;
-          SetRL90(to - 8, OccupiedRL90);
+          SetRR90(to - 8, OccupiedRR90);
           SetRL45(to - 8, OccupiedRL45);
           SetRR45(to - 8, OccupiedRR45);
           Set(to - 8, BlackPawns);
@@ -128,7 +128,7 @@ UnmakePieceMove:
       if (captured == 1) {
         if (EnPassant(ply) == to) {
           TotalPieces++;
-          SetRL90(to + 8, OccupiedRL90);
+          SetRR90(to + 8, OccupiedRR90);
           SetRL45(to + 8, OccupiedRL45);
           SetRR45(to + 8, OccupiedRR45);
           Set(to + 8, WhitePawns);
@@ -316,7 +316,7 @@ UnmakePieceMove:
  */
   if (captured) {
     TotalPieces++;
-    SetRL90(to, OccupiedRL90);
+    SetRR90(to, OccupiedRR90);
     SetRL45(to, OccupiedRL45);
     SetRR45(to, OccupiedRR45);
     switch (captured) {

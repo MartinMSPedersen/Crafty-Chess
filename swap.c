@@ -3,7 +3,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 04/04/00 */
+/* last modified 07/19/00 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -71,30 +71,30 @@ int Swap(TREE * RESTRICT tree, int source, int target, int wtm)
   while (attacks) {
     if (color) {
       if (WhitePawns & attacks)
-        square = MSB(WhitePawns & attacks);
+        square = LSB(WhitePawns & attacks);
       else if (WhiteKnights & attacks)
-        square = MSB(WhiteKnights & attacks);
+        square = LSB(WhiteKnights & attacks);
       else if (WhiteBishops & attacks)
-        square = MSB(WhiteBishops & attacks);
+        square = LSB(WhiteBishops & attacks);
       else if (WhiteRooks & attacks)
-        square = MSB(WhiteRooks & attacks);
+        square = LSB(WhiteRooks & attacks);
       else if (WhiteQueens & attacks)
-        square = MSB(WhiteQueens & attacks);
+        square = LSB(WhiteQueens & attacks);
       else if (WhiteKing & attacks)
         square = WhiteKingSQ;
       else
         break;
     } else {
       if (BlackPawns & attacks)
-        square = MSB(BlackPawns & attacks);
+        square = LSB(BlackPawns & attacks);
       else if (BlackKnights & attacks)
-        square = MSB(BlackKnights & attacks);
+        square = LSB(BlackKnights & attacks);
       else if (BlackBishops & attacks)
-        square = MSB(BlackBishops & attacks);
+        square = LSB(BlackBishops & attacks);
       else if (BlackRooks & attacks)
-        square = MSB(BlackRooks & attacks);
+        square = LSB(BlackRooks & attacks);
       else if (BlackQueens & attacks)
-        square = MSB(BlackQueens & attacks);
+        square = LSB(BlackQueens & attacks);
       else if (BlackKing & attacks)
         square = BlackKingSQ;
       else
@@ -151,19 +151,19 @@ BITBOARD SwapXray(TREE * RESTRICT tree, BITBOARD attacks, int from,
   case 1:
     return (attacks | (AttacksRank(from) & RooksQueens & plus1dir[from]));
   case 7:
-    return (attacks | (AttacksDiaga1(from) & BishopsQueens & plus7dir[from]));
+    return (attacks | (AttacksDiagh1(from) & BishopsQueens & plus7dir[from]));
   case 8:
     return (attacks | (AttacksFile(from) & RooksQueens & plus8dir[from]));
   case 9:
-    return (attacks | (AttacksDiagh1(from) & BishopsQueens & plus9dir[from]));
+    return (attacks | (AttacksDiaga1(from) & BishopsQueens & plus9dir[from]));
   case -1:
     return (attacks | (AttacksRank(from) & RooksQueens & minus1dir[from]));
   case -7:
-    return (attacks | (AttacksDiaga1(from) & BishopsQueens & minus7dir[from]));
+    return (attacks | (AttacksDiagh1(from) & BishopsQueens & minus7dir[from]));
   case -8:
     return (attacks | (AttacksFile(from) & RooksQueens & minus8dir[from]));
   case -9:
-    return (attacks | (AttacksDiagh1(from) & BishopsQueens & minus9dir[from]));
+    return (attacks | (AttacksDiaga1(from) & BishopsQueens & minus9dir[from]));
   }
   return (attacks);
 }

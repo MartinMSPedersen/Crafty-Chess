@@ -72,7 +72,7 @@ int MSB(BITBOARD arg1)
   unsigned long index;
 
   if (_BitScanReverse64(&index, arg1))
-    return 63 - index;
+    return index;
   else
     return 64;
 }
@@ -82,7 +82,7 @@ int LSB(BITBOARD arg1)
   unsigned long index;
 
   if (_BitScanForward64(&index, arg1))
-    return 63 - index;
+    return index;
   else
     return 64;
 }
@@ -93,23 +93,23 @@ int LSB(BITBOARD arg1)
 int MSB(BITBOARD arg1)
 {
   if (arg1 >> 48)
-    return (msb[arg1 >> 48]);
+    return (msb[arg1 >> 48] + 48);
   if ((arg1 >> 32) & 65535)
-    return (msb[(arg1 >> 32) & 65535] + 16);
+    return (msb[(arg1 >> 32) & 65535] + 32);
   if ((arg1 >> 16) & 65535)
-    return (msb[(arg1 >> 16) & 65535] + 32);
-  return (msb[arg1 & 65535] + 48);
+    return (msb[(arg1 >> 16) & 65535] + 16);
+  return (msb[arg1 & 65535]);
 }
 
 int LSB(BITBOARD arg1)
 {
   if (arg1 & 65535)
-    return (lsb[arg1 & 65535] + 48);
+    return (lsb[arg1 & 65535]);
   if ((arg1 >> 16) & 65535)
-    return (lsb[(arg1 >> 16) & 65535] + 32);
+    return (lsb[(arg1 >> 16) & 65535] + 16);
   if ((arg1 >> 32) & 65535)
-    return (lsb[(arg1 >> 32) & 65535] + 16);
-  return (lsb[arg1 >> 48]);
+    return (lsb[(arg1 >> 32) & 65535] + 32);
+  return (lsb[arg1 >> 48] + 48);
 }
 #    endif
 #  endif

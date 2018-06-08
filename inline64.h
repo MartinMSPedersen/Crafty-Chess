@@ -7,13 +7,12 @@ int static __inline__ MSB(long word)
 {
   long      dummy, dummy2;
 
-asm("          bsrq    %0, %1"                       "\n\t"
+asm("          bsrq    %1, %0"                       "\n\t"
     "          jnz     1f"                           "\n\t"
-    "          movq    $-1, %1"                      "\n\t"
-    "1:        movq    $63, %0"                      "\n\t"
-    "          subq    %1, %0"                       "\n\t"
+    "          movq    $64, %0"                      "\n\t"
+    "1:"
     :"=&r"(dummy), "=&r" (dummy2)
-    :"0"((long) (word))
+    :"1"((long) (word))
     :"cc");
   return (dummy);
 }
@@ -22,13 +21,12 @@ int static __inline__ LSB(long word)
 {
   long      dummy, dummy2;
 
-asm("          bsfq    %0, %1"                       "\n\t"
+asm("          bsfq    %1, %0"                       "\n\t"
     "          jnz     1f"                           "\n\t"
-    "          movq    $-1, %1"                      "\n\t"
-    "1:        movq    $63, %0"                      "\n\t"
-    "          subq    %1, %0"                       "\n\t"
+    "          movq    $64, %0"                      "\n\t"
+    "1:"
     :"=&r"(dummy), "=&r" (dummy2)
-    :"0"((long) (word))
+    :"1"((long) (word))
     :"cc");
   return (dummy);
 }

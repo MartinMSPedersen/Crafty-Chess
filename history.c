@@ -3,64 +3,6 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 03/01/06 */
-/*
- *******************************************************************************
- *                                                                             *
- *   History() is used to maintain the history database.  this is a set of     *
- *   counts, indexed by the 12-bit value [to,from], that contains the relative *
- *   effectiveness of this move as a refutation.  this effectiveness is simply *
- *   an arbitrary value that varies significantly and inversely to the depth of*
- *   the sub-tree refuted by each move.                                        *
- *                                                                             *
- *   these routines also maintain the killer move lists as well, since they are*
- *   similar in nature.                                                        *
- *                                                                             *
- *******************************************************************************
- */
-void History(TREE * RESTRICT tree, int ply, int depth, int wtm, int move)
-{
-  register int index;
-
-/*
- ************************************************************
- *                                                          *
- *   if the best move so far is a capture or a promotion,   *
- *   return, since we try good captures and promotions      *
- *   before searching history heuristic moves anyway.       *
- *                                                          *
- ************************************************************
- */
-  if (CaptureOrPromote(move))
-    return;
-/*
- ************************************************************
- *                                                          *
- *   otherwise, use the [to,from] as an index and increment *
- *   the appropriate history table/entry.                   *
- *                                                          *
- ************************************************************
- */
-  index = HistoryIndex(move, wtm);
-  shared->history[index] += depth * depth;
-  if (shared->history[index] > 32767) {
-    for (index = 0; index < 8192; index++)
-      shared->history[index] = shared->history[index] >> 1;
-  }
-/*
- ************************************************************
- *                                                          *
- *   now, add the same move to the current killer moves if  *
- *   it is not already there.                               *
- *                                                          *
- ************************************************************
- */
-  if (tree->killers[ply].move1 != move) {
-    tree->killers[ply].move2 = tree->killers[ply].move1;
-    tree->killers[ply].move1 = move;
-  }
-}
-
 /* last modified 03/23/06 */
 /*
  *******************************************************************************
@@ -85,19 +27,19 @@ void HistoryUpdateFH(TREE * RESTRICT tree, int wtm, int searched[], int count)
   int i, age = 0;
 
   if (!CaptureOrPromote(searched[count - 1])) {
-    shared->history_fh[HistoryIndex(searched[count - 1], wtm)] += 100;
-    if (++shared->history_count[HistoryIndex(searched[count - 1], wtm)] > 32767)
+    shared->history[HistoryIndex(searched[count - 1], wtm)].fh += 100;
+    if (++shared->history[HistoryIndex(searched[count - 1], wtm)].count > 32767)
       age++;
   }
   for (i = 0; i < count - 1; i++)
     if (!CaptureOrPromote(searched[i]))
-      if (++shared->history_count[HistoryIndex(searched[i], wtm)] > 32767)
+      if (++shared->history[HistoryIndex(searched[i], wtm)].count > 32767)
         age++;
   if (tree->thread_id == 0) {
     if (age) {
       for (i = 0; i < 8192; i++) {
-        shared->history_fh[i] >>= 1;
-        shared->history_count[i] = (shared->history_count[i] >> 1) + 1;
+        shared->history[i].fh >>= 1;
+        shared->history[i].count = (shared->history[i].count >> 1) + 1;
       }
     }
   }

@@ -753,9 +753,8 @@ void EGPutHostPosition(void)
 /* clear the host history */
 
   for (index = 0; index < 2 * (sqL * sqL); index++) {
-    shared->history[index] = 0;
-    shared->history_fh[index] = 0;
-    shared->history_count[index] = 1;
+    shared->history[index].fh = 0;
+    shared->history[index].count = 1;
   }
 
 /* clear the host killer information */
