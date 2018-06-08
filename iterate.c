@@ -162,15 +162,6 @@ int Iterate(int wtm, int search_type, int root_list_done) {
 /*
  ----------------------------------------------------------
 |                                                          |
-|   now install the learned position information in the    |
-|   hash table.                                            |
-|                                                          |
- ----------------------------------------------------------
-*/
-    LearnPositionLoad();
-/*
- ----------------------------------------------------------
-|                                                          |
 |   set the initial search bounds based on the last search |
 |   or default values.                                     |
 |                                                          |
@@ -260,7 +251,7 @@ int Iterate(int wtm, int search_type, int root_list_done) {
 #endif
         thread_start_time[0]=ReadClock(cpu);
         value=SearchRoot(tree,root_alpha, root_beta, wtm,
-                         iteration_depth*INCPLY);
+                         iteration_depth*INCPLY+INCPLY/2);
         root_print_ok=tree->nodes_searched > noise_level;
         cpu_time_used+=ReadClock(cpu)-thread_start_time[0];
         if (abort_search || time_abort) break;
@@ -461,7 +452,7 @@ int Iterate(int wtm, int search_type, int root_list_done) {
             tree->mate_extensions_done);
       Print(16,"              predicted=%d  nodes=" BMF "  evals=%u\n", 
              predicted, tree->nodes_searched, tree->evaluations);
-      Print(16,"              endgame tablebase-> probes done=%d  successful=%d\n",
+      Print(16,"              endgame tablebase-> probes=%d  hits=%d\n",
             tree->egtb_probes, tree->egtb_probes_successful);
 #if !defined(FAST)
       Print(16,"              hashing-> %d%%(raw) %d%%(depth)  %d%%(sat)  %d%%(pawn)\n",

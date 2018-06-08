@@ -175,6 +175,15 @@ void PreEvaluate(TREE * RESTRICT tree, int crafty_is_white) {
       Print(128,"              trojan check enabled\n");
     Print(128,"              clearing hash tables\n");
     ClearHashTableScores(1);
+/*
+ -------------------------------------------------
+|                                                 |
+|   now install the learned position information  |
+|   in the hash table.                            |
+|                                                 |
+ -------------------------------------------------
+*/
+    LearnPositionLoad();
     last_clear=move_number;
   }
 /*
@@ -190,6 +199,7 @@ void PreEvaluate(TREE * RESTRICT tree, int crafty_is_white) {
   if (Rule50Moves(0) > 50) {
     if (last_clear<move_number-10 || Rule50Moves(0)>90) {
       ClearHashTableScores(0);
+      LearnPositionLoad();
       Print(128,"              clearing hash tables (50 moves fix)\n");
     }
   }

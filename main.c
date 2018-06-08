@@ -2936,6 +2936,12 @@
 *           search in rare cases.  the old cold was complex enough that it    *
 *           was time to rewrite it and simplify it significantly.             *
 *                                                                             *
+*   19.4    initial depth "seed" value changed to iteration_depth + 1/2 ply,  *
+*           so that fractional extensions kick in earlier rather than deeper  *
+*           in the search.  this performs _much_ better in tactical tests     *
+*           such as WAC and similar suites.  minor book fix for a bug that    *
+*           could cause a crash with book=off in xboard/winboard.             *
+*                                                                             *
 *******************************************************************************
 */
 int main(int argc, char **argv) {
@@ -2969,11 +2975,11 @@ int main(int argc, char **argv) {
   if (directory_spec)
     strncpy (rc_path, directory_spec, sizeof rc_path);
   if (getenv("CRAFTY_XBOARD")) {
-    Print(128,"feature done=0\n");
+    Print(4095,"feature done=0\n");
     done=0;
   }
   else if (argc>1 && !strcmp(argv[1],"xboard")) {
-    Print(128,"feature done=0\n");
+    Print(4095,"feature done=0\n");
     done=0;
   }
 /*
@@ -2985,7 +2991,7 @@ int main(int argc, char **argv) {
 |                                                          |
  ----------------------------------------------------------
 */
-  local[0]=(TREE*) malloc(sizeof(TREE));
+  local[0]=(TREE*)((~(size_t)127) & (127+(size_t)malloc(sizeof(TREE)+127)));
   local[0]->used=1;
   local[0]->stop=0;
   local[0]->ply=1;
@@ -3121,7 +3127,7 @@ int main(int argc, char **argv) {
       presult=0;
       if (done == 0 && xboard) {
         done=1;
-        Print(128,"done=1\n");
+        Print(128,"feature done=1\n");
       }
       do {
         if (presult != 2) presult=0;

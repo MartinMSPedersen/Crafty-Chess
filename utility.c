@@ -180,13 +180,10 @@ void ClearHashTableScores(int dopawnstoo) {
 
   if (trans_ref) {
     for (i=0;i<hash_table_size;i++) {
-      int age=(trans_ref+i)->prefer.word1>>61;
-      if (age) {
-        (trans_ref+i)->prefer.word2^=(trans_ref+i)->prefer.word1;
-        (trans_ref+i)->prefer.word1=((trans_ref+i)->prefer.word1 &
-                                mask_clear_entry) | (BITBOARD) 65536;
-        (trans_ref+i)->prefer.word2^=(trans_ref+i)->prefer.word1;
-      }
+      (trans_ref+i)->prefer.word2^=(trans_ref+i)->prefer.word1;
+      (trans_ref+i)->prefer.word1=((trans_ref+i)->prefer.word1 &
+                              mask_clear_entry) | (BITBOARD) 65536;
+      (trans_ref+i)->prefer.word2^=(trans_ref+i)->prefer.word1;
       (trans_ref+i)->always[0].word2^=(trans_ref+i)->always[0].word1;
       (trans_ref+i)->always[0].word1=((trans_ref+i)->always[0].word1 &
                               mask_clear_entry) | (BITBOARD) 65536;
@@ -1155,15 +1152,26 @@ void Print(int vb, char *fmt, ...) {
   va_end(ap);
 }
 
-char *PrintKM(int val) {
+char *PrintKM(int val, int realK) {
   static char buf[16];
-  if (val >= 1<<20)
-    sprintf(buf,"%4dM", val/(1<<20));
-  else if (val >= 1<<10)
-    sprintf(buf,"%4dK", val/(1<<10));
-  else
-    sprintf(buf,"%5d", val);
-  return (buf);
+  if (realK) {
+    if (val>=1<<20 && !(val&((1<<20)-1)))
+      sprintf(buf,"%4dM", val/(1<<20));
+    else if (val >= 1<<10)
+      sprintf(buf,"%4dK", val/(1<<10));
+    else
+      sprintf(buf,"%5d", val);
+    return (buf);
+  }
+  else {
+    if (val>=1000000 && !(val%1000000))
+      sprintf(buf,"%4dM", val/1000000);
+    else if (val >= 1000)
+      sprintf(buf,"%4dK", val/1000);
+    else
+      sprintf(buf,"%5d", val);
+    return (buf);
+  }
 }
 
 /*
@@ -2195,19 +2203,21 @@ void Kibitz(int level, int wtm, int depth, int time, int value,
     else sprintf(prefix,"whisper");
     switch (level) {
     case 1:
-      if (value > 0) {
-        if (ics) printf("*");
-        printf("%s mate in %d moves.\n\n",prefix,value);
-      }
-      if (value < 0) {
-        if (ics) printf("*");
-        printf("%s mated in %d moves.\n\n",prefix,-value);
+      if ((kibitz&15) >= 2) {
+        if (value > 0) {
+          if (ics) printf("*");
+          printf("%s mate in %d moves.\n\n",prefix,value);
+        }
+        if (value < 0) {
+          if (ics) printf("*");
+          printf("%s mated in %d moves.\n\n",prefix,-value);
+        }
       }
       break;
     case 2:
       if ((kibitz&15) >= 2) {
         if (ics) printf("*");
-        printf("%s ply=%d; eval=%s; %dKn/s; time=%s; cpu=%d%%; egtb=%d\n",
+        printf("%s ply=%d; eval=%s; nps=%dK; time=%s; cpu=%d%%; egtb=%d\n",
                prefix,depth,DisplayEvaluationKibitz(value,wtm),
                (int) ((time)?100*nodes/(BITBOARD)time:nodes)/1000,
                DisplayTimeKibitz(time),cpu,tb_hits);
@@ -2227,7 +2237,7 @@ void Kibitz(int level, int wtm, int depth, int time, int value,
     case 5:
       if ((kibitz&15)>=5 && nodes>5000) {
         if (ics) printf("*");
-        printf("%s d%d-> %dKn/s %s %s %s\n",prefix,depth,
+        printf("%s d%d-> %dK/s %s %s %s\n",prefix,depth,
                (int) ((time)?100*nodes/(BITBOARD)time:nodes)/1000,
                DisplayTimeKibitz(time),
                DisplayEvaluationKibitz(value,wtm),pv);
@@ -2237,12 +2247,12 @@ void Kibitz(int level, int wtm, int depth, int time, int value,
       if ((kibitz&15) >= 6 && nodes>5000) {
         if (ics) printf("*");
         if (cpu == 0)
-          printf("%s d%d+ %dKn/s %s %s %s\n",prefix,depth,
+          printf("%s d%d+ %dK/s %s %s %s\n",prefix,depth,
                  (int) ((time)?100*nodes/(BITBOARD)time:nodes)/1000,
                  DisplayTimeKibitz(time),
                  DisplayEvaluationKibitz(value,wtm),pv);
         else
-          printf("%s d%d+ %dKn/s %s >(%s) %s <re-searching>\n",prefix,depth,
+          printf("%s d%d+ %dK/s %s >(%s) %s <re-searching>\n",prefix,depth,
                  (int) ((time)?100*nodes/(BITBOARD)time:nodes)/1000,
                  DisplayTimeKibitz(time),DisplayEvaluationKibitz(value,wtm),pv);
       }

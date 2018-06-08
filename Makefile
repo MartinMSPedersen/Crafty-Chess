@@ -216,7 +216,7 @@ linux-i686-elf:
 		LDFLAGS='$(LDFLAGS) -lstdc++' \
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
 		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST \
-		     -DSMP -DCPUS=4 -DCLONE -DDGT -DTRACE' \
+		     -DSMP -DCPUS=4 -DDGT -DTRACE' \
 		asm=X86-elf.o \
 		crafty-make
 
@@ -227,42 +227,42 @@ linux-i686-elf-profile:
 			-fprofile-arcs -fforce-mem \
 			-fno-gcse -mpreferred-stack-boundary=2' \
 		CXFLAGS=$(CFLAGS) \
-		LDFLAGS='$(LDFLAGS) -fprofile-arcs -lstdc++' \
+		LDFLAGS='$(LDFLAGS) -fprofile-arcs -lstdc++ -lpthread' \
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
 		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST \
-		     -DSMP -DCPUS=4 -DCLONE -DDGT' \
+		     -DSMP -DCPUS=4 -DDGT' \
 		asm=X86-elf.o \
 		crafty-make
 
 linux-icc-elf-profile:
 	$(MAKE) target=LINUX \
 		CC=icc CXX=icc \
-		CFLAGS='$(CFLAGS) -D_REENTRANT -O2 -march=pentium4 \
-                        -mcpu=pentium4 -prof_gen -prof_dir ./profdir \
-                        -fno-alias -tpp7' \
-		CXFLAGS='$(CFLAGS) -D_REENTRANT -O2 -march=pentium4 \
-                        -mcpu=pentium4 -prof_gen -prof_dir ./profdir \
-                        -tpp7' \
-		LDFLAGS=$(LDFLAGS) \
+		CFLAGS='$(CFLAGS) -D_REENTRANT -O2 -march=pentiumiii \
+                        -mcpu=pentiumpro -prof_gen -prof_dir ./profdir \
+                        -fno-alias -tpp6' \
+		CXFLAGS='$(CFLAGS) -D_REENTRANT -O2 -march=pentiumiii \
+                        -mcpu=pentiumpro -prof_gen -prof_dir ./profdir \
+                        -tpp6' \
+		LDFLAGS='$(LDFLAGS) -lpthread' \
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
 		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST \
-		     -DSMP -DCPUS=4 -DCLONE -DDGT' \
+		     -DSMP -DCPUS=4 -DDGT' \
 		asm=X86-elf.o \
 		crafty-make
 
 linux-icc-elf:
 	$(MAKE) target=LINUX \
 		CC=icc CXX=icc \
-		CFLAGS='$(CFLAGS) -D_REENTRANT -O2 -march=pentium4 \
-                        -mcpu=pentium4 -prof_use -prof_dir ./profdir \
-                        -g -fno-alias -tpp7' \
-		CXFLAGS='$(CFLAGS) -D_REENTRANT -O2 -march=pentium4 \
-                        -mcpu=pentium4 -prof_use -prof_dir ./profdir \
-                        -tpp7' \
-		LDFLAGS=$(LDFLAGS) \
+		CFLAGS='$(CFLAGS) -D_REENTRANT -O2 -march=pentiumiii \
+                        -mcpu=pentiumpro -prof_use -prof_dir ./profdir \
+                        -g -fno-alias -tpp6' \
+		CXFLAGS='$(CFLAGS) -D_REENTRANT -O2 -march=pentiumiii \
+                        -mcpu=pentiumpro -prof_use -prof_dir ./profdir \
+                        -tpp6' \
+		LDFLAGS='$(LDFLAGS) -lpthread' \
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
 		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST \
-		     -DSMP -DCPUS=4 -DCLONE -DDGT' \
+		     -DSMP -DCPUS=4 -DDGT' \
 		asm=X86-elf.o \
 		crafty-make
 
@@ -276,7 +276,7 @@ icc-elf:
 		LDFLAGS=$(LDFLAGS) \
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
 		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST \
-		     -DSMP -DCPUS=4 -DCLONE -DDGT' \
+		     -DSMP -DCPUS=4 -DDGT' \
 		asm=X86-elf.o \
 		crafty-make
 
@@ -417,14 +417,15 @@ generic:
 
 profile:
 
-	touch *.c
 	@rm -rf profdir
 	@rm -rf position.bin
 	@mkdir profdir
+	@touch *.c *.cpp *.h
 	$(MAKE) linux-icc-elf-profile
 	@echo "#!/bin/csh" > runprof
 	@echo "crafty <<EOF" >>runprof
 	@echo "st=10" >>runprof
+	@echo "ponder=off" >>runprof
 	@echo "setboard rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq" >>runprof
 	@echo "move" >>runprof
 	@echo "book off" >>runprof
@@ -499,7 +500,7 @@ profile:
 	@chmod +x runprof
 	@./runprof
 	@rm runprof
-	@touch *.c
+	@touch *.c *.cpp *.h
 	$(MAKE) linux-icc-elf
 
 # Do not change anything below this line!

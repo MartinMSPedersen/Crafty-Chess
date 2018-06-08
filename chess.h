@@ -677,7 +677,7 @@ int            PinnedOnKing(TREE*RESTRICT, int, int);
 int            Ponder(int);
 void           PreEvaluate(TREE*RESTRICT,int);
 void           Print(int, char*, ...);
-char*          PrintKM(int);
+char*          PrintKM(int, int);
 int            Quiesce(TREE*RESTRICT, int, int, int, int);
 unsigned int   Random32(void);
 BITBOARD       Random64(void);

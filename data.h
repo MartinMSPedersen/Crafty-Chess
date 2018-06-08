@@ -107,7 +107,7 @@
   extern char           log_path[128];
   extern char           tb_path[128];
   extern char           rc_path[128];
-  extern char           cmd_buffer[512];
+  extern char           cmd_buffer[4096];
   extern char           *args[32];
   extern char           buffer[512];
   extern int            nargs;

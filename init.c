@@ -136,7 +136,7 @@ void Initialize(int continuing) {
 
 #if defined(SMP)
   for (i=1;i<MAX_BLOCKS+1;i++) {
-    local[i]=(TREE*) malloc(sizeof(TREE));
+    local[i]=(TREE*)((~(size_t)127) & (127+(size_t)malloc(sizeof(TREE)+127)));
     local[i]->used=0;
   }
   local[0]->parent=(TREE*)-1;

@@ -11,7 +11,7 @@
 #endif
 #include "epdglue.h"
 
-/* last modified 09/10/02 */
+/* last modified 02/10/03 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -124,11 +124,11 @@ int Option(TREE *tree) {
       if (strchr(args[5],'K') || strchr(args[5],'k')) adaptive_hashp_max*=1<<10;
       if (strchr(args[5],'M') || strchr(args[5],'m')) adaptive_hashp_max*=1<<20;
     }
-    Print(128,"adaptive hash estimated NPS = %d\n",adaptive_hash);
-    Print(128,"adaptive hash minimum size =  %s\n",PrintKM(adaptive_hash_min));
-    Print(128,"adaptive hash maximum size =  %s\n",PrintKM(adaptive_hash_max));
-    Print(128,"adaptive hashp minimum size =  %s\n",PrintKM(adaptive_hashp_min));
-    Print(128,"adaptive hashp minimum maxe =  %s\n",PrintKM(adaptive_hashp_max));
+    Print(128,"adaptive estimated NPS =  %s\n",PrintKM(adaptive_hash,0));
+    Print(128,"adaptive minimum hsize =  %s\n",PrintKM(adaptive_hash_min,1));
+    Print(128,"adaptive maximum hsize =  %s\n",PrintKM(adaptive_hash_max,1));
+    Print(128,"adaptive minimum psize =  %s\n",PrintKM(adaptive_hashp_min,1));
+    Print(128,"adaptive maximum psize =  %s\n",PrintKM(adaptive_hashp_max,1));
   }
 /*
  ----------------------------------------------------------
@@ -378,7 +378,7 @@ int Option(TREE *tree) {
       Print(2095,"ERROR:  unable to malloc specified cache size, using default\n");
       EGTB_cache=malloc(EGTB_CACHE_DEFAULT);
     }
-    Print(128,"EGTB cache memory = %s bytes.\n", PrintKM(EGTB_cache_size));
+    Print(128,"EGTB cache memory = %s bytes.\n", PrintKM(EGTB_cache_size,1));
     FTbSetCacheSize(EGTB_cache,EGTB_cache_size);
   }
 /*
@@ -418,7 +418,7 @@ int Option(TREE *tree) {
     Print(128,"playing a computer!\n");
     computer_opponent=1;
     accept_draws=1;
-    resign=5;
+    resign=9;
     book_selection_width=1;
     usage_level=0;
     books_file=(computer_bs_file) ? computer_bs_file : normal_bs_file;
@@ -1175,6 +1175,7 @@ int Option(TREE *tree) {
           }
           hash_mask=(1<<log_hash)-1;
           ClearHashTableScores(1);
+          LearnPositionLoad();
         }
         else {
           trans_ref=0;
@@ -1185,7 +1186,7 @@ int Option(TREE *tree) {
       else Print(4095,"ERROR:  hash table size must be > 0\n");
     }
     Print(128,"hash table memory = %s bytes.\n",
-          PrintKM(hash_table_size*sizeof(HASH_ENTRY)));
+          PrintKM(hash_table_size*sizeof(HASH_ENTRY),1));
   }
 /*
  ----------------------------------------------------------
@@ -1244,7 +1245,7 @@ int Option(TREE *tree) {
       }
     }
     Print(128,"pawn hash table memory = %s bytes.\n",
-          PrintKM(pawn_hash_table_size*sizeof(PAWN_HASH_ENTRY)));
+          PrintKM(pawn_hash_table_size*sizeof(PAWN_HASH_ENTRY),1));
   }
 /*
  ----------------------------------------------------------
@@ -1730,11 +1731,11 @@ int Option(TREE *tree) {
   else if (OptionMatch("info",*args)) {
     Print(128,"Crafty version %s\n",version);
     Print(128,"hash table memory =      %s bytes.\n",
-          PrintKM(hash_table_size*sizeof(HASH_ENTRY)));
+          PrintKM(hash_table_size*sizeof(HASH_ENTRY),1));
     Print(128,"pawn hash table memory = %s bytes.\n",
-          PrintKM(pawn_hash_table_size*sizeof(PAWN_HASH_ENTRY)));
+          PrintKM(pawn_hash_table_size*sizeof(PAWN_HASH_ENTRY),1));
     Print(128,"EGTB cache memory =      %s bytes.\n",
-          PrintKM(EGTB_cache_size));
+          PrintKM(EGTB_cache_size,1));
     if (!tc_sudden_death) {
       Print(128,"%d moves/%d minutes %d seconds primary time control\n",
             tc_moves, tc_time/6000, (tc_time/100)%60);

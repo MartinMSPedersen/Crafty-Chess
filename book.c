@@ -891,8 +891,11 @@ void BookUp(TREE *tree, int nargs, char **args) {
   else if (!strcmp(args[1],"off")) {
     if (book_file) fclose(book_file);
     if (books_file) fclose(books_file);
+    if (computer_bs_file) fclose(computer_bs_file);
     book_file=0;
     books_file=0;
+    computer_bs_file=0;
+    normal_bs_file=0;
     Print(4095,"book file disabled.\n");
     return;
   }

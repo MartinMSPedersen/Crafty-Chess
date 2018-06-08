@@ -170,9 +170,11 @@ int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
 #endif
       extensions=extended-INCPLY;
 #if defined(FUTILITY)
-      if (depth+extensions>=INCPLY && !fprune)
+      if ((depth+extensions>=INCPLY ||
+          tree->in_check[ply+1]) && !fprune)
 #else
-      if (depth+extensions>=INCPLY)
+      if (depth+extensions>=INCPLY ||
+          tree->in_check[ply+1])
 #endif
         value=-Search(tree,-alpha-1,-alpha,Flip(wtm),
                       depth+extensions,ply+1,DO_NULL,recapture);
@@ -183,7 +185,8 @@ int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
         break;
       }
       if (value>alpha && value<beta) {
-        if (depth+extensions >= INCPLY)
+        if (depth+extensions>=INCPLY ||
+            tree->in_check[ply+1])
           value=-Search(tree,-beta,-alpha,Flip(wtm),
                         depth+extensions,ply+1,DO_NULL,recapture);
         else

@@ -29,7 +29,7 @@
   int            number_of_solutions;
   int            solutions[10];
   int            solution_type;
-  char           cmd_buffer[512];
+  char           cmd_buffer[4096];
   char           *args[32];
   char           buffer[512];
   int            nargs;
@@ -249,7 +249,7 @@
   unsigned int   max_split_blocks;
   volatile unsigned int   splitting;
 
-# define    VERSION                             "19.3"
+# define    VERSION                             "19.4"
   char      version[6] =                    {VERSION};
   PLAYING_MODE mode =                     normal_mode;
 
@@ -263,7 +263,7 @@
   int       call_flag =                             0;
   int       crafty_rating =                      2500;
   int       opponent_rating =                    2500;
-  int       last_search_value =                   500;
+  int       last_search_value =                     0;
   int       DGT_active =                            0;
   int       to_dgt =                                0;
   int       from_dgt =                              0;

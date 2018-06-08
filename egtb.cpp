@@ -4307,7 +4307,7 @@ static decode_block *rgpdbDecodeBlocks[CPUS];
 
 // Information about tablebases
 
-#define MAX_EXTENTS                 9   /* Maximum # of 2Gb file extents */
+#define MAX_EXTENTS                 18  /* Maximum # of 2Gb file extents */
 
 #if defined (T33_INCLUDE) || defined (T42_INCLUDE)
 #  define	MAX_TOTAL_PIECES		6	/* Maximum # of pieces on the board */
@@ -4692,7 +4692,7 @@ CTbDesc	rgtbdDesc[cTb] =
 	TB (krbpkp, false, false, true,  (T42<R, B, P, P>::IndCalcW), (T42<R, B, P, P>::IndCalcB), 13340861520, 13670845224)
 	TB (krbnkp, false, false, true,  (T42<R, B, N, P>::IndCalcW), (T42<R, B, N, P>::IndCalcB), 17036639904, 17634524160)
 	TB (krbbkp, false, false, true,  (T42<R, B, B, P>::IndCalcW), (T42<R, B, B, P>::IndCalcB),  8677177872,  8817262080)
-	TB (krrpkp, false, false, true,  (T42<R, R, P, P>::IndCalcW), (T42<R, R, P, P>::IndCalcB),  6504899238,  6835422612)
+	TB (krrpkp, false, true,  true,  (T42<R, R, P, P>::IndCalcW), (T42<R, R, P, P>::IndCalcB),  6504899238,  6835422612)
 	TB (krrnkp, false, false, true,  (T42<R, R, N, P>::IndCalcW), (T42<R, R, N, P>::IndCalcB),  8306047872,  8817262080)
 	TB (krrbkp, false, false, true,  (T42<R, R, B, P>::IndCalcW), (T42<R, R, B, P>::IndCalcB),  8607504960,  8817262080)
 	TB (krrrkp, false, false, false, (T42<R, R, R, P>::IndCalcW), (T42<R, R, R, P>::IndCalcB),  2749283520,  2939087360)
@@ -4761,10 +4761,10 @@ CTbDesc	rgtbdDesc[cTb] =
 	TB (knnpkq, false, false, true,  (T42<N, N, P, Q>::IndCalcW), (T42<N, N, P, Q>::IndCalcB),  7677994559,  8514011520)
 	TB (kbppkq, false, false, true,  (T42<B, P, P, Q>::IndCalcW), (T42<B, P, P, Q>::IndCalcB),  6289527204,  6669309024)
 	TB (kbnpkq, false, false, true,  (T42<B, N, P, Q>::IndCalcW), (T42<B, N, P, Q>::IndCalcB), 16186823401, 17028023040)
-	TB (kbbpkq, false, false, true,  (T42<B, B, P, Q>::IndCalcW), (T42<B, B, P, Q>::IndCalcB),  8243187360,  8514011520)
+	TB (kbbpkq, false, true,  true,  (T42<B, B, P, Q>::IndCalcW), (T42<B, B, P, Q>::IndCalcB),  8243187360,  8514011520)
 	TB (krppkq, false, false, true,  (T42<R, P, P, Q>::IndCalcW), (T42<R, P, P, Q>::IndCalcB),  6239761412,  6669309024)
-	TB (krnpkq, false, false, true,  (T42<R, N, P, Q>::IndCalcW), (T42<R, N, P, Q>::IndCalcB), 16057066825, 17028023040)
-	TB (krbpkq, false, false, true,  (T42<R, B, P, Q>::IndCalcW), (T42<R, B, P, Q>::IndCalcB), 16637490240, 17028023040)
+	TB (krnpkq, false, true,  true,  (T42<R, N, P, Q>::IndCalcW), (T42<R, N, P, Q>::IndCalcB), 16057066825, 17028023040)
+	TB (krbpkq, false, true,  true,  (T42<R, B, P, Q>::IndCalcW), (T42<R, B, P, Q>::IndCalcB), 16637490240, 17028023040)
 	TB (krrpkq, false, true,  true,  (T42<R, R, P, Q>::IndCalcW), (T42<R, R, P, Q>::IndCalcB),  8112305064,  8514011520)
 	TB (kqppkq, false, false, true,  (T42<Q, P, P, Q>::IndCalcW), (T42<Q, P, P, Q>::IndCalcB),  5920486098,  6669309024)
 	TB (kqnpkq, false, false, true,  (T42<Q, N, P, Q>::IndCalcW), (T42<Q, N, P, Q>::IndCalcB), 15239383701, 17028023040)
@@ -5932,7 +5932,7 @@ extern "C" int TB_FASTCALL L_TbtProbeTable
 	if (0 == ctbcTbCache || NULL == ptbd->m_prgtbcbBuckets[side])
 		return L_bev_broken;
 
-#if defined (T33_INCLUDE)
+#if defined (T33_INCLUDE) || defined (T42_INCLUDE)
 	if (ptbd->m_f16bit)
 		{
 		// Inefficient, but very simple, code
@@ -6098,12 +6098,15 @@ static int FCheckExtentExistance
     if (rgtbdDesc[iTb].m_fSplit)
         {
         rgchExtent[0] = '.';
-        rgchExtent[1] = (char) (iExtent + '0');
+        if (iExtent >= 10)
+            rgchExtent[1] = (char) (iExtent + 'a' - 10);
+        else
+            rgchExtent[1] = (char) (iExtent + '0');
         rgchExtent[2] = '\0';
     	strcat (rgchTbName, rgchExtent);
         }
-	strcat (rgchTbName, pchExt);
-	fp = fopen (rgchTbName, "rb");
+    strcat (rgchTbName, pchExt);
+    fp = fopen (rgchTbName, "rb");
 #if !defined (NEW) && !defined (_WIN32) && !defined(_WIN64)
 	// For case-sensitive systems, have to try once more
 	if (NULL == fp)

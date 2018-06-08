@@ -21,6 +21,7 @@
 #  define LockInit(v)      ((v)[0] = 0)
 #  define LockFree(v)      ((v)[0] = 0)
 #  define Unlock(v)        (__MB(), (v)[0] = 0)
+#  define Pause()
 
    __inline void Lock (volatile int *hPtr) {
    __asm ("lp: ldl_l v0,(a0);"
@@ -39,6 +40,7 @@
 #  define LockInit(v)      ((v)[0] = 0)
 #  define LockFree(v)      ((v)[0] = 0)
 #  define Unlock(v)        ((v)[0] = 0)
+#  define Pause()
 
 
 #  if (_MSC_VER > 1200)
@@ -66,10 +68,6 @@
             ;   // Do nothing
         }
     }
-__inline void Pause(void) {
-    __asm {
-       pause
-     }
 #  endif
 
 #elif (defined (_M_IA64) && !defined(NT_INTEREX))
@@ -83,6 +81,7 @@ __inline void Pause(void) {
 #  define LockInit(v)      ((v)[0] = 0)
 #  define LockFree(v)      ((v)[0] = 0)
 #  define Unlock(v)        ((v)[0] = 0)
+#  define Pause()
 
 
 __forceinline void Lock (volatile LONG *hPtr)
@@ -109,6 +108,7 @@ __forceinline void Lock (volatile LONG *hPtr)
                              while(InterlockedExchange((LPLONG)&(v),1) != 0);  \
                            } while (0)
 #  define Unlock(v)        ((v) = 0)
+#  define Pause()
 
 #endif /* architecture check */
 
@@ -131,6 +131,7 @@ __forceinline void Lock (volatile LONG *hPtr)
 #  define LockFree(v)      ((v) = 0)
 #  define Lock(v)          __LOCK_LONG(&(v))
 #  define Unlock(v)        __UNLOCK_LONG(&(v))
+#  define Pause()
 
 #else /* POSIX, but not using MUTEXes */
 
@@ -193,5 +194,6 @@ static void __inline__ UnlockX86(volatile int * lock) {
 #  define LockFree(p)
 #  define Lock(p)
 #  define Unlock(p)
+#  define Pause()
 #endif /*  SMP code */
 

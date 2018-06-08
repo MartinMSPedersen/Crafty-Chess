@@ -384,7 +384,7 @@ MakePieceMove:
       HashKW(to,HashKey);
       PcOnSq(to)=king;
       WhiteKingSQ=to;
-      if (WhiteCastle(ply) > 0) {
+      if (WhiteCastle(ply+1) > 0) {
         if (WhiteCastle(ply+1)&2) HashCastleW(1,HashKey);
         if (WhiteCastle(ply+1)&1) HashCastleW(0,HashKey);
         if (abs(to-from) == 2) WhiteCastle(ply+1)=-ply;
@@ -537,7 +537,7 @@ MakePieceMove:
         Clear(to,BlackRooks);
         Clear(to,BlackPieces);
         HashRB(to,HashKey);
-        if (BlackCastle(ply) > 0) {
+        if (BlackCastle(ply+1) > 0) {
           if ((to == A8) && (BlackCastle(ply+1)&2)) {
             BlackCastle(ply+1)&=1;
             HashCastleB(1,HashKey);
@@ -555,7 +555,7 @@ MakePieceMove:
         Clear(to,WhiteRooks);
         Clear(to,WhitePieces);
         HashRW(to,HashKey);
-        if (WhiteCastle(ply) > 0) {
+        if (WhiteCastle(ply+1) > 0) {
           if ((to == A1) && (WhiteCastle(ply+1)&2)) {
             WhiteCastle(ply+1)&=1;
             HashCastleW(1,HashKey);
