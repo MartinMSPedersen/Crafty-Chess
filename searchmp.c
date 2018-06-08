@@ -91,12 +91,11 @@ int SearchSMP(TREE * RESTRICT tree, int alpha, int beta, int value, int wtm,
         value =
             -Search(tree, -alpha - 1, -alpha, Flip(wtm), depth + extensions,
             ply + 1, DO_NULL);
-          if (value > alpha && extensions < -PLY)
-            value =
-                -Search(tree, -alpha - 1, -alpha, Flip(wtm), depth - PLY,
-                ply + 1, DO_NULL);
-      }
-      else
+        if (value > alpha && extensions < -PLY)
+          value =
+              -Search(tree, -alpha - 1, -alpha, Flip(wtm), depth - PLY, ply + 1,
+              DO_NULL);
+      } else
         value = -Quiesce(tree, -alpha - 1, -alpha, Flip(wtm), ply + 1);
       if (shared->abort_search || tree->stop) {
         UnmakeMove(tree, ply, tree->current_move[ply], wtm);
@@ -141,7 +140,7 @@ int SearchSMP(TREE * RESTRICT tree, int alpha, int beta, int value, int wtm,
         if (value >= beta) {
           register int proc;
 
-          shared->parallel_stops++;
+          shared->parallel_aborts++;
           UnmakeMove(tree, ply, tree->current_move[ply], wtm);
           Lock(shared->lock_smp);
           Lock(tree->parent->lock);

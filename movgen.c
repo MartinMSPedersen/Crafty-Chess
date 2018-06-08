@@ -550,7 +550,7 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move)
       targetp = target & empty;
       padvances1 = WhitePawns >> 8 & targetp;
       padvances1_all = WhitePawns >> 8 & empty;
-      padvances2 = (padvances1_all & (mask_8 >> 16)) >> 8 & targetp;
+      padvances2 = (padvances1_all & (((BITBOARD) 255 << 56) >> 16)) >> 8 & targetp;
 /*
  ************************************************************
  *                                                          *
@@ -804,7 +804,7 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move)
       targetp = target & empty;
       padvances1 = BlackPawns << 8 & targetp;
       padvances1_all = BlackPawns << 8 & empty;
-      padvances2 = (padvances1_all & (mask_120 << 16)) << 8 & targetp;
+      padvances2 = (padvances1_all & ((BITBOARD) 255 << 16)) << 8 & targetp;
 /*
  ************************************************************
  *                                                          *

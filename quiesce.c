@@ -17,7 +17,7 @@
  */
 int Quiesce(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply)
 {
-  register int o_alpha, value, delta;
+  register int o_alpha, value;
   register int *next_move;
   register int *goodmv, *movep, moves = 0, *sortv, temp;
 
@@ -31,7 +31,8 @@ int Quiesce(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply)
   if (ply >= MAXPLY - 1)
     return (beta);
   tree->nodes_searched++;
-  tree->next_time_check--;
+  if (tree->thread_id == 0)
+    shared->next_time_check--;
   tree->last[ply] = tree->last[ply - 1];
   o_alpha = alpha;
 /*
@@ -45,7 +46,7 @@ int Quiesce(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply)
  *                                                          *
  ************************************************************
  */
-  value = Evaluate(tree, ply, wtm, alpha, beta);
+  value = Evaluate(tree, ply, wtm);
   if (value > alpha) {
     if (value >= beta)
       return (value);
@@ -60,59 +61,30 @@ int Quiesce(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply)
  *   generate captures and sort them based on (a) the value *
  *   of the captured piece - the value of the capturing     *
  *   piece if this is > 0; or, (b) the value returned by    *
- *   Swap().  if the value of the captured piece won't      *
- *   bring the material score back up to near alpha, that   *
- *   capture is discarded as "futile."                      *
+ *   Swap().  if the capture leaves the opponent with one   *
+ *   minor piece or less, then we search that capture       *
+ *   always since the endgame might be won or lost.         *
  *                                                          *
  ************************************************************
  */
   tree->last[ply] = GenerateCaptures(tree, ply, wtm, tree->last[ply - 1]);
-  delta =
-      alpha - shared->largest_positional_score - (wtm ? Material : -Material);
   goodmv = tree->last[ply - 1];
   sortv = tree->sort_value;
   for (movep = tree->last[ply - 1]; movep < tree->last[ply]; movep++) {
-    if (((wtm) ? TotalBlackPieces : TotalWhitePieces) > 12) {
-      if (p_values[Captured(*movep) + 7] + p_values[Promote(*movep) + 7] >=
-          delta) {
-        if (Captured(*movep) == king)
-          return (beta);
-        if (p_values[Piece(*movep) + 7] < p_values[Captured(*movep) + 7] ||
-            (p_values[Piece(*movep) + 7] <= p_values[Captured(*movep) + 7] &&
-                delta <= 0)) {
-          *goodmv++ = *movep;
-          *sortv++ = p_values[Captured(*movep) + 7];
-          moves++;
-        } else {
-          temp = Swap(tree, From(*movep), To(*movep), wtm);
-          if (temp >= 0) {
-            *sortv++ = temp;
-            *goodmv++ = *movep;
-            moves++;
-          }
-        }
-      }
+    if (Captured(*movep) == king)
+      return (beta);
+    if (p_values[Piece(*movep) + 7] < p_values[Captured(*movep) + 7] ||
+        ((wtm) ? TotalBlackPieces : TotalWhitePieces) -
+        p_vals[Captured(*movep)] < bishop_v) {
+      *goodmv++ = *movep;
+      *sortv++ = p_values[Captured(*movep) + 7];
+      moves++;
     } else {
-      int val = ((wtm) ? TotalBlackPieces : TotalWhitePieces) * pawn_value;
-
-      if (p_values[Captured(*movep) + 7] + p_values[Promote(*movep) + 7] >=
-          delta || val - p_values[Captured(*movep) + 7] <= bishop_value) {
-        if (Captured(*movep) == king)
-          return (beta);
-        if (p_values[Piece(*movep) + 7] < p_values[Captured(*movep) + 7] ||
-            (p_values[Piece(*movep) + 7] <= p_values[Captured(*movep) + 7] &&
-                delta <= 0)) {
-          *goodmv++ = *movep;
-          *sortv++ = p_values[Captured(*movep) + 7];
-          moves++;
-        } else {
-          temp = Swap(tree, From(*movep), To(*movep), wtm);
-          if (temp >= 0) {
-            *sortv++ = temp;
-            *goodmv++ = *movep;
-            moves++;
-          }
-        }
+      temp = Swap(tree, From(*movep), To(*movep), wtm);
+      if (temp >= 0) {
+        *sortv++ = temp;
+        *goodmv++ = *movep;
+        moves++;
       }
     }
   }

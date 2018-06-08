@@ -17,7 +17,7 @@
 /*
  *******************************************************************************
  *                                                                             *
- *  Crafty, copyright 1996-2001 by Robert M. Hyatt, Ph.D., Associate Professor *
+ *  Crafty, copyright 1996-2006 by Robert M. Hyatt, Ph.D., Associate Professor *
  *  of Computer and Information Sciences, University of Alabama at Birmingham. *
  *                                                                             *
  *  All rights reserved.  No part of this program may be reproduced in any     *
@@ -1330,8 +1330,8 @@
  *           ment among other things.  AKA Crafty/Jakarta version.             *
  *                                                                             *
  *   11.1    fractional depth allows fractional ply increments.  the reso-     *
- *           lution is 1/60 of a ply, so all of the older "depth++" lines now  *
- *           read depth+=PLY, where #define PLY 60 is used everywhere.  this   *
+ *           lution is 1/4 of a ply, so all of the older "depth++" lines now   *
+ *           read depth+=PLY, where #define PLY 4 is used everywhere.  this    *
  *           gives added flexibility in that some things can increment the     *
  *           depth by < 1 ply, so that it takes two such things before the     *
  *           search actually extends one ply deeper.  Crafty now has full PGN  *
@@ -2240,8 +2240,8 @@
  *           supposed to control thrashing.  the SMP search won't split the    *
  *           tree within "min_thread_depth" of the leaf positions.  due to a   *
  *           gross bug, however, this was initialized to "2", and would have   *
- *           been the right value except that a ply in Crafty is 60.  the      *
- *           mtmin command that adjusts this correctly multiplied it by 60,    *
+ *           been the right value except that a ply in Crafty is 4.  the       *
+ *           mtmin command that adjusts this correctly multiplied it by 4,     *
  *           but in data.c, it was left at "2" which lets the search split way *
  *           too deeply and can cause thrashing.  it now correctly defaults to *
  *           120 (2*PLY) as planned.  Crafty now *only* supports               *
@@ -3253,14 +3253,47 @@
  *           to extensions to reduce the tree size.  the recapture extension   *
  *           has been completely removed, while the check extension has been   *
  *           left at 1.0 as in the past.  the mate threat and one-legal-reply  *
- *           extensions are now both set to .75 after extensive testing.       *
+ *           extensions are now both set to .75 after extensive testing.  this *
+ *           is the CCT8 version of crafty.                                    *
+ *                                                                             *
+ *   20.4    history counters changed.  there is now one large history[8192]   *
+ *           array to simplify indexing.  more importantly, these values are   *
+ *           now limited to a max value of 32000.  during the update process,  *
+ *           if any value reaches that limit, all values are divided by 2 to   *
+ *           prevent deep searches from producing very large history values    *
+ *           which would essentially disable late move reductions based on the *
+ *           big history values.  the reduce/history=n command now uses values *
+ *           0 <= n <= 100.  a value of 100 will cause all non-tactical moves  *
+ *           to be reduced (most aggressive) while a value of 0 will result in *
+ *           no moves being reduced (most conservative).  the value, loosely   *
+ *           interpreted, means "reduce if a move fails high < n% of the time  *
+ *           when at least one move fails high in a search."  the default is   *
+ *           currently 50%, but further testing is needed.                     *
+ *                                                                             *
+ *   20.5    old "mask" code removed and replaced by constants, since this is  *
+ *           never intended to run on a Cray specifically any longer.  change  *
+ *           to "won king and pawn ending" to make it more accurate, this code *
+ *           is used when there are nothing but pawns left, all on one side of *
+ *           board, and one king is closer to a capturable pawn than the other *
+ *           king is.  this is intended to help in outside passed pawn games   *
+ *           where one side has to eventually give up the outside passer to    *
+ *           decoy the opposing king away from the rest of the pawns.  new     *
+ *           king safety now factors in king pawn shelter and opponent piece   *
+ *           tropism into one score, but the score is now an arithmetic        *
+ *           value that goes up more quickly as both indices increase, to do a *
+ *           more accurate evaluation of safety and attacking chances.  change *
+ *           to bishop mobility, which now goes in units of 2 rather than 1,   *
+ *           to increase the value of mobility somewhat.  also mobility is now *
+ *           'centered' in that it is computed as (squares - 6) * 2, to keep   *
+ *           the bishop value from going way over its normal range with these  *
+ *           new and somewhat larger numbers.                                  *
  *                                                                             *
  *******************************************************************************
  */
 int main(int argc, char **argv)
 {
   int move, presult, readstat;
-  int value = 0, i, cont = 0, result;
+  int value = 0, i, result;
   TREE *tree;
   FILE *personality;
 
@@ -3286,45 +3319,6 @@ int main(int argc, char **argv)
 #endif
 
   shared = SharedMalloc(sizeof(SHARED), 0);
-  shared->smp_idle = 0;
-  shared->smp_threads = 0;
-  shared->initialized_threads = 0;
-  shared->crafty_is_white = 0;
-  shared->average_nps = 0;
-  shared->nodes_between_time_checks = 1000000;
-  shared->nodes_per_second = 1000000;
-  shared->transposition_id = 0;
-  shared->thinking = 0;
-  shared->pondering = 0;
-  shared->puzzling = 0;
-  shared->booking = 0;
-  shared->time_limit = 100;
-  shared->trojan_check = 0;
-  shared->computer_opponent = 0;
-  shared->max_threads = 0;
-  shared->min_thread_depth = 3 * PLY;
-  shared->max_thread_group = 4;
-  shared->split_at_root = 1;
-  shared->noise_level = 200000;
-  shared->quit = 0;
-  shared->display_options = 4095 - 256 - 512;
-  shared->tc_moves = 60;
-  shared->tc_time = 180000;
-  shared->tc_time_remaining = 180000;
-  shared->tc_time_remaining_opponent = 180000;
-  shared->tc_moves_remaining = 60;
-  shared->tc_secondary_moves = 30;
-  shared->tc_secondary_time = 90000;
-  shared->tc_increment = 0;
-  shared->tc_sudden_death = 0;
-  shared->tc_operator_time = 0;
-  shared->tc_safety_margin = 0;
-  shared->draw_score[0] = 0;
-  shared->draw_score[1] = 0;
-  shared->move_number = 1;
-  shared->moves_out_of_book = 0;
-  shared->first_nonbook_factor = 0;
-  shared->first_nonbook_span = 0;
   if (directory_spec)
     strncpy(book_path, directory_spec, sizeof book_path);
   directory_spec = getenv("CRAFTY_LOG_PATH");
@@ -3366,19 +3360,7 @@ int main(int argc, char **argv)
     args[i] = (char *) malloc(128);
   if (argc > 1) {
     for (i = 1; i < argc; i++) {
-      if (!strcmp(argv[i], "c"))
-        cont = 1;
-      else if (argv[i][0] >= '0' && argv[i][0] <= '9' && i + 1 < argc) {
-        shared->tc_moves = atoi(argv[i]);
-        shared->tc_time = atoi(argv[i + 1]);
-        shared->tc_increment = 0;
-        shared->tc_secondary_moves = shared->tc_moves;
-        shared->tc_secondary_time = shared->tc_time;
-        shared->tc_time *= 60;
-        shared->tc_time_remaining = shared->tc_time;
-        shared->tc_secondary_time *= 60;
-        i++;
-      } else if (strstr(argv[i], "path")) {
+      if (strstr(argv[i], "path") || strstr(argv[i], "log")) {
         strcpy(buffer, argv[i]);
         result = Option(tree);
         if (result == 0)
@@ -3390,16 +3372,11 @@ int main(int argc, char **argv)
 /*
  ************************************************************
  *                                                          *
- *   initialize chess board to starting position.  if the   *
- *   first option on the command line is a "c" then we will *
- *   continue the last game that was in progress.           *
+ *   initialize chess board to starting position.           *
  *                                                          *
  ************************************************************
  */
-  if (cont)
-    Initialize(1);
-  else
-    Initialize(0);
+  Initialize();
 /*
  ************************************************************
  *                                                          *
@@ -3872,8 +3849,12 @@ int main(int argc, char **argv)
       last_search_value = value;
       MakeMoveRoot(tree, last_pv.path[1], wtm);
       move_actually_played = 1;
+/*
       if (log_file && shared->time_limit > 300)
+*/
         DisplayChessBoard(log_file, tree->pos);
+      strcpy(buffer, "score");
+      Option(tree);
 /*
  ************************************************************
  *                                                          *

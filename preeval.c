@@ -13,9 +13,8 @@
  *                                                                             *
  *******************************************************************************
  */
-void PreEvaluate(TREE * RESTRICT tree, int crafty_is_white)
+void PreEvaluate(TREE * RESTRICT tree)
 {
-  static int last_crafty_is_white = 0;
   static int last_trojan_check = 0;
   static int last_clear = 0;
 
@@ -72,13 +71,12 @@ void PreEvaluate(TREE * RESTRICT tree, int crafty_is_white)
  *                                                          *
  ************************************************************
  */
-  if (((last_crafty_is_white != crafty_is_white) ||
-          (last_trojan_check != shared->trojan_check)) && !test_mode) {
+  if (last_trojan_check != shared->trojan_check) {
 /*
  **************************************************
  *                                                *
- *   if anything changed, the transposition table *
- *   must be cleared of positional evaluations.   *
+ *   if the trojan check flag changed, we have to *
+ *   clear hash scores.                           *
  *                                                *
  **************************************************
  */
@@ -86,6 +84,7 @@ void PreEvaluate(TREE * RESTRICT tree, int crafty_is_white)
       Print(128, "              trojan check enabled\n");
     Print(128, "              clearing hash tables\n");
     ClearHashTableScores(1);
+    last_clear = shared->move_number;
 /*
  ***************************************************
  *                                                 *
@@ -95,25 +94,20 @@ void PreEvaluate(TREE * RESTRICT tree, int crafty_is_white)
  ***************************************************
  */
     LearnPositionLoad();
-    last_clear = shared->move_number;
   }
 /*
  ************************************************************
  *                                                          *
  *   now for a kludge.  If we are beyond the halfway point  *
  *   with respect to a 50 move draw, then clear the hash    *
- *   scores every 10 moves to avoid hiding the 50 move      *
- *   result from the search due to hash hits.               *
+ *   scores every move to avoid hiding the 50 move scores   *
+ *   from the search by getting hash table hits.            *
  *                                                          *
  ************************************************************
  */
-  if (Rule50Moves(0) > 50) {
-    if (last_clear < shared->move_number - 10 || Rule50Moves(0) > 80) {
-      ClearHashTableScores(0);
-      LearnPositionLoad();
-      Print(128, "              clearing hash tables (50 moves fix)\n");
-    }
+  if (Rule50Moves(0) > 80) {
+    ClearHashTableScores(0);
+    Print(128, "              clearing hash tables (50 moves fix)\n");
   }
-  last_crafty_is_white = crafty_is_white;
   last_trojan_check = shared->trojan_check;
 }

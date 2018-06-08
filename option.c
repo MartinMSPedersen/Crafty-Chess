@@ -764,7 +764,7 @@ int Option(TREE * RESTRICT tree)
     if (DGT_active)
       write(to_dgt, "exit\n", 5);
 #endif
-    exit(0);
+    CraftyExit(0);
   }
 /*
  ************************************************************
@@ -964,7 +964,7 @@ int Option(TREE * RESTRICT tree)
       if (OptionMatch("check", args[1])) {
         float ext = atof(args[2]);
         incheck_depth = (float) PLY *ext;
-  
+
         if (incheck_depth < 0)
           incheck_depth = 0;
         if (incheck_depth > PLY)
@@ -973,7 +973,7 @@ int Option(TREE * RESTRICT tree)
       if (OptionMatch("onerep", args[1])) {
         float ext = atof(args[2]);
         onerep_depth = (float) PLY *ext;
-  
+
         if (onerep_depth < 0)
           onerep_depth = 0;
         if (onerep_depth > PLY)
@@ -982,7 +982,7 @@ int Option(TREE * RESTRICT tree)
       if (OptionMatch("mate", args[1])) {
         float ext = atof(args[2]);
         mate_depth = (float) PLY *ext;
-  
+
         if (mate_depth < 0)
           mate_depth = 0;
         if (mate_depth > PLY)
@@ -1041,6 +1041,7 @@ int Option(TREE * RESTRICT tree)
         PcOnSq(((7 - rank) << 3) + file) = piece;
       }
     }
+    wtm = Flip(wtm);
     temp = WhiteCastle(0);
     WhiteCastle(0) = BlackCastle(0);
     BlackCastle(0) = temp;
@@ -1894,14 +1895,10 @@ int Option(TREE * RESTRICT tree)
       return (1);
     }
     if (!strcmp(args[1], "on")) {
-      for (log_id = 1; log_id < 300; log_id++) {
-        sprintf(log_filename, "%s/log.%03d", log_path, log_id);
-        sprintf(history_filename, "%s/game.%03d", log_path, log_id);
-        log_file = fopen(log_filename, "r");
-        if (!log_file)
-          break;
-        fclose(log_file);
-      }
+      int id;
+      id = InitializeGetLogID();
+      sprintf(log_filename, "%s/log.%03d", log_path, id);
+      sprintf(history_filename, "%s/game.%03d", log_path, id);
       log_file = fopen(log_filename, "w");
       history_file = fopen(history_filename, "w+");
     } else if (!strcmp(args[1], "off")) {
@@ -1910,6 +1907,9 @@ int Option(TREE * RESTRICT tree)
       log_file = 0;
       sprintf(filename, "%s/log.%03d", log_path, log_id);
       remove(filename);
+    } else if (args[1][0] >= '0' && args[1][0] <= '9') {
+      if (log_id == 0)
+        log_id = atoi(args[1]);
     } else {
       int nrecs, trecs, lrecs;
       char *eof;
@@ -2058,7 +2058,7 @@ int Option(TREE * RESTRICT tree)
  */
   else if (OptionMatch("mn", *args)) {
     if (nargs < 2) {
-      printf("usage:  mn <shared->move_number>\n");
+      printf("usage:  mn <number>\n");
       return (1);
     }
     shared->move_number = atoi(args[1]);
@@ -2520,8 +2520,7 @@ int Option(TREE * RESTRICT tree)
           (float) onerep_depth / PLY);
       fprintf(file, "extension/check       %4.2f\n",
           (float) incheck_depth / PLY);
-      fprintf(file, "extension/mate        %4.2f\n",
-          (float) mate_depth / PLY);
+      fprintf(file, "extension/mate        %4.2f\n", (float) mate_depth / PLY);
       fprintf(file, "selective             %d %d\n", null_min / PLY - 1,
           null_max / PLY - 1);
       for (i = 0; i < 256; i++) {
@@ -2529,19 +2528,18 @@ int Option(TREE * RESTRICT tree)
           continue;
         if (eval_packet[i].value) {
           if (eval_packet[i].size == 0)
-            fprintf(file, "evaluation %3d %7d\n", i, *eval_packet[i].value);
+            fprintf(file, "evaluation %3d %7d", i, *eval_packet[i].value);
           else if (eval_packet[i].size > 0) {
             fprintf(file, "evaluation %3d ", i);
             for (j = 0; j < eval_packet[i].size; j++)
               fprintf(file, "%d ", eval_packet[i].value[j]);
-            fprintf(file, "\n");
           } else {
             fprintf(file, "evaluation %3d ", i);
             for (j = 0; j < 8; j++)
               for (k = 0; k < 8; k++)
                 fprintf(file, "%d ", eval_packet[i].value[(7 - j) * 8 + k]);
-            fprintf(file, "\n");
           }
+          fprintf(file, "  -> %s\n", eval_packet[i].description);
         }
       }
       fclose(file);
@@ -2565,6 +2563,9 @@ int Option(TREE * RESTRICT tree)
           char *delim;
 
           delim = strchr(buffer, '\n');
+          if (delim)
+            *delim = 0;
+          delim = strstr(buffer, "->");
           if (delim)
             *delim = 0;
           delim = strchr(buffer, '\r');
@@ -2784,8 +2785,8 @@ int Option(TREE * RESTRICT tree)
  *   "value" sets the actual reduction depth, which is the  *
  *   amount the search depth will be decreased by, if the   *
  *   various reduction criteria are met.  this should be    *
- *   entered in units of 1/60th of a ply, which means that  *
- *   "fractional values" are allowed (value=30 is .5 plies, *
+ *   entered in units of 1/4th of a ply, which means that   *
+ *   "fractional values" are allowed (value=2 is .5 plies,  *
  *   for example.)                                          *
  *                                                          *
  ************************************************************
@@ -2794,21 +2795,21 @@ int Option(TREE * RESTRICT tree)
     if (nargs < 3) {
       printf("usage:  reduce option value\n");
       printf("current values are:\n");
-      printf("reduce mindepth %d (/%d)\n", reduce_min_depth, PLY);
-      printf("reduce history  %d\n", reduce_hist_threshold);
-      printf("reduce value    %d (/%d)\n", reduce_value, PLY);
+      printf("reduce mindepth %3.1f\n", (float) reduce_min_depth / PLY);
+      printf("reduce history  %3d%%\n", reduce_hist);
+      printf("reduce value    %3.1f\n", (float) reduce_value / PLY);
       return (1);
     }
     if (OptionMatch("mindepth", args[1]))
-      reduce_min_depth = atoi(args[2]);
+      reduce_min_depth = (int) atof(args[2]) * PLY + .1;
     else if (OptionMatch("history", args[1]))
-      reduce_hist_threshold = atoi(args[2]);
+      reduce_hist = atoi(args[2]);
     else if (OptionMatch("value", args[1]))
       reduce_value = atoi(args[2]);
-    printf("current values are:\n");
-    printf("reduce mindepth %d (/%d)\n", reduce_min_depth, PLY);
-    printf("reduce histval  %d\n", reduce_hist_threshold);
-    printf("reduce value    %d (/%d)\n", reduce_value, PLY);
+    Print(128, "current values are:\n");
+    Print(128, "reduce mindepth %3.1f\n", (float) reduce_min_depth / PLY);
+    Print(128, "reduce history  %3d%%\n", reduce_hist);
+    Print(128, "reduce value    %3.1f\n", (float) reduce_value / PLY);
   }
 /*
  ************************************************************
@@ -3402,8 +3403,8 @@ int Option(TREE * RESTRICT tree)
       return (2);
     shared->root_wtm = Flip(wtm);
     tree->position[1] = tree->position[0];
-    PreEvaluate(tree, shared->root_wtm);
-    s6 = Evaluate(tree, 1, wtm, -99999, 99999);
+    PreEvaluate(tree);
+    s6 = Evaluate(tree, 1, wtm);
     if (!wtm)
       s6 = -s6;
     s1 = EvaluateMaterial(tree);

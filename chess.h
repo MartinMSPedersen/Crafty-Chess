@@ -110,7 +110,7 @@
 #  undef  UNIX          /* system is unix-based                       */
 #  undef  STDCALL
 #  define STDCALL __stdcall
-#  ifdef  VC_INLINE_ASM
+#  ifdef  VC_INLINE32
 #    undef  CDECL
 #    define CDECL __cdecl
 #  endif
@@ -149,9 +149,9 @@
 #define     EGTB_CACHE_DEFAULT               1024*1024
 #endif
 #define     MAXPLY                                  65
-#define     MAX_BLOCKS_PER_CPU                      32
+#define     MAX_BLOCKS_PER_CPU                      64
 #define     MAX_BLOCKS         MAX_BLOCKS_PER_CPU*CPUS
-#define     MAX_TC_NODES                         30000
+#define     MAX_TC_NODES                       3000000
 #if !defined(SMP) && !defined(SUN)
 #  define lock_t volatile int
 #endif
@@ -197,7 +197,8 @@ typedef unsigned long long BITBOARD;
 #if !defined(CLOCKS_PER_SEC)
 #  define CLOCKS_PER_SEC 1000000
 #endif
-typedef enum { A1, B1, C1, D1, E1, F1, G1, H1,
+typedef enum {
+  A1, B1, C1, D1, E1, F1, G1, H1,
   A2, B2, C2, D2, E2, F2, G2, H2,
   A3, B3, C3, D3, E3, F3, G3, H3,
   A4, B4, C4, D4, E4, F4, G4, H4,
@@ -213,7 +214,7 @@ typedef enum { none = 0, pawn = 1, knight = 2, king = 3,
   bishop = 5, rook = 6, queen = 7
 } PIECE;
 typedef enum { empty_v = 0, pawn_v = 1, knight_v = 3,
-  bishop_v = 3, rook_v = 5, queen_v = 9
+  bishop_v = 3, rook_v = 5, queen_v = 9, king_v = 99
 } PIECE_V;
 typedef enum { no_extension = 0, check_extension = 1, 
   one_reply_extension = 2, mate_extension = 4
@@ -350,7 +351,6 @@ struct tree {
   BITBOARD  rep_list[256];
   BITBOARD  all_pawns;
   BITBOARD  nodes_searched;
-  BITBOARD  last_history_age_nodes;
   BITBOARD  save_pawn_hash_key[MAXPLY + 2];
   PAWN_HASH_ENTRY pawn_score;
   SEARCH_POSITION position[MAXPLY + 2];
@@ -360,7 +360,6 @@ struct tree {
   int       current_move[MAXPLY];
   int       hash_move[MAXPLY];
   int      *last[MAXPLY];
-  int       next_time_check;
   unsigned int fail_high;
   unsigned int fail_high_first;
   unsigned int evaluations;
@@ -375,8 +374,9 @@ struct tree {
   unsigned int check_extensions_done;
   unsigned int one_reply_extensions_done;
   unsigned int mate_extensions_done;
+  unsigned int reductions_attempted;
+  unsigned int reductions_done;
   KILLER    killers[MAXPLY];
-  unsigned int history_w[4096], history_b[4096];
   int       move_list[5120];
   int       sort_value[256];
   signed char in_check[MAXPLY];
@@ -433,8 +433,11 @@ typedef struct {
 # else
     TREE     *local[1];
 #  endif
+  unsigned int history[8192];
+  unsigned int history_fh[8192];
+  unsigned int history_count[8192];
   unsigned int parallel_splits;
-  unsigned int parallel_stops;
+  unsigned int parallel_aborts;
   unsigned int max_split_blocks;
   volatile unsigned int splitting;
   volatile int smp_idle;
@@ -442,9 +445,9 @@ typedef struct {
   volatile int initialized_threads;
   int       crafty_is_white;
   int       average_nps;
-  int       largest_positional_score;
   int       nodes_between_time_checks;
   int       nodes_per_second;
+  int       next_time_check;
   int       transposition_id;
   int       thinking;
   int       pondering;
@@ -503,12 +506,11 @@ typedef struct {
 #define HISTORY_MOVES_2           9
 #define REMAINING_MOVES          10
 #define ROOT_MOVES               11
-BITBOARD  Mask(int);
 
-#if defined(VC_INLINE_ASM)
+#if defined(VC_INLINE32)
 #  include "vcinline.h"
 #else
-#  if !defined(INLINE_AMD) && !defined(INLINE_ASM)
+#  if !defined(INLINE64) && !defined(INLINE32)
 int CDECL PopCnt(BITBOARD);
 int CDECL FirstOne(BITBOARD);
 int CDECL LastOne(BITBOARD);
@@ -551,6 +553,7 @@ void      ClearHashTableScores(int);
 void      ComputeAttacksAndMobility(void);
 void      CopyFromSMP(TREE * RESTRICT, TREE * RESTRICT, int);
 TREE     *CopyToSMP(TREE * RESTRICT, int);
+void      CraftyExit(int);
 void      DGTInit(int, char **);
 int       DGTCheckInput(void);
 void      DGTRead(void);
@@ -562,6 +565,7 @@ char     *DisplayEvaluation(int, int);
 char     *DisplayEvaluationKibitz(int, int);
 void      DisplayFT(int, int, int);
 char     *DisplayHHMM(unsigned int);
+char     *DisplayKM(unsigned int);
 void      DisplayPieceBoards(int *, int *);
 void      DisplayPV(TREE * RESTRICT, int, int, int, int, PATH *);
 char     *DisplaySQ(unsigned int);
@@ -577,19 +581,20 @@ int       EGTBProbe(TREE * RESTRICT, int, int, int *);
 void      EGTBPV(TREE * RESTRICT, int);
 #endif
 int       EnPrise(int, int);
-int       Evaluate(TREE * RESTRICT, int, int, int, int);
+int       Evaluate(TREE * RESTRICT, int, int);
 int       EvaluateBishops(TREE * RESTRICT);
 int       EvaluateDevelopmentB(TREE * RESTRICT, int);
 int       EvaluateDevelopmentW(TREE * RESTRICT, int);
 int       EvaluateDraws(TREE * RESTRICT, int, int, int);
 int       EvaluateKings(TREE * RESTRICT, int, int);
+int       EvaluateKingsFileB(TREE * RESTRICT, int);
+int       EvaluateKingsFileW(TREE * RESTRICT, int);
 int       EvaluateKnights(TREE * RESTRICT);
 int       EvaluateMate(TREE * RESTRICT);
 int       EvaluateMaterial(TREE * RESTRICT);
 int       EvaluatePassedPawns(TREE * RESTRICT, int);
 int       EvaluatePassedPawnRaces(TREE * RESTRICT, int);
 int       EvaluatePawns(TREE * RESTRICT);
-int       EvaluatePieces(TREE * RESTRICT, int, int);
 int       EvaluateQueens(TREE * RESTRICT);
 int       EvaluateRooks(TREE * RESTRICT);
 int       EvaluateStalemate(TREE * RESTRICT, int);
@@ -607,18 +612,22 @@ void      HashStorePV(TREE * RESTRICT, int, int);
 int       HasOpposition(int, int, int);
 void      History(TREE * RESTRICT, int, int, int, int);
 void      HistoryAge(TREE * RESTRICT);
+void      HistoryUpdateFH(TREE * RESTRICT, int, int*, int);
 int       IInitializeTb(char *);
-void      Initialize(int);
+void      Initialize(void);
 void      InitializeAttackBoards(void);
 void      InitializeChessBoard(SEARCH_POSITION *);
 void      InitializeEvaluation(void);
 int       InitializeFindAttacks(int, int, int);
+int       InitializeGetLogID();
 void      InitializeHashTables(void);
 void      InitializeHistoryKillers(void);
+void      InitializeKingSafety(void);
 void      InitializeMasks(void);
 void      InitializePawnMasks(void);
 void      InitializePieceMasks(void);
 void      InitializeRandomHash(void);
+void      InitializeSharedData(void);
 void      InitializeSMP(void);
 void      InitializeZeroMasks(void);
 int       InputMove(TREE * RESTRICT, char *, int, int, int, int);
@@ -656,7 +665,7 @@ int       ParseTime(char *);
 void      Pass(void);
 int       PinnedOnKing(TREE * RESTRICT, int, int);
 int       Ponder(int);
-void      PreEvaluate(TREE * RESTRICT, int);
+void      PreEvaluate(TREE * RESTRICT);
 void      Print(int, char *, ...);
 char     *PrintKM(size_t, int);
 int       Quiesce(TREE * RESTRICT, int, int, int, int);
@@ -712,6 +721,8 @@ int       ValidMove(TREE * RESTRICT, int, int, int);
 void      ValidatePosition(TREE * RESTRICT, int, int, char *);
 void      Kibitz(int, int, int, int, int, BITBOARD, int, char *);
 
+#define HistoryIndex(move, wtm) ((move & 4095) + wtm * 4096)
+
 #if (defined(_WIN32) || defined(_WIN64)) && defined(SMP)
 extern void *WinMallocInterleaved(size_t, int);
 extern void WinFreeInterleaved(void *, size_t);
@@ -732,137 +743,6 @@ extern void WinFreeInterleaved(void *, size_t);
 #if defined(HAS_64BITS) || defined(HAS_LONGLONG)
 #  if defined(ALPHA)
 #    include <machine/builtins.h>
-#    define MaskL(a)      (((unsigned long)(-1L))<<(a))
-#    define MaskR(a)      (((unsigned long)(-1L))>>(a))
-#    define mask_0        0
-#    define mask_1        MaskL(63)
-#    define mask_2        MaskL(62)
-#    define mask_3        MaskL(61)
-#    define mask_4        MaskL(60)
-#    define mask_5        MaskL(59)
-#    define mask_6        MaskL(58)
-#    define mask_7        MaskL(57)
-#    define mask_8        MaskL(56)
-#    define mask_9        MaskL(55)
-#    define mask_10       MaskL(54)
-#    define mask_11       MaskL(53)
-#    define mask_12       MaskL(52)
-#    define mask_13       MaskL(51)
-#    define mask_14       MaskL(50)
-#    define mask_15       MaskL(49)
-#    define mask_16       MaskL(48)
-#    define mask_17       MaskL(47)
-#    define mask_18       MaskL(46)
-#    define mask_19       MaskL(45)
-#    define mask_20       MaskL(44)
-#    define mask_21       MaskL(43)
-#    define mask_22       MaskL(42)
-#    define mask_23       MaskL(41)
-#    define mask_24       MaskL(40)
-#    define mask_25       MaskL(39)
-#    define mask_26       MaskL(38)
-#    define mask_27       MaskL(37)
-#    define mask_28       MaskL(36)
-#    define mask_29       MaskL(35)
-#    define mask_30       MaskL(34)
-#    define mask_31       MaskL(33)
-#    define mask_32       MaskL(32)
-#    define mask_33       MaskL(31)
-#    define mask_34       MaskL(30)
-#    define mask_35       MaskL(29)
-#    define mask_36       MaskL(28)
-#    define mask_37       MaskL(27)
-#    define mask_38       MaskL(26)
-#    define mask_39       MaskL(25)
-#    define mask_40       MaskL(24)
-#    define mask_41       MaskL(23)
-#    define mask_42       MaskL(22)
-#    define mask_43       MaskL(21)
-#    define mask_44       MaskL(20)
-#    define mask_45       MaskL(19)
-#    define mask_46       MaskL(18)
-#    define mask_47       MaskL(17)
-#    define mask_48       MaskL(16)
-#    define mask_49       MaskL(15)
-#    define mask_50       MaskL(14)
-#    define mask_51       MaskL(13)
-#    define mask_52       MaskL(12)
-#    define mask_53       MaskL(11)
-#    define mask_54       MaskL(10)
-#    define mask_55       MaskL(9)
-#    define mask_56       MaskL(8)
-#    define mask_57       MaskL(7)
-#    define mask_58       MaskL(6)
-#    define mask_59       MaskL(5)
-#    define mask_60       MaskL(4)
-#    define mask_61       MaskL(3)
-#    define mask_62       MaskL(2)
-#    define mask_63       MaskL(1)
-#    define mask_64       MaskR(0)
-#    define mask_65       MaskR(1)
-#    define mask_66       MaskR(2)
-#    define mask_67       MaskR(3)
-#    define mask_68       MaskR(4)
-#    define mask_69       MaskR(5)
-#    define mask_70       MaskR(6)
-#    define mask_71       MaskR(7)
-#    define mask_72       MaskR(8)
-#    define mask_73       MaskR(9)
-#    define mask_74       MaskR(10)
-#    define mask_75       MaskR(11)
-#    define mask_76       MaskR(12)
-#    define mask_77       MaskR(13)
-#    define mask_78       MaskR(14)
-#    define mask_79       MaskR(15)
-#    define mask_80       MaskR(16)
-#    define mask_81       MaskR(17)
-#    define mask_82       MaskR(18)
-#    define mask_83       MaskR(19)
-#    define mask_84       MaskR(20)
-#    define mask_85       MaskR(21)
-#    define mask_86       MaskR(22)
-#    define mask_87       MaskR(23)
-#    define mask_88       MaskR(24)
-#    define mask_89       MaskR(25)
-#    define mask_90       MaskR(26)
-#    define mask_91       MaskR(27)
-#    define mask_92       MaskR(28)
-#    define mask_93       MaskR(29)
-#    define mask_94       MaskR(30)
-#    define mask_95       MaskR(31)
-#    define mask_96       MaskR(32)
-#    define mask_97       MaskR(33)
-#    define mask_98       MaskR(34)
-#    define mask_99       MaskR(35)
-#    define mask_100      MaskR(36)
-#    define mask_101      MaskR(37)
-#    define mask_102      MaskR(38)
-#    define mask_103      MaskR(39)
-#    define mask_104      MaskR(40)
-#    define mask_105      MaskR(41)
-#    define mask_106      MaskR(42)
-#    define mask_107      MaskR(43)
-#    define mask_108      MaskR(44)
-#    define mask_109      MaskR(45)
-#    define mask_110      MaskR(46)
-#    define mask_111      MaskR(47)
-#    define mask_112      MaskR(48)
-#    define mask_113      MaskR(49)
-#    define mask_114      MaskR(50)
-#    define mask_115      MaskR(51)
-#    define mask_116      MaskR(52)
-#    define mask_117      MaskR(53)
-#    define mask_118      MaskR(54)
-#    define mask_119      MaskR(55)
-#    define mask_120      MaskR(56)
-#    define mask_121      MaskR(57)
-#    define mask_122      MaskR(58)
-#    define mask_123      MaskR(59)
-#    define mask_124      MaskR(60)
-#    define mask_125      MaskR(61)
-#    define mask_126      MaskR(62)
-#    define mask_127      MaskR(63)
-#    define mask_128      0
 /* The following are defined only on Unix 4.0E and later. */
 #    ifdef _int_mult_upper      /* kludge to identify version of builtins.h */
 #      define PopCnt(a)     _popcnt(a)
@@ -1066,11 +946,13 @@ extern void WinFreeInterleaved(void *, size_t);
   }                                                              \
   (rgCtr)[(piece)]=cPieces;                                      \
 }
-#if defined(INLINE_AMD)
-#  include "inlineamd.h"
+#define mask_120      MaskR(56)
+
+#if defined(INLINE64)
+#  include "inline64.h"
 #endif
-#if defined(INLINE_ASM)
-#  include "inlinex86.h"
+#if defined(INLINE32)
+#  include "inline32.h"
 #endif
 #if defined(UNIX)
 #  define SPEAK "./speak "

@@ -279,11 +279,11 @@ void TimeSet(int search_type)
           (shared->tc_operator_time * shared->tc_moves_remaining)) /
           shared->tc_secondary_moves;
     surplus =
-        Max(shared->tc_time_remaining -
+        Max(shared->tc_time_remaining - 1000 -
         (shared->tc_operator_time * shared->tc_moves_remaining) -
         simple_average * shared->tc_moves_remaining, 0);
     average =
-        (shared->tc_time_remaining -
+        (shared->tc_time_remaining - 1000 -
         (shared->tc_operator_time * shared->tc_moves_remaining) +
         shared->tc_moves_remaining * shared->tc_increment)
         / shared->tc_moves_remaining;
@@ -301,12 +301,12 @@ void TimeSet(int search_type)
   if (shared->time_limit <= 0)
     shared->time_limit = 5;
   shared->absolute_time_limit =
-      shared->time_limit + surplus / 2 + ((shared->tc_time_remaining -
+      shared->time_limit + surplus / 2 + ((shared->tc_time_remaining - 1000 -
           shared->tc_operator_time * shared->tc_moves_remaining) / 4);
   if (shared->absolute_time_limit > 7 * shared->time_limit)
     shared->absolute_time_limit = 7 * shared->time_limit;
-  if (shared->absolute_time_limit > shared->tc_time_remaining / 2)
-    shared->absolute_time_limit = shared->tc_time_remaining / 2;
+  if (shared->absolute_time_limit > (shared->tc_time_remaining - 1000) / 2)
+    shared->absolute_time_limit = (shared->tc_time_remaining - 1000) / 2;
 /*
  ************************************************************
  *                                                          *

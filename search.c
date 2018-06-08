@@ -5,7 +5,7 @@
 #include "data.h"
 #include "epdglue.h"
 
-/* last modified 02/22/06 */
+/* last modified 03/01/06 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -25,6 +25,7 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
   register int o_alpha, value = 0;
   register int extensions, extended, pieces;
   int mate_threat = 0;
+  int searched[256], count = 0;
 
 /*
  ************************************************************
@@ -41,9 +42,8 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
  */
   tree->nodes_searched++;
   if (tree->thread_id == 0) {
-    if (--tree->next_time_check <= 0) {
-      tree->next_time_check =
-          shared->nodes_between_time_checks / Max(1, shared->max_threads);
+    if (--shared->next_time_check <= 0) {
+      shared->next_time_check = shared->nodes_between_time_checks;
       if (CheckInput())
         Interrupt(ply);
       if (TimeCheck(tree, 0)) {
@@ -126,7 +126,7 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
  *                                                          *
  *   now it's time to try a probe into the endgame table-   *
  *   base files.  this is done if we notice that there are  *
- *   5 or fewer pieces left on the board.  EGTB_use tells   *
+ *   6 or fewer pieces left on the board.  EGTB_use tells   *
  *   us how many pieces to probe on.  note that this can be *
  *   zero when trying to swindle the opponent, so that no   *
  *   probes are done since we know it is a draw.            *
@@ -274,16 +274,14 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
       }
       tree->current_move[ply] = 0;
       if (depth - 2 * PLY >= PLY)
-        value =
-            Search(tree, alpha, beta, wtm, depth - 2 * PLY, ply, DO_NULL);
+        value = Search(tree, alpha, beta, wtm, depth - 2 * PLY, ply, DO_NULL);
       else
         value = Quiesce(tree, alpha, beta, wtm, ply);
       if (shared->abort_search || tree->stop)
         return (0);
       if (value <= alpha) {
         if (depth - 2 * PLY >= PLY)
-          value =
-              Search(tree, -MATE, beta, wtm, depth - 2 * PLY, ply, DO_NULL);
+          value = Search(tree, -MATE, beta, wtm, depth - 2 * PLY, ply, DO_NULL);
         else
           value = Quiesce(tree, -MATE, beta, wtm, ply);
         if (shared->abort_search || tree->stop)
@@ -341,6 +339,7 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
  *                                                          *
  ************************************************************
  */
+      searched[count++] = tree->current_move[ply];
       extended = SearchControl(tree, wtm, ply, depth, mate_threat);
 /*
  ************************************************************
@@ -356,8 +355,7 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
           value =
               -Search(tree, -beta, -alpha, Flip(wtm), depth + extensions,
               ply + 1, DO_NULL);
-        }
-        else
+        } else
           value = -Quiesce(tree, -beta, -alpha, Flip(wtm), ply + 1);
         if (shared->abort_search || tree->stop) {
           UnmakeMove(tree, ply, tree->current_move[ply], wtm);
@@ -370,10 +368,9 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
               ply + 1, DO_NULL);
           if (value > alpha && extensions < -PLY)
             value =
-                -Search(tree, -alpha - 1,  -alpha, Flip(wtm), depth - PLY,
+                -Search(tree, -alpha - 1, -alpha, Flip(wtm), depth - PLY,
                 ply + 1, DO_NULL);
-        }
-        else
+        } else
           value = -Quiesce(tree, -alpha - 1, -alpha, Flip(wtm), ply + 1);
         if (shared->abort_search || tree->stop) {
           UnmakeMove(tree, ply, tree->current_move[ply], wtm);
@@ -394,8 +391,10 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
         }
       }
       if (value > alpha) {
+        HistoryUpdateFH(tree, wtm, searched, count);
+        count = 0;
         if (value >= beta) {
-          History(tree, ply, depth*depth/(PLY*PLY), wtm, tree->current_move[ply]);
+          History(tree, ply, depth, wtm, tree->current_move[ply]);
           UnmakeMove(tree, ply, tree->current_move[ply], wtm);
           HashStore(tree, ply, depth, wtm, LOWER, value, mate_threat);
           tree->fail_high++;
@@ -425,8 +424,9 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
           Interrupt(ply);
         value = tree->search_value;
         if (value > alpha) {
+          HistoryUpdateFH(tree, wtm, &tree->current_move[ply] + 1, 1);
           if (value >= beta) {
-            History(tree, ply, depth*depth/(PLY*PLY), wtm, tree->current_move[ply]);
+            History(tree, ply, depth, wtm, tree->current_move[ply]);
             HashStore(tree, ply, depth, wtm, LOWER, value, mate_threat);
             tree->fail_high++;
             return (value);
@@ -463,7 +463,7 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
           (tree->pv[ply].pathl - ply + 1) * sizeof(int));
       memcpy(&tree->pv[ply - 1].pathh, &tree->pv[ply].pathh, 3);
       tree->pv[ply - 1].path[ply - 1] = tree->current_move[ply - 1];
-      History(tree, ply, depth*depth/(PLY*PLY), wtm, tree->pv[ply].path[ply]);
+      History(tree, ply, depth, wtm, tree->pv[ply].path[ply]);
     }
     HashStore(tree, ply, depth, wtm, (alpha == o_alpha) ? UPPER : EXACT, alpha,
         mate_threat);
@@ -497,9 +497,9 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
  *******************************************************************************
  */
 int SearchControl(TREE * RESTRICT tree, int wtm, int ply, int depth,
-                  int mate_threat)
+    int mate_threat)
 {
-  register int adjustment = 0, no_reduction = 0, move, index, histval;
+  register int adjustment = 0, move, index, fh_percent;
 
 /*
  ************************************************************
@@ -514,7 +514,6 @@ int SearchControl(TREE * RESTRICT tree, int wtm, int ply, int depth,
   if (mate_threat) {
     adjustment += mate_depth;
     tree->mate_extensions_done++;
-    no_reduction++;
   }
 /*
  ************************************************************
@@ -529,7 +528,6 @@ int SearchControl(TREE * RESTRICT tree, int wtm, int ply, int depth,
     tree->in_check[ply + 1] = 1;
     tree->check_extensions_done++;
     adjustment += incheck_depth;
-    no_reduction++;
   } else
     tree->in_check[ply + 1] = 0;
 /*
@@ -551,6 +549,8 @@ int SearchControl(TREE * RESTRICT tree, int wtm, int ply, int depth,
 /*
  ************************************************************
  *                                                          *
+ *   no extensions were triggered, or we would have exited. *
+ *                                                          *
  *   now it's time to try to reduce the search depth if the *
  *   move appears to be "weak".  to reduce the search, the  *
  *   following requirements must be met:                    *
@@ -559,8 +559,15 @@ int SearchControl(TREE * RESTRICT tree, int wtm, int ply, int depth,
  *       move ordering, so that we have nearly given up on  *
  *       failing high on any move.                          *
  *                                                          *
- *   (2) the search must be at least "reduce_min_depth"     *
- *       plies from frontier (q-search) nodes.              *
+ *   (2) the remaining search depth left must satisfy the   *
+ *       following inequality:                              *
+ *                                                          *
+ *         depth - PLY - reduce_value < reduce_min_depth    *
+ *                                                          *
+ *       simply stated, for default settings, there must    *
+ *       be at least 3 plies of depth left or we won't      *
+ *       reduce since we are too close to the frontier and  *
+ *       that leads to tactical mistakes.                   *
  *                                                          *
  *   (3) the current move must not trigger any type of      *
  *       search extension.                                  *
@@ -580,10 +587,13 @@ int SearchControl(TREE * RESTRICT tree, int wtm, int ply, int depth,
  *                                                          *
  ************************************************************
  */
+  if (tree->phase[ply] != REMAINING_MOVES)
+    return (0);
+  tree->reductions_attempted++;
   move = tree->current_move[ply];
-  if (tree->phase[ply] != REMAINING_MOVES || adjustment > 0 || 
-      depth - PLY - reduce_value < reduce_min_depth || no_reduction ||
-      tree->in_check[ply] || CaptureOrPromote(move)) return (adjustment);
+  if (depth - PLY - reduce_value < reduce_min_depth || tree->in_check[ply] ||
+      CaptureOrPromote(move))
+    return (0);
 /*
  ************************************************************
  *                                                          *
@@ -592,12 +602,10 @@ int SearchControl(TREE * RESTRICT tree, int wtm, int ply, int depth,
  *                                                          *
  ************************************************************
  */
-  index = move & 4095;
-  if (wtm)
-    histval = tree->history_w[index];
-  else
-    histval = tree->history_b[index];
-  if (histval >= reduce_hist_threshold) return (adjustment);
+  index = HistoryIndex(move, wtm);
+  fh_percent = shared->history_fh[index] / shared->history_count[index];
+  if (fh_percent >= reduce_hist)
+    return (0);
 /*
  ************************************************************
  *                                                          *
@@ -608,11 +616,13 @@ int SearchControl(TREE * RESTRICT tree, int wtm, int ply, int depth,
  */
   if (Piece(move) == pawn) {
     if (wtm) {
-      if (mask_pawn_passed_w[To(move)] & BlackPawns) return (adjustment);
-    }
-    else {
-      if (mask_pawn_passed_b[To(move)] & WhitePawns) return (adjustment);
+      if (!(mask_pawn_passed_w[To(move)] & BlackPawns))
+        return (0);
+    } else {
+      if (!(mask_pawn_passed_b[To(move)] & WhitePawns))
+        return (0);
     }
   }
+  tree->reductions_done++;
   return (-reduce_value);
 }

@@ -234,10 +234,10 @@ void LearnBook(TREE * RESTRICT tree, int wtm, int search_value,
         } else
           cluster = 0;
         for (mv = tree->last[0]; mv < tree->last[1]; mv++) {
-          common = HashKey & mask_16;
+          common = HashKey & ((BITBOARD) 65535 << 48);
           MakeMove(tree, 1, *mv, wtm);
           temp_hash_key = HashKey ^ wtm_random[wtm];
-          temp_hash_key = (temp_hash_key & ~mask_16) | common;
+          temp_hash_key = (temp_hash_key & ~((BITBOARD) 65535 << 48)) | common;
           for (j = 0; j < cluster; j++)
             if (!(temp_hash_key ^ book_buffer[j].position) &&
                 book_buffer[j].learn > (float) LEARN_COUNTER_BAD / 100.0) {
@@ -397,10 +397,10 @@ void LearnBookUpdate(TREE * RESTRICT tree, int wtm, int move, float learn_value)
       fread(buf32, 4, 1, book_file);
       cluster = BookIn32(buf32);
       BookClusterIn(book_file, cluster, book_buffer);
-      common = HashKey & mask_16;
+      common = HashKey & ((BITBOARD) 65535 << 48);
       MakeMove(tree, 1, move, wtm);
       temp_hash_key = HashKey ^ wtm_random[wtm];
-      temp_hash_key = (temp_hash_key & ~mask_16) | common;
+      temp_hash_key = (temp_hash_key & ~((BITBOARD) 65535 << 48)) | common;
       for (move_index = 0; move_index < cluster; move_index++)
         if (!(temp_hash_key ^ book_buffer[move_index].position))
           break;
@@ -834,10 +834,10 @@ void LearnImportCAP(TREE * RESTRICT tree, int nargs, char **args)
     } else
       cluster = 0;
     if (cluster) {
-      common = HashKey & mask_16;
+      common = HashKey & ((BITBOARD) 65535 << 48);
       MakeMove(tree, 0, move, wtm);
       temp_hash_key = HashKey ^ wtm_random[wtm];
-      temp_hash_key = (temp_hash_key & ~mask_16) | common;
+      temp_hash_key = (temp_hash_key & ~((BITBOARD) 65535 << 48)) | common;
       for (i = 0; i < cluster; i++) {
         if (!(temp_hash_key ^ book_buffer[i].position)) {
           book_buffer[i].CAP_score = ce;
@@ -1108,7 +1108,7 @@ void LearnImportPosition(TREE * RESTRICT tree, int nargs, char **args)
  *                                                                             *
  *      15     draft  17  the depth of the search below this position, which is*
  *                        used to see if we can use this entry at the current  *
- *                        position.  note that this is in units of 1/60th of a *
+ *                        position.  note that this is in units of 1/4th of a  *
  *                        ply.                                                 *
  *      17     value   0  unsigned integer value of this position + 65536.     *
  *                        this might be a good score or search bound.          *

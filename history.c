@@ -3,7 +3,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 12/26/03 */
+/* last modified 03/01/06 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -18,7 +18,7 @@
  *                                                                             *
  *******************************************************************************
  */
-void History(TREE * RESTRICT tree, int ply, int histval, int wtm, int move)
+void History(TREE * RESTRICT tree, int ply, int depth, int wtm, int move)
 {
   register int index;
 
@@ -41,11 +41,12 @@ void History(TREE * RESTRICT tree, int ply, int histval, int wtm, int move)
  *                                                          *
  ************************************************************
  */
-  index = move & 4095;
-  if (wtm)
-    tree->history_w[index] += histval;
-  else
-    tree->history_b[index] += histval;
+  index = HistoryIndex(move, wtm);
+  shared->history[index] += depth * depth;
+  if (shared->history[index] > 32767) {
+    for (index = 0; index < 8192; index++)
+      shared->history[index] = shared->history[index] >> 1;
+  }
 /*
  ************************************************************
  *                                                          *
@@ -60,28 +61,45 @@ void History(TREE * RESTRICT tree, int ply, int histval, int wtm, int move)
   }
 }
 
-/* last modified 02/09/06 */
+/* last modified 03/23/06 */
 /*
  *******************************************************************************
  *                                                                             *
- *   HistoryAge() is called to "age" the history values over time.  this idea  *
- *   is similar to the way the Unix operating system "ages" priorities by      *
- *   basing them on accumulated CPU time that is periodically divided by two   *
- *   to cause unused values to drift toward zero while values that are being   *
- *   updated regularly recover from the aging as they are used.                *
+ *   HistoryUpdateFH() is used to update the failed-high history information   *
+ *   that is used for the late move reduction search enhancement.  the move    *
+ *   causing a fail-high or producing a PV move gets both the use counter and  *
+ *   the fail-high counters updated, while the rest of the moves that did not  *
+ *   produce a fail-high or PV move just get the counters updated, showing     *
+ *   that they were searched but did not produce anything useful.              *
  *                                                                             *
- *   this is called from search whenever a "time check" is done, although it   *
- *   is never done more than once per second to avoid collapsing all values    *
- *   toward zero too quickly.                                                  *
+ *   if a counter goes beyond 32767, all values are divided by 2 to prevent    *
+ *   the potential for overflow later on.  since this data is shared among all *
+ *   processes, only thread_id==0 will do the division, otherwise all could    *
+ *   do this at the same time and divide by 4 (with two threads) or by 16      *
+ *   (with four threads).                                                      *
  *                                                                             *
  *******************************************************************************
  */
-void HistoryAge(TREE * RESTRICT tree)
+void HistoryUpdateFH(TREE * RESTRICT tree, int wtm, int searched[], int count)
 {
-  int i;
+  int i, age = 0;
 
-  for (i = 0; i < 4096; i++) {
-    tree->history_w[i] = tree->history_w[i] >> 1;
-    tree->history_b[i] = tree->history_b[i] >> 1;
+  if (!CaptureOrPromote(searched[count - 1])) {
+    shared->history_fh[HistoryIndex(searched[count - 1], wtm)] += 100;
+    if (++shared->history_count[HistoryIndex(searched[count - 1], wtm)] > 32767)
+      age++;
   }
+  for (i = 0; i < count - 1; i++)
+    if (!CaptureOrPromote(searched[i]))
+      if (++shared->history_count[HistoryIndex(searched[i], wtm)] > 32767)
+        age++;
+  if (tree->thread_id == 0) {
+    if (age) {
+      for (i = 0; i < 8192; i++) {
+        shared->history_fh[i] >>= 1;
+        shared->history_count[i] = (shared->history_count[i] >> 1) + 1;
+      }
+    }
+  }
+  return;
 }

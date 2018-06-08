@@ -121,7 +121,7 @@ int SearchRoot(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth)
       SearchOutput(tree, value, beta);
       shared->root_value = alpha;
       if (value >= beta) {
-        History(tree, 1, reduce_hist_threshold * 2, wtm, tree->current_move[1]);
+        History(tree, 1, depth, wtm, tree->current_move[1]);
         UnmakeMove(tree, 1, tree->current_move[1], wtm);
         return (value);
       }
@@ -146,7 +146,7 @@ int SearchRoot(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth)
         value = tree->search_value;
         if (value > alpha) {
           if (value >= beta) {
-            History(tree, 1, reduce_hist_threshold * 2, wtm, tree->current_move[1]);
+            History(tree, 1, depth, wtm, tree->current_move[1]);
             tree->fail_high++;
             return (value);
           }
@@ -182,7 +182,7 @@ int SearchRoot(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth)
     }
     return (value);
   } else {
-    History(tree, 1, reduce_hist_threshold * 2, wtm, tree->pv[1].path[1]);
+    History(tree, 1, depth, wtm, tree->pv[1].path[1]);
     return (alpha);
   }
 }
@@ -275,8 +275,7 @@ void SearchTrace(TREE * RESTRICT tree, int ply, int depth, int wtm, int alpha,
   for (i = 1; i < ply; i++)
     printf("  ");
   printf("%d  %s d:%5.2f [%s,", ply, OutputMove(tree, tree->current_move[ply],
-          ply, wtm), (float) depth / (float) PLY, DisplayEvaluation(alpha,
-          1));
+          ply, wtm), (float) depth / (float) PLY, DisplayEvaluation(alpha, 1));
   printf("%s] n:" BMF " %s(%d)", DisplayEvaluation(beta, 1),
       (tree->nodes_searched), name, phase);
   if (shared->max_threads > 1)

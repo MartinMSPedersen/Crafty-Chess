@@ -259,9 +259,10 @@ void SetBoard(SEARCH_POSITION * position, int nargs, char *args[], int special)
     position->rule_50_moves = 0;
     if (!special) {
       last_mate_score = 0;
-      for (i = 0; i < 4096; i++) {
-        tree->history_w[i] = 0;
-        tree->history_b[i] = 0;
+      for (i = 0; i < 8192; i++) {
+        shared->history[i] = 0;
+        shared->history_fh[i] = 0;
+        shared->history_count[i] = 1;
       }
       for (i = 0; i < MAXPLY; i++) {
         tree->killers[i].move1 = 0;
@@ -272,7 +273,6 @@ void SetBoard(SEARCH_POSITION * position, int nargs, char *args[], int special)
       tree->pv[0].pathd = 0;
       tree->pv[0].pathl = 0;
       shared->moves_out_of_book = 0;
-      shared->largest_positional_score = 300;
     }
   } else {
     InitializeChessBoard(&tree->position[0]);

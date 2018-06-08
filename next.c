@@ -14,7 +14,7 @@
 int NextMove(TREE * RESTRICT tree, int ply, int wtm)
 {
   register int *bestp, *movep, *sortv;
-  register int history_value, bestval, index;
+  register int history_value, bestval;
 
   switch (tree->next_status[ply].phase) {
 /*
@@ -189,9 +189,7 @@ int NextMove(TREE * RESTRICT tree, int ply, int wtm)
             || *movep == tree->killers[ply].move2)
           *movep = 0;
         else {
-          index = *movep & 4095;
-          history_value =
-              (wtm) ? tree->history_w[index] : tree->history_b[index];
+          history_value = shared->history[HistoryIndex(*movep, wtm)];
           if (history_value > bestval) {
             bestval = history_value;
             bestp = movep;
@@ -219,8 +217,7 @@ int NextMove(TREE * RESTRICT tree, int ply, int wtm)
     bestp = 0;
     for (movep = tree->last[ply - 1]; movep < tree->last[ply]; movep++)
       if (*movep) {
-        index = *movep & 4095;
-        history_value = (wtm) ? tree->history_w[index] : tree->history_b[index];
+        history_value = shared->history[HistoryIndex(*movep, wtm)];
         if (history_value > bestval) {
           bestval = history_value;
           bestp = movep;

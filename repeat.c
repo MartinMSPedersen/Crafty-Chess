@@ -54,6 +54,7 @@ int RepetitionCheck(TREE * RESTRICT tree, int ply)
   tree->rep_list[thispos] = HashKey;
   if (ply > 3) {
     int limit = thispos - Rule50Moves(ply);
+
     for (where = thispos - 2; where >= limit; where -= 2)
       if (HashKey == tree->rep_list[where])
         return (1);

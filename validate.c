@@ -119,15 +119,13 @@ void ValidatePosition(TREE * RESTRICT tree, int ply, int move, char *caller)
   temp_score = PopCnt(WhiteKnights) - PopCnt(BlackKnights);
   temp_score += PopCnt(WhiteBishops) - PopCnt(BlackBishops);
   if (temp_score != Minors) {
-    Print(128, "ERROR  minors is wrong, good=%d, bad=%d\n", temp_score,
-        Minors);
+    Print(128, "ERROR  minors is wrong, good=%d, bad=%d\n", temp_score, Minors);
     error = 1;
   }
   temp_score = PopCnt(WhiteRooks) - PopCnt(BlackRooks);
   temp_score += PopCnt(WhiteQueens) * 2 - PopCnt(BlackQueens) * 2;
   if (temp_score != Majors) {
-    Print(128, "ERROR  majors is wrong, good=%d, bad=%d\n", temp_score,
-        Majors);
+    Print(128, "ERROR  majors is wrong, good=%d, bad=%d\n", temp_score, Majors);
     error = 1;
   }
   temp_score = PopCnt(WhitePawns);
@@ -474,6 +472,6 @@ void ValidatePosition(TREE * RESTRICT tree, int ply, int move, char *caller)
       DisplayChessMove("move=", move);
     i = 99999999;
     tree->move_list[i] = 0;
-    exit(1);
+    CraftyExit(1);
   }
 }

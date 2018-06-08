@@ -25,14 +25,14 @@
  *                                                                             *
  *    8 bits:  flag bits defined as  follows:                                  *
  *                                                                             *
- *      0000 0001  ?? flagged move                (0001) (0x01)                *
- *      0000 0010   ? flagged move                (0002) (0x02)                *
- *      0000 0100   = flagged move                (0004) (0x04)                *
- *      0000 1000   ! flagged move                (0010) (0x08)                *
- *      0001 0000  !! flagged move                (0020) (0x10)                *
- *      0010 0000     black won at least 1 game   (0040) (0x20)                *
- *      0100 0000     at least one game was drawn (0100) (0x40)                *
- *      1000 0000     white won at least 1 game   (0200) (0x80)                *
+ *      0000 0001  ?? flagged move                       (0x01)                *
+ *      0000 0010   ? flagged move                       (0x02)                *
+ *      0000 0100   = flagged move                       (0x04)                *
+ *      0000 1000   ! flagged move                       (0x08)                *
+ *      0001 0000  !! flagged move                       (0x10)                *
+ *      0010 0000     black won at least 1 game          (0x20)                *
+ *      0100 0000     at least one game was drawn        (0x40)                *
+ *      1000 0000     white won at least 1 game          (0x80)                *
  *                                                                             *
  *   24 bits:  number of games this move was played.                           *
  *                                                                             *
@@ -44,8 +44,8 @@
  *                                                                             *
  *******************************************************************************
  */
-#define BAD_MOVE  002
-#define GOOD_MOVE 010
+#define BAD_MOVE  0x02
+#define GOOD_MOVE 0x08
 
 int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
 {
@@ -105,14 +105,14 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
       scluster = BookIn32(buf32);
       BookClusterIn(books_file, scluster, book_buffer);
       for (im = 0; im < shared->n_root_moves; im++) {
-        common = HashKey & mask_16;
+        common = HashKey & ((BITBOARD) 65535 << 48);
         MakeMove(tree, 1, shared->root_moves[im].move, wtm);
         if (RepetitionCheckBook(tree, 2)) {
           UnmakeMove(tree, 1, shared->root_moves[im].move, wtm);
           return (0);
         }
         temp_hash_key = HashKey ^ wtm_random[wtm];
-        temp_hash_key = (temp_hash_key & ~mask_16) | common;
+        temp_hash_key = (temp_hash_key & ~((BITBOARD) 65535 << 48)) | common;
         for (i = 0; i < scluster; i++)
           if (!(temp_hash_key ^ book_buffer[i].position)) {
             start_moves[smoves++] = book_buffer[i];
@@ -180,14 +180,14 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
     total_moves = 0;
     nmoves = 0;
     for (im = 0; im < shared->n_root_moves; im++) {
-      common = HashKey & mask_16;
+      common = HashKey & ((BITBOARD) 65535 << 48);
       MakeMove(tree, 1, shared->root_moves[im].move, wtm);
       if (RepetitionCheckBook(tree, 2)) {
         UnmakeMove(tree, 1, shared->root_moves[im].move, wtm);
         return (0);
       }
       temp_hash_key = HashKey ^ wtm_random[wtm];
-      temp_hash_key = (temp_hash_key & ~mask_16) | common;
+      temp_hash_key = (temp_hash_key & ~((BITBOARD) 65535 << 48)) | common;
       for (i = 0; i < cluster; i++) {
         if (!(temp_hash_key ^ book_buffer[i].position)) {
           book_status[nmoves] = book_buffer[i].status_played >> 24;
@@ -206,7 +206,7 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
           else
             book_development[nmoves] = 0;
           total_moves += bs_played[nmoves];
-          evaluations[nmoves] = Evaluate(tree, 2, wtm, -999999, 999999);
+          evaluations[nmoves] = Evaluate(tree, 2, wtm);
           evaluations[nmoves] -= (wtm) ? Material : -Material;
           bs_percent[nmoves] = 0;
           for (j = 0; j < smoves; j++) {
@@ -239,23 +239,23 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
         maxp = Max(maxp, bs_played[i]);
     for (i = 0; i < nmoves; i++) {
       if (bs_learn[i] <= LEARN_COUNTER_BAD && !bs_percent[i] &&
-          !(book_status[i] & 030))
+          !(book_status[i] & 0x18))
         book_status[i] |= BAD_MOVE;
-      if (wtm && !(book_status[i] & 0200) && !bs_percent[i] &&
-          !(book_status[i] & 030))
+      if (wtm && !(book_status[i] & 0x80) && !bs_percent[i] &&
+          !(book_status[i] & 0x18))
         book_status[i] |= BAD_MOVE;
-      if (!wtm && !(book_status[i] & 040) && !bs_percent[i] &&
-          !(book_status[i] & 030))
+      if (!wtm && !(book_status[i] & 0x20) && !bs_percent[i] &&
+          !(book_status[i] & 0x18))
         book_status[i] |= BAD_MOVE;
       if (bs_played[i] < maxp / 10 && !bs_percent[i] && book_random &&
-          !(book_status[i] & 030) && bs_CAP[i] == -2 * MATE)
+          !(book_status[i] & 0x18) && bs_CAP[i] == -2 * MATE)
         book_status[i] |= BAD_MOVE;
-      if (bs_learn[i] >= LEARN_COUNTER_GOOD && !(book_status[i] & 003))
+      if (bs_learn[i] >= LEARN_COUNTER_GOOD && !(book_status[i] & 0x03))
         book_status[i] |= GOOD_MOVE;
-      if (bs_CAP[i] >= CAP_SCORE_GOOD && !(book_status[i] & 003))
+      if (bs_CAP[i] >= CAP_SCORE_GOOD && !(book_status[i] & 0x03))
         book_status[i] |= GOOD_MOVE;
       if (bs_CAP[i] <= CAP_SCORE_BAD && bs_CAP[i] != -2 * MATE &&
-          !(book_status[i] & 003))
+          !(book_status[i] & 0x03))
         book_status[i] |= BAD_MOVE;
       if (bs_percent[i])
         book_status[i] |= GOOD_MOVE;
@@ -317,13 +317,13 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
  ************************************************************
  */
     for (i = 0; i < nmoves; i++)
-      if (book_status[i] & 030)
+      if (book_status[i] & 0x18)
         break;
     if (i < nmoves) {
       for (i = 0; i < nmoves; i++) {
-        if (book_status[i] & 030)
+        if (book_status[i] & 0x18)
           bs_value[i] += 8000.0;
-        if (!(book_status[i] & 003))
+        if (!(book_status[i] & 0x03))
           bs_value[i] += 4000.0;
       }
     }
@@ -388,16 +388,16 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
       for (i = 0; i < nmoves; i++) {
         Print(128, "%6s", OutputMove(tree, book_moves[i], 1, wtm));
         st = book_status[i];
-        if (st & 037) {
-          if (st & 1)
+        if (st & 0x1f) {
+          if (st & 0x01)
             Print(128, "??");
-          else if (st & 2)
+          else if (st & 0x02)
             Print(128, "? ");
-          else if (st & 4)
+          else if (st & 0x04)
             Print(128, "= ");
-          else if (st & 8)
+          else if (st & 0x08)
             Print(128, "! ");
-          else if (st & 16)
+          else if (st & 0x10)
             Print(128, "!!");
         } else
           Print(128, "  ");
@@ -411,8 +411,8 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
         if ((book_status[i] & book_accept_mask &&
                 !(book_status[i] & book_reject_mask)) ||
             (!(book_status[i] & book_reject_mask) && (bs_percent[i] ||
-                    book_status[i] & 030 || (wtm && book_status[i] & 0200) ||
-                    (!wtm && book_status[i] & 040))))
+                    book_status[i] & 0x18 || (wtm && book_status[i] & 0x80) ||
+                    (!wtm && book_status[i] & 0x20))))
           Print(128, "  Y");
         else
           Print(128, "  N");
@@ -429,7 +429,7 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
  */
     num_selected = 0;
     for (i = 0; i < nmoves; i++)
-      if (!(book_status[i] & 003) || bs_percent[i]) {
+      if (!(book_status[i] & 0x03) || bs_percent[i]) {
         selected_status[num_selected] = book_status[i];
         selected_order_played[num_selected] = bs_played[i];
         selected_value[num_selected] = bs_value[i];
@@ -618,16 +618,16 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
       for (i = 0; i < nmoves; i++) {
         Print(128, "%6s", OutputMove(tree, book_moves[i], 1, wtm));
         st = book_status[i];
-        if (st & 037) {
-          if (st & 1)
+        if (st & 0x1f) {
+          if (st & 0x01)
             Print(128, "??");
-          else if (st & 2)
+          else if (st & 0x02)
             Print(128, "? ");
-          else if (st & 4)
+          else if (st & 0x04)
             Print(128, "= ");
-          else if (st & 8)
+          else if (st & 0x08)
             Print(128, "! ");
-          else if (st & 16)
+          else if (st & 0x10)
             Print(128, "!!");
         } else
           Print(128, "  ");
@@ -639,8 +639,8 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
         if ((book_status[i] & book_accept_mask &&
                 !(book_status[i] & book_reject_mask)) ||
             (!(book_status[i] & book_reject_mask) && ((wtm &&
-                        book_status[i] & 0200) || (!wtm &&
-                        book_status[i] & 040))))
+                        book_status[i] & 0x80) || (!wtm &&
+                        book_status[i] & 0x20))))
           Print(128, "  Y");
         else
           Print(128, "  N");
@@ -848,10 +848,10 @@ int BookPonderMove(TREE * RESTRICT tree, int wtm)
  */
     played = -1;
     for (im = 0; im < n_moves; im++) {
-      common = HashKey & mask_16;
+      common = HashKey & ((BITBOARD) 65535 << 48);
       MakeMove(tree, 2, book_moves[im], wtm);
       temp_hash_key = HashKey ^ wtm_random[wtm];
-      temp_hash_key = (temp_hash_key & ~mask_16) | common;
+      temp_hash_key = (temp_hash_key & ~((BITBOARD) 65535 << 48)) | common;
       for (i = 0; i < cluster; i++) {
         if (!(temp_hash_key ^ book_buffer[i].position)) {
           tplayed = book_buffer[i].status_played & 077777777;
@@ -1045,7 +1045,7 @@ void BookUp(TREE * RESTRICT tree, int nargs, char **args)
   bbuffer = (BB_POSITION *) malloc(sizeof(BB_POSITION) * SORT_BLOCK);
   if (!bbuffer) {
     Print(4095, "Unable to malloc() sort buffer, aborting\n");
-    exit(1);
+    CraftyExit(1);
   }
   fseek(book_file, 0, SEEK_SET);
 /*
@@ -1121,20 +1121,20 @@ void BookUp(TREE * RESTRICT tree, int nargs, char **args)
                 ply++;
                 max_search_depth = Max(max_search_depth, ply);
                 total_moves++;
-                common = HashKey & mask_16;
+                common = HashKey & ((BITBOARD) 65535 << 48);
                 MakeMove(tree, 2, move, wtm);
                 tree->position[2] = tree->position[3];
                 if (ply <= max_ply) {
                   temp_hash_key = HashKey ^ wtm_random[wtm];
-                  temp_hash_key = (temp_hash_key & ~mask_16) | common;
+                  temp_hash_key = (temp_hash_key & ~((BITBOARD) 65535 << 48)) | common;
                   memcpy(bbuffer[buffered].position, (char *) &temp_hash_key,
                       8);
+                  if (result & 1)
+                    mask_word |= 0x20;
                   if (result == 0)
-                    mask_word |= 0100;
-                  else if (result & 2)
-                    mask_word |= 0200;
-                  else if (result & 1)
-                    mask_word |= 040;
+                    mask_word |= 0x40;
+                  if (result & 2)
+                    mask_word |= 0x80;
                   bbuffer[buffered].status = mask_word;
                   bbuffer[buffered++].percent_play =
                       pgn_suggested_percent + (wtm << 7);
@@ -1199,7 +1199,7 @@ void BookUp(TREE * RESTRICT tree, int nargs, char **args)
     index = (int *) malloc(32768 * sizeof(int));
     if (!index) {
       Print(4095, "Unable to malloc() index block, aborting\n");
-      exit(1);
+      CraftyExit(1);
     }
     for (i = 0; i < 32768; i++)
       index[i] = -1;
@@ -1434,12 +1434,12 @@ BB_POSITION BookUpNextPosition(int files, int init)
       sprintf(fname, "sort.%d", i);
       if (!(input_file[i] = fopen(fname, "rb"))) {
         printf("unable to open sort.%d file, may be too many files open.\n", i);
-        exit(1);
+        CraftyExit(1);
       }
       buffer[i] = (BB_POSITION *) malloc(sizeof(BB_POSITION) * MERGE_BLOCK);
       if (!buffer[i]) {
         printf("out of memory.  aborting. \n");
-        exit(1);
+        CraftyExit(1);
       }
       fseek(input_file[i], 0, SEEK_SET);
       data_read[i] =

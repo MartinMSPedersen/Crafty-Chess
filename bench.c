@@ -25,7 +25,6 @@ void Bench(void)
   int old_do, old_st, old_sd, total_time_used;
   TREE *const tree = shared->local[0];
 
-  test_mode = 1;
   total_time_used = 0;
   old_st = shared->search_time_limit;   /* save old time limit and display settings */
   old_sd = search_depth;
@@ -53,7 +52,6 @@ void Bench(void)
 
   InitializeHashTables();
   last_pv.pathd = 0;
-  shared->largest_positional_score = 300;
   shared->thinking = 1;
   tree->position[1] = tree->position[0];
   (void) Iterate(wtm, think, 0);
@@ -71,7 +69,6 @@ void Bench(void)
 
   InitializeHashTables();
   last_pv.pathd = 0;
-  shared->largest_positional_score = 300;
   shared->thinking = 1;
   tree->position[1] = tree->position[0];
   (void) Iterate(wtm, think, 0);
@@ -88,7 +85,6 @@ void Bench(void)
 
   InitializeHashTables();
   last_pv.pathd = 0;
-  shared->largest_positional_score = 300;
   shared->thinking = 1;
   tree->position[1] = tree->position[0];
   (void) Iterate(wtm, think, 0);
@@ -105,7 +101,6 @@ void Bench(void)
 
   InitializeHashTables();
   last_pv.pathd = 0;
-  shared->largest_positional_score = 300;
   shared->thinking = 1;
   tree->position[1] = tree->position[0];
   (void) Iterate(wtm, think, 0);
@@ -122,7 +117,6 @@ void Bench(void)
 
   InitializeHashTables();
   last_pv.pathd = 0;
-  shared->largest_positional_score = 300;
   shared->thinking = 1;
   tree->position[1] = tree->position[0];
   (void) Iterate(wtm, think, 0);
@@ -140,7 +134,6 @@ void Bench(void)
 
   InitializeHashTables();
   last_pv.pathd = 0;
-  shared->largest_positional_score = 300;
   shared->thinking = 1;
   tree->position[1] = tree->position[0];
   (void) Iterate(wtm, think, 0);
@@ -156,7 +149,6 @@ void Bench(void)
       (640.0 / (total_time_used / 100)));
   input_stream = stdin;
   early_exit = 99;
-  test_mode = 0;
 
   shared->display_options = old_do;     /* reset old values and restart game */
   shared->search_time_limit = old_st;

@@ -15,6 +15,7 @@
 #if defined(NT_i386)
 #  include <fcntl.h>    /* needed for definition of "_O_BINARY" */
 #endif
+#include <math.h>
 
 int init_r90[64] = {
   56, 48, 40, 32, 24, 16, 8, 0,
@@ -93,24 +94,26 @@ int diagonal_length[64] = {
   4, 4, 3, 3, 3, 2, 2, 1
 };
 
-void Initialize(int continuing)
-{
 /*
- ************************************************************
- *                                                          *
- *   perform routine initialization.                        *
- *                                                          *
- ************************************************************
+ *******************************************************************************
+ *                                                                             *
+ *   Initialize() performs routine initialization before anything else is      *
+ *   attempted.                                                                *
+ *                                                                             *
+ *******************************************************************************
  */
-  int i, j, major, minor;
+void Initialize()
+{
+  int i, major, minor, id;
   TREE *tree;
-  void *mem;
 
-#if defined(UNIX)
-  struct stat *fileinfo = malloc(sizeof(struct stat));
+#if defined(SMP)
+  void *mem;
+  int j;
 #endif
 
   tree = shared->local[0];
+  InitializeSharedData();
   i = 0;
   InitializeZeroMasks();
 #if defined(SMP)
@@ -219,57 +222,14 @@ void Initialize(int continuing)
       position_lrn_file = fopen(log_filename, "a");
     }
   }
-
-  for (log_id = 1; log_id < 300; log_id++) {
-    sprintf(log_filename, "%s/log.%03d", log_path, log_id);
-    sprintf(history_filename, "%s/game.%03d", log_path, log_id);
-    log_file = fopen(log_filename, "r");
-    if (!log_file)
-      break;
-    fclose(log_file);
-  }
-#if defined(UNIX)
-/*  a kludge to work around an xboard 4.2.3 problem.  It sends two "quit"
-   commands, which causes every other log.nnn file to be empty.  this code
-   looks for a very small log.nnn file as the last one, and if it is small,
-   then we simply overwrite it to solve this problem temporarily.  this will
-   be removed when the nexto xboard version comes out to fix this extra quit
-   problem.                                                               */
-  do {
-    char tfn[128];
-    FILE *tlog;
-
-    sprintf(tfn, "%s/log.%03d", log_path, log_id - 1);
-    tlog = fopen(tfn, "r+");
-    if (!tlog)
-      break;
-    i = fstat(fileno(tlog), fileinfo);
-    if (fileinfo->st_size > 1200)
-      break;
-    log_id--;
-    sprintf(log_filename, "%s/log.%03d", log_path, log_id);
-    sprintf(history_filename, "%s/game.%03d", log_path, log_id);
-  } while (0);
-#endif
-  if (continuing) {
-    log_id--;
-    sprintf(log_filename, "%s/log.%03d", log_path, log_id);
-    sprintf(history_filename, "%s/game.%03d", log_path, log_id);
-    log_file = fopen(log_filename, "r+");
-    history_file = fopen(history_filename, "r+");
-    if (!log_file || !history_file) {
-      Print(128, "\nsorry.  nothing to continue.\n\n");
-      sprintf(log_filename, "%s/log.%03d", log_path, 1);
-      sprintf(history_filename, "%s/game.%03d", log_path, 1);
-      log_file = fopen(log_filename, "w");
-      history_file = fopen(history_filename, "w+");
-    } else {
-      sprintf(buffer, "read %s/game.%03d", log_path, log_id);
-      (void) Option(tree);
-    }
-  } else {
-    log_file = fopen(log_filename, "w");
-    history_file = fopen(history_filename, "w+");
+  id = InitializeGetLogID();
+  sprintf(log_filename, "%s/log.%03d", log_path, id);
+  sprintf(history_filename, "%s/game.%03d", log_path, id);
+  log_file = fopen(log_filename, "w");
+  history_file = fopen(history_filename, "w+");
+  if (!history_file) {
+    printf("ERROR, unable to open game history file, exiting\n");
+    CraftyExit(1);
   }
   cb_trans_ref = sizeof(HASH_ENTRY) * hash_table_size + 15;
   trans_ref = (HASH_ENTRY *) SharedMalloc(cb_trans_ref, 0);
@@ -348,7 +308,7 @@ void InitializeAttackBoards(void)
         sq = i + bishopsq[j];
         if ((abs(Rank(sq) - Rank(i)) == 1) && (abs(File(sq) - File(i)) == 1) &&
             (sq < 64) && (sq > -1))
-          w_pawn_attacks[i] = w_pawn_attacks[i] | mask_1 >> sq;
+          w_pawn_attacks[i] = w_pawn_attacks[i] | ((BITBOARD) 1 << 63) >> sq;
       }
     b_pawn_attacks[i] = 0;
     if (i > 7)
@@ -356,7 +316,7 @@ void InitializeAttackBoards(void)
         sq = i + bishopsq[j];
         if ((abs(Rank(sq) - Rank(i)) == 1) && (abs(File(sq) - File(i)) == 1) &&
             (sq < 64) && (sq > -1))
-          b_pawn_attacks[i] = b_pawn_attacks[i] | mask_1 >> sq;
+          b_pawn_attacks[i] = b_pawn_attacks[i] | ((BITBOARD) 1 << 63) >> sq;
       }
   }
 /*
@@ -374,7 +334,7 @@ void InitializeAttackBoards(void)
       tfile = File(sq);
       if ((abs(frank - trank) > 2) || (abs(ffile - tfile) > 2))
         continue;
-      knight_attacks[i] = knight_attacks[i] | mask_1 >> sq;
+      knight_attacks[i] = knight_attacks[i] | ((BITBOARD) 1 << 63) >> sq;
     }
   }
 /*
@@ -388,16 +348,16 @@ void InitializeAttackBoards(void)
       sq = sq + bishopsq[j];
       while ((abs(Rank(sq) - Rank(lastsq)) == 1) &&
           (abs(File(sq) - File(lastsq)) == 1) && (sq < 64) && (sq > -1)) {
-        bishop_attacks[i] = bishop_attacks[i] | mask_1 >> sq;
-        queen_attacks[i] = queen_attacks[i] | mask_1 >> sq;
+        bishop_attacks[i] = bishop_attacks[i] | ((BITBOARD) 1 << 63) >> sq;
+        queen_attacks[i] = queen_attacks[i] | ((BITBOARD) 1 << 63) >> sq;
         if (bishopsq[j] == 7)
-          plus7dir[i] = plus7dir[i] | mask_1 >> sq;
+          plus7dir[i] = plus7dir[i] | ((BITBOARD) 1 << 63) >> sq;
         else if (bishopsq[j] == 9)
-          plus9dir[i] = plus9dir[i] | mask_1 >> sq;
+          plus9dir[i] = plus9dir[i] | ((BITBOARD) 1 << 63) >> sq;
         else if (bishopsq[j] == -7)
-          minus7dir[i] = minus7dir[i] | mask_1 >> sq;
+          minus7dir[i] = minus7dir[i] | ((BITBOARD) 1 << 63) >> sq;
         else
-          minus9dir[i] = minus9dir[i] | mask_1 >> sq;
+          minus9dir[i] = minus9dir[i] | ((BITBOARD) 1 << 63) >> sq;
         lastsq = sq;
         sq = sq + bishopsq[j];
       }
@@ -425,16 +385,16 @@ void InitializeAttackBoards(void)
               ((abs(Rank(sq) - Rank(lastsq)) == 0) &&
                   (abs(File(sq) - File(lastsq)) == 1))) && (sq < 64) &&
           (sq > -1)) {
-        rook_attacks[i] = rook_attacks[i] | mask_1 >> sq;
-        queen_attacks[i] = queen_attacks[i] | mask_1 >> sq;
+        rook_attacks[i] = rook_attacks[i] | ((BITBOARD) 1 << 63) >> sq;
+        queen_attacks[i] = queen_attacks[i] | ((BITBOARD) 1 << 63) >> sq;
         if (rooksq[j] == 1)
-          plus1dir[i] = plus1dir[i] | mask_1 >> sq;
+          plus1dir[i] = plus1dir[i] | ((BITBOARD) 1 << 63) >> sq;
         else if (rooksq[j] == 8)
-          plus8dir[i] = plus8dir[i] | mask_1 >> sq;
+          plus8dir[i] = plus8dir[i] | ((BITBOARD) 1 << 63) >> sq;
         else if (rooksq[j] == -1)
-          minus1dir[i] = minus1dir[i] | mask_1 >> sq;
+          minus1dir[i] = minus1dir[i] | ((BITBOARD) 1 << 63) >> sq;
         else
-          minus8dir[i] = minus8dir[i] | mask_1 >> sq;
+          minus8dir[i] = minus8dir[i] | ((BITBOARD) 1 << 63) >> sq;
         lastsq = sq;
         sq = sq + rooksq[j];
       }
@@ -683,7 +643,6 @@ void InitializeChessBoard(SEARCH_POSITION * new_pos)
     for (i = 0; i < 64; i++)
       tree->pos.board[i] = none;
     new_pos->rule_50_moves = 0;
-    shared->largest_positional_score = 300;
     wtm = 1;
 /*
  place pawns
@@ -960,14 +919,14 @@ void InitializeEvaluation(void)
       kval_bk[i * 8 + j] = kval_wk[(7 - i) * 8 + j];
       kval_bq[i * 8 + j] = kval_wq[(7 - i) * 8 + j];
       black_outpost[i * 8 + j] = white_outpost[(7 - i) * 8 + j];
-      king_defects_b[i * 8 + j] = king_defects_w[(7 - i) * 8 + j];
     }
+  InitializeKingSafety();
 }
 
 /*
  *******************************************************************************
  *                                                                             *
- *   Initlialize_Find_Attacks() is used to find the attacks from <square> that *
+ *   InitlializeFindAttacks() is used to find the attacks from <square> that   *
  *   exist on the 8-bit vector supplied as <pieces>.  <pieces> represents a    *
  *   rank, file or diagonal, based on the rotated bit-boards.                  *
  *                                                                             *
@@ -1013,6 +972,48 @@ int InitializeFindAttacks(int square, int pieces, int length)
   return (result & ((1 << length) - 1));
 }
 
+int InitializeGetLogID(void)
+{
+#if defined(UNIX)
+  struct stat *fileinfo = malloc(sizeof(struct stat));
+#endif
+  int t;
+
+  if (!log_id) {
+    for (log_id = 1; log_id < 300; log_id++) {
+      sprintf(log_filename, "%s/log.%03d", log_path, log_id);
+      sprintf(history_filename, "%s/game.%03d", log_path, log_id);
+      log_file = fopen(log_filename, "r");
+      if (!log_file)
+        break;
+      fclose(log_file);
+    }
+#if defined(UNIX)
+/*  a kludge to work around an xboard 4.2.3 problem.  It sends two "quit"
+   commands, which causes every other log.nnn file to be empty.  this code
+   looks for a very small log.nnn file as the last one, and if it is small,
+   then we simply overwrite it to solve this problem temporarily.  this will
+   be removed when the nexto xboard version comes out to fix this extra quit
+   problem.                                                               */
+    {
+      char tfn[128];
+      FILE *tlog;
+      int i;
+  
+      sprintf(tfn, "%s/log.%03d", log_path, log_id - 1);
+      tlog = fopen(tfn, "r+");
+      if (tlog) {
+        i = fstat(fileno(tlog), fileinfo);
+        if (fileinfo->st_size < 1200)
+          log_id--;
+      }
+    }
+#endif
+  }
+  t = log_id++;
+  return (t);
+}
+
 void InitializeHashTables(void)
 {
   int i;
@@ -1050,47 +1051,68 @@ void InitializeHistoryKillers(void)
 {
   int i;
 
-  for (i = 0; i < 4096; i++) {
-    shared->local[0]->history_w[i] = 0;
-    shared->local[0]->history_b[i] = 0;
+  for (i = 0; i < 8192; i++) {
+    shared->history[i] = 0;
+    shared->history_fh[i] = 0;
+    shared->history_count[i] = 1;
   }
   for (i = 0; i < MAXPLY; i++) {
     shared->local[0]->killers[i].move1 = 0;
     shared->local[0]->killers[i].move2 = 0;
   }
-  for (i = 0; i < 256; i++) 
+  for (i = 0; i < 256; i++)
     shared->local[0]->rep_list[i] = 0;
+}
+
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   InitlializeKingSafety() is used to initialize the king safety matrix.     *
+ *   this is set so that the matrix, indexed by king safety pawn structure     *
+ *   index and by king safety piece tropism, combines the two indices to       *
+ *   produce a single score.  as either index rises, the king safety score     *
+ *   tracks along, but as both rise, the king safety score rises much more     *
+ *   quickly.                                                                  *
+ *                                                                             *
+ *******************************************************************************
+ */
+void InitializeKingSafety()
+{
+  int max_value = 300;
+  int bias = 2;
+  int safety, tropism;
+
+  for (safety = 0; safety < 32; safety++)
+    king_safety[safety][0] =
+        Min(max_value, (safety + bias) * (safety + bias) + safety + bias);
+  for (tropism = 0; tropism < 32; tropism++)
+    king_safety[0][tropism] =
+        Min(max_value, (tropism + bias) * (tropism + bias) + tropism + bias);
+  for (safety = 1; safety < 32; safety++) {
+    for (tropism = 1; tropism < 32; tropism++) {
+      int x = Min(31, sqrtf(safety*safety + tropism*tropism) + .5);
+      king_safety[safety][tropism] = king_safety[0][x];
+    }
+  }
 }
 
 void InitializeMasks(void)
 {
   int i, j;
 
-/*
- specific masks to avoid Mask() procedure call if possible.
- */
-#if !defined(CRAY1) && !defined(ALPHA)
-  mask_1 = Mask(1);
-  mask_2 = Mask(2);
-  mask_3 = Mask(3);
-  mask_8 = Mask(8);
-  mask_16 = Mask(16);
-  mask_112 = Mask(112);
-  mask_120 = Mask(120);
-#endif
-  mask_clear_entry = ~(Mask(111) | Mask(2) >> 3);
+  mask_clear_entry = (BITBOARD) 0xe7fffffffffe0000ull;
 /*
  masks to set/clear a bit on a specific square
  */
   for (i = 0; i < 64; i++) {
-    ClearMask(i) = ~(mask_1 >> i);
-    ClearMaskRL45(i) = ~(mask_1 >> init_l45[i]);
-    ClearMaskRR45(i) = ~(mask_1 >> init_r45[i]);
-    ClearMaskRL90(i) = ~(mask_1 >> init_l90[i]);
-    SetMask(i) = mask_1 >> i;
-    SetMaskRL45(i) = mask_1 >> init_l45[i];
-    SetMaskRR45(i) = mask_1 >> init_r45[i];
-    SetMaskRL90(i) = mask_1 >> init_l90[i];
+    ClearMask(i) = ~(((BITBOARD) 1 << 63) >> i);
+    ClearMaskRL45(i) = ~(((BITBOARD) 1 << 63) >> init_l45[i]);
+    ClearMaskRR45(i) = ~(((BITBOARD) 1 << 63) >> init_r45[i]);
+    ClearMaskRL90(i) = ~(((BITBOARD) 1 << 63) >> init_l90[i]);
+    SetMask(i) = ((BITBOARD) 1 << 63) >> i;
+    SetMaskRL45(i) = ((BITBOARD) 1 << 63) >> init_l45[i];
+    SetMaskRR45(i) = ((BITBOARD) 1 << 63) >> init_r45[i];
+    SetMaskRL90(i) = ((BITBOARD) 1 << 63) >> init_l90[i];
   }
   ClearMask(BAD_SQUARE) = 0;
   ClearMaskRL45(BAD_SQUARE) = 0;
@@ -1103,10 +1125,10 @@ void InitializeMasks(void)
 /*
  masks to select bits on a specific rank or file
  */
-  rank_mask[0] = mask_8;
+  rank_mask[0] = (BITBOARD) 255 << 56;
   for (i = 1; i < 8; i++)
     rank_mask[i] = rank_mask[i - 1] >> 8;
-  file_mask[FILEA] = mask_1;
+  file_mask[FILEA] = ((BITBOARD) 1 << 63);
   for (i = 1; i < 8; i++)
     file_mask[FILEA] = file_mask[FILEA] | file_mask[FILEA] >> 8;
   for (i = 1; i < 8; i++)
@@ -1142,25 +1164,6 @@ void InitializeMasks(void)
         mask_pawn_protected_b[i] |= SetMask(i + 7);
     }
   }
-/*
- masks to select bits on either half of board
- */
-  for (i = 0; i < 8; i++) {
-    right_side_mask[i] = 0;
-    for (j = i + 2; j < 8; j++)
-      right_side_mask[i] = right_side_mask[i] | file_mask[j];
-    left_side_mask[i] = 0;
-    for (j = i - 2; j >= 0; j--)
-      left_side_mask[i] = left_side_mask[i] | file_mask[j];
-  }
-  for (i = 0; i < 8; i++) {
-    right_side_empty_mask[i] = 0;
-    for (j = i + 1; j < 8; j++)
-      right_side_empty_mask[i] = right_side_empty_mask[i] | file_mask[j];
-    left_side_empty_mask[i] = 0;
-    for (j = i - 1; j >= 0; j--)
-      left_side_empty_mask[i] = left_side_empty_mask[i] | file_mask[j];
-  }
   mask_fgh = file_mask[FILEF] | file_mask[FILEG] | file_mask[FILEH];
   mask_efgh =
       file_mask[FILEE] | file_mask[FILEF] | file_mask[FILEG] | file_mask[FILEH];
@@ -1179,12 +1182,6 @@ void InitializeMasks(void)
   mask_qr_trapped_b[0] = SetMask(A7);
   mask_qr_trapped_b[1] = SetMask(A8) | SetMask(A7);
   mask_qr_trapped_b[2] = SetMask(A8) | SetMask(B8) | SetMask(A7);
-
-  mask_abs7_w = rank_mask[RANK7] ^ (SetMask(H7) | SetMask(A7));
-  mask_abs7_b = rank_mask[RANK2] ^ (SetMask(H2) | SetMask(A2));
-
-  mask_WBT = SetMask(A7) | SetMask(B8) | SetMask(H7) | SetMask(G8);
-  mask_BBT = SetMask(A2) | SetMask(B1) | SetMask(H2) | SetMask(G1);
 
   mask_A3B3 = SetMask(A3) | SetMask(B3);
   mask_B3C3 = SetMask(B3) | SetMask(C3);
@@ -1316,7 +1313,7 @@ void InitializePawnMasks(void)
    these two masks have 1's on dark squares and light squares
    to test to see if pawns/bishops are on them.
  */
-  m1 = Mask(1);
+  m1 = (BITBOARD) 1 << 63;
   m2 = m1 >> 1;
   for (i = 1; i < 4; i++) {
     m1 = m1 | m1 >> 2;
@@ -1354,26 +1351,12 @@ void InitializePawnMasks(void)
   mask_not_edge =
       ~(rank_mask[RANK1] | rank_mask[RANK8] | file_mask[FILEA] |
       file_mask[FILEH]);
-/* 
-   these masks have 1's on the squares where it is useful to have a bishop
-   when the b or g pawn is missing or pushed one square.
- */
-  good_bishop_kw = SetMask(G2) | SetMask(F1) | SetMask(H1);
-  good_bishop_qw = SetMask(B2) | SetMask(A1) | SetMask(C1);
-  good_bishop_kb = SetMask(G7) | SetMask(F8) | SetMask(H8);
-  good_bishop_qb = SetMask(B7) | SetMask(A8) | SetMask(C8);
 }
 
 void InitializePieceMasks(void)
 {
   int i, j;
 
-/*
- initialize masks used to evaluate development, which includes
- minor piece squares.
- */
-  white_minor_pieces = mask_2 >> 1 | mask_2 >> 5;
-  black_minor_pieces = mask_2 >> 57 | mask_2 >> 61;
 /*
  initialize masks used to evaluate pawn races.  these masks are
  used to determine if the opposing king is in a position to stop a
@@ -1465,6 +1448,58 @@ void InitializeRandomHash(void)
   }
 }
 
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   InitlializeSharedData() is used to initialize the shared data that can    *
+ *   not be initialized normally since it is in a shared memory (SYSV) memory  *
+ *   block.                                                                    *
+ *                                                                             *
+ *******************************************************************************
+ */
+void InitializeSharedData(void)
+{
+  shared->smp_idle = 0;
+  shared->smp_threads = 0;
+  shared->initialized_threads = 0;
+  shared->crafty_is_white = 0;
+  shared->average_nps = 0;
+  shared->nodes_between_time_checks = 1000000;
+  shared->nodes_per_second = 1000000;
+  shared->transposition_id = 0;
+  shared->thinking = 0;
+  shared->pondering = 0;
+  shared->puzzling = 0;
+  shared->booking = 0;
+  shared->time_limit = 100;
+  shared->trojan_check = 0;
+  shared->computer_opponent = 0;
+  shared->max_threads = 0;
+  shared->min_thread_depth = 3 * PLY;
+  shared->max_thread_group = 4;
+  shared->split_at_root = 1;
+  shared->noise_level = 200000;
+  shared->quit = 0;
+  shared->display_options = 4095 - 256 - 512;
+  shared->tc_moves = 60;
+  shared->tc_time = 180000;
+  shared->tc_time_remaining = 180000;
+  shared->tc_time_remaining_opponent = 180000;
+  shared->tc_moves_remaining = 60;
+  shared->tc_secondary_moves = 30;
+  shared->tc_secondary_time = 90000;
+  shared->tc_increment = 0;
+  shared->tc_sudden_death = 0;
+  shared->tc_operator_time = 0;
+  shared->tc_safety_margin = 0;
+  shared->draw_score[0] = 0;
+  shared->draw_score[1] = 0;
+  shared->move_number = 1;
+  shared->moves_out_of_book = 0;
+  shared->first_nonbook_factor = 0;
+  shared->first_nonbook_span = 0;
+}
+
 #if defined(SMP)
 /*
  *******************************************************************************
@@ -1486,7 +1521,7 @@ void InitializeZeroMasks(void)
 {
   int i, j, dist, maxd;
 
-#if !defined(CRAY1) && !defined(_M_AMD64) && !defined (_M_IA64) && !defined(INLINE_ASM)
+#if !defined(CRAY1) && !defined(_M_AMD64) && !defined (_M_IA64) && !defined(INLINE32)
   int maskl, maskr;
 
   first_one[0] = 16;

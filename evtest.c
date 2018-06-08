@@ -45,7 +45,6 @@ void EVTest(char *filename)
     printf("file %s does not exist.\n", filename);
     return;
   }
-  test_mode = 1;
   while (1) {
     eof = fgets(buffer, 512, test_input);
     if (eof) {
@@ -63,7 +62,8 @@ void EVTest(char *filename)
     if (!strcmp(args[0], "end"))
       break;
     else {
-      int s, id;
+      int s1, s2, s3, s4, id;
+      char buff[256];
 
       for (id = 2; id < nargs; id++)
         if (!strcmp(args[id], "id"))
@@ -71,18 +71,47 @@ void EVTest(char *filename)
       if (id >= nargs)
         id = 0;
       SetBoard(&tree->position[0], nargs, args, 0);
+      strcpy(buff, args[0]);
+
       WhiteCastle(0) = 0;
+      WhiteCastle(1) = 0;
       BlackCastle(0) = 0;
+      BlackCastle(1) = 0;
       shared->root_wtm = wtm;
-      PreEvaluate(tree, wtm);
+      PreEvaluate(tree);
       tree->pawn_score.key = 0;
-      DisplayChessBoard(stdout, tree->pos);
-      s = Evaluate(tree, 0, 1, -999999, 999999);
-      if (id)
-        Print(4095, "id=%s  ", args[id + 1]);
-      Print(4095, "score=%d\n", s);
+      s1 = Evaluate(tree, 0, wtm);
+
+      strcpy(buffer, "flop");
+      (void) Option(tree);
+      PreEvaluate(tree);
+      tree->pawn_score.key = 0;
+      s2 = Evaluate(tree, 0, wtm);
+
+      strcpy(buffer, "flip");
+      (void) Option(tree);
+      PreEvaluate(tree);
+      tree->pawn_score.key = 0;
+      s3 = Evaluate(tree, 0, wtm);
+
+      strcpy(buffer, "flop");
+      (void) Option(tree);
+      PreEvaluate(tree);
+      tree->pawn_score.key = 0;
+      s4 = Evaluate(tree, 0, wtm);
+
+      if (s1 != s2 || s1 != s3 || s1 != s4 || s2 != s3 || s2 != s4 ||
+          s3 != s4) {
+        strcpy(buffer, "flip");
+        (void) Option(tree);
+        printf("FEN = %s\n", buff);
+        DisplayChessBoard(stdout, tree->pos);
+        if (id)
+          Print(4095, "id=%s  ", args[id + 1]);
+        Print(4095, "wtm=%d  score=%d  %d (flop)  %d (flip)  %d (flop)\n", wtm, s1, s2, s3,
+            s4);
+      }
     }
   }
   input_stream = stdin;
-  test_mode = 0;
 }

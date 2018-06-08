@@ -65,7 +65,6 @@ void Test(char *filename)
     return;
   }
 
-  test_mode = 1;
   if (book_file) {
     fclose(book_file);
     fclose(books_file);
@@ -135,7 +134,6 @@ void Test(char *filename)
       Print(4095, "\n");
       InitializeHashTables();
       last_pv.pathd = 0;
-      shared->largest_positional_score = 300;
       shared->thinking = 1;
       tree->position[1] = tree->position[0];
       (void) Iterate(wtm, think, 0);
@@ -187,7 +185,6 @@ void Test(char *filename)
   }
   input_stream = stdin;
   early_exit = 99;
-  test_mode = 0;
 }
 
 /* last modified 08/07/05 */
@@ -237,7 +234,6 @@ void TestEPD(char *filename)
     printf("file %s does not exist.\n", filename);
     return;
   }
-  test_mode = 1;
   if (book_file) {
     fclose(book_file);
     fclose(books_file);
@@ -313,7 +309,6 @@ void TestEPD(char *filename)
     Print(4095, "\n");
     InitializeHashTables();
     last_pv.pathd = 0;
-    shared->largest_positional_score = 300;
     shared->thinking = 1;
     tree->position[1] = tree->position[0];
     (void) Iterate(wtm, think, 0);
@@ -364,5 +359,4 @@ void TestEPD(char *filename)
   }
   input_stream = stdin;
   early_exit = 99;
-  test_mode = 0;
 }

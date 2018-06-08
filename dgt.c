@@ -82,7 +82,7 @@ void DGTInit(int nargs, char *args[])
     dup2(1, fileno(stderr));
     execve("dgt", argv, env);
     printf("ERROR: unable to execute dgt driver!\n");
-    exit(1);
+    CraftyExit(1);
   }
   close(tp[0]);
   close(fp[1]);

@@ -3,20 +3,7 @@
 #include "chess.h"
 #include "data.h"
 
-BITBOARD Mask(int arg1)
-{
-  register BITBOARD i;
-
-  i = (BITBOARD) - 1;
-  if (arg1 == 128)
-    return (0);
-  else if (arg1 > 64)
-    return (i >> (arg1 - 64));
-  else
-    return (i << (64 - arg1));
-}
-
-#if (!defined(INLINE_ASM) && !defined(VC_INLINE_ASM) && !defined(ALPHA) && !defined(INLINE_AMD)) || (defined(ALPHA) && !defined(PopCnt))
+#if (!defined(INLINE32) && !defined(VC_INLINE32) && !defined(ALPHA) && !defined(INLINE64)) || (defined(ALPHA) && !defined(PopCnt))
 
 #  if defined (_M_IA64)
 
@@ -56,7 +43,7 @@ int PopCnt(register BITBOARD a)
 
 #  else
 
-#    if !defined(INLINE_ASM) && !defined(VC_INLINE_ASM)
+#    if !defined(INLINE32) && !defined(VC_INLINE32)
 int PopCnt(register BITBOARD a)
 {
   register int c = 0;
@@ -102,7 +89,7 @@ int LastOne(BITBOARD arg1)
 
 #  else
 
-#    if !defined(INLINE_ASM) && !defined(VC_INLINE_ASM)
+#    if !defined(INLINE32) && !defined(VC_INLINE32)
 int FirstOne(BITBOARD arg1)
 {
   if (arg1 >> 48)

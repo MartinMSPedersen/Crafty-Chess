@@ -132,11 +132,13 @@ void BookClusterOut(FILE * file, int positions, BOOK_POSITION * buffer)
  */
 float BookIn32f(unsigned char *ch)
 {
-  int v1;
-  float *v2 = (float *) &v1;
+  union {
+    float fv;
+    int iv;
+  } temp;
 
-  v1 = (ch[3] << 24) | (ch[2] << 16) | (ch[1] << 8) | ch[0];
-  return (*v2);
+  temp.iv = (ch[3] << 24) | (ch[2] << 16) | (ch[1] << 8) | ch[0];
+  return (temp.fv);
 }
 
 /*
@@ -201,14 +203,16 @@ unsigned char *BookOut32(int val)
  */
 unsigned char *BookOut32f(float val)
 {
-  float v1;
-  int *v2 = (int *) &v1;
+  union {
+    float fv;
+    int iv;
+  } temp;
 
-  v1 = val;
-  convert_buff[3] = (*v2 >> 24) & 0xff;
-  convert_buff[2] = (*v2 >> 16) & 0xff;
-  convert_buff[1] = (*v2 >> 8) & 0xff;
-  convert_buff[0] = *v2 & 0xff;
+  temp.fv = val;
+  convert_buff[3] = (temp.iv >> 24) & 0xff;
+  convert_buff[2] = (temp.iv >> 16) & 0xff;
+  convert_buff[1] = (temp.iv >> 8) & 0xff;
+  convert_buff[0] = temp.iv & 0xff;
   return (convert_buff);
 }
 
@@ -394,6 +398,23 @@ void ClearHashTableScores(int dopawnstoo)
     }
   }
   shared->local[0]->pawn_score.key = 0;
+}
+
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   CraftyExit() is used to terminate the program.  the main functionality    *
+ *   is to make sure the "quit" flag is set so that any spinning threads will  *
+ *   also exit() rather than spinning forever which can cause GUIs to hang     *
+ *   since all processes have not terminated.                                  *
+ *                                                                             *
+ *******************************************************************************
+ */
+void CraftyExit(int exit_type)
+{
+  shared->abort_search = 1;
+  shared->quit = 1;
+  exit(exit_type);
 }
 
 /*
@@ -735,6 +756,19 @@ char *DisplayHHMM(unsigned int time)
 
   time = time / 6000;
   sprintf(out, "%3u:%02u", time / 60, time % 60);
+  return (out);
+}
+
+char *DisplayKM(unsigned int val)
+{
+  static char out[10];
+
+  if (val < 1000)
+    sprintf(out, "%d", val);
+  else if (val < 1000000)
+    sprintf(out, "%dK", val / 1000);
+  else
+    sprintf(out, "%.1fM", (float) val / 1000000);
   return (out);
 }
 
@@ -1268,12 +1302,12 @@ int KingPawnSquare(int pawn, int king, int queen, int ptm)
  */
 void NewGame(int save)
 {
-  char filename[64];
   static int save_book_selection_width = 5;
   static int save_kibitz = 0, save_channel = 0;
   static int save_resign = 0, save_resign_count = 0, save_draw_count = 0;
   static int save_learning = 0;
   static int save_accept_draws = 0;
+  int id;
   TREE *const tree = shared->local[0];
 
   new_game = 0;
@@ -1324,14 +1358,15 @@ void NewGame(int save)
         fclose(log_file);
       if (history_file)
         fclose(history_file);
-      if (log_file) {
-        if (log_id < 299)
-          log_id++;
-        sprintf(filename, "%s/log.%03d", log_path, log_id);
-        log_file = fopen(filename, "w+");
+      id = InitializeGetLogID();
+      sprintf(log_filename, "%s/log.%03d", log_path, id);
+      sprintf(history_filename, "%s/game.%03d", log_path, id);
+      log_file = fopen(log_filename, "w");
+      history_file = fopen(history_filename, "w+");
+      if (!history_file) {
+        printf("ERROR, unable to open game history file, exiting\n");
+        CraftyExit(1);
       }
-      sprintf(filename, "%s/game.%03d", log_path, log_id);
-      history_file = fopen(filename, "w+");
     }
     move_actually_played = 0;
     book_selection_width = save_book_selection_width;
@@ -1345,11 +1380,9 @@ void NewGame(int save)
     draw_counter = 0;
     usage_level = 0;
     learning = save_learning;
-    shared->largest_positional_score = 300;
     predicted = 0;
     shared->kibitz_depth = 0;
     tree->nodes_searched = 0;
-    tree->last_history_age_nodes = 0;
     tree->fail_high = 0;
     tree->fail_high_first = 0;
     shared->kibitz_text[0] = 0;
@@ -1795,7 +1828,7 @@ int ReadInput(void)
     return (0);
   } else if (bytes < 0) {
     Print(4095, "ERROR!  input I/O stream is unreadable, exiting.\n");
-    exit(1);
+    CraftyExit(1);
   }
   end = cmd_buffer + strlen(cmd_buffer);
   memcpy(end, buffer, bytes);
@@ -2196,7 +2229,6 @@ void CopyFromSMP(TREE * RESTRICT p, TREE * RESTRICT c, int value)
     p->search_value = value;
     for (i = 1; i < MAXPLY; i++)
       p->killers[i] = c->killers[i];
-    memcpy(p->history_w, c->history_w, 2 * sizeof(p->history_w));
   }
   p->nodes_searched += c->nodes_searched;
   p->fail_high += c->fail_high;
@@ -2207,12 +2239,13 @@ void CopyFromSMP(TREE * RESTRICT p, TREE * RESTRICT c, int value)
   p->transposition_good_hits += c->transposition_good_hits;
   p->transposition_uppers += c->transposition_uppers;
   p->transposition_lowers += c->transposition_lowers;
-  p->transposition_exacts += c->transposition_exacts;
   p->egtb_probes += c->egtb_probes;
   p->egtb_probes_successful += c->egtb_probes_successful;
   p->check_extensions_done += c->check_extensions_done;
   p->one_reply_extensions_done += c->one_reply_extensions_done;
   p->mate_extensions_done += c->mate_extensions_done;
+  p->reductions_attempted += c->reductions_attempted;
+  p->reductions_done += c->reductions_done;
   strcpy(c->root_move_text, p->root_move_text);
   c->used = 0;
 }
@@ -2230,15 +2263,20 @@ TREE *CopyToSMP(TREE * RESTRICT p, int thread)
 {
   int i, j, max;
   TREE *c;
+  static int warnings = 0;
   int first = thread * MAX_BLOCKS_PER_CPU + 1;
   int last = first + MAX_BLOCKS_PER_CPU;
   int maxb = shared->max_threads * MAX_BLOCKS_PER_CPU + 1;
 
   for (i = first; i < last && shared->local[i]->used; i++);
   if (i >= last) {
+    if (++warnings < 6)
+      Print(128, "WARNING.  optimal SMP block cannot be allocated, thread %d\n",
+          thread);
     for (i = 1; i < maxb && shared->local[i]->used; i++);
-    if (i >= last) {
-      Print(128, "ERROR.  no SMP block can be allocated\n");
+    if (i >= maxb) {
+      if (warnings < 6)
+        Print(128, "ERROR.  no SMP block can be allocated\n");
       return (0);
     }
   }
@@ -2271,9 +2309,7 @@ TREE *CopyToSMP(TREE * RESTRICT p, int thread)
   }
   for (i = 1; i < MAXPLY; i++)
     c->killers[i] = p->killers[i];
-  memcpy(c->history_w, p->history_w, 2 * sizeof(c->history_w));
   c->nodes_searched = 0;
-  c->last_history_age_nodes = 0;
   c->fail_high = 0;
   c->fail_high_first = 0;
   c->evaluations = 0;
@@ -2288,6 +2324,8 @@ TREE *CopyToSMP(TREE * RESTRICT p, int thread)
   c->check_extensions_done = 0;
   c->mate_extensions_done = 0;
   c->one_reply_extensions_done = 0;
+  c->reductions_attempted = 0;
+  c->reductions_done = 0;
   c->alpha = p->alpha;
   c->beta = p->beta;
   c->value = p->value;
@@ -2296,9 +2334,6 @@ TREE *CopyToSMP(TREE * RESTRICT p, int thread)
   c->depth = p->depth;
   c->mate_threat = p->mate_threat;
   c->search_value = 0;
-  c->next_time_check =
-      Min(shared->nodes_between_time_checks / Max(shared->max_threads, 1),
-      p->next_time_check);
   strcpy(c->root_move_text, p->root_move_text);
   strcpy(c->remaining_moves_text, p->remaining_moves_text);
   return (c);
@@ -2321,15 +2356,9 @@ TREE *CopyToSMP(TREE * RESTRICT p, int thread)
 void Kibitz(int level, int wtm, int depth, int time, int value, BITBOARD nodes,
     int tb_hits, char *pv)
 {
-
   int nps;
-  char snps[32];
 
   nps = (int) ((time) ? 100 * nodes / (BITBOARD) time : nodes);
-  if (nps < 1000000)
-    sprintf(snps, "%dK", nps / 1000);
-  else
-    sprintf(snps, "%.2fM", (float) nps / 1000000.0);
   if (!shared->puzzling) {
     char prefix[128];
 
@@ -2361,8 +2390,8 @@ void Kibitz(int level, int wtm, int depth, int time, int value, BITBOARD nodes,
         if (ics)
           printf("*");
         printf("%s ply=%d; eval=%s; nps=%s; time=%s; egtb=%d\n", prefix, depth,
-            DisplayEvaluationKibitz(value, wtm), snps, DisplayTimeKibitz(time),
-            tb_hits);
+            DisplayEvaluationKibitz(value, wtm), DisplayKM(nps),
+            DisplayTimeKibitz(time), tb_hits);
       }
     case 3:
       if ((kibitz & 15) >= 3 && (nodes > 5000 || level == 2)) {
@@ -2382,7 +2411,7 @@ void Kibitz(int level, int wtm, int depth, int time, int value, BITBOARD nodes,
       if ((kibitz & 15) >= 5 && nodes > 5000) {
         if (ics)
           printf("*");
-        printf("%s d%d-> %s/s %s %s %s ", prefix, depth, snps,
+        printf("%s d%d-> %s/s %s %s %s ", prefix, depth, DisplayKM(nps),
             DisplayTimeKibitz(time), DisplayEvaluationKibitz(value, wtm), pv);
         if (tb_hits)
           printf("egtb=%d", tb_hits);
@@ -2395,12 +2424,12 @@ void Kibitz(int level, int wtm, int depth, int time, int value, BITBOARD nodes,
           printf("*");
         if (wtm)
           printf("%s d%d+ %s/s %s >(%s) %s <re-searching>\n", prefix, depth,
-              snps, DisplayTimeKibitz(time), DisplayEvaluationKibitz(value,
-                  wtm), pv);
+              DisplayKM(nps), DisplayTimeKibitz(time),
+              DisplayEvaluationKibitz(value, wtm), pv);
         else
           printf("%s d%d+ %s/s %s <(%s) %s <re-searching>\n", prefix, depth,
-              snps, DisplayTimeKibitz(time), DisplayEvaluationKibitz(value,
-                  wtm), pv);
+              DisplayKM(nps), DisplayTimeKibitz(time),
+              DisplayEvaluationKibitz(value, wtm), pv);
       }
       break;
     }
@@ -2639,7 +2668,7 @@ void *WinMallocInterleaved(size_t cbBytes, int cThreads)
     pBase = (char *) VirtualAlloc(NULL, cbBytes, MEM_RESERVE, PAGE_NOACCESS);
     if (pBase == NULL) {
       printf("VirtualAlloc() reserve failed\n");
-      exit(0);
+      CraftyExit(0);
     }
 // Now walk through memory, committing each page
     hThread = GetCurrentThread();
@@ -2695,7 +2724,7 @@ void *SharedMalloc(size_t size, int tid)
     Print(4095,
         "        are requesting.  \"echo 1000000000 > /proc/sys/kernel/shmmax\"\n");
     Print(4095, "        will allow a segment up to one billion bytes.\n");
-    exit(1);
+    CraftyExit(1);
   }
   shared = shmat(shmid, 0, 0);
   shmctl(shmid, IPC_RMID, 0);

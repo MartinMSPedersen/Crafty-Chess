@@ -60,10 +60,10 @@
 #                     are found.  default = "./TB"
 #   -DTRACE           This enables the "trace" command so that the search tree
 #                     can be dumped while running.
-#   -DINLINE_AMD      Compiles with the Intel assembly code for FirstOne(),
+#   -DINLINE64        Compiles with the Intel assembly code for FirstOne(),
 #                     LastOne() and PopCnt() for the AMD opteron, only tested
-#                     with the 64-bit opteron GCC compiler.
-#   -DINLINE_ASM      Compiles with the Intel assembly code for FirstOne(),
+#                     with the 64-bit opteron GCC compiler / Intel ICC compiler.
+#   -DINLINE32        Compiles with the Intel assembly code for FirstOne(),
 #                     LastOne() and PopCnt().  This is for gcc-style inlining
 #                     and now works with the Intel C/C++ compiler as well.
 #   -DNOEGTB          eliminates the egtb code for compilers that can't deal
@@ -176,11 +176,11 @@ linux:
 		CC=gcc CXX=g++ \
 		CFLAGS='$(CFLAGS) -Wall -pipe -D_REENTRANT -march=i686 -O3 \
 			-fbranch-probabilities -fforce-mem -fomit-frame-pointer\
-			-g -fno-gcse -mpreferred-stack-boundary=2' \
+			-fno-gcse -mpreferred-stack-boundary=2' \
 		CXFLAGS=$(CFLAGS) \
-		LDFLAGS='$(LDFLAGS) -g -lstdc++' \
-		opt='$(opt) -DFAST -DINLINE_ASM \
-			-DTRACE -DSMP -DCPUS=2' \
+		LDFLAGS='$(LDFLAGS) -lstdc++' \
+		opt='$(opt) -DFAST -DINLINE32 \
+			-DSMP -DCPUS=2' \
 		crafty-make
 
 linux-amd64-profile:
@@ -189,9 +189,9 @@ linux-amd64-profile:
                 CFLAGS='$(CFLAGS) -Wall -pipe -D_REENTRANT \
                         -fprofile-arcs -fomit-frame-pointer -O3 -march=k8' \
 		CXFLAGS=$(CFLAGS) \
-		LDFLAGS='$(LDFLAGS) -lnuma -lstdc++' \
+		LDFLAGS='$(LDFLAGS) -lnuma -fprofile-arcs -lstdc++' \
 		opt='$(opt)-DFAST -DSMP -DNUMA -DLIBNUMA -DCPUS=8 \
-			-DUSE_ASSEMBLY -DINLINE_AMD' \
+			-DUSE_ASSEMBLY -DINLINE64' \
 		crafty-make
 
 linux-amd64:
@@ -202,18 +202,18 @@ linux-amd64:
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS='$(LDFLAGS) -lnuma -lstdc++' \
 		opt='$(opt) -DFAST -DSMP -DNUMA -DLIBNUMA -DCPUS=8 \
-			-DUSE_ASSEMBLY -DINLINE_AMD' \
+			-DUSE_ASSEMBLY -DINLINE64' \
 		crafty-make
 
 linux-profile:
 	$(MAKE) target=LINUX \
 		CC=gcc CXX=g++ \
 		CFLAGS='$(CFLAGS) -Wall -pipe -D_REENTRANT -march=i686 -O3 \
-			-fprofile-arcs -fforce-mem \
+			-fprofile-arcs -fforce-mem -fomit-frame-pointer \
 			-fno-gcse -mpreferred-stack-boundary=2' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS='$(LDFLAGS) -fprofile-arcs -lstdc++ ' \
-		opt='$(opt) -DINLINE_ASM -DFAST \
+		opt='$(opt) -DINLINE32 -DFAST \
 			-DSMP -DCPUS=2' \
 		crafty-make
 
@@ -226,7 +226,7 @@ linux-icc-profile:
 		CXFLAGS='$(CFLAGS) -D_REENTRANT -O2 \
 			-w -xN -prof_genx -prof_dir ./profdir' \
 		LDFLAGS='$(LDFLAGS) -lstdc++ ' \
-		opt='$(opt) -DFAST -DINLINE_ASM \
+		opt='$(opt) -DFAST -DINLINE32 \
 			-DSMP -DCPUS=2' \
 		crafty-make
 
@@ -239,7 +239,7 @@ linux-icc:
 		CXFLAGS='$(CFLAGS) -D_REENTRANT -O2 \
 			-w -xN -prof_use -prof_dir ./profdir' \
 		LDFLAGS='$(LDFLAGS) -lstdc++' \
-		opt='$(opt) -DFAST -DINLINE_ASM \
+		opt='$(opt) -DFAST -DINLINE32 \
 			-DSMP -DCPUS=2' \
 		crafty-make
 
@@ -438,14 +438,14 @@ profile:
 #  compiling both ways to see which way produces the fastest code.
 #
 
-#objects = searchr.o search.o thread.o searchmp.o repeat.o next.o nexte.o      \
+objects = searchr.o search.o thread.o searchmp.o repeat.o next.o nexte.o      \
        nextr.o history.o quiesce.o evaluate.o movgen.o make.o unmake.o hash.o  \
        attacks.o swap.o boolean.o utility.o valid.o probe.o book.o data.o      \
        drawn.o edit.o epd.o epdglue.o init.o input.o interupt.o iterate.o      \
        main.o option.o output.o ponder.o preeval.o resign.o root.o learn.o     \
        setboard.o test.o time.o validate.o annotate.o analyze.o evtest.o       \
        bench.o egtb.o dgt.o
-objects = crafty.o egtb.o
+#objects = crafty.o egtb.o
 
 # Do not change anything below this line!
 

@@ -24,7 +24,7 @@
  *                        search at the time this position was stored.         *
  *      15     draft  17  the depth of the search below this position, which is*
  *                        used to see if we can use this entry at the current  *
- *                        position.  note that this is in units of 1/60th of a *
+ *                        position.  note that this is in units of 1/4th of a  *
  *                        ply.                                                 *
  *      17     value   0  unsigned integer value of this position + 65536.     *
  *                        this might be a good score or search bound.          *
