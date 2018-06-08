@@ -76,7 +76,12 @@ static void _local_assert (int lineno)
 #define dprintf(x)   ((void) 0)
 #endif
 
+/* mob_pach */
+#ifndef  __cplusplus
+int cbEGTBCompBytes = 0;
+#else
 extern "C" { int cbEGTBCompBytes = 0; }
+#endif
 
 /* --------------------- Constants, types, etc. ----------------------- */
 /*                       ----------------------                         */

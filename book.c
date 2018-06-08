@@ -218,6 +218,8 @@ int Book(TREE *tree, int wtm, int root_list_done) {
 |                                                          |
  ----------------------------------------------------------
 */
+    for (i=0;i<nmoves;i++)
+      if (!(book_status[i]&BAD_MOVE)) maxp=Max(maxp,bs_played[i]);
     for (i=0;i<nmoves;i++) {
       if (bs_learn[i] <= LEARN_COUNTER_BAD && !bs_percent[i] &&
           !(book_status[i] & 030)) book_status[i]|=BAD_MOVE;

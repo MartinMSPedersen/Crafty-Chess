@@ -210,10 +210,10 @@ linux-i686-elf:
 		CFLAGS='$(CFLAGS) -Wall -pipe -D_REENTRANT -march=i686 -O \
 			-fforce-mem -fomit-frame-pointer \
 			-fno-gcse -mpreferred-stack-boundary=2' \
-		LDFLAGS='$(LDFLAGS) -lpthread' \
+		LDFLAGS='$(LDFLAGS)' \
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
 		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST \
-		     -DSMP -DCPUS=4 -DDGT' \
+		     -DSMP -DCPUS=4 -DCLONE -DDGT' \
 		asm=X86-elf.o \
 		crafty-make
 

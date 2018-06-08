@@ -228,7 +228,8 @@ int ThreadWait(int tid, TREE *waiting) {
 |                                                          |
  ----------------------------------------------------------
 */
-    while (!thread[tid] && (!waiting || waiting->nprocs));
+    while (!thread[tid] && !quit && (!waiting || waiting->nprocs));
+    if (quit) exit(0);
     Lock(lock_smp);
     if (!thread[tid]) thread[tid]=waiting;
 /*

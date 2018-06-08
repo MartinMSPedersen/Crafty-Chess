@@ -7,6 +7,9 @@
 #if defined(UNIX) || defined(AMIGA)
 #  include <unistd.h>
 #endif
+#if defined(UNIX)
+#  include <sys/stat.h>
+#endif
 #include "epdglue.h"
 #if defined(NT_i386) || defined(NT_AXP)
 #  include <fcntl.h>  /* needed for definition of "_O_BINARY" */
@@ -127,6 +130,9 @@ void Initialize(int continuing) {
 */
   int i, j, major, minor;
   TREE *tree;
+#if defined(UNIX)
+  struct stat *fileinfo=malloc(sizeof(struct stat));
+#endif
 
 #if defined(SMP)
   for (i=1;i<MAX_BLOCKS+1;i++) {
@@ -296,6 +302,26 @@ void Initialize(int continuing) {
     if (!log_file) break;
     fclose(log_file);
   }
+#if defined(UNIX)
+/*  a kludge to work around an xboard 4.2.3 problem.  It sends two "quit"
+    commands, which causes every other log.nnn file to be empty.  this code
+    looks for a very small log.nnn file as the last one, and if it is small,
+    then we simply overwrite it to solve this problem temporarily.  this will
+    be removed when the nexto xboard version comes out to fix this extra quit
+    problem.                                                               */
+  do {
+    char tfn[128];
+    FILE *tlog;
+    sprintf(tfn,"%s/log.%03d",log_path,log_id-1);
+    tlog=fopen(tfn,"r+");
+    if (!tlog) break;
+    i=fstat(fileno(tlog),fileinfo);
+    if (fileinfo->st_size > 1200) break;
+    log_id--;
+    sprintf(log_filename,"%s/log.%03d",log_path,log_id);
+    sprintf(history_filename,"%s/game.%03d",log_path,log_id);
+  } while(0);
+#endif
   if (continuing) {
     log_id--;
     sprintf(log_filename,"%s/log.%03d",log_path,log_id);

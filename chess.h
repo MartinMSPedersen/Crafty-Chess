@@ -45,7 +45,12 @@
 #    include <windows.h>
 #    include <process.h>
 #  elif defined(LINUX) || defined(ALPHA) || defined(POSIX)
-#    include <pthread.h>
+#    if !defined(CLONE)
+#      include <pthread.h>
+#    endif
+#    if defined(CLONE)
+#      include <sched.h>
+#    endif
 #  endif
 #endif
 

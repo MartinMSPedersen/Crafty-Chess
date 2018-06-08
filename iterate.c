@@ -52,6 +52,7 @@ int Iterate(int wtm, int search_type, int root_list_done) {
   elapsed_start=ReadClock(elapsed);
   root_wtm=wtm;
   PreEvaluate(tree,wtm);
+  whisper_depth=0;
   tree->nodes_searched=0;
   tree->fail_high=0;
   tree->fail_high_first=0;
@@ -192,7 +193,9 @@ int Iterate(int wtm, int search_type, int root_list_done) {
 */
 #if defined(SMP)
     if (max_threads>smp_idle+1) {
-      pthread_t pt;
+#     if !defined(CLONE)
+        pthread_t pt;
+#     endif
       int proc;
       for (proc=smp_threads+1;proc<max_threads;proc++) {
         Print(128,"starting thread %d\n",proc);
@@ -479,5 +482,6 @@ int Iterate(int wtm, int search_type, int root_list_done) {
   }
   program_end_time=ReadClock(time_type);
   search_move=0;
+  if (quit) exit(0);
   return(last_root_value);
 }

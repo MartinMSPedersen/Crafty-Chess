@@ -13,6 +13,7 @@
   extern int            number_of_GMs;
   extern int            number_of_IMs;
   extern int            number_of_blockers;
+  extern int            number_to_play;
   extern int            time_used;
   extern int            time_used_opponent;
   extern int            cpu_time_used;
@@ -26,6 +27,7 @@
   extern char           IM_list[512][20];
   extern char           computer_list[512][20];
   extern char           blocker_list[512][20];
+  extern char           toplay_list[512][20];
   extern FILE           *input_stream;
   extern FILE           *book_file;
   extern FILE           *books_file;
@@ -152,6 +154,7 @@
   extern int            burp;
 
   extern int            time_abort;
+  extern volatile int   quit;
   extern signed char    pondering;   /* thinking on opponent's time     */
   extern signed char    thinking;    /* searching on its time           */
   extern signed char    puzzling;    /* puzzling about a move to ponder */
@@ -210,6 +213,7 @@
   extern int            tc_safety_margin;
   extern int            trojan_check;
   extern int            computer_opponent;
+  extern int            use_asymmetry;
   extern int            usage_level;
   extern int            log_hash;
   extern int            log_pawn_hash;
@@ -460,12 +464,17 @@
 
   extern unsigned int   thread_start_time[CPUS];
 # if defined(SMP)
+#   if defined(CLONE)
+      extern int        pids[CPUS];
+#   endif
   extern TREE           *local[MAX_BLOCKS+1];
   extern TREE           *volatile thread[CPUS];
   extern lock_t         lock_smp, lock_io, lock_root;
   extern volatile int   smp_idle;
   extern volatile int   smp_threads;
+# if !defined(CLONE)
   extern pthread_attr_t pthread_attr;
+# endif
 # else
   extern TREE           local_data[1], *local[1];
 # endif

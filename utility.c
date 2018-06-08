@@ -418,6 +418,9 @@ void DisplayPV(TREE *tree, int level, int wtm, int time, int value, PATH *pv) {
     sprintf(buffer+strlen(buffer)," <EGTB>");
   strcpy(whisper_text,buffer);
   if (root_print_ok) {
+#if defined(SMP)
+    Lock(lock_io);
+#endif
     if (nskip <= 1)
       Print(type,"               ");
     else
@@ -442,6 +445,9 @@ void DisplayPV(TREE *tree, int level, int wtm, int time, int value, PATH *pv) {
     Whisper(level,twtm,iteration_depth,end_time-start_time,value,
             tree->nodes_searched,0,tree->egtb_probes_successful,
             whisper_text);
+#if defined(SMP)
+    UnLock(lock_io);
+#endif
   }
   for (i=pv->pathl;i>0;i--) {
     wtm=ChangeSide(wtm);
@@ -572,6 +578,7 @@ void EGTBPV(TREE *tree, int wtm) {
  ----------------------------------------------------------
 */
   if (!EGTB_setup) return;
+  tree->position[1]=tree->position[0];
   if(!EGTBProbe(tree, 1, wtm, &value)) return;
   t_move_number=move_number;
   if (display_options&64) sprintf(buffer,"%d.",move_number);
@@ -904,7 +911,7 @@ void NewGame(int save) {
     }
     if (ics) printf("*whisper Hello from Crafty v%s !\n",version);
     if (xboard) {
-      printf("tellics set 1 Crafty v%s (%d cpus)\n",
+      printf("tellicsnoalias set 1 Crafty v%s (%d cpus)\n",
              version,Max(1,max_threads));
     }
     over=0;

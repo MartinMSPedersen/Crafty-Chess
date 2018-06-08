@@ -38,6 +38,7 @@ int Option(TREE *tree) {
   if (!nargs) return(1);
   if (args[0][0] == '#') return(1);
   if (initialized) {
+/*
     if (EGCommandCheck(buffer)) {
       if (thinking || pondering) return (2);
       else {
@@ -45,6 +46,7 @@ int Option(TREE *tree) {
         return (1);
       }
     }
+*/
   }
 /*
  ----------------------------------------------------------
@@ -378,6 +380,7 @@ int Option(TREE *tree) {
     Print(128,"playing a computer!\n");
     computer_opponent=1;
     accept_draws=1;
+    resign=0;
     book_selection_width=1;
     usage_level=0;
     books_file=(computer_bs_file) ? computer_bs_file : normal_bs_file;
@@ -532,7 +535,8 @@ int Option(TREE *tree) {
     if (nargs > 1) {
       if (thinking || pondering) return (2);
       tree->position[1]=tree->position[0];
-      PreEvaluate(tree,wtm);
+      root_wtm=ChangeSide(wtm);
+      PreEvaluate(tree,root_wtm);
       if (OptionMatch("pawn",args[1]))
         DisplayPieceBoards(pval_w,pval_b);
       if (OptionMatch("knight",args[1]))
@@ -722,6 +726,7 @@ int Option(TREE *tree) {
  ----------------------------------------------------------
 */
   else if (OptionMatch("end",*args) || OptionMatch("quit",*args)) {
+    if (tree->thread_id) exit(1);
     last_search_value=(crafty_is_white) ? last_search_value:-last_search_value;
     if (moves_out_of_book)
       LearnBook(tree,wtm,last_search_value,0,0,1);
@@ -738,6 +743,8 @@ int Option(TREE *tree) {
 #if defined(DGT)
     if (DGT_active) write(to_dgt,"exit\n",5);
 #endif
+    abort_search=1;
+    quit=1;  
     exit(0);
   }
 /*
@@ -783,7 +790,8 @@ int Option(TREE *tree) {
       king_safety_tropism=atoi(args[2]);
     }
     else printf("unknown option %s\n",args[1]);
-    PreEvaluate(tree,!wtm);
+    root_wtm=ChangeSide(wtm);
+    PreEvaluate(tree,root_wtm);
     if (OptionMatch("kscale",args[1]) || OptionMatch("asymmetry",args[1])) {
       Print(128,"modified king-safety values:\n");
       Print(128,"white: ");
@@ -1954,6 +1962,36 @@ int Option(TREE *tree) {
           }
           else Print(4095,"error, name must be preceeded by +/- flag.\n");
         }
+        if (!strcmp(listname,"P")) {
+          if (targs[0][0] == '-') {
+            for (i=0;i<number_to_play;i++)
+              if (!strcmp(toplay_list[i],targs[0]+1)) {
+                for (j=i;j<number_to_play;j++)
+                  strcpy(toplay_list[j],blocker_list[j+1]);
+                number_to_play--;
+                i=0;
+                Print(4095,"%s removed from to play list.\n",targs[0]+1);
+                break;
+              }
+          }
+          else if (targs[0][0] == '+') {
+            for (i=0;i<number_to_play;i++)
+              if (!strcmp(toplay_list[i],targs[0]+1)) {
+                Print(4095, "Warning: %s is already in P list.\n",targs[0]+1);
+                break;
+              }
+            if (number_to_play >= 512)
+              Print(4095,"ERROR!  play list is full at 512 entries\n");
+            else if (i==number_to_play) {
+              strcpy(toplay_list[number_to_play++],targs[0]+1);
+              Print(4095,"%s added to play list.\n",targs[0]+1);
+            }
+            }
+          else if (!strcmp(targs[0],"clear")) {
+            number_to_play=0;
+          }
+          else Print(4095,"error, name must be preceeded by +/- flag.\n");
+        }
         if (!strcmp(listname,"C")) {
           if (targs[0][0] == '-') {
             for (i=0;i<number_of_computers;i++)
@@ -2042,6 +2080,11 @@ int Option(TREE *tree) {
       Print(4095, "auto kibitz list:\n");
       for (i=0;i<number_auto_kibitzers;i++)
         Print(4095,"%s\n",auto_kibitz_list[i]);
+    }
+    else if (!strcmp(listname,"P")) {
+      Print(4095, "to play list:\n");
+      for (i=0;i<number_to_play;i++)
+        Print(4095,"%s\n",toplay_list[i]);
     }
   }
 /*
@@ -2393,11 +2436,16 @@ int Option(TREE *tree) {
           break;
         }
     }
+    if (number_to_play) {
+      for (i=0;i<number_to_play;i++)
+        if (!strcmp(toplay_list[i],args[1])) break;
+      if (i == number_to_play) printf("tellics abort\n");
+    }
 #if defined(SMP)
-    printf("kibitz Hello from Crafty v%s! (%d cpus)\n",
+    printf("tellicsnoalias kibitz Hello from Crafty v%s! (%d cpus)\n",
            version,Max(1,max_threads));
 #else
-    printf("kibitz Hello from Crafty v%s!\n",version);
+    printf("tellicsnoalias kibitz Hello from Crafty v%s!\n",version);
 #endif
   }
 /*
@@ -2777,13 +2825,14 @@ int Option(TREE *tree) {
 */
   else if (!strcmp("protover",*args)) {
     int pversion=atoi(args[1]);
-    if (pversion==1 || pversion==2) {
-      if (pversion==2) {
+    if (pversion>=1 && pversion<=3) {
+      if (pversion>=2) {
         Print(4095,"feature ping=1 setboard=1 san=1 time=1 draw=1\n");
         Print(4095,"feature sigint=0 sigterm=0 reuse=1 analyze=1\n");
         Print(4095,"feature myname=\"Crafty-%s\" name=1\n",version);
         Print(4095,"feature playother=1 colors=0\n");
         Print(4095,"variants=\"normal,nocastle\"\n");
+        Print(4095,"done=1\n");
       }
     }
     else Print(4095,"ERROR, bogus xboard protocol version received.\n");
@@ -3366,7 +3415,7 @@ int Option(TREE *tree) {
     if (thinking || pondering) return(2);
     root_wtm=ChangeSide(wtm);
     tree->position[1]=tree->position[0];
-    PreEvaluate(tree,wtm);
+    PreEvaluate(tree,root_wtm);
     s7=Evaluate(tree,1,1,-99999,99999);
     s1=EvaluateMaterial(tree);
     if (opening) {
@@ -3827,6 +3876,19 @@ int Option(TREE *tree) {
 /*
  ----------------------------------------------------------
 |                                                          |
+|   "variant" command sets the wild variant being played   |
+|   on a chess server.  [xboard compatibility].            |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  else if (OptionMatch("variant",*args)) {
+    if (thinking || pondering) return(2);
+    printf("command=[%s]\n",buffer);
+    return(-1);
+  }
+/*
+ ----------------------------------------------------------
+|                                                          |
 |   "whisper" command sets whisper mode for ICS.  =1 will  |
 |   whisper mate announcements, =2 will whisper scores and |
 |   other info, =3 will whisper scores and PV, =4 adds the |
@@ -3903,13 +3965,13 @@ int Option(TREE *tree) {
       ansi=0;
       printf("\n");
 #if defined(SMP)
-      printf("tellics set 1 Crafty v%s (%d cpus)\n",
+      printf("tellicsnoalias set 1 Crafty v%s (%d cpus)\n",
              version,Max(1,max_threads));
-      printf("kibitz Hello from Crafty v%s! (%d cpus)\n",
+      printf("tellicsnoalias kibitz Hello from Crafty v%s! (%d cpus)\n",
              version,Max(1,max_threads));
 #else
-      printf("tellics set 1 Crafty v%s\n",version);
-      printf("kibitz Hello from Crafty v%s!\n",version);
+      printf("tellicsnoalias set 1 Crafty v%s\n",version);
+      printf("tellicsnoalias kibitz Hello from Crafty v%s!\n",version);
 #endif
       fflush(stdout);
     }

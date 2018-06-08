@@ -2792,12 +2792,19 @@
 *           now make Crafty learn very aggressively and repeat good opening   *
 *           lines and avoid bad ones.                                         *
 *                                                                             *
+*   18.10   minor bug in book.c would let crafty play lines that were very    *
+*           rarely played even though there were others that had been played  *
+*           far more times and were more reliable.  king safety scores ramped *
+*           up a bit and made more "responsive".                              *
+*                                                                             *
 *******************************************************************************
 */
+void SigInt(int type) {
+  exit(1);
+}
 int main(int argc, char **argv) {
   int move, presult, readstat;
   int value=0, i, cont=0, result;
-  char *targs[32];
   TREE *tree;
 #  if defined(NT_i386) || defined(NT_AXP)
   extern void _cdecl SignalInterrupt(int);
@@ -2844,7 +2851,6 @@ int main(int argc, char **argv) {
   input_stream=stdin;
   for (i=0;i<32;i++) args[i]=(char *) malloc(128);
   if (argc > 1) {
-    for (i=0;i<32;i++) targs[i]=(char *) malloc(128);
     for (i=1;i<argc;i++) {
       if (!strcmp(argv[i],"c")) cont=1;
       else if (argv[i][0]>='0' && argv[i][0] <= '9' && i+1<argc) {
@@ -2896,7 +2902,6 @@ int main(int argc, char **argv) {
         if (result == 0)
           printf("ERROR \"%s\" is unknown command-line option\n",buffer);
       }
-    for (i=0;i<32;i++) free(targs[i]);
   }
   display=tree->pos;
   initialized=1;
@@ -2938,6 +2943,7 @@ int main(int argc, char **argv) {
   }
   input_stream=stdin;
   if (xboard) signal(SIGINT,SIG_IGN);
+  else signal(SIGINT,SigInt);
 #if defined(SMP)
   Print(128,"\nCrafty v%s (%d cpus)\n\n",version,Max(max_threads,1));
   if (ics) printf("*whisper Hello from Crafty v%s! (%d cpus)\n",
@@ -3266,7 +3272,7 @@ int main(int argc, char **argv) {
     if (wtm) move_number++;
     ValidatePosition(tree,0,last_pv.path[1],"Main(2)");
     if (kibitz || whisper) {
-      if (tree->nodes_searched)
+      if (whisper_depth)
         Whisper(2,!wtm,whisper_depth,end_time-start_time,value,
                 tree->nodes_searched,cpu_percent,
                 tree->egtb_probes_successful,whisper_text);

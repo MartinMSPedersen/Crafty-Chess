@@ -21,14 +21,14 @@
 #  define                          PAWN_BASE_G           (3)
 #  define                          PAWN_BASE_H           (0)
 
-#  define                       PAWN_ADVANCE_A           (1)
-#  define                       PAWN_ADVANCE_B           (1)
-#  define                       PAWN_ADVANCE_C           (2)
-#  define                       PAWN_ADVANCE_D           (2)
-#  define                       PAWN_ADVANCE_E           (2)
-#  define                       PAWN_ADVANCE_F           (2)
-#  define                       PAWN_ADVANCE_G           (1)
-#  define                       PAWN_ADVANCE_H           (1)
+#  define                       PAWN_ADVANCE_A           (3)
+#  define                       PAWN_ADVANCE_B           (3)
+#  define                       PAWN_ADVANCE_C           (3)
+#  define                       PAWN_ADVANCE_D           (3)
+#  define                       PAWN_ADVANCE_E           (3)
+#  define                       PAWN_ADVANCE_F           (3)
+#  define                       PAWN_ADVANCE_G           (3)
+#  define                       PAWN_ADVANCE_H           (3)
  
 #  define                    PAWN_ADVANCE_EG_A           (3)
 #  define                    PAWN_ADVANCE_EG_B           (3)
@@ -46,8 +46,8 @@
 #  define                       BISHOP_TRAPPED         (175)
 #  define           BISHOP_PLUS_PAWNS_ON_COLOR           (4)
 #  define           BISHOP_OVER_KNIGHT_ENDGAME          (30)
-#  define                      BISHOP_MOBILITY           (2)
-#  define                          BISHOP_PAIR          (25)
+#  define                      BISHOP_MOBILITY           (3)
+#  define                          BISHOP_PAIR          (10)
 #  define                   BISHOP_KING_SAFETY          (10)
   
 #  define                          ROOK_ON_7TH          (30)
@@ -56,7 +56,7 @@
 #  define                       ROOK_OPEN_FILE          (24)
 #  define                  ROOK_HALF_OPEN_FILE           (5)
 #  define             ROOK_CONNECTED_OPEN_FILE          (10)
-#  define              ROOK_BEHIND_PASSED_PAWN          (20)
+#  define              ROOK_BEHIND_PASSED_PAWN          (40)
 #  define                         ROOK_TRAPPED          (30)
 #  define                         ROOK_LIMITED          (20)
   
@@ -71,6 +71,7 @@
 #  define                       KING_BACK_RANK          (12)
 #  define                KING_SAFETY_STONEWALL           (7)
 #  define                KING_SAFETY_OPEN_FILE           (4)
+#  define                      CASTLE_OPPOSITE           (5)
  
  
 #  define                 DEVELOPMENT_THEMATIC           (6)

@@ -18,15 +18,13 @@
 *                                                                              *
 ********************************************************************************
 */
-void PreEvaluate(TREE *tree, int wtm) {
+void PreEvaluate(TREE *tree, int crafty_is_white) {
   int i, j;
-  static int hashing_pawns = 0;
   static int hashing_opening = 0;
   static int hashing_middle_game = 0;
   static int hashing_end_game = 0;
-  static int last_wtm = 0;
+  static int last_crafty_is_white = 0;
   static int last_trojan_check = 0;
-  int hash_pawns=0;
   int pawn_advance[8], pawn_base[8];
 /*
  ----------------------------------------------------------
@@ -45,28 +43,14 @@ void PreEvaluate(TREE *tree, int wtm) {
 |                                                          |
  ----------------------------------------------------------
 */
-  if (opening || middle_game) {
-    hash_pawns=1;
-    pawn_advance[0]=PAWN_ADVANCE_A;
-    pawn_advance[1]=PAWN_ADVANCE_B;
-    pawn_advance[2]=PAWN_ADVANCE_C;
-    pawn_advance[3]=PAWN_ADVANCE_D;
-    pawn_advance[4]=PAWN_ADVANCE_E;
-    pawn_advance[5]=PAWN_ADVANCE_F;
-    pawn_advance[6]=PAWN_ADVANCE_G;
-    pawn_advance[7]=PAWN_ADVANCE_H;
-  }
-  else {
-    hash_pawns=2;
-    pawn_advance[0]=PAWN_ADVANCE_EG_A;
-    pawn_advance[1]=PAWN_ADVANCE_EG_B;
-    pawn_advance[2]=PAWN_ADVANCE_EG_C;
-    pawn_advance[3]=PAWN_ADVANCE_EG_D;
-    pawn_advance[4]=PAWN_ADVANCE_EG_E;
-    pawn_advance[5]=PAWN_ADVANCE_EG_F;
-    pawn_advance[6]=PAWN_ADVANCE_EG_G;
-    pawn_advance[7]=PAWN_ADVANCE_EG_H;
-  }
+  pawn_advance[0]=PAWN_ADVANCE_A;
+  pawn_advance[1]=PAWN_ADVANCE_B;
+  pawn_advance[2]=PAWN_ADVANCE_C;
+  pawn_advance[3]=PAWN_ADVANCE_D;
+  pawn_advance[4]=PAWN_ADVANCE_E;
+  pawn_advance[5]=PAWN_ADVANCE_F;
+  pawn_advance[6]=PAWN_ADVANCE_G;
+  pawn_advance[7]=PAWN_ADVANCE_H;
   pawn_base[0]=PAWN_BASE_A;
   pawn_base[1]=PAWN_BASE_B;
   pawn_base[2]=PAWN_BASE_C;
@@ -104,7 +88,7 @@ void PreEvaluate(TREE *tree, int wtm) {
 |                                                          |
  ----------------------------------------------------------
 */
-  if (wtm) {
+  if (crafty_is_white) {
     for (i=0;i<64;i++) {
       temper_w[i]=temper[i];
       temper_b[i]=temper[i]+temper[i]*king_safety_asymmetry/100;
@@ -173,12 +157,11 @@ void PreEvaluate(TREE *tree, int wtm) {
 |                                                          |
  ----------------------------------------------------------
 */
-  if (((last_wtm            != wtm) ||
-       (last_trojan_check   != trojan_check) ||
-       (hashing_pawns       != hash_pawns) ||
-       (hashing_opening     != opening) ||
-       (hashing_middle_game != middle_game) ||
-       (hashing_end_game    != end_game)) && !test_mode) {
+  if (((last_crafty_is_white != crafty_is_white) ||
+       (last_trojan_check    != trojan_check) ||
+       (hashing_opening      != opening) ||
+       (hashing_middle_game  != middle_game) ||
+       (hashing_end_game     != end_game)) && !test_mode) {
 /*
  ------------------------------------------------
 |                                                |
@@ -192,10 +175,9 @@ void PreEvaluate(TREE *tree, int wtm) {
     Print(128,"              clearing hash tables\n");
     ClearHashTableScores();
   }
-  hashing_pawns=hash_pawns;
   hashing_opening=opening;
   hashing_middle_game=middle_game;
   hashing_end_game=end_game;
-  last_wtm=wtm;
+  last_crafty_is_white=crafty_is_white;
   last_trojan_check=trojan_check;
 }

@@ -63,7 +63,7 @@ char* OutputMove(TREE *tree, int move, int ply, int wtm) {
       *text++=piece_names[Promote(move)];
     }
     *text='\0';
-    strcpy(text_move,text);
+    strcpy(text_move,new_text);
     if (output_format > 0) break;
 /*
    now, try some short forms.  if the moving piece is a pawn, and

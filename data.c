@@ -19,6 +19,7 @@
   int            total_moves;
   int            last_mate_score;
   int            time_abort;
+  volatile int   quit=0;
   int            auto232;
   int            auto232_delay;
   signed char    abort_search;
@@ -235,10 +236,15 @@
   unsigned int   thread_start_time[CPUS];
 
 # if defined(SMP)
+#   if defined(CLONE)
+      int        pids[CPUS];
+#   endif
     TREE         *local[MAX_BLOCKS+1];
     TREE         *volatile thread[CPUS];
     lock_t       lock_smp, lock_io, lock_root;
-    pthread_attr_t pthread_attr;
+#   if !defined(CLONE)
+      pthread_attr_t pthread_attr;
+#   endif
 # else
     TREE         *local[1];
 #  endif
@@ -247,7 +253,7 @@
   unsigned int   max_split_blocks;
   volatile unsigned int   splitting;
 
-# define    VERSION                             "18.9"
+# define    VERSION                            "18.10"
   char      version[6] =                    {VERSION};
   PLAYING_MODE mode =                     normal_mode;
 
@@ -261,7 +267,7 @@
   int       call_flag =                             0;
   int       crafty_rating =                      2500;
   int       opponent_rating =                    2500;
-  int       last_search_value =                     0;
+  int       last_search_value =                   500;
   int       DGT_active =                            0;
   int       to_dgt =                                0;
   int       from_dgt =                              0;
@@ -276,11 +282,15 @@
   char      pgn_black_elo[32] = {""};
   char      pgn_result[32] = {"*"};
 
-  int       number_of_blockers =                    2;
+  int       number_to_play =                        0;
+
+  char      toplay_list[512][20] =  {
+                                     {""}};
+
+  int       number_of_blockers =                    0;
 
   char      blocker_list[512][20] = {
-                                      {"cptnbluebear"},
-                                      {"kingway"}};
+                                     {""}};
 
   int       number_auto_kibitzers =                 7;
 
@@ -298,43 +308,21 @@
   char      computer_list[512][20] = {
                                       {""}};
 
-  int       number_of_GMs =                       32;
-  char      GM_list[512][20] =       {{"anat"},
-                                      {"badviking"},
-                                      {"blatny"},
-                                      {"cptnbluebear"},
-                                      {"davenogood"},
-                                      {"dlugy"},
-                                      {"dr"},
-                                      {"flamingskull"},
-                                      {"flyingpiket"},
-                                      {"gasch"},
-                                      {"gmalex"},
-                                      {"gmsoffer"},
-                                      {"gref"},
-                                      {"gulko"},
-                                      {"hugo"},
-                                      {"junior"},
-                                      {"kaidanov"},
-                                      {"kevlar"},
-                                      {"kingloek"},
-                                      {"kotronias"},
-                                      {"lein"},
-                                      {"leon"},
-                                      {"leop"},
-                                      {"ricardi"},
-                                      {"rohde"},
-                                      {"sagalchik"},
-                                      {"shirov"},
-                                      {"sorin"},
-                                      {"stefansson"},
-                                      {"sweere"},
-                                      {"udav"},
-                                      {"wyatt"}};
+  int       number_of_GMs =                        9;
+  char      GM_list[512][20] =       {
+                                      {"astr"},
+                                      {"dreev"},
+                                      {"garompon"},
+                                      {"jean-reno"},
+                                      {"lorenzo"},
+                                      {"mecking"},
+                                      {"nikephoros"},
+                                      {"ruslam"},
+                                      {"sweere"}};
 
-  int       number_of_IMs =                         1;
+  int       number_of_IMs =                         0;
   char      IM_list[512][20] =       {
-                                      {"tim"}};
+                                      {""}};
 
   int       ics =                                   0;
   int       output_format =                         0;
@@ -421,6 +409,7 @@
   int       over =                                  0;
   int       trojan_check =                          0;
   int       computer_opponent =                     0;
+  int       use_asymmetry =                         1;
   int       usage_level =                           0;
   char      audible_alarm =                      0x07;
 #if defined(MACOS)
@@ -490,21 +479,21 @@
 
   const int  king_tropism[128] =
                                 { -25, -25, -20, -20, -15, -15, -10,  -5,
-                                    0,   2,   5,  10,  12,  16,  20,  25,
-                                   30,  35,  40,  45,  50,  55,  60,  65,
-                                   70,  75,  80,  85,  90,  95, 100, 105,
-                                  110, 115, 120, 125, 125, 125, 125, 125,
-                                  125, 125, 125, 125, 125, 125, 125, 125,
-                                  125, 125, 125, 125, 125, 125, 125, 125,
-                                  125, 125, 125, 125, 125, 125, 125, 125,
-                                  125, 125, 125, 125, 125, 125, 125, 125,
-                                  125, 125, 125, 125, 125, 125, 125, 125,
-                                  125, 125, 125, 125, 125, 125, 125, 125,
-                                  125, 125, 125, 125, 125, 125, 125, 125,
-                                  125, 125, 125, 125, 125, 125, 125, 125,
-                                  125, 125, 125, 125, 125, 125, 125, 125,
-                                  125, 125, 125, 125, 125, 125, 125, 125,
-                                  125, 125, 125, 125, 125, 125, 125, 125};
+                                    0,   2,   5,  12,  15,  20,  30,  40,
+                                   50,  60,  70,  80,  90, 100, 110, 120,
+                                  125, 125, 130, 130, 135, 135, 140, 145,
+                                  150, 160, 170, 180, 180, 180, 180, 180,
+                                  180, 180, 180, 180, 180, 180, 180, 180,
+                                  180, 180, 180, 180, 180, 180, 180, 180,
+                                  180, 180, 180, 180, 180, 180, 180, 180,
+                                  180, 180, 180, 180, 180, 180, 180, 180,
+                                  180, 180, 180, 180, 180, 180, 180, 180,
+                                  180, 180, 180, 180, 180, 180, 180, 180,
+                                  180, 180, 180, 180, 180, 180, 180, 180,
+                                  180, 180, 180, 180, 180, 180, 180, 180,
+                                  180, 180, 180, 180, 180, 180, 180, 180,
+                                  180, 180, 180, 180, 180, 180, 180, 180,
+                                  180, 180, 180, 180, 180, 180, 180, 180};
 
   const char connected_passed_pawn_value[8] = { 0, 0, 0, 12, 24, 48, 100, 0};
 
@@ -563,13 +552,13 @@
 */
   const int temper[64] =
     {   0,   4,  15,  24,  36,  42,  54,  72, /*   0-   7 */
-       81,  84,  87,  90,  93,  96,  99, 102, /*   8-  15 */
-      105, 108, 111, 114, 117, 120, 124, 127, /*  16-  23 */
-      128, 128, 128, 128, 128, 128, 128, 128, /*  24-  31 */
-      128, 128, 128, 128, 128, 128, 128, 128, /*  32-  39 */
-      128, 128, 128, 128, 128, 128, 128, 128, /*  47-  47 */
-      128, 128, 128, 128, 128, 128, 128, 128, /*  48-  55 */
-      128, 128, 128, 128, 128, 128, 128, 128};/*  56-  63 */
+       81,  90,  99, 108, 117, 126, 135, 144, /*   8-  15 */
+      148, 152, 156, 160, 164, 168, 172, 175, /*  16-  23 */
+      180, 180, 180, 180, 180, 180, 180, 180, /*  24-  31 */
+      180, 180, 180, 180, 180, 180, 180, 180, /*  32-  39 */
+      180, 180, 180, 180, 180, 180, 180, 180, /*  47-  47 */
+      180, 180, 180, 180, 180, 180, 180, 180, /*  48-  55 */
+      180, 180, 180, 180, 180, 180, 180, 180};/*  56-  63 */
 /*
    the following array cuts the king safety term down to a value that can
    be used in the king tropism calculation.  this lets the safety of a king
