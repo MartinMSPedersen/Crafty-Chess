@@ -67,8 +67,8 @@ int Iterate(int wtm, int search_type, int root_list_done)
   shared->max_split_blocks = 0;
   TB_use_ok = 1;
   if (TotalWhitePawns && TotalBlackPawns) {
-    wpawn = FirstOne(WhitePawns);
-    bpawn = FirstOne(BlackPawns);
+    wpawn = MSB(WhitePawns);
+    bpawn = MSB(BlackPawns);
     if (FileDistance(wpawn, bpawn) == 1) {
       if (((Rank(wpawn) == RANK2) && (Rank(bpawn) > RANK3)) ||
           ((Rank(bpawn) == RANK7) && (Rank(wpawn) < RANK6)) || EnPassant(1))

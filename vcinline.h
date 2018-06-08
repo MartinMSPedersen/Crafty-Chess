@@ -27,7 +27,7 @@ FORCEINLINE int PopCnt(BITBOARD a)
          l3:}
 }
 
-FORCEINLINE int FirstOne(BITBOARD a)
+FORCEINLINE int MSB(BITBOARD a)
 {
   __asm {
                    bsr edx, dword ptr a + 4
@@ -40,7 +40,7 @@ FORCEINLINE int FirstOne(BITBOARD a)
          l1:       sub eax, edx}
 }
 
-FORCEINLINE int LastOne(BITBOARD a)
+FORCEINLINE int LSB(BITBOARD a)
 {
   __asm {
                    bsf edx, dword ptr a

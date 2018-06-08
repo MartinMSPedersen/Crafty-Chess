@@ -632,22 +632,9 @@ int SearchControl(TREE * RESTRICT tree, int wtm, int ply, int depth,
  */
   if (tree->phase[ply] != REMAINING_MOVES)
     return (0);
-  tree->reductions_attempted++;
   move = tree->current_move[ply];
   if (depth - PLY - reduce_value < reduce_min_depth || tree->in_check[ply] ||
       CaptureOrPromote(move))
-    return (0);
-/*
- ************************************************************
- *                                                          *
- *   check the history value to see if the move can be      *
- *   reduced.                                               *
- *                                                          *
- ************************************************************
- */
-  index = HistoryIndex(move, wtm);
-  fh_percent = shared->history_fh[index] / shared->history_count[index];
-  if (fh_percent >= reduce_hist)
     return (0);
 /*
  ************************************************************
@@ -666,6 +653,19 @@ int SearchControl(TREE * RESTRICT tree, int wtm, int ply, int depth,
         return (0);
     }
   }
+/*
+ ************************************************************
+ *                                                          *
+ *   check the history value to see if the move can be      *
+ *   reduced.                                               *
+ *                                                          *
+ ************************************************************
+ */
+  tree->reductions_attempted++;
+  index = HistoryIndex(move, wtm);
+  fh_percent = shared->history_fh[index] / shared->history_count[index];
+  if (fh_percent > reduce_hist)
+    return (0);
   tree->reductions_done++;
   return (-reduce_value);
 }

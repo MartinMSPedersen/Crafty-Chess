@@ -1,5 +1,5 @@
 /*
-     Intel X86oinline functions for FirstOne(), LastOne() and
+     Intel X86oinline functions for MSB(), LSB() and
      PopCnt().  Note that these are 64 bit functions and they use
      32 bit (double-word) X86 instructions.
 */
@@ -28,7 +28,7 @@ asm("        xorl    %0, %0"                    "\n\t"
   return (dummy1);
 }
 
-int static __inline__ FirstOne(BITBOARD word) {
+int static __inline__ MSB(BITBOARD word) {
   int dummy1, dummy2, dummy3, dummy4;
        asm ("        movl    $63, %0"     "\n\t"
             "        bsr     %2, %1"      "\n\t"
@@ -46,7 +46,7 @@ int static __inline__ FirstOne(BITBOARD word) {
   return (dummy1);
 }
 
-int static __inline__ LastOne(BITBOARD word) {
+int static __inline__ LSB(BITBOARD word) {
   int dummy1, dummy2, dummy3, dummy4;
        asm ("        movl    $63, %0"     "\n\t"
             "        bsf     %3, %1"      "\n\t"

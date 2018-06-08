@@ -193,10 +193,10 @@ linux:
 	$(MAKE) target=LINUX \
 		CC=gcc CXX=g++ \
 		CFLAGS='$(CFLAGS) -Wall -pipe -D_REENTRANT -march=i686 -O3 \
-			-fbranch-probabilities -fforce-mem -fomit-frame-pointer\
-			-fno-gcse -mpreferred-stack-boundary=2' \
+			-fbranch-probabilities -fforce-mem \
+			-g -fno-gcse -mpreferred-stack-boundary=2' \
 		CXFLAGS=$(CFLAGS) \
-		LDFLAGS='$(LDFLAGS) -lstdc++' \
+		LDFLAGS='$(LDFLAGS) -g -lstdc++' \
 		opt='$(opt) -DINLINE32 -DSMP -DCPUS=2' \
 		crafty-make
 
@@ -204,10 +204,10 @@ linux-profile:
 	$(MAKE) target=LINUX \
 		CC=gcc CXX=g++ \
 		CFLAGS='$(CFLAGS) -Wall -pipe -D_REENTRANT -march=i686 -O3 \
-			-fprofile-arcs -fforce-mem -fomit-frame-pointer \
-			-fno-gcse -mpreferred-stack-boundary=2' \
+			-fprofile-arcs -fforce-mem \
+			-g -fno-gcse -mpreferred-stack-boundary=2' \
 		CXFLAGS=$(CFLAGS) \
-		LDFLAGS='$(LDFLAGS) -fprofile-arcs -lstdc++ ' \
+		LDFLAGS='$(LDFLAGS) -g -fprofile-arcs -lstdc++ ' \
 		opt='$(opt) -DINLINE32 -DSMP -DCPUS=2' \
 		crafty-make
 
@@ -321,7 +321,7 @@ profile:
 	@rm -rf position.bin
 	@mkdir profdir
 	@touch *.c *.cpp *.h
-	$(MAKE) linux-icc-profile
+	$(MAKE) linux-profile
 	@echo "#!/bin/csh" > runprof
 	@echo "./crafty <<EOF" >>runprof
 	@echo "st=10" >>runprof
@@ -403,7 +403,7 @@ profile:
 	@./runprof
 	@rm runprof
 	@touch *.c *.cpp *.h
-	$(MAKE) linux-icc
+	$(MAKE) linux
 
 #
 #  one of the two following definitions for "objects" should be used.  The

@@ -1231,6 +1231,10 @@ int InvalidPosition(TREE * RESTRICT tree)
     Print(4095, "illegal position, too many white queens\n");
     error = 1;
   }
+  if (WhiteKingSQ < 0) {
+    Print(4095, "illegal position, no white king\n");
+    error = 1;
+  }
   if (wp + wn + wb + wr + wq > 15) {
     Print(4095, "illegal position, too many white pieces\n");
     error = 1;
@@ -1259,6 +1263,10 @@ int InvalidPosition(TREE * RESTRICT tree)
     Print(4095, "illegal position, too many black queens\n");
     error = 1;
   }
+  if (BlackKingSQ < 0) {
+    Print(4095, "illegal position, no black king\n");
+    error = 1;
+  }
   if (bp + bn + bb + br + bq > 15) {
     Print(4095, "illegal position, too many black pieces\n");
     error = 1;
@@ -1267,7 +1275,7 @@ int InvalidPosition(TREE * RESTRICT tree)
     Print(4095, "illegal position, black pawns on first/eighth rank(s)\n");
     error = 1;
   }
-  if (Check(!wtm)) {
+  if (error == 0 && Check(!wtm)) {
     Print(4095, "ERROR side not on move is in check!\n");
     error = 1;
   }

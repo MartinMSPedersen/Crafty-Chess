@@ -340,15 +340,12 @@ void InitializeAttackBoards(void)
  initialize bishop/queen attack boards and masks
  */
   for (i = 0; i < 64; i++) {
-    bishop_attacks[i] = 0;
     for (j = 0; j < 4; j++) {
       sq = i;
       lastsq = sq;
       sq = sq + bishopsq[j];
       while ((abs(Rank(sq) - Rank(lastsq)) == 1) &&
           (abs(File(sq) - File(lastsq)) == 1) && (sq < 64) && (sq > -1)) {
-        bishop_attacks[i] = bishop_attacks[i] | ((BITBOARD) 1 << 63) >> sq;
-        queen_attacks[i] = queen_attacks[i] | ((BITBOARD) 1 << 63) >> sq;
         if (bishopsq[j] == 7)
           plus7dir[i] = plus7dir[i] | ((BITBOARD) 1 << 63) >> sq;
         else if (bishopsq[j] == 9)
@@ -374,7 +371,6 @@ void InitializeAttackBoards(void)
  initialize rook/queen attack boards
  */
   for (i = 0; i < 64; i++) {
-    rook_attacks[i] = 0;
     for (j = 0; j < 4; j++) {
       sq = i;
       lastsq = sq;
@@ -384,8 +380,6 @@ void InitializeAttackBoards(void)
               ((abs(Rank(sq) - Rank(lastsq)) == 0) &&
                   (abs(File(sq) - File(lastsq)) == 1))) && (sq < 64) &&
           (sq > -1)) {
-        rook_attacks[i] = rook_attacks[i] | ((BITBOARD) 1 << 63) >> sq;
-        queen_attacks[i] = queen_attacks[i] | ((BITBOARD) 1 << 63) >> sq;
         if (rooksq[j] == 1)
           plus1dir[i] = plus1dir[i] | ((BITBOARD) 1 << 63) >> sq;
         else if (rooksq[j] == 8)
@@ -422,59 +416,59 @@ void InitializeAttackBoards(void)
       obstructed[i][j] = (BITBOARD) - 1;
     sqs = plus1dir[i];
     while (sqs) {
-      j = FirstOne(sqs);
+      j = LSB(sqs);
       directions[i][j] = 1;
       obstructed[i][j] = plus1dir[i] ^ plus1dir[j - 1];
-      Clear(j, sqs);
+      sqs &= sqs - 1;
     }
     sqs = plus7dir[i];
     while (sqs) {
-      j = FirstOne(sqs);
+      j = LSB(sqs);
       directions[i][j] = 7;
       obstructed[i][j] = plus7dir[i] ^ plus7dir[j - 7];
-      Clear(j, sqs);
+      sqs &= sqs - 1;
     }
     sqs = plus8dir[i];
     while (sqs) {
-      j = FirstOne(sqs);
+      j = LSB(sqs);
       directions[i][j] = 8;
       obstructed[i][j] = plus8dir[i] ^ plus8dir[j - 8];
-      Clear(j, sqs);
+      sqs &= sqs - 1;
     }
     sqs = plus9dir[i];
     while (sqs) {
-      j = FirstOne(sqs);
+      j = LSB(sqs);
       directions[i][j] = 9;
       obstructed[i][j] = plus9dir[i] ^ plus9dir[j - 9];
-      Clear(j, sqs);
+      sqs &= sqs - 1;
     }
     sqs = minus1dir[i];
     while (sqs) {
-      j = FirstOne(sqs);
+      j = LSB(sqs);
       directions[i][j] = -1;
       obstructed[i][j] = minus1dir[i] ^ minus1dir[j + 1];
-      Clear(j, sqs);
+      sqs &= sqs - 1;
     }
     sqs = minus7dir[i];
     while (sqs) {
-      j = FirstOne(sqs);
+      j = LSB(sqs);
       directions[i][j] = -7;
       obstructed[i][j] = minus7dir[i] ^ minus7dir[j + 7];
-      Clear(j, sqs);
+      sqs &= sqs - 1;
     }
     sqs = minus8dir[i];
     while (sqs) {
-      j = FirstOne(sqs);
+      j = LSB(sqs);
       directions[i][j] = -8;
       obstructed[i][j] = minus8dir[i] ^ minus8dir[j + 8];
-      Clear(j, sqs);
+      sqs &= sqs - 1;
     }
     sqs = minus9dir[i];
     while (sqs) {
-      j = FirstOne(sqs);
+      j = LSB(sqs);
       directions[i][j] = -9;
       obstructed[i][j] = minus9dir[i] ^ minus9dir[j + 9];
-      Clear(j, sqs);
+      sqs &= sqs - 1;
     }
   }
   {
@@ -515,7 +509,7 @@ void InitializeAttackBoards(void)
       for (pcs = 0; pcs < 64; pcs++) {
         attacks = InitializeFindAttacks(7 - File(square), pcs << 1, 8);
         while (attacks) {
-          sq = first_one_8bit[attacks];
+          sq = msb_8bit[attacks];
           rook_attacks_r0[square][pcs] =
               rook_attacks_r0[square][pcs] | SetMask((square & 56) + sq);
           attacks = attacks & (~(1 << (7 - sq)));
@@ -536,7 +530,7 @@ void InitializeAttackBoards(void)
       for (pcs = 0; pcs < 64; pcs++) {
         attacks = InitializeFindAttacks(Rank(square), pcs << 1, 8);
         while (attacks) {
-          sq = first_one_8bit[attacks];
+          sq = msb_8bit[attacks];
           rook_attacks_rl90[square][pcs] =
               rook_attacks_rl90[square][pcs] | SetMask(init_r90[(File(square) <<
                       3) + sq]);
@@ -564,7 +558,7 @@ void InitializeAttackBoards(void)
             InitializeFindAttacks(tsq, (pcs << 1) & mask,
             diagonal_length[rsq]) << (8 - diagonal_length[rsq]);
         while (attacks) {
-          sq = first_one_8bit[attacks];
+          sq = msb_8bit[attacks];
           bishop_attacks_rl45[square][pcs] =
               bishop_attacks_rl45[square][pcs] | SetMask(init_ul45[sq +
                   bias_rl45[rsq]]);
@@ -594,7 +588,7 @@ void InitializeAttackBoards(void)
             InitializeFindAttacks(tsq, (pcs << 1) & mask,
             diagonal_length[rsq]) << (8 - diagonal_length[rsq]);
         while (attacks) {
-          sq = first_one_8bit[attacks];
+          sq = msb_8bit[attacks];
           bishop_attacks_rr45[square][pcs] =
               bishop_attacks_rr45[square][pcs] | SetMask(init_ur45[sq +
                   bias_rl45[rsq]]);
@@ -788,6 +782,8 @@ void SetChessBitBoards(SEARCH_POSITION * new_pos)
 /*
  place kings
  */
+  tree->pos.white_king = -1;
+  tree->pos.black_king = -1;
   for (i = 0; i < 64; i++) {
     if (tree->pos.board[i] == king) {
       tree->pos.white_king = i;
@@ -1550,13 +1546,13 @@ void InitializeZeroMasks(void)
 #if !defined(CRAY1) && !defined(_M_AMD64) && !defined (_M_IA64) && !defined(INLINE32)
   int maskl, maskr;
 
-  first_one[0] = 16;
-  last_one[0] = 16;
+  msb[0] = 16;
+  lsb[0] = 16;
   for (i = 1; i < 65536; i++) {
     maskl = 32768;
     for (j = 0; j < 16; j++) {
       if ((maskl & i)) {
-        first_one[i] = j;
+        msb[i] = j;
         break;
       }
       maskl = maskl >> 1;
@@ -1564,15 +1560,15 @@ void InitializeZeroMasks(void)
     maskr = 1;
     for (j = 0; j < 16; j++) {
       if ((maskr & i)) {
-        last_one[i] = 15 - j;
+        lsb[i] = 15 - j;
         break;
       }
       maskr = maskr << 1;
     }
   }
 #endif
-  first_one_8bit[0] = 8;
-  last_one_8bit[0] = 8;
+  msb_8bit[0] = 8;
+  lsb_8bit[0] = 8;
   pop_cnt_8bit[0] = 0;
   connected_passed[0] = 0;
   for (i = 0; i < 256; i++) {
@@ -1583,13 +1579,13 @@ void InitializeZeroMasks(void)
         pop_cnt_8bit[i]++;
     for (j = 0; j < 8; j++) {
       if (i & (1 << (7 - j))) {
-        first_one_8bit[i] = j;
+        msb_8bit[i] = j;
         break;
       }
     }
     for (j = 7; j >= 0; j--) {
       if (i & (1 << (7 - j))) {
-        last_one_8bit[i] = j;
+        lsb_8bit[i] = j;
         break;
       }
     }
@@ -1637,17 +1633,17 @@ void InitializeZeroMasks(void)
 
       is_outside[i][j] = 0;
       is_outside_c[i][j] = 0;
-      ppsq1 = first_one_8bit[i];
+      ppsq1 = msb_8bit[i];
       if (ppsq1 < 8) {
-        psql = first_one_8bit[j & (255 - (128 >> ppsq1))];
+        psql = msb_8bit[j & (255 - (128 >> ppsq1))];
         if (ppsq1 < psql - 1)
           is_outside[i][j] += 1;
         if (ppsq1 <= psql + 1)
           is_outside_c[i][j] += 1;
       }
-      ppsq2 = last_one_8bit[i];
+      ppsq2 = lsb_8bit[i];
       if (ppsq2 < 8) {
-        psqr = last_one_8bit[j & (255 - (128 >> ppsq2))];
+        psqr = lsb_8bit[j & (255 - (128 >> ppsq2))];
         if (ppsq2 > psqr + 1)
           is_outside[i][j] += 1;
         if (ppsq2 >= psqr - 1)

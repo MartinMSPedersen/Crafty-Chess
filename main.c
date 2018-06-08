@@ -1066,8 +1066,8 @@
  *           one side had an outside passer, unless both sides had at least    *
  *           one passer, which failed on most cases seen in real games.        *
  *           minor "tweak" to move ordering.  GenerateMoves() now uses the     *
- *           LastOne() function to enumerate white moves, while still using    *
- *           FirstOne() for black moves.  this has the effect of moving pieces *
+ *           LSB() function to enumerate white moves, while still using    *
+ *           MSB() for black moves.  this has the effect of moving pieces *
  *           toward your opponent before moving them away.  a severe oversight *
  *           regarding the use of "!" (as in wtm=!wtm) was found and corrected *
  *           to speed things up some.  !wtm was replaced by wtm^1 (actually,   *
@@ -2965,7 +2965,7 @@
  *           then play the move, to avoid any confusion in whether the draw    *
  *           was made according to FIDE rules or not.  minor bug in evaluate() *
  *           dealing with candidate passed pawns fixed.  A few additions to    *
- *           support my AMD Opteron inline assembly for FirstOne(), LastOne()  *
+ *           support my AMD Opteron inline assembly for MSB(), LSB()  *
  *           and PopCnt() procedures.                                          *
  *                                                                             *
  *   19.8    changes to lock.h to (a) eliminate NT/alpha, since Microsoft no   *
@@ -3372,6 +3372,14 @@
  *           Makefile gives the configuration options, but the only ones that  *
  *           would normally need setting are the SMP and CPUS= options if you  *
  *           have a SMP platform.                                              *
+ *                                                                             *
+ *   20.14   fix to EvaluateWinningChances() to correctly evaluate KRP vs KR   *
+ *           type endings.  previously this was done in the wrong place and    *
+ *           the score would favor the side with the pawn significantly, where *
+ *           the score is now zero.  minor bugfix to code that detects that an *
+ *           illegal position has been set up.  it caught every possible       *
+ *           problem except for positions with a king (or kings) missing.      *
+ *                                                                             *
  *                                                                             *
  *******************************************************************************
  */

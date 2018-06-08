@@ -1,9 +1,9 @@
 /*
-     AMD Opteron inline functions for FirstOne(), LastOne() and
+     AMD Opteron inline functions for MSB(), LSB() and
      PopCnt().  Note that these are 64 bit functions and they use
      64 bit (quad-word) X86-64 instructions.
 */
-int static __inline__ FirstOne(long word)
+int static __inline__ MSB(long word)
 {
   long      dummy, dummy2;
 
@@ -18,7 +18,7 @@ asm("          bsrq    %0, %1"                       "\n\t"
   return (dummy);
 }
 
-int static __inline__ LastOne(long word)
+int static __inline__ LSB(long word)
 {
   long      dummy, dummy2;
 

@@ -523,8 +523,8 @@ typedef struct {
 #else
 #  if !defined(INLINE64) && !defined(INLINE32)
 int CDECL PopCnt(BITBOARD);
-int CDECL FirstOne(BITBOARD);
-int CDECL LastOne(BITBOARD);
+int CDECL MSB(BITBOARD);
+int CDECL LSB(BITBOARD);
 #  endif
 #endif
 void      Analyze(void);
@@ -757,8 +757,8 @@ extern void WinFreeInterleaved(void *, size_t);
 /* The following are defined only on Unix 4.0E and later. */
 #    ifdef _int_mult_upper      /* kludge to identify version of builtins.h */
 #      define PopCnt(a)     _popcnt(a)
-#      define FirstOne(a)   _leadz(a)
-#      define LastOne(a)    (63 - _trailz(a))
+#      define MSB(a)   _leadz(a)
+#      define LSB(a)    (63 - _trailz(a))
 #    endif
 #  endif
 #endif
@@ -769,8 +769,8 @@ extern void WinFreeInterleaved(void *, size_t);
 #define Distance(a,b) Max(FileDistance(a,b),RankDistance(a,b))
 #define DrawScore(wtm)                 (shared->draw_score[wtm])
 #define PopCnt8Bit(a) (pop_cnt_8bit[a])
-#define FirstOne8Bit(a) (first_one_8bit[a])
-#define LastOne8Bit(a) (last_one_8bit[a])
+#define MSB8Bit(a) (msb_8bit[a])
+#define LSB8Bit(a) (lsb_8bit[a])
 /*
    the following macro is used to limit the search extensions based on the
    current iteration depth and current ply in the tree.
@@ -963,7 +963,7 @@ extern void WinFreeInterleaved(void *, size_t);
   int  cPieces=0;                                                \
   BITBOARD bbTemp=(bitboard);                                    \
   while (bbTemp) {                                               \
-    const squaret sq=FirstOne (bbTemp);                          \
+    const squaret sq=MSB(bbTemp);                                \
     (rgSquares)[(piece)*C_PIECES+cPieces]=sq;                    \
     cPieces++;                                                   \
     Clear(sq, bbTemp);                                           \

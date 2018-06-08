@@ -67,7 +67,7 @@ extern unsigned char _BitScanForward64(unsigned long *, unsigned __int64);
 
 #    pragma intrinsic (_BitScanForward64)
 
-int FirstOne(BITBOARD arg1)
+int MSB(BITBOARD arg1)
 {
   unsigned long index;
 
@@ -77,7 +77,7 @@ int FirstOne(BITBOARD arg1)
     return 64;
 }
 
-int LastOne(BITBOARD arg1)
+int LSB(BITBOARD arg1)
 {
   unsigned long index;
 
@@ -90,26 +90,26 @@ int LastOne(BITBOARD arg1)
 #  else
 
 #    if !defined(INLINE32) && !defined(VC_INLINE32)
-int FirstOne(BITBOARD arg1)
+int MSB(BITBOARD arg1)
 {
   if (arg1 >> 48)
-    return (first_one[arg1 >> 48]);
+    return (msb[arg1 >> 48]);
   if ((arg1 >> 32) & 65535)
-    return (first_one[(arg1 >> 32) & 65535] + 16);
+    return (msb[(arg1 >> 32) & 65535] + 16);
   if ((arg1 >> 16) & 65535)
-    return (first_one[(arg1 >> 16) & 65535] + 32);
-  return (first_one[arg1 & 65535] + 48);
+    return (msb[(arg1 >> 16) & 65535] + 32);
+  return (msb[arg1 & 65535] + 48);
 }
 
-int LastOne(BITBOARD arg1)
+int LSB(BITBOARD arg1)
 {
   if (arg1 & 65535)
-    return (last_one[arg1 & 65535] + 48);
+    return (lsb[arg1 & 65535] + 48);
   if ((arg1 >> 16) & 65535)
-    return (last_one[(arg1 >> 16) & 65535] + 32);
+    return (lsb[(arg1 >> 16) & 65535] + 32);
   if ((arg1 >> 32) & 65535)
-    return (last_one[(arg1 >> 32) & 65535] + 16);
-  return (last_one[arg1 >> 48]);
+    return (lsb[(arg1 >> 32) & 65535] + 16);
+  return (lsb[arg1 >> 48]);
 }
 #    endif
 #  endif

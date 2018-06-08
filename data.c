@@ -53,7 +53,6 @@ signed char directions[64][64];
 BITBOARD w_pawn_attacks[64];
 BITBOARD b_pawn_attacks[64];
 BITBOARD knight_attacks[64];
-BITBOARD bishop_attacks[64];
 BITBOARD bishop_attacks_rl45[64][64];
 BITBOARD bishop_attacks_rr45[64][64];
 BITBOARD rook_attacks_r0[64][64];
@@ -62,9 +61,7 @@ signed char bishop_mobility_rl45[64][64];
 signed char bishop_mobility_rr45[64][64];
 signed char rook_mobility_r0[64][64];
 signed char rook_mobility_rl90[64][64];
-BITBOARD rook_attacks[64];
 POSITION display;
-BITBOARD queen_attacks[64];
 BITBOARD king_attacks[64];
 BITBOARD obstructed[64][64];
 BITBOARD w_pawn_random[64];
@@ -137,11 +134,11 @@ BITBOARD mask_eptest[64];
 BITBOARD mask_clear_entry;
 
 #if (!defined(_M_AMD64) && !defined (_M_IA64) && !defined(INLINE32)) || defined(VC_INLINE32)
-unsigned char first_one[65536];
-unsigned char last_one[65536];
+unsigned char msb[65536];
+unsigned char lsb[65536];
 #endif
-unsigned char first_one_8bit[256];
-unsigned char last_one_8bit[256];
+unsigned char msb_8bit[256];
+unsigned char lsb_8bit[256];
 unsigned char pop_cnt_8bit[256];
 unsigned char connected_passed[256];
 unsigned char file_spread[256];
@@ -162,7 +159,7 @@ BITBOARD black_pawn_race_btm[64];
 BOOK_POSITION book_buffer[BOOK_CLUSTER_SIZE];
 BOOK_POSITION book_buffer_char[BOOK_CLUSTER_SIZE];
 
-#define    VERSION                             "20.13"
+#define    VERSION                             "20.14"
 char version[6] = { VERSION };
 PLAYING_MODE mode = normal_mode;
 int batch_mode = 0;             /* no asynch reads */
@@ -470,11 +467,11 @@ int kval_wq[64] = {
   -20, -20, -20, -20, -20, -20, -40, -60
 };
 int safety_vector[16] = {
-   0,  10,  30,  48,  60,  90, 120, 140,
- 160, 170, 180, 200, 225, 250, 275, 300};
+   0,  8,  20,  32,  40,  60, 80, 96,
+ 108, 114, 120, 144, 168, 180, 190, 200};
 int tropism_vector[16] = {
-   0,  0,  0,  10,  20,  30, 48, 64,
- 100, 120, 150, 180, 210, 240, 270, 300};
+   0,  0,  0,  7,  13,  20, 32, 48,
+ 67, 80, 100, 120, 140, 160, 180, 200};
 
 /* note that black piece/square values are copied from white, but
    reflected */
@@ -510,7 +507,7 @@ int bishop_over_knight_endgame = 36;
     value is in-between.
 */
 int bishop_pair[3] = { 0, 30, 60 };
-int bishop_bad = 12;
+int bishop_bad = 10;
 int rook_on_7th = 24;
 int rook_connected_7th_rank = 10;
 /*

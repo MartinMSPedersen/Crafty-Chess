@@ -71,30 +71,30 @@ int Swap(TREE * RESTRICT tree, int source, int target, int wtm)
   while (attacks) {
     if (color) {
       if (WhitePawns & attacks)
-        square = FirstOne(WhitePawns & attacks);
+        square = MSB(WhitePawns & attacks);
       else if (WhiteKnights & attacks)
-        square = FirstOne(WhiteKnights & attacks);
+        square = MSB(WhiteKnights & attacks);
       else if (WhiteBishops & attacks)
-        square = FirstOne(WhiteBishops & attacks);
+        square = MSB(WhiteBishops & attacks);
       else if (WhiteRooks & attacks)
-        square = FirstOne(WhiteRooks & attacks);
+        square = MSB(WhiteRooks & attacks);
       else if (WhiteQueens & attacks)
-        square = FirstOne(WhiteQueens & attacks);
+        square = MSB(WhiteQueens & attacks);
       else if (WhiteKing & attacks)
         square = WhiteKingSQ;
       else
         break;
     } else {
       if (BlackPawns & attacks)
-        square = FirstOne(BlackPawns & attacks);
+        square = MSB(BlackPawns & attacks);
       else if (BlackKnights & attacks)
-        square = FirstOne(BlackKnights & attacks);
+        square = MSB(BlackKnights & attacks);
       else if (BlackBishops & attacks)
-        square = FirstOne(BlackBishops & attacks);
+        square = MSB(BlackBishops & attacks);
       else if (BlackRooks & attacks)
-        square = FirstOne(BlackRooks & attacks);
+        square = MSB(BlackRooks & attacks);
       else if (BlackQueens & attacks)
-        square = FirstOne(BlackQueens & attacks);
+        square = MSB(BlackQueens & attacks);
       else if (BlackKing & attacks)
         square = BlackKingSQ;
       else

@@ -35,11 +35,11 @@ int *GenerateCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
   if (wtm) {
     piecebd = WhiteKnights;
     while (piecebd) {
-      from = LastOne(piecebd);
+      from = LSB(piecebd);
       moves = knight_attacks[from] & BlackPieces;
       temp = from + (knight << 12);
       while (moves) {
-        to = LastOne(moves);
+        to = LSB(moves);
         *move++ = temp | (to << 6) | ((-PcOnSq(to)) << 15);
         Clear(to, moves);
       }
@@ -57,11 +57,11 @@ int *GenerateCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
  */
     piecebd = WhiteBishops;
     while (piecebd) {
-      from = LastOne(piecebd);
+      from = LSB(piecebd);
       moves = AttacksBishop(from) & BlackPieces;
       temp = from + (bishop << 12);
       while (moves) {
-        to = LastOne(moves);
+        to = LSB(moves);
         *move++ = temp | (to << 6) | ((-PcOnSq(to)) << 15);
         Clear(to, moves);
       }
@@ -79,11 +79,11 @@ int *GenerateCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
  */
     piecebd = WhiteRooks;
     while (piecebd) {
-      from = LastOne(piecebd);
+      from = LSB(piecebd);
       moves = AttacksRook(from) & BlackPieces;
       temp = from + (rook << 12);
       while (moves) {
-        to = LastOne(moves);
+        to = LSB(moves);
         *move++ = temp | (to << 6) | ((-PcOnSq(to)) << 15);
         Clear(to, moves);
       }
@@ -101,11 +101,11 @@ int *GenerateCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
  */
     piecebd = WhiteQueens;
     while (piecebd) {
-      from = LastOne(piecebd);
+      from = LSB(piecebd);
       moves = AttacksQueen(from) & BlackPieces;
       temp = from + (queen << 12);
       while (moves) {
-        to = LastOne(moves);
+        to = LSB(moves);
         *move++ = temp | (to << 6) | ((-PcOnSq(to)) << 15);
         Clear(to, moves);
       }
@@ -125,7 +125,7 @@ int *GenerateCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
     moves = king_attacks[from] & BlackPieces;
     temp = from + (king << 12);
     while (moves) {
-      to = LastOne(moves);
+      to = LSB(moves);
       *move++ = temp | (to << 6) | ((-PcOnSq(to)) << 15);
       Clear(to, moves);
     }
@@ -145,7 +145,7 @@ int *GenerateCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
  */
     promotions = (WhitePawns & rank_mask[RANK7]) >> 8 & ~Occupied;
     while (promotions) {
-      to = LastOne(promotions);
+      to = LSB(promotions);
       *move++ = (to - 8) | (to << 6) | (pawn << 12) | (queen << 18);
       Clear(to, promotions);
     }
@@ -153,7 +153,7 @@ int *GenerateCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
     target = BlackPieces | EnPassantTarget(ply);
     pcapturesl = (WhitePawns & mask_left_edge) >> 7 & target;
     while (pcapturesl) {
-      to = LastOne(pcapturesl);
+      to = LSB(pcapturesl);
       if (to < 56) {
         register int cap = (PcOnSq(to)) ? -PcOnSq(to) : pawn;
 
@@ -168,7 +168,7 @@ int *GenerateCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
 
     pcapturesr = (WhitePawns & mask_right_edge) >> 9 & target;
     while (pcapturesr) {
-      to = LastOne(pcapturesr);
+      to = LSB(pcapturesr);
       if (to < 56) {
         register int cap = (PcOnSq(to)) ? -PcOnSq(to) : pawn;
 
@@ -194,11 +194,11 @@ int *GenerateCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
   else {
     piecebd = BlackKnights;
     while (piecebd) {
-      from = FirstOne(piecebd);
+      from = MSB(piecebd);
       moves = knight_attacks[from] & WhitePieces;
       temp = from + (knight << 12);
       while (moves) {
-        to = FirstOne(moves);
+        to = MSB(moves);
         *move++ = temp | (to << 6) | (PcOnSq(to) << 15);
         Clear(to, moves);
       }
@@ -216,11 +216,11 @@ int *GenerateCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
  */
     piecebd = BlackBishops;
     while (piecebd) {
-      from = FirstOne(piecebd);
+      from = MSB(piecebd);
       moves = AttacksBishop(from) & WhitePieces;
       temp = from + (bishop << 12);
       while (moves) {
-        to = FirstOne(moves);
+        to = MSB(moves);
         *move++ = temp | (to << 6) | (PcOnSq(to) << 15);
         Clear(to, moves);
       }
@@ -238,11 +238,11 @@ int *GenerateCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
  */
     piecebd = BlackRooks;
     while (piecebd) {
-      from = FirstOne(piecebd);
+      from = MSB(piecebd);
       moves = AttacksRook(from) & WhitePieces;
       temp = from + (rook << 12);
       while (moves) {
-        to = FirstOne(moves);
+        to = MSB(moves);
         *move++ = temp | (to << 6) | (PcOnSq(to) << 15);
         Clear(to, moves);
       }
@@ -260,11 +260,11 @@ int *GenerateCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
  */
     piecebd = BlackQueens;
     while (piecebd) {
-      from = FirstOne(piecebd);
+      from = MSB(piecebd);
       moves = AttacksQueen(from) & WhitePieces;
       temp = from + (queen << 12);
       while (moves) {
-        to = FirstOne(moves);
+        to = MSB(moves);
         *move++ = temp | (to << 6) | (PcOnSq(to) << 15);
         Clear(to, moves);
       }
@@ -284,7 +284,7 @@ int *GenerateCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
     moves = king_attacks[from] & WhitePieces;
     temp = from + (king << 12);
     while (moves) {
-      to = FirstOne(moves);
+      to = MSB(moves);
       *move++ = temp | (to << 6) | (PcOnSq(to) << 15);
       Clear(to, moves);
     }
@@ -304,7 +304,7 @@ int *GenerateCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
  */
     promotions = (BlackPawns & rank_mask[RANK2]) << 8 & ~Occupied;
     while (promotions) {
-      to = FirstOne(promotions);
+      to = MSB(promotions);
       *move++ = (to + 8) | (to << 6) | (pawn << 12) | (queen << 18);
       Clear(to, promotions);
     }
@@ -312,7 +312,7 @@ int *GenerateCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
     target = WhitePieces | EnPassantTarget(ply);
     pcapturesl = (BlackPawns & mask_left_edge) << 9 & target;
     while (pcapturesl) {
-      to = FirstOne(pcapturesl);
+      to = MSB(pcapturesl);
       if (to > 7) {
         register int cap = (PcOnSq(to)) ? PcOnSq(to) : pawn;
 
@@ -326,7 +326,7 @@ int *GenerateCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
 
     pcapturesr = (BlackPawns & mask_right_edge) << 7 & target;
     while (pcapturesr) {
-      to = FirstOne(pcapturesr);
+      to = MSB(pcapturesr);
       if (to > 7) {
         register int cap = (PcOnSq(to)) ? PcOnSq(to) : pawn;
 
@@ -388,7 +388,7 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move)
     checksqs = AttacksTo(tree, king_square) & BlackPieces;
     checkers = PopCnt(checksqs);
     if (checkers == 1) {
-      checking_square = FirstOne(AttacksTo(tree, king_square) & BlackPieces);
+      checking_square = MSB(AttacksTo(tree, king_square) & BlackPieces);
       if (PcOnSq(checking_square) != -pawn)
         check_direction1 = directions[checking_square][king_square];
       target = InterposeSquares(check_direction1, king_square, checking_square);
@@ -396,11 +396,11 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move)
       target = target | BlackKing;
     } else {
       target = BlackKing;
-      checking_square = FirstOne(checksqs);
+      checking_square = MSB(checksqs);
       if (PcOnSq(checking_square) != -pawn)
         check_direction1 = directions[checking_square][king_square];
       Clear(checking_square, checksqs);
-      checking_square = FirstOne(checksqs);
+      checking_square = MSB(checksqs);
       if (PcOnSq(checking_square) != -pawn)
         check_direction2 = directions[checking_square][king_square];
     }
@@ -428,7 +428,7 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move)
     moves = king_attacks[from] & ~WhitePieces;
     temp = from + (king << 12);
     while (moves) {
-      to = LastOne(moves);
+      to = LSB(moves);
       if (!Attacked(tree, to, 0)
           && (directions[from][to] != check_direction1)
           && (directions[from][to] != check_direction2))
@@ -448,12 +448,12 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move)
     if (checkers == 1) {
       piecebd = WhiteKnights;
       while (piecebd) {
-        from = LastOne(piecebd);
+        from = LSB(piecebd);
         if (!PinnedOnKing(tree, wtm, from)) {
           moves = knight_attacks[from] & target;
           temp = from + (knight << 12);
           while (moves) {
-            to = LastOne(moves);
+            to = LSB(moves);
             *move++ = temp | (to << 6) | ((-PcOnSq(to)) << 15);
             Clear(to, moves);
           }
@@ -472,12 +472,12 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move)
  */
       piecebd = WhiteBishops;
       while (piecebd) {
-        from = LastOne(piecebd);
+        from = LSB(piecebd);
         if (!PinnedOnKing(tree, wtm, from)) {
           moves = AttacksBishop(from) & target;
           temp = from + (bishop << 12);
           while (moves) {
-            to = LastOne(moves);
+            to = LSB(moves);
             *move++ = temp | (to << 6) | ((-PcOnSq(to)) << 15);
             Clear(to, moves);
           }
@@ -496,12 +496,12 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move)
  */
       piecebd = WhiteRooks;
       while (piecebd) {
-        from = LastOne(piecebd);
+        from = LSB(piecebd);
         if (!PinnedOnKing(tree, wtm, from)) {
           moves = AttacksRook(from) & target;
           temp = from + (rook << 12);
           while (moves) {
-            to = LastOne(moves);
+            to = LSB(moves);
             *move++ = temp | (to << 6) | ((-PcOnSq(to)) << 15);
             Clear(to, moves);
           }
@@ -520,12 +520,12 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move)
  */
       piecebd = WhiteQueens;
       while (piecebd) {
-        from = LastOne(piecebd);
+        from = LSB(piecebd);
         if (!PinnedOnKing(tree, wtm, from)) {
           moves = AttacksQueen(from) & target;
           temp = from + (queen << 12);
           while (moves) {
-            to = LastOne(moves);
+            to = LSB(moves);
             *move++ = temp | (to << 6) | ((-PcOnSq(to)) << 15);
             Clear(to, moves);
           }
@@ -561,13 +561,13 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move)
  ************************************************************
  */
       while (padvances2) {
-        to = LastOne(padvances2);
+        to = LSB(padvances2);
         if (!PinnedOnKing(tree, wtm, to - 16))
           *move++ = (to - 16) | (to << 6) | (pawn << 12);
         Clear(to, padvances2);
       }
       while (padvances1) {
-        to = LastOne(padvances1);
+        to = LSB(padvances1);
         if (!PinnedOnKing(tree, wtm, to - 8)) {
           common = (to - 8) | (to << 6) | (pawn << 12);
           if (to < 56)
@@ -589,7 +589,7 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move)
       pcapturesl = (WhitePawns & mask_left_edge) >> 7 & targetc;
       pcapturesr = (WhitePawns & mask_right_edge) >> 9 & targetc;
       while (pcapturesl) {
-        to = LastOne(pcapturesl);
+        to = LSB(pcapturesl);
         if (!PinnedOnKing(tree, wtm, to - 7)) {
           common = (to - 7) | (to << 6) | (pawn << 12);
           if (to < 56) {
@@ -606,7 +606,7 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move)
         Clear(to, pcapturesl);
       }
       while (pcapturesr) {
-        to = LastOne(pcapturesr);
+        to = LSB(pcapturesr);
         if (!PinnedOnKing(tree, wtm, to - 9)) {
           common = (to - 9) | (to << 6) | (pawn << 12);
           if (to < 56) {
@@ -638,7 +638,7 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move)
     checksqs = AttacksTo(tree, king_square) & WhitePieces;
     checkers = PopCnt(checksqs);
     if (checkers == 1) {
-      checking_square = FirstOne(AttacksTo(tree, king_square) & WhitePieces);
+      checking_square = MSB(AttacksTo(tree, king_square) & WhitePieces);
       if (PcOnSq(checking_square) != pawn)
         check_direction1 = directions[checking_square][king_square];
       target = InterposeSquares(check_direction1, king_square, checking_square);
@@ -646,11 +646,11 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move)
       target = target | WhiteKing;
     } else {
       target = WhiteKing;
-      checking_square = FirstOne(checksqs);
+      checking_square = MSB(checksqs);
       if (PcOnSq(checking_square) != pawn)
         check_direction1 = directions[checking_square][king_square];
       Clear(checking_square, checksqs);
-      checking_square = FirstOne(checksqs);
+      checking_square = MSB(checksqs);
       if (PcOnSq(checking_square) != pawn)
         check_direction2 = directions[checking_square][king_square];
     }
@@ -678,7 +678,7 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move)
     moves = king_attacks[from] & ~BlackPieces;
     temp = from + (king << 12);
     while (moves) {
-      to = FirstOne(moves);
+      to = MSB(moves);
       if (!Attacked(tree, to, 1)
           && (directions[from][to] != check_direction1)
           && (directions[from][to] != check_direction2))
@@ -698,12 +698,12 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move)
     if (checkers == 1) {
       piecebd = BlackKnights;
       while (piecebd) {
-        from = FirstOne(piecebd);
+        from = MSB(piecebd);
         if (!PinnedOnKing(tree, wtm, from)) {
           moves = knight_attacks[from] & target;
           temp = from + (knight << 12);
           while (moves) {
-            to = FirstOne(moves);
+            to = MSB(moves);
             *move++ = temp | (to << 6) | (PcOnSq(to) << 15);
             Clear(to, moves);
           }
@@ -722,12 +722,12 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move)
  */
       piecebd = BlackBishops;
       while (piecebd) {
-        from = FirstOne(piecebd);
+        from = MSB(piecebd);
         if (!PinnedOnKing(tree, wtm, from)) {
           moves = AttacksBishop(from) & target;
           temp = from + (bishop << 12);
           while (moves) {
-            to = FirstOne(moves);
+            to = MSB(moves);
             *move++ = temp | (to << 6) | (PcOnSq(to) << 15);
             Clear(to, moves);
           }
@@ -746,12 +746,12 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move)
  */
       piecebd = BlackRooks;
       while (piecebd) {
-        from = FirstOne(piecebd);
+        from = MSB(piecebd);
         if (!PinnedOnKing(tree, wtm, from)) {
           moves = AttacksRook(from) & target;
           temp = from + (rook << 12);
           while (moves) {
-            to = FirstOne(moves);
+            to = MSB(moves);
             *move++ = temp | (to << 6) | (PcOnSq(to) << 15);
             Clear(to, moves);
           }
@@ -768,12 +768,12 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move)
  */
       piecebd = BlackQueens;
       while (piecebd) {
-        from = FirstOne(piecebd);
+        from = MSB(piecebd);
         if (!PinnedOnKing(tree, wtm, from)) {
           moves = AttacksQueen(from) & target;
           temp = from + (queen << 12);
           while (moves) {
-            to = FirstOne(moves);
+            to = MSB(moves);
             *move++ = temp | (to << 6) | (PcOnSq(to) << 15);
             Clear(to, moves);
           }
@@ -815,13 +815,13 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move)
  ************************************************************
  */
       while (padvances2) {
-        to = FirstOne(padvances2);
+        to = MSB(padvances2);
         if (!PinnedOnKing(tree, wtm, to + 16))
           *move++ = (to + 16) | (to << 6) | (pawn << 12);
         Clear(to, padvances2);
       }
       while (padvances1) {
-        to = FirstOne(padvances1);
+        to = MSB(padvances1);
         if (!PinnedOnKing(tree, wtm, to + 8)) {
           common = (to + 8) | (to << 6) | (pawn << 12);
           if (to > 7)
@@ -843,7 +843,7 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move)
       pcapturesl = (BlackPawns & mask_left_edge) << 9 & targetc;
       pcapturesr = (BlackPawns & mask_right_edge) << 7 & targetc;
       while (pcapturesl) {
-        to = FirstOne(pcapturesl);
+        to = MSB(pcapturesl);
         if (!PinnedOnKing(tree, wtm, to + 9)) {
           common = (to + 9) | (to << 6) | (pawn << 12);
           if (to > 7) {
@@ -860,7 +860,7 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move)
         Clear(to, pcapturesl);
       }
       while (pcapturesr) {
-        to = FirstOne(pcapturesr);
+        to = MSB(pcapturesr);
         if (!PinnedOnKing(tree, wtm, to + 7)) {
           common = (to + 7) | (to << 6) | (pawn << 12);
           if (to > 7) {
@@ -943,11 +943,11 @@ int *GenerateNonCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
     target = ~Occupied;
     piecebd = WhiteKnights;
     while (piecebd) {
-      from = LastOne(piecebd);
+      from = LSB(piecebd);
       moves = knight_attacks[from] & target;
       temp = from + (knight << 12);
       while (moves) {
-        to = LastOne(moves);
+        to = LSB(moves);
         *move++ = temp | (to << 6);
         Clear(to, moves);
       }
@@ -965,11 +965,11 @@ int *GenerateNonCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
  */
     piecebd = WhiteBishops;
     while (piecebd) {
-      from = LastOne(piecebd);
+      from = LSB(piecebd);
       moves = AttacksBishop(from) & target;
       temp = from + (bishop << 12);
       while (moves) {
-        to = LastOne(moves);
+        to = LSB(moves);
         *move++ = temp | (to << 6);
         Clear(to, moves);
       }
@@ -987,11 +987,11 @@ int *GenerateNonCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
  */
     piecebd = WhiteRooks;
     while (piecebd) {
-      from = LastOne(piecebd);
+      from = LSB(piecebd);
       moves = AttacksRook(from) & target;
       temp = from + (rook << 12);
       while (moves) {
-        to = LastOne(moves);
+        to = LSB(moves);
         *move++ = temp | (to << 6);
         Clear(to, moves);
       }
@@ -1009,11 +1009,11 @@ int *GenerateNonCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
  */
     piecebd = WhiteQueens;
     while (piecebd) {
-      from = LastOne(piecebd);
+      from = LSB(piecebd);
       moves = AttacksQueen(from) & target;
       temp = from + (queen << 12);
       while (moves) {
-        to = LastOne(moves);
+        to = LSB(moves);
         *move++ = temp | (to << 6);
         Clear(to, moves);
       }
@@ -1033,7 +1033,7 @@ int *GenerateNonCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
     moves = king_attacks[from] & target;
     temp = from + (king << 12);
     while (moves) {
-      to = LastOne(moves);
+      to = LSB(moves);
       *move++ = temp | (to << 6);
       Clear(to, moves);
     }
@@ -1068,13 +1068,13 @@ int *GenerateNonCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
  ************************************************************
  */
     while (padvances2) {
-      to = LastOne(padvances2);
+      to = LSB(padvances2);
       *move++ = (to - 16) | (to << 6) | (pawn << 12);
       Clear(to, padvances2);
     }
 
     while (padvances1) {
-      to = LastOne(padvances1);
+      to = LSB(padvances1);
       if (to < 56)
         *move++ = (to - 8) | (to << 6) | (pawn << 12);
       else {
@@ -1097,7 +1097,7 @@ int *GenerateNonCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
     pcapturesl = (WhitePawns & mask_left_edge) >> 7 & target;
     pcapturesr = (WhitePawns & mask_right_edge) >> 9 & target;
     while (pcapturesl) {
-      to = LastOne(pcapturesl);
+      to = LSB(pcapturesl);
       common = (to - 7) | (to << 6) | (pawn << 12);
       *move++ = common | ((-PcOnSq(to)) << 15) | (rook << 18);
       *move++ = common | ((-PcOnSq(to)) << 15) | (bishop << 18);
@@ -1105,7 +1105,7 @@ int *GenerateNonCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
       Clear(to, pcapturesl);
     }
     while (pcapturesr) {
-      to = LastOne(pcapturesr);
+      to = LSB(pcapturesr);
       common = (to - 9) | (to << 6) | (pawn << 12);
       *move++ = common | ((-PcOnSq(to)) << 15) | (rook << 18);
       *move++ = common | ((-PcOnSq(to)) << 15) | (bishop << 18);
@@ -1146,11 +1146,11 @@ int *GenerateNonCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
     target = ~Occupied;
     piecebd = BlackKnights;
     while (piecebd) {
-      from = FirstOne(piecebd);
+      from = MSB(piecebd);
       moves = knight_attacks[from] & target;
       temp = from + (knight << 12);
       while (moves) {
-        to = FirstOne(moves);
+        to = MSB(moves);
         *move++ = temp | (to << 6);
         Clear(to, moves);
       }
@@ -1168,11 +1168,11 @@ int *GenerateNonCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
  */
     piecebd = BlackBishops;
     while (piecebd) {
-      from = FirstOne(piecebd);
+      from = MSB(piecebd);
       moves = AttacksBishop(from) & target;
       temp = from + (bishop << 12);
       while (moves) {
-        to = FirstOne(moves);
+        to = MSB(moves);
         *move++ = temp | (to << 6);
         Clear(to, moves);
       }
@@ -1190,11 +1190,11 @@ int *GenerateNonCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
  */
     piecebd = BlackRooks;
     while (piecebd) {
-      from = FirstOne(piecebd);
+      from = MSB(piecebd);
       moves = AttacksRook(from) & target;
       temp = from + (rook << 12);
       while (moves) {
-        to = FirstOne(moves);
+        to = MSB(moves);
         *move++ = temp | (to << 6);
         Clear(to, moves);
       }
@@ -1212,11 +1212,11 @@ int *GenerateNonCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
  */
     piecebd = BlackQueens;
     while (piecebd) {
-      from = FirstOne(piecebd);
+      from = MSB(piecebd);
       moves = AttacksQueen(from) & target;
       temp = from + (queen << 12);
       while (moves) {
-        to = FirstOne(moves);
+        to = MSB(moves);
         *move++ = temp | (to << 6);
         Clear(to, moves);
       }
@@ -1236,7 +1236,7 @@ int *GenerateNonCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
     moves = king_attacks[from] & target;
     temp = from + (king << 12);
     while (moves) {
-      to = FirstOne(moves);
+      to = MSB(moves);
       *move++ = temp | (to << 6);
       Clear(to, moves);
     }
@@ -1271,12 +1271,12 @@ int *GenerateNonCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
  ************************************************************
  */
     while (padvances2) {
-      to = FirstOne(padvances2);
+      to = MSB(padvances2);
       *move++ = (to + 16) | (to << 6) | (pawn << 12);
       Clear(to, padvances2);
     }
     while (padvances1) {
-      to = FirstOne(padvances1);
+      to = MSB(padvances1);
       common = (to + 8) | (to << 6) | (pawn << 12);
       if (to > 7)
         *move++ = common;
@@ -1300,7 +1300,7 @@ int *GenerateNonCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
     pcapturesl = (BlackPawns & mask_left_edge) << 9 & target;
     pcapturesr = (BlackPawns & mask_right_edge) << 7 & target;
     while (pcapturesl) {
-      to = FirstOne(pcapturesl);
+      to = MSB(pcapturesl);
       common = (to + 9) | (to << 6) | (pawn << 12);
       *move++ = common | (PcOnSq(to) << 15) | (rook << 18);
       *move++ = common | (PcOnSq(to) << 15) | (bishop << 18);
@@ -1308,7 +1308,7 @@ int *GenerateNonCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
       Clear(to, pcapturesl);
     }
     while (pcapturesr) {
-      to = FirstOne(pcapturesr);
+      to = MSB(pcapturesr);
       common = (to + 7) | (to << 6) | (pawn << 12);
       *move++ = common | (PcOnSq(to) << 15) | (rook << 18);
       *move++ = common | (PcOnSq(to) << 15) | (bishop << 18);

@@ -125,7 +125,7 @@ void Bench(void)
   total_time_used += (shared->program_end_time - shared->program_start_time);
   printf("\n");
   Print(4095, "Total nodes: " BMF "\n", nodes);
-  Print(4095, "Raw nodes per second: " BMF "\n", nodes / (total_time_used / 100));
+  Print(4095, "Raw nodes per second: %d\n", nodes / (total_time_used / 100));
   Print(4095, "Total elapsed time: %d\n", (total_time_used / 100));
   input_stream = stdin;
   early_exit = 99;

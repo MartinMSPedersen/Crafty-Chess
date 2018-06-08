@@ -157,117 +157,117 @@ void ValidatePosition(TREE * RESTRICT tree, int ply, int move, char *caller)
  */
   temp = WhitePawns;
   while (temp) {
-    square = FirstOne(temp);
+    square = LSB(temp);
     if (PcOnSq(square) != pawn) {
       Print(128, "ERROR!  board[%d]=%d, should be 1\n", square, PcOnSq(square));
       error = 1;
     }
-    Clear(square, temp);
+    temp &= temp - 1;
   }
   temp = BlackPawns;
   while (temp) {
-    square = FirstOne(temp);
+    square = LSB(temp);
     if (PcOnSq(square) != -pawn) {
       Print(128, "ERROR!  board[%d]=%d, should be -1\n", square,
           PcOnSq(square));
       error = 1;
     }
-    Clear(square, temp);
+    temp &= temp - 1;
   }
 /*
  test knight locations
  */
   temp = WhiteKnights;
   while (temp) {
-    square = FirstOne(temp);
+    square = LSB(temp);
     if (PcOnSq(square) != knight) {
       Print(128, "ERROR!  board[%d]=%d, should be 2\n", square, PcOnSq(square));
       error = 1;
     }
-    Clear(square, temp);
+    temp &= temp - 1;
   }
   temp = BlackKnights;
   while (temp) {
-    square = FirstOne(temp);
+    square = LSB(temp);
     if (PcOnSq(square) != -knight) {
       Print(128, "ERROR!  board[%d]=%d, should be -2\n", square,
           PcOnSq(square));
       error = 1;
     }
-    Clear(square, temp);
+    temp &= temp - 1;
   }
 /*
  test bishop locations
  */
   temp = WhiteBishops;
   while (temp) {
-    square = FirstOne(temp);
+    square = LSB(temp);
     if (PcOnSq(square) != bishop) {
       Print(128, "ERROR!  board[%d]=%d, should be 3\n", square, PcOnSq(square));
       error = 1;
     }
-    Clear(square, temp);
+    temp &= temp - 1;
   }
   temp = BlackBishops;
   while (temp) {
-    square = FirstOne(temp);
+    square = LSB(temp);
     if (PcOnSq(square) != -bishop) {
       Print(128, "ERROR!  board[%d]=%d, should be -3\n", square,
           PcOnSq(square));
       error = 1;
     }
-    Clear(square, temp);
+    temp &= temp - 1;
   }
 /*
  test rook locations
  */
   temp = WhiteRooks;
   while (temp) {
-    square = FirstOne(temp);
+    square = LSB(temp);
     if (PcOnSq(square) != rook) {
       Print(128, "ERROR!  board[%d]=%d, should be 4\n", square, PcOnSq(square));
       error = 1;
     }
-    Clear(square, temp);
+    temp &= temp - 1;
   }
   temp = BlackRooks;
   while (temp) {
-    square = FirstOne(temp);
+    square = LSB(temp);
     if (PcOnSq(square) != -rook) {
       Print(128, "ERROR!  board[%d]=%d, should be -4\n", square,
           PcOnSq(square));
       error = 1;
     }
-    Clear(square, temp);
+    temp &= temp - 1;
   }
 /*
  test queen locations
  */
   temp = WhiteQueens;
   while (temp) {
-    square = FirstOne(temp);
+    square = LSB(temp);
     if (PcOnSq(square) != queen) {
       Print(128, "ERROR!  board[%d]=%d, should be 5\n", square, PcOnSq(square));
       error = 1;
     }
-    Clear(square, temp);
+    temp &= temp - 1;
   }
   temp = BlackQueens;
   while (temp) {
-    square = FirstOne(temp);
+    square = LSB(temp);
     if (PcOnSq(square) != -queen) {
       Print(128, "ERROR!  board[%d]=%d, should be -5\n", square,
           PcOnSq(square));
       error = 1;
     }
-    Clear(square, temp);
+    temp &= temp - 1;
   }
 /*
  test king locations
  */
   temp = WhiteKing;
   while (temp) {
-    square = FirstOne(temp);
+    square = LSB(temp);
     if (PcOnSq(square) != king) {
       Print(128, "ERROR!  board[%d]=%d, should be 6\n", square, PcOnSq(square));
       error = 1;
@@ -277,11 +277,11 @@ void ValidatePosition(TREE * RESTRICT tree, int ply, int move, char *caller)
           square);
       error = 1;
     }
-    Clear(square, temp);
+    temp &= temp - 1;
   }
   temp = BlackKing;
   while (temp) {
-    square = FirstOne(temp);
+    square = LSB(temp);
     if (PcOnSq(square) != -king) {
       Print(128, "ERROR!  board[%d]=%d, should be -6\n", square,
           PcOnSq(square));
@@ -292,7 +292,7 @@ void ValidatePosition(TREE * RESTRICT tree, int ply, int move, char *caller)
           square);
       error = 1;
     }
-    Clear(square, temp);
+    temp &= temp - 1;
   }
 /*
  test board[i] fully now.
@@ -377,12 +377,12 @@ void ValidatePosition(TREE * RESTRICT tree, int ply, int move, char *caller)
  */
   temp = ~(temp_occ | temp_occx);
   while (temp) {
-    square = FirstOne(temp);
+    square = LSB(temp);
     if (PcOnSq(square)) {
       Print(128, "ERROR!  board[%d]=%d, should be 0\n", square, PcOnSq(square));
       error = 1;
     }
-    Clear(square, temp);
+    temp &= temp - 1;
   }
 /*
  test total piece count now
