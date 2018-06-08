@@ -181,10 +181,10 @@ linux:
 	$(MAKE) target=LINUX \
 		CC=gcc CXX=g++ \
 		CFLAGS='$(CFLAGS) -Wall -pipe -D_REENTRANT -march=i686 -O3 \
-			-fbranch-probabilities -fforce-mem -fomit-frame-pointer\
-			-fno-gcse -mpreferred-stack-boundary=2' \
+			-fforce-mem \
+			-g -fno-gcse -mpreferred-stack-boundary=2' \
 		CXFLAGS=$(CFLAGS) \
-		LDFLAGS='$(LDFLAGS) -lpthread -lstdc++' \
+		LDFLAGS='$(LDFLAGS) -g -lpthread -lstdc++' \
 		opt='$(opt) -DFUTILITY -DFAST -DINLINE_ASM \
                          -DPOSIX -DSMP -DCPUS=2' \
 		crafty-make

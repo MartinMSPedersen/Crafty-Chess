@@ -1565,13 +1565,13 @@ int ReadParse(char *buffer, char *args[], char *delims)
   int nargs;
 
   strcpy(tbuffer, buffer);
-  for (nargs = 0; nargs < 256; nargs++)
+  for (nargs = 0; nargs < 255; nargs++)
     *(args[nargs]) = 0;
   next = strtok(tbuffer, delims);
   if (!next)
     return (0);
   strcpy(args[0], next);
-  for (nargs = 1; nargs < 256; nargs++) {
+  for (nargs = 1; nargs < 255; nargs++) {
     next = strtok(0, delims);
     if (!next)
       break;

@@ -583,7 +583,7 @@ int       ReadParse(char *, char *args[], char *);
 int       ReadInput(void);
 int       RepetitionCheck(TREE * RESTRICT, int);
 int       RepetitionCheckBook(TREE * RESTRICT, int);
-int       RepetitionDraw(TREE * RESTRICT);
+int       RepetitionDraw(TREE * RESTRICT, int ply);
 void      ResignOrDraw(TREE * RESTRICT, int);
 void      RestoreGame(void);
 char     *Reverse(void);

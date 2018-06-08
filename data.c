@@ -224,7 +224,7 @@ unsigned int parallel_splits;
 unsigned int parallel_stops;
 unsigned int max_split_blocks;
 volatile unsigned int splitting;
-# define    VERSION                             "19.18"
+# define    VERSION                             "19.19"
 char      version[6] = { VERSION };
 PLAYING_MODE mode = normal_mode;
 #if defined(SMP)

@@ -109,7 +109,7 @@ int RepetitionCheckBook(TREE * RESTRICT tree, int ply)
   return (0);
 }
 
-/* last modified 01/23/03 */
+/* last modified 02/15/05 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -120,7 +120,7 @@ int RepetitionCheckBook(TREE * RESTRICT tree, int ply)
  *                                                                             *
  *******************************************************************************
  */
-int RepetitionDraw(TREE * RESTRICT tree)
+int RepetitionDraw(TREE * RESTRICT tree, int ply)
 {
   register int reps;
   int where;
@@ -133,7 +133,7 @@ int RepetitionDraw(TREE * RESTRICT tree)
  *                                                          *
  ************************************************************
  */
-  if (Rule50Moves(0) > 99)
+  if (Rule50Moves(ply) > 99)
     return (2);
 /*
  ************************************************************

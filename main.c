@@ -3119,6 +3119,12 @@
  *           pawns that are better as they are advanced, the old connected     *
  *           passed pawns on the 6th rank special code has been removed.       *
  *                                                                             *
+ *   19.19   RepetitionDraw() had a bug that would cause it to miss a draw     *
+ *           claim on the 50th move, often making a strange (losing) move that *
+ *           would not lose if the draw is was claimed, but which would cause  *
+ *           a loss if the draw was not claimed because the piece might be     *
+ *           instantly captured if the opponent can play a move.               *
+ *                                                                             *
  *******************************************************************************
  */
 int main(int argc, char **argv)
@@ -3402,14 +3408,14 @@ int main(int argc, char **argv)
         MakeMoveRoot(tree, move, wtm);
         move_actually_played = 1;
         last_opponent_move = move;
-        if (RepetitionDraw(tree) == 1) {
+        if (RepetitionDraw(tree, 0) == 1) {
           Print(128, "%sI claim a draw by 3-fold repetition.%s\n", Reverse(),
               Normal());
           value = DrawScore(wtm);
           if (xboard)
             Print(4095, "1/2-1/2 {Drawn by 3-fold repetition}\n");
         }
-        if (RepetitionDraw(tree) == 2) {
+        if (RepetitionDraw(tree, 0) == 2) {
           Print(128, "%sI claim a draw by the 50 move rule.%s\n", Reverse(),
               Normal());
           value = DrawScore(wtm);
@@ -3575,14 +3581,14 @@ int main(int argc, char **argv)
       tree->position[MAXPLY] = tree->position[0];
       MakeMove(tree, MAXPLY, last_pv.path[1], wtm);
       tree->rep_list[++tree->rep_game] = HashKey;
-      if (RepetitionDraw(tree) == 1) {
+      if (RepetitionDraw(tree,MAXPLY+1) == 1) {
         Print(128, "%sI claim a draw by 3-fold repetition after my move.%s\n",
             Reverse(), Normal());
         if (xboard)
           Print(4095, "1/2-1/2 {Drawn by 3-fold repetition}\n");
         value = DrawScore(wtm);
       }
-      if (RepetitionDraw(tree) == 2) {
+      if (RepetitionDraw(tree,MAXPLY+1) == 2) {
         Print(128, "%sI claim a draw by the 50 move rule after my move.%s\n",
             Reverse(), Normal());
         if (xboard)
