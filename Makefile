@@ -27,17 +27,10 @@
 #   test to see if they help.  on some machines, these will slow things
 #   by up to 10%, while on other machines these options will result in
 #   improving search speed up to 20%.  NOTE:  if you are running Linux
-#   or have a SUN Ultra-Sparc machine, the default configurations below
-#   will use the hand-written assembly modules.  Typical performance
-#   improvement is 33%, but this only applies to X86 machines and the
-#   Sun Ultra-Sparc.
+#   system, the default configurations below will use the hand-written
+#   assembly modules.  Typical performance improvement is 5%, but this
+#   only applies to X86 machines running Linux.
 #   
-#   -DCOMPACT_ATTACKS This option turns on the compact attacks option
-#                     which is more cache-friendly, but takes more
-#                     instructions.  This is usually faster.
-#   -DUSE_ATTACK_FUNCTIONS This option is needed if assembly versions
-#                     of some functions are used.  This eliminates the
-#                     c versions to avoid link errors.
 #   -DSMP             enables SMP support (not clustering).  If you choose
 #                     this option, you need to look closely at the following
 #                     four options as well.
@@ -48,34 +41,44 @@
 #   -DPOSIX           This enables POSIX threads support.  You must have either
 #                     -DPOSIX or custom-written lock.h code to support your 
 #                     system.
-#   -DEPD             if you want full EPD support built in.
 #   -DMUTEX           This uses posix threads MUTEX locks, which are not as
 #                     efficient as spinlocks, but are very portable.  If this
 #                     option is not chosen, then lock.h has to be modified to
 #                     define inline assembly lock functions.
+#
 #   -DBOOKDIR         path to the directory containing the book binary files.
 #                     The default for all such path values is "." if you don't
 #                     specify a path with this macro definition.
-#   -DLOGDIR          path to the directory where Crafty puts the log.nnn and
-#                     game.nnn files.
-#   -DTBDIR           path to the directory where the endgame tablebase files
-#                     are found.  default = "./TB"
-#   -DRCDIR           path to the directory where we look for the .craftyrc or
-#                     crafty.rc (windows) file.
-#   -DDGT             This is a unix-only option to support the DGT board.
-#   -DFAST            This option compiles out some of the statistics 
-#                     gathering to slightly speed up the code.
-#   -DTRACE           This enables the "trace" command so that the search tree
-#                     can be dumped while running.
 #   -DDETECTDRAW      This enables experimental code that detects lots of the
 #                     famous blocked-pawn positions as draws.  It is much slower
 #                     and perhaps slightly risky.
-#   -DFUTILITY        Enables futility pruning (unsafe form of forward pruning)
-#                     that is included for experimentation.
+#   -DDGT             This is a unix-only option to support the DGT board.
+#   -DEPD             if you want full EPD support built in.
+#   -DFAST            This option compiles out some of the statistics 
+#                     gathering to slightly speed up the code.
+#   -DFUTILITY        enables "futility pruning" a forward-pruning algorithm
+#                     that seems to be relatively safe.
+#   -DLOGDIR          path to the directory where Crafty puts the log.nnn and
+#                     game.nnn files.
+#   -DRCDIR           path to the directory where we look for the .craftyrc or
+#                     crafty.rc (windows) file.
+#   -DTBDIR           path to the directory where the endgame tablebase files
+#                     are found.  default = "./TB"
+#   -DTRACE           This enables the "trace" command so that the search tree
+#                     can be dumped while running.
+#   -DUSE_ASSEMBLY    Compiles with the Intel assembly code for FirstOne(),
+#                     LastOne() and PopCnt().
+#   -INLINE_AMD       Compiles with the Intel assembly code for FirstOne(),
+#                     LastOne() and PopCnt() for the AMD opteron, only tested
+#                     with the 64-bit opteron GCC compiler.
+#   -INLINE_ASM       Compiles with the Intel assembly code for FirstOne(),
+#                     LastOne() and PopCnt().  This is for gcc-style inlining
+#                     and thoroughly breaks the Intel C/C++ compiler at the
+#                     present (version 8.0).
 #   
 
 default:
-	$(MAKE) -j linux
+	$(MAKE) -j linux-icc
 help:
 	@echo "You must specify the system which you want to compile for:"
 	@echo ""
@@ -106,7 +109,7 @@ aix:
 		CC=cc CXX=$(CC) \
 		CFLAGS='$(CFLAGS) -O2' \
 		CXFLAGS=$(CFLAGS) \
-		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS' \
+		opt='$(opt) -DFUTILITY' \
 		crafty-make
 
 alpha:
@@ -116,7 +119,7 @@ alpha:
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS='$(LDFLAGS) $(CFLAGS)' \
 		LIBS='-lpthread -lexc' \
-		opt='$(opt) -DSMP -DCPUS=8 -DFAST -DPOSIX' \
+		opt='$(opt) -DFUTILITY -DSMP -DCPUS=8 -DFAST -DPOSIX' \
 		crafty-make
 
 alpha-host:
@@ -126,18 +129,17 @@ alpha-host:
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS='$(LDFLAGS) $(CFLAGS)' \
 		LIBS='-lpthread -lexc' \
-		opt='$(opt) -DSMP -DCPUS=8 -DFAST -DPOSIX' \
+		opt='$(opt) -DFUTILITY -DSMP -DCPUS=8 -DFAST -DPOSIX' \
 		crafty-make
 
 alpha-host-nocix:
 	$(MAKE) target=ALPHA \
 		CC=cc CXX=cxx \
-		CFLAGS='$(CFLAGS) -std -fast -O4 -pthread -newc \
-		CXFLAGS=$(CFLAGS) \
-			-arch ev56 -tune host' \
+		CFLAGS='$(CFLAGS) -std -fast -O4 -pthread -newc' \
+		CXFLAGS='$(CFLAGS) -arch ev56 -tune host' \
 		LDFLAGS='$(LDFLAGS) $(CFLAGS)' \
 		LIBS='-lpthread -lexc' \
-		opt='$(opt) -DSMP -DCPUS=8 -DFAST -DPOSIX' \
+		opt='$(opt) -DFUTILITY -DSMP -DCPUS=8 -DFAST -DPOSIX' \
 		crafty-make
 
 darwin:
@@ -147,7 +149,7 @@ darwin:
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS=$(LDFLAGS) \
 		LIBS='-lstdc++' \
-		opt='$(opt) -DFAST' \
+		opt='$(opt) -DFUTILITY -DFAST' \
 		crafty-make
 		
 freebsd:
@@ -156,8 +158,8 @@ freebsd:
 		CFLAGS='$(CFLAGS) -fomit-frame-pointer -m486 -O3 -Wall' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS=$(LDFLAGS) \
-		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
-		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST' \
+		opt='$(opt) -DFUTILITY -DUSE_ASSEMBLY -DFAST' \
+		asm=X86.o \
 		crafty-make
 
 freebsd-pgcc:
@@ -166,8 +168,8 @@ freebsd-pgcc:
 		CFLAGS='$(CFLAGS) -pipe -D_REENTRANT -mpentium -O -Wall' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS=$(LDFLAGS) \
-		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
-		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST' \
+		opt='$(opt) -DFUTILITY -DUSE_ASSEMBLY -DFAST' \
+		asm=X86.o \
 		crafty-make
 
 hpux:
@@ -181,12 +183,14 @@ hpux:
 linux:
 	$(MAKE) target=LINUX \
 		CC=gcc CXX=g++ \
-		CFLAGS='$(CFLAGS) -Wall -pipe -D_REENTRANT -O3 \
-			-fomit-frame-pointer' \
+		CFLAGS='$(CFLAGS) -Wall -pipe -D_REENTRANT -march=i686 -O3 \
+			-fbranch-probabilities -fforce-mem -fomit-frame-pointer\
+			-fno-gcse -mpreferred-stack-boundary=2' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS='$(LDFLAGS) -lpthread -lstdc++' \
-		opt='$(opt) -DFAST \
-		     -DPOSIX -DSMP -DCPUS=4 -DTRACE' \
+		opt='$(opt) -DFUTILITY -DUSE_ASSEMBLY -DFAST \
+		     -DPOSIX -DSMP -DCPUS=4' \
+		asm=X86.o \
 		crafty-make
 
 linux-amd64:
@@ -194,10 +198,10 @@ linux-amd64:
 		CC=gcc CXX=g++ \
 		CFLAGS='$(CFLAGS) -Wall -pipe -D_REENTRANT \
 		-fomit-frame-pointer -O3' \
-		CXFLAGS='$(CFLAGS)' \
+		CXFLAGS=$(CFLAGS) \
 		LDFLAGS='$(LDFLAGS) -lpthread -lstdc++' \
 		opt='$(opt) -DPOSIX -DFAST -DSMP -DCPUS=4 \
-		-DAMD_INLINE' \
+		-DFUTILITY -DUSE_ASSEMBLY -DINLINE_AMD' \
 		crafty-make
 
 linux-profile:
@@ -208,39 +212,35 @@ linux-profile:
 			-fno-gcse -mpreferred-stack-boundary=2' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS='$(LDFLAGS) -fprofile-arcs -lstdc++ -lpthread' \
-		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
-		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST \
-		     -DPOSIX -DSMP -DCPUS=4 -DDGT' \
+		opt='$(opt) -DFUTILITY -DUSE_ASSEMBLY -DFAST \
+		     -DPOSIX -DSMP -DCPUS=4' \
+		asm= \
 		crafty-make
 
 linux-icc-profile:
 	$(MAKE) target=LINUX \
 		CC=icc CXX=icc \
-		CFLAGS='$(CFLAGS) -D_REENTRANT -O2 -march=pentiumiii \
-                        -mcpu=pentiumpro -prof_gen -prof_dir ./profdir \
-                        -fno-alias -tpp6' \
-		CXFLAGS='$(CFLAGS) -D_REENTRANT -O2 -march=pentiumiii \
-                        -mcpu=pentiumpro -prof_gen -prof_dir ./profdir \
-                        -tpp6' \
+		CFLAGS='$(CFLAGS) -D_REENTRANT -O2 \
+                        -prof_genx -prof_dir ./profdir \
+                        -Ob2 -fno-alias' \
+		CXFLAGS='$(CFLAGS) -D_REENTRANT -O2 \
+                        -prof_genx -prof_dir ./profdir' \
 		LDFLAGS='$(LDFLAGS) -lpthread' \
-		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
-		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST \
-		     -DPOSIX -DSMP -DCPUS=4 -DDGT' \
+		opt='$(opt) -DFUTILITY -DFAST \
+                         -DPOSIX -DSMP -DCPUS=4' \
 		crafty-make
 
 linux-icc:
 	$(MAKE) target=LINUX \
 		CC=icc CXX=icc \
-		CFLAGS='$(CFLAGS) -D_REENTRANT -O2 -march=pentiumiii \
-                        -mcpu=pentiumpro -prof_use -prof_dir ./profdir \
-                        -fno-alias -tpp6' \
-		CXFLAGS='$(CFLAGS) -D_REENTRANT -O2 -march=pentiumiii \
-                        -mcpu=pentiumpro -prof_use -prof_dir ./profdir \
-                        -tpp6' \
+		CFLAGS='$(CFLAGS) -D_REENTRANT -O2 \
+                        -prof_use -prof_dir ./profdir \
+                        -Ob2 -fno-alias' \
+		CXFLAGS='$(CFLAGS) -D_REENTRANT -O2 \
+                        -prof_use -prof_dir ./profdir' \
 		LDFLAGS='$(LDFLAGS) -lpthread' \
-		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
-		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST \
-		     -DPOSIX -DSMP -DCPUS=4 -DDGT' \
+		opt='$(opt) -DFUTILITY -DFAST \
+                         -DPOSIX -DSMP -DCPUS=4' \
 		crafty-make
 
 linux-alpha:
@@ -250,7 +250,8 @@ linux-alpha:
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS='$(LDFLAGS) $(CFLAGS)' \
 		LIBS='-lpthread' \
-		opt='$(opt) -DSMP -DCPUS=8 -DFAST -DPOSIX -DNOBUILTINS' \
+		opt='$(opt) -DFUTILITY -DSMP -DCPUS=8 -DFAST -DPOSIX \
+                         -DNOBUILTINS' \
 		crafty-make
 
 netbsd:
@@ -261,7 +262,7 @@ netbsd:
 			-finline-functions -ffast-math' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS=$(LDFLAGS) \
-		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS -DFAST' \
+		opt='$(opt) -DFUTILITY -DFAST' \
 		crafty-make
 
 netbsd-i386:
@@ -272,8 +273,8 @@ netbsd-i386:
 			-finline-functions -ffast-math' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS=$(LDFLAGS) \
-		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS -DFAST \
-		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B' \
+		opt='$(opt) -DFUTILITY -DFAST -DUSE_ASSEMBLY' \
+		asm=X86.o \
 		crafty-make
 
 netbsd-sparc:
@@ -284,8 +285,7 @@ netbsd-sparc:
 			-finline-functions -ffast-math' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS=$(LDFLAGS) \
-		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS -DFAST \
-		     -DUSE_ASSEMBLY_A' \
+		opt='$(opt) -DFUTILITY -DFAST' \
 		asm=Sparc.o \
 		crafty-make
 
@@ -295,7 +295,7 @@ next:
 		CFLAGS='$(CFLAGS) -O2' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS='$(LDFLAGS) $(CFLAGS)'
-		opt='$(opt) -DCOMPACT_ATTACKS' \
+		opt='$(opt) -DFUTILITY' \
 		crafty-make
 
 os2:
@@ -304,8 +304,8 @@ os2:
 		CFLAGS='$(CFLAGS) -fomit-frame-pointer -m486 -O3 -Wall' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS='$(LDFLAGS) -Zexe -Zcrtdll -s' \
-		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
-		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST' \
+		opt='$(opt) -DFUTILITY -DUSE_ASSEMBLY -DFAST' \
+		asm=X86.o \
 		crafty-make
 
 sgi:
@@ -315,7 +315,7 @@ sgi:
 		CFLAGS='$(CFLAGS) -32 -mips2 -cckr' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS=$(LDFLAGS) \
-		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS' \
+		opt='$(opt) -DFUTILITY' \
 		crafty-make
 
 solaris:
@@ -325,9 +325,7 @@ solaris:
 		CFLAGS='$(CFLAGS) -fast -xO5 -xunroll=20' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS='$(LDFLAGS) -lpthread' \
-		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
-		     -DUSE_ASSEMBLY_A -DSMP -DCPUS=4 -DMUTEX -DPOSIX' \
-		asm=Sparc.o \
+		opt='$(opt) -DFUTILITY -DSMP -DCPUS=4 -DMUTEX -DPOSIX' \
 		crafty-make
 
 solaris-gcc:
@@ -338,9 +336,7 @@ solaris-gcc:
 			-fforce-mem -fomit-frame-pointer' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS='$(LDFLAGS) -lstdc++' \
-		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
-		     -DUSE_ASSEMBLY_A' \
-		asm=Sparc.o \
+		opt='$(opt) -DFUTILITY -DFAST' \
 		crafty-make
 
 generic:
@@ -448,23 +444,19 @@ profile:
 #
 
 objects = searchr.o search.o thread.o searchmp.o repeat.o next.o nexte.o      \
-       nextr.o history.o quiesce.o evaluate.o movgen.o make.o unmake.o hash.o \
-       attacks.o swap.o boolean.o utility.o valid.o probe.o book.o data.o     \
-       drawn.o edit.o epd.o epdglue.o init.o input.o interupt.o iterate.o     \
-       main.o option.o output.o phase.o ponder.o preeval.o resign.o root.o    \
-       learn.o setboard.o test.o time.o validate.o annotate.o       \
-       analyze.o evtest.o bench.o egtb.o dgt.o $(asm)
-#objects = crafty.o egtb.o $(asm)
+       nextr.o history.o quiesce.o evaluate.o movgen.o make.o unmake.o hash.o  \
+       attacks.o swap.o boolean.o utility.o valid.o book.o data.o      \
+       drawn.o edit.o epd.o epdglue.o init.o input.o interupt.o iterate.o      \
+       main.o option.o output.o phase.o ponder.o preeval.o resign.o root.o     \
+       learn.o setboard.o test.o time.o validate.o annotate.o analyze.o        \
+       evtest.o bench.o dgt.o $(asm)
+#objects = crafty.o $(asm)
 
 # Do not change anything below this line!
 
 opts = $(opt) -D$(target)
 
 includes = data.h chess.h
-
-epdincludes = epd.h epddefs.h epdglue.h
-
-eval_users = data.o evaluate.o preeval.o 
 
 crafty-make:
 	@$(MAKE) opt='$(opt)' asm='$(asm)' crafty
@@ -481,10 +473,6 @@ clean:
 	-rm -f *.o crafty
 
 $(objects): $(includes)
-
-$(eval_users): evaluate.h
-
-epd.o epdglue.o option.o init.o : $(epdincludes)
 
 .c.o:
 	$(CC) $(CFLAGS) $(opts) -c $*.c

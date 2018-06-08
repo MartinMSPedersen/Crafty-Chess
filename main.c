@@ -10,7 +10,7 @@
 #endif
 #include <signal.h>
 
-/* last modified 01/05/04 */
+/* last modified 01/26/04 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -3004,6 +3004,21 @@
  *           is that the score starts to slip over the last 10 moves by each   *
  *           side to that if either can do something to reset the counter,     *
  *           they will do it sooner rather than later.                         *
+ *                                                                             *
+ *   19.10   a fix to the EvaluateWinner() code to recognize that while KRB vs *
+ *           KR can not normally be won by the KRB side, we require that the   *
+ *           KR side not be trapped on the edge of the board, where it can be  *
+ *           mated.  FUTILITY code put back in.  19.9 will be the SE version   *
+ *           for those wanting to play with it.  new "learn" command option to *
+ *           allow the user to set the position learning parameters that are   *
+ *           used to trigger position learning and disable position learning   *
+ *           after the game is already lost.  the command syntax is as follows *
+ *           "learn trigger cutoff" and are expressed as fractions of a pawn   *
+ *           with a decimel point.  the default is learn .33 -2.0 which says   *
+ *           to do position learning when the score drops 1/3 of a pawn, but   *
+ *           turn it off after the score reaches -2.00 as the game is already  *
+ *           lost and learning won't help at this point.  this is the CCT-6    *
+ *           version exactly as played in the CCT-6 tournament.                *
  *                                                                             *
  *******************************************************************************
  */

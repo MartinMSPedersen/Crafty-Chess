@@ -1070,7 +1070,7 @@ void LearnImportPosition(TREE * RESTRICT tree, int nargs, char **args)
   fflush(position_lrn_file);
 }
 
-/* last modified 01/19/00 */
+/* last modified 01/26/04 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -1126,9 +1126,9 @@ void LearnPosition(TREE * RESTRICT tree, int wtm, int last_value, int value)
     return;
   if ((!position_lrn_file) || (!position_file))
     return;
-  if (last_value < -2 * PAWN_VALUE)
+  if (last_value < learning_cutoff)
     return;
-  if (last_value < value + PAWN_VALUE / 3)
+  if (last_value < value + learning_trigger)
     return;
   if (moves_out_of_book > 10)
     return;

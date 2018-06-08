@@ -689,8 +689,6 @@ void EGTBPV(TREE * RESTRICT tree, int wtm)
   tree->position[1] = tree->position[0];
   if (WhiteCastle(1) + BlackCastle(1))
     return;
-  if (!EGTBProbe(tree, 1, wtm, &value))
-    return;
   t_move_number = move_number;
   if (display_options & 64)
     sprintf(buffer, "%d.", move_number);
@@ -721,7 +719,7 @@ void EGTBPV(TREE * RESTRICT tree, int wtm)
       MakeMove(tree, 1, current[i], wtm);
       if (!Check(wtm)) {
         legal++;
-        if (TotalPieces == 2 || EGTBProbe(tree, 2, Flip(wtm), &value)) {
+        if (TotalPieces == 2 ) {
           if (TotalPieces > 2)
             value = -value;
           else
@@ -2316,9 +2314,9 @@ static void WinNumaInit(void)
         printf("Current ideal CPU is %u\n", dwCPU);
         pSetThreadIdealProcessor(GetCurrentThread(), dwCPU);
         if ((((DWORD) - 1) != dwCPU) && (MAXIMUM_PROCESSORS != dwCPU) &&
-            !(ullProcessorMask[0] & (1u i64 << dwCPU))) {
+            !(ullProcessorMask[0] & (1ui64 << dwCPU))) {
           for (ulNode = 1; ulNode <= ulNumaNodes; ulNode++) {
-            if (ullProcessorMask[ulNode] & (1u i64 << dwCPU)) {
+            if (ullProcessorMask[ulNode] & (1ui64 << dwCPU)) {
               printf("Exchanging nodes 0 and %d\n", ulNode);
               ullMask = ullProcessorMask[ulNode];
               ullProcessorMask[ulNode] = ullProcessorMask[0];
@@ -2524,9 +2522,9 @@ void NumaInit(void)
         printf("Current ideal CPU is %u\n", dwCPU);
         pSetThreadIdealProcessor(GetCurrentThread(), dwCPU);
         if ((((DWORD) - 1) != dwCPU) && (MAXIMUM_PROCESSORS != dwCPU) &&
-            !(ullProcessorMask[0] & (1u i64 << dwCPU))) {
+            !(ullProcessorMask[0] & (1ui64 << dwCPU))) {
           for (ulNode = 1; ulNode <= ulNumaNodes; ulNode++) {
-            if (ullProcessorMask[ulNode] & (1u i64 << dwCPU)) {
+            if (ullProcessorMask[ulNode] & (1ui64 << dwCPU)) {
               printf("Exchanging nodes 0 and %d\n", ulNode);
               ullMask = ullProcessorMask[ulNode];
               ullProcessorMask[ulNode] = ullProcessorMask[0];

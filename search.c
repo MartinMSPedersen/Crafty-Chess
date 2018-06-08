@@ -5,6 +5,11 @@
 #include "data.h"
 #include "epdglue.h"
 
+#if defined(FUTILITY)
+#  define RAZOR_MARGIN (QUEEN_VALUE+1)
+#  define F_MARGIN (BISHOP_VALUE+1)
+#endif
+
 /* last modified 01/22/04 */
 /*
  *******************************************************************************
@@ -26,8 +31,8 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
   register int extensions, extended, recapture, pieces;
   int mate_threat = 0;
 
-#if defined(SINGULAR)
-  int s_move = 0;
+#if defined(FUTILITY)
+  int fprune;
 #endif
 
 /*
@@ -136,31 +141,6 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
  *                                                          *
  ************************************************************
  */
-  if (ply <= iteration_depth && TotalPieces <= EGTB_use &&
-      WhiteCastle(ply) + BlackCastle(ply) == 0 &&
-      (CaptureOrPromote(tree->current_move[ply - 1]) || ply < 3)) {
-    int egtb_value;
-
-    tree->egtb_probes++;
-    if (EGTBProbe(tree, ply, wtm, &egtb_value)) {
-      tree->egtb_probes_successful++;
-      alpha = egtb_value;
-      if (abs(alpha) > MATE - 300)
-        alpha += (alpha > 0) ? -ply + 1 : ply;
-      else if (alpha == 0) {
-        alpha = DrawScore(wtm);
-        if (Material > 0)
-          alpha += (wtm) ? 1 : -1;
-        else if (Material < 0)
-          alpha -= (wtm) ? 1 : -1;
-      }
-      if (alpha < beta)
-        SavePV(tree, ply, 2);
-      tree->pv[ply].pathl = 0;
-      HashStore(tree, ply, MAX_DRAFT, wtm, EXACT, alpha, mate_threat);
-      return (alpha);
-    }
-  }
 /*
  ************************************************************
  *                                                          *
@@ -304,24 +284,6 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
     } while (0);
 /*
  ************************************************************
- |                                                          |
- |   now determine if this position is singular in nature   |
- |   by searching to see if one move is clearly better than |
- |   the rest.                                              |
- |                                                          |
- ************************************************************
-*/
-#if defined(SINGULAR)
-  if (depth >= 5*INCPLY && !tree->in_check[ply] && do_null && singular_depth) {
-    s_move = Singular(tree, alpha, wtm, depth, ply);
-    tree->in_check[ply + 1] = 0;
-    o_alpha = alpha;
-    tree->last[ply] = tree->last[ply - 1];
-    tree->next_status[ply].phase = HASH_MOVE;
-  }
-#endif
-/*
- ************************************************************
  *                                                          *
  *   now iterate through the move list and search the       *
  *   resulting positions.  note that Search() culls any     *
@@ -423,6 +385,9 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
  *                                                          *
  ************************************************************
  */
+#if defined(FUTILITY)
+      fprune = 0;
+#endif
       if (!moves_searched) {
         if (tree->in_check[ply] && tree->last[ply] - tree->last[ply - 1] == 1) {
           tree->one_reply_extensions_done++;
@@ -431,27 +396,14 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
 /*
  ************************************************************
  *                                                          *
- *   if this position has a singular move, then extend this *
- *   move (only).                                           *
- *                                                          *
- ************************************************************
-*/
-#if defined(SINGULAR)
-        if (s_move) {
-          if (tree->current_move[ply] == s_move)
-            extended += singular_depth;
-        }
-#endif
-/*
- ************************************************************
- *                                                          *
  *   now it is time to call Search()/Quiesce to find out if *
  *   this move is reasonable or not.                        *
  *                                                          *
  ************************************************************
  */
-        if (extended)
+        if (extended) {
           LimitExtensions(extended, ply);
+        }
         extensions = extended - INCPLY;
         if (depth + extensions >= INCPLY || tree->in_check[ply + 1])
           value =
@@ -464,10 +416,35 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
           return (0);
         }
       } else {
-        if (extended)
+        if (extended) {
           LimitExtensions(extended, ply);
+        }
+#if defined(FUTILITY)
+        else {
+          if (abs(alpha) < (MATE - 500) && ply > 4 && !tree->in_check[ply]) {
+            if (wtm) {
+              if (depth < 3 * INCPLY && (Material + F_MARGIN) <= alpha)
+                fprune = 1;
+              else if (depth >= 3 * INCPLY && depth < 5 * INCPLY &&
+                  (Material + RAZOR_MARGIN) <= alpha)
+                extended -= 60;
+            } else {
+              if (depth < 3 * INCPLY && (-Material + F_MARGIN) <= alpha)
+                fprune = 1;
+              else if (depth >= 3 * INCPLY && depth < 5 * INCPLY &&
+                  (-Material + RAZOR_MARGIN) <= alpha)
+                extended -= 60;
+            }
+          }
+        }
+#endif
         extensions = extended - INCPLY;
+#if defined(FUTILITY)
+        if ((depth + extensions >= INCPLY || tree->in_check[ply + 1])
+            && !fprune)
+#else
         if (depth + extensions >= INCPLY || tree->in_check[ply + 1])
+#endif
           value =
               -Search(tree, -alpha - 1, -alpha, Flip(wtm), depth + extensions,
               ply + 1, DO_NULL, recapture);
@@ -516,9 +493,6 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
       tree->depth = depth;
       tree->mate_threat = mate_threat;
       tree->lp_recapture = lp_recapture;
-#  if defined(SINGULAR)
-      tree->s_move = s_move;
-#  endif
       if (Thread(tree)) {
         if (abort_search || tree->stop)
           return (0);

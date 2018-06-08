@@ -390,7 +390,6 @@ struct tree {
   int       ply;
   int       mate_threat;
   int       lp_recapture;
-  int       s_move;
   volatile int used;
 };
 typedef struct tree TREE;
@@ -579,8 +578,7 @@ void      RootMoveList(int);
 int       Search(TREE * RESTRICT, int, int, int, int, int, int, int);
 void      SearchOutput(TREE * RESTRICT, int, int);
 int       SearchRoot(TREE * RESTRICT, int, int, int, int);
-int       SearchSMP(TREE * RESTRICT, int, int, int, int, int, int, int, int,
-                    int);
+int       SearchSMP(TREE * RESTRICT, int, int, int, int, int, int, int, int);
 void      SearchTrace(TREE *, int, int, int, int, int, char *, int);
 void      SetBoard(SEARCH_POSITION *, int, char **, int);
 void      SetChessBitBoards(SEARCH_POSITION *);

@@ -347,8 +347,7 @@ int ThreadWait(int tid, TREE * RESTRICT waiting)
  */
     SearchSMP(thread[tid], thread[tid]->alpha, thread[tid]->beta,
         thread[tid]->value, thread[tid]->wtm, thread[tid]->depth,
-        thread[tid]->ply, thread[tid]->mate_threat, thread[tid]->lp_recapture,
-        thread[tid]->s_move);
+        thread[tid]->ply, thread[tid]->mate_threat, thread[tid]->lp_recapture);
     Lock(lock_smp);
     Lock(thread[tid]->parent->lock);
 #  if defined(DEBUGSMP)

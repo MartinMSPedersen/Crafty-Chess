@@ -36,15 +36,6 @@ void RootMoveList(int wtm)
  ************************************************************
  */
   EGTB_draw = 0;
-  if (EGTBlimit && TotalPieces <= EGTBlimit &&
-      WhiteCastle(1) + BlackCastle(1) == 0 &&
-      EGTBProbe(tree, 1, wtm, &tb_value)) {
-    if (swindle_mode && (tb_value == DrawScore(wtm)))
-      if ((wtm && Material > 0) || (!wtm && Material < 0))
-        EGTB_draw = 1;
-    if (tb_value > MATE - 300)
-      mating_via_tb = -tb_value - 1;
-  }
 /*
  ************************************************************
  *                                                          *
@@ -78,20 +69,8 @@ void RootMoveList(int wtm)
     if (!Check(wtm))
       do {
         tree->current_move[1] = *mvp;
-        if (TotalPieces <= EGTBlimit && EGTB_draw &&
-            WhiteCastle(1) + BlackCastle(1) == 0) {
-          i = EGTBProbe(tree, 2, Flip(wtm), &tb_value);
-          if (i && tb_value != DrawScore(Flip(wtm)))
-            break;
-        }
         if (mating_via_tb && TotalPieces <= EGTBlimit &&
             WhiteCastle(1) + BlackCastle(1) == 0) {
-          i = EGTBProbe(tree, 2, Flip(wtm), &tb_value);
-          if (i && ((mating_via_tb > DrawScore(Flip(wtm)) &&
-                      tb_value < mating_via_tb) ||
-                  (mating_via_tb < DrawScore(Flip(wtm)) &&
-                      tb_value > mating_via_tb)))
-            break;
         }
         value = -Quiesce(tree, -MATE, MATE, Flip(wtm), 2);
 /*
@@ -196,12 +175,7 @@ void RootMoveList(int wtm)
     for (i = 0; i < n_root_moves; i++) {
       tree->current_move[1] = rmoves[i];
       MakeMove(tree, 1, rmoves[i], wtm);
-      if (mating_via_tb && TotalPieces <= EGTBlimit &&
-          WhiteCastle(1) + BlackCastle(1) == 0)
-        temp =
-            (EGTBProbe(tree, 2, Flip(wtm), &tb_value) != DrawScore(Flip(wtm)));
-      else
-        temp = 0;
+      temp = 0;
       UnmakeMove(tree, 1, rmoves[i], wtm);
       if (temp)
         break;

@@ -204,7 +204,13 @@ void Initialize(int continuing)
     position_lrn_file = fopen(log_filename, "r");
     if (!position_lrn_file) {
       position_lrn_file = fopen(log_filename, "a");
-      fprintf(position_lrn_file, "position\n");
+      if (position_lrn_file) fprintf(position_lrn_file, "position\n");
+      else {
+        Print(128, "unable to open position learning file [%s/position.bin].\n",
+            book_path);
+        Print(128, "learning disabled.\n");
+        learning &= ~position_learning;
+      }
     } else {
       fclose(position_lrn_file);
       position_lrn_file = fopen(log_filename, "a");
@@ -1296,6 +1302,13 @@ void InitializePawnMasks(void)
   mask_right_edge = ~file_mask[FILEH];
   mask_advance_2_w = rank_mask[RANK3];
   mask_advance_2_b = rank_mask[RANK6];
+/* 
+   this mask has 1's everywhere except the a/h file and
+   the first/last rank.
+ */
+  mask_not_edge =
+      ~(rank_mask[RANK1] | rank_mask[RANK8] | file_mask[FILEA] |
+      file_mask[FILEH]);
 /* 
    these masks have 1's on the squares where it is useful to have a bishop
    when the b or g pawn is missing or pushed one square.

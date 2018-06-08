@@ -159,10 +159,8 @@ int *GenerateCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
 
         *move++ = (to - 7) | (to << 6) | (pawn << 12) | (cap << 15);
       } else
-        *move++ =
-            (to -
-            7) | (to << 6) | (pawn << 12) | ((-PcOnSq(to)) << 15) | (queen <<
-            18);
+        *move++ = (to - 7) | (to << 6) | (pawn << 12) |
+          ((-PcOnSq(to)) << 15) | (queen << 18);
       Clear(to, pcapturesl);
     }
 
@@ -174,10 +172,8 @@ int *GenerateCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
 
         *move++ = (to - 9) | (to << 6) | (pawn << 12) | (cap << 15);
       } else
-        *move++ =
-            (to -
-            9) | (to << 6) | (pawn << 12) | ((-PcOnSq(to)) << 15) | (queen <<
-            18);
+        *move++ = (to - 9) | (to << 6) | (pawn << 12) |
+          ((-PcOnSq(to)) << 15) | (queen << 18);
       Clear(to, pcapturesr);
     }
   }
@@ -318,9 +314,8 @@ int *GenerateCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
 
         *move++ = (to + 9) | (to << 6) | (pawn << 12) | (cap << 15);
       } else
-        *move++ =
-            (to +
-            9) | (to << 6) | (pawn << 12) | (PcOnSq(to) << 15) | (queen << 18);
+        *move++ = (to + 9) | (to << 6) | (pawn << 12) |
+          (PcOnSq(to) << 15) | (queen << 18);
       Clear(to, pcapturesl);
     }
 
@@ -332,9 +327,8 @@ int *GenerateCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
 
         *move++ = (to + 7) | (to << 6) | (pawn << 12) | (cap << 15);
       } else
-        *move++ =
-            (to +
-            7) | (to << 6) | (pawn << 12) | (PcOnSq(to) << 15) | (queen << 18);
+        *move++ = (to + 7) | (to << 6) | (pawn << 12) |
+          (PcOnSq(to) << 15) | (queen << 18);
       Clear(to, pcapturesr);
     }
   }
@@ -429,7 +423,8 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move)
     temp = from + (king << 12);
     while (moves) {
       to = LastOne(moves);
-      if (!Attacked(tree, to, 0) && (directions[from][to] != check_direction1)
+      if (!Attacked(tree, to, 0)
+          && (directions[from][to] != check_direction1)
           && (directions[from][to] != check_direction2))
         *move++ = temp | (to << 6) | ((-PcOnSq(to)) << 15);
       Clear(to, moves);
@@ -594,22 +589,14 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move)
 
             *move++ = (to - 7) | (to << 6) | (pawn << 12) | (cap << 15);
           } else {
-            *move++ =
-                (to -
-                7) | (to << 6) | (pawn << 12) | ((-PcOnSq(to)) << 15) | (queen
-                << 18);
-            *move++ =
-                (to -
-                7) | (to << 6) | (pawn << 12) | ((-PcOnSq(to)) << 15) | (rook <<
-                18);
-            *move++ =
-                (to -
-                7) | (to << 6) | (pawn << 12) | ((-PcOnSq(to)) << 15) | (bishop
-                << 18);
-            *move++ =
-                (to -
-                7) | (to << 6) | (pawn << 12) | ((-PcOnSq(to)) << 15) | (knight
-                << 18);
+            *move++ = (to - 7) | (to << 6) | (pawn << 12) |
+              ((-PcOnSq(to)) << 15) | (queen << 18);
+            *move++ = (to - 7) | (to << 6) | (pawn << 12) |
+              ((-PcOnSq(to)) << 15) | (rook << 18);
+            *move++ = (to - 7) | (to << 6) | (pawn << 12) |
+              ((-PcOnSq(to)) << 15) | (bishop << 18);
+            *move++ = (to - 7) | (to << 6) | (pawn << 12) |
+              ((-PcOnSq(to)) << 15) | (knight << 18);
           }
         }
         Clear(to, pcapturesl);
@@ -622,22 +609,14 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move)
 
             *move++ = (to - 9) | (to << 6) | (pawn << 12) | (cap << 15);
           } else {
-            *move++ =
-                (to -
-                9) | (to << 6) | (pawn << 12) | ((-PcOnSq(to)) << 15) | (queen
-                << 18);
-            *move++ =
-                (to -
-                9) | (to << 6) | (pawn << 12) | ((-PcOnSq(to)) << 15) | (rook <<
-                18);
-            *move++ =
-                (to -
-                9) | (to << 6) | (pawn << 12) | ((-PcOnSq(to)) << 15) | (bishop
-                << 18);
-            *move++ =
-                (to -
-                9) | (to << 6) | (pawn << 12) | ((-PcOnSq(to)) << 15) | (knight
-                << 18);
+            *move++ = (to - 9) | (to << 6) | (pawn << 12) |
+              ((-PcOnSq(to)) << 15) | (queen << 18);
+            *move++ = (to - 9) | (to << 6) | (pawn << 12) |
+              ((-PcOnSq(to)) << 15) | (rook << 18);
+            *move++ = (to - 9) | (to << 6) | (pawn << 12) |
+              ((-PcOnSq(to)) << 15) | (bishop << 18);
+            *move++ = (to - 9) | (to << 6) | (pawn << 12) |
+              ((-PcOnSq(to)) << 15) | (knight << 18);
           }
         }
         Clear(to, pcapturesr);
@@ -699,7 +678,8 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move)
     temp = from + (king << 12);
     while (moves) {
       to = FirstOne(moves);
-      if (!Attacked(tree, to, 1) && (directions[from][to] != check_direction1)
+      if (!Attacked(tree, to, 1)
+          && (directions[from][to] != check_direction1)
           && (directions[from][to] != check_direction2))
         *move++ = temp | (to << 6) | (PcOnSq(to) << 15);
       Clear(to, moves);
@@ -868,22 +848,14 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move)
 
             *move++ = (to + 9) | (to << 6) | (pawn << 12) | (cap << 15);
           } else {
-            *move++ =
-                (to +
-                9) | (to << 6) | (pawn << 12) | (PcOnSq(to) << 15) | (queen <<
-                18);
-            *move++ =
-                (to +
-                9) | (to << 6) | (pawn << 12) | (PcOnSq(to) << 15) | (rook <<
-                18);
-            *move++ =
-                (to +
-                9) | (to << 6) | (pawn << 12) | (PcOnSq(to) << 15) | (bishop <<
-                18);
-            *move++ =
-                (to +
-                9) | (to << 6) | (pawn << 12) | (PcOnSq(to) << 15) | (knight <<
-                18);
+            *move++ = (to + 9) | (to << 6) | (pawn << 12) |
+              (PcOnSq(to) << 15) | (queen << 18);
+            *move++ = (to + 9) | (to << 6) | (pawn << 12) |
+              (PcOnSq(to) << 15) | (rook << 18);
+            *move++ = (to + 9) | (to << 6) | (pawn << 12) |
+              (PcOnSq(to) << 15) | (bishop << 18);
+            *move++ = (to + 9) | (to << 6) | (pawn << 12) |
+              (PcOnSq(to) << 15) | (knight << 18);
           }
         }
         Clear(to, pcapturesl);
@@ -896,22 +868,14 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move)
 
             *move++ = (to + 7) | (to << 6) | (pawn << 12) | (cap << 15);
           } else {
-            *move++ =
-                (to +
-                7) | (to << 6) | (pawn << 12) | (PcOnSq(to) << 15) | (queen <<
-                18);
-            *move++ =
-                (to +
-                7) | (to << 6) | (pawn << 12) | (PcOnSq(to) << 15) | (rook <<
-                18);
-            *move++ =
-                (to +
-                7) | (to << 6) | (pawn << 12) | (PcOnSq(to) << 15) | (bishop <<
-                18);
-            *move++ =
-                (to +
-                7) | (to << 6) | (pawn << 12) | (PcOnSq(to) << 15) | (knight <<
-                18);
+            *move++ = (to + 7) | (to << 6) | (pawn << 12) |
+              (PcOnSq(to) << 15) | (queen << 18);
+            *move++ = (to + 7) | (to << 6) | (pawn << 12) |
+              (PcOnSq(to) << 15) | (rook << 18);
+            *move++ = (to + 7) | (to << 6) | (pawn << 12) |
+              (PcOnSq(to) << 15) | (bishop << 18);
+            *move++ = (to + 7) | (to << 6) | (pawn << 12) |
+              (PcOnSq(to) << 15) | (knight << 18);
           }
         }
         Clear(to, pcapturesr);
@@ -959,13 +923,13 @@ int *GenerateNonCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
  ************************************************************
  */
     if (WhiteCastle(ply) > 0) {
-      if ((WhiteCastle(ply) & 1) && !(Occupied & mask_white_OO) &&
-          !Attacked(tree, E1, 0) && !Attacked(tree, F1, 0)
+      if ((WhiteCastle(ply) & 1) && !(Occupied & mask_white_OO)
+          && !Attacked(tree, E1, 0) && !Attacked(tree, F1, 0)
           && !Attacked(tree, G1, 0)) {
         *move++ = 12676;
       }
-      if ((WhiteCastle(ply) & 2) && !(Occupied & mask_white_OOO) &&
-          !Attacked(tree, C1, 0) && !Attacked(tree, D1, 0)
+      if ((WhiteCastle(ply) & 2) && !(Occupied & mask_white_OOO)
+          && !Attacked(tree, C1, 0) && !Attacked(tree, D1, 0)
           && !Attacked(tree, E1, 0)) {
         *move++ = 12420;
       }
@@ -1138,32 +1102,22 @@ int *GenerateNonCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
     pcapturesr = (WhitePawns & mask_right_edge) >> 9 & target;
     while (pcapturesl) {
       to = LastOne(pcapturesl);
-      *move++ =
-          (to -
-          7) | (to << 6) | (pawn << 12) | ((-PcOnSq(to)) << 15) | (rook << 18);
-      *move++ =
-          (to -
-          7) | (to << 6) | (pawn << 12) | ((-PcOnSq(to)) << 15) | (bishop <<
-          18);
-      *move++ =
-          (to -
-          7) | (to << 6) | (pawn << 12) | ((-PcOnSq(to)) << 15) | (knight <<
-          18);
+      *move++ = (to - 7) | (to << 6) | (pawn << 12) |
+        ((-PcOnSq(to)) << 15) | (rook << 18);
+      *move++ = (to - 7) | (to << 6) | (pawn << 12) |
+        ((-PcOnSq(to)) << 15) | (bishop << 18);
+      *move++ = (to - 7) | (to << 6) | (pawn << 12) |
+        ((-PcOnSq(to)) << 15) | (knight << 18);
       Clear(to, pcapturesl);
     }
     while (pcapturesr) {
       to = LastOne(pcapturesr);
-      *move++ =
-          (to -
-          9) | (to << 6) | (pawn << 12) | ((-PcOnSq(to)) << 15) | (rook << 18);
-      *move++ =
-          (to -
-          9) | (to << 6) | (pawn << 12) | ((-PcOnSq(to)) << 15) | (bishop <<
-          18);
-      *move++ =
-          (to -
-          9) | (to << 6) | (pawn << 12) | ((-PcOnSq(to)) << 15) | (knight <<
-          18);
+      *move++ = (to - 9) | (to << 6) | (pawn << 12) |
+        ((-PcOnSq(to)) << 15) | (rook << 18);
+      *move++ = (to - 9) | (to << 6) | (pawn << 12) |
+        ((-PcOnSq(to)) << 15) | (bishop << 18);
+      *move++ = (to - 9) | (to << 6) | (pawn << 12) |
+        ((-PcOnSq(to)) << 15) | (knight << 18);
       Clear(to, pcapturesr);
     }
   }
@@ -1176,13 +1130,13 @@ int *GenerateNonCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
  */
   else {
     if (BlackCastle(ply) > 0) {
-      if ((BlackCastle(ply) & 1) && !(Occupied & mask_black_OO) &&
-          !Attacked(tree, E8, 1) && !Attacked(tree, F8, 1)
+      if ((BlackCastle(ply) & 1) && !(Occupied & mask_black_OO)
+          && !Attacked(tree, E8, 1) && !Attacked(tree, F8, 1)
           && !Attacked(tree, G8, 1)) {
         *move++ = 16316;
       }
-      if ((BlackCastle(ply) & 2) && !(Occupied & mask_black_OOO) &&
-          !Attacked(tree, C8, 1) && !Attacked(tree, D8, 1)
+      if ((BlackCastle(ply) & 2) && !(Occupied & mask_black_OOO)
+          && !Attacked(tree, C8, 1) && !Attacked(tree, D8, 1)
           && !Attacked(tree, E8, 1)) {
         *move++ = 16060;
       }
@@ -1354,28 +1308,22 @@ int *GenerateNonCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
     pcapturesr = (BlackPawns & mask_right_edge) << 7 & target;
     while (pcapturesl) {
       to = FirstOne(pcapturesl);
-      *move++ =
-          (to +
-          9) | (to << 6) | (pawn << 12) | (PcOnSq(to) << 15) | (rook << 18);
-      *move++ =
-          (to +
-          9) | (to << 6) | (pawn << 12) | (PcOnSq(to) << 15) | (bishop << 18);
-      *move++ =
-          (to +
-          9) | (to << 6) | (pawn << 12) | (PcOnSq(to) << 15) | (knight << 18);
+      *move++ = (to + 9) | (to << 6) | (pawn << 12) |
+        (PcOnSq(to) << 15) | (rook << 18);
+      *move++ = (to + 9) | (to << 6) | (pawn << 12) |
+        (PcOnSq(to) << 15) | (bishop << 18);
+      *move++ = (to + 9) | (to << 6) | (pawn << 12) |
+        (PcOnSq(to) << 15) | (knight << 18);
       Clear(to, pcapturesl);
     }
     while (pcapturesr) {
       to = FirstOne(pcapturesr);
-      *move++ =
-          (to +
-          7) | (to << 6) | (pawn << 12) | (PcOnSq(to) << 15) | (rook << 18);
-      *move++ =
-          (to +
-          7) | (to << 6) | (pawn << 12) | (PcOnSq(to) << 15) | (bishop << 18);
-      *move++ =
-          (to +
-          7) | (to << 6) | (pawn << 12) | (PcOnSq(to) << 15) | (knight << 18);
+      *move++ = (to + 7) | (to << 6) | (pawn << 12) |
+        (PcOnSq(to) << 15) | (rook << 18);
+      *move++ = (to + 7) | (to << 6) | (pawn << 12) |
+        (PcOnSq(to) << 15) | (bishop << 18);
+      *move++ = (to + 7) | (to << 6) | (pawn << 12) |
+        (PcOnSq(to) << 15) | (knight << 18);
       Clear(to, pcapturesr);
     }
   }

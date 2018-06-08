@@ -137,6 +137,7 @@ BITBOARD  mask_advance_2_w;
 BITBOARD  mask_advance_2_b;
 BITBOARD  mask_left_edge;
 BITBOARD  mask_right_edge;
+BITBOARD  mask_not_edge;
 BITBOARD  mask_WBT;
 BITBOARD  mask_BBT;
 BITBOARD  mask_A3B3;
@@ -231,7 +232,7 @@ unsigned int parallel_splits;
 unsigned int parallel_stops;
 unsigned int max_split_blocks;
 volatile unsigned int splitting;
-# define    VERSION                             "19.9"
+# define    VERSION                             "19.10"
 char      version[6] = { VERSION };
 PLAYING_MODE mode = normal_mode;
 #if defined(SMP)
@@ -335,9 +336,6 @@ int       onerep_depth = 3 * INCPLY / 4;
 int       recap_depth = 3 * INCPLY / 4;
 int       pushpp_depth = 3 * INCPLY / 4;
 int       mate_depth = 3 * INCPLY / 4;
-#if defined(SINGULAR)
-int       singular_depth = 3 * INCPLY / 4;
-#endif
 int       null_min = 3 * INCPLY;        /* R=2 */
 int       null_max = 4 * INCPLY;        /* R=3 */
 int       largest_positional_score = 300;
@@ -409,6 +407,8 @@ float     book_weight_CAP = 0.7;
 float     book_weight_eval = 0.5;
 int       book_search_trigger = 20;
 int       learning = 7;
+int       learning_cutoff = -2*PAWN_VALUE;
+int       learning_trigger = PAWN_VALUE/3;
 int       moves_out_of_book = 0;
 int       show_book = 0;
 int       book_selection_width = 5;

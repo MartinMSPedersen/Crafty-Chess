@@ -142,17 +142,13 @@ int EGTBProbe(TREE * RESTRICT tree, int ply, int wtm, int *score)
  *                                                          *
  ************************************************************
  */
-/*
   if (!FRegistered(iTb, side))
-*/
     return (0);
-/*
   sqEnP = EnPassant(ply) ? EnPassant(ply) : XX;
   ind = PfnIndCalc(iTb, side) (psqW, psqB, sqEnP, fInvert);
   tbValue = L_TbtProbeTable(iTb, side, ind);
   if (bev_broken == tbValue)
     return (0);
-*/
 /*
  ************************************************************
  *                                                          *

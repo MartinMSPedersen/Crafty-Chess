@@ -4,6 +4,10 @@
 #include "chess.h"
 #include "data.h"
 #include "epdglue.h"
+#if defined(FUTILITY)
+#  define RAZOR_MARGIN (QUEEN_VALUE+1)
+#  define F_MARGIN (BISHOP_VALUE+1)
+#endif
 
 /* modified 01/07/04 */
 /*
@@ -21,10 +25,14 @@
 #if defined(SMP)
 
 int SearchSMP(TREE * RESTRICT tree, int alpha, int beta, int value, int wtm,
-    int depth, int ply, int mate_threat, int lp_recapture, int s_move)
+    int depth, int ply, int mate_threat, int lp_recapture)
 {
   register int extensions, extended, recapture;
   BITBOARD begin_root_nodes;
+
+#  if defined(FUTILITY)
+  int fprune;
+#  endif
 
 /*
  ************************************************************
@@ -101,22 +109,6 @@ int SearchSMP(TREE * RESTRICT tree, int alpha, int beta, int value, int wtm,
 /*
  ************************************************************
  *                                                          *
- *   if this position has a singular move, then extend this *
- *   move (only).                                           *
- *                                                          *
- ************************************************************
-*/
-#  if defined(SINGULAR)
-      if (s_move && singular_depth) {
-        if (tree->current_move[ply] == s_move) {
-          extended += singular_depth;
-          Print(4095, "singular extension hit, ply=%d\n", ply);
-        }
-      }
-#  endif
-/*
- ************************************************************
- *                                                          *
  *   if two successive moves are capture / re-capture so    *
  *   that the material score is restored, extend the search *
  *   by one ply on the re-capture since it is pretty much   *
@@ -155,12 +147,38 @@ int SearchSMP(TREE * RESTRICT tree, int alpha, int beta, int value, int wtm,
  *                                                          *
  ************************************************************
  */
+#  if defined(FUTILITY)
+      fprune = 0;
+#  endif
       begin_root_nodes = tree->nodes_searched;
       if (extended) {
         LimitExtensions(extended, ply);
       }
+#  if defined(FUTILITY)
+      else {
+        if (abs(alpha) < (MATE - 500) && ply > 4 && !tree->in_check[ply]) {
+          if (wtm) {
+            if (depth < 3 * INCPLY && (Material + F_MARGIN) <= alpha)
+              fprune = 1;
+            else if (depth >= 3 * INCPLY && depth < 5 * INCPLY &&
+                (Material + RAZOR_MARGIN) <= alpha)
+              extended -= 60;
+          } else {
+            if (depth < 3 * INCPLY && (-Material + F_MARGIN) <= alpha)
+              fprune = 1;
+            else if (depth >= 3 * INCPLY && depth < 5 * INCPLY &&
+                (-Material + RAZOR_MARGIN) <= alpha)
+              extended -= 60;
+          }
+        }
+      }
+#  endif
       extensions = extended - INCPLY;
+#  if defined(FUTILITY)
+      if ((depth + extensions >= INCPLY || tree->in_check[ply + 1]) && !fprune)
+#  else
       if (depth + extensions >= INCPLY || tree->in_check[ply + 1])
+#  endif
         value =
             -Search(tree, -alpha - 1, -alpha, Flip(wtm), depth + extensions,
             ply + 1, DO_NULL, recapture);

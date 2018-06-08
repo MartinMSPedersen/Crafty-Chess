@@ -63,9 +63,6 @@ extern int onerep_depth;
 extern int pushpp_depth;
 extern int recap_depth;
 extern int mate_depth;
-#if defined(SINGULAR)
-extern int singular_depth;
-#endif
 extern int null_min;
 extern int null_max;
 extern int pgn_suggested_percent;
@@ -198,6 +195,8 @@ extern int book_search_trigger;
 extern int book_selection_width;
 extern int show_book;
 extern int learning;
+extern int learning_cutoff;
+extern int learning_trigger;
 extern int book_learn_eval[LEARN_INTERVAL];
 extern int book_learn_depth[LEARN_INTERVAL];
 extern int tc_moves;
@@ -350,6 +349,7 @@ extern BITBOARD mask_advance_2_w;
 extern BITBOARD mask_advance_2_b;
 extern BITBOARD mask_left_edge;
 extern BITBOARD mask_right_edge;
+extern BITBOARD mask_not_edge;
 extern BITBOARD mask_WBT;
 extern BITBOARD mask_BBT;
 extern BITBOARD mask_A3B3;

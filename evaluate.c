@@ -445,7 +445,7 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta)
  ************************************************************
  *                                                          *
  *   now fold in centralization score from the piece/square *
- *   table "nval_*".                                *
+ *   table "nval_*".                                        *
  *                                                          *
  ************************************************************
  */
@@ -512,7 +512,7 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta)
  ************************************************************
  *                                                          *
  *   now fold in centralization score from the piece/square *
- *   table "nval_*".                                *
+ *   table "nval_*".                                        *
  *                                                          *
  ************************************************************
  */
@@ -2008,24 +2008,24 @@ int EvaluatePassedPawnRaces(TREE * RESTRICT tree, int wtm)
     do {
       pawnsq = LastOne(WhitePawns);
 /*
- **********************************************
+ **************************************************
  *                                                *
  *   king must be in front of the pawn or we      *
  *   go no further.                               *
  *                                                *
- **********************************************
+ **************************************************
  */
       if (Rank(WhiteKingSQ) <= Rank(pawnsq))
         break;
 /*
- **********************************************
+ **************************************************
  *                                                *
  *   first a special case.  if this is a rook     *
  *   pawn, then the king must be on the adjacent  *
  *   file, and be closer to the queening square   *
  *   than the opposing king.                      *
  *                                                *
- **********************************************
+ **************************************************
  */
       if (File(pawnsq) == FILEA) {
         if ((File(WhiteKingSQ) == FILEB) &&
@@ -2039,14 +2039,14 @@ int EvaluatePassedPawnRaces(TREE * RESTRICT tree, int wtm)
         break;
       }
 /*
- **********************************************
+ **************************************************
  *                                                *
  *   if king is two squares in front of the pawn  *
  *   then it's a win immediately.  if the king is *
  *   on the 6th rank and closer to the pawn than  *
  *   the opposing king, it's also a win.          *
  *                                                *
- **********************************************
+ **************************************************
  */
       if (Distance(WhiteKingSQ, pawnsq) < Distance(BlackKingSQ, pawnsq)) {
         if (Rank(WhiteKingSQ) > Rank(pawnsq) + 1)
@@ -2055,13 +2055,13 @@ int EvaluatePassedPawnRaces(TREE * RESTRICT tree, int wtm)
           return (PAWN_CAN_PROMOTE);
       }
 /*
- **********************************************
+ **************************************************
  *                                                *
  *   last chance:  if the king is one square in   *
  *   front of the pawn and has the opposition,    *
  *   then it's still a win.                       *
  *                                                *
- **********************************************
+ **************************************************
  */
       if ((Rank(WhiteKingSQ) == Rank(pawnsq) + 1) &&
           HasOpposition(wtm, WhiteKingSQ, BlackKingSQ))
@@ -2080,24 +2080,24 @@ int EvaluatePassedPawnRaces(TREE * RESTRICT tree, int wtm)
     do {
       pawnsq = FirstOne(BlackPawns);
 /*
- **********************************************
+ **************************************************
  *                                                *
  *   king must be in front of the pawn or we      *
  *   go no further.                               *
  *                                                *
- **********************************************
+ **************************************************
  */
       if (Rank(BlackKingSQ) >= Rank(pawnsq))
         break;
 /*
- **********************************************
+ **************************************************
  *                                                *
  *   first a special case.  if this is a rook     *
  *   pawn, then the king must be on the adjacent  *
  *   file, and be closer to the queening square   *
  *   than the opposing king.                      *
  *                                                *
- **********************************************
+ **************************************************
  */
       if (File(pawnsq) == FILEA) {
         if ((File(BlackKingSQ) == FILEB) &&
@@ -2111,14 +2111,14 @@ int EvaluatePassedPawnRaces(TREE * RESTRICT tree, int wtm)
         break;
       }
 /*
- **********************************************
+ **************************************************
  *                                                *
  *   if king is two squares in front of the pawn  *
  *   then it's a win immediately.  if the king is *
  *   on the 6th rank and closer to the pawn than  *
  *   the opposing king, it's also a win.          *
  *                                                *
- **********************************************
+ **************************************************
  */
       if (Distance(BlackKingSQ, pawnsq) < Distance(WhiteKingSQ, pawnsq)) {
         if (Rank(BlackKingSQ) < Rank(pawnsq) - 1)
@@ -2127,13 +2127,13 @@ int EvaluatePassedPawnRaces(TREE * RESTRICT tree, int wtm)
           return (-(PAWN_CAN_PROMOTE));
       }
 /*
- **********************************************
+ **************************************************
  *                                                *
  *   last chance:  if the king is one square in   *
  *   front of the pawn and has the opposition,    *
  *   then it's still a win.                       *
  *                                                *
- **********************************************
+ **************************************************
  */
       if ((Rank(BlackKingSQ) == Rank(pawnsq) - 1) &&
           HasOpposition(Flip(wtm), BlackKingSQ, WhiteKingSQ))
@@ -3546,7 +3546,7 @@ int EvaluateStalemate(TREE * RESTRICT tree, int wtm)
   return (stalemate);
 }
 
-/* last modified 09/25/02 */
+/* last modified 01/25/04 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -3569,15 +3569,21 @@ int EvaluateWinner(TREE * RESTRICT tree)
  ************************************************************
  *                                                          *
  *   if one side is a piece up, but has no pawns, then that *
- *   side can not possibly win.                             *
+ *   side can not possibly win.  we recognize an exception  *
+ *   where the weaker side's king is trapped on the edge    *
+ *   where it might be checkmated.                          *
  *                                                          *
  ************************************************************
  */
   if (WhiteMajors == BlackMajors) {
-    if (TotalWhitePawns == 0 && WhiteMinors - BlackMinors == 1)
-      can_win &= 2;
-    if (TotalBlackPawns == 0 && BlackMinors - WhiteMinors == 1)
-      can_win &= 1;
+    if (TotalWhitePawns == 0 && WhiteMinors - BlackMinors == 1) {
+      if (mask_not_edge & BlackKing)
+        can_win &= 2;
+    }
+    if (TotalBlackPawns == 0 && BlackMinors - WhiteMinors == 1) {
+      if (mask_not_edge & WhiteKing)
+        can_win &= 1;
+    }
     if (can_win == 0)
       return (can_win);
   }

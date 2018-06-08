@@ -426,7 +426,6 @@ int Option(TREE * RESTRICT tree)
       EGTB_cache = malloc(EGTB_CACHE_DEFAULT);
     }
     Print(128, "EGTB cache memory = %s bytes.\n", PrintKM(EGTB_cache_size, 1));
-    FTbSetCacheSize(EGTB_cache, EGTB_cache_size);
   }
 /*
  ************************************************************
@@ -734,40 +733,6 @@ int Option(TREE * RESTRICT tree)
 /*
  ************************************************************
  *                                                          *
- *   "egtb" command enables/disables tablebases and sets    *
- *   the number of pieces available for probing.            *
- *                                                          *
- ************************************************************
- */
-  else if (OptionMatch("egtb", *args)) {
-    if (!EGTB_setup) {
-      Print(128, "EGTB access enabled\n");
-      Print(128, "using tbpath=%s\n", tb_path);
-      EGTBlimit = IInitializeTb(tb_path);
-      Print(128, "%d piece tablebase files found\n", EGTBlimit);
-      if (0 != cbEGTBCompBytes)
-        Print(128, "%dkb of RAM used for TB indices and decompression tables\n",
-            (cbEGTBCompBytes + 1023) / 1024);
-      if (EGTBlimit) {
-        if (!EGTB_cache)
-          EGTB_cache = malloc(EGTB_cache_size);
-        if (!EGTB_cache) {
-          Print(128, "ERROR  EGTB cache malloc failed\n");
-          EGTB_cache = malloc(EGTB_CACHE_DEFAULT);
-        } else
-          FTbSetCacheSize(EGTB_cache, EGTB_cache_size);
-        EGTB_setup = 1;
-      }
-    } else {
-      if (nargs == 1)
-        EGTBPV(tree, wtm);
-      else if (nargs == 2)
-        EGTBlimit = Min(atoi(args[1]), 5);
-    }
-  }
-/*
- ************************************************************
- *                                                          *
  *   "end" (or "quit") command terminates the program.      *
  *                                                          *
  ************************************************************
@@ -973,17 +938,6 @@ int Option(TREE * RESTRICT tree)
       if (mate_depth > INCPLY)
         mate_depth = INCPLY;
     }
-#if defined(SINGULAR)
-    if (OptionMatch("singular", args[1])) {
-      float ext = atof(args[2]);
-      singular_depth = (float) INCPLY *ext;
-
-      if (singular_depth < 0)
-        singular_depth = 0;
-      if (singular_depth > INCPLY)
-        singular_depth = INCPLY;
-    }
-#endif
     Print(1, "one-reply extension..................%4.2f\n",
         (float) onerep_depth / INCPLY);
     Print(1, "in-check extension...................%4.2f\n",
@@ -994,10 +948,6 @@ int Option(TREE * RESTRICT tree)
         (float) pushpp_depth / INCPLY);
     Print(1, "mate thrt extension..................%4.2f\n",
         (float) mate_depth / INCPLY);
-#if defined(SINGULAR)
-    Print(1, "singular extension...................%4.2f\n",
-        (float) singular_depth / INCPLY);
-#endif
   }
 /*
  ************************************************************
@@ -1924,23 +1874,49 @@ int Option(TREE * RESTRICT tree)
  *   adding the integer values 1,2,4 to enable the various  *
  *   forms of learning.                                     *
  *                                                          *
+ *   a special-case of this command uses two arguments in-  *
+ *   stead of one.  it is used to control position learning *
+ *   and lets you specify the "trigger" threshold and the   *
+ *   limit that shuts position learning off after a game is *
+ *   already lost.  the syntax is:                          *
+ *                                                          *
+ *   learn trigger-value cutoff-value                       *
+ *                                                          *
+ *   trigger-value is the amount the score must drop before *
+ *   position learning is triggered.  the default is 1/3 of *
+ *   a pawn (.33).                                          *
+ *                                                          *
+ *   cutoff-value is the lower bound on the score before    *
+ *   position learning is turned off.  the default is -2.0  *
+ *   and says that once the score is -2, do not learn any   *
+ *   further positions where the score is -2.0 - trigger_   *
+ *   value from above.                                      *
+ *                                                          *
  ************************************************************
  */
   else if (OptionMatch("learn", *args)) {
-    if (nargs == 2)
+    if (nargs == 2) {
       learning = atoi(args[1]);
-    if (learning & book_learning)
-      Print(128, "book learning enabled\n");
-    else
-      Print(128, "book learning disabled\n");
-    if (learning & result_learning)
-      Print(128, "result learning enabled\n");
-    else
-      Print(128, "result learning disabled\n");
-    if (learning & position_learning)
-      Print(128, "position learning enabled\n");
-    else
-      Print(128, "position learning disabled\n");
+      if (learning & book_learning)
+        Print(128, "book learning enabled\n");
+      else
+        Print(128, "book learning disabled\n");
+      if (learning & result_learning)
+        Print(128, "result learning enabled\n");
+      else
+        Print(128, "result learning disabled\n");
+      if (learning & position_learning)
+        Print(128, "position learning enabled\n");
+      else
+        Print(128, "position learning disabled\n");
+    } else if (nargs == 3) {
+      learning_trigger = atof(args[1]) * 100;
+      learning_cutoff = atof(args[2]) * 100;
+      Print(128, "learning trigger = %s\n", DisplayEvaluation(learning_trigger,
+              1));
+      Print(128, "learning cutoff = %s\n", DisplayEvaluation(learning_cutoff,
+              1));
+    }
   }
 /*
  ************************************************************
@@ -2621,7 +2597,7 @@ int Option(TREE * RESTRICT tree)
         if (!strcmp(computer_list[i], args[1])) {
           Print(128, "playing a computer!\n");
           computer_opponent = 1;
-          book_selection_width = 2;
+          book_selection_width = 1;
           usage_level = 0;
           break;
         }
@@ -2803,22 +2779,6 @@ int Option(TREE * RESTRICT tree)
         strcpy(log_path, args[1]);
       else if (strstr(args[0], "tbpath")) {
         strcpy(tb_path, args[1]);
-        EGTBlimit = IInitializeTb(tb_path);
-        Print(128, "%d piece tablebase files found\n", EGTBlimit);
-        if (0 != cbEGTBCompBytes)
-          Print(128,
-              "%dkb of RAM used for TB indices and decompression tables\n",
-              (cbEGTBCompBytes + 1023) / 1024);
-        if (EGTBlimit) {
-          if (!EGTB_cache)
-            EGTB_cache = malloc(EGTB_cache_size);
-          if (!EGTB_cache) {
-            Print(4095, "ERROR  EGTB cache malloc failed\n");
-            EGTB_cache = malloc(EGTB_CACHE_DEFAULT);
-          } else
-            FTbSetCacheSize(EGTB_cache, EGTB_cache_size);
-          EGTB_setup = 1;
-        }
       }
     } else {
       if (strchr(args[1], ')')) {
@@ -2829,22 +2789,6 @@ int Option(TREE * RESTRICT tree)
           strcpy(log_path, args[1] + 1);
         else if (strstr(args[0], "tbpath")) {
           strcpy(tb_path, args[1] + 1);
-          EGTBlimit = IInitializeTb(tb_path);
-          Print(128, "%d piece tablebase files found\n", EGTBlimit);
-          if (0 != cbEGTBCompBytes)
-            Print(128,
-                "%dkb of RAM used for TB indices and decompression tables\n",
-                (cbEGTBCompBytes + 1023) / 1024);
-          if (EGTBlimit) {
-            if (!EGTB_cache)
-              EGTB_cache = malloc(EGTB_cache_size);
-            if (!EGTB_cache) {
-              Print(4095, "ERROR  EGTB cache malloc failed\n");
-              EGTB_cache = malloc(EGTB_CACHE_DEFAULT);
-            } else
-              FTbSetCacheSize(EGTB_cache, EGTB_cache_size);
-            EGTB_setup = 1;
-          }
         }
       } else
         Print(4095, "ERROR multiple paths must be enclosed in ( and )\n");
