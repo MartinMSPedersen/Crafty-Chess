@@ -151,7 +151,7 @@ int HashProbe(TREE *tree, int ply, int depth, int wtm, int *alpha,
   return(avoid_null);
 }
 
-/* last modified 01/30/99 */
+/* last modified 02/02/99 */
 /*
 ********************************************************************************
 *                                                                              *

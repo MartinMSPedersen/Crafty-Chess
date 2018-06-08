@@ -2,8 +2,9 @@ alignment = 4
 
         .text
         .align  alignment, 0x90
-.globl PopCnt
-PopCnt:
+	.align 16
+.globl _PopCnt
+_PopCnt:
         movl    4(%esp), %ecx
         xorl    %eax, %eax
         testl   %ecx, %ecx

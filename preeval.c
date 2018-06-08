@@ -100,16 +100,6 @@ void PreEvaluate(TREE *tree, int wtm)
       pawn_value_w[i*8+j]=pawn_base[j]+pawn_advance[j]*(i-3);
   for (j=A6;j<A8;j++)
     pawn_value_w[j]+=PAWN_JAM;
-  if (!end_game) {
-    pawn_value_w[E4]+=CENTER_PAWNS4;
-    pawn_value_w[E5]+=CENTER_PAWNE5;
-    pawn_value_w[E6]+=CENTER_PAWNS6;
-    pawn_value_w[D4]+=CENTER_PAWNS4;
-    pawn_value_w[D5]+=CENTER_PAWND5;
-    pawn_value_w[D6]+=CENTER_PAWNS6;
-    pawn_value_w[C3]+=PAWN_PENALTY_C3C6;
-    pawn_value_w[F3]+=PAWN_PENALTY_F3F6;
-  }
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -122,16 +112,6 @@ void PreEvaluate(TREE *tree, int wtm)
       pawn_value_b[i*8+j]=pawn_base[j]+pawn_advance[j]*(4-i);
   for (j=A2;j<A4;j++)
     pawn_value_b[j]+=PAWN_JAM;
-  if (!end_game) {
-    pawn_value_b[E3]+=CENTER_PAWNS6;
-    pawn_value_b[E4]+=CENTER_PAWNE5;
-    pawn_value_b[E5]+=CENTER_PAWNS4;
-    pawn_value_b[D3]+=CENTER_PAWNS6;
-    pawn_value_b[D4]+=CENTER_PAWND5;
-    pawn_value_b[D5]+=CENTER_PAWNS4;
-    pawn_value_b[C6]+=PAWN_PENALTY_C3C6;
-    pawn_value_b[F6]+=PAWN_PENALTY_F3F6;
-  }
 /*
  ----------------------------------------------------------
 |                                                          |

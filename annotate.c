@@ -321,7 +321,7 @@ void Annotate() {
             path_len=player_pv.pathl;
             fprintf(annotate_out," %s", FormatPV(tree,wtm, player_pv));
             fprintf(annotate_out," %s)%s\n",
-                    AnnotateValueToNAG(player_score,html_mode), html_br);
+                    AnnotateValueToNAG(player_score,wtm,html_mode), html_br);
             for (move_num=0;move_num<searches_done;move_num++) {
               if (move != temp[move_num].path[1]) {
                 fprintf(annotate_out,"                ({%d:%s}",
@@ -330,7 +330,7 @@ void Annotate() {
                 path_len=temp[move_num].pathl;
                 fprintf(annotate_out," %s", FormatPV(tree,wtm, temp[move_num]));
                 fprintf(annotate_out," %s)%s\n", 
-                        AnnotateValueToNAG(annotate_score[move_num],html_mode), html_br);
+                        AnnotateValueToNAG(annotate_score[move_num],wtm,html_mode), html_br);
               }
             }
             if (strlen(html_br)) fprintf(annotate_out,"<br>\n");
@@ -385,7 +385,7 @@ void Annotate() {
               UnMakeMove(tree,i,tree->pv[0].path[i],twtm);
             }
             fprintf(annotate_out," %s)%s\n",
-                    AnnotateValueToNAG(annotate_score[0],html_mode), html_br);
+                    AnnotateValueToNAG(annotate_score[0],wtm,html_mode), html_br);
           }
         }
         read_status=ReadPGN(annotate_in,1);
@@ -534,8 +534,10 @@ void AnnotatePositionHTML(TREE *tree, int wtm, FILE *annotate_out) {
   fprintf(annotate_out,"<BR>\n");
 }
 
-char *AnnotateValueToNAG(int value, int html_mode) {
+char *AnnotateValueToNAG(int value, int wtm, int html_mode) {
   static char buf[5];
+
+  if(!wtm) value = -value;
 
   if(value > MIN_DECISIVE_ADV) strcpy(buf, html_mode ? "+-" : "$18");
   else if(value > MIN_MODERATE_ADV) strcpy(buf, html_mode ? "+/-" : "$16");

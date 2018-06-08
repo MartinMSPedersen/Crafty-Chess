@@ -13,13 +13,15 @@
    
 #  ifdef __cplusplus
       extern "C" __int64 __asm (char *, ...);
+      extern "C" void __MB (void);
 #     pragma intrinsic (__asm)
+#     pragma intrinsic (__MB)
 #  endif
 
   typedef volatile int lock_t[1];
 
 #  define LockInit(v)      ((v)[0] = 0)
-#  define UnLock(v)        ((v)[0] = 0)
+#  define UnLock(v)        (__MB(), (v)[0] = 0)
 
    __inline void Lock (volatile int *hPtr) {
    __asm ("lp: ldl_l v0,(a0);"

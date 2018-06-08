@@ -263,7 +263,7 @@ int Book(TREE *tree, int wtm, int root_list_done) {
 */
     for (i=0;i<nmoves;i++) 
       if (book_status[i] & 030) break;
-    if (i < nmoves){
+    if (i < nmoves) {
       for (i=0;i<nmoves;i++) {
         if (book_status[i] & 030) bs_value[i]+=8000.0;
         if (!(book_status[i] & 003)) bs_value[i]+=4000.0;

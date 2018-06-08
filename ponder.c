@@ -26,7 +26,7 @@
 */
 int Ponder(int wtm)
 {
-  int dummy=0, i, *n_ponder_moves, *mv;
+  int dalpha=-999999, dbeta=999999, dthreat=0, i, *n_ponder_moves, *mv;
   int save_move_number;
   TREE * const tree=local[0];
 /*
@@ -59,18 +59,18 @@ int Ponder(int wtm)
       ponder_move=0;
       Print(4095,"ERROR.  ponder_move is illegal (1).\n");
       Print(4095,"ERROR.  PV pathl=%d\n",last_pv.pathl);
-      Print(4095,"ERROR.  move=%d  %x\n",last_pv,last_pv);
+      Print(4095,"ERROR.  move=%d  %x\n",ponder_move,ponder_move);
     }
   }
   if (!ponder_move) {
-    (void) HashProbe(tree,0,0,wtm,&dummy,&dummy,&dummy);
+    (void) HashProbe(tree,0,0,wtm,&dalpha,&dalpha,&dthreat);
     if (tree->hash_move[0]) ponder_move=tree->hash_move[0];
     if (ponder_move) {
       if (!LegalMove(tree,1,wtm,ponder_move)) {
         ponder_move=0;
         Print(4095,"ERROR.  ponder_move is illegal (2).\n");
         Print(4095,"ERROR.  PV pathl=%d\n",last_pv.pathl);
-        Print(4095,"ERROR.  move=%d  %x\n",last_pv,last_pv);
+        Print(4095,"ERROR.  move=%d  %x\n",ponder_move,ponder_move);
       }
     }
   }

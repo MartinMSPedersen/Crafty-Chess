@@ -97,7 +97,7 @@
 # Note: You have to uncomment exactly ONE of the `asm' lines below.
 target  = LINUX
 CC      = gcc
-CFLAGS  = -pipe -D_REENTRANT -mpentium -O -Wall
+CFLAGS  = -pipe -D_REENTRANT -mpentium -O
 LDFLAGS = -lpthread
 opt     = -DCOMPACT_ATTACKS -DUSE_SPLIT_SHIFTS -DUSE_ATTACK_FUNCTIONS \
           -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST -DSMP -DCPUS=4
@@ -173,7 +173,8 @@ dgt:    dgtdrv.o
 	@cc -O -o dgt dgtdrv.c
 
 egtb.o: egtb.cpp
-	cc -c -O -DSMP egtb.cpp
+	@echo $(CC) -c $(CFLAGS) egtb.cpp
+	@$(CC) -c -$(CFLAGS) $(opts) egtb.cpp
 clean:
 	-rm -f *.o crafty X86-elf.X X86-aout.S
 

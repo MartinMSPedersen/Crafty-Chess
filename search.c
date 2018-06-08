@@ -5,7 +5,7 @@
 #include "data.h"
 #include "epdglue.h"
 
-/* last modified 12/19/98 */
+/* last modified 02/08/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -21,10 +21,10 @@
 int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
            int ply, int do_null) {
   register int moves_searched=0;
-  register BITBOARD save_hash_key;
   register int o_alpha, value=0;
   register int extensions, pieces;
   int threat=0;
+  int full_extension=ply<=2*iteration_depth;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -92,7 +92,7 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
 |                                                          |
 |   4. HashProbe() returned "AVOID_NULL_MOVE" which means  |
 |   the hashed score/bound was no good, but it indicated   |
-|   that trying a null-move in this position will be a     |
+|   that trying a null-move in this position would be a    |
 |   waste of time.                                         |
 |                                                          |
  ----------------------------------------------------------
@@ -115,18 +115,18 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
 |   base files.  this is done if (a) the previous move was |
 |   a capture or promotion, unless we are at very shallow  |
 |   plies (<4) in the search; (b) there are less than 5    |
-|   pieces left (currently all interesting 4 piece endings |
-|   are available.)                                        |
+|   pieces left (currently all 4 piece endings and all     |
+|   interesting 5 piece endings are available.)            |
 |                                                          |
  ----------------------------------------------------------
 */
-  if (TotalPieces<=EGTB_use && ply<EGTB_maxdepth) {
+  if (ply > 3 && TotalPieces<=EGTB_use && ply<EGTB_maxdepth) {
     int egtb_value;
     tree->egtb_probes++;
     if (EGTBProbe(tree, ply, wtm, &egtb_value)) {
       tree->egtb_probes_successful++;
       alpha=egtb_value;
-      if (abs(alpha) > MATE-300) alpha+=(alpha > 0) ? -(ply-1) : +(ply);
+      if (abs(alpha) > MATE-300) alpha+=(alpha > 0) ? -ply+1 : ply;
       else if (alpha == 0) alpha=DrawScore(root_wtm==wtm);
       if(alpha < beta) SavePV(tree,ply,alpha,2);
       return(alpha);
@@ -168,7 +168,7 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
 |  the null-move search is also used to detect certain     |
 |  types of threats.  the original idea of using the value |
 |  returned by the null-move search was reported by C.     |
-|  donninger, but was modified by Bruce Moreland (ferret)  |
+|  Donninger, but was modified by Bruce Moreland (Ferret)  |
 |  in the following way:  if the null-move search returns  |
 |  a score that says "mated in N" then this position is a  |
 |  dangerous one, because not moving gets the side to move |
@@ -178,13 +178,14 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
 |  that this "threat" condition is hashed so that later,   |
 |  if the hash table says "don't try the null move because |
 |  it likely will fail low, we still know that this is a   |
-|  threat position and should be extended.                 |
+|  threat position and that it should be extended.         |
 |                                                          |
  ----------------------------------------------------------
 */
 # if defined(NULL_MOVE_DEPTH)
   pieces=(wtm) ? TotalWhitePieces : TotalBlackPieces;
   if (do_null && !tree->in_check[ply] && pieces && (pieces>5 || depth<421)) {
+    register BITBOARD save_hash_key;
     tree->current_move[ply]=0;
     tree->current_phase[ply]=NULL_MOVE;
 #if !defined(FAST)
@@ -206,7 +207,7 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
       HashStore(tree,ply,depth,wtm,LOWER,value,threat);
       return(value);
     }
-    if (value < -MATE+30) threat=1;
+    if (value < -MATE+300) threat=1;
   }
 # endif
 /*
@@ -225,26 +226,27 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
  ----------------------------------------------------------
 */
   tree->next_status[ply].phase=FIRST_PHASE;
-  if (tree->hash_move[ply]==0 && (depth > 2*INCPLY) &&
-      (((ply & 1) && alpha == root_alpha && beta == root_beta) ||
-      (!(ply & 1) && alpha == -root_beta && beta == -root_alpha))) {
+  if (tree->hash_move[ply]==0 && do_null && depth>=3*INCPLY) do {
+    int local_threat, local_alpha=-999999, local_beta=999999;
+    if (ply & 1) {
+      if (alpha!=root_alpha || beta!=root_beta) break;
+    }
+    else {
+      if (alpha!=-root_beta || beta!=-root_alpha) break;
+    }
     tree->current_move[ply]=0;
     value=ABSearch(tree,alpha,beta,wtm,depth-2*INCPLY,ply,0);
     if (abort_search || tree->stop) return(0);
     if (value <= alpha) {
       value=ABSearch(tree,-MATE,beta,wtm,depth-2*INCPLY,ply,0);
       if (abort_search || tree->stop) return(0);
-      if (value > -MATE && (int) tree->pv[ply-1].pathl >= ply) 
-        tree->hash_move[ply]=tree->pv[ply-1].path[ply];
     }
-    else if (value < beta) {
-      if ((int) tree->pv[ply-1].pathl >= ply) 
-        tree->hash_move[ply]=tree->pv[ply-1].path[ply];
-    }
-    else tree->hash_move[ply]=tree->current_move[ply];
+    HashProbe(tree,ply,9999,wtm,&local_alpha,&local_beta,&local_threat);
+    if (!tree->hash_move[ply] && value!=-MATE+ply)
+      Print(4095,"Internal deepening failure, ply=%d, val=%d\n",ply,value);
     tree->last[ply]=tree->last[ply-1];
     tree->next_status[ply].phase=FIRST_PHASE;
-  }
+  } while(0);
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -266,6 +268,19 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
 /*
  ----------------------------------------------------------
 |                                                          |
+|   if the null move found that the side on move gets      |
+|   mated by not moving, then there must be some strong    |
+|   threat at this position.  extend the search to make    |
+|   sure it is analyzed carefully.                         |
+|                                                          |
+ ----------------------------------------------------------
+*/
+    extensions=-60;
+    if (threat) 
+      extensions+=(full_extension) ? threat_depth : threat_depth>>1;
+/*
+ ----------------------------------------------------------
+|                                                          |
 |   if two successive moves are capture / re-capture so    |
 |   that the material score is restored, extend the search |
 |   by one ply on the re-capture since it is pretty much   |
@@ -273,10 +288,8 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
 |                                                          |
  ----------------------------------------------------------
 */
-    extensions=-60;
-    if (threat) 
-      extensions+=(ply<=2*iteration_depth) ? threat_depth : threat_depth>>1;
-    if (Captured(tree->current_move[ply]) && Captured(tree->current_move[ply-1]) &&
+    if (Captured(tree->current_move[ply]) &&
+        Captured(tree->current_move[ply-1]) &&
         To(tree->current_move[ply-1]) == To(tree->current_move[ply]) &&
         (p_values[Captured(tree->current_move[ply-1])+7] == 
          p_values[Captured(tree->current_move[ply])+7] ||
@@ -284,7 +297,7 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
         !(tree->extended_reason[ply-1]&recapture_extension)) {
       tree->extended_reason[ply]|=recapture_extension;
       tree->recapture_extensions_done++;
-      extensions+=(ply<=2*iteration_depth) ? recap_depth : recap_depth>>1;
+      extensions+=(full_extension) ? recap_depth : recap_depth>>1;
     }
 /*
  ----------------------------------------------------------
@@ -298,7 +311,7 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
       push_extensions[To(tree->current_move[ply])]) {
       tree->extended_reason[ply]|=passed_pawn_extension;
       tree->passed_pawn_extensions_done++;
-      extensions+=(ply<=2*iteration_depth) ? pushpp_depth : pushpp_depth>>1;
+      extensions+=(full_extension) ? pushpp_depth : pushpp_depth>>1;
     }
 /*
  ----------------------------------------------------------
@@ -326,7 +339,7 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
         tree->in_check[ply+1]=1;
         tree->extended_reason[ply+1]=check_extension;
         tree->check_extensions_done++;
-        extensions+=(ply<=2*iteration_depth) ? incheck_depth : incheck_depth>>1;
+        extensions+=(full_extension) ? incheck_depth : incheck_depth>>1;
       }
       else {
         tree->in_check[ply+1]=0;
@@ -360,7 +373,7 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
         if (tree->in_check[ply] && tree->last[ply]-tree->last[ply-1] == 1) {
           tree->extended_reason[ply]|=one_reply_extension;
           tree->one_reply_extensions_done++;
-          extensions+=(ply<=2*iteration_depth) ? onerep_depth : onerep_depth>>1;
+          extensions+=(full_extension) ? onerep_depth : onerep_depth>>1;
         }
         extensions=Min(extensions,0);
         value=-ABSearch(tree,-beta,-alpha,ChangeSide(wtm),

@@ -181,10 +181,12 @@
 #  define     BOOKDIR    "Books"
 #  define      LOGDIR     "Logs"
 #  define       TBDIR       "TB"
+#  define       RCDIR        "."
 #else
 #  define     BOOKDIR        "."
 #  define      LOGDIR        "."
 #  define       TBDIR     "./TB"
+#  define       RCDIR        "."
 #endif
 
 # define    EGTB_CACHE_DEFAULT 1024*1024
@@ -497,7 +499,7 @@ void           Annotate();
 void           AnnotateHeaderHTML(char*, FILE*);
 void           AnnotateFooterHTML(FILE*);
 void           AnnotatePositionHTML(TREE*, int, FILE*);
-char           *AnnotateValueToNAG(int, int);
+char           *AnnotateValueToNAG(int, int, int);
 int            Attacked(TREE*, int, int);
 BITBOARD       AttacksFrom(TREE*, int, int);
 BITBOARD       AttacksTo(TREE*, int);
@@ -682,7 +684,7 @@ void           Whisper(int, int, int, int, unsigned int, int, int, char*);
 #endif
 
 #define ABSearch(tree,alpha,beta,wtm,depth,ply,donull)        \
-        (((depth) >= INCPLY) ?                         \
+        (((depth) >= INCPLY) ?                                \
         Search(tree,alpha,beta,wtm,depth,ply,donull) :        \
         Quiesce(tree,alpha,beta,wtm,ply))
 

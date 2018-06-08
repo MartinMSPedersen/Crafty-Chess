@@ -336,7 +336,7 @@ int Iterate(int wtm, int search_type, int root_list_done)
       end_time=ReadClock(time_type)-start_time;
       if (thinking && (int)end_time>=time_limit) break;
       if (correct_count >= early_exit) break;
-      if (iteration_depth>1 && TotalPieces<=5 && TB_use_ok &&
+      if (iteration_depth>4 && TotalPieces<=5 && TB_use_ok &&
           EGTBlimit && EGTBProbe(tree, 1, wtm, &i) && EGTB_use &&
           value>last_mate_score) break;
       do {

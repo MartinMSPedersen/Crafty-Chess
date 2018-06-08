@@ -4,13 +4,13 @@
 #include "chess.h"
 #include "data.h"
 #if defined(UNIX) || defined(AMIGA)
-#  include <unistd.h>
-#  include <pwd.h>
-#  include <sys/types.h>
+#include <unistd.h>
+#include <pwd.h>
+#include <sys/types.h>
 #endif
 #include <signal.h>
 
-/* last modified 06/05/98 */
+/* last modified 02/02/99 */
 /*
 *******************************************************************************
 *                                                                             *
@@ -2321,6 +2321,27 @@
 *           made.  now crafty has only two hash tables, the 'depth preferred' *
 *           and 'always store' tables, but not one for each side.             *
 *                                                                             *
+*   16.5    minor glitch in internal iterative deepening code (in search.c)   *
+*           could sometimes produce an invalid move.  crafty now probes the   *
+*           hash table to find the best move which works in all cases.        *
+*           interesting tablebase bug fixed.  By probing at ply=2, the        *
+*           search could overlook a repetition/50 move draw, and turn a won   *
+*           position into a draw.  Crafty now only probes at ply > 2, to      *
+*           let the RepetitionCheck() function have a chance.  added code by  *
+*           Dan Corbett to add environment variables for the tablebases,      *
+*           books, logfiles and the .craftyrc file paths.  the environment    *
+*           variables CRAFTY_TB_PATH, CRAFTY_BOOK_PATH, CRAFTY_LOG_PATH and   *
+*           CRAFTY_RC_PATH should point to where these files are located and  *
+*           offer an alternative to specifying them on the command line.      *
+*           final version of the EGTB code is included in this version.  this *
+*           allows Crafty to use either compressed (using Eugene Nalimov's    *
+*           compressor, _not_ zip or gzip) or non-compressed tablebases.  it  *
+*           will use non-compressed files when available, and will also use   *
+*           compressed files that are available so long as there is no non-   *
+*           compressed version of the same file.  it is allowable to mix and  *
+*           match as you see fit, but with all of the files compressed, the   *
+*           savings is tremendous, roughly a factor of 5 in space reduction.  *
+*                                                                             *
 *******************************************************************************
 */
 int main(int argc, char **argv)
@@ -2338,6 +2359,21 @@ int main(int argc, char **argv)
     char path[1024];
     struct passwd *pwd;
 #  endif
+
+char crafty_rc_file_spec[FILENAME_MAX];
+  /* Collect environmental variables */
+  char *directory_spec=getenv("CRAFTY_BOOK_PATH");
+  if (directory_spec)
+    strncpy (book_path, directory_spec, sizeof book_path);
+  directory_spec=getenv("CRAFTY_LOG_PATH");
+  if (directory_spec)
+    strncpy (log_path, directory_spec, sizeof log_path);
+  directory_spec=getenv("CRAFTY_TB_PATH");
+  if (directory_spec)
+    strncpy (tb_path, directory_spec, sizeof tb_path);
+  directory_spec=getenv("CRAFTY_RC_PATH");
+  if (directory_spec)
+    strncpy (rc_path, directory_spec, sizeof rc_path);
 /*
  ----------------------------------------------------------
 |                                                          |

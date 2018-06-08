@@ -1,7 +1,7 @@
 #if !defined(EVALUATE_INCLUDED)
 #  define    EVALUATE_INCLUDED
  
-#  define                            BAD_TRADE          (80)
+#  define                            BAD_TRADE         (100)
 #  define                          EIGHT_PAWNS          (20)
 #  define                       PAWN_UNBLOCKED           (4)
 #  define                             PAWN_RAM           (6)
@@ -9,14 +9,10 @@
 #  define                        PAWN_ISOLATED          (12)
 #  define                             PAWN_JAM          (10)
 #  define                         PAWN_DOUBLED           (2)
-#  define                         PAWN_WEAK_P1           (8)
-#  define                         PAWN_WEAK_P2          (12)
+#  define                         PAWN_WEAK_P1          (10)
+#  define                         PAWN_WEAK_P2          (15)
 #  define                          PAWN_PASSED           (8)
 #  define           PAWN_PROTECTED_PASSER_WINS          (50)
-#  define                        CENTER_PAWNS4           (4)
-#  define                        CENTER_PAWND5           (7)
-#  define                        CENTER_PAWNE5          (10)
-#  define                        CENTER_PAWNS6          (12)
  
 #  define                          PAWN_BASE_A          (-4)
 #  define                          PAWN_BASE_B           (0)
@@ -55,9 +51,6 @@
 #  define                    PAWN_ADVANCE_EG_F           (3)
 #  define                    PAWN_ADVANCE_EG_G           (3)
 #  define                    PAWN_ADVANCE_EG_H           (3)
-
-#  define                    PAWN_PENALTY_C3C6          (-8)
-#  define                    PAWN_PENALTY_F3F6          (-8)
 
 #  define          PAWN_CONNECTED_PASSED_6TH  (PAWN_VALUE/2)
   

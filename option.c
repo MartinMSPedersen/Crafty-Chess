@@ -632,6 +632,9 @@ int Option(TREE *tree) {
       Print(128,"using tbpath=%s\n",tb_path);
       EGTBlimit=IInitializeTb(tb_path);
       Print(128,"%d piece tablebase files found\n",EGTBlimit);
+      if (0 != cbEGTBCompBytes)
+        Print(128,"%dkb of RAM used for TB indices and decompression tables\n",
+              (cbEGTBCompBytes+1023)/1024);
       if (EGTBlimit) {
         if (!EGTB_cache) EGTB_cache=malloc(EGTB_cache_size);
         if (!EGTB_cache) {
@@ -978,8 +981,8 @@ int Option(TREE *tree) {
           hash_table_size=1<<log_hash;
           trans_ref_a_orig=(HASH_ENTRY *) malloc(16*hash_table_size+15);
           trans_ref_b_orig=(HASH_ENTRY *) malloc(16*2*hash_table_size+15);
-          trans_ref_a=(HASH_ENTRY*) (((unsigned) trans_ref_a_orig+15)&~15);
-          trans_ref_b=(HASH_ENTRY*) (((unsigned) trans_ref_b_orig+15)&~15);
+          trans_ref_a=(HASH_ENTRY*) (((unsigned long) trans_ref_a_orig+15)&~15);
+          trans_ref_b=(HASH_ENTRY*) (((unsigned long) trans_ref_b_orig+15)&~15);
           if (!trans_ref_a || !trans_ref_b) {
             printf("malloc() failed, not enough memory.\n");
             free(trans_ref_a_orig);
@@ -1043,7 +1046,7 @@ int Option(TREE *tree) {
           if ((1<<(log_pawn_hash+1)) > new_hash_size) break;
         pawn_hash_table_size=1<<log_pawn_hash;
         pawn_hash_table_orig=(PAWN_HASH_ENTRY *) malloc(sizeof(PAWN_HASH_ENTRY)*pawn_hash_table_size+15);
-        pawn_hash_table=(PAWN_HASH_ENTRY*) (((unsigned) pawn_hash_table_orig+15)&~15);
+        pawn_hash_table=(PAWN_HASH_ENTRY*) (((unsigned long) pawn_hash_table_orig+15)&~15);
         if (!pawn_hash_table) {
           printf("malloc() failed, not enough memory.\n");
           free(pawn_hash_table_orig);
@@ -1051,7 +1054,7 @@ int Option(TREE *tree) {
           log_pawn_hash=0;
           pawn_hash_table=0;
         }
-        pawn_hash_mask=((unsigned int) 037777777777)>>(32-log_pawn_hash);
+        pawn_hash_mask=(1<<log_pawn_hash)-1;
         for (i=0;i<pawn_hash_table_size;i++) {
           (pawn_hash_table+i)->key=0;
           (pawn_hash_table+i)->p_score=0;
@@ -2293,6 +2296,9 @@ int Option(TREE *tree) {
         strcpy(tb_path,args[1]);
         EGTBlimit=IInitializeTb(tb_path);
         Print(128,"%d piece tablebase files found\n",EGTBlimit);
+        if (0 != cbEGTBCompBytes)
+          Print(128,"%dkb of RAM used for TB indices and decompression tables\n",
+                (cbEGTBCompBytes+1023)/1024);
         if (EGTBlimit) {
           if (!EGTB_cache) EGTB_cache=malloc(EGTB_cache_size);
           if (!EGTB_cache) {
@@ -2313,6 +2319,9 @@ int Option(TREE *tree) {
           strcpy(tb_path,args[1]+1);
           EGTBlimit=IInitializeTb(tb_path);
           Print(128,"%d piece tablebase files found\n",EGTBlimit);
+          if (0 != cbEGTBCompBytes)
+            Print(128,"%dkb of RAM used for TB indices and decompression tables\n",
+                  (cbEGTBCompBytes+1023)/1024);
           if (EGTBlimit) {
             if (!EGTB_cache) EGTB_cache=malloc(EGTB_cache_size);
             if (!EGTB_cache) {

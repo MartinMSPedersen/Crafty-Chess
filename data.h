@@ -89,6 +89,7 @@
    extern char           book_path[128];
    extern char           log_path[128];
    extern char           tb_path[128];
+   extern char           rc_path[128];
    extern char           cmd_buffer[512];
    extern char           *args[32];
    extern char           buffer[512];
@@ -418,3 +419,4 @@
    extern unsigned int   max_split_blocks;
    extern volatile unsigned int   splitting;
 #endif
+   extern int cbEGTBCompBytes;

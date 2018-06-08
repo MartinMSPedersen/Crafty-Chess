@@ -302,9 +302,9 @@ void Initialize(int continuing) {
   trans_ref_a_orig=(HASH_ENTRY *) malloc(16*hash_table_size+15);
   trans_ref_b_orig=(HASH_ENTRY *) malloc(16*2*hash_table_size+15);
   pawn_hash_table_orig=(PAWN_HASH_ENTRY *) malloc(sizeof(PAWN_HASH_ENTRY)*pawn_hash_table_size+15);
-  trans_ref_a=(HASH_ENTRY*) (((unsigned) trans_ref_a_orig+15)&~15);
-  trans_ref_b=(HASH_ENTRY*) (((unsigned) trans_ref_b_orig+15)&~15);
-  pawn_hash_table=(PAWN_HASH_ENTRY*) (((unsigned) pawn_hash_table_orig+15)&~15);
+  trans_ref_a=(HASH_ENTRY*) (((unsigned long) trans_ref_a_orig+15)&~15);
+  trans_ref_b=(HASH_ENTRY*) (((unsigned long) trans_ref_b_orig+15)&~15);
+  pawn_hash_table=(PAWN_HASH_ENTRY*) (((unsigned long) pawn_hash_table_orig+15)&~15);
   InitializeHashTables();
   if (!trans_ref_a || !trans_ref_b) {
     printf("malloc() failed, not enough memory.\n");
@@ -321,7 +321,7 @@ void Initialize(int continuing) {
   }
   hash_maska=(1<<log_hash)-1;
   hash_maskb=(1<<(log_hash+1))-1;
-  pawn_hash_mask=((unsigned int) 037777777777)>>(32-log_pawn_hash);
+  pawn_hash_mask=(1<<(log_pawn_hash))-1;
 
   for (i=0;i<8;i++)
     for (j=0;j<8;j++) {

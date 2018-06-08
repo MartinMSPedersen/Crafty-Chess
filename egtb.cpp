@@ -2,6 +2,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
+#if defined(SMP) && defined(MUTEX)
+#include <pthread.h>
+#endif
 
 #define  NEW
 #define  XX  127
@@ -57,6 +60,10 @@ typedef  int  piece;
 
 #if defined (SMP)
 static	lock_t	lock_egtb;
+#else
+#define	LockInit(x)
+#define Lock(x)
+#define UnLock(x)
 #endif
 
 // Declarations
@@ -3025,6 +3032,21 @@ public:
 #define tbid_kqqqk 145
 #endif
 
+// Compression
+
+#include "tbdecode.c"
+
+#if !defined (CPUS)
+#define	CPUS	1
+#endif
+
+#if defined (SMP)
+static	lock_t	lockDecode;
+#endif
+extern "C" int TB_CRC_CHECK = 0;
+static int cCompressed = 0;
+static decode_block *rgpdbDecodeBlocks[CPUS];
+
 // Information about tablebases
 
 #define	MAX_TOTAL_PIECES		5	/* Maximum # of pieces on the board */
@@ -3058,6 +3080,7 @@ typedef struct		// Hungarian: tbd
 	lock_t			m_rglockFiles[2];
 #endif
 	FILE			*m_rgfpFiles[2];
+	decode_info		*m_rgpdiDecodeInfo[2];
 	CTbCacheBucket	*m_prgtbcbBuckets[2];	// Cached file chunks in LRU order
 	BYTE			*m_rgpbRead[2];
 	}
@@ -3627,7 +3650,7 @@ void VTbClearCache (void)
 	pb = (BYTE *) & ptbcTbCache [ctbcTbCache];
 	for (i = 0, ptbc = ptbcTbCache; i < ctbcTbCache; i ++, ptbc ++)
 		{
-		ptbc->m_pbData = pb + i*TB_CB_CACHE_CHUNK;
+		ptbc->m_pbData = pb + i*(TB_CB_CACHE_CHUNK+32+4);
 		ptbc->m_ptbcTbPrev =
 		ptbc->m_ptbcTbNext =
 		ptbc->m_ptbcPrev = NULL;
@@ -3663,7 +3686,7 @@ extern "C" int FTbSetCacheSize
 	if (cbSize < sizeof (CTbCache))
 		return false;
 	ptbcTbCache = (CTbCache*) pv;
-	ctbcTbCache = cbSize / (sizeof (CTbCache) + TB_CB_CACHE_CHUNK);
+	ctbcTbCache = cbSize / (sizeof (CTbCache) + TB_CB_CACHE_CHUNK+32+4);
 	VTbClearCache();
 	return true;
 	}
@@ -3706,6 +3729,8 @@ extern "C" int FReadTableToMemory
 	FILE	*fp;
 
 	if (!FRegistered (iTb, side))
+		return false;
+	if (NULL != rgtbdDesc[iTb].m_rgpdiDecodeInfo[side])
 		return false;
 	pszName = rgtbdDesc[iTb].m_rgpchFileName[side];
 	fp = fopen (pszName, "rb");
@@ -3768,6 +3793,8 @@ extern "C" int FMapTableToMemory
 	char *pszName;
 
 	if (!FRegistered (iTb, side))
+		return false;
+	if (NULL != rgtbdDesc[iTb].m_rgpdiDecodeInfo[side])
 		return false;
 	pszName = rgtbdDesc[iTb].m_rgpchFileName[side];
 	if (NULL == rgtbdDesc[iTb].m_rgpbRead[side])
@@ -3943,7 +3970,7 @@ static int	TB_FASTCALL TbtProbeTable
 			iTailTb = ptbc->m_iTb;
 			iTailDirectory = TB_DIRECTORY_ENTRY (ptbc->m_indStart);
 			colorTail = ptbc->m_color;
-			// To avoid deadlocks, have to first acquire cache bucket's lock,
+			// To avoid deadlocks, have to first acquire cache buckets lock,
 			// and only then general LRU lock. So, free general LRU lock and
 			// acquire 2 locks in a proper order.
 			UnLock (lock_egtb);
@@ -4025,17 +4052,65 @@ static int	TB_FASTCALL TbtProbeTable
 					goto ERROR_LABEL;
 				}
 			}
+		ptbd->m_rgfpFiles[side] = fp;
 		}
 
 	// File opened. Now seek and read necessary chunk
-	if (fseek (fp, (long) ptbc->m_indStart, SEEK_SET))
-		goto ERROR_LABEL;
-	cb = fread (ptbc->m_pbData, 1, TB_CB_CACHE_CHUNK, fp);
-	if (cb != TB_CB_CACHE_CHUNK && ferror (fp))
-		goto ERROR_LABEL;
-	assert (cb > (indOffset-ptbc->m_indStart));
-	ptbd->m_rgfpFiles[side] = fp;
-	UnLock (ptbd->m_rglockFiles[side]);
+	if (NULL == ptbd->m_rgpdiDecodeInfo[side])
+		{
+		// Read uncompressed file
+		if (fseek (fp, (long) ptbc->m_indStart, SEEK_SET))
+			goto ERROR_LABEL;
+		cb = fread (ptbc->m_pbData, 1, TB_CB_CACHE_CHUNK, fp);
+		if (cb != TB_CB_CACHE_CHUNK && ferror (fp))
+			goto ERROR_LABEL;
+		assert (cb > (indOffset-ptbc->m_indStart));
+		UnLock (ptbd->m_rglockFiles[side]);
+		}
+	else
+		{
+		// Read compressed file
+		int	fWasError;
+		decode_block	*block;
+		decode_info		*info = ptbd->m_rgpdiDecodeInfo[side];
+
+#if defined (SMP)
+		// Find free decode block
+		decode_block	**pBlock;
+
+		Lock (lockDecode);
+		pBlock = rgpdbDecodeBlocks;
+		while (NULL == *pBlock)
+			pBlock ++;
+		block = *pBlock;
+		*pBlock = NULL;
+		UnLock (lockDecode);
+#else
+		block = rgpdbDecodeBlocks[0];
+#endif
+
+		// Initialize decode block and read chunk
+		fWasError = 0 != comp_init_block (block, TB_CB_CACHE_CHUNK, ptbc->m_pbData) ||
+					0 != comp_read_block (block, info, fp, indOffset / TB_CB_CACHE_CHUNK);
+		
+		// Release lock on file, so other threads can proceed with that file
+		UnLock (ptbd->m_rglockFiles[side]);
+
+		// Decompress chunk
+		if (!fWasError)
+			fWasError |= (0 != comp_decode_and_check_crc (block, info, block->orig.size, TB_CRC_CHECK));
+
+		// Release block
+#if defined (SMP)
+		Lock (lockDecode);
+		*pBlock = block;
+		UnLock (lockDecode);
+#endif
+
+		// Read Ok?
+		if (fWasError)
+			goto ERROR_LABEL_2;
+		}
 
 	// Read - now acquire locks and insert cache entry in both lists
 	Lock (ptbd->m_prgtbcbBuckets[side][iDirectory].m_lock);
@@ -4070,6 +4145,7 @@ static int	TB_FASTCALL TbtProbeTable
 	// happen in the middle of the important game. Just return failure.
 ERROR_LABEL:
 	UnLock (ptbd->m_rglockFiles[side]);
+ERROR_LABEL_2:
 	Lock (lock_egtb);
 	ptbd->m_rgpchFileName[side] = NULL;
 	ptbc->m_ptbcNext = ptbcFree;
@@ -4133,10 +4209,11 @@ int FCheckExistance
 	{
 	FILE			*fp;
 	char			*pchCopy;
-	char			*pchExt = PchExt (side);
+	const char		*pchExt = PchExt (side);
 	char			rgchTbName[256];
 	CTbCacheBucket	*prgtbcbBuckets;
 	INDEX			cb;
+	decode_info		*comp_info = NULL;
 
 	if (FRegistered (iTb, side) || NULL != rgtbdDesc[iTb].m_rgpbRead[side])
 		return true;
@@ -4146,7 +4223,9 @@ int FCheckExistance
 		{
 #if defined (_WIN32)
 		strcat (rgchTbName, "\\");
-#else	// UNDONE: What do with MAC?
+#elif defined (__MWERKS__)
+		strcat (rgchTbName, ":");
+#else
 		strcat (rgchTbName, "/");
 #endif
 		}
@@ -4162,21 +4241,76 @@ int FCheckExistance
 		fp = fopen (rgchTbName, "rb");
 		}
 #endif
-	if (NULL == fp)
-		return false;
-	if (0 != fseek (fp, 0L, SEEK_END))
+	if (NULL != fp)
 		{
-		printf ("*** Seek in %s failed\n", rgchTbName);
-		exit (1);
-		}
-	cb = (INDEX) ftell (fp);
+		// Found uncompressed table
+		if (0 != fseek (fp, 0L, SEEK_END))
+			{
+			printf ("*** Seek in %s failed\n", rgchTbName);
+			exit (1);
+			}
+		cb = (INDEX) ftell (fp);
 #if defined (NEW)
-	if (0 != rgtbdDesc[iTb].m_rgcbLength[side] && cb != rgtbdDesc[iTb].m_rgcbLength[side])
-		{
-		printf ("*** %s corrupted\n", rgchTbName);
-		exit (1);
-		}
+		if (0 != rgtbdDesc[iTb].m_rgcbLength[side] && cb != rgtbdDesc[iTb].m_rgcbLength[side])
+			{
+			printf ("*** %s corrupted\n", rgchTbName);
+			exit (1);
+			}
 #endif
+		}
+	else
+		{
+		// Check for compressed table.
+		// First, check for kxykz.nb?.emd
+		strcat (rgchTbName, ".emd");
+		fp = fopen (rgchTbName, "rb");
+		if (NULL == fp)
+			{
+			// Check for kxykznb?.emd (8+3 format)
+			int	cch;
+			
+			cch = strlen (rgchTbName);
+			memmove (rgchTbName+cch-8, rgchTbName+cch-7, 8);
+			fp = fopen (rgchTbName, "rb");
+			if (NULL == fp)
+				return false;
+			}
+		cCompressed ++;
+		int iResult = comp_open_file (&comp_info, fp, TB_CRC_CHECK);
+		if (0 != iResult)
+			{
+			printf ("*** Unable to read %s - ", rgchTbName);
+			switch (iResult & 0xFF)
+				{
+			case COMP_ERR_READ:
+				printf ("read error\n");
+				break;
+			case COMP_ERR_NOMEM:
+				printf ("out of memory\n");
+				break;
+			case COMP_ERR_BROKEN:
+				printf ("file broken\n");
+				break;
+			default:
+				printf ("error %d\n", iResult);
+				break;
+				}
+			exit (1);
+			}
+		if (comp_info->block_size != TB_CB_CACHE_CHUNK)
+			{
+			printf ("*** %s: Unsupported block size %d\n", rgchTbName, comp_info->block_size);
+			exit (1);
+			}
+		cb = comp_info->block_size*(comp_info->n_blk-1) + comp_info->last_block_size;
+#if defined (NEW)
+		if (0 != rgtbdDesc[iTb].m_rgcbLength[side] && cb != rgtbdDesc[iTb].m_rgcbLength[side])
+			{
+			printf ("*** %s corrupted\n", rgchTbName);
+			exit (1);
+			}
+#endif
+		}
 	rgtbdDesc[iTb].m_rgcbLength[side] = cb;
 	fclose (fp);
 	if (FRegisterTb (& (rgtbdDesc[iTb])))
@@ -4191,9 +4325,15 @@ int FCheckExistance
 			LockInit (prgtbcbBuckets[i].m_lock);
 #endif
 		rgtbdDesc[iTb].m_prgtbcbBuckets[side] = prgtbcbBuckets;
+		rgtbdDesc[iTb].m_rgpdiDecodeInfo[side] = comp_info;
 		if (fVerbose)
 			printf ("%s registered\n", pchCopy);
 		return true;
+		}
+	else
+		{
+		printf ("*** Unable to register %s\n", rgchTbName);
+		exit (1);
 		}
 	return false;
 	}
@@ -4207,12 +4347,13 @@ extern "C" int IInitializeTb
 	color	sd;
 	int		iTb, iMaxTb, i;
 
-	cbAllocated = 0;
+	cbAllocated = cbEGTBCompBytes = 0;
 	// If there are open files, close those
 	VTbCloseFiles ();
 #if defined (SMP)
 	// Init all locks
 	LockInit (lock_egtb);
+	LockInit (lockDecode);
 	for (iTb = 1; iTb < cTb; iTb ++)
 		{
 		LockInit (rgtbdDesc[iTb].m_rglockFiles[x_colorWhite]);
@@ -4241,6 +4382,20 @@ extern "C" int IInitializeTb
 				free (rgtbdDesc[iTb].m_rgpchFileName[sd]);
 				rgtbdDesc[iTb].m_rgpchFileName[sd] = NULL;
 				}
+			if (NULL != rgtbdDesc[iTb].m_rgpdiDecodeInfo[sd])
+				{
+				free (rgtbdDesc[iTb].m_rgpdiDecodeInfo[sd]);
+				rgtbdDesc[iTb].m_rgpdiDecodeInfo[sd] = NULL;
+				}
+			}
+		}
+	// Free compressed blocks
+	for (i = 0; i < CPUS; i ++)
+		{
+		if (NULL != rgpdbDecodeBlocks[i])
+			{
+			free (rgpdbDecodeBlocks[i]);
+			rgpdbDecodeBlocks[i] = NULL;
 			}
 		}
 	// Search for existing TBs
@@ -4248,7 +4403,7 @@ extern "C" int IInitializeTb
 	for (;;)
 		{
 		for (i = 0; pszPath[i] != '\0' && pszPath[i] != ',' && pszPath[i] != ';'
-#if !defined (_WIN32)
+#if !defined (_WIN32) && !defined (__MWERKS__)
 			 && pszPath[i] != ':'
 #endif
 			 ; i ++)
@@ -4259,15 +4414,40 @@ extern "C" int IInitializeTb
 		for (iTb = 1; iTb < cTb; iTb ++)
 			{
 			if (FCheckExistance (szTemp, iTb, x_colorWhite))
-				iMaxTb = iTb;
+				{
+				if (iTb > iMaxTb)
+					iMaxTb = iTb;
+				}
 			if (FCheckExistance (szTemp, iTb, x_colorBlack))
-				iMaxTb = iTb;
+				{
+				if (iTb > iMaxTb)
+					iMaxTb = iTb;
+				}
 			}
 		pszPath += i;
 		if ('\0' == *pszPath)
 			break;
 		pszPath ++;
 		}
+	
+	// If there were compressed files, have to allocate buffer(s)
+	if (0 != cCompressed)
+		{
+		for (i = 0; i < CPUS; i ++)
+			{
+			int iResult = comp_alloc_block (&rgpdbDecodeBlocks[i], TB_CB_CACHE_CHUNK);
+			if (0 != iResult)
+				{
+				printf ("*** Cannot allocate decode block: error code %d\n", iResult);
+				exit (1);
+				}
+			}
+		if (fVerbose)
+			printf ("Allocated %dKb for decompression tables, indices, and buffers.\n",
+					(cbEGTBCompBytes+1023)/1024);
+		}
+
+	// All done!
 	if (iMaxTb >= tbid_kppkp)
 		return 5;
 	else if (iMaxTb >= tbid_kpkp)
