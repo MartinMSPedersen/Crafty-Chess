@@ -216,7 +216,7 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
  *                                                          *
  ************************************************************
  */
-  pieces = (wtm) ? TotalPieces(white) : TotalPieces(black);
+  pieces = (wtm) ? TotalPieces(white, occupied) : TotalPieces(black, occupied);
   if (do_null && !tree->inchk[ply] && pieces && (pieces > 9 || depth < 7 * PLY)) {
     register BITBOARD save_hash_key;
     int null_depth;
@@ -516,15 +516,11 @@ int SearchControl(TREE * RESTRICT tree, int wtm, int ply, int depth,
  *                                                          *
  ************************************************************
  */
-#if !defined(LIMITEXT)
   tree->no_limit = 0;
-#endif
   if (tree->inchk[ply] && tree->last[ply] - tree->last[ply - 1] == 1) {
     tree->one_reply_extensions_done++;
     adjustment += onerep_depth;
-#if !defined(LIMITEXT)
     tree->no_limit = 1;
-#endif
   }
   if (adjustment) {
     LimitExtensions(adjustment, ply);
@@ -546,7 +542,7 @@ int SearchControl(TREE * RESTRICT tree, int wtm, int ply, int depth,
  *   (2) the remaining search depth left must satisfy the   *
  *       following inequality:                              *
  *                                                          *
- *         depth - PLY - reduce_value < reduce_min_depth    *
+ *         depth - PLY - reduce_depth < reduce_min_depth    *
  *                                                          *
  *       simply stated, for default settings, there must    *
  *       be at least 3 plies of depth left or we won't      *
@@ -571,7 +567,7 @@ int SearchControl(TREE * RESTRICT tree, int wtm, int ply, int depth,
   tree->reductions_attempted++;
   move = tree->curmv[ply];
   square = To(move);
-  if (depth - PLY - reduce_value < reduce_min_depth || tree->inchk[ply] ||
+  if (depth - PLY - reduce_depth < reduce_min_depth || tree->inchk[ply] ||
       CaptureOrPromote(move))
     return (0);
 /*
@@ -594,5 +590,5 @@ int SearchControl(TREE * RESTRICT tree, int wtm, int ply, int depth,
  ************************************************************
  */
   tree->reductions_done++;
-  return (-reduce_value);
+  return (-reduce_depth);
 }

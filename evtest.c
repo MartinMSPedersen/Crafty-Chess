@@ -67,7 +67,7 @@ void EVTest(char *filename)
           break;
       if (id >= nargs)
         id = 0;
-      SetBoard(&tree->position[0], nargs, args, 0);
+      SetBoard(tree, nargs, args, 0);
       strcpy(buff, args[0]);
 
       Castle(0, white) = 0;

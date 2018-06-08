@@ -145,7 +145,7 @@ void Edit(void)
  *                                                          *
  ************************************************************
  */
-  SetChessBitBoards(&tree->position[0]);
+  SetChessBitBoards(tree);
   error += InvalidPosition(tree);
   if (!error) {
     if (log_file)
@@ -157,7 +157,7 @@ void Edit(void)
     tree->position[0].rule_50_moves = 0;
     shared->moves_out_of_book = 0;
   } else {
-    InitializeChessBoard(&tree->position[0]);
+    InitializeChessBoard(tree);
     Print(4095, "Illegal position, using normal initial chess position\n");
   }
 }

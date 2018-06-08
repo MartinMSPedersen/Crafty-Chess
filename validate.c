@@ -1,35 +1,60 @@
 #include "chess.h"
 #include "data.h"
 
+/* last modified 03/03/08 */
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   ValidatePosition() is a debugging tool that is enabled by using the       *
+ *   -DDEBUG compilation flag.  this procedure tests the various data          *
+ *   structures used in Crafty related to the chess board and incrementally    *
+ *   updated values like hash signatures and so forth.  it simply looks for    *
+ *   consistency between the various bitboards, and recomputes the hash        *
+ *   signatures to determine if they are correct.  if anything fails to pass   *
+ *   the validation test, we print out a dump of the moves made in this path   *
+ *   through the tree, and then exit since things are corrupted.               *
+ *                                                                             *
+ *   this greatly slows the program down, because ValidatePosition() is called *
+ *   after each Make()/Unmake() (these are the functions that modify the       *
+ *   primary data structures).  In general, this will not be used by users     *
+ *   unless they are modifying the source code themselves.                     *
+ *                                                                             *
+ *******************************************************************************
+ */
 void ValidatePosition(TREE * RESTRICT tree, int ply, int move, char *caller)
 {
   BITBOARD temp, temp1, temp_occ;
   BITBOARD temp_occx;
   int i, square, error;
-  int temp_score;
+  int side, piece, temp_score;
 
 /*
- first, test occupied[1] and occupied[0]
+ ************************************************************
+ *                                                          *
+ *  first, test occupied[side] which should match the OR    *
+ *  result of all pieces[side].                             *
+ *                                                          *
+ ************************************************************
  */
   error = 0;
-  temp_occ =
-      Pawns(white) | Knights(white) | Bishops(white) | Rooks(white) |
-      Queens(white) | Kings(white);
-  if (Occupied(white) ^ temp_occ) {
-    Print(128, "ERROR white occupied squares is bad!\n");
-    Display2BitBoards(temp_occ, Occupied(white));
-    error = 1;
-  }
-  temp_occ =
-      Pawns(black) | Knights(black) | Bishops(black) | Rooks(black) |
-      Queens(black) | Kings(black);
-  if (Occupied(black) ^ temp_occ) {
-    Print(128, "ERROR black occupied squares is bad!\n");
-    Display2BitBoards(temp_occ, Occupied(black));
-    error = 1;
+  for (side = black; side <= white; side++) {
+    temp_occ =
+        Pawns(side) | Knights(side) | Bishops(side) | Rooks(side) | Queens(side)
+        | Kings(side);
+    if (Occupied(side) ^ temp_occ) {
+      Print(128, "ERROR %s occupied squares is bad!\n",
+          (side) ? "white" : "black");
+      Display2BitBoards(temp_occ, Occupied(white));
+      error = 1;
+    }
   }
 /*
- now test bishops_queens and rooks_queens
+ ************************************************************
+ *                                                          *
+ *  then test the bishops&queens and rooks&queens bitmaps   *
+ *  by ORing all of the correct piece type bitmaps.         *
+ *                                                          *
+ ************************************************************
  */
   temp_occ = Bishops(white) | Queens(white) | Bishops(black) | Queens(black);
   if (BishopsQueens ^ temp_occ) {
@@ -44,8 +69,14 @@ void ValidatePosition(TREE * RESTRICT tree, int ply, int move, char *caller)
     error = 1;
   }
 /*
- check individual piece bit-boards to make sure two pieces
- don't occupy the same square (bit)
+ ************************************************************
+ *                                                          *
+ *  now we do some sanity tests on the actual chess board   *
+ *  information.  the first test is to make sure that no    *
+ *  bitmap square is set in more than one bitmap, which     *
+ *  would imply two different pieces on the same square.    *
+ *                                                          *
+ ************************************************************
  */
   temp_occ =
       Pawns(white) ^ Knights(white) ^ Bishops(white) ^ Rooks(white) ^
@@ -60,327 +91,103 @@ void ValidatePosition(TREE * RESTRICT tree, int ply, int move, char *caller)
     error = 1;
   }
 /*
- test material_evaluation
+ ************************************************************
+ *                                                          *
+ *  add up all the pieces (material values) to see if this  *
+ *  matches the incrementally updated value.                *
+ *                                                          *
+ ************************************************************
  */
-  temp_score = PopCnt(Pawns(white)) * pawn_value;
-  temp_score -= PopCnt(Pawns(black)) * pawn_value;
-  temp_score += PopCnt(Knights(white)) * knight_value;
-  temp_score -= PopCnt(Knights(black)) * knight_value;
-  temp_score += PopCnt(Bishops(white)) * bishop_value;
-  temp_score -= PopCnt(Bishops(black)) * bishop_value;
-  temp_score += PopCnt(Rooks(white)) * rook_value;
-  temp_score -= PopCnt(Rooks(black)) * rook_value;
-  temp_score += PopCnt(Queens(white)) * queen_value;
-  temp_score -= PopCnt(Queens(black)) * queen_value;
+  temp_score = 0;
+  for (side = black; side <= white; side++)
+    for (piece = pawn; piece < king; piece++)
+      temp_score += PopCnt(Pieces(side, piece)) * piece_values[side][piece];
   if (temp_score != Material) {
     Print(128, "ERROR  material_evaluation is wrong, good=%d, bad=%d\n",
         temp_score, Material);
     error = 1;
   }
-  temp_score = PopCnt(Knights(white)) * knight_v;
-  temp_score += PopCnt(Bishops(white)) * bishop_v;
-  temp_score += PopCnt(Rooks(white)) * rook_v;
-  temp_score += PopCnt(Queens(white)) * queen_v;
-  if (temp_score != TotalPieces(white)) {
-    Print(128, "ERROR  white_pieces is wrong, good=%d, bad=%d\n", temp_score,
-        TotalPieces(white));
-    error = 1;
-  }
-  temp_score = PopCnt(Knights(white));
-  if (temp_score != TotalKnights(white)) {
-    Print(128, "ERROR  TotalKnights(white) is wrong, good=%d, bad=%d\n",
-        temp_score, TotalKnights(white));
-    error = 1;
-  }
-  temp_score = PopCnt(Knights(black));
-  if (temp_score != TotalKnights(black)) {
-    Print(128, "ERROR  TotalKnights(black) is wrong, good=%d, bad=%d\n",
-        temp_score, TotalKnights(black));
-    error = 1;
-  }
-  temp_score = PopCnt(Bishops(white));
-  if (temp_score != TotalBishops(white)) {
-    Print(128, "ERROR  TotalBishops(white) is wrong, good=%d, bad=%d\n",
-        temp_score, TotalBishops(white));
-    error = 1;
-  }
-  temp_score = PopCnt(Bishops(black));
-  if (temp_score != TotalBishops(black)) {
-    Print(128, "ERROR  TotalBishops(black) is wrong, good=%d, bad=%d\n",
-        temp_score, TotalBishops(black));
-    error = 1;
-  }
-  temp_score = PopCnt(Rooks(white));
-  if (temp_score != TotalRooks(white)) {
-    Print(128, "ERROR  TotalRooks(white) is wrong, good=%d, bad=%d\n",
-        temp_score, TotalRooks(white));
-    error = 1;
-  }
-  temp_score = PopCnt(Rooks(black));
-  if (temp_score != TotalRooks(black)) {
-    Print(128, "ERROR  TotalRooks(black) is wrong, good=%d, bad=%d\n",
-        temp_score, TotalRooks(black));
-    error = 1;
-  }
-  temp_score = PopCnt(Queens(white));
-  if (temp_score != TotalQueens(white)) {
-    Print(128, "ERROR  TotalQueens(white) is wrong, good=%d, bad=%d\n",
-        temp_score, TotalQueens(white));
-    error = 1;
-  }
-  temp_score = PopCnt(Queens(black));
-  if (temp_score != TotalQueens(black)) {
-    Print(128, "ERROR  TotalQueens(black) is wrong, good=%d, bad=%d\n",
-        temp_score, TotalQueens(black));
-    error = 1;
-  }
-
-  temp_score = PopCnt(Pawns(white));
-  if (temp_score != TotalPawns(white)) {
-    Print(128, "ERROR  white_pawns is wrong, good=%d, bad=%d\n", temp_score,
-        TotalPawns(white));
-    error = 1;
-  }
-  temp_score = PopCnt(Knights(black)) * knight_v;
-  temp_score += PopCnt(Bishops(black)) * bishop_v;
-  temp_score += PopCnt(Rooks(black)) * rook_v;
-  temp_score += PopCnt(Queens(black)) * queen_v;
-  if (temp_score != TotalPieces(black)) {
-    Print(128, "ERROR  black_pieces is wrong, good=%d, bad=%d\n", temp_score,
-        TotalPieces(black));
-    error = 1;
-  }
-  temp_score = PopCnt(Pawns(black));
-  if (temp_score != TotalPawns(black)) {
-    Print(128, "ERROR  black_pawns is wrong, good=%d, bad=%d\n", temp_score,
-        TotalPawns(black));
-    error = 1;
-  }
 /*
- now test the board[...] to make sure piece values are correct.
+ ************************************************************
+ *                                                          *
+ *  next, check the incrementally updated piece counts for  *
+ *  both sides.  ditto for pawn counts.                     *
+ *                                                          *
+ ************************************************************
  */
+  for (side = black; side <= white; side++) {
+    temp_score = 0;
+    for (piece = knight; piece < king; piece++)
+      temp_score += PopCnt(Pieces(side, piece)) * p_vals[piece];
+    if (temp_score != TotalPieces(side, occupied)) {
+      Print(128, "ERROR  %s pieces is wrong, good=%d, bad=%d\n",
+          (side) ? "white" : "black", temp_score, TotalPieces(side, occupied));
+      error = 1;
+    }
+  }
+  for (side = black; side <= white; side++) {
+    temp_score = PopCnt(Pawns(side));
+    if (temp_score != TotalPieces(side, pawn)) {
+      Print(128, "ERROR  %s pawns is wrong, good=%d, bad=%d\n",
+          (side) ? "white" : "black", temp_score, TotalPieces(side, pawn));
+      error = 1;
+    }
+  }
+  i = PopCnt(OccupiedSquares);
+  if (i != TotalAllPieces) {
+    Print(128, "ERROR!  TotalAllPieces is wrong, correct=%d  bad=%d\n", i,
+        TotalAllPieces);
+    error = 1;
+  }
 /*
- test pawn locations
+ ************************************************************
+ *                                                          *
+ *  now we cycle through each different chessboard bitmap   *
+ *  and verify that each piece in a bitmap matches the same *
+ *  piece type in the board[64] array.                      *
+ *                                                          *
+ ************************************************************
  */
-  temp = Pawns(white);
-  while (temp) {
-    square = LSB(temp);
-    if (PcOnSq(square) != pawn) {
-      Print(128, "ERROR!  board[%d]=%d, should be 1\n", square, PcOnSq(square));
-      error = 1;
+  for (side = black; side <= white; side++)
+    for (piece = pawn; piece <= king; piece++) {
+      temp = Pieces(side, piece);
+      while (temp) {
+        square = LSB(temp);
+        if (PcOnSq(square) != pieces[side][piece]) {
+          Print(128, "ERROR!  board[%d]=%d, should be %d\n", square,
+              PcOnSq(square), pieces[side][piece]);
+          error = 1;
+        }
+        temp &= temp - 1;
+      }
     }
-    temp &= temp - 1;
-  }
-  temp = Pawns(black);
-  while (temp) {
-    square = LSB(temp);
-    if (PcOnSq(square) != -pawn) {
-      Print(128, "ERROR!  board[%d]=%d, should be -1\n", square,
-          PcOnSq(square));
-      error = 1;
-    }
-    temp &= temp - 1;
-  }
 /*
- test knight locations
+ ************************************************************
+ *                                                          *
+ *  and then we look at the board[64] array and make sure   *
+ *  that any non-zero piece matches the proper bitmap for   *
+ *  that particular piece type.                             *
+ *                                                          *
+ ************************************************************
  */
-  temp = Knights(white);
-  while (temp) {
-    square = LSB(temp);
-    if (PcOnSq(square) != knight) {
-      Print(128, "ERROR!  board[%d]=%d, should be 2\n", square, PcOnSq(square));
-      error = 1;
-    }
-    temp &= temp - 1;
-  }
-  temp = Knights(black);
-  while (temp) {
-    square = LSB(temp);
-    if (PcOnSq(square) != -knight) {
-      Print(128, "ERROR!  board[%d]=%d, should be -2\n", square,
-          PcOnSq(square));
-      error = 1;
-    }
-    temp &= temp - 1;
+  for (i = 0; i < 64; i++) {
+    if (!PcOnSq(i))
+      continue;
+    side = (PcOnSq(i) > 0) ? 1 : 0;
+    if (SetMask(i) & Pieces(side, Abs(PcOnSq(i))))
+      continue;
+    Print(128, "ERROR!  bitboards/board[%d] don't agree!\n", i);
+    error = 1;
+    break;
   }
 /*
- test bishop locations
- */
-  temp = Bishops(white);
-  while (temp) {
-    square = LSB(temp);
-    if (PcOnSq(square) != bishop) {
-      Print(128, "ERROR!  board[%d]=%d, should be 3\n", square, PcOnSq(square));
-      error = 1;
-    }
-    temp &= temp - 1;
-  }
-  temp = Bishops(black);
-  while (temp) {
-    square = LSB(temp);
-    if (PcOnSq(square) != -bishop) {
-      Print(128, "ERROR!  board[%d]=%d, should be -3\n", square,
-          PcOnSq(square));
-      error = 1;
-    }
-    temp &= temp - 1;
-  }
-/*
- test rook locations
- */
-  temp = Rooks(white);
-  while (temp) {
-    square = LSB(temp);
-    if (PcOnSq(square) != rook) {
-      Print(128, "ERROR!  board[%d]=%d, should be 4\n", square, PcOnSq(square));
-      error = 1;
-    }
-    temp &= temp - 1;
-  }
-  temp = Rooks(black);
-  while (temp) {
-    square = LSB(temp);
-    if (PcOnSq(square) != -rook) {
-      Print(128, "ERROR!  board[%d]=%d, should be -4\n", square,
-          PcOnSq(square));
-      error = 1;
-    }
-    temp &= temp - 1;
-  }
-/*
- test queen locations
- */
-  temp = Queens(white);
-  while (temp) {
-    square = LSB(temp);
-    if (PcOnSq(square) != queen) {
-      Print(128, "ERROR!  board[%d]=%d, should be 5\n", square, PcOnSq(square));
-      error = 1;
-    }
-    temp &= temp - 1;
-  }
-  temp = Queens(black);
-  while (temp) {
-    square = LSB(temp);
-    if (PcOnSq(square) != -queen) {
-      Print(128, "ERROR!  board[%d]=%d, should be -5\n", square,
-          PcOnSq(square));
-      error = 1;
-    }
-    temp &= temp - 1;
-  }
-/*
- test king locations
- */
-  temp = Kings(white);
-  while (temp) {
-    square = LSB(temp);
-    if (PcOnSq(square) != king) {
-      Print(128, "ERROR!  board[%d]=%d, should be 6\n", square, PcOnSq(square));
-      error = 1;
-    }
-    if (KingSQ(white) != square) {
-      Print(128, "ERROR!  white_king is %d, should be %d\n", KingSQ(white),
-          square);
-      error = 1;
-    }
-    temp &= temp - 1;
-  }
-  temp = Kings(black);
-  while (temp) {
-    square = LSB(temp);
-    if (PcOnSq(square) != -king) {
-      Print(128, "ERROR!  board[%d]=%d, should be -6\n", square,
-          PcOnSq(square));
-      error = 1;
-    }
-    if (KingSQ(black) != square) {
-      Print(128, "ERROR!  black_king is %d, should be %d\n", KingSQ(black),
-          square);
-      error = 1;
-    }
-    temp &= temp - 1;
-  }
-/*
- test board[i] fully now.
- */
-  for (i = 0; i < 64; i++)
-    switch (PcOnSq(i)) {
-    case -king:
-      if (!(Kings(black) & SetMask(i))) {
-        Print(128, "ERROR!  b_king/board[%d] don't agree!\n", i);
-        error = 1;
-      }
-      break;
-    case -queen:
-      if (!(Queens(black) & SetMask(i))) {
-        Print(128, "ERROR!  b_queen/board[%d] don't agree!\n", i);
-        error = 1;
-      }
-      break;
-    case -rook:
-      if (!(Rooks(black) & SetMask(i))) {
-        Print(128, "ERROR!  b_rook/board[%d] don't agree!\n", i);
-        error = 1;
-      }
-      break;
-    case -bishop:
-      if (!(Bishops(black) & SetMask(i))) {
-        Print(128, "ERROR!  b_bishop/board[%d] don't agree!\n", i);
-        error = 1;
-      }
-      break;
-    case -knight:
-      if (!(Knights(black) & SetMask(i))) {
-        Print(128, "ERROR!  b_knight/board[%d] don't agree!\n", i);
-        error = 1;
-      }
-      break;
-    case -pawn:
-      if (!(Pawns(black) & SetMask(i))) {
-        Print(128, "ERROR!  b_pawn/board[%d] don't agree!\n", i);
-        error = 1;
-      }
-      break;
-    case king:
-      if (!(Kings(white) & SetMask(i))) {
-        Print(128, "ERROR!  w_king/board[%d] don't agree!\n", i);
-        error = 1;
-      }
-      break;
-    case queen:
-      if (!(Queens(white) & SetMask(i))) {
-        Print(128, "ERROR!  w_queen/board[%d] don't agree!\n", i);
-        error = 1;
-      }
-      break;
-    case rook:
-      if (!(Rooks(white) & SetMask(i))) {
-        Print(128, "ERROR!  w_rook/board[%d] don't agree!\n", i);
-        error = 1;
-      }
-      break;
-    case bishop:
-      if (!(Bishops(white) & SetMask(i))) {
-        Print(128, "ERROR!  w_bishop/board[%d] don't agree!\n", i);
-        error = 1;
-      }
-      break;
-    case knight:
-      if (!(Knights(white) & SetMask(i))) {
-        Print(128, "ERROR!  w_knight/board[%d] don't agree!\n", i);
-        error = 1;
-      }
-      break;
-    case pawn:
-      if (!(Pawns(white) & SetMask(i))) {
-        Print(128, "ERROR!  w_pawn/board[%d] don't agree!\n", i);
-        error = 1;
-      }
-      break;
-    }
-/*
- test empty squares now
+ ************************************************************
+ *                                                          *
+ *  the last chess board test is to make sure that any      *
+ *  square that is empty according to board[64] is also     *
+ *  empty according to the occupied squares bitmap.         *
+ *                                                          *
+ ************************************************************
  */
   temp = ~(temp_occ | temp_occx);
   while (temp) {
@@ -392,73 +199,30 @@ void ValidatePosition(TREE * RESTRICT tree, int ply, int move, char *caller)
     temp &= temp - 1;
   }
 /*
- test total piece count now
- */
-  i = PopCnt(OccupiedSquares);
-  if (i != TotalAllPieces) {
-    Print(128, "ERROR!  TotalAllPieces is wrong, correct=%d  bad=%d\n", i,
-        TotalAllPieces);
-    error = 1;
-  }
-/*
- test hash key
+ ************************************************************
+ *                                                          *
+ *  finally, we re-compute the pawn hash signature and the  *
+ *  normal hash signature and verify that they match the    *
+ *  incrementally updated values.                           *
+ *                                                          *
+ ************************************************************
  */
   temp = 0;
   temp1 = 0;
   for (i = 0; i < 64; i++) {
-    switch (PcOnSq(i)) {
-    case king:
-      temp = temp ^ randoms[1][king][i];
-      break;
-    case queen:
-      temp = temp ^ randoms[1][queen][i];
-      break;
-    case rook:
-      temp = temp ^ randoms[1][rook][i];
-      break;
-    case bishop:
-      temp = temp ^ randoms[1][bishop][i];
-      break;
-    case knight:
-      temp = temp ^ randoms[1][knight][i];
-      break;
-    case pawn:
-      temp = temp ^ randoms[1][pawn][i];
-      temp1 = temp1 ^ randoms[1][pawn][i];
-      break;
-    case -pawn:
-      temp = temp ^ randoms[0][pawn][i];
-      temp1 = temp1 ^ randoms[0][pawn][i];
-      break;
-    case -knight:
-      temp = temp ^ randoms[0][knight][i];
-      break;
-    case -bishop:
-      temp = temp ^ randoms[0][bishop][i];
-      break;
-    case -rook:
-      temp = temp ^ randoms[0][rook][i];
-      break;
-    case -queen:
-      temp = temp ^ randoms[0][queen][i];
-      break;
-    case -king:
-      temp = temp ^ randoms[0][king][i];
-      break;
-    default:
-      break;
-    }
+    side = (PcOnSq(i) > 0) ? 1 : 0;
+    temp ^= randoms[side][Abs(PcOnSq(i))][i];
+    if (Abs(PcOnSq(i)) == pawn)
+      temp1 ^= randoms[side][Abs(PcOnSq(i))][i];
   }
   if (EnPassant(ply))
     HashEP(EnPassant(ply), temp);
-  if (Castle(ply, white) < 0 || !(Castle(ply, white) & 1))
-    HashCastle(0, temp, white);
-  if (Castle(ply, white) < 0 || !(Castle(ply, white) & 2))
-    HashCastle(1, temp, white);
-  if (Castle(ply, black) < 0 || !(Castle(ply, black) & 1))
-    HashCastle(0, temp, black);
-  if (Castle(ply, black) < 0 || !(Castle(ply, black) & 2))
-    HashCastle(1, temp, black);
+  for (side = black; side <= white; side++) {
+    if (Castle(ply, side) < 0 || !(Castle(ply, side) & 1))
+      HashCastle(0, temp, side);
+    if (Castle(ply, side) < 0 || !(Castle(ply, side) & 2))
+      HashCastle(1, temp, side);
+  }
   if (temp ^ HashKey) {
     Print(128, "ERROR!  hash_key is bad.\n");
     error = 1;
@@ -467,6 +231,15 @@ void ValidatePosition(TREE * RESTRICT tree, int ply, int move, char *caller)
     Print(128, "ERROR!  pawn_hash_key is bad.\n");
     error = 1;
   }
+/*
+ ************************************************************
+ *                                                          *
+ *  if any inconsistencies/errors were found, we are going  *
+ *  to dump as much debugging information as possible to    *
+ *  help pinpoint the source of the problem.                *
+ *                                                          *
+ ************************************************************
+ */
   if (error) {
     Print(4095, "processor id: cpu-%d\n", tree->thread_id);
     Print(4095, "current move:\n");

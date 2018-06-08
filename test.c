@@ -64,8 +64,10 @@ void Test(char *filename)
 
   if (book_file) {
     fclose(book_file);
-    fclose(books_file);
     book_file = 0;
+  }
+  if (books_file) {
+    fclose(books_file);
     books_file = 0;
   }
   while (1) {
@@ -232,8 +234,10 @@ void TestEPD(char *filename)
   }
   if (book_file) {
     fclose(book_file);
-    fclose(books_file);
     book_file = 0;
+  }
+  if (books_file) {
+    fclose(books_file);
     books_file = 0;
   }
   while (1) {

@@ -24,7 +24,7 @@ int Drawn(TREE * RESTRICT tree, int value)
  *                                                          *
  ************************************************************
  */
-  if (TotalPawns(white) || TotalPawns(black))
+  if (TotalPieces(white, pawn) || TotalPieces(black, pawn))
     return (0);
 /*
  ************************************************************
@@ -45,14 +45,14 @@ int Drawn(TREE * RESTRICT tree, int value)
  *                                                          *
  ************************************************************
  */
-  if (TotalPieces(white) < 5 && TotalPieces(black) < 5)
+  if (TotalPieces(white, occupied) < 5 && TotalPieces(black, occupied) < 5)
     return (2);
-  if (TotalPieces(white) == 5 || TotalPieces(white) > 6)
+  if (TotalPieces(white, occupied) == 5 || TotalPieces(white, occupied) > 6)
     return (0);
-  if (TotalPieces(black) == 5 || TotalPieces(black) > 6)
+  if (TotalPieces(black, occupied) == 5 || TotalPieces(black, occupied) > 6)
     return (0);
-  if ((TotalPieces(white) == 6 && !Bishops(white) && Material > 0) ||
-      (TotalPieces(black) == 6 && !Bishops(black) && Material < 0))
+  if ((TotalPieces(white, occupied) == 6 && !Bishops(white) && Material > 0) ||
+      (TotalPieces(black, occupied) == 6 && !Bishops(black) && Material < 0))
     return (2);
 /*
  ************************************************************
@@ -63,7 +63,7 @@ int Drawn(TREE * RESTRICT tree, int value)
  *                                                          *
  ************************************************************
  */
-  if (TotalPieces(white) == TotalPieces(black))
+  if (TotalPieces(white, occupied) == TotalPieces(black, occupied))
     return (1);
   return (0);
 }

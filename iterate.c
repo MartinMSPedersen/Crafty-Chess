@@ -66,7 +66,7 @@ int Iterate(int wtm, int search_type, int root_list_done)
   shared->parallel_aborts = 0;
   shared->max_split_blocks = 0;
   TB_use_ok = 1;
-  if (TotalPawns(white) && TotalPawns(black)) {
+  if (TotalPieces(white, pawn) && TotalPieces(black, pawn)) {
     wpawn = MSB(Pawns(white));
     bpawn = MSB(Pawns(black));
     if (FileDistance(wpawn, bpawn) == 1) {
@@ -94,9 +94,6 @@ int Iterate(int wtm, int search_type, int root_list_done)
       shared->transposition_id = (shared->transposition_id + 1) & 7;
       if (!shared->transposition_id)
         shared->transposition_id++;
-      shared->program_start_time = ReadClock();
-      shared->start_time = ReadClock();
-      shared->elapsed_start = ReadClock();
       shared->next_time_check = shared->nodes_between_time_checks;
       tree->evaluations = 0;
       tree->egtb_probes = 0;
@@ -159,9 +156,6 @@ int Iterate(int wtm, int search_type, int root_list_done)
           shared->iteration_depth);
       shared->time_abort = 0;
       shared->abort_search = 0;
-      shared->program_start_time = ReadClock();
-      shared->start_time = ReadClock();
-      shared->elapsed_start = ReadClock();
 /*
  ************************************************************
  *                                                          *
@@ -189,15 +183,16 @@ int Iterate(int wtm, int search_type, int root_list_done)
  *                                                          *
  ************************************************************
  */
+#if (CPUS > 1)
       if (shared->max_threads > shared->smp_idle + 1) {
         long proc;
 
         for (proc = shared->smp_threads + 1; proc < shared->max_threads; proc++) {
           Print(128, "starting thread %d\n", proc);
           shared->thread[proc] = 0;
-#if defined(_WIN32) || defined(_WIN64)
+#  if defined(_WIN32) || defined(_WIN64)
           NumaStartThread(ThreadInit, (void *) proc);
-#else
+#  else
           if (fork() == 0) {
             ThreadInit((void *) proc);
             Lock(shared->lock_smp);
@@ -205,13 +200,14 @@ int Iterate(int wtm, int search_type, int root_list_done)
             Unlock(shared->lock_smp);
             exit(0);
           }
-#endif
+#  endif
           Lock(shared->lock_smp);
           shared->smp_threads++;
           Unlock(shared->lock_smp);
         }
       }
       WaitForAllThreadsInitialized();
+#endif
       shared->root_print_ok = 0;
       if (search_nodes)
         shared->nodes_between_time_checks = search_nodes;
@@ -286,16 +282,20 @@ int Iterate(int wtm, int search_type, int root_list_done)
 /*
  ************************************************************
  *                                                          *
- *   check the time after each ply.  If it is likely that   *
+ *   check the time after each ply.  if it is likely that   *
  *   there is not enough time to complete the next ply,     *
- *   then only search enough time to allow for a fail-low.  *
+ *   then allow a search time of 1/2 time_used.  this       *
+ *   should be enough time to allow for a fail-low.         *
  *                                                          *
  ************************************************************
  */
           time_used = ReadClock() - shared->start_time;
-          if (time_used > shared->time_limit * 5 / 8 &&
-              time_used < shared->time_limit)
-            shared->time_limit = time_used + shared->time_limit / 4;
+          if (time_used > (5 * shared->time_limit / 8) &&
+              time_used < shared->time_limit) {
+            shared->time_limit = 3 * time_used / 2;
+            if (shared->time_limit > shared->absolute_time_limit)
+              shared->time_limit = shared->absolute_time_limit;
+          }
 
           if (value >= shared->root_beta) {
             if (!(shared->root_moves[0].status & 8)) {
@@ -588,7 +588,7 @@ int Iterate(int wtm, int search_type, int root_list_done)
     if (analyze_mode)
       Kibitz(4, wtm, 0, 0, 0, 0, 0, shared->kibitz_text);
   }
-  if (shared->nice && ponder == 0) {
+  if (shared->nice && ponder == 0 && shared->smp_threads) {
     Print(128, "terminating SMP processes.");
     shared->quit = 1;
     while (shared->smp_threads);

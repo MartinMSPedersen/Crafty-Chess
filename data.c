@@ -21,6 +21,7 @@ int solution_type;
 char cmd_buffer[4096];
 char *args[256];
 char buffer[512];
+int line_length = 80;
 unsigned char convert_buff[8];
 int nargs;
 int ponder_value;
@@ -71,7 +72,6 @@ BITBOARD mask_right_edge;
 BITBOARD mask_not_edge;
 BITBOARD mask_kr_trapped[2][3];
 BITBOARD mask_qr_trapped[2][3];
-BITBOARD light_squares;
 BITBOARD dark_squares;
 BITBOARD not_rook_pawns;
 BITBOARD plus1dir[65];
@@ -115,7 +115,7 @@ int OOfrom[2] = { E8, E1 };
 int OOto[2] = { G8, G1 };
 int OOOto[2] = { C8, C1 };
 
-#define    VERSION                             "22.0"
+#define    VERSION                             "22.1"
 char version[8] = { VERSION };
 PLAYING_MODE mode = normal_mode;
 int batch_mode = 0;             /* no asynch reads */
@@ -178,7 +178,7 @@ int mate_depth = 3;
 int null_min = 3 * PLY;         /* R=2 */
 int null_max = 4 * PLY;         /* R=3 */
 int reduce_min_depth = PLY;     /* leave 1 good ply after reductions */
-int reduce_value = PLY;         /* reduce 1 ply */
+int reduce_depth = PLY;         /* reduce 1 ply */
 int search_depth = 0;
 unsigned int search_nodes = 0;
 unsigned int temp_search_nodes = 0;
@@ -221,6 +221,10 @@ float book_weight_freq = 1.0;
 float book_weight_eval = 0.1;
 int book_search_trigger = 20;
 int learning = 7;
+
+#if defined(SKILL)
+int skill = 100;
+#endif
 int show_book = 0;
 int book_selection_width = 5;
 int ponder = 1;
@@ -703,7 +707,7 @@ int pair_b_min = 8;
 int lower_b1 = 16;
 int lower_b2 = 32;
 int lower_r = 16;
-int lower_r_percent = 6;
+int lower_r_percent = 154;      // 154/256 = 60%
 int supports_slider = 3;
 int attacks_enemy = 4;
 int mobility_score_b[4] = { 1, 2, 3, 5 };

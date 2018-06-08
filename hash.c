@@ -58,7 +58,7 @@ int HashProbe(TREE * RESTRICT tree, int ply, int depth, int wtm, int *alpha,
  *                                                          *
  ************************************************************
  */
-  pieces = (wtm) ? TotalPieces(white) : TotalPieces(black);
+  pieces = (wtm) ? TotalPieces(white, occupied) : TotalPieces(black, occupied);
   null_depth = (depth > 6 * PLY && pieces > 9) ? null_max : null_min;
   temp_hashkey = (wtm) ? HashKey : ~HashKey;
   htable = trans_ref + ((int) temp_hashkey & hash_mask);
@@ -145,7 +145,6 @@ int HashProbe(TREE * RESTRICT tree, int ply, int depth, int wtm, int *alpha,
         return (LOWER);
       }
       tree->transposition_hits++;
-      tree->transposition_good_hits++;
       return (avoid_null);
     }
   }

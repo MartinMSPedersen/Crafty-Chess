@@ -28,6 +28,8 @@
 
 #  include <ctype.h>
 #  include <time.h>
+#  include "chess.h"
+#  include "data.h"
 
 /* EPD definitions (host independent) */
 
@@ -36,8 +38,6 @@
 /* EPD routine prototypes (host independent) */
 
 #  include "epd.h"
-#  include "chess.h"
-#  include "data.h"
 
 /* ASCII character constants */
 

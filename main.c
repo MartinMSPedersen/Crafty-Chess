@@ -67,77 +67,33 @@
  *  the input was a command and was executed, otherwise the input should be    *
  *  passed to input() for conversion to the internal move format.              *
  *                                                                             *
- *  the following diagrams show how the bits are numbered in Crafty's bitboard *
- *  data structures, and how the bits are numbered and rotated.  Note that bit *
- *  zero (0) is the LSB of a BITBOARD value.                                   *
+ *  the following diagram shows how bit numbers / squares match up in Crafty's *
+ *  bitboard arrays.  note that bit zero (LSB) corresponds to square A, which  *
+ *  makes this a mental challenge to take a 64 bit value and visualize it as   *
+ *  chess board, since the files are reversed.  this was done for the          *
+ *  following reasons:  (1) bit 0 needs to be the LSB, and bit 63 needs to be  *
+ *  the MSB so that the Intel BSF/BSR instructions return the proper square    *
+ *  number without any remapping.  (2) the lower 3 bits (file number) are now  *
+ *  0 for A, 1 for B, ..., 7 for H.  The upper 3 bits (rank number) are then   *
+ *  0 for rank 1, 1 for rank 2, ..., 7 for rank 8.                             *
  *                                                                             *
- *  Normal:                                                                    *
+ *  A8 B8 C8 D8 E8 F8 G8 H8                                                    *
+ *  A7 B7 C7 D7 E7 F7 G7 H7                                                    *
+ *  A6 B6 C6 D6 E6 F6 G6 H6                                                    *
+ *  A5 B5 C5 D5 E5 F5 G5 H5                                                    *
+ *  A4 B4 C4 D4 E4 F4 G4 H4                                                    *
+ *  A3 B3 C3 D3 E3 F3 G3 H3                                                    *
+ *  A2 B2 C2 D2 E2 F2 G2 H2                                                    *
+ *  A1 B1 C1 D1 E1 F1 G1 H1                                                    *
  *                                                                             *
- *  H8 G8 F8 E8 D8 C8 B8 A8                                                    *
- *  H7 G7 F7 E7 D7 C7 B7 A7                                                    *
- *  H6 G6 F6 E6 D6 C6 B6 A6                                                    *
- *  H5 G5 F5 E5 D5 C5 B5 A5                                                    *
- *  H4 G4 F4 E4 D4 C4 B4 A4                                                    *
- *  H3 G3 F3 E3 D3 C3 B3 A3                                                    *
- *  H2 G2 F2 E2 D2 C2 B2 A2                                                    *
- *  H1 G1 F1 E1 D1 C1 B1 A1                                                    *
- *                                                                             *
- *  63 62 61 60 59 58 57 56                                                    *
- *  55 54 53 52 51 50 49 48                                                    *
- *  47 46 45 44 43 42 41 40                                                    *
- *  39 38 37 36 35 34 33 32                                                    *
- *  31 30 29 28 27 26 25 24                                                    *
- *  23 22 21 20 19 18 17 16                                                    *
- *  15 14 13 12 11 10  9  8                                                    *
- *   7  6  5  4  3  2  1  0                                                    *
- *                                                                             *
- *  Right 90:                                                                  *
- *                                                                             *
- *   7 15 23 31 39 47 55 63                                                    *
- *   6 14 22 30 38 46 54 62                                                    *
- *   5 13 21 29 37 45 53 61                                                    *
- *   4 12 20 28 36 44 52 60                                                    *
- *   3 11 19 27 35 43 51 59                                                    *
- *   2 10 18 26 34 42 50 58                                                    *
- *   1  9 17 25 33 41 49 57                                                    *
- *   0  8 16 24 32 40 48 56                                                    *
- *                                                                             *
- *  Right 45:                                                                  *
- *                                                                             *
- *                63                                                           *
- *              55  62                                                         *
- *            47  54  61                                                       *
- *          39  46  53  60             63  55  62  47  54  61  39  46          *
- *        31  38  45  52  59           53  60  31  38  45  52  59  23          *
- *      23  30  37  44  51  58         30  37  44  51  58  15  22  29          *
- *    15  22  29  36  43  50  57       36  43  50  57   7  14  21  28          *
- *   7  14  21  28  35  42  49  56     35  42  49  56   6  13  20  27          *
- *     6  13  20  27  34  41  48       34  41  48   5  12  19  26  33          *
- *       5  12  19  26  33  40         40   4  11  18  25  32   3  10          *
- *         4  11  18  25  32           17  24   2   9  16   1   8   0          *
- *           3  10  17  24                                                     *
- *             2   9  16                                                       *
- *               1   8                                                         *
- *                 0                                                           *
- *                                                                             *
- *  Left 45:                                                                   *
- *                                                                             *
- *                56                                                           *
- *              57  48                                                         *
- *            58  49  40                                                       *
- *          59  50  41  32             56  57  48  58  49  40  59  50          *
- *        60  51  42  33  24           41  32  60  51  42  33  24  61          *
- *      61  52  43  34  25  16         52  43  34  25  16  62  53  44          *
- *    62  53  44  35  26  17   8       35  26  17   8  63  54  45  36          *
- *  63  54  45  36  27  18   9   0     27  18   9   0  55  46  37  28          *
- *    55  46  37  28  19  10   1       19  10   1  47  38  29  20  11          *
- *      47  38  29  20  11   2          2  39  30  21  12   3  31  22          *
- *        39  30  21  12   3           13   4  23  14   5  15   6   7          *
- *          31  22  13   4                                                     *
- *            23  14   5                                                       *
- *              15   6                                                         *
- *                 7                                                           *
- *                                                                             *
+ *  56 57 58 59 60 61 62 63                                                    *
+ *  48 49 50 51 52 53 54 55                                                    *
+ *  40 41 42 43 44 45 46 47                                                    *
+ *  32 33 34 35 36 37 38 39                                                    *
+ *  24 25 26 27 28 29 30 31                                                    *
+ *  16 17 18 19 20 21 22 23                                                    *
+ *   8  9 10 11 12 13 14 15                                                    *
+ *   0  1  2  3  4  5  6  7                                                    *
  *                                                                             *
  *  version  description                                                       *
  *                                                                             *
@@ -3585,6 +3541,16 @@
  *           simpler to understand, and has been verified to be bug-free as a  *
  *           with massive cluster testing.                                     *
  *                                                                             *
+ *   22.1    minor fix for CPUS=1, which would cause compile errors.  other    *
+ *           eval tweaks to improve scoring.  new "skill" command that can be  *
+ *           used to "dumb down" crafty.  "skill <n>" where n is a number      *
+ *           between 1 and 100.  100 is max (default) skill.  skill 70 will    *
+ *           drop the playing Elo by about 200 points.  skill 50 will drop it  *
+ *           about 400 points.  the curve is not linear, and the closer you    *
+ *           get to 1, the lower the rating.  To use this feature, you need to *
+ *           add -DSKILL to your Makefile options otherwise it is not included *
+ *           in the executable.                                                *
+ *                                                                             *
  *******************************************************************************
  */
 int main(int argc, char **argv)
@@ -4197,6 +4163,10 @@ int main(int argc, char **argv)
       }
     }
     wtm = Flip(wtm);
+    if ((i = GameOver(wtm))) {
+      if (i == 1)
+        Print(4095, "1/2-1/2 {stalemate}\n");
+    }
     if (book_move) {
       shared->moves_out_of_book = 0;
       predicted++;
@@ -4225,7 +4195,7 @@ int main(int argc, char **argv)
  ************************************************************
  */
     if (shared->moves_out_of_book) {
-      LearnBook(tree, wtm, last_value, last_pv.pathd + 2, 0, 0);
+      LearnBook(last_value, last_pv.pathd + 2, 0, 0);
     } else if (learn_positions_count < 63) {
       learn_seekto[learn_positions_count] = book_learn_seekto;
       learn_key[learn_positions_count] = book_learn_key;
@@ -4236,7 +4206,7 @@ int main(int argc, char **argv)
 
       if (value < 0)
         val = -val;
-      LearnBook(tree, wtm, val, 0, 1, 2);
+      LearnBook(val, 0, 1, 2);
     }
     if (mode == tournament_mode) {
       strcpy(buffer, "clock");

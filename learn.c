@@ -26,8 +26,7 @@
  *                                                                             *
  *******************************************************************************
  */
-void LearnBook(TREE * RESTRICT tree, int wtm, int search_value,
-    int search_depth, int lv, int force)
+void LearnBook(int search_value, int search_depth, int lv, int force)
 {
   int nplies = 0, thisply = 0;
   unsigned char buf32[4];

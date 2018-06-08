@@ -119,7 +119,4 @@ static void __inline__ UnlockX86(volatile int *lock)
 #  define Lock(p)
 #  define Unlock(p)
 #  define lock_t volatile int
-#  define pthread_attr_t  HANDLE
-#  define pthread_t       HANDLE
-#  define thread_t        HANDLE
 #endif                          /*  SMP code */

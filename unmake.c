@@ -1,12 +1,14 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 01/01/08 */
+/* last modified 03/06/08 */
 /*
  *******************************************************************************
  *                                                                             *
  *   UnmakeMove() is responsible for updating the position database whenever a *
- *   move is retracted.  it is the exact inverse of MakeMove().                *
+ *   move is retracted.  it is the exact inverse of MakeMove(). the hash       *
+ *   signature(s) are not updated, they are just restored to their status that *
+ *   was saved before the move was made, to save time.                         *
  *                                                                             *
  *******************************************************************************
  */
@@ -30,7 +32,7 @@ void UnmakeMove(TREE * RESTRICT tree, int ply, int move, int wtm)
  */
   HashKey = tree->save_hash_key[ply];
   PawnHashKey = tree->save_pawn_hash_key[ply];
-  tree->rep_index[wtm]--;
+  Repetition(wtm)--;
 /*
  ************************************************************
  *                                                          *
@@ -58,13 +60,6 @@ void UnmakeMove(TREE * RESTRICT tree, int ply, int move, int wtm)
  ************************************************************
  */
   switch (piece) {
-/*
- *******************************************************************************
- *                                                                             *
- *   unmake pawn moves.                                                        *
- *                                                                             *
- *******************************************************************************
- */
   case pawn:
     if (captured == 1) {
       if (EnPassant(ply) == to) {
@@ -73,97 +68,47 @@ void UnmakeMove(TREE * RESTRICT tree, int ply, int move, int wtm)
         Set(to + epsq[wtm], Occupied(btm));
         PcOnSq(to + epsq[wtm]) = pieces[btm][pawn];
         Material -= PieceValues(wtm, pawn);
-        TotalPawns(btm)++;
+        TotalPieces(btm, pawn)++;
         captured = 0;
       }
     }
-/*
- **********************************************************************
- *                                                                    *
- *  if this is a pawn promotion, remove the pawn from the counts      *
- *  then update the correct piece board to reflect the piece just     *
- *  created.                                                          *
- *                                                                    *
- **********************************************************************
- */
     if (promote) {
-      TotalPawns(wtm)++;
+      TotalPieces(wtm, pawn)++;
       Clear(to, Pawns(wtm));
       Clear(to, Occupied(wtm));
       Clear(to, Pieces(wtm, promote));
       Material -= PieceValues(wtm, promote);
       Material += PieceValues(wtm, pawn);
+      TotalPieces(wtm, occupied) -= p_vals[promote];
+      TotalPieces(wtm, promote)--;
       switch (promote) {
       case knight:
-        TotalPieces(wtm) -= knight_v;
-        TotalKnights(wtm)--;
         break;
       case bishop:
         Clear(to, BishopsQueens);
-        TotalPieces(wtm) -= bishop_v;
-        TotalBishops(wtm)--;
         break;
       case rook:
         Clear(to, RooksQueens);
-        TotalPieces(wtm) -= rook_v;
-        TotalRooks(wtm)--;
         break;
       case queen:
         Clear(to, BishopsQueens);
         Clear(to, RooksQueens);
-        TotalPieces(wtm) -= queen_v;
-        TotalQueens(wtm)--;
         break;
       }
     }
     break;
-/*
- *******************************************************************************
- *                                                                             *
- *   unmake knight moves.                                                      *
- *                                                                             *
- *******************************************************************************
- */
   case knight:
     break;
-/*
- *******************************************************************************
- *                                                                             *
- *   unmake bishop moves.                                                      *
- *                                                                             *
- *******************************************************************************
- */
   case bishop:
     ClearSet(bit_move, BishopsQueens);
     break;
-/*
- *******************************************************************************
- *                                                                             *
- *   unmake rook moves.                                                        *
- *                                                                             *
- *******************************************************************************
- */
   case rook:
     ClearSet(bit_move, RooksQueens);
     break;
-/*
- *******************************************************************************
- *                                                                             *
- *   unmake queen moves.                                                       *
- *                                                                             *
- *******************************************************************************
- */
   case queen:
     ClearSet(bit_move, BishopsQueens);
     ClearSet(bit_move, RooksQueens);
     break;
-/*
- *******************************************************************************
- *                                                                             *
- *   unmake king moves.                                                        *
- *                                                                             *
- *******************************************************************************
- */
   case king:
     KingSQ(wtm) = from;
     if (abs(to - from) == 2) {
@@ -196,72 +141,24 @@ void UnmakeMove(TREE * RESTRICT tree, int ply, int move, int wtm)
     Set(to, Occupied(btm));
     Material += PieceValues(btm, captured);
     PcOnSq(to) = pieces[btm][captured];
+    TotalPieces(btm, captured)++;
+    if (captured != pawn)
+      TotalPieces(btm, occupied) += p_vals[captured];
     switch (captured) {
-/*
- ************************************************************
- *                                                          *
- *   restore a captured pawn.                               *
- *                                                          *
- ************************************************************
- */
     case pawn:
-      TotalPawns(btm)++;
       break;
-/*
- ************************************************************
- *                                                          *
- *   restore a captured knight.                             *
- *                                                          *
- ************************************************************
- */
     case knight:
-      TotalPieces(btm) += knight_v;
-      TotalKnights(btm)++;
       break;
-/*
- ************************************************************
- *                                                          *
- *   restore a captured bishop.                             *
- *                                                          *
- ************************************************************
- */
     case bishop:
       Set(to, BishopsQueens);
-      TotalPieces(btm) += bishop_v;
-      TotalBishops(btm)++;
       break;
-/*
- ************************************************************
- *                                                          *
- *   restore a captured rook.                               *
- *                                                          *
- ************************************************************
- */
     case rook:
       Set(to, RooksQueens);
-      TotalPieces(btm) += rook_v;
-      TotalRooks(btm)++;
       break;
-/*
- ************************************************************
- *                                                          *
- *   restore a captured queen.                              *
- *                                                          *
- ************************************************************
- */
     case queen:
       Set(to, BishopsQueens);
       Set(to, RooksQueens);
-      TotalPieces(btm) += queen_v;
-      TotalQueens(btm)++;
       break;
-/*
- ************************************************************
- *                                                          *
- *   restore a captured king. [this is an error condition]  *
- *                                                          *
- ************************************************************
- */
     case king:
 #if defined(DEBUG)
       Print(128, "captured a king (Unmake)\n");

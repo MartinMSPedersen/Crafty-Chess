@@ -35,11 +35,7 @@ int *GenerateCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
     from = Advanced(wtm, piecebd);
     moves = knight_attacks[from] & Occupied(btm);
     temp = from + (knight << 12);
-    while (moves) {
-      to = Advanced(wtm, moves);
-      *move++ = temp | (to << 6) | (Abs(PcOnSq(to)) << 15);
-      Clear(to, moves);
-    }
+    Unpack(wtm, move, moves, temp);
     Clear(from, piecebd);
   }
 /*
@@ -57,11 +53,7 @@ int *GenerateCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
     from = Advanced(wtm, piecebd);
     moves = AttacksBishop(from, OccupiedSquares) & Occupied(btm);
     temp = from + (bishop << 12);
-    while (moves) {
-      to = Advanced(wtm, moves);
-      *move++ = temp | (to << 6) | (Abs(PcOnSq(to)) << 15);
-      Clear(to, moves);
-    }
+    Unpack(wtm, move, moves, temp);
     Clear(from, piecebd);
   }
 /*
@@ -79,11 +71,7 @@ int *GenerateCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
     from = Advanced(wtm, piecebd);
     moves = AttacksRook(from, OccupiedSquares) & Occupied(btm);
     temp = from + (rook << 12);
-    while (moves) {
-      to = Advanced(wtm, moves);
-      *move++ = temp | (to << 6) | (Abs(PcOnSq(to)) << 15);
-      Clear(to, moves);
-    }
+    Unpack(wtm, move, moves, temp);
     Clear(from, piecebd);
   }
 /*
@@ -101,11 +89,7 @@ int *GenerateCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
     from = Advanced(wtm, piecebd);
     moves = AttacksQueen(from, OccupiedSquares) & Occupied(btm);
     temp = from + (queen << 12);
-    while (moves) {
-      to = Advanced(wtm, moves);
-      *move++ = temp | (to << 6) | (Abs(PcOnSq(to)) << 15);
-      Clear(to, moves);
-    }
+    Unpack(wtm, move, moves, temp);
     Clear(from, piecebd);
   }
 /*
@@ -121,11 +105,7 @@ int *GenerateCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
   from = KingSQ(wtm);
   moves = king_attacks[from] & Occupied(btm);
   temp = from + (king << 12);
-  while (moves) {
-    to = Advanced(wtm, moves);
-    *move++ = temp | (to << 6) | (Abs(PcOnSq(to)) << 15);
-    Clear(to, moves);
-  }
+  Unpack(wtm, move, moves, temp);
 /*
  ************************************************************
  *                                                          *
@@ -159,10 +139,7 @@ int *GenerateCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
     to = Advanced(wtm, pcapturesl);
     common = (to + capleft[wtm]) | (to << 6) | (pawn << 12);
     if ((wtm == 0 && to > 7) || (wtm == 1 && to < 56))
-      *move++ =
-          (to +
-          capleft[wtm]) | (to << 6) | (pawn << 12) | (((PcOnSq(to)) ?
-              Abs(PcOnSq(to)) : pawn) << 15);
+      *move++ = common | (((PcOnSq(to)) ? Abs(PcOnSq(to)) : pawn) << 15);
     else
       *move++ = common | (Abs(PcOnSq(to)) << 15) | (queen << 18);
     Clear(to, pcapturesl);
@@ -171,10 +148,7 @@ int *GenerateCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
     to = Advanced(wtm, pcapturesr);
     common = (to + capright[wtm]) | (to << 6) | (pawn << 12);
     if ((wtm == 0 && to > 7) || (wtm == 1 && to < 56))
-      *move++ =
-          (to +
-          capright[wtm]) | (to << 6) | (pawn << 12) | (((PcOnSq(to)) ?
-              Abs(PcOnSq(to)) : pawn) << 15);
+      *move++ = common | (((PcOnSq(to)) ? Abs(PcOnSq(to)) : pawn) << 15);
     else
       *move++ = common | (Abs(PcOnSq(to)) << 15) | (queen << 18);
     Clear(to, pcapturesr);
@@ -228,12 +202,12 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move)
   checksqs = AttacksTo(tree, king_square) & Occupied(btm);
   checkers = PopCnt(checksqs);
   if (checkers == 1) {
-    checking_square = LSB(AttacksTo(tree, king_square) & Occupied(btm));
+    checking_square = LSB(checksqs);
     if (PcOnSq(checking_square) != pieces[btm][pawn])
       check_direction1 = directions[checking_square][king_square];
     target = InterposeSquares(check_direction1, king_square, checking_square);
-    target = target | (AttacksTo(tree, king_square) & Occupied(btm));
-    target = target | Kings(btm);
+    target |= checksqs;
+    target |= Kings(btm);
   } else {
     target = Kings(btm);
     checking_square = LSB(checksqs);
@@ -292,11 +266,7 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move)
       if (!PinnedOnKing(tree, wtm, from)) {
         moves = knight_attacks[from] & target;
         temp = from + (knight << 12);
-        while (moves) {
-          to = Advanced(wtm, moves);
-          *move++ = temp | (to << 6) | (Abs(PcOnSq(to)) << 15);
-          Clear(to, moves);
-        }
+        Unpack(wtm, move, moves, temp);
       }
       Clear(from, piecebd);
     }
@@ -316,11 +286,7 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move)
       if (!PinnedOnKing(tree, wtm, from)) {
         moves = AttacksBishop(from, OccupiedSquares) & target;
         temp = from + (bishop << 12);
-        while (moves) {
-          to = Advanced(wtm, moves);
-          *move++ = temp | (to << 6) | (Abs(PcOnSq(to)) << 15);
-          Clear(to, moves);
-        }
+        Unpack(wtm, move, moves, temp);
       }
       Clear(from, piecebd);
     }
@@ -340,11 +306,7 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move)
       if (!PinnedOnKing(tree, wtm, from)) {
         moves = AttacksRook(from, OccupiedSquares) & target;
         temp = from + (rook << 12);
-        while (moves) {
-          to = Advanced(wtm, moves);
-          *move++ = temp | (to << 6) | (Abs(PcOnSq(to)) << 15);
-          Clear(to, moves);
-        }
+        Unpack(wtm, move, moves, temp);
       }
       Clear(from, piecebd);
     }
@@ -364,11 +326,7 @@ int *GenerateCheckEvasions(TREE * RESTRICT tree, int ply, int wtm, int *move)
       if (!PinnedOnKing(tree, wtm, from)) {
         moves = AttacksQueen(from, OccupiedSquares) & target;
         temp = from + (queen << 12);
-        while (moves) {
-          to = Advanced(wtm, moves);
-          *move++ = temp | (to << 6) | (Abs(PcOnSq(to)) << 15);
-          Clear(to, moves);
-        }
+        Unpack(wtm, move, moves, temp);
       }
       Clear(from, piecebd);
     }
@@ -659,11 +617,7 @@ int *GenerateNonCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
     from = Advanced(wtm, piecebd);
     moves = knight_attacks[from] & target;
     temp = from + (knight << 12);
-    while (moves) {
-      to = Advanced(wtm, moves);
-      *move++ = temp | (to << 6);
-      Clear(to, moves);
-    }
+    Unpack(wtm, move, moves, temp);
     Clear(from, piecebd);
   }
 /*
@@ -681,11 +635,7 @@ int *GenerateNonCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
     from = Advanced(wtm, piecebd);
     moves = AttacksBishop(from, OccupiedSquares) & target;
     temp = from + (bishop << 12);
-    while (moves) {
-      to = Advanced(wtm, moves);
-      *move++ = temp | (to << 6);
-      Clear(to, moves);
-    }
+    Unpack(wtm, move, moves, temp);
     Clear(from, piecebd);
   }
 /*
@@ -703,11 +653,7 @@ int *GenerateNonCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
     from = Advanced(wtm, piecebd);
     moves = AttacksRook(from, OccupiedSquares) & target;
     temp = from + (rook << 12);
-    while (moves) {
-      to = Advanced(wtm, moves);
-      *move++ = temp | (to << 6);
-      Clear(to, moves);
-    }
+    Unpack(wtm, move, moves, temp);
     Clear(from, piecebd);
   }
 /*
@@ -725,11 +671,7 @@ int *GenerateNonCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
     from = Advanced(wtm, piecebd);
     moves = AttacksQueen(from, OccupiedSquares) & target;
     temp = from + (queen << 12);
-    while (moves) {
-      to = Advanced(wtm, moves);
-      *move++ = temp | (to << 6);
-      Clear(to, moves);
-    }
+    Unpack(wtm, move, moves, temp);
     Clear(from, piecebd);
   }
 /*
@@ -745,11 +687,7 @@ int *GenerateNonCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
   from = KingSQ(wtm);
   moves = king_attacks[from] & target;
   temp = from + (king << 12);
-  while (moves) {
-    to = Advanced(wtm, moves);
-    *move++ = temp | (to << 6);
-    Clear(to, moves);
-  }
+  Unpack(wtm, move, moves, temp);
 /*
  ************************************************************
  *                                                          *

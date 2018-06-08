@@ -186,7 +186,7 @@ void Annotate()
     tree->pv[0].pathl = 0;
     tree->pv[0].pathd = 0;
     analysis_printed = 0;
-    InitializeChessBoard(&tree->position[0]);
+    InitializeChessBoard(tree);
     tree->position[1] = tree->position[0];
     wtm = 1;
     shared->move_number = 1;

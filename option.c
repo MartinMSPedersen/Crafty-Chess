@@ -726,7 +726,7 @@ int Option(TREE * RESTRICT tree)
     last_search_value =
         (shared->crafty_is_white) ? last_search_value : -last_search_value;
     if (shared->moves_out_of_book)
-      LearnBook(tree, wtm, last_search_value, 0, 0, 1);
+      LearnBook(last_search_value, 0, 0, 1);
     if (book_file)
       fclose(book_file);
     if (books_file)
@@ -1022,7 +1022,7 @@ int Option(TREE * RESTRICT tree)
     temp = Castle(0, white);
     Castle(0, white) = Castle(0, black);
     Castle(0, black) = temp;
-    SetChessBitBoards(&tree->position[0]);
+    SetChessBitBoards(tree);
 #if defined(DEBUG)
     ValidatePosition(tree, 0, wtm, "Option().flip");
 #endif
@@ -1048,7 +1048,7 @@ int Option(TREE * RESTRICT tree)
         PcOnSq((rank << 3) + 7 - file) = piece;
       }
     }
-    SetChessBitBoards(&tree->position[0]);
+    SetChessBitBoards(tree);
 #if defined(DEBUG)
     ValidatePosition(tree, 0, wtm, "Option().flop");
 #endif
@@ -1222,7 +1222,7 @@ int Option(TREE * RESTRICT tree)
             trans_ref = 0;
           }
           hash_mask = (1 << log_hash) - 1;
-          ClearHashTableScores(1);
+          ClearHashTableScores();
         } else {
           trans_ref = 0;
           hash_table_size = 0;
@@ -1585,6 +1585,25 @@ int Option(TREE * RESTRICT tree)
       sprintf(buffer, "hashp=%d\n", optimal_hash_size);
       (void) Option(tree);
     }
+  }
+/*
+ ************************************************************
+ *                                                          *
+ *   "linelength" sets the default line length to something *
+ *    other than 80, if desired.  setting this to a huge    *
+ *    number makes a PV print on one line for easier        *
+ *    parsing by automated scripts.                         *
+ *                                                          *
+ ************************************************************
+ */
+  else if (OptionMatch("linelength", *args)) {
+    if (nargs > 2) {
+      printf("usage:  linelength <n>\n");
+      return (1);
+    }
+    if (nargs == 2)
+      line_length = atoi(args[1]);
+    printf("line length set to %d.\n", line_length);
   }
 /*
  ************************************************************
@@ -2438,6 +2457,9 @@ int Option(TREE * RESTRICT tree)
       }
       printf("saving personality to file \"%s\"\n", filename);
       fprintf(file, "# Crafty v%s personality file\n", version);
+#if defined(SKILL)
+      fprintf(file, "skill                 %3d\n", skill);
+#endif
       fprintf(file, "extension/onerep      %4.2f\n",
           (float) onerep_depth / PLY);
       fprintf(file, "extension/check       %4.2f\n",
@@ -2713,16 +2735,16 @@ int Option(TREE * RESTRICT tree)
       printf("usage:  reduce option value\n");
       printf("current values are:\n");
       printf("reduce mindepth %3.1f\n", (float) reduce_min_depth / PLY);
-      printf("reduce value    %3.1f\n", (float) reduce_value / PLY);
+      printf("reduce value    %3.1f\n", (float) reduce_depth / PLY);
       return (1);
     }
     if (OptionMatch("mindepth", args[1]))
       reduce_min_depth = (int) atof(args[2]) * PLY + .1;
     else if (OptionMatch("value", args[1]))
-      reduce_value = atoi(args[2]);
+      reduce_depth = atoi(args[2]);
     Print(128, "current values are:\n");
     Print(128, "reduce mindepth %3.1f\n", (float) reduce_min_depth / PLY);
-    Print(128, "reduce value    %3.1f\n", (float) reduce_value / PLY);
+    Print(128, "reduce value    %3.1f\n", (float) reduce_depth / PLY);
   }
 /*
  ************************************************************
@@ -2772,7 +2794,7 @@ int Option(TREE * RESTRICT tree)
     }
     nmoves = (shared->move_number - 1) * 2 + 1 - wtm;
     shared->root_wtm = Flip(wtm);
-    InitializeChessBoard(&tree->position[0]);
+    InitializeChessBoard(tree);
     wtm = 1;
     shared->move_number = 1;
     for (i = 0; i < nmoves; i++) {
@@ -2843,7 +2865,7 @@ int Option(TREE * RESTRICT tree)
       read_input = stdin;
     }
     if (!append) {
-      InitializeChessBoard(&tree->position[0]);
+      InitializeChessBoard(tree);
       wtm = 1;
       shared->move_number = 1;
     }
@@ -2970,18 +2992,18 @@ int Option(TREE * RESTRICT tree)
       if (!strcmp(args[1], "1-0")) {
         strcpy(pgn_result, "1-0");
         if (!shared->crafty_is_white)
-          LearnBook(tree, wtm, 300, 0, 1, 2);
+          LearnBook(300, 0, 1, 2);
         else
-          LearnBook(tree, wtm, -300, 0, 1, 2);
+          LearnBook(-300, 0, 1, 2);
       } else if (!strcmp(args[1], "0-1")) {
         strcpy(pgn_result, "0-1");
         if (shared->crafty_is_white)
-          LearnBook(tree, wtm, -300, 0, 1, 2);
+          LearnBook(-300, 0, 1, 2);
         else
-          LearnBook(tree, wtm, 300, 0, 1, 2);
+          LearnBook(300, 0, 1, 2);
       } else if (!strcmp(args[1], "1/2-1/2")) {
         strcpy(pgn_result, "1/2-1/2");
-        LearnBook(tree, wtm, 0, 0, 1, 2);
+        LearnBook(0, 0, 1, 2);
       }
       return (1);
     }
@@ -3262,7 +3284,7 @@ int Option(TREE * RESTRICT tree)
     if (shared->thinking || shared->pondering)
       return (2);
     nargs = ReadParse(buffer, args, " 	;=");
-    SetBoard(&tree->position[0], nargs - 1, args + 1, 0);
+    SetBoard(tree, nargs - 1, args + 1, 0);
     shared->move_number = 1;
     if (!wtm) {
       wtm = 1;
@@ -3278,7 +3300,7 @@ int Option(TREE * RESTRICT tree)
     if (shared->thinking || shared->pondering)
       return (2);
     nargs = ReadParse(buffer, args, " 	;=");
-    SetBoard(&tree->position[0], nargs, args, 0);
+    SetBoard(tree, nargs, args, 0);
     shared->move_number = 1;
     if (!wtm) {
       wtm = 1;
@@ -3316,7 +3338,7 @@ int Option(TREE * RESTRICT tree)
       s2 = EvaluateDevelopment(tree, 1, white);
     if (Castle(1, black))
       s2 -= EvaluateDevelopment(tree, 1, black);
-    if (TotalPawns(white) + TotalPawns(black)) {
+    if (TotalPieces(white, pawn) + TotalPieces(black, pawn)) {
       if (tree->pawn_score.passed[black] || tree->pawn_score.passed[white] ||
           tree->pawn_score.candidates[black] ||
           tree->pawn_score.candidates[white]) {
@@ -3399,6 +3421,40 @@ int Option(TREE * RESTRICT tree)
         Print(128, "don't show book statistics\n");
     }
   }
+/*
+ ************************************************************
+ *                                                          *
+ *   "skill" command sets a value from 1-100 that affects   *
+ *   Crafty's playing skill level.  100 => max skill, 1 =>  *
+ *   minimal skill.  this is used to reduce the chess       *
+ *   knowledge usage, along with other things.              *
+ *                                                          *
+ ************************************************************
+ */
+#if defined(SKILL)
+  else if (OptionMatch("skill", *args)) {
+    if (nargs < 2) {
+      printf("usage:  skill <1-100>\n");
+      return (1);
+    }
+    if (skill != 100) {
+      printf("ERROR:  skill can only be changed one time in a game\n");
+    } else {
+      skill = atoi(args[1]);
+      if (skill < 1 || skill > 100) {
+        printf("ERROR: skill range is 1-100 only\n");
+        skill = 100;
+      }
+      Print(128, "skill level set to %d%%\n", skill);
+      null_min = null_min * skill / 100;
+      null_max = null_max * skill / 100;
+      mate_depth = mate_depth * skill / 100;
+      incheck_depth = incheck_depth * skill / 100;
+      onerep_depth = onerep_depth * skill / 100;
+      reduce_depth = reduce_depth * skill / 100;
+    }
+  }
+#endif
 /*
  ************************************************************
  *                                                          *

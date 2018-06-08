@@ -17,7 +17,8 @@
  *******************************************************************************
  *                                                                             *
  *   Initialize() performs routine initialization before anything else is      *
- *   attempted.                                                                *
+ *   attempted.  It uses a group of service routines to initialize various     *
+ *   data structures that are needed before the engine can do anything at all. *
  *                                                                             *
  *******************************************************************************
  */
@@ -30,15 +31,13 @@ void Initialize()
 
   tree = shared->local[0];
   InitializeSharedData();
-  InitializeZeroMasks();
   InitializeMagic();
   InitializeSMP();
   InitializeMasks();
   InitializeRandomHash();
   InitializeAttackBoards();
   InitializePawnMasks();
-  InitializePieceMasks();
-  InitializeChessBoard(&tree->position[0]);
+  InitializeChessBoard(tree);
   InitializeKillers();
 #if defined(NT_i386)
   _fmode = _O_BINARY;   /* set file mode binary to avoid text translation */
@@ -115,7 +114,7 @@ void Initialize()
 /*
  ************************************************************
  *                                                          *
- *   now for some NUMA work.  we need to allocate the       *
+ *   now for some NUMA stuff.  we need to allocate the      *
  *   local memory for each processor, but we can't touch it *
  *   here or it will be faulted in and be allocated on the  *
  *   curret CPU, which is not where it should be located    *
@@ -496,10 +495,9 @@ BITBOARD InitializeMagicRook(int square, BITBOARD occupied)
   return (ret);
 }
 
-void InitializeChessBoard(SEARCH_POSITION * new_pos)
+void InitializeChessBoard(TREE * tree)
 {
   int i;
-  TREE *const tree = shared->local[0];
 
   if (strlen(initial_position)) {
     static char a1[80], a2[16], a3[16], a4[16], a5[16];
@@ -524,279 +522,128 @@ void InitializeChessBoard(SEARCH_POSITION * new_pos)
     int nargs;
 
     nargs = ReadParse(initial_position, args, " ;");
-    SetBoard(new_pos, nargs, args, 1);
+    SetBoard(tree, nargs, args, 1);
   } else {
     for (i = 0; i < 64; i++)
-      tree->pos.board[i] = empty;
-    new_pos->rule_50_moves = 0;
-    tree->rep_index[black] = 0;
-    tree->rep_index[white] = 0;
+      PcOnSq(i) = empty;
+    Rule50Moves(0) = 0;
+    Repetition(black) = 0;
+    Repetition(white) = 0;
     wtm = 1;
 /*
  place pawns
  */
     for (i = 0; i < 8; i++) {
-      tree->pos.board[i + 8] = pawn;
-      tree->pos.board[i + 48] = -pawn;
+      PcOnSq(i + 8) = pawn;
+      PcOnSq(i + 48) = -pawn;
     }
 /*
  place knights
  */
-    tree->pos.board[B1] = knight;
-    tree->pos.board[G1] = knight;
-    tree->pos.board[B8] = -knight;
-    tree->pos.board[G8] = -knight;
+    PcOnSq(B1) = knight;
+    PcOnSq(G1) = knight;
+    PcOnSq(B8) = -knight;
+    PcOnSq(G8) = -knight;
 /*
  place bishops
  */
-    tree->pos.board[C1] = bishop;
-    tree->pos.board[F1] = bishop;
-    tree->pos.board[C8] = -bishop;
-    tree->pos.board[F8] = -bishop;
+    PcOnSq(C1) = bishop;
+    PcOnSq(F1) = bishop;
+    PcOnSq(C8) = -bishop;
+    PcOnSq(F8) = -bishop;
 /*
  place rooks
  */
-    tree->pos.board[A1] = rook;
-    tree->pos.board[H1] = rook;
-    tree->pos.board[A8] = -rook;
-    tree->pos.board[H8] = -rook;
+    PcOnSq(A1) = rook;
+    PcOnSq(H1) = rook;
+    PcOnSq(A8) = -rook;
+    PcOnSq(H8) = -rook;
 /*
  place queens
  */
-    tree->pos.board[D1] = queen;
-    tree->pos.board[D8] = -queen;
+    PcOnSq(D1) = queen;
+    PcOnSq(D8) = -queen;
 /*
  place kings
  */
-    tree->pos.board[E1] = king;
-    tree->pos.board[E8] = -king;
+    PcOnSq(E1) = king;
+    PcOnSq(E8) = -king;
 /*
  initialize castling status so all castling is legal.
  */
-    new_pos->castle[1] = 3;
-    new_pos->castle[0] = 3;
+    Castle(0, black) = 3;
+    Castle(0, white) = 3;
 /*
  initialize 50 move counter.
  */
-    new_pos->rule_50_moves = 0;
+    Rule50Moves(black) = 0;
+    Rule50Moves(white) = 0;
 /*
  initialize enpassant status.
  */
-    new_pos->enpassant_target = 0;
+    EnPassant(0) = 0;
 /*
  now, set the bit-boards.
  */
-    SetChessBitBoards(new_pos);
+    SetChessBitBoards(tree);
   }
 }
 
-void SetChessBitBoards(SEARCH_POSITION * new_pos)
+void SetChessBitBoards(TREE * tree)
 {
-  int i;
-  TREE *const tree = shared->local[0];
+  int side, piece, square;
 
-  tree->pos.hash_key = 0;
-  tree->pos.pawn_hash_key = 0;
-/*
- place pawns
- */
-  tree->pos.color[1].pieces[pawn] = 0;
-  tree->pos.color[0].pieces[pawn] = 0;
-  for (i = 0; i < 64; i++) {
-    if (tree->pos.board[i] == pawn) {
-      tree->pos.color[1].pieces[pawn] |= SetMask(i);
-      tree->pos.hash_key ^= randoms[1][pawn][i];
-      tree->pos.pawn_hash_key ^= randoms[1][pawn][i];
-    }
-    if (tree->pos.board[i] == -pawn) {
-      tree->pos.color[0].pieces[pawn] |= SetMask(i);
-      tree->pos.hash_key ^= randoms[0][pawn][i];
-      tree->pos.pawn_hash_key ^= randoms[0][pawn][i];
-    }
+  HashKey = 0;
+  PawnHashKey = 0;
+  Material = 0;
+  for (side = black; side <= white; side++)
+    for (piece = empty; piece <= king; piece++)
+      Pieces(side, piece) = 0;
+  for (square = 0; square < 64; square++) {
+    if (!PcOnSq(square))
+      continue;
+    piece = PcOnSq(square);
+    side = (piece > 0) ? 1 : 0;
+    Pieces(side, Abs(piece)) |= SetMask(square);
+    Occupied(side) |= SetMask(square);
+    Hash(side, Abs(piece), square);
+    if (Abs(piece) == pawn)
+      HashP(side, square);
+    Material += piece_values[side][Abs(piece)];
   }
-/*
- place knights
- */
-  tree->pos.color[1].pieces[knight] = 0;
-  tree->pos.color[0].pieces[knight] = 0;
-  for (i = 0; i < 64; i++) {
-    if (tree->pos.board[i] == knight) {
-      tree->pos.color[1].pieces[knight] |= SetMask(i);
-      tree->pos.hash_key ^= randoms[1][knight][i];
-    }
-    if (tree->pos.board[i] == -knight) {
-      tree->pos.color[0].pieces[knight] ^= SetMask(i);
-      tree->pos.hash_key ^= randoms[0][knight][i];
-    }
-  }
-/*
- place bishops
- */
-  tree->pos.color[1].pieces[bishop] = 0;
-  tree->pos.color[0].pieces[bishop] = 0;
-  for (i = 0; i < 64; i++) {
-    if (tree->pos.board[i] == bishop) {
-      tree->pos.color[1].pieces[bishop] |= SetMask(i);
-      tree->pos.hash_key ^= randoms[1][bishop][i];
-    }
-    if (tree->pos.board[i] == -bishop) {
-      tree->pos.color[0].pieces[bishop] |= SetMask(i);
-      tree->pos.hash_key ^= randoms[0][bishop][i];
-    }
-  }
-/*
- place rooks
- */
-  tree->pos.color[1].pieces[rook] = 0;
-  tree->pos.color[0].pieces[rook] = 0;
-  for (i = 0; i < 64; i++) {
-    if (tree->pos.board[i] == rook) {
-      tree->pos.color[1].pieces[rook] |= SetMask(i);
-      tree->pos.hash_key ^= randoms[1][rook][i];
-    }
-    if (tree->pos.board[i] == -rook) {
-      tree->pos.color[0].pieces[rook] |= SetMask(i);
-      tree->pos.hash_key ^= randoms[0][rook][i];
-    }
-  }
-/*
- place queens
- */
-  tree->pos.color[1].pieces[queen] = 0;
-  tree->pos.color[0].pieces[queen] = 0;
-  for (i = 0; i < 64; i++) {
-    if (tree->pos.board[i] == queen) {
-      tree->pos.color[1].pieces[queen] |= SetMask(i);
-      tree->pos.hash_key ^= randoms[1][queen][i];
-    }
-    if (tree->pos.board[i] == -queen) {
-      tree->pos.color[0].pieces[queen] |= SetMask(i);
-      tree->pos.hash_key ^= randoms[0][queen][i];
-    }
-  }
-/*
- place kings
- */
-  tree->pos.color[1].pieces[king] = 0;
-  tree->pos.color[0].pieces[king] = 0;
-  for (i = 0; i < 64; i++) {
-    if (tree->pos.board[i] == king) {
-      tree->pos.color[1].pieces[king] |= SetMask(i);
-      tree->pos.kingsq[white] = i;
-      tree->pos.hash_key ^= randoms[1][king][i];
-    }
-    if (tree->pos.board[i] == -king) {
-      tree->pos.color[0].pieces[king] |= SetMask(i);
-      tree->pos.kingsq[black] = i;
-      tree->pos.hash_key ^= randoms[0][king][i];
-    }
-  }
-  if (new_pos->enpassant_target)
-    HashEP(new_pos->enpassant_target, tree->pos.hash_key);
-  if (!(new_pos->castle[1] & 1))
-    HashCastle(0, tree->pos.hash_key, white);
-  if (!(new_pos->castle[1] & 2))
-    HashCastle(1, tree->pos.hash_key, white);
-  if (!(new_pos->castle[0] & 1))
-    HashCastle(0, tree->pos.hash_key, black);
-  if (!(new_pos->castle[0] & 2))
-    HashCastle(1, tree->pos.hash_key, black);
+  KingSQ(white) = LSB(Pieces(white, king));
+  KingSQ(black) = LSB(Pieces(black, king));
+  if (EnPassant(0))
+    HashEP(EnPassant(0), tree->pos.hash_key);
+  if (!(Castle(0, white) & 1))
+    HashCastle(0, HashKey, white);
+  if (!(Castle(0, white) & 2))
+    HashCastle(1, HashKey, white);
+  if (!(Castle(0, black) & 1))
+    HashCastle(0, HashKey, black);
+  if (!(Castle(0, black) & 2))
+    HashCastle(1, HashKey, black);
 /*
  initialize combination boards that show multiple pieces.
  */
-  tree->pos.bishops_queens =
-      tree->pos.color[1].pieces[bishop] | tree->pos.color[1].
-      pieces[queen] | tree->pos.color[0].pieces[bishop] | tree->pos.color[0].
-      pieces[queen];
-  tree->pos.rooks_queens =
-      tree->pos.color[1].pieces[rook] | tree->pos.color[1].
-      pieces[queen] | tree->pos.color[0].pieces[rook] | tree->pos.color[0].
-      pieces[queen];
-  tree->pos.color[0].pieces[occupied] =
-      tree->pos.color[0].pieces[pawn] | tree->pos.color[0].
-      pieces[knight] | tree->pos.color[0].pieces[bishop] | tree->pos.color[0].
-      pieces[rook] | tree->pos.color[0].pieces[queen] | tree->pos.color[0].
-      pieces[king];
-  tree->pos.color[1].pieces[occupied] =
-      tree->pos.color[1].pieces[pawn] | tree->pos.color[1].
-      pieces[knight] | tree->pos.color[1].pieces[bishop] | tree->pos.color[1].
-      pieces[rook] | tree->pos.color[1].pieces[queen] | tree->pos.color[1].
-      pieces[king];
+  BishopsQueens =
+      Bishops(white) | Bishops(black) | Queens(white) | Queens(black);
+  RooksQueens = Rooks(white) | Rooks(black) | Queens(white) | Queens(black);
 /*
  initialize black/white piece counts.
  */
-  tree->pos.pieces[0] = 0;
-  tree->pos.pawns[0] = 0;
-  tree->pos.pieces[1] = 0;
-  tree->pos.pawns[1] = 0;
-  tree->pos.num_knights[1] = 0;
-  tree->pos.num_knights[0] = 0;
-  tree->pos.num_bishops[1] = 0;
-  tree->pos.num_bishops[0] = 0;
-  tree->pos.num_rooks[1] = 0;
-  tree->pos.num_rooks[0] = 0;
-  tree->pos.num_queens[1] = 0;
-  tree->pos.num_queens[0] = 0;
-  tree->pos.material_evaluation = 0;
-  for (i = 0; i < 64; i++) {
-    switch (tree->pos.board[i]) {
-    case pawn:
-      tree->pos.material_evaluation += pawn_value;
-      tree->pos.pawns[1] += pawn_v;
-      break;
-    case knight:
-      tree->pos.material_evaluation += knight_value;
-      tree->pos.pieces[1] += knight_v;
-      tree->pos.num_knights[1]++;
-      break;
-    case bishop:
-      tree->pos.material_evaluation += bishop_value;
-      tree->pos.pieces[1] += bishop_v;
-      tree->pos.num_bishops[1]++;
-      break;
-    case rook:
-      tree->pos.material_evaluation += rook_value;
-      tree->pos.pieces[1] += rook_v;
-      tree->pos.num_rooks[1]++;
-      break;
-    case queen:
-      tree->pos.material_evaluation += queen_value;
-      tree->pos.pieces[1] += queen_v;
-      tree->pos.num_queens[1]++;
-      break;
-    case -pawn:
-      tree->pos.material_evaluation -= pawn_value;
-      tree->pos.pawns[0] += pawn_v;
-      break;
-    case -knight:
-      tree->pos.material_evaluation -= knight_value;
-      tree->pos.pieces[0] += knight_v;
-      tree->pos.num_knights[0]++;
-      break;
-    case -bishop:
-      tree->pos.material_evaluation -= bishop_value;
-      tree->pos.pieces[0] += bishop_v;
-      tree->pos.num_bishops[0]++;
-      break;
-    case -rook:
-      tree->pos.material_evaluation -= rook_value;
-      tree->pos.pieces[0] += rook_v;
-      tree->pos.num_rooks[0]++;
-      break;
-    case -queen:
-      tree->pos.material_evaluation -= queen_value;
-      tree->pos.pieces[0] += queen_v;
-      tree->pos.num_queens[0]++;
-      break;
-    default:
-      ;
-    }
+  for (side = black; side <= white; side++)
+    for (piece = pawn; piece <= king; piece++)
+      TotalPieces(side, piece) = PopCnt(Pieces(side, piece));
+  for (side = black; side <= white; side++) {
+    TotalPieces(side, occupied) = 0;
+    for (piece = knight; piece < king; piece++)
+      TotalPieces(side, occupied) +=
+          PopCnt(Pieces(side, piece)) * p_vals[piece];
   }
   TotalAllPieces = PopCnt(OccupiedSquares);
-  if (new_pos == &tree->position[0]) {
-    tree->rep_index[white] = 0;
-    tree->rep_index[black] = 0;
-  }
+  Repetition(black) = 0;
+  Repetition(white) = 0;
 }
 
 void InitializeEvaluation(void)
@@ -907,7 +754,7 @@ int InitializeGetLogID(void)
 
 void InitializeHashTables(void)
 {
-  int i;
+  int i, side;
 
   shared->transposition_id = 0;
   if (!trans_ref)
@@ -926,19 +773,21 @@ void InitializeHashTables(void)
     (pawn_hash_table + i)->key = 0;
     (pawn_hash_table + i)->p_score = 0;
     (pawn_hash_table + i)->protected = 0;
-    (pawn_hash_table + i)->defects_k[black] = 0;
-    (pawn_hash_table + i)->defects_q[black] = 0;
-    (pawn_hash_table + i)->defects_d[black] = 0;
-    (pawn_hash_table + i)->defects_e[black] = 0;
-    (pawn_hash_table + i)->defects_k[white] = 0;
-    (pawn_hash_table + i)->defects_q[white] = 0;
-    (pawn_hash_table + i)->defects_d[white] = 0;
-    (pawn_hash_table + i)->defects_e[white] = 0;
-    (pawn_hash_table + i)->passed[white] = 0;
-    (pawn_hash_table + i)->passed[black] = 0;
     (pawn_hash_table + i)->outside = 0;
-    (pawn_hash_table + i)->candidates[white] = 0;
-    (pawn_hash_table + i)->candidates[black] = 0;
+    (pawn_hash_table + i)->open_files = 0;
+    (pawn_hash_table + i)->protected_count = 0;
+    for (side = black; side <= white; side++) {
+      (pawn_hash_table + i)->candidates[side] = 0;
+      (pawn_hash_table + i)->defects_k[side] = 0;
+      (pawn_hash_table + i)->defects_e[side] = 0;
+      (pawn_hash_table + i)->defects_d[side] = 0;
+      (pawn_hash_table + i)->defects_q[side] = 0;
+      (pawn_hash_table + i)->all[side] = 0;
+      (pawn_hash_table + i)->weak[side] = 0;
+      (pawn_hash_table + i)->passed[side] = 0;
+      (pawn_hash_table + i)->hidden[side] = 0;
+      (pawn_hash_table + i)->candidates[side] = 0;
+    }
   }
 }
 
@@ -978,25 +827,11 @@ void InitializeKingSafety()
           100) / 100 - 100;
     }
   }
-/*
-  printf("   ");
-  for (tropism = 0; tropism < 16; tropism++)
-    printf("%4d", tropism);
-  printf("\n");
-  for (safety = 0; safety < 16; safety++) {
-    printf("%2d  ", safety);
-    for (tropism = 0; tropism < 16; tropism++) {
-      printf("%3d,", king_safety[safety][tropism]);
-      if ((tropism + 1) % 16 == 0)
-        printf("\n");
-    }
-  }
-*/
 }
 
 void InitializeMasks(void)
 {
-  int i;
+  int i, j;
 
   mask_clear_entry = (BITBOARD) 0xe7fffffffffe0000ull;
 /*
@@ -1069,11 +904,42 @@ void InitializeMasks(void)
   mask_qr_trapped[white][0] = SetMask(A2);
   mask_qr_trapped[white][1] = SetMask(A1) | SetMask(A2);
   mask_qr_trapped[white][2] = SetMask(A1) | SetMask(B1) | SetMask(A2);
+#if !defined(_M_AMD64) && !defined (_M_IA64) && !defined(INLINE32)
+  msb[0] = 16;
+  lsb[0] = 16;
+  for (i = 1; i < 65536; i++) {
+    lsb[i] = 16;
+    for (j = 0; j < 16; j++)
+      if (i & (1 << j)) {
+        msb[i] = j;
+        if (lsb[i] == 16)
+          lsb[i] = j;
+      }
+  }
+#endif
+  msb_8bit[0] = 8;
+  lsb_8bit[0] = 8;
+  pop_cnt_8bit[0] = 0;
+  connected_passed[0] = 0;
+  for (i = 1; i < 256; i++) {
+    pop_cnt_8bit[i] = 0;
+    for (j = 0; j < 8; j++)
+      if (i & (1 << j))
+        pop_cnt_8bit[i]++;
+    lsb_8bit[i] = 8;
+    for (j = 0; j < 8; j++) {
+      if (i & (1 << j)) {
+        msb_8bit[i] = j;
+        if (lsb_8bit[i] == 8)
+          lsb_8bit[i] = j;
+      }
+    }
+  }
 }
 
 void InitializePawnMasks(void)
 {
-  int i, file;
+  int i, j, k, file;
   BITBOARD m1, m2;
 
 /*
@@ -1176,15 +1042,12 @@ void InitializePawnMasks(void)
     m1 = m1 | m1 >> 2;
     m2 = m2 | m2 >> 2;
   }
-  for (i = 0; i < 64; i += 8) {
+  for (i = 0; i < 64; i += 8)
     if ((Rank(i)) & 1) {
       dark_squares = dark_squares | m2 >> i;
-      light_squares = light_squares | m1 >> i;
     } else {
       dark_squares = dark_squares | m1 >> i;
-      light_squares = light_squares | m2 >> i;
     }
-  }
 /*
    this mask is used to detect that one side has pawns, but all
    are rook pawns.
@@ -1232,12 +1095,6 @@ void InitializePawnMasks(void)
       }
     }
   }
-}
-
-void InitializePieceMasks(void)
-{
-  int i, j;
-
 /*
  initialize masks used to evaluate pawn races.  these masks are
  used to determine if the opposing king is in a position to stop a
@@ -1286,6 +1143,74 @@ void InitializePieceMasks(void)
         if (KingPawnSquare(j, i, File(j), 1))
           pawn_race[black][black][j] |= SetMask(i);
       }
+    }
+  }
+/*
+  table to detect connected pawns and to determine how far apart
+  two "split" passed pawns are.
+ */
+  for (i = 1; i < 256; i++) {
+    connected_passed[i] = 0;
+    for (j = 0; j < 8; j++)
+      if ((i & (3 << j)) == (3 << j)) {
+        connected_passed[i] = j + 1;
+        break;
+      }
+    for (j = 0; j < 8; j++)
+      if (i & (1 << j))
+        break;
+    for (k = 7; k >= 0; k--)
+      if (i & (1 << k))
+        break;
+    if (k > j)
+      file_spread[i] = k - j - 1;
+    else
+      file_spread[i] = 0;
+  }
+/*
+ is_outside[p][a] /is_outside_c[p][a] values:
+ p=8 bit mask for passed pawns
+ a=8 bit mask for all pawns on board
+ p must have left-most or right-most bit set when compared to
+ mask 'a'.  and this bit must be separated from the next bit
+ by at least one file (ie the outside passed pawn is 2 files
+ from the rest of the pawns, at least.  for is_outside_c[] the
+ candidate passer only has to be outside by 1 file.
+
+ ppsq = square that contains a (potential) passed pawn.
+ psql = leftmost pawn, period.
+ psqr = rightmost pawn, period.
+ 0 -> passed pawn is not 'outside'
+ 1 -> passed pawn is 'outside'
+ 2 -> passed pawn is 'outside' on both sides of board
+ */
+
+  for (i = 0; i < 256; i++) {
+    for (j = 0; j < 256; j++) {
+      int ppsq1, ppsq2, psql, psqr;
+
+      is_outside[i][j] = 0;
+      is_outside_c[i][j] = 0;
+      ppsq1 = lsb_8bit[i];
+      if (ppsq1 < 8) {
+        psql = lsb_8bit[j];
+        if (ppsq1 < psql - 1 || psql == 8)
+          is_outside[i][j] += 1;
+        if (ppsq1 <= psql + 1 || psql == 8)
+          is_outside_c[i][j] += 1;
+      }
+      ppsq2 = msb_8bit[i];
+      if (ppsq2 < 8) {
+        psqr = msb_8bit[j];
+        if (ppsq2 > psqr + 1 || psqr == 8)
+          is_outside[i][j] += 1;
+        if (ppsq2 >= psqr - 1 || psqr == 8)
+          is_outside_c[i][j] += 1;
+      }
+      if (ppsq1 == ppsq2 && is_outside[i][j] > 0)
+        is_outside[i][j] = 1;
+      if (ppsq1 == ppsq2 && is_outside_c[i][j] > 0)
+        is_outside_c[i][j] = 1;
     }
   }
 }
@@ -1388,104 +1313,4 @@ void InitializeSMP(void)
   LockInit(shared->lock_io);
   LockInit(shared->lock_root);
   LockInit(shared->local[0]->lock);
-}
-
-void InitializeZeroMasks(void)
-{
-  int i, j, k;
-
-#if !defined(CRAY1) && !defined(_M_AMD64) && !defined (_M_IA64) && !defined(INLINE32)
-
-  msb[0] = 16;
-  lsb[0] = 16;
-  for (i = 1; i < 65536; i++) {
-    lsb[i] = 16;
-    for (j = 0; j < 16; j++)
-      if (i & (1 << j)) {
-        msb[i] = j;
-        if (lsb[i] == 16)
-          lsb[i] = j;
-      }
-  }
-#endif
-  msb_8bit[0] = 8;
-  lsb_8bit[0] = 8;
-  pop_cnt_8bit[0] = 0;
-  connected_passed[0] = 0;
-  for (i = 1; i < 256; i++) {
-    pop_cnt_8bit[i] = 0;
-    for (j = 0; j < 8; j++)
-      if (i & (1 << j))
-        pop_cnt_8bit[i]++;
-    lsb_8bit[i] = 8;
-    for (j = 0; j < 8; j++) {
-      if (i & (1 << j)) {
-        msb_8bit[i] = j;
-        if (lsb_8bit[i] == 8)
-          lsb_8bit[i] = j;
-      }
-    }
-    connected_passed[i] = 0;
-    for (j = 0; j < 8; j++)
-      if ((i & (3 << j)) == (3 << j)) {
-        connected_passed[i] = j + 1;
-        break;
-      }
-    for (j = 0; j < 8; j++)
-      if (i & (1 << j))
-        break;
-    for (k = 7; k >= 0; k--)
-      if (i & (1 << k))
-        break;
-    if (k > j)
-      file_spread[i] = k - j - 1;
-    else
-      file_spread[i] = 0;
-  }
-/*
- is_outside[p][a] /is_outside_c[p][a] values:
- p=8 bit mask for passed pawns
- a=8 bit mask for all pawns on board
- p must have left-most or right-most bit set when compared to
- mask 'a'.  and this bit must be separated from the next bit
- by at least one file (ie the outside passed pawn is 2 files
- from the rest of the pawns, at least.  for is_outside_c[] the
- candidate passer only has to be outside by 1 file.
-
- ppsq = square that contains a (potential) passed pawn.
- psql = leftmost pawn, period.
- psqr = rightmost pawn, period.
- 0 -> passed pawn is not 'outside'
- 1 -> passed pawn is 'outside'
- 2 -> passed pawn is 'outside' on both sides of board
- */
-
-  for (i = 0; i < 256; i++) {
-    for (j = 0; j < 256; j++) {
-      int ppsq1, ppsq2, psql, psqr;
-
-      is_outside[i][j] = 0;
-      is_outside_c[i][j] = 0;
-      ppsq1 = lsb_8bit[i];
-      if (ppsq1 < 8) {
-        psql = lsb_8bit[j];
-        if (ppsq1 < psql - 1 || psql == 8)
-          is_outside[i][j] += 1;
-        if (ppsq1 <= psql + 1 || psql == 8)
-          is_outside_c[i][j] += 1;
-      }
-      ppsq2 = msb_8bit[i];
-      if (ppsq2 < 8) {
-        psqr = msb_8bit[j];
-        if (ppsq2 > psqr + 1 || psqr == 8)
-          is_outside[i][j] += 1;
-        if (ppsq2 >= psqr - 1 || psqr == 8)
-          is_outside_c[i][j] += 1;
-      }
-      if (ppsq1 == ppsq2 && is_outside[i][j] > 0)
-        is_outside[i][j] = 1;
-      if (ppsq1 == ppsq2 && is_outside_c[i][j] > 0)
-        is_outside_c[i][j] = 1;
-    }
-  }
 }

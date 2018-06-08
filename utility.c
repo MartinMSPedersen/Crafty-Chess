@@ -22,7 +22,7 @@
 #if defined(UNIX)
 #  include <unistd.h>
 #  include <sys/types.h>
-#  if !defined(LINUX) && !defined(ALPHA) && !defined(HP) && !defined(CRAY1) && \
+#  if !defined(LINUX) && !defined(ALPHA) && !defined(HP) && \
    !defined(FreeBSD) && !defined(NetBSD) && !defined(__EMX__)
 #    if defined(AIX)
 #      include <sys/termio.h>
@@ -35,7 +35,7 @@
 #        include <sys/filio.h>
 #      endif
 #    endif
-#    if !defined(NEXT)
+#    if !defined(NEXT) && !defined(__APPLE__)
 #      include <stropts.h>
 #    endif
 #    include <sys/conf.h>
@@ -111,7 +111,7 @@ void BookClusterOut(FILE * file, int positions, BOOK_POSITION * buffer)
  *******************************************************************************
  *                                                                             *
  *   BookIn32f() is used to convert 4 bytes from the book file into a valid 32 *
- *   bit binary value.  this eliminates endian worries that make the  binary   *
+ *   bit binary value.  this eliminates endian worries that make the binary    *
  *   book non-portable across many architectures.                              *
  *                                                                             *
  *******************************************************************************
@@ -224,6 +224,16 @@ unsigned char *BookOut64(BITBOARD val)
   return (convert_buff);
 }
 
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   the following functions are used to determine if keyboard input is        *
+ *   present.  there are several ways this is done depending on which          *
+ *   operating system is used.  The primary function name is CheckInput() but  *
+ *   for simplicity there are several O/S-specific versions.                   *
+ *                                                                             *
+ *******************************************************************************
+ */
 #if defined(AMIGA)
 #  include <proto/dos.h>
 #  define tv_sec tv_secs
@@ -337,7 +347,18 @@ int CheckInput(void)
 #  endif
 #endif
 
-void ClearHashTableScores(int dopawnstoo)
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   ClearHashTableScores() is used to clear hash table scores without         *
+ *   clearing the best move, so that move ordering information is preserved.   *
+ *   we clear the scorew as we approach a 50 move rule so that hash scores     *
+ *   won't give us false scores since the hash signature does not include any  *
+ *   search path information in it.                                            *
+ *                                                                             *
+ *******************************************************************************
+ */
+void ClearHashTableScores(void)
 {
   int i;
 
@@ -352,28 +373,7 @@ void ClearHashTableScores(int dopawnstoo)
           ((trans_ref +
               i)->always[1].word1 & mask_clear_entry) | (BITBOARD) 65536;
     }
-    if (dopawnstoo) {
-      for (i = 0; i < pawn_hash_table_size; i++) {
-        (pawn_hash_table + i)->key = 0;
-        (pawn_hash_table + i)->p_score = 0;
-        (pawn_hash_table + i)->protected = 0;
-        (pawn_hash_table + i)->defects_k[black] = 0;
-        (pawn_hash_table + i)->defects_q[black] = 0;
-        (pawn_hash_table + i)->defects_d[black] = 0;
-        (pawn_hash_table + i)->defects_e[black] = 0;
-        (pawn_hash_table + i)->defects_k[white] = 0;
-        (pawn_hash_table + i)->defects_q[white] = 0;
-        (pawn_hash_table + i)->defects_d[white] = 0;
-        (pawn_hash_table + i)->defects_e[white] = 0;
-        (pawn_hash_table + i)->passed[white] = 0;
-        (pawn_hash_table + i)->passed[black] = 0;
-        (pawn_hash_table + i)->candidates[white] = 0;
-        (pawn_hash_table + i)->candidates[black] = 0;
-        (pawn_hash_table + i)->outside = 0;
-      }
-    }
   }
-  shared->local[0]->pawn_score.key = 0;
 }
 
 /*
@@ -439,6 +439,15 @@ void DisplayArray(int *array, int size)
   }
 }
 
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   DisplayBitBoard() is a debugging function used to display bitboards in a  *
+ *   more visual way.  they are displayed as an 8x8 matrix oriented as the     *
+ *   normal chess board is, with a1 at the lower left corner.                  *
+ *                                                                             *
+ *******************************************************************************
+ */
 void DisplayBitBoard(BITBOARD board)
 {
   int i, j, x;
@@ -447,6 +456,38 @@ void DisplayBitBoard(BITBOARD board)
     x = (board >> i) & 255;
     for (j = 1; j < 256; j = j << 1)
       if (x & j)
+        printf("X ");
+      else
+        printf("- ");
+    printf("\n");
+  }
+}
+
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   Display2BitBoards() is a debugging function used to display bitboards in  *
+ *   a more visual way.  they are displayed as an 8x8 matrix oriented as the   *
+ *   normal chess board is, with a1 at the lower left corner.  this function   *
+ *   displays 2 boards side by side for comparison.                            *
+ *                                                                             *
+ *******************************************************************************
+ */
+void Display2BitBoards(BITBOARD board1, BITBOARD board2)
+{
+  int i, j, x, y;
+
+  for (i = 56; i >= 0; i -= 8) {
+    x = (board1 >> i) & 255;
+    for (j = 128; j > 0; j = j >> 1)
+      if (x & j)
+        printf("X ");
+      else
+        printf("- ");
+    printf("    ");
+    y = (board2 >> i) & 255;
+    for (j = 128; j > 0; j = j >> 1)
+      if (y & j)
         printf("X ");
       else
         printf("- ");
@@ -506,6 +547,15 @@ void DisplayChessBoard(FILE * display_file, POSITION pos)
   fprintf(display_file, "         a   b   c   d   e   f   g   h\n\n");
 }
 
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   DisplayEvaluation() is used to convert the evaluation to a string that    *
+ *   can be displayed.  the length is fixed so that screen formatting will     *
+ *   look nice and aligned.                                                    *
+ *                                                                             *
+ *******************************************************************************
+ */
 char *DisplayEvaluation(int value, int wtm)
 {
   static char out[10];
@@ -538,6 +588,15 @@ char *DisplayEvaluation(int value, int wtm)
   return (out);
 }
 
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   DisplayEvaluationKibitz() is used to convert the evaluation to a string   *
+ *   that can be displayed.  the length is variable so that ICC kibitzes and   *
+ *   whispers will look nicer.                                                 *
+ *                                                                             *
+ *******************************************************************************
+ */
 char *DisplayEvaluationKibitz(int value, int wtm)
 {
   static char out[10];
@@ -570,23 +629,6 @@ char *DisplayEvaluationKibitz(int value, int wtm)
   return (out);
 }
 
-void DisplayPieceBoards(int *white, int *black)
-{
-  int i, j;
-
-  printf("                 white                      ");
-  printf("                 black\n");
-  for (i = 7; i >= 0; i--) {
-    for (j = i * 8; j < i * 8 + 8; j++)
-      printf("%4d ", white[j]);
-    printf("    ");
-    for (j = i * 8; j < i * 8 + 8; j++)
-      printf("%4d ", black[j]);
-    printf("\n");
-  }
-}
-
-/* last modified 08/07/05 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -686,8 +728,8 @@ void DisplayPV(TREE * RESTRICT tree, int level, int wtm, int time, int value,
           DisplayEvaluation(value, twtm));
     buffp = buffer + 1;
     do {
-      if ((int) strlen(buffp) > 34)
-        bufftemp = strchr(buffp + 34, ' ');
+      if ((int) strlen(buffp) > line_length - 46)
+        bufftemp = strchr(buffp + line_length - 46, ' ');
       else
         bufftemp = 0;
       if (bufftemp)
@@ -708,16 +750,15 @@ void DisplayPV(TREE * RESTRICT tree, int level, int wtm, int time, int value,
   }
 }
 
-char *DisplaySQ(unsigned int sq)
-{
-  static char out[3];
-
-  out[0] = File(From(sq)) + 'a';
-  out[1] = Rank(From(sq)) + '1';
-  out[2] = 0;
-  return (out);
-}
-
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   DisplayHHMM is used to convert integer time values in 1/100th second      *
+ *   units into a traditional output format for time, mm:ss rather than just   *
+ *   nnn.n seconds.                                                            *
+ *                                                                             *
+ *******************************************************************************
+ */
 char *DisplayHHMM(unsigned int time)
 {
   static char out[10];
@@ -727,6 +768,15 @@ char *DisplayHHMM(unsigned int time)
   return (out);
 }
 
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   DisplayKM() takes an integer value that represents nodes per second, or   *
+ *   just total nodes, and converts it into a more compact form, so that       *
+ *   instead of nps=57200931, we get nps=57M.                                  *
+ *                                                                             *
+ *******************************************************************************
+ */
 char *DisplayKM(unsigned int val)
 {
   static char out[10];
@@ -740,6 +790,19 @@ char *DisplayKM(unsigned int val)
   return (out);
 }
 
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   DisplayTime() is used to display search times, and shows times in one of  *
+ *   two ways depending on the value passed in.  If less than 60 seconds is to *
+ *   be displayed, it is displayed as a decimal fraction like 32.7, while if   *
+ *   more than 60 seconds is to be displayed, it is converted to the more      *
+ *   traditional mm:ss form.  the string it produces is of fixed length to     *
+ *   provide neater screen formatting.                                         *
+ *                                                                             *
+ *                                                                             *
+ *******************************************************************************
+ */
 char *DisplayTime(unsigned int time)
 {
   static char out[10];
@@ -753,6 +816,15 @@ char *DisplayTime(unsigned int time)
   return (out);
 }
 
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   DisplayTimeKibitz() behaves just like DisplayTime() except that the       *
+ *   string it produces is a variable-length string that is as short as        *
+ *   possible to make ICC kibitzes/whispers look neater.                       *
+ *                                                                             *
+ *******************************************************************************
+ */
 char *DisplayTimeKibitz(unsigned int time)
 {
   static char out[10];
@@ -766,6 +838,15 @@ char *DisplayTimeKibitz(unsigned int time)
   return (out);
 }
 
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   DisplayTreeState() is a debugging procedure used to provide some basic    *
+ *   information about how the parallel search is progressing.  it is invoked  *
+ *   by typing a "." (no quotes) while in console mode.                        *
+ *                                                                             *
+ *******************************************************************************
+ */
 void DisplayTreeState(TREE * RESTRICT tree, int sply, int spos, int maxply)
 {
   int left, i, *mvp, parallel = 0;
@@ -807,30 +888,18 @@ void DisplayTreeState(TREE * RESTRICT tree, int sply, int spos, int maxply)
   }
 }
 
-void Display2BitBoards(BITBOARD board1, BITBOARD board2)
-{
-  int i, j, x, y;
-
-  for (i = 56; i >= 0; i -= 8) {
-    x = (board1 >> i) & 255;
-    for (j = 128; j > 0; j = j >> 1)
-      if (x & j)
-        printf("X ");
-      else
-        printf("- ");
-    printf("    ");
-    y = (board2 >> i) & 255;
-    for (j = 128; j > 0; j = j >> 1)
-      if (y & j)
-        printf("X ");
-      else
-        printf("- ");
-    printf("\n");
-  }
-}
-
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   EGTBPV() is used to display the PV for a known EGTB position.  it simply  *
+ *   makes moves, looks up the position to find the shortest mate, then it     *
+ *   follows that PV.  It appends a "!" to a move that is the only move to     *
+ *   preserve the shortest path to mate (all other moves lead to longer mates  *
+ *   or even draws.)                                                           *
+ *                                                                             *
+ *******************************************************************************
+ */
 #if !defined(NOEGTB)
-/* last modified 08/07/05 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -946,7 +1015,7 @@ void EGTBPV(TREE * RESTRICT tree, int wtm)
   }
   next = buffer;
   while (nmoves) {
-    if (strlen(next) > 72) {
+    if (strlen(next) > line_length) {
       int i;
 
       for (i = 0; i < 16; i++)
@@ -963,13 +1032,20 @@ void EGTBPV(TREE * RESTRICT tree, int wtm)
 }
 #endif
 
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   DisplayChessMove() is a debugging function that displays a chess move in  *
+ *   a very simple (non-algebraic) form.                                       *
+ *                                                                             *
+ *******************************************************************************
+ */
 void DisplayChessMove(char *title, int move)
 {
   Print(4095, "%s  piece=%d, from=%d, to=%d, captured=%d, promote=%d\n", title,
       Piece(move), From(move), To(move), Captured(move), Promote(move));
 }
 
-/* last modified 08/07/05 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -1014,6 +1090,77 @@ char *FormatPV(TREE * RESTRICT tree, int wtm, PATH pv)
   return (buffer);
 }
 
+/* last modified 04/01/08 */
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   GameOver() is used to determine if the game is over by rule.  More        *
+ *   specifically, after our move, the opponent has no legal move to play.  He *
+ *   is either checkmated or stalemated, either of which is sufficient reason  *
+ *   to terminate the game.                                                    *
+ *                                                                             *
+ *******************************************************************************
+ */
+int GameOver(int wtm)
+{
+  int *mvp, *lastm, rmoves[256];
+  TREE *const tree = shared->local[0];
+  int over = 1;
+
+/*
+ ************************************************************
+ *                                                          *
+ *   first, use GenerateMoves() to generate the set of      *
+ *   legal moves from the root position.                    *
+ *                                                          *
+ ************************************************************
+ */
+  lastm = GenerateCaptures(tree, 1, wtm, rmoves);
+  lastm = GenerateNonCaptures(tree, 1, wtm, lastm);
+/*
+ ************************************************************
+ *                                                          *
+ *   now make each move and determine if we are in check    *
+ *   after each one.  any move that does not leave us in    *
+ *   check is good enough to prove that the game is not yet *
+ *   officially over.                                       *
+ *                                                          *
+ ************************************************************
+ */
+  for (mvp = rmoves; mvp < lastm; mvp++) {
+    MakeMove(tree, 1, *mvp, wtm);
+    if (!Check(wtm))
+      over = 0;
+    UnmakeMove(tree, 1, *mvp, wtm);
+  }
+/*
+ ************************************************************
+ *                                                          *
+ *   if we did not make it thru the complete move list, we  *
+ *   must have at least one legal move so the game is not   *
+ *   over.  return (0).  Otherwise, we have no move and the *
+ *   game is over.  we return (1) if this side is           *
+ *   stalemated or we return (2) if this side is mated.     *
+ *                                                          *
+ ************************************************************
+ */
+  if (!over)
+    return (0);
+  else if (!Check(wtm))
+    return (1);
+  else
+    return (2);
+}
+
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   ReadClock() is a procedure used to read the elapsed time.  since this     *
+ *   varies from system to system, this procedure has several flavors to       *
+ *   provide portability.                                                      *
+ *                                                                             *
+ *******************************************************************************
+ */
 unsigned int ReadClock(void)
 {
 #if defined(UNIX) || defined(AMIGA)
@@ -1053,7 +1200,6 @@ int FindBlockID(TREE * RESTRICT block)
   return (-1);
 }
 
-/* last modified 06/13/05 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -1150,6 +1296,15 @@ int InvalidPosition(TREE * RESTRICT tree)
   return (error);
 }
 
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   KingPawnSquare() is used to initialize some of the passed pawn race       *
+ *   tables used by Evaluate().  it simply answers the question "is the king   *
+ *   in the square of the pawn so the pawn can't outrun it and promote?"       *
+ *                                                                             *
+ *******************************************************************************
+ */
 int KingPawnSquare(int pawn, int king, int queen, int ptm)
 {
   register int pdist, kdist;
@@ -1193,7 +1348,7 @@ void NewGame(int save)
       int val =
           (shared->crafty_is_white) ? last_search_value : -last_search_value;
 
-      LearnBook(tree, shared->crafty_is_white, val, 0, 0, 1);
+      LearnBook(val, 0, 0, 1);
     }
     if (ics)
       printf("*whisper Hello from Crafty v%s !\n", version);
@@ -1209,7 +1364,7 @@ void NewGame(int save)
     last_pv.pathd = 0;
     last_pv.pathl = 0;
     strcpy(initial_position, "");
-    InitializeChessBoard(&tree->position[0]);
+    InitializeChessBoard(tree);
     InitializeHashTables();
     force = 0;
     shared->trojan_check = 0;
@@ -1258,6 +1413,15 @@ void NewGame(int save)
   }
 }
 
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   Normal() uses the ANSI character string to turn off reverse video.  This  *
+ *   is used so that all normal output (in text/console mode) shows up as      *
+ *   normal text, while moves made by Crafty are highlighted in reverse video. *
+ *                                                                             *
+ *******************************************************************************
+ */
 char *Normal(void)
 {
 #if defined(NT_i386)
@@ -1280,6 +1444,15 @@ char *Normal(void)
   return ("");
 }
 
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   ParseTime() is used to parse a time value that could be entered as s.ss,  *
+ *   mm:ss, or hh:mm:ss.  it is converted to crafty's internal 1/100th second  *
+ *   time resolution.                                                          *
+ *                                                                             *
+ *******************************************************************************
+ */
 int ParseTime(char *string)
 {
   int time = 0;
@@ -1312,6 +1485,16 @@ int ParseTime(char *string)
   return (time * 60 + minutes);
 }
 
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   Pass() was written by Tim Mann to handle the case where a position is set *
+ *   using a FEN string, and then black moves first.  the game.nnn file was    *
+ *   designed to start with a white move, so "pass" is now a "no-op" move for  *
+ *   the side whose turn it is to move.                                        *
+ *                                                                             *
+ *******************************************************************************
+ */
 void Pass(void)
 {
   char buffer[128];
@@ -1336,6 +1519,23 @@ void Pass(void)
   wtm = Flip(wtm);
 }
 
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   Print() is the main output procedure.  The first argument is a bitmask    *
+ *   that identifies the type of output.  If this argument is anded with the   *
+ *   "display" control variable, and a non-zero result is produced, then the   *
+ *   print is done, otherwise the print is skipped and we return (more details *
+ *   can be found in the display command comments in option.c).  This also     *
+ *   uses the "variable number of arguments" facility in ANSI C since the      *
+ *   normal printf() function accepts a variable number of arguments.          *
+ *                                                                             *
+ *   Print() also sends output to the log.nnn file automatically, so that it   *
+ *   is recorded even if the above display control variable says "do not send  *
+ *   this to stdout"                                                           *
+ *                                                                             *
+ *******************************************************************************
+ */
 void Print(int vb, char *fmt, ...)
 {
   va_list ap;
@@ -1354,6 +1554,15 @@ void Print(int vb, char *fmt, ...)
   va_end(ap);
 }
 
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   PrintKM() converts a binary value to a real K/M type value, rather than   *
+ *   the more common K=1000, M=1000000 type output.  this is used for info     *
+ *   about the hash table sizes for one thing.                                 *
+ *                                                                             *
+ *******************************************************************************
+ */
 char *PrintKM(size_t val, int realK)
 {
   static char buf[32];
@@ -1378,12 +1587,15 @@ char *PrintKM(size_t val, int realK)
 }
 
 /*
- A 32 bit random number generator. An implementation in C of the algorithm
- given by Knuth, the art of computer programming, vol. 2, pp. 26-27. We use
- e=32, so we have to evaluate y(n) = y(n - 24) + y(n - 55) mod 2^32, which
- is implicitly done by unsigned arithmetic.
+ *******************************************************************************
+ *                                                                             *
+ *  A 32 bit random number generator. An implementation in C of the algorithm  *
+ *  given by Knuth, the art of computer programming, vol. 2, pp. 26-27. We use *
+ *  e=32, so we have to evaluate y(n) = y(n - 24) + y(n - 55) mod 2^32, which  *
+ *  is implicitly done by unsigned arithmetic.                                 *
+ *                                                                             *
+ *******************************************************************************
  */
-
 unsigned int Random32(void)
 {
 /*
@@ -1427,6 +1639,15 @@ unsigned int Random32(void)
   return ((unsigned int) ul);
 }
 
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   Random64() uses two calls to Random32() and then concatenates the two     *
+ *   values into one 64 bit random number, used for hash signature updates on  *
+ *   the Zobrist hash signatures.                                              *
+ *                                                                             *
+ *******************************************************************************
+ */
 BITBOARD Random64(void)
 {
   BITBOARD result;
@@ -1438,7 +1659,6 @@ BITBOARD Random64(void)
   return (result);
 }
 
-/* last modified 05/06/97 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -1497,7 +1717,6 @@ int Read(int wait, char *buffer)
   return (1);
 }
 
-/* last modified 04/23/97 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -1511,7 +1730,6 @@ void ReadClear()
   cmd_buffer[0] = 0;
 }
 
-/* last modified 05/06/97 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -1542,7 +1760,6 @@ int ReadParse(char *buffer, char *args[], char *delims)
   return (nargs);
 }
 
-/* last modified 04/23/97 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -1574,7 +1791,6 @@ int ReadInput(void)
   return (1);
 }
 
-/* last modified 10/11/96 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -1612,7 +1828,6 @@ int ReadChessMove(TREE * RESTRICT tree, FILE * input, int wtm, int one_move)
   return (move);
 }
 
-/* last modified 05/13/97 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -1642,7 +1857,6 @@ int ReadNextMove(TREE * RESTRICT tree, char *text, int ply, int wtm)
   return (move);
 }
 
-/* last modified 08/07/05 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -1893,7 +2107,6 @@ int ReadPGN(FILE * input, int option)
   }
 }
 
-/* last modified 08/07/05 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -1909,7 +2122,7 @@ void RestoreGame(void)
   char cmd[16];
 
   wtm = 1;
-  InitializeChessBoard(&shared->local[0]->position[0]);
+  InitializeChessBoard(shared->local[0]);
   for (i = 0; i < 500; i++) {
     fseek(history_file, i * 10, SEEK_SET);
     strcpy(cmd, "");
@@ -1924,6 +2137,16 @@ void RestoreGame(void)
     wtm = Flip(wtm);
   }
 }
+
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   Reverse() uses an ANSI escape sequence to turn on reverse video to high-  *
+ *   light a move when Crafty displays it, so it does not get lost in all the  *
+ *   other output it produces when playing in a tournament in console mode.    *
+ *                                                                             *
+ *******************************************************************************
+ */
 char *Reverse(void)
 {
 #if defined(NT_i386)
@@ -2052,7 +2275,6 @@ void Kibitz(int level, int wtm, int depth, int time, int value, BITBOARD nodes,
   }
 }
 
-/* modified 08/07/05 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -2122,7 +2344,6 @@ void Output(TREE * RESTRICT tree, int value, int bound)
   }
 }
 
-/* modified 02/01/08 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -2156,7 +2377,6 @@ void Trace(TREE * RESTRICT tree, int ply, int depth, int wtm, int alpha,
   Unlock(shared->lock_io);
 }
 
-/* last modified 07/07/98 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -2174,7 +2394,6 @@ int StrCnt(char *string, char testchar)
   return (count);
 }
 
-/* last modified 01/23/08 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -2554,6 +2773,16 @@ void WinFreeInterleaved(void *pMemory, size_t cBytes)
 }
 #endif
 
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   SharedMalloc() is used to allocate an object destined to be shared among  *
+ *   multiple processes.  it uses the UNIX System V shared memory library to   *
+ *   create a shared memory object that other processes will attach to after   *
+ *   they are spawned.                                                         *
+ *                                                                             *
+ *******************************************************************************
+ */
 void *SharedMalloc(size_t size, int tid)
 {
 #if defined(UNIX)
@@ -2581,6 +2810,14 @@ void *SharedMalloc(size_t size, int tid)
 #endif
 }
 
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   SharedFree() is used to free a shared object, probably because it is      *
+ *   about to be resized.                                                      *
+ *                                                                             *
+ *******************************************************************************
+ */
 void SharedFree(void *address)
 {
 #if defined(UNIX)
@@ -2590,6 +2827,18 @@ void SharedFree(void *address)
 #endif
 }
 
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   SignalInterrupt() is the signal catcher for the SIGCHLD signal that is    *
+ *   produced when a SMP search decides to terminate other processes (as in    *
+ *   the case of using smpnice=1).  we have to catch the signal, and execute a *
+ *   wait() system call to get the final status of that process so it won't    *
+ *   hang around as a zombie/<defunct> process and eventually fill up all the  *
+ *   available process slots.                                                  *
+ *                                                                             *
+ *******************************************************************************
+ */
 #if defined(UNIX)
 void SignalInterrupt(int sigtype)
 {

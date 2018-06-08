@@ -1,7 +1,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 12/07/07 */
+/* last modified 03/15/08 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -42,7 +42,7 @@
  *                                                                             *
  *******************************************************************************
  */
-void SetBoard(SEARCH_POSITION * position, int nargs, char *args[], int special)
+void SetBoard(TREE * tree, int nargs, char *args[], int special)
 {
   int twtm, i, match, num, pos, square, tboard[64];
   int bcastle, ep, wcastle, error = 0;
@@ -58,7 +58,6 @@ void SetBoard(SEARCH_POSITION * position, int nargs, char *args[], int special)
   };
   int whichsq;
   static const int firstsq[8] = { 56, 48, 40, 32, 24, 16, 8, 0 };
-  TREE *const tree = shared->local[0];
 
   if (special)
     strcpy(input, initial_position);
@@ -184,9 +183,9 @@ void SetBoard(SEARCH_POSITION * position, int nargs, char *args[], int special)
   }
   for (i = 0; i < 64; i++)
     PcOnSq(i) = tboard[i];
-  position->castle[white] = wcastle;
-  position->castle[black] = bcastle;
-  position->enpassant_target = 0;
+  Castle(0, white) = wcastle;
+  Castle(0, black) = bcastle;
+  EnPassant(0) = 0;
   if (ep) {
     if (Rank(ep) == RANK6) {
       if (PcOnSq(ep - 8) != -pawn)
@@ -201,9 +200,9 @@ void SetBoard(SEARCH_POSITION * position, int nargs, char *args[], int special)
       ep = 0;
       error = 1;
     }
-    position->enpassant_target = ep;
+    EnPassant(0) = ep;
   }
-  position->rule_50_moves = 0;
+  Rule50Moves(0) = 0;
 /*
  ************************************************************
  *                                                          *
@@ -213,10 +212,10 @@ void SetBoard(SEARCH_POSITION * position, int nargs, char *args[], int special)
  *                                                          *
  ************************************************************
  */
-  if (((position->castle[white] & 2) && (PcOnSq(A1) != rook)) ||
-      ((position->castle[white] & 1) && (PcOnSq(H1) != rook)) ||
-      ((position->castle[black] & 2) && (PcOnSq(A8) != -rook)) ||
-      ((position->castle[black] & 1) && (PcOnSq(H8) != -rook))) {
+  if (((Castle(0, white) & 2) && (PcOnSq(A1) != rook)) ||
+      ((Castle(0, white) & 1) && (PcOnSq(H1) != rook)) ||
+      ((Castle(0, black) & 2) && (PcOnSq(A8) != -rook)) ||
+      ((Castle(0, black) & 1) && (PcOnSq(H8) != -rook))) {
     printf("ERROR-- castling status does not match board position\n");
     error = 1;
   }
@@ -227,17 +226,15 @@ void SetBoard(SEARCH_POSITION * position, int nargs, char *args[], int special)
  *                                                          *
  ************************************************************
  */
-  if ((twtm && position->enpassant_target &&
-          (PcOnSq(position->enpassant_target + 8) != -pawn) &&
-          (PcOnSq(position->enpassant_target - 7) != pawn) &&
-          (PcOnSq(position->enpassant_target - 9) != pawn)) || (Flip(twtm) &&
-          position->enpassant_target &&
-          (PcOnSq(position->enpassant_target - 8) != pawn) &&
-          (PcOnSq(position->enpassant_target + 7) != -pawn) &&
-          (PcOnSq(position->enpassant_target + 9) != -pawn))) {
-    position->enpassant_target = 0;
+  if ((twtm && EnPassant(0) && (PcOnSq(EnPassant(0) + 8) != -pawn) &&
+          (PcOnSq(EnPassant(0) - 7) != pawn) &&
+          (PcOnSq(EnPassant(0) - 9) != pawn)) || (Flip(twtm) && EnPassant(0) &&
+          (PcOnSq(EnPassant(0) - 8) != pawn) &&
+          (PcOnSq(EnPassant(0) + 7) != -pawn) &&
+          (PcOnSq(EnPassant(0) + 9) != -pawn))) {
+    EnPassant(0) = 0;
   }
-  SetChessBitBoards(position);
+  SetChessBitBoards(tree);
 /*
  ************************************************************
  *                                                          *
@@ -255,7 +252,7 @@ void SetBoard(SEARCH_POSITION * position, int nargs, char *args[], int special)
       DisplayChessBoard(log_file, tree->pos);
     tree->rep_index[white] = 0;
     tree->rep_index[black] = 0;
-    position->rule_50_moves = 0;
+    Rule50Moves(0) = 0;
     if (!special) {
       last_mate_score = 0;
       InitializeKillers();
@@ -270,7 +267,7 @@ void SetBoard(SEARCH_POSITION * position, int nargs, char *args[], int special)
       Print(4095, "bad string = \"%s\"\n", initial_position);
     else
       Print(4095, "bad string = \"%s\"\n", args[0]);
-    InitializeChessBoard(&tree->position[0]);
+    InitializeChessBoard(tree);
     Print(4095, "Illegal position, using normal initial chess position\n");
   }
 }

@@ -159,9 +159,6 @@ void CopyFromSMP(TREE * RESTRICT p, TREE * RESTRICT c, int value)
   p->evaluations += c->evaluations;
   p->transposition_probes += c->transposition_probes;
   p->transposition_hits += c->transposition_hits;
-  p->transposition_good_hits += c->transposition_good_hits;
-  p->transposition_uppers += c->transposition_uppers;
-  p->transposition_lowers += c->transposition_lowers;
   p->egtb_probes += c->egtb_probes;
   p->egtb_probes_successful += c->egtb_probes_successful;
   p->check_extensions_done += c->check_extensions_done;
@@ -241,10 +238,6 @@ TREE *CopyToSMP(TREE * RESTRICT p, int thread)
   c->evaluations = 0;
   c->transposition_probes = 0;
   c->transposition_hits = 0;
-  c->transposition_good_hits = 0;
-  c->transposition_uppers = 0;
-  c->transposition_lowers = 0;
-  c->transposition_exacts = 0;
   c->egtb_probes = 0;
   c->egtb_probes_successful = 0;
   c->check_extensions_done = 0;

@@ -1113,7 +1113,8 @@ void BookUp(TREE * RESTRICT tree, int nargs, char **args)
       } else
         do {
           wtm = 1;
-          InitializeChessBoard(&tree->position[1]);
+          InitializeChessBoard(tree);
+          tree->position[1] = tree->position[0];
           move_num = 1;
           tree->position[2] = tree->position[1];
           ply = 0;
@@ -1359,7 +1360,7 @@ void BookUp(TREE * RESTRICT tree, int nargs, char **args)
     Print(4095, "time used:  %s elapsed.\n", DisplayTime(start_elapsed_time));
   }
   strcpy(initial_position, "");
-  InitializeChessBoard(&tree->position[1]);
+  InitializeChessBoard(tree);
 }
 
 /* last modified 08/07/05 */

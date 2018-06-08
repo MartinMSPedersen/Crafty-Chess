@@ -83,8 +83,8 @@ int Quiesce(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply)
     if (Captured(*movep) == king)
       return (beta);
     if (pc_values[Piece(*movep)] < pc_values[Captured(*movep)] ||
-        ((wtm) ? TotalPieces(black) : TotalPieces(white)) -
-        p_vals[Captured(*movep)] == 0) {
+        ((wtm) ? TotalPieces(black, occupied) : TotalPieces(white,
+                occupied)) - p_vals[Captured(*movep)] == 0) {
       *goodmv++ = *movep;
       *sortv++ = pc_values[Captured(*movep)];
       moves++;

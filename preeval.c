@@ -81,7 +81,7 @@ void PreEvaluate(TREE * RESTRICT tree)
     if (shared->trojan_check)
       Print(128, "              trojan check enabled\n");
     Print(128, "              clearing hash tables\n");
-    ClearHashTableScores(1);
+    ClearHashTableScores();
     last_clear = shared->move_number;
   }
 /*
@@ -95,7 +95,7 @@ void PreEvaluate(TREE * RESTRICT tree)
  ************************************************************
  */
   if (Rule50Moves(0) > 80) {
-    ClearHashTableScores(0);
+    ClearHashTableScores();
     Print(128, "              clearing hash tables (50 moves fix)\n");
   }
   last_trojan_check = shared->trojan_check;

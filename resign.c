@@ -98,7 +98,7 @@ void ResignOrDraw(TREE * RESTRICT tree, int value)
   if (result == 1) {
     int val = (shared->crafty_is_white) ? -300 : 300;
 
-    LearnBook(tree, shared->crafty_is_white, val, 0, 1, 2);
+    LearnBook(val, 0, 1, 2);
     if (xboard)
       Print(4095, "tellics resign\n");
     if (audible_alarm)

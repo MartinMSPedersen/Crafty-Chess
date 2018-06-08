@@ -1,7 +1,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 02/20/08 */
+/* last modified 03/06/08 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -10,6 +10,11 @@
  *   board structure itself by moving the piece and removing any captured      *
  *   piece.  (2) update the hash keys.  (3) update material counts.  (4) update*
  *   castling status.  (5) update number of moves since last reversible move.  *
+ *                                                                             *
+ *   there are some special-cases handled here, such as en passant captures    *
+ *   where the enemy pawn is not on the <target> square, castling which moves  *
+ *   both the king and rook, and then rook moves/captures which give up the    *
+ *   castling right to that side when the rook is moved.                       *
  *                                                                             *
  *   note:  wtm = 1 if white is to move, 0 otherwise.  btm is the opposite and *
  *   is 1 if it is not white to move, 0 otherwise.                             *
@@ -51,7 +56,7 @@ void MakeMove(TREE * RESTRICT tree, int ply, int move, int wtm)
 #if defined(DEBUG)
   ValidatePosition(tree, ply, move, "MakeMove(1)");
 #endif
-  tree->rep_list[wtm][tree->rep_index[wtm]++] = HashKey;
+  tree->rep_list[wtm][Repetition(wtm)++] = HashKey;
   tree->position[ply + 1] = tree->position[ply];
   tree->save_hash_key[ply] = HashKey;
   tree->save_pawn_hash_key[ply] = PawnHashKey;
@@ -90,17 +95,6 @@ void MakeMove(TREE * RESTRICT tree, int ply, int move, int wtm)
  ************************************************************
  */
   switch (piece) {
-/*
- *******************************************************************************
- *                                                                             *
- *   make pawn moves.  there are two special cases:  (a) en passant captures   *
- *   where the captured pawn is not on the "to" square and must be removed in  *
- *   a different way, and (2) pawn promotions (where the "Promote" variable    *
- *   is non-zero) requires updating the appropriate bit boards since we are    *
- *   creating a new piece.                                                     *
- *                                                                             *
- *******************************************************************************
- */
   case pawn:
     HashP(wtm, from);
     HashP(wtm, to);
@@ -111,55 +105,34 @@ void MakeMove(TREE * RESTRICT tree, int ply, int move, int wtm)
       HashP(btm, to + epsq[wtm]);
       PcOnSq(to + epsq[wtm]) = 0;
       Material -= PieceValues(btm, pawn);
-      TotalPawns(btm)--;
+      TotalPieces(btm, pawn)--;
       TotalAllPieces--;
       captured = 0;
     }
-/*
- **********************************************************************
- *                                                                    *
- *  if this is a pawn promotion, remove the pawn from the counts      *
- *  then update the correct piece board to reflect the piece just     *
- *  created.                                                          *
- *                                                                    *
- **********************************************************************
- */
     if (promote) {
-      TotalPawns(wtm)--;
+      TotalPieces(wtm, pawn)--;
       Material -= PieceValues(wtm, pawn);
       Clear(to, Pawns(wtm));
       Hash(wtm, pawn, to);
       HashP(wtm, to);
       Hash(wtm, promote, to);
       PcOnSq(to) = pieces[wtm][promote];
+      TotalPieces(wtm, occupied) += p_vals[promote];
+      TotalPieces(wtm, promote)++;
+      Material += PieceValues(wtm, promote);
+      Set(to, Pieces(wtm, promote));
       switch (promote) {
       case knight:
-        Set(to, Knights(wtm));
-        TotalPieces(wtm) += knight_v;
-        TotalKnights(wtm)++;
-        Material += PieceValues(wtm, knight);
         break;
       case bishop:
-        Set(to, Bishops(wtm));
         Set(to, BishopsQueens);
-        TotalPieces(wtm) += bishop_v;
-        TotalBishops(wtm)++;
-        Material += PieceValues(wtm, bishop);
         break;
       case rook:
-        Set(to, Rooks(wtm));
         Set(to, RooksQueens);
-        TotalPieces(wtm) += rook_v;
-        TotalRooks(wtm)++;
-        Material += PieceValues(wtm, rook);
         break;
       case queen:
-        Set(to, Queens(wtm));
         Set(to, BishopsQueens);
         Set(to, RooksQueens);
-        TotalPieces(wtm) += queen_v;
-        TotalQueens(wtm)++;
-        Material += PieceValues(wtm, queen);
         break;
       }
     } else if ((Abs(to - from) == 16) && (mask_eptest[to] & Pawns(btm))) {
@@ -168,36 +141,12 @@ void MakeMove(TREE * RESTRICT tree, int ply, int move, int wtm)
     }
     Rule50Moves(ply + 1) = 0;
     break;
-/*
- *******************************************************************************
- *                                                                             *
- *   make knight moves.                                                        *
- *                                                                             *
- *******************************************************************************
- */
   case knight:
     break;
-/*
- *******************************************************************************
- *                                                                             *
- *   make bishop moves.                                                        *
- *                                                                             *
- *******************************************************************************
- */
   case bishop:
     Clear(from, BishopsQueens);
     Set(to, BishopsQueens);
     break;
-/*
- *******************************************************************************
- *                                                                             *
- *   make rook moves.  the only special case handling required is to determine *
- *   if x_castle is non-zero [x=w or b based on side to move].  if it is non-  *
- *   zero, the value must be corrected if either rook is moving from its       *
- *   original square, so that castling with that rook becomes impossible.      *
- *                                                                             *
- *******************************************************************************
- */
   case rook:
     Clear(from, RooksQueens);
     Set(to, RooksQueens);
@@ -211,32 +160,12 @@ void MakeMove(TREE * RESTRICT tree, int ply, int move, int wtm)
       }
     }
     break;
-/*
- *******************************************************************************
- *                                                                             *
- *   make queen moves                                                          *
- *                                                                             *
- *******************************************************************************
- */
   case queen:
     Clear(from, BishopsQueens);
     Set(to, BishopsQueens);
     Clear(from, RooksQueens);
     Set(to, RooksQueens);
     break;
-/*
- *******************************************************************************
- *                                                                             *
- *   make king moves.  the only special case is castling, which is indicated   *
- *   by from=E1, to=G1 for o-o as an example.  the king is moving from e1-g1   *
- *   which is normally illegal.  in this case, the correct rook is also moved. *
- *                                                                             *
- *   note that moving the king in any direction resets the castle status flag  *
- *   indicating that castling is not possible in any position below this point *
- *   in the tree.                                                              *
- *                                                                             *
- *******************************************************************************
- */
   case king:
     KingSQ(wtm) = to;
     if (Castle(ply + 1, wtm) > 0) {
@@ -271,8 +200,8 @@ void MakeMove(TREE * RESTRICT tree, int ply, int move, int wtm)
 /*
  *******************************************************************************
  *                                                                             *
- *   now it is time to "gracefully" remove a piece from the game board since it*
- *   is being captured.  this includes updating the board structure.           *
+ *   now it is time to "gracefully" remove a piece from the game board since   *
+ *   it is being captured.  this includes updating the board structure.        *
  *                                                                             *
  *******************************************************************************
  */
@@ -284,52 +213,20 @@ void MakeMove(TREE * RESTRICT tree, int ply, int move, int wtm)
     Hash(btm, captured, to);
     Clear(to, Pieces(btm, captured));
     Clear(to, Occupied(btm));
+    Material -= PieceValues(btm, captured);
+    TotalPieces(btm, captured)--;
+    if (captured != pawn)
+      TotalPieces(btm, occupied) -= p_vals[captured];
     switch (captured) {
-/*
- ************************************************************
- *                                                          *
- *   remove a captured pawn.                                *
- *                                                          *
- ************************************************************
- */
     case pawn:
       HashP(btm, to);
-      Material -= PieceValues(btm, pawn);
-      TotalPawns(btm)--;
       break;
-/*
- ************************************************************
- *                                                          *
- *   remove a captured knight.                              *
- *                                                          *
- ************************************************************
- */
     case knight:
-      TotalPieces(btm) -= knight_v;
-      TotalKnights(btm)--;
-      Material -= PieceValues(btm, knight);
       break;
-/*
- ************************************************************
- *                                                          *
- *   remove a captured bishop.                              *
- *                                                          *
- ************************************************************
- */
     case bishop:
       if (piece != bishop && piece != queen)
         Clear(to, BishopsQueens);
-      TotalPieces(btm) -= bishop_v;
-      TotalBishops(btm)--;
-      Material -= PieceValues(btm, bishop);
       break;
-/*
- ************************************************************
- *                                                          *
- *   remove a captured rook.                                *
- *                                                          *
- ************************************************************
- */
     case rook:
       if (piece != rook && piece != queen)
         Clear(to, RooksQueens);
@@ -342,33 +239,15 @@ void MakeMove(TREE * RESTRICT tree, int ply, int move, int wtm)
           HashCastle(0, HashKey, btm);
         }
       }
-      TotalPieces(btm) -= rook_v;
-      TotalRooks(btm)--;
-      Material -= PieceValues(btm, rook);
       break;
-/*
- ************************************************************
- *                                                          *
- *   remove a captured queen.                               *
- *                                                          *
- ************************************************************
- */
     case queen:
-      if (piece != bishop && piece != queen)
-        Clear(to, BishopsQueens);
-      if (piece != rook && piece != queen)
-        Clear(to, RooksQueens);
-      TotalPieces(btm) -= queen_v;
-      TotalQueens(btm)--;
-      Material -= PieceValues(btm, queen);
+      if (piece != queen) {
+        if (piece != bishop)
+          Clear(to, BishopsQueens);
+        if (piece != rook)
+          Clear(to, RooksQueens);
+      }
       break;
-/*
- ************************************************************
- *                                                          *
- *   remove a captured king. [this is an error condition]   *
- *                                                          *
- ************************************************************
- */
     case king:
 #if defined(DEBUG)
       Print(128, "captured a king (Make)\n");
