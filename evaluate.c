@@ -418,9 +418,6 @@ int EvaluateDevelopmentB(TREE * RESTRICT tree, int ply)
     if (SetMask(C7) & BlackPawns && SetMask(C6) & (BlackKnights | BlackBishops))
       score += development_thematic;
   }
-  if (Occupied & ((BlackPawns & rank_mask[RANK7]) << 8) & (file_mask[FILED]
-          | file_mask[FILEE]))
-    score += blocked_center_pawn;
 #ifdef DEBUGDV
   printf("developmentB.1 score=%d\n", score);
 #endif
@@ -481,9 +478,6 @@ int EvaluateDevelopmentW(TREE * RESTRICT tree, int ply)
     if (SetMask(C2) & WhitePawns && SetMask(C3) & (WhiteKnights | WhiteBishops))
       score -= development_thematic;
   }
-  if (Occupied & ((WhitePawns & rank_mask[RANK2]) >> 8) & (file_mask[FILED]
-          | file_mask[FILEE]))
-    score -= blocked_center_pawn;
 #ifdef DEBUGDV
   printf("developmentW.1 score=%d\n", score);
 #endif
@@ -904,15 +898,15 @@ int EvaluateKingsFileB(TREE * RESTRICT tree, int whichfile)
 
   for (file = whichfile - 1; file <= whichfile + 1; file++) {
     if (!(file_mask[file] & tree->all_pawns))
-      defects += open_file;
+      defects += open_file[file];
     else {
       if (!(file_mask[file] & WhitePawns))
-        defects += half_open_file / 2;
+        defects += half_open_file[file] / 2;
       else
         defects +=
             Max(0, (Rank(LastOne(file_mask[file] & WhitePawns)) - 2)) & 3;
       if (!(file_mask[file] & BlackPawns))
-        defects += half_open_file;
+        defects += half_open_file[file];
       else {
         if (!(BlackPawns & SetMask(A7 + file))) {
           defects++;
@@ -931,15 +925,15 @@ int EvaluateKingsFileW(TREE * RESTRICT tree, int whichfile)
 
   for (file = whichfile - 1; file <= whichfile + 1; file++) {
     if (!(file_mask[file] & tree->all_pawns))
-      defects += open_file;
+      defects += open_file[file];
     else {
       if (!(file_mask[file] & BlackPawns))
-        defects += half_open_file / 2;
+        defects += half_open_file[file] / 2;
       else
         defects +=
             Max(0, (5 - Rank(FirstOne(file_mask[file] & BlackPawns)))) & 3;
       if (!(file_mask[file] & WhitePawns))
-        defects += half_open_file;
+        defects += half_open_file[file];
       else {
         if (!(WhitePawns & SetMask(A2 + file))) {
           defects++;
@@ -1183,10 +1177,6 @@ int EvaluateMaterial(TREE * RESTRICT tree)
         score -= bad_trade;
     }
   }
-  if (WhiteQueens && !BlackQueens)
-    score += queen_vs_2_rooks;
-  else if (!WhiteQueens && BlackQueens)
-    score -= queen_vs_2_rooks;
 #ifdef DEBUGM
   printf("Majors=%d  Minors=%d  TotalWhitePieces=%d  TotalBlackPieces=%d\n",
       Majors, Minors, TotalWhitePieces, TotalBlackPieces);
@@ -1958,8 +1948,13 @@ int EvaluatePawns(TREE * RESTRICT tree)
         Rank(LastOne(mask_d3d4d5d6 & WhitePawns)) ==
         Rank(LastOne(mask_e3e4e5e6 & WhitePawns)))
       tree->pawn_score.center = 1;
-
   }
+  if (Occupied & ((BlackPawns & rank_mask[RANK7]) << 8) & (file_mask[FILED]
+          | file_mask[FILEE]))
+    score += blocked_center_pawn;
+  if (Occupied & ((WhitePawns & rank_mask[RANK2]) >> 8) & (file_mask[FILED]
+          | file_mask[FILEE]))
+    score -= blocked_center_pawn;
 /*
  ************************************************************
  *                                                          *
@@ -3214,7 +3209,7 @@ int EvaluateWinningChances(TREE * RESTRICT tree)
             else {
               wkd = Distance(WhiteKingSQ, A8) - wtm;
               pd = Distance(LastOne(WhitePawns & file_mask[FILEA]), A8) - wtm;
-              if (bkd < wkd && bkd <= pd)
+              if (bkd < wkd && bkd < pd)
                 can_win &= 2;
             }
             continue;
@@ -3227,7 +3222,7 @@ int EvaluateWinningChances(TREE * RESTRICT tree)
             else {
               wkd = Distance(WhiteKingSQ, H8) - wtm;
               pd = Distance(LastOne(WhitePawns & file_mask[FILEH]), H8) - wtm;
-              if (bkd < wkd && bkd <= pd)
+              if (bkd < wkd && bkd < pd)
                 can_win &= 2;
             }
             continue;
@@ -3285,7 +3280,7 @@ int EvaluateWinningChances(TREE * RESTRICT tree)
               bkd = Distance(BlackKingSQ, A1) - Flip(wtm);
               pd = Distance(FirstOne(BlackPawns & file_mask[FILEA]),
                   A1) - Flip(wtm);
-              if (wkd < bkd && wkd <= pd)
+              if (wkd < bkd && wkd < pd)
                 can_win &= 1;
             }
             continue;
@@ -3299,7 +3294,7 @@ int EvaluateWinningChances(TREE * RESTRICT tree)
               bkd = Distance(BlackKingSQ, H1) - Flip(wtm);
               pd = Distance(FirstOne(BlackPawns & file_mask[FILEH]),
                   H1) - Flip(wtm);
-              if (wkd < bkd && wkd <= pd)
+              if (wkd < bkd && wkd < pd)
                 can_win &= 1;
             }
             continue;

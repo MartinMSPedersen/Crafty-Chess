@@ -162,7 +162,7 @@ BITBOARD black_pawn_race_btm[64];
 BOOK_POSITION book_buffer[BOOK_CLUSTER_SIZE];
 BOOK_POSITION book_buffer_char[BOOK_CLUSTER_SIZE];
 
-#define    VERSION                             "20.9"
+#define    VERSION                             "20.10"
 char version[6] = { VERSION };
 PLAYING_MODE mode = normal_mode;
 int batch_mode = 0;             /* no asynch reads */
@@ -391,11 +391,11 @@ int white_outpost[64] = {
 };
 int pval_w[64] = {
    0,  0,  0,   0,   0,  0,  0,  0,
-   0,  0,  0,  -5,  -5,  0,  0,  0,
+   0,  0,  0, -10, -10,  0,  0,  0,
    1,  1,  1,  10,  10,  1,  1,  1,
    3,  3,  3,  13,  13,  3,  3,  3,
    6,  6,  6,  16,  16,  6,  6,  6,
-  10, 10, 10,  20,  20, 10, 10, 10,
+  10, 10, 10,  30,  30, 10, 10, 10,
   40, 40, 40,  40,  40, 40, 40, 40,
    0,  0,  0,   0,   0,  0,  0,  0
 };
@@ -534,15 +534,14 @@ int rook_half_open_file = 10;
 int rook_behind_passed_pawn = 24;
 int rook_trapped = 40;
 int queen_rook_on_7th_rank = 50;
-int queen_vs_2_rooks = 100;
 int queen_offside = 30;
 /* when queens are removed, the safety and tropism scores are reduced by
    indexing into the following two vectors "safety = vector[safety]"
 */
 int queen_scale_safety[16] = { 0, 0, 1, 2, 3, 3, 4, 4, 5, 6, 6, 7, 8, 9, 10, 10};
 int queen_scale_tropism[16] = { 0, 0, 1, 2, 3, 3, 4, 4, 5, 6, 6, 7, 8, 9, 10, 10};
-int open_file = 6;
-int half_open_file = 4;
+int open_file[8] = {6, 5, 4, 4, 4, 4, 5, 6};
+int half_open_file[8] = {4, 4, 3, 3, 3, 3, 4, 4};
 int king_safety_mate_threat = 600;
 int development_thematic = 12;
 int development_unmoved = 7;
@@ -654,7 +653,6 @@ struct eval_term eval_packet[256] = {
   {NULL, 0, NULL},
   {"queen scoring-------------------", 0, NULL},        /* 90 */
   {"queen rook on 7th rank          ", 0, &queen_rook_on_7th_rank},
-  {"queen vs 2 rooks                ", 0, &queen_vs_2_rooks},
   {"queen offside                   ", 0, &queen_offside},
   {"king tropism [distance]         ", 8, king_tropism_q},
   {"king file tropism [distance]    ", 8, king_tropism_at_q},
@@ -662,14 +660,15 @@ struct eval_term eval_packet[256] = {
   {"queen pawn safety scale vector  ", 16, queen_scale_safety},
   {"queen tropism scale vector      ", 16, queen_scale_tropism},
   {NULL, 0, NULL},
+  {NULL, 0, NULL},
   {"king scoring--------------------", 0, NULL},        /* 100 */
   {"king king tropism (endgame)     ", 0, &king_king_tropism},
   {"king safety trojan horse threat ", 0, &king_safety_mate_threat},
   {"king piece/square normal        ", -64, kval_wn},
   {"king piece/square kside pawns   ", -64, kval_wk},
   {"king piece/square qside pawns   ", -64, kval_wq},
-  {"king safety open file defects   ", 0, &open_file},
-  {"king safety half-open file def  ", 0, &half_open_file},
+  {"king safe open file [file]      ", 8, open_file},
+  {"king safe half-open file [file] ", 8, half_open_file},
   {"king safety pawn-shield vector  ", 16, safety_vector},
   {NULL, 0, NULL},
   {NULL, 0, NULL},

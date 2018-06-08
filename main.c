@@ -3334,6 +3334,11 @@
  *           leave the score well outside the alpha/beta search window.  looks *
  *           like a 20% speed improvement in general.                          *
  *                                                                             *
+ *   20.10   change to king safety pawn structure.  open files around the king *
+ *           are dangerous, but the h/g (or b/a) files are more dangerous than *
+ *           the f-e-d-c files since they are much harder to defend against    *
+ *           with the castled king in the way.                                 *
+ *                                                                             *
  *******************************************************************************
  */
 int main(int argc, char **argv)

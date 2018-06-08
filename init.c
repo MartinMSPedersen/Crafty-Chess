@@ -15,7 +15,6 @@
 #if defined(NT_i386)
 #  include <fcntl.h>    /* needed for definition of "_O_BINARY" */
 #endif
-#include <math.h>
 
 int init_r90[64] = {
   56, 48, 40, 32, 24, 16, 8, 0,
@@ -1080,12 +1079,9 @@ void InitializeKingSafety()
 {
   int safety, tropism;
 
-  for (safety = 0; safety < 16; safety++) {
-    for (tropism = 0; tropism < 16; tropism++) {
-      int x = Min(15, sqrtf(safety*safety + tropism*tropism) + .5);
-      king_safety[safety][tropism] = safety_vector[x];
-    }
-  }
+  for (safety = 0; safety < 16; safety++)
+    for (tropism = 0; tropism < 16; tropism++)
+      king_safety[safety][tropism] = safety_vector[Min(safety+tropism,15)];
 /*
   printf("    ");
   for (tropism = 0; tropism < 16; tropism++)
@@ -1094,7 +1090,7 @@ void InitializeKingSafety()
   for (safety = 0; safety < 16; safety++) {
     printf("%2d  ", safety);
     for (tropism = 0; tropism < 16; tropism++) {
-      printf("%4d", king_safety[safety][tropism]);
+      printf("%3d,", king_safety[safety][tropism]);
       if ((tropism + 1) % 16 == 0)
         printf("\n");
     }
