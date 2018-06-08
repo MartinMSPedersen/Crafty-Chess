@@ -45,7 +45,7 @@
 #   options above.
 
 default:
-	$(MAKE) -j4  linux-i686-elf
+	$(MAKE) -j4  linux-icc-elf
 help:
 	@echo "You must specify the system which you want to compile for:"
 	@echo ""
@@ -172,11 +172,9 @@ linux:
 	$(MAKE) target=LINUX \
 		CC=gcc CXX=g++ \
 		CFLAGS='$(CFLAGS) -Wall -pipe -D_REENTRANT -O3' \
-		CXFLAGS='$(CFLAGS) \
-			-fforce-mem -fomit-frame-pointer' \
+		CXFLAGS='$(CFLAGS) -fomit-frame-pointer' \
 		LDFLAGS='$(LDFLAGS) -lpthread' \
-		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
-		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST' \
+		opt='$(opt) -DFAST' \
 		asm=X86-aout.o \
 		crafty-make
 
@@ -188,8 +186,7 @@ linux-elf:
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS='$(LDFLAGS) -lpthread' \
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
-		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST' \
-		asm=X86-elf.o \
+		     -DFAST' \
 		crafty-make
 
 linux-i686:
@@ -210,13 +207,13 @@ linux-i686-elf:
 	$(MAKE) target=LINUX \
 		CC=gcc CXX=g++ \
 		CFLAGS='$(CFLAGS) -Wall -pipe -D_REENTRANT -march=i686 -O3 \
-			-fforce-mem -fomit-frame-pointer \
+			-fbranch-probabilities -fforce-mem -fomit-frame-pointer \
 			-fno-gcse -mpreferred-stack-boundary=2' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS='$(LDFLAGS) -lstdc++' \
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
-		     -DFUTILITY -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST \
-		     -DSMP -DCPUS=4 -DCLONE -DDGT' \
+		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST \
+		     -DSMP -DCPUS=4 -DCLONE -DDGT -DTRACE' \
 		asm=X86-elf.o \
 		crafty-make
 
@@ -224,42 +221,58 @@ linux-i686-elf-profile:
 	$(MAKE) target=LINUX \
 		CC=gcc CXX=g++ \
 		CFLAGS='$(CFLAGS) -Wall -pipe -D_REENTRANT -march=i686 -O3 \
-			-fprofile-arcs -fforce-mem \
+			-g -fprofile-arcs -fforce-mem \
 			-fno-gcse -mpreferred-stack-boundary=2' \
 		CXFLAGS=$(CFLAGS) \
-		LDFLAGS='$(LDFLAGS) -fprofile-arcs -lstdc++' \
+		LDFLAGS='$(LDFLAGS) -g -fprofile-arcs -lstdc++' \
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
-		     -DFUTILITY -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST \
+		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST \
 		     -DSMP -DCPUS=4 -DCLONE -DDGT' \
 		asm=X86-elf.o \
 		crafty-make
 
 linux-icc-elf-profile:
 	$(MAKE) target=LINUX \
-		CC=icc CXX=gcc \
-		CFLAGS='$(CFLAGS) -D_REENTRANT -O2 \
-			-prof_gen -prof_dir ./profdir -fno-alias -tpp6' \
-		CXFLAGS='$(CXFLAGS) -Wall -pipe -D_REENTRANT -march=i686 -O \
-			-fforce-mem -fomit-frame-pointer \
-			-fno-gcse -mpreferred-stack-boundary=2' \
+		CC=icc CXX=icc \
+		CFLAGS='$(CFLAGS) -D_REENTRANT -O2 -march=pentium4 \
+                        -prof_gen -prof_dir ./profdir \
+                        -fno-alias -tpp7' \
+		CXFLAGS='$(CFLAGS) -D_REENTRANT -O2 -march=pentium4 \
+                        -mcpu=pentium4 -prof_gen -prof_dir ./profdir \
+                        -fno-alias -tpp7' \
 		LDFLAGS=$(LDFLAGS) \
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
-		     -DFUTILITY -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST \
+		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST \
 		     -DSMP -DCPUS=4 -DCLONE -DDGT' \
 		asm=X86-elf.o \
 		crafty-make
 
 linux-icc-elf:
 	$(MAKE) target=LINUX \
-		CC=icc CXX=gcc \
+		CC=icc CXX=icc \
 		CFLAGS='$(CFLAGS) -D_REENTRANT -O2 \
-			-prof_use -prof_dir ./profdir -fno-alias -tpp6' \
-		CXFLAGS='$(CXFLAGS) -Wall -pipe -D_REENTRANT -march=i686 -O \
-			-fforce-mem -fomit-frame-pointer \
-			-fno-gcse -mpreferred-stack-boundary=2' \
+                        -fno-alias ' \
+		CXFLAGS='$(CFLAGS) -D_REENTRANT -O2 \
+                        -fno-alias' \
 		LDFLAGS=$(LDFLAGS) \
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
-		     -DFUTILITY -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST \
+		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST \
+		     -DSMP -DCPUS=4 -DCLONE' \
+		asm=X86-elf.o \
+		crafty-make
+
+icc-elf:
+	$(MAKE) target=LINUX \
+		CC=icc CXX=icc \
+		CFLAGS='$(CFLAGS) -D_REENTRANT -O2 -march=pentium4 \
+                        -mcpu=pentium4 \
+                        -fno-alias -tpp7' \
+		CXFLAGS='$(CFLAGS) -D_REENTRANT -O2 -march=pentium4 \
+                        -mcpu=pentium4 ./profdir \
+                        -fno-alias -tpp7' \
+		LDFLAGS=$(LDFLAGS) \
+		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
+		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST \
 		     -DSMP -DCPUS=4 -DCLONE -DDGT' \
 		asm=X86-elf.o \
 		crafty-make
@@ -462,7 +475,21 @@ profile:
 	@echo "move" >>runprof
 	@echo "setboard /k/3p/p2P1p/P2P1P///K/ w" >>runprof
 	@echo "move" >>runprof
-	@echo "end" >>runprof
+	@echo "setboard /k/rnn////5RBB/K/ w" >>runprof
+	@echo "move" >>runprof
+	@echo "mt=0" >>runprof
+	@echo "quit" >>runprof
+	@echo "EOF" >>runprof
+	@chmod +x runprof
+	@./runprof
+	@echo "#!/bin/csh" > runprof
+	@echo "crafty <<EOF" >>runprof
+	@echo "st=10" >>runprof
+	@echo "mt=4" >>runprof
+	@echo "setboard 2r2rk1/1bqnbpp1/1p1ppn1p/pP6/N1P1P3/P2B1N1P/1B2QPP1/R2R2K1 b" >>runprof
+	@echo "move" >>runprof
+	@echo "mt=0" >>runprof
+	@echo "quit" >>runprof
 	@echo "EOF" >>runprof
 	@chmod +x runprof
 	@./runprof
@@ -480,7 +507,7 @@ objects = searchr.o search.o thread.o searchmp.o repeat.o next.o nexte.o      \
        drawn.o edit.o epd.o epdglue.o init.o input.o interupt.o iterate.o     \
        main.o option.o output.o phase.o ponder.o preeval.o resign.o root.o    \
        learn.o setboard.o test.o testepd.o time.o validate.o annotate.o       \
-       analyze.o evtest.o bench.o egtb.o dgt.o $(asm)
+       analyze.o evtest.o bench.o egtb.o dgt.o
 
 includes = data.h chess.h
 

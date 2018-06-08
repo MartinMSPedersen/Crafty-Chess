@@ -12,10 +12,18 @@
 *******************************************************************************
 */
 
+#define  T_INDEX64
 #define  XX  127
 #define  C_PIECES  3  /* Maximum # of pieces of one color OTB */
 
-typedef unsigned int INDEX;
+#if defined (T_INDEX64) && defined (_MSC_VER)
+    typedef unsigned __int64	INDEX;
+#elif defined (T_INDEX64)
+    typedef unsigned long long INDEX;
+#else
+    typedef unsigned long	INDEX;
+#endif
+
 typedef unsigned int squaret;
 
 /* Those declarations necessary because Crafty is C, not C++ program */

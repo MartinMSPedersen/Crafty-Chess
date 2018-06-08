@@ -71,14 +71,15 @@
 #  define                       KING_BACK_RANK          (12)
 #  define                KING_SAFETY_STONEWALL           (7)
 #  define                KING_SAFETY_OPEN_FILE           (4)
-#  define                      CASTLE_OPPOSITE           (5)
+#  define                      CASTLE_OPPOSITE           (3)
  
  
 #  define                 DEVELOPMENT_THEMATIC           (6)
 #  define                  DEVELOPMENT_UNMOVED           (7)
 #  define                  BLOCKED_CENTER_PAWN          (12)
 #  define            DEVELOPMENT_LOSING_CASTLE          (20)
-#  define              DEVELOPMENT_NOT_CASTLED          (24)
+#  define              DEVELOPMENT_NOT_CASTLED          (30)
 #  define              DEVELOPMENT_QUEEN_EARLY          (12)
+#  define             DEVELOPMENT_CASTLE_BONUS          (20)
  
 #endif

@@ -210,7 +210,7 @@
 #define     MAX_TC_NODES       300000
 
 #if !defined(SMP) && !defined(SUN)
-#  define lock_t int
+#  define lock_t volatile int
 #endif
 #include "lock.h"
 
@@ -345,6 +345,11 @@ typedef  struct {
 typedef struct {
   BITBOARD word1;
   BITBOARD word2;
+} TABLE_ENTRY;
+
+typedef struct {
+  TABLE_ENTRY prefer;
+  TABLE_ENTRY always[2];
 } HASH_ENTRY;
 
 typedef struct {
@@ -550,8 +555,8 @@ typedef struct tree TREE;
 #  endif
 #endif
   
-void           Analyze();
-void           Annotate();
+void           Analyze(void);
+void           Annotate(void);
 void           AnnotateHeaderHTML(char*, FILE*);
 void           AnnotateFooterHTML(FILE*);
 void           AnnotatePositionHTML(TREE*, int, FILE*);
@@ -581,6 +586,7 @@ void           DGTInit(int,char**);
 int            DGTCheckInput(void);
 void           DGTRead(void);
 void           DisplayBitBoard(BITBOARD);
+void           Display64BitWord(BITBOARD);
 void           DisplayChessBoard(FILE*, POSITION);
 char*          DisplayEvaluation(int,int);
 char*          DisplayEvaluationWhisper(int,int);
@@ -603,7 +609,6 @@ int            Evaluate(TREE*RESTRICT, int, int, int, int);
 int            EvaluateDevelopmentB(TREE*RESTRICT, int);
 int            EvaluateDevelopmentW(TREE*RESTRICT, int);
 int            EvaluateDraws(TREE*RESTRICT, int);
-int            EvaluateWinner(TREE*RESTRICT);
 int            EvaluateKingSafety(TREE*RESTRICT, int);
 int            EvaluateMate(TREE*RESTRICT);
 int            EvaluateMaterial(TREE*RESTRICT);
@@ -679,12 +684,12 @@ unsigned int   Random32(void);
 BITBOARD       Random64(void);
 int            Read(int, char*);
 int            ReadChessMove(TREE*, FILE*, int, int);
-void           ReadClear();
+void           ReadClear(void);
 unsigned int   ReadClock(TIME_TYPE);
 int            ReadPGN(FILE*,int);
 int            ReadNextMove(TREE*, char*, int, int);
 int            ReadParse(char*, char *args[], char*);
-int            ReadInput();
+int            ReadInput(void);
 int            RepetitionCheck(TREE*RESTRICT, int, int);
 int            RepetitionCheckBook(TREE*RESTRICT, int, int);
 int            RepetitionDraw(TREE*RESTRICT, int);
@@ -903,12 +908,14 @@ void           Whisper(int, int, int, int, int, BITBOARD , int, int, char*);
     the following macro is used to limit the search extensions based on the
     current iteration depth and current ply in the tree.
 */
-#define LimitExtensions(extended,ply)                                \
-      if (ply <= 3*iteration_depth) {                                \
-        if (ply > iteration_depth) extended>>=1;                     \
-        if (ply > 2*iteration_depth) extended>>=1;                   \
-      }                                                              \
-      else extended=0;
+#define LimitExtensions(extended,ply)                                        \
+      extended=Min(extended,INCPLY);                                         \
+      if (ply > 2*iteration_depth) {                                         \
+        if (ply <= 4*iteration_depth)                                        \
+	  extended=extended*(4*iteration_depth-ply)/(2*iteration_depth);     \
+        else                                                                 \
+          extended=0;                                                        \
+      }
 
 /*  
     the following macro is used to determine if one side is in check.  it

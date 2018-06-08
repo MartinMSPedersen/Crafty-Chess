@@ -30,7 +30,7 @@ void DGTInit(int nargs, char *args[]) {
 */
   char dgt[]={"dgt"};
   char *argv[5]={0,0,0,0,0}, *env[2];
-  int tp[2], fp[2], dgt_pid;
+  int tp[2], fp[2];
   char device[]={"/dev/ttyS0"}, setup[]={"lw"};
 
   printf("Executing DGT driver.\n");
@@ -59,7 +59,7 @@ void DGTInit(int nargs, char *args[]) {
 |                                                |
  ------------------------------------------------
 */
-  if ((dgt_pid = fork()) == 0) {
+  if (fork() == 0) {
     dup2(tp[0],0);
     dup2(fp[1],1);
     close(tp[0]);
@@ -128,13 +128,13 @@ void DGTRead() {
 int DGTCheckInput(void) {
   fd_set readfds;
   struct timeval tv;
-  int data, result;
+  int data;
 
   FD_ZERO (&readfds);
   FD_SET (from_dgt, &readfds);
   tv.tv_sec=0;
   tv.tv_usec=0;
-  result=select(32, &readfds, 0, 0, &tv);
+  (void) select(32, &readfds, 0, 0, &tv);
   data=FD_ISSET(from_dgt, &readfds);
   return(data);
 }

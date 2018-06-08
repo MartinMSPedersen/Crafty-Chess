@@ -121,7 +121,6 @@ static charptrT gtimstrv[gtimL];
 
 /* player name strings */
 
-static charptrT playerstrv[rcL];
 
 /* character conversion vectors (colors and pieces) */
 
@@ -6214,11 +6213,6 @@ gtimstrv[gtim_w] = "1-0";
 gtimstrv[gtim_b] = "0-1";
 gtimstrv[gtim_d] = "1/2-1/2";
 gtimstrv[gtim_u] = "*";
-
-/* set the player name string vector */
-
-playerstrv[c_w] = "White";
-playerstrv[c_b] = "Black";
 
 /* clear the global game chain anchor pointers */
 

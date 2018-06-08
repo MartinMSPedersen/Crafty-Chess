@@ -66,7 +66,7 @@ int NextRootMove(TREE *tree, TREE *mytree, int wtm) {
                  DisplayTime(end_time-start_time),mytree->remaining_moves_text);
         if (display_options&32 && display_options&64)
           printf("%d. ",move_number);
-        if ((display_options&32) && (display_options&64) && !wtm)
+        if ((display_options&32) && (display_options&64) && ChangeSide(wtm))
           printf("... ");
         strcpy(mytree->root_move_text,
                OutputMove(tree,tree->current_move[1],1,wtm));
@@ -76,7 +76,7 @@ int NextRootMove(TREE *tree, TREE *mytree, int wtm) {
         printf("%s      \n",mytree->root_move_text);
 #endif
         fflush(stdout);
-        UnLock(lock_io);
+        Unlock(lock_io);
       }
       return(ROOT_MOVES);
     }

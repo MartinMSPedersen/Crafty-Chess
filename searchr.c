@@ -20,7 +20,7 @@
 */
 int SearchRoot(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth) {
   register int first_move=1;
-  register int initial_alpha, value;
+  register int value;
   register int extensions, extended;
   BITBOARD begin_root_nodes;
 /*
@@ -32,7 +32,6 @@ int SearchRoot(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth) {
  ----------------------------------------------------------
 */
   tree->in_check[2]=0;
-  initial_alpha=alpha;
   tree->in_check[1]=Check(wtm);
   tree->next_status[1].phase=ROOT_MOVES;
 /*
@@ -157,7 +156,7 @@ int SearchRoot(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth) {
       tree->lp_recapture=0;
       if(Thread(tree)) {
         if (abort_search || tree->stop) return(0);
-        if (CheckInput()) Interrupt(1);
+        if (tree->thread_id==0 && CheckInput()) Interrupt(1);
         value=tree->search_value;
         if (value > alpha) {
           if(value >= beta) {
@@ -288,5 +287,5 @@ void SearchTrace(TREE *tree, int ply, int depth, int wtm,
          (tree->nodes_searched),name,phase);
   if (max_threads > 1) printf(" (t=%d) ",tree->thread_id);
   printf("\n");
-  UnLock(lock_io);
+  Unlock(lock_io);
 }

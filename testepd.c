@@ -32,7 +32,7 @@ void TestEPD(char *filename) {
   int i, move, right=0, wrong=0, correct;
   int time=0, len;
   BITBOARD nodes=0;
-  char *eof, *fen, *mvs, *title;
+  char *eof, *mvs, *title;
   float avg_depth=0.0;
   TREE * const tree=local[0];
 /*
@@ -66,7 +66,6 @@ void TestEPD(char *filename) {
       if (delim) *delim=' ';
     }
     else break;
-    fen=buffer;
     mvs=strstr(buffer," bm ");
     if (!mvs) mvs=strstr(buffer," am ");
     if (!mvs) {

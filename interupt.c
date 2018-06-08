@@ -34,11 +34,11 @@ void Interrupt(int ply) {
 #if defined(SMP)
   Lock(lock_io);
   if (busy==1) {
-    UnLock(lock_io);
+    Unlock(lock_io);
     return;
   }
   busy=1;
-  UnLock(lock_io);
+  Unlock(lock_io);
 #endif
   if (abort_search) {
     busy=0;

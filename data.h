@@ -19,7 +19,7 @@
   extern int            time_used_opponent;
   extern int            cpu_time_used;
   extern int            next_time_check;
-  extern int            total_moves;
+  extern BITBOARD       total_moves;
   extern int            initialized;
   extern int            early_exit;
   extern int            new_game;
@@ -56,6 +56,7 @@
   extern int            from_dgt;
   extern char           whisper_text[512];
   extern int            whisper_depth;
+  extern int            done;
   extern int            last_mate_score;
   extern int            last_opponent_move;
   extern int            average_nps;
@@ -88,6 +89,7 @@
   extern int            draw_score[2];
   extern int            abs_draw_score;
   extern int            accept_draws;
+  extern int            offer_draws;
   extern int            over;
   extern int            ics;
   extern int            auto232;
@@ -224,14 +226,11 @@
   extern int            log_pawn_hash;
   extern int            hash_table_size;
   extern int            pawn_hash_table_size;
-  extern int            hash_maska;
-  extern int            hash_maskb;
+  extern int            hash_mask;
   extern unsigned int   pawn_hash_mask;
-  extern HASH_ENTRY      *trans_ref_a;
-  extern HASH_ENTRY      *trans_ref_b;
+  extern HASH_ENTRY      *trans_ref;
   extern PAWN_HASH_ENTRY *pawn_hash_table;
-  extern HASH_ENTRY      *trans_ref_a_orig;
-  extern HASH_ENTRY      *trans_ref_b_orig;
+  extern HASH_ENTRY      *trans_ref_orig;
   extern PAWN_HASH_ENTRY *pawn_hash_table_orig;
 
   extern int            history_w[4096], history_b[4096];
@@ -242,8 +241,6 @@
 
   extern const char     xlate[15];
   extern const char     empty[9];
-  extern const char     maj[18];
-  extern const char     min[12];
 
   extern signed char    white_outpost[64];
   extern signed char    black_outpost[64];
@@ -383,8 +380,8 @@
   extern BITBOARD       mask_advance_2_b;
   extern BITBOARD       mask_left_edge;
   extern BITBOARD       mask_right_edge;
-  extern BITBOARD       mask_A7H7;
-  extern BITBOARD       mask_A2H2;
+  extern BITBOARD       mask_WBT;
+  extern BITBOARD       mask_BBT;
   extern BITBOARD       mask_A3B3;
   extern BITBOARD       mask_B3C3;
   extern BITBOARD       mask_F3G3;
@@ -472,6 +469,7 @@
   extern BOOK_POSITION  books_buffer[BOOK_CLUSTER_SIZE];
 
   extern unsigned int   thread_start_time[CPUS];
+  extern unsigned int   pids[CPUS];
 # if defined(SMP)
   extern TREE           *local[MAX_BLOCKS+1];
   extern TREE           *volatile thread[CPUS];

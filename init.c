@@ -345,28 +345,23 @@ void Initialize(int continuing) {
     log_file=fopen(log_filename,"w");
     history_file=fopen(history_filename,"w+");
   }
-  trans_ref_a_orig=(HASH_ENTRY *) malloc(16*hash_table_size+15);
-  trans_ref_b_orig=(HASH_ENTRY *) malloc(16*2*hash_table_size+15);
+  trans_ref_orig=(HASH_ENTRY *) malloc(sizeof(HASH_ENTRY)*hash_table_size+15);
   pawn_hash_table_orig=(PAWN_HASH_ENTRY *) malloc(sizeof(PAWN_HASH_ENTRY)*pawn_hash_table_size+15);
-  trans_ref_a=(HASH_ENTRY*) (((ptrdiff_t) trans_ref_a_orig+15)&~15);
-  trans_ref_b=(HASH_ENTRY*) (((ptrdiff_t) trans_ref_b_orig+15)&~15);
+  trans_ref=(HASH_ENTRY*) (((ptrdiff_t) trans_ref_orig+15)&~15);
   pawn_hash_table=(PAWN_HASH_ENTRY*) (((ptrdiff_t) pawn_hash_table_orig+15)&~15);
-  if (!trans_ref_a || !trans_ref_b) {
+  if (!trans_ref) {
     printf("malloc() failed, not enough memory.\n");
-    free(trans_ref_a_orig);
-    free(trans_ref_b_orig);
+    free(trans_ref_orig);
     free(pawn_hash_table_orig);
     hash_table_size=0;
     pawn_hash_table_size=0;
     log_hash=0;
     log_pawn_hash=0;
-    trans_ref_a=0;
-    trans_ref_b=0;
+    trans_ref=0;
     pawn_hash_table=0;
   }
   InitializeHashTables();
-  hash_maska=(1<<log_hash)-1;
-  hash_maskb=(1<<(log_hash+1))-1;
+  hash_mask=(1<<log_hash)-1;
   pawn_hash_mask=(1<<(log_pawn_hash))-1;
 
   for (i=0;i<8;i++)
@@ -1061,14 +1056,14 @@ int InitializeFindAttacks(int square, int pieces, int length) {
 void InitializeHashTables(void) {
   int i;
   transposition_id=0;
-  if (!trans_ref_a || !trans_ref_b) return;
+  if (!trans_ref) return;
   for (i=0;i<hash_table_size;i++) {
-    (trans_ref_a+i)->word1=(BITBOARD) 7<<61;
-    (trans_ref_a+i)->word2=0;
-  }
-  for (i=0;i<2*hash_table_size;i++) {
-    (trans_ref_b+i)->word1=(BITBOARD) 7<<61;
-    (trans_ref_b+i)->word2=0;
+    (trans_ref+i)->prefer.word1=(BITBOARD) 7<<61;
+    (trans_ref+i)->prefer.word2=0;
+    (trans_ref+i)->always[0].word1=(BITBOARD) 7<<61;
+    (trans_ref+i)->always[0].word2=0;
+    (trans_ref+i)->always[1].word1=(BITBOARD) 7<<61;
+    (trans_ref+i)->always[1].word2=0;
   }
   if (!pawn_hash_table) return;
   for (i=0;i<pawn_hash_table_size;i++) {
@@ -1211,8 +1206,8 @@ void InitializeMasks(void) {
   mask_abs7_w=rank_mask[RANK7] ^ (SetMask(H7) | SetMask(A7));
   mask_abs7_b=rank_mask[RANK2] ^ (SetMask(H2) | SetMask(A2));
 
-  mask_A7H7=SetMask(A7) | SetMask(H7);
-  mask_A2H2=SetMask(A2) | SetMask(H2);
+  mask_WBT=SetMask(A7) | SetMask(B8) | SetMask(H7) | SetMask(G8);
+  mask_BBT=SetMask(A2) | SetMask(B1) | SetMask(H2) | SetMask(G1);
 
   mask_A3B3=SetMask(A3) | SetMask(B3);
   mask_B3C3=SetMask(B3) | SetMask(C3);

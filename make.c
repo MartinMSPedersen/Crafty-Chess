@@ -387,7 +387,7 @@ MakePieceMove:
       if (WhiteCastle(ply) > 0) {
         if (WhiteCastle(ply+1)&2) HashCastleW(1,HashKey);
         if (WhiteCastle(ply+1)&1) HashCastleW(0,HashKey);
-        if (abs(to-from) == 2) WhiteCastle(ply+1)=-4;
+        if (abs(to-from) == 2) WhiteCastle(ply+1)=-ply;
         else WhiteCastle(ply+1)=0;
         if (abs(to-from) == 2) {
           piece=rook;
@@ -413,7 +413,7 @@ MakePieceMove:
       if (BlackCastle(ply+1) > 0) {
         if (BlackCastle(ply+1)&2) HashCastleB(1,HashKey);
         if (BlackCastle(ply+1)&1) HashCastleB(0,HashKey);
-        if (abs(to-from) == 2) BlackCastle(ply+1)=-4;
+        if (abs(to-from) == 2) BlackCastle(ply+1)=-ply;
         else BlackCastle(ply+1)=0;
         if (abs(to-from) == 2) {
           piece=rook;

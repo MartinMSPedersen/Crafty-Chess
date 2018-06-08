@@ -178,21 +178,23 @@ int CheckInput(void) {
 void ClearHashTableScores(int dopawnstoo) {
   int i;
 
-  if (trans_ref_a && trans_ref_b) {
+  if (trans_ref) {
     for (i=0;i<hash_table_size;i++) {
-      int age=(trans_ref_a+i)->word1>>61;
+      int age=(trans_ref+i)->prefer.word1>>61;
       if (age) {
-        (trans_ref_a+i)->word2^=(trans_ref_a+i)->word1;
-        (trans_ref_a+i)->word1=((trans_ref_a+i)->word1 &
+        (trans_ref+i)->prefer.word2^=(trans_ref+i)->prefer.word1;
+        (trans_ref+i)->prefer.word1=((trans_ref+i)->prefer.word1 &
                                 mask_clear_entry) | (BITBOARD) 65536;
-        (trans_ref_a+i)->word2^=(trans_ref_a+i)->word1;
+        (trans_ref+i)->prefer.word2^=(trans_ref+i)->prefer.word1;
       }
-    }
-    for (i=0;i<2*hash_table_size;i++) {
-      (trans_ref_b+i)->word2^=(trans_ref_b+i)->word1;
-      (trans_ref_b+i)->word1=((trans_ref_b+i)->word1 &
+      (trans_ref+i)->always[0].word2^=(trans_ref+i)->always[0].word1;
+      (trans_ref+i)->always[0].word1=((trans_ref+i)->always[0].word1 &
                               mask_clear_entry) | (BITBOARD) 65536;
-      (trans_ref_b+i)->word2^=(trans_ref_b+i)->word1;
+      (trans_ref+i)->always[0].word2^=(trans_ref+i)->always[0].word1;
+      (trans_ref+i)->always[1].word2^=(trans_ref+i)->always[1].word1;
+      (trans_ref+i)->always[1].word1=((trans_ref+i)->always[1].word1 &
+                              mask_clear_entry) | (BITBOARD) 65536;
+      (trans_ref+i)->always[1].word2^=(trans_ref+i)->always[1].word1;
     }
     if (dopawnstoo) {
       for (i=0;i<pawn_hash_table_size;i++) {
@@ -435,7 +437,7 @@ void DisplayPV(TREE *tree, int level, int wtm, int time, int value, PATH *pv) {
             tree->nodes_searched,0,tree->egtb_probes_successful,
             whisper_text);
 #if defined(SMP)
-    UnLock(lock_io);
+    Unlock(lock_io);
 #endif
   }
   for (i=pv->pathl;i>0;i--) {
@@ -1261,15 +1263,13 @@ int Read(int wait, char *buffer) {
     if (DGT_active) {
       fd_set readfds;
       struct timeval tv;
-      int data, result;
     
       FD_ZERO (&readfds);
       FD_SET (from_dgt, &readfds);
       FD_SET (fileno(stdin), &readfds);
       tv.tv_sec=999999;
       tv.tv_usec=0;
-      result=select(32, &readfds, 0, 0, &tv);
-      data=FD_ISSET(from_dgt, &readfds);
+      (void) select(32, &readfds, 0, 0, &tv);
       if (FD_ISSET(from_dgt, &readfds)) DGTRead();
       if (FD_ISSET(fileno(stdin), &readfds)) readdata=ReadInput();
     }
@@ -1646,7 +1646,6 @@ int ReadPGN(FILE *input, int option) {
       }
     }
   }
-  return(-1);
 }
 
 /* last modified 06/10/98 */

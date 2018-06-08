@@ -3,7 +3,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 10/11/02 */
+/* last modified 01/18/03 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -37,7 +37,7 @@
 int HashProbe(TREE * RESTRICT tree, int ply, int depth, int wtm, int *alpha,
            int *beta, int *threat) {
   register BITBOARD word1, word2;
-  register int type, draft, avoid_null=0, val, pieces, null_depth;
+  register int type, draft, avoid_null=0, val, pieces, null_depth, hwhich;
   register unsigned int word1l, word1r;
   BITBOARD temp_hashkey;
   HASH_ENTRY *htable;
@@ -67,9 +67,9 @@ int HashProbe(TREE * RESTRICT tree, int ply, int depth, int wtm, int *alpha,
   pieces=(wtm) ? TotalWhitePieces : TotalBlackPieces;
   null_depth=(depth>6*INCPLY && pieces>8) ? null_max : null_min;
   temp_hashkey=(wtm) ? HashKey : ~HashKey;
-  htable=trans_ref_a+((int) temp_hashkey&hash_maska);
-  word1=htable->word1;
-  word2=word1^htable->word2;
+  htable=trans_ref+((int) temp_hashkey&hash_mask);
+  word1=htable->prefer.word1;
+  word2=word1^htable->prefer.word2;
   if (word2 == temp_hashkey) do {
 #if !defined(FAST)
     local_hits++;
@@ -85,16 +85,16 @@ int HashProbe(TREE * RESTRICT tree, int ply, int depth, int wtm, int *alpha,
         depth-null_depth <= draft &&
         val < *beta) avoid_null=AVOID_NULL_MOVE;
     if (depth > draft) break;
+    if (abs(val) > MATE-300) {
+      if (val > 0) val-=(ply-1);
+      else val+=(ply-1);
+    }
 #if !defined(FAST)
     local_good_hits++;
 #endif
 
     switch (type) {
       case EXACT:
-        if (abs(val) > MATE-300) {
-          if (val > 0) val-=(ply-1);
-          else val+=(ply-1);
-        }
         *alpha=val;
 #if !defined(FAST)
         tree->transposition_hits++;
@@ -128,9 +128,9 @@ int HashProbe(TREE * RESTRICT tree, int ply, int depth, int wtm, int *alpha,
     }
   } while(0);
 
-  htable=trans_ref_b+((int)temp_hashkey&hash_maskb);
-  word1=htable->word1;
-  word2=word1^htable->word2;
+  hwhich=((int)temp_hashkey>>log_hash)&1;
+  word1=htable->always[hwhich].word1;
+  word2=word1^htable->always[hwhich].word2;
   if (word2 == temp_hashkey) {
 #if !defined(FAST)
     local_hits++;
@@ -146,16 +146,16 @@ int HashProbe(TREE * RESTRICT tree, int ply, int depth, int wtm, int *alpha,
         depth-null_depth <= draft &&
         val < *beta) avoid_null=AVOID_NULL_MOVE;
     if (depth > draft) return(avoid_null);
+    if (abs(val) > MATE-300) {
+      if (val > 0) val-=(ply-1);
+      else val+=(ply-1);
+    }
 #if !defined(FAST)
     local_good_hits++;
 #endif
 
     switch (type) {
       case EXACT:
-        if (abs(val) > MATE-300) {
-          if (val > 0) val-=(ply-1);
-          else val+=(ply-1);
-        }
         *alpha=val;
 #if !defined(FAST)
         tree->transposition_hits++;
@@ -201,7 +201,7 @@ int HashProbe(TREE * RESTRICT tree, int ply, int depth, int wtm, int *alpha,
   return(avoid_null);
 }
 
-/* last modified 09/14/99 */
+/* last modified 01/18/03 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -235,8 +235,8 @@ int HashProbe(TREE * RESTRICT tree, int ply, int depth, int wtm, int *alpha,
 void HashStore(TREE * RESTRICT tree, int ply, int depth, int wtm, int type,
                int value, int threat) {
   register BITBOARD word1, word2;
-  register HASH_ENTRY *htablea, *htableb;
-  register int draft, age;
+  register HASH_ENTRY *htable;
+  register int draft, age, hwhich;
   register unsigned int word1l, word1r;
 /*
  ----------------------------------------------------------
@@ -247,18 +247,14 @@ void HashStore(TREE * RESTRICT tree, int ply, int depth, int wtm, int type,
  ----------------------------------------------------------
 */
   word1l=((((transposition_id<<2)+type)<<1)+threat)<<26;
+  if (value > MATE-300) value=value+ply-1;
+  else if (value < -MATE+300) value=value-ply+1;
   if (type == EXACT) {
-    if (value > MATE-300) value=value+ply-1;
-    else if (value < -MATE+300) value=value-ply+1;
     if ((int) tree->pv[ply].pathl >= ply) 
       word1l|=tree->pv[ply].path[ply];
   }
   else if (type == LOWER) {
     word1l|=tree->current_move[ply];
-    value=Min(value,MATE-300);
-  }
-  else {
-    value=Max(value,-MATE+300);
   }
   word1r=(depth<<17)+value+65536;
   word1=word1r+((BITBOARD)word1l<<32);
@@ -275,27 +271,27 @@ void HashStore(TREE * RESTRICT tree, int ply, int depth, int wtm, int type,
 |                                                          |
  ----------------------------------------------------------
 */
-  htablea=trans_ref_a+((int) word2&hash_maska);
-  draft=(int) htablea->word1>>17 & 077777;
-  age=htablea->word1>>61;
+  htable=trans_ref+((int) word2&hash_mask);
+  draft=(int) htable->prefer.word1>>17 & 077777;
+  age=htable->prefer.word1>>61;
   age=age && (age!=transposition_id);
   if (age || (depth >= draft)) {
-    if ((word1^word2) != htablea->word2) {
-      htableb=trans_ref_b+((int) (htablea->word2)&hash_maskb);
-      htableb->word1=htablea->word1;
-      htableb->word2=htablea->word2;
+    if ((word1^word2) != htable->prefer.word2) {
+      hwhich=((int)(htable->prefer.word2^htable->prefer.word1)>>log_hash)&1;
+      htable->always[hwhich].word1=htable->prefer.word1;
+      htable->always[hwhich].word2=htable->prefer.word2;
     }
-    htablea->word1=word1;
-    htablea->word2=word1^word2;
+    htable->prefer.word1=word1;
+    htable->prefer.word2=word1^word2;
   }
   else {
-    htableb=trans_ref_b+((int) word2&hash_maskb);
-    htableb->word1=word1;
-    htableb->word2=word1^word2;
+    hwhich=((int) word2>>log_hash)&1;
+    htable->always[hwhich].word1=word1;
+    htable->always[hwhich].word2=word1^word2;
   }
 }
 
-/* last modified 01/30/99 */
+/* last modified 12/16/02 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -305,7 +301,8 @@ void HashStore(TREE * RESTRICT tree, int ply, int depth, int wtm, int type,
 ********************************************************************************
 */
 void HashStorePV(TREE * RESTRICT tree, int ply, int wtm) {
-  register HASH_ENTRY *htablea, *htableb;
+  register int hwhich;
+  register HASH_ENTRY *htable;
   register BITBOARD temp_hashkey;
 /*
  ----------------------------------------------------------
@@ -316,8 +313,8 @@ void HashStorePV(TREE * RESTRICT tree, int ply, int wtm) {
  ----------------------------------------------------------
 */
   temp_hashkey=(wtm) ? HashKey : ~HashKey;
-  htablea=trans_ref_a+(((int) temp_hashkey)&hash_maska);
-  htableb=trans_ref_b+(((int) temp_hashkey)&hash_maskb);
+  htable=trans_ref+((int) temp_hashkey&hash_mask);
+  hwhich=((int)temp_hashkey>>log_hash)&1;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -326,23 +323,23 @@ void HashStorePV(TREE * RESTRICT tree, int ply, int wtm) {
 |                                                          |
  ----------------------------------------------------------
 */
-  if ((htablea->word2^htablea->word1) == temp_hashkey &&
-      (htablea->word1>>61)) {
-    htablea->word2=htablea->word2^htablea->word1;
-    htablea->word1&=~((BITBOARD) 07777777<<32);
-    htablea->word1|=(BITBOARD) tree->pv[ply].path[ply]<<32;
-    htablea->word2=htablea->word2^htablea->word1;
+  if ((htable->prefer.word2^htable->prefer.word1) == temp_hashkey &&
+      (htable->prefer.word1>>61)) {
+    htable->prefer.word2=htable->prefer.word2^htable->prefer.word1;
+    htable->prefer.word1&=~((BITBOARD) 07777777<<32);
+    htable->prefer.word1|=(BITBOARD) tree->pv[ply].path[ply]<<32;
+    htable->prefer.word2=htable->prefer.word2^htable->prefer.word1;
   }
-  else if ((htableb->word2^htableb->word1) == temp_hashkey) {
-    htableb->word2=htableb->word2^htableb->word1;
-    htableb->word1&=~((BITBOARD) 07777777<<32);
-    htableb->word1|=(BITBOARD) tree->pv[ply].path[ply]<<32;
-    htableb->word2=htableb->word2^htableb->word1;
+  else if ((htable->always[hwhich].word2^htable->always[hwhich].word1) == temp_hashkey) {
+    htable->always[hwhich].word2=htable->always[hwhich].word2^htable->always[hwhich].word1;
+    htable->always[hwhich].word1&=~((BITBOARD) 07777777<<32);
+    htable->always[hwhich].word1|=(BITBOARD) tree->pv[ply].path[ply]<<32;
+    htable->always[hwhich].word2=htable->always[hwhich].word2^htable->always[hwhich].word1;
   }
   else {
-    htableb->word1=(BITBOARD) 65536;
-    htableb->word1|=((BITBOARD) ((transposition_id<<2)+WORTHLESS))<<59;
-    htableb->word1|=(BITBOARD) tree->pv[ply].path[ply]<<32;
-    htableb->word2=temp_hashkey^htableb->word1;
+    htable->always[hwhich].word1=(BITBOARD) 65536;
+    htable->always[hwhich].word1|=((BITBOARD) ((transposition_id<<2)+WORTHLESS))<<59;
+    htable->always[hwhich].word1|=(BITBOARD) tree->pv[ply].path[ply]<<32;
+    htable->always[hwhich].word2=temp_hashkey^htable->always[hwhich].word1;
   }
 }

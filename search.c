@@ -21,8 +21,7 @@
 
 #if defined(FUTILITY)
 #define RAZOR_MARGIN (QUEEN_VALUE+1)
-#define EXTENDED_FUTILITY_MARGIN (ROOK_VALUE+1)
-#define FUTILITY_MARGIN (BISHOP_VALUE+1)
+#define F_MARGIN (BISHOP_VALUE+1)
 #endif
 
 int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
@@ -32,7 +31,7 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
   register int extensions, extended, recapture, pieces;
   int mate_threat=0;
 #if defined(FUTILITY)
-  int fprune, fscore, fmax;
+  int fprune;
 #endif
 /*
  ----------------------------------------------------------
@@ -50,7 +49,7 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
   tree->nodes_searched++;
   if (--next_time_check <= 0) {
     next_time_check=nodes_between_time_checks;
-    if (CheckInput()) Interrupt(ply);
+    if (tree->thread_id==0 && CheckInput()) Interrupt(ply);
     if (TimeCheck(tree,0)) {
       time_abort++;
       abort_search=1;
@@ -426,44 +425,16 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
         }
 #if defined(FUTILITY)
         else {
-          if (abs(alpha) < (MATE-500) && ply > 4) {
+          if (abs(alpha) < (MATE-500) && ply > 4 && !tree->in_check[ply]) {
             if (wtm) {
-              fscore=Material+RAZOR_MARGIN;
-              if (depth>=3*INCPLY && depth<4*INCPLY &&
-                  fscore<=alpha && TotalBlackPieces>3) extended-=60;
-              if (!tree->in_check[ply]) {
-                fscore=Material+EXTENDED_FUTILITY_MARGIN;
-                if (depth+extended>=2*INCPLY &&
-                    depth+extended<3*INCPLY && fscore <= alpha) {
-                  fprune=1;
-                  fmax=fscore;
-                }
-                fscore=Material+FUTILITY_MARGIN;
-                if (depth+extended<2*INCPLY && fscore<=alpha) {
-                  fprune=1;
-                  fmax=fscore;
-                }
-              }
+              if (depth<3*INCPLY && (Material+F_MARGIN)<=alpha) fprune=1;
+              else if (depth>=3*INCPLY && depth<5*INCPLY &&
+                      (Material+RAZOR_MARGIN)<=alpha) extended-=60;
             }
             else {
-              fscore=-Material+RAZOR_MARGIN;
-              if (depth>=3*INCPLY && depth<4*INCPLY &&
-                  fscore<=alpha && TotalWhitePieces>3) {
-                extended-=60;
-              }
-              if (!tree->in_check[ply]) {
-                fscore=-Material+EXTENDED_FUTILITY_MARGIN;
-                if (depth+extended>=2*INCPLY &&
-                    depth+extended<3*INCPLY && fscore<=alpha) {
-                  fprune=1;
-                  fmax=fscore;
-                }
-                fscore=-Material+FUTILITY_MARGIN;
-                if (depth+extended<2*INCPLY && fscore<=alpha) {
-                  fprune=1;
-                  fmax=fscore;
-                }
-              }
+              if (depth<3*INCPLY && (-Material+F_MARGIN)<=alpha) fprune=1;
+              else if (depth>=3*INCPLY && depth<5*INCPLY &&
+                       (-Material+RAZOR_MARGIN)<=alpha) extended-=60;
             }
           }
         }
@@ -520,7 +491,7 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
       tree->lp_recapture=lp_recapture;
       if(Thread(tree)) {
         if (abort_search || tree->stop) return(0);
-        if (CheckInput()) Interrupt(ply);
+        if (tree->thread_id==0 && CheckInput()) Interrupt(ply);
         value=tree->search_value;
         if (value > alpha) {
           if(value >= beta) {

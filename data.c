@@ -16,7 +16,8 @@
   FILE           *position_lrn_file;
   char           whisper_text[512];
   int            whisper_depth;
-  int            total_moves;
+  int            done=0;
+  BITBOARD       total_moves;
   int            last_mate_score;
   int            time_abort;
   volatile int   quit=0;
@@ -59,14 +60,11 @@
   int            book_move;
   int            book_learn_eval[LEARN_INTERVAL];
   int            book_learn_depth[LEARN_INTERVAL];
-  int            hash_maska;
-  int            hash_maskb;
+  int            hash_mask;
   unsigned int   pawn_hash_mask;
-  HASH_ENTRY      *trans_ref_a;
-  HASH_ENTRY      *trans_ref_b;
+  HASH_ENTRY      *trans_ref;
   PAWN_HASH_ENTRY *pawn_hash_table;
-  HASH_ENTRY      *trans_ref_a_orig;
-  HASH_ENTRY      *trans_ref_b_orig;
+  HASH_ENTRY      *trans_ref_orig;
   PAWN_HASH_ENTRY *pawn_hash_table_orig;
   int            history_w[4096], history_b[4096];
   PATH           last_pv;
@@ -151,8 +149,8 @@
   BITBOARD       mask_advance_2_b;
   BITBOARD       mask_left_edge;
   BITBOARD       mask_right_edge;
-  BITBOARD       mask_A7H7;
-  BITBOARD       mask_A2H2;
+  BITBOARD       mask_WBT;
+  BITBOARD       mask_BBT;
   BITBOARD       mask_A3B3;
   BITBOARD       mask_B3C3;
   BITBOARD       mask_F3G3;
@@ -234,6 +232,7 @@
   BOOK_POSITION  book_buffer[BOOK_CLUSTER_SIZE];
   BOOK_POSITION  books_buffer[BOOK_CLUSTER_SIZE];
   unsigned int   thread_start_time[CPUS];
+  unsigned int   pids[CPUS];
 
 # if defined(SMP)
     TREE         *local[MAX_BLOCKS+1];
@@ -250,7 +249,7 @@
   unsigned int   max_split_blocks;
   volatile unsigned int   splitting;
 
-# define    VERSION                             "19.1"
+# define    VERSION                             "19.2"
   char      version[6] =                    {VERSION};
   PLAYING_MODE mode =                     normal_mode;
 
@@ -394,6 +393,7 @@
   signed char draw_counter =                        0;
   signed char draw_count =                         10;
   signed char draw_offer_pending =                  0;
+  int       offer_draws =                           1;
   int       tc_moves =                             60;
   int       tc_time =                          180000;
   int       tc_time_remaining =                180000;

@@ -104,8 +104,6 @@ static charptrT eghelpstrv[egcommL];
 
 /* EPD glue command parameter counts (includes command token) */
 
-static siT egparmcountv[egcommL];
-
 /* the current (default) EPD game structure */
 
 static gamptrT default_gamptr;
@@ -1032,7 +1030,6 @@ mptrT mptr;
 mT m;
 sanT san;
 int move;
-int value;
 char tv[tL];
 TREE *tree=local[0];
 
@@ -1214,7 +1211,7 @@ switch (EPDExtractRefcomIndex(epdptr0))
 
 			/* search */
 
-			value = EGIterate((siT)wtm, (siT)think);
+			(void) EGIterate((siT)wtm, (siT)think);
 
 			/* process search result */
 
@@ -3458,33 +3455,6 @@ eghelpstrv[egcomm_epdstpv] = "Set PGN tag pair <tag-name> to <value>";
 eghelpstrv[egcomm_epdtest] = "EPD glue developer testing";
 
 /* initialize the EPD glue command parameter counts vector */
-
-egparmcountv[egcomm_epdapgn] = 2;
-egparmcountv[egcomm_epdbfix] = 3;
-egparmcountv[egcomm_epdcert] = 1;
-egparmcountv[egcomm_epdcics] = 3;
-egparmcountv[egcomm_epdcomm] = 2;
-egparmcountv[egcomm_epddpgn] = 1;
-egparmcountv[egcomm_epddsml] = 1;
-egparmcountv[egcomm_epddstr] = 1;
-egparmcountv[egcomm_epddtpv] = 2;
-egparmcountv[egcomm_epdenum] = 4;
-egparmcountv[egcomm_epdhelp] = 1;
-egparmcountv[egcomm_epdlink] = 3;
-egparmcountv[egcomm_epdlpgn] = 2;
-egparmcountv[egcomm_epdlrec] = 3;
-egparmcountv[egcomm_epdmore] = 2;
-egparmcountv[egcomm_epdnoop] = 1;
-egparmcountv[egcomm_epdpfdn] = 3;
-egparmcountv[egcomm_epdpfdr] = 3;
-egparmcountv[egcomm_epdpfga] = 3;
-egparmcountv[egcomm_epdpflc] = 2;
-egparmcountv[egcomm_epdpfop] = 4;
-egparmcountv[egcomm_epdscor] = 2;
-egparmcountv[egcomm_epdshow] = 1;
-egparmcountv[egcomm_epdspgn] = 2;
-egparmcountv[egcomm_epdstpv] = 3;
-egparmcountv[egcomm_epdtest] = 1;
 
 /* set up the default game structure */
 

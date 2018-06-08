@@ -7,6 +7,7 @@
 #include "data.h"
 #if defined(UNIX) || defined(AMIGA)
 #  include <unistd.h>
+#  include <signal.h>
 #endif
 #include "epdglue.h"
 
@@ -374,7 +375,7 @@ int Option(TREE *tree) {
     Print(128,"playing a computer!\n");
     computer_opponent=1;
     accept_draws=1;
-    resign=0;
+    resign=5;
     book_selection_width=1;
     usage_level=0;
     books_file=(computer_bs_file) ? computer_bs_file : normal_bs_file;
@@ -587,7 +588,8 @@ int Option(TREE *tree) {
 /*
  ----------------------------------------------------------
 |                                                          |
-|   "draw" is used to offer Crafty a draw.                 |
+|   "draw" is used to offer Crafty a draw, or to control   |
+|   whether crafty will offer and/or accept draw offers.   |
 |                                                          |
  ----------------------------------------------------------
 */
@@ -604,7 +606,15 @@ int Option(TREE *tree) {
         accept_draws=0;
         Print(128,"decline draw offers\n");
       }
-      else Print(128,"usage: draw accept|decline\n");
+      if (!strcmp(args[1],"offer")) {
+        offer_draws=1;
+        Print(128,"offer draws\n");
+      }
+      else if (!strcmp(args[1],"nooffer")) {
+        offer_draws=0;
+        Print(128,"do not offer draws\n");
+      }
+      else Print(128,"usage: draw accept|decline|offer|nooffer\n");
     }
   }
 /*
@@ -706,12 +716,20 @@ int Option(TREE *tree) {
  ----------------------------------------------------------
 */
   else if (OptionMatch("end",*args) || OptionMatch("quit",*args)) {
-    if (tree->thread_id) exit(1);
+    int i;
+    abort_search=1;
+    quit=1;  
+#if !defined (_WIN32) && !defined (_WIN64)
+    sleep(2);
+#endif
+#if defined(CLONE)
+    for (i=0;i<smp_threads;i++) {
+      if (pids[i]) kill(pids[i],15);
+    }
+#endif
     last_search_value=(crafty_is_white) ? last_search_value:-last_search_value;
     if (moves_out_of_book)
       LearnBook(tree,wtm,last_search_value,0,0,1);
-    Print(128,"execution complete.\n");
-    fflush(stdout);
     if (book_file) fclose(book_file);
     if (books_file) fclose(books_file);
     if (book_lrn_file) fclose(book_lrn_file);
@@ -719,16 +737,8 @@ int Option(TREE *tree) {
     if (position_lrn_file) fclose(position_lrn_file);
     if (history_file) fclose(history_file);
     if (log_file) fclose(log_file);
-    EGTerm();
 #if defined(DGT)
     if (DGT_active) write(to_dgt,"exit\n",5);
-#endif
-    abort_search=1;
-    quit=1;  
-    strcpy(buffer,"mt=0");
-    (void) Option(tree);
-#if !defined (_WIN32) && !defined (_WIN64)
-    sleep(1);
 #endif
     exit(0);
   }
@@ -1107,50 +1117,43 @@ int Option(TREE *tree) {
       }
       if (new_hash_size > 0) {
         if (hash_table_size) {
-          free(trans_ref_a_orig);
-          free(trans_ref_b_orig);
+          free(trans_ref_orig);
         }
         new_hash_size/=16*3;
         for (log_hash=0;log_hash<(int) (8*sizeof(int));log_hash++)
           if ((1<<(log_hash+1)) > new_hash_size) break;
         if (log_hash) {
           hash_table_size=1<<log_hash;
-          trans_ref_a_orig=(HASH_ENTRY *) malloc(16*hash_table_size+15);
-          trans_ref_b_orig=(HASH_ENTRY *) malloc(16*2*hash_table_size+15);
-          trans_ref_a=(HASH_ENTRY*) (((size_t) trans_ref_a_orig+15)&~15);
-          trans_ref_b=(HASH_ENTRY*) (((size_t) trans_ref_b_orig+15)&~15);
-          if (!trans_ref_a || !trans_ref_b) {
+          trans_ref_orig=(HASH_ENTRY *) malloc(sizeof(HASH_ENTRY)*hash_table_size+15);
+          trans_ref=(HASH_ENTRY*) (((size_t) trans_ref_orig+15)&~15);
+          if (!trans_ref) {
             printf("malloc() failed, not enough memory.\n");
-            free(trans_ref_a_orig);
-            free(trans_ref_b_orig);
+            free(trans_ref_orig);
             hash_table_size=0;
             log_hash=0;
-            trans_ref_a=0;
-            trans_ref_b=0;
+            trans_ref=0;
           }
-          hash_maska=(1<<log_hash)-1;
-          hash_maskb=(1<<(log_hash+1))-1;
+          hash_mask=(1<<log_hash)-1;
           ClearHashTableScores(1);
         }
         else {
-          trans_ref_a=0;
-          trans_ref_b=0;
+          trans_ref=0;
           hash_table_size=0;
           log_hash=0;
         }
       }
       else Print(4095,"ERROR:  hash table size must be > 0\n");
     }
-    if (hash_table_size*3*sizeof(HASH_ENTRY) < 1<<20)
+    if (hash_table_size*sizeof(HASH_ENTRY) < 1<<20)
       Print(128,"hash table memory = %dK bytes.\n",
-            hash_table_size*3*sizeof(HASH_ENTRY)/(1<<10));
+            hash_table_size*sizeof(HASH_ENTRY)/(1<<10));
     else {
-      if (hash_table_size*3*sizeof(HASH_ENTRY)%(1<<20))
+      if (hash_table_size*sizeof(HASH_ENTRY)%(1<<20))
         Print(128,"hash table memory = %.1fM bytes.\n",
-              (float) hash_table_size*3*sizeof(HASH_ENTRY)/(1<<20));
+              (float) hash_table_size*sizeof(HASH_ENTRY)/(1<<20));
       else
         Print(128,"hash table memory = %dM bytes.\n",
-              hash_table_size*3*sizeof(HASH_ENTRY)/(1<<20));
+              hash_table_size*sizeof(HASH_ENTRY)/(1<<20));
     }
   }
 /*
@@ -1541,7 +1544,7 @@ int Option(TREE *tree) {
     else {
       printf("!command..................passes command to a shell.\n");
       printf("alarm on|off..............turns audible alarm on/off.\n");
-      printf("analyze...................analyze a game in progress\n");
+      printf("analyze...................analyze a game in progress.\n");
       printf("annotate..................annotate game [help].\n");
       printf("ansi......................toggles reverse video highlighting.\n");
       printf("bench.....................runs performance benchmark.\n");
@@ -1549,21 +1552,23 @@ int Option(TREE *tree) {
       printf("black.....................sets black to move.\n");
       printf("cache=n...................sets tablebase cache size.\n");
       printf("clock.....................displays chess clock.\n");
-      printf("display...................displays chess board\n");
-      printf("display <n>...............sets display options [help]\n");
-      printf("draw <n>..................sets default draw score.\n");
+      printf("display...................displays chess board.\n");
+      printf("display <n>...............sets display options [help].\n");
+      printf("draw accept|decline.......decline always declines.\n");
+      printf("draw offer|nooffer........nooffer never offers a draw.\n");
+      printf("drawscore n...............sets default draw score.\n");
       printf("echo......................echos output to display.\n");
       printf("edit......................edit board position. [help]\n");
       printf("epdhelp...................info about EPD facility.\n");
-      printf("egtb......................enables endgame database probes\n");
+      printf("egtb......................enables endgame database probes.\n");
       printf("end.......................terminates program.\n");
-      printf("exit......................restores STDIN to key\n");
+      printf("exit......................restores STDIN to key.\n");
       printf("evaluation................adjust evaluation terms. [help]\n");
       printf("force <move>..............forces specific move.\n");
       printf("help [command]............displays help.\n");
-      printf("hash n....................sets transposition table size\n");
-      printf("                          (n bytes, nK bytes or nM bytes)\n");
-      printf("hashp n...................sets pawn hash table size\n");
+      printf("hash n....................sets transposition table size.\n");
+      printf("                          (n bytes, nK bytes or nM bytes).\n");
+      printf("hashp n...................sets pawn hash table size.\n");
       printf("history...................display game moves.\n");
       printf("import <filename>.........imports learning data (.lrn files).\n");
       printf("info......................displays program settings.\n");
@@ -1622,7 +1627,7 @@ int Option(TREE *tree) {
       printf("trace n...................display search tree below depth n.\n");
       printf("usage <percentage>........adjusts crafty's time usage up or down.\n");
       printf("whisper n.................sets ICS whisper mode n.\n");
-      printf("wild n....................sets ICS wild position (7 for now)\n");
+      printf("wild n....................sets ICS wild position (7 for now).\n");
       printf("white.....................sets white to move.\n");
       printf("xboard....................sets xboard compatibility mode.\n");
     }
@@ -1703,13 +1708,13 @@ int Option(TREE *tree) {
     Print(128,"Crafty version %s\n",version);
     if (hash_table_size*6*sizeof(HASH_ENTRY) < 1<<20)
       Print(128,"hash table memory =      %4dK bytes.\n",
-            hash_table_size*3*sizeof(HASH_ENTRY)/(1<<10));
+            hash_table_size*sizeof(HASH_ENTRY)/(1<<10));
     else if (hash_table_size*6*sizeof(HASH_ENTRY)%(1<<20))
       Print(128,"hash table memory =      %4.1fM bytes.\n",
-            (float) hash_table_size*3*sizeof(HASH_ENTRY)/(1<<20));
+            (float) hash_table_size*sizeof(HASH_ENTRY)/(1<<20));
     else
       Print(128,"hash table memory =      %4dM bytes.\n",
-            hash_table_size*3*sizeof(HASH_ENTRY)/(1<<20));
+            hash_table_size*sizeof(HASH_ENTRY)/(1<<20));
     if (pawn_hash_table_size*sizeof(PAWN_HASH_ENTRY) < 1<<20)
       Print(128,"pawn hash table memory = %4dK bytes.\n",
             pawn_hash_table_size*sizeof(PAWN_HASH_ENTRY)/(1<<10));
@@ -1848,10 +1853,6 @@ int Option(TREE *tree) {
     tc_time*=60;
     tc_time_remaining=tc_time;
     tc_secondary_time*=60;
-/*
-    if (tc_time > 30000 || tc_increment > 300) whisper=0;
-    if (tc_time <= 6000 && tc_increment <= 100) whisper=0;
-*/
   }
 /*
  ----------------------------------------------------------
@@ -2747,7 +2748,7 @@ int Option(TREE *tree) {
     clock_after=clock();
     time_used=((float) clock_after-(float) clock_before) /
               (float) CLOCKS_PER_SEC;
-    printf("total moves=%d  time=%.2f\n",total_moves, time_used);
+    printf("total moves=" BMF "  time=%.2f\n",total_moves, time_used);
   }
 /*
  ----------------------------------------------------------
@@ -2894,6 +2895,7 @@ int Option(TREE *tree) {
         Print(4095,"feature playother=1 colors=0\n");
         Print(4095,"feature variants=\"normal,nocastle\"\n");
         Print(4095,"feature done=1\n");
+	done=1;
       }
     }
     else Print(4095,"ERROR, bogus xboard protocol version received.\n");
@@ -2996,9 +2998,9 @@ int Option(TREE *tree) {
     position; then white's first move is recorded as a pass.
 */
       if(strcmp(buffer,"pass")==0) {
-	wtm=ChangeSide(wtm);
-	if (wtm) move_number++;
-	continue;
+        wtm=ChangeSide(wtm);
+        if (wtm) move_number++;
+        continue;
       }
       move=InputMove(tree,buffer,0,wtm,0,0);
       if (move) {
@@ -3226,7 +3228,7 @@ int Option(TREE *tree) {
     else if (!swtm) {
       fprintf(output_file,
         "[FEN \"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR b KQkq - 0 1\"\n"
-	"[SetUp \"1\"]\n");
+      "[SetUp \"1\"]\n");
     }
     fprintf(output_file,"\n");
     next=text;
@@ -4100,7 +4102,7 @@ int OptionMatch(char *command, char *input) {
   return(0);
 }
 
-void OptionPerft(TREE *tree, int ply,int depth,int wtm) {
+void OptionPerft(TREE *tree, int ply, int depth, int wtm) {
   int *mv;
   static char line[256], *p[64];
 #if defined(TRACE)

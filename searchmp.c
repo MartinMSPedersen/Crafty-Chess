@@ -21,8 +21,7 @@
 #if defined(SMP)
 #  if defined(FUTILITY)
 #    define RAZOR_MARGIN (QUEEN_VALUE+1)
-#    define EXTENDED_FUTILITY_MARGIN (ROOK_VALUE+1)
-#    define FUTILITY_MARGIN (BISHOP_VALUE+1)
+#    define F_MARGIN (BISHOP_VALUE+1)
 #  endif
 
 int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
@@ -30,7 +29,7 @@ int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
   register int extensions, extended, recapture;
   BITBOARD begin_root_nodes;
 #if defined(FUTILITY)
-  int fprune, fscore, fmax;
+  int fprune;
 #endif
 
 /*
@@ -55,7 +54,7 @@ int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
                                NextEvasion((TREE*)tree->parent,ply,wtm) : 
                                NextMove((TREE*)tree->parent,ply,wtm);
     tree->current_move[ply]=tree->parent->current_move[ply];
-    UnLock(tree->parent->lock);
+    Unlock(tree->parent->lock);
     if (!tree->phase[ply]) break;
 #if defined(TRACE)
     if (ply <= trace_level)
@@ -155,44 +154,16 @@ int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
       }
 #if defined(FUTILITY)
       else {
-        if (abs(alpha) < (MATE-500) && ply > 4) {
+        if (abs(alpha) < (MATE-500) && ply > 4 && !tree->in_check[ply]) {
           if (wtm) {
-            fscore=Material+RAZOR_MARGIN;
-            if (depth>=3*INCPLY && depth<4*INCPLY &&
-                fscore<=alpha && TotalBlackPieces>3) extended-=60;
-            if (!tree->in_check[ply]) {
-              fscore=Material+EXTENDED_FUTILITY_MARGIN;
-              if (depth+extended>=2*INCPLY &&
-                  depth+extended<3*INCPLY && fscore <= alpha) {
-                fprune=1;
-                fmax=fscore;
-              }
-              fscore=Material+FUTILITY_MARGIN;
-              if (depth+extended<2*INCPLY && fscore<=alpha) {
-                fprune=1;
-                fmax=fscore;
-              }
-            }
+            if (depth<3*INCPLY && (Material+F_MARGIN)<=alpha) fprune=1;
+            else if (depth>=3*INCPLY && depth<5*INCPLY &&
+                     (Material+RAZOR_MARGIN)<=alpha) extended-=60;
           }
           else {
-            fscore=-Material+RAZOR_MARGIN;
-            if (depth>=3*INCPLY && depth<4*INCPLY &&
-                fscore<=alpha && TotalWhitePieces>3) {
-              extended-=60;
-            }
-            if (!tree->in_check[ply]) {
-              fscore=-Material+EXTENDED_FUTILITY_MARGIN;
-              if (depth+extended>=2*INCPLY &&
-                  depth+extended<3*INCPLY && fscore<=alpha) {
-                fprune=1;
-                fmax=fscore;
-              }
-              fscore=-Material+FUTILITY_MARGIN;
-              if (depth+extended<2*INCPLY && fscore<=alpha) {
-                fprune=1;
-                fmax=fscore;
-              }
-            }
+            if (depth<3*INCPLY && (-Material+F_MARGIN)<=alpha) fprune=1;
+            else if (depth>=3*INCPLY && depth<5*INCPLY &&
+                     (-Material+RAZOR_MARGIN)<=alpha) extended-=60;
           }
         }
       }
@@ -241,7 +212,7 @@ int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
             SearchOutput(tree,value,beta);
             root_value=value;
           }
-          UnLock(lock_root);
+          Unlock(lock_root);
         }
         if(value >= beta) {
           register int proc;
@@ -255,8 +226,8 @@ int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
               if (tree->parent->siblings[proc] && proc != tree->thread_id)
                 ThreadStop(tree->parent->siblings[proc]);
           }
-          UnLock(tree->parent->lock);
-          UnLock(lock_smp);
+          Unlock(tree->parent->lock);
+          Unlock(lock_smp);
           break;
         }
         alpha=value;

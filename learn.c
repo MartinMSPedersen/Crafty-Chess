@@ -1182,8 +1182,8 @@ void LearnPositionLoad(void) {
   for (n=0;n<positions;n++) {
     fread(&word1,sizeof(BITBOARD),1,position_file);
     fread(&word2,sizeof(BITBOARD),1,position_file);
-    htable=trans_ref_a+(((int) word2)&hash_maska);
-    htable->word1=word1;
-    htable->word2=word2 ^ word1;
+    htable=trans_ref+(((int) word2)&hash_mask);
+    htable->prefer.word1=word1;
+    htable->prefer.word2=word2 ^ word1;
   }
 }

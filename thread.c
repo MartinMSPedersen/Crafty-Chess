@@ -35,7 +35,7 @@ int Thread(TREE *tree) {
   Lock(lock_smp);
   for (proc=0;proc<max_threads && thread[proc];proc++);
   if (proc == max_threads || tree->stop) {
-    UnLock(lock_smp);
+    Unlock(lock_smp);
     return(0);
   }
 # if defined(DEBUGSMP)
@@ -46,7 +46,7 @@ int Thread(TREE *tree) {
   for (proc=0;proc<max_threads;proc++) 
     if (!thread[proc]) Print(128," %d",proc);
   Print(128,"\n");
-  UnLock(lock_io);
+  Unlock(lock_io);
 #endif
 /*
  ----------------------------------------------------------
@@ -84,7 +84,7 @@ int Thread(TREE *tree) {
   }
   tree->search_value=tree->value;
   if (!nblocks) {
-    UnLock(lock_smp);
+    Unlock(lock_smp);
     thread[tree->thread_id]=tree;
     splitting=0;
     return(0);
@@ -123,7 +123,7 @@ int Thread(TREE *tree) {
 |                                                          |
  ----------------------------------------------------------
 */
-  UnLock(lock_smp);
+  Unlock(lock_smp);
   ThreadWait(tree->thread_id, tree);
 # if defined(DEBUGSMP)
   Print(128,"thread %d  block %d  ply %d  parallel join\n",
@@ -171,12 +171,12 @@ void ThreadStop(TREE *tree) {
   tree->stop=1;
   for (proc=0;proc<max_threads;proc++)
     if (tree->siblings[proc]) ThreadStop(tree->siblings[proc]);
-  UnLock(tree->lock);
+  Unlock(tree->lock);
 #if defined(DEBUGSMP)
   Lock(lock_io);
   Print(128,"thread %d (block %d) being stopped by beta cutoff.\n",
         tree->thread_id,FindBlockID(tree));
-  UnLock(lock_io);
+  Unlock(lock_io);
 #endif
 }
 
@@ -210,7 +210,7 @@ int ThreadWait(int tid, TREE *waiting) {
     Lock(lock_smp);
     cpu_time_used+=ReadClock(cpu)-thread_start_time[tid];
     smp_idle++;
-    UnLock(lock_smp);
+    Unlock(lock_smp);
 #if defined(DEBUGSMP)
     Lock(lock_io);
     Print(128,"thread %d now idle (%d procs, %d idle).\n",
@@ -218,7 +218,7 @@ int ThreadWait(int tid, TREE *waiting) {
     if (FindBlockID(waiting) >= 0)
       Print(128,"thread %d  waiting on block %d, still %d threads busy there\n",
             tid,FindBlockID(waiting), waiting->nprocs);
-    UnLock(lock_io);
+    Unlock(lock_io);
 #endif
 /*
  ----------------------------------------------------------
@@ -231,8 +231,8 @@ int ThreadWait(int tid, TREE *waiting) {
 |                                                          |
  ----------------------------------------------------------
 */
-    while (!thread[tid] && !quit && (!waiting || waiting->nprocs));
-    if (quit) exit(0);
+    while (!thread[tid] && !quit && (!waiting || waiting->nprocs)) Pause();
+    if (quit) return(0);
     Lock(lock_smp);
     if (!thread[tid]) thread[tid]=waiting;
 /*
@@ -247,7 +247,7 @@ int ThreadWait(int tid, TREE *waiting) {
     Lock(lock_io);
     Print(128,"thread %d now has work at block %d.\n",
           tid,FindBlockID(thread[tid]));
-    UnLock(lock_io);
+    Unlock(lock_io);
 #endif
     smp_idle--;
 /*
@@ -260,12 +260,12 @@ int ThreadWait(int tid, TREE *waiting) {
  ----------------------------------------------------------
 */
     thread_start_time[tid]=ReadClock(cpu);
-    UnLock(lock_smp);
+    Unlock(lock_smp);
     if (thread[tid] == waiting) return(0);
-    if (thread[tid] == (TREE*) -1) {
+    if (quit || thread[tid] == (TREE*) -1) {
       Lock(lock_io);
       Print(128,"thread %d exiting\n",tid);
-      UnLock(lock_io);
+      Unlock(lock_io);
       return(0);
     }
 /*
@@ -287,7 +287,7 @@ int ThreadWait(int tid, TREE *waiting) {
     Lock(lock_io);
     Print(128,"thread %d  block %d marked free at ply %d\n",
           tid,FindBlockID(thread[tid]),thread[tid]->ply);
-    UnLock(lock_io);
+    Unlock(lock_io);
 #endif
     CopyFromSMP((TREE*)thread[tid]->parent,thread[tid]);
     thread[tid]->parent->nprocs--;
@@ -295,20 +295,20 @@ int ThreadWait(int tid, TREE *waiting) {
     Lock(lock_io);
     Print(128, "thread %d decremented block %d  nprocs=%d\n",
           tid, FindBlockID(thread[tid]->parent),thread[tid]->parent->nprocs);
-    UnLock(lock_io);
+    Unlock(lock_io);
 #endif
     thread[tid]->parent->siblings[tid]=0;
-    UnLock(thread[tid]->parent->lock);
+    Unlock(thread[tid]->parent->lock);
 #if defined(DEBUGSMP)
     Lock(lock_io);
     Print(128,"thread %d  block %d  parent %d  nprocs %d exit at ply %d\n",
           tid,FindBlockID(thread[tid]),
           FindBlockID(thread[tid]->parent),
           thread[tid]->parent->nprocs,thread[tid]->ply);
-    UnLock(lock_io);
+    Unlock(lock_io);
 #endif
     thread[tid]=0;
-    UnLock(lock_smp);
+    Unlock(lock_smp);
   }
 }
 #endif

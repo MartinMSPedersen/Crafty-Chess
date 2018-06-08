@@ -2908,13 +2908,27 @@
 *           game position that is easy to win.  futility pruning and razoring *
 *           (Jeremiah Penery) was added.  to endable it, you will need to add *
 *           -DFUTILITY to the Makefile options, otherwise it is disabled by   *
-*           default.                                                          *
+*           default.  EvaluateWinner() had a bug dealing with KR vs KN or     *
+*           KRR vs KRN(B) that has been fixed.                                *
+*                                                                             *
+*   19.2    CCT-5 version 01/20/03.                                           *
+*           changes to the LimitExtensions() macro.  the extensions are now   *
+*           a bit more aggressive, but after 2*iteration_depth, then they     *
+*           taper off smoothly so that by the time the depth reaches          *
+*           4*iteration_depth, the extensions are cut to zero.  fixed bug in  *
+*           EvaluatePawns() that missed candidate passed pawns so that the    *
+*           new endgame stuff didn't work completely.  change to hash.c to    *
+*           combine the two hash tables into one so that the two probed       *
+*           entries are adjacent in memory to be more cache friendly.  A bug  *
+*           in moving a replaced entry from depth-preferred to always-store   *
+*           caused the moved entry to go to the wrong address which would     *
+*           make it impossible to match later.  new hash table layout is more *
+*           cache-friendly by putting one entry from depth-preferred table    *
+*           with two entries from always-store, so that they often end up in  *
+*           the same cache-line.                                              *
 *                                                                             *
 *******************************************************************************
 */
-void SigInt(int type) {
-  exit(1);
-}
 int main(int argc, char **argv) {
   int move, presult, readstat;
   int value=0, i, cont=0, result;
@@ -2945,10 +2959,14 @@ int main(int argc, char **argv) {
   directory_spec=getenv("CRAFTY_RC_PATH");
   if (directory_spec)
     strncpy (rc_path, directory_spec, sizeof rc_path);
-  if (getenv("CRAFTY_XBOARD"))
+  if (getenv("CRAFTY_XBOARD")) {
     Print(128,"feature done=0\n");
-  else if (argc>1 && !strcmp(argv[1],"xboard"))
+    done=0;
+  }
+  else if (argc>1 && !strcmp(argv[1],"xboard")) {
     Print(128,"feature done=0\n");
+    done=0;
+  }
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -3061,7 +3079,6 @@ int main(int argc, char **argv) {
   input_stream=stdin;
 #if defined(UNIX)
   if (xboard) signal(SIGINT,SIG_IGN);
-  else signal(SIGINT,SigInt);
 #endif
 #if defined(SMP)
   Print(128,"\nCrafty v%s (%d cpus)\n\n",version,Max(max_threads,1));
@@ -3093,6 +3110,10 @@ int main(int argc, char **argv) {
       display=tree->pos;
       move=0;
       presult=0;
+      if (done == 0 && xboard) {
+        done=1;
+        Print(128,"done=1\n");
+      }
       do {
         if (presult != 2) presult=0;
         result=0;
@@ -3229,7 +3250,7 @@ int main(int argc, char **argv) {
       int drawsc=abs_draw_score;
       draw_offer_pending=0;
       if (move_number<40 || !accept_draws) drawsc=-300;
-      if (last_search_value<=drawsc && (tc_increment!=0 ||
+      if (value<=drawsc && (tc_increment!=0 ||
           tc_time_remaining_opponent>=1000)) {
         if (xboard) Print(4095,"tellics draw\n");
         else Print(128,"Draw accepted.\n");

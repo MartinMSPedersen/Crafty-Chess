@@ -427,10 +427,9 @@ int Iterate(int wtm, int search_type, int root_list_done) {
     used=0;
 #if !defined(FAST)
     for (i=0;i<hash_table_size;i++) {
-      if ((trans_ref_a+i)->word1>>61 == transposition_id) used++;
-    }
-    for (i=0;i<hash_table_size*2;i++) {
-      if ((trans_ref_b+i)->word1>>61 == transposition_id) used++;
+      if ((trans_ref+i)->prefer.word1>>61 == transposition_id) used++;
+      if ((trans_ref+i)->always[0].word1>>61 == transposition_id) used++;
+      if ((trans_ref+i)->always[1].word1>>61 == transposition_id) used++;
     }
 #endif
     end_time=ReadClock(time_type);
@@ -492,6 +491,5 @@ int Iterate(int wtm, int search_type, int root_list_done) {
   }
   program_end_time=ReadClock(time_type);
   search_move=0;
-  if (quit) exit(0);
   return(last_root_value);
 }

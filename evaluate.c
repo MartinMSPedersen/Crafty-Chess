@@ -4,7 +4,7 @@
 #include "evaluate.h"
 #include "data.h"
 
-/* last modified 05/09/02 */
+/* last modified 01/13/03 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -46,9 +46,9 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta) {
     can_win=EvaluateWinner(tree);
     if (EvaluateStalemate(tree,wtm)) can_win=0;
   }
-  if (can_win == 0) return(DrawScore(wtm));
+  if (can_win==0 && TotalWhitePawns+TotalBlackPawns) return(DrawScore(wtm));
 #if defined(DETECTDRAW)
-  if (TotalWhitePawns > 2 && TotalBlackPawns > 2 && !(WhiteKnights|BlackKnights))
+  if (TotalWhitePawns>2 && TotalBlackPawns>2 && !(WhiteKnights|BlackKnights))
     drawing=EvaluateDraws(tree,wtm);
   if (!drawing) return(DrawScore(wtm));
 #endif
@@ -76,8 +76,8 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta) {
 #ifdef DEBUGEV
     printf("score[mater]=                     %4d (%+d)\n",score,score-lastsc);
 #endif
-    if (score>DrawScore(1) && !(can_win&1)) return(DrawScore(wtm));
-    if (score<DrawScore(1) && !(can_win&2)) return(DrawScore(wtm));
+    if (score>DrawScore(1) && !(can_win&1)) score=score>>2;
+    if (score<DrawScore(1) && !(can_win&2)) score=score>>2;
     return((wtm) ? score : -score);
   } while(0);
 #if !defined(FAST)
@@ -111,13 +111,18 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta) {
 *        xxxx 1xxx   (8) -> black has 2 outside c/p                  *
 *        xxx1 xxxx  (16) -> white has split passers                  *
 *                           black does not                           *
-*        xx1x xxxx  (32) -> black has split passers                  *
-*                           white does not                           *
 *                                                                    *
 **********************************************************************
 */
   if (tree->pawn_score.passed_b || tree->pawn_score.passed_w) {
     int pscore=EvaluatePassedPawns(tree);
+    if ((TotalWhitePieces==0 && tree->pawn_score.passed_b) ||
+        (TotalBlackPieces==0 && tree->pawn_score.passed_w))
+      pscore+=EvaluatePassedPawnRaces(tree,wtm);
+    score+=pscore*passed_scale/100;
+  }
+  if (tree->pawn_score.outside) {
+    int pscore=0;
     if (tree->pawn_score.outside&16)
       pscore+=3*outside_passed[(int) TotalBlackPieces];
     else if (tree->pawn_score.outside&32)
@@ -130,9 +135,6 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta) {
       pscore-=2*outside_passed[(int) TotalWhitePieces];
     else if (tree->pawn_score.outside&4)
       pscore-=outside_passed[(int) TotalWhitePieces];
-    if ((TotalWhitePieces==0 && tree->pawn_score.passed_b) ||
-        (TotalBlackPieces==0 && tree->pawn_score.passed_w))
-      pscore+=EvaluatePassedPawnRaces(tree,wtm);
     score+=pscore*passed_scale/100;
   }
   if (TotalWhitePieces+TotalBlackPieces == 0) {
@@ -182,24 +184,32 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta) {
 |   check to see if the bishop is trapped at a2 or h2 with |
 |   a pawn at b2 or g2 that can advance one square and     |
 |   trap the bishop, or a pawn at b3 or g3 that has        |
-|   trapped the bishop already.  also make sure that this  |
-|   pawn is defended to close the trap.                    |
+|   trapped the bishop already.  also test for the bishop  |
+|   at b1 or g1 as that might not be an escape.            |
 |                                                          |
  ----------------------------------------------------------
 */
   if (WhiteBishops) {
-    if (WhiteBishops&mask_A7H7) {
+    if (WhiteBishops&mask_WBT) {
       if (WhiteBishops&SetMask(A7) && SetMask(B6)&BlackPawns)
         score-=BISHOP_TRAPPED;
+      else if (WhiteBishops&SetMask(B8) && SetMask(C7)&BlackPawns)
+        score-=BISHOP_TRAPPED;
       else if (WhiteBishops&SetMask(H7) && SetMask(G6)&BlackPawns)
+        score-=BISHOP_TRAPPED;
+      else if (WhiteBishops&SetMask(G8) && SetMask(F7)&BlackPawns)
         score-=BISHOP_TRAPPED;
     }
   }
   if (BlackBishops) {
-    if (BlackBishops&mask_A2H2) {
+    if (BlackBishops&mask_BBT) {
       if (BlackBishops&SetMask(A2) && SetMask(B3)&WhitePawns)
         score+=BISHOP_TRAPPED;
+      else if (BlackBishops&SetMask(B1) && SetMask(C2)&WhitePawns)
+        score+=BISHOP_TRAPPED;
       else if (BlackBishops&SetMask(H2) && SetMask(G3)&WhitePawns)
+        score+=BISHOP_TRAPPED;
+      else if (BlackBishops&SetMask(G1) && SetMask(F2)&WhitePawns)
         score+=BISHOP_TRAPPED;
     }
   }
@@ -1141,7 +1151,7 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta) {
   return((wtm) ? score : -score);
 }
 
-/* last modified 10/20/99 */
+/* last modified 01/13/03 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -1221,7 +1231,7 @@ int EvaluateDevelopmentB(TREE * RESTRICT tree, int ply) {
         possible=tree->pawn_score.black_defects_k;
       }
     }
-    else if (BlackCastle(1)==3 && BlackCastle(ply)>0 && BlackCastle(ply)!=3) {
+    else if (BlackCastle(ply)>0 && BlackCastle(ply)!=3) {
       if (BlackCastle(ply)&1) {
         real=tree->pawn_score.black_defects_k;
         possible=tree->pawn_score.black_defects_q;
@@ -1237,8 +1247,12 @@ int EvaluateDevelopmentB(TREE * RESTRICT tree, int ply) {
     if (BlackCastle(ply) == 0) {
       register int wq;
       wq=(WhiteQueens) ? 2 : 1;
-      score+=(!root_wtm) ? 2*wq*DEVELOPMENT_LOSING_CASTLE :
-                             wq*DEVELOPMENT_LOSING_CASTLE;
+      score+=(ChangeSide(root_wtm)) ? 2*wq*DEVELOPMENT_LOSING_CASTLE :
+                                     wq*DEVELOPMENT_LOSING_CASTLE;
+    }
+    else if (BlackCastle(ply) < 0) {
+      int cmove=((-BlackCastle(ply))>>2)+1;
+      score-=DEVELOPMENT_CASTLE_BONUS/cmove;
     }
     if (BlackCastle(ply) > 0) score+=DEVELOPMENT_NOT_CASTLED;
   }
@@ -1248,7 +1262,7 @@ int EvaluateDevelopmentB(TREE * RESTRICT tree, int ply) {
   return(score);
 }
 
-/* last modified 10/20/99 */
+/* last modified 01/13/03 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -1346,6 +1360,10 @@ int EvaluateDevelopmentW(TREE * RESTRICT tree, int ply) {
       bq=(BlackQueens) ? 2 : 1;
       score-=(root_wtm) ? 2*bq*DEVELOPMENT_LOSING_CASTLE :
                             bq*DEVELOPMENT_LOSING_CASTLE;
+    }
+    else if (WhiteCastle(ply) < 0) {
+      int cmove=((-WhiteCastle(ply))>>2)+1;
+      score+=DEVELOPMENT_CASTLE_BONUS/cmove;
     }
     if (WhiteCastle(ply) > 0) score-=DEVELOPMENT_NOT_CASTLED;
   }
@@ -1519,7 +1537,7 @@ int EvaluateKingSafety(TREE * RESTRICT tree, int ply) {
         if (BlackRooks && BlackQueens) score-=KING_SAFETY_MATE_THREAT;
       }
     }
-    if (!root_wtm && File(BlackKingSQ) >= FILEE) {
+    if (ChangeSide(root_wtm) && File(BlackKingSQ) >= FILEE) {
       if (!(tree->all_pawns&file_mask[FILEH])) {
         if (WhiteRooks && WhiteQueens) score+=KING_SAFETY_MATE_THREAT;
       }
@@ -1595,7 +1613,7 @@ int EvaluateKingSafety(TREE * RESTRICT tree, int ply) {
     if (File(BlackKingSQ) >= FILEE) {
       if (File(BlackKingSQ) == FILEH) tree->b_kingsq&=62;
       tree->b_safety+=tree->pawn_score.black_defects_k;
-      if (!root_wtm && use_asymmetry) {
+      if (ChangeSide(root_wtm) && use_asymmetry) {
         if (File(WhiteKingSQ) <= FILED) tree->b_safety+=CASTLE_OPPOSITE;
       }
       if (!(BlackPawns&SetMask(G7))) {
@@ -1614,7 +1632,7 @@ int EvaluateKingSafety(TREE * RESTRICT tree, int ply) {
     else if (File(BlackKingSQ) <= FILED) {
       if (File(BlackKingSQ) == FILEA) tree->b_kingsq|=1;
       tree->b_safety+=tree->pawn_score.black_defects_q;
-      if (!root_wtm && use_asymmetry) {
+      if (ChangeSide(root_wtm) && use_asymmetry) {
         if (File(WhiteKingSQ) >= FILEE) tree->b_safety+=CASTLE_OPPOSITE;
       }
       if (!(BlackPawns&SetMask(B7))) {
@@ -3179,10 +3197,10 @@ int EvaluatePawns(TREE * RESTRICT tree) {
 |                                                          |
  ----------------------------------------------------------
 */
-  w_passers=tree->pawn_score.passed_w|tree->pawn_score.candidates_w;
-  b_passers=tree->pawn_score.passed_b|tree->pawn_score.candidates_b;
-  wop=is_outside[w_passers][tree->pawn_score.allb];
-  bop=is_outside[b_passers][tree->pawn_score.allw];
+  wop=is_outside[tree->pawn_score.passed_w][tree->pawn_score.allb] |
+      is_outside_c[tree->pawn_score.candidates_w][tree->pawn_score.allb];
+  bop=is_outside[tree->pawn_score.passed_b][tree->pawn_score.allw] |
+      is_outside_c[tree->pawn_score.candidates_b][tree->pawn_score.allw];
   if (wop || bop) {
     if (!wop || !bop) {
       if (wop > 1) tree->pawn_score.outside|=2;
@@ -3192,12 +3210,13 @@ int EvaluatePawns(TREE * RESTRICT tree) {
     }
   }
   else {
+    w_passers=tree->pawn_score.passed_w|tree->pawn_score.candidates_w;
+    b_passers=tree->pawn_score.passed_b|tree->pawn_score.candidates_b;
     if (file_spread[w_passers] > file_spread[b_passers])
       tree->pawn_score.outside|=16;
     else if (file_spread[b_passers] > file_spread[w_passers])
       tree->pawn_score.outside|=32;
   }
-
 /*
   if (tree->pawn_score.outside) {
     printf(">>>>>>>>>>>>>>>>>>>  outside=%x\n",tree->pawn_score.outside);
@@ -3324,7 +3343,7 @@ int EvaluateWinner(TREE * RESTRICT tree) {
   if (WhiteMajors == BlackMajors) {
     if (TotalWhitePawns==0 && WhiteMinors-BlackMinors==1) can_win&=2;
     if (TotalBlackPawns==0 && BlackMinors-WhiteMinors==1) can_win&=1;
-    if (can_win != 3) return(can_win);
+    if (can_win == 0) return(can_win);
   }
 /*
  ----------------------------------------------------------
@@ -3336,12 +3355,10 @@ int EvaluateWinner(TREE * RESTRICT tree) {
 */
   if (WhiteMajors != BlackMajors) {
     if ((WhiteMajors-BlackMajors) == (BlackMinors-WhiteMinors)) {
+      if (TotalBlackPawns==0) can_win&=1;
       if (TotalWhitePawns==0) can_win&=2;
     }
-    else if ((BlackMajors-WhiteMajors) == (WhiteMinors-BlackMinors)) {
-      if (TotalBlackPawns==0) can_win&=1;
-    }
-    return(can_win);
+    if (can_win == 0) return(can_win);
   }
 /*
  ----------------------------------------------------------
@@ -3539,17 +3556,14 @@ int EvaluateWinner(TREE * RESTRICT tree) {
 ********************************************************************************
 */
 
-#define DRAW       0
-#define DRAWISH    1
-#define NORMAL     2
-#define WINNING    3
+#define NODRAW       0
+#define DRAW         1
 
 int EvaluateDraws(TREE * RESTRICT tree, int wtm) {
   register int square, fdist, rdist,open=0,rank=0;
   int i,sq,blocked,defenders,attackers,kingpath=0,rookpath=0;
   int noblockw[2]={0,0},noblockb[2]={0,0};
   BITBOARD temp;
-  int white_nostop=0,black_nostop=0;
   int wp,bp;
   for (i=FILEA;i<=FILEH;i++) {
     temp=file_mask[i];
@@ -3649,21 +3663,18 @@ int EvaluateDraws(TREE * RESTRICT tree, int wtm) {
       else if (i==FILEH && open==2) kingpath=1;
     }
     if (kingpath) {
-      if (WhiteMajors && BlackMajors) return(NORMAL);
-      else if (WhiteMinors > 1 && BlackMinors > 1) return(NORMAL);
+      if (WhiteMajors && BlackMajors) return(NODRAW);
+      else if (WhiteMinors > 1 && BlackMinors > 1) return(NODRAW);
     }
     if (open) rookpath=1;
   }
   if (!rookpath) return(DRAW);
-  else if (WhiteMajors && BlackMajors) return(DRAWISH);
-  else if (WhiteMinors > 1 && BlackMinors > 1) return(DRAWISH);
   else if (!kingpath && !noblockw[0] && !noblockb[0]) return(DRAW);
   if (noblockw[1]) {
     fdist=FileDistance(noblockw[1],noblockw[0]);
-    if (!TotalBlackPieces) {
-      if (WhiteMajors) return(WINNING);
-      else if (WhiteMinors > 1) return(NORMAL);
-      else if (fdist > 1) white_nostop++;
+    if (WhiteMajors || WhiteMinors > 1) return(NODRAW);
+    else if (!TotalBlackPieces) {
+      if (fdist > 1) return(NODRAW);
       else {
         square=noblockw[1];
         if (Rank(square) >= RANK4) {
@@ -3671,156 +3682,89 @@ int EvaluateDraws(TREE * RESTRICT tree, int wtm) {
           fdist=FileDistance(square,BlackKingSQ);
           if (rdist < max(fdist,7-Rank(BlackKingSQ))-(1-wtm) ||
             (Rank(WhiteKingSQ) >= Rank(square) && kingpath))
-            white_nostop++;
+            return(NODRAW);
         }
       }
     }
-    else if (!noblockb[0]) {
-      if (WhiteMinors+PopCnt(WhiteRooks|WhiteQueens) > BlackMinors+PopCnt(BlackRooks|BlackQueens)) return(WINNING);
-      else if (WhiteMinors+PopCnt(WhiteRooks|WhiteQueens)+2 >= BlackMinors+PopCnt(BlackRooks|BlackQueens)) return(DRAWISH);
-      else return(NORMAL);
-    }
+    else if (!noblockb[0] && !kingpath && !BlackMajors && BlackMinors<=1)
+      return(DRAW);
   }
-  else if (noblockw[0]) {
-    if (!TotalBlackPieces) {
-      if (WhiteMajors) return(WINNING);
-      else if (WhiteMinors > 1) return(NORMAL);
+  if (noblockw[0]) {
+    if (WhiteMajors || WhiteMinors > 1) return(NODRAW);
+    else if (!TotalBlackPieces) {
       square=noblockw[0];
       if (Rank(square) >= RANK4) {
         rdist=7-Rank(square);
         fdist=FileDistance(square,BlackKingSQ);
         if (rdist < max(fdist,7-Rank(BlackKingSQ))-(1-wtm) ||
           (Rank(WhiteKingSQ) >= Rank(square) && kingpath))
-          white_nostop++;
+          return(NODRAW);
+        else if (!noblockb[0] && !kingpath && !WhiteMajors && WhiteMinors<=1)
+          return(DRAW);
       }
     }
-    else if (!noblockb[0]) {
-      if (kingpath) {
-        if (WhiteMinors+PopCnt(WhiteRooks|WhiteQueens) > BlackMinors+PopCnt(BlackRooks|BlackQueens)) return(NORMAL);
-        else if (WhiteMinors+PopCnt(WhiteRooks|WhiteQueens)+1 >= BlackMinors+PopCnt(BlackRooks|BlackQueens)) return(DRAWISH);
-        else return(WINNING);
-      }
-      else {
-        if (WhiteMinors+PopCnt(WhiteRooks|WhiteQueens) > BlackMinors+PopCnt(BlackRooks|BlackQueens)) return(DRAWISH);
-        else if (WhiteMinors+PopCnt(WhiteRooks|WhiteQueens)+1 >= BlackMinors+PopCnt(BlackRooks|BlackQueens)) return(DRAW);
-        else return(NORMAL);
-      }
-    }
+    else if (!noblockb[0] && !kingpath && !BlackMajors && BlackMinors<=1)
+      return(DRAW);
   }
   if (noblockb[1]) {
     fdist=FileDistance(noblockb[1],noblockb[0]);
-    if (!TotalWhitePieces) {
-      if (BlackMajors) return(WINNING);
-      else if (BlackMinors > 1) return(NORMAL);
-      else if (fdist > 1) black_nostop++;
+    if (BlackMajors || BlackMinors > 1) return(NODRAW);
+    else if (!TotalWhitePieces) {
+      if (fdist > 1) return(NODRAW);
       else {
         square=noblockb[1];
         if (Rank(square) <= RANK5) {
           fdist=FileDistance(square,WhiteKingSQ);
           if (Rank(square) < max(fdist,Rank(WhiteKingSQ))-wtm ||
             (Rank(BlackKingSQ) <= Rank(square) && kingpath))
-            black_nostop++;
+            return(NODRAW);
         }
       }
     }
-    else if (!noblockw[0]) {
-      if (BlackMinors+PopCnt(BlackRooks|BlackQueens) > WhiteMinors+PopCnt(WhiteRooks|WhiteQueens)) return(WINNING);
-      else if (BlackMinors+PopCnt(BlackRooks|BlackQueens)+2 >= WhiteMinors+PopCnt(WhiteRooks|WhiteQueens)) return(DRAWISH);
-      else return(NORMAL);
-    }
+    else if (!noblockw[0] && !kingpath && !WhiteMajors && WhiteMinors<=1)
+      return(DRAW);
   }
-  else if (noblockb[0]) {
-    if (!TotalWhitePieces) {
-      if (BlackMajors) return(WINNING);
-      else if (BlackMinors > 1) return(NORMAL);
+  if (noblockb[0]) {
+    if (BlackMajors || BlackMinors > 1) return(NODRAW);
+    else if (!TotalWhitePieces) {
       square=noblockb[0];
       if (Rank(square) <= RANK5) {
         fdist=FileDistance(square,WhiteKingSQ);
         if (Rank(square) < max(fdist,Rank(WhiteKingSQ))-wtm ||
           (Rank(BlackKingSQ) <= Rank(square) && kingpath))
-          black_nostop++;
+          return(NODRAW);
+        else if (!noblockw[0] && !kingpath && !BlackMajors && BlackMinors<=1)
+          return(DRAW);
       }
     }
-    else if (!noblockw[0]) {
-      if (kingpath) {
-        if (BlackMinors+PopCnt(BlackRooks|BlackQueens) > WhiteMinors+PopCnt(WhiteRooks|WhiteQueens)) return(NORMAL);
-        else if (BlackMinors+PopCnt(BlackRooks|BlackQueens)+1 >= WhiteMinors+PopCnt(WhiteRooks|WhiteQueens)) return(DRAWISH);
-        else return(WINNING);
-      }
-      else {
-        if (BlackMinors+PopCnt(BlackRooks|BlackQueens) > WhiteMinors+PopCnt(WhiteRooks|WhiteQueens)) return(DRAWISH);
-        else if (BlackMinors+PopCnt(BlackRooks|BlackQueens)+1 >= WhiteMinors+PopCnt(WhiteRooks|WhiteQueens)) return(DRAW);
-        else return(NORMAL);
-      }
-    }
+    else if (!noblockw[0] && !kingpath && !WhiteMajors && WhiteMinors<=1)
+      return(DRAW);
   }
   else if (!(noblockb[0] || noblockw[0])) {
     if (!TotalWhitePieces && !TotalBlackPieces) {
       if (!kingpath) return(DRAW);
-      else if (HasOpposition(wtm,WhiteKingSQ,BlackKingSQ) && Rank(WhiteKingSQ) >= Rank(rank)) return(NORMAL);
-      else if (HasOpposition(ChangeSide(wtm),BlackKingSQ,WhiteKingSQ) && Rank(BlackKingSQ) <= Rank(rank)) return(NORMAL);
+      else if (HasOpposition(wtm,WhiteKingSQ,BlackKingSQ) &&
+        Rank(WhiteKingSQ) >= Rank(rank)) return(NODRAW);
+      else if (HasOpposition(ChangeSide(wtm),BlackKingSQ,WhiteKingSQ) &&
+        Rank(BlackKingSQ) <= Rank(rank)) return(NODRAW);
       else return(DRAW);
     }
     else if (!TotalWhitePieces) {
-      if (kingpath && BlackMinors) return(NORMAL);
-      else if (BlackMajors) return(WINNING);
-      else if (BlackMinors > 1) return(DRAWISH);
+      if (kingpath && BlackMinors|BlackMajors) return(NODRAW);
+      else if (!kingpath && (BlackMinors > 1 || BlackMajors))
+        return(NODRAW);
       else return(DRAW);
     }
     else if (!TotalBlackPieces) {
-      if (kingpath && WhiteMinors) return(NORMAL);
-      else if (WhiteMajors) return(WINNING);
-      else if (WhiteMinors > 1) return(DRAWISH);
+      if (kingpath && WhiteMinors|WhiteMajors) return(NODRAW);
+      else if (!kingpath && (WhiteMinors > 1 || WhiteMajors))
+        return(NODRAW);
       else return(DRAW);
     }
-    else {
-      if (WhiteMinors+PopCnt(WhiteRooks|WhiteQueens) > BlackMinors+PopCnt(BlackRooks|BlackQueens)) {
-        if (kingpath) return(NORMAL);
-        else return(DRAWISH);
-      }
-      if (BlackMinors+PopCnt(BlackRooks|BlackQueens) > WhiteMinors+PopCnt(WhiteRooks|WhiteQueens)) {
-        if (kingpath) return(NORMAL);
-        else return(DRAWISH);
-      }
-    }
+    else if (!kingpath && WhiteMinors+PopCnt(WhiteRooks|WhiteQueens) ==
+      BlackMinors+PopCnt(BlackRooks|BlackQueens))       return(DRAW);
+    else return(NODRAW);
   }      
-  if (!(white_nostop || black_nostop)) {
-    if (!kingpath) return(DRAW);
-    if (!TotalWhitePieces && !TotalBlackPieces) {
-      if (HasOpposition(wtm,WhiteKingSQ,BlackKingSQ) && Rank(WhiteKingSQ) >= Rank(rank)) return(NORMAL);
-      else if (HasOpposition(ChangeSide(wtm),BlackKingSQ,WhiteKingSQ) && Rank(BlackKingSQ) <= Rank(rank)) return(NORMAL);
-      else return(DRAW);
-    }
-    else if (!TotalBlackPieces) {
-      if (WhiteMajors) return(WINNING);
-      else if (!kingpath && WhiteMinors > 1) return(NORMAL);
-      else if (WhiteMinors && kingpath) {
-        if (WhiteMinors > 1) return(WINNING);
-        else return(NORMAL);
-      }
-      else return(DRAW);
-    }
-    else if (!TotalWhitePieces) {
-      if (BlackMajors) return(WINNING);
-      else if (BlackMinors > 1 && !kingpath) return(NORMAL);
-      else if (BlackMinors && kingpath) {
-        if (BlackMinors > 1) return(WINNING);
-        else return(NORMAL);
-      }
-      else return(DRAW);
-    }
-  }
-  i=white_nostop-black_nostop;
-  if (i > 0) {
-    if (WhiteMinors+PopCnt(WhiteRooks|WhiteQueens) > BlackMinors+PopCnt(BlackRooks|BlackQueens)) return(WINNING);
-    else if (WhiteMinors+PopCnt(WhiteRooks|WhiteQueens)+i > BlackMinors+PopCnt(BlackRooks|BlackQueens)) return(NORMAL);
-    else if (WhiteMinors+PopCnt(WhiteRooks|WhiteQueens)+i == BlackMinors+PopCnt(BlackRooks|BlackQueens)) return(DRAWISH);
-  }
-  else if (i < 0) {
-    if (BlackMinors+PopCnt(BlackRooks|BlackQueens) > WhiteMinors+PopCnt(WhiteRooks|WhiteQueens)) return(WINNING);
-    else if (BlackMinors+PopCnt(BlackRooks|BlackQueens)-i > WhiteMinors+PopCnt(WhiteRooks|WhiteQueens)) return(NORMAL);
-    else if (BlackMinors+PopCnt(BlackRooks|BlackQueens)-i == WhiteMinors+PopCnt(WhiteRooks|WhiteQueens)) return(DRAWISH);
-  }
-  return(NORMAL);
+  return(NODRAW);
 }
 #endif

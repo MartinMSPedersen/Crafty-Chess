@@ -113,13 +113,13 @@ int TimeCheck(TREE *tree, int abort) {
              DisplayTime(time_used),tree->remaining_moves_text);
     if (display_options&32 && display_options&64)
     printf("%d. ",move_number);
-    if ((display_options&32) && (display_options&64) && !root_wtm)
+    if ((display_options&32) && (display_options&64) && ChangeSide(root_wtm))
       printf("... ");
     printf("%s      \r",tree->root_move_text);
 #endif
     burp=(time_used/1500)*1500+1500;
     fflush(stdout);
-    UnLock(lock_io);
+    Unlock(lock_io);
   }
   if (pondering || analyze_mode) return(0);
   if (time_used > absolute_time_limit) return(1);
