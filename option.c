@@ -470,8 +470,7 @@ int Option(TREE * RESTRICT tree)
     Print(128, "playing a computer!\n");
     shared->computer_opponent = 1;
     accept_draws = 1;
-    resign = 5;
-    resign_count = 4;
+    resign = 9;
     book_selection_width = 1;
     usage_level = 0;
     books_file = (computer_bs_file) ? computer_bs_file : normal_bs_file;
@@ -3388,7 +3387,7 @@ int Option(TREE * RESTRICT tree)
 
     if (shared->thinking || shared->pondering)
       return (2);
-    shared->root_wtm = wtm;
+    shared->root_wtm = Flip(wtm);
     tree->position[1] = tree->position[0];
     PreEvaluate(tree, shared->root_wtm);
     s7 = Evaluate(tree, 1, wtm, -99999, 99999);

@@ -52,6 +52,8 @@
 #   -DEPD             if you want full EPD support built in.
 #   -DFAST            This option compiles out some of the statistics 
 #                     gathering to slightly speed up the code.
+#   -DFUTILITY        enables "futility pruning" a forward-pruning algorithm
+#                     that seems to be relatively safe.
 #   -DLOGDIR          path to the directory where Crafty puts the log.nnn and
 #                     game.nnn files.
 #   -DRCDIR           path to the directory where we look for the .craftyrc or
@@ -102,7 +104,7 @@ aix:
 		CC=cc CXX=$(CC) \
 		CFLAGS='$(CFLAGS) -O2' \
 		CXFLAGS=$(CFLAGS) \
-		opt='$(opt)' \
+		opt='$(opt) -DFUTILITY' \
 		crafty-make
 
 alpha:
@@ -112,7 +114,7 @@ alpha:
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS='$(LDFLAGS) $(CFLAGS)' \
 		LIBS='-lexc' \
-		opt='$(opt) -DSMP -DCPUS=8 -DFAST' \
+		opt='$(opt) -DFUTILITY -DSMP -DCPUS=8 -DFAST' \
 		crafty-make
 
 alpha-host:
@@ -122,7 +124,7 @@ alpha-host:
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS='$(LDFLAGS) $(CFLAGS)' \
 		LIBS='-lexc' \
-		opt='$(opt) -DSMP -DCPUS=8 -DFAST' \
+		opt='$(opt) -DFUTILITY -DSMP -DCPUS=8 -DFAST' \
 		crafty-make
 
 alpha-host-nocix:
@@ -132,7 +134,7 @@ alpha-host-nocix:
 		CXFLAGS='$(CFLAGS) -arch ev56 -tune host' \
 		LDFLAGS='$(LDFLAGS) $(CFLAGS)' \
 		LIBS='-lexc' \
-		opt='$(opt) -DSMP -DCPUS=8 -DFAST' \
+		opt='$(opt) -DFUTILITY -DSMP -DCPUS=8 -DFAST' \
 		crafty-make
 
 darwin:
@@ -142,7 +144,7 @@ darwin:
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS=$(LDFLAGS) \
 		LIBS='-lstdc++' \
-		opt='$(opt) -DFAST' \
+		opt='$(opt) -DFUTILITY -DFAST' \
 		crafty-make
 		
 freebsd:
@@ -151,7 +153,7 @@ freebsd:
 		CFLAGS='$(CFLAGS) -fomit-frame-pointer -m486 -O3 -Wall' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS=$(LDFLAGS) \
-		opt='$(opt) -DUSE_ASSEMBLY -DFAST' \
+		opt='$(opt) -DFUTILITY -DUSE_ASSEMBLY -DFAST' \
 		crafty-make
 
 freebsd-pgcc:
@@ -160,7 +162,7 @@ freebsd-pgcc:
 		CFLAGS='$(CFLAGS) -pipe -D_REENTRANT -mpentium -O -Wall' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS=$(LDFLAGS) \
-		opt='$(opt) -DUSE_ASSEMBLY -DFAST' \
+		opt='$(opt) -DFUTILITY -DUSE_ASSEMBLY -DFAST' \
 		crafty-make
 
 hpux:
@@ -176,10 +178,10 @@ linux:
 		CC=gcc CXX=g++ \
 		CFLAGS='$(CFLAGS) -Wall -pipe -D_REENTRANT -march=i686 -O3 \
 			-fbranch-probabilities -fforce-mem -fomit-frame-pointer\
-			-fno-gcse -mpreferred-stack-boundary=2' \
+			-g -fno-gcse -mpreferred-stack-boundary=2' \
 		CXFLAGS=$(CFLAGS) \
-		LDFLAGS='$(LDFLAGS) -lstdc++' \
-		opt='$(opt) -DFAST -DINLINE_ASM \
+		LDFLAGS='$(LDFLAGS) -g -lstdc++' \
+		opt='$(opt) -DFUTILITY -DFAST -DINLINE_ASM \
 			-DSMP -DCPUS=2' \
 		crafty-make
 
@@ -191,7 +193,7 @@ linux-amd64-profile:
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS='$(LDFLAGS) -lnuma -lstdc++' \
 		opt='$(opt)-DFAST -DSMP -DNUMA -DLIBNUMA -DCPUS=8 \
-			-DUSE_ASSEMBLY -DINLINE_AMD' \
+			-DFUTILITY -DUSE_ASSEMBLY -DINLINE_AMD' \
 		crafty-make
 
 linux-amd64:
@@ -202,19 +204,19 @@ linux-amd64:
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS='$(LDFLAGS) -lnuma -lstdc++' \
 		opt='$(opt) -DFAST -DSMP -DNUMA -DLIBNUMA -DCPUS=8 \
-			-DUSE_ASSEMBLY -DINLINE_AMD' \
+			-DFUTILITY -DUSE_ASSEMBLY -DINLINE_AMD' \
 		crafty-make
 
 linux-profile:
 	$(MAKE) target=LINUX \
 		CC=gcc CXX=g++ \
 		CFLAGS='$(CFLAGS) -Wall -pipe -D_REENTRANT -march=i686 -O3 \
-			-fprofile-arcs -fforce-mem -fomit-frame-pointer \
+			-fprofile-arcs -fforce-mem \
 			-fno-gcse -mpreferred-stack-boundary=2' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS='$(LDFLAGS) -fprofile-arcs -lstdc++ ' \
-		opt='$(opt) -DINLINE_ASM -DFAST \
-			-DSMP -DCPUS=2' \
+		opt='$(opt) -DFUTILITY -DINLINE_ASM -DFAST \
+			-DSMP -DCPUS=4' \
 		crafty-make
 
 linux-icc-profile:
@@ -226,7 +228,7 @@ linux-icc-profile:
 		CXFLAGS='$(CFLAGS) -D_REENTRANT -O2 \
 			-w -xN -prof_genx -prof_dir ./profdir' \
 		LDFLAGS='$(LDFLAGS) -lstdc++ ' \
-		opt='$(opt) -DFAST -DINLINE_ASM \
+		opt='$(opt) -DFUTILITY -DFAST -DINLINE_ASM \
 			-DSMP -DCPUS=2' \
 		crafty-make
 
@@ -239,7 +241,7 @@ linux-icc:
 		CXFLAGS='$(CFLAGS) -D_REENTRANT -O2 \
 			-w -xN -prof_use -prof_dir ./profdir' \
 		LDFLAGS='$(LDFLAGS) -lstdc++' \
-		opt='$(opt) -DFAST -DINLINE_ASM \
+		opt='$(opt) -DFUTILITY -DFAST -DINLINE_ASM \
 			-DSMP -DCPUS=2' \
 		crafty-make
 
@@ -250,7 +252,7 @@ linux-alpha:
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS='$(LDFLAGS) $(CFLAGS)' \
 		LIBS='' \
-		opt='$(opt) -DSMP -DCPUS=8 -DFAST\
+		opt='$(opt) -DFUTILITY -DSMP -DCPUS=8 -DFAST\
 			-DNOBUILTINS' \
 		crafty-make
 
@@ -262,7 +264,7 @@ netbsd:
 			-finline-functions -ffast-math' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS=$(LDFLAGS) \
-		opt='$(opt) -DFAST' \
+		opt='$(opt) -DFUTILITY -DFAST' \
 		crafty-make
 
 netbsd-i386:
@@ -273,7 +275,7 @@ netbsd-i386:
 			-finline-functions -ffast-math' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS=$(LDFLAGS) \
-		opt='$(opt) -DFAST -DUSE_ASSEMBLY' \
+		opt='$(opt) -DFUTILITY -DFAST -DUSE_ASSEMBLY' \
 		crafty-make
 
 netbsd-sparc:
@@ -284,7 +286,7 @@ netbsd-sparc:
 			-finline-functions -ffast-math' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS=$(LDFLAGS) \
-		opt='$(opt) -DFAST' \
+		opt='$(opt) -DFUTILITY -DFAST' \
 		crafty-make
 
 next:
@@ -293,7 +295,7 @@ next:
 		CFLAGS='$(CFLAGS) -O2' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS='$(LDFLAGS) $(CFLAGS)'
-		opt='$(opt)' \
+		opt='$(opt) -DFUTILITY' \
 		crafty-make
 
 os2:
@@ -302,7 +304,7 @@ os2:
 		CFLAGS='$(CFLAGS) -fomit-frame-pointer -m486 -O3 -Wall' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS='$(LDFLAGS) -Zexe -Zcrtdll -s' \
-		opt='$(opt) -DUSE_ASSEMBLY -DFAST' \
+		opt='$(opt) -DFUTILITY -DUSE_ASSEMBLY -DFAST' \
 		crafty-make
 
 sgi:
@@ -312,7 +314,7 @@ sgi:
 		CFLAGS='$(CFLAGS) -32 -mips2 -cckr' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS=$(LDFLAGS) \
-		opt='$(opt)' \
+		opt='$(opt) -DFUTILITY' \
 		crafty-make
 
 solaris:
@@ -321,7 +323,7 @@ solaris:
 		CFLAGS='$(CFLAGS) -fast -xO5 -xunroll=20' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS='$(LDFLAGS)' \
-		opt='$(opt) -DSMP -DCPUS=4' \
+		opt='$(opt) -DFUTILITY -DSMP -DCPUS=4' \
 		crafty-make
 
 solaris-gcc:
@@ -331,7 +333,7 @@ solaris-gcc:
 			-fforce-mem -fomit-frame-pointer' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS='$(LDFLAGS) -lstdc++' \
-		opt='$(opt) -DFAST' \
+		opt='$(opt) -DFUTILITY -DFAST' \
 		crafty-make
 
 generic:
@@ -345,7 +347,7 @@ profile:
 	@rm -rf position.bin
 	@mkdir profdir
 	@touch *.c *.cpp *.h
-	$(MAKE) linux-profile
+	$(MAKE) linux-icc-profile
 	@echo "#!/bin/csh" > runprof
 	@echo "./crafty <<EOF" >>runprof
 	@echo "st=10" >>runprof
@@ -413,22 +415,21 @@ profile:
 	@echo "EOF" >>runprof
 	@chmod +x runprof
 	@./runprof
-
-#	@echo "#!/bin/csh" > runprof
-#	@echo "./crafty <<EOF" >>runprof
-#	@echo "st=10" >>runprof
-#	@echo "ponder=off" >>runprof
-#	@echo "mt=2" >>runprof
-#	@echo "setboard 2r2rk1/1bqnbpp1/1p1ppn1p/pP6/N1P1P3/P2B1N1P/1B2QPP1/R2R2K1 b" >>runprof
-#	@echo "move" >>runprof
-#	@echo "mt=0" >>runprof
-#	@echo "quit" >>runprof
-#	@echo "EOF" >>runprof
-#	@chmod +x runprof
-#	@./runprof
+	@echo "#!/bin/csh" > runprof
+	@echo "./crafty <<EOF" >>runprof
+	@echo "st=10" >>runprof
+	@echo "ponder=off" >>runprof
+	@echo "mt=2" >>runprof
+	@echo "setboard 2r2rk1/1bqnbpp1/1p1ppn1p/pP6/N1P1P3/P2B1N1P/1B2QPP1/R2R2K1 b" >>runprof
+	@echo "move" >>runprof
+	@echo "mt=0" >>runprof
+	@echo "quit" >>runprof
+	@echo "EOF" >>runprof
+	@chmod +x runprof
+	@./runprof
 	@rm runprof
 	@touch *.c *.cpp *.h
-	$(MAKE) linux
+	$(MAKE) linux-icc
 
 #
 #  one of the two following definitions for "objects" should be used.  The
@@ -439,14 +440,14 @@ profile:
 #  compiling both ways to see which way produces the fastest code.
 #
 
-#objects = searchr.o search.o thread.o searchmp.o repeat.o next.o nexte.o      \
+objects = searchr.o search.o thread.o searchmp.o repeat.o next.o nexte.o      \
        nextr.o history.o quiesce.o evaluate.o movgen.o make.o unmake.o hash.o  \
        attacks.o swap.o boolean.o utility.o valid.o probe.o book.o data.o      \
        drawn.o edit.o epd.o epdglue.o init.o input.o interupt.o iterate.o      \
        main.o option.o output.o ponder.o preeval.o resign.o root.o learn.o     \
        setboard.o test.o time.o validate.o annotate.o analyze.o evtest.o       \
        bench.o egtb.o dgt.o
-objects = crafty.o egtb.o
+#objects = crafty.o egtb.o
 
 # Do not change anything below this line!
 

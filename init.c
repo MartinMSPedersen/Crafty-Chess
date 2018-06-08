@@ -6,6 +6,7 @@
 #include "data.h"
 #if defined(UNIX) || defined(AMIGA)
 #  include <unistd.h>
+#  include <sys/types.h>
 #endif
 #if defined(UNIX)
 #  include <sys/stat.h>
@@ -154,8 +155,11 @@ void Initialize(int continuing)
   if (computer_bs_file)
     Print(128, "found computer opening book file [%s/bookc.bin].\n", book_path);
   if (book_file) {
+    int maj_min;
+
     fseek(book_file, -sizeof(int), SEEK_END);
-    fread(&major, sizeof(int), 1, book_file);
+    fread(&maj_min, 4, 1, book_file);
+    major = BookIn32((unsigned char *) &maj_min);
     minor = major & 65535;
     major = major >> 16;
     if (major < 17 || (major == 17 && minor < 0)) {

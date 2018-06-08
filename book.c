@@ -64,6 +64,7 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
       -999999;
   int nflagged, im, value, np, book_ponder_move;
   int cluster, scluster, test;
+  unsigned char buf32[4];
   BITBOARD temp_hash_key, common;
   int key, nmoves, num_selected, st;
   int percent_played, total_played, total_moves, smoves;
@@ -96,11 +97,13 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
   smoves = 0;
   if (books_file) {
     fseek(books_file, test * sizeof(int), SEEK_SET);
-    fread(&key, sizeof(int), 1, books_file);
+    fread(buf32, 4, 1, books_file);
+    key = BookIn32(buf32);
     if (key > 0) {
       fseek(books_file, key, SEEK_SET);
-      fread(&scluster, sizeof(int), 1, books_file);
-      fread(books_buffer, sizeof(BOOK_POSITION), scluster, books_file);
+      fread(buf32, 4, 1, books_file);
+      scluster = BookIn32(buf32);
+      BookClusterIn(books_file, scluster, book_buffer);
       for (im = 0; im < shared->n_root_moves; im++) {
         common = HashKey & mask_16;
         MakeMove(tree, 1, shared->root_moves[im].move, wtm);
@@ -111,8 +114,8 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
         temp_hash_key = HashKey ^ wtm_random[wtm];
         temp_hash_key = (temp_hash_key & ~mask_16) | common;
         for (i = 0; i < scluster; i++)
-          if (!(temp_hash_key ^ books_buffer[i].position)) {
-            start_moves[smoves++] = books_buffer[i];
+          if (!(temp_hash_key ^ book_buffer[i].position)) {
+            start_moves[smoves++] = book_buffer[i];
             break;
           }
         UnmakeMove(tree, 1, shared->root_moves[im].move, wtm);
@@ -132,11 +135,13 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
   test = HashKey >> 49;
   if (book_file) {
     fseek(book_file, test * sizeof(int), SEEK_SET);
-    fread(&key, sizeof(int), 1, book_file);
+    fread(buf32, 4, 1, book_file);
+    key = BookIn32(buf32);
     if (key > 0) {
       fseek(book_file, key, SEEK_SET);
-      fread(&cluster, sizeof(int), 1, book_file);
-      fread(book_buffer, sizeof(BOOK_POSITION), cluster, book_file);
+      fread(buf32, 4, 1, book_file);
+      cluster = BookIn32(buf32);
+      BookClusterIn(book_file, cluster, book_buffer);
     } else
       cluster = 0;
     if (!cluster && !smoves)
@@ -803,6 +808,7 @@ int BookPonderMove(TREE * RESTRICT tree, int wtm)
   static int book_moves[200];
   int i, key, *lastm, cluster, n_moves, im, played, tplayed;
   int book_ponder_move = 0, test;
+  unsigned char buf32[4];
 
 /*
  ************************************************************
@@ -817,11 +823,13 @@ int BookPonderMove(TREE * RESTRICT tree, int wtm)
   if (book_file) {
     test = HashKey >> 49;
     fseek(book_file, test * sizeof(int), SEEK_SET);
-    fread(&key, sizeof(int), 1, book_file);
+    fread(buf32, 4, 1, book_file);
+    key = BookIn32(buf32);
     if (key > 0) {
       fseek(book_file, key, SEEK_SET);
-      fread(&cluster, sizeof(int), 1, book_file);
-      fread(book_buffer, sizeof(BOOK_POSITION), cluster, book_file);
+      fread(buf32, 4, 1, book_file);
+      cluster = BookIn32(buf32);
+      BookClusterIn(book_file, cluster, book_buffer);
     } else
       cluster = 0;
     if (!cluster)
@@ -1257,7 +1265,15 @@ void BookUp(TREE * RESTRICT tree, int nargs, char **args)
             current.status_played += played;
           current.learn = 0.0;
           current.CAP_score = -MATE * 2;
-          stat = fwrite(&current, sizeof(BOOK_POSITION), 1, book_file);
+          memcpy((void *) &book_buffer_char[0].position,
+            (void *) BookOut64(current.position), 8);
+          memcpy((void *) &book_buffer_char[0].status_played,
+            (void *) BookOut32(current.status_played), 4);
+          memcpy((void *) &book_buffer_char[0].learn,
+            (void *) BookOut32(current.learn), 4);
+          memcpy((void *) &book_buffer_char[0].CAP_score,
+            (void *) BookOut32(current.CAP_score), 4);
+          stat = fwrite(book_buffer_char, BOOK_POSITION_SIZE, 1, book_file);
           if (stat != 1)
             Print(4095, "ERROR!  write failed, disk probably full.\n");
         } else if (played < min_played)
@@ -1267,6 +1283,7 @@ void BookUp(TREE * RESTRICT tree, int nargs, char **args)
         if (last != (int) (next.position >> 49)) {
           next_cluster = ftell(book_file);
           fseek(book_file, cluster_seek, SEEK_SET);
+          memcpy((void *) &cluster, BookOut32(cluster), 4);
           stat = fwrite(&cluster, sizeof(int), 1, book_file);
           if (stat != 1)
             Print(4095, "ERROR!  write failed, disk probably full.\n");
@@ -1295,9 +1312,13 @@ void BookUp(TREE * RESTRICT tree, int nargs, char **args)
       }
     }
     fseek(book_file, 0, SEEK_SET);
-    fwrite(index, sizeof(int), 32768, book_file);
+    for (i=0; i<32768; i++) {
+      memcpy((void *) &cluster, (void *) BookOut32(index[i]), 4);
+      fwrite(&cluster, 4, 1, book_file);
+    }
     fseek(book_file, 0, SEEK_END);
-    fwrite(&major, sizeof(int), 1, book_file);
+    memcpy((void *) &cluster, (void *) BookOut32(major), 4);
+    fwrite(&cluster, 4, 1, book_file);
 /*
  ************************************************************
  *                                                          *

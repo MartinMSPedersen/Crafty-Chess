@@ -25,6 +25,7 @@ int       solution_type;
 char      cmd_buffer[4096];
 char     *args[256];
 char      buffer[512];
+unsigned char convert_buff[8];
 int       nargs;
 int       ponder_value;
 int       move_actually_played;
@@ -182,8 +183,8 @@ BITBOARD  white_pawn_race_btm[64];
 BITBOARD  black_pawn_race_wtm[64];
 BITBOARD  black_pawn_race_btm[64];
 BOOK_POSITION book_buffer[BOOK_CLUSTER_SIZE];
-BOOK_POSITION books_buffer[BOOK_CLUSTER_SIZE];
-# define    VERSION                             "19.20"
+BOOK_POSITION book_buffer_char[BOOK_CLUSTER_SIZE];
+# define    VERSION                             "20.0"
 char      version[6] = { VERSION };
 PLAYING_MODE mode = normal_mode;
 int       batch_mode = 0;       /* no asynch reads */
@@ -676,7 +677,7 @@ int queen_rook_on_7th_rank = 10;
 int queen_king_safety = 6;
 int queen_vs_2_rooks = 50;
 int queen_is_strong = 30;
-int queen_offside_tropism = 8;
+int queen_offside = -40;
 int king_safety_mate_g2g7 = 3;
 int king_safety_mate_threat = 600;
 int king_safety_open_file = 4;

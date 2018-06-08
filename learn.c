@@ -33,6 +33,7 @@ void LearnBook(TREE * RESTRICT tree, int wtm, int search_value,
     int search_depth, int lv, int force)
 {
   int nplies = 0, thisply = 0;
+  char buf32[4];
 
 /*
  ************************************************************
@@ -222,12 +223,14 @@ void LearnBook(TREE * RESTRICT tree, int wtm, int search_value,
         tree->last[1] = GenerateCaptures(tree, 1, wtm, tree->last[0]);
         tree->last[1] = GenerateNonCaptures(tree, 1, wtm, tree->last[1]);
         test = HashKey >> 49;
-        fseek(book_file, test * sizeof(int), SEEK_SET);
-        fread(&key, sizeof(int), 1, book_file);
+        fseek(book_file, test * 4, SEEK_SET);
+        fread(buf32, 4, 1, book_file);
+        key = BookIn32(buf32);
         if (key > 0) {
           fseek(book_file, key, SEEK_SET);
-          fread(&cluster, sizeof(int), 1, book_file);
-          fread(book_buffer, sizeof(BOOK_POSITION), cluster, book_file);
+          fread(buf32, 4, 1, book_file);
+          cluster = BookIn32(buf32);
+          BookClusterIn(book_file, cluster, book_buffer);
         } else
           cluster = 0;
         for (mv = tree->last[0]; mv < tree->last[1]; mv++) {
@@ -373,6 +376,7 @@ void LearnBookUpdate(TREE * RESTRICT tree, int wtm, int move, float learn_value)
 {
   int cluster, test, move_index, key;
   BITBOARD temp_hash_key, common;
+  char buf32[4];
 
 /*
  ************************************************************
@@ -385,12 +389,14 @@ void LearnBookUpdate(TREE * RESTRICT tree, int wtm, int move, float learn_value)
  */
   test = HashKey >> 49;
   if (book_file) {
-    fseek(book_file, test * sizeof(int), SEEK_SET);
-    fread(&key, sizeof(int), 1, book_file);
+    fseek(book_file, test * 4, SEEK_SET);
+    fread(buf32, 4, 1, book_file);
+    key = BookIn32(buf32);
     if (key > 0) {
       fseek(book_file, key, SEEK_SET);
-      fread(&cluster, sizeof(int), 1, book_file);
-      fread(book_buffer, sizeof(BOOK_POSITION), cluster, book_file);
+      fread(buf32, 4, 1, book_file);
+      cluster = BookIn32(buf32);
+      BookClusterIn(book_file, cluster, book_buffer);
       common = HashKey & mask_16;
       MakeMove(tree, 1, move, wtm);
       temp_hash_key = HashKey ^ wtm_random[wtm];
@@ -406,8 +412,8 @@ void LearnBookUpdate(TREE * RESTRICT tree, int wtm, int move, float learn_value)
       else
         book_buffer[move_index].learn =
             (book_buffer[move_index].learn + learn_value) / 2.0;
-      fseek(book_file, key + sizeof(int), SEEK_SET);
-      fwrite(book_buffer, sizeof(BOOK_POSITION), cluster, book_file);
+      fseek(book_file, key + 4, SEEK_SET);
+      BookClusterOut(book_file, cluster, book_buffer);
       fflush(book_file);
     }
   }
@@ -481,7 +487,7 @@ void LearnImport(TREE * RESTRICT tree, int nargs, char **args)
 {
   FILE *learn_in;
   char text[128];
-  int eof;
+  int eof = 0;
 
 /*
  ************************************************************
@@ -531,6 +537,7 @@ void LearnImportBook(TREE * RESTRICT tree, int nargs, char **args)
   FILE *learn_in;
   char nextc, text[128], *eof;
   int wtm, learn_value, depth, rating_difference, move = 0, i, added_lines = 0;
+  char buf32[4];
 
 /*
  ************************************************************
@@ -548,16 +555,20 @@ void LearnImportBook(TREE * RESTRICT tree, int nargs, char **args)
     sprintf(text, "%s/book.lrn", book_path);
     book_lrn_file = fopen(text, "w");
     fseek(book_file, 0, SEEK_SET);
-    fread(index, sizeof(int), 32768, book_file);
+    for (i=0; i<32768; i++) {
+      fread(buf32, 4, 1, book_file);
+      index[i] = BookIn32(buf32);
+    }
     for (i = 0; i < 32768; i++)
       if (index[i] > 0) {
         fseek(book_file, index[i], SEEK_SET);
-        fread(&cluster, sizeof(int), 1, book_file);
-        fread(book_buffer, sizeof(BOOK_POSITION), cluster, book_file);
+        fread(buf32, 4, 1, book_file);
+        cluster = BookIn32(buf32);
+        BookClusterIn(book_file, cluster, book_buffer);
         for (j = 0; j < cluster; j++)
           book_buffer[j].learn = 0.0;
         fseek(book_file, index[i] + sizeof(int), SEEK_SET);
-        fwrite(book_buffer, sizeof(BOOK_POSITION), cluster, book_file);
+        BookClusterOut(book_file, cluster, book_buffer);
       }
   }
 /*
@@ -686,6 +697,7 @@ void LearnImportCAP(TREE * RESTRICT tree, int nargs, char **args)
   char *eof, *pvp, *pmp, *acd, buffer[2048];
   int ce, move, CAP_used = 0, CAP_found = 0, key, cluster, test, i;
   FILE *CAP_in;
+  char buf32[4];
 
 /*
  ************************************************************
@@ -700,16 +712,20 @@ void LearnImportCAP(TREE * RESTRICT tree, int nargs, char **args)
     int index[32768], i, j, cluster;
 
     fseek(book_file, 0, SEEK_SET);
-    fread(index, sizeof(int), 32768, book_file);
+    for (i=0; i<32768; i++) {
+      fread(buf32, 4, 1, book_file);
+      index[i] = BookIn32(buf32);
+    }
     for (i = 0; i < 32768; i++)
       if (index[i] > 0) {
         fseek(book_file, index[i], SEEK_SET);
-        fread(&cluster, sizeof(int), 1, book_file);
-        fread(book_buffer, sizeof(BOOK_POSITION), cluster, book_file);
+        fread(buf32, 4, 1, book_file);
+        cluster = BookIn32(buf32);
+        BookClusterIn(book_file, cluster, book_buffer);
         for (j = 0; j < cluster; j++)
           book_buffer[j].CAP_score = -2 * MATE;
         fseek(book_file, index[i] + sizeof(int), SEEK_SET);
-        fwrite(book_buffer, sizeof(BOOK_POSITION), cluster, book_file);
+        BookClusterOut(book_file, cluster, book_buffer);
       }
   }
 /*
@@ -807,11 +823,14 @@ void LearnImportCAP(TREE * RESTRICT tree, int nargs, char **args)
  */
     test = HashKey >> 49;
     fseek(book_file, test * sizeof(int), SEEK_SET);
-    fread(&key, sizeof(int), 1, book_file);
+    fread(buf32, 4, 1, book_file);
+    key = BookIn32(buf32);
     if (key > 0) {
       fseek(book_file, key, SEEK_SET);
       fread(&cluster, sizeof(int), 1, book_file);
-      fread(book_buffer, sizeof(BOOK_POSITION), cluster, book_file);
+      fread(buf32, 4, 1, book_file);
+      cluster = BookIn32(buf32);
+      BookClusterIn(book_file, cluster, book_buffer);
     } else
       cluster = 0;
     if (cluster) {
@@ -823,7 +842,7 @@ void LearnImportCAP(TREE * RESTRICT tree, int nargs, char **args)
         if (!(temp_hash_key ^ book_buffer[i].position)) {
           book_buffer[i].CAP_score = ce;
           fseek(book_file, key + sizeof(int), SEEK_SET);
-          fwrite(book_buffer, sizeof(BOOK_POSITION), cluster, book_file);
+          BookClusterOut(book_file, cluster, book_buffer);
           CAP_used++;
           break;
         }

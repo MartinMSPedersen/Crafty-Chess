@@ -62,48 +62,172 @@ static clock_t clk_tck = 0;
 #  include <os2.h>
 #endif
 
-void BookReadCluster(BOOK_POSITION * cluster, int csize)
+
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   BookClusterIn() is used to read a cluster in as characters, then stuff    *
+ *   the data into a normal array of structures that can be used within Crafty *
+ *   without any endian issues.                                                *
+ *                                                                             *
+ *******************************************************************************
+ */
+void BookClusterIn(FILE *file, int positions, BOOK_POSITION *buffer)
 {
+  char file_buffer[BOOK_CLUSTER_SIZE * BOOK_POSITION_SIZE];
+  int i;
+
+  fread(file_buffer, positions, BOOK_POSITION_SIZE, file);
+  for (i=0;i<positions;i++) {
+    buffer[i].position =
+      BookIn64((unsigned char *) (file_buffer + i * BOOK_POSITION_SIZE));
+    buffer[i].status_played =
+      BookIn32((unsigned char *) (file_buffer + i * BOOK_POSITION_SIZE + 8));
+    buffer[i].learn =
+      BookIn32f((unsigned char *) (file_buffer + i * BOOK_POSITION_SIZE + 12));
+    buffer[i].CAP_score =
+      BookIn32((unsigned char *) (file_buffer + i * BOOK_POSITION_SIZE + 16));
+  }
 }
 
 /*
  *******************************************************************************
  *                                                                             *
- *   BookReadInt() is used to read in 4 bytes from the book file, and convert  *
- *   them into a 4-byte unsigned integer.  this eliminates endian worries      *
- *   that make the binary book non-portable.                                   *
+ *   BookClusterOut() is used to write a cluster out as characters, after      *
+ *   converting the normal array of structures into character data that is     *
+ *   Endian-independent.                                                       *
  *                                                                             *
  *******************************************************************************
  */
-void BookReadInt(FILE * file, int index, unsigned *result)
+void BookClusterOut(FILE *file, int positions, BOOK_POSITION *buffer)
 {
-  char buffer[4];
+  char file_buffer[BOOK_CLUSTER_SIZE * BOOK_POSITION_SIZE];
+  int i;
 
-  fseek(file, index * 4, SEEK_SET);
-  fread(buffer, 4, 1, file);
-  *result =
-      (buffer[0] << 24) | (buffer[1] << 16) | (buffer[2] << 8) | (buffer[3]);
+  for (i=0;i<positions;i++) {
+    memcpy(file_buffer + i * BOOK_POSITION_SIZE,
+      BookOut64(buffer[i].position), 8);
+    memcpy(file_buffer + i * BOOK_POSITION_SIZE + 8,
+      BookOut32(buffer[i].status_played), 4);
+    memcpy(file_buffer + i * BOOK_POSITION_SIZE + 12,
+      BookOut32f(buffer[i].learn), 4);
+    memcpy(file_buffer + i * BOOK_POSITION_SIZE + 16,
+      BookOut32(buffer[i].CAP_score), 4);
+  }
+  fwrite(file_buffer, positions, BOOK_POSITION_SIZE, file);
 }
 
 /*
  *******************************************************************************
  *                                                                             *
- *   BookWriteInt() is used to write 4 bytes to the book file, after converting*
- *   them from a 4-byte unsigned integer.  this eliminates endian worries      *
- *   that make the binary book non-portable.                                   *
+ *   BookIn32f() is used to convert 4 bytes from the book file into a valid 32 *
+ *   bit binary value.  this eliminates endian worries that make the  binary   *
+ *   book non-portable across many architectures.                              *
  *                                                                             *
  *******************************************************************************
  */
-void BookWriteInt(FILE * file, int index, unsigned value)
+float BookIn32f(unsigned char *ch)
 {
-  char buffer[4];
+  int v1;
+  float *v2 = (float *) &v1;
 
-  buffer[0] = (value >> 24) & 0xff;
-  buffer[1] = (value >> 16) & 0xff;
-  buffer[2] = (value >> 8) & 0xff;
-  buffer[3] = (value) & 0xff;
-  fseek(file, index * 4, SEEK_SET);
-  fwrite(buffer, 4, 1, file);
+  v1 = (ch[3] << 24) | (ch[2] << 16) | (ch[1] << 8) | ch[0];
+  return (*v2);
+}
+
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   BookIn32() is used to convert 4 bytes from the book file into a valid 32  *
+ *   bit binary value.  this eliminates endian worries that make the  binary   *
+ *   book non-portable across many architectures.                              *
+ *                                                                             *
+ *******************************************************************************
+ */
+int BookIn32(unsigned char *ch)
+{
+
+  return ((ch[3] << 24) | (ch[2] << 16) | (ch[1] << 8) | ch[0]);
+}
+
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   BookIn64() is used to convert 8 bytes from the book file into a valid 64  *
+ *   bit binary value.  this eliminates endian worries that make the  binary   *
+ *   book non-portable across many architectures.                              *
+ *                                                                             *
+ *******************************************************************************
+ */
+BITBOARD BookIn64(unsigned char *ch)
+{
+
+  return ((((BITBOARD) ch[7]) << 56) | (((BITBOARD) ch[6]) << 48) |
+          (((BITBOARD) ch[5]) << 40) | (((BITBOARD) ch[4]) << 32) |
+          (((BITBOARD) ch[3]) << 24) | (((BITBOARD) ch[2]) << 16) |
+          (((BITBOARD) ch[1]) <<  8) |  ((BITBOARD) ch[0]));
+}
+
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   BookOut32() is used to convert 4 bytes from a valid 32 bit binary value   *
+ *   to a book value.  this eliminates endian worries that make the  binary    *
+ *   book non-portable across many architectures.                              *
+ *                                                                             *
+ *******************************************************************************
+ */
+unsigned char *BookOut32(int val)
+{
+  convert_buff[3] = (val >> 24) & 0xff;
+  convert_buff[2] = (val >> 16) & 0xff;
+  convert_buff[1] = (val >> 8) & 0xff;
+  convert_buff[0] = val & 0xff;
+  return (convert_buff);
+}
+
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   BookOut32f() is used to convert 4 bytes from a valid 32 bit binary value  *
+ *   to a book value.  this eliminates endian worries that make the  binary    *
+ *   book non-portable across many architectures.                              *
+ *                                                                             *
+ *******************************************************************************
+ */
+unsigned char *BookOut32f(float val)
+{
+  float v1;
+  int *v2 = (int *) &v1;
+
+  v1 = val;
+  convert_buff[3] = (*v2 >> 24) & 0xff;
+  convert_buff[2] = (*v2 >> 16) & 0xff;
+  convert_buff[1] = (*v2 >> 8) & 0xff;
+  convert_buff[0] = *v2 & 0xff;
+  return (convert_buff);
+}
+
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   BookOut64() is used to convert 8 bytes from a valid 64 bit binary value   *
+ *   to a book value.  this eliminates endian worries that make the  binary    *
+ *   book non-portable across many architectures.                              *
+ *                                                                             *
+ *******************************************************************************
+ */
+unsigned char *BookOut64(BITBOARD val)
+{
+  convert_buff[7] = (val >> 56) & 0xff;
+  convert_buff[6] = (val >> 48) & 0xff;
+  convert_buff[5] = (val >> 40) & 0xff;
+  convert_buff[4] = (val >> 32) & 0xff;
+  convert_buff[3] = (val >> 24) & 0xff;
+  convert_buff[2] = (val >> 16) & 0xff;
+  convert_buff[1] = (val >> 8) & 0xff;
+  convert_buff[0] = val & 0xff;
+  return (convert_buff);
 }
 
 #if defined(AMIGA)
@@ -2561,6 +2685,14 @@ void *SharedMalloc(size_t size, int tid)
     void *shared;
 
   shmid = shmget(IPC_PRIVATE, size, (IPC_CREAT | 0600));
+  if (shmid < 0) {
+    Print(4095,"ERROR.  shmget() failed, unable to allocate a shared memory segment.\n");
+    Print(4095,"        Please verify that your /proc/sys/kernel/shmmax value is\n");
+    Print(4095,"        large enough to allow allocating the amount of memory you\n");
+    Print(4095,"        are requesting.  \"echo 1000000000 > /proc/sys/kernel/shmmax\"\n");
+    Print(4095,"        will allow a segment up to one billion bytes.\n");
+    exit(1);
+  }
   shared = shmat(shmid, 0, 0);
   shmctl(shmid, IPC_RMID, 0);
     return (shared);

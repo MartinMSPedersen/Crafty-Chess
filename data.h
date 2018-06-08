@@ -95,6 +95,7 @@ extern char rc_path[128];
 extern char cmd_buffer[4096];
 extern char *args[256];
 extern char buffer[512];
+extern unsigned char convert_buff[8];
 extern int nargs;
 extern int kibitz;
 extern int wtm;
@@ -350,7 +351,7 @@ extern BITBOARD white_pawn_race_btm[64];
 extern BITBOARD black_pawn_race_wtm[64];
 extern BITBOARD black_pawn_race_btm[64];
 extern BOOK_POSITION book_buffer[BOOK_CLUSTER_SIZE];
-extern BOOK_POSITION books_buffer[BOOK_CLUSTER_SIZE];
+extern BOOK_POSITION book_buffer_char[BOOK_CLUSTER_SIZE];
 #if !defined(NOEGTB)
 extern int cbEGTBCompBytes;
 #endif
@@ -396,7 +397,7 @@ extern int queen_rook_on_7th_rank;
 extern int queen_king_safety;
 extern int queen_vs_2_rooks;
 extern int queen_is_strong;
-extern int queen_offside_tropism;
+extern int queen_offside;
 extern int king_safety_mate_g2g7;
 extern int king_safety_mate_threat;
 extern int king_safety_stonewall;

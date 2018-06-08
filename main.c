@@ -3174,7 +3174,14 @@
  *           will run) the outside candidate or passer doesn't help.  bug in   *
  *           king safety caused pieces to be attracted to the opponent's king, *
  *           even in simple endgames, inflating/deflating the score for a      *
- *           feature that was pointless.                                       *
+ *           feature that was pointless.  (2005 WCCC final version).           *
+ *                                                                             *
+ *   20.0    First in a new series.  first change is to produce an endian-     *
+ *           independent opening book.  the format has not changed so that old *
+ *           book.bin/books.bin files will work fine, but they may now be      *
+ *           freely between big-endian and little-endian architectures.  this  *
+ *           makes the binary format compatible between a PC and a Sun or HP   *
+ *           box, for example, so that just one book.bin file is needed.       *
  *                                                                             *
  *******************************************************************************
  */
@@ -3555,10 +3562,6 @@ int main(int argc, char **argv)
  ************************************************************
  */
     shared->crafty_is_white = wtm;
-    shared->root_wtm = wtm;
-    DisplayChessBoard(log_file, tree->pos);
-    strcpy(buffer, "score");
-    Option(tree);
     if (presult == 2) {
       if ((From(ponder_move) == From(move)) && (To(ponder_move) == To(move)) &&
           (Piece(ponder_move) == Piece(move)) &&

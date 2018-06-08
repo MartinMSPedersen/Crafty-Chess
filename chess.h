@@ -157,6 +157,7 @@
 #endif
 #include "lock.h"
 #define      BOOK_CLUSTER_SIZE           8000
+#define     BOOK_POSITION_SIZE             20
 #define            MERGE_BLOCK           1000
 #define             SORT_BLOCK        4000000
 #define         LEARN_INTERVAL             10
@@ -504,12 +505,10 @@ BITBOARD  Mask(int);
 #if defined(VC_INLINE_ASM)
 #  include "vcinline.h"
 #else
-#  if !defined(INLINE_AMD)
-/*
+#  if !defined(INLINE_AMD) && !defined(INLINE_ASM)
 int CDECL PopCnt(BITBOARD);
 int CDECL FirstOne(BITBOARD);
 int CDECL LastOne(BITBOARD);
-*/
 #  endif
 #endif
 void      Analyze(void);
@@ -525,7 +524,15 @@ int       Attacked(TREE * RESTRICT, int, int);
 BITBOARD  AttacksTo(TREE * RESTRICT, int);
 void      Bench(void);
 int       Book(TREE * RESTRICT, int, int);
+void      BookClusterIn(FILE *, int , BOOK_POSITION *);
+void      BookClusterOut(FILE *, int , BOOK_POSITION *);
+int       BookIn32(unsigned char *ch);
+float     BookIn32f(unsigned char *ch);
+BITBOARD  BookIn64(unsigned char *ch);
 int       BookMask(char *);
+unsigned char *BookOut32(int val);
+unsigned char *BookOut32f(float val);
+unsigned char *BookOut64(BITBOARD val);
 int       BookPonderMove(TREE * RESTRICT, int);
 void      BookUp(TREE * RESTRICT, int, char **);
 void      BookSort(BB_POSITION *, int, int);

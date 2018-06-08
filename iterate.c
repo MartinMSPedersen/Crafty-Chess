@@ -4,6 +4,10 @@
 #include "chess.h"
 #include "data.h"
 #include "epdglue.h"
+#if defined(UNIX) || defined(AMIGA)
+#  include <unistd.h>
+#  include <sys/types.h>
+#endif
 
 /* last modified 08/07/05 */
 /*
