@@ -1,6 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include "chess.h"
 #include "data.h"
 #include "epdglue.h"
@@ -8,7 +5,7 @@
 #define RAZOR_MARGIN ((queen_value+1)/2)
 #define F_MARGIN ((bishop_value+1)/2)
 
-/* last modified 11/01/07 */
+/* last modified 01/29/08 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -72,7 +69,7 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
  *                                                          *
  ************************************************************
  */
-  if (RepetitionCheck(tree, ply)) {
+  if (RepetitionCheck(tree, ply, wtm)) {
     value = DrawScore(wtm);
     if (value < beta)
       SavePV(tree, ply, 0);
@@ -144,8 +141,8 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
  ************************************************************
  */
 #if !defined(NOEGTB)
-  if (ply <= shared->iteration_depth && TotalPieces <= EGTB_use &&
-      WhiteCastle(ply) + BlackCastle(ply) == 0 &&
+  if (ply <= shared->iteration_depth && TotalAllPieces <= EGTB_use &&
+      Castle(ply, white) + Castle(ply, black) == 0 &&
       (CaptureOrPromote(tree->curmv[ply - 1]) || ply < 3)) {
     int egtb_value;
 
@@ -219,7 +216,7 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
  *                                                          *
  ************************************************************
  */
-  pieces = (wtm) ? TotalWhitePieces : TotalBlackPieces;
+  pieces = (wtm) ? TotalPieces(white) : TotalPieces(black);
   if (do_null && !tree->inchk[ply] && pieces && (pieces > 9 || depth < 7 * PLY)) {
     register BITBOARD save_hash_key;
     int null_depth;
@@ -232,7 +229,7 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
 #endif
     null_depth = (depth > 6 * PLY && pieces > 9) ? null_max : null_min;
     tree->position[ply + 1] = tree->position[ply];
-    Rule50Moves(ply + 1)++;
+    Rule50Moves(ply + 1) = 0;
     save_hash_key = HashKey;
     if (EnPassant(ply)) {
       HashEP(EnPassant(ply + 1), HashKey);
@@ -586,13 +583,8 @@ int SearchControl(TREE * RESTRICT tree, int wtm, int ply, int depth,
  ************************************************************
  */
   if (Piece(move) == pawn) {
-    if (wtm) {
-      if (!(mask_pawn_passed_w[square] & BlackPawns))
-        return (0);
-    } else {
-      if (!(mask_pawn_passed_b[square] & WhitePawns))
-        return (0);
-    }
+    if (!(mask_pawn_passed[wtm][square] & Pawns(Flip(wtm))))
+      return (0);
   }
 /*
  ************************************************************

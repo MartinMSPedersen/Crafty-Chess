@@ -38,10 +38,7 @@
 #                     to use in a SMP system.  Note that this is the max you
 #                     will be able to use.  You need to use the smpmt=n command
 #                     to make crafty use more than the default 1 process.
-#   -DDGT          N  This is a unix-only option to support the DGT board.
 #   -DEPD          Y  if you want full EPD support built in.
-#   -DHASHSTATS    N  This option compiles in some of the statistics 
-#                     gathering to provide hashing statistics.
 #   -DINLINE32     N  Compiles with the Intel assembly code for FirstOne(),
 #                     LastOne() and PopCnt().  This is for gcc-style inlining
 #                     and now works with the Intel C/C++ compiler as well.
@@ -190,8 +187,7 @@ linux:
 	$(MAKE) target=LINUX \
 		CC=gcc CXX=g++ \
 		CFLAGS='$(CFLAGS) -Wall -pipe -march=i686 -O3 \
-			-fbranch-probabilities -fforce-mem -fomit-frame-pointer\
-			-fno-gcse -mpreferred-stack-boundary=2' \
+			-g -pg -fno-gcse -mpreferred-stack-boundary=2' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS='$(LDFLAGS) -lstdc++' \
 		opt='$(opt) -DINLINE32 -DCPUS=2' \
@@ -417,8 +413,8 @@ profile:
        data.o drawn.o edit.o epd.o epdglue.o init.o input.o interupt.o       \
        iterate.o main.o option.o output.o ponder.o preeval.o resign.o root.o \
        learn.o setboard.o test.o time.o validate.o annotate.o analyze.o      \
-       evtest.o bench.o egtb.o dgt.o
-objects = crafty.o egtb.o
+       evtest.o bench.o
+objects = crafty.o
 
 # Do not change anything below this line!
 
@@ -431,11 +427,8 @@ crafty-make:
 
 crafty.o: *.c *.h
 
-crafty:	$(objects) 
-	$(CC) $(LDFLAGS) -o crafty $(objects) -lm  $(LIBS)
-
-dgt:    dgtdrv.o
-	@cc -O -o dgt dgtdrv.c
+crafty:	$(objects) egtb.o
+	$(CC) $(LDFLAGS) -o crafty $(objects) egtb.o -lm  $(LIBS)
 
 egtb.o: egtb.cpp
 	$(CXX) -c $(CXFLAGS) $(opts) egtb.cpp

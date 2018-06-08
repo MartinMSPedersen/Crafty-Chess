@@ -1,5 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
 #include "chess.h"
 #include "data.h"
 
@@ -20,10 +18,14 @@
 BITBOARD AttacksTo(TREE * RESTRICT tree, int square)
 {
 
-  return ((w_pawn_attacks[square] & BlackPawns) | (b_pawn_attacks[square] &
-          WhitePawns) | (knight_attacks[square] & (BlackKnights | WhiteKnights))
-      | (AttacksBishop(square) & BishopsQueens) | (AttacksRook(square) &
-          RooksQueens) | (king_attacks[square] & (BlackKing | WhiteKing)));
+  return ((pawn_attacks[white][square] & Pawns(black)) |
+      (pawn_attacks[black][square]
+          & Pawns(white)) | (knight_attacks[square] & (Knights(black) |
+              Knights(white)))
+      | (AttacksBishop(square,
+              OccupiedSquares) & BishopsQueens) | (AttacksRook(square,
+              OccupiedSquares) & RooksQueens) | (king_attacks[square] &
+          (Kings(black) | Kings(white))));
 }
 
 /* last modified 06/26/99 */
@@ -40,29 +42,15 @@ BITBOARD AttacksTo(TREE * RESTRICT tree, int square)
 
 int Attacked(TREE * RESTRICT tree, int square, int wtm)
 {
-
-  if (wtm) {
-    if (b_pawn_attacks[square] & WhitePawns)
-      return (1);
-    if (knight_attacks[square] & WhiteKnights)
-      return (1);
-    if (AttacksBishop(square) & BishopsQueens & WhitePieces)
-      return (1);
-    if (AttacksRook(square) & RooksQueens & WhitePieces)
-      return (1);
-    if (king_attacks[square] & WhiteKing)
-      return (1);
-  } else {
-    if (w_pawn_attacks[square] & BlackPawns)
-      return (1);
-    if (knight_attacks[square] & BlackKnights)
-      return (1);
-    if (AttacksBishop(square) & BishopsQueens & BlackPieces)
-      return (1);
-    if (AttacksRook(square) & RooksQueens & BlackPieces)
-      return (1);
-    if (king_attacks[square] & BlackKing)
-      return (1);
-  }
+  if (pawn_attacks[Flip(wtm)][square] & Pawns(wtm))
+    return (1);
+  if (knight_attacks[square] & Knights(wtm))
+    return (1);
+  if (AttacksBishop(square, OccupiedSquares) & BishopsQueens & Occupied(wtm))
+    return (1);
+  if (AttacksRook(square, OccupiedSquares) & RooksQueens & Occupied(wtm))
+    return (1);
+  if (king_attacks[square] & Kings(wtm))
+    return (1);
   return (0);
 }

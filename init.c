@@ -1,7 +1,4 @@
 #include <stddef.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include "chess.h"
 #include "data.h"
 #if defined(UNIX) || defined(AMIGA)
@@ -33,7 +30,6 @@ void Initialize()
 
   tree = shared->local[0];
   InitializeSharedData();
-  i = 0;
   InitializeZeroMasks();
   InitializeMagic();
   InitializeSMP();
@@ -170,21 +166,21 @@ void InitializeAttackBoards(void)
  initialize pawn attack boards
  */
   for (i = 0; i < 64; i++) {
-    w_pawn_attacks[i] = 0;
+    pawn_attacks[white][i] = 0;
     if (i < 56)
       for (j = 2; j < 4; j++) {
         sq = i + bishopsq[j];
         if ((abs(Rank(sq) - Rank(i)) == 1) && (abs(File(sq) - File(i)) == 1) &&
             (sq < 64) && (sq > -1))
-          w_pawn_attacks[i] = w_pawn_attacks[i] | (BITBOARD) 1 << sq;
+          pawn_attacks[white][i] = pawn_attacks[white][i] | (BITBOARD) 1 << sq;
       }
-    b_pawn_attacks[i] = 0;
+    pawn_attacks[black][i] = 0;
     if (i > 7)
       for (j = 0; j < 2; j++) {
         sq = i + bishopsq[j];
         if ((abs(Rank(sq) - Rank(i)) == 1) && (abs(File(sq) - File(i)) == 1) &&
             (sq < 64) && (sq > -1))
-          b_pawn_attacks[i] = b_pawn_attacks[i] | (BITBOARD) 1 << sq;
+          pawn_attacks[black][i] = pawn_attacks[black][i] | (BITBOARD) 1 << sq;
       }
   }
 /*
@@ -374,7 +370,8 @@ void InitializeMagic(void)
       BITBOARD tempoccupied =
           InitializeMagicOccupied(squares, numsquares, temp);
 
-      AttacksBishopNOMASK(i, tempoccupied) =
+      *(magic_bishop_indices[i] +
+          (((tempoccupied) * magic_bishop[i]) >> magic_bishop_shift[i])) =
           InitializeMagicBishop(i, tempoccupied);
     }
   }
@@ -395,7 +392,9 @@ void InitializeMagic(void)
       BITBOARD tempoccupied =
           InitializeMagicOccupied(squares, numsquares, temp);
 
-      AttacksRookNOMASK(i, tempoccupied) = InitializeMagicRook(i, tempoccupied);
+      *(magic_rook_indices[i] +
+          (((tempoccupied) * magic_rook[i]) >> magic_rook_shift[i])) =
+          InitializeMagicRook(i, tempoccupied);
     }
   }
 }
@@ -528,8 +527,10 @@ void InitializeChessBoard(SEARCH_POSITION * new_pos)
     SetBoard(new_pos, nargs, args, 1);
   } else {
     for (i = 0; i < 64; i++)
-      tree->pos.board[i] = none;
+      tree->pos.board[i] = empty;
     new_pos->rule_50_moves = 0;
+    tree->rep_index[black] = 0;
+    tree->rep_index[white] = 0;
     wtm = 1;
 /*
  place pawns
@@ -572,8 +573,8 @@ void InitializeChessBoard(SEARCH_POSITION * new_pos)
 /*
  initialize castling status so all castling is legal.
  */
-    new_pos->w_castle = 3;
-    new_pos->b_castle = 3;
+    new_pos->castle[1] = 3;
+    new_pos->castle[0] = 3;
 /*
  initialize 50 move counter.
  */
@@ -599,199 +600,202 @@ void SetChessBitBoards(SEARCH_POSITION * new_pos)
 /*
  place pawns
  */
-  tree->pos.w_pawn = 0;
-  tree->pos.b_pawn = 0;
+  tree->pos.color[1].pieces[pawn] = 0;
+  tree->pos.color[0].pieces[pawn] = 0;
   for (i = 0; i < 64; i++) {
     if (tree->pos.board[i] == pawn) {
-      tree->pos.w_pawn = tree->pos.w_pawn | SetMask(i);
-      tree->pos.hash_key = tree->pos.hash_key ^ w_pawn_random[i];
-      tree->pos.pawn_hash_key = tree->pos.pawn_hash_key ^ w_pawn_random[i];
+      tree->pos.color[1].pieces[pawn] |= SetMask(i);
+      tree->pos.hash_key ^= randoms[1][pawn][i];
+      tree->pos.pawn_hash_key ^= randoms[1][pawn][i];
     }
     if (tree->pos.board[i] == -pawn) {
-      tree->pos.b_pawn = tree->pos.b_pawn | SetMask(i);
-      tree->pos.hash_key = tree->pos.hash_key ^ b_pawn_random[i];
-      tree->pos.pawn_hash_key = tree->pos.pawn_hash_key ^ b_pawn_random[i];
+      tree->pos.color[0].pieces[pawn] |= SetMask(i);
+      tree->pos.hash_key ^= randoms[0][pawn][i];
+      tree->pos.pawn_hash_key ^= randoms[0][pawn][i];
     }
   }
 /*
  place knights
  */
-  tree->pos.w_knight = 0;
-  tree->pos.b_knight = 0;
+  tree->pos.color[1].pieces[knight] = 0;
+  tree->pos.color[0].pieces[knight] = 0;
   for (i = 0; i < 64; i++) {
     if (tree->pos.board[i] == knight) {
-      tree->pos.w_knight = tree->pos.w_knight | SetMask(i);
-      tree->pos.hash_key = tree->pos.hash_key ^ w_knight_random[i];
+      tree->pos.color[1].pieces[knight] |= SetMask(i);
+      tree->pos.hash_key ^= randoms[1][knight][i];
     }
     if (tree->pos.board[i] == -knight) {
-      tree->pos.b_knight = tree->pos.b_knight | SetMask(i);
-      tree->pos.hash_key = tree->pos.hash_key ^ b_knight_random[i];
+      tree->pos.color[0].pieces[knight] ^= SetMask(i);
+      tree->pos.hash_key ^= randoms[0][knight][i];
     }
   }
 /*
  place bishops
  */
-  tree->pos.w_bishop = 0;
-  tree->pos.b_bishop = 0;
+  tree->pos.color[1].pieces[bishop] = 0;
+  tree->pos.color[0].pieces[bishop] = 0;
   for (i = 0; i < 64; i++) {
     if (tree->pos.board[i] == bishop) {
-      tree->pos.w_bishop = tree->pos.w_bishop | SetMask(i);
-      tree->pos.hash_key = tree->pos.hash_key ^ w_bishop_random[i];
+      tree->pos.color[1].pieces[bishop] |= SetMask(i);
+      tree->pos.hash_key ^= randoms[1][bishop][i];
     }
     if (tree->pos.board[i] == -bishop) {
-      tree->pos.b_bishop = tree->pos.b_bishop | SetMask(i);
-      tree->pos.hash_key = tree->pos.hash_key ^ b_bishop_random[i];
+      tree->pos.color[0].pieces[bishop] |= SetMask(i);
+      tree->pos.hash_key ^= randoms[0][bishop][i];
     }
   }
 /*
  place rooks
  */
-  tree->pos.w_rook = 0;
-  tree->pos.b_rook = 0;
+  tree->pos.color[1].pieces[rook] = 0;
+  tree->pos.color[0].pieces[rook] = 0;
   for (i = 0; i < 64; i++) {
     if (tree->pos.board[i] == rook) {
-      tree->pos.w_rook = tree->pos.w_rook | SetMask(i);
-      tree->pos.hash_key = tree->pos.hash_key ^ w_rook_random[i];
+      tree->pos.color[1].pieces[rook] |= SetMask(i);
+      tree->pos.hash_key ^= randoms[1][rook][i];
     }
     if (tree->pos.board[i] == -rook) {
-      tree->pos.b_rook = tree->pos.b_rook | SetMask(i);
-      tree->pos.hash_key = tree->pos.hash_key ^ b_rook_random[i];
+      tree->pos.color[0].pieces[rook] |= SetMask(i);
+      tree->pos.hash_key ^= randoms[0][rook][i];
     }
   }
 /*
  place queens
  */
-  tree->pos.w_queen = 0;
-  tree->pos.b_queen = 0;
+  tree->pos.color[1].pieces[queen] = 0;
+  tree->pos.color[0].pieces[queen] = 0;
   for (i = 0; i < 64; i++) {
     if (tree->pos.board[i] == queen) {
-      tree->pos.w_queen = tree->pos.w_queen | SetMask(i);
-      tree->pos.hash_key = tree->pos.hash_key ^ w_queen_random[i];
+      tree->pos.color[1].pieces[queen] |= SetMask(i);
+      tree->pos.hash_key ^= randoms[1][queen][i];
     }
     if (tree->pos.board[i] == -queen) {
-      tree->pos.b_queen = tree->pos.b_queen | SetMask(i);
-      tree->pos.hash_key = tree->pos.hash_key ^ b_queen_random[i];
+      tree->pos.color[0].pieces[queen] |= SetMask(i);
+      tree->pos.hash_key ^= randoms[0][queen][i];
     }
   }
 /*
  place kings
  */
-  tree->pos.white_king = -1;
-  tree->pos.black_king = -1;
+  tree->pos.color[1].pieces[king] = 0;
+  tree->pos.color[0].pieces[king] = 0;
   for (i = 0; i < 64; i++) {
     if (tree->pos.board[i] == king) {
-      tree->pos.white_king = i;
-      tree->pos.hash_key = tree->pos.hash_key ^ w_king_random[i];
+      tree->pos.color[1].pieces[king] |= SetMask(i);
+      tree->pos.kingsq[white] = i;
+      tree->pos.hash_key ^= randoms[1][king][i];
     }
     if (tree->pos.board[i] == -king) {
-      tree->pos.black_king = i;
-      tree->pos.hash_key = tree->pos.hash_key ^ b_king_random[i];
+      tree->pos.color[0].pieces[king] |= SetMask(i);
+      tree->pos.kingsq[black] = i;
+      tree->pos.hash_key ^= randoms[0][king][i];
     }
   }
   if (new_pos->enpassant_target)
     HashEP(new_pos->enpassant_target, tree->pos.hash_key);
-  if (!(new_pos->w_castle & 1))
-    HashCastleW(0, tree->pos.hash_key);
-  if (!(new_pos->w_castle & 2))
-    HashCastleW(1, tree->pos.hash_key);
-  if (!(new_pos->b_castle & 1))
-    HashCastleB(0, tree->pos.hash_key);
-  if (!(new_pos->b_castle & 2))
-    HashCastleB(1, tree->pos.hash_key);
+  if (!(new_pos->castle[1] & 1))
+    HashCastle(0, tree->pos.hash_key, white);
+  if (!(new_pos->castle[1] & 2))
+    HashCastle(1, tree->pos.hash_key, white);
+  if (!(new_pos->castle[0] & 1))
+    HashCastle(0, tree->pos.hash_key, black);
+  if (!(new_pos->castle[0] & 2))
+    HashCastle(1, tree->pos.hash_key, black);
 /*
  initialize combination boards that show multiple pieces.
  */
   tree->pos.bishops_queens =
-      tree->pos.w_bishop | tree->pos.w_queen | tree->pos.b_bishop | tree->pos.
-      b_queen;
+      tree->pos.color[1].pieces[bishop] | tree->pos.color[1].
+      pieces[queen] | tree->pos.color[0].pieces[bishop] | tree->pos.color[0].
+      pieces[queen];
   tree->pos.rooks_queens =
-      tree->pos.w_rook | tree->pos.w_queen | tree->pos.b_rook | tree->pos.
-      b_queen;
-  tree->pos.w_occupied =
-      tree->pos.w_pawn | tree->pos.w_knight | tree->pos.w_bishop | tree->pos.
-      w_rook | tree->pos.w_queen | SetMask(tree->pos.white_king);
-  tree->pos.b_occupied =
-      tree->pos.b_pawn | tree->pos.b_knight | tree->pos.b_bishop | tree->pos.
-      b_rook | tree->pos.b_queen | SetMask(tree->pos.black_king);
+      tree->pos.color[1].pieces[rook] | tree->pos.color[1].
+      pieces[queen] | tree->pos.color[0].pieces[rook] | tree->pos.color[0].
+      pieces[queen];
+  tree->pos.color[0].pieces[occupied] =
+      tree->pos.color[0].pieces[pawn] | tree->pos.color[0].
+      pieces[knight] | tree->pos.color[0].pieces[bishop] | tree->pos.color[0].
+      pieces[rook] | tree->pos.color[0].pieces[queen] | tree->pos.color[0].
+      pieces[king];
+  tree->pos.color[1].pieces[occupied] =
+      tree->pos.color[1].pieces[pawn] | tree->pos.color[1].
+      pieces[knight] | tree->pos.color[1].pieces[bishop] | tree->pos.color[1].
+      pieces[rook] | tree->pos.color[1].pieces[queen] | tree->pos.color[1].
+      pieces[king];
 /*
  initialize black/white piece counts.
  */
-  tree->pos.white_pieces = 0;
-  tree->pos.white_pawns = 0;
-  tree->pos.black_pieces = 0;
-  tree->pos.black_pawns = 0;
-
-//TLR
-//  tree->pos.majors = 0;
-//  tree->pos.minors = 0;
-  tree->pos.num_w_knights = 0;
-  tree->pos.num_b_knights = 0;
-  tree->pos.num_w_bishops = 0;
-  tree->pos.num_b_bishops = 0;
-  tree->pos.num_w_rooks = 0;
-  tree->pos.num_b_rooks = 0;
-  tree->pos.num_w_queens = 0;
-  tree->pos.num_b_queens = 0;
-
+  tree->pos.pieces[0] = 0;
+  tree->pos.pawns[0] = 0;
+  tree->pos.pieces[1] = 0;
+  tree->pos.pawns[1] = 0;
+  tree->pos.num_knights[1] = 0;
+  tree->pos.num_knights[0] = 0;
+  tree->pos.num_bishops[1] = 0;
+  tree->pos.num_bishops[0] = 0;
+  tree->pos.num_rooks[1] = 0;
+  tree->pos.num_rooks[0] = 0;
+  tree->pos.num_queens[1] = 0;
+  tree->pos.num_queens[0] = 0;
   tree->pos.material_evaluation = 0;
   for (i = 0; i < 64; i++) {
     switch (tree->pos.board[i]) {
     case pawn:
       tree->pos.material_evaluation += pawn_value;
-      tree->pos.white_pawns += pawn_v;
+      tree->pos.pawns[1] += pawn_v;
       break;
     case knight:
       tree->pos.material_evaluation += knight_value;
-      tree->pos.white_pieces += knight_v;
-      tree->pos.num_w_knights++;
+      tree->pos.pieces[1] += knight_v;
+      tree->pos.num_knights[1]++;
       break;
     case bishop:
       tree->pos.material_evaluation += bishop_value;
-      tree->pos.white_pieces += bishop_v;
-      tree->pos.num_w_bishops++;
+      tree->pos.pieces[1] += bishop_v;
+      tree->pos.num_bishops[1]++;
       break;
     case rook:
       tree->pos.material_evaluation += rook_value;
-      tree->pos.white_pieces += rook_v;
-      tree->pos.num_w_rooks++;
+      tree->pos.pieces[1] += rook_v;
+      tree->pos.num_rooks[1]++;
       break;
     case queen:
       tree->pos.material_evaluation += queen_value;
-      tree->pos.white_pieces += queen_v;
-      tree->pos.num_w_queens++;
+      tree->pos.pieces[1] += queen_v;
+      tree->pos.num_queens[1]++;
       break;
     case -pawn:
       tree->pos.material_evaluation -= pawn_value;
-      tree->pos.black_pawns += pawn_v;
+      tree->pos.pawns[0] += pawn_v;
       break;
     case -knight:
       tree->pos.material_evaluation -= knight_value;
-      tree->pos.black_pieces += knight_v;
-      tree->pos.num_b_knights++;
+      tree->pos.pieces[0] += knight_v;
+      tree->pos.num_knights[0]++;
       break;
     case -bishop:
       tree->pos.material_evaluation -= bishop_value;
-      tree->pos.black_pieces += bishop_v;
-      tree->pos.num_b_bishops++;
+      tree->pos.pieces[0] += bishop_v;
+      tree->pos.num_bishops[0]++;
       break;
     case -rook:
       tree->pos.material_evaluation -= rook_value;
-      tree->pos.black_pieces += rook_v;
-      tree->pos.num_b_rooks++;
+      tree->pos.pieces[0] += rook_v;
+      tree->pos.num_rooks[0]++;
       break;
     case -queen:
       tree->pos.material_evaluation -= queen_value;
-      tree->pos.black_pieces += queen_v;
-      tree->pos.num_b_queens++;
+      tree->pos.pieces[0] += queen_v;
+      tree->pos.num_queens[0]++;
       break;
     default:
       ;
     }
   }
-  TotalPieces = PopCnt(Occupied);
+  TotalAllPieces = PopCnt(OccupiedSquares);
   if (new_pos == &tree->position[0]) {
-    tree->rep_game = 0;
-    tree->rep_list[tree->rep_game] = HashKey;
+    tree->rep_index[white] = 0;
+    tree->rep_index[black] = 0;
   }
 }
 
@@ -801,11 +805,11 @@ void InitializeEvaluation(void)
 
   for (i = 0; i < 8; i++)
     for (j = 0; j < 8; j++) {
-      pval_b[i * 8 + j] = pval_w[(7 - i) * 8 + j];
-      kval_bn[i * 8 + j] = kval_wn[(7 - i) * 8 + j];
-      kval_bk[i * 8 + j] = kval_wk[(7 - i) * 8 + j];
-      kval_bq[i * 8 + j] = kval_wq[(7 - i) * 8 + j];
-      black_outpost[i * 8 + j] = white_outpost[(7 - i) * 8 + j];
+      pval[0][i * 8 + j] = pval[1][(7 - i) * 8 + j];
+      kval_n[0][i * 8 + j] = kval_n[1][(7 - i) * 8 + j];
+      kval_k[0][i * 8 + j] = kval_k[1][(7 - i) * 8 + j];
+      kval_q[0][i * 8 + j] = kval_q[1][(7 - i) * 8 + j];
+      outpost[0][i * 8 + j] = outpost[1][(7 - i) * 8 + j];
     }
   InitializeKingSafety();
 }
@@ -922,28 +926,33 @@ void InitializeHashTables(void)
     (pawn_hash_table + i)->key = 0;
     (pawn_hash_table + i)->p_score = 0;
     (pawn_hash_table + i)->protected = 0;
-    (pawn_hash_table + i)->black_defects_k = 0;
-    (pawn_hash_table + i)->black_defects_q = 0;
-    (pawn_hash_table + i)->white_defects_k = 0;
-    (pawn_hash_table + i)->white_defects_q = 0;
-    (pawn_hash_table + i)->passed_w = 0;
-    (pawn_hash_table + i)->passed_b = 0;
+    (pawn_hash_table + i)->defects_k[black] = 0;
+    (pawn_hash_table + i)->defects_q[black] = 0;
+    (pawn_hash_table + i)->defects_d[black] = 0;
+    (pawn_hash_table + i)->defects_e[black] = 0;
+    (pawn_hash_table + i)->defects_k[white] = 0;
+    (pawn_hash_table + i)->defects_q[white] = 0;
+    (pawn_hash_table + i)->defects_d[white] = 0;
+    (pawn_hash_table + i)->defects_e[white] = 0;
+    (pawn_hash_table + i)->passed[white] = 0;
+    (pawn_hash_table + i)->passed[black] = 0;
     (pawn_hash_table + i)->outside = 0;
-    (pawn_hash_table + i)->candidates_w = 0;
-    (pawn_hash_table + i)->candidates_b = 0;
+    (pawn_hash_table + i)->candidates[white] = 0;
+    (pawn_hash_table + i)->candidates[black] = 0;
   }
 }
 
 void InitializeKillers(void)
 {
-  int i;
+  int i, j;
 
   for (i = 0; i < MAXPLY; i++) {
     shared->local[0]->killers[i].move1 = 0;
     shared->local[0]->killers[i].move2 = 0;
   }
-  for (i = 0; i < 256; i++)
-    shared->local[0]->rep_list[i] = 0;
+  for (i = 0; i < 2; i++)
+    for (j = 0; j < 128; j++)
+      shared->local[0]->rep_list[i][j] = 0;
 }
 
 /*
@@ -987,7 +996,7 @@ void InitializeKingSafety()
 
 void InitializeMasks(void)
 {
-  int i, j;
+  int i;
 
   mask_clear_entry = (BITBOARD) 0xe7fffffffffe0000ull;
 /*
@@ -1017,28 +1026,28 @@ void InitializeMasks(void)
   for (i = 8; i < 56; i++) {
     if (File(i) > 0 && File(i) < 7) {
       mask_pawn_duo[i] = SetMask(i - 1) | SetMask(i + 1);
-      mask_pawn_protected_w[i] = SetMask(i - 1) | SetMask(i + 1);
+      mask_pawn_protected[white][i] = SetMask(i - 1) | SetMask(i + 1);
       if (i > 15)
-        mask_pawn_protected_w[i] |= SetMask(i - 7) | SetMask(i - 9);
-      mask_pawn_protected_b[i] = SetMask(i - 1) | SetMask(i + 1);
+        mask_pawn_protected[white][i] |= SetMask(i - 7) | SetMask(i - 9);
+      mask_pawn_protected[black][i] = SetMask(i - 1) | SetMask(i + 1);
       if (i < 48)
-        mask_pawn_protected_b[i] |= SetMask(i + 7) | SetMask(i + 9);
+        mask_pawn_protected[black][i] |= SetMask(i + 7) | SetMask(i + 9);
     } else if (File(i) == 0) {
       mask_pawn_duo[i] = SetMask(i + 1);
-      mask_pawn_protected_w[i] = SetMask(i + 1);
+      mask_pawn_protected[white][i] = SetMask(i + 1);
       if (i > 15)
-        mask_pawn_protected_w[i] |= SetMask(i - 7);
-      mask_pawn_protected_b[i] = SetMask(i + 1);
+        mask_pawn_protected[white][i] |= SetMask(i - 7);
+      mask_pawn_protected[black][i] = SetMask(i + 1);
       if (i < 48)
-        mask_pawn_protected_b[i] |= SetMask(i + 9);
+        mask_pawn_protected[black][i] |= SetMask(i + 9);
     } else if (File(i) == 7) {
       mask_pawn_duo[i] = SetMask(i - 1);
-      mask_pawn_protected_w[i] = SetMask(i - 1);
+      mask_pawn_protected[white][i] = SetMask(i - 1);
       if (i > 15)
-        mask_pawn_protected_w[i] |= SetMask(i - 9);
-      mask_pawn_protected_b[i] = SetMask(i - 1);
+        mask_pawn_protected[white][i] |= SetMask(i - 9);
+      mask_pawn_protected[black][i] = SetMask(i - 1);
       if (i < 48)
-        mask_pawn_protected_b[i] |= SetMask(i + 7);
+        mask_pawn_protected[black][i] |= SetMask(i + 7);
     }
   }
   mask_fgh = file_mask[FILEF] | file_mask[FILEG] | file_mask[FILEH];
@@ -1048,93 +1057,18 @@ void InitializeMasks(void)
   mask_abcd =
       file_mask[FILEA] | file_mask[FILEB] | file_mask[FILEC] | file_mask[FILED];
   virgin_center_pawns = SetMask(D2) | SetMask(E2) | SetMask(D7) | SetMask(E7);
-  mask_kr_trapped_w[0] = SetMask(H2);
-  mask_kr_trapped_w[1] = SetMask(H1) | SetMask(H2);
-  mask_kr_trapped_w[2] = SetMask(G1) | SetMask(H1) | SetMask(H2);
-  mask_qr_trapped_w[0] = SetMask(A2);
-  mask_qr_trapped_w[1] = SetMask(A1) | SetMask(A2);
-  mask_qr_trapped_w[2] = SetMask(A1) | SetMask(B1) | SetMask(A2);
-  mask_kr_trapped_b[0] = SetMask(H7);
-  mask_kr_trapped_b[1] = SetMask(H8) | SetMask(H7);
-  mask_kr_trapped_b[2] = SetMask(H8) | SetMask(G8) | SetMask(H7);
-  mask_qr_trapped_b[0] = SetMask(A7);
-  mask_qr_trapped_b[1] = SetMask(A8) | SetMask(A7);
-  mask_qr_trapped_b[2] = SetMask(A8) | SetMask(B8) | SetMask(A7);
-
-  mask_A3B3 = SetMask(A3) | SetMask(B3);
-  mask_B3C3 = SetMask(B3) | SetMask(C3);
-  mask_F3G3 = SetMask(F3) | SetMask(G3);
-  mask_G3H3 = SetMask(G3) | SetMask(H3);
-  mask_A6B6 = SetMask(A6) | SetMask(B6);
-  mask_B6C6 = SetMask(B6) | SetMask(C6);
-  mask_F6G6 = SetMask(F6) | SetMask(G6);
-  mask_G6H6 = SetMask(G6) | SetMask(H6);
-  mask_white_OO = SetMask(F1) | SetMask(G1);
-  mask_white_OOO = SetMask(B1) | SetMask(C1) | SetMask(D1);
-  mask_black_OO = SetMask(F8) | SetMask(G8);
-  mask_black_OOO = SetMask(B8) | SetMask(C8) | SetMask(D8);
-  mask_corner_a1 =
-      SetMask(A1) | SetMask(A2) | SetMask(A3) | SetMask(B1) | SetMask(B2) |
-      SetMask(B3) | SetMask(C1) | SetMask(C2) | SetMask(C3);
-  mask_corner_h1 =
-      SetMask(F1) | SetMask(F2) | SetMask(F3) | SetMask(G1) | SetMask(G2) |
-      SetMask(G3) | SetMask(H1) | SetMask(H2) | SetMask(H3);
-  mask_corner_a8 =
-      SetMask(A8) | SetMask(A7) | SetMask(A6) | SetMask(B8) | SetMask(B7) |
-      SetMask(B6) | SetMask(C8) | SetMask(C7) | SetMask(C6);
-  mask_corner_h8 =
-      SetMask(F8) | SetMask(F7) | SetMask(F6) | SetMask(G8) | SetMask(G7) |
-      SetMask(G6) | SetMask(H8) | SetMask(H7) | SetMask(H6);
-  mask_center_files = file_mask[FILED] | file_mask[FILEE];
-  mask_d3d4d5d6 = SetMask(D3) | SetMask(D4) | SetMask(D5) | SetMask(D6);
-  mask_e3e4e5e6 = SetMask(E3) | SetMask(E4) | SetMask(E5) | SetMask(E6);
-
-  for (i = 0; i < 64; i++) {
-    stalemate_sqs[i] = 0;
-    edge_moves[i] = 0;
-  }
-  for (i = 0; i < 8; i++) {
-    stalemate_sqs[i] |= SetMask(i + 16);
-    if (File(i) == 0)
-      stalemate_sqs[i] |= SetMask(i + 17);
-    if (File(i) == 7)
-      stalemate_sqs[i] |= SetMask(i + 15);
-    stalemate_sqs[i + 56] |= SetMask(i + 40);
-    if (File(i) == 0)
-      stalemate_sqs[i + 56] |= SetMask(i + 41);
-    if (File(i) == 7)
-      stalemate_sqs[i + 56] |= SetMask(i + 39);
-  }
-  for (i = 0; i < 64; i += 8) {
-    stalemate_sqs[i] |= SetMask(i + 2);
-    if (Rank(i) == 0)
-      stalemate_sqs[i] |= SetMask(i + 10);
-    if (Rank(i) == 7)
-      stalemate_sqs[i] |= SetMask(i - 6);
-    stalemate_sqs[i + 7] |= SetMask(i + 5);
-    if (Rank(i) == 0)
-      stalemate_sqs[i + 7] |= SetMask(i + 13);
-    if (Rank(i) == 7)
-      stalemate_sqs[i + 7] |= SetMask(i - 3);
-  }
-  for (i = 0; i < 63; i++) {
-    for (j = 0; j < 63; j++) {
-      if (stalemate_sqs[i] & SetMask(j)) {
-        if (Rank(i) == 0 || Rank(i) == 7) {
-          if (File(i) > 0)
-            edge_moves[i] |= SetMask(i - 1);
-          if (File(i) < 7)
-            edge_moves[i] |= SetMask(i + 1);
-        }
-        if (File(i) == 0 || File(i) == 7) {
-          if (Rank(i) > 0)
-            edge_moves[i] |= SetMask(i - 8);
-          if (Rank(i) < 7)
-            edge_moves[i] |= SetMask(i + 8);
-        }
-      }
-    }
-  }
+  mask_kr_trapped[black][0] = SetMask(H7);
+  mask_kr_trapped[black][1] = SetMask(H8) | SetMask(H7);
+  mask_kr_trapped[black][2] = SetMask(H8) | SetMask(G8) | SetMask(H7);
+  mask_qr_trapped[black][0] = SetMask(A7);
+  mask_qr_trapped[black][1] = SetMask(A8) | SetMask(A7);
+  mask_qr_trapped[black][2] = SetMask(A8) | SetMask(B8) | SetMask(A7);
+  mask_kr_trapped[white][0] = SetMask(H2);
+  mask_kr_trapped[white][1] = SetMask(H1) | SetMask(H2);
+  mask_kr_trapped[white][2] = SetMask(G1) | SetMask(H1) | SetMask(H2);
+  mask_qr_trapped[white][0] = SetMask(A2);
+  mask_qr_trapped[white][1] = SetMask(A1) | SetMask(A2);
+  mask_qr_trapped[white][2] = SetMask(A1) | SetMask(B1) | SetMask(A2);
 }
 
 void InitializePawnMasks(void)
@@ -1161,15 +1095,45 @@ void InitializePawnMasks(void)
  */
   for (i = 0; i < 64; i++) {
     if (!File(i)) {
-      mask_pawn_passed_w[i] = plus8dir[i] | plus8dir[i + 1];
-      mask_pawn_passed_b[i] = minus8dir[i] | minus8dir[i + 1];
+      mask_pawn_passed[white][i] = plus8dir[i] | plus8dir[i + 1];
+      mask_pawn_passed[black][i] = minus8dir[i] | minus8dir[i + 1];
     } else if (File(i) == 7) {
-      mask_pawn_passed_w[i] = plus8dir[i - 1] | plus8dir[i];
-      mask_pawn_passed_b[i] = minus8dir[i - 1] | minus8dir[i];
+      mask_pawn_passed[white][i] = plus8dir[i - 1] | plus8dir[i];
+      mask_pawn_passed[black][i] = minus8dir[i - 1] | minus8dir[i];
     } else {
-      mask_pawn_passed_w[i] = plus8dir[i - 1] | plus8dir[i] | plus8dir[i + 1];
-      mask_pawn_passed_b[i] =
+      mask_pawn_passed[white][i] =
+          plus8dir[i - 1] | plus8dir[i] | plus8dir[i + 1];
+      mask_pawn_passed[black][i] =
           minus8dir[i - 1] | minus8dir[i] | minus8dir[i + 1];
+    }
+  }
+/*
+ initialize hidden passed pawn masks, which are nothing more than 1's on
+ squares where the opponent can't have pawns so that our "hidden" passed
+ will work (say we have pawns on h6 and g5, and our opponent has a pawn on
+ h7.  he can't have pawns at g6 or f7 or we can't play g6 and free up our h
+ pawn.
+ */
+  for (i = 0; i < 8; i++) {
+    mask_hidden_left[black][i] = 0;
+    mask_hidden_right[black][i] = 0;
+    mask_hidden_left[white][i] = 0;
+    mask_hidden_right[white][i] = 0;
+    if (i > 0) {
+      mask_hidden_left[white][i] |= SetMask(39 + i) | SetMask(47 + i);
+      mask_hidden_left[black][i] |= SetMask(15 + i) | SetMask(7 + i);
+    }
+    if (i > 1) {
+      mask_hidden_left[white][i] |= SetMask(46 + i) | SetMask(38 + i);
+      mask_hidden_left[black][i] |= SetMask(6 + i) | SetMask(14 + i);
+    }
+    if (i < 6) {
+      mask_hidden_right[white][i] |= SetMask(50 + i) | SetMask(42 + i);
+      mask_hidden_right[black][i] |= SetMask(10 + i) | SetMask(18 + i);
+    }
+    if (i < 7) {
+      mask_hidden_right[white][i] |= SetMask(41 + i) | SetMask(49 + i);
+      mask_hidden_right[black][i] |= SetMask(17 + i) | SetMask(9 + i);
     }
   }
 /*
@@ -1178,14 +1142,14 @@ void InitializePawnMasks(void)
  */
   for (i = 8; i < 56; i++) {
     if (!File(i)) {
-      mask_no_pattacks_w[i] = minus8dir[i + 1];
-      mask_no_pattacks_b[i] = plus8dir[i + 1];
+      mask_no_pattacks[white][i] = minus8dir[i + 1];
+      mask_no_pattacks[black][i] = plus8dir[i + 1];
     } else if (File(i) == 7) {
-      mask_no_pattacks_w[i] = minus8dir[i - 1];
-      mask_no_pattacks_b[i] = plus8dir[i - 1];
+      mask_no_pattacks[white][i] = minus8dir[i - 1];
+      mask_no_pattacks[black][i] = plus8dir[i - 1];
     } else {
-      mask_no_pattacks_w[i] = minus8dir[i - 1] | minus8dir[i + 1];
-      mask_no_pattacks_b[i] = plus8dir[i + 1] | plus8dir[i - 1];
+      mask_no_pattacks[white][i] = minus8dir[i - 1] | minus8dir[i + 1];
+      mask_no_pattacks[black][i] = plus8dir[i + 1] | plus8dir[i - 1];
     }
   }
 /*
@@ -1277,47 +1241,50 @@ void InitializePieceMasks(void)
 /*
  initialize masks used to evaluate pawn races.  these masks are
  used to determine if the opposing king is in a position to stop a
- passed pawn from racing down and queening.
+ passed pawn from racing down and queening.  the data is organized
+ as pawn_race[side][onmove][square], where side is black or white,
+ and onmove indicates which side is to move for proper tempo 
+ evaluation.
  */
   for (i = 0; i < 64; i++) {
-    white_pawn_race_wtm[i] = 0;
-    white_pawn_race_btm[i] = 0;
-    black_pawn_race_wtm[i] = 0;
-    black_pawn_race_btm[i] = 0;
+    pawn_race[white][white][i] = 0;
+    pawn_race[white][black][i] = 0;
+    pawn_race[black][white][i] = 0;
+    pawn_race[black][black][i] = 0;
   }
   for (j = 8; j < 56; j++) {
     for (i = 0; i < 64; i++) {
 /* white pawn, wtm */
       if (j < 16) {
         if (KingPawnSquare(j + 8, i, File(j) + 56, 1))
-          white_pawn_race_wtm[j] = white_pawn_race_wtm[j] | SetMask(i);
+          pawn_race[white][white][j] |= SetMask(i);
       } else {
         if (KingPawnSquare(j, i, File(j) + 56, 1))
-          white_pawn_race_wtm[j] = white_pawn_race_wtm[j] | SetMask(i);
+          pawn_race[white][white][j] |= SetMask(i);
       }
-/* white pawn, Flip(wtm) */
+/* white pawn, btm */
       if (j < 16) {
         if (KingPawnSquare(j + 8, i, File(j) + 56, 0))
-          white_pawn_race_btm[j] = white_pawn_race_btm[j] | SetMask(i);
+          pawn_race[white][black][j] |= SetMask(i);
       } else {
         if (KingPawnSquare(j, i, File(j) + 56, 0))
-          white_pawn_race_btm[j] = white_pawn_race_btm[j] | SetMask(i);
+          pawn_race[white][black][j] |= SetMask(i);
       }
 /* black pawn, wtm */
       if (j > 47) {
         if (KingPawnSquare(j - 8, i, File(j), 0))
-          black_pawn_race_wtm[j] = black_pawn_race_wtm[j] | SetMask(i);
+          pawn_race[black][white][j] |= SetMask(i);
       } else {
         if (KingPawnSquare(j, i, File(j), 0))
-          black_pawn_race_wtm[j] = black_pawn_race_wtm[j] | SetMask(i);
+          pawn_race[black][white][j] |= SetMask(i);
       }
-/* black pawn, Flip(wtm) */
+/* black pawn, btm */
       if (j > 47) {
         if (KingPawnSquare(j - 8, i, File(j), 1))
-          black_pawn_race_btm[j] = black_pawn_race_btm[j] | SetMask(i);
+          pawn_race[black][black][j] |= SetMask(i);
       } else {
         if (KingPawnSquare(j, i, File(j), 1))
-          black_pawn_race_btm[j] = black_pawn_race_btm[j] | SetMask(i);
+          pawn_race[black][black][j] |= SetMask(i);
       }
     }
   }
@@ -1336,25 +1303,15 @@ void InitializePieceMasks(void)
  */
 void InitializeRandomHash(void)
 {
-  int i;
+  int piece, color, square, i;
 
-  for (i = 0; i < 64; i++) {
-    w_pawn_random[i] = Random64();
-    b_pawn_random[i] = Random64();
-    w_knight_random[i] = Random64();
-    b_knight_random[i] = Random64();
-    w_bishop_random[i] = Random64();
-    b_bishop_random[i] = Random64();
-    w_rook_random[i] = Random64();
-    b_rook_random[i] = Random64();
-    w_queen_random[i] = Random64();
-    b_queen_random[i] = Random64();
-    w_king_random[i] = Random64();
-    b_king_random[i] = Random64();
-  }
+  for (square = 0; square < 64; square++)
+    for (piece = pawn; piece <= king; piece++)
+      for (color = white; color >= black; color--)
+        randoms[color][piece][square] = Random64();
   for (i = 0; i < 2; i++) {
-    castle_random_w[i] = Random64();
-    castle_random_b[i] = Random64();
+    castle_random[1][i] = Random64();
+    castle_random[0][i] = Random64();
   }
   enpassant_random[0] = 0;
   for (i = 1; i < 65; i++) {
@@ -1376,7 +1333,7 @@ void InitializeRandomHash(void)
  */
 void InitializeSharedData(void)
 {
-  shared->nice = 0;
+  shared->nice = 1;
   shared->smp_idle = 0;
   shared->smp_threads = 0;
   shared->initialized_threads = 0;

@@ -1,4 +1,3 @@
-#include <string.h>
 #include "chess.h"
 #include "data.h"
 
@@ -53,6 +52,10 @@ int Quiesce(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply)
  ************************************************************
  */
   value = Evaluate(tree, ply, wtm, alpha, beta);
+#if defined(TRACE)
+  if (trace_level >= 99)
+    Trace(tree, ply, value, wtm, alpha, beta, "quiesce", EVALUATION);
+#endif
   if (value > alpha) {
     if (value >= beta)
       return (value);
@@ -79,11 +82,11 @@ int Quiesce(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply)
   for (movep = tree->last[ply - 1]; movep < tree->last[ply]; movep++) {
     if (Captured(*movep) == king)
       return (beta);
-    if (p_values[Piece(*movep) + 7] < p_values[Captured(*movep) + 7] ||
-        ((wtm) ? TotalBlackPieces : TotalWhitePieces) -
+    if (pc_values[Piece(*movep)] < pc_values[Captured(*movep)] ||
+        ((wtm) ? TotalPieces(black) : TotalPieces(white)) -
         p_vals[Captured(*movep)] == 0) {
       *goodmv++ = *movep;
-      *sortv++ = p_values[Captured(*movep) + 7];
+      *sortv++ = pc_values[Captured(*movep)];
       moves++;
     } else {
       temp = Swap(tree, From(*movep), To(*movep), wtm);

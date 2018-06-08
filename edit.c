@@ -1,6 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include "chess.h"
 #include "data.h"
 
@@ -34,8 +31,8 @@ void Edit(void)
 {
   int athome = 1, i, piece, readstat, square, tfile, trank, wtm = 1, error = 0;
   static const char pieces[] =
-      { 'x', 'X', 'P', 'p', 'N', 'n', 'K', 'k', '*', '*',
-    'B', 'b', 'R', 'r', 'Q', 'q', '\0'
+      { 'x', 'X', 'P', 'p', 'N', 'n', 'B', 'b', 'R', 'r',
+    'Q', 'q', 'K', 'k', '\0'
   };
   TREE *const tree = shared->local[0];
 
@@ -114,8 +111,8 @@ void Edit(void)
  *                                                          *
  ************************************************************
  */
-  WhiteCastle(0) = 0;
-  BlackCastle(0) = 0;
+  Castle(0, white) = 0;
+  Castle(0, black) = 0;
   EnPassant(0) = 0;
   for (i = 0; i < 16; i++)
     if (PcOnSq(i) == 0 || PcOnSq(i + 48) == 0)
@@ -129,15 +126,15 @@ void Edit(void)
           PcOnSq(H8) == -rook)) {
     if (PcOnSq(E1) == king) {
       if (PcOnSq(A1) == rook)
-        WhiteCastle(0) = WhiteCastle(0) | 2;
+        Castle(0, white) = Castle(0, white) | 2;
       if (PcOnSq(H1) == rook)
-        WhiteCastle(0) = WhiteCastle(0) | 1;
+        Castle(0, white) = Castle(0, white) | 1;
     }
     if (PcOnSq(E8) == -king) {
       if (PcOnSq(A8) == -rook)
-        BlackCastle(0) = BlackCastle(0) | 2;
+        Castle(0, black) = Castle(0, black) | 2;
       if (PcOnSq(H8) == -rook)
-        BlackCastle(0) = BlackCastle(0) | 1;
+        Castle(0, black) = Castle(0, black) | 1;
     }
   }
 /*
@@ -155,8 +152,8 @@ void Edit(void)
       DisplayChessBoard(log_file, tree->pos);
     wtm = 1;
     shared->move_number = 1;
-    tree->rep_game = 0;
-    tree->rep_list[tree->rep_game] = HashKey;
+    tree->rep_index[white] = 0;
+    tree->rep_index[black] = 0;
     tree->position[0].rule_50_moves = 0;
     shared->moves_out_of_book = 0;
   } else {

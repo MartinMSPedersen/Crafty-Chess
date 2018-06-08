@@ -1,6 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include "chess.h"
 #include "data.h"
 
@@ -555,8 +552,6 @@ void AnnotatePositionHTML(TREE * RESTRICT tree, int wtm, FILE * annotate_out)
 {
   char filename[32], html_piece;
   char alt[32];
-  char xlate[15] =
-      { 'q', 'r', 'b', 0, 'k', 'n', 'p', 0, 'P', 'N', 'K', 0, 'B', 'R', 'Q' };
   int rank, file;
 
 /*  Display the board in HTML using table of images.          */
@@ -570,7 +565,7 @@ void AnnotatePositionHTML(TREE * RESTRICT tree, int wtm, FILE * annotate_out)
         (void) strcat(filename, "w");
       else
         (void) strcat(filename, "b");
-      html_piece = xlate[PcOnSq((rank << 3) + file) + 7];
+      html_piece = translate[PcOnSq((rank << 3) + file) + 6];
       switch (html_piece) {
       case 'p':
         strcat(filename, "bp");
@@ -695,8 +690,6 @@ void AnnotateFooterTeX(FILE * annotate_out)
 void AnnotatePositionTeX(TREE * tree, int wtm, FILE * annotate_out)
 {
   char filename[32], html_piece;
-  char xlate[15] =
-      { 'q', 'r', 'b', 0, 'k', 'n', 'p', 0, 'P', 'N', 'K', 0, 'B', 'R', 'Q' };
   int rank, file;
 
 /*  Display the board in LaTeX using picture notation, similar to html */
@@ -708,7 +701,7 @@ void AnnotatePositionTeX(TREE * tree, int wtm, FILE * annotate_out)
         (void) strcpy(filename, " ");
       else
         (void) strcpy(filename, "*");
-      html_piece = xlate[PcOnSq((rank << 3) + file) + 7];
+      html_piece = translate[PcOnSq((rank << 3) + file) + 6];
       switch (html_piece) {
       case 'p':
         strcpy(filename, "p");

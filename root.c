@@ -1,5 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
 #include "chess.h"
 #include "data.h"
 #include "epdglue.h"
@@ -37,8 +35,8 @@ void RootMoveList(int wtm)
  */
 #if !defined(NOEGTB)
   EGTB_draw = 0;
-  if (EGTBlimit && TotalPieces <= EGTBlimit &&
-      WhiteCastle(1) + BlackCastle(1) == 0 &&
+  if (EGTBlimit && TotalAllPieces <= EGTBlimit &&
+      Castle(1, white) + Castle(1, black) == 0 &&
       EGTBProbe(tree, 1, wtm, &tb_value)) {
     if (swindle_mode && (tb_value == DrawScore(wtm)))
       if ((wtm && Material > 0) || (!wtm && Material < 0))
@@ -81,14 +79,14 @@ void RootMoveList(int wtm)
       do {
         tree->curmv[1] = *mvp;
 #if !defined(NOEGTB)
-        if (TotalPieces <= EGTBlimit && EGTB_draw &&
-            WhiteCastle(1) + BlackCastle(1) == 0) {
+        if (TotalAllPieces <= EGTBlimit && EGTB_draw &&
+            Castle(1, white) + Castle(1, black) == 0) {
           i = EGTBProbe(tree, 2, Flip(wtm), &tb_value);
           if (i && tb_value != DrawScore(Flip(wtm)))
             break;
         }
-        if (mating_via_tb && TotalPieces <= EGTBlimit &&
-            WhiteCastle(1) + BlackCastle(1) == 0) {
+        if (mating_via_tb && TotalAllPieces <= EGTBlimit &&
+            Castle(1, white) + Castle(1, black) == 0) {
           i = EGTBProbe(tree, 2, Flip(wtm), &tb_value);
           if (i && ((mating_via_tb > DrawScore(Flip(wtm)) &&
                       tb_value < mating_via_tb) ||
@@ -201,8 +199,8 @@ void RootMoveList(int wtm)
     for (i = 0; i < shared->n_root_moves; i++) {
       tree->curmv[1] = rmoves[i];
       MakeMove(tree, 1, rmoves[i], wtm);
-      if (mating_via_tb && TotalPieces <= EGTBlimit &&
-          WhiteCastle(1) + BlackCastle(1) == 0)
+      if (mating_via_tb && TotalAllPieces <= EGTBlimit &&
+          Castle(1, white) + Castle(1, black) == 0)
         temp =
             (EGTBProbe(tree, 2, Flip(wtm), &tb_value) != DrawScore(Flip(wtm)));
       else

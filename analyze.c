@@ -1,6 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include "chess.h"
 #include "data.h"
 
@@ -159,29 +156,16 @@ void Analyze()
 /*
  ************************************************************
  *                                                          *
- *  If Option() didn't handle the input, then it might be   *
- *  something from the DGT driver, and something from there *
- *  means to retract a move.                                *
+ *  If Option() didn't handle the input, then it is illegal *
+ *  and should be reported to the user.                     *
  *                                                          *
  ************************************************************
  */
       else {
-        if (!DGT_active) {
-          shared->pondering = 0;
-          if (Option(tree) == 0)
-            printf("illegal move: %s\n", buffer);
-          shared->pondering = 1;
-        } else {
-          wtm = Flip(wtm);
-          if (Flip(wtm))
-            shared->move_number--;
-          if (shared->move_number == 0) {
-            shared->move_number = 1;
-            wtm = 1;
-          }
-          sprintf(buffer, "reset %d", shared->move_number);
-          (void) Option(tree);
-        }
+        shared->pondering = 0;
+        if (Option(tree) == 0)
+          printf("illegal move: %s\n", buffer);
+        shared->pondering = 1;
         display = tree->pos;
       }
     } while (!move);

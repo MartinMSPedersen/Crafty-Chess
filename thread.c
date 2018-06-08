@@ -1,6 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include "chess.h"
 #include "data.h"
 #include "epdglue.h"
@@ -140,6 +137,138 @@ int Thread(TREE * RESTRICT tree)
 /*
  *******************************************************************************
  *                                                                             *
+ *   CopyFromSMP() is used to copy data from a child thread to a parent thread.*
+ *   this only copies the appropriate parts of the TREE structure to avoid     *
+ *   burning memory bandwidth by copying everything.                           *
+ *                                                                             *
+ *******************************************************************************
+ */
+void CopyFromSMP(TREE * RESTRICT p, TREE * RESTRICT c, int value)
+{
+  int i;
+
+  if (c->nodes_searched && !c->stop && value > p->search_value) {
+    p->pv[p->ply] = c->pv[p->ply];
+    p->search_value = value;
+    for (i = 1; i < MAXPLY; i++)
+      p->killers[i] = c->killers[i];
+  }
+  p->nodes_searched += c->nodes_searched;
+  p->fail_high += c->fail_high;
+  p->fail_high_first += c->fail_high_first;
+  p->evaluations += c->evaluations;
+  p->transposition_probes += c->transposition_probes;
+  p->transposition_hits += c->transposition_hits;
+  p->transposition_good_hits += c->transposition_good_hits;
+  p->transposition_uppers += c->transposition_uppers;
+  p->transposition_lowers += c->transposition_lowers;
+  p->egtb_probes += c->egtb_probes;
+  p->egtb_probes_successful += c->egtb_probes_successful;
+  p->check_extensions_done += c->check_extensions_done;
+  p->one_reply_extensions_done += c->one_reply_extensions_done;
+  p->mate_extensions_done += c->mate_extensions_done;
+  p->passed_pawn_extensions_done += c->passed_pawn_extensions_done;
+  p->reductions_attempted += c->reductions_attempted;
+  p->reductions_done += c->reductions_done;
+  strcpy(c->root_move_text, p->root_move_text);
+  c->used = 0;
+}
+
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   CopyToSMP() is used to copy data from a parent thread to a particular     *
+ *   child thread.  this only copies the appropriate parts of the TREE         *
+ *   structure to avoid burning memory bandwidth by copying everything.        *
+ *                                                                             *
+ *******************************************************************************
+ */
+TREE *CopyToSMP(TREE * RESTRICT p, int thread)
+{
+  int i, j, max;
+  TREE *c;
+  static int warnings = 0;
+  int first = thread * MAX_BLOCKS_PER_CPU + 1;
+  int last = first + MAX_BLOCKS_PER_CPU;
+  int maxb = shared->max_threads * MAX_BLOCKS_PER_CPU + 1;
+
+  for (i = first; i < last && shared->local[i]->used; i++);
+  if (i >= last) {
+    if (++warnings < 6)
+      Print(128, "WARNING.  optimal SMP block cannot be allocated, thread %d\n",
+          thread);
+    for (i = 1; i < maxb && shared->local[i]->used; i++);
+    if (i >= maxb) {
+      if (warnings < 6)
+        Print(128, "ERROR.  no SMP block can be allocated\n");
+      return (0);
+    }
+  }
+  max = 0;
+  for (j = 1; j < maxb; j++)
+    if (shared->local[j]->used)
+      max++;
+  shared->max_split_blocks = Max(shared->max_split_blocks, max);
+  c = shared->local[i];
+  c->used = 1;
+  c->stop = 0;
+  for (i = 0; i < shared->max_threads; i++)
+    c->siblings[i] = 0;
+  c->pos = p->pos;
+  c->pv[p->ply - 1] = p->pv[p->ply - 1];
+  c->pv[p->ply] = p->pv[p->ply];
+  c->next_status[p->ply] = p->next_status[p->ply];
+  c->save_hash_key[p->ply] = p->save_hash_key[p->ply];
+  c->save_pawn_hash_key[p->ply] = p->save_pawn_hash_key[p->ply];
+  for (i = 0; i < 2; i++)
+    c->rep_index[i] = p->rep_index[i];
+  for (i = 0; i < 2; i++)
+    for (j = 0; j < c->rep_index[i]; j++)
+      c->rep_list[i][j] = p->rep_list[i][j];
+  c->last[p->ply] = c->move_list;
+  c->hash_move[p->ply] = p->hash_move[p->ply];
+  for (i = 1; i <= p->ply + 1; i++) {
+    c->position[i] = p->position[i];
+    c->curmv[i] = p->curmv[i];
+    c->inchk[i] = p->inchk[i];
+    c->phase[i] = p->phase[i];
+  }
+  for (i = 1; i < MAXPLY; i++)
+    c->killers[i] = p->killers[i];
+  c->nodes_searched = 0;
+  c->fail_high = 0;
+  c->fail_high_first = 0;
+  c->evaluations = 0;
+  c->transposition_probes = 0;
+  c->transposition_hits = 0;
+  c->transposition_good_hits = 0;
+  c->transposition_uppers = 0;
+  c->transposition_lowers = 0;
+  c->transposition_exacts = 0;
+  c->egtb_probes = 0;
+  c->egtb_probes_successful = 0;
+  c->check_extensions_done = 0;
+  c->mate_extensions_done = 0;
+  c->one_reply_extensions_done = 0;
+  c->passed_pawn_extensions_done = 0;
+  c->reductions_attempted = 0;
+  c->reductions_done = 0;
+  c->alpha = p->alpha;
+  c->beta = p->beta;
+  c->value = p->value;
+  c->wtm = p->wtm;
+  c->ply = p->ply;
+  c->depth = p->depth;
+  c->mate_threat = p->mate_threat;
+  c->search_value = 0;
+  strcpy(c->root_move_text, p->root_move_text);
+  strcpy(c->remaining_moves_text, p->remaining_moves_text);
+  return (c);
+}
+
+/*
+ *******************************************************************************
+ *                                                                             *
  *   WaitForAllThreadsInitialized() waits till all max_threads are initialized.*
  *   Otherwise we can try to use not yet initialized local[] data.             *
  *                                                                             *
@@ -249,7 +378,7 @@ void ThreadStop(TREE * RESTRICT tree)
 #endif
 }
 
-/* modified 08/07/05 */
+/* modified 02/21/08 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -305,8 +434,12 @@ int ThreadWait(int tid, TREE * RESTRICT waiting)
  */
     while (!shared->thread[tid] && !shared->quit && (!waiting ||
             waiting->nprocs));
-    if (shared->quit)
-      return (0);
+    if (shared->quit) {
+      Lock(shared->lock_smp);
+      shared->smp_threads--;
+      Unlock(shared->lock_smp);
+      exit(0);
+    }
     Lock(shared->lock_smp);
     if (!shared->thread[tid])
       shared->thread[tid] = waiting;
@@ -339,9 +472,9 @@ int ThreadWait(int tid, TREE * RESTRICT waiting)
       return (0);
     if (shared->quit || shared->thread[tid] == (TREE *) - 1) {
       Lock(shared->lock_io);
-      Print(128, "thread %d exiting\n", tid);
+      shared->smp_threads--;
       Unlock(shared->lock_io);
-      return (0);
+      exit(0);
     }
 /*
  ************************************************************

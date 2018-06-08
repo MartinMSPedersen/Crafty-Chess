@@ -1,5 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
 #include "chess.h"
 #include "data.h"
 
@@ -29,8 +27,8 @@ void Killer(TREE * RESTRICT tree, int ply, int move)
 /*
  ************************************************************
  *                                                          *
- *   now, add the same move to the current killer moves if  *
- *   it is not already there.                               *
+ *   now, add this move to the current killer moves if it   *
+ *   is not already there.                                  *
  *                                                          *
  ************************************************************
  */

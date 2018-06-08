@@ -1,6 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include "chess.h"
 #include "data.h"
 
@@ -73,15 +70,16 @@ void EVTest(char *filename)
       SetBoard(&tree->position[0], nargs, args, 0);
       strcpy(buff, args[0]);
 
-      WhiteCastle(0) = 0;
-      WhiteCastle(1) = 0;
-      BlackCastle(0) = 0;
-      BlackCastle(1) = 0;
+      Castle(0, white) = 0;
+      Castle(1, white) = 0;
+      Castle(0, black) = 0;
+      Castle(1, black) = 0;
       shared->root_wtm = wtm;
 
       PreEvaluate(tree);
       tree->pawn_score.key = 0;
       s1 = Evaluate(tree, 0, wtm, -99999, 99999);
+      printf("score=%d\n", s1);
 
       strcpy(buffer, "flop");
       (void) Option(tree);

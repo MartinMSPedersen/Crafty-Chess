@@ -1,6 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include "chess.h"
 #include "data.h"
 #include "epdglue.h"
@@ -56,45 +53,46 @@ int SearchSMP(TREE * RESTRICT tree, int alpha, int beta, int value, int wtm,
       Trace(tree, ply, depth, wtm, alpha, beta, "SearchSMP", tree->phase[ply]);
 #endif
     MakeMove(tree, ply, tree->curmv[ply], wtm);
-    if (tree->inchk[ply] || !Check(wtm)) do {
-      extensions = SearchControl(tree, wtm, ply, depth, mate_threat) - PLY;
-      begin_root_nodes = tree->nodes_searched;
-      tree->fprune = 0;
-      if (!tree->inchk[ply] && !tree->inchk[ply + 1]) {
-        if (abs(alpha) < (MATE - 500) && ply > PLY && !tree->inchk[ply]) {
+    if (tree->inchk[ply] || !Check(wtm))
+      do {
+        extensions = SearchControl(tree, wtm, ply, depth, mate_threat) - PLY;
+        begin_root_nodes = tree->nodes_searched;
+        tree->fprune = 0;
+        if (!tree->inchk[ply] && !tree->inchk[ply + 1]) {
           if (abs(alpha) < (MATE - 500) && ply > PLY && !tree->inchk[ply]) {
-            if (depth < 3 * PLY &&
-                (((wtm) ? Material : -Material) + F_MARGIN) <= alpha)
-              tree->fprune = 1;
-            else if (depth >= 3 * PLY && depth < 5 * PLY &&
-                (((wtm) ? Material : -Material) + RAZOR_MARGIN) <= alpha)
-              extensions -= PLY;
+            if (abs(alpha) < (MATE - 500) && ply > PLY && !tree->inchk[ply]) {
+              if (depth < 3 * PLY &&
+                  (((wtm) ? Material : -Material) + F_MARGIN) <= alpha)
+                tree->fprune = 1;
+              else if (depth >= 3 * PLY && depth < 5 * PLY &&
+                  (((wtm) ? Material : -Material) + RAZOR_MARGIN) <= alpha)
+                extensions -= PLY;
+            }
           }
         }
-      }
-      if (depth + extensions >= PLY && !tree->fprune) {
-        value =
-            -Search(tree, -alpha - 1, -alpha, Flip(wtm), depth + extensions,
-            ply + 1, DO_NULL);
-        if (value > alpha && extensions < -PLY)
+        if (depth + extensions >= PLY && !tree->fprune) {
           value =
-              -Search(tree, -alpha - 1, -alpha, Flip(wtm), depth - PLY, ply + 1,
-              DO_NULL);
-      } else
-        value = -Quiesce(tree, -alpha - 1, -alpha, Flip(wtm), ply + 1);
-      if (shared->abort_search || tree->stop)
-        break;
-      if (value > alpha && value < beta) {
-        extensions = Max(extensions, -PLY);
-        if (depth + extensions >= PLY)
-          value =
-              -Search(tree, -beta, -alpha, Flip(wtm), depth + extensions,
+              -Search(tree, -alpha - 1, -alpha, Flip(wtm), depth + extensions,
               ply + 1, DO_NULL);
-        else
-          value = -Quiesce(tree, -beta, -alpha, Flip(wtm), ply + 1);
+          if (value > alpha && extensions < -PLY)
+            value =
+                -Search(tree, -alpha - 1, -alpha, Flip(wtm), depth - PLY,
+                ply + 1, DO_NULL);
+        } else
+          value = -Quiesce(tree, -alpha - 1, -alpha, Flip(wtm), ply + 1);
         if (shared->abort_search || tree->stop)
           break;
-      }
+        if (value > alpha && value < beta) {
+          extensions = Max(extensions, -PLY);
+          if (depth + extensions >= PLY)
+            value =
+                -Search(tree, -beta, -alpha, Flip(wtm), depth + extensions,
+                ply + 1, DO_NULL);
+          else
+            value = -Quiesce(tree, -beta, -alpha, Flip(wtm), ply + 1);
+          if (shared->abort_search || tree->stop)
+            break;
+        }
 /*
  ************************************************************
  *                                                          *
@@ -105,37 +103,37 @@ int SearchSMP(TREE * RESTRICT tree, int alpha, int beta, int value, int wtm,
  *                                                          *
  ************************************************************
  */
-      if (ply == 1)
-        shared->root_moves[tree->root_move].nodes =
-            tree->nodes_searched - begin_root_nodes;
-      if (value > alpha) {
-        alpha = value;
-        if (ply == 1) {
-          Lock(shared->lock_root);
-          if (value > shared->root_value) {
-            Output(tree, value, beta);
-            shared->root_value = value;
+        if (ply == 1)
+          shared->root_moves[tree->root_move].nodes =
+              tree->nodes_searched - begin_root_nodes;
+        if (value > alpha) {
+          alpha = value;
+          if (ply == 1) {
+            Lock(shared->lock_root);
+            if (value > shared->root_value) {
+              Output(tree, value, beta);
+              shared->root_value = value;
+            }
+            Unlock(shared->lock_root);
           }
-          Unlock(shared->lock_root);
-        }
-        if (value >= beta) {
-          register int proc;
+          if (value >= beta) {
+            register int proc;
 
-          shared->parallel_aborts++;
-          UnmakeMove(tree, ply, tree->curmv[ply], wtm);
-          Lock(shared->lock_smp);
-          Lock(tree->parent->lock);
-          if (!tree->stop) {
-            for (proc = 0; proc < shared->max_threads; proc++)
-              if (tree->parent->siblings[proc] && proc != tree->thread_id)
-                ThreadStop(tree->parent->siblings[proc]);
+            shared->parallel_aborts++;
+            UnmakeMove(tree, ply, tree->curmv[ply], wtm);
+            Lock(shared->lock_smp);
+            Lock(tree->parent->lock);
+            if (!tree->stop) {
+              for (proc = 0; proc < shared->max_threads; proc++)
+                if (tree->parent->siblings[proc] && proc != tree->thread_id)
+                  ThreadStop(tree->parent->siblings[proc]);
+            }
+            Unlock(tree->parent->lock);
+            Unlock(shared->lock_smp);
+            return (alpha);
           }
-          Unlock(tree->parent->lock);
-          Unlock(shared->lock_smp);
-          return (alpha);
         }
-      }
-    } while(0);
+      } while (0);
     UnmakeMove(tree, ply, tree->curmv[ply], wtm);
     if (shared->abort_search || tree->stop)
       break;

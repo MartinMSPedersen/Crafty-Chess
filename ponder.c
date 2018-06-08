@@ -1,6 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include "chess.h"
 #include "data.h"
 
@@ -158,7 +155,6 @@ int Ponder(int wtm)
   MakeMove(tree, 0, ponder_move, wtm);
   tlom = last_opponent_move;
   last_opponent_move = ponder_move;
-  tree->rep_list[++tree->rep_game] = HashKey;
   if (kibitz)
     strcpy(shared->kibitz_text, "n/a");
   shared->thinking = 0;
@@ -169,7 +165,6 @@ int Ponder(int wtm)
   shared->move_number = save_move_number;
   shared->pondering = 0;
   shared->thinking = 0;
-  tree->rep_game--;
   last_opponent_move = tlom;
   UnmakeMove(tree, 0, ponder_move, wtm);
 /*

@@ -1,7 +1,4 @@
-#include <stdio.h>
-#include <stdlib.h>
 #include <math.h>
-#include <string.h>
 #include "chess.h"
 #include "data.h"
 #if defined(UNIX)
@@ -106,7 +103,7 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
       for (im = 0; im < shared->n_root_moves; im++) {
         common = HashKey & ((BITBOARD) 65535 << 48);
         MakeMove(tree, 1, shared->root_moves[im].move, wtm);
-        if (RepetitionCheckBook(tree, 2)) {
+        if (RepetitionCheckBook(tree, 2, wtm)) {
           UnmakeMove(tree, 1, shared->root_moves[im].move, wtm);
           return (0);
         }
@@ -176,13 +173,14 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
  ************************************************************
  */
     initial_development =
-        (wtm) ? EvaluateDevelopmentW(tree, 1) : EvaluateDevelopmentB(tree, 1);
+        (wtm) ? EvaluateDevelopment(tree, 1, white) : EvaluateDevelopment(tree,
+        1, black);
     total_moves = 0;
     nmoves = 0;
     for (im = 0; im < shared->n_root_moves; im++) {
       common = HashKey & ((BITBOARD) 65535 << 48);
       MakeMove(tree, 1, shared->root_moves[im].move, wtm);
-      if (RepetitionCheckBook(tree, 2)) {
+      if (RepetitionCheckBook(tree, 2, wtm)) {
         UnmakeMove(tree, 1, shared->root_moves[im].move, wtm);
         return (0);
       }
@@ -200,8 +198,9 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
           tree->curmv[1] = shared->root_moves[im].move;
           if (!Captured(shared->root_moves[im].move))
             book_development[nmoves] =
-                ((wtm) ? EvaluateDevelopmentW(tree,
-                    2) : EvaluateDevelopmentB(tree, 2)) - initial_development;
+                ((wtm) ? EvaluateDevelopment(tree, 2,
+                    white) : EvaluateDevelopment(tree, 2,
+                    black)) - initial_development;
           else
             book_development[nmoves] = 0;
           total_moves += bs_played[nmoves];
@@ -1136,6 +1135,10 @@ void BookUp(TREE * RESTRICT tree, int nargs, char **args)
                 total_moves++;
                 common = HashKey & ((BITBOARD) 65535 << 48);
                 MakeMove(tree, 2, move, wtm);
+                if (Rule50Moves(3) == 0) {
+                  tree->rep_index[black] = 0;
+                  tree->rep_index[white] = 0;
+                }
                 tree->position[2] = tree->position[3];
                 if (ply <= max_ply) {
                   temp_hash_key = HashKey ^ wtm_random[wtm];

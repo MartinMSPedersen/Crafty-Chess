@@ -1,10 +1,7 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include "chess.h"
 #include "data.h"
 
-/* last modified 04/07/05 */
+/* last modified 12/08/07 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -28,13 +25,13 @@ int InputMove(TREE * RESTRICT tree, char *text, int ply, int wtm, int silent,
   int current, i, nleft;
   char *goodchar, *tc;
   char movetext[128];
-  static const char pieces[17] =
-      { ' ', ' ', 'P', 'p', 'N', 'n', 'K', 'k', ' ', ' ',
-    'B', 'B', 'R', 'r', 'Q', 'q', '\0'
+  static const char pieces[15] =
+      { ' ', ' ', 'P', 'p', 'N', 'n', 'B', 'b', 'R', 'r',
+    'Q', 'q', 'K', 'k', '\0'
   };
-  static const char pro_pieces[17] =
-      { ' ', ' ', ' ', ' ', 'N', 'n', ' ', ' ', ' ', ' ',
-    'B', 'b', 'R', 'r', 'Q', 'q', '\0'
+  static const char pro_pieces[15] =
+      { ' ', ' ', 'P', 'p', 'N', 'n', 'B', 'b', 'R', 'r', 'Q', 'q',
+    'K', 'k', '\0'
   };
 
 /*
@@ -273,9 +270,9 @@ int InputMoveICS(TREE * RESTRICT tree, char *text, int ply, int wtm, int silent,
   int ffile, frank, tfile, trank;
   int i, nleft;
   char movetext[128];
-  static const char pieces[17] =
-      { ' ', ' ', 'P', 'p', 'N', 'n', 'K', 'k', ' ', ' ',
-    'B', 'b', 'R', 'r', 'Q', 'q', '\0'
+  static const char pieces[15] =
+      { ' ', ' ', 'P', 'p', 'N', 'n', 'B', 'b', 'R', 'r',
+    'Q', 'q', 'K', 'k', '\0'
   };
 /*
  initialize move structure in case an error is found

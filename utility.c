@@ -1,7 +1,4 @@
-#include <stdio.h>
-#include <stdlib.h>
 #include <stdarg.h>
-#include <string.h>
 #include <errno.h>
 #include <ctype.h>
 #include "chess.h"
@@ -331,18 +328,10 @@ int CheckInput(void)
     return (1);
   FD_ZERO(&readfds);
   FD_SET(fileno(stdin), &readfds);
-#    if defined(DGT)
-  if (DGT_active)
-    FD_SET(from_dgt, &readfds);
-#    endif
   tv.tv_sec = 0;
   tv.tv_usec = 0;
   select(16, &readfds, 0, 0, &tv);
   data = FD_ISSET(fileno(stdin), &readfds);
-#    if defined(DGT)
-  if (DGT_active)
-    data |= FD_ISSET(from_dgt, &readfds);
-#    endif
   return (data);
 }
 #  endif
@@ -368,15 +357,19 @@ void ClearHashTableScores(int dopawnstoo)
         (pawn_hash_table + i)->key = 0;
         (pawn_hash_table + i)->p_score = 0;
         (pawn_hash_table + i)->protected = 0;
-        (pawn_hash_table + i)->black_defects_k = 0;
-        (pawn_hash_table + i)->black_defects_q = 0;
-        (pawn_hash_table + i)->white_defects_k = 0;
-        (pawn_hash_table + i)->white_defects_q = 0;
-        (pawn_hash_table + i)->passed_w = 0;
-        (pawn_hash_table + i)->passed_w = 0;
+        (pawn_hash_table + i)->defects_k[black] = 0;
+        (pawn_hash_table + i)->defects_q[black] = 0;
+        (pawn_hash_table + i)->defects_d[black] = 0;
+        (pawn_hash_table + i)->defects_e[black] = 0;
+        (pawn_hash_table + i)->defects_k[white] = 0;
+        (pawn_hash_table + i)->defects_q[white] = 0;
+        (pawn_hash_table + i)->defects_d[white] = 0;
+        (pawn_hash_table + i)->defects_e[white] = 0;
+        (pawn_hash_table + i)->passed[white] = 0;
+        (pawn_hash_table + i)->passed[black] = 0;
+        (pawn_hash_table + i)->candidates[white] = 0;
+        (pawn_hash_table + i)->candidates[black] = 0;
         (pawn_hash_table + i)->outside = 0;
-        (pawn_hash_table + i)->candidates_w = 0;
-        (pawn_hash_table + i)->candidates_b = 0;
       }
     }
   }
@@ -474,8 +467,8 @@ void DisplayChessBoard(FILE * display_file, POSITION pos)
 {
   int display_board[64];
   static const char display_string[16][4] =
-      { "<Q>", "<R>", "<B>", "   ", "<K>", "<N>", "<P>", "   ",
-    "-P-", "-N-", "-K-", "   ", "-B-", "-R-", "-Q-", " . "
+      { "<K>", "<Q>", "<R>", "<B>", "<N>", "<P>", "   ",
+    "-P-", "-N-", "-B-", "-R-", "-Q-", "-K-", " . "
   };
   int i, j;
 
@@ -488,10 +481,10 @@ void DisplayChessBoard(FILE * display_file, POSITION pos)
  ************************************************************
  */
   for (i = 0; i < 64; i++) {
-    display_board[i] = pos.board[i] + 7;
+    display_board[i] = pos.board[i] + 6;
     if (pos.board[i] == 0) {
       if (((i / 8) & 1) == ((i % 8) & 1))
-        display_board[i] = 15;
+        display_board[i] = 13;
     }
   }
 /*
@@ -868,7 +861,7 @@ void EGTBPV(TREE * RESTRICT tree, int wtm)
   if (!EGTB_setup)
     return;
   tree->position[1] = tree->position[0];
-  if (WhiteCastle(1) + BlackCastle(1))
+  if (Castle(1, white) + Castle(1, white))
     return;
   if (!EGTBProbe(tree, 1, wtm, &value))
     return;
@@ -902,8 +895,8 @@ void EGTBPV(TREE * RESTRICT tree, int wtm)
       MakeMove(tree, 1, current[i], wtm);
       if (!Check(wtm)) {
         legal++;
-        if (TotalPieces == 2 || EGTBProbe(tree, 2, Flip(wtm), &value)) {
-          if (TotalPieces > 2)
+        if (TotalAllPieces == 2 || EGTBProbe(tree, 2, Flip(wtm), &value)) {
+          if (TotalAllPieces > 2)
             value = -value;
           else
             value = DrawScore(wtm);
@@ -1060,96 +1053,6 @@ int FindBlockID(TREE * RESTRICT block)
   return (-1);
 }
 
-/*
- *******************************************************************************
- *                                                                             *
- *   HasOpposition() is used to determine if one king stands in "opposition"   *
- *   to the other.  if the kings are opposed on the same file or else are      *
- *   opposed on the same diagonal, then the side not-to-move has the opposition*
- *   and the side-to-move must give way.                                       *
- *                                                                             *
- *******************************************************************************
- */
-int HasOpposition(int on_move, int white_king, int black_king)
-{
-  register int file_distance, rank_distance;
-
-  file_distance = FileDistance(white_king, black_king);
-  rank_distance = RankDistance(white_king, black_king);
-  if (rank_distance < 2)
-    return (1);
-  if (on_move) {
-    if (rank_distance & 1) {
-      rank_distance--;
-      if (file_distance & 1)
-        file_distance--;
-    } else if (file_distance & 1) {
-      file_distance--;
-      if (rank_distance & 1)
-        rank_distance--;
-    }
-  }
-  if (!(file_distance & 1) && !(rank_distance & 1))
-    return (1);
-  return (0);
-}
-
-/*
- *******************************************************************************
- *                                                                             *
- *   InterposeSquares() is used to compute the set of squares that block an    *
- *   attack on the king by a sliding piece, by interposing any piece between   *
- *   the attacking piece and the king on the same ray.                         *
- *                                                                             *
- *******************************************************************************
- */
-BITBOARD InterposeSquares(int check_direction, int king_square,
-    int checking_square)
-{
-  register BITBOARD target;
-
-/*
- ************************************************************
- *                                                          *
- *   if this is a check from a single sliding piece, then   *
- *   we can interpose along the checking rank/file/diagonal *
- *   and block the check.  otherwise, interposing is not a  *
- *   possibility.                                           *
- *                                                          *
- ************************************************************
- */
-  switch (check_direction) {
-  case +1:
-    target = plus1dir[king_square - 1] ^ plus1dir[checking_square];
-    break;
-  case +7:
-    target = plus7dir[king_square - 7] ^ plus7dir[checking_square];
-    break;
-  case +8:
-    target = plus8dir[king_square - 8] ^ plus8dir[checking_square];
-    break;
-  case +9:
-    target = plus9dir[king_square - 9] ^ plus9dir[checking_square];
-    break;
-  case -1:
-    target = minus1dir[king_square + 1] ^ minus1dir[checking_square];
-    break;
-  case -7:
-    target = minus7dir[king_square + 7] ^ minus7dir[checking_square];
-    break;
-  case -8:
-    target = minus8dir[king_square + 8] ^ minus8dir[checking_square];
-    break;
-  case -9:
-    target = minus9dir[king_square + 9] ^ minus9dir[checking_square];
-    break;
-  default:
-    target = 0;
-    break;
-  }
-  return (target);
-}
-
 /* last modified 06/13/05 */
 /*
  *******************************************************************************
@@ -1166,16 +1069,16 @@ int InvalidPosition(TREE * RESTRICT tree)
   int error = 0;
   int wp, wn, wb, wr, wq, bp, bn, bb, br, bq;
 
-  wp = PopCnt(WhitePawns);
-  wn = PopCnt(WhiteKnights);
-  wb = PopCnt(WhiteBishops);
-  wr = PopCnt(WhiteRooks);
-  wq = PopCnt(WhiteQueens);
-  bp = PopCnt(BlackPawns);
-  bn = PopCnt(BlackKnights);
-  bb = PopCnt(BlackBishops);
-  br = PopCnt(BlackRooks);
-  bq = PopCnt(BlackQueens);
+  wp = PopCnt(Pawns(white));
+  wn = PopCnt(Knights(white));
+  wb = PopCnt(Bishops(white));
+  wr = PopCnt(Rooks(white));
+  wq = PopCnt(Queens(white));
+  bp = PopCnt(Pawns(black));
+  bn = PopCnt(Knights(black));
+  bb = PopCnt(Bishops(black));
+  br = PopCnt(Rooks(black));
+  bq = PopCnt(Queens(black));
   if (wp > 8) {
     Print(4095, "illegal position, too many white pawns\n");
     error = 1;
@@ -1196,7 +1099,7 @@ int InvalidPosition(TREE * RESTRICT tree)
     Print(4095, "illegal position, too many white queens\n");
     error = 1;
   }
-  if (WhiteKingSQ < 0) {
+  if (KingSQ(white) < 0) {
     Print(4095, "illegal position, no white king\n");
     error = 1;
   }
@@ -1204,7 +1107,7 @@ int InvalidPosition(TREE * RESTRICT tree)
     Print(4095, "illegal position, too many white pieces\n");
     error = 1;
   }
-  if (WhitePawns & (rank_mask[RANK1] | rank_mask[RANK8])) {
+  if (Pawns(white) & (rank_mask[RANK1] | rank_mask[RANK8])) {
     Print(4095, "illegal position, white pawns on first/eighth rank(s)\n");
     error = 1;
   }
@@ -1228,7 +1131,7 @@ int InvalidPosition(TREE * RESTRICT tree)
     Print(4095, "illegal position, too many black queens\n");
     error = 1;
   }
-  if (BlackKingSQ < 0) {
+  if (KingSQ(black) < 0) {
     Print(4095, "illegal position, no black king\n");
     error = 1;
   }
@@ -1236,7 +1139,7 @@ int InvalidPosition(TREE * RESTRICT tree)
     Print(4095, "illegal position, too many black pieces\n");
     error = 1;
   }
-  if (BlackPawns & (rank_mask[RANK1] | rank_mask[RANK8])) {
+  if (Pawns(black) & (rank_mask[RANK1] | rank_mask[RANK8])) {
     Print(4095, "illegal position, black pawns on first/eighth rank(s)\n");
     error = 1;
   }
@@ -1251,17 +1154,9 @@ int KingPawnSquare(int pawn, int king, int queen, int ptm)
 {
   register int pdist, kdist;
 
-  pdist = abs(Rank(pawn) - Rank(queen));
-  kdist =
-      (abs(Rank(king) - Rank(queen)) >
-      abs(File(king) - File(queen))) ? abs(Rank(king) -
-      Rank(queen)) : abs(File(king) - File(queen));
-  if (!ptm)
-    pdist++;
-  if (pdist < kdist)
-    return (0);
-  else
-    return (1);
+  pdist = abs(Rank(pawn) - Rank(queen)) + !ptm;
+  kdist = Distance(king, queen);
+  return (pdist >= kdist);
 }
 
 /* last modified 08/07/05 */
@@ -1441,112 +1336,6 @@ void Pass(void)
   wtm = Flip(wtm);
 }
 
-/*
- *******************************************************************************
- *                                                                             *
- *   PinnedOnKing() is used to determine if the piece on <square> is pinned    *
- *   against the king, so that it's illegal to move it.  this is used to screen*
- *   potential moves by GenerateCheckEvasions() so that illegal moves are not  *
- *   produced.                                                                 *
- *                                                                             *
- *******************************************************************************
- */
-int PinnedOnKing(TREE * RESTRICT tree, int wtm, int square)
-{
-  register int ray;
-
-  if (wtm) {
-/*
- ************************************************************
- *                                                          *
- *   first, determine if the piece being moved is on the    *
- *   same diagonal, rank or file as the king.               *
- *                                                          *
- ************************************************************
- */
-    ray = directions[square][WhiteKingSQ];
-    if (!ray)
-      return (0);
-/*
- ************************************************************
- *                                                          *
- *   if they are on the same ray, then determine if the     *
- *   king blocks a bishop attack in one direction from this *
- *   square and a bishop or queen blocks a bishop attack    *
- *   on the same diagonal in the opposite direction.        *
- *                                                          *
- ************************************************************
- */
-    switch (abs(ray)) {
-    case 1:
-      if (AttacksRank(square) & WhiteKing)
-        return ((AttacksRank(square) & RooksQueens & BlackPieces) != 0);
-      else
-        return (0);
-    case 7:
-      if (AttacksDiagh1(square) & WhiteKing)
-        return ((AttacksDiagh1(square) & BishopsQueens & BlackPieces) != 0);
-      else
-        return (0);
-    case 8:
-      if (AttacksFile(square) & WhiteKing)
-        return ((AttacksFile(square) & RooksQueens & BlackPieces) != 0);
-      else
-        return (0);
-    case 9:
-      if (AttacksDiaga1(square) & WhiteKing)
-        return ((AttacksDiaga1(square) & BishopsQueens & BlackPieces) != 0);
-      else
-        return (0);
-    }
-  } else {
-/*
- ************************************************************
- *                                                          *
- *   first, determine if the piece being moved is on the    *
- *   same diagonal, rank or file as the king.               *
- *                                                          *
- ************************************************************
- */
-    ray = directions[BlackKingSQ][square];
-    if (!ray)
-      return (0);
-/*
- ************************************************************
- *                                                          *
- *   if they are on the same ray, then determine if the     *
- *   king blocks a bishop attack in one direction from this *
- *   square and a bishop or queen blocks a bishop attack    *
- *   on the same diagonal in the opposite direction.        *
- *                                                          *
- ************************************************************
- */
-    switch (abs(ray)) {
-    case 1:
-      if (AttacksRank(square) & BlackKing)
-        return ((AttacksRank(square) & RooksQueens & WhitePieces) != 0);
-      else
-        return (0);
-    case 7:
-      if (AttacksDiagh1(square) & BlackKing)
-        return ((AttacksDiagh1(square) & BishopsQueens & WhitePieces) != 0);
-      else
-        return (0);
-    case 8:
-      if (AttacksFile(square) & BlackKing)
-        return ((AttacksFile(square) & RooksQueens & WhitePieces) != 0);
-      else
-        return (0);
-    case 9:
-      if (AttacksDiaga1(square) & BlackKing)
-        return ((AttacksDiaga1(square) & BishopsQueens & WhitePieces) != 0);
-      else
-        return (0);
-    }
-  }
-  return (0);
-}
-
 void Print(int vb, char *fmt, ...)
 {
   va_list ap;
@@ -1663,10 +1452,6 @@ int Read(int wait, char *buffer)
   char *eol, *ret, readdata;
 
   *buffer = 0;
-#if defined(DGT)
-  if (DGT_active && DGTCheckInput())
-    DGTRead();
-#endif
 /*
  case 1:  we have a complete command line, with terminating
  N/L character in the buffer.  we can simply extract it from
@@ -1698,31 +1483,10 @@ int Read(int wait, char *buffer)
  */
   else
     while (!strchr(cmd_buffer, '\n')) {
-#if defined(DGT)
-      if (DGT_active) {
-        fd_set readfds;
-        struct timeval tv;
-
-        FD_ZERO(&readfds);
-        FD_SET(from_dgt, &readfds);
-        FD_SET(fileno(stdin), &readfds);
-        tv.tv_sec = 999999;
-        tv.tv_usec = 0;
-        (void) select(32, &readfds, 0, 0, &tv);
-        if (FD_ISSET(from_dgt, &readfds))
-          DGTRead();
-        if (FD_ISSET(fileno(stdin), &readfds))
-          readdata = ReadInput();
-      } else {
-#endif
-        readdata = ReadInput();
-        if (!readdata)
-          return (-1);
-#if defined(DGT)
-      }
-#endif
+      readdata = ReadInput();
+      if (!readdata)
+        return (-1);
     }
-
   eol = strchr(cmd_buffer, '\n');
   *eol = 0;
   ret = strchr(cmd_buffer, '\r');
@@ -2186,136 +1950,6 @@ char *Reverse(void)
 /*
  *******************************************************************************
  *                                                                             *
- *   CopyFromSMP() is used to copy data from a child thread to a parent thread.*
- *   this only copies the appropriate parts of the TREE structure to avoid     *
- *   burning memory bandwidth by copying everything.                           *
- *                                                                             *
- *******************************************************************************
- */
-void CopyFromSMP(TREE * RESTRICT p, TREE * RESTRICT c, int value)
-{
-  int i;
-
-  if (c->nodes_searched && !c->stop && value > p->search_value) {
-    p->pv[p->ply] = c->pv[p->ply];
-    p->search_value = value;
-    for (i = 1; i < MAXPLY; i++)
-      p->killers[i] = c->killers[i];
-  }
-  p->nodes_searched += c->nodes_searched;
-  p->fail_high += c->fail_high;
-  p->fail_high_first += c->fail_high_first;
-  p->evaluations += c->evaluations;
-  p->transposition_probes += c->transposition_probes;
-  p->transposition_hits += c->transposition_hits;
-  p->transposition_good_hits += c->transposition_good_hits;
-  p->transposition_uppers += c->transposition_uppers;
-  p->transposition_lowers += c->transposition_lowers;
-  p->egtb_probes += c->egtb_probes;
-  p->egtb_probes_successful += c->egtb_probes_successful;
-  p->check_extensions_done += c->check_extensions_done;
-  p->one_reply_extensions_done += c->one_reply_extensions_done;
-  p->mate_extensions_done += c->mate_extensions_done;
-  p->passed_pawn_extensions_done += c->passed_pawn_extensions_done;
-  p->reductions_attempted += c->reductions_attempted;
-  p->reductions_done += c->reductions_done;
-  strcpy(c->root_move_text, p->root_move_text);
-  c->used = 0;
-}
-
-/*
- *******************************************************************************
- *                                                                             *
- *   CopyToSMP() is used to copy data from a parent thread to a particular     *
- *   child thread.  this only copies the appropriate parts of the TREE         *
- *   structure to avoid burning memory bandwidth by copying everything.        *
- *                                                                             *
- *******************************************************************************
- */
-TREE *CopyToSMP(TREE * RESTRICT p, int thread)
-{
-  int i, j, max;
-  TREE *c;
-  static int warnings = 0;
-  int first = thread * MAX_BLOCKS_PER_CPU + 1;
-  int last = first + MAX_BLOCKS_PER_CPU;
-  int maxb = shared->max_threads * MAX_BLOCKS_PER_CPU + 1;
-
-  for (i = first; i < last && shared->local[i]->used; i++);
-  if (i >= last) {
-    if (++warnings < 6)
-      Print(128, "WARNING.  optimal SMP block cannot be allocated, thread %d\n",
-          thread);
-    for (i = 1; i < maxb && shared->local[i]->used; i++);
-    if (i >= maxb) {
-      if (warnings < 6)
-        Print(128, "ERROR.  no SMP block can be allocated\n");
-      return (0);
-    }
-  }
-  max = 0;
-  for (j = 1; j < maxb; j++)
-    if (shared->local[j]->used)
-      max++;
-  shared->max_split_blocks = Max(shared->max_split_blocks, max);
-  c = shared->local[i];
-  c->used = 1;
-  c->stop = 0;
-  for (i = 0; i < shared->max_threads; i++)
-    c->siblings[i] = 0;
-  c->pos = p->pos;
-  c->pv[p->ply - 1] = p->pv[p->ply - 1];
-  c->pv[p->ply] = p->pv[p->ply];
-  c->next_status[p->ply] = p->next_status[p->ply];
-  c->save_hash_key[p->ply] = p->save_hash_key[p->ply];
-  c->save_pawn_hash_key[p->ply] = p->save_pawn_hash_key[p->ply];
-  c->rep_game = p->rep_game;
-  for (i = 0; i < 256; i++)
-    c->rep_list[i] = p->rep_list[i];
-  c->last[p->ply] = c->move_list;
-  c->hash_move[p->ply] = p->hash_move[p->ply];
-  for (i = 1; i <= p->ply + 1; i++) {
-    c->position[i] = p->position[i];
-    c->curmv[i] = p->curmv[i];
-    c->inchk[i] = p->inchk[i];
-    c->phase[i] = p->phase[i];
-  }
-  for (i = 1; i < MAXPLY; i++)
-    c->killers[i] = p->killers[i];
-  c->nodes_searched = 0;
-  c->fail_high = 0;
-  c->fail_high_first = 0;
-  c->evaluations = 0;
-  c->transposition_probes = 0;
-  c->transposition_hits = 0;
-  c->transposition_good_hits = 0;
-  c->transposition_uppers = 0;
-  c->transposition_lowers = 0;
-  c->transposition_exacts = 0;
-  c->egtb_probes = 0;
-  c->egtb_probes_successful = 0;
-  c->check_extensions_done = 0;
-  c->mate_extensions_done = 0;
-  c->one_reply_extensions_done = 0;
-  c->passed_pawn_extensions_done = 0;
-  c->reductions_attempted = 0;
-  c->reductions_done = 0;
-  c->alpha = p->alpha;
-  c->beta = p->beta;
-  c->value = p->value;
-  c->wtm = p->wtm;
-  c->ply = p->ply;
-  c->depth = p->depth;
-  c->mate_threat = p->mate_threat;
-  c->search_value = 0;
-  strcpy(c->root_move_text, p->root_move_text);
-  strcpy(c->remaining_moves_text, p->remaining_moves_text);
-  return (c);
-}
-
-/*
- *******************************************************************************
- *                                                                             *
  *   Kibitz() is used to whisper/kibitz information to a chess server.  it has *
  *   to handle the xboard whisper/kibitz interface as well as the custom ics   *
  *   interface for Crafty.  there are two main issues:  (a) presenting only the*
@@ -2488,7 +2122,7 @@ void Output(TREE * RESTRICT tree, int value, int bound)
   }
 }
 
-/* modified 08/07/05 */
+/* modified 02/01/08 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -2505,13 +2139,20 @@ void Trace(TREE * RESTRICT tree, int ply, int depth, int wtm, int alpha,
   Lock(shared->lock_io);
   for (i = 1; i < ply; i++)
     printf("  ");
-  printf("%d  %s d:%5.2f [%s,", ply, OutputMove(tree, tree->curmv[ply], ply,
-          wtm), (float) depth / (float) PLY, DisplayEvaluation(alpha, 1));
-  printf("%s] n:" BMF " %s(%d)", DisplayEvaluation(beta, 1),
-      (tree->nodes_searched), name, phase);
-  if (shared->max_threads > 1)
-    printf(" (t=%d) ", tree->thread_id);
-  printf("\n");
+  if (phase != EVALUATION) {
+    printf("%d  %s d:%5.2f [%s,", ply, OutputMove(tree, tree->curmv[ply], ply,
+            wtm), (float) depth / (float) PLY, DisplayEvaluation(alpha, 1));
+    printf("%s] n:" BMF " %s(%d)", DisplayEvaluation(beta, 1),
+        (tree->nodes_searched), name, phase);
+    if (shared->max_threads > 1)
+      printf(" (t=%d) ", tree->thread_id);
+    printf("\n");
+  } else {
+    printf("%d window/eval = {", ply);
+    printf("%s, ", DisplayEvaluation(alpha, 1));
+    printf("%s, ", DisplayEvaluation(depth, 1));
+    printf("%s}\n", DisplayEvaluation(beta, 1));
+  }
   Unlock(shared->lock_io);
 }
 
@@ -2533,7 +2174,7 @@ int StrCnt(char *string, char testchar)
   return (count);
 }
 
-/* last modified 03/22/01 */
+/* last modified 01/23/08 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -2546,6 +2187,14 @@ int StrCnt(char *string, char testchar)
  */
 int ValidMove(TREE * RESTRICT tree, int ply, int wtm, int move)
 {
+  static int epdir[2] = { 8, -8 };
+  static int csq[2] = { C8, C1 };
+  static int dsq[2] = { D8, D1 };
+  static int esq[2] = { E8, E1 };
+  static int fsq[2] = { F8, F1 };
+  static int gsq[2] = { G8, G1 };
+  int btm = Flip(wtm);
+
 /*
  ************************************************************
  *                                                          *
@@ -2553,13 +2202,8 @@ int ValidMove(TREE * RESTRICT tree, int ply, int wtm, int move)
  *                                                          *
  ************************************************************
  */
-  if (wtm) {
-    if (PcOnSq(From(move)) != Piece(move))
-      return (0);
-  } else {
-    if (PcOnSq(From(move)) != -Piece(move))
-      return (0);
-  }
+  if (PcOnSq(From(move)) != ((wtm) ? Piece(move) : -Piece(move)))
+    return (0);
   switch (Piece(move)) {
 /*
  ************************************************************
@@ -2569,7 +2213,7 @@ int ValidMove(TREE * RESTRICT tree, int ply, int wtm, int move)
  *                                                          *
  ************************************************************
  */
-  case none:
+  case empty:
     return (0);
 /*
  ************************************************************
@@ -2585,42 +2229,22 @@ int ValidMove(TREE * RESTRICT tree, int ply, int wtm, int move)
  */
   case king:
     if (abs(From(move) - To(move)) == 2) {
-      if (wtm) {
-        if (WhiteCastle(ply) > 0) {
-          if (To(move) == C1) {
-            if ((!(WhiteCastle(ply) & 2)) || (Occupied & mask_white_OOO) ||
-                (AttacksTo(tree, C1) & BlackPieces) ||
-                (AttacksTo(tree, D1) & BlackPieces) ||
-                (AttacksTo(tree, E1) & BlackPieces))
-              return (0);
-          } else if (To(move) == G1) {
-            if ((!(WhiteCastle(ply) & 1)) || (Occupied & mask_white_OO) ||
-                (AttacksTo(tree, E1) & BlackPieces) ||
-                (AttacksTo(tree, F1) & BlackPieces) ||
-                (AttacksTo(tree, G1) & BlackPieces))
-              return (0);
-          }
-        } else
-          return (0);
-      } else {
-        if (BlackCastle(ply) > 0) {
-          if (To(move) == C8) {
-            if ((!(BlackCastle(ply) & 2)) || (Occupied & mask_black_OOO) ||
-                (AttacksTo(tree, C8) & WhitePieces) ||
-                (AttacksTo(tree, D8) & WhitePieces) ||
-                (AttacksTo(tree, E8) & WhitePieces))
-              return (0);
-          }
-          if (To(move) == 62) {
-            if ((!(BlackCastle(ply) & 1)) || (Occupied & mask_black_OO) ||
-                (AttacksTo(tree, E8) & WhitePieces) ||
-                (AttacksTo(tree, F8) & WhitePieces) ||
-                (AttacksTo(tree, G8) & WhitePieces))
-              return (0);
-          }
-        } else
-          return (0);
-      }
+      if (Castle(ply, wtm) > 0) {
+        if (To(move) == csq[wtm]) {
+          if ((!(Castle(ply, wtm) & 2)) || (OccupiedSquares & OOO[wtm]) ||
+              (AttacksTo(tree, csq[wtm]) & Occupied(btm)) ||
+              (AttacksTo(tree, dsq[wtm]) & Occupied(btm)) ||
+              (AttacksTo(tree, esq[wtm]) & Occupied(btm)))
+            return (0);
+        } else if (To(move) == gsq[wtm]) {
+          if ((!(Castle(ply, wtm) & 1)) || (OccupiedSquares & OO[wtm]) ||
+              (AttacksTo(tree, esq[wtm]) & Occupied(btm)) ||
+              (AttacksTo(tree, fsq[wtm]) & Occupied(btm)) ||
+              (AttacksTo(tree, gsq[wtm]) & Occupied(btm)))
+            return (0);
+        }
+      } else
+        return (0);
       return (1);
     }
     break;
@@ -2633,27 +2257,17 @@ int ValidMove(TREE * RESTRICT tree, int ply, int wtm, int move)
  */
   case pawn:
     if (abs(From(move) - To(move)) == 8) {
-      if (wtm) {
-        if ((From(move) < To(move)) && !PcOnSq(To(move)))
-          return (1);
-      } else {
-        if ((From(move) > To(move)) && !PcOnSq(To(move)))
-          return (1);
-      }
+      if (!PcOnSq(To(move)))
+        return (1);
       return (0);
-    } else if (abs(From(move) - To(move)) == 16) {
-      if (wtm) {
-        if (!PcOnSq(To(move) - 8) && !PcOnSq(To(move)))
-          return (1);
-      } else {
-        if (!PcOnSq(To(move) + 8) && !PcOnSq(To(move)))
-          return (1);
-      }
+    }
+    if (abs(From(move) - To(move)) == 16) {
+      if (!PcOnSq(To(move)) && !PcOnSq(To(move) + epdir[wtm]))
+        return (1);
       return (0);
     }
     if (!Captured(move))
       return (0);
-
 /*
  ************************************************************
  *                                                          *
@@ -2664,15 +2278,10 @@ int ValidMove(TREE * RESTRICT tree, int ply, int wtm, int move)
  *                                                          *
  ************************************************************
  */
-    if (wtm) {
-      if ((PcOnSq(To(move)) == 0) && (PcOnSq(To(move) - 8) == -pawn) &&
-          (EnPassantTarget(ply) & SetMask(To(move))))
-        return (1);
-    } else {
-      if ((PcOnSq(To(move)) == 0) && (PcOnSq(To(move) + 8) == pawn) &&
-          (EnPassantTarget(ply) & SetMask(To(move))))
-        return (1);
-    }
+    if ((PcOnSq(To(move)) == 0) &&
+        (PcOnSq(To(move) + epdir[wtm]) == ((wtm) ? -pawn : pawn)) &&
+        (EnPassantTarget(ply) & SetMask(To(move))))
+      return (1);
 /*
  ************************************************************
  *                                                          *
@@ -2698,13 +2307,9 @@ int ValidMove(TREE * RESTRICT tree, int ply, int wtm, int move)
  *                                                          *
  ************************************************************
  */
-  if (wtm) {
-    if (Captured(move) == -PcOnSq(To(move)) && Captured(move) != king)
-      return (1);
-  } else {
-    if (Captured(move) == PcOnSq(To(move)) && Captured(move) != king)
-      return (1);
-  }
+  if ((Captured(move) == ((wtm) ? -PcOnSq(To(move)) : PcOnSq(To(move)))) &&
+      Captured(move) != king)
+    return (1);
   return (0);
 }
 

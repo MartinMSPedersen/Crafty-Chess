@@ -26,10 +26,7 @@
 
 /* system includes */
 
-#  include <stdlib.h>
-#  include <stdio.h>
 #  include <ctype.h>
-#  include <string.h>
 #  include <time.h>
 
 /* EPD definitions (host independent) */

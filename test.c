@@ -1,6 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include "chess.h"
 #include "data.h"
 
@@ -178,7 +175,8 @@ void Test(char *filename)
     Print(4095, "total nodes searched..............%12llu\n", nodes);
     Print(4095, "average search depth..............%12.1f\n",
         avg_depth / (right + wrong));
-    Print(4095, "nodes per second..................%12d\n", nodes * 100 / time);
+    Print(4095, "nodes per second..................%12d\n",
+        nodes * 100 / Max(time, 1));
     Print(4095, "total time........................%12s\n", DisplayTime(time));
   }
   input_stream = stdin;
@@ -352,7 +350,8 @@ void TestEPD(char *filename)
     Print(4095, "total nodes searched..............%12llu\n", nodes);
     Print(4095, "average search depth..............%12.1f\n",
         avg_depth / (right + wrong));
-    Print(4095, "nodes per second..................%12d\n", nodes * 100 / time);
+    Print(4095, "nodes per second..................%12d\n", nodes * 100 / Max(1,
+            time));
     Print(4095, "total time........................%12s\n", DisplayTime(time));
   }
   input_stream = stdin;

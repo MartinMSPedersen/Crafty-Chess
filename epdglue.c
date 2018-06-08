@@ -29,12 +29,9 @@
 
 /* system includes */
 
-#  include <stdio.h>
-#  include <stdlib.h>
 #  if !defined(NT_i386)
 #    include <unistd.h>
 #  endif
-#  include <string.h>
 #  include <ctype.h>
 #  include <time.h>
 #  if defined(NT_i386)
@@ -594,7 +591,7 @@ void EGGetIndexedHostPosition(TREE * RESTRICT tree, siT posdex, int active)
 
   cast = 0;
 
-  switch (tree->position[posdex].w_castle) {
+  switch (tree->position[posdex].castle[1]) {
   case 0:
     break;
   case 1:
@@ -608,7 +605,7 @@ void EGGetIndexedHostPosition(TREE * RESTRICT tree, siT posdex, int active)
     break;
   };
 
-  switch (tree->position[posdex].b_castle) {
+  switch (tree->position[posdex].castle[0]) {
   case 0:
     break;
   case 1:
@@ -715,17 +712,17 @@ void EGPutHostPosition(void)
 
 /* copy the castling availibility */
 
-  tree->position[0].w_castle = 0;
+  tree->position[0].castle[1] = 0;
   if (cast & cf_wk)
-    tree->position[0].w_castle += 1;
+    tree->position[0].castle[1] += 1;
   if (cast & cf_wq)
-    tree->position[0].w_castle += 2;
+    tree->position[0].castle[1] += 2;
 
-  tree->position[0].b_castle = 0;
+  tree->position[0].castle[0] = 0;
   if (cast & cf_bk)
-    tree->position[0].b_castle += 1;
+    tree->position[0].castle[0] += 1;
   if (cast & cf_bq)
-    tree->position[0].b_castle += 2;
+    tree->position[0].castle[0] += 2;
 
 /* copy the en passant target square */
 
@@ -746,7 +743,8 @@ void EGPutHostPosition(void)
 
   SetChessBitBoards(&tree->position[0]);
 
-  tree->rep_game = 0;
+  tree->rep_index[white] = 0;
+  tree->rep_index[black] = 0;
   shared->moves_out_of_book = 0;
   last_mate_score = 0;
 

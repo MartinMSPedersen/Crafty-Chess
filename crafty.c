@@ -19,12 +19,10 @@
 #include "utility.c"
 #include "probe.c"
 #include "book.c"
-
 #include "analyze.c"
 #include "annotate.c"
 #include "bench.c"
 #include "data.c"
-#include "dgt.c"
 #include "drawn.c"
 #include "edit.c"
 #include "epd.c"

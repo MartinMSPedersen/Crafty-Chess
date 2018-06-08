@@ -1,5 +1,4 @@
 #if !defined(NOEGTB)
-#  include <stdio.h>
 #  include "chess.h"
 #  include "data.h"
 
@@ -13,6 +12,22 @@
  *******************************************************************************
  */
 
+/*
+   Service macro - initialize squares of the particular piece as well as
+   counter for that piece. Note: dual initialization saves some time when
+   TB is present, but waste for non-present TB. 
+ */
+#  define  VInitSqCtr(rgCtr, rgSquares, piece, bitboard) {       \
+  int  cPieces=0;                                                \
+  BITBOARD bbTemp=(bitboard);                                    \
+  while (bbTemp) {                                               \
+    const squaret sq=MSB(bbTemp);                                \
+    (rgSquares)[(piece)*C_PIECES+cPieces]=sq;                    \
+    cPieces++;                                                   \
+    Clear(sq, bbTemp);                                           \
+  }                                                              \
+  (rgCtr)[(piece)]=cPieces;                                      \
+}
 #  define  T_INDEX64
 #  define  XX  127
 #  define  C_PIECES  3  /* Maximum # of pieces of one color OTB */
@@ -35,7 +50,7 @@ typedef unsigned int squaret;
 #    define  TB_FASTCALL
 #  endif
 
-typedef int color;
+typedef int pcolor;
 
 #  define  x_colorWhite  0
 #  define  x_colorBlack  1
@@ -68,9 +83,9 @@ typedef INDEX(TB_FASTCALL * PfnCalcIndex)
  (squaret *, squaret *, squaret, int fInverse);
 
 extern int IDescFindFromCounters(int *);
-extern int FRegisteredFun(int, color);
-extern PfnCalcIndex PfnIndCalcFun(int, color);
-extern int TB_FASTCALL L_TbtProbeTable(int, color, INDEX);
+extern int FRegisteredFun(int, pcolor);
+extern PfnCalcIndex PfnIndCalcFun(int, pcolor);
+extern int TB_FASTCALL L_TbtProbeTable(int, pcolor, INDEX);
 
 #  define PfnIndCalc PfnIndCalcFun
 #  define FRegistered FRegisteredFun
@@ -78,7 +93,7 @@ extern int TB_FASTCALL L_TbtProbeTable(int, color, INDEX);
 int EGTBProbe(TREE * RESTRICT tree, int ply, int wtm, int *score)
 {
   int rgiCounters[10], iTb, fInvert;
-  color side;
+  pcolor side;
   squaret rgsqWhite[C_PIECES * 5 + 1], rgsqBlack[C_PIECES * 5 + 1];
   squaret *psqW, *psqB, sqEnP;
   INDEX ind;
@@ -92,16 +107,16 @@ int EGTBProbe(TREE * RESTRICT tree, int ply, int wtm, int *score)
  *                                                          *
  ************************************************************
  */
-  VInitSqCtr(rgiCounters, rgsqWhite, 0, WhitePawns);
-  VInitSqCtr(rgiCounters, rgsqWhite, 1, WhiteKnights);
-  VInitSqCtr(rgiCounters, rgsqWhite, 2, WhiteBishops);
-  VInitSqCtr(rgiCounters, rgsqWhite, 3, WhiteRooks);
-  VInitSqCtr(rgiCounters, rgsqWhite, 4, WhiteQueens);
-  VInitSqCtr(rgiCounters + 5, rgsqBlack, 0, BlackPawns);
-  VInitSqCtr(rgiCounters + 5, rgsqBlack, 1, BlackKnights);
-  VInitSqCtr(rgiCounters + 5, rgsqBlack, 2, BlackBishops);
-  VInitSqCtr(rgiCounters + 5, rgsqBlack, 3, BlackRooks);
-  VInitSqCtr(rgiCounters + 5, rgsqBlack, 4, BlackQueens);
+  VInitSqCtr(rgiCounters, rgsqWhite, 0, Pawns(white));
+  VInitSqCtr(rgiCounters, rgsqWhite, 1, Knights(white));
+  VInitSqCtr(rgiCounters, rgsqWhite, 2, Bishops(white));
+  VInitSqCtr(rgiCounters, rgsqWhite, 3, Rooks(white));
+  VInitSqCtr(rgiCounters, rgsqWhite, 4, Queens(white));
+  VInitSqCtr(rgiCounters + 5, rgsqBlack, 0, Pawns(black));
+  VInitSqCtr(rgiCounters + 5, rgsqBlack, 1, Knights(black));
+  VInitSqCtr(rgiCounters + 5, rgsqBlack, 2, Bishops(black));
+  VInitSqCtr(rgiCounters + 5, rgsqBlack, 3, Rooks(black));
+  VInitSqCtr(rgiCounters + 5, rgsqBlack, 4, Queens(black));
 /*
  ************************************************************
  *                                                          *
@@ -122,8 +137,8 @@ int EGTBProbe(TREE * RESTRICT tree, int ply, int wtm, int *score)
  *                                                          *
  ************************************************************
  */
-  rgsqWhite[C_PIECES * 5] = WhiteKingSQ;
-  rgsqBlack[C_PIECES * 5] = BlackKingSQ;
+  rgsqWhite[C_PIECES * 5] = KingSQ(white);
+  rgsqBlack[C_PIECES * 5] = KingSQ(black);
   if (iTb > 0) {
     side = wtm ? x_colorWhite : x_colorBlack;
     fInvert = 0;

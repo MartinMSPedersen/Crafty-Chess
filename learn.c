@@ -1,8 +1,5 @@
-#include <stdio.h>
-#include <stdlib.h>
 #include <math.h>
 #include <time.h>
-#include <string.h>
 #include "chess.h"
 #include "data.h"
 #if defined(UNIX)

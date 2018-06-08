@@ -1,9 +1,7 @@
-#include <stdio.h>
-#include <stdlib.h>
 #include "chess.h"
 #include "data.h"
 
-/* last modified 07/18/06 */
+/* last modified 01/01/08 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -14,25 +12,30 @@
  */
 void UnmakeMove(TREE * RESTRICT tree, int ply, int move, int wtm)
 {
-  register int piece, from, to, captured, promote;
+  register int piece, from, to, captured, promote, btm = Flip(wtm);
+
+#if defined(DEBUG)
   register int i;
+#endif
   BITBOARD bit_move;
 
 /*
  ************************************************************
  *                                                          *
- *   first, take care of the hash key if there's a possible *
- *   enpassant pawn capture.                                *
+ *   first, restore the hash signatures to their state      *
+ *   prior to this move being made, and remove the current  *
+ *   position from the repetition list.                     *
  *                                                          *
  ************************************************************
  */
   HashKey = tree->save_hash_key[ply];
   PawnHashKey = tree->save_pawn_hash_key[ply];
+  tree->rep_index[wtm]--;
 /*
  ************************************************************
  *                                                          *
- *   now do the piece-specific things by calling the        *
- *   appropriate routine.                                   *
+ *   now do the things that are common to all pieces, such  *
+ *   as updating the bitboards and hash signature.          *
  *                                                          *
  ************************************************************
  */
@@ -41,9 +44,19 @@ void UnmakeMove(TREE * RESTRICT tree, int ply, int move, int wtm)
   to = To(move);
   captured = Captured(move);
   promote = Promote(move);
-UnmakePieceMove:
   bit_move = SetMask(from) | SetMask(to);
+  ClearSet(bit_move, Pieces(wtm, piece));
+  ClearSet(bit_move, Occupied(wtm));
   PcOnSq(to) = 0;
+  PcOnSq(from) = pieces[wtm][piece];
+/*
+ ************************************************************
+ *                                                          *
+ *   now do the piece-specific things by calling the        *
+ *   appropriate routine.                                   *
+ *                                                          *
+ ************************************************************
+ */
   switch (piece) {
 /*
  *******************************************************************************
@@ -53,21 +66,17 @@ UnmakePieceMove:
  *******************************************************************************
  */
   case pawn:
-    if (wtm) {
-      ClearSet(bit_move, WhitePawns);
-      ClearSet(bit_move, WhitePieces);
-      PcOnSq(from) = pawn;
-      if (captured == 1) {
-        if (EnPassant(ply) == to) {
-          TotalPieces++;
-          Set(to - 8, BlackPawns);
-          Set(to - 8, BlackPieces);
-          PcOnSq(to - 8) = -pawn;
-          Material -= pawn_value;
-          TotalBlackPawns++;
-          captured = 0;
-        }
+    if (captured == 1) {
+      if (EnPassant(ply) == to) {
+        TotalAllPieces++;
+        Set(to + epsq[wtm], Pawns(btm));
+        Set(to + epsq[wtm], Occupied(btm));
+        PcOnSq(to + epsq[wtm]) = pieces[btm][pawn];
+        Material -= PieceValues(wtm, pawn);
+        TotalPawns(btm)++;
+        captured = 0;
       }
+    }
 /*
  **********************************************************************
  *                                                                    *
@@ -77,101 +86,34 @@ UnmakePieceMove:
  *                                                                    *
  **********************************************************************
  */
-      if (promote) {
-        TotalWhitePawns++;
-        Material += pawn_value;
-        Clear(to, WhitePawns);
-        Clear(to, WhitePieces);
-        switch (promote) {
-        case knight:
-          Clear(to, WhiteKnights);
-          TotalWhitePieces -= knight_v;
-          TotalWhiteKnights--;
-          Material -= knight_value;
-          break;
-        case bishop:
-          Clear(to, WhiteBishops);
-          Clear(to, BishopsQueens);
-          TotalWhitePieces -= bishop_v;
-          TotalWhiteBishops--;
-          Material -= bishop_value;
-          break;
-        case rook:
-          Clear(to, WhiteRooks);
-          Clear(to, RooksQueens);
-          TotalWhitePieces -= rook_v;
-          TotalWhiteRooks--;
-          Material -= rook_value;
-          break;
-        case queen:
-          Clear(to, WhiteQueens);
-          Clear(to, BishopsQueens);
-          Clear(to, RooksQueens);
-          TotalWhitePieces -= queen_v;
-          TotalWhiteQueens--;
-          Material -= queen_value;
-          break;
-        }
-      }
-    } else {
-      ClearSet(bit_move, BlackPawns);
-      ClearSet(bit_move, BlackPieces);
-      PcOnSq(from) = -pawn;
-      if (captured == 1) {
-        if (EnPassant(ply) == to) {
-          TotalPieces++;
-          Set(to + 8, WhitePawns);
-          Set(to + 8, WhitePieces);
-          PcOnSq(to + 8) = pawn;
-          Material += pawn_value;
-          TotalWhitePawns++;
-          captured = 0;
-        }
-      }
-/*
- **********************************************************************
- *                                                                    *
- *  if this is a pawn promotion, remove the pawn from the counts      *
- *  then update the correct piece board to reflect the piece just     *
- *  created.                                                          *
- *                                                                    *
- **********************************************************************
- */
-      if (promote) {
-        TotalBlackPawns++;
-        Material -= pawn_value;
-        Clear(to, BlackPawns);
-        Clear(to, BlackPieces);
-        switch (promote) {
-        case knight:
-          Clear(to, BlackKnights);
-          TotalBlackPieces -= knight_v;
-          TotalBlackKnights--;
-          Material += knight_value;
-          break;
-        case bishop:
-          Clear(to, BlackBishops);
-          Clear(to, BishopsQueens);
-          TotalBlackPieces -= bishop_v;
-          TotalBlackBishops--;
-          Material += bishop_value;
-          break;
-        case rook:
-          Clear(to, BlackRooks);
-          Clear(to, RooksQueens);
-          TotalBlackPieces -= rook_v;
-          TotalBlackRooks--;
-          Material += rook_value;
-          break;
-        case queen:
-          Clear(to, BlackQueens);
-          Clear(to, BishopsQueens);
-          Clear(to, RooksQueens);
-          TotalBlackPieces -= queen_v;
-          TotalBlackQueens--;
-          Material += queen_value;
-          break;
-        }
+    if (promote) {
+      TotalPawns(wtm)++;
+      Clear(to, Pawns(wtm));
+      Clear(to, Occupied(wtm));
+      Clear(to, Pieces(wtm, promote));
+      Material -= PieceValues(wtm, promote);
+      Material += PieceValues(wtm, pawn);
+      switch (promote) {
+      case knight:
+        TotalPieces(wtm) -= knight_v;
+        TotalKnights(wtm)--;
+        break;
+      case bishop:
+        Clear(to, BishopsQueens);
+        TotalPieces(wtm) -= bishop_v;
+        TotalBishops(wtm)--;
+        break;
+      case rook:
+        Clear(to, RooksQueens);
+        TotalPieces(wtm) -= rook_v;
+        TotalRooks(wtm)--;
+        break;
+      case queen:
+        Clear(to, BishopsQueens);
+        Clear(to, RooksQueens);
+        TotalPieces(wtm) -= queen_v;
+        TotalQueens(wtm)--;
+        break;
       }
     }
     break;
@@ -183,15 +125,6 @@ UnmakePieceMove:
  *******************************************************************************
  */
   case knight:
-    if (wtm) {
-      ClearSet(bit_move, WhiteKnights);
-      ClearSet(bit_move, WhitePieces);
-      PcOnSq(from) = knight;
-    } else {
-      ClearSet(bit_move, BlackKnights);
-      ClearSet(bit_move, BlackPieces);
-      PcOnSq(from) = -knight;
-    }
     break;
 /*
  *******************************************************************************
@@ -202,15 +135,6 @@ UnmakePieceMove:
  */
   case bishop:
     ClearSet(bit_move, BishopsQueens);
-    if (wtm) {
-      ClearSet(bit_move, WhiteBishops);
-      ClearSet(bit_move, WhitePieces);
-      PcOnSq(from) = bishop;
-    } else {
-      ClearSet(bit_move, BlackBishops);
-      ClearSet(bit_move, BlackPieces);
-      PcOnSq(from) = -bishop;
-    }
     break;
 /*
  *******************************************************************************
@@ -221,15 +145,6 @@ UnmakePieceMove:
  */
   case rook:
     ClearSet(bit_move, RooksQueens);
-    if (wtm) {
-      ClearSet(bit_move, WhiteRooks);
-      ClearSet(bit_move, WhitePieces);
-      PcOnSq(from) = rook;
-    } else {
-      ClearSet(bit_move, BlackRooks);
-      ClearSet(bit_move, BlackPieces);
-      PcOnSq(from) = -rook;
-    }
     break;
 /*
  *******************************************************************************
@@ -241,15 +156,6 @@ UnmakePieceMove:
   case queen:
     ClearSet(bit_move, BishopsQueens);
     ClearSet(bit_move, RooksQueens);
-    if (wtm) {
-      ClearSet(bit_move, WhiteQueens);
-      ClearSet(bit_move, WhitePieces);
-      PcOnSq(from) = queen;
-    } else {
-      ClearSet(bit_move, BlackQueens);
-      ClearSet(bit_move, BlackPieces);
-      PcOnSq(from) = -queen;
-    }
     break;
 /*
  *******************************************************************************
@@ -259,40 +165,21 @@ UnmakePieceMove:
  *******************************************************************************
  */
   case king:
-    if (wtm) {
-      ClearSet(bit_move, WhitePieces);
-      PcOnSq(from) = king;
-      WhiteKingSQ = from;
-      if (abs(to - from) == 2) {
-        if (to == G1) {
-          from = H1;
-          to = F1;
-          piece = rook;
-          goto UnmakePieceMove;
-        } else {
-          from = A1;
-          to = D1;
-          piece = rook;
-          goto UnmakePieceMove;
-        }
+    KingSQ(wtm) = from;
+    if (abs(to - from) == 2) {
+      if (to == rook_G[wtm]) {
+        from = rook_H[wtm];
+        to = rook_F[wtm];
+      } else {
+        from = rook_A[wtm];
+        to = rook_D[wtm];
       }
-    } else {
-      ClearSet(bit_move, BlackPieces);
-      PcOnSq(from) = -king;
-      BlackKingSQ = from;
-      if (abs(to - from) == 2) {
-        if (to == G8) {
-          from = H8;
-          to = F8;
-          piece = rook;
-          goto UnmakePieceMove;
-        } else {
-          from = A8;
-          to = D8;
-          piece = rook;
-          goto UnmakePieceMove;
-        }
-      }
+      bit_move = SetMask(from) | SetMask(to);
+      ClearSet(bit_move, RooksQueens);
+      ClearSet(bit_move, Rooks(wtm));
+      ClearSet(bit_move, Occupied(wtm));
+      PcOnSq(to) = 0;
+      PcOnSq(from) = pieces[wtm][rook];
     }
     break;
   }
@@ -304,7 +191,11 @@ UnmakePieceMove:
  *******************************************************************************
  */
   if (captured) {
-    TotalPieces++;
+    TotalAllPieces++;
+    Set(to, Pieces(btm, captured));
+    Set(to, Occupied(btm));
+    Material += PieceValues(btm, captured);
+    PcOnSq(to) = pieces[btm][captured];
     switch (captured) {
 /*
  ************************************************************
@@ -314,19 +205,7 @@ UnmakePieceMove:
  ************************************************************
  */
     case pawn:
-      if (wtm) {
-        Set(to, BlackPawns);
-        Set(to, BlackPieces);
-        PcOnSq(to) = -pawn;
-        Material -= pawn_value;
-        TotalBlackPawns++;
-      } else {
-        Set(to, WhitePawns);
-        Set(to, WhitePieces);
-        PcOnSq(to) = pawn;
-        Material += pawn_value;
-        TotalWhitePawns++;
-      }
+      TotalPawns(btm)++;
       break;
 /*
  ************************************************************
@@ -336,21 +215,8 @@ UnmakePieceMove:
  ************************************************************
  */
     case knight:
-      if (wtm) {
-        Set(to, BlackKnights);
-        Set(to, BlackPieces);
-        PcOnSq(to) = -knight;
-        TotalBlackPieces += knight_v;
-        TotalBlackKnights++;
-        Material -= knight_value;
-      } else {
-        Set(to, WhiteKnights);
-        Set(to, WhitePieces);
-        PcOnSq(to) = knight;
-        TotalWhitePieces += knight_v;
-        TotalWhiteKnights++;
-        Material += knight_value;
-      }
+      TotalPieces(btm) += knight_v;
+      TotalKnights(btm)++;
       break;
 /*
  ************************************************************
@@ -361,21 +227,8 @@ UnmakePieceMove:
  */
     case bishop:
       Set(to, BishopsQueens);
-      if (wtm) {
-        Set(to, BlackBishops);
-        Set(to, BlackPieces);
-        PcOnSq(to) = -bishop;
-        TotalBlackPieces += bishop_v;
-        TotalBlackBishops++;
-        Material -= bishop_value;
-      } else {
-        Set(to, WhiteBishops);
-        Set(to, WhitePieces);
-        PcOnSq(to) = bishop;
-        TotalWhitePieces += bishop_v;
-        TotalWhiteBishops++;
-        Material += bishop_value;
-      }
+      TotalPieces(btm) += bishop_v;
+      TotalBishops(btm)++;
       break;
 /*
  ************************************************************
@@ -386,21 +239,8 @@ UnmakePieceMove:
  */
     case rook:
       Set(to, RooksQueens);
-      if (wtm) {
-        Set(to, BlackRooks);
-        Set(to, BlackPieces);
-        PcOnSq(to) = -rook;
-        TotalBlackPieces += rook_v;
-        TotalBlackRooks++;
-        Material -= rook_value;
-      } else {
-        Set(to, WhiteRooks);
-        Set(to, WhitePieces);
-        PcOnSq(to) = rook;
-        TotalWhitePieces += rook_v;
-        TotalWhiteRooks++;
-        Material += rook_value;
-      }
+      TotalPieces(btm) += rook_v;
+      TotalRooks(btm)++;
       break;
 /*
  ************************************************************
@@ -412,21 +252,8 @@ UnmakePieceMove:
     case queen:
       Set(to, BishopsQueens);
       Set(to, RooksQueens);
-      if (wtm) {
-        Set(to, BlackQueens);
-        Set(to, BlackPieces);
-        PcOnSq(to) = -queen;
-        TotalBlackPieces += queen_v;
-        TotalBlackQueens++;
-        Material -= queen_value;
-      } else {
-        Set(to, WhiteQueens);
-        Set(to, WhitePieces);
-        PcOnSq(to) = queen;
-        TotalWhitePieces += queen_v;
-        TotalWhiteQueens++;
-        Material += queen_value;
-      }
+      TotalPieces(btm) += queen_v;
+      TotalQueens(btm)++;
       break;
 /*
  ************************************************************

@@ -1,6 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include "chess.h"
 #include "data.h"
 #if defined(UNIX) || defined(AMIGA)
@@ -3570,12 +3567,31 @@
  *           was summarily removed (not summarily executed, it has had that    *
  *           done far too many times already).                                 *
  *                                                                             *
+ *   22.0    redesign of the data structures completed so that crafty will no  *
+ *           longer have duplicated code for wtm and btm cases.  this has      *
+ *           already resulted in a rewrite of movgen(), swap(), make() and     *
+ *           Unmake() and cut that code size by almost exactly 50%. The result *
+ *           has been slightly faster speeds, but also the future benefits     *
+ *           will be enormous by eliminating a lot of debugging caused by the  *
+ *           duplicated code.  timing change to avoid starting an iteration    *
+ *           and wasting significant time.  we still search enough to get a    *
+ *           quick fail-low, otherwise we stop and make the move and save the  *
+ *           time we used to burn.  massive cleanup in the macros used to      *
+ *           access much of the data since the new [wtm] approach resulted in  *
+ *           many old macros becoming unused.  yet another rewrite of the code *
+ *           that handles repetition detection.  there is an undetected bug in *
+ *           the previous code, related to pondering and SMP, that was not     *
+ *           obvious.  the code was completely rewritten and is now much       *
+ *           simpler to understand, and has been verified to be bug-free as a  *
+ *           with massive cluster testing.                                     *
+ *                                                                             *
  *******************************************************************************
  */
 int main(int argc, char **argv)
 {
   int move, presult, readstat;
   int value = 0, i, result;
+  int draw_type;
   TREE *tree;
   FILE *personality;
 
@@ -3874,14 +3890,14 @@ int main(int argc, char **argv)
         MakeMoveRoot(tree, move, wtm);
         move_actually_played = 1;
         last_opponent_move = move;
-        if (RepetitionDraw(tree, 0) == 1) {
+        if ((draw_type = RepetitionDraw(tree, 0, Flip(wtm))) == 1) {
           Print(128, "%sI claim a draw by 3-fold repetition.%s\n", Reverse(),
               Normal());
           value = DrawScore(wtm);
           if (xboard)
             Print(4095, "1/2-1/2 {Drawn by 3-fold repetition}\n");
         }
-        if (RepetitionDraw(tree, 0) == 2) {
+        if (draw_type == 2) {
           Print(128, "%sI claim a draw by the 50 move rule.%s\n", Reverse(),
               Normal());
           value = DrawScore(wtm);
@@ -4045,15 +4061,14 @@ int main(int argc, char **argv)
  */
       tree->position[MAXPLY] = tree->position[0];
       MakeMove(tree, MAXPLY, last_pv.path[1], wtm);
-      tree->rep_list[++tree->rep_game] = HashKey;
-      if (RepetitionDraw(tree, MAXPLY + 1) == 1) {
+      if ((draw_type = RepetitionDraw(tree, MAXPLY + 1, Flip(wtm))) == 1) {
         Print(128, "%sI claim a draw by 3-fold repetition after my move.%s\n",
             Reverse(), Normal());
         if (xboard)
           Print(4095, "1/2-1/2 {Drawn by 3-fold repetition}\n");
         value = DrawScore(wtm);
       }
-      if (RepetitionDraw(tree, MAXPLY + 1) == 2) {
+      if (draw_type == 2) {
         Print(128, "%sI claim a draw by the 50 move rule after my move.%s\n",
             Reverse(), Normal());
         if (xboard)
@@ -4068,7 +4083,6 @@ int main(int argc, char **argv)
           Print(4095, "1/2-1/2 {Insufficient material}\n");
       }
       UnmakeMove(tree, MAXPLY, last_pv.path[1], wtm);
-      --tree->rep_game;
       ResignOrDraw(tree, value);
 /*
  ************************************************************

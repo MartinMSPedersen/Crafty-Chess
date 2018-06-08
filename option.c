@@ -1,6 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <ctype.h>
 #include <signal.h>
 #include "chess.h"
@@ -457,23 +454,6 @@ int Option(TREE * RESTRICT tree)
 /*
  ************************************************************
  *                                                          *
- *   "dgt" command activates the DGT board interface.       *
- *                                                          *
- ************************************************************
- */
-#if defined(DGT)
-  else if (!strcmp("dgt", *args)) {
-    nargs = ReadParse(buffer, args, " 	;");
-    if (to_dgt == 0)
-      DGTInit(nargs, args);
-    else {
-      write(to_dgt, args[1], strlen(args[1]));
-    }
-  }
-#endif
-/*
- ************************************************************
- *                                                          *
  *   "display" command displays the chess board.            *
  *                                                          *
  *   "display" command sets specific display options which  *
@@ -757,10 +737,6 @@ int Option(TREE * RESTRICT tree)
       fclose(history_file);
     if (log_file)
       fclose(log_file);
-#if defined(DGT)
-    if (DGT_active)
-      write(to_dgt, "exit\n", 5);
-#endif
     CraftyExit(0);
   }
 /*
@@ -1043,9 +1019,9 @@ int Option(TREE * RESTRICT tree)
       }
     }
     wtm = Flip(wtm);
-    temp = WhiteCastle(0);
-    WhiteCastle(0) = BlackCastle(0);
-    BlackCastle(0) = temp;
+    temp = Castle(0, white);
+    Castle(0, white) = Castle(0, black);
+    Castle(0, black) = temp;
     SetChessBitBoards(&tree->position[0]);
 #if defined(DEBUG)
     ValidatePosition(tree, 0, wtm, "Option().flip");
@@ -1307,15 +1283,19 @@ int Option(TREE * RESTRICT tree)
         (pawn_hash_table + i)->key = 0;
         (pawn_hash_table + i)->p_score = 0;
         (pawn_hash_table + i)->protected = 0;
-        (pawn_hash_table + i)->black_defects_k = 0;
-        (pawn_hash_table + i)->black_defects_q = 0;
-        (pawn_hash_table + i)->white_defects_k = 0;
-        (pawn_hash_table + i)->white_defects_q = 0;
-        (pawn_hash_table + i)->passed_w = 0;
-        (pawn_hash_table + i)->passed_b = 0;
+        (pawn_hash_table + i)->defects_k[white] = 0;
+        (pawn_hash_table + i)->defects_q[white] = 0;
+        (pawn_hash_table + i)->defects_d[white] = 0;
+        (pawn_hash_table + i)->defects_e[white] = 0;
+        (pawn_hash_table + i)->defects_k[black] = 0;
+        (pawn_hash_table + i)->defects_q[black] = 0;
+        (pawn_hash_table + i)->defects_d[black] = 0;
+        (pawn_hash_table + i)->defects_e[black] = 0;
+        (pawn_hash_table + i)->passed[white] = 0;
+        (pawn_hash_table + i)->passed[black] = 0;
+        (pawn_hash_table + i)->candidates[white] = 0;
+        (pawn_hash_table + i)->candidates[black] = 0;
         (pawn_hash_table + i)->outside = 0;
-        (pawn_hash_table + i)->candidates_w = 0;
-        (pawn_hash_table + i)->candidates_b = 0;
       }
     }
     Print(128, "pawn hash table memory = %s bytes.\n",
@@ -1500,24 +1480,6 @@ int Option(TREE * RESTRICT tree)
  *   adding the integer values 1,2,4 to enable the various  *
  *   forms of learning.                                     *
  *                                                          *
- *   a special-case of this command uses two arguments in-  *
- *   stead of one.  it is used to control position learning *
- *   and lets you specify the "trigger" threshold and the   *
- *   limit that shuts position learning off after a game is *
- *   already lost.  the syntax is:                          *
- *                                                          *
- *   learn trigger-value cutoff-value                       *
- *                                                          *
- *   trigger-value is the amount the score must drop before *
- *   position learning is triggered.  the default is 1/3 of *
- *   a pawn (.33).                                          *
- *                                                          *
- *   cutoff-value is the lower bound on the score before    *
- *   position learning is turned off.  the default is -2.0  *
- *   and says that once the score is -2, do not learn any   *
- *   further positions where the score is -2.0 - trigger_   *
- *   value from above.                                      *
- *                                                          *
  ************************************************************
  */
   else if (OptionMatch("learn", *args)) {
@@ -1553,13 +1515,6 @@ int Option(TREE * RESTRICT tree)
         else
           Print(128, "result learning disabled\n");
       }
-    } else if (nargs == 3) {
-      learning_trigger = atof(args[1]) * 100;
-      learning_cutoff = atof(args[2]) * 100;
-      Print(128, "learning trigger = %s\n", DisplayEvaluation(learning_trigger,
-              1));
-      Print(128, "learning cutoff = %s\n", DisplayEvaluation(learning_cutoff,
-              1));
     }
   }
 /*
@@ -3142,26 +3097,27 @@ int Option(TREE * RESTRICT tree)
         if (PcOnSq((rank << 3) + file)) {
           if (nempty) {
             if (output_file)
-              fprintf(output_file, "%c", empty[nempty]);
+              fprintf(output_file, "%c", empty_sqs[nempty]);
             else
               sprintf(initial_position + strlen(initial_position), "%c",
-                  empty[nempty]);
+                  empty_sqs[nempty]);
             nempty = 0;
           }
           if (output_file)
-            fprintf(output_file, "%c", xlate[PcOnSq((rank << 3) + file) + 7]);
+            fprintf(output_file, "%c",
+                translate[PcOnSq((rank << 3) + file) + 6]);
           else
             sprintf(initial_position + strlen(initial_position), "%c",
-                xlate[PcOnSq((rank << 3) + file) + 7]);
+                translate[PcOnSq((rank << 3) + file) + 6]);
         } else
           nempty++;
       }
-      if (empty[nempty]) {
+      if (empty_sqs[nempty]) {
         if (output_file)
-          fprintf(output_file, "%c", empty[nempty]);
+          fprintf(output_file, "%c", empty_sqs[nempty]);
         else
           sprintf(initial_position + strlen(initial_position), "%c",
-              empty[nempty]);
+              empty_sqs[nempty]);
       }
       if (rank != RANK1) {
         if (output_file)
@@ -3175,31 +3131,31 @@ int Option(TREE * RESTRICT tree)
     else
       sprintf(initial_position + strlen(initial_position), " %c ",
           (wtm) ? 'w' : 'b');
-    if (WhiteCastle(0) & 1) {
+    if (Castle(0, white) & 1) {
       if (output_file)
         fprintf(output_file, "K");
       else
         sprintf(initial_position + strlen(initial_position), "K");
     }
-    if (WhiteCastle(0) & 2) {
+    if (Castle(0, white) & 2) {
       if (output_file)
         fprintf(output_file, "Q");
       else
         sprintf(initial_position + strlen(initial_position), "Q");
     }
-    if (BlackCastle(0) & 1) {
+    if (Castle(0, black) & 1) {
       if (output_file)
         fprintf(output_file, "k");
       else
         sprintf(initial_position + strlen(initial_position), "k");
     }
-    if (BlackCastle(0) & 2) {
+    if (Castle(0, black) & 2) {
       if (output_file)
         fprintf(output_file, "q");
       else
         sprintf(initial_position + strlen(initial_position), "q");
     }
-    if (!WhiteCastle(0) && !BlackCastle(0)) {
+    if (!Castle(0, white) && !Castle(0, black)) {
       if (output_file)
         fprintf(output_file, " -");
       else
@@ -3344,7 +3300,7 @@ int Option(TREE * RESTRICT tree)
  ************************************************************
  */
   else if (OptionMatch("score", *args)) {
-    int s1, s2 = 0, s3 = 0, s4 = 0, s5 = 0, s6 = 0, s7 = 0;
+    int s1, s2 = 0, s4 = 0, s5 = 0, s6 = 0, s7 = 0;
     int a, n, b, r, q, k;
 
     if (shared->thinking || shared->pondering)
@@ -3356,33 +3312,32 @@ int Option(TREE * RESTRICT tree)
     if (!wtm)
       s7 = -s7;
     s1 = EvaluateMaterial(tree);
-    if (BlackCastle(1))
-      s2 = EvaluateDevelopmentB(tree, 1);
-    if (WhiteCastle(1))
-      s2 += EvaluateDevelopmentW(tree, 1);
-    if (TotalWhitePawns + TotalBlackPawns) {
-      s3 = EvaluatePawns(tree);
-      if (tree->pawn_score.passed_b || tree->pawn_score.passed_w ||
-          tree->pawn_score.candidates_b || tree->pawn_score.candidates_w) {
-        s4 = EvaluatePassedPawns(tree, wtm);
+    if (Castle(1, white))
+      s2 = EvaluateDevelopment(tree, 1, white);
+    if (Castle(1, black))
+      s2 -= EvaluateDevelopment(tree, 1, black);
+    if (TotalPawns(white) + TotalPawns(black)) {
+      if (tree->pawn_score.passed[black] || tree->pawn_score.passed[white] ||
+          tree->pawn_score.candidates[black] ||
+          tree->pawn_score.candidates[white]) {
+        s4 = EvaluatePassedPawns(tree, white) - EvaluatePassedPawns(tree,
+            black);
         s5 = EvaluatePassedPawnRaces(tree, wtm);
       }
     }
-    s6 = EvaluateMobility(tree);
-    tree->w_tropism = 0;
-    tree->b_tropism = 0;
-    a = EvaluateAll(tree);
-    n = EvaluateKnights(tree);
-    b = EvaluateBishops(tree);
-    r = EvaluateRooks(tree);
-    q = EvaluateQueens(tree);
-    k = EvaluateKings(tree, wtm, 1);
+    s6 = EvaluateMobility(tree, white) - EvaluateMobility(tree, black);
+    tree->tropism[black] = 0;
+    tree->tropism[white] = 0;
+    a = EvaluateAll(tree, white) - EvaluateAll(tree, black);
+    n = EvaluateKnights(tree, white) - EvaluateKnights(tree, black);
+    b = EvaluateBishops(tree, white) - EvaluateBishops(tree, black);
+    r = EvaluateRooks(tree, white) - EvaluateRooks(tree, black);
+    q = EvaluateQueens(tree, white) - EvaluateQueens(tree, black);
+    k = EvaluateKings(tree, 1, white) - EvaluateKings(tree, 1, black);
     Print(128, "note: scores are for the white side\n");
     Print(128, "material evaluation.................%s\n", DisplayEvaluation(s1,
             1));
     Print(128, "development.........................%s\n", DisplayEvaluation(s2,
-            1));
-    Print(128, "pawn evaluation.....................%s\n", DisplayEvaluation(s3,
             1));
     Print(128, "passed pawn evaluation..............%s",
         DisplayEvaluation(ScaleEG(s4), 1));

@@ -1,6 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include "chess.h"
 #include "data.h"
 
@@ -22,7 +19,7 @@ char *OutputMove(TREE * RESTRICT tree, int move, int ply, int wtm)
   static char text_move[10], new_text[10];
   int *mvp;
   char *text;
-  static const char piece_names[8] = { ' ', 'P', 'N', 'K', ' ', 'B', 'R', 'Q' };
+  static const char piece_names[7] = { ' ', 'P', 'N', 'B', 'R', 'Q', 'K' };
 
   text = text_move;
 /*
@@ -191,7 +188,7 @@ char *OutputMoveICS(int move)
 {
   static char text_move[10];
   char *text;
-  static const char piece_names[8] = { ' ', 'P', 'N', 'K', ' ', 'B', 'R', 'Q' };
+  static const char piece_names[7] = { ' ', 'P', 'N', 'B', 'R', 'Q', 'K' };
 
 /*
  convert to fully-qualified algebraic form first.

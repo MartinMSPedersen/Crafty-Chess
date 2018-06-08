@@ -1,5 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
 #include "chess.h"
 #include "data.h"
 
@@ -86,17 +84,16 @@ int NextEvasion(TREE * RESTRICT tree, int ply, int wtm)
           *sortv = -999999;
           *movep = 0;
         } else {
-          if (p_values[Piece(*movep) + 7] < p_values[Captured(*movep) + 7])
-            *sortv =
-                p_values[Captured(*movep) + 7] - p_values[Piece(*movep) + 7];
+          if (pc_values[Piece(*movep)] < pc_values[Captured(*movep)])
+            *sortv = pc_values[Captured(*movep)] - pc_values[Piece(*movep)];
           else
             *sortv = Swap(tree, From(*movep), To(*movep), wtm);
         }
     } else {
       for (movep = tree->last[ply - 1], sortv = tree->sort_value;
           movep < tree->last[ply]; movep++, sortv++)
-        if (p_values[Piece(*movep) + 7] < p_values[Captured(*movep) + 7])
-          *sortv = p_values[Captured(*movep) + 7] - p_values[Piece(*movep) + 7];
+        if (pc_values[Piece(*movep)] < pc_values[Captured(*movep)])
+          *sortv = pc_values[Captured(*movep)] - pc_values[Piece(*movep)];
         else
           *sortv = Swap(tree, From(*movep), To(*movep), wtm);
     }

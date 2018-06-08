@@ -1,5 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
 #include "chess.h"
 #include "data.h"
 
@@ -34,30 +32,30 @@ void PreEvaluate(TREE * RESTRICT tree)
  ************************************************************
  */
   shared->trojan_check = 0;
-  if (BlackQueens && BlackRooks) {
-    if (WhiteKingSQ == G1 || WhiteKingSQ == H1) {
-      if (SetMask(G4) & BlackKnights || SetMask(G4) & BlackBishops) {
-        if (SetMask(H3) & WhitePawns && SetMask(H5) & BlackPawns)
+  if (Queens(black) && Rooks(black)) {
+    if (KingSQ(white) == G1 || KingSQ(white) == H1) {
+      if (SetMask(G4) & Knights(black) || SetMask(G4) & Bishops(black)) {
+        if (SetMask(H3) & Pawns(white) && SetMask(H5) & Pawns(black))
           shared->trojan_check = 1;
       }
     }
-    if (WhiteKingSQ == B1 || WhiteKingSQ == A1) {
-      if (SetMask(B4) & BlackKnights || SetMask(B4) & BlackBishops) {
-        if (SetMask(A3) & WhitePawns && SetMask(A5) & BlackPawns)
+    if (KingSQ(white) == B1 || KingSQ(white) == A1) {
+      if (SetMask(B4) & Knights(black) || SetMask(B4) & Bishops(black)) {
+        if (SetMask(A3) & Pawns(white) && SetMask(A5) & Pawns(black))
           shared->trojan_check = 1;
       }
     }
   }
-  if (WhiteQueens && WhiteRooks) {
-    if (BlackKingSQ == G8 || BlackKingSQ == H8) {
-      if (SetMask(G5) & WhiteKnights || SetMask(G5) & WhiteBishops) {
-        if (SetMask(H6) & BlackPawns && SetMask(H4) & WhitePawns)
+  if (Queens(white) && Rooks(white)) {
+    if (KingSQ(black) == G8 || KingSQ(black) == H8) {
+      if (SetMask(G5) & Knights(white) || SetMask(G5) & Bishops(white)) {
+        if (SetMask(H6) & Pawns(black) && SetMask(H4) & Pawns(white))
           shared->trojan_check = 1;
       }
     }
-    if (BlackKingSQ == B8 || BlackKingSQ == A8) {
-      if (SetMask(B5) & WhiteKnights || SetMask(B5) & WhiteBishops) {
-        if (SetMask(A6) & BlackPawns && SetMask(A4) & BlackPawns)
+    if (KingSQ(black) == B8 || KingSQ(black) == A8) {
+      if (SetMask(B5) & Knights(white) || SetMask(B5) & Bishops(white)) {
+        if (SetMask(A6) & Pawns(black) && SetMask(A4) & Pawns(black))
           shared->trojan_check = 1;
       }
     }

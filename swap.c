@@ -1,9 +1,7 @@
-#include <stdio.h>
-#include <stdlib.h>
 #include "chess.h"
 #include "data.h"
 
-/* last modified 11/15/06 */
+/* last modified 02/18/08 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -25,12 +23,11 @@
  */
 int Swap(TREE * RESTRICT tree, int source, int target, int wtm)
 {
-  register BITBOARD attacks, temp = 0, occupied;
+  register BITBOARD attacks, temp = 0, toccupied;
   register int attacked_piece;
   register int piece;
   register int color, nc = 1;
   int swap_list[32];
-  const int pval[8] = { 0, 100, 300, 9900, 0, 300, 500, 900 };
 
 /*
  ************************************************************
@@ -41,9 +38,9 @@ int Swap(TREE * RESTRICT tree, int source, int target, int wtm)
  *                                                          *
  ************************************************************
  */
-  occupied = Occupied;
+  toccupied = OccupiedSquares;
   attacks = AttacksTo(tree, target);
-  attacked_piece = p_values[PcOnSq(target) + 7];
+  attacked_piece = p_values[PcOnSq(target) + 6];
 /*
  ************************************************************
  *                                                          *
@@ -55,79 +52,46 @@ int Swap(TREE * RESTRICT tree, int source, int target, int wtm)
   color = Flip(wtm);
   swap_list[0] = attacked_piece;
   piece = Abs(PcOnSq(source));
-  attacked_piece = pval[piece];
-  Clear(source, occupied);
-  if (piece & 4 || piece == 1) {
-    if (Abs(directions[source][target]) == 7 ||
-        Abs(directions[source][target]) == 9)
-      attacks |= AttacksBishopSpecial(target, occupied) & BishopsQueens;
-    if (Abs(directions[source][target]) == 1 ||
-        Abs(directions[source][target]) == 8)
-      attacks |= AttacksRookSpecial(target, occupied) & RooksQueens;
+  attacked_piece = pc_values[piece];
+  Clear(source, toccupied);
+  if (piece != knight && piece != king) {
+    if (piece & 1)
+      attacks |= AttacksBishop(target, toccupied) & BishopsQueens;
+    if (piece == pawn || piece & 4)
+      attacks |= AttacksRook(target, toccupied) & RooksQueens;
   }
-  attacks &= occupied;
+  attacks &= toccupied;
 /*
  ************************************************************
  *                                                          *
  *   now pick out the least valuable piece for the correct  *
  *   side that is bearing on <target>.  as we find one, we  *
- *   call SwapXray() to add the piece behind this piece     *
- *   that is indirectly bearing on <target> (if any).       *
+ *   update the attacks (if this is a sliding piece) to get *
+ *   the attacks for any sliding piece that is lined up     *
+ *   behind the attacker we are removing.                   *
  *                                                          *
- ************************************************************
- */
-  while (attacks) {
-    if (color) {
-      if ((temp = WhitePawns & attacks))
-        piece = pawn;
-      else if ((temp = WhiteKnights & attacks))
-        piece = knight;
-      else if ((temp = WhiteBishops & attacks))
-        piece = bishop;
-      else if ((temp = WhiteRooks & attacks))
-        piece = rook;
-      else if ((temp = WhiteQueens & attacks))
-        piece = queen;
-      else if ((temp = WhiteKing & attacks))
-        piece = king;
-      else
-        break;
-    } else {
-      if ((temp = BlackPawns & attacks))
-        piece = pawn;
-      else if ((temp = BlackKnights & attacks))
-        piece = knight;
-      else if ((temp = BlackBishops & attacks))
-        piece = bishop;
-      else if ((temp = BlackRooks & attacks))
-        piece = rook;
-      else if ((temp = BlackQueens & attacks))
-        piece = queen;
-      else if ((temp = BlackKing & attacks))
-        piece = king;
-      else
-        break;
-    }
-    temp &= -temp;
-    occupied ^= temp;
-    if (piece & 4 || piece == 1) {
-      if (piece & 1)
-        attacks |= AttacksBishopSpecial(target, occupied) & BishopsQueens;
-      if (piece & 2)
-        attacks |= AttacksRookSpecial(target, occupied) & RooksQueens;
-    }
-    attacks &= occupied;
-/*
- ************************************************************
- *                                                          *
- *   now we know there is a piece attacking the last        *
+ *   once we know there is a piece attacking the last       *
  *   capturing piece.  add it to the swap list and repeat   *
  *   until one side has no more captures.                   *
  *                                                          *
  ************************************************************
  */
+  while (attacks) {
+    for (piece = pawn; piece <= king; piece++)
+      if ((temp = Pieces(color, piece) & attacks))
+        break;
+    if (piece > king)
+      break;
+    toccupied ^= (temp & -temp);
+    if (piece != knight && piece != king) {
+      if (piece & 1)
+        attacks |= AttacksBishop(target, toccupied) & BishopsQueens;
+      if (piece & 4)
+        attacks |= AttacksRook(target, toccupied) & RooksQueens;
+    }
+    attacks &= toccupied;
     swap_list[nc] = -swap_list[nc - 1] + attacked_piece;
-    attacked_piece = pval[piece];
+    attacked_piece = pc_values[piece];
     nc++;
     color = Flip(color);
   }
@@ -141,7 +105,6 @@ int Swap(TREE * RESTRICT tree, int source, int target, int wtm)
  ************************************************************
  */
   while (--nc)
-    if (swap_list[nc] > -swap_list[nc - 1])
-      swap_list[nc - 1] = -swap_list[nc];
+    swap_list[nc - 1] = -Max(-swap_list[nc - 1], swap_list[nc]);
   return (swap_list[0]);
 }

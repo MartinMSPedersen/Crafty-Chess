@@ -1,10 +1,7 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include "chess.h"
 #include "data.h"
 
-/* last modified 08/07/05 */
+/* last modified 12/07/07 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -51,8 +48,8 @@ void SetBoard(SEARCH_POSITION * position, int nargs, char *args[], int special)
   int bcastle, ep, wcastle, error = 0;
   char input[80];
   static const char bdinfo[] =
-      { 'q', 'r', 'b', '*', 'k', 'n', 'p', '*', 'P', 'N',
-    'K', '*', 'B', 'R', 'Q', '*', '1', '2', '3', '4',
+      { 'k', 'q', 'r', 'b', 'n', 'p', '*', 'P', 'N', 'B',
+    'R', 'Q', 'K', '*', '1', '2', '3', '4',
     '5', '6', '7', '8', '/'
   };
   static const char status[13] =
@@ -82,13 +79,13 @@ void SetBoard(SEARCH_POSITION * position, int nargs, char *args[], int special)
   square = firstsq[whichsq];
   num = 0;
   for (pos = 0; pos < (int) strlen(args[0]); pos++) {
-    for (match = 0; match < 25 && args[0][pos] != bdinfo[match]; match++);
-    if (match > 24)
+    for (match = 0; match < 23 && args[0][pos] != bdinfo[match]; match++);
+    if (match > 22)
       break;
 /*
  "/" -> end of this rank.
  */
-    else if (match == 24) {
+    else if (match == 22) {
       num = 0;
       if (whichsq > 6)
         break;
@@ -97,12 +94,13 @@ void SetBoard(SEARCH_POSITION * position, int nargs, char *args[], int special)
 /*
  "1-8" -> empty squares.
  */
-    else if (match >= 16) {
-      num += match - 15;
-      square += match - 15;
+    else if (match >= 14) {
+      num += match - 13;
+      square += match - 13;
       if (num > 8) {
         printf("more than 8 squares on one rank\n");
-        return;
+        error = 1;
+        break;
       }
       continue;
     }
@@ -112,9 +110,10 @@ void SetBoard(SEARCH_POSITION * position, int nargs, char *args[], int special)
     else {
       if (++num > 8) {
         printf("more than 8 squares on one rank\n");
-        return;
+        error = 1;
+        break;
       }
-      tboard[square++] = match - 7;
+      tboard[square++] = match - 6;
     }
   }
 /*
@@ -185,8 +184,8 @@ void SetBoard(SEARCH_POSITION * position, int nargs, char *args[], int special)
   }
   for (i = 0; i < 64; i++)
     PcOnSq(i) = tboard[i];
-  position->w_castle = wcastle;
-  position->b_castle = bcastle;
+  position->castle[white] = wcastle;
+  position->castle[black] = bcastle;
   position->enpassant_target = 0;
   if (ep) {
     if (Rank(ep) == RANK6) {
@@ -214,10 +213,10 @@ void SetBoard(SEARCH_POSITION * position, int nargs, char *args[], int special)
  *                                                          *
  ************************************************************
  */
-  if (((position->w_castle & 2) && (PcOnSq(A1) != rook)) ||
-      ((position->w_castle & 1) && (PcOnSq(H1) != rook)) ||
-      ((position->b_castle & 2) && (PcOnSq(A8) != -rook)) ||
-      ((position->b_castle & 1) && (PcOnSq(H8) != -rook))) {
+  if (((position->castle[white] & 2) && (PcOnSq(A1) != rook)) ||
+      ((position->castle[white] & 1) && (PcOnSq(H1) != rook)) ||
+      ((position->castle[black] & 2) && (PcOnSq(A8) != -rook)) ||
+      ((position->castle[black] & 1) && (PcOnSq(H8) != -rook))) {
     printf("ERROR-- castling status does not match board position\n");
     error = 1;
   }
@@ -254,8 +253,8 @@ void SetBoard(SEARCH_POSITION * position, int nargs, char *args[], int special)
   if (!error) {
     if (log_file)
       DisplayChessBoard(log_file, tree->pos);
-    tree->rep_game = 0;
-    tree->rep_list[tree->rep_game] = HashKey;
+    tree->rep_index[white] = 0;
+    tree->rep_index[black] = 0;
     position->rule_50_moves = 0;
     if (!special) {
       last_mate_score = 0;
@@ -267,6 +266,10 @@ void SetBoard(SEARCH_POSITION * position, int nargs, char *args[], int special)
       shared->moves_out_of_book = 0;
     }
   } else {
+    if (special)
+      Print(4095, "bad string = \"%s\"\n", initial_position);
+    else
+      Print(4095, "bad string = \"%s\"\n", args[0]);
     InitializeChessBoard(&tree->position[0]);
     Print(4095, "Illegal position, using normal initial chess position\n");
   }

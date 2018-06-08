@@ -1,5 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
 #include "chess.h"
 #include "data.h"
 
@@ -58,9 +56,8 @@ int NextMove(TREE * RESTRICT tree, int ply, int wtm)
           *movep = 0;
           tree->hash_move[ply] = 0;
         } else {
-          if (p_values[Piece(*movep) + 7] < p_values[Captured(*movep) + 7]) {
-            *sortv =
-                p_values[Captured(*movep) + 7] - p_values[Piece(*movep) + 7];
+          if (pc_values[Piece(*movep)] < pc_values[Captured(*movep)]) {
+            *sortv = pc_values[Captured(*movep)] - pc_values[Piece(*movep)];
             tree->next_status[ply].remaining++;
           } else {
             *sortv = Swap(tree, From(*movep), To(*movep), wtm);
@@ -71,8 +68,8 @@ int NextMove(TREE * RESTRICT tree, int ply, int wtm)
     } else {
       for (movep = tree->last[ply - 1], sortv = tree->sort_value;
           movep < tree->last[ply]; movep++, sortv++)
-        if (p_values[Piece(*movep) + 7] < p_values[Captured(*movep) + 7]) {
-          *sortv = p_values[Captured(*movep) + 7] - p_values[Piece(*movep) + 7];
+        if (pc_values[Piece(*movep)] < pc_values[Captured(*movep)]) {
+          *sortv = pc_values[Captured(*movep)] - pc_values[Piece(*movep)];
           tree->next_status[ply].remaining++;
         } else {
           *sortv = Swap(tree, From(*movep), To(*movep), wtm);

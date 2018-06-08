@@ -19,6 +19,9 @@
  *                                                                             *
  *******************************************************************************
  */
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #if !defined(TYPES_INCLUDED)
 #  if defined (_MSC_VER) && (_MSC_VER >= 1300) && \
     (!defined(_M_IX86) || (_MSC_VER >= 1400))
@@ -27,7 +30,7 @@
 #    define RESTRICT
 #  endif
 #  if !defined(CPUS)
-#    define CPUS=1
+#    define CPUS 1
 #  endif
 #  if defined(NT_i386)
 #    include <windows.h>
@@ -181,11 +184,11 @@ typedef enum {
 } squares;
 typedef enum { FILEA, FILEB, FILEC, FILED, FILEE, FILEF, FILEG, FILEH } files;
 typedef enum { RANK1, RANK2, RANK3, RANK4, RANK5, RANK6, RANK7, RANK8 } ranks;
-typedef enum { none = 0, pawn = 1, knight = 2, king = 3,
-  bishop = 5, rook = 6, queen = 7,
-  unprotected_pawn = 16, weak_pawn = 17, unprotected_blocked_pawn =
-      18, weak_blocked_pawn = 19
+typedef enum { empty = 0, occupied = 0, pawn = 1, knight = 2, bishop = 3,
+  rook = 4, queen = 5, king = 6
 } PIECE;
+typedef enum { black = 0, white = 1
+} COLOR;
 typedef enum { empty_v = 0, pawn_v = 1, knight_v = 3,
   bishop_v = 3, rook_v = 5, queen_v = 9, king_v = 99
 } PIECE_V;
@@ -199,8 +202,7 @@ typedef enum { book_learning = 1, result_learning = 2
 } LEARNING_MODE;
 typedef struct {
   unsigned char enpassant_target;
-  signed char w_castle;
-  signed char b_castle;
+  signed char castle[2];
   unsigned char rule_50_moves;
 } SEARCH_POSITION;
 typedef struct {
@@ -208,39 +210,24 @@ typedef struct {
   int move2;
 } KILLER;
 typedef struct {
-  BITBOARD w_occupied;
-  BITBOARD b_occupied;
+  BITBOARD pieces[7];
+} BB_PIECES;
+typedef struct {
+  BB_PIECES color[2];
   BITBOARD rooks_queens;
   BITBOARD bishops_queens;
-  BITBOARD w_pawn;
-  BITBOARD w_knight;
-  BITBOARD w_bishop;
-  BITBOARD w_rook;
-  BITBOARD w_queen;
-  BITBOARD b_pawn;
-  BITBOARD b_knight;
-  BITBOARD b_bishop;
-  BITBOARD b_rook;
-  BITBOARD b_queen;
   BITBOARD hash_key;
   BITBOARD pawn_hash_key;
   int material_evaluation;
-  signed char white_king;
-  signed char black_king;
+  int kingsq[2];
   signed char board[64];
-  signed char white_pieces;
-  signed char white_pawns;
-  signed char black_pieces;
-  signed char black_pawns;
+  signed char pieces[2];
+  signed char pawns[2];
   signed char total_pieces;
-  signed char num_w_knights;
-  signed char num_b_knights;
-  signed char num_w_bishops;
-  signed char num_b_bishops;
-  signed char num_w_rooks;
-  signed char num_b_rooks;
-  signed char num_w_queens;
-  signed char num_b_queens;
+  signed char num_knights[2];
+  signed char num_bishops[2];
+  signed char num_rooks[2];
+  signed char num_queens[2];
 } POSITION;
 typedef struct {
   BITBOARD word1;
@@ -252,32 +239,20 @@ typedef struct {
 } HASH_ENTRY;
 typedef struct {
   BITBOARD key;
-  BITBOARD weak_pawns;
   int p_score;
-  unsigned char allb;
-  unsigned char black_defects_k;
-  unsigned char black_defects_e;
-  unsigned char black_defects_d;
-  unsigned char black_defects_q;
-  unsigned char passed_b;
-  unsigned char candidates_b;
-  unsigned char hidden_b;
-  unsigned char average_b;
-  unsigned char weak_b;
-  unsigned char allw;
-  unsigned char white_defects_k;
-  unsigned char white_defects_e;
-  unsigned char white_defects_d;
-  unsigned char white_defects_q;
-  unsigned char passed_w;
-  unsigned char candidates_w;
-  unsigned char hidden_w;
-  unsigned char average_w;
-  unsigned char weak_w;
+  unsigned char defects_k[2];
+  unsigned char defects_e[2];
+  unsigned char defects_d[2];
+  unsigned char defects_q[2];
+  unsigned char all[2];
+  unsigned char weak[2];
+  unsigned char passed[2];
+  unsigned char hidden[2];
+  unsigned char candidates[2];
   unsigned char protected;
   unsigned char outside;
   unsigned char open_files;
-  unsigned char chained;
+  unsigned char protected_count;
 } PAWN_HASH_ENTRY;
 typedef struct {
   int path[MAXPLY];
@@ -306,7 +281,6 @@ typedef struct {
  */
   unsigned int status;
 } ROOT_MOVE;
-
 #  if defined(NT_i386)
 #    pragma pack(4)
 #  endif
@@ -315,7 +289,6 @@ typedef struct {
   unsigned int status_played;
   float learn;
 } BOOK_POSITION;
-
 #  if defined(NT_i386)
 #    pragma pack()
 #  endif
@@ -324,7 +297,6 @@ typedef struct {
   unsigned char status;
   unsigned char percent_play;
 } BB_POSITION;
-
 struct eval_term {
   char *description;
   int size;
@@ -333,7 +305,7 @@ struct eval_term {
 struct tree {
   POSITION pos;
   BITBOARD save_hash_key[MAXPLY + 2];
-  BITBOARD rep_list[256];
+  BITBOARD rep_list[2][128];
   BITBOARD all_pawns;
   BITBOARD nodes_searched;
   BITBOARD save_pawn_hash_key[MAXPLY + 2];
@@ -341,7 +313,7 @@ struct tree {
   SEARCH_POSITION position[MAXPLY + 2];
   NEXT_MOVE next_status[MAXPLY];
   PATH pv[MAXPLY];
-  int rep_game;
+  int rep_index[2];
   int curmv[MAXPLY];
   int hash_move[MAXPLY];
   int *last[MAXPLY];
@@ -366,7 +338,6 @@ struct tree {
   unsigned int one_reply_extensions_done;
   unsigned int mate_extensions_done;
   unsigned int passed_pawn_extensions_done;
-
   unsigned int reductions_attempted;
   unsigned int reductions_done;
   KILLER killers[MAXPLY];
@@ -375,11 +346,9 @@ struct tree {
   signed char inchk[MAXPLY];
   signed char phase[MAXPLY];
   int search_value;
-  int w_safety, b_safety;
-  int w_tropism, b_tropism;
+  int tropism[2];
   int endgame;
-  int whiteDangerous;
-  int blackDangerous;
+  int Dangerous[2];
   int root_move;
   lock_t lock;
   int thread_id;
@@ -397,9 +366,7 @@ struct tree {
   int mate_threat;
   volatile int used;
 };
-
 typedef struct tree TREE;
-
 typedef struct {
   int time_abort;
   int abort_search;
@@ -470,7 +437,6 @@ typedef struct {
   int first_nonbook_span;
   int nice;
 } SHARED;
-
 /*
    DO NOT modify these.  these are constants, used in multiple modules.
    modification may corrupt the search in any number of ways, all bad.
@@ -485,6 +451,7 @@ typedef struct {
 #  define DO_NULL                   1
 #  define NO_NULL                   0
 #  define NONE                      0
+#  define EVALUATION               -1
 #  define HASH_MOVE                 1
 #  define GENERATE_CAPTURE_MOVES    2
 #  define CAPTURE_MOVES             3
@@ -494,7 +461,6 @@ typedef struct {
 #  define SORT_ALL_MOVES            7
 #  define REMAINING_MOVES           8
 #  define ROOT_MOVES                9
-
 #  if defined(VC_INLINE32)
 #    include "vcinline.h"
 #  else
@@ -529,7 +495,6 @@ unsigned char *BookOut64(BITBOARD val);
 int BookPonderMove(TREE * RESTRICT, int);
 void BookUp(TREE * RESTRICT, int, char **);
 void BookSort(BB_POSITION *, int, int);
-
 #  if defined(NT_i386)
 int _cdecl BookUpCompare(const void *, const void *);
 #  else
@@ -542,9 +507,6 @@ void ComputeAttacksAndMobility(void);
 void CopyFromSMP(TREE * RESTRICT, TREE * RESTRICT, int);
 TREE *CopyToSMP(TREE * RESTRICT, int);
 void CraftyExit(int);
-void DGTInit(int, char **);
-int DGTCheckInput(void);
-void DGTRead(void);
 void DisplayArray(int *, int);
 void DisplayBitBoard(BITBOARD);
 void DisplayChessBoard(FILE *, POSITION);
@@ -563,40 +525,29 @@ void Display2BitBoards(BITBOARD, BITBOARD);
 void DisplayChessMove(char *, int);
 int Drawn(TREE * RESTRICT, int);
 void Edit(void);
-
 #  if !defined(NOEGTB)
 int EGTBProbe(TREE * RESTRICT, int, int, int *);
 void EGTBPV(TREE * RESTRICT, int);
 #  endif
-int EnPrise(int, int);
 int Evaluate(TREE * RESTRICT, int, int, int, int);
-int EvaluateBishops(TREE * RESTRICT);
-int EvaluateDevelopmentB(TREE * RESTRICT, int);
-int EvaluateDevelopmentW(TREE * RESTRICT, int);
+int EvaluateBishops(TREE * RESTRICT, int);
+int EvaluateDevelopment(TREE * RESTRICT, int, int);
 int EvaluateDraws(TREE * RESTRICT, int, int, int);
 int EvaluateKings(TREE * RESTRICT, int, int);
-int EvaluateKingsFileB(TREE * RESTRICT, int);
-int EvaluateKingsFileW(TREE * RESTRICT, int);
-int EvaluateKnights(TREE * RESTRICT);
-int EvaluateMate(TREE * RESTRICT);
+int EvaluateKingsFile(TREE * RESTRICT, int, int);
+int EvaluateKnights(TREE * RESTRICT, int);
+int EvaluateMate(TREE * RESTRICT, int);
 int EvaluateMaterial(TREE * RESTRICT);
-int EvaluateMobility(TREE * RESTRICT);
+int EvaluateMaterialDynamic(TREE * RESTRICT, int);
+int EvaluateMobility(TREE * RESTRICT, int);
 int EvaluatePassedPawns(TREE * RESTRICT, int);
 int EvaluatePassedPawnRaces(TREE * RESTRICT, int);
-int EvaluatePawns(TREE * RESTRICT);
-int EvaluateQueens(TREE * RESTRICT);
-int EvaluateRooks(TREE * RESTRICT);
-int EvaluateStalemate(TREE * RESTRICT, int);
-int EvaluateWinningChances(TREE * RESTRICT);
-
-/*
-int IsPawnWeakW(TREE * RESTRICT, int);
-int IsPawnWeakB(TREE * RESTRICT, int);
-int KnightWeakPawnW(TREE * RESTRICT, int);
-int KnightWeakPawnB(TREE * RESTRICT, int);
-*/
-
-int EvaluateAll(TREE * RESTRICT tree);
+int EvaluatePawns(TREE * RESTRICT, int);
+int EvaluateQueens(TREE * RESTRICT, int);
+int EvaluateRooks(TREE * RESTRICT, int);
+int EvaluateWinningChances(TREE * RESTRICT, int);
+int EvaluateWinningChancesX(TREE * RESTRICT);
+int EvaluateAll(TREE * RESTRICT, int);
 void EVTest(char *);
 int FindBlockID(TREE * RESTRICT);
 char *FormatPV(TREE * RESTRICT, int, PATH);
@@ -607,7 +558,7 @@ int *GenerateNonCaptures(TREE * RESTRICT, int, int, int *);
 int HashProbe(TREE * RESTRICT, int, int, int, int *, int, int *);
 void HashStore(TREE * RESTRICT, int, int, int, int, int, int);
 void HashStorePV(TREE * RESTRICT, int, int);
-int HasOpposition(int, int, int);
+int EvaluateHasOpposition(int, int, int);
 int IInitializeTb(char *);
 void Initialize(void);
 void InitializeAttackBoards(void);
@@ -672,9 +623,9 @@ int ReadPGN(FILE *, int);
 int ReadNextMove(TREE * RESTRICT, char *, int, int);
 int ReadParse(char *, char *args[], char *);
 int ReadInput(void);
-int RepetitionCheck(TREE * RESTRICT, int);
-int RepetitionCheckBook(TREE * RESTRICT, int);
-int RepetitionDraw(TREE * RESTRICT, int ply);
+int RepetitionCheck(TREE * RESTRICT, int, int);
+int RepetitionCheckBook(TREE * RESTRICT, int, int);
+int RepetitionDraw(TREE * RESTRICT, int, int);
 void ResignOrDraw(TREE * RESTRICT, int);
 void RestoreGame(void);
 char *Reverse(void);
@@ -699,7 +650,6 @@ void TestEPD(char *);
 int Thread(TREE * RESTRICT);
 void WaitForAllThreadsInitialized(void);
 void *STDCALL ThreadInit(void *);
-
 #  if defined(_WIN32) || defined(_WIN64)
 void ThreadMalloc(int);
 #  endif
@@ -714,11 +664,9 @@ int ValidMove(TREE * RESTRICT, int, int, int);
 int VerifyMove(TREE * RESTRICT, int, int, int);
 void ValidatePosition(TREE * RESTRICT, int, int, char *);
 void Kibitz(int, int, int, int, int, BITBOARD, int, char *);
-
 #  if defined(_WIN32) || defined(_WIN64)
 extern void *WinMallocInterleaved(size_t, int);
 extern void WinFreeInterleaved(void *, size_t);
-
 #    define MallocInterleaved(cBytes, cThreads)\
     WinMallocInterleaved(cBytes, cThreads)
 #    define FreeInterleaved(pMemory, cBytes)\
@@ -751,9 +699,6 @@ extern void WinFreeInterleaved(void *, size_t);
 #  define PopCnt8Bit(a) (pop_cnt_8bit[a])
 #  define MSB8Bit(a) (msb_8bit[a])
 #  define LSB8Bit(a) (lsb_8bit[a])
-#  define RawFileDistance(a,b) (File(a) - File(b))
-#  define RawRankDistance(a,b) (Rank(a) - Rank(b))
-
 /*
    the following macro is used to limit the search extensions based on the
    current iteration depth and current ply in the tree.
@@ -784,66 +729,27 @@ extern void WinFreeInterleaved(void *, size_t);
    important as material comes off, and to make non-endgame stuff like
    king-safety more important until material does come off.
  */
-#  define ScaleMG(s)                                                            \
-    ((s) * (Min(TotalWhitePieces + TotalBlackPieces, 62)) / 62)
-#  define ScaleEG(s)                                                            \
-    ((s) * (62 - Min(TotalWhitePieces + TotalBlackPieces, 42)) / 86)
-/*
-   the following macro is used to determine if one side is in check.  it
-   simply returns the result of Attacked().
- */
-#  define Check(wtm)                                                           \
-  Attacked(tree, (wtm)?WhiteKingSQ:BlackKingSQ,Flip(wtm))
-/*
-   Attack() is used to determine if a sliding piece on 'from' can reach
-   'to'.  the only requirement is that there be no pieces along the pathway
-   connecting from and to.
- */
-#  define Attack(from,to) (!(obstructed[from][to] & Occupied))
-/*
-   the following macros are used to construct the attacks from a square.
-   the attacks are computed as four separate bit vectors, one for each of the
-   two diagonals, and one for the ranks and one for the files.  these can be
-   Or'ed together to produce the attack bitmaps for bishops, rooks and queens.
- */
-#  define AttacksBishop(square) *(magic_bishop_indices[square]+((((tree->pos.w_occupied|tree->pos.b_occupied)&magic_bishop_mask[square])*magic_bishop[square])>>magic_bishop_shift[square]))
-#  define AttacksBishopSpecial(square, occupied) *(magic_bishop_indices[square]+((((occupied)&magic_bishop_mask[square])*magic_bishop[square])>>magic_bishop_shift[square]))
-#  define AttacksRook(square) *(magic_rook_indices[square]+((((tree->pos.w_occupied|tree->pos.b_occupied)&magic_rook_mask[square])*magic_rook[square])>>magic_rook_shift[square]))
-#  define AttacksRookSpecial(square, occupied) *(magic_rook_indices[square]+((((occupied)&magic_rook_mask[square])*magic_rook[square])>>magic_rook_shift[square]))
-#  define AttacksQueen(square)   (AttacksBishop(square)|AttacksRook(square))
-#  define AttacksQueenSpecial(square, occupied)   (AttacksBishopSpecial(square, occupied)|AttacksRookSpecial(square, occupied))
-#  define AttacksBishopNOMASK(square, occupied) *(magic_bishop_indices[square]+(((occupied)*magic_bishop[square])>>magic_bishop_shift[square]))
-#  define AttacksRookNOMASK(square, occupied) *(magic_rook_indices[square]+(((occupied)*magic_rook[square])>>magic_rook_shift[square]))
-
-//TLR
-#  define AttacksRookW(square) *(magic_rook_indices[square]+((((tree->pos.b_occupied|(tree->pos.w_occupied&~(tree->pos.w_rook|tree->pos.w_queen)))&magic_rook_mask[square])*magic_rook[square])>>magic_rook_shift[square]))
-
-#  define AttacksRookB(square) *(magic_rook_indices[square]+((((tree->pos.w_occupied|(tree->pos.b_occupied&~(tree->pos.b_rook|tree->pos.b_queen)))&magic_rook_mask[square])*magic_rook[square])>>magic_rook_shift[square]))
-
-#  define AttacksBishopW(square) *(magic_bishop_indices[square]+((((tree->pos.b_occupied|(tree->pos.w_occupied&~(tree->pos.w_bishop|tree->pos.w_queen)))&magic_bishop_mask[square])*magic_bishop[square])>>magic_bishop_shift[square]))
-
-#  define AttacksBishopB(square) *(magic_bishop_indices[square]+((((tree->pos.w_occupied|(tree->pos.b_occupied&~(tree->pos.b_bishop|tree->pos.b_queen)))&magic_bishop_mask[square])*magic_bishop[square])>>magic_bishop_shift[square]))
-
-#  define RookTropW(square)  ((AttacksRookW(square) & king_attacks[BlackKingSQ]) ? 1 : Distance(square, BlackKingSQ))
-#  define RookTropB(square)  ((AttacksRookB(square) & king_attacks[WhiteKingSQ]) ? 1 : Distance(square, WhiteKingSQ))
-#  define BishopTropW(square) ((AttacksBishopW(square) & king_attacks[BlackKingSQ]) ? 1 : Distance(square, BlackKingSQ))
-#  define BishopTropB(square) ((AttacksBishopB(square) & king_attacks[WhiteKingSQ]) ? 1 : Distance(square, WhiteKingSQ))
-#  define QueenTropW(square) (((AttacksBishopW(square) | AttacksRookW(square)) & king_attacks[BlackKingSQ]) ? 1 : Distance(square, BlackKingSQ))
-#  define QueenTropB(square) (((AttacksBishopB(square) | AttacksRookB(square)) & king_attacks[WhiteKingSQ]) ? 1 : Distance(square, WhiteKingSQ))
-
+#  define ScaleMG(s)                                                          \
+    ((s) * (Min(TotalPieces(white) + TotalPieces(black), 62)) / 62)
+#  define ScaleEG(s)                                                          \
+    ((s) * (62 - Min(TotalPieces(white) + TotalPieces(black), 42)) / 86)
+#  define Check(wtm) Attacked(tree, KingSQ(wtm), Flip(wtm))
+#  define Attack(from,to) (!(obstructed[from][to] & OccupiedSquares))
+#  define AttacksBishop(square, occ) *(magic_bishop_indices[square]+((((occ)&magic_bishop_mask[square])*magic_bishop[square])>>magic_bishop_shift[square]))
+#  define AttacksRook(square, occ) *(magic_rook_indices[square]+((((occ)&magic_rook_mask[square])*magic_rook[square])>>magic_rook_shift[square]))
+#  define AttacksQueen(square, occ)   (AttacksBishop(square, occ)|AttacksRook(square, occ))
 #  define Rank(x)       ((x)>>3)
 #  define File(x)       ((x)&7)
 #  define Flip(x)       ((x)^1)
-
-#  define WhitePawnAttacks(x)   (b_pawn_attacks[(x)] & WhitePawns)
-#  define BlackPawnAttacks(x)   (w_pawn_attacks[(x)] & BlackPawns)
-
-#  define AttacksRank(a) (AttacksRook(a) & rank_mask[Rank(a)])
-#  define AttacksFile(a) (AttacksRook(a) & file_mask[File(a)])
-#  define AttacksDiaga1(a) (AttacksBishop(a) & (plus9dir[a] | minus9dir[a]))
-#  define AttacksDiagh1(a) (AttacksBishop(a) & (plus7dir[a] | minus7dir[a]))
-#  define RookPlus(a) (rank_mask[Rank(a)] | file_mask[File(a)])
-#  define BishopDiagonals(a) (plus9dir[a] | minus9dir[a] | plus7dir[a] | minus7dir[a])
+#  define PawnAttacks(wtm, x)   (pawn_attacks[Flip(wtm)][(x)] & Pawns(wtm))
+#  define Advanced(wtm, pawns) ((wtm) ? MSB(pawns) : LSB(pawns))
+#  define MinMax(wtm, v1, v2) ((wtm) ? Min((v1), (v2)) : Max((v1), (v2)))
+#  define FrontOf(wtm, k, p) ((wtm) ? k > p : k < p)
+#  define Behind(wtm, k, p) ((wtm) ? k < p : k > p)
+#  define AttacksRank(a) (AttacksRook(a, OccupiedSquares) & rank_mask[Rank(a)])
+#  define AttacksFile(a) (AttacksRook(a, OccupiedSquares) & file_mask[File(a)])
+#  define AttacksDiaga1(a) (AttacksBishop(a, OccupiedSquares) & (plus9dir[a] | minus9dir[a]))
+#  define AttacksDiagh1(a) (AttacksBishop(a, OccupiedSquares) & (plus7dir[a] | minus7dir[a]))
 /*
    the following macros are used to extract the pieces of a move that are
    kept compressed into the rightmost 21 bits of a simple integer.
@@ -856,44 +762,24 @@ extern void WinFreeInterleaved(void *, size_t);
 #  define CaptureOrPromote(a) (((a)>>15)&63)
 #  define SetMask(a)          (set_mask[a])
 #  define ClearMask(a)        (clear_mask[a])
-/*
-   the following macros are used to extract the correct bits for the piece
-   type desired.
- */
-#  define BlackPawns            (tree->pos.b_pawn)
-#  define BlackKnights          (tree->pos.b_knight)
-#  define BlackBishops          (tree->pos.b_bishop)
-#  define BlackRooks            (tree->pos.b_rook)
-#  define BlackQueens           (tree->pos.b_queen)
-#  define BlackKing             (SetMask(tree->pos.black_king))
-#  define BlackKingSQ           (tree->pos.black_king)
-#  define BlackCastle(ply)      (tree->position[ply].b_castle)
-#  define TotalBlackPawns       (tree->pos.black_pawns)
-#  define TotalBlackPieces      (tree->pos.black_pieces)
-#  define TotalBlackMaterial    (tree->pos.black_pieces+tree->black_pawns)
-#  define BlackPieces           (tree->pos.b_occupied)
-#  define TotalBlackKnights     (tree->pos.num_b_knights)
-#  define TotalBlackBishops     (tree->pos.num_b_bishops)
-#  define TotalBlackRooks       (tree->pos.num_b_rooks)
-#  define TotalBlackRooks       (tree->pos.num_b_rooks)
-#  define TotalBlackQueens      (tree->pos.num_b_queens)
-#  define WhitePawns            (tree->pos.w_pawn)
-#  define WhiteKnights          (tree->pos.w_knight)
-#  define WhiteBishops          (tree->pos.w_bishop)
-#  define WhiteRooks            (tree->pos.w_rook)
-#  define WhiteQueens           (tree->pos.w_queen)
-#  define WhiteKing             (SetMask(tree->pos.white_king))
-#  define WhiteKingSQ           (tree->pos.white_king)
-#  define WhiteCastle(ply)      (tree->position[ply].w_castle)
-#  define TotalWhitePawns       (tree->pos.white_pawns)
-#  define TotalWhitePieces      (tree->pos.white_pieces)
-#  define TotalWhiteMaterial    (tree->pos.white_pieces+tree->white_pawns)
-#  define WhitePieces           (tree->pos.w_occupied)
-#  define TotalWhiteKnights     (tree->pos.num_w_knights)
-#  define TotalWhiteBishops     (tree->pos.num_w_bishops)
-#  define TotalWhiteRooks       (tree->pos.num_w_rooks)
-#  define TotalWhiteQueens      (tree->pos.num_w_queens)
-#  define TotalPieces           (tree->pos.total_pieces)
+#  define Pawns(c)              (tree->pos.color[c].pieces[pawn])
+#  define Knights(c)            (tree->pos.color[c].pieces[knight])
+#  define Bishops(c)            (tree->pos.color[c].pieces[bishop])
+#  define Rooks(c)              (tree->pos.color[c].pieces[rook])
+#  define Queens(c)             (tree->pos.color[c].pieces[queen])
+#  define Kings(c)              (tree->pos.color[c].pieces[king])
+#  define KingSQ(c)             (tree->pos.kingsq[c])
+#  define Occupied(c)           (tree->pos.color[c].pieces[occupied])
+#  define Pieces(c, p)          (tree->pos.color[c].pieces[p])
+#  define TotalKnights(c)       (tree->pos.num_knights[c])
+#  define TotalBishops(c)       (tree->pos.num_bishops[c])
+#  define TotalRooks(c)         (tree->pos.num_rooks[c])
+#  define TotalQueens(c)        (tree->pos.num_queens[c])
+#  define Castle(ply, c)        (tree->position[ply].castle[c])
+#  define TotalPawns(c)         (tree->pos.pawns[c])
+#  define TotalPieces(c)        (tree->pos.pieces[c])
+#  define PieceValues(c, p)     (piece_values[c][p])
+#  define TotalAllPieces        (tree->pos.total_pieces)
 #  define Material              (tree->pos.material_evaluation)
 #  define Rule50Moves(ply)      (tree->position[ply].rule_50_moves)
 #  define HashKey               (tree->pos.hash_key)
@@ -903,10 +789,7 @@ extern void WinFreeInterleaved(void *, size_t);
 #  define PcOnSq(sq)            (tree->pos.board[sq])
 #  define BishopsQueens         (tree->pos.bishops_queens)
 #  define RooksQueens           (tree->pos.rooks_queens)
-#  define Occupied              (tree->pos.w_occupied|tree->pos.b_occupied)
-#  define Sliding(piece)        ((piece) & 4)
-#  define SlidingDiag(piece)    (((piece) & 5) == 5)
-#  define SlidingRow(piece)     (((piece) & 6) == 6)
+#  define OccupiedSquares       (Occupied(white) | Occupied(black))
 /*
    the following macros are used to Set and Clear a specific bit in the
    second argument.  this is done to make the code more readable, rather
@@ -915,45 +798,19 @@ extern void WinFreeInterleaved(void *, size_t);
 #  define ClearSet(a,b)       b=((a)^(b))
 #  define Clear(a,b)          b=ClearMask(a)&(b)
 #  define Set(a,b)            b=SetMask(a)|(b)
-#  define HashPB(a,b)         b=b_pawn_random[a]^(b)
-#  define HashPW(a,b)         b=w_pawn_random[a]^(b)
-#  define HashNB(a,b)         b=b_knight_random[a]^(b)
-#  define HashNW(a,b)         b=w_knight_random[a]^(b)
-#  define HashBB(a,b)         b=b_bishop_random[a]^(b)
-#  define HashBW(a,b)         b=w_bishop_random[a]^(b)
-#  define HashRB(a,b)         b=b_rook_random[a]^(b)
-#  define HashRW(a,b)         b=w_rook_random[a]^(b)
-#  define HashQB(a,b)         b=b_queen_random[a]^(b)
-#  define HashQW(a,b)         b=w_queen_random[a]^(b)
-#  define HashKB(a,b)         b=b_king_random[a]^(b)
-#  define HashKW(a,b)         b=w_king_random[a]^(b)
-#  define HashEP(a,b)         b=enpassant_random[a]^(b)
-#  define HashCastleW(a,b)    b=castle_random_w[a]^(b)
-#  define HashCastleB(a,b)    b=castle_random_b[a]^(b)
-#  define SavePV(tree,ply,ph) do {                                            \
-          tree->pv[ply-1].path[ply-1]=tree->curmv[ply-1];            \
-          tree->pv[ply-1].pathl=ply-1;                                      \
-          tree->pv[ply-1].pathh=ph;                                         \
-          tree->pv[ply-1].pathd=shared->iteration_depth;} while(0)
 /*
-   Service macro - initialize squares of the particular piece as well as
-   counter for that piece. Note: dual initialization saves some time when
-   TB is present, but waste for non-present TB. If we often will call
-   probing function for an absent TB, maybe we shall split that code.
+   the following macros are used to update the hash signatures.
  */
-#  define  VInitSqCtr(rgCtr, rgSquares, piece, bitboard) {         \
-  int  cPieces=0;                                                \
-  BITBOARD bbTemp=(bitboard);                                    \
-  while (bbTemp) {                                               \
-    const squaret sq=MSB(bbTemp);                                \
-    (rgSquares)[(piece)*C_PIECES+cPieces]=sq;                    \
-    cPieces++;                                                   \
-    Clear(sq, bbTemp);                                           \
-  }                                                              \
-  (rgCtr)[(piece)]=cPieces;                                      \
-}
-#  define mask_120      MaskR(56)
-
+/*  a=wtm, b=from c=piece */
+#  define Hash(a,b,c)         (HashKey^=randoms[a][b][c])
+#  define HashP(a,c)          (PawnHashKey^=randoms[a][pawn][c])
+#  define HashCastle(a,b,c)   (b^=castle_random[c][a])
+#  define HashEP(a,b)         (b^=enpassant_random[a])
+#  define SavePV(tree,ply,ph) do {                                            \
+          tree->pv[ply-1].path[ply-1]=tree->curmv[ply-1];                     \
+          tree->pv[ply-1].pathl=ply-1;                                        \
+          tree->pv[ply-1].pathh=ph;                                           \
+          tree->pv[ply-1].pathd=shared->iteration_depth;} while(0)
 #  if defined(INLINE64)
 #    include "inline64.h"
 #  endif

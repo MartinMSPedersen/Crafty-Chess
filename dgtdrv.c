@@ -1,9 +1,6 @@
 #include <errno.h>
-#include <string.h>
 #include <unistd.h>
-#include <stdio.h>
 #include <termios.h>
-#include <stdlib.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
@@ -484,8 +481,6 @@ int DGTSetPort(char *ttyname)
  */
 char *ToFEN(int board[64])
 {
-  char xlate[15] =
-      { 'q', 'r', 'b', 0, 'k', 'n', 'p', 0, 'P', 'N', 'K', 0, 'B', 'R', 'Q' };
   char empty[9] = { ' ', '1', '2', '3', '4', '5', '6', '7', '8' };
   int rank, file, nempty;
   static char fen_string[128];
@@ -500,7 +495,7 @@ char *ToFEN(int board[64])
           nempty = 0;
         }
         sprintf(fen_string + strlen(fen_string), "%c",
-            xlate[board[(rank << 3) + file] + 7]);
+            translate[board[(rank << 3) + file] + 6]);
       } else
         nempty++;
     }

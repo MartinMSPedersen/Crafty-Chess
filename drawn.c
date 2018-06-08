@@ -1,5 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
 #include "chess.h"
 #include "data.h"
 
@@ -26,7 +24,7 @@ int Drawn(TREE * RESTRICT tree, int value)
  *                                                          *
  ************************************************************
  */
-  if (TotalWhitePawns || TotalBlackPawns)
+  if (TotalPawns(white) || TotalPawns(black))
     return (0);
 /*
  ************************************************************
@@ -47,14 +45,14 @@ int Drawn(TREE * RESTRICT tree, int value)
  *                                                          *
  ************************************************************
  */
-  if (TotalWhitePieces < 5 && TotalBlackPieces < 5)
+  if (TotalPieces(white) < 5 && TotalPieces(black) < 5)
     return (2);
-  if (TotalWhitePieces == 5 || TotalWhitePieces > 6)
+  if (TotalPieces(white) == 5 || TotalPieces(white) > 6)
     return (0);
-  if (TotalBlackPieces == 5 || TotalBlackPieces > 6)
+  if (TotalPieces(black) == 5 || TotalPieces(black) > 6)
     return (0);
-  if ((TotalWhitePieces == 6 && !WhiteBishops && Material > 0) ||
-      (TotalBlackPieces == 6 && !BlackBishops && Material < 0))
+  if ((TotalPieces(white) == 6 && !Bishops(white) && Material > 0) ||
+      (TotalPieces(black) == 6 && !Bishops(black) && Material < 0))
     return (2);
 /*
  ************************************************************
@@ -65,7 +63,7 @@ int Drawn(TREE * RESTRICT tree, int value)
  *                                                          *
  ************************************************************
  */
-  if (TotalWhitePieces == TotalBlackPieces)
+  if (TotalPieces(white) == TotalPieces(black))
     return (1);
   return (0);
 }

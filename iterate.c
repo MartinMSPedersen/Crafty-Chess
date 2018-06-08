@@ -1,6 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include "chess.h"
 #include "data.h"
 #include "epdglue.h"
@@ -9,7 +6,7 @@
 #  include <sys/types.h>
 #endif
 
-/* last modified 10/31/07 */
+/* last modified 01/05/08 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -22,12 +19,12 @@
 int Iterate(int wtm, int search_type, int root_list_done)
 {
   ROOT_MOVE temp;
-  int wpawn, bpawn, TB_use_ok;
-  int i, value = 0, time_used;
-  int twtm, used;
-  int correct, correct_count, material = 0, sorted;
-  TREE *const tree = shared->local[0];
+  int i;
+  register int wpawn, bpawn, TB_use_ok, value = 0, twtm, used;
+  register int correct, correct_count, material = 0, sorted;
+  register unsigned int time_used;
   char *fh_indicator, *fl_indicator;
+  TREE *const tree = shared->local[0];
 
 /*
  ************************************************************
@@ -69,9 +66,9 @@ int Iterate(int wtm, int search_type, int root_list_done)
   shared->parallel_aborts = 0;
   shared->max_split_blocks = 0;
   TB_use_ok = 1;
-  if (TotalWhitePawns && TotalBlackPawns) {
-    wpawn = MSB(WhitePawns);
-    bpawn = MSB(BlackPawns);
+  if (TotalPawns(white) && TotalPawns(black)) {
+    wpawn = MSB(Pawns(white));
+    bpawn = MSB(Pawns(black));
     if (FileDistance(wpawn, bpawn) == 1) {
       if (((Rank(wpawn) == RANK2) && (Rank(bpawn) > RANK3)) ||
           ((Rank(bpawn) == RANK7) && (Rank(wpawn) < RANK6)) || EnPassant(1))
@@ -102,14 +99,6 @@ int Iterate(int wtm, int search_type, int root_list_done)
       shared->elapsed_start = ReadClock();
       shared->next_time_check = shared->nodes_between_time_checks;
       tree->evaluations = 0;
-#if defined(HASHSTATS)
-      tree->transposition_hits = 0;
-      tree->transposition_good_hits = 0;
-      tree->transposition_uppers = 0;
-      tree->transposition_lowers = 0;
-      tree->transposition_exacts = 0;
-      tree->transposition_probes = 0;
-#endif
       tree->egtb_probes = 0;
       tree->egtb_probes_successful = 0;
       tree->check_extensions_done = 0;
@@ -294,6 +283,20 @@ int Iterate(int wtm, int search_type, int root_list_done)
           shared->root_print_ok = tree->nodes_searched > shared->noise_level;
           if (shared->abort_search || shared->time_abort)
             break;
+/*
+ ************************************************************
+ *                                                          *
+ *   check the time after each ply.  If it is likely that   *
+ *   there is not enough time to complete the next ply,     *
+ *   then only search enough time to allow for a fail-low.  *
+ *                                                          *
+ ************************************************************
+ */
+          time_used = ReadClock() - shared->start_time;
+          if (time_used > shared->time_limit * 5 / 8 &&
+              time_used < shared->time_limit)
+            shared->time_limit = time_used + shared->time_limit / 4;
+
           if (value >= shared->root_beta) {
             if (!(shared->root_moves[0].status & 8)) {
               shared->root_moves[0].status |= 8;
@@ -362,7 +365,6 @@ int Iterate(int wtm, int search_type, int root_list_done)
                   SetRootBeta(shared->root_moves[0].status, shared->root_beta);
               shared->root_moves[0].status &= 4095 - 256;
               shared->root_moves[0].nodes = 0;
-              shared->root_value = shared->root_alpha;
               shared->easy_move = 0;
               if (shared->root_print_ok && !shared->time_abort &&
                   !shared->abort_search) {
@@ -517,8 +519,9 @@ int Iterate(int wtm, int search_type, int root_list_done)
         if (correct_count >= early_exit)
           break;
 #if !defined(NOEGTB)
-        if (shared->iteration_depth > 3 && TotalPieces <= EGTBlimit && TB_use_ok
-            && EGTB_use && !EGTB_search && EGTBProbe(tree, 1, wtm, &i))
+        if (shared->iteration_depth > 3 && TotalAllPieces <= EGTBlimit &&
+            TB_use_ok && EGTB_use && !EGTB_search &&
+            EGTBProbe(tree, 1, wtm, &i))
           break;
 #endif
         if (search_nodes && tree->nodes_searched >= search_nodes)
@@ -533,20 +536,7 @@ int Iterate(int wtm, int search_type, int root_list_done)
  ************************************************************
  */
       used = 0;
-#if defined(HASHSTATS)
-      for (i = 0; i < hash_table_size; i++) {
-        if ((trans_ref + i)->prefer.word1 >> 61 == shared->transposition_id)
-          used++;
-        if ((trans_ref + i)->always[0].word1 >> 61 == shared->transposition_id)
-          used++;
-        if ((trans_ref + i)->always[1].word1 >> 61 == shared->transposition_id)
-          used++;
-      }
-#endif
       shared->end_time = ReadClock();
-      time_used = (shared->end_time - shared->start_time);
-      if (time_used < 10)
-        time_used = 10;
       shared->elapsed_end = ReadClock() - shared->elapsed_start;
       if (shared->elapsed_end > 10)
         shared->nodes_per_second =
@@ -584,24 +574,6 @@ int Iterate(int wtm, int search_type, int root_list_done)
             DisplayKM(tree->evaluations), Rule50Moves(0));
         Print(16, "  EGTBprobes=%s  hits=%s\n", DisplayKM(tree->egtb_probes),
             DisplayKM(tree->egtb_probes_successful));
-#if defined(HASHSTATS)
-        Print(16,
-            "              hashing-> %d%%(raw) %d%%(draftOK) "
-            " %d%%(saturation)\n",
-            (int) (100 * (BITBOARD) tree->transposition_hits /
-                (BITBOARD) (tree->transposition_probes + 1)),
-            (int) (100 * (BITBOARD) tree->transposition_good_hits /
-                (BITBOARD) (tree->transposition_probes + 1)),
-            used * 100 / (3 * hash_table_size + 1));
-        Print(16,
-            "              hashing-> %d%%(exact)  %d%%(lower)  %d%%(upper)\n",
-            (int) (100 * (BITBOARD) tree->transposition_exacts /
-                (BITBOARD) (tree->transposition_probes + 1)),
-            (int) (100 * (BITBOARD) tree->transposition_lowers /
-                (BITBOARD) (tree->transposition_probes + 1)),
-            (int) (100 * (BITBOARD) tree->transposition_uppers /
-                (BITBOARD) (tree->transposition_probes + 1)));
-#endif
         Print(16, "              SMP->  splits=%d  aborts=%d  data=%d/%d  ",
             shared->parallel_splits, shared->parallel_aborts,
             shared->max_split_blocks, MAX_BLOCKS);
@@ -616,7 +588,7 @@ int Iterate(int wtm, int search_type, int root_list_done)
     if (analyze_mode)
       Kibitz(4, wtm, 0, 0, 0, 0, 0, shared->kibitz_text);
   }
-  if (shared->nice) {
+  if (shared->nice && ponder == 0) {
     Print(128, "terminating SMP processes.");
     shared->quit = 1;
     while (shared->smp_threads);
