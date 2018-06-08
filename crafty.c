@@ -11,15 +11,15 @@
  *******************************************************************************
  */
 #include "search.c"
+#include "movgen.c"
+#include "make.c"
+#include "unmake.c"
 #include "thread.c"
 #include "repeat.c"
 #include "next.c"
 #include "killer.c"
 #include "quiesce.c"
 #include "evaluate.c"
-#include "movgen.c"
-#include "make.c"
-#include "unmake.c"
 #include "hash.c"
 #include "attacks.c"
 #include "swap.c"

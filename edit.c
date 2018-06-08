@@ -1,6 +1,6 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 01/18/09 */
+/* last modified 05/08/14 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -39,8 +39,8 @@ void Edit(void) {
 /*
  ************************************************************
  *                                                          *
- *   Process the commands to set the board[n] form of the   *
- *   chess position.                                        *
+ *  Process the commands to set the board[n] form of the    *
+ *  chess position.                                         *
  *                                                          *
  ************************************************************
  */
@@ -70,7 +70,7 @@ void Edit(void) {
     else if (!strcmp(args[0], "end") || (!strcmp(args[0], ".")))
       break;
     else if (!strcmp(args[0], "d"))
-      DisplayChessBoard(stdout, tree->pos);
+      DisplayChessBoard(stdout, tree->position);
     else if (strlen(args[0]) == 3) {
       if (strchr(pieces, args[0][0])) {
         piece = (strchr(pieces, args[0][0]) - pieces) >> 1;
@@ -101,14 +101,14 @@ void Edit(void) {
 /*
  ************************************************************
  *                                                          *
- *   Now, if a king is on its original square, check the    *
- *   rooks to see if they are and set the castle status     *
- *   accordingly.  Note that this checks for pieces on the  *
- *   original rank, but not their original squares (ICS     *
- *   "wild" games) and doesn't set castling if true.        *
+ *  Now, if a king is on its original square, check the     *
+ *  rooks to see if they are and set the castle status      *
+ *  accordingly.  Note that this checks for pieces on the   *
+ *  original rank, but not their original squares (ICS      *
+ *  "wild" games) and doesn't set castling if true.         *
  *                                                          *
- *   The winboard/xboard "edit" command does not give us a  *
- *   way of setting castling status, so we have to guess.   *
+ *  The winboard/xboard "edit" command does not give us a   *
+ *  way of setting castling status, so we have to guess.    *
  *                                                          *
  ************************************************************
  */
@@ -141,8 +141,8 @@ void Edit(void) {
 /*
  ************************************************************
  *                                                          *
- *   Basic board is now set.  Now it's time to set the bit  *
- *   board representation correctly.                        *
+ *  Basic board is now set.  Now it's time to set the bit   *
+ *  board representation correctly.                         *
  *                                                          *
  ************************************************************
  */
@@ -150,12 +150,12 @@ void Edit(void) {
   error += InvalidPosition(tree);
   if (!error) {
     if (log_file)
-      DisplayChessBoard(log_file, tree->pos);
+      DisplayChessBoard(log_file, tree->position);
     wtm = 1;
     move_number = 1;
-    Repetition(black) = 0;
-    Repetition(white) = 0;
-    tree->position[0].rule_50_moves = 0;
+    tree->rep_index = 0;
+    tree->rep_list[0] = HashKey;
+    Reversible(0) = 0;
     moves_out_of_book = 0;
   } else {
     InitializeChessBoard(tree);

@@ -1,28 +1,29 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 12/13/10 */
+/* last modified 02/22/14 */
 /*
  *******************************************************************************
  *                                                                             *
  *   MakeMove() is responsible for updating the position database whenever a   *
  *   piece is moved.  It performs the following operations:  (1) update the    *
  *   board structure itself by moving the piece and removing any captured      *
- *   piece.  (2) update the hash keys.  (3) update material counts.  (4) update*
- *   castling status.  (5) update number of moves since last reversible move.  *
+ *   piece.  (2) update the hash keys.  (3) update material counts.  (4) then  *
+ *   update castling status.  (5) and finally update number of moves since     *
+ *   last reversible move.                                                     *
  *                                                                             *
  *   There are some special-cases handled here, such as en passant captures    *
  *   where the enemy pawn is not on the <target> square, castling which moves  *
  *   both the king and rook, and then rook moves/captures which give up the    *
  *   castling right to that side when the rook is moved.                       *
  *                                                                             *
- *   note:  wtm = 1 if white is to move, 0 otherwise.  btm is the opposite and *
- *   is 1 if it is not white to move, 0 otherwise.                             *
+ *   note:  side = 1 if white is to move, 0 otherwise.  enemy is the opposite  *
+ *   and is 1 if it is not white to move, 0 otherwise.                         *
  *                                                                             *
  *******************************************************************************
  */
-void MakeMove(TREE * RESTRICT tree, int ply, int move, int wtm) {
+void MakeMove(TREE * RESTRICT tree, int ply, int move, int side) {
   uint64_t bit_move;
-  int piece, from, to, captured, promote, btm = Flip(wtm);
+  int piece, from, to, captured, promote, enemy = Flip(side);
   int cpiece;
 #if defined(DEBUG)
   int i;
@@ -31,41 +32,40 @@ void MakeMove(TREE * RESTRICT tree, int ply, int move, int wtm) {
 /*
  ************************************************************
  *                                                          *
- *   First, some basic information is updated for all moves *
- *   before we do the piece-specific stuff.  We need to     *
- *   save the current position and both hash signatures,    *
- *   and add the current position to the repetition-list    *
- *   for the side on move, before the move is actually made *
- *   on the board.  We also update the 50 move rule         *
- *   counter, which will be reset if a capture or pawn move *
- *   is made here.                                          *
+ *  First, some basic information is updated for all moves  *
+ *  before we do the piece-specific stuff.  We need to save *
+ *  the current position and both hash signatures, and add  *
+ *  the current position to the repetition-list for the     *
+ *  side on move, before the move is actually made on the   *
+ *  board.  We also update the 50 move rule counter which   *
+ *  will be reset if a capture or pawn move is made here.   *
  *                                                          *
- *   If the en passant flag was set the previous ply, we    *
- *   have already used it to generate moves at this ply,    *
- *   and we need to clear it before continuing.  If it is   *
- *   set, we also need to update the hash signature since   *
- *   the EP opportunity no longer exists after making any   *
- *   move at this ply (one ply deeper than when a pawn was  *
- *   advanced two squares).                                 *
+ *  If the en passant flag was set the previous ply, we     *
+ *  have already used it to generate moves at this ply and  *
+ *  we need to clear it before continuing.  If it is set,   *
+ *  we also need to update the hash signature since the EP  *
+ *  opportunity no longer exists after making any move at   *
+ *  this ply (one ply deeper than when a pawn was advanced  *
+ *  two squares).                                           *
  *                                                          *
  ************************************************************
  */
 #if defined(DEBUG)
   ValidatePosition(tree, ply, move, "MakeMove(1)");
 #endif
-  tree->position[ply + 1] = tree->position[ply];
+  tree->status[ply + 1] = tree->status[ply];
   tree->save_hash_key[ply] = HashKey;
   tree->save_pawn_hash_key[ply] = PawnHashKey;
   if (EnPassant(ply + 1)) {
     HashEP(EnPassant(ply + 1));
     EnPassant(ply + 1) = 0;
   }
-  Rule50Moves(ply + 1)++;
+  Reversible(ply + 1)++;
 /*
  ************************************************************
  *                                                          *
- *   Now do the things that are common to all pieces, such  *
- *   as updating the bitboards and hash signature.          *
+ *  Now do the things that are common to all pieces, such   *
+ *  as updating the bitboards and hash signature.           *
  *                                                          *
  ************************************************************
  */
@@ -76,63 +76,63 @@ void MakeMove(TREE * RESTRICT tree, int ply, int move, int wtm) {
   promote = Promote(move);
   bit_move = SetMask(from) | SetMask(to);
   cpiece = PcOnSq(to);
-  ClearSet(bit_move, Pieces(wtm, piece));
-  ClearSet(bit_move, Occupied(wtm));
-  Hash(wtm, piece, from);
-  Hash(wtm, piece, to);
+  ClearSet(bit_move, Pieces(side, piece));
+  ClearSet(bit_move, Occupied(side));
+  Hash(side, piece, from);
+  Hash(side, piece, to);
   PcOnSq(from) = 0;
-  PcOnSq(to) = pieces[wtm][piece];
+  PcOnSq(to) = pieces[side][piece];
 /*
  ************************************************************
  *                                                          *
- *   Now do the piece-specific things by jumping to the     *
- *   appropriate routine.                                   *
+ *  Now do the piece-specific things by jumping to the      *
+ *  appropriate routine.                                    *
  *                                                          *
  ************************************************************
  */
   switch (piece) {
     case pawn:
-      HashP(wtm, from);
-      HashP(wtm, to);
-      Rule50Moves(ply + 1) = 0;
+      HashP(side, from);
+      HashP(side, to);
+      Reversible(ply + 1) = 0;
       if (captured == 1 && !cpiece) {
-        Clear(to + epsq[wtm], Pawns(btm));
-        Clear(to + epsq[wtm], Occupied(btm));
-        Hash(btm, pawn, to + epsq[wtm]);
-        HashP(btm, to + epsq[wtm]);
-        PcOnSq(to + epsq[wtm]) = 0;
-        Material -= PieceValues(btm, pawn);
-        TotalPieces(btm, pawn)--;
+        Clear(to + epsq[side], Pawns(enemy));
+        Clear(to + epsq[side], Occupied(enemy));
+        Hash(enemy, pawn, to + epsq[side]);
+        HashP(enemy, to + epsq[side]);
+        PcOnSq(to + epsq[side]) = 0;
+        Material -= PieceValues(enemy, pawn);
+        TotalPieces(enemy, pawn)--;
         TotalAllPieces--;
         captured = 0;
       }
       if (promote) {
-        TotalPieces(wtm, pawn)--;
-        Material -= PieceValues(wtm, pawn);
-        Clear(to, Pawns(wtm));
-        Hash(wtm, pawn, to);
-        HashP(wtm, to);
-        Hash(wtm, promote, to);
-        PcOnSq(to) = pieces[wtm][promote];
-        TotalPieces(wtm, occupied) += p_vals[promote];
-        TotalPieces(wtm, promote)++;
-        Material += PieceValues(wtm, promote);
-        Set(to, Pieces(wtm, promote));
+        TotalPieces(side, pawn)--;
+        Material -= PieceValues(side, pawn);
+        Clear(to, Pawns(side));
+        Hash(side, pawn, to);
+        HashP(side, to);
+        Hash(side, promote, to);
+        PcOnSq(to) = pieces[side][promote];
+        TotalPieces(side, occupied) += p_vals[promote];
+        TotalPieces(side, promote)++;
+        Material += PieceValues(side, promote);
+        Set(to, Pieces(side, promote));
         switch (promote) {
           case knight:
           case bishop:
-            tree->pos.minors[wtm]++;
+            TotalMinors(side)++;
             break;
           case rook:
-            tree->pos.majors[wtm]++;
+            TotalMajors(side)++;
             break;
           case queen:
-            tree->pos.majors[wtm] += 2;
+            TotalMajors(side) += 2;
             break;
         }
-      } else if ((Abs(to - from) == 16) && (mask_eptest[to] & Pawns(btm))) {
-        EnPassant(ply + 1) = to + epsq[wtm];
-        HashEP(to + epsq[wtm]);
+      } else if ((Abs(to - from) == 16) && (mask_eptest[to] & Pawns(enemy))) {
+        EnPassant(ply + 1) = to + epsq[side];
+        HashEP(to + epsq[side]);
       }
       break;
     case knight:
@@ -140,88 +140,88 @@ void MakeMove(TREE * RESTRICT tree, int ply, int move, int wtm) {
     case queen:
       break;
     case rook:
-      if (Castle(ply + 1, wtm) > 0) {
-        if ((from == rook_A[wtm]) && (Castle(ply + 1, wtm) & 2)) {
-          Castle(ply + 1, wtm) &= 1;
-          HashCastle(1, wtm);
-        } else if ((from == rook_H[wtm]) && (Castle(ply + 1, wtm) & 1)) {
-          Castle(ply + 1, wtm) &= 2;
-          HashCastle(0, wtm);
+      if (Castle(ply + 1, side) > 0) {
+        if ((from == rook_A[side]) && (Castle(ply + 1, side) & 2)) {
+          Castle(ply + 1, side) &= 1;
+          HashCastle(1, side);
+        } else if ((from == rook_H[side]) && (Castle(ply + 1, side) & 1)) {
+          Castle(ply + 1, side) &= 2;
+          HashCastle(0, side);
         }
       }
       break;
     case king:
-      KingSQ(wtm) = to;
-      if (Castle(ply + 1, wtm) > 0) {
-        if (Castle(ply + 1, wtm) & 2)
-          HashCastle(1, wtm);
-        if (Castle(ply + 1, wtm) & 1)
-          HashCastle(0, wtm);
+      KingSQ(side) = to;
+      if (Castle(ply + 1, side) > 0) {
+        if (Castle(ply + 1, side) & 2)
+          HashCastle(1, side);
+        if (Castle(ply + 1, side) & 1)
+          HashCastle(0, side);
         if (Abs(to - from) == 2) {
-          Castle(ply + 1, wtm) = -1;
+          Castle(ply + 1, side) = -1;
           piece = rook;
-          if (to == rook_G[wtm]) {
-            from = rook_H[wtm];
-            to = rook_F[wtm];
+          if (to == rook_G[side]) {
+            from = rook_H[side];
+            to = rook_F[side];
           } else {
-            from = rook_A[wtm];
-            to = rook_D[wtm];
+            from = rook_A[side];
+            to = rook_D[side];
           }
           bit_move = SetMask(from) | SetMask(to);
-          ClearSet(bit_move, Rooks(wtm));
-          ClearSet(bit_move, Occupied(wtm));
-          Hash(wtm, rook, from);
-          Hash(wtm, rook, to);
+          ClearSet(bit_move, Rooks(side));
+          ClearSet(bit_move, Occupied(side));
+          Hash(side, rook, from);
+          Hash(side, rook, to);
           PcOnSq(from) = 0;
-          PcOnSq(to) = pieces[wtm][rook];
+          PcOnSq(to) = pieces[side][rook];
         } else
-          Castle(ply + 1, wtm) = 0;
+          Castle(ply + 1, side) = 0;
       }
       break;
   }
 /*
  ************************************************************
  *                                                          *
- *   If this is a capture move, we also have to update the  *
- *   information that must change when a piece is removed   *
- *   from the board.                                        *
+ *  If this is a capture move, we also have to update the   *
+ *  information that must change when a piece is removed    *
+ *  from the board.                                         *
  *                                                          *
  ************************************************************
  */
   if (captured) {
-    Rule50Moves(ply + 1) = 0;
+    Reversible(ply + 1) = 0;
     TotalAllPieces--;
     if (promote)
       piece = promote;
-    Hash(btm, captured, to);
-    Clear(to, Pieces(btm, captured));
-    Clear(to, Occupied(btm));
-    Material -= PieceValues(btm, captured);
-    TotalPieces(btm, captured)--;
+    Hash(enemy, captured, to);
+    Clear(to, Pieces(enemy, captured));
+    Clear(to, Occupied(enemy));
+    Material -= PieceValues(enemy, captured);
+    TotalPieces(enemy, captured)--;
     if (captured != pawn)
-      TotalPieces(btm, occupied) -= p_vals[captured];
+      TotalPieces(enemy, occupied) -= p_vals[captured];
     switch (captured) {
       case pawn:
-        HashP(btm, to);
+        HashP(enemy, to);
         break;
       case knight:
       case bishop:
-        tree->pos.minors[btm]--;
+        TotalMinors(enemy)--;
         break;
       case rook:
-        if (Castle(ply + 1, btm) > 0) {
-          if ((to == rook_A[btm]) && (Castle(ply + 1, btm) & 2)) {
-            Castle(ply + 1, btm) &= 1;
-            HashCastle(1, btm);
-          } else if ((to == rook_H[btm]) && (Castle(ply + 1, btm) & 1)) {
-            Castle(ply + 1, btm) &= 2;
-            HashCastle(0, btm);
+        if (Castle(ply + 1, enemy) > 0) {
+          if ((to == rook_A[enemy]) && (Castle(ply + 1, enemy) & 2)) {
+            Castle(ply + 1, enemy) &= 1;
+            HashCastle(1, enemy);
+          } else if ((to == rook_H[enemy]) && (Castle(ply + 1, enemy) & 1)) {
+            Castle(ply + 1, enemy) &= 2;
+            HashCastle(0, enemy);
           }
         }
-        tree->pos.majors[btm]--;
+        TotalMajors(enemy)--;
         break;
       case queen:
-        tree->pos.majors[btm] -= 2;
+        TotalMajors(enemy) -= 2;
         break;
       case king:
 #if defined(DEBUG)
@@ -233,7 +233,7 @@ void MakeMove(TREE * RESTRICT tree, int ply, int move, int wtm) {
         Print(128, "ply=%2d, piece=%2d,from=%2d,to=%2d,captured=%2d\n", i,
             piece, from, to, captured);
         if (log_file)
-          DisplayChessBoard(log_file, tree->pos);
+          DisplayChessBoard(log_file, tree->position);
 #endif
         break;
     }
@@ -244,7 +244,7 @@ void MakeMove(TREE * RESTRICT tree, int ply, int move, int wtm) {
   return;
 }
 
-/* last modified 11/05/10 */
+/* last modified 05/08/14 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -257,36 +257,35 @@ void MakeMove(TREE * RESTRICT tree, int ply, int move, int wtm) {
  *                                                                             *
  *******************************************************************************
  */
-void MakeMoveRoot(TREE * RESTRICT tree, int move, int wtm) {
-  int side;
+void MakeMoveRoot(TREE * RESTRICT tree, int move, int side) {
+  int player;
 
 /*
  ************************************************************
  *                                                          *
- *   First, make the move and replace position[0] with the  *
- *   new position.                                          *
+ *  First, make the move and then reset the repetition      *
+ *  index if the 50 move rule counter was reset to zero.    *
  *                                                          *
  ************************************************************
  */
-  tree->rep_list[wtm][Repetition(wtm)++] = HashKey;
-  MakeMove(tree, 0, move, wtm);
+  MakeMove(tree, 0, move, side);
+  if (Reversible(1) == 0)
+    tree->rep_index = -1;
+  tree->rep_list[++(tree->rep_index)] = HashKey;
 /*
  ************************************************************
  *                                                          *
- *   Now, if this is a non-reversible move, reset the       *
- *   repetition list pointer to start the count over.       *
+ *  One odd action is to note if the castle status is       *
+ *  currently negative, which indicates that that side      *
+ *  castled during the previous search.  We simply set the  *
+ *  castle status for that side to zero and we are done.    *
  *                                                          *
- *   One odd action is to note if the castle status is      *
- *   currently negative, which indicates that that side     *
- *   castled during the previous search.  We simply set the *
- *   castle status for that side to zero and we are done.   *
+ *  We then copy this back to ply=0 status (which is the    *
+ *  permanent game-board ply).                              *
  *                                                          *
  ************************************************************
  */
-  for (side = black; side <= white; side++) {
-    Castle(1, side) = Max(0, Castle(1, side));
-    if (Rule50Moves(1) == 0)
-      Repetition(side) = 0;
-  }
-  tree->position[0] = tree->position[1];
+  for (player = black; player <= white; player++)
+    Castle(1, player) = Max(0, Castle(1, player));
+  tree->status[0] = tree->status[1];
 }

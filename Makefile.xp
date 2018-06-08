@@ -22,7 +22,7 @@ CC       = cl
 LD       = link
 
 # Base compiler flags needed for build:
-BFLAGS = /D_CONSOLE /DWIN32 /D_CRT_SECURE_NO_DEPRECATE
+BFLAGS = /D_CONSOLE /DWIN64 /D_CRT_SECURE_NO_DEPRECATE
 
 # Compiler flags:
 # /O2    optimize for speed
@@ -64,7 +64,7 @@ COPTS    = /MT /DSMP /DCPUS=4
 
 # To enable assembly optimizations in vcinline.h, use /DVC_INLINE_ASM.
 
-#AOPTS    = /DVC_INLINE_ASM
+AOPTS    = /DVC_INLINE_ASM
 
 ALLOPTS  = $(COPTS) $(AOPTS) /D$(TARGET)
 

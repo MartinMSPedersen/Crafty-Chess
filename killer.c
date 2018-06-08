@@ -13,9 +13,9 @@ void Killer(TREE * RESTRICT tree, int ply, int move) {
 /*
  ************************************************************
  *                                                          *
- *   If the best move so far is a capture or a promotion,   *
- *   return, since we try good captures and promotions      *
- *   before searching killer heuristic moves anyway.        *
+ *  If the best move so far is a capture or a promotion,    *
+ *  return, since we try good captures and promotions       *
+ *  before searching killer heuristic moves anyway.         *
  *                                                          *
  ************************************************************
  */
@@ -24,10 +24,10 @@ void Killer(TREE * RESTRICT tree, int ply, int move) {
 /*
  ************************************************************
  *                                                          *
- *   Now, add this move to the current killer moves if it   *
- *   is not already there.  If the move is already first in *
- *   the list, leave it there, otherwise move the first one *
- *   down to slot two and insert this move into slot one.   *
+ *  Now, add this move to the current killer moves if it is *
+ *  not already there.  If the move is already first in the *
+ *  list, leave it there, otherwise move the first one down *
+ *  to slot two and insert this move into slot one.         *
  *                                                          *
  ************************************************************
  */

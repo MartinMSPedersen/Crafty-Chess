@@ -5,10 +5,10 @@
  *******************************************************************************
  *                                                                             *
  *   Analyze() is used to handle the "analyze" command.  This mode basically   *
- *   puts Crafty into a "permanent pondering" state, where it reads a move from*
- *   the input stream, and then "ponders" for the opposite side.  Whenever a   *
- *   move is entered, Crafty reads this move, updates the game board, and then *
- *   starts "pondering" for the other side.                                    *
+ *   puts Crafty into a "permanent pondering" state, where it reads a move     *
+ *   from the input stream, and then "ponders" for the opposite side.          *
+ *   Whenever a move is entered, Crafty reads this move, updates the game      *
+ *   board, and then starts "pondering" for the other side.                    *
  *                                                                             *
  *   The purpose of this mode is to force Crafty to follow along in a game,    *
  *   providing analysis continually for the side on move until a move is       *
@@ -49,7 +49,7 @@ void Analyze() {
       last_pv.pathl = 0;
       input_status = 0;
       pondering = 1;
-      tree->position[1] = tree->position[0];
+      tree->status[1] = tree->status[0];
       (void) Iterate(game_wtm, think, 0);
       pondering = 0;
       if (book_move)
@@ -118,9 +118,9 @@ void Analyze() {
         }
         sprintf(buffer, "reset %d", move_number);
         (void) Option(tree);
-        display = tree->pos;
+        display = tree->position;
       } else if (Option(tree)) {
-        display = tree->pos;
+        display = tree->position;
       }
 /*
  ************************************************************
@@ -152,10 +152,10 @@ void Analyze() {
           system(announce);
         }
         MakeMoveRoot(tree, move, game_wtm);
-        display = tree->pos;
+        display = tree->position;
         last_mate_score = 0;
         if (log_file)
-          DisplayChessBoard(log_file, tree->pos);
+          DisplayChessBoard(log_file, tree->position);
       }
 /*
  ************************************************************
@@ -170,7 +170,7 @@ void Analyze() {
         if (Option(tree) == 0)
           printf("illegal move: %s\n", buffer);
         pondering = 1;
-        display = tree->pos;
+        display = tree->position;
       }
     } while (!move);
     if (readstat < 0 || !strcmp(args[0], "exit"))

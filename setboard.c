@@ -1,6 +1,6 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 01/17/09 */
+/* last modified 05/08/14 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -8,8 +8,8 @@
  *   a forsythe-like string of characters to describe the board position.      *
  *                                                                             *
  *   The standard piece codes p,n,b,r,q,k are used to denote the type of piece *
- *   on a square, upper/lower case are used to indicate the side (program/opp.)*
- *   of the piece.                                                             *
+ *   on a square, upper/lower case are used to indicate the side (program/     *
+ *   opponent) of the piece.                                                   *
  *                                                                             *
  *   The pieces are entered with square a8 first, then b8, ... until the full  *
  *   8th rank is completed.  A "/" terminates that rank.  This is repeated for *
@@ -68,9 +68,9 @@ void SetBoard(TREE * tree, int nargs, char *args[], int special) {
 /*
  ************************************************************
  *                                                          *
- *   Scan the input string searching for pieces, numbers    *
- *   [empty squares], slashes [end-of-rank] and a blank     *
- *   [end of board, start of castle status].                *
+ *  Scan the input string searching for pieces, numbers     *
+ *  [empty squares], slashes [end-of-rank] and a blank      *
+ *  [end of board, start of castle status].                 *
  *                                                          *
  ************************************************************
  */
@@ -118,9 +118,9 @@ void SetBoard(TREE * tree, int nargs, char *args[], int special) {
 /*
  ************************************************************
  *                                                          *
- *   Now extract (a) side to move [w/b], (b) castle status  *
- *   [KkQq for white/black king-side ok, white/black queen- *
- *   side ok], (c) enpassant target square.                 *
+ *  Now extract (a) side to move [w/b], (b) castle status   *
+ *  [KkQq for white/black king-side ok, white/black queen-  *
+ *  side ok], (c) enpassant target square.                  *
  *                                                          *
  ************************************************************
  */
@@ -131,7 +131,7 @@ void SetBoard(TREE * tree, int nargs, char *args[], int special) {
 /*
  ************************************************************
  *                                                          *
- *   Side to move.                                          *
+ *  Side to move.                                           *
  *                                                          *
  ************************************************************
  */
@@ -146,7 +146,7 @@ void SetBoard(TREE * tree, int nargs, char *args[], int special) {
 /*
  ************************************************************
  *                                                          *
- *   Castling/enpassant status.                             *
+ *  Castling/enpassant status.                              *
  *                                                          *
  ************************************************************
  */
@@ -187,28 +187,33 @@ void SetBoard(TREE * tree, int nargs, char *args[], int special) {
   Castle(0, black) = bcastle;
   EnPassant(0) = 0;
   if (ep) {
-    if (Rank(ep) == RANK6) {
-      if (PcOnSq(ep - 8) != -pawn)
+    do {
+      if (twtm && Rank(ep) == RANK6 && PcOnSq(ep - 8) == -pawn) {
+        if (File(ep) != 7 && PcOnSq(ep - 7) == pawn)
+          break;
+        if (File(ep) != 0 && PcOnSq(ep - 9) == pawn)
+          break;
+      } else if (!twtm && Rank(ep) == RANK3 && PcOnSq(ep + 8) == pawn) {
+        if (File(ep) != 0 && PcOnSq(ep + 7) == -pawn)
+          break;
+        if (File(ep) != 7 && PcOnSq(ep + 9) == -pawn)
+          break;
+      } else {
         ep = 0;
-    } else if (Rank(ep) == RANK3) {
-      if (PcOnSq(ep + 8) != pawn)
+      }
+      if (!ep) {
+        printf("enpassant status is bad.\n");
         ep = 0;
-    } else
-      ep = 0;
-    if (!ep) {
-      printf("enpassant status is bad (must be on 3rd/6th rank only.\n");
-      ep = 0;
-      error = 1;
-    }
+        error = 1;
+      }
+    } while (0);
     EnPassant(0) = ep;
   }
-  Rule50Moves(0) = 0;
 /*
  ************************************************************
  *                                                          *
- *   Now check the castling status and enpassant status to  *
- *   make sure that the board is in a state that matches    *
- *   these.                                                 *
+ *  Now check the castling status status to make sure that  *
+ *  the board is in a state that matches.                   *
  *                                                          *
  ************************************************************
  */
@@ -222,27 +227,18 @@ void SetBoard(TREE * tree, int nargs, char *args[], int special) {
 /*
  ************************************************************
  *                                                          *
- *   Now set the bitboards so that error tests can be done. *
+ *  Now set the bitboards so that error tests can be done.  *
  *                                                          *
  ************************************************************
  */
-  if ((twtm && EnPassant(0) && (PcOnSq(EnPassant(0) + 8) != -pawn)
-          && (PcOnSq(EnPassant(0) - 7) != pawn)
-          && (PcOnSq(EnPassant(0) - 9) != pawn)) || (Flip(twtm)
-          && EnPassant(0)
-          && (PcOnSq(EnPassant(0) - 8) != pawn)
-          && (PcOnSq(EnPassant(0) + 7) != -pawn)
-          && (PcOnSq(EnPassant(0) + 9) != -pawn))) {
-    EnPassant(0) = 0;
-  }
   SetChessBitBoards(tree);
 /*
  ************************************************************
  *                                                          *
- *   Now check the position for a sane position, which      *
- *   means no more than 8 pawns, no more than 10 knights,   *
- *   bishops or rooks, no more than 9 queens, no pawns on   *
- *   1st or 8th rank, etc.                                  *
+ *  Now check the position for a sane position, which means *
+ *  no more than 8 pawns, no more than 10 knights, bishops  *
+ *  or rooks, no more than 9 queens, no pawns on 1st or 8th *
+ *  rank, etc.                                              *
  *                                                          *
  ************************************************************
  */
@@ -250,10 +246,10 @@ void SetBoard(TREE * tree, int nargs, char *args[], int special) {
   error += InvalidPosition(tree);
   if (!error) {
     if (log_file)
-      DisplayChessBoard(log_file, tree->pos);
-    Repetition(black) = 0;
-    Repetition(white) = 0;
-    Rule50Moves(0) = 0;
+      DisplayChessBoard(log_file, tree->position);
+    tree->rep_index = 0;
+    tree->rep_list[0] = HashKey;
+    Reversible(0) = 0;
     if (!special) {
       last_mate_score = 0;
       InitializeKillers();

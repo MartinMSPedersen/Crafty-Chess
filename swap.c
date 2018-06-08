@@ -1,6 +1,6 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 08/11/10 */
+/* last modified 05/16/14 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -33,45 +33,43 @@ int Swap(TREE * RESTRICT tree, int move, int side) {
 /*
  ************************************************************
  *                                                          *
- *   Determine which squares attack <target> for each side. *
- *   initialize by placing the piece on <target> first in   *
- *   the list as it is being captured to start things off.  *
+ *  Determine which squares attack <target> for each side.  *
+ *  initialize by placing the piece on <target> first in    *
+ *  the list as it is being captured to start things off.   *
  *                                                          *
  ************************************************************
  */
   attacks = AttacksTo(tree, target);
-  attacked_piece = pc_values[Captured(move)];
+  attacked_piece = pcval[Captured(move)];
 /*
  ************************************************************
  *                                                          *
- *   The first piece to capture on <target> is the piece    *
- *   standing on <source>.                                  *
+ *  The first piece to capture on <target> is the piece     *
+ *  standing on <source>.                                   *
  *                                                          *
  ************************************************************
  */
   side = Flip(side);
   swap_list[0] = attacked_piece;
   piece = Piece(move);
-  attacked_piece = pc_values[piece];
+  attacked_piece = pcval[piece];
   Clear(source, toccupied);
-  if (piece != knight && piece != king) {
-    if (piece & 1)
-      attacks |= AttacksBishop(target, toccupied) & bsliders;
-    if (piece == pawn || piece & 4)
-      attacks |= AttacksRook(target, toccupied) & rsliders;
-  }
+  if (piece & 1)
+    attacks |= BishopAttacks(target, toccupied) & bsliders;
+  if (piece != king && (piece == pawn || piece & 4))
+    attacks |= RookAttacks(target, toccupied) & rsliders;
 /*
  ************************************************************
  *                                                          *
- *   Now pick out the least valuable piece for the correct  *
- *   side that is bearing on <target>.  As we find one, we  *
- *   update the attacks (if this is a sliding piece) to get *
- *   the attacks for any sliding piece that is lined up     *
- *   behind the attacker we are removing.                   *
+ *  Now pick out the least valuable piece for the correct   *
+ *  side that is bearing on <target>.  As we find one, we   *
+ *  update the attacks (if this is a sliding piece) to get  *
+ *  the attacks for any sliding piece that is lined up      *
+ *  behind the attacker we are removing.                    *
  *                                                          *
- *   Once we know there is a piece attacking the last       *
- *   capturing piece, add it to the swap list and repeat    *
- *   until one side has no more captures.                   *
+ *  Once we know there is a piece attacking the last        *
+ *  capturing piece, add it to the swap list and repeat     *
+ *  until one side has no more captures.                    *
  *                                                          *
  ************************************************************
  */
@@ -82,14 +80,12 @@ int Swap(TREE * RESTRICT tree, int move, int side) {
     if (piece > king)
       break;
     toccupied ^= (temp & -temp);
-    if (piece != knight && piece != king) {
-      if (piece & 1)
-        attacks |= AttacksBishop(target, toccupied) & bsliders;
-      if (piece & 4)
-        attacks |= AttacksRook(target, toccupied) & rsliders;
-    }
+    if (piece & 1)
+      attacks |= BishopAttacks(target, toccupied) & bsliders;
+    if (piece != king && piece & 4)
+      attacks |= RookAttacks(target, toccupied) & rsliders;
     swap_list[nc] = -swap_list[nc - 1] + attacked_piece;
-    attacked_piece = pc_values[piece];
+    attacked_piece = pcval[piece];
     if (swap_list[nc++] - attacked_piece > 0)
       break;
     side = Flip(side);
@@ -97,18 +93,18 @@ int Swap(TREE * RESTRICT tree, int move, int side) {
 /*
  ************************************************************
  *                                                          *
- *   Starting at the end of the sequence of values, use a   *
- *   "minimax" like procedure to decide where the captures  *
- *   will stop.                                             *
+ *  Starting at the end of the sequence of values, use a    *
+ *  "minimax" like procedure to decide where the captures   *
+ *  will stop.                                              *
  *                                                          *
  ************************************************************
  */
   while (--nc)
     swap_list[nc - 1] = -Max(-swap_list[nc - 1], swap_list[nc]);
-  return (swap_list[0]);
+  return swap_list[0];
 }
 
-/* last modified 08/11/10 */
+/* last modified 05/16/14 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -131,20 +127,20 @@ int SwapO(TREE * RESTRICT tree, int move, int side) {
 /*
  ************************************************************
  *                                                          *
- *   Determine which squares attack <target> for each side. *
- *   initialize by placing the piece on <target> first in   *
- *   the list as it is being captured to start things off.  *
+ *  Determine which squares attack <target> for each side.  *
+ *  initialize by placing the piece on <target> first in    *
+ *  the list as it is being captured to start things off.   *
  *                                                          *
  ************************************************************
  */
   attacks = AttacksTo(tree, target);
-  attacked_piece = pc_values[Piece(move)];
+  attacked_piece = pcval[Piece(move)];
 /*
  ************************************************************
  *                                                          *
- *   The first piece to capture on <target> is the piece    *
- *   standing on that square.  We have to find out the      *
- *   least valuable attacker for that square first.         *
+ *  The first piece to capture on <target> is the piece     *
+ *  standing on that square.  We have to find out the least *
+ *  valuable attacker for that square first.                *
  *                                                          *
  ************************************************************
  */
@@ -154,28 +150,26 @@ int SwapO(TREE * RESTRICT tree, int move, int side) {
     if ((temp = Pieces(side, piece) & attacks))
       break;
   if (piece > king)
-    return (0);
+    return 0;
   toccupied ^= (temp & -temp);
-  if (piece != knight && piece != king) {
-    if (piece & 1)
-      attacks |= AttacksBishop(target, toccupied) & bsliders;
-    if (piece & 4)
-      attacks |= AttacksRook(target, toccupied) & rsliders;
-  }
-  attacked_piece = pc_values[piece];
+  if (piece & 1)
+    attacks |= BishopAttacks(target, toccupied) & bsliders;
+  if (piece != king && piece & 4)
+    attacks |= RookAttacks(target, toccupied) & rsliders;
+  attacked_piece = pcval[piece];
   side = Flip(side);
 /*
  ************************************************************
  *                                                          *
- *   Now pick out the least valuable piece for the correct  *
- *   side that is bearing on <target>.  As we find one, we  *
- *   update the attacks (if this is a sliding piece) to get *
- *   the attacks for any sliding piece that is lined up     *
- *   behind the attacker we are removing.                   *
+ *  Now pick out the least valuable piece for the correct   *
+ *  side that is bearing on <target>.  As we find one, we   *
+ *  update the attacks (if this is a sliding piece) to get  *
+ *  the attacks for any sliding piece that is lined up      *
+ *  behind the attacker we are removing.                    *
  *                                                          *
- *   Once we know there is a piece attacking the last       *
- *   capturing piece, add it to the swap list and repeat    *
- *   until one side has no more captures.                   *
+ *  Once we know there is a piece attacking the last        *
+ *  capturing piece, add it to the swap list and repeat     *
+ *  until one side has no more captures.                    *
  *                                                          *
  ************************************************************
  */
@@ -186,14 +180,12 @@ int SwapO(TREE * RESTRICT tree, int move, int side) {
     if (piece > king)
       break;
     toccupied ^= (temp & -temp);
-    if (piece != knight && piece != king) {
-      if (piece & 1)
-        attacks |= AttacksBishop(target, toccupied) & bsliders;
-      if (piece & 4)
-        attacks |= AttacksRook(target, toccupied) & rsliders;
-    }
+    if (piece & 1)
+      attacks |= BishopAttacks(target, toccupied) & bsliders;
+    if (piece != king && piece & 4)
+      attacks |= RookAttacks(target, toccupied) & rsliders;
     swap_list[nc] = -swap_list[nc - 1] + attacked_piece;
-    attacked_piece = pc_values[piece];
+    attacked_piece = pcval[piece];
     if (swap_list[nc++] - attacked_piece > 0)
       break;
     side = Flip(side);
@@ -201,13 +193,13 @@ int SwapO(TREE * RESTRICT tree, int move, int side) {
 /*
  ************************************************************
  *                                                          *
- *   Starting at the end of the sequence of values, use a   *
- *   "minimax" like procedure to decide where the captures  *
- *   will stop.                                             *
+ *  Starting at the end of the sequence of values, use a    *
+ *  "minimax" like procedure to decide where the captures   *
+ *  will stop.                                              *
  *                                                          *
  ************************************************************
  */
   while (--nc)
     swap_list[nc - 1] = -Max(-swap_list[nc - 1], swap_list[nc]);
-  return (swap_list[0]);
+  return swap_list[0];
 }

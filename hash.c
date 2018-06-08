@@ -1,6 +1,6 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 11/05/12 */
+/* last modified 02/22/14 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -52,11 +52,12 @@
  *   against A1^A2^B2 and that won't match unless we are lucky and A2 == B2    *
  *   which means the match is OK anyway.  This eliminates the need to lock the *
  *   hash table while storing the two values, which would be a big performance *
- *   hit since hash entries are stored in almost every node of the tree.       *
+ *   hit since hash entries are probed/stored in almost every node of the tree *
+ *   except for the quiescence search.                                         *
  *                                                                             *
  *******************************************************************************
  */
-int HashProbe(TREE * RESTRICT tree, int ply, int depth, int wtm, int alpha,
+int HashProbe(TREE * RESTRICT tree, int ply, int depth, int side, int alpha,
     int beta, int *value) {
   HASH_ENTRY *htable;
   HPATH_ENTRY *ptable;
@@ -66,15 +67,15 @@ int HashProbe(TREE * RESTRICT tree, int ply, int depth, int wtm, int alpha,
 /*
  ************************************************************
  *                                                          *
- *   All we have to do is loop through four entries to see  *
- *   there is a signature match.  There can only be one     *
- *   instance of any single signature, so the first match   *
- *   is all we need.                                        *
+ *  All we have to do is loop through four entries to see   *
+ *  if there is a signature match.  There can only be one   *
+ *  instance of any single signature, so the first match is *
+ *  all we need.                                            *
  *                                                          *
  ************************************************************
  */
   tree->hash_move[ply] = 0;
-  temp_hashkey = (wtm) ? HashKey : ~HashKey;
+  temp_hashkey = (side) ? HashKey : ~HashKey;
   htable = trans_ref + (temp_hashkey & hash_mask);
   for (entry = 0; entry < 4; entry++, htable++) {
     word1 = htable->word1;
@@ -85,26 +86,26 @@ int HashProbe(TREE * RESTRICT tree, int ply, int depth, int wtm, int alpha,
 /*
  ************************************************************
  *                                                          *
- *   If we found a match, we have to verify that the draft  *
- *   is at least equal to the current depth, if not higher, *
- *   and that the bound/score will let us terminate the     *
- *   search early.                                          *
+ *  If we found a match, we have to verify that the draft   *
+ *  is at least equal to the current depth, if not higher,  *
+ *  and that the bound/score will let us terminate the      *
+ *  search early.                                           *
  *                                                          *
- *   We also return an "avoid_null" status if the matched   *
- *   entry does not have enough draft to terminate the      *
- *   current search but does have enough draft to prove     *
- *   that a null-move search would not fail high.  This     *
- *   avoids the null-move search overhead in positions      *
- *   where it is simply a waste of time to try it.          *
+ *  We also return an "avoid_null" status if the matched    *
+ *  entry does not have enough draft to terminate the       *
+ *  current search but does have enough draft to prove that *
+ *  a null-move search would not fail high.  This avoids    *
+ *  the null-move search overhead in positions where it is  *
+ *  simply a waste of time to try it.                       *
  *                                                          *
- *   If this is an EXACT entry, we are going to store the   *
- *   PV in a safe place so that if we get a hit on this     *
- *   entry, we can recover the PV and see the complete path *
- *   rather than one that is incomplete.                    *
+ *  If this is an EXACT entry, we are going to store the PV *
+ *  in a safe place so that if we get a hit on this entry,  *
+ *  we can recover the PV and see the complete path rather  *
+ *  rather than one that is incomplete.                     *
  *                                                          *
- *   One other issue is to update the age field if we get a *
- *   hit on an old position, so that it won't be replaced   *
- *   just because it came from a previous search.           *
+ *  One other issue is to update the age field if we get a  *
+ *  hit on an old position, so that it won't be replaced    *
+ *  just because it came from a previous search.            *
  *                                                          *
  ************************************************************
  */
@@ -123,26 +124,26 @@ int HashProbe(TREE * RESTRICT tree, int ply, int depth, int wtm, int alpha,
     if ((type & UPPER) && depth - null_depth - 1 <= draft && val < beta)
       avoid_null = AVOID_NULL_MOVE;
     if (depth <= draft) {
-      if (val > MATE - 300)
+      if (val > 32000)
         val -= ply - 1;
-      else if (val < -MATE + 300)
+      else if (val < -32000)
         val += ply - 1;
       *value = val;
 /*
  ************************************************************
  *                                                          *
- *   We have three types of results.  An EXACT entry was    *
- *   stored when val > alpha and val < beta, and represents *
- *   an exact score.  An UPPER entry was stored when val <  *
- *   alpha, which represents an upper bound with the score  *
- *   likely being even lower.  A LOWER entry was stored     *
- *   when val > beta, which represents alower bound with    *
- *   the score likely being even higher.                    *
+ *  We have three types of results.  An EXACT entry was     *
+ *  stored when val > alpha and val < beta, and represents  *
+ *  an exact score.  An UPPER entry was stored when val <   *
+ *  alpha, which represents an upper bound with the score   *
+ *  likely being even lower.  A LOWER entry was stored when *
+ *  val > beta, which represents alower bound with the      *
+ *  score likely being even higher.                         *
  *                                                          *
- *   For EXACT entries, we save the path from the position  *
- *   to the terminal node that produced the backed-up score *
- *   so that we can complete the PV if we get a hash hit on *
- *   this entry.                                            *
+ *  For EXACT entries, we save the path from the position   *
+ *  to the terminal node that produced the backed-up score  *
+ *  so that we can complete the PV if we get a hash hit on  *
+ *  this entry.                                             *
  *                                                          *
  ************************************************************
  */
@@ -166,23 +167,23 @@ int HashProbe(TREE * RESTRICT tree, int ply, int depth, int wtm, int alpha,
                 break;
               }
           }
-          return (HASH_HIT);
+          return HASH_HIT;
         case UPPER:
           if (val <= alpha)
-            return (HASH_HIT);
+            return HASH_HIT;
           break;
         case LOWER:
           if (val >= beta)
-            return (HASH_HIT);
+            return HASH_HIT;
           break;
       }
     }
-    return (avoid_null);
+    return avoid_null;
   }
-  return (HASH_MISS);
+  return HASH_MISS;
 }
 
-/* last modified 11/05/12 */
+/* last modified 02/22/14 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -211,15 +212,17 @@ int HashProbe(TREE * RESTRICT tree, int ply, int depth, int wtm, int alpha,
  *        this position since they all failed low, so we store a best move of  *
  *        zero.                                                                *
  *                                                                             *
- *   For storing, we may require two passes.  We make our first pass looking   *
- *   for the entry with the lowest draft (depth remaining) and which was from  *
- *   a previous search (old entry).  We choose the lowest draft old entry, if  *
- *   there is one, otherwise we make a second pass over the bucket and choose  *
- *   the entry with the shallowest draft, period.                              *
+ *   For storing, we may require three passes.  We make our first pass looking *
+ *   for an entry that matches the current hash signature.  If we find a match *
+ *   then we are constrained to overwrite that entry regardless of any other   *
+ *   considerations.  The second pass looks for entries stored in previous     *
+ *   searches (not iterations) and chooses the one with the shallowest draft,  *
+ *   if one is found;  Otherwise we make a final pass over the bucket and      *
+ *   choose the entry with the shallowest draft, period.                       *
  *                                                                             *
  *******************************************************************************
  */
-void HashStore(TREE * RESTRICT tree, int ply, int depth, int wtm, int type,
+void HashStore(TREE * RESTRICT tree, int ply, int depth, int side, int type,
     int value, int bestmove) {
   HASH_ENTRY *htable, *replace = 0;
   HPATH_ENTRY *ptable;
@@ -229,47 +232,47 @@ void HashStore(TREE * RESTRICT tree, int ply, int depth, int wtm, int type,
 /*
  ************************************************************
  *                                                          *
- *   "Fill in the blank" and build a table entry from       *
- *   current search information.                            *
+ *  "Fill in the blank" and build a table entry from        *
+ *  current search information.                             *
  *                                                          *
  ************************************************************
  */
   word1 = transposition_age;
   word1 = (word1 << 2) | type;
-  if (value > MATE - 300)
+  if (value > 32000)
     value += ply - 1;
-  else if (value < -MATE + 300)
+  else if (value < -32000)
     value -= ply - 1;
   word1 = (word1 << 21) | bestmove;
   word1 = (word1 << 15) | depth;
   word1 = (word1 << 17) | (value + 65536);
-  temp_hashkey = (wtm) ? HashKey : ~HashKey;
+  temp_hashkey = (side) ? HashKey : ~HashKey;
 /*
  ************************************************************
  *                                                          *
- *   Now we search for an entry to overwrite in three       *
- *   passes.                                                *
+ *  Now we search for an entry to overwrite in three        *
+ *  passes.                                                 *
  *                                                          *
- *   Pass 1:  If any signature in the table matches the     *
- *     current signature, we are going to overwrite this    *
- *     entry, period.  It might seem worthwhile to check    *
- *     the draft and not overwrite if the table draft is    *
- *     greater than the current remaining depth, but after  *
- *     you think about it, this is a bad idea.  If the      *
- *     draft is greater than or equal the current remaining *
- *     depth, then we should never get here unless the      *
- *     stored bound or score is unusable because of the     *
- *     current alpha/beta window.  So we are overwriting to *
- *     avoid losing the current result.                     *
+ *  Pass 1:  If any signature in the table matches the      *
+ *    current signature, we are going to overwrite this     *
+ *    entry, period.  It might seem worthwhile to check the *
+ *    draft and not overwrite if the table draft is greater *
+ *    than the current remaining depth, but after you think *
+ *    about it, this is a bad idea.  If the draft is        *
+ *    greater than or equal the current remaining depth,    *
+ *    then we should never get here unless the stored bound *
+ *    or score is unusable because of the current alpha/    *
+ *    beta window.  So we are overwriting to avoid losing   *
+ *    the current result.                                   *
  *                                                          *
- *   Pass 2:  If any of the entries come from a previous    *
- *     search (not iteration) then we choose the entry from *
- *     this set that has the smallest draft, since it is    *
- *     the least potentially usable result.                 *
+ *  Pass 2:  If any of the entries come from a previous     *
+ *    search (not iteration) then we choose the entry from  *
+ *    this set that has the smallest draft, since it is the *
+ *    least potentially usable result.                      *
  *                                                          *
- *   Pass 3:  If neither of the above two found an entry to *
- *     overwrite, we simply choose the entry from the       *
- *     bucket with the smallest draft and overwrite that.   *
+ *  Pass 3:  If neither of the above two found an entry to  *
+ *    overwrite, we simply choose the entry from the bucket *
+ *    with the smallest draft and overwrite that.           *
  *                                                          *
  ************************************************************
  */
@@ -305,10 +308,10 @@ void HashStore(TREE * RESTRICT tree, int ply, int depth, int wtm, int type,
 /*
  ************************************************************
  *                                                          *
- *   Now that we know which entry to replace, we simply     *
- *   stuff the values and exit.  Note that the two 64 bit   *
- *   words are xor'ed together and stored as the signature  *
- *   for the "lockless-hash" approach.                      *
+ *  Now that we know which entry to replace, we simply      *
+ *  stuff the values and exit.  Note that the two 64 bit    *
+ *  words are xor'ed together and stored as the signature   *
+ *  for the "lockless-hash" approach.                       *
  *                                                          *
  ************************************************************
  */
@@ -317,10 +320,10 @@ void HashStore(TREE * RESTRICT tree, int ply, int depth, int wtm, int type,
 /*
  ************************************************************
  *                                                          *
- *   If this is an EXACT entry, we are going to store the   *
- *   PV in a safe place so that if we get a hit on this     *
- *   entry, we can recover the PV and see the complete path *
- *   rather than one that is incomplete.                    *
+ *  If this is an EXACT entry, we are going to store the PV *
+ *  in a safe place so that if we get a hit on this entry,  *
+ *  we can recover the PV and see the complete path rather  *
+ *  rather than one that is incomplete.                     *
  *                                                          *
  ************************************************************
  */
@@ -340,7 +343,7 @@ void HashStore(TREE * RESTRICT tree, int ply, int depth, int wtm, int type,
   }
 }
 
-/* last modified 11/05/12 */
+/* last modified 02/22/14 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -352,7 +355,7 @@ void HashStore(TREE * RESTRICT tree, int ply, int depth, int wtm, int type,
  *                                                                             *
  *******************************************************************************
  */
-void HashStorePV(TREE * RESTRICT tree, int wtm, int ply) {
+void HashStorePV(TREE * RESTRICT tree, int side, int ply) {
   HASH_ENTRY *htable, *replace;
   uint64_t temp_hashkey, word1;
   int entry, draft, replace_draft, age;
@@ -360,43 +363,43 @@ void HashStorePV(TREE * RESTRICT tree, int wtm, int ply) {
 /*
  ************************************************************
  *                                                          *
- *   First, compute the initial hash address and the fake   *
- *   entry we will store if we don't find a valid match     *
- *   already in the table.                                  *
+ *  First, compute the initial hash address and the fake    *
+ *  entry we will store if we don't find a valid match      *
+ *  already in the table.                                   *
  *                                                          *
  ************************************************************
  */
-  temp_hashkey = (wtm) ? HashKey : ~HashKey;
+  temp_hashkey = (side) ? HashKey : ~HashKey;
   word1 = transposition_age;
-  word1 = (word1 << 9) | WORTHLESS;
-  word1 = (word1 << 23) | tree->pv[0].path[ply];
+  word1 = (word1 << 2) | WORTHLESS;
+  word1 = (word1 << 21) | tree->pv[0].path[ply];
   word1 = (word1 << 32) | 65536;
 /*
  ************************************************************
  *                                                          *
- *   Now we search for an entry to overwrite in three       *
- *   passes.                                                *
+ *  Now we search for an entry to overwrite in three        *
+ *  passes.                                                 *
  *                                                          *
- *   Pass 1:  If any signature in the table matches the     *
- *     current signature, we are going to overwrite this    *
- *     entry, period.  It might seem worthwhile to check    *
- *     the draft and not overwrite if the table draft is    *
- *     greater than the current remaining depth, but after  *
- *     you think about it, this is a bad idea.  If the      *
- *     draft is greater than or equal the current remaining *
- *     depth, then we should never get here unless the      *
- *     stored bound or score is unusable because of the     *
- *     current alpha/beta window.  So we are overwriting to *
- *     avoid losing the current result.                     *
+ *  Pass 1:  If any signature in the table matches the      *
+ *    current signature, we are going to overwrite this     *
+ *    entry, period.  It might seem worthwhile to check the *
+ *    draft and not overwrite if the table draft is greater *
+ *    than the current remaining depth, but after you think *
+ *    about it, this is a bad idea.  If the draft is        *
+ *    greater than or equal the current remaining depth,    *
+ *    then we should never get here unless the stored bound *
+ *    or score is unusable because of the current alpha/    *
+ *    beta window.  So we are overwriting to avoid losing   *
+ *    the current result.                                   *
  *                                                          *
- *   Pass 2:  If any of the entries come from a previous    *
- *     search (not iteration) then we choose the entry from *
- *     this set that has the smallest draft, since it is    *
- *     the least potentially usable result.                 *
+ *  Pass 2:  If any of the entries come from a previous     *
+ *    search (not iteration) then we choose the entry from  *
+ *    this set that has the smallest draft, since it is the *
+ *    least potentially usable result.                      *
  *                                                          *
- *   Pass 3:  If neither of the above two found an entry to *
- *     overwrite, we simply choose the entry from the       *
- *     bucket with the smallest draft and overwrite that.   *
+ *  Pass 3:  If neither of the above two found an entry to  *
+ *    overwrite, we simply choose the entry from the bucket *
+ *    with the smallest draft and overwrite that.           *
  *                                                          *
  ************************************************************
  */

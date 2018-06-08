@@ -1,6 +1,6 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 09/20/10 */
+/* last modified 02/24/14 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -22,21 +22,20 @@ char *OutputMove(TREE * RESTRICT tree, int move, int ply, int wtm) {
 /*
  ************************************************************
  *                                                          *
- *   Special case for null-move which will only be used     *
- *   in a search trace which dumps the entire tree.         *
- *   return.                                                *
+ *  Special case for null-move which will only be used in a *
+ *  search trace which dumps the entire tree.               *
  *                                                          *
  ************************************************************
  */
   if (move == 0) {
     strcpy(text, "null");
-    return (text);
+    return text;
   }
   do {
 /*
  ************************************************************
  *                                                          *
- *   Check for castling moves first.                        *
+ *  Check for castling moves first.                         *
  *                                                          *
  ************************************************************
  */
@@ -57,8 +56,8 @@ char *OutputMove(TREE * RESTRICT tree, int move, int ply, int wtm) {
 /*
  ************************************************************
  *                                                          *
- *   Not a castling move.  Convert the move to a fully-     *
- *   qualified algebraic move as a starting point.          *
+ *  Not a castling move.  Convert the move to a fully-      *
+ *  qualified algebraic move as a starting point.           *
  *                                                          *
  ************************************************************
  */
@@ -82,10 +81,10 @@ char *OutputMove(TREE * RESTRICT tree, int move, int ply, int wtm) {
 /*
  ************************************************************
  *                                                          *
- *   Now we try some short forms.  If this is a pawn move   *
- *   (first character is "P") and the move is not a capture *
- *   move, we can try just the destination square (Pe2e4    *
- *   becomes e4).                                           *
+ *  Now we try some short forms.  If this is a pawn move    *
+ *  (first character is "P") and the move is not a capture  *
+ *  move, we can try just the destination square (Pe2e4     *
+ *  becomes e4).                                            *
  *                                                          *
  ************************************************************
  */
@@ -98,8 +97,8 @@ char *OutputMove(TREE * RESTRICT tree, int move, int ply, int wtm) {
 /*
  ************************************************************
  *                                                          *
- *   If this is a pawn and it is capturing something, try   *
- *   the usual pawn capture format (Pe4xd5 becomes exd5).   *
+ *  If this is a pawn and it is capturing something, try    *
+ *  the usual pawn capture format (Pe4xd5 becomes exd5).    *
  *                                                          *
  ************************************************************
  */
@@ -110,9 +109,9 @@ char *OutputMove(TREE * RESTRICT tree, int move, int ply, int wtm) {
 /*
  ************************************************************
  *                                                          *
- *   It is a pawn move and we can't find a shorter form, so *
- *   leave it as a fully-qualified move and go with it as   *
- *   is.  (this will not normally happen).                  *
+ *  It is a pawn move and we can't find a shorter form, so  *
+ *  leave it as a fully-qualified move and go with it as    *
+ *  is.  (this will not normally happen).                   *
  *                                                          *
  ************************************************************
  */
@@ -122,9 +121,9 @@ char *OutputMove(TREE * RESTRICT tree, int move, int ply, int wtm) {
 /*
  ************************************************************
  *                                                          *
- *   If the move is a normal piece move, and does not       *
- *   capture anything, we try the piece + destination       *
- *   format first (Ng1f3 becomes Nf3).                      *
+ *  If the move is a normal piece move, and does not        *
+ *  capture anything, we try the piece + destination format *
+ *  first (Ng1f3 becomes Nf3).                              *
  *                                                          *
  ************************************************************
  */
@@ -136,9 +135,9 @@ char *OutputMove(TREE * RESTRICT tree, int move, int ply, int wtm) {
 /*
  ************************************************************
  *                                                          *
- *   If that is ambiguous, we will try two alternatives:    *
- *   (1) add in the origin file;  (2) add in the origin     *
- *   rank (Ng1f3 becomes Ngf3 or N1f3).                     *
+ *  If that is ambiguous, we will try two alternatives:     *
+ *  (1) add in the origin file;  (2) add in the origin rank *
+ *  (Ng1f3 becomes Ngf3 or N1f3).                           *
  *                                                          *
  ************************************************************
  */
@@ -154,8 +153,7 @@ char *OutputMove(TREE * RESTRICT tree, int move, int ply, int wtm) {
 /*
  ************************************************************
  *                                                          *
- *   Nothing worked, so we go with the fully-qualified      *
- *   move.                                                  *
+ *  Nothing worked, so we go with the fully-qualified move. *
  *                                                          *
  ************************************************************
  */
@@ -165,8 +163,8 @@ char *OutputMove(TREE * RESTRICT tree, int move, int ply, int wtm) {
 /*
  ************************************************************
  *                                                          *
- *   If this is a capture, we try the short form of a       *
- *   capture move (Ng1xf3 becomes Nxf3)                     *
+ *  If this is a capture, we try the short form of a        *
+ *  capture move (Ng1xf3 becomes Nxf3)                      *
  *                                                          *
  ************************************************************
  */
@@ -177,8 +175,8 @@ char *OutputMove(TREE * RESTRICT tree, int move, int ply, int wtm) {
 /*
  ************************************************************
  *                                                          *
- *   If that didn't work, we try adding in the origin file  *
- *   or the origin rank (Ng1xf3 becomes Ngxf3 or N1xf3).    *
+ *  If that didn't work, we try adding in the origin file   *
+ *  or the origin rank (Ng1xf3 becomes Ngxf3 or N1xf3).     *
  *                                                          *
  ************************************************************
  */
@@ -194,7 +192,7 @@ char *OutputMove(TREE * RESTRICT tree, int move, int ply, int wtm) {
 /*
  ************************************************************
  *                                                          *
- *   Nothing worked, return the fully-qualified move.       *
+ *  Nothing worked, return the fully-qualified move.        *
  *                                                          *
  ************************************************************
  */
@@ -205,14 +203,14 @@ char *OutputMove(TREE * RESTRICT tree, int move, int ply, int wtm) {
 /*
  ************************************************************
  *                                                          *
- *   If the move is a check, or mate, append either "+" or  *
- *   "#" as appropriate.                                    *
+ *  If the move is a check, or mate, append either "+" or   *
+ *  "#" as appropriate.                                     *
  *                                                          *
  ************************************************************
  */
   if (output_format == 0) {
     text = text_move + strlen(text_move);
-    tree->position[MAXPLY] = tree->position[ply];
+    tree->status[MAXPLY] = tree->status[ply];
     MakeMove(tree, MAXPLY, move, wtm);
     if (Check(Flip(wtm))) {
       mvp =
@@ -226,5 +224,5 @@ char *OutputMove(TREE * RESTRICT tree, int move, int ply, int wtm) {
     UnmakeMove(tree, MAXPLY, move, wtm);
     *text = 0;
   }
-  return (text_move);
+  return text_move;
 }

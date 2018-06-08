@@ -1,6 +1,6 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 01/18/09 */
+/* last modified 02/23/14 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -28,25 +28,23 @@ int Ponder(int wtm) {
 /*
  ************************************************************
  *                                                          *
- *   First, let's check to see if pondering is allowed, or  *
- *   if we should avoid pondering on this move since it is  *
- *   the first move of a game, or if the game is over, or   *
- *   "force" mode is active, or there is input in the queue *
- *   that needs to be read and processed.                   *
+ *  First, let's check to see if pondering is allowed, or   *
+ *  if we should avoid pondering on this move since it is   *
+ *  the first move of a game, or if the game is over, or    *
+ *  "force" mode is active, or there is input in the queue  *
+ *  that needs to be read and processed.                    *
  *                                                          *
  ************************************************************
  */
   if (!ponder || force || over || CheckInput())
-    return (0);
+    return 0;
   save_move_number = move_number;
 /*
  ************************************************************
  *                                                          *
- *   If we don't have a predicted move to ponder, try two   *
- *   sources:  (1) Look up the current position in the      *
- *   transposition table and see if it has a suggested best *
- *   move;  (2) Do a short tree search to calculate a move  *
- *   that we should ponder.                                 *
+ *  Check the ponder move for legality.  If it is not a     *
+ *  legal move, we have to take action to find something to *
+ *  ponder.                                                 *
  *                                                          *
  ************************************************************
  */
@@ -59,6 +57,16 @@ int Ponder(int wtm) {
       Print(4095, "ERROR.  move=%d  %x\n", ponder_move, ponder_move);
     }
   }
+/*
+ ************************************************************
+ *                                                          *
+ *  First attempt, do a hash probe.  However, since a hash  *
+ *  collision is remotely possible, we still need to verify *
+ *  that the transposition/refutation best move is actually *
+ *  legal.                                                  *
+ *                                                          *
+ ************************************************************
+ */
   if (!ponder_move) {
     (void) HashProbe(tree, 0, 0, wtm, dalpha, dbeta, &value);
     if (tree->hash_move[0])
@@ -71,12 +79,22 @@ int Ponder(int wtm) {
       }
     }
   }
+/*
+ ************************************************************
+ *                                                          *
+ *  Second attempt.  If that didn't work, then we try what  *
+ *  I call a "puzzling" search.  Which is simply a shorter  *
+ *  time-limit search for the other side, to find something *
+ *  to ponder.                                              *
+ *                                                          *
+ ************************************************************
+ */
   if (!ponder_move) {
-    TimeSet(tree, puzzle);
+    TimeSet(puzzle);
     if (time_limit < 20)
-      return (0);
+      return 0;
     puzzling = 1;
-    tree->position[1] = tree->position[0];
+    tree->status[1] = tree->status[0];
     Print(128, "              puzzling over a move to ponder.\n");
     last_pv.pathl = 0;
     last_pv.pathd = 0;
@@ -93,7 +111,7 @@ int Ponder(int wtm) {
     if (tree->pv[0].pathl)
       ponder_move = tree->pv[0].path[1];
     if (!ponder_move)
-      return (0);
+      return 0;
     for (i = 1; i < (int) tree->pv[0].pathl; i++)
       last_pv.path[i] = tree->pv[0].path[i + 1];
     last_pv.pathl = tree->pv[0].pathl - 1;
@@ -102,13 +120,13 @@ int Ponder(int wtm) {
       ponder_move = 0;
       Print(4095, "ERROR.  ponder_move is illegal (3).\n");
       Print(4095, "ERROR.  PV pathl=%d\n", last_pv.pathl);
-      return (0);
+      return 0;
     }
   }
 /*
  ************************************************************
  *                                                          *
- *   Display the move we are going to "ponder".             *
+ *  Display the move we are going to "ponder".              *
  *                                                          *
  ************************************************************
  */
@@ -124,7 +142,10 @@ int Ponder(int wtm) {
 /*
  ************************************************************
  *                                                          *
- *   Set the ponder move list and eliminate illegal moves.  *
+ *  Set the ponder move list and eliminate illegal moves.   *
+ *  This list is used to test the move entered while we are *
+ *  pondering, since we need a move list for the input      *
+ *  screening process.                                      *
  *                                                          *
  ************************************************************
  */
@@ -142,14 +163,15 @@ int Ponder(int wtm) {
 /*
  ************************************************************
  *                                                          *
- *   Now, perform an iterated search, but with the special  *
- *   "pondering" flag set which changes the time controls   *
- *   since there is no need to stop searching until the     *
- *   opponent makes a move.                                 *
+ *  Now, perform an iterated search, but with the special   *
+ *  "pondering" flag set which changes the time controls    *
+ *  since there is no need to stop searching until the      *
+ *  opponent makes a move.                                  *
  *                                                          *
  ************************************************************
  */
   MakeMove(tree, 0, ponder_move, wtm);
+  tree->rep_list[++(tree->rep_index)] = HashKey;
   tlom = last_opponent_move;
   last_opponent_move = ponder_move;
   if (kibitz)
@@ -159,6 +181,7 @@ int Ponder(int wtm) {
   if (!wtm)
     move_number++;
   ponder_value = Iterate(Flip(wtm), think, 0);
+  tree->rep_index--;
   move_number = save_move_number;
   pondering = 0;
   thinking = 0;
@@ -167,32 +190,32 @@ int Ponder(int wtm) {
 /*
  ************************************************************
  *                                                          *
- *   Search completed. the possible return values are:      *
+ *  Search completed. the possible return values are:       *
  *                                                          *
- *   (0) No pondering was done, period.                     *
+ *  (0) No pondering was done, period.                      *
  *                                                          *
- *   (1) Pondering was done, opponent made the predicted    *
- *       move, and we searched until time ran out in a      *
- *       normal manner.                                     *
+ *  (1) Pondering was done, opponent made the predicted     *
+ *      move, and we searched until time ran out in a       *
+ *      normal manner.                                      *
  *                                                          *
- *   (2) Pondering was done, but the ponder search          *
- *       terminated due to either finding a mate, or the    *
- *       maximum search depth was reached.  The result of   *
- *       this ponder search are valid, but only if the      *
- *       opponent makes the correct (predicted) move.       *
+ *  (2) Pondering was done, but the ponder search           *
+ *      terminated due to either finding a mate, or the     *
+ *      maximum search depth was reached.  The result of    *
+ *      this ponder search are valid, but only if the       *
+ *      opponent makes the correct (predicted) move.        *
  *                                                          *
- *   (3) Pondering was done, but the opponent either made   *
- *       a different move, or entered a command that has to *
- *       interrupt the pondering search before the command  *
- *       (or move) can be processed.  This forces Main() to *
- *       avoid reading in a move/command since one has been *
- *       read into the command buffer already.              *
+ *  (3) Pondering was done, but the opponent either made    *
+ *      a different move, or entered a command that has to  *
+ *      interrupt the pondering search before the command   *
+ *      (or move) can be processed.  This forces Main() to  *
+ *      avoid reading in a move/command since one has been  *
+ *      read into the command buffer already.               *
  *                                                          *
  ************************************************************
  */
   if (input_status == 1)
-    return (1);
+    return 1;
   if (input_status == 2)
-    return (3);
-  return (2);
+    return 3;
+  return 2;
 }

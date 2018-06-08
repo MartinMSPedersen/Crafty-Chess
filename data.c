@@ -1,6 +1,6 @@
 #include "chess.h"
 /* *INDENT-OFF* */
-int scale = 6;
+int scale = 90;
 FILE *input_stream;
 FILE *book_file;
 FILE *books_file;
@@ -27,6 +27,7 @@ char buffer[4096];
 int line_length = 80;
 unsigned char convert_buff[8];
 int nargs;
+int failhi_delta, faillo_delta;
 int ponder_value;
 int move_actually_played;
 int ponder_move;
@@ -421,11 +422,8 @@ uint64_t mask_advance_2_b = 0x0000ff0000000000ull;
 uint64_t mask_left_edge = 0xfefefefefefefefeull;
 uint64_t mask_right_edge = 0x7f7f7f7f7f7f7f7full;
 uint64_t mask_not_edge = 0x007e7e7e7e7e7e00ull;
-uint64_t mask_kr_trapped[2][3];
-uint64_t mask_qr_trapped[2][3];
 uint64_t dark_squares = 0xaa55aa55aa55aa55ull;
 uint64_t not_rook_pawns = 0x007e7e7e7e7e7e00ull;
-uint64_t rook_pawns = 0x0081818181818100ull;
 uint64_t plus1dir[65];
 uint64_t plus7dir[65];
 uint64_t plus8dir[65];
@@ -437,7 +435,7 @@ uint64_t minus9dir[65];
 uint64_t mask_eptest[64];
 uint64_t mask_clear_entry = 0xff9ffffffffe0000ull;
 POSITION display;
-#if (!defined(_M_AMD64) && !defined (_M_IA64) && !defined(INLINE32)) || defined(VC_INLINE32)
+#if !defined(INLINEASM)
 unsigned char msb[65536];
 unsigned char lsb[65536];
 #endif
@@ -459,7 +457,7 @@ int OOOsqs[2][3] = {{ E8, D8, C8 }, { E1, D1, C1 }};
 int OOfrom[2] = { E8, E1 };
 int OOto[2] = { G8, G1 };
 int OOOto[2] = { C8, C1 };
-#define    VERSION                             "23.8"
+#define    VERSION                             "24.0"
 char version[8] = { VERSION };
 PLAYING_MODE mode = normal_mode;
 int batch_mode = 0;             /* no asynch reads */
@@ -468,8 +466,8 @@ int call_flag = 0;
 int crafty_rating = 2500;
 int opponent_rating = 2500;
 int last_search_value = 0;
-int pruning_margin[8] = {0, 120, 120, 310, 310, 400, 400, 500};
-int pruning_depth = 5;
+int pruning_margin[10] = {0, 100, 100, 200, 200, 300, 300, 400};
+int pruning_depth = 6;
 int pgn_suggested_percent = 0;
 char pgn_event[128] = { "?" };
 char pgn_site[128] = { "?" };
@@ -482,7 +480,6 @@ char pgn_black_elo[128] = { "" };
 char pgn_result[128] = { "*" };
 char *B_list[128];
 char *AK_list[128];
-char *C_list[128];
 char *GM_list[128];
 char *IM_list[128];
 char *SP_list[128];
@@ -500,10 +497,8 @@ int EGTB_setup = 0;
 #endif
 int xboard = 0;
 int pong = 0;
-int channel = 0;
 int early_exit = 99;
 int new_game = 0;
-char channel_title[32] = { "" };
 char book_path[128] = { BOOKDIR };
 char log_path[128] = { LOGDIR };
 char tb_path[128] = { TBDIR };
@@ -558,14 +553,13 @@ float book_weight_learn = 1.0;
 float book_weight_freq = 1.0;
 float book_weight_eval = 0.1;
 int book_search_trigger = 20;
-int learning = 1;
+int learn = 1;
+int learning = 100;
 int learn_value = 0;
 int abort_search;      /*  1 = abort / print stats, 2 = abort no print stats */
 int iteration_depth;
-int root_alpha;
-int root_beta;
-int root_value;
 int root_wtm;
+int root_beta;
 int last_root_value;
 ROOT_MOVE root_moves[256];
 int n_root_moves;
@@ -577,19 +571,26 @@ int quit = 0;
 unsigned int opponent_start_time, opponent_end_time;
 unsigned int program_start_time, program_end_time;
 unsigned int start_time, end_time;
-unsigned int elapsed_start, elapsed_end;
 TREE *block[MAX_BLOCKS + 1];
-TREE *volatile thread[CPUS];
+THREAD thread[CPUS];
 #if (CPUS > 1)
-lock_t lock_smp, lock_io, lock_root;
+lock_t lock_split, lock_smp, lock_io, lock_root;
 #if defined(UNIX)
   pthread_attr_t attributes;
 #endif
 #endif
+int smp_max_threads = 0;
+int smp_split_group = 5;           /* max threads per group - 1 */
+int smp_split_at_root = 1;
+int smp_min_split_depth = 5;
+unsigned int smp_split_nodes = 2000;
 unsigned int parallel_splits;
 unsigned int parallel_aborts;
-unsigned int max_split_blocks;
+unsigned int idle_time;
+unsigned int max_split_blocks = 0;
+unsigned int idle_percent = 0;
 volatile int smp_idle = 0;
+volatile int smp_split = 0;
 volatile int smp_threads = 0;
 volatile int initialized_threads = 0;
 int crafty_is_white = 0;
@@ -601,13 +602,9 @@ int thinking = 0;
 int pondering = 0;
 int puzzling = 0;
 int booking = 0;
-int computer_opponent = 0;
 int display_options = 4095 - 256 - 512;
-int smp_max_threads = 0;
-int smp_max_thread_group = 4;
-int smp_split_at_root = 1;
-unsigned int smp_split_nodes = 2000;
 unsigned int noise_level = 200000;
+int noise_block = 0;
 int tc_moves = 60;
 int tc_time = 180000;
 int tc_time_remaining[2] = { 180000, 180000 };
@@ -622,7 +619,6 @@ int draw_score[2] = { 0, 0 };
 char kibitz_text[4096];
 int kibitz_depth;
 int move_number = 1;
-int root_print_ok = 0;
 int moves_out_of_book = 0;
 int first_nonbook_factor = 0;
 int first_nonbook_span = 0;
@@ -967,14 +963,14 @@ const char empty_sqs[9] = { 0, '1', '2', '3', '4', '5', '6', '7', '8' };
    imbalance[5][2] gives a penalty of -42 for this trade.
 */
 int imbalance[9][9] = {
-/* n=-4  n=-3  n=-2  n=-1   n=0  n=+1  n=+2  n=+3 +n=+4 */
+/* M=-4  M=-3  M=-2  M=-1   M=0  M=+1  M=+2  M=+3  M=+4 */
   {-126, -126, -126, -126, -126, -126, -126, -126,  -42 }, /* R=-4 */
   {-126, -126, -126, -126, -126, -126, -126,  -42,   42 }, /* R=-3 */
-  {-126, -126, -126, -126, -126, -126,  -42,   42,   84 }, /* R=-2 */
-  {-126, -126, -126, -126, -104,  -42,   42,   84,  126 }, /* R=-1 */
+  {-126, -126, -126, -126, -126, -126,  -42,   84,   84 }, /* R=-2 */
+  {-126, -126, -126, -126, -104,  -42,   84,  126,  126 }, /* R=-1 */
   {-126, -126, -126,  -88,    0,   88,  126,  126,  126 }, /*  R=0 */
-  {-126,  -84,  -42,   42,  104,  126,  126,  126,  126 }, /* R=+1 */
-  { -84,  -42,   42,  126,  126,  126,  126,  126,  126 }, /* R=+2 */
+  {-126, -126,  -84,   42,  104,  126,  126,  126,  126 }, /* R=+1 */
+  { -84,  -84,   42,  126,  126,  126,  126,  126,  126 }, /* R=+2 */
   { -42,   42,  126,  126,  126,  126,  126,  126,  126 }, /* R=+3 */
   {  42,  126,  126,  126,  126,  126,  126,  126,  126 }  /* R=+4 */
 };
@@ -1178,6 +1174,7 @@ int bval[2][2][64] = {
       0,   4,   8,   8,   8,   8,   4,   0,
       0,   4,   4,   4,   4,   4,   4,   0,
     -15, -15, -15, -15, -15, -15, -15, -15}, 
+
    {-15, -15, -15, -15, -15, -15, -15, -15,
       0,   4,   4,   4,   4,   4,   4,   0,
       0,   4,   8,   8,   8,   8,   4,   0,
@@ -1194,6 +1191,7 @@ int bval[2][2][64] = {
       0,   4,   8,   8,   8,   8,   4,   0,
       0,   4,   4,   4,   4,   4,   4,   0,
     -15, -15, -15, -15, -15, -15, -15, -15}, 
+
    {-15, -15, -15, -15, -15, -15, -15, -15,
       0,   4,   4,   4,   4,   4,   4,   0,
       0,   4,   8,   8,   8,   8,   4,   0,
@@ -1308,7 +1306,7 @@ int tropism_vector[16] = {
 const int p_values[13] = { 10000, 900, 500, 300, 300, 100, 0,
   100, 300, 300, 500, 900, 9900
 };
-const int pc_values[7] = { 0, 100, 300, 300, 500, 900, 9900 };
+const int pcval[7] = { 0, 100, 300, 300, 500, 900, 9900 };
 const int p_vals[7] = { 0, 1, 3, 3, 5, 9, 99 };
 const int pieces[2][7] = {
   { 0, -1, -2, -3, -4, -5, -6 },
@@ -1322,7 +1320,7 @@ int piece_values[7][2] = { {0, 0},
 int pawn_can_promote = 525;
 int wtm_bonus[2] = { 5, 8 };
 int undeveloped_piece = 12;
-int pawn_duo[2] = { 4, 8 };
+int pawn_connected[2] = { 4, 8 };
 int pawn_isolated[2] = { 18, 21 };
 int pawn_weak[2] = { 8, 18 };
 int lower_n = 16;
@@ -1330,6 +1328,7 @@ int mobility_score_n[4] = { 1, 2, 3, 4 };
 int lower_b = 10;
 int bishop_trapped = 174;
 int bishop_with_wing_pawns[2] = { 18, 36 };
+int bishop_pair[2] = { 38, 56 };
 int mobility_score_b[4] = { 1, 2, 3, 4 };
 int mobility_score_r[4] = { 1, 2, 3, 4 };
 int rook_on_7th[2] = { 25, 35 };
@@ -1401,7 +1400,7 @@ struct personality_term personality_packet[256] = {
   {NULL, 0, 0, NULL},
   {"pawn evaluation                      ", 0, 0, NULL},        /* 30 */
   {"pawn piece/square table (white)      ", 3, 256, (int *) pval},
-  {"pawn duo                             ", 2, 2, pawn_duo},
+  {"pawn connected                       ", 2, 2, pawn_connected},
   {"pawn isolated                        ", 2, 2, pawn_isolated},
   {"pawn weak                            ", 2, 2, pawn_weak},
   {"outside passed pawn                  ", 2, 2, outside_passed},
@@ -1435,8 +1434,8 @@ struct personality_term personality_packet[256] = {
   {"bishop mobility/square table         ", 5, 4, mobility_score_b},
   {"bishop outpost [square]              ", 4, 128, (int *) bishop_outpost},
   {"bishop with wing pawns               ", 2, 2, bishop_with_wing_pawns},
+  {"bishop pair                          ", 2, 2, bishop_pair},
   {"bishop trapped                       ", 1, 0, &bishop_trapped},
-  {NULL, 0, 0, NULL},
   {NULL, 0, 0, NULL},
   {NULL, 0, 0, NULL},
   {"rook scoring                         ", 0, 0, NULL},        /* 70 */

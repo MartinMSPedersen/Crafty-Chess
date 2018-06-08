@@ -1,7 +1,7 @@
 #if !defined(NOEGTB)
 #  include "chess.h"
 #  include "data.h"
-/* last modified 01/17/09 */
+/* last modified 02/23/14 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -12,7 +12,8 @@
  *                                                                             *
  *******************************************************************************
  */
-#  define  VInitSqCtr(rgCtr, rgSquares, piece, bitboard) {       \
+#  define                                                        \
+VInitSqCtr(rgCtr, rgSquares, piece, bitboard) {                  \
   int  cPieces=0;                                                \
   uint64_t bbTemp=(bitboard);                                    \
   while (bbTemp) {                                               \
@@ -87,8 +88,8 @@ int EGTBProbe(TREE * RESTRICT tree, int ply, int wtm, int *score) {
 /*
  ************************************************************
  *                                                          *
- *   Initialize counters and piece arrays so the probe code *
- *   can compute the modified Godel number.                 *
+ *  Initialize counters and piece arrays so the probe code  *
+ *  can compute the modified Godel number.                  *
  *                                                          *
  ************************************************************
  */
@@ -105,20 +106,20 @@ int EGTBProbe(TREE * RESTRICT tree, int ply, int wtm, int *score) {
 /*
  ************************************************************
  *                                                          *
- *   Quick early exit.  Is the tablebase for the current    *
- *   set of pieces registered?                              *
+ *  Quick early exit.  Is the tablebase for the current set *
+ *  of pieces registered?                                   *
  *                                                          *
  ************************************************************
  */
   iTb = IDescFindFromCounters(rgiCounters);
   if (!iTb)
-    return (0);
+    return 0;
 /*
  ************************************************************
  *                                                          *
- *   Yes, finish setting up to probe the tablebase.  If     *
- *   black is the "winning" side (more pieces) then we need *
- *   to "invert" the pieces in the lists.                   *
+ *  Yes, finish setting up to probe the tablebase.  If      *
+ *  black is the "winning" side (more pieces) then we need  *
+ *  to "invert" the pieces in the lists.                    *
  *                                                          *
  ************************************************************
  */
@@ -139,23 +140,23 @@ int EGTBProbe(TREE * RESTRICT tree, int ply, int wtm, int *score) {
 /*
  ************************************************************
  *                                                          *
- *   Now check to see if this particular tablebase for this *
- *   color to move is registered.                           *
+ *  Now check to see if this particular tablebase for this  *
+ *  color to move is registered.                            *
  *                                                          *
  ************************************************************
  */
   if (!FRegistered(iTb, side))
-    return (0);
+    return 0;
   sqEnP = EnPassant(ply) ? EnPassant(ply) : 127;
   ind = PfnIndCalc(iTb, side) (psqW, psqB, sqEnP, fInvert);
   tbValue = L_TbtProbeTable(iTb, side, ind);
   if (bev_broken == tbValue)
-    return (0);
+    return 0;
 /*
  ************************************************************
  *                                                          *
- *   Convert to correct MATE range to match the value       *
- *   Crafty uses.                                           *
+ *  Convert to correct MATE range to match the value        *
+ *  Crafty uses.                                            *
  *                                                          *
  ************************************************************
  */
@@ -165,6 +166,6 @@ int EGTBProbe(TREE * RESTRICT tree, int ply, int wtm, int *score) {
     *score = -MATE + 2 * (bev_mi1 + tbValue);
   else
     *score = DrawScore(wtm);
-  return (1);
+  return 1;
 }
 #endif

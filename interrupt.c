@@ -22,8 +22,8 @@ void Interrupt(int ply) {
 /*
  ************************************************************
  *                                                          *
- *   If trying to find a move to ponder, and the operator   *
- *   types a command, exit a.s.a.p.                         *
+ *  If trying to find a move to ponder, and the operator    *
+ *  types a command, exit a.s.a.p.                          *
  *                                                          *
  ************************************************************
  */
@@ -32,11 +32,11 @@ void Interrupt(int ply) {
 /*
  ************************************************************
  *                                                          *
- *   First check to see if this is a command by calling     *
- *   Option().  Option() will return a 0 if it didn't       *
- *   recognize the command; otherwise it returns a 1 if     *
- *   the command was executed, or a 2 if we need to abort   *
- *   the search to execute the command.                     *
+ *  First check to see if this is a command by calling      *
+ *  Option().  Option() will return a 0 if it didn't        *
+ *  recognize the command; otherwise it returns a 1 if the  *
+ *  command was executed, or a 2 if we need to abort the    *
+ *  search to execute the command.                          *
  *                                                          *
  ************************************************************
  */
@@ -63,7 +63,8 @@ void Interrupt(int ply) {
 /*
  ************************************************************
  *                                                          *
- *   "." command displays status of current search.         *
+ *  "." command displays status of current search (this is  *
+ *  part of winboard protocol.)                             *
  *                                                          *
  ************************************************************
  */
@@ -72,10 +73,10 @@ void Interrupt(int ply) {
           end_time = ReadClock();
           time_used = (end_time - start_time);
           printf("stat01: %d ", time_used);
-          printf(BMF " ", tree->nodes_searched);
+          printf("%" PRIu64 " ", tree->nodes_searched);
           printf("%d ", iteration_depth);
           for (i = 0; i < n_root_moves; i++)
-            if (!(root_moves[i].status & 128))
+            if (!(root_moves[i].status & 8))
               left++;
           printf("%d %d\n", left, n_root_moves);
           fflush(stdout);
@@ -84,28 +85,14 @@ void Interrupt(int ply) {
           end_time = ReadClock();
           time_used = (end_time - start_time);
           printf("time:%s ", DisplayTime(time_used));
-          printf("nodes:" BMF "\n", tree->nodes_searched);
+          printf("nodes:%" PRIu64 "\n", tree->nodes_searched);
           DisplayTreeState(block[0], 1, 0, ply);
         }
       }
 /*
  ************************************************************
  *                                                          *
- *   "mn" command is used to set the move number to a       *
- *   specific value...                                      *
- *                                                          *
- ************************************************************
- */
-      else if (!strcmp("mn", args[0])) {
-        if (nargs == 2) {
-          move_number = atoi(args[1]);
-          Print(128, "move number set to %d\n", move_number);
-        }
-      }
-/*
- ************************************************************
- *                                                          *
- *   "?" command says "move now!"                           *
+ *  "?" command says "move now!"                            *
  *                                                          *
  ************************************************************
  */
@@ -117,7 +104,12 @@ void Interrupt(int ply) {
 /*
  ************************************************************
  *                                                          *
- *   Next see if Option() recognizes this as a command.     *
+ *  Next see if Option() recognizes this as a command. Note *
+ *  some commands can't be executed in the middle of a      *
+ *  search.  Option() returns a value >= 2 in such cases.   *
+ *  If we are pondering, we can back out of the search and  *
+ *  execute the command, otherwise we produce an error and  *
+ *  continue searching for our move.                        *
  *                                                          *
  ************************************************************
  */
@@ -143,11 +135,12 @@ void Interrupt(int ply) {
 /*
  ************************************************************
  *                                                          *
- *   Now, check to see if the operator typed a move.  If    *
- *   so, and it matched the predicted move, switch from     *
- *   pondering to thinking to start the timer.  If this     *
- *   is a move, but not the predicted move, abort the       *
- *   search, and start over with the right move.            *
+ *  Option() didn't recognize the input as a command so now *
+ *  we check to see if the operator typed a move.  If so,   *
+ *  and it matched the predicted move, switch from          *
+ *  pondering to thinking to start the timer.  If this is a *
+ *  move, but not the predicted move, abort the search and  *
+ *  start over with the right move.                         *
  *                                                          *
  ************************************************************
  */

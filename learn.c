@@ -5,7 +5,26 @@
 #if defined(UNIX)
 #  include <unistd.h>
 #endif
-/* last modified 02/26/09 */
+
+/* last modified 02/24/14 */
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   LearnAdjust() us used to scale the learn value, which can be used to      *
+ *   limit the aggressiveness of the learning algorithm.  All we do here is    *
+ *   divide the learn value passed in by "learning / 10".                      *
+ *                                                                             *
+ *******************************************************************************
+ */
+int LearnAdjust(int value) {
+
+  if (learning / 10 > 0)
+    return value / (learning / 10);
+  else
+    return 0;
+}
+
+/* last modified 02/24/14 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -32,31 +51,33 @@ void LearnBook() {
 /*
  ************************************************************
  *                                                          *
- *   If we have not been "out of book" for N moves, all     *
- *   we need to do is take the search evaluation for the    *
- *   search just completed and tuck it away in the book     *
- *   learning array (book_learn_eval[]) for use later.      *
+ *  If we have not been "out of book" for N moves, all we   *
+ *  we need to do is take the search evaluation for the     *
+ *  search just completed and tuck it away in the book      *
+ *  learning array (book_learn_eval[]) for use later.       *
  *                                                          *
  ************************************************************
  */
   if (!book_file)
     return;
-  if (!learning)
+  if (!learn)
     return;
-  learning = 0;
-  Print(128, "Updating book database\n");
+  if (Abs(learn_value) != learning)
+    learn_value = LearnAdjust(learn_value);
+  learn = 0;
+  Print(128, "LearnBook() updating book database\n");
 /*
  ************************************************************
  *                                                          *
- *   Now we build a vector of book learning results.  We    *
- *   give every book move below the last point where there  *
- *   were alternatives 100% of the learned score.  We give  *
- *   the book move played at that point 100% of the learned *
- *   score as well.  Then we divide the learned score by    *
- *   the number of alternatives, and propagate this score   *
- *   back until there was another alternative, where we do  *
- *   this again and again until we reach the top of the     *
- *   book tree.                                             *
+ *  Now we build a vector of book learning results.  We     *
+ *  give every book move below the last point where there   *
+ *  were alternatives 100% of the learned score.  We give   *
+ *  the book move played at that point 100% of the learned  *
+ *  score as well.  Then we divide the learned score by the *
+ *  number of alternatives, and propagate this score back   *
+ *  until there was another alternative, where we do this   *
+ *  again and again until we reach the top of the book      *
+ *  tree.                                                   *
  *                                                          *
  ************************************************************
  */
@@ -73,8 +94,8 @@ void LearnBook() {
 /*
  ************************************************************
  *                                                          *
- *   Now find the appropriate cluster, find the key we were *
- *   passed, and update the resulting learn value.          *
+ *  Now find the appropriate cluster, find the key we were  *
+ *  passed, and update the resulting learn value.           *
  *                                                          *
  ************************************************************
  */
@@ -100,7 +121,7 @@ void LearnBook() {
   }
 }
 
-/* last modified 02/26/09 */
+/* last modified 02/24/14 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -122,7 +143,7 @@ int LearnFunction(int sv, int search_depth, int rating_difference,
     .006, .003, .001
   };
   float multiplier;
-  int sd, rd;
+  int sd, rd, value;
 
   sd = Max(Min(search_depth - 10, 19), 0);
   rd = Max(Min(rating_difference / 200, 5), -5) + 5;
@@ -130,11 +151,12 @@ int LearnFunction(int sv, int search_depth, int rating_difference,
     multiplier = rating_mult_t[rd] * sd;
   else
     multiplier = rating_mult_ut[rd] * sd;
-  sv = Max(Min(sv, 600), -600);
-  return ((int) (sv * multiplier));
+  sv = Max(Min(sv, 5 * learning), -5 * learning);
+  value = (int) (sv * multiplier);
+  return value;
 }
 
-/* last modified 02/26/09 */
+/* last modified 02/24/14 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -174,16 +196,16 @@ void LearnValue(int search_value, int search_depth) {
 /*
  ************************************************************
  *                                                          *
- *   If we have not been "out of book" for N moves, all     *
- *   we need to do is take the search evaluation for the    *
- *   search just completed and tuck it away in the book     *
- *   learning array (book_learn_eval[]) for use later.      *
+ *  If we have not been "out of book" for N moves, all we   *
+ *  need to do is take the search evaluation for the search *
+ *  just completed and tuck it away in the book learning    *
+ *  array (book_learn_eval[]) for use later.                *
  *                                                          *
  ************************************************************
  */
   if (!book_file)
     return;
-  if (!learning || learn_value != 0)
+  if (!learn || learn_value != 0)
     return;
   if (moves_out_of_book <= LEARN_INTERVAL) {
     if (moves_out_of_book) {
@@ -194,17 +216,16 @@ void LearnValue(int search_value, int search_depth) {
 /*
  ************************************************************
  *                                                          *
- *   Check the evaluations we've seen so far.  If they are  *
- *   within reason (+/- 1/3 of a pawn or so) we simply keep *
- *   playing and leave the book alone.  If the eval is much *
- *   better or worse, we need to update the learning data.  *
+ *  Check the evaluations we've seen so far.  If they are   *
+ *  within reason (+/- 1/3 of a pawn or so) we simply keep  *
+ *  playing and leave the book alone.  If the eval is much  *
+ *  better or worse, we need to update the learning data.   *
  *                                                          *
  ************************************************************
  */
   else if (moves_out_of_book == LEARN_INTERVAL + 1) {
     if (moves_out_of_book < 1)
       return;
-    Print(128, "LearnBook() executed\n");
     interval = Min(LEARN_INTERVAL, moves_out_of_book);
     if (interval < 2)
       return;
@@ -230,35 +251,27 @@ void LearnValue(int search_value, int search_depth) {
           best_after_worst_eval = book_learn_eval[i];
     } else
       best_after_worst_eval = book_learn_eval[interval - 1];
-#if defined(DEBUG)
-    Print(128, "Learning analysis ...\n");
-    Print(128, "worst=%d  best=%d  baw=%d  wab=%d\n", worst_eval, best_eval,
-        best_after_worst_eval, worst_after_best_eval);
-    for (i = 0; i < interval; i++)
-      Print(128, "%d(%d) ", book_learn_eval[i], book_learn_depth[i]);
-    Print(128, "\n");
-#endif
 /*
  ************************************************************
  *                                                          *
- *   We now have the best eval for the first N moves out    *
- *   of book, the worst eval for the first N moves out of   *
- *   book, and the worst eval that follows the best eval.   *
- *   This will be used to recognize the following cases of  *
- *   results that follow a book move:                       *
+ *  We now have the best eval for the first N moves out of  *
+ *  book, the worst eval for the first N moves out of book, *
+ *  and the worst eval that follows the best eval.  This    *
+ *  will be used to recognize the following cases of        *
+ *  results that follow a book move:                        *
  *                                                          *
  ************************************************************
  */
 /*
  ************************************************************
  *                                                          *
- *   (1) The best score is very good, and it doesn't drop   *
- *   after following the game further.  This case detects   *
- *   those moves in book that are "good" and should be      *
- *   played whenever possible, while avoiding the sound     *
- *   gambits that leave us ahead in material for a short    *
- *   while until the score starts to drop as the gambit     *
- *   begins to show its effect.                             *
+ *  (1) The best score is very good, and it doesn't drop    *
+ *  after following the game further.  This case detects    *
+ *  those moves in book that are "good" and should be       *
+ *  played whenever possible, while avoiding the sound      *
+ *  gambits that leave us ahead in material for a short     *
+ *  while until the score starts to drop as the gambit      *
+ *  begins to show its effect.                              *
  *                                                          *
  ************************************************************
  */
@@ -271,9 +284,9 @@ void LearnValue(int search_value, int search_depth) {
 /*
  ************************************************************
  *                                                          *
- *   (2) The worst score is bad, and doesn't improve any    *
- *   after the worst point, indicating that the book move   *
- *   chosen was "bad" and should be avoided in the future.  *
+ *  (2) The worst score is bad, and doesn't improve any     *
+ *  after the worst point, indicating that the book move    *
+ *  chosen was "bad" and should be avoided in the future.   *
  *                                                          *
  ************************************************************
  */
@@ -286,9 +299,9 @@ void LearnValue(int search_value, int search_depth) {
 /*
  ************************************************************
  *                                                          *
- *   (3) Things seem even out of book and remain that way   *
- *   for N moves.  We will just average the 10 scores and   *
- *   use that as an approximation.                          *
+ *  (3) Things seem even out of book and remain that way    *
+ *  for N moves.  We will just average the 10 scores and    *
+ *  use that as an approximation.                           *
  *                                                          *
  ************************************************************
  */

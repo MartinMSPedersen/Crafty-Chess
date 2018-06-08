@@ -1,6 +1,6 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 09/23/09 */
+/* last modified 02/22/14 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -11,16 +11,16 @@
  *                                                                             *
  *******************************************************************************
  */
-void UnmakeMove(TREE * RESTRICT tree, int ply, int move, int wtm) {
+void UnmakeMove(TREE * RESTRICT tree, int ply, int move, int side) {
   uint64_t bit_move;
-  int piece, from, to, captured, promote, btm = Flip(wtm);
+  int piece, from, to, captured, promote, enemy = Flip(side);
 
 /*
  ************************************************************
  *                                                          *
- *   First, restore the hash signatures to their state      *
- *   prior to this move being made, and remove the current  *
- *   position from the repetition list.                     *
+ *  First, restore the hash signatures to their state prior *
+ *  to this move being made, and remove the current         *
+ *  position from the repetition list.                      *
  *                                                          *
  ************************************************************
  */
@@ -29,8 +29,8 @@ void UnmakeMove(TREE * RESTRICT tree, int ply, int move, int wtm) {
 /*
  ************************************************************
  *                                                          *
- *   Now do the things that are common to all pieces, such  *
- *   as updating the bitboards and hash signature.          *
+ *  Now do the things that are common to all pieces, such   *
+ *  as updating the bitboards and hash signature.           *
  *                                                          *
  ************************************************************
  */
@@ -40,15 +40,15 @@ void UnmakeMove(TREE * RESTRICT tree, int ply, int move, int wtm) {
   captured = Captured(move);
   promote = Promote(move);
   bit_move = SetMask(from) | SetMask(to);
-  ClearSet(bit_move, Pieces(wtm, piece));
-  ClearSet(bit_move, Occupied(wtm));
+  ClearSet(bit_move, Pieces(side, piece));
+  ClearSet(bit_move, Occupied(side));
   PcOnSq(to) = 0;
-  PcOnSq(from) = pieces[wtm][piece];
+  PcOnSq(from) = pieces[side][piece];
 /*
  ************************************************************
  *                                                          *
- *   Now do the piece-specific things by jumping to the     *
- *   appropriate routine.                                   *
+ *  Now do the piece-specific things by jumping to the      *
+ *  appropriate routine.                                    *
  *                                                          *
  ************************************************************
  */
@@ -57,96 +57,89 @@ void UnmakeMove(TREE * RESTRICT tree, int ply, int move, int wtm) {
       if (captured == 1) {
         if (EnPassant(ply) == to) {
           TotalAllPieces++;
-          Set(to + epsq[wtm], Pawns(btm));
-          Set(to + epsq[wtm], Occupied(btm));
-          PcOnSq(to + epsq[wtm]) = pieces[btm][pawn];
-          Material -= PieceValues(wtm, pawn);
-          TotalPieces(btm, pawn)++;
+          Set(to + epsq[side], Pawns(enemy));
+          Set(to + epsq[side], Occupied(enemy));
+          PcOnSq(to + epsq[side]) = pieces[enemy][pawn];
+          Material -= PieceValues(side, pawn);
+          TotalPieces(enemy, pawn)++;
           captured = 0;
         }
       }
       if (promote) {
-        TotalPieces(wtm, pawn)++;
-        Clear(to, Pawns(wtm));
-        Clear(to, Occupied(wtm));
-        Clear(to, Pieces(wtm, promote));
-        Material -= PieceValues(wtm, promote);
-        Material += PieceValues(wtm, pawn);
-        TotalPieces(wtm, occupied) -= p_vals[promote];
-        TotalPieces(wtm, promote)--;
+        TotalPieces(side, pawn)++;
+        Clear(to, Pawns(side));
+        Clear(to, Occupied(side));
+        Clear(to, Pieces(side, promote));
+        Material -= PieceValues(side, promote);
+        Material += PieceValues(side, pawn);
+        TotalPieces(side, occupied) -= p_vals[promote];
+        TotalPieces(side, promote)--;
         switch (promote) {
           case knight:
-            tree->pos.minors[wtm]--;
-            break;
           case bishop:
-            tree->pos.minors[wtm]--;
+            TotalMinors(side)--;
             break;
           case rook:
-            tree->pos.majors[wtm]--;
+            TotalMajors(side)--;
             break;
           case queen:
-            tree->pos.majors[wtm] -= 2;
+            TotalMajors(side) -= 2;
             break;
         }
       }
       break;
     case knight:
-      break;
     case bishop:
-      break;
     case rook:
-      break;
     case queen:
       break;
     case king:
-      KingSQ(wtm) = from;
+      KingSQ(side) = from;
       if (Abs(to - from) == 2) {
-        if (to == rook_G[wtm]) {
-          from = rook_H[wtm];
-          to = rook_F[wtm];
+        if (to == rook_G[side]) {
+          from = rook_H[side];
+          to = rook_F[side];
         } else {
-          from = rook_A[wtm];
-          to = rook_D[wtm];
+          from = rook_A[side];
+          to = rook_D[side];
         }
         bit_move = SetMask(from) | SetMask(to);
-        ClearSet(bit_move, Rooks(wtm));
-        ClearSet(bit_move, Occupied(wtm));
+        ClearSet(bit_move, Rooks(side));
+        ClearSet(bit_move, Occupied(side));
         PcOnSq(to) = 0;
-        PcOnSq(from) = pieces[wtm][rook];
+        PcOnSq(from) = pieces[side][rook];
       }
       break;
   }
 /*
  ************************************************************
  *                                                          *
- *   Next we restore information related to a piece that    *
- *   was captured and is now being returned to the board.   *
+ *  Next we restore information related to a piece that was *
+ *  captured and is now being returned to the board.        *
  *                                                          *
  ************************************************************
  */
   if (captured) {
     TotalAllPieces++;
-    Set(to, Pieces(btm, captured));
-    Set(to, Occupied(btm));
-    Material += PieceValues(btm, captured);
-    PcOnSq(to) = pieces[btm][captured];
-    TotalPieces(btm, captured)++;
+    Set(to, Pieces(enemy, captured));
+    Set(to, Occupied(enemy));
+    Material += PieceValues(enemy, captured);
+    PcOnSq(to) = pieces[enemy][captured];
+    TotalPieces(enemy, captured)++;
     if (captured != pawn)
-      TotalPieces(btm, occupied) += p_vals[captured];
+      TotalPieces(enemy, occupied) += p_vals[captured];
     switch (captured) {
       case pawn:
         break;
       case knight:
-        tree->pos.minors[btm]++;
-        break;
       case bishop:
-        tree->pos.minors[btm]++;
+        TotalMinors(enemy)++;
         break;
       case rook:
-        tree->pos.majors[btm]++;
+        TotalMajors(enemy)++;
         break;
       case queen:
-        tree->pos.majors[btm] += 2;
+        TotalMajors(enemy) += 2;
         break;
       case king:
         break;

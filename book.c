@@ -4,7 +4,7 @@
 #if defined(UNIX)
 #  include <unistd.h>
 #endif
-/* last modified 11/05/10 */
+/* last modified 05/08/14 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -69,19 +69,19 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done) {
 /*
  ************************************************************
  *                                                          *
- *   If we have been out of book for several moves, return  *
- *   and start the normal tree search.                      *
+ *  If we have been out of book for several moves, return   *
+ *  and start the normal tree search.                       *
  *                                                          *
  ************************************************************
  */
   if (moves_out_of_book > 6)
-    return (0);
+    return 0;
 /*
  ************************************************************
  *                                                          *
- *   Position is known, read the start book file and save   *
- *   each move found.  These will be used later to augment  *
- *   the flags in the normal book to offer better control.  *
+ *  Position is known, read the start book file and save    *
+ *  each move found.  These will be used later to augment   *
+ *  the flags in the normal book to offer better control.   *
  *                                                          *
  ************************************************************
  */
@@ -101,9 +101,9 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done) {
       for (im = 0; im < n_root_moves; im++) {
         common = HashKey & ((uint64_t) 65535 << 48);
         MakeMove(tree, 1, root_moves[im].move, wtm);
-        if (RepetitionCheckBook(tree, 2, Flip(wtm))) {
+        if (Repeat(tree, 2)) {
           UnmakeMove(tree, 1, root_moves[im].move, wtm);
-          return (0);
+          return 0;
         }
         temp_hash_key = (wtm) ? HashKey : ~HashKey;
         temp_hash_key = (temp_hash_key & ~((uint64_t) 65535 << 48)) | common;
@@ -119,10 +119,10 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done) {
 /*
  ************************************************************
  *                                                          *
- *   Position is known, read in the appropriate cluster.    *
- *   Note that this cluster will have all possible book     *
- *   moves from current position in it (as well as others   *
- *   of course.)                                            *
+ *  Position is known, read in the appropriate cluster.     *
+ *  Note that this cluster will have all possible book      *
+ *  moves from current position in it (as well as others of *
+ *  course.)                                                *
  *                                                          *
  ************************************************************
  */
@@ -140,13 +140,13 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done) {
     } else
       cluster = 0;
     if (!cluster && !smoves)
-      return (0);
+      return 0;
 /*
  ************************************************************
  *                                                          *
- *   Now add any moves from books.bin to the end of the     *
- *   cluster so that they will be played even if not in the *
- *   regular database of moves.                             *
+ *  Now add any moves from books.bin to the end of the      *
+ *  cluster so that they will be played even if not in the  *
+ *  regular database of moves.                              *
  *                                                          *
  ************************************************************
  */
@@ -164,9 +164,9 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done) {
 /*
  ************************************************************
  *                                                          *
- *   First cycle through the root move list, make each      *
- *   move, and see if the resulting hash key is in the book *
- *   database.                                              *
+ *  First cycle through the root move list, make each move, *
+ *  and see if the resulting hash key is in the book        *
+ *  database.                                               *
  *                                                          *
  ************************************************************
  */
@@ -178,9 +178,9 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done) {
     for (im = 0; im < n_root_moves; im++) {
       common = HashKey & ((uint64_t) 65535 << 48);
       MakeMove(tree, 1, root_moves[im].move, wtm);
-      if (RepetitionCheckBook(tree, 2, Flip(wtm))) {
+      if (Repeat(tree, 2)) {
         UnmakeMove(tree, 1, root_moves[im].move, wtm);
-        return (0);
+        return 0;
       }
       temp_hash_key = (wtm) ? HashKey : ~HashKey;
       temp_hash_key = (temp_hash_key & ~((uint64_t) 65535 << 48)) | common;
@@ -219,14 +219,14 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done) {
       UnmakeMove(tree, 1, root_moves[im].move, wtm);
     }
     if (!nmoves)
-      return (0);
+      return 0;
     book_learn_nmoves = nmoves;
 /*
  ************************************************************
  *                                                          *
- *   If any moves have a very bad or a very good learn      *
- *   value, set the appropriate ? or ! flag so the move     *
- *   be played or avoided as appropriate.                   *
+ *  If any moves have a very bad or a very good learn       *
+ *  value, set the appropriate ? or ! flag so the move be   *
+ *  played or avoided as appropriate.                       *
  *                                                          *
  ************************************************************
  */
@@ -254,9 +254,9 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done) {
 /*
  ************************************************************
  *                                                          *
- *   We have the book moves, now it's time to decide how    *
- *   they are supposed to be sorted and compute the sort    *
- *   index.                                                 *
+ *  We have the book moves, now it's time to decide how     *
+ *  they are supposed to be sorted and compute the sort     *
+ *  index.                                                  *
  *                                                          *
  ************************************************************
  */
@@ -287,8 +287,8 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done) {
 /*
  ************************************************************
  *                                                          *
- *   If there are any ! moves, make their popularity count  *
- *   huge since they have to be considered.                 *
+ *  If there are any ! moves, make their popularity count   *
+ *  huge since they have to be considered.                  *
  *                                                          *
  ************************************************************
  */
@@ -306,7 +306,7 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done) {
 /*
  ************************************************************
  *                                                          *
- *   Now sort the moves based on the complete sort value.   *
+ *  Now sort the moves based on the complete sort value.    *
  *                                                          *
  ************************************************************
  */
@@ -351,8 +351,8 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done) {
 /*
  ************************************************************
  *                                                          *
- *   Display the book moves, and total counts, etc. if the  *
- *   operator has requested it.                             *
+ *  Display the book moves, and total counts, etc. if the   *
+ *  operator has requested it.                              *
  *                                                          *
  ************************************************************
  */
@@ -396,9 +396,9 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done) {
 /*
  ************************************************************
  *                                                          *
- *   Check for book moves with the play % value set.  if    *
- *   there are any such moves, then exclude all moves that  *
- *   do not have a play % or a !/!! flag set.               *
+ *  Check for book moves with the play % value set.  if     *
+ *  there are any such moves, then exclude all moves that   *
+ *  do not have a play % or a !/!! flag set.                *
  *                                                          *
  ************************************************************
  */
@@ -408,10 +408,10 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done) {
 /*
  ************************************************************
  *                                                          *
- *   Delete ? and ?? moves first, which includes those      *
- *   moves with bad learned results.  Here is where we also *
- *   exclude moves with no play % if we find at least one   *
- *   with a non-zero value.                                 *
+ *  Delete ? and ?? moves first, which includes those moves *
+ *  with bad learned results.  Here is where we also        *
+ *  exclude moves with no play % if we find at least one    *
+ *  with a non-zero value.                                  *
  *                                                          *
  ************************************************************
  */
@@ -448,9 +448,9 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done) {
 /*
  ************************************************************
  *                                                          *
- *   If this is a real search (not a puzzling search to     *
- *   find a move by the opponent to ponder) then we need to *
- *   set up the whisper info for later.                     *
+ *  If this is a real search (not a puzzling search to      *
+ *  find a move by the opponent to ponder) then we need to  *
+ *  set up the whisper info for later.                      *
  *                                                          *
  ************************************************************
  */
@@ -475,14 +475,14 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done) {
 /*
  ************************************************************
  *                                                          *
- *   Now select a move from the set of moves just found. Do *
- *   this in three distinct passes:  (1) look for !! moves; *
- *   (2) look for ! moves;  (3) look for any other moves.   *
- *   Note: book_accept_mask *should* have a bit set for any *
- *   move that is selected, including !! and ! type moves   *
- *   so that they *can* be excluded if desired.  Note also  *
- *   that book_reject_mask should have ?? and ? set (at a   *
- *   minimum) to exclude these types of moves.              *
+ *  Now select a move from the set of moves just found. Do  *
+ *  this in three distinct passes:  (1) look for !! moves;  *
+ *  (2) look for ! moves;  (3) look for any other moves.    *
+ *  Note: book_accept_mask *should* have a bit set for any  *
+ *  move that is selected, including !! and ! type moves so *
+ *  that they *can* be excluded if desired.  Note also that *
+ *  book_reject_mask should have ?? and ? set (at a         *
+ *  minimum) to exclude these types of moves.               *
  *                                                          *
  ************************************************************
  */
@@ -537,7 +537,7 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done) {
         selected[num_selected++] = book_moves[i];
       }
     if (!num_selected)
-      return (0);
+      return 0;
     for (i = 0; i < num_selected; i++) {
       book_status[i] = selected_status[i];
       book_moves[i] = selected[i];
@@ -547,7 +547,7 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done) {
     }
     nmoves = num_selected;
     if (nmoves == 0)
-      return (0);
+      return 0;
     Print(128, "               book moves {");
     for (i = 0; i < nmoves; i++) {
       Print(128, "%s", OutputMove(tree, book_moves[i], 1, wtm));
@@ -572,9 +572,9 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done) {
 /*
  ************************************************************
  *                                                          *
- *   We have the book moves, if any have specified percents *
- *   for play, then adjust the bs_value[] to reflect this   *
- *   percentage.                                            *
+ *  We have the book moves, if any have specified percents  *
+ *  for play, then adjust the bs_value[] to reflect this    *
+ *  percentage.                                             *
  *                                                          *
  ************************************************************
  */
@@ -596,8 +596,8 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done) {
 /*
  ************************************************************
  *                                                          *
- *   Display the book moves, and total counts, etc. if the  *
- *   operator has requested it.                             *
+ *  Display the book moves, and total counts, etc. if the   *
+ *  operator has requested it.                              *
  *                                                          *
  ************************************************************
  */
@@ -638,9 +638,9 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done) {
 /*
  ************************************************************
  *                                                          *
- *   If random=0, then we search the set of legal book      *
- *   moves with the normal search engine (but with a short  *
- *   time limit) to choose among them.                      *
+ *  If random=0, then we search the set of legal book moves *
+ *  with the normal search engine (but with a short time    *
+ *  limit) to choose among them.                            *
  *                                                          *
  ************************************************************
  */
@@ -658,27 +658,26 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done) {
           booking = 1;
           value = Iterate(wtm, booking, 1);
           booking = 0;
-          abort_search = 0;
           if (value < -50) {
             last_pv.pathd = 0;
-            return (0);
+            return 0;
           }
         } else {
           tree->pv[1].path[1] = book_moves[0];
           tree->pv[1].pathl = 2;
           tree->pv[1].pathd = 0;
         }
-        return (1);
+        return 1;
       }
     }
 /*
  ************************************************************
  *                                                          *
- *   If puzzling, in tournament mode we try to find the     *
- *   best non-book move, because a book move will produce   *
- *   a quick move anyway.  We therefore would rather search *
- *   for a non-book move, just in case the opponent goes    *
- *   out of book here.                                      *
+ *  If puzzling, in tournament mode we try to find the best *
+ *  non-book move, because a book move will produce a quick *
+ *  move anyway.  We therefore would rather search for a    *
+ *  non-book move, just in case the opponent goes out of    *
+ *  book here.                                              *
  *                                                          *
  ************************************************************
  */
@@ -704,15 +703,15 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done) {
         tree->pv[1].pathl = 2;
         tree->pv[1].pathd = 0;
       }
-      return (1);
+      return 1;
     }
     last_move = nmoves;
 /*
  ************************************************************
  *                                                          *
- *   Compute a random value and use this to generate a      *
- *   book move based on a probability distribution of       *
- *   the number of games won by each book move.             *
+ *  Compute a random value and use this to generate a book  *
+ *  move based on a probability distribution of the number  *
+ *  of games won by each book move.                         *
  *                                                          *
  ************************************************************
  */
@@ -772,12 +771,12 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done) {
       Print(128, " %s", OutputMove(tree, tree->pv[1].path[2], 2, Flip(wtm)));
     UnmakeMove(tree, 1, tree->pv[1].path[1], wtm);
     Print(128, "\n");
-    return (1);
+    return 1;
   }
-  return (0);
+  return 0;
 }
 
-/* last modified 08/07/05 */
+/* last modified 02/23/14 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -799,10 +798,10 @@ int BookPonderMove(TREE * RESTRICT tree, int wtm) {
 /*
  ************************************************************
  *                                                          *
- *   position is known, read in the appropriate cluster.    *
- *   note that this cluster will have all possible book     *
- *   moves from current position in it (as well as others   *
- *   of course.)                                            *
+ *  position is known, read in the appropriate cluster.     *
+ *  note that this cluster will have all possible book      *
+ *  moves from current position in it (as well as others of *
+ *  course.)                                                *
  *                                                          *
  ************************************************************
  */
@@ -819,16 +818,16 @@ int BookPonderMove(TREE * RESTRICT tree, int wtm) {
     } else
       cluster = 0;
     if (!cluster)
-      return (0);
+      return 0;
     lastm = GenerateCaptures(tree, 2, wtm, book_moves);
     lastm = GenerateNoncaptures(tree, 2, wtm, lastm);
     n_moves = lastm - book_moves;
 /*
  ************************************************************
  *                                                          *
- *   First cycle through the root move list, make each      *
- *   move, and see if the resulting hash key is in the book *
- *   database.                                              *
+ *  First cycle through the root move list, make each move, *
+ *  and see if the resulting hash key is in the book        *
+ *  database.                                               *
  *                                                          *
  ************************************************************
  */
@@ -851,10 +850,10 @@ int BookPonderMove(TREE * RESTRICT tree, int wtm) {
       UnmakeMove(tree, 2, book_moves[im], wtm);
     }
   }
-  return (book_ponder_move);
+  return book_ponder_move;
 }
 
-/* last modified 08/07/05 */
+/* last modified 05/08/14 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -925,7 +924,7 @@ void BookUp(TREE * RESTRICT tree, int nargs, char **args) {
 /*
  ************************************************************
  *                                                          *
- *   Open the correct book file for writing/reading         *
+ *  Open the correct book file for writing/reading          *
  *                                                          *
  ************************************************************
  */
@@ -936,7 +935,7 @@ void BookUp(TREE * RESTRICT tree, int nargs, char **args) {
   if (!strcmp(args[1], "create")) {
     if (nargs < 4) {
       Print(4095, "usage:  <binfile> create <pgn-filename> ");
-      Print(4095, "maxply [minplay] [win/lose %]\n");
+      Print(4095, "maxply [minplay] [win/lose %%]\n");
       return;
     }
     max_ply = atoi(args[3]);
@@ -994,6 +993,8 @@ void BookUp(TREE * RESTRICT tree, int nargs, char **args) {
     switch (book_random) {
       case 0:
         Print(4095, "play best book line after search.\n");
+        Print(4095, "  ..book selection width set to 99.\n");
+        book_selection_width = 99;
         break;
       case 1:
         Print(4095, "choose from book moves randomly (using weights.)\n");
@@ -1018,7 +1019,9 @@ void BookUp(TREE * RESTRICT tree, int nargs, char **args) {
       return;
     }
     book_selection_width = atoi(args[2]);
+    book_random = 1;
     Print(4095, "choose from %d best moves.\n", book_selection_width);
+    Print(4095, "  ..book random set to 1.\n");
     return;
   } else {
     Print(4095, "usage:  book [option] [filename] [maxply] [minplay]\n");
@@ -1041,15 +1044,15 @@ void BookUp(TREE * RESTRICT tree, int nargs, char **args) {
 /*
  ************************************************************
  *                                                          *
- *   Now, read in a series of moves (terminated by the "["  *
- *   of the next title or by "end" for end of the file)     *
- *   and make them.  After each MakeMove(), we can grab     *
- *   the hash key, and use it to access the book data file  *
- *   to add this position.  Note that we have to check the  *
- *   last character of a move for the special flags and     *
- *   set the correct bit in the status for this position.   *
- *   When we reach the end of a book line, we back up to    *
- *   the starting position and start over.                  *
+ *  Now, read in a series of moves (terminated by the "["   *
+ *  of the next title or by "end" for end of the file) and  *
+ *  make them.  After each MakeMove(), we can grab the hash *
+ *  key, and use it to access the book data file to add     *
+ *  this position.  Note that we have to check the last     *
+ *  character of a move for the special flags and set the   *
+ *  correct bit in the status for this position.  When we   *
+ *  reach the end of a book line, we back up to the         *
+ *  starting position and start over.                       *
  *                                                          *
  ************************************************************
  */
@@ -1092,15 +1095,15 @@ void BookUp(TREE * RESTRICT tree, int nargs, char **args) {
         do {
           wtm = 1;
           InitializeChessBoard(tree);
-          tree->position[1] = tree->position[0];
+          tree->status[1] = tree->status[0];
           move_num = 1;
-          tree->position[2] = tree->position[1];
+          tree->status[2] = tree->status[1];
           ply = 0;
           data_read = 0;
 #if defined(POSITIONS)
           output_pos = Random32();
           output_pos = (output_pos | (output_pos >> 16)) & 65535;
-          output_pos = output_pos % 30 + 12;
+          output_pos = output_pos % 20 + 8;
           output_wtm = Random32() & 1;
 #endif
           while (data_read == 0) {
@@ -1122,11 +1125,7 @@ void BookUp(TREE * RESTRICT tree, int nargs, char **args) {
                 total_moves++;
                 common = HashKey & ((uint64_t) 65535 << 48);
                 MakeMove(tree, 2, move, wtm);
-                if (Rule50Moves(3) == 0) {
-                  Repetition(black) = 0;
-                  Repetition(white) = 0;
-                }
-                tree->position[2] = tree->position[3];
+                tree->status[2] = tree->status[3];
                 if (ply <= max_ply) {
                   temp_hash_key = (wtm) ? HashKey : ~HashKey;
                   temp_hash_key =
@@ -1149,7 +1148,7 @@ void BookUp(TREE * RESTRICT tree, int nargs, char **args) {
                   }
                 }
                 if (!(total_moves % 100000)) {
-                  printf(schar);
+                  printf("%s", schar);
                   strcpy(schar, ".");
                   if (!(total_moves % 6000000))
                     printf(" (%dk)\n", total_moves / 1000);
@@ -1160,21 +1159,25 @@ void BookUp(TREE * RESTRICT tree, int nargs, char **args) {
                   move_num++;
 #if defined(POSITIONS)
                 if (wtm == output_wtm && move_num == output_pos) {
-                  char t_initial_position[256];
                   SEARCH_POSITION temp_pos;
+                  int twtm;
+                  char t_initial_position[256];
 
                   strcpy(t_initial_position, initial_position);
-                  temp_pos = tree->position[0];
-                  tree->position[0] = tree->position[3];
+                  temp_pos = tree->status[0];
+                  tree->status[0] = tree->status[3];
                   if (Castle(0, white) < 0)
                     Castle(0, white) = 0;
                   if (Castle(0, black) < 0)
                     Castle(0, black) = 0;
                   strcpy(buffer, "savepos *");
+                  twtm = game_wtm;
+                  game_wtm = wtm;
                   (void) Option(tree);
+                  game_wtm = twtm;
                   fprintf(pout, "%s\n", initial_position);
                   strcpy(initial_position, t_initial_position);
-                  tree->position[0] = temp_pos;
+                  tree->status[0] = temp_pos;
                 }
 #endif
               } else if (strspn(buffer, "0123456789/-.*") != strlen(buffer)
@@ -1183,7 +1186,7 @@ void BookUp(TREE * RESTRICT tree, int nargs, char **args) {
                 Print(4095, "ERROR!  move %d: %s is illegal (line %d)\n",
                     move_num, buffer, ReadPGN(book_input, -2));
                 ReadPGN(book_input, -1);
-                DisplayChessBoard(stdout, tree->pos);
+                DisplayChessBoard(stdout, tree->position);
                 do {
                   data_read = ReadPGN(book_input, 0);
                   if (data_read == -1)
@@ -1209,9 +1212,9 @@ void BookUp(TREE * RESTRICT tree, int nargs, char **args) {
 /*
  ************************************************************
  *                                                          *
- *   Now merge these "chunks" into book.bin, keeping all of *
- *   the "flags" as well as counting the number of times    *
- *   that each move was played.                             *
+ *  Now merge these "chunks" into book.bin, keeping all of  *
+ *  the "flags" as well as counting the number of times     *
+ *  that each move was played.                              *
  *                                                          *
  ************************************************************
  */
@@ -1339,8 +1342,8 @@ void BookUp(TREE * RESTRICT tree, int nargs, char **args) {
 /*
  ************************************************************
  *                                                          *
- *   Now clean up, remove the sort.n files, and print the   *
- *   statistics for building the book.                      *
+ *  Now clean up, remove the sort.n files, and print the    *
+ *  statistics for building the book.                       *
  *                                                          *
  ************************************************************
  */
@@ -1367,7 +1370,7 @@ void BookUp(TREE * RESTRICT tree, int nargs, char **args) {
   InitializeChessBoard(tree);
 }
 
-/* last modified 08/07/05 */
+/* last modified 02/23/14 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -1398,10 +1401,10 @@ int BookMask(char *flags) {
         mask = mask | 8;
     }
   }
-  return (mask);
+  return mask;
 }
 
-/* last modified 08/07/05 */
+/* last modified 02/23/14 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -1425,7 +1428,7 @@ void BookSort(BB_POSITION * buffer, int number, int fileno) {
   fclose(output_file);
 }
 
-/* last modified 08/07/05 */
+/* last modified 02/23/14 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -1477,7 +1480,7 @@ BB_POSITION BookUpNextPosition(int files, int init) {
   if (i > files) {
     for (i = 1; i <= files; i++)
       fclose(input_file[i]);
-    return (least);
+    return least;
   }
   for (i++; i <= files; i++) {
     if (data_read[i]) {
@@ -1498,21 +1501,17 @@ BB_POSITION BookUpNextPosition(int files, int init) {
     next[used] = 0;
   } else
     next[used]++;
-  return (least);
+  return least;
 }
 
-#if defined(NT_i386)
-int _cdecl BookUpCompare(const void *pos1, const void *pos2) {
-#else
 int BookUpCompare(const void *pos1, const void *pos2) {
-#endif
   static uint64_t p1, p2;
 
   memcpy((char *) &p1, ((BB_POSITION *) pos1)->position, 8);
   memcpy((char *) &p2, ((BB_POSITION *) pos2)->position, 8);
   if (p1 < p2)
-    return (-1);
+    return -1;
   if (p1 > p2)
-    return (+1);
-  return (0);
+    return +1;
+  return 0;
 }

@@ -1,231 +1,127 @@
 # To build crafty:
 #
 #  You want to set up for maximum optimization, but typically you will
-#  need to experiment to see which options provide the fastest code.
+#  need to experiment to see which options provide the fastest code.  The
+#  following option descriptions explain each option.  To use one or more
+#  of these options, to the "opt =" line that follows the explanations and
+#  add the options you want, being careful to stay inside the single quote
+#  marks.
 #   
-#   -DBOOKDIR      N  path to the directory containing the book binary files.
-#                     The default for all such path values is "." if you don't
-#                     specify a path with this macro definition.
-#   -DCPUS=n       N  defines the maximum number of CPUS Crafty will be able
-#                     to use in a SMP system.  Note that this is the max you
-#                     will be able to use.  You need to use the smpmt=n command
-#                     to make crafty use more than the default 1 process.
-#   -DEPD          Y  if you want full EPD support built in.
-#   -DINLINE32     N  Compiles with the Intel assembly code for FirstOne(),
-#                     LastOne() and PopCnt().  This is for gcc-style inlining
-#                     and now works with the Intel C/C++ compiler as well.
-#   -DINLINE64     N  Compiles with the Intel assembly code for FirstOne(),
-#                     LastOne() and PopCnt() for the AMD opteron, only tested
-#                     with the 64-bit opteron GCC compiler / Intel ICC compiler.
-#   -DLIMITEXT     N  limit extensions as search gets deeper
-#   -DLOGDIR       N  path to the directory where Crafty puts the log.nnn and
-#                     game.nnn files.
-#   -DNOEGTB       N  eliminates the egtb code for compilers that can't deal
-#                     with the large egtb.cpp code/templates.
-#   -DNOFUTILITY   N  disables classic futility pruning
-#   -DNUMA         N  says this system is NUMA, which is mainly used for Linux
-#                     systems, and references libnuma, needed for the NUMA calls
-#                     (crafty doesn't use many of these, it does the memory
-#                     setup stuff itself)
-#   -DPOPCNT       N  Compiles with the Intel assembly code for hardware popcnt
-#                     instruction, only applies to Nehalem and beyond (I think
-#                     this is SSE 4.2 or something similar).
-#   -DPOWERPC      N  enables PPC spinlock inline function for SMP boxes only
-#   -DRCDIR        N  path to the directory where we look for the .craftyrc or
-#                     crafty.rc (windows) file.
-#   -DTBDIR        N  path to the directory where the endgame tablebase files
-#                     are found.  default = "./TB"
-#   -DTRACE        N  This enables the "trace" command so that the search tree
-#                     can be dumped while running.
+#   -DAFFINITY     Include code to set processor/thread affinity on Unix
+#                  systems.  Note this will not work on Apple OS X as it does
+#                  not support any sort of processor affinity mechanism.
+#   -DBOOKDIR      Path to the directory containing the book binary files.
+#                  The default for all such path values is "." if you don't
+#                  specify a path with this macro definition.
+#   -DCPUS=n       Defines the maximum number of CPUS Crafty will be able
+#                  to use in a SMP system.  Note that this is the max you
+#                  will be able to use.  You need to use the smpmt=n command
+#                  to make crafty use more than the default 1 process.
+#   -DDEBUG        This is used for testing changes.  Enabling this option
+#                  greatly slows Crafty down, but every time a move is made,
+#                  the corresponding position is checked to make sure all of
+#                  the bitboards are set correctly.
+#   -DEPD          If you want full EPD support built in.
+#   -DINLINEASM    Compiles with the Intel assembly code for FirstOne(),
+#                  LastOne() and PopCnt().  This is for gcc-style inlining
+#                  and now works with the Intel C/C++ compiler as well.  It
+#                  also has a MSVC compatible version included.
+#   -DLOGDIR       Path to the directory where Crafty puts the log.nnn and
+#                  game.nnn files.
+#   -DNODES        This enables the sn=x command.  Crafty will search until
+#                  exactly X nodes have been searched, then the search 
+#                  terminates as if time ran out.
+#   -DNOEGTB       Eliminates the egtb code for compilers that can't deal
+#                  with the large egtb.cpp code/templates.
+#   -DNUMA         Says this system is NUMA, which is mainly used for Linux
+#                  or Windows systems, and references libnuma, needed for the
+#                  NUMA calls (crafty doesn't use many of these, it does the
+#                  memory setup stuff itself)
+#   -DPOPCNT       Says this system is a newer Intel/AMD processor with the
+#                  built-in hardware popcnt instruction.
+#   -DPOSITIONS    Causes Crafty to emit FEN strings, one per book line, as
+#                  it creates a book.  I use this to create positions to use
+#                  for cluster testing.
+#   -DRCDIR        Path to the directory where we look for the .craftyrc or
+#                  crafty.rc (windows) file.
+#   -DSKILL        Enables the "skill" command which allows you to arbitrarily
+#                  lower Crafty's playing skill so it does not seem so
+#                  invincible to non-GM-level players.
+#   -DTBDIR        Path to the directory where the endgame tablebase files
+#                  are found.  default = "./TB"
+#   -DTEST         Displays evaluation table after each move (in the logfile)
+#   -DTRACE        This enables the "trace" command so that the search tree
+#                  can be dumped while running.
+#   -DUNIX         This identifies the target O/S as being Unix-based, if this
+#                  option is omitted, windows is assumed.
 
 default:
-	$(MAKE) linux-64
+	$(MAKE) -j unix-gcc
 help:
 	@echo "You must specify the system which you want to compile for:"
 	@echo ""
-	@echo "make aix              IBM AIX"
-	@echo "make darwin           Darwin on OSX"
-	@echo "make hpux             HP/UX 9/10, /7xx"
-	@echo "make linux            Linux optimized for i386, ELF format"
-	@echo "make linux-AMD64      Linux optimized for AMD opteron"
-	@echo "make freebsd          FreeBSD"
-	@echo "make netbsd           NetBSD"
-	@echo "make netbsd-sparc     NetBSD optimized for sparc"
-	@echo "make solaris          Solaris 2.x"
-	@echo "make solaris-gcc      Solaris 2.x using GNU cc"
+	@echo "make unix-gcc         Unix w/gcc compiler"
+	@echo "make unix-icc         Unix w/icc compiler"
+	@echo "make profile          profile-guided-optimizations"
+	@echo "                      (edit Makefile to make the profile"
+	@echo "                      option use the right compiler)"
 	@echo ""
 
-aix:
-	$(MAKE) target=AIX \
-		CC=cc CXX=$(CC) \
-		CFLAGS='-O2' \
-		CXFLAGS='' \
-		opt='$(opt)' \
-		crafty-make
-
-darwin:
-	$(MAKE) target=FreeBSD \
+quick:
+	$(MAKE) target=UNIX \
 		CC=gcc CXX=g++ \
-		CFLAGS='-Wall -pipe -O3' \
-		CXFLAGS='-Wall -pipe -O3' \
-		LDFLAGS=$(LDFLAGS) \
-		LIBS='-lstdc++' \
-		opt='$(opt)' \
+		opt='-DTEST -DTRACE -DINLINEASM -DCPUS=8' \
+		CFLAGS='-Wall -O3 -pipe -pthread' \
+		CXFLAGS='-Wall -pipe -O3 -pthread' \
+		LDFLAGS='$(LDFLAGS) -pthread -lstdc++' \
 		crafty-make
 
-darwinG5:
-	$(MAKE) target=LINUX \
+unix-gcc:
+	$(MAKE) target=UNIX \
 		CC=gcc CXX=g++ \
-		CFLAGS='-Wall -pipe -O3 -mcpu=G5 -mtune=G5 -fomit-frame-pointer -fast' \
-		CXFLAGS='-Wall -pipe -O3 -mcpu=G5 -mtune=G5 -fomit-frame-pointer -fast' \
-		LDFLAGS='$(LDFLAGS) -lstdc++' \
-		opt='$(opt) -DCPUS=4 -DPOWERPC' \
-		crafty-make
-	
-freebsd:
-	$(MAKE) target=FreeBSD \
-		CC=gcc CXX='$(CC)' \
-		CFLAGS='-fomit-frame-pointer -m486 -O3 -Wall' \
-		CXFLAGS='-fomit-frame-pointer -m486 -O3 -Wall' \
-		LDFLAGS=$(LDFLAGS) \
-		opt='$(opt) -DINLINE32' \
+		opt='-DTEST -DINLINEASM -DCPUS=8' \
+		CFLAGS='-Wall -pipe -O3 -fprofile-use -fprofile-correction -pthread' \
+		CXFLAGS='-Wall -pipe -O3 -fprofile-use -fprofile-correction -pthread' \
+		LDFLAGS='$(LDFLAGS) -fprofile-use -pthread -lstdc++' \
 		crafty-make
 
-freebsd-pgcc:
-	$(MAKE) target=FreeBSD \
-		CC=gcc CXX='$(CC)' \
-		CFLAGS='-pipe -mpentium -O -Wall' \
-		CXFLAGS='' \
-		LDFLAGS=$(LDFLAGS) \
-		opt='$(opt) -DINLINE32' \
-		crafty-make
-
-hpux:
-	$(MAKE) target=HP \
-		CC=cc CXX='$(CC)' \
-		CFLAGS='+ESlit -Ae +w1' \
-		CXFLAGS='' \
-		LDFLAGS='$(LDFLAGS) +O3 +Onolimit' \
-		crafty-make
-
-linux-amd64-profile:
-	$(MAKE) target=LINUX \
+unix-gcc-profile:
+	$(MAKE) target=UNIX \
 		CC=gcc CXX=g++ \
-                CFLAGS='-Wall -pipe -fprofile-arcs -fomit-frame-pointer -O3 -march=k8' \
-		CXFLAGS='' \
-		LDFLAGS='$(LDFLAGS) -lpthread -lnuma -fprofile-arcs -lstdc++' \
-		opt='$(opt) -DINLINE64 -DCPUS=8 -DNUMA -DLIBNUMA' \
+		opt='-DTEST -DINLINEASM -DCPUS=8' \
+		CFLAGS='-Wall -pipe -O3 -fprofile-arcs -pthread' \
+		CXFLAGS='-Wall -pipe -O3 -fprofile-arcs -pthread' \
+		LDFLAGS='$(LDFLAGS) -fprofile-arcs -pthread -lstdc++ ' \
 		crafty-make
 
-linux-amd64:
-	$(MAKE) target=LINUX \
-		CC=gcc CXX=g++ \
-                CFLAGS='-Wall -pipe -fbranch-probabilities -fomit-frame-pointer -O3 -march=k8' \
-		CXFLAGS='' \
-		LDFLAGS='$(LDFLAGS) -lpthread -lnuma -lstdc++' \
-		opt='$(opt) -DINLINE64 -DCPUS=8 -DNUMA -DLIBNUMA' \
-		crafty-make
-
-linux:
-	$(MAKE) target=LINUX \
-		CC=gcc CXX=g++ \
-		CFLAGS='$(CFLAGS) -g -Wall -pipe -O3 \
-			-fno-gcse -mpreferred-stack-boundary=8' \
-		CXFLAGS=$(CFLAGS) \
-		LDFLAGS='$(LDFLAGS) -g -lpthread -lstdc++' \
-		opt='$(opt) -DDEBUG -DTRACE -DINLINE64 -DCPUS=8' \
-		crafty-make
-
-linux-profile:
-	$(MAKE) target=LINUX \
-		CC=gcc CXX=g++ \
-		CFLAGS='-Wall -pipe -O3 -fprofile-arcs' \
-		CXFLAGS='' \
-		LDFLAGS='$(LDFLAGS) -fprofile-arcs -lstdc++ ' \
-		opt='$(opt) -DINLINE32 -DCPUS=2' \
-		crafty-make
-
-debug:
-	$(MAKE) target=LINUX \
-		CC=gcc CXX=gcc \
-		CFLAGS='-O2 -w -g' \
-		CXFLAGS='-O2 -w -g' \
-		LDFLAGS='$(LDFLAGS) -g -lpthread -lstdc++' \
-		opt='$(opt) -DINLINE64 -DCPUS=2' \
-		crafty-make
-
-linux-64:
-	$(MAKE) target=LINUX \
+unix-icc:
+	$(MAKE) target=UNIX \
 		CC=icc CXX=icc \
-		CFLAGS='-w -xP -O2 -fno-alias -prof-use -prof_dir ./profdir' \
-		CXFLAGS='-w -xP -O2 -prof-use -prof-dir ./profdir' \
-		LDFLAGS='$(LDFLAGS) -lpthread -lstdc++' \
-		opt='$(opt) -DTRACE -DINLINE64 -DCPUS=2' \
+		opt='-DTEST -DINLINEASM -DCPUS=8' \
+		CFLAGS='-Wall -w -O2 -prof_use -prof_dir ./prof -fno-alias -pthread' \
+		CXFLAGS='-Wall -w -O2 -prof_use -prof_dir ./prof -pthread' \
+		LDFLAGS='$(LDFLAGS) -pthread -lstdc++' \
 		crafty-make
 
-linux-64-profile:
-	$(MAKE) target=LINUX \
+unix-icc-profile:
+	$(MAKE) target=UNIX \
 		CC=icc CXX=icc \
-		CFLAGS='-w -xP -O2 -fno-alias -prof-gen -prof-dir ./profdir' \
-		CXFLAGS='-w -xP -O2 -ip -prof-gen -prof-dir ./profdir' \
-		LDFLAGS='$(LDFLAGS) -lpthread -lstdc++ ' \
-		opt='$(opt) -DINLINE64 -DCPUS=2' \
-		crafty-make
-
-linux-icc:
-	$(MAKE) target=LINUX \
-		CC=icc CXX=icc \
-		CFLAGS='-w -O2 -prof_use -prof_dir ./profdir -fno-alias' \
-		CXFLAGS='-w -O2 -prof_use -prof_dir ./profdir' \
-		LDFLAGS='$(LDFLAGS) -lstdc++' \
-		opt='$(opt) -DINLINE32 -DCPUS=1' \
-		crafty-make
-
-linux-icc-profile:
-	$(MAKE) target=LINUX \
-		CC=icc CXX=icc \
-		CFLAGS='-w -O2 -prof_genx -prof_dir ./profdir -fno-alias' \
-		CXFLAGS='-w -O2 -prof_genx -prof_dir ./profdir' \
-		LDFLAGS='$(LDFLAGS) -lstdc++ ' \
-		opt='$(opt) -DINLINE32 -DCPUS=2' \
-		crafty-make
-
-netbsd:
-	$(MAKE) target=NetBSD \
-		CC=gcc CXX=g++ \
-		CFLAGS='-O3 -Wall -fomit-frame-pointer' \
-		CXFLAGS='-O3 -Wall -fomit-frame-pointer' \
-		LDFLAGS=$(LDFLAGS) \
-		opt='$(opt) -DINLINE32' \
-		crafty-make
-
-solaris:
-	$(MAKE) target=SUN \
-		CC=cc CXX='$(CC)' \
-		CFLAGS='-fast -xO5 -xunroll=20' \
-		CXFLAGS='-fast -xO5 -xunroll=20' \
-		LDFLAGS='$(LDFLAGS)' \
-		opt='$(opt)' \
-		crafty-make
-
-solaris-gcc:
-	$(MAKE) target=SUN \
-		CC=gcc CXX=g++ \
-		CFLAGS='-Wall -pipe -O2 -fforce-mem -fomit-frame-pointer' \
-		CXFLAGS='-Wall -pipe -O2 -fforce-mem -fomit-frame-pointer' \
-		LDFLAGS='$(LDFLAGS) -lstdc++' \
-		opt='$(opt)' \
+		opt='-DTEST -DINLINEASM -DCPUS=8' \
+		CFLAGS='-Wall -w -O2 -prof_genx -prof_dir ./prof -fno-alias -pthread' \
+		CXFLAGS='-Wall -w -O2 -prof_genx -prof_dir ./prof -pthread' \
+		LDFLAGS='$(LDFLAGS) -pthread -lstdc++ ' \
 		crafty-make
 
 profile:
-	@rm -rf profdir
-	@rm -rf position.bin
-	@mkdir profdir
+	@rm -rf prof
+	@rm -rf *.gcda
+	@mkdir prof
 	@touch *.c *.cpp *.h
-	$(MAKE) linux-64-profile
+	$(MAKE) unix-gcc-profile
 	@echo "#!/bin/csh" > runprof
 	@echo "./crafty <<EOF" >>runprof
 	@echo "st=10" >>runprof
+	@echo "mt=0" >>runprof
 	@echo "ponder=off" >>runprof
 	@echo "display nomoves" >>runprof
 	@echo "setboard rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq" >>runprof
@@ -283,6 +179,7 @@ profile:
 	@echo "move" >>runprof
 	@echo "setboard /k/3p/p2P1p/P2P1P///K/ w" >>runprof
 	@echo "move" >>runprof
+	@echo "egtb" >>runprof
 	@echo "setboard /k/rnn////5RBB/K/ w" >>runprof
 	@echo "move" >>runprof
 	@echo "mt=0" >>runprof
@@ -297,14 +194,14 @@ profile:
 	@echo "mt=2" >>runprof
 	@echo "setboard 2r2rk1/1bqnbpp1/1p1ppn1p/pP6/N1P1P3/P2B1N1P/1B2QPP1/R2R2K1 b" >>runprof
 	@echo "move" >>runprof
-	@echo "mt=0" >>runprof
+	@echo "mt=2" >>runprof
 	@echo "quit" >>runprof
 	@echo "EOF" >>runprof
 	@chmod +x runprof
 	@./runprof
 	@rm runprof
 	@touch *.c *.cpp *.h
-	$(MAKE) linux-64
+	$(MAKE) unix-gcc
 
 #
 #  one of the two following definitions for "objects" should be used.  The
@@ -316,11 +213,11 @@ profile:
 #
 
 #objects = search.o thread.o repeat.o next.o killer.o quiesce.o evaluate.o     \
-       movgen.o make.o unmake.o hash.o  attacks.o swap.o boolean.o utility.o  \
-       killer.o probe.o book.o data.o drawn.o edit.o epd.o epdglue.o init.o   \
-       input.o interrupt.o iterate.o main.o option.o output.o ponder.o        \
-       resign.o root.o learn.o setboard.o test.o time.o validate.o annotate.o \
-       analyze.o evtest.o bench.o
+       movgen.o make.o unmake.o hash.o  attacks.o swap.o boolean.o  utility.o  \
+       probe.o book.o data.o drawn.o edit.o epd.o epdglue.o init.o input.o     \
+       interrupt.o iterate.o main.o option.o output.o ponder.o resign.o root.o \
+       learn.o setboard.o test.o time.o validate.o annotate.o analyze.o        \
+       evtest.o bench.o
 objects = crafty.o
 
 # Do not change anything below this line!
@@ -330,12 +227,12 @@ opts = $(opt) -D$(target)
 includes = data.h chess.h
 
 crafty-make:
-	@$(MAKE) opt='$(opt)' CXFLAGS='$(CXFLAGS)' CFLAGS='$(CFLAGS)' crafty
+	@$(MAKE) -j opt='$(opt)' CXFLAGS='$(CXFLAGS)' CFLAGS='$(CFLAGS)' crafty
 
 crafty.o: *.c *.h
 
 crafty:	$(objects) egtb.o
-	$(CC) -o crafty $(objects) egtb.o $(LDFLAGS) -lm  $(LIBS)
+	$(CC) $(LDFLAGS) -o crafty $(objects) egtb.o -lm  $(LIBS)
 
 egtb.o: egtb.cpp
 	$(CXX) -c $(CXFLAGS) $(opts) egtb.cpp

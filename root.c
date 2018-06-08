@@ -16,18 +16,23 @@ void RootMoveList(int wtm) {
   int *mvp, *lastm, rmoves[256], sort_value[256];
   int i, done, temp, value;
   TREE *const tree = block[0];
-  int tb_value;
-  int mating_via_tb = 0;
+#if !defined(NOEGTB)
+  int mating_via_tb = 0, tb_value;
+#endif
 
 /*
  ************************************************************
  *                                                          *
- *   If the position at the root is a draw, based on EGTB   *
- *   results, we are going to behave differently.  We will  *
- *   extract the root moves that are draws, and toss the    *
- *   losers out.  Then, we will do a normal search on the   *
- *   moves that draw to try and chose the drawing move that *
- *   gives our opponent the best chance to make an error.   *
+ *  If the position at the root is a draw, based on EGTB    *
+ *  results, we are going to behave differently.  We will   *
+ *  extract the root moves that are draws, and toss the     *
+ *  losers out.  Then, we will do a normal search on the    *
+ *  moves that draw to try and chose the drawing move that  *
+ *  gives our opponent the best chance to make an error.    *
+ *  This search will be done sans EGTB probes since we al-  *
+ *  ready know this is a draw at the root.  We simply find  *
+ *  the best move (based on search/eval) that preserves the *
+ *  draw.                                                   *
  *                                                          *
  ************************************************************
  */
@@ -39,15 +44,15 @@ void RootMoveList(int wtm) {
     if (swindle_mode && (tb_value == DrawScore(wtm)))
       if ((wtm && Material > 0) || (!wtm && Material < 0))
         EGTB_draw = 1;
-    if (tb_value > MATE - 300)
+    if (tb_value > 32000)
       mating_via_tb = -tb_value - 1;
   }
 #endif
 /*
  ************************************************************
  *                                                          *
- *   First, use GenerateMoves() to generate the set of      *
- *   legal moves from the root position.                    *
+ *  First, use GenerateMoves() to generate the set of legal *
+ *  moves from the root position.                           *
  *                                                          *
  ************************************************************
  */
@@ -57,8 +62,14 @@ void RootMoveList(int wtm) {
 /*
  ************************************************************
  *                                                          *
- *   Now make each move and use Evaluate() to compute the   *
- *   positional evaluation.                                 *
+ *  Now make each move and use Quiesce() to analyze the     *
+ *  potential captures and return a minimax score.          *
+ *                                                          *
+ *  Special case:  if this is an egtb draw at the root,     *
+ *  then this is where we cull the non-drawing moves by     *
+ *  doing an EGTB probe for each move.  Any moves that lose *
+ *  are left with a very bad sorting score to move them to  *
+ *  the end of the root move list.                          *
  *                                                          *
  ************************************************************
  */
@@ -97,9 +108,9 @@ void RootMoveList(int wtm) {
 /*
  ************************************************************
  *                                                          *
- *   Add in a bonus if this move is part of the previous    *
- *   principal variation.  It was good in the search, we    *
- *   should try it first now.                               *
+ *  Add in a bonus if this move is part of the previous     *
+ *  principal variation.  It was good in the search, we     *
+ *  should try it first now.                                *
  *                                                          *
  ************************************************************
  */
@@ -112,8 +123,8 @@ void RootMoveList(int wtm) {
 /*
  ************************************************************
  *                                                          *
- *   Fudge the score for promotions so that promotion to a  *
- *   queen is tried first.                                  *
+ *  Fudge the score for promotions so that promotion to a   *
+ *  queen is tried first.                                   *
  *                                                          *
  ************************************************************
  */
@@ -126,8 +137,8 @@ void RootMoveList(int wtm) {
 /*
  ************************************************************
  *                                                          *
- *   Sort the moves into order based on the scores returned *
- *   by Quiesce() which includes evaluation + captures.     *
+ *  Sort the moves into order based on the scores returned  *
+ *  by Quiesce() which includes evaluation + captures.      *
  *                                                          *
  ************************************************************
  */
@@ -148,8 +159,11 @@ void RootMoveList(int wtm) {
 /*
  ************************************************************
  *                                                          *
- *   Trim the move list to eliminate those moves that hang  *
- *   the king and are illegal.                              *
+ *  Trim the move list to eliminate those moves that hang   *
+ *  the king and are illegal.  This also culls any non-     *
+ *  drawing moves when we are in the swindle-mode situation *
+ *  and want to do a normal search but only on moves that   *
+ *  preserve the draw.                                      *
  *                                                          *
  ************************************************************
  */
@@ -161,8 +175,8 @@ void RootMoveList(int wtm) {
 /*
  ************************************************************
  *                                                          *
- *   Debugging output to dump root move list and the stuff  *
- *   used to sort them, for testing and debugging.          *
+ *  Debugging output to dump root move list and the stuff   *
+ *  used to sort them, for testing and debugging.           *
  *                                                          *
  ************************************************************
  */
@@ -178,8 +192,16 @@ void RootMoveList(int wtm) {
 /*
  ************************************************************
  *                                                          *
- *   check to see if we are in the special mode where moves *
- *   need to be searched because of missing EGTBs.          *
+ *  Check to see if we are in the special mode where moves  *
+ *  need to be searched because of missing EGTBs.  This is  *
+ *  sorto fo a hack that handles the case where we have an  *
+ *  EGTB file like KRPKR, but we don't have the files for   *
+ *  promotions for the pawn.  The program would avoid any   *
+ *  pawn promotion since it likely could not see the mate,  *
+ *  because the EGTB position does have a mate score.  In   *
+ *  this case, we turn EGTBs off for this search so that we *
+ *  can see a reason to promote the pawn and make progress  *
+ *  rather than just sitting on our pawn advantage.         *
  *                                                          *
  ************************************************************
  */
@@ -206,14 +228,14 @@ void RootMoveList(int wtm) {
 /*
  ************************************************************
  *                                                          *
- *   Copy the root moves into the root_move structure array *
- *   for use by NextRootMove().                             *
+ *  Copy the root moves into the root_move structure array  *
+ *  for use by NextRootMove().                              *
  *                                                          *
  ************************************************************
  */
   for (i = 0; i < n_root_moves; i++) {
     root_moves[i].move = rmoves[i];
-    root_moves[i].status = 8;
+    root_moves[i].status = 4;
     root_moves[i].bm_age = 0;
   }
   root_moves[0].status = 0;

@@ -5,23 +5,23 @@ adaptive NPS a b c d........... enables adaptive hash mode.
 alarm on|off................... turns audible alarm on/off.
 analyze........................ analyze a game in progress.
 annotate....................... annotate game
+batch on|off................... on disables async I/O for batch file usage
 bench.......................... runs performance benchmark.
 black.......................... sets black to move.
 book........................... controls book
 cache=n........................ sets tablebase cache size.
 clock.......................... displays/adjusts chess clock times.
 display........................ displays chess board.
-display [name]................. sets display options
+display [n].................... sets display options
 draw accept|decline............ decline always declines.
 draw offer|nooffer............. nooffer never offers a draw.
-drawscore n.................... sets default draw score.
 echo........................... echos output to display.
 edit........................... edit board position.
 egtb........................... enables endgame database probes.
 epdhelp........................ info about EPD facility.
 end............................ terminates program.
 evaluation..................... adjust evaluation terms.
-exit........................... restores STDIN to key.
+exit........................... restores STDIN to keyboard.
 force move..................... forces specific move.
 hash n......................... sets transposition table size.
                                  (n bytes, nK bytes or nM bytes).
@@ -29,13 +29,16 @@ hashp n........................ sets pawn hash table size.
 history........................ display game moves.
 import filename................ imports learning data (.lrn files).
 info........................... displays program settings.
-input filename [title]......... sets STDIN to filename, and positions 
-                                 the file at the line containing 'title'.
+input filename................. sets STDIN to filename, reverts back on exit.
 kibitz n....................... sets kibitz mode n on ICS.
-learn n........................ enables/disables learning.
+learn n|clear.................. enables/disables learning (100 = default).
+                                 clear clears all learned information
 level moves time inc........... sets ICS time controls.
+linelength n................... sets line length to n.  A really large value
+                                will produce 1 line PVs, making parsing easier
 list........................... update/display GM/IM/computer lists.
-load file [title].............. load a position from problem file.
+load file title................ load a position from problem file, starting
+                                with line containing title, ending on exit.
 log on|off..................... turn logging on/off.
 mode normal|tournament......... toggles tournament mode.
 move........................... initiates search (same as go).
@@ -43,16 +46,21 @@ name........................... sets opponent's name.
 new............................ initialize and start new game.
 noise n........................ no status until n nodes searched.
 operator seconds............... sets operator time per move.
+output long|short.............. sets move display format to long or SAN
 perf........................... times the move generator/make_move.
 perft.......................... tests the move generator/make_move.
 personality save|load fn....... saves/loads a personality file.
 pgn option value............... set PGN header information.
+phash n........................ sets path hash table size.
 ponder on|off.................. toggle pondering off/on.
 ponder move.................... ponder "move" as predicted move.
+rating a b..................... sets Crafty rating to a, opponent to b
+                                (affects draw score/contempt)
 read [filename]................ read moves in (from [filename] if given.)
 reada [filename]............... read moves in (from [filename]]) and append.
                                  (appends to current game history.)
 reset n........................ reset game to move n.
+resign......................... ends current game recording Crafty as winner.
 resign m n..................... set resign threshold to m pawns.
                                  n = # of moves before resigning.
 savegame [filename]............ saves game in PGN format (to filename).
@@ -64,11 +72,13 @@ selective min max.............. set null move depths.
 setboard FEN................... sets board position to FEN position.
 settc.......................... set time controls.
 show book...................... toggle book statistics.
+skill n........................ set skill level to n
 smpgroup....................... sets max threads allowed at one node.
 smpmin......................... sets min remaining depth to split search.
 smpmt.......................... sets number of thread (CPUS) to use.
 smpnice........................ sets kill or keep threads.
 smproot........................ sets whether or not to split at root.
+smpsn.......................... sets min nodes before a new thread can split
 sn n........................... sets absolute search node limit.
 speech on|off.................. enables (disables) audio output.
 st n........................... sets absolute search time.
@@ -242,103 +252,28 @@ yourself, that will work as well, but it is more prone to errors.
 
 
 <display>
-display changes    -> display variation when it changes.
-display everything -> display everything (lots of output).
-display extstats   -> display search extension statistics.
-display general    -> display general info messages.
-display hashstats  -> display search hashing statistics.
-display movenum    -> display move numbers in PV.
-display moves      -> display moves as they are searched.
-display nodes      -> display nodes for each move searched.
-display nothing    -> display nothing except for crafty's move.
-display ply1       -> display ply-1 move list/sorting info.
-display stats      -> display basic search statistics.
-display time       -> display time for moves.
-display variation  -> display variation at end of iteration.
+display changes   -> display variation when it changes.
+display extstats  -> display search extension statistics.
+display general   -> display general info messages.
+display hashstats -> display search hashing statistics.
+display movenum   -> display move numbers in PV.
+display moves     -> display moves as they are searched.
+display movelist  -> display move list after each iteration.
+display ply1      -> display ply-1 move list/sorting info.
+display stats     -> display basic search statistics.
+display time      -> display time for moves.
+display variation -> display variation at end of iteration.
 <end>
 
-<lists>
-list name +name -name ...
+<evaluation>
+evaluation item# value [value ... value]
 
-The lists are as follows:
-
-AK  Auto-Kibitz list.  If crafty plays any opponent named in this list
-while playing on a chess server, it will kibitz the usual analysis as
-the game is played.  Not advised for human opponents as they do not
-like the "noise".
-
-B  Blocker list.  If you notice a player repeatedly trying to block the
-position to get easy draws, put his name in this list.  Players in this
-list get special "anti-human" scoring turned up louder than usual to 
-combat this strategy.
-
-C  Computer list.  This is not needed on ICC as xboard/winboard both
-tell crafty it is playing a computer opponent.  However, if your GUI
-does not do this, you can put the name of the computer opponents you
-frequently play in this list and if the GUI sends the "name" command
-properly, crafty will figure out that it is playing a computer.
-
-GM/IM lists are obvious.  This identifies players that are strong 
-enough that Crafty should resign or offer draws sooner than normal,
-rather than hoping for a blunder in lost or drawn positions.
-
-SP  Special Player list.  Names in this list can be used to specify 
-a unique opening book (to replace books.bin, not book.bin) for this
-particular opponent, as well as specifying a personality file to use
-rather than the default crafty.cpf.  The format of this particular
-list is:
-
-list SP +name [book=filename] [personality=filename]
-
-<end>
-
-<personality>
-personality load|save filename
-
-perspath path-to-personality-directory
-
-Crafty "personality" files (.cpf files) contain information that 
-affects three components of Crafty.
-
-You can use the "selective" command to adjust the null-move R (min
-and max) values.  The default values are 2 and 3, and reducing them
-will reduce Crafty's playing strength to some fairly significant
-degree.
-
-You can use the "extension" command to adjust the search extension
-values.  Reducing these will "dumb down" the search and make crafty
-tactically (but not positionally) weaker.  They can be set all the
-way down to 0.00 if you choose.
-
-You can use the evaluation command to adjust some global evaluation
-weights (ie turn down total pawn scoring, or king safety, etc.) or
-you can use this command to adjust individual scoring values, from
-the value of pieces, to specific scoring terms for each piece such 
-as the value of a doubled pawn or whatever.
-
-Once you find settings you like, you can use "personality save 
-filename" to save all of the above settings in one file.  Later you
-can use "personality load filename" to restore those settings prior
-to playing a game.
-
-One final note is that you can save to the specific file "crafty.cpf"
-and your settings will become the _default_ each time you start
-Crafty, until you either remove the file, load another personality,
-or save a new default personality.
-
-You can have as many different personality files as you want, and to
-keep them from getting jumbled up, you can put them in a separate
-directory and add the "perspath" to your .craftyrc/crafty.rc file to
-point Crafty to the directory where the personality files belong.
-
-personality item# value [value ... value]
-
-The personality command allows you to change specific evaluation
+The evaluation command allows you to change specific evaluation
 numbers when you want.  The first thing you should do is type
-"personality list" to show all the possible values.  The format
+"evaluation list" to show all the possible values.  The format
 looks like this when displayed:
 
-White(1): personality list
+White(1): evaluation list
 ------------piece values--------------------
   1  pawn value                           100
   2  knight value                         300
@@ -362,7 +297,7 @@ White(1): personality list
  26  pawn weak (one pawn blocking)         12
  27  pawn weak (two pawns blocking)        20
 
-The first number is the personality term ID #.  To change the
+The first number is the evaluation term ID #.  To change the
 value of a pawn from the default 100 to 50, you would type
 the following command:
 
@@ -408,6 +343,101 @@ can become part of the "distributed" crafty personalities once this
 has been released.
 <end>
 
+<lists>
+list name +name -name ...
+
+The lists are as follows:
+
+AK  Auto-Kibitz list.  If crafty plays any opponent named in this list
+while playing on a chess server, it will kibitz the usual analysis as
+the game is played.  Not advised for human opponents as they do not
+like the "noise".
+
+B  Blocker list.  If you notice a player repeatedly trying to block the
+position to get easy draws, put his name in this list.  Players in this
+list get special "anti-human" scoring turned up louder than usual to 
+combat this strategy.
+
+C  Computer list.  This is not needed on ICC as xboard/winboard both
+tell crafty it is playing a computer opponent.  However, if your GUI
+does not do this, you can put the name of the computer opponents you
+frequently play in this list and if the GUI sends the "name" command
+properly, crafty will figure out that it is playing a computer.
+
+GM/IM lists are obvious.  This identifies players that are strong 
+enough that Crafty should resign or offer draws sooner than normal,
+rather than hoping for a blunder in lost or drawn positions.
+
+SP  Special Player list.  Names in this list can be used to specify 
+a unique opening book (to replace books.bin, not book.bin) for this
+particular opponent, as well as specifying a personality file to use
+rather than the default crafty.cpf.  The format of this particular
+list is:
+
+list SP +name [book=filename] [personality=filename]
+
+<end>
+
+<mode>
+
+This command influences how the book is used.
+
+mode normal is the default.
+
+mode tournament tells crafty to behave differently while in book.
+Specifically, when it is pondering, it generates all of the opponent
+moves and looks them up in the opening book.  If it finds a book
+reply, it eliminates that opponent move from the list.  It then does
+a 1/10th normal time search for the opponent, but ONLY considers those
+moves it did not have a book reply for.  It then takes the result of
+that search and ponders that move, so that hopefully if the opponent
+plays a move not in our book, we will already be thinking.
+
+The more useful place, however, is where we play a book move that takes
+the opponent out of book, and he spends a significant amount of time
+thinking and plays a pretty obvious move.  Since we ponder the best move
+of his that we don't have a book move for, we have a good chance of 
+pondering the right move and saving time on our clock.
+<end>
+
+<personality>
+personality load|save filename
+
+perspath path-to-personality-directory
+
+Crafty "personality" files (.cpf files) contain information that 
+affects three components of Crafty.
+
+You can use the "selective" command to adjust the null-move R (min
+and max) values.  The default values are 2 and 3, and reducing them
+will reduce Crafty's playing strength to some fairly significant
+degree.
+
+You can use the "extension" command to adjust the search extension
+values.  Reducing these will "dumb down" the search and make crafty
+tactically (but not positionally) weaker.  They can be set all the
+way down to 0.00 if you choose.
+
+You can use the evaluation command to adjust some global evaluation
+weights (ie turn down total pawn scoring, or king safety, etc.) or
+you can use this command to adjust individual scoring values, from
+the value of pieces, to specific scoring terms for each piece such 
+as the value of a doubled pawn or whatever.
+
+Once you find settings you like, you can use "personality save 
+filename" to save all of the above settings in one file.  Later you
+can use "personality load filename" to restore those settings prior
+to playing a game.
+
+One final note is that you can save to the specific file "crafty.cpf"
+and your settings will become the _default_ each time you start
+Crafty, until you either remove the file, load another personality,
+or save a new default personality.
+
+You can have as many different personality files as you want, and to
+keep them from getting jumbled up, you can put them in a separate
+directory and add the "perspath" to your .craftyrc/crafty.rc file to
+point Crafty to the directory where the personality files belong.
 <end>
 
 <settc>

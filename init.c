@@ -1,14 +1,11 @@
 #include <stddef.h>
 #include "chess.h"
 #include "data.h"
-#if defined(UNIX) || defined(AMIGA)
+#if defined(UNIX)
 #  include <unistd.h>
 #  include <sys/types.h>
-#endif
-#if defined(UNIX)
 #  include <sys/stat.h>
-#endif
-#if defined(NT_i386)
+#else
 #  include <fcntl.h>    /* needed for definition of "_O_BINARY" */
 #endif
 /*
@@ -35,7 +32,7 @@ void Initialize() {
   InitializePawnMasks();
   InitializeChessBoard(tree);
   InitializeKillers();
-#if defined(NT_i386)
+#if !defined(UNIX)
   _fmode = _O_BINARY;   /* set file mode binary to avoid text translation */
 #endif
 #if defined(EPD)
@@ -110,19 +107,31 @@ void Initialize() {
 /*
  ************************************************************
  *                                                          *
- *   Now for some NUMA stuff.  We need to allocate the      *
- *   local memory for each processor, but we can't touch it *
- *   here or it will be faulted in and be allocated on the  *
- *   curret CPU, which is not where it should be located    *
- *   for optimal NUMA performance.  ThreadInit() will do    *
- *   the actual initialization after each new process is    *
- *   created, so that the pages of local memory will be     *
- *   faulted in on the correct processor and use local      *
- *   node memory for optimal performance.                   *
+ *  Now for some NUMA stuff.  We need to allocate the local *
+ *  memory for each processor, but we can't touch it here   *
+ *  or it will be faulted in and be allocated on the        *
+ *  current CPU, which is not where it should be located    *
+ *  for optimal NUMA performance.  ThreadInit() will do the *
+ *  actual initialization after each new process is created *
+ *  so that the pages of local memory will be faulted in on *
+ *  the correct processor and use local node memory for     *
+ *  optimal performance.                                    *
+ *                                                          *
+ *  If we are using CPU affinity, we need to set this up    *
+ *  for thread 0 BEFORE we initialize the split blocks so   *
+ *  that they will fault in on the correct node.            *
  *                                                          *
  ************************************************************
  */
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(AFFINITY)
+  cpu_set_t cpuset;
+  pthread_t current_thread = pthread_self();
+
+  CPU_ZERO(&cpuset);
+  CPU_SET(0, &cpuset);
+  pthread_setaffinity_np(current_thread, sizeof(cpu_set_t), &cpuset);
+#endif
+#if !defined(UNIX)
   ThreadMalloc((int) 0);
 #else
   for (i = 0; i < CPUS; i++) {
@@ -131,11 +140,9 @@ void Initialize() {
           (size_t) sizeof(TREE));
     }
   }
-  for (i = 0; i < MAX_BLOCKS_PER_CPU; i++) {
-    memset((void *) block[i + 1], 0, sizeof(TREE));
-    block[i + 1]->used = 0;
-    block[i + 1]->parent = NULL;
-    LockInit(block[i + 1]->lock);
+  for (i = 1; i < MAX_BLOCKS_PER_CPU; i++) {
+    memset((void *) block[i], 0, sizeof(TREE));
+    LockInit(block[i]->lock);
   }
 #endif
   initialized_threads++;
@@ -167,8 +174,8 @@ void InitializeAttackBoards(void) {
     if (i < 56)
       for (j = 2; j < 4; j++) {
         sq = i + bishopsq[j];
-        if ((Abs(Rank(sq) - Rank(i)) == 1) && (Abs(File(sq) - File(i)) == 1)
-            && (sq < 64) && (sq > -1))
+        if (Abs(Rank(sq) - Rank(i)) == 1 && Abs(File(sq) - File(i)) == 1 &&
+            sq < 64 && sq > -1)
           pawn_attacks[white][i] =
               pawn_attacks[white][i] | (uint64_t) 1 << sq;
       }
@@ -176,8 +183,8 @@ void InitializeAttackBoards(void) {
     if (i > 7)
       for (j = 0; j < 2; j++) {
         sq = i + bishopsq[j];
-        if ((Abs(Rank(sq) - Rank(i)) == 1) && (Abs(File(sq) - File(i)) == 1)
-            && (sq < 64) && (sq > -1))
+        if (Abs(Rank(sq) - Rank(i)) == 1 && Abs(File(sq) - File(i)) == 1 &&
+            sq < 64 && sq > -1)
           pawn_attacks[black][i] =
               pawn_attacks[black][i] | (uint64_t) 1 << sq;
       }
@@ -191,11 +198,11 @@ void InitializeAttackBoards(void) {
     ffile = File(i);
     for (j = 0; j < 8; j++) {
       sq = i + knightsq[j];
-      if ((sq < 0) || (sq > 63))
+      if (sq < 0 || sq > 63)
         continue;
       trank = Rank(sq);
       tfile = File(sq);
-      if ((Abs(frank - trank) > 2) || (Abs(ffile - tfile) > 2))
+      if (Abs(frank - trank) > 2 || Abs(ffile - tfile) > 2)
         continue;
       knight_attacks[i] = knight_attacks[i] | (uint64_t) 1 << sq;
     }
@@ -214,8 +221,8 @@ void InitializeAttackBoards(void) {
       sq = i;
       lastsq = sq;
       sq = sq + bishopsq[j];
-      while ((Abs(Rank(sq) - Rank(lastsq)) == 1)
-          && (Abs(File(sq) - File(lastsq)) == 1) && (sq < 64) && (sq > -1)) {
+      while (Abs(Rank(sq) - Rank(lastsq)) == 1 &&
+          Abs(File(sq) - File(lastsq)) == 1 && sq < 64 && sq > -1) {
         if (bishopsq[j] == 7)
           plus7dir[i] = plus7dir[i] | (uint64_t) 1 << sq;
         else if (bishopsq[j] == 9)
@@ -245,11 +252,10 @@ void InitializeAttackBoards(void) {
       sq = i;
       lastsq = sq;
       sq = sq + rooksq[j];
-      while ((((Abs(Rank(sq) - Rank(lastsq)) == 1)
-                  && (Abs(File(sq) - File(lastsq)) == 0))
-              || ((Abs(Rank(sq) - Rank(lastsq)) == 0)
-                  && (Abs(File(sq) - File(lastsq)) == 1))) && (sq < 64)
-          && (sq > -1)) {
+      while (((Abs(Rank(sq) - Rank(lastsq)) == 1 &&
+                  Abs(File(sq) - File(lastsq)) == 0)
+              || (Abs(Rank(sq) - Rank(lastsq)) == 0 &&
+                  Abs(File(sq) - File(lastsq)) == 1)) && sq < 64 && sq > -1) {
         if (rooksq[j] == 1)
           plus1dir[i] = plus1dir[i] | (uint64_t) 1 << sq;
         else if (rooksq[j] == 8)
@@ -395,22 +401,21 @@ void InitializeMagic(void) {
               0x07EDD5E59A4E28C2ull) >> 58];
       temp ^= abit;
     }
-    for (temp = 0; temp < (((uint64_t) (1)) << numsquares); temp++) {
+    for (temp = 0; temp < (uint64_t) 1 << numsquares; temp++) {
       uint64_t moves;
       int t = -lower_b;
       uint64_t tempoccupied =
           InitializeMagicOccupied(squares, numsquares, temp);
       moves = InitializeMagicBishop(i, tempoccupied);
       *(magic_bishop_indices[i] +
-          (((tempoccupied) * magic_bishop[i]) >> magic_bishop_shift[i])) =
-          moves;
+          (tempoccupied * magic_bishop[i] >> magic_bishop_shift[i])) = moves;
       moves |= SetMask(i);
       for (j = 0; j < 4; j++)
         t += PopCnt(moves & mobility_mask_b[j]) * mobility_score_b[j];
       if (t < 0)
         t *= 2;
       *(magic_bishop_mobility_indices[i] +
-          (((tempoccupied) * magic_bishop[i]) >> magic_bishop_shift[i])) = t;
+          (tempoccupied * magic_bishop[i] >> magic_bishop_shift[i])) = t;
     }
   }
 /*
@@ -430,18 +435,18 @@ void InitializeMagic(void) {
               0x07EDD5E59A4E28C2ull) >> 58];
       temp ^= abit;
     }
-    for (temp = 0; temp < (((uint64_t) (1)) << numsquares); temp++) {
+    for (temp = 0; temp < (uint64_t) 1 << numsquares; temp++) {
       uint64_t tempoccupied =
           InitializeMagicOccupied(squares, numsquares, temp);
       uint64_t moves = InitializeMagicRook(i, tempoccupied);
       *(magic_rook_indices[i] +
-          (((tempoccupied) * magic_rook[i]) >> magic_rook_shift[i])) = moves;
+          (tempoccupied * magic_rook[i] >> magic_rook_shift[i])) = moves;
       moves |= SetMask(i);
       t = -1;
       for (j = 0; j < 4; j++)
         t += PopCnt(moves & mobility_mask_r[j]) * mobility_score_r[j];
       *(magic_rook_mobility_indices[i] +
-          (((tempoccupied) * magic_rook[i]) >> magic_rook_shift[i])) =
+          (tempoccupied * magic_rook[i] >> magic_rook_shift[i])) =
           mob_curve_r[t];
 
     }
@@ -460,9 +465,9 @@ uint64_t InitializeMagicBishop(int square, uint64_t occupied) {
   uint64_t ret = 0;
   uint64_t abit;
   uint64_t abit2;
-  uint64_t rowbits = (((uint64_t) 0xFF) << (8 * (square / 8)));
+  uint64_t rowbits = (uint64_t) 0xFF << 8 * (square / 8);
 
-  abit = (((uint64_t) (1)) << square);
+  abit = (uint64_t) 1 << square;
   abit2 = abit;
   do {
     abit <<= 8 - 1;
@@ -472,7 +477,7 @@ uint64_t InitializeMagicBishop(int square, uint64_t occupied) {
     else
       break;
   } while (abit && !(abit & occupied));
-  abit = (((uint64_t) (1)) << square);
+  abit = (uint64_t) 1 << square;
   abit2 = abit;
   do {
     abit <<= 8 + 1;
@@ -482,7 +487,7 @@ uint64_t InitializeMagicBishop(int square, uint64_t occupied) {
     else
       break;
   } while (abit && !(abit & occupied));
-  abit = (((uint64_t) (1)) << square);
+  abit = (uint64_t) 1 << square;
   abit2 = abit;
   do {
     abit >>= 8 - 1;
@@ -492,7 +497,7 @@ uint64_t InitializeMagicBishop(int square, uint64_t occupied) {
     else
       break;
   } while (abit && !(abit & occupied));
-  abit = (((uint64_t) (1)) << square);
+  abit = (uint64_t) 1 << square;
   abit2 = abit;
   do {
     abit >>= 8 + 1;
@@ -502,7 +507,7 @@ uint64_t InitializeMagicBishop(int square, uint64_t occupied) {
     else
       break;
   } while (abit && !(abit & occupied));
-  return (ret);
+  return ret;
 }
 
 /*
@@ -519,9 +524,9 @@ uint64_t InitializeMagicOccupied(int *squares, int numSquares,
   uint64_t ret = 0;
 
   for (i = 0; i < numSquares; i++)
-    if (linoccupied & (((uint64_t) (1)) << i))
-      ret |= (((uint64_t) (1)) << squares[i]);
-  return (ret);
+    if (linoccupied & (uint64_t) 1 << i)
+      ret |= (uint64_t) 1 << squares[i];
+  return ret;
 }
 
 /*
@@ -535,19 +540,19 @@ uint64_t InitializeMagicOccupied(int *squares, int numSquares,
 uint64_t InitializeMagicRook(int square, uint64_t occupied) {
   uint64_t ret = 0;
   uint64_t abit;
-  uint64_t rowbits = (((uint64_t) 0xFF) << (8 * (square / 8)));
+  uint64_t rowbits = (uint64_t) 0xFF << 8 * (square / 8);
 
-  abit = (((uint64_t) (1)) << square);
+  abit = (uint64_t) 1 << square;
   do {
     abit <<= 8;
     ret |= abit;
   } while (abit && !(abit & occupied));
-  abit = (((uint64_t) (1)) << square);
+  abit = (uint64_t) 1 << square;
   do {
     abit >>= 8;
     ret |= abit;
   } while (abit && !(abit & occupied));
-  abit = (((uint64_t) (1)) << square);
+  abit = (uint64_t) 1 << square;
   do {
     abit <<= 1;
     if (abit & rowbits)
@@ -555,7 +560,7 @@ uint64_t InitializeMagicRook(int square, uint64_t occupied) {
     else
       break;
   } while (!(abit & occupied));
-  abit = (((uint64_t) (1)) << square);
+  abit = (uint64_t) 1 << square;
   do {
     abit >>= 1;
     if (abit & rowbits)
@@ -563,7 +568,7 @@ uint64_t InitializeMagicRook(int square, uint64_t occupied) {
     else
       break;
   } while (!(abit & occupied));
-  return (ret);
+  return ret;
 }
 
 /*
@@ -586,9 +591,6 @@ void InitializeChessBoard(TREE * tree) {
   } else {
     for (i = 0; i < 64; i++)
       PcOnSq(i) = empty;
-    Rule50Moves(0) = 0;
-    Repetition(black) = 0;
-    Repetition(white) = 0;
     game_wtm = 1;
 /*
  place pawns
@@ -634,10 +636,6 @@ void InitializeChessBoard(TREE * tree) {
     Castle(0, black) = 3;
     Castle(0, white) = 3;
 /*
- initialize 50 move counter.
- */
-    Rule50Moves(0) = 0;
-/*
  initialize enpassant status.
  */
     EnPassant(0) = 0;
@@ -651,6 +649,12 @@ void InitializeChessBoard(TREE * tree) {
  */
   for (i = 0; i < 64; i++)
     tree->cache_n[i] = ~0ull;
+/*
+ initialize 50 move counter and repetition list/index.
+ */
+  Reversible(0) = 0;
+  tree->rep_index = 0;
+  tree->rep_list[0] = HashKey;
 }
 
 /*
@@ -682,8 +686,10 @@ void SetChessBitBoards(TREE * tree) {
       HashP(side, square);
     Material += PieceValues(side, Abs(piece));
   }
-  KingSQ(white) = LSB(Pieces(white, king));
-  KingSQ(black) = LSB(Pieces(black, king));
+  if (Pieces(white, king))
+    KingSQ(white) = LSB(Pieces(white, king));
+  if (Pieces(black, king))
+    KingSQ(black) = LSB(Pieces(black, king));
   if (EnPassant(0))
     HashEP(EnPassant(0));
   if (!(Castle(0, white) & 1))
@@ -711,13 +717,13 @@ void SetChessBitBoards(TREE * tree) {
  initialize major/minor counts.
  */
   for (side = black; side <= white; side++) {
-    tree->pos.majors[side] = TotalPieces(side, rook)
+    TotalMajors(side) = TotalPieces(side, rook)
         + 2 * TotalPieces(side, queen);
-    tree->pos.minors[side] = TotalPieces(side, knight)
+    TotalMinors(side) = TotalPieces(side, knight)
         + TotalPieces(side, bishop);
   }
-  Repetition(black) = 0;
-  Repetition(white) = 0;
+  tree->rep_index = 0;
+  tree->rep_list[0] = HashKey;
 }
 
 /*
@@ -761,14 +767,14 @@ int InitializeGetLogID(void) {
       tlog = fopen(tfn, "r+");
       if (tlog) {
         fstat(fileno(tlog), fileinfo);
-        if (fileinfo->st_size < 1300)
+        if (fileinfo->st_size < 1700)
           log_id--;
       }
     }
 #endif
   }
   t = log_id++;
-  return (t);
+  return t;
 }
 
 /*
@@ -812,21 +818,18 @@ void InitializeHashTables(void) {
 /*
  *******************************************************************************
  *                                                                             *
- *   InitializeKillers() is used to zero the killer moves and the repetition   *
- *   list to make sure the search starts off with a sane initial state.        *
+ *   InitializeKillers() is used to zero the killer moves so that old killers  *
+ *   don't screw up ordering while processing test suites.                     *
  *                                                                             *
  *******************************************************************************
  */
 void InitializeKillers(void) {
-  int i, j;
+  int i;
 
   for (i = 0; i < MAXPLY; i++) {
     block[0]->killers[i].move1 = 0;
     block[0]->killers[i].move2 = 0;
   }
-  for (i = 0; i < 2; i++)
-    for (j = 0; j < 128; j++)
-      block[0]->rep_list[i][j] = 0;
 }
 
 /*
@@ -893,14 +896,13 @@ void InitializeMasks(void) {
   for (i = 1; i < 8; i++)
     file_mask[i] = file_mask[i - 1] << 1;
 /*
- masks to determine if a pawn is protected by another pawn or not.
- also masks to detect "duos" (pawns side-by-side only).
+ masks to determine if a pawn has nearby neighbors or not.
  */
   for (i = 8; i < 56; i++) {
     if (File(i) > 0 && File(i) < 7)
       mask_pawn_connected[i] =
-          SetMask(i - 1) | SetMask(i + 1) | SetMask(i - 9) | SetMask(i -
-          7) | SetMask(i + 7) | SetMask(i + 9);
+          SetMask(i - 1) | SetMask(i + 1) | SetMask(i - 9) | SetMask(i - 7)
+          | SetMask(i + 7) | SetMask(i + 9);
     else if (File(i) == 0)
       mask_pawn_connected[i] =
           SetMask(i + 1) | SetMask(i - 7) | SetMask(i + 9);
@@ -908,19 +910,7 @@ void InitializeMasks(void) {
       mask_pawn_connected[i] =
           SetMask(i - 1) | SetMask(i - 9) | SetMask(i + 7);
   }
-  mask_kr_trapped[black][0] = SetMask(H7);
-  mask_kr_trapped[black][1] = SetMask(H8) | SetMask(H7);
-  mask_kr_trapped[black][2] = SetMask(H8) | SetMask(G8) | SetMask(H7);
-  mask_qr_trapped[black][0] = SetMask(A7);
-  mask_qr_trapped[black][1] = SetMask(A8) | SetMask(A7);
-  mask_qr_trapped[black][2] = SetMask(A8) | SetMask(B8) | SetMask(A7);
-  mask_kr_trapped[white][0] = SetMask(H2);
-  mask_kr_trapped[white][1] = SetMask(H1) | SetMask(H2);
-  mask_kr_trapped[white][2] = SetMask(G1) | SetMask(H1) | SetMask(H2);
-  mask_qr_trapped[white][0] = SetMask(A2);
-  mask_qr_trapped[white][1] = SetMask(A1) | SetMask(A2);
-  mask_qr_trapped[white][2] = SetMask(A1) | SetMask(B1) | SetMask(A2);
-#if !defined(_M_AMD64) && !defined (_M_IA64) && !defined(INLINE32)
+#if !defined(INLINEASM)
   msb[0] = 64;
   lsb[0] = 16;
   for (i = 1; i < 65536; i++) {
@@ -1149,6 +1139,7 @@ void InitializePawnMasks(void) {
  */
 void InitializeSMP(void) {
   LockInit(lock_smp);
+  LockInit(lock_split);
   LockInit(lock_io);
   LockInit(lock_root);
   LockInit(block[0]->lock);

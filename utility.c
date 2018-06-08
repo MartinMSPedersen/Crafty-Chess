@@ -3,58 +3,19 @@
 #include <ctype.h>
 #include "chess.h"
 #include "data.h"
-#if !defined(AMIGA)
-#  include <limits.h>
-#endif
-#if defined(OS2)
-#  include <sys/select.h>
-#endif
-#if defined(NT_i386)
+#if defined(UNIX)
+#  include <unistd.h>
+#  include <sys/types.h>
+#  include <signal.h>
+#  include <sys/wait.h>
+#  include <sys/times.h>
+#  include <sys/time.h>
+#else
 #  include <windows.h>
 #  include <winbase.h>
 #  include <wincon.h>
 #  include <io.h>
 #  include <time.h>
-#else
-#  include <sys/times.h>
-#  include <sys/time.h>
-#endif
-#if defined(UNIX)
-#  include <unistd.h>
-#  include <sys/types.h>
-#  if !defined(LINUX) && !defined(HP) && \
-   !defined(FreeBSD) && !defined(NetBSD) && !defined(__EMX__)
-#    if defined(AIX)
-#      include <sys/termio.h>
-#      include <sys/select.h>
-#    else
-#      if defined(NEXT)
-#        include <bsd/termios.h>
-#        include <sys/ioctl.h>
-#      else
-#        include <sys/filio.h>
-#      endif
-#    endif
-#    if !defined(NEXT) && !defined(__APPLE__)
-#      include <stropts.h>
-#    endif
-#    if !defined(IPHONE)
-#      include <sys/conf.h>
-#    endif
-#  else
-#    include <sys/ioctl.h>
-#  endif
-#  include <signal.h>
-#  include <sys/wait.h>
-#endif
-#if defined(UNIX)
-#  include <sys/ipc.h>
-#  include <sys/shm.h>
-#endif
-#if defined(__EMX__)
-#  define INCL_DOS
-#  define INCL_KBD
-#  include <os2.h>
 #endif
 
 /*
@@ -96,7 +57,7 @@ uint64_t atoiKM(char *input) {
     size *= 1 << 10;
   if (strchr(input, 'M') || strchr(input, 'm'))
     size *= 1 << 20;
-  return (size);
+  return size;
 }
 
 /*
@@ -190,8 +151,8 @@ float BookIn32f(unsigned char *ch) {
     int iv;
   } temp;
 
-  temp.iv = (ch[3] << 24) | (ch[2] << 16) | (ch[1] << 8) | ch[0];
-  return (temp.fv);
+  temp.iv = ch[3] << 24 | ch[2] << 16 | ch[1] << 8 | ch[0];
+  return temp.fv;
 }
 
 /*
@@ -204,7 +165,7 @@ float BookIn32f(unsigned char *ch) {
  *******************************************************************************
  */
 int BookIn32(unsigned char *ch) {
-  return ((ch[3] << 24) | (ch[2] << 16) | (ch[1] << 8) | ch[0]);
+  return ch[3] << 24 | ch[2] << 16 | ch[1] << 8 | ch[0];
 }
 
 /*
@@ -217,12 +178,10 @@ int BookIn32(unsigned char *ch) {
  *******************************************************************************
  */
 uint64_t BookIn64(unsigned char *ch) {
-  return ((((uint64_t) ch[7]) << 56) | (((uint64_t) ch[6]) << 48) |
-      (((uint64_t)
-              ch[5]) << 40) | (((uint64_t) ch[4]) << 32) | (((uint64_t) ch[3])
-          << 24) | (((uint64_t) ch[2]) << 16) | (((uint64_t) ch[1]) << 8) |
-      ((uint64_t)
-          ch[0]));
+  return (uint64_t) ch[7] << 56 | (uint64_t) ch[6] << 48 | (uint64_t)
+      ch[5] << 40 | (uint64_t) ch[4] << 32 | (uint64_t) ch[3]
+      << 24 | (uint64_t) ch[2] << 16 | (uint64_t) ch[1] << 8 | (uint64_t)
+      ch[0];
 }
 
 /*
@@ -235,11 +194,11 @@ uint64_t BookIn64(unsigned char *ch) {
  *******************************************************************************
  */
 unsigned char *BookOut32(int val) {
-  convert_buff[3] = (val >> 24) & 0xff;
-  convert_buff[2] = (val >> 16) & 0xff;
-  convert_buff[1] = (val >> 8) & 0xff;
+  convert_buff[3] = val >> 24 & 0xff;
+  convert_buff[2] = val >> 16 & 0xff;
+  convert_buff[1] = val >> 8 & 0xff;
   convert_buff[0] = val & 0xff;
-  return (convert_buff);
+  return convert_buff;
 }
 
 /*
@@ -258,11 +217,11 @@ unsigned char *BookOut32f(float val) {
   } temp;
 
   temp.fv = val;
-  convert_buff[3] = (temp.iv >> 24) & 0xff;
-  convert_buff[2] = (temp.iv >> 16) & 0xff;
-  convert_buff[1] = (temp.iv >> 8) & 0xff;
+  convert_buff[3] = temp.iv >> 24 & 0xff;
+  convert_buff[2] = temp.iv >> 16 & 0xff;
+  convert_buff[1] = temp.iv >> 8 & 0xff;
   convert_buff[0] = temp.iv & 0xff;
-  return (convert_buff);
+  return convert_buff;
 }
 
 /*
@@ -275,15 +234,15 @@ unsigned char *BookOut32f(float val) {
  *******************************************************************************
  */
 unsigned char *BookOut64(uint64_t val) {
-  convert_buff[7] = (val >> 56) & 0xff;
-  convert_buff[6] = (val >> 48) & 0xff;
-  convert_buff[5] = (val >> 40) & 0xff;
-  convert_buff[4] = (val >> 32) & 0xff;
-  convert_buff[3] = (val >> 24) & 0xff;
-  convert_buff[2] = (val >> 16) & 0xff;
-  convert_buff[1] = (val >> 8) & 0xff;
+  convert_buff[7] = val >> 56 & 0xff;
+  convert_buff[6] = val >> 48 & 0xff;
+  convert_buff[5] = val >> 40 & 0xff;
+  convert_buff[4] = val >> 32 & 0xff;
+  convert_buff[3] = val >> 24 & 0xff;
+  convert_buff[2] = val >> 16 & 0xff;
+  convert_buff[1] = val >> 8 & 0xff;
   convert_buff[0] = val & 0xff;
-  return (convert_buff);
+  return convert_buff;
 }
 
 /*
@@ -296,7 +255,7 @@ unsigned char *BookOut64(uint64_t val) {
  *                                                                             *
  *******************************************************************************
  */
-#if defined(NT_i386)
+#if !defined(UNIX)
 #  include <windows.h>
 #  include <conio.h>
 /* Windows NT using PeekNamedPipe() function */
@@ -307,11 +266,11 @@ int CheckInput(void) {
   DWORD dw;
 
   if (!xboard && !isatty(fileno(stdin)))
-    return (0);
+    return 0;
   if (batch_mode)
-    return (0);
+    return 0;
   if (strchr(cmd_buffer, '\n'))
-    return (1);
+    return 1;
   if (xboard) {
 #  if defined(FILE_CNT)
     if (stdin->_cnt > 0)
@@ -338,7 +297,7 @@ int CheckInput(void) {
   } else {
     i = _kbhit();
   }
-  return (i);
+  return i;
 }
 #endif
 #if defined(UNIX)
@@ -349,26 +308,27 @@ int CheckInput(void) {
   int data;
 
   if (!xboard && !isatty(fileno(stdin)))
-    return (0);
+    return 0;
   if (batch_mode)
-    return (0);
+    return 0;
   if (strchr(cmd_buffer, '\n'))
-    return (1);
+    return 1;
   FD_ZERO(&readfds);
   FD_SET(fileno(stdin), &readfds);
   tv.tv_sec = 0;
   tv.tv_usec = 0;
   select(16, &readfds, 0, 0, &tv);
   data = FD_ISSET(fileno(stdin), &readfds);
-  return (data);
+  return data;
 }
 #endif
+
 /*
  *******************************************************************************
  *                                                                             *
  *   ClearHashTableScores() is used to clear hash table scores without         *
  *   clearing the best move, so that move ordering information is preserved.   *
- *   we clear the scorew as we approach a 50 move rule so that hash scores     *
+ *   We clear the scorew as we approach a 50 move rule so that hash scores     *
  *   won't give us false scores since the hash signature does not include any  *
  *   search path information in it.                                            *
  *                                                                             *
@@ -386,6 +346,115 @@ void ClearHashTableScores(void) {
     }
 }
 
+/* last modified 02/28/14 */
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   ComputeDifficulty() is used to compute the difficulty rating for the      *
+ *   current position, which really is based on nothing more than how many     *
+ *   times we changed our mind in an iteration.  No changes caused the         *
+ *   difficulty to drop (easier, use less time), while more changes ramps the  *
+ *   difficulty up (harder, use more time).  It is called at the end of an     *
+ *   iteration as well as when displaying fail-high/fail-low moves, in an      *
+ *   effort to give the operator a heads-up on how long we are going to be     *
+ *   stuck in an active search.                                                *
+ *                                                                             *
+ *******************************************************************************
+ */
+int ComputeDifficulty(int difficulty, int direction) {
+  int searched = 0, i;
+
+/*
+ ************************************************************
+ *                                                          *
+ *  Step 1.  Handle fail-high-fail low conditions, which    *
+ *  occur in the middle of an iteration.  The actions taken *
+ *  are as follows:                                         *
+ *                                                          *
+ *  (1) Determine how many moves we have searched first, as *
+ *  this is important.  If we have not searched anything    *
+ *  (which means we failed high on the first move at the    *
+ *  root, at the beginning of a new iteration), a fail low  *
+ *  will immediately set difficult back to 100% (if it is   *
+ *  currently below 100%).  A fail high on the first move   *
+ *  will not change difficulty at all.  Successive fail     *
+ *  highs or fail lows will not change difficulty, we will  *
+ *  not even get into this code on the repeats.             *
+ *                                                          *
+ *  (2) If we are beyond the first move, then this must be  *
+ *  a fail high condition.  Since we are changing our mind, *
+ *  we need to increase the difficulty level to expend more *
+ *  time on this iteration.  If difficulty is currently     *
+ *  less than 100%, we set it to 120%.  If it is currently  *
+ *  at 100% or more, we simply add 20% to the value and     *
+ *  continue searching, but with a longer time constraint.  *
+ *  Each time we fail high, we are changing our mind, and   *
+ *  we will increase difficulty by another 20%.             *
+ *                                                          *
+ *  (3) Direction = 0 means we are at the end of an the     *
+ *  iteration.  Here we simply note if we changed our mind  *
+ *  during this iteration.  If not, we reduce difficulty    *
+ *  to 90% of its previous value.                           *
+ *                                                          *
+ *  After any of these changes, we enforce a lower bound of *
+ *  60% and an upperbound of 200% before we return.         *
+ *                                                          *
+ *  Note:  direction = +1 means we failed high on the move, *
+ *  direction = -1 means we failed low on the move, and     *
+ *  direction = 0 means we have completed the iteration and *
+ *  all moves were searched successfully.                   *
+ *                                                          *
+ ************************************************************
+ */
+  if (direction) {
+    for (i = 0; i < n_root_moves; i++)
+      if (root_moves[i].status & 8)
+        searched++;
+    if (searched == 0) {
+      if (direction > 0)
+        return difficulty;
+      if (direction < 0)
+        difficulty = Max(100, difficulty);
+    } else {
+      if (difficulty < 100)
+        difficulty = 120;
+      else
+        difficulty = difficulty + 20;
+    }
+  }
+/*
+ ************************************************************
+ *                                                          *
+ *  Step 2.  We are at the end of an iteration.  If we did  *
+ *  not change our mind and stuck with one move, we reduce  *
+ *  difficulty by 10% since the move looks to be a little   *
+ *  "easier" when we don't change our mind.                 *
+ *                                                          *
+ ************************************************************
+ */
+  else {
+    searched = 0;
+    for (i = 0; i < n_root_moves; i++)
+      if (root_moves[i].bm_age == 3)
+        searched++;
+    if (searched <= 1)
+      difficulty = 90 * difficulty / 100;
+  }
+/*
+ ************************************************************
+ *                                                          *
+ *  Step 4.  Apply limits.  We don't let difficulty go      *
+ *  above 200% (take 2x the target time) nor do we let it   *
+ *  drop below 60 (take .6x target time) to avoid moving    *
+ *  too quickly and missing something tactically where the  *
+ *  move initially looks obvious but really is not.         *
+ *                                                          *
+ ************************************************************
+ */
+  difficulty = Max(60, Min(difficulty, 200));
+  return difficulty;
+}
+
 /*
  *******************************************************************************
  *                                                                             *
@@ -400,7 +469,7 @@ void CraftyExit(int exit_type) {
   int proc;
 
   for (proc = 1; proc < CPUS; proc++)
-    thread[proc] = (TREE *) - 1;
+    thread[proc].tree = (TREE *) - 1;
   while (smp_threads);
   exit(exit_type);
 }
@@ -556,14 +625,14 @@ void Display2BitBoards(uint64_t board1, uint64_t board2) {
 
   for (i = 56; i >= 0; i -= 8) {
     x = (board1 >> i) & 255;
-    for (j = 128; j > 0; j = j >> 1)
+    for (j = 1; j < 256; j = j << 1)
       if (x & j)
         printf("X ");
       else
         printf("- ");
     printf("    ");
     y = (board2 >> i) & 255;
-    for (j = 128; j > 0; j = j >> 1)
+    for (j = 1; j < 256; j = j << 1)
       if (y & j)
         printf("X ");
       else
@@ -592,8 +661,8 @@ void DisplayChessBoard(FILE * display_file, POSITION pos) {
 /*
  ************************************************************
  *                                                          *
- *   First, convert square values to indices to the proper  *
- *   text string.                                           *
+ *  First, convert square values to indices to the proper   *
+ *  text string.                                            *
  *                                                          *
  ************************************************************
  */
@@ -607,8 +676,8 @@ void DisplayChessBoard(FILE * display_file, POSITION pos) {
 /*
  ************************************************************
  *                                                          *
- *   Now that that's done, simply display using 8 squares   *
- *   per line.                                              *
+ *  Now that that's done, simply display using 8 squares    *
+ *  per line.                                               *
  *                                                          *
  ************************************************************
  */
@@ -637,7 +706,7 @@ char *DisplayEvaluation(int value, int wtm) {
   int tvalue;
 
   tvalue = (wtm) ? value : -value;
-  if (Abs(value) < MATE - 300)
+  if (!MateScore(value))
     sprintf(out, "%7.2f", ((float) tvalue) / 100.0);
   else if (Abs(value) > MATE) {
     if (tvalue < 0)
@@ -660,7 +729,7 @@ char *DisplayEvaluation(int value, int wtm) {
     sprintf(out, " -Mat%.2d", (MATE - Abs(value)) / 2);
   else
     sprintf(out, "  Mat%.2d", (MATE - Abs(value)) / 2);
-  return (out);
+  return out;
 }
 
 /*
@@ -677,7 +746,7 @@ char *DisplayEvaluationKibitz(int value, int wtm) {
   int tvalue;
 
   tvalue = (wtm) ? value : -value;
-  if (Abs(value) < MATE - 300)
+  if (!MateScore(value))
     sprintf(out, "%+.2f", ((float) tvalue) / 100.0);
   else if (Abs(value) > MATE) {
     if (tvalue < 0)
@@ -700,7 +769,7 @@ char *DisplayEvaluationKibitz(int value, int wtm) {
     sprintf(out, "-Mat%.2d", (MATE - Abs(value)) / 2);
   else
     sprintf(out, "Mat%.2d", (MATE - Abs(value)) / 2);
-  return (out);
+  return out;
 }
 
 /*
@@ -710,22 +779,20 @@ char *DisplayEvaluationKibitz(int value, int wtm) {
  *                                                                             *
  *******************************************************************************
  */
-void DisplayPV(TREE * RESTRICT tree, int level, int wtm, int time, int value,
-    PATH * pv) {
+void DisplayPV(TREE * RESTRICT tree, int level, int wtm, int time, PATH * pv) {
   char buffer[4096], *buffp, *bufftemp;
   int i, t_move_number, type;
-  int nskip = 0, twtm = wtm;
+  int nskip = 0, twtm = wtm, pv_depth = pv->pathd;;
 
-  root_print_ok = root_print_ok || tree->nodes_searched > noise_level;
 /*
  ************************************************************
  *                                                          *
- *   Initialize.                                            *
+ *  Initialize.                                             *
  *                                                          *
  ************************************************************
  */
   for (i = 0; i < n_root_moves; i++)
-    if (!(root_moves[i].status & 16) && root_moves[i].status & 4)
+    if (!(root_moves[i].status & 8) && !(root_moves[i].status & 4))
       nskip++;
   if (level == 5)
     type = 4;
@@ -752,18 +819,22 @@ void DisplayPV(TREE * RESTRICT tree, int level, int wtm, int time, int value,
     sprintf(buffer + strlen(buffer), " <HT>           ");
   else if (pv->pathh == 2)
     sprintf(buffer + strlen(buffer), " <EGTB>         ");
+  if (strlen(buffer) < 30)
+    for (i = 0; i < 30 - strlen(buffer); i++)
+      strcat(buffer, " ");
   strcpy(kibitz_text, buffer);
   if (nskip > 1 && smp_max_threads > 1)
     sprintf(buffer + strlen(buffer), " (s=%d)", nskip);
-  if (root_print_ok) {
+  if (tree->nodes_searched > noise_level) {
+    noise_block = 0;
     Lock(lock_io);
     Print(type, "         ");
     if (level == 6)
-      Print(type, "%2i   %s%s   ", iteration_depth, Display2Times(time),
-          DisplayEvaluation(value, twtm));
+      Print(type, "%2i   %s%s   ", pv_depth, Display2Times(time),
+          DisplayEvaluation(pv->pathv, twtm));
     else
-      Print(type, "%2i-> %s%s   ", iteration_depth, Display2Times(time),
-          DisplayEvaluation(value, twtm));
+      Print(type, "%2i-> %s%s   ", pv_depth, Display2Times(time)
+          , DisplayEvaluation(pv->pathv, twtm));
     buffp = buffer + 1;
     do {
       if ((int) strlen(buffp) > line_length - 42)
@@ -777,8 +848,12 @@ void DisplayPV(TREE * RESTRICT tree, int level, int wtm, int time, int value,
       if (bufftemp)
         Print(type, "                                     ");
     } while (bufftemp);
-    Kibitz(level, twtm, iteration_depth, end_time - start_time, value,
-        tree->nodes_searched, tree->egtb_probes_successful, kibitz_text);
+    idle_percent =
+        100 - Min(100,
+        100 * idle_time / (smp_max_threads * (end_time - start_time) + 1));
+    Kibitz(level, twtm, pv_depth, end_time - start_time, pv->pathv,
+        tree->nodes_searched, idle_percent, tree->egtb_probes_successful,
+        kibitz_text);
     Unlock(lock_io);
   }
   for (i = pv->pathl - 1; i > 0; i--) {
@@ -801,7 +876,7 @@ char *DisplayHHMMSS(unsigned int time) {
 
   time = time / 100;
   sprintf(out, "%3u:%02u:%02u", time / 3600, time / 60, time % 60);
-  return (out);
+  return out;
 }
 
 /*
@@ -818,28 +893,30 @@ char *DisplayHHMM(unsigned int time) {
 
   time = time / 6000;
   sprintf(out, "%3u:%02u", time / 60, time % 60);
-  return (out);
+  return out;
 }
 
 /*
  *******************************************************************************
  *                                                                             *
- *   DisplayKM() takes an integer value that represents nodes per second, or   *
+ *   DisplayKMB() takes an integer value that represents nodes per second, or  *
  *   just total nodes, and converts it into a more compact form, so that       *
  *   instead of nps=57200931, we get nps=57M.                                  *
  *                                                                             *
  *******************************************************************************
  */
-char *DisplayKM(unsigned int val) {
+char *DisplayKMB(uint64_t val) {
   static char out[10];
 
   if (val < 1000)
-    sprintf(out, "%d", val);
+    sprintf(out, "%" PRIu64, val);
   else if (val < 1000000)
-    sprintf(out, "%dK", val / 1000);
+    sprintf(out, "%.1fK", (double) (val + 500) / 1000);
+  else if (val < 1000000000)
+    sprintf(out, "%.1fM", (double) (val + 500000) / 1000000);
   else
-    sprintf(out, "%.1fM", (float) val / 1000000);
-  return (out);
+    sprintf(out, "%.1fB", (double) (val + 500000000) / 1000000000);
+  return out;
 }
 
 /*
@@ -863,7 +940,7 @@ char *DisplayTime(unsigned int time) {
     time = time / 100;
     sprintf(out, "%3u:%02u", time / 60, time % 60);
   }
-  return (out);
+  return out;
 }
 
 /*
@@ -911,7 +988,7 @@ char *Display2Times(unsigned int time) {
   spaces = 13 - strlen(out);
   for (c = 0; c < spaces; c++)
     strcat(out, " ");
-  return (out);
+  return out;
 }
 
 /*
@@ -932,7 +1009,7 @@ char *DisplayTimeKibitz(unsigned int time) {
     time = time / 100;
     sprintf(out, "%u:%02u", time / 60, time % 60);
   }
-  return (out);
+  return out;
 }
 
 /*
@@ -952,7 +1029,7 @@ void DisplayTreeState(TREE * RESTRICT tree, int sply, int spos, int maxply) {
   if (sply == 1) {
     left = 0;
     for (i = 0; i < n_root_moves; i++)
-      if (!(root_moves[i].status & 16))
+      if (!(root_moves[i].status & 8))
         left++;
     sprintf(buf, "%d:%d/%d  ", 1, left, n_root_moves);
   } else {
@@ -1095,14 +1172,6 @@ void DisplayType6(int *array) {
  *******************************************************************************
  */
 #if !defined(NOEGTB)
-/*
- *******************************************************************************
- *                                                                             *
- *   EGTBPV() is used to display the full PV (path) for a mate/mated in N EGTB *
- *   position.                                                                 *
- *                                                                             *
- *******************************************************************************
- */
 void EGTBPV(TREE * RESTRICT tree, int wtm) {
   int moves[1024], current[256];
   uint64_t hk[1024], phk[1024];
@@ -1116,14 +1185,14 @@ void EGTBPV(TREE * RESTRICT tree, int wtm) {
 /*
  ************************************************************
  *                                                          *
- *   First, see if this is a known EGTB position.  If not,  *
- *   we can bug out right now.                              *
+ *  First, see if this is a known EGTB position.  If not,   *
+ *  we can bug out right now.                               *
  *                                                          *
  ************************************************************
  */
   if (!EGTB_setup)
     return;
-  tree->position[1] = tree->position[0];
+  tree->status[1] = tree->status[0];
   if (Castle(1, white) + Castle(1, white))
     return;
   if (!EGTBProbe(tree, 1, wtm, &value))
@@ -1138,12 +1207,12 @@ void EGTBPV(TREE * RESTRICT tree, int wtm) {
 /*
  ************************************************************
  *                                                          *
- *   The rest is simple, but messy.  Generate all moves,    *
- *   then find the move with the best egtb score and make   *
- *   it (note that if there is only one that is optimal, it *
- *   is flagged as such).  We then repeat this over and     *
- *   over until we reach the end, or until we repeat a move *
- *   and can call it a repetition.                          *
+ *  The rest is simple, but messy.  Generate all moves,     *
+ *  then find the move with the best egtb score and make it *
+ *  (note that if there is only one that is optimal, it is  *
+ *  flagged as such).  We then repeat this over and over    *
+ *  until we reach the end, or until we repeat a move and   *
+ *  can call it a repetition.                               *
  *                                                          *
  ************************************************************
  */
@@ -1184,7 +1253,7 @@ void EGTBPV(TREE * RESTRICT tree, int wtm) {
       hk[ply] = HashKey;
       phk[ply] = PawnHashKey;
       MakeMove(tree, 1, bestmv, wtm);
-      tree->position[1] = tree->position[2];
+      tree->status[1] = tree->status[2];
       wtm = Flip(wtm);
       for (j = 2 - (ply & 1); j < ply; j += 2)
         if (pos[ply] == pos[j])
@@ -1206,7 +1275,7 @@ void EGTBPV(TREE * RESTRICT tree, int wtm) {
     tree->save_hash_key[1] = hk[ply];
     tree->save_pawn_hash_key[1] = phk[ply];
     UnmakeMove(tree, 1, moves[ply], wtm);
-    tree->position[2] = tree->position[1];
+    tree->status[2] = tree->status[1];
   }
   next = buffer;
   while (nmoves) {
@@ -1255,7 +1324,7 @@ char *FormatPV(TREE * RESTRICT tree, int wtm, PATH pv) {
 /*
  ************************************************************
  *                                                          *
- *   Initialize.                                            *
+ *  Initialize.                                             *
  *                                                          *
  ************************************************************
  */
@@ -1280,10 +1349,10 @@ char *FormatPV(TREE * RESTRICT tree, int wtm, PATH pv) {
     wtm = Flip(wtm);
     UnmakeMove(tree, i, pv.path[i], wtm);
   }
-  return (buffer);
+  return buffer;
 }
 
-/* last modified 04/01/08 */
+/* last modified 02/26/14 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -1302,8 +1371,8 @@ int GameOver(int wtm) {
 /*
  ************************************************************
  *                                                          *
- *   First, use GenerateMoves() to generate the set of      *
- *   legal moves from the root position.                    *
+ *  First, use GenerateMoves() to generate the set of       *
+ *  legal moves from the root position.                     *
  *                                                          *
  ************************************************************
  */
@@ -1312,10 +1381,10 @@ int GameOver(int wtm) {
 /*
  ************************************************************
  *                                                          *
- *   Now make each move and determine if we are in check    *
- *   after each one.  Any move that does not leave us in    *
- *   check is good enough to prove that the game is not yet *
- *   officially over.                                       *
+ *  Now make each move and determine if we are in check     *
+ *  after each one.  Any move that does not leave us in     *
+ *  check is good enough to prove that the game is not yet  *
+ *  officially over.                                        *
  *                                                          *
  ************************************************************
  */
@@ -1328,20 +1397,20 @@ int GameOver(int wtm) {
 /*
  ************************************************************
  *                                                          *
- *   If we did not make it thru the complete move list, we  *
- *   must have at least one legal move so the game is not   *
- *   over.  return (0).  Otherwise, we have no move and the *
- *   game is over.  We return (1) if this side is           *
- *   stalemated or we return (2) if this side is mated.     *
+ *  If we did not make it thru the complete move list, we   *
+ *  must have at least one legal move so the game is not    *
+ *  over.  return 0.  Otherwise, we have no move and the    *
+ *  game is over.  We return 1 if this side is stalmated or *
+ *  we return 2 if this side is mated.                      *
  *                                                          *
  ************************************************************
  */
   if (!over)
-    return (0);
+    return 0;
   else if (!Check(wtm))
-    return (1);
+    return 1;
   else
-    return (2);
+    return 2;
 }
 
 /*
@@ -1354,21 +1423,19 @@ int GameOver(int wtm) {
  *******************************************************************************
  */
 unsigned int ReadClock(void) {
-#if defined(UNIX) || defined(AMIGA)
+#if defined(UNIX)
   struct timeval timeval;
   struct timezone timezone;
-#endif
-#if defined(NT_i386)
+#else
   HANDLE hThread;
   FILETIME ftCreate, ftExit, ftKernel, ftUser;
   uint64_t tUser64;
 #endif
-#if defined(UNIX) || defined(AMIGA)
+#if defined(UNIX)
   gettimeofday(&timeval, &timezone);
-  return (timeval.tv_sec * 100 + (timeval.tv_usec / 10000));
-#endif
-#if defined(NT_i386)
-  return ((unsigned int) GetTickCount() / 10);
+  return timeval.tv_sec * 100 + (timeval.tv_usec / 10000);
+#else
+  return (unsigned int) GetTickCount() / 10;
 #endif
 }
 
@@ -1385,8 +1452,8 @@ int FindBlockID(TREE * RESTRICT which) {
 
   for (i = 0; i < MAX_BLOCKS + 1; i++)
     if (which == block[i])
-      return (i);
-  return (-1);
+      return i;
+  return -1;
 }
 
 /*
@@ -1481,7 +1548,7 @@ int InvalidPosition(TREE * RESTRICT tree) {
     Print(4095, "ERROR side not on move is in check!\n");
     error = 1;
   }
-  return (error);
+  return error;
 }
 
 /*
@@ -1498,10 +1565,10 @@ int KingPawnSquare(int pawn, int king, int queen, int ptm) {
 
   pdist = Abs(Rank(pawn) - Rank(queen)) + !ptm;
   kdist = Distance(king, queen);
-  return (pdist >= kdist);
+  return pdist >= kdist;
 }
 
-/* last modified 02/26/09 */
+/* last modified 02/26/14 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -1512,9 +1579,10 @@ int KingPawnSquare(int pawn, int king, int queen, int ptm) {
  */
 void NewGame(int save) {
   static int save_book_selection_width = 5;
-  static int save_kibitz = 0, save_channel = 0;
+  static int save_kibitz = 0;
   static int save_resign = 0, save_resign_count = 0, save_draw_count = 0;
   static int save_learning = 0;
+  static int save_learn = 0;
   static int save_accept_draws = 0;
   int id;
   TREE *const tree = block[0];
@@ -1523,14 +1591,14 @@ void NewGame(int save) {
   if (save) {
     save_book_selection_width = book_selection_width;
     save_kibitz = kibitz;
-    save_channel = channel;
     save_resign = resign;
     save_resign_count = resign_count;
     save_draw_count = draw_count;
     save_learning = learning;
+    save_learn = learn;
     save_accept_draws = accept_draws;
   } else {
-    if (learning && moves_out_of_book) {
+    if (learn && moves_out_of_book) {
       learn_value =
           (crafty_is_white) ? last_search_value : -last_search_value;
       LearnBook();
@@ -1551,7 +1619,6 @@ void NewGame(int save) {
     InitializeChessBoard(tree);
     InitializeHashTables();
     force = 0;
-    computer_opponent = 0;
     books_file = normal_bs_file;
     draw_score[0] = 0;
     draw_score[1] = 0;
@@ -1561,7 +1628,6 @@ void NewGame(int save) {
     tc_time_remaining[black] = tc_time;
     tc_moves_remaining[white] = tc_moves;
     tc_moves_remaining[black] = tc_moves;
-#if !defined(IPHONE)
     if (move_actually_played) {
       if (log_file) {
         fclose(log_file);
@@ -1577,14 +1643,9 @@ void NewGame(int save) {
         }
       }
     }
-#else
-    history_file = 0;
-    log_file = 0;
-#endif
     move_actually_played = 0;
     book_selection_width = save_book_selection_width;
     kibitz = save_kibitz;
-    channel = save_channel;
     resign = save_resign;
     resign_count = save_resign_count;
     resign_counter = 0;
@@ -1593,6 +1654,7 @@ void NewGame(int save) {
     draw_counter = 0;
     usage_level = 0;
     learning = save_learning;
+    learn = save_learn;
     predicted = 0;
     kibitz_depth = 0;
     tree->nodes_searched = 0;
@@ -1637,7 +1699,7 @@ int ParseTime(char *string) {
     }
     string++;
   }
-  return (time * 60 + minutes);
+  return time * 60 + minutes;
 }
 
 /*
@@ -1731,7 +1793,7 @@ char *PrintKM(size_t val, int realK) {
       sprintf(buf, "%dK", (int) (val / (1 << 10)));
     else
       sprintf(buf, "%d", (int) val);
-    return (buf);
+    return buf;
   } else {
     if (val >= 1000000 && !(val % 1000000))
       sprintf(buf, "%dM", (int) (val / 1000000));
@@ -1739,7 +1801,7 @@ char *PrintKM(size_t val, int realK) {
       sprintf(buf, "%dK", (int) (val / 1000));
     else
       sprintf(buf, "%d", (int) val);
-    return (buf);
+    return buf;
   }
 }
 
@@ -1791,7 +1853,7 @@ unsigned int Random32(void) {
     j = 55 - 1;
   if (--k < 0)
     k = 55 - 1;
-  return ((unsigned int) ul);
+  return (unsigned int) ul;
 }
 
 /*
@@ -1810,7 +1872,7 @@ uint64_t Random64(void) {
   r1 = Random32();
   r2 = Random32();
   result = r1 | (uint64_t) r2 << 32;
-  return (result);
+  return result;
 }
 
 /*
@@ -1842,11 +1904,11 @@ int Read(int wait, char *buffer) {
     if (CheckInput()) {
       readdata = ReadInput();
       if (!strchr(cmd_buffer, '\n'))
-        return (0);
+        return 0;
       if (!readdata)
-        return (-1);
+        return -1;
     } else
-      return (0);
+      return 0;
   }
 /*
  case 3:  The buffer does not contain a complete line, but we
@@ -1858,7 +1920,7 @@ int Read(int wait, char *buffer) {
     while (!strchr(cmd_buffer, '\n')) {
       readdata = ReadInput();
       if (!readdata)
-        return (-1);
+        return -1;
     }
   eol = strchr(cmd_buffer, '\n');
   *eol = 0;
@@ -1867,7 +1929,7 @@ int Read(int wait, char *buffer) {
     *ret = ' ';
   strcpy(buffer, cmd_buffer);
   memmove(cmd_buffer, eol + 1, strlen(eol + 1) + 1);
-  return (1);
+  return 1;
 }
 
 /*
@@ -1900,15 +1962,22 @@ int ReadParse(char *buffer, char *args[], char *delims) {
     *(args[nargs]) = 0;
   next = strtok(tbuffer, delims);
   if (!next)
-    return (0);
-  strcpy(args[0], next);
+    return 0;
+  if (strlen(next) > 255)
+    Print(4095, "ERROR, ignoring token %s, max allowable len = 255\n", next);
+  else
+    strcpy(args[0], next);
   for (nargs = 1; nargs < 512; nargs++) {
     next = strtok(0, delims);
     if (!next)
       break;
-    strcpy(args[nargs], next);
+    if (strlen(next) > 255)
+      Print(4095, "ERROR, ignoring token %s, max allowable len = 255\n",
+          next);
+    else
+      strcpy(args[nargs], next);
   }
-  return (nargs);
+  return nargs;
 }
 
 /*
@@ -1930,7 +1999,7 @@ int ReadInput(void) {
     if (input_stream != stdin)
       fclose(input_stream);
     input_stream = stdin;
-    return (0);
+    return 0;
   } else if (bytes < 0) {
     Print(4095, "ERROR!  input I/O stream is unreadable, exiting.\n");
     CraftyExit(1);
@@ -1938,7 +2007,7 @@ int ReadInput(void) {
   end = cmd_buffer + strlen(cmd_buffer);
   memcpy(end, buffer, bytes);
   *(end + bytes) = 0;
-  return (1);
+  return 1;
 }
 
 /*
@@ -1958,7 +2027,7 @@ int ReadChessMove(TREE * RESTRICT tree, FILE * input, int wtm, int one_move) {
   while (move == 0) {
     status = fscanf(input, "%s", text);
     if (status <= 0)
-      return (-1);
+      return -1;
     if (strcmp(text, "0-0") && strcmp(text, "0-0-0"))
       tmove = text + strspn(text, "0123456789.");
     else
@@ -1967,13 +2036,13 @@ int ReadChessMove(TREE * RESTRICT tree, FILE * input, int wtm, int one_move) {
                 tmove[0] <= 'Z')) || !strcmp(tmove, "0-0")
         || !strcmp(tmove, "0-0-0")) {
       if (!strcmp(tmove, "exit"))
-        return (-1);
+        return -1;
       move = InputMove(tree, tmove, 0, wtm, 1, 0);
     }
     if (one_move)
       break;
   }
-  return (move);
+  return move;
 }
 
 /*
@@ -1997,10 +2066,10 @@ int ReadNextMove(TREE * RESTRICT tree, char *text, int ply, int wtm) {
               tmove[0] <= 'Z')) || !strcmp(tmove, "0-0")
       || !strcmp(tmove, "0-0-0")) {
     if (!strcmp(tmove, "exit"))
-      return (-1);
+      return -1;
     move = InputMove(tree, tmove, ply, wtm, 1, 0);
   }
-  return (move);
+  return move;
 }
 
 /*
@@ -2017,7 +2086,7 @@ int ReadNextMove(TREE * RESTRICT tree, char *text, int ply, int wtm) {
 int ReadPGN(FILE * input, int option) {
   static int data = 0, lines_read = 0;
   static char input_buffer[4096];
-  char temp[4096], *eof, analysis_move[64];
+  char *eof, analysis_move[64];
   int braces = 0, parens = 0, brackets = 0, analysis = 0, last_good_line;
 
 /*
@@ -2033,12 +2102,12 @@ int ReadPGN(FILE * input, int option) {
   if (!input) {
     lines_read = 0;
     data = 0;
-    return (0);
+    return 0;
   }
   if (option == -1)
     data = 0;
   if (option == -2)
-    return (lines_read);
+    return lines_read;
 /*
  ************************************************************
  *                                                          *
@@ -2051,7 +2120,7 @@ int ReadPGN(FILE * input, int option) {
     if (!data) {
       eof = fgets(input_buffer, 4096, input);
       if (!eof)
-        return (-1);
+        return -1;
       if (strchr(input_buffer, '\n'))
         *strchr(input_buffer, '\n') = 0;
       if (strchr(input_buffer, '\r'))
@@ -2066,10 +2135,10 @@ int ReadPGN(FILE * input, int option) {
           strcpy(buffer, input_buffer);
           bracket1 = strchr(input_buffer, '\"');
           if (bracket1 == 0)
-            return (1);
+            return 1;
           bracket2 = strchr(bracket1 + 1, '\"');
           if (bracket2 == 0)
-            return (1);
+            return 1;
           *bracket1 = 0;
           *bracket2 = 0;
           strcpy(value, bracket1 + 1);
@@ -2096,7 +2165,7 @@ int ReadPGN(FILE * input, int option) {
             (void) Option(block[0]);
             continue;
           }
-          return (1);
+          return 1;
         } while (0);
       data = 1;
     }
@@ -2119,10 +2188,9 @@ int ReadPGN(FILE * input, int option) {
       } else {
         char *skip;
 
-        strcpy(temp, input_buffer);
         skip = strstr(input_buffer, buffer) + strlen(buffer);
         if (skip)
-          strcpy(input_buffer, skip);
+          memmove(input_buffer, skip, strlen(skip) + 1);
       }
 /*
  ************************************************************
@@ -2199,7 +2267,7 @@ int ReadPGN(FILE * input, int option) {
               parens = 0;
               braces = 0;
               brackets = 0;
-              return (-1);
+              return -1;
             }
             if (strchr(input_buffer, '\n'))
               *strchr(input_buffer, '\n') = 0;
@@ -2216,40 +2284,35 @@ int ReadPGN(FILE * input, int option) {
               break;
             }
           }
-          strcpy(temp, input_buffer);
           skip = strstr(input_buffer, buffer) + strlen(buffer);
-          strcpy(input_buffer, skip);
+          memmove(input_buffer, skip, strlen(skip) + 1);
       } else {
         int skip;
 
         if ((skip = strspn(buffer, "0123456789."))) {
-          char temp[4096];
-
-          if (skip > 1) {
-            strcpy(temp, buffer + skip);
-            strcpy(buffer, temp);
-          }
+          if (skip > 1)
+            memmove(buffer, buffer + skip, strlen(buffer + skip) + 1);
         }
         if (isalpha(buffer[0]) || strchr(buffer, '-')) {
           char *first, *last, *percent;
 
           first = input_buffer + strspn(input_buffer, " ");
           if (first == 0 || *first != '{')
-            return (0);
+            return 0;
           last = strchr(input_buffer, '}');
           if (last == 0)
-            return (0);
+            return 0;
           percent = strstr(first, "play");
           if (percent == 0)
-            return (0);
+            return 0;
           pgn_suggested_percent =
               atoi(percent + 4 + strspn(percent + 4, " "));
-          return (0);
+          return 0;
         }
       }
       if (analysis_move[0] && option == 1) {
         strcpy(buffer, analysis_move);
-        return (2);
+        return 2;
       }
     }
   }
@@ -2296,18 +2359,14 @@ void RestoreGame(void) {
  *******************************************************************************
  */
 void Kibitz(int level, int wtm, int depth, int time, int value,
-    uint64_t nodes, int tb_hits, char *pv) {
+    uint64_t nodes, int ip, int tb_hits, char *pv) {
   int nps;
 
   nps = (int) ((time) ? 100 * nodes / (uint64_t) time : nodes);
   if (!puzzling) {
     char prefix[128];
 
-    if (strlen(channel_title) && channel)
-      sprintf(prefix, "tell %d (%s) ", channel, channel_title);
-    else if (channel)
-      sprintf(prefix, "tell %d", channel);
-    else if (!(kibitz & 16))
+    if (!(kibitz & 16))
       sprintf(prefix, "kibitz");
     else
       sprintf(prefix, "whisper");
@@ -2324,9 +2383,9 @@ void Kibitz(int level, int wtm, int depth, int time, int value,
         break;
       case 2:
         if ((kibitz & 15) >= 2) {
-          printf("%s ply=%d; eval=%s; nps=%s; time=%s; egtb=%d\n", prefix,
-              depth, DisplayEvaluationKibitz(value, wtm), DisplayKM(nps),
-              DisplayTimeKibitz(time), tb_hits);
+          printf("%s ply=%d; eval=%s; nps=%s; time=%s(%d%%); egtb=%d\n",
+              prefix, depth, DisplayEvaluationKibitz(value, wtm),
+              DisplayKMB(nps), DisplayTimeKibitz(time), ip, tb_hits);
         }
       case 3:
         if ((kibitz & 15) >= 3 && (nodes > 5000 || level == 2)) {
@@ -2340,9 +2399,9 @@ void Kibitz(int level, int wtm, int depth, int time, int value,
         break;
       case 5:
         if ((kibitz & 15) >= 5 && nodes > 5000) {
-          printf("%s d%d-> %s/s %s %s %s ", prefix, depth, DisplayKM(nps),
-              DisplayTimeKibitz(time), DisplayEvaluationKibitz(value, wtm),
-              pv);
+          printf("%s d%d-> %s/s %s(%d%%) %s %s ", prefix, depth,
+              DisplayKMB(nps), DisplayTimeKibitz(time), ip,
+              DisplayEvaluationKibitz(value, wtm), pv);
           if (tb_hits)
             printf("egtb=%d", tb_hits);
           printf("\n");
@@ -2351,12 +2410,12 @@ void Kibitz(int level, int wtm, int depth, int time, int value,
       case 6:
         if ((kibitz & 15) >= 6 && nodes > 5000) {
           if (wtm)
-            printf("%s d%d+ %s/s %s >(%s) %s <re-searching>\n", prefix, depth,
-                DisplayKM(nps), DisplayTimeKibitz(time),
+            printf("%s d%d+ %s/s %s(%d%%) >(%s) %s <re-searching>\n", prefix,
+                depth, DisplayKMB(nps), DisplayTimeKibitz(time), ip,
                 DisplayEvaluationKibitz(value, wtm), pv);
           else
-            printf("%s d%d+ %s/s %s <(%s) %s <re-searching>\n", prefix, depth,
-                DisplayKM(nps), DisplayTimeKibitz(time),
+            printf("%s d%d+ %s/s %s(%d%%) <(%s) %s <re-searching>\n", prefix,
+                depth, DisplayKMB(nps), DisplayTimeKibitz(time), ip,
                 DisplayEvaluationKibitz(value, wtm), pv);
         }
         break;
@@ -2364,10 +2423,10 @@ void Kibitz(int level, int wtm, int depth, int time, int value,
     value = (wtm) ? value : -value;
     if (post && level > 1) {
       if (strstr(pv, "book"))
-        printf("	%2d  %5d %7d " BMF6 " %s\n", depth, value, time,
+        printf("	%2d  %5d %7d %" PRIu64 " %s\n", depth, value, time,
             nodes, pv + 10);
       else
-        printf("	%2d  %5d %7d " BMF6 " %s\n", depth, value, time,
+        printf("	%2d  %5d %7d %" PRIu64 " %s\n", depth, value, time,
             nodes, pv);
     }
     fflush(stdout);
@@ -2386,7 +2445,7 @@ void Kibitz(int level, int wtm, int depth, int time, int value,
  *                                                                             *
  *******************************************************************************
  */
-void Output(TREE * RESTRICT tree, int value, int bound) {
+void Output(TREE * RESTRICT tree, int bound) {
   int wtm;
   int i;
   ROOT_MOVE temp_rm;
@@ -2394,13 +2453,12 @@ void Output(TREE * RESTRICT tree, int value, int bound) {
 /*
  ************************************************************
  *                                                          *
- *   First, move the best move to the top of the ply-1 move *
- *   list if it's not already there, so that it will be the *
- *   first move tried in the next iteration.                *
+ *  First, move the best move to the top of the ply-1 move  *
+ *  list if it's not already there, so that it will be the  *
+ *  first move tried in the next iteration.                 *
  *                                                          *
  ************************************************************
  */
-  root_print_ok = root_print_ok || tree->nodes_searched > noise_level;
   wtm = root_wtm;
   if (!abort_search) {
     kibitz_depth = iteration_depth;
@@ -2418,14 +2476,14 @@ void Output(TREE * RESTRICT tree, int value, int bound) {
 /*
  ************************************************************
  *                                                          *
- *   If this is not a fail-high move, then output the PV    *
- *   by walking down the path being backed up.              *
+ *  If this is not a fail-high move, then output the PV by  *
+ *  walking down the path being backed up.                  *
  *                                                          *
  ************************************************************
  */
-    if (value < bound) {
+    if (tree->pv[1].pathv < bound) {
       UnmakeMove(tree, 1, tree->pv[1].path[1], root_wtm);
-      DisplayPV(tree, 6, wtm, end_time - start_time, value, &tree->pv[1]);
+      DisplayPV(tree, 6, wtm, end_time - start_time, &tree->pv[1]);
       MakeMove(tree, 1, tree->pv[1].path[1], root_wtm);
     } else {
       if (tree->curmv[1] != tree->pv[1].path[1]) {
@@ -2435,8 +2493,6 @@ void Output(TREE * RESTRICT tree, int value, int bound) {
         tree->pv[1].pathd = iteration_depth;
       }
     }
-    tree->pv[0] = tree->pv[1];
-    block[0]->pv[0] = tree->pv[1];
   }
 }
 
@@ -2458,7 +2514,7 @@ void Trace(TREE * RESTRICT tree, int ply, int depth, int wtm, int alpha,
   if (phase != EVALUATION) {
     printf("%d  %s d:%2d [%s,", ply, OutputMove(tree, tree->curmv[ply], ply,
             wtm), depth, DisplayEvaluation(alpha, 1));
-    printf("%s] n:" BMF " %s(%d)", DisplayEvaluation(beta, 1),
+    printf("%s] n:%" PRIu64 " %s(%d)", DisplayEvaluation(beta, 1),
         (tree->nodes_searched), name, phase);
     if (smp_max_threads > 1)
       printf(" (t=%d) ", tree->thread_id);
@@ -2469,6 +2525,7 @@ void Trace(TREE * RESTRICT tree, int ply, int depth, int wtm, int alpha,
     printf("%s, ", DisplayEvaluation(depth, 1));
     printf("%s}\n", DisplayEvaluation(beta, 1));
   }
+  fflush(0);
   Unlock(lock_io);
 }
 
@@ -2485,7 +2542,7 @@ int StrCnt(char *string, char testchar) {
   for (i = 0; i < strlen(string); i++)
     if (string[i] == testchar)
       count++;
-  return (count);
+  return count;
 }
 
 /*
@@ -2510,32 +2567,32 @@ int ValidMove(TREE * RESTRICT tree, int ply, int wtm, int move) {
 /*
  ************************************************************
  *                                                          *
- *   Make sure that the piece on <from> is the right color. *
+ *  Make sure that the piece on <from> is the right color.  *
  *                                                          *
  ************************************************************
  */
   if (PcOnSq(From(move)) != ((wtm) ? Piece(move) : -Piece(move)))
-    return (0);
+    return 0;
   switch (Piece(move)) {
 /*
  ************************************************************
  *                                                          *
- *   Null-moves are caught as it is possible for a killer   *
- *   move entry to be zero at certain times.                *
+ *  Null-moves are caught as it is possible for a killer    *
+ *  move entry to be zero at certain times.                 *
  *                                                          *
  ************************************************************
  */
     case empty:
-      return (0);
+      return 0;
 /*
  ************************************************************
  *                                                          *
- *   King moves are validated here if the king is moving    *
- *   two squares at one time (castling moves).  Otherwise   *
- *   fall into the normal piece validation routine below.   *
- *   For castling moves, we need to verify that the         *
- *   castling status is correct to avoid "creating" a new   *
- *   rook or king.                                          *
+ *  King moves are validated here if the king is moving two *
+ *  squares at one time (castling moves).  Otherwise fall   *
+ *  into the normal piece validation routine below.  For    *
+ *  castling moves, we need to verify that the castling     *
+ *  status is correct to avoid "creating" a new rook or     *
+ *  king.                                                   *
  *                                                          *
  ************************************************************
  */
@@ -2547,60 +2604,60 @@ int ValidMove(TREE * RESTRICT tree, int ply, int wtm, int move) {
                 || (AttacksTo(tree, csq[wtm]) & Occupied(btm))
                 || (AttacksTo(tree, dsq[wtm]) & Occupied(btm))
                 || (AttacksTo(tree, esq[wtm]) & Occupied(btm)))
-              return (0);
+              return 0;
           } else if (To(move) == gsq[wtm]) {
             if ((!(Castle(ply, wtm) & 1)) || (OccupiedSquares & OO[wtm])
                 || (AttacksTo(tree, esq[wtm]) & Occupied(btm))
                 || (AttacksTo(tree, fsq[wtm]) & Occupied(btm))
                 || (AttacksTo(tree, gsq[wtm]) & Occupied(btm)))
-              return (0);
+              return 0;
           }
         } else
-          return (0);
-        return (1);
+          return 0;
+        return 1;
       }
       break;
 /*
  ************************************************************
  *                                                          *
- *   Check for a normal pawn advance.                       *
+ *  Check for a normal pawn advance.                        *
  *                                                          *
  ************************************************************
  */
     case pawn:
       if (((wtm) ? To(move) - From(move) : From(move) - To(move)) < 0)
-        return (0);
+        return 0;
       if (Abs(From(move) - To(move)) == 8) {
         if (!PcOnSq(To(move)))
-          return (1);
-        return (0);
+          return 1;
+        return 0;
       }
       if (Abs(From(move) - To(move)) == 16) {
         if (!PcOnSq(To(move)) && !PcOnSq(To(move) + epdir[wtm]))
-          return (1);
-        return (0);
+          return 1;
+        return 0;
       }
       if (!Captured(move))
-        return (0);
+        return 0;
 /*
  ************************************************************
  *                                                          *
- *   Check for an en passant capture which is somewhat      *
- *   unusual in that the [to] square does not contain the   *
- *   pawn being captured.  Make sure that the pawn being    *
- *   captured advanced two ranks the previous move.         *
+ *  Check for an en passant capture which is somewhat       *
+ *  unusual in that the [to] square does not contain the    *
+ *  pawn being captured.  Make sure that the pawn being     *
+ *  captured advanced two ranks the previous move.          *
  *                                                          *
  ************************************************************
  */
       if ((PcOnSq(To(move)) == 0)
           && (PcOnSq(To(move) + epdir[wtm]) == ((wtm) ? -pawn : pawn))
           && (EnPassantTarget(ply) & SetMask(To(move))))
-        return (1);
+        return 1;
       break;
 /*
  ************************************************************
  *                                                          *
- *   Normal moves are all checked the same way.             *
+ *  Normal moves are all checked the same way.              *
  *                                                          *
  ************************************************************
  */
@@ -2609,26 +2666,26 @@ int ValidMove(TREE * RESTRICT tree, int ply, int wtm, int move) {
     case bishop:
       if (Attack(From(move), To(move)))
         break;
-      return (0);
+      return 0;
     case knight:
       break;
   }
 /*
  ************************************************************
  *                                                          *
- *   All normal moves are validated in the same manner, by  *
- *   checking the from and to squares and also the attack   *
- *   status for completeness.                               *
+ *  All normal moves are validated in the same manner, by   *
+ *  checking the from and to squares and also the attack    *
+ *  status for completeness.                                *
  *                                                          *
  ************************************************************
  */
   if ((Captured(move) == ((wtm) ? -PcOnSq(To(move)) : PcOnSq(To(move))))
       && Captured(move) != king)
-    return (1);
-  return (0);
+    return 1;
+  return 0;
 }
 
-/* last modified 07/07/98 */
+/* last modified 02/26/14 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -2645,19 +2702,19 @@ int VerifyMove(TREE * RESTRICT tree, int ply, int wtm, int move) {
  Generate moves, then eliminate any that are illegal.
  */
   if (move == 0)
-    return (0);
-  tree->position[MAXPLY] = tree->position[ply];
+    return 0;
+  tree->status[MAXPLY] = tree->status[ply];
   mvp = GenerateCaptures(tree, MAXPLY, wtm, moves);
   mvp = GenerateNoncaptures(tree, MAXPLY, wtm, mvp);
   for (mv = &moves[0]; mv < mvp; mv++) {
     MakeMove(tree, MAXPLY, *mv, wtm);
     if (!Check(wtm) && move == *mv) {
       UnmakeMove(tree, MAXPLY, *mv, wtm);
-      return (1);
+      return 1;
     }
     UnmakeMove(tree, MAXPLY, *mv, wtm);
   }
-  return (0);
+  return 0;
 }
 
 /*
@@ -2667,7 +2724,7 @@ int VerifyMove(TREE * RESTRICT tree, int ply, int wtm, int move) {
  *                                                                             *
  *******************************************************************************
  */
-#if defined(_WIN32) || defined(_WIN64)
+#if !defined(UNIX)
 lock_t ThreadsLock;
 static BOOL(WINAPI * pGetNumaHighestNodeNumber) (PULONG);
 static BOOL(WINAPI * pGetNumaNodeProcessorMask) (UCHAR, PULONGLONG);
@@ -2749,7 +2806,7 @@ static void WinNumaInit(void) {
   }
 }
 
-// Start thread. For NUMA system set it affinity.
+// Start thread. For NUMA system set its affinity.
 #  if (CPUS > 1)
 pthread_t NumaStartThread(void *func, void *args) {
   HANDLE hThread;

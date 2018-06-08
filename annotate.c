@@ -1,70 +1,70 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 01/18/09 */
+/* last modified 02/26/14 */
 /*
  *******************************************************************************
  *                                                                             *
- *  "annotate" command is used to search through the game in a pgn file, and   *
- *  provide a qualitative analysis of each move played and then creating a new *
- *  output file (xxx.can) containing the original game + new commentary.       *
+ *   "annotate" command is used to search through the game in a pgn file, and  *
+ *   provide a qualitative analysis of each move played and then creating a    *
+ *   new output file (xxx.can) containing the original game + new commentary.  *
  *                                                                             *
- *  The normal output of this command is a file, in PGN format, that contains  *
- *  the moves of the game, along with analysis when Crafty does not think that *
- *  move was the best choice.  The definition of "best choice" is somewhat     *
- *  vague, because if the move played is "close" to the best move available,   *
- *  Crafty will not comment on the move.  "Close" is defined by the <margin>   *
- *  option explained below.  This basic type of annotation works by first      *
- *  using the normal tree search algorithm to find the best move.  If this     *
- *  move was the move played, no output is produced.  If a different move is   *
- *  considered best, then the actual move played is searched to the same depth *
- *  and if the best move and actual move scores are within <margin> of each    *
- *  other, no comment is produced, otherwise Crafty inserts the evaluation for *
- *  the move played, followed by the eval and PV for the best continuation it  *
- *  found.  You can enter suggested moves for Crafty to analyze at any point   *
- *  by simply entering a move as an analysis-type comment using (move) or      *
- *  {move}.  Crafty will search that move in addition to the move actually     *
- *  played and the move it thinks is best.                                     *
+ *   The normal output of this command is a file, in PGN format, that contains *
+ *   the moves of the game, along with analysis when Crafty does not think     *
+ *   that move was the best choice.  The definition of "best choice" is        *
+ *   somewhat vague, because if the move played is "close" to the best move    *
+ *   available, Crafty will not comment on the move.  "Close" is defined by    *
+ *   the <margin> option explained below.  This basic type of annotation works *
+ *   by first using the normal tree search algorithm to find the best move.    *
+ *   If this move was the move played, no output is produced.  If a different  *
+ *   move is considered best, then the actual move played is searched to the   *
+ *   same depth and if the best move and actual move scores are within         *
+ *   <margin> of each other, no comment is produced, otherwise Crafty inserts  *
+ *   the evaluation for the move played, followed by the eval and PV for the   *
+ *   best continuation it found.  You can enter suggested moves for Crafty to  *
+ *   analyze at any point by simply entering a move as an analysis-type        *
+ *   comment using (move) or {move}.  Crafty will search that move in addition *
+ *   to the move actually played and the move it thinks is best.               *
  *                                                                             *
- *  The format of the command is as follows:                                   *
+ *   The format of the command is as follows:                                  *
  *                                                                             *
- *      annotate filename b|w|bw|name moves margin time [n]                    *
+ *       annotate filename b|w|bw|name moves margin time [n]                   *
  *                                                                             *
- *  Filename is the input file where Crafty will obtain the moves to annotate, *
- *  and output will be written to file "filename.can".                         *
+ *   Filename is the input file where Crafty will obtain the moves to          *
+ *   annotate, and output will be written to file "filename.can".              *
  *                                                                             *
- *      annotateh filename b|w|bw|name moves margin time [n]                   *
+ *       annotateh filename b|w|bw|name moves margin time [n]                  *
  *                                                                             *
- *  Can be used to produce an HTML-compatible file that includes bitmapped     *
- *  diagrams of the positions where Crafty provides analysis.  This file can be*
- *  opened by a browser to provide much easier 'reading'.                      *
+ *   Can be used to produce an HTML-compatible file that includes bitmapped    *
+ *   diagrams of the positions where Crafty provides analysis.  This file can  *
+ *   be opened by a browser to provide much easier 'reading'.                  *
  *                                                                             *
- *      annotatet filename b|w|bw|name moves margin time [n]                   *
+ *       annotatet filename b|w|bw|name moves margin time [n]                  *
  *                                                                             *
- *  Can be used to produce a LaTeX-compatible file that includes LaTeX chess   *
- *  fonts.  This file can be read/printed by any program that can handle LaTeX *
- *  input.                                                                     *
+ *   Can be used to produce a LaTeX-compatible file that includes LaTeX chess  *
+ *   fonts.  This file can be read/printed by any program that can handle      *
+ *   LaTeX input.                                                              *
  *                                                                             *
- *  Where b/w/bw indicates whether to annotate only the white side (w), the    *
- *  black side (b) or both (bw).  You can also specify a name (or part of a    *
- *  name, just be sure it is unique in the name tags for clarity in who you    *
- *  mean).                                                                     *
+ *   Where b/w/bw indicates whether to annotate only the white side (w), the   *
+ *   black side (b) or both (bw).  You can also specify a name (or part of a   *
+ *   name, just be sure it is unique in the name tags for clarity in who you   *
+ *   mean).                                                                    *
  *                                                                             *
- *  Moves indicates the move or moves to annotate.  It can be a single move,   *
- *  which indicates the starting move number to annotate, or it can be a range,*
- *  which indicates a range of move (1-999 gets the whole game.)               *
+ *   Moves indicates the move or moves to annotate.  It can be a single move,  *
+ *   which indicates the starting move number to annotate, or it can be a      *
+ *   range, which indicates a range of move (1-999 gets the whole game.)       *
  *                                                                             *
- *  Margin is the difference between Crafty's evaluation for the move actually *
- *  played and for the move Crafty thinks is best, before Crafty will generate *
- *  a comment in the annotation file.  1.0 is a pawn, and will only generate   *
- *  comments if the move played is 1.000 (1 pawn) worse than the best move     *
- *  found by doing a complete search.                                          *
+ *   Margin is the difference between Crafty's evaluation for the move         *
+ *   actually played and for the move Crafty thinks is best, before Crafty     *
+ *   will generate a comment in the annotation file.  1.0 is a pawn, and will  *
+ *   only generate comments if the move played is 1.000 (1 pawn) worse than    *
+ *   the best move found by doing a complete search.                           *
  *                                                                             *
- *  Time is time per move to search, in seconds.                               *
+ *   Time is time per move to search, in seconds.                              *
  *                                                                             *
- *  [n] is optional and tells Crafty to produce the PV/score for the "n" best  *
- *  moves.  Crafty stops when the best move reaches the move played in the game*
- *  or after displaying n moves, whichever comes first.  If you use -n, then it*
- *  will display n moves regardless of where the game move ranks.              *
+ *   [n] is optional and tells Crafty to produce the PV/score for the "n" best *
+ *   moves.  Crafty stops when the best move reaches the move played in the    *
+ *   game or after displaying n moves, whichever comes first.  If you use -n,  *
+ *   then it will display n moves regardless of where the game move ranks.     *
  *                                                                             *
  *******************************************************************************
  */
@@ -92,8 +92,8 @@ void Annotate() {
 /*
  ************************************************************
  *                                                          *
- *   First, extract the options from the command line to    *
- *   determine what the user wanted us to do.               *
+ *  First, extract the options from the command line to     *
+ *  determine what the user wanted us to do.                *
  *                                                          *
  ************************************************************
  */
@@ -134,7 +134,7 @@ void Annotate() {
   if (html_mode == 1)
     AnnotateHeaderHTML(text, annotate_out);
   if (latex == 1)
-    AnnotateHeaderTeX(text, annotate_out);
+    AnnotateHeaderTeX(annotate_out);
   if (strlen(args[2]) <= 2)
     strcpy(colors, args[2]);
   else
@@ -158,12 +158,12 @@ void Annotate() {
 /*
  ************************************************************
  *                                                          *
- *   Reset the game to "square 0" to start the annotation   *
- *   procedure.  Then we read moves from the input file,    *
- *   make them on the game board, and annotate if the move  *
- *   is for the correct side.  If we haven't yet reached    *
- *   the starting move to annotate, we skip the Search()    *
- *   stuff and read another move.                           *
+ *  Reset the game to "square 0" to start the annotation    *
+ *  procedure.  Then we read moves from the input file,     *
+ *  make them on the game board, and annotate if the move   *
+ *  is for the correct side.  If we haven't yet reached the *
+ *  starting move to annotate, we skip the Search() stuff   *
+ *   and read another move.                                 *
  *                                                          *
  ************************************************************
  */
@@ -184,14 +184,14 @@ void Annotate() {
     tree->pv[0].pathd = 0;
     analysis_printed = 0;
     InitializeChessBoard(tree);
-    tree->position[1] = tree->position[0];
+    tree->status[1] = tree->status[0];
     wtm = 1;
     move_number = 1;
 /*
  ************************************************************
  *                                                          *
- *   Now grab the PGN tag values so they can be copied to   *
- *   the .can file for reference.                           *
+ *  Now grab the PGN tag values so they can be copied to    *
+ *  the .can file for reference.                            *
  *                                                          *
  ************************************************************
  */
@@ -296,10 +296,10 @@ void Annotate() {
 /*
  ************************************************************
  *                                                          *
- *   Search the position to see if the move played is the   *
- *   best move possible.  If not, then search just the move *
- *   played to get a score for it as well, so we can        *
- *   determine if annotated output is appropriate.          *
+ *  Search the position to see if the move played is the    *
+ *  best move possible.  If not, then search just the move  *
+ *  played to get a score for it as well, so we can         *
+ *  determine if annotated output is appropriate.           *
  *                                                          *
  ************************************************************
  */
@@ -315,7 +315,7 @@ void Annotate() {
             }
             Print(4095, "\n              Searching all legal moves.");
             Print(4095, "----------------------------------\n");
-            tree->position[1] = tree->position[0];
+            tree->status[1] = tree->status[0];
             InitializeHashTables();
             annotate_score[searches_done] = Iterate(wtm, annotate, 1);
             if (tree->pv[0].path[1] == move) {
@@ -345,7 +345,7 @@ void Annotate() {
             Print(4095,
                 "\n              Searching only the move played in game.");
             Print(4095, "--------------------\n");
-            tree->position[1] = tree->position[0];
+            tree->status[1] = tree->status[0];
             search_move = move;
             root_moves[0].move = move;
             root_moves[0].status = 0;
@@ -364,9 +364,9 @@ void Annotate() {
 /*
  ************************************************************
  *                                                          *
- *   Output the score/pv for the move played unless it      *
- *   matches what Crafty would have played.  If it doesn't  *
- *   then output the pv for what Crafty thinks is best.     *
+ *  Output the score/pv for the move played unless it       *
+ *  matches what Crafty would have played.  If it doesn't   *
+ *  then output the pv for what Crafty thinks is best.      *
  *                                                          *
  ************************************************************
  */
@@ -431,10 +431,10 @@ void Annotate() {
 /*
  ************************************************************
  *                                                          *
- *   Before going on to the next move, see if the user has  *
- *   included a set of other moves that require a search.   *
- *   If so, search them one at a time and produce the ana-  *
- *   lysis for each one.                                    *
+ *  Before going on to the next move, see if the user has   *
+ *  included a set of other moves that require a search.    *
+ *  If so, search them one at a time and produce the ana-   *
+ *  lysis for each one.                                     *
  *                                                          *
  ************************************************************
  */
@@ -445,7 +445,7 @@ void Annotate() {
           thinking = 1;
           Print(4095, "\n              Searching only the move suggested.");
           Print(4095, "--------------------\n");
-          tree->position[1] = tree->position[0];
+          tree->status[1] = tree->status[0];
           search_move = suggested;
           search_time_limit = 3 * annotate_search_time_limit;
           search_depth = temp[0].pathd;
@@ -655,7 +655,7 @@ void AnnotatePositionHTML(TREE * RESTRICT tree, int wtm, FILE * annotate_out) {
  *                                                                             *
  *******************************************************************************
  */
-void AnnotateHeaderTeX(char *title_text, FILE * annotate_out) {
+void AnnotateHeaderTeX(FILE * annotate_out) {
   fprintf(annotate_out, "\\documentclass[12pt,twocolumn]{article}\n");
   fprintf(annotate_out, "%% This is a LaTeX file generated by Crafty \n");
   fprintf(annotate_out,

@@ -331,7 +331,7 @@ static void* PvMalloc
     pv = malloc (cb);
     if (NULL == pv)
         {
-        printf ("*** Cannot allocate %d bytes of memory\n", cb);
+        printf ("*** Cannot allocate %lu bytes of memory\n", cb);
         exit (1);
         }
     cbAllocated += cb;
@@ -1008,52 +1008,52 @@ static void VInitSquaresTable
                 {
             case x_piecePawn:
                 if (
-                    0 != TbColumn (sq) && sqKing == sq+7 ||
-                    7 != TbColumn (sq) && sqKing == sq+9
+                    (0 != TbColumn (sq) && sqKing == sq+7) ||
+                    (7 != TbColumn (sq) && sqKing == sq+9)
                    )
                    continue;
                 break;
             case x_pieceKnight:
                 if (
-                    TbRow (sq) >= 2 && TbColumn (sq) >= 1 && sqKing == sq-17 ||
-                    TbRow (sq) >= 2 && TbColumn (sq) <= 6 && sqKing == sq-15 ||
-                    TbRow (sq) >= 1 && TbColumn (sq) >= 2 && sqKing == sq-10 ||
-                    TbRow (sq) >= 1 && TbColumn (sq) <= 5 && sqKing == sq-6 ||
-                    TbRow (sq) <= 6 && TbColumn (sq) >= 2 && sqKing == sq+6 ||
-                    TbRow (sq) <= 6 && TbColumn (sq) <= 5 && sqKing == sq+10 ||
-                    TbRow (sq) <= 5 && TbColumn (sq) >= 1 && sqKing == sq+15 ||
-                    TbRow (sq) <= 5 && TbColumn (sq) <= 6 && sqKing == sq+17
+                    (TbRow (sq) >= 2 && TbColumn (sq) >= 1 && sqKing == sq-17) ||
+                    (TbRow (sq) >= 2 && TbColumn (sq) <= 6 && sqKing == sq-15) ||
+                    (TbRow (sq) >= 1 && TbColumn (sq) >= 2 && sqKing == sq-10) ||
+                    (TbRow (sq) >= 1 && TbColumn (sq) <= 5 && sqKing == sq-6) ||
+                    (TbRow (sq) <= 6 && TbColumn (sq) >= 2 && sqKing == sq+6) ||
+                    (TbRow (sq) <= 6 && TbColumn (sq) <= 5 && sqKing == sq+10) ||
+                    (TbRow (sq) <= 5 && TbColumn (sq) >= 1 && sqKing == sq+15) ||
+                    (TbRow (sq) <= 5 && TbColumn (sq) <= 6 && sqKing == sq+17)
                    )
                     continue;
                 break;
             case x_pieceBishop:
                 if (
-                    0 != TbRow (sq) && 0 != TbColumn (sq) && sqKing == sq-9 ||
-                    0 != TbRow (sq) && 7 != TbColumn (sq) && sqKing == sq-7 ||
-                    7 != TbRow (sq) && 0 != TbColumn (sq) && sqKing == sq+7 ||
-                    7 != TbRow (sq) && 7 != TbColumn (sq) && sqKing == sq+9
+                    (0 != TbRow (sq) && 0 != TbColumn (sq) && sqKing == sq-9) ||
+                    (0 != TbRow (sq) && 7 != TbColumn (sq) && sqKing == sq-7) ||
+                    (7 != TbRow (sq) && 0 != TbColumn (sq) && sqKing == sq+7) ||
+                    (7 != TbRow (sq) && 7 != TbColumn (sq) && sqKing == sq+9)
                    )
                     continue;
                 break;
             case x_pieceRook:
                 if (
-                    0 != TbColumn (sq) && sqKing == sq-1 ||
-                    7 != TbColumn (sq) && sqKing == sq+1 ||
-                    0 != TbRow (sq) && sqKing == sq-8 ||
-                    7 != TbRow (sq) && sqKing == sq+8
+                    (0 != TbColumn (sq) && sqKing == sq-1) ||
+                    (7 != TbColumn (sq) && sqKing == sq+1) ||
+                    (0 != TbRow (sq) && sqKing == sq-8) ||
+                    (7 != TbRow (sq) && sqKing == sq+8)
                    )
                     continue;
                 break;
             case x_pieceQueen:
                 if (
-                    0 != TbColumn (sq) && sqKing == sq-1 ||
-                    7 != TbColumn (sq) && sqKing == sq+1 ||
-                    0 != TbRow (sq) && sqKing == sq-8 ||
-                    7 != TbRow (sq) && sqKing == sq+8 ||
-                    0 != TbRow (sq) && 0 != TbColumn (sq) && sqKing == sq-9 ||
-                    0 != TbRow (sq) && 7 != TbColumn (sq) && sqKing == sq-7 ||
-                    7 != TbRow (sq) && 0 != TbColumn (sq) && sqKing == sq+7 ||
-                    7 != TbRow (sq) && 7 != TbColumn (sq) && sqKing == sq+9
+                    (0 != TbColumn (sq) && sqKing == sq-1) ||
+                    (7 != TbColumn (sq) && sqKing == sq+1) ||
+                    (0 != TbRow (sq) && sqKing == sq-8) ||
+                    (7 != TbRow (sq) && sqKing == sq+8) ||
+                    (0 != TbRow (sq) && 0 != TbColumn (sq) && sqKing == sq-9) ||
+                    (0 != TbRow (sq) && 7 != TbColumn (sq) && sqKing == sq-7) ||
+                    (7 != TbRow (sq) && 0 != TbColumn (sq) && sqKing == sq+7) ||
+                    (7 != TbRow (sq) && 7 != TbColumn (sq) && sqKing == sq+9)
                    )
                     continue;
                 break;
@@ -1267,24 +1267,24 @@ static void VInitEnumerations (void)
     if (fPrint)
         {
         for (pi1 = x_pieceNone; pi1 <= x_pieceQueen; pi1 = (piece) (pi1 + 1))
-            printf ("%c - %d enumerated positions\n", "pPNBRQ"[pi1], rgcSinglePawnPresent[pi1]);
+            printf ("%c - %lud enumerated positions\n", "pPNBRQ"[pi1], rgcSinglePawnPresent[pi1]);
         for (pi1 = x_pieceNone; pi1 <= x_pieceQueen; pi1 = (piece) (pi1 + 1))
             {
             if (0 != rgcSinglePawnless[pi1])
-                printf ("pawnless %c - %d enumerated positions\n", "pPNBRQ"[pi1], rgcSinglePawnless[pi1]);
+                printf ("pawnless %c - %lud enumerated positions\n", "pPNBRQ"[pi1], rgcSinglePawnless[pi1]);
             }
         for (pi1 = x_pieceNone; pi1 <= x_pieceQueen; pi1 = (piece) (pi1 + 1))
             for (pi2 = x_pieceNone; pi2 <= pi1; pi2 = (piece) (pi2 + 1))
                 {
                 if (0 != rgcPairPawnPresent[pi1][pi2])
-                    printf ("%c%c - %d enumerated positions\n", "pPNBRQ"[pi1], "pPNBRQ"[pi2],
+                    printf ("%c%c - %lu enumerated positions\n", "pPNBRQ"[pi1], "pPNBRQ"[pi2],
                             rgcPairPawnPresent[pi1][pi2]);
                 }
         for (pi1 = x_pieceNone; pi1 <= x_pieceQueen; pi1 = (piece) (pi1 + 1))
             for (pi2 = x_pieceNone; pi2 <= pi1; pi2 = (piece) (pi2 + 1))
                 {
                 if (0 != rgcPairPawnless[pi1][pi2])
-                    printf ("pawnless %c%c - %d enumerated positions\n", "pPNBRQ"[pi1], "pPNBRQ"[pi2],
+                    printf ("pawnless %c%c - %lu enumerated positions\n", "pPNBRQ"[pi1], "pPNBRQ"[pi2],
                             rgcPairPawnless[pi1][pi2]);
                 }
 #if defined (T41_INCLUDE) || defined (T42_INCLUDE)
@@ -1293,7 +1293,7 @@ static void VInitEnumerations (void)
                 for (pi3 = x_pieceNone; pi3 <= pi2; pi3 = (piece) (pi3 + 1))
                     {
                     if (0 != rgcTriplePawnPresent[pi1][pi2][pi3])
-                        printf ("%c%c%c - %d enumerated positions\n",
+                        printf ("%c%c%c - %lu enumerated positions\n",
                                 "pPNBRQ"[pi1], "pPNBRQ"[pi2], "pPNBRQ"[pi3],
                                 rgcTriplePawnPresent[pi1][pi2][pi3]);
                     }
@@ -1302,12 +1302,12 @@ static void VInitEnumerations (void)
                 for (pi3 = x_pieceNone; pi3 <= pi2; pi3 = (piece) (pi3 + 1))
                     {
                     if (0 != rgcTriplePawnless[pi1][pi2][pi3])
-                        printf ("pawnless %c%c%c - %d enumerated positions\n",
+                        printf ("pawnless %c%c%c - %lu enumerated positions\n",
                                 "pPNBRQ"[pi1], "pPNBRQ"[pi2], "pPNBRQ"[pi3],
                                 rgcTriplePawnless[pi1][pi2][pi3]);
                     }
 #endif
-        printf ("\nAllocated %dk\n\n", (cbAllocated + 1023)/1024);
+        printf ("\nAllocated %luk\n\n", (cbAllocated + 1023)/1024);
         }
     }
 
@@ -6089,42 +6089,6 @@ ERROR_LABEL_2:
 
 // Probe TB - upper level function
 
-static int  TB_FASTCALL TbtProbeTable
-    (
-    int     iTb,
-    color   side,
-    INDEX   indOffset
-    )
-    {
-    CTbDesc *ptbd;
-
-    assert (iTb > 0 && iTb < cTb);
-    ptbd = & rgtbdDesc[iTb];
-    if (ptbd->m_fSymmetric)
-        side = x_colorWhite;
-
-    // It's better for offset be smaller than TB size
-    assert (!FRegistered (iTb, side) || indOffset < ptbd->m_rgcbLength[side]);
-
-    // Entire file read/mapped to memory?
-    if (NULL != ptbd->m_rgpbRead[side])
-        return (tb_t) ptbd->m_rgpbRead[side][indOffset];
-
-    // Cache initialized? TB registered?
-    if (0 == ctbcTbCache || NULL == ptbd->m_prgtbcbBuckets[side])
-        return bev_broken;
-
-#if defined (T33_INCLUDE) || defined (KPPKP_16BIT)
-    if (ptbd->m_f16bit)
-        return bev_broken;
-#endif
-
-    int tb;
-
-    tb = TbtProbeTable (iTb, side,(unsigned) TB_CHUNK (indOffset), (unsigned) TB_OFFSET (indOffset));
-    return (L_bev_broken == tb) ? bev_broken : (tb_t) tb;
-    }
-
 // 16-bit version (recommended)
 
 #define FOutOfBound(iTb, side, indOffset)\
@@ -6300,9 +6264,6 @@ static int FCheckExtentExistance
     CTbCacheBucket  *prgtbcbBuckets;
     INDEX           cb;
     decode_info     *comp_info = NULL;
-    int             fWasError;
-    decode_block    *block;
-    BYTE            rgbBuffer[TB_CB_CACHE_CHUNK+32+4];
 
     if (FRegisteredExtent (iTb, side, iExtent) || NULL != rgtbdDesc[iTb].m_rgpbRead[side])
         return true;

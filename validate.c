@@ -1,6 +1,7 @@
-#include "chess.h"
-#include "data.h"
-/* last modified 03/03/08 */
+#if defined(DEBUG)
+#  include "chess.h"
+#  include "data.h"
+/* last modified 02/26/14 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -225,12 +226,13 @@ void ValidatePosition(TREE * RESTRICT tree, int ply, int move, char *caller) {
     Print(4095, "processor id: cpu-%d\n", tree->thread_id);
     Print(4095, "current move:\n");
     DisplayChessMove("move=", move);
-    DisplayChessBoard(stdout, tree->pos);
+    DisplayChessBoard(stdout, tree->position);
     Print(4095, "called from %s, ply=%d\n", caller, ply);
-    Print(4095, "node=" BMF "\n", tree->nodes_searched);
+    Print(4095, "node=%" PRIu64 "\n", tree->nodes_searched);
     Print(4095, "active path:\n");
     for (i = 1; i <= ply; i++)
       DisplayChessMove("move=", tree->curmv[i]);
     CraftyExit(1);
   }
 }
+#endif

@@ -22,12 +22,12 @@
  generic PC running Linux 1.2.9 and using the gcc 2.6.3 compiler.
  */
 /* system includes */
-#  if !defined(NT_i386)
+#  if defined(UNIX)
 #    include <unistd.h>
 #  endif
 #  include <ctype.h>
 #  include <time.h>
-#  if defined(NT_i386)
+#  if !defined(UNIX)
 #    include <process.h>
 #  endif
 /* Crafty includes */
@@ -134,7 +134,7 @@ static egcommT EGLocateCommand(charptrT s) {
       egcomm = index;
     else
       index++;
-  return (egcomm);
+  return egcomm;
 }
 
 /*--> EGMapFromHostColor: map a color from the host to the EPD style */
@@ -147,7 +147,7 @@ static cT EGMapFromHostColor(siT color) {
     c = c_w;
   else
     c = c_b;
-  return (c);
+  return c;
 }
 
 /*--> EGMapToHostColor: map a color to the host from the EPD style */
@@ -160,36 +160,7 @@ static siT EGMapToHostColor(cT c) {
     color = 1;
   else
     color = 0;
-  return (color);
-}
-
-/*--> EGMapToHostPiece: map a piece to the host from the EPD style */
-static siT EGMapToHostPiece(pT p) {
-  siT piece = 0;
-
-/* this is an internal glue routine */
-/* map to Crafty's piece representation */
-  switch (p) {
-    case p_p:
-      piece = pawn;
-      break;
-    case p_n:
-      piece = knight;
-      break;
-    case p_b:
-      piece = bishop;
-      break;
-    case p_r:
-      piece = rook;
-      break;
-    case p_q:
-      piece = queen;
-      break;
-    case p_k:
-      piece = king;
-      break;
-  };
-  return (piece);
+  return color;
 }
 
 /*--> EGMapFromHostCP: map a color piece from the host to the EPD style */
@@ -239,7 +210,7 @@ static cpT EGMapFromHostCP(siT hostcp) {
       cp = cp_wq;
       break;
   };
-  return (cp);
+  return cp;
 }
 
 /*--> EGMapToHostCP: map a color piece to the host from the EPD style */
@@ -289,7 +260,7 @@ static siT EGMapToHostCP(cpT cp) {
       hostcp = 0;
       break;
   };
-  return (hostcp);
+  return hostcp;
 }
 
 /*--> EGMapFromHostSq: map square index from host style */
@@ -299,7 +270,7 @@ static sqT EGMapFromHostSq(siT index) {
 /* this is an internal glue routine */
 /* Crafty's square index is the same as the EPD Kit square index */
   sq = index;
-  return (sq);
+  return sq;
 }
 
 /*--> EGMapToHostSq: map square index to host style */
@@ -309,7 +280,7 @@ static siT EGMapToHostSq(sqT sq) {
 /* this is an internal glue routine */
 /* Crafty's square index is the same as the EPD Kit square index */
   index = sq;
-  return (index);
+  return index;
 }
 
 /*--> EGMapFromHostScore: map score from host style */
@@ -331,26 +302,7 @@ static cpevT EGMapFromHostScore(liT score) {
 /* convert regular score */
     cpev = score;
   };
-  return (cpev);
-}
-
-/*--> EGMapToHostScore: map score to host style */
-static liT EGMapToHostScore(cpevT cpev) {
-  liT score;
-
-/* this is an internal EPD glue routine */
-/* check for a forced mate */
-  if (forced_mate(cpev)) {
-/* convert forced mate score */
-    score = MATE - (cpev_best - cpev + 1);
-  } else if (forced_loss(cpev)) {
-/* convert forced loss score */
-    score = -MATE + (cpev_best + cpev + 1);
-  } else {
-/* convert regular score */
-    score = ((liT) cpev);
-  };
-  return (score);
+  return cpev;
 }
 
 /*--> EGMapFromHostMove: map move from host style to EPD style */
@@ -417,41 +369,7 @@ static mT EGMapFromHostMove(liT move) {
     };
   if (!flag)
     m.m_scmv = scmv_reg;
-  return (m);
-}
-
-/*--> EGMapToHostMove: map move to host style from EPD style */
-static liT EGMapToHostMove(mT m) {
-  liT move;
-
-/* this is an internal EPD glue routine */
-/* the EPD current position must be properly set */
-  move = 0;
-  move |= EGMapToHostSq(m.m_frsq);
-  move |= EGMapToHostSq(m.m_tosq) << 6;
-  move |= EGMapToHostPiece(EPDPieceFromCP(m.m_frcp)) << 12;
-  if (m.m_tocp != cp_v0)
-    move |= EGMapToHostPiece(EPDPieceFromCP(m.m_tocp)) << 15;
-  switch (m.m_scmv) {
-    case scmv_epc:
-      move |= pawn << 15;
-      break;
-    case scmv_ppn:
-      move |= knight << 18;
-      break;
-    case scmv_ppb:
-      move |= bishop << 18;
-      break;
-    case scmv_ppr:
-      move |= rook << 18;
-      break;
-    case scmv_ppq:
-      move |= queen << 18;
-      break;
-    default:
-      break;
-  };
-  return (move);
+  return m;
 }
 
 /*--> EGGetIndexedHostPosition: copy from indexed host position */
@@ -473,12 +391,12 @@ void EGGetIndexedHostPosition(TREE * RESTRICT tree, siT posdex, int active) {
  */
 /* read from the host piece placement */
   for (sq = sq_a1; sq <= sq_h8; sq++)
-    rb.rbv[sq] = EGMapFromHostCP(tree->pos.board[EGMapToHostSq(sq)]);
+    rb.rbv[sq] = EGMapFromHostCP(tree->position.board[EGMapToHostSq(sq)]);
 /* read from the host piece active color */
   actc = EGMapFromHostColor((siT) active);
 /* read from the host piece castling availability */
   cast = 0;
-  switch (tree->position[posdex].castle[1]) {
+  switch (tree->status[posdex].castle[1]) {
     case 0:
       break;
     case 1:
@@ -491,7 +409,7 @@ void EGGetIndexedHostPosition(TREE * RESTRICT tree, siT posdex, int active) {
       cast |= cf_wk | cf_wq;
       break;
   };
-  switch (tree->position[posdex].castle[0]) {
+  switch (tree->status[posdex].castle[0]) {
     case 0:
       break;
     case 1:
@@ -506,16 +424,16 @@ void EGGetIndexedHostPosition(TREE * RESTRICT tree, siT posdex, int active) {
   };
 /* read from the host piece en passant target square */
   epsq = sq_nil;
-  if (tree->position[posdex].enpassant_target != 0) {
+  if (tree->status[posdex].enpassant_target != 0) {
     sq = sq_a1;
     while ((epsq == sq_nil) && (sq <= sq_h8))
-      if (tree->position[posdex].enpassant_target == EGMapToHostSq(sq))
+      if (tree->status[posdex].enpassant_target == EGMapToHostSq(sq))
         epsq = sq;
       else
         sq++;
   };
 /* read from the host halfmove clock */
-  hmvc = tree->position[posdex].rule_50_moves;
+  hmvc = tree->status[posdex].reversible;
 /* read from the host fullmove number */
   fmvn = move_number;
 /* set the EPD current position */
@@ -569,33 +487,33 @@ void EGPutHostPosition(void) {
   fmvn = EPDFetchFMVN();
 /* copy the board into the host board */
   for (sq = sq_a1; sq <= sq_h8; sq++)
-    tree->pos.board[EGMapToHostSq(sq)] = EGMapToHostCP(rb.rbv[sq]);
+    tree->position.board[EGMapToHostSq(sq)] = EGMapToHostCP(rb.rbv[sq]);
 /* copy the active color */
   game_wtm = EGMapToHostColor(actc);
 /* copy the castling availibility */
-  tree->position[0].castle[1] = 0;
+  tree->status[0].castle[1] = 0;
   if (cast & cf_wk)
-    tree->position[0].castle[1] += 1;
+    tree->status[0].castle[1] += 1;
   if (cast & cf_wq)
-    tree->position[0].castle[1] += 2;
-  tree->position[0].castle[0] = 0;
+    tree->status[0].castle[1] += 2;
+  tree->status[0].castle[0] = 0;
   if (cast & cf_bk)
-    tree->position[0].castle[0] += 1;
+    tree->status[0].castle[0] += 1;
   if (cast & cf_bq)
-    tree->position[0].castle[0] += 2;
+    tree->status[0].castle[0] += 2;
 /* copy the en passant target square */
   if (epsq == sq_nil)
-    tree->position[0].enpassant_target = 0;
+    tree->status[0].enpassant_target = 0;
   else
-    tree->position[0].enpassant_target = EGMapToHostSq(epsq);
+    tree->status[0].enpassant_target = EGMapToHostSq(epsq);
 /* copy the halfmove clock */
-  tree->position[0].rule_50_moves = hmvc;
+  tree->status[0].reversible = hmvc;
 /* copy the fullmove number */
   move_number = fmvn;
 /* set secondary host data items */
   SetChessBitBoards(tree);
-  Repetition(black) = 0;
-  Repetition(white) = 0;
+  tree->rep_index = 0;
+  tree->rep_list[0] = HashKey;
   moves_out_of_book = 0;
   last_mate_score = 0;
 /* clear the host killer information */
@@ -688,16 +606,13 @@ static charptrT EGEncodeHostHistory(void) {
     };
 /* close the game structure */
   EPDGameClose(gamptr);
-  return (sptr);
+  return sptr;
 }
 
 /*--> EGIterate: wrapper function for host Iterate() call */
 static
 int EGIterate(siT wtm_flag, siT think_flag) {
   int value;
-  int move;
-  mptrT mptr;
-  mT m;
   epdptrT epdptr;
   TREE *tree = block[0];
 
@@ -712,7 +627,7 @@ int EGIterate(siT wtm_flag, siT think_flag) {
   EPDGenMoves();
   last_pv = tree->pv[0];
   last_value = value;
-  return (value);
+  return value;
 }
 
 /*--> EGCommHandler: callback routine for handling Duplex events */
@@ -850,7 +765,7 @@ static epdptrT EGCommHandler(epdptrT epdptr0, siptrT flagptr) {
         thinking = 1;
         last_pv.pathd = 0;
         last_pv.pathl = 0;
-        tree->position[1] = tree->position[0];
+        tree->status[1] = tree->status[0];
 /* search */
         (void) EGIterate((siT) game_wtm, (siT) think);
 /* process search result */
@@ -927,7 +842,7 @@ static epdptrT EGCommHandler(epdptrT epdptr0, siptrT flagptr) {
       EPDReleaseEPD(epdptr1);
       epdptr1 = NULL;
     };
-  return (epdptr1);
+  return epdptr1;
 }
 
 /*--> EGProcessAPGN: process the EG command epdapgn */
@@ -960,7 +875,7 @@ static siT EGProcessAPGN(void) {
       EPDMemoryFree(s);
     };
   };
-  return (flag);
+  return flag;
 }
 
 /*--> EGProcessBFIX: process the EG command epdbfix */
@@ -1033,7 +948,7 @@ static siT EGProcessBFIX(void) {
     fclose(fptr0);
   if (fptr1 != NULL)
     fclose(fptr1);
-  return (flag);
+  return flag;
 }
 
 /*--> EGProcessCICS: process the EG command epdcics */
@@ -1053,7 +968,7 @@ static siT EGProcessCICS(void) {
     EGPL("This command is not yet implemented.");
     flag = 0;
   };
-  return (flag);
+  return flag;
 }
 
 /*--> EGProcessCOMM: process the EG command epdcomm */
@@ -1091,7 +1006,7 @@ static siT EGProcessCOMM(void) {
 /* restore the history file pointer */
     history_file = save_history_file;
   };
-  return (flag);
+  return flag;
 }
 
 /*--> EGProcessDPGN: process the EG command epddpgn */
@@ -1117,7 +1032,7 @@ static siT EGProcessDPGN(void) {
       EPDMemoryFree(s);
     };
   };
-  return (flag);
+  return flag;
 }
 
 /*--> EGProcessDSML: process the EG command epddsml */
@@ -1177,7 +1092,7 @@ static siT EGProcessDSML(void) {
         EGPrint("\n");
     };
   };
-  return (flag);
+  return flag;
 }
 
 /*--> EGProcessDSTR: process the EG command epddstr */
@@ -1199,7 +1114,7 @@ static siT EGProcessDSTR(void) {
     EGPrint(s);
     EPDMemoryFree(s);
   };
-  return (flag);
+  return flag;
 }
 
 /*--> EGProcessDTPV: process the EG command epddtpv */
@@ -1232,7 +1147,7 @@ static siT EGProcessDTPV(void) {
       EGPrintTB();
     };
   };
-  return (flag);
+  return flag;
 }
 
 /*--> EGProcessENUM: process the EG command epdenum */
@@ -1259,7 +1174,7 @@ static siT EGProcessENUM(void) {
       EGPrintTB();
     };
   };
-  return (flag);
+  return flag;
 }
 
 /*--> EGProcessHELP: process the EG command epdhelp */
@@ -1300,7 +1215,7 @@ static siT EGProcessHELP(void) {
       };
     };
   };
-  return (flag);
+  return flag;
 }
 
 /*--> EGProcessLINK: process the EG command epdlink */
@@ -1320,7 +1235,7 @@ static siT EGProcessLINK(void) {
     EGPL("This command is not yet implemented.");
     flag = 0;
   };
-  return (flag);
+  return flag;
 }
 
 /*--> EGProcessLPGN: process the EG command epdlpgn */
@@ -1340,7 +1255,7 @@ static siT EGProcessLPGN(void) {
     EGPL("This command is not yet implemented.");
     flag = 0;
   };
-  return (flag);
+  return flag;
 }
 
 /*--> EGProcessLREC: process the EG command epdlrec */
@@ -1387,7 +1302,7 @@ static siT EGProcessLREC(void) {
       };
     };
   };
-  return (flag);
+  return flag;
 }
 
 /*--> EGProcessMORE: process the EG command epdmore */
@@ -1668,7 +1583,7 @@ static siT EGProcessMORE(void) {
         flag = 0;
         break;
     };
-  return (flag);
+  return flag;
 }
 
 /*--> EGProcessNOOP: process the EG command epdnoop */
@@ -1679,7 +1594,7 @@ static siT EGProcessNOOP(void) {
 /* set the default return value: success */
   flag = 1;
 /* process the epdnoop command */
-  return (flag);
+  return flag;
 }
 
 /*--> EGProcessPFDN: process the EG command epdpfdn */
@@ -1697,7 +1612,7 @@ static siT EGProcessPFDN(void) {
 /* process the epdpfdn command */
   if (flag)
     flag = EPDNormalizeFile(EPDTokenFetch(1), EPDTokenFetch(2));
-  return (flag);
+  return flag;
 }
 
 /*--> EGProcessPFDR: process the EG command epdpfdr */
@@ -1715,7 +1630,7 @@ static siT EGProcessPFDR(void) {
 /* process the epdpfdr command */
   if (flag)
     flag = EPDRepairFile(EPDTokenFetch(1), EPDTokenFetch(2));
-  return (flag);
+  return flag;
 }
 
 /*--> EGProcessPFGA: process the EG command epdpfga */
@@ -1806,7 +1721,7 @@ static siT EGProcessPFGA(void) {
 /* set up the host current position */
           EGPutHostPosition();
 /* set host search parameters */
-          tree->position[1] = tree->position[0];
+          tree->status[1] = tree->status[0];
           iteration_depth = 0;
           ponder = 0;
 /* get the starting time */
@@ -1884,7 +1799,7 @@ static siT EGProcessPFGA(void) {
     fclose(fptr0);
   if (fptr1 != NULL)
     fclose(fptr1);
-  return (flag);
+  return flag;
 }
 
 /*--> EGProcessPFLC: process the EG command epdpflc */
@@ -1970,7 +1885,7 @@ static siT EGProcessPFLC(void) {
 /* ensure input file closed */
   if (fptr != NULL)
     fclose(fptr);
-  return (flag);
+  return flag;
 }
 
 /*--> EGProcessPFOP: process the EG command epdpfop */
@@ -1989,7 +1904,7 @@ static siT EGProcessPFOP(void) {
   if (flag)
     flag =
         EPDPurgeOpFile(EPDTokenFetch(1), EPDTokenFetch(2), EPDTokenFetch(3));
-  return (flag);
+  return flag;
 }
 
 /*--> EGProcessSCOR: process the EG command epdscor */
@@ -2088,7 +2003,7 @@ static siT EGProcessSCOR(void) {
       };
     };
   };
-  return (flag);
+  return flag;
 }
 
 /*--> EGProcessSHOW: process the EG command epdshow */
@@ -2115,7 +2030,7 @@ static siT EGProcessSHOW(void) {
     EGPrintTB();
     EPDMemoryFree(s);
   };
-  return (flag);
+  return flag;
 }
 
 /*--> EGProcessSPGN: process the EG command epdspgn */
@@ -2148,7 +2063,7 @@ static siT EGProcessSPGN(void) {
       EPDMemoryFree(s);
     };
   };
-  return (flag);
+  return flag;
 }
 
 /*--> EGProcessSTPV: process the EG command epdstpv */
@@ -2188,7 +2103,7 @@ static siT EGProcessSTPV(void) {
       EPDMemoryFree(s);
     };
   };
-  return (flag);
+  return flag;
 }
 
 /*--> EGProcessTEST: process the EG command epdtest */
@@ -2208,7 +2123,7 @@ static siT EGProcessTEST(void) {
     EGPL("This command is not yet implemented.");
     flag = 0;
   };
-  return (flag);
+  return flag;
 }
 
 /*--> EGCommandCheck: check if a string starts with an EPD command token */
@@ -2242,7 +2157,7 @@ nonstatic int EGCommandCheck(char *s) {
     if (egcomm != egcomm_nil)
       flag = 1;
   };
-  return (flag);
+  return flag;
 }
 
 /*--> EGCommand: process an EPD command string */
@@ -2356,7 +2271,7 @@ nonstatic int EGCommand(char *s) {
       EGPrintTB();
     };
   };
-  return (flag);
+  return flag;
 }
 
 /*--> EGInit: one time EPD glue initialization */

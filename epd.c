@@ -166,7 +166,7 @@ nonstatic voidptrT EPDMemoryGrab(liT n) {
   ptr = (voidptrT) malloc((n == 0) ? 1 : n);
   if (ptr == NULL)
     EPDFatal("EPDMemoryGrab");
-  return (ptr);
+  return ptr;
 }
 
 /*--> EPDMemoryFree: deallocate memory */
@@ -182,7 +182,7 @@ nonstatic charptrT EPDStringGrab(charptrT s) {
 
   ptr = (charptrT) EPDMemoryGrab(strlen(s) + 1);
   strcpy(ptr, s);
-  return (ptr);
+  return ptr;
 }
 
 /*--> EPDStringAppendChar: append a character to a string */
@@ -197,7 +197,7 @@ nonstatic charptrT EPDStringAppendChar(charptrT s, char c) {
   EPDMemoryFree(s);
   *(ptr + length) = c;
   *(ptr + length + 1) = ascii_nul;
-  return (ptr);
+  return ptr;
 }
 
 /*--> EPDStringAppendStr: append a string to a string */
@@ -211,7 +211,7 @@ nonstatic charptrT EPDStringAppendStr(charptrT s0, charptrT s1) {
   strcpy(ptr, s0);
   strcat(ptr, s1);
   EPDMemoryFree(s0);
-  return (ptr);
+  return ptr;
 }
 
 /*--> EPDNewGPM: allocate and initialize a new GPM record */
@@ -236,7 +236,7 @@ static gpmptrT EPDNewGPM(mptrT mptr) {
     gpmptr->gpm_nbv[sq >> 1] = ((cp1 << nybbW) | cp0);
   };
   gpmptr->gpm_prev = gpmptr->gpm_next = NULL;
-  return (gpmptr);
+  return gpmptr;
 }
 
 /*--> EPDReleaseGPM: release a GPM record */
@@ -298,7 +298,7 @@ static gamptrT EPDNewGAM(void) {
   gamptr->gam_gtim = gtim_u;
   gamptr->gam_headgpm = gamptr->gam_tailgpm = NULL;
   gamptr->gam_prev = gamptr->gam_next = NULL;
-  return (gamptr);
+  return gamptr;
 }
 
 /*--> EPDReleaseGAM: release a GAM record */
@@ -367,7 +367,7 @@ static siT EPDGamePlyCount(gamptrT gamptr) {
     count++;
     gpmptr = gpmptr->gpm_next;
   };
-  return (count);
+  return count;
 }
 
 /*--> EPDGameOpen: create/open a new game structure */
@@ -376,7 +376,7 @@ nonstatic gamptrT EPDGameOpen(void) {
 
   gamptr = EPDNewGAM();
   EPDAppendGAM(gamptr);
-  return (gamptr);
+  return gamptr;
 }
 
 /*--> EPDGameClose: close/destroy a game structure */
@@ -404,7 +404,7 @@ static tknptrT EPDNewTKN(charptrT s) {
   tknptr = (tknptrT) EPDMemoryGrab(sizeof(tknT));
   tknptr->tkn_str = EPDStringGrab(s);
   tknptr->tkn_prev = tknptr->tkn_next = NULL;
-  return (tknptr);
+  return tknptr;
 }
 
 /*--> EPDReleaseTKN: release a TKN record */
@@ -500,7 +500,7 @@ nonstatic siT EPDTokenCount(void) {
     n++;
     tknptr = tknptr->tkn_next;
   };
-  return (n);
+  return n;
 }
 
 /*--> EPDTokenFetch: fetch n-th (zero origin) token from the token chain */
@@ -519,7 +519,7 @@ nonstatic charptrT EPDTokenFetch(siT n) {
     s = NULL;
   else
     s = tknptr->tkn_str;
-  return (s);
+  return s;
 }
 
 /*--> EPDCICharEqual: test for case independent character equality */
@@ -530,7 +530,7 @@ nonstatic siT EPDCICharEqual(char ch0, char ch1) {
     flag = 1;
   else
     flag = 0;
-  return (flag);
+  return flag;
 }
 
 /*--> EPDPieceFromCP: fetch piece from color-piece */
@@ -538,7 +538,7 @@ nonstatic pT EPDPieceFromCP(cpT cp) {
   pT p;
 
   p = cv_p_cpv[cp];
-  return (p);
+  return p;
 }
 
 /*--> EPDCheckPiece: test if a character is a piece letter */
@@ -553,7 +553,7 @@ nonstatic siT EPDCheckPiece(char ch) {
       flag = 1;
     else
       p++;
-  return (flag);
+  return flag;
 }
 
 /*--> EPDEvaluatePiece: evaluate a piece letter character */
@@ -570,7 +570,7 @@ nonstatic pT EPDEvaluatePiece(char ch) {
       p++;
   if (!flag)
     p = p_nil;
-  return (p);
+  return p;
 }
 
 /*--> EPDCheckColor: test if a character is a color letter */
@@ -585,7 +585,7 @@ nonstatic siT EPDCheckColor(char ch) {
       flag = 1;
     else
       c++;
-  return (flag);
+  return flag;
 }
 
 /*--> EPDEvaluateColor: evaluate a color letter character */
@@ -602,7 +602,7 @@ nonstatic cT EPDEvaluateColor(char ch) {
       c++;
   if (!flag)
     c = c_nil;
-  return (c);
+  return c;
 }
 
 /*--> EPDCheckRank: test if a character is a rank character */
@@ -617,7 +617,7 @@ nonstatic siT EPDCheckRank(char ch) {
       flag = 1;
     else
       rank++;
-  return (flag);
+  return flag;
 }
 
 /*--> EPDEvaluateRank: evaluate a color rank character */
@@ -634,7 +634,7 @@ nonstatic rankT EPDEvaluateRank(char ch) {
       rank++;
   if (!flag)
     rank = rank_nil;
-  return (rank);
+  return rank;
 }
 
 /*--> EPDCheckFile: test if a character is a file character */
@@ -649,7 +649,7 @@ nonstatic siT EPDCheckFile(char ch) {
       flag = 1;
     else
       file++;
-  return (flag);
+  return flag;
 }
 
 /*--> EPDEvaluateFile: evaluate a color file character */
@@ -666,7 +666,7 @@ nonstatic rankT EPDEvaluateFile(char ch) {
       file++;
   if (!flag)
     file = file_nil;
-  return (file);
+  return file;
 }
 
 /*--> EPDNewEOV: allocate a new EOV record */
@@ -677,7 +677,7 @@ nonstatic eovptrT EPDNewEOV(void) {
   eovptr->eov_eob = eob_nil;
   eovptr->eov_str = NULL;
   eovptr->eov_prev = eovptr->eov_next = NULL;
-  return (eovptr);
+  return eovptr;
 }
 
 /*--> EPDReleaseEOV: release an EOV record */
@@ -723,7 +723,7 @@ nonstatic eovptrT EPDCreateEOVSym(charptrT sym) {
   eovptr = EPDNewEOV();
   eovptr->eov_eob = eob_symbol;
   eovptr->eov_str = EPDStringGrab(sym);
-  return (eovptr);
+  return eovptr;
 }
 
 /*--> EPDCreateEOVInt: create a new EOV record with an integer value */
@@ -735,7 +735,7 @@ nonstatic eovptrT EPDCreateEOVInt(liT lval) {
   eovptr = EPDNewEOV();
   eovptr->eov_eob = eob_symbol;
   eovptr->eov_str = EPDStringGrab(tv);
-  return (eovptr);
+  return eovptr;
 }
 
 /*--> EPDLocateEOV: try to locate 1st EOV record with given string value */
@@ -752,7 +752,7 @@ nonstatic eovptrT EPDLocateEOV(eopptrT eopptr, charptrT strval) {
       eovptr = eovptr->eov_next;
   if (!flag)
     eovptr = NULL;
-  return (eovptr);
+  return eovptr;
 }
 
 /*--> EPDReplaceEOVStr: replace EOV string value with given string value */
@@ -774,7 +774,7 @@ nonstatic eopptrT EPDNewEOP(void) {
   eopptr->eop_opsym = NULL;
   eopptr->eop_headeov = eopptr->eop_taileov = NULL;
   eopptr->eop_prev = eopptr->eop_next = NULL;
-  return (eopptr);
+  return eopptr;
 }
 
 /*--> EPDReleaseEOP: release an EOP record */
@@ -828,7 +828,7 @@ nonstatic eopptrT EPDCreateEOP(charptrT opsym) {
 
   eopptr = EPDNewEOP();
   eopptr->eop_opsym = EPDStringGrab(opsym);
-  return (eopptr);
+  return eopptr;
 }
 
 /*--> EPDCreateEOPCode: create a new EOP record using opsym index */
@@ -836,7 +836,7 @@ nonstatic eopptrT EPDCreateEOPCode(epdsoT epdso) {
   eopptrT eopptr;
 
   eopptr = EPDCreateEOP(EPDFetchOpsym(epdso));
-  return (eopptr);
+  return eopptr;
 }
 
 /*--> EPDLocateEOP: attempt to locate EOP record with given opsym */
@@ -853,12 +853,12 @@ nonstatic eopptrT EPDLocateEOP(epdptrT epdptr, charptrT opsym) {
       eopptr = eopptr->eop_next;
   if (!flag)
     eopptr = NULL;
-  return (eopptr);
+  return eopptr;
 }
 
 /*--> EPDLocateEOPCode: attempt to locate EOP record with given code */
 nonstatic eopptrT EPDLocateEOPCode(epdptrT epdptr, epdsoT epdso) {
-  return (EPDLocateEOP(epdptr, epdsostrv[epdso]));
+  return EPDLocateEOP(epdptr, epdsostrv[epdso]);
 }
 
 /*--> EPDDropIfLocEOPCode: try to locate/drop EOP record with given code */
@@ -911,7 +911,7 @@ nonstatic epdptrT EPDNewEPD(void) {
   epdptr->epd_cast = 0;
   epdptr->epd_epsq = sq_nil;
   epdptr->epd_headeop = epdptr->epd_taileop = NULL;
-  return (epdptr);
+  return epdptr;
 }
 
 /*--> EPDReleaseOperations: release EPD operation list */
@@ -943,7 +943,7 @@ nonstatic void EPDReleaseEPD(epdptrT epdptr) {
 
 /*--> EPDFetchOpsym: return a pointer to the indicated mnemonic */
 nonstatic charptrT EPDFetchOpsym(epdsoT epdso) {
-  return (epdsostrv[epdso]);
+  return epdsostrv[epdso];
 }
 
 /*--> EPDCountOperands: count operands */
@@ -957,7 +957,7 @@ static siT EPDCountOperands(eopptrT eopptr) {
     count++;
     eovptr = eovptr->eov_next;
   };
-  return (count);
+  return count;
 }
 
 /*--> EPDCountOperations: count operations */
@@ -971,7 +971,7 @@ static siT EPDCountOperations(epdptrT epdptr) {
     count++;
     eopptr = eopptr->eop_next;
   };
-  return (count);
+  return count;
 }
 
 /*--> EPDSortOperands: sort operands according to string value */
@@ -1096,7 +1096,7 @@ nonstatic epdptrT EPDCloneEPDBase(epdptrT epdptr) {
   nptr->epd_actc = epdptr->epd_actc;
   nptr->epd_cast = epdptr->epd_cast;
   nptr->epd_epsq = epdptr->epd_epsq;
-  return (nptr);
+  return nptr;
 }
 
 /*--> EPDCloneEOV: clone an EOV structure */
@@ -1107,7 +1107,7 @@ nonstatic eovptrT EPDCloneEOV(eovptrT eovptr) {
   nptr->eov_eob = eovptr->eov_eob;
   if (eovptr->eov_str != NULL)
     nptr->eov_str = EPDStringGrab(eovptr->eov_str);
-  return (nptr);
+  return nptr;
 }
 
 /*--> EPDCloneEOP: clone an EOP structure */
@@ -1124,7 +1124,7 @@ nonstatic eopptrT EPDCloneEOP(eopptrT eopptr) {
     EPDAppendEOV(nptr, eovptr);
     rptr = rptr->eov_next;
   };
-  return (nptr);
+  return nptr;
 }
 
 /*--> EPDSetKings: set the king location vector */
@@ -1164,7 +1164,7 @@ nonstatic epdptrT EPDSet(rbptrT rbptr, cT actc, castT cast, sqT epsq) {
   epdptr->epd_actc = actc;
   epdptr->epd_cast = cast;
   epdptr->epd_epsq = epsq;
-  return (epdptr);
+  return epdptr;
 }
 
 /*--> EPDSetCurrentPosition: set current position */
@@ -1199,44 +1199,44 @@ nonstatic epdptrT EPDGetCurrentPosition(void) {
   epdptr->epd_actc = ese.ese_actc;
   epdptr->epd_cast = ese.ese_cast;
   epdptr->epd_epsq = ese.ese_epsq;
-  return (epdptr);
+  return epdptr;
 }
 
 /*--> EPDFetchACTC: fetch current active color */
 nonstatic cT EPDFetchACTC(void) {
 /* return the value of the current active color */
-  return (ese.ese_actc);
+  return ese.ese_actc;
 }
 
 /*--> EPDFetchCAST: fetch current castling availability */
 nonstatic castT EPDFetchCAST(void) {
 /* return the value of the current castling availability */
-  return (ese.ese_cast);
+  return ese.ese_cast;
 }
 
 /*--> EPDFetchEPSQ: fetch current en passant target square */
 nonstatic sqT EPDFetchEPSQ(void) {
 /* return the value of the current en passant target square */
-  return (ese.ese_epsq);
+  return ese.ese_epsq;
 }
 
 /*--> EPDFetchHMVC: fetch current halfmove clock */
 nonstatic siT EPDFetchHMVC(void) {
 /* return the value of the current halfmove clock */
-  return (ese.ese_hmvc);
+  return ese.ese_hmvc;
 }
 
 /*--> EPDFetchFMVN: fetch current fullmove number */
 nonstatic siT EPDFetchFMVN(void) {
 /* return the value of the current fullmove number */
-  return (ese.ese_fmvn);
+  return ese.ese_fmvn;
 }
 
 /*--> EPDFetchBoard: fetch current board */
 nonstatic rbptrT EPDFetchBoard(void) {
 /* copy from the local board into the designated static return area */
   ret_rb = EPDboard;
-  return (&ret_rb);
+  return &ret_rb;
 }
 
 /*--> EPDFetchCP: fetch color-piece */
@@ -1245,12 +1245,12 @@ nonstatic cpT EPDFetchCP(sqT sq) {
 
 /* fetch from the local board */
   cp = EPDboard.rbv[sq];
-  return (cp);
+  return cp;
 }
 
 /*--> EPDGetGTIM: get game termination marker indicator */
 nonstatic gtimT EPDGetGTIM(gamptrT gamptr) {
-  return (gamptr->gam_gtim);
+  return gamptr->gam_gtim;
 }
 
 /*--> EPDPutGTIM: put game termination marker indicator */
@@ -1268,7 +1268,7 @@ nonstatic charptrT EPDGenBasic(rbptrT rbptr, cT actc, castT cast, sqT epsq) {
   epdptr = EPDSet(rbptr, actc, cast, epsq);
   ptr = EPDEncode(epdptr);
   EPDReleaseEPD(epdptr);
-  return (ptr);
+  return ptr;
 }
 
 /*--> EPDGenBasicCurrent: generate basic EPD for current position */
@@ -1277,7 +1277,7 @@ nonstatic charptrT EPDGenBasicCurrent(void) {
 
 /* this references but does not change the current position */
   ptr = EPDGenBasic(&EPDboard, ese.ese_actc, ese.ese_cast, ese.ese_epsq);
-  return (ptr);
+  return ptr;
 }
 
 /*--> EPDDecode: read an EPD structure from a string */
@@ -1581,7 +1581,7 @@ nonstatic epdptrT EPDDecode(charptrT s) {
 /* normalize */
   if (epdptr != NULL)
     EPDNormalize(epdptr);
-  return (epdptr);
+  return epdptr;
 }
 
 /*--> EPDEncode: write an EPD structure to a string */
@@ -1701,7 +1701,7 @@ nonstatic charptrT EPDEncode(epdptrT epdptr) {
 /* advance */
     eopptr = eopptr->eop_next;
   };
-  return (ptr);
+  return ptr;
 }
 
 /*--> EPDRealize: set the current position according to EPD */
@@ -2077,7 +2077,7 @@ static siT EPDSANDecodeBump(ssavT ssav, ssavT bssav) {
     };
     ssa++;
   };
-  return (flag);
+  return flag;
 }
 
 /*--> EPDSANDecodeFlex: locate a move from SAN (flexible interpretation) */
@@ -2164,7 +2164,7 @@ static mptrT EPDSANDecodeFlex(sanT san) {
 /* update the overflow termination flag */
     flag = EPDSANDecodeBump(ssav, bssav);
   };
-  return (mptr);
+  return mptr;
 }
 
 /*--> EPDSANDecode: locate a move from SAN (strict interpretation) */
@@ -2189,7 +2189,7 @@ static mptrT EPDSANDecode(sanT san) {
       i++;
     };
   };
-  return (mptr);
+  return mptr;
 }
 
 /*--> EPDSANDecodeAux: locate a move from SAN */
@@ -2200,7 +2200,7 @@ nonstatic mptrT EPDSANDecodeAux(sanT san, siT strict) {
     mptr = EPDSANDecode(san);
   else
     mptr = EPDSANDecodeFlex(san);
-  return (mptr);
+  return mptr;
 }
 
 /*--> EPDAttack: determine if a color attacks a square */
@@ -2331,17 +2331,17 @@ static siT EPDAttack(cT c, sqT sq) {
           dx++;
     };
   };
-  return (flag);
+  return flag;
 }
 
 /*--> EPDWhiteAttacks: check if White attacks a square */
 static siT EPDWhiteAttacks(sqT sq) {
-  return (EPDAttack(c_w, sq));
+  return EPDAttack(c_w, sq);
 }
 
 /*--> EPDBlackAttacks: check if White attacks a square */
 static siT EPDBlackAttacks(sqT sq) {
-  return (EPDAttack(c_b, sq));
+  return EPDAttack(c_b, sq);
 }
 
 /*--> EPDTestAKIC: test for active king in check */
@@ -2352,7 +2352,7 @@ static siT EPDTestAKIC(void) {
     flag = EPDBlackAttacks(ese.ese_ksqv[c_w]);
   else
     flag = EPDWhiteAttacks(ese.ese_ksqv[c_b]);
-  return (flag);
+  return flag;
 }
 
 /*--> EPDTestPKIC: test for passive king in check */
@@ -2363,7 +2363,7 @@ static siT EPDTestPKIC(void) {
     flag = EPDBlackAttacks(ese.ese_ksqv[c_w]);
   else
     flag = EPDWhiteAttacks(ese.ese_ksqv[c_b]);
-  return (flag);
+  return flag;
 }
 
 /*--> EPDCensus: calculate local census vectors */
@@ -2519,7 +2519,7 @@ nonstatic siT EPDIsLegal(void) {
 /* check for passive king in check */
   if (flag && EPDTestPKIC())
     flag = 0;
-  return (flag);
+  return flag;
 }
 
 /*--> EPDGeneratePL: generate psuedolegal moves */
@@ -2884,7 +2884,7 @@ static siT EPDSameMoveRef(mptrT mptr0, mptrT mptr1) {
     flag = 1;
   else
     flag = 0;
-  return (flag);
+  return flag;
 }
 
 /*--> EPDFindMove: locate the move in the current generation set */
@@ -2905,7 +2905,7 @@ static mptrT EPDFindMove(mptrT mptr) {
     };
   if (!flag)
     rmptr = NULL;
-  return (rmptr);
+  return rmptr;
 }
 
 /*--> EPDExecute: execute the supplied move */
@@ -3333,13 +3333,13 @@ nonstatic void EPDGenMoves(void) {
 
 /*--> EPDFetchMoveCount: fetch the move count */
 nonstatic siT EPDFetchMoveCount(void) {
-  return (tse.tse_count);
+  return tse.tse_count;
 }
 
 /*--> EPDFetchMove: fetch the nth move */
 nonstatic mptrT EPDFetchMove(siT index) {
   ret_m = *(tse.tse_base + index);
-  return (&ret_m);
+  return &ret_m;
 }
 
 /*--> EPDSetMoveFlags: set move flags from current generation set */
@@ -3535,7 +3535,7 @@ nonstatic siT EPDPurgeOpFile(charptrT opsym, charptrT fn0, charptrT fn1) {
     fclose(fptr0);
   if (fptr1 != NULL)
     fclose(fptr1);
-  return (flag);
+  return flag;
 }
 
 /*--> EPDRepairEPD: repair an EPD structure */
@@ -3578,7 +3578,7 @@ nonstatic siT EPDRepairEPD(epdptrT epdptr) {
     if (eopptr != NULL)
       EPDRepairVariation(eopptr);
   };
-  return (flag);
+  return flag;
 }
 
 /*--> EPDRepairFile: repair input file to output file */
@@ -3636,7 +3636,7 @@ nonstatic siT EPDRepairFile(charptrT fn0, charptrT fn1) {
     fclose(fptr0);
   if (fptr1 != NULL)
     fclose(fptr1);
-  return (flag);
+  return flag;
 }
 
 /*--> EPDNormalizeFile: normalize input file to output file */
@@ -3689,7 +3689,7 @@ nonstatic siT EPDNormalizeFile(charptrT fn0, charptrT fn1) {
     fclose(fptr0);
   if (fptr1 != NULL)
     fclose(fptr1);
-  return (flag);
+  return flag;
 }
 
 /*--> EPDScoreFile: score a benchmark file */
@@ -3828,7 +3828,7 @@ nonstatic siT EPDScoreFile(charptrT fn, bmsptrT bmsptr) {
 /* close input file */
   if (fptr != NULL)
     fclose(fptr);
-  return (flag);
+  return flag;
 }
 
 /*--> EPDEnumerate: enumeration of current position */
@@ -3853,7 +3853,7 @@ static liT EPDEnumerate(siT depth) {
       mptr++;
     };
   };
-  return (total);
+  return total;
 }
 
 /*--> EPDEnumerateFile: enumerate input file to output file */
@@ -3931,7 +3931,7 @@ nonstatic siT EPDEnumerateFile(siT depth, charptrT fn0, charptrT fn1,
     fclose(fptr0);
   if (fptr1 != NULL)
     fclose(fptr1);
-  return (flag);
+  return flag;
 }
 
 /*--> EPDMoveList: generate a string representation of a move list */
@@ -4049,7 +4049,7 @@ nonstatic charptrT EPDMoveList(gamptrT gamptr) {
 /* allocate and copy to result */
   s = EPDStringGrab(b);
   EPDMemoryFree(b);
-  return (s);
+  return s;
 }
 
 /*--> EPDPGNFetchTagIndex: return a PGN Seven Tag Roster tag index */
@@ -4064,17 +4064,17 @@ nonstatic pgnstrT EPDPGNFetchTagIndex(charptrT s) {
       pgnstr = rstr;
     else
       rstr++;
-  return (pgnstr);
+  return pgnstr;
 }
 
 /*--> EPDPGNFetchTagName: return a PGN Seven Tag Roster tag name */
 nonstatic charptrT EPDPGNFetchTagName(pgnstrT pgnstr) {
-  return (pgnstrstrv[pgnstr]);
+  return pgnstrstrv[pgnstr];
 }
 
 /*--> EPDPGNGetSTR: return a string from the Seven Tag Roster */
 nonstatic charptrT EPDPGNGetSTR(gamptrT gamptr, pgnstrT pgnstr) {
-  return (gamptr->gam_strv[pgnstr]);
+  return gamptr->gam_strv[pgnstr];
 }
 
 /*--> EPDPGNPutSTR: enter a string into the Seven Tag Roster */
@@ -4097,7 +4097,7 @@ nonstatic charptrT EPDPGNGenSTR(gamptrT gamptr) {
         gamptr->gam_strv[pgnstr]);
     s = EPDStringAppendStr(s, tv);
   };
-  return (s);
+  return s;
 }
 
 /*--> EPDPGNHistory: generate a string for PGN version of history */
@@ -4111,7 +4111,7 @@ nonstatic charptrT EPDPGNHistory(gamptrT gamptr) {
   s = EPDStringAppendStr(s, ms);
   EPDMemoryFree(ms);
   s = EPDStringAppendChar(s, '\n');
-  return (s);
+  return s;
 }
 
 /*--> EPDCopyOutPTP: copy STR from an EDP structure (ptp operation) */
@@ -4135,12 +4135,12 @@ nonstatic void EPDCopyOutPTP(gamptrT gamptr, epdptrT epdptr) {
 
 /*--> EPDFetchRefcomStr: return  pointer of indicated refcom string */
 nonstatic charptrT EPDFetchRefcomStr(refcomT refcom) {
-  return (refcomstrv[refcom]);
+  return refcomstrv[refcom];
 }
 
 /*--> EPDFetchRefreqStr: return  pointer of indicated refreq string */
 nonstatic charptrT EPDFetchRefreqStr(refreqT refreq) {
-  return (refreqstrv[refreq]);
+  return refreqstrv[refreq];
 }
 
 /*--> EPDFetchRefcomIndex: return a referee command index */
@@ -4155,7 +4155,7 @@ nonstatic refcomT EPDFetchRefcomIndex(charptrT s) {
       refcom = rcom;
     else
       rcom++;
-  return (refcom);
+  return refcom;
 }
 
 /*--> EPDExtractRefcomIndex: extract a referee command index */
@@ -4170,7 +4170,7 @@ nonstatic refreqT EPDExtractRefcomIndex(epdptrT epdptr) {
     if ((eopptr = EPDLocateEOPCode(epdptr, epdso_refcom)) != NULL)
       if ((eovptr = eopptr->eop_headeov) != NULL)
         refcom = EPDFetchRefcomIndex(eovptr->eov_str);
-  return (refcom);
+  return refcom;
 }
 
 /*--> EPDComm: slave to Duplex autoplay program */
@@ -4254,7 +4254,7 @@ nonstatic siT EPDComm(refintptrT refintptr, charptrT pipebase) {
       fclose(pfptrv[flow]);
     EPDMemoryFree(pfnv[flow]);
   };
-  return (flag);
+  return flag;
 }
 
 /*--> EPDInit: one time initialization for EPD */

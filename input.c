@@ -1,6 +1,6 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 01/17/09 */
+/* last modified 02/24/14 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -8,10 +8,10 @@
  *   the internal move format.  It allows the so-called "reduced algebraic     *
  *   move format" which makes the origin square optional unless required for   *
  *   clarity.  It also accepts as little as required to remove ambiguity from  *
- *   the move, by using GenerateMoves() to produce a set of legal moves        *
- *   that the text can be applied against to eliminate those moves not         *
- *   intended.  Hopefully, only one move will remain after the elimination     *
- *   and legality checks.                                                      *
+ *   the move, by using GenerateMoves() to produce a set of legal moves that   *
+ *   the text can be applied against to eliminate those moves not intended.    *
+ *   Hopefully, only one move will remain after the elimination and legality   *
+ *   checks.                                                                   *
  *                                                                             *
  *******************************************************************************
  */
@@ -34,9 +34,9 @@ int InputMove(TREE * RESTRICT tree, char *text, int ply, int wtm, int silent,
 /*
  ************************************************************
  *                                                          *
- *   First, we need to strip off the special characters for *
- *   check, mate, bad move, good move, and such that might  *
- *   come from a PGN input file.                            *
+ *  First, we need to strip off the special characters for  *
+ *  check, mate, bad move, good move, and such that might   *
+ *  come from a PGN input file.                             *
  *                                                          *
  ************************************************************
  */
@@ -47,27 +47,27 @@ int InputMove(TREE * RESTRICT tree, char *text, int ply, int wtm, int silent,
 /*
  ************************************************************
  *                                                          *
- *   Check for full coordinate input (f1e1) and handle that *
- *   if needed.                                             *
+ *  Check for full coordinate input (f1e1) and handle that  *
+ *  if needed.                                              *
  *                                                          *
  ************************************************************
  */
   if (strlen(text) == 0)
-    return (0);
+    return 0;
   if ((text[0] >= 'a') && (text[0] <= 'h') && (text[1] >= '1')
       && (text[1] <= '8') && (text[2] >= 'a') && (text[2] <= 'h')
       && (text[3] >= '1') && (text[3] <= '8'))
-    return (InputMoveICS(tree, text, ply, wtm, silent, ponder_list));
+    return InputMoveICS(tree, text, ply, wtm, silent, ponder_list);
 /*
  ************************************************************
  *                                                          *
- *   Initialize move structure.  If we discover a parsing   *
- *   error, this will cause us to return a move of "0" to   *
- *   indicate some sort of error was detected.              *
+ *  Initialize move structure.  If we discover a parsing    *
+ *  error, this will cause us to return a move of "0" to    *
+ *  indicate some sort of error was detected.               *
  *                                                          *
  ************************************************************
  */
-  tree->position[MAXPLY] = tree->position[ply];
+  tree->status[MAXPLY] = tree->status[ply];
   strcpy(movetext, text);
   moves[0] = 0;
   piece = 0;
@@ -84,8 +84,8 @@ int InputMove(TREE * RESTRICT tree, char *text, int ply, int wtm, int silent,
 /*
  ************************************************************
  *                                                          *
- *   First we look for castling moves which are a special   *
- *   case with an unusual syntax compared to normal moves.  *
+ *  First we look for castling moves which are a special    *
+ *  case with an unusual syntax compared to normal moves.   *
  *                                                          *
  ************************************************************
  */
@@ -123,10 +123,10 @@ int InputMove(TREE * RESTRICT tree, char *text, int ply, int wtm, int silent,
 /*
  ************************************************************
  *                                                          *
- *   OK, it is not a castling move.  Check for two "b"      *
- *   characters which might be a piece (bishop) and a file  *
- *   (b-file).  The first "b" should be "B" but we allow    *
- *   this to make typing input simpler.                     *
+ *  OK, it is not a castling move.  Check for two "b"       *
+ *  characters which might be a piece (bishop) and a file   *
+ *  (b-file).  The first "b" should be "B" but we allow     *
+ *  this to make typing input simpler.                      *
  *                                                          *
  ************************************************************
  */
@@ -135,9 +135,9 @@ int InputMove(TREE * RESTRICT tree, char *text, int ply, int wtm, int silent,
 /*
  ************************************************************
  *                                                          *
- *   Check to see if there is a "+" character which means   *
- *   that this move is a check.  We can use this to later   *
- *   eliminate all non-checking moves as possibilities.     *
+ *  Check to see if there is a "+" character which means    *
+ *  that this move is a check.  We can use this to later    *
+ *  eliminate all non-checking moves as possibilities.      *
  *                                                          *
  ************************************************************
  */
@@ -148,9 +148,9 @@ int InputMove(TREE * RESTRICT tree, char *text, int ply, int wtm, int silent,
 /*
  ************************************************************
  *                                                          *
- *   If this is a promotion, indicated by an "=" in the     *
- *   text, we can pick up the promote-to piece and save it  *
- *   to use later when eliminating moves.                   *
+ *  If this is a promotion, indicated by an "=" in the      *
+ *  text, we can pick up the promote-to piece and save it   *
+ *  to use later when eliminating moves.                    *
  *                                                          *
  ************************************************************
  */
@@ -163,11 +163,11 @@ int InputMove(TREE * RESTRICT tree, char *text, int ply, int wtm, int silent,
 /*
  ************************************************************
  *                                                          *
- *   Now for a kludge.  ChessBase (and others) can't follow *
- *   the PGN standard of bxc8=Q for promotion, and instead  *
- *   will produce "bxc8Q" omitting the PGN-standard "="     *
- *   character.  We handle that here so that we can read    *
- *   their non-standard moves.                              *
+ *  Now for a kludge.  ChessBase (and others) can't follow  *
+ *  the PGN standard of bxc8=Q for promotion, and instead   *
+ *  will produce "bxc8Q" omitting the PGN-standard "="      *
+ *  character.  We handle that here so that we can read     *
+ *  their non-standard moves.                               *
  *                                                          *
  ************************************************************
  */
@@ -182,10 +182,10 @@ int InputMove(TREE * RESTRICT tree, char *text, int ply, int wtm, int silent,
 /*
  ************************************************************
  *                                                          *
- *   Next we extract the last rank/file designators from    *
- *   the text, since the destination is required for all    *
- *   valid non-castling moves.  Note that we might not have *
- *   both a rank and file but we must have at least one.    *
+ *  Next we extract the last rank/file designators from the *
+ *  text, since the destination is required for all valid   *
+ *  non-castling moves.  Note that we might not have both a *
+ *  rank and file but we must have at least one.            *
  *                                                          *
  ************************************************************
  */
@@ -205,9 +205,9 @@ int InputMove(TREE * RESTRICT tree, char *text, int ply, int wtm, int silent,
 /*
  ************************************************************
  *                                                          *
- *   The first character is the moving piece, unless it is  *
- *   a pawn.  In this case, the moving piece is omitted and *
- *   we know what it has to be.                             *
+ *  The first character is the moving piece, unless it is a *
+ *  pawn.  In this case, the moving piece is omitted and we *
+ *  know what it has to be.                                 *
  *                                                          *
  ************************************************************
  */
@@ -219,10 +219,10 @@ int InputMove(TREE * RESTRICT tree, char *text, int ply, int wtm, int silent,
 /*
  ************************************************************
  *                                                          *
- *   It is also possible that this move is a capture, which *
- *   is indicated by a "x" between either the source and    *
- *   destination squares, or between the moving piece and   *
- *   the destination.                                       *
+ *  It is also possible that this move is a capture, which  *
+ *  is indicated by a "x" between either the source and     *
+ *  destination squares, or between the moving piece and    *
+ *  the destination.                                        *
  *                                                          *
  ************************************************************
  */
@@ -234,9 +234,9 @@ int InputMove(TREE * RESTRICT tree, char *text, int ply, int wtm, int silent,
 /*
  ************************************************************
  *                                                          *
- *   It is possible to have no source square, but we could  *
- *   have a complete algebraic square designation, or just  *
- *   rank or file, needed to disambiguate the move.         *
+ *  It is possible to have no source square, but we could   *
+ *  have a complete algebraic square designation, or just   *
+ *  rank or file, needed to disambiguate the move.          *
  *                                                          *
  ************************************************************
  */
@@ -260,15 +260,15 @@ int InputMove(TREE * RESTRICT tree, char *text, int ply, int wtm, int silent,
 /*
  ************************************************************
  *                                                          *
- *   Now for the easy part.  We first generate all moves    *
- *   if not pondering, or else use a pre-computed list of   *
- *   moves (if pondering) since the board position is not   *
- *   correct for move input analysis.  We then loop through *
- *   the list of moves, using the information we extracted  *
- *   previously, and eliminate all moves that are (a) the   *
- *   wrong piece type;  (b) wrong source or destination     *
- *   square;  (c) wrong promotion type;  (d) should be a    *
- *   capture/check/promotion but is not or vice-versa.      *
+ *  Now for the easy part.  We first generate all moves if  *
+ *  not pondering, or else use a pre-computed list of moves *
+ *  (if pondering) since the board position is not correct  *
+ *  for move input analysis.  We then loop through the list *
+ *  of moves, using the information we extracted previously *
+ *  , and eliminate all moves that are (a) the wrong piece  *
+ *  type;  (b) wrong source or destination square;          *
+ *  (c) wrong promotion type;  (d) should be a capture,     *
+ *  check or promotion but is not, or vice-versa.           *
  *                                                          *
  ************************************************************
  */
@@ -309,12 +309,11 @@ int InputMove(TREE * RESTRICT tree, char *text, int ply, int wtm, int silent,
 /*
  ************************************************************
  *                                                          *
- *   Once we have completed eliminating incorrect moves, we *
- *   hope to have exactly one move left.  If none or left,  *
- *   the entered move is illegal.  If more than one is      *
- *   left, the move entered is ambiguous.  If appropriate,  *
- *   we output some sort of diagnostic message and then     *
- *   return.                                                *
+ *  Once we have completed eliminating incorrect moves, we  *
+ *  hope to have exactly one move left.  If none or left,   *
+ *  the entered move is illegal.  If more than one is left, *
+ *  the move entered is ambiguous.  If appropriate, we      *
+ *  output some sort of diagnostic message and then return. *
  *                                                          *
  ************************************************************
  */
@@ -326,7 +325,7 @@ int InputMove(TREE * RESTRICT tree, char *text, int ply, int wtm, int silent,
     }
   }
   if (nleft == 1)
-    return (*goodmove);
+    return *goodmove;
   if (!silent) {
     if (nleft == 0)
       Print(4095, "Illegal move: %s\n", text);
@@ -335,10 +334,10 @@ int InputMove(TREE * RESTRICT tree, char *text, int ply, int wtm, int silent,
     else
       Print(4095, "Illegal move (ambiguous): %s\n", text);
   }
-  return (0);
+  return 0;
 }
 
-/* last modified 01/17/09 */
+/* last modified 02/24/14 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -361,23 +360,23 @@ int InputMoveICS(TREE * RESTRICT tree, char *text, int ply, int wtm,
 /*
  ************************************************************
  *                                                          *
- *   Initialize move structure.  If we discover a parsing   *
- *   error, this will cause us to return a move of "0" to   *
- *   indicate some sort of error was detected.              *
+ *  Initialize move structure.  If we discover a parsing    *
+ *  error, this will cause us to return a move of "0" to    *
+ *  indicate some sort of error was detected.               *
  *                                                          *
  ************************************************************
  */
   if (strlen(text) == 0)
-    return (0);
-  tree->position[MAXPLY] = tree->position[ply];
+    return 0;
+  tree->status[MAXPLY] = tree->status[ply];
   strcpy(movetext, text);
   moves[0] = 0;
   promote = 0;
 /*
  ************************************************************
  *                                                          *
- *   First we look for castling moves which are a special   *
- *   case with an unusual syntax compared to normal moves.  *
+ *  First we look for castling moves which are a special    *
+ *  case with an unusual syntax compared to normal moves.   *
  *                                                          *
  ************************************************************
  */
@@ -413,9 +412,9 @@ int InputMoveICS(TREE * RESTRICT tree, char *text, int ply, int wtm,
 /*
  ************************************************************
  *                                                          *
- *   Next we extract both rank/file designators from the    *
- *   text, since the destination is required for all valid  *
- *   non-castling moves.                                    *
+ *  Next we extract both rank/file designators from the     *
+ *  text, since the destination is required for all valid   *
+ *  non-castling moves.                                     *
  *                                                          *
  ************************************************************
  */
@@ -426,9 +425,9 @@ int InputMoveICS(TREE * RESTRICT tree, char *text, int ply, int wtm,
 /*
  ************************************************************
  *                                                          *
- *   If this is a promotion, indicated by an "=" in the     *
- *   text, we can pick up the promote-to piece and save it  *
- *   to use later when eliminating moves.                   *
+ *  If this is a promotion, indicated by an "=" in the      *
+ *  text, we can pick up the promote-to piece and save it   *
+ *  to use later when eliminating moves.                    *
  *                                                          *
  ************************************************************
  */
@@ -440,15 +439,15 @@ int InputMoveICS(TREE * RESTRICT tree, char *text, int ply, int wtm,
 /*
  ************************************************************
  *                                                          *
- *   Now for the easy part.  We first generate all moves    *
- *   if not pondering, or else use a pre-computed list of   *
- *   moves (if pondering) since the board position is not   *
- *   correct for move input analysis.  We then loop through *
- *   the list of moves, using the information we extracted  *
- *   previously, and eliminate all moves that are (a) the   *
- *   wrong piece type;  (b) wrong source or destination     *
- *   square;  (c) wrong promotion type;  (d) should be a    *
- *   capture/check/promotion but is not or vice-versa.      *
+ *  Now for the easy part.  We first generate all moves if  *
+ *  not pondering, or else use a pre-computed list of moves *
+ *  (if pondering) since the board position is not correct  *
+ *  for move input analysis.  We then loop through the list *
+ *  of moves, using the information we extracted previously *
+ *  and eliminate all moves that are (a) the wrong piece    *
+ *  type;  (b) wrong source or destination square;          *
+ *  (c) wrong promotion type;  (d) should be a capture,     *
+ *  check or promotion but is not or vice-versa.            *
  *                                                          *
  ************************************************************
  */
@@ -483,12 +482,11 @@ int InputMoveICS(TREE * RESTRICT tree, char *text, int ply, int wtm,
 /*
  ************************************************************
  *                                                          *
- *   Once we have completed eliminating incorrect moves, we *
- *   hope to have exactly one move left.  If none or left,  *
- *   the entered move is illegal.  If more than one is      *
- *   left, the move entered is ambiguous.  If appropriate,  *
- *   we output some sort of diagnostic message and then     *
- *   return.                                                *
+ *  Once we have completed eliminating incorrect moves, we  *
+ *  hope to have exactly one move left.  If none or left,   *
+ *  the entered move is illegal.  If more than one is left, *
+ *  the move entered is ambiguous.  If appropriate, we      *
+ *  output some sort of diagnostic message and then return. *
  *                                                          *
  ************************************************************
  */
@@ -500,7 +498,7 @@ int InputMoveICS(TREE * RESTRICT tree, char *text, int ply, int wtm,
     }
   }
   if (nleft == 1)
-    return (*goodmove);
+    return *goodmove;
   if (!silent) {
     if (nleft == 0)
       Print(4095, "Illegal move: %s\n", text);
@@ -509,5 +507,5 @@ int InputMoveICS(TREE * RESTRICT tree, char *text, int ply, int wtm,
     else
       Print(4095, "Illegal move (ambiguous): %s\n", text);
   }
-  return (0);
+  return 0;
 }

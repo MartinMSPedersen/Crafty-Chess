@@ -2,12 +2,12 @@
 #include <signal.h>
 #include "chess.h"
 #include "data.h"
-#if defined(UNIX) || defined(AMIGA)
+#if defined(UNIX)
 #  include <unistd.h>
 #  include <signal.h>
 #endif
 #include "epdglue.h"
-/* last modified 11/05/12 */
+/* last modified 02/26/14 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -21,8 +21,8 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   parse the input.  If it looks like a FEN string, don't *
- *   parse using "/" as a separator, otherwise do.          *
+ *  parse the input.  If it looks like a FEN string, don't  *
+ *  parse using "/" as a separator, otherwise do.           *
  *                                                          *
  ************************************************************
  */
@@ -31,16 +31,16 @@ int Option(TREE * RESTRICT tree) {
   else
     nargs = ReadParse(buffer, args, " \t;=/");
   if (!nargs)
-    return (1);
+    return 1;
   if (args[0][0] == '#')
-    return (1);
+    return 1;
 /*
  ************************************************************
  *                                                          *
- *   EPD implementation interface code.  EPD commands can   *
- *   not be handled if the program is actually searching in *
- *   a real game, and if Crafty is "pondering" this has to  *
- *   be stopped.                                            *
+ *  EPD implementation interface code.  EPD commands can    *
+ *  not be handled if the program is actually searching in  *
+ *  a real game, and if Crafty is "pondering" this has to   *
+ *  be stopped.                                             *
  *                                                          *
  ************************************************************
  */
@@ -48,10 +48,10 @@ int Option(TREE * RESTRICT tree) {
   if (initialized) {
     if (EGCommandCheck(buffer)) {
       if (thinking || pondering)
-        return (2);
+        return 2;
       else {
         (void) EGCommand(buffer);
-        return (1);
+        return 1;
       }
     }
   }
@@ -59,8 +59,11 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "!" character is a 'shell escape' that passes the rest *
- *   of the command to a shell for execution.               *
+ *  "!" character is a 'shell escape' that passes the rest  *
+ *  of the command to a shell for execution.  Note that it  *
+ *  is ignored if in xboard mode because one could use your *
+ *  zippy2password to execute commands on your local        *
+ *  machine, probably something that is not wanted.         *
  *                                                          *
  ************************************************************
  */
@@ -71,8 +74,8 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "." ignores "." if it happens to get to this point, if *
- *   xboard is running.                                     *
+ *  "." ignores "." if it happens to get to this point, if  *
+ *  xboard is running.                                      *
  *                                                          *
  ************************************************************
  */
@@ -80,15 +83,15 @@ int Option(TREE * RESTRICT tree) {
     if (xboard) {
       printf("stat01: 0 0 0 0 0\n");
       fflush(stdout);
-      return (1);
+      return 1;
     } else
-      return (0);
+      return 0;
   }
 /*
  ************************************************************
  *                                                          *
- *   "accepted" handles the new xboard protocol version 2   *
- *   accepted command.                                      *
+ *  "accepted" handles the new xboard protocol version 2    *
+ *  accepted command.                                       *
  *                                                          *
  ************************************************************
  */
@@ -97,24 +100,24 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "adaptive" sets the new adaptive hash algorithm        *
- *    parameters.  It requires five parameters.  The first  *
- *    is an estimated NPS, the second is the minimum hash   *
- *    size, and the third is the maximum hash size.  The    *
- *    adaptive algorithm will look at the time control, and *
- *    try to adjust the hash sizes to an optimal value      *
- *    without dropping below the minimum or exceeding the   *
- *    maximum memory size given.  The min/max sizes can be  *
- *    given using the same syntax as the hash= command, ie  *
- *    xxx, xxxK or xxxM will all work. The fourth and fifth *
- *    parameters are used to limit hashp in the same way.   *
+ *  "adaptive" sets the new adaptive hash algorithm         *
+ *  parameters.  It requires five parameters.  The first is *
+ *  an estimated NPS, the second is the minimum hash size,  *
+ *  and the third is the maximum hash size.  The adaptive   *
+ *  algorithm will look at the time control, and try to     *
+ *  adjust the hash sizes to an optimal value without       *
+ *  dropping below the minimum or exceeding the maximum     *
+ *  memory size given.  The min/max sizes can be given      *
+ *  using the same syntax as the hash= command, ie xxx,     *
+ *  xxxK or xxxM will all work. The fourth and fifth        *
+ *  parameters are used to limit hashp in the same way.     *
  *                                                          *
  ************************************************************
  */
   else if (OptionMatch("adaptive", *args)) {
     if (nargs != 6) {
       printf("usage:  adaptive NPS hmin hmax pmin pmax\n");
-      return (1);
+      return 1;
     }
     if (nargs > 1) {
       adaptive_hash = atoiKM(args[1]);
@@ -136,7 +139,7 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "alarm" command turns audible move warning on/off.     *
+ *  "alarm" command turns audible move warning on/off.      *
  *                                                          *
  ************************************************************
  */
@@ -151,43 +154,43 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "analyze" puts Crafty in analyze mode, where it reads  *
- *   moves in and between moves, computes as though it is   *
- *   trying to find the best move to make.  When another    *
- *   move is entered, it switches sides and continues.  It  *
- *   will never make a move on its own, rather, it will     *
- *   continue to analyze until an "exit" command is given.  *
+ *  "analyze" puts Crafty in analyze mode, where it reads   *
+ *  moves in and between moves, computes as though it is    *
+ *  trying to find the best move to make.  When another     *
+ *  move is entered, it switches sides and continues.  It   *
+ *  will never make a move on its own, rather, it will      *
+ *  continue to analyze until an "exit" command is given.   *
  *                                                          *
  ************************************************************
  */
   else if (OptionMatch("analyze", *args)) {
     if (thinking || pondering)
-      return (2);
+      return 2;
     Analyze();
   }
 /*
  ************************************************************
  *                                                          *
- *   "annotate" command is used to read a series of moves   *
- *   and analyze the resulting game, producing comments as  *
- *   requested by the user.  This also handles the          *
- *   annotateh (html) and annotatet (LaTex) output forms    *
- *   of the command.                                        *
+ *  "annotate" command is used to read a series of moves    *
+ *  and analyze the resulting game, producing comments as   *
+ *  requested by the user.  This also handles the annotateh *
+ *  (html) and annotatet (LaTex) output forms of the        *
+ *  command.                                                *
  *                                                          *
  ************************************************************
  */
   else if (OptionMatch("annotate", *args) || OptionMatch("annotateh", *args)
       || OptionMatch("annotatet", *args)) {
     if (thinking || pondering)
-      return (2);
+      return 2;
     Annotate();
   }
 /*
  ************************************************************
  *                                                          *
- *   "batch" command disables asynchronous I/O so that a    *
- *   stream of commands can be put into a file and they are *
- *   not executed instantly.                                *
+ *  "batch" command disables asynchronous I/O so that a     *
+ *  stream of commands can be put into a file and they are  *
+ *  not executed instantly.                                 *
  *                                                          *
  ************************************************************
  */
@@ -207,7 +210,7 @@ int Option(TREE * RESTRICT tree) {
  ************************************************************
  */
   else if (OptionMatch("beep", *args)) {
-    return (xboard);
+    return xboard;
   }
 /*
  ************************************************************
@@ -242,18 +245,18 @@ int Option(TREE * RESTRICT tree) {
   else if (OptionMatch("bk", *args)) {
     printf("\t%s\n\n", book_hint);
     fflush(stdout);
-    return (xboard);
+    return xboard;
   }
 /*
  ************************************************************
  *                                                          *
- *   "black" command sets black to move (Flip(wtm)).        *
+ *  "black" command sets black to move (Flip(wtm)).         *
  *                                                          *
  ************************************************************
  */
   else if (!strcmp("white", *args)) {
     if (thinking || pondering)
-      return (2);
+      return 2;
     ponder_move = 0;
     last_pv.pathd = 0;
     last_pv.pathl = 0;
@@ -262,7 +265,7 @@ int Option(TREE * RESTRICT tree) {
     force = 0;
   } else if (!strcmp("black", *args)) {
     if (thinking || pondering)
-      return (2);
+      return 2;
     ponder_move = 0;
     last_pv.pathd = 0;
     last_pv.pathl = 0;
@@ -278,12 +281,12 @@ int Option(TREE * RESTRICT tree) {
  ************************************************************
  */
   else if (OptionMatch("bogus", *args)) {
-    return (xboard);
+    return xboard;
   }
 /*
  ************************************************************
  *                                                          *
- *   "bookw" command updates the book selection weights.    *
+ *  "bookw" command updates the book selection weights.     *
  *                                                          *
  ************************************************************
  */
@@ -304,7 +307,7 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "book" command updates/creates the opening book file.  *
+ *  "book" command updates/creates the opening book file.   *
  *                                                          *
  ************************************************************
  */
@@ -318,45 +321,10 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "channel" command behaves just like the whisper        *
- *   command, but sends the output to "channel n" instead.  *
- *   There is an optional second parameter that will be     *
- *   added to the channel tell to indicate what the tell is *
- *   connected to, such as when multiple GM games are going *
- *   on, so that the comment can be directed to a game.     *
- *                                                          *
- ************************************************************
- */
-  else if (OptionMatch("channel", *args)) {
-    int tchannel;
-
-    nargs = ReadParse(buffer, args, " \t;");
-    if (nargs < 2) {
-      printf("usage:  channel <n> [title]\n");
-      return (1);
-    }
-    tchannel = atoi(args[1]);
-    if (tchannel)
-      channel = tchannel;
-    if (nargs > 1) {
-      char *from = args[2];
-      char *to = channel_title;
-
-      while (*from) {
-        if (*from != '*')
-          *to++ = *from;
-        from++;
-      }
-      *to = 0;
-    }
-  }
-/*
- ************************************************************
- *                                                          *
- *   "cache" is used to set the EGTB cache size.  As always *
- *   bigger is better.  The default is 1mb.  Sizes can be   *
- *   specified in bytes, Kbytes or Mbytes as with the hash  *
- *   commands.                                              *
+ *  "cache" is used to set the EGTB cache size.  As always  *
+ *  bigger is better.  The default is 1mb.  Sizes can be    *
+ *  specified in bytes, Kbytes or Mbytes as with the hash   *
+ *  commands.                                               *
  *                                                          *
  ************************************************************
  */
@@ -379,7 +347,7 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "clock" command displays chess clock.                  *
+ *  "clock" command displays chess clock.                   *
  *                                                          *
  ************************************************************
  */
@@ -390,8 +358,7 @@ int Option(TREE * RESTRICT tree) {
       Print(128, "time remaining (%s): %s", (side) ? "white" : "black",
           DisplayHHMMSS(tc_time_remaining[side]));
       if (tc_sudden_death != 1)
-        Print(128, "  (%d more moves)", tc_moves_remaining[side],
-            (side) ? "white" : "black");
+        Print(128, "  (%d more moves)", tc_moves_remaining[side]);
       printf("\n");
     }
     Print(128, "\n");
@@ -401,41 +368,39 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "computer" lets Crafty know it is playing a computer.  *
+ *  "computer" lets Crafty know it is playing a computer.   *
  *                                                          *
  ************************************************************
  */
   else if (OptionMatch("computer", *args)) {
     Print(128, "playing a computer!\n");
-    computer_opponent = 1;
     accept_draws = 1;
     resign = 10;
     resign_counter = 4;
-    book_selection_width = 1;
     usage_level = 0;
     books_file = (computer_bs_file) ? computer_bs_file : normal_bs_file;
   }
 /*
  ************************************************************
  *                                                          *
- *   "display" command displays the chess board.            *
+ *  "display" command displays the chess board.             *
  *                                                          *
- *   "display" command sets specific display options which  *
- *   control how "chatty" the program is.  In the variable  *
- *   display_options, the following bits are set/cleared    *
- *   based on the option chosen.                            *
+ *  "display" command sets specific display options which   *
+ *  control how "chatty" the program is.  In the variable   *
+ *  display_options, the following bits are set/cleared     *
+ *  based on the option chosen.                             *
  *                                                          *
- *     1 -> display time for moves.                         *
- *     2 -> display variation when it changes.              *
- *     4 -> display variation at end of iteration.          *
- *     8 -> display basic search statistics.                *
- *    16 -> display extended search statistics.             *
- *    32 -> display root moves as they are searched.        *
- *    64 -> display move numbers in the PV output.          *
- *   128 -> display general informational messages.         *
- *   256 -> display ply-1 move list / flags after each      *
- *          iteration.                                      *
- *   512 -> display ply-1 moves and positional evaluations  *
+ *    1 -> display time for moves.                          *
+ *    2 -> display variation when it changes.               *
+ *    4 -> display variation at end of iteration.           *
+ *    8 -> display basic search statistics.                 *
+ *   16 -> display extended search statistics.              *
+ *   32 -> display root moves as they are searched.         *
+ *   64 -> display move numbers in the PV output.           *
+ *  128 -> display general informational messages.          *
+ *  256 -> display ply-1 move list / flags after each       *
+ *         iteration.                                       *
+ *  512 -> display ply-1 moves and positional evaluations   *
  *                                                          *
  ************************************************************
  */
@@ -532,7 +497,7 @@ int Option(TREE * RESTRICT tree) {
             printf("display ply-1 moves and evaluations.\n");
         } else
           break;
-        return (1);
+        return 1;
       } while (0);
     else
       DisplayChessBoard(stdout, display);
@@ -540,34 +505,26 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "debug" handles the new debug command that is often    *
- *   modified to test some modified code function.          *
+ *  "debug" handles the new debug command that is often     *
+ *  modified to test some modified code function.           *
  *                                                          *
  ************************************************************
  */
-/*
   else if (OptionMatch("debug", *args)) {
-    Print(4095, "No debug code added to option.c\n");
-    int move, from, to, piece;
-    printf("from, to, piece: ");
-    scanf("%d %d %d", &from, &to, &piece);
-    move = from + (to << 6) + (piece << 12);
-    printf("swap=%d\n", Swap(tree, move, game_wtm));
-    printf("swapo=%d\n", SwapO(tree, move, game_wtm));
+    Print(4095, "No debug code added to Option()\n");
   }
-*/
 /*
  ************************************************************
  *                                                          *
- *   "depth" command sets a specific search depth to        *
- *   control the tree search depth. [xboard compatibility]. *
+ *  "depth" command sets a specific search depth to         *
+ *  control the tree search depth. [xboard compatibility].  *
  *                                                          *
  ************************************************************
  */
   else if (!strcmp("depth", *args)) {
     if (nargs < 2) {
       printf("usage:  depth <n>\n");
-      return (1);
+      return 1;
     }
     search_depth = atoi(args[1]);
     Print(128, "search depth set to %d.\n", search_depth);
@@ -575,8 +532,8 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "draw" is used to offer Crafty a draw, or to control   *
- *   whether Crafty will offer and/or accept draw offers.   *
+ *  "draw" is used to offer Crafty a draw, or to control    *
+ *  whether Crafty will offer and/or accept draw offers.    *
  *                                                          *
  ************************************************************
  */
@@ -613,14 +570,14 @@ int Option(TREE * RESTRICT tree) {
  */
   else if (OptionMatch("easy", *args)) {
     if (thinking || pondering)
-      return (2);
+      return 2;
     ponder = 0;
     Print(128, "pondering disabled.\n");
   }
 /*
  ************************************************************
  *                                                          *
- *   "echo" command displays messages from command file.    *
+ *  "echo" command displays messages from command file.     *
  *                                                          *
  ************************************************************
  */
@@ -629,13 +586,13 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "edit" command modifies the board position.            *
+ *  "edit" command modifies the board position.             *
  *                                                          *
  ************************************************************
  */
   else if (OptionMatch("edit", *args) && strcmp(*args, "ed")) {
     if (thinking || pondering)
-      return (2);
+      return 2;
     Edit();
     move_number = 1;    /* discard history */
     if (!game_wtm) {
@@ -651,8 +608,8 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "egtb" command enables/disables tablebases and sets    *
- *   the number of pieces available for probing.            *
+ *  "egtb" command enables/disables tablebases and sets     *
+ *  the number of pieces available for probing.             *
  *                                                          *
  ************************************************************
  */
@@ -688,7 +645,7 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "end" (or "quit") command terminates the program.      *
+ *  "end" (or "quit") command terminates the program.       *
  *                                                          *
  ************************************************************
  */
@@ -700,33 +657,23 @@ int Option(TREE * RESTRICT tree) {
     if (moves_out_of_book)
       LearnBook();
     if (thinking || pondering)
-      return (1);
+      return 1;
     CraftyExit(0);
   }
 /*
  ************************************************************
  *                                                          *
- *  "eot" command is a no-operation that is used to keep    *
- *  Crafty and the ICS interface in sync.                   *
- *                                                          *
- ************************************************************
- */
-  else if (OptionMatch("eot", *args)) {
-  }
-/*
- ************************************************************
- *                                                          *
- *   "evtest" command runs a test suite of problems and     *
- *   prints evaluations only.                               *
+ *  "evtest" command runs a test suite of problems and      *
+ *  prints evaluations only.                                *
  *                                                          *
  ************************************************************
  */
   else if (OptionMatch("evtest", *args)) {
     if (thinking || pondering)
-      return (2);
+      return 2;
     if (nargs < 2) {
       printf("usage:  evtest <filename>\n");
-      return (1);
+      return 1;
     }
     EVTest(args[1]);
     ponder_move = 0;
@@ -736,13 +683,13 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "exit" command resets input device to STDIN.           *
+ *  "exit" command resets input device to STDIN.            *
  *                                                          *
  ************************************************************
  */
   else if (OptionMatch("exit", *args)) {
     if (analyze_mode)
-      return (0);
+      return 0;
     if (input_stream != stdin)
       fclose(input_stream);
     input_stream = stdin;
@@ -752,15 +699,15 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "flag" command controls whether Crafty will call the   *
- *   flag in xboard/winboard games (to end the game.)       *
+ *  "flag" command controls whether Crafty will call the    *
+ *  flag in xboard/winboard games (to end the game.)        *
  *                                                          *
  ************************************************************
  */
   else if (!strcmp("flag", *args)) {
     if (nargs < 2) {
       printf("usage:  flag on|off\n");
-      return (1);
+      return 1;
     }
     if (!strcmp(args[1], "on"))
       call_flag = 1;
@@ -774,9 +721,9 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "flip" command flips the board, interchanging each     *
- *   rank with the corresponding rank on the other half of  *
- *   the board, and also reverses the color of all pieces.  *
+ *  "flip" command flips the board, interchanging each      *
+ *  rank with the corresponding rank on the other half of   *
+ *  the board, and also reverses the color of all pieces.   *
  *                                                          *
  ************************************************************
  */
@@ -784,7 +731,7 @@ int Option(TREE * RESTRICT tree) {
     int file, rank, piece, temp;
 
     if (thinking || pondering)
-      return (2);
+      return 2;
     for (rank = 0; rank < 4; rank++) {
       for (file = 0; file < 8; file++) {
         piece = -PcOnSq((rank << 3) + file);
@@ -804,9 +751,9 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "flop" command flops the board, interchanging each     *
- *   file with the corresponding file on the other half of  *
- *   the board.                                             *
+ *  "flop" command flops the board, interchanging each      *
+ *  file with the corresponding file on the other half of   *
+ *  the board.                                              *
  *                                                          *
  ************************************************************
  */
@@ -814,7 +761,7 @@ int Option(TREE * RESTRICT tree) {
     int file, rank, piece;
 
     if (thinking || pondering)
-      return (2);
+      return 2;
     for (rank = 0; rank < 8; rank++) {
       for (file = 0; file < 4; file++) {
         piece = PcOnSq((rank << 3) + file);
@@ -830,8 +777,8 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "force" command forces the program to make a specific  *
- *   move instead of its last chosen move.                  *
+ *  "force" command forces the program to make a specific   *
+ *  move instead of its last chosen move.                   *
  *                                                          *
  ************************************************************
  */
@@ -840,14 +787,14 @@ int Option(TREE * RESTRICT tree) {
     char text[16];
 
     if (thinking || pondering)
-      return (3);
+      return 3;
     if (xboard) {
       force = 1;
-      return (3);
+      return 3;
     }
     if (nargs < 2) {
       printf("usage:  force <move>\n");
-      return (1);
+      return 1;
     }
     ponder_move = 0;
     presult = 0;
@@ -882,8 +829,8 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "go" command does nothing, except force main() to      *
- *   start a search.  ("move" is an alias for go).          *
+ *  "go" command does nothing, except force main() to start *
+ *  a search.  ("move" is an alias for go).                 *
  *                                                          *
  ************************************************************
  */
@@ -891,7 +838,7 @@ int Option(TREE * RESTRICT tree) {
     char temp[128];
 
     if (thinking || pondering)
-      return (2);
+      return 2;
     if (game_wtm) {
       if (strncmp(pgn_white, "Crafty", 6)) {
         strcpy(temp, pgn_white);
@@ -906,12 +853,12 @@ int Option(TREE * RESTRICT tree) {
       }
     }
     force = 0;
-    return (-1);
+    return -1;
   }
 /*
  ************************************************************
  *                                                          *
- *   "history" command displays game history (moves).       *
+ *  "history" command displays game history (moves).        *
  *                                                          *
  ************************************************************
  */
@@ -948,17 +895,17 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "hash" command controls the transposition table size.  *
- *   The size can be entered in one of three ways:          *
+ *  "hash" command controls the transposition table size.   *
+ *  The size can be entered in one of three ways:           *
  *                                                          *
- *      hash=nnn  where nnn is in bytes.                    *
- *      hash=nnnK where nnn is in K bytes.                  *
- *      hash=nnnM where nnn is in M bytes.                  *
+ *     hash=nnn  where nnn is in bytes.                     *
+ *     hash=nnnK where nnn is in K bytes.                   *
+ *     hash=nnnM where nnn is in M bytes.                   *
  *                                                          *
- *   the only restriction is that the hash table is com-    *
- *   puted as a perfect power of 2.  Any value that is not  *
- *   a perfect power of 2 is rounded down so that it is,    *
- *   in order to avoid breaking the addressing scheme.      *
+ *  the only restriction is that the hash table is computed *
+ *  as a perfect power of 2.  Any value that is not a       *
+ *  perfect power of 2 is rounded down so that it is, in    *
+ *  order to avoid breaking the addressing scheme.          *
  *                                                          *
  ************************************************************
  */
@@ -966,22 +913,21 @@ int Option(TREE * RESTRICT tree) {
     size_t new_hash_size;
 
     if (thinking || pondering)
-      return (2);
+      return 2;
     if (nargs > 1) {
       allow_memory = 0;
       Print(4095, "Warning--  xboard 'memory' option disabled\n");
       new_hash_size = atoiKM(args[1]);
       if (new_hash_size < 64 * 1024) {
         printf("ERROR.  Minimum hash table size is 64K bytes.\n");
-        return (1);
+        return 1;
       }
       hash_table_size = ((1ull) << MSB(new_hash_size)) / sizeof(HASH_ENTRY);
       AlignedRemalloc((void **) &trans_ref, 64,
           sizeof(HASH_ENTRY) * hash_table_size);
       if (!trans_ref) {
         printf("AlignedRemalloc() failed, not enough memory.\n");
-        hash_table_size = 0;
-        trans_ref = 0;
+        exit(1);
       }
       hash_mask = ((1ull << (MSB((uint64_t) hash_table_size) - 2)) - 1) << 2;
       InitializeHashTables();
@@ -993,16 +939,16 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "phash" command controls the path hash table size. The *
- *   size can be entered in one of three ways:              *
+ *  "phash" command controls the path hash table size. The  *
+ *  size can be entered in one of three ways:               *
  *                                                          *
- *      phash=nnn  where nnn is in bytes.                   *
- *      phash=nnnK where nnn is in K bytes.                 *
- *      phash=nnnM where nnn is in M bytes.                 *
+ *     phash=nnn  where nnn is in bytes.                    *
+ *     phash=nnnK where nnn is in K bytes.                  *
+ *     phash=nnnM where nnn is in M bytes.                  *
  *                                                          *
- *   the only restriction is that the path hash table must  *
- *   have a perfect power of 2 entries + 7.  The value      *
- *   entered will be rounded down to meet that requirement. *
+ *  the only restriction is that the path hash table must   *
+ *  have a perfect power of 2 entries.  The value entered   *
+ *  will be rounded down to meet that requirement.          *
  *                                                          *
  ************************************************************
  */
@@ -1011,12 +957,12 @@ int Option(TREE * RESTRICT tree) {
     int i;
 
     if (thinking || pondering)
-      return (2);
+      return 2;
     if (nargs > 1) {
       new_hash_size = atoiKM(args[1]);
       if (new_hash_size < 64 * 1024) {
         printf("ERROR.  Minimum phash table size is 64K bytes.\n");
-        return (1);
+        return 1;
       }
       hash_path_size = ((1ull) << MSB(new_hash_size / sizeof(HPATH_ENTRY)));
       AlignedRemalloc((void **) &hash_path, 64,
@@ -1037,7 +983,7 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "hashp" command controls the pawn hash table size.     *
+ *  "hashp" command controls the pawn hash table size.      *
  *                                                          *
  ************************************************************
  */
@@ -1046,14 +992,14 @@ int Option(TREE * RESTRICT tree) {
     size_t new_hash_size;
 
     if (thinking || pondering)
-      return (2);
+      return 2;
     if (nargs > 1) {
       allow_memory = 0;
       Print(4095, "Warning--  xboard 'memory' option disabled\n");
       new_hash_size = atoiKM(args[1]);
       if (new_hash_size < 16 * 1024) {
         printf("ERROR.  Minimum pawn hash table size is 16K bytes.\n");
-        return (1);
+        return 1;
       }
       pawn_hash_table_size =
           (1ull << MSB(new_hash_size)) / sizeof(PAWN_HASH_ENTRY);
@@ -1061,8 +1007,7 @@ int Option(TREE * RESTRICT tree) {
           sizeof(PAWN_HASH_ENTRY) * pawn_hash_table_size);
       if (!pawn_hash_table) {
         printf("AlignedRemalloc() failed, not enough memory.\n");
-        pawn_hash_table_size = 0;
-        pawn_hash_table = 0;
+        exit(1);
       }
       pawn_hash_mask = (1ull << MSB((uint64_t) pawn_hash_table_size)) - 1;
       for (i = 0; i < pawn_hash_table_size; i++) {
@@ -1073,11 +1018,13 @@ int Option(TREE * RESTRICT tree) {
         (pawn_hash_table + i)->defects_q[white] = 0;
         (pawn_hash_table + i)->defects_d[white] = 0;
         (pawn_hash_table + i)->defects_e[white] = 0;
+        (pawn_hash_table + i)->all[white] = 0;
+        (pawn_hash_table + i)->passed[white] = 0;
         (pawn_hash_table + i)->defects_k[black] = 0;
         (pawn_hash_table + i)->defects_q[black] = 0;
         (pawn_hash_table + i)->defects_d[black] = 0;
         (pawn_hash_table + i)->defects_e[black] = 0;
-        (pawn_hash_table + i)->passed[white] = 0;
+        (pawn_hash_table + i)->all[black] = 0;
         (pawn_hash_table + i)->passed[black] = 0;
       }
     }
@@ -1088,7 +1035,7 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "help" command lists commands/options.                 *
+ *  "help" command lists commands/options.                  *
  *                                                          *
  ************************************************************
  */
@@ -1100,7 +1047,7 @@ int Option(TREE * RESTRICT tree) {
     helpfile = fopen("crafty.hlp", "r");
     if (!helpfile) {
       printf("ERROR.  Unable to open \"crafty.hlp\" -- help unavailable\n");
-      return (1);
+      return 1;
     }
     if (nargs > 1) {
       while (1) {
@@ -1108,7 +1055,7 @@ int Option(TREE * RESTRICT tree) {
         if (!readstat) {
           printf("Sorry, no help available for \"%s\"\n", args[1]);
           fclose(helpfile);
-          return (1);
+          return 1;
         }
         if (buffer[0] == '<') {
           if (strstr(buffer, args[1]))
@@ -1138,8 +1085,8 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "hint" displays the expected move based on the last    *
- *   search done. [xboard compatibility]                    *
+ *  "hint" displays the expected move based on the last     *
+ *  search done. [xboard compatibility]                     *
  *                                                          *
  ************************************************************
  */
@@ -1152,19 +1099,19 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "input" command directs the program to read input from *
- *   a file until eof is reached or an "exit" command is    *
- *   encountered while reading the file.                    *
+ *  "input" command directs the program to read input from  *
+ *  a file until eof is reached or an "exit" command is     *
+ *  encountered while reading the file.                     *
  *                                                          *
  ************************************************************
  */
   else if (OptionMatch("input", *args)) {
     if (thinking || pondering)
-      return (2);
+      return 2;
     nargs = ReadParse(buffer, args, " \t=");
     if (nargs < 2) {
       printf("usage:  input <filename>\n");
-      return (1);
+      return 1;
     }
     if (!(input_stream = fopen(args[1], "r"))) {
       printf("file does not exist.\n");
@@ -1218,29 +1165,33 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "kibitz" command sets kibitz mode for ICS.  =1 will    *
- *   kibitz mate announcements, =2 will kibitz scores and   *
- *   other info, =3 will kibitz scores and PV, =4 adds the  *
- *   list of book moves, =5 displays the PV after each      *
- *   iteration completes, and =6 displays the PV each time  *
- *   it changes in an iteration.                            *
+ *  "kibitz" command sets kibitz mode for ICS.  =1 will     *
+ *  kibitz mate announcements, =2 will kibitz scores and    *
+ *  other info, =3 will kibitz scores and PV, =4 adds the   *
+ *  list of book moves, =5 displays the PV after each       *
+ *  iteration completes, and =6 displays the PV each time   *
+ *  it changes in an iteration.                             *
  *                                                          *
  ************************************************************
  */
   else if (OptionMatch("kibitz", *args)) {
     if (nargs < 2) {
       printf("usage:  kibitz <level>\n");
-      return (1);
+      return 1;
     }
     kibitz = atoi(args[1]);
   }
 /*
  ************************************************************
  *                                                          *
- *   "learn" command enables/disables the learning          *
- *   algorithm used in Crafty.  this is controlled by a     *
- *   single variable that is either 0 or 1 (disabled or     *
- *   enabled).                                              *
+ *  "learn" command enables/disables the learning           *
+ *  algorithm used in Crafty.  this is controlled by a      *
+ *  single variable that is either 0 or 1 (disabled or      *
+ *  enabled).                                               *
+ *                                                          *
+ *  "learn clear" clears all learning data in the opening   *
+ *  book, returning it to a state identical to when the     *
+ *  book was originally created.                            *
  *                                                          *
  ************************************************************
  */
@@ -1268,8 +1219,9 @@ int Option(TREE * RESTRICT tree) {
           }
       } else {
         learning = atoi(args[1]);
+        learn = (learning > 0) ? 1 : 0;
         if (learning)
-          Print(128, "book learning enabled\n");
+          Print(128, "book learning enabled {-%d,+%d}\n", learning, learning);
         else
           Print(128, "book learning disabled\n");
       }
@@ -1278,15 +1230,15 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "level" command sets time controls [xboard compati-    *
- *   bility.]                                               *
+ *  "level" command sets time controls [xboard compati-     *
+ *  bility.]                                                *
  *                                                          *
  ************************************************************
  */
   else if (OptionMatch("level", *args)) {
     if (nargs < 4) {
       printf("usage:  level <nmoves> <stime> <inc>\n");
-      return (1);
+      return 1;
     }
     tc_moves = atoi(args[1]);
     tc_time = atoi(args[2]) * 60;
@@ -1326,7 +1278,7 @@ int Option(TREE * RESTRICT tree) {
       int optimal_hash_size;
       uint64_t positions_per_move;
 
-      TimeSet(tree, think);
+      TimeSet(think);
       time_limit /= 100;
       positions_per_move = time_limit * adaptive_hash / 16;
       optimal_hash_size = positions_per_move * 16;
@@ -1350,17 +1302,17 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "linelength" sets the default line length to something *
- *    other than 80, if desired.  Setting this to a huge    *
- *    number makes a PV print on one line for easier        *
- *    parsing by automated scripts.                         *
+ *  "linelength" sets the default line length to something  *
+ *  other than 80, if desired.  Setting this to a huge      *
+ *  number makes a PV print on one line for easier parsing  *
+ *  by automated scripts.                                   *
  *                                                          *
  ************************************************************
  */
   else if (OptionMatch("linelength", *args)) {
     if (nargs > 2) {
       printf("usage:  linelength <n>\n");
-      return (1);
+      return 1;
     }
     if (nargs == 2)
       line_length = atoi(args[1]);
@@ -1369,73 +1321,70 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "list" command allows the operator to add or remove    *
- *   names from the various lists Crafty uses to recognize  *
- *   and adapt to particular opponents.                     *
+ *  "list" command allows the operator to add or remove     *
+ *  names from the various lists Crafty uses to recognize   *
+ *  and adapt to particular opponents.                      *
  *                                                          *
- *   list <listname> <player>                               *
+ *  list <listname> <player>                                *
  *                                                          *
- *   <listname> is one of AK, B, C, GM, IM, SP.             *
+ *  <listname> is one of AK, B, C, GM, IM, SP.              *
  *                                                          *
- *   The final parameter is a name to add  or remove.  If   *
- *   you prepend a + to the name, that asks that the name   *
- *   be added to the list.  If you prepend a - to the name, *
- *   that asks that the name be removed from the list.      *
- *   If no name is given, the list is displayed.            *
+ *  The final parameter is a name to add  or remove.  If    *
+ *  you prepend a + to the name, that asks that the name be *
+ *  added to the list.  If you prepend a - to the name,     *
+ *  that asks that the name be removed from the list.  If   *
+ *  no name is given, the list is displayed.                *
  *                                                          *
- *   AK is the "auto-kibitz" list.  Crafty will kibitz info *
- *   on a chess server when playing any opponent in this    *
- *   list.  This should only have computer names as humans  *
- *   don't approve of kibitzes while they are playing.      *
+ *  AK is the "auto-kibitz" list.  Crafty will kibitz info  *
+ *  on a chess server when playing any opponent in this     *
+ *  list.  This should only have computer names as humans   *
+ *  don't approve of kibitzes while they are playing.       *
  *                                                          *
- *   B identifies "blocker" players, those that try to      *
- *   block the position and go for easy draws.  This makes  *
- *   Crafty try much harder to prevent this from happening, *
- *   even at the expense of positional compensation.        *
+ *  B identifies "blocker" players, those that try to       *
+ *  block the position and go for easy draws.  This makes   *
+ *  Crafty try much harder to prevent this from happening,  *
+ *  even at the expense of positional compensation.         *
  *                                                          *
- *   C identifies a computer opponent name, although on a   *
- *   chess server this is handled by xboard/winboard.       *
+ *  GM and IM identify titled players.  This affects how    *
+ *  and when Crafty resigns or offers/accepts draws.  For   *
+ *  GM players it will do so fairly early after the right   *
+ *  circumstances have been seen, for IM it delays a bit    *
+ *  longer as they are more prone to making a small error   *
+ *  that avoids the loss or draw.                           *
  *                                                          *
- *   GM and IM identify titled players.  This affects how   *
- *   and when Crafty resigns or offers/accepts draws.  For  *
- *   GM players it will do so fairly early after the right  *
- *   circumstances have been seen, for IM it delays a bit   *
- *   longer as they are more prone to making a small error  *
- *   that avoids the loss or draw.                          *
+ *  SP is the "special player" option.  This is an extended *
+ *  version of the "list" command that allows you to        *
+ *  specify a special "start book" for a particular         *
+ *  opponent to make Crafty play specific openings against  *
+ *  that opponent, as well as allowing you to specify a     *
+ *  personality file to use against that specific opponent  *
+ *  when he is identified by the correct "name" command.    *
  *                                                          *
- *   SP is the "special player" option.  This is an         *
- *   extended version of the "list" command that allows you *
- *   to specify a special "start book" for a particular     *
- *   opponent to make Crafty play specific openings against *
- *   that opponent, as well as allowing you to specify a    *
- *   personality file to use against that specific opponent *
- *   when he is identified by the correct "name" command.   *
+ *  For the SP list, the command is extended to use         *
  *                                                          *
- *   For the SP list, the command is extended to use        *
+ *  "list SP +player book=filename  personality=filename"   *
  *                                                          *
- *   "list SP +player book=filename  personality=filename"  *
- *                                                          *
- *   For the SP list, the files specified must exist in the *
- *   current directory unless the bookpath and perspath     *
- *   commands direct Crafty to look elsewhere.              *
+ *  For the SP list, the files specified must exist in the  *
+ *  current directory unless the bookpath and perspath      *
+ *  commands direct Crafty to look elsewhere.               *
  *                                                          *
  ************************************************************
  */
   else if (OptionMatch("list", *args)) {
     int i, list, lastent = -1;
     char **targs;
-    char listname[6][3] = { "AK", "B", "C", "GM", "IM", "SP" };
-    char **listaddr[6] = { AK_list, B_list, C_list, GM_list,
+    char listname[5][3] = { "AK", "B", "GM", "IM", "SP" };
+    char **listaddr[] = { AK_list, B_list, GM_list,
       IM_list, SP_list
     };
     targs = args;
-    for (list = 0; list < 6; list++) {
+    for (list = 0; list < 5; list++) {
       if (!strcmp(listname[list], args[1]))
         break;
     }
-    if (list > 5) {
-      printf("usage:  list AK|B|C|GM|IM|P|SP +name1 -name2 etc\n");
-      return (1);
+    if (list > 4) {
+      printf("usage:  list AK|B|GM|IM|P|SP +name1 -name2 etc\n");
+      return 1;
     }
     nargs -= 2;
     targs += 2;
@@ -1554,15 +1503,15 @@ int Option(TREE * RESTRICT tree) {
     FILE *prob_file;
 
     if (thinking || pondering)
-      return (2);
+      return 2;
     nargs = ReadParse(buffer, args, " \t=");
     if (nargs < 3) {
       printf("usage:  input <filename> title\n");
-      return (1);
+      return 1;
     }
     if (!(prob_file = fopen(args[1], "r"))) {
       printf("file does not exist.\n");
-      return (1);
+      return 1;
     }
     strcpy(title, args[2]);
     while (!feof(prob_file)) {
@@ -1617,13 +1566,12 @@ int Option(TREE * RESTRICT tree) {
  ************************************************************
  */
   else if (OptionMatch("log", *args)) {
-#if !defined(IPHONE)
     FILE *output_file;
     char filename[64], buffer[128];
 
     if (nargs < 2) {
       printf("usage:  log on|off|n [filename]\n");
-      return (1);
+      return 1;
     }
     if (!strcmp(args[1], "on")) {
       int id;
@@ -1701,103 +1649,6 @@ int Option(TREE * RESTRICT tree) {
       if (output_file != stdout)
         fclose(output_file);
     }
-#else
-    history_file = 0;
-    log_file = 0;
-#endif
-  }
-/*
- ************************************************************
- *                                                          *
- *   "smp" command is used to tune the various SMP search   *
- *   parameters.                                            *
- *                                                          *
- *   "smpgroup" command is used to control how many threads *
- *   may work together at any point in the tree.  The       *
- *   usual default is 8, but this might be reduced on a     *
- *   machine with a large number of processors.  It should  *
- *   be tested, of course.                                  *
- *                                                          *
- *   "smpmt" command is used to set the maximum number of   *
- *   parallel threads to use, assuming that Crafty was      *
- *   compiled with -DSMP.  This value can not be set        *
- *   larger than the compiled-in -DCPUS=n value.            *
- *                                                          *
- *   "smpnice" command turns on "nice" mode where idle      *
- *   processors are terminated between searches to avoid    *
- *   burning CPU time in the idle loop.                     *
- *                                                          *
- *   "smproot" command is used to enable (1) or disable (0) *
- *   splitting the tree at the root (ply=1).  Splitting at  *
- *   the root is more efficient, but might slow finding the *
- *   move in some test positions.                           *
- *                                                          *
- *   "smpsn" sets the minimum number of nodes that must be  *
- *   searched at any node before we can do a parallel split *
- *   to search the remaining moves there in parallel.       *
- *                                                          *
- ************************************************************
- */
-  else if (OptionMatch("smpgroup", *args)) {
-    if (nargs < 2) {
-      printf("usage:  smpgroup <threads>\n");
-      return (1);
-    }
-    smp_max_thread_group = atoi(args[1]);
-    Print(128, "maximum thread group size set to %d.\n",
-        smp_max_thread_group);
-  } else if (OptionMatch("smpmt", *args) || OptionMatch("mt", *args)
-      || OptionMatch("cores", *args)) {
-    int proc;
-
-    if (nargs < 2) {
-      printf("usage:  smpmt=<threads>\n");
-      return (1);
-    }
-    if (thinking || pondering)
-      return (3);
-    allow_cores = 0;
-    Print(4095, "Warning--  xboard 'cores' option disabled\n");
-    smp_max_threads = atoi(args[1]);
-    if (smp_max_threads > CPUS) {
-      Print(4095, "ERROR - Crafty was compiled with CPUS=%d.", CPUS);
-      Print(4095, "  mt can not exceed this value.\n");
-      smp_max_threads = CPUS;
-    }
-    if (smp_max_threads)
-      Print(128, "max threads set to %d.\n", smp_max_threads);
-    else
-      Print(128, "parallel threads disabled.\n");
-    for (proc = 1; proc < CPUS; proc++)
-      if (proc >= smp_max_threads)
-        thread[proc] = (TREE *) - 1;
-  } else if (OptionMatch("smpnice", *args)) {
-    if (nargs < 2) {
-      printf("usage:  smpnice 0|1\n");
-      return (1);
-    }
-    smp_nice = atoi(args[1]);
-    if (smp_nice)
-      Print(128, "SMP terminate extra threads when idle.\n");
-    else
-      Print(128, "SMP keep extra threads spinning when idle.\n");
-  } else if (OptionMatch("smproot", *args)) {
-    if (nargs < 2) {
-      printf("usage:  smproot 0|1\n");
-      return (1);
-    }
-    smp_split_at_root = atoi(args[1]);
-    if (smp_split_at_root)
-      Print(128, "SMP search split at ply >= 1.\n");
-    else
-      Print(128, "SMP search split at ply > 1.\n");
-  } else if (OptionMatch("smpsn", *args)) {
-    if (nargs < 2) {
-      printf("usage:  smpsn <nodes>\n");
-      return (1);
-    }
-    smp_split_nodes = atoi(args[1]);
-    Print(128, "minimum nodes before a split %d.\n", smp_split_nodes);
   }
 /*
  ************************************************************
@@ -1813,36 +1664,24 @@ int Option(TREE * RESTRICT tree) {
     size_t hmemory, pmemory;
     if (nargs < 2) {
       printf("usage:  memory <size>\n");
-      return (1);
+      return 1;
     }
     size = atoi(args[1]) * 1024 * 1024;
+    if (size == 0) {
+      Print(4095, "ERROR - memory size can not be zero\n");
+      return 1;
+    }
     hmemory = (1ull) << MSB(size);
     size &= ~hmemory;
     pmemory = (1ull) << MSB(size);
     if (pmemory < 1024 * 1024)
       pmemory = 0;
-    sprintf(buffer, "hash %lld\n", (uint64_t) hmemory);
+    sprintf(buffer, "hash %" PRIu64 "\n", (uint64_t) hmemory);
     (void) Option(tree);
     if (pmemory) {
-      sprintf(buffer, "hashp %lld\n", (uint64_t) pmemory);
+      sprintf(buffer, "hashp %" PRIu64 "\n", (uint64_t) pmemory);
       (void) Option(tree);
     }
-  }
-/*
- ************************************************************
- *                                                          *
- *   "mn" command is used to set the move number to a       *
- *   specific value...                                      *
- *                                                          *
- ************************************************************
- */
-  else if (OptionMatch("mn", *args)) {
-    if (nargs < 2) {
-      printf("usage:  mn <number>\n");
-      return (1);
-    }
-    move_number = atoi(args[1]);
-    Print(128, "move number set to %d\n", move_number);
   }
 /*
  ************************************************************
@@ -1903,7 +1742,7 @@ int Option(TREE * RESTRICT tree) {
 
     if (nargs < 2) {
       printf("usage:  name <name>\n");
-      return (1);
+      return 1;
     }
     if (game_wtm) {
       strcpy(pgn_white, args[1]);
@@ -1922,14 +1761,6 @@ int Option(TREE * RESTRICT tree) {
       for (i = 0; i < 128; i++)
         if (AK_list[i] && !strcmp(AK_list[i], args[1])) {
           kibitz = 4;
-          break;
-        }
-      for (i = 0; i < 128; i++)
-        if (C_list[i] && !strcmp(C_list[i], args[1])) {
-          Print(128, "playing a computer!\n");
-          computer_opponent = 1;
-          book_selection_width = 1;
-          usage_level = 0;
           break;
         }
       for (i = 0; i < 128; i++)
@@ -1981,40 +1812,40 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "new" command initializes for a new game.              *
+ *  "new" command initializes for a new game.               *
  *                                                          *
  ************************************************************
  */
   else if (OptionMatch("new", *args)) {
     new_game = 1;
     if (thinking || pondering)
-      return (3);
+      return 3;
     if (smp_max_threads) {
       int proc;
 
       Print(128, "parallel threads terminated.\n");
       for (proc = 1; proc < CPUS; proc++)
-        thread[proc] = (TREE *) - 1;
+        thread[proc].tree = (TREE *) - 1;
     }
     NewGame(0);
-    return (3);
+    return 3;
   }
 /*
  ************************************************************
  *                                                          *
- *   "noise" command sets a minimum limit on nodes searched *
- *   such that until this number of nodes has been searched *
- *   no program output will occur.  This is used to prevent *
- *   simple endgames from swamping the display device since *
- *   30+ ply searches are possible, which can produce 100's *
- *   of lines of output.                                    *
+ *  "noise" command sets a minimum limit on nodes searched  *
+ *  such that until this number of nodes has been searched  *
+ *  no program output will occur.  This is used to prevent  *
+ *  simple endgames from swamping the display device since  *
+ *  30+ ply searches are possible, which can produce 100's  *
+ *  of lines of output.                                     *
  *                                                          *
  ************************************************************
  */
   else if (OptionMatch("noise", *args)) {
     if (nargs < 2) {
       printf("usage:  noise <n>\n");
-      return (1);
+      return 1;
     }
     noise_level = atoi(args[1]);
     Print(128, "noise level set to %d.\n", noise_level);
@@ -2022,17 +1853,17 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "operator" command sets the operator time.  This time  *
- *   is the time per move that the operator needs.  It is   *
- *   multiplied by the number of moves left to time control *
- *   to reserve operator time.                              *
+ *  "operator" command sets the operator time.  This time   *
+ *  is the time per move that the operator needs.  It is    *
+ *  multiplied by the number of moves left to time control  *
+ *  to reserve operator time.                               *
  *                                                          *
  ************************************************************
  */
   else if (OptionMatch("operator", *args)) {
     if (nargs < 2) {
       printf("usage:  operator <seconds>\n");
-      return (1);
+      return 1;
     }
     tc_operator_time = ParseTime(args[1]) * 100;
     Print(128, "reserving %d seconds per move for operator overhead.\n",
@@ -2041,16 +1872,16 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "otime" command sets the opponent's time remaining.    *
- *   This is used to determine if the opponent is in time   *
- *   trouble, and is factored into the draw score if he is. *
+ *  "otime" command sets the opponent's time remaining.     *
+ *  This is used to determine if the opponent is in time    *
+ *  trouble, and is factored into the draw score if he is.  *
  *                                                          *
  ************************************************************
  */
   else if (OptionMatch("otime", *args)) {
     if (nargs < 2) {
       printf("usage:  otime <time(unit=.01 secs))>\n");
-      return (1);
+      return 1;
     }
     tc_time_remaining[Flip(root_wtm)] = atoi(args[1]);
     if (log_file && time_limit > 99)
@@ -2066,15 +1897,15 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "output" command sets long or short algebraic output.  *
- *   Long is Ng1f3, while short is simply Nf3.              *
+ *  "output" command sets long or short algebraic output.   *
+ *  Long is Ng1f3, while short is simply Nf3.               *
  *                                                          *
  ************************************************************
  */
   else if (OptionMatch("output", *args)) {
     if (nargs < 2) {
       printf("usage:  output long|short\n");
-      return (1);
+      return 1;
     }
     if (!strcmp(args[1], "long"))
       output_format = 1;
@@ -2090,8 +1921,8 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "personality" command is used to adjust the eval terms *
- *   and search options to modify the way Crafty plays.     *
+ *  "personality" command is used to adjust the eval terms  *
+ *  and search options to modify the way Crafty plays.      *
  *                                                          *
  ************************************************************
  */
@@ -2099,12 +1930,12 @@ int Option(TREE * RESTRICT tree) {
     int i, j, param, index, value;
 
 /*
- **************************************************
- *                                                *
- *   handle "pers list" and dump everything that  *
- *   can be modified.                             *
- *                                                *
- **************************************************
+ ************************************************************
+ *                                                          *
+ *  Handle the "personality list" command and dump every-   *
+ *  thing the user can modify.                              *
+ *                                                          *
+ ************************************************************
  */
     if (nargs == 2 && !strcmp(args[1], "list")) {
       printf("\n");
@@ -2150,15 +1981,15 @@ int Option(TREE * RESTRICT tree) {
         }
       }
       printf("\n");
-      return (1);
+      return 1;
     }
 /*
- **************************************************
- *                                                *
- *   handle "pers load" and read in the data from *
- *   the personality.cpf file.                    *
- *                                                *
- **************************************************
+ ************************************************************
+ *                                                          *
+ *  Handle the "personality load" command and read in the   *
+ *  specified *.cpf file.                                   *
+ *                                                          *
+ ************************************************************
  */
     if (!strcmp(args[1], "load")) {
       FILE *file;
@@ -2185,15 +2016,15 @@ int Option(TREE * RESTRICT tree) {
         }
         fclose(file);
       }
-      return (1);
+      return 1;
     }
 /*
- **************************************************
- *                                                *
- *   handle "pers save" and dump everything that  *
- *   can be modified to a file                    *
- *                                                *
- **************************************************
+ ************************************************************
+ *                                                          *
+ *  Handle the "personality save" command and dump every-   *
+ *  thing that can be modified to a file.                   *
+ *                                                          *
+ ************************************************************
  */
     if (nargs == 3 && !strcmp(args[1], "save")) {
       char filename[256];
@@ -2205,7 +2036,7 @@ int Option(TREE * RESTRICT tree) {
       file = fopen(filename, "w");
       if (!file) {
         printf("ERROR.  Unable to open %s for writing\n", args[2]);
-        return (1);
+        return 1;
       }
       printf("saving to file \"%s\"\n", filename);
       fprintf(file, "# Crafty v%s personality file\n", version);
@@ -2226,36 +2057,36 @@ int Option(TREE * RESTRICT tree) {
       }
       fprintf(file, "exit\n");
       fclose(file);
-      return (1);
+      return 1;
     }
 /*
- **************************************************
- *                                                *
- *   handle "pers index val" command that changes *
- *   only those terms that are scalars.           *
- *                                                *
- **************************************************
+ ************************************************************
+ *                                                          *
+ *  Handle the "personality index val" command that changes *
+ *  only those personality terms that are scalars.          *
+ *                                                          *
+ ************************************************************
  */
     param = atoi(args[1]);
     value = atoi(args[2]);
     if (!personality_packet[param].value) {
       Print(4095, "ERROR.  evaluation term %d is not defined\n", param);
-      return (1);
+      return 1;
     }
     if (personality_packet[param].size == 0) {
       if (nargs > 3) {
         printf("this eval term requires exactly 1 value.\n");
-        return (1);
+        return 1;
       }
       *personality_packet[param].value = value;
     }
 /*
- **************************************************
- *                                                *
- *   handle "pers index v1 v2 .. vn" command that *
- *   changes eval terms that are vectors.         *
- *                                                *
- **************************************************
+ ************************************************************
+ *                                                          *
+ *  Handle the "personality index v1 v2 .. vn" command that *
+ *  changes eval terms that are vectors.                    *
+ *                                                          *
+ ************************************************************
  */
     else {
       index = nargs - 2;
@@ -2264,7 +2095,7 @@ int Option(TREE * RESTRICT tree) {
             ("this eval term (%s [%d]) requires exactly %d values, found %d.\n",
             personality_packet[param].description, param,
             Abs(personality_packet[param].size), index);
-        return (1);
+        return 1;
       }
       for (i = 0; i < index; i++)
         personality_packet[param].value[i] = atoi(args[i + 2]);
@@ -2274,8 +2105,8 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "bookpath", "logpath" and "tbpath" set the default     *
- *   paths to locate or save these files.                   *
+ *  "bookpath", "logpath" and "tbpath" set the default      *
+ *  paths to locate or save these files.                    *
  *                                                          *
  ************************************************************
  */
@@ -2288,7 +2119,7 @@ int Option(TREE * RESTRICT tree) {
     nargs = ReadParse(buffer, args, " \t=");
     if (nargs < 2) {
       printf("usage:  bookpath|perspath|logpath|tbpath <path>\n");
-      return (1);
+      return 1;
     }
     if (!strchr(args[1], '(')) {
       if (strstr(args[0], "bookpath"))
@@ -2317,7 +2148,7 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "perf" command turns times move generator/make_move.   *
+ *  "perf" command turns times move generator/make_move.    *
  *                                                          *
  ************************************************************
  */
@@ -2327,7 +2158,7 @@ int Option(TREE * RESTRICT tree) {
     float time_used;
 
     if (thinking || pondering)
-      return (2);
+      return 2;
     clock_before = clock();
     while (clock() == clock_before);
     clock_before = clock();
@@ -2366,7 +2197,7 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "perft" command turns tests move generator/make_move.  *
+ *  "perft" command turns tests move generator/make_move.   *
  *                                                          *
  ************************************************************
  */
@@ -2375,32 +2206,32 @@ int Option(TREE * RESTRICT tree) {
     float time_used;
 
     if (thinking || pondering)
-      return (2);
+      return 2;
     clock_before = clock();
     while (clock() == clock_before);
     clock_before = clock();
     if (nargs < 2) {
       printf("usage:  perftest <depth>\n");
-      return (1);
+      return 1;
     }
-    tree->position[1] = tree->position[0];
+    tree->status[1] = tree->status[0];
     tree->last[0] = tree->move_list;
     i = atoi(args[1]);
     if (i <= 0) {
       Print(128, "usage:  perft <maxply>\n");
-      return (1);
+      return 1;
     }
     total_moves = 0;
     OptionPerft(tree, 1, i, game_wtm);
     clock_after = clock();
     time_used =
         ((float) clock_after - (float) clock_before) / (float) CLOCKS_PER_SEC;
-    printf("total moves=" BMF "  time=%.2f\n", total_moves, time_used);
+    printf("total moves=%" PRIu64 "  time=%.2f\n", total_moves, time_used);
   }
 /*
  ************************************************************
  *                                                          *
- *   "pgn" command sets the various PGN header files.       *
+ *  "pgn" command sets the various PGN header files.        *
  *                                                          *
  ************************************************************
  */
@@ -2409,7 +2240,7 @@ int Option(TREE * RESTRICT tree) {
 
     if (nargs < 3) {
       printf("usage:  pgn <tag> <value>\n");
-      return (1);
+      return 1;
     }
     if (!strcmp(args[1], "Event")) {
       pgn_event[0] = 0;
@@ -2449,9 +2280,9 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "ping" command simply echos the argument back to       *
- *   xboard to let it know all previous commands have been  *
- *   executed.                                              *
+ *  "ping" command simply echos the argument back to xboard *
+ *  to let it know all previous commands have been executed *
+ *  and we are ready for whatever is next.                  *
  *                                                          *
  ************************************************************
  */
@@ -2465,9 +2296,9 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "playother" command says "position is set up, we are   *
- *   waiting on the opponent to move, ponder if you want to *
- *   do so.                                                 *
+ *  "playother" command says "position is set up, we are    *
+ *  waiting on the opponent to move, ponder if you want to  *
+ *  do so.                                                  *
  *                                                          *
  ************************************************************
  */
@@ -2477,17 +2308,17 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "ponder" command toggles pondering off/on or sets a    *
- *   move to ponder.                                        *
+ *  "ponder" command toggles pondering off/on or sets a     *
+ *  move to ponder.                                         *
  *                                                          *
  ************************************************************
  */
   else if (OptionMatch("ponder", *args)) {
     if (thinking || pondering)
-      return (2);
+      return 2;
     if (nargs < 2) {
       printf("usage:  ponder off|on|<move>\n");
-      return (1);
+      return 1;
     }
     if (!strcmp(args[1], "on")) {
       ponder = 1;
@@ -2504,8 +2335,8 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "post/nopost" command sets/resets "show thinking" mode *
- *   for xboard compatibility.                              *
+ *  "post/nopost" command sets/resets "show thinking" mode  *
+ *  for xboard compatibility.                               *
  *                                                          *
  ************************************************************
  */
@@ -2517,9 +2348,9 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "protover" command is sent by xboard to identify the   *
- *   xboard protocol version and discover what the engine   *
- *   can handle.                                            *
+ *  "protover" command is sent by xboard to identify the    *
+ *  xboard protocol version and discover what the engine    *
+ *  can handle.                                             *
  *                                                          *
  ************************************************************
  */
@@ -2550,14 +2381,14 @@ int Option(TREE * RESTRICT tree) {
  ************************************************************
  */
   else if (OptionMatch("random", *args)) {
-    return (xboard);
+    return xboard;
   }
 /*
  ************************************************************
  *                                                          *
- *   "rating" is used by xboard to set Crafty's rating and  *
- *   the opponent's rating, which is used by the learning   *
- *   functions.                                             *
+ *  "rating" is used by xboard to set Crafty's rating and   *
+ *  the opponent's rating, which is used by the learning    *
+ *  functions.                                              *
  *                                                          *
  ************************************************************
  */
@@ -2565,7 +2396,7 @@ int Option(TREE * RESTRICT tree) {
     int rd;
     if (nargs < 3) {
       printf("usage:  rating <Crafty> <opponent>\n");
-      return (1);
+      return 1;
     }
     crafty_rating = atoi(args[1]);
     opponent_rating = atoi(args[2]);
@@ -2574,12 +2405,8 @@ int Option(TREE * RESTRICT tree) {
       opponent_rating = 2300;
     }
     rd = opponent_rating - crafty_rating;
-    if (rd < 0)
-      rd = (rd - 50) / 100;
-    else
-      rd = (rd + 50) / 100;
-    rd = Max(Min(rd, 10), -10);
-    abs_draw_score = rd * 20 + 20;
+    rd = Max(Min(rd, 300), -300);
+    abs_draw_score = (rd + 60) / 7;
     if (log_file) {
       fprintf(log_file, "Crafty's rating: %d.\n", crafty_rating);
       fprintf(log_file, "opponent's rating: %d.\n", opponent_rating);
@@ -2589,15 +2416,15 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "remove" command backs up the game one whole move,     *
- *   leaving the opponent still on move.  It's intended for *
- *   xboard compatibility, but works in any mode.           *
+ *  "remove" command backs up the game one whole move,      *
+ *  leaving the opponent still on move.  It's intended for  *
+ *  xboard compatibility, but works in any mode.            *
  *                                                          *
  ************************************************************
  */
   else if (!strcmp("remove", *args)) {
     if (thinking || pondering)
-      return (2);
+      return 2;
     move_number--;
     sprintf(buffer, "reset %d", move_number);
     (void) Option(tree);
@@ -2605,9 +2432,11 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "reset" restores (backs up) a game to a prior position *
- *   with the same side on move.  Reset 17 would reset the  *
- *   position to what it was at move 17.                    *
+ *  "reset" restores (backs up) a game to a prior position  *
+ *  with the same side on move.  Reset 17 would reset the   *
+ *  position to what it was at move 17 with the current     *
+ *  still on move (you can use white/black commands to      *
+ *  change the side to move first, if needed.)              *
  *                                                          *
  ************************************************************
  */
@@ -2615,24 +2444,24 @@ int Option(TREE * RESTRICT tree) {
     int i, move, nmoves;
 
     if (!history_file)
-      return (1);
+      return 1;
     if (thinking || pondering)
-      return (2);
+      return 2;
     if (nargs < 2) {
       printf("usage:  reset <movenumber>\n");
-      return (1);
+      return 1;
     }
     ponder_move = 0;
     last_mate_score = 0;
     last_pv.pathd = 0;
     last_pv.pathl = 0;
     if (thinking || pondering)
-      return (2);
+      return 2;
     over = 0;
     move_number = atoi(args[1]);
     if (!move_number) {
       move_number = 1;
-      return (1);
+      return 1;
     }
     nmoves = (move_number - 1) * 2 + 1 - game_wtm;
     root_wtm = Flip(game_wtm);
@@ -2674,12 +2503,16 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "read" reads game moves in and makes them.  This can   *
- *   be used in two ways:  (1) type "read" and then start   *
- *   entering moves;  type "exit" when done;  (2) type      *
- *   "read <filename>" to read moves in from <filename>.    *
- *   Note that read will attempt to skip over "non-move"    *
- *   text and try to extract moves if it can.               *
+ *  "read" reads game moves in and makes them.  This can    *
+ *  be used in two ways:  (1) type "read" and then start    *
+ *  entering moves;  type "exit" when done;  (2) type       *
+ *  "read <filename>" to read moves in from <filename>.     *
+ *  Note that read will attempt to skip over "non-move"     *
+ *  text and try to extract moves if it can.                *
+ *                                                          *
+ *  Note that "reada" appends to the existing position,     *
+ *  while "read" resets the board to the start position     *
+ *  before reading moves.                                   *
  *                                                          *
  ************************************************************
  */
@@ -2688,7 +2521,7 @@ int Option(TREE * RESTRICT tree) {
     FILE *read_input = 0;
 
     if (thinking || pondering)
-      return (2);
+      return 2;
     nargs = ReadParse(buffer, args, " \t=");
     if (!strcmp("reada", *args))
       append = 1;
@@ -2700,7 +2533,7 @@ int Option(TREE * RESTRICT tree) {
     if (nargs > 1) {
       if (!(read_input = fopen(args[1], "r"))) {
         printf("file %s does not exist.\n", args[1]);
-        return (1);
+        return 1;
       }
     } else {
       printf("type \"exit\" to terminate.\n");
@@ -2728,7 +2561,7 @@ int Option(TREE * RESTRICT tree) {
       readstat = ReadPGN(read_input, 0);
     } while (readstat == 1);
     if (readstat < 0)
-      return (1);
+      return 1;
 /*
  step 2:  read in the moves.
  */
@@ -2781,8 +2614,8 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "rejected" handles the new xboard protocol version 2   *
- *   accepted command.                                      *
+ *  "rejected" handles the new xboard protocol version 2    *
+ *  rejected command.                                       *
  *                                                          *
  ************************************************************
  */
@@ -2792,11 +2625,11 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "resign" command sets the resignation threshold to     *
- *   the number of pawns the program must be behind before  *
- *   resigning (0 -> disable resignations).  Resign with no *
- *   arguments will mark the pgn result as lost by the      *
- *   opponent.                                              *
+ *  "resign" command sets the resignation threshold to the  *
+ *  number of pawns the program must be behind before       *
+ *  resigning (0 -> disable resignations).  Resign with no  *
+ *  arguments will mark the pgn result as lost by the       *
+ *  opponent.                                               *
  *                                                          *
  ************************************************************
  */
@@ -2811,7 +2644,7 @@ int Option(TREE * RESTRICT tree) {
       }
       learn_value = 300;
       LearnBook();
-      return (1);
+      return 1;
     }
     resign = atoi(args[1]);
     if (nargs == 3)
@@ -2825,9 +2658,9 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "result" command comes from xboard/winboard and gives  *
- *   the result of the current game.  If learning routines  *
- *   have not yet been activated, this will do it.          *
+ *  "result" command comes from xboard/winboard and gives   *
+ *  the result of the current game.  If learning routines   *
+ *  have not yet been activated, this will do it.           *
  *                                                          *
  ************************************************************
  */
@@ -2850,14 +2683,14 @@ int Option(TREE * RESTRICT tree) {
         learn_value = 1;
       }
       LearnBook();
-      return (1);
+      return 1;
     }
   }
 /*
  ************************************************************
  *                                                          *
- *   "savegame" command saves the game in a file in PGN     *
- *   format.  Command has an optional filename.             *
+ *  "savegame" command saves the game in a file in PGN      *
+ *  format.  Command has an optional filename.              *
  *                                                          *
  ************************************************************
  */
@@ -2874,7 +2707,7 @@ int Option(TREE * RESTRICT tree) {
     if (nargs > 1) {
       if (!(output_file = fopen(args[1], "w"))) {
         printf("unable to open %s for write.\n", args[1]);
-        return (1);
+        return 1;
       }
     }
     fprintf(output_file, "[Event \"%s\"]\n", pgn_event);
@@ -2937,9 +2770,9 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "savepos" command saves the current position in a FEN  *
- *   (Forsythe notation) string that can be later used to   *
- *   recreate this exact position.                          *
+ *  "savepos" command saves the current position in a FEN   *
+ *  (Forsythe-Edwards Notation) string that can be later    *
+ *  used to recreate this exact position.                   *
  *                                                          *
  ************************************************************
  */
@@ -2954,7 +2787,7 @@ int Option(TREE * RESTRICT tree) {
         strcpy(initial_position, "");
       } else if (!(output_file = fopen(args[1], "w"))) {
         printf("unable to open %s for write.\n", args[1]);
-        return (1);
+        return 1;
       }
     }
     if (output_file)
@@ -3054,9 +2887,9 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "scale" command is used for tuning.  We modify this to *
- *   scale some scoring value(s) by a percentage that can   *
- *   be either positive or negative.                        *
+ *  "scale" command is used for tuning.  We modify this to  *
+ *  scale some scoring value(s) by a percentage that can    *
+ *  be either positive or negative.                         *
  *                                                          *
  ************************************************************
  */
@@ -3067,17 +2900,17 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "search" command sets a specific move for the search   *
- *   to analyze, ignoring all others completely.            *
+ *  "search" command sets a specific move for the search    *
+ *  to analyze, ignoring all others completely.             *
  *                                                          *
  ************************************************************
  */
   else if (OptionMatch("search", *args)) {
     if (thinking || pondering)
-      return (2);
+      return 2;
     if (nargs < 2) {
       printf("usage:  search <move>\n");
-      return (1);
+      return 1;
     }
     search_move = InputMove(tree, args[1], 0, game_wtm, 0, 0);
     if (!search_move)
@@ -3088,17 +2921,17 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "settc" command is used to reset the time controls     *
- *   after a complete restart.                              *
+ *  "settc" command is used to reset the time controls      *
+ *  after a complete restart.                               *
  *                                                          *
  ************************************************************
  */
   else if (OptionMatch("settc", *args)) {
     if (thinking || pondering)
-      return (2);
+      return 2;
     if (nargs < 4) {
       printf("usage:  settc <wmoves> <wtime> <bmoves> <btime>\n");
-      return (1);
+      return 1;
     }
     tc_moves_remaining[white] = atoi(args[1]);
     tc_time_remaining[white] = ParseTime(args[2]) * 6000;
@@ -3119,18 +2952,18 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "setboard" command sets the board to a specific        *
- *   position for analysis by the program.                  *
+ *  "setboard" command sets the board to a specific         *
+ *  position for analysis by the program.                   *
  *                                                          *
  ************************************************************
  */
   else if (OptionMatch("setboard", *args)) {
     if (thinking || pondering)
-      return (2);
+      return 2;
     nargs = ReadParse(buffer, args, " \t;=");
     if (nargs < 3) {
       printf("usage:  setboard <fen>\n");
-      return (1);
+      return 1;
     }
     SetBoard(tree, nargs - 1, args + 1, 0);
     move_number = 1;
@@ -3146,7 +2979,7 @@ int Option(TREE * RESTRICT tree) {
     (void) Option(tree);
   } else if (StrCnt(*args, '/') > 3) {
     if (thinking || pondering)
-      return (2);
+      return 2;
     nargs = ReadParse(buffer, args, " \t;=");
     SetBoard(tree, nargs, args, 0);
     move_number = 1;
@@ -3164,8 +2997,8 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "score" command displays static evaluation of the      *
- *   current board position.                                *
+ *  "score" command displays static evaluation of the       *
+ *  current board position.                                 *
  *                                                          *
  ************************************************************
  */
@@ -3174,7 +3007,7 @@ int Option(TREE * RESTRICT tree) {
     int mgb, mgw, egb, egw;
 
     if (thinking || pondering)
-      return (2);
+      return 2;
     Print(128, "note: scores are for the white side\n");
     Print(128, "                       ");
     Print(128, " +-----------white----------+");
@@ -3188,7 +3021,7 @@ int Option(TREE * RESTRICT tree) {
     Print(128, "  |    comp     mg      eg   |");
     Print(128, "    comp     mg      eg   |\n");
     root_wtm = Flip(game_wtm);
-    tree->position[1] = tree->position[0];
+    tree->status[1] = tree->status[0];
     s = Evaluate(tree, 1, game_wtm, -99999, 99999);
     if (!game_wtm)
       s = -s;
@@ -3365,15 +3198,15 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "sd" command sets a specific search depth to control   *
- *   the tree search depth.                                 *
+ *  "sd" command sets a specific search depth to control    *
+ *  the tree search depth.                                  *
  *                                                          *
  ************************************************************
  */
   else if (OptionMatch("sd", *args)) {
     if (nargs < 2) {
       printf("usage:  sd <depth>\n");
-      return (1);
+      return 1;
     }
     search_depth = atoi(args[1]);
     Print(128, "search depth set to %d.\n", search_depth);
@@ -3381,16 +3214,15 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "show" command enables/disables various display        *
- *   such as "show extensions" which adds a character to    *
- *   each pv move showing if/why it was extended.           *
+ *  "show" command enables/disables whether or not we want  *
+ *  show book information as the game is played.            *
  *                                                          *
  ************************************************************
  */
   else if (OptionMatch("show", *args)) {
     if (nargs < 2) {
       printf("usage:  show book\n");
-      return (1);
+      return 1;
     }
     if (OptionMatch("book", args[1])) {
       show_book = !show_book;
@@ -3403,10 +3235,10 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "skill" command sets a value from 1-100 that affects   *
- *   Crafty's playing skill level.  100 => max skill, 1 =>  *
- *   minimal skill.  This is used to reduce the chess       *
- *   knowledge usage, along with other things.              *
+ *  "skill" command sets a value from 1-100 that affects    *
+ *  Crafty's playing skill level.  100 => max skill, 1 =>   *
+ *  minimal skill.  This is used to reduce the chess        *
+ *  knowledge usage, along with other things.               *
  *                                                          *
  ************************************************************
  */
@@ -3414,7 +3246,7 @@ int Option(TREE * RESTRICT tree) {
   else if (OptionMatch("skill", *args)) {
     if (nargs < 2) {
       printf("usage:  skill <1-100>\n");
-      return (1);
+      return 1;
     }
     if (skill != 100) {
       printf("ERROR:  skill can only be changed one time in a game\n");
@@ -3435,31 +3267,134 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "sn" command sets a specific number of nodes to search *
- *   before stopping.                                       *
+ *   "smp" command is used to tune the various SMP search   *
+ *   parameters.                                            *
+ *                                                          *
+ *   "smpgroup" command is used to control how many threads *
+ *   may work together at any point in the tree.  The       *
+ *   usual default is 6, but this might be reduced on a     *
+ *   machine with a large number of processors.  It should  *
+ *   be tested, of course.                                  *
+ *                                                          *
+ *   "smpmin" sets the minimum depth the search can split   *
+ *   at to keep it from splitting too near the leaves.      *
+ *                                                          *
+ *   "smpmt" command is used to set the maximum number of   *
+ *   parallel threads to use, assuming that Crafty was      *
+ *   compiled with -DSMP.  This value can not be set        *
+ *   larger than the compiled-in -DCPUS=n value.            *
+ *                                                          *
+ *   "smpnice" command turns on "nice" mode where idle      *
+ *   processors are terminated between searches to avoid    *
+ *   burning CPU time in the idle loop.                     *
+ *                                                          *
+ *   "smproot" command is used to enable (1) or disable (0) *
+ *   splitting the tree at the root (ply=1).  Splitting at  *
+ *   the root is more efficient, but might slow finding the *
+ *   move in some test positions.                           *
+ *                                                          *
+ *   "smpsn" sets the minimum number of nodes that must be  *
+ *   searched at any node before we can do a parallel split *
+ *   to search the remaining moves there in parallel.       *
+ *                                                          *
+ ************************************************************
+ */
+  else if (OptionMatch("smpmin", *args)) {
+    if (nargs < 2) {
+      printf("usage:  smpmin <depth>\n");
+      return 1;
+    }
+    smp_min_split_depth = atoi(args[1]);
+    Print(128, "minimum thread depth set to %d.\n", smp_min_split_depth);
+  } else if (OptionMatch("smpgroup", *args)) {
+    if (nargs < 2) {
+      printf("usage:  smpgroup <threads>\n");
+      return 1;
+    }
+    smp_split_group = atoi(args[1]);
+    Print(128, "maximum thread group size set to %d.\n", smp_split_group);
+  } else if (OptionMatch("smpmt", *args) || OptionMatch("mt", *args)
+      || OptionMatch("cores", *args)) {
+    int proc;
+
+    if (nargs < 2) {
+      printf("usage:  smpmt=<threads>\n");
+      return 1;
+    }
+    if (thinking || pondering)
+      return 3;
+    allow_cores = 0;
+    Print(4095, "Warning--  xboard 'cores' option disabled\n");
+    smp_max_threads = atoi(args[1]);
+    if (smp_max_threads > CPUS) {
+      Print(4095, "ERROR - Crafty was compiled with CPUS=%d.", CPUS);
+      Print(4095, "  mt can not exceed this value.\n");
+      smp_max_threads = CPUS;
+    }
+    if (smp_max_threads)
+      Print(128, "max threads set to %d.\n", smp_max_threads);
+    else
+      Print(128, "parallel threads disabled.\n");
+    for (proc = 1; proc < CPUS; proc++)
+      if (proc >= smp_max_threads)
+        thread[proc].tree = (TREE *) - 1;
+  } else if (OptionMatch("smpnice", *args)) {
+    if (nargs < 2) {
+      printf("usage:  smpnice 0|1\n");
+      return 1;
+    }
+    smp_nice = atoi(args[1]);
+    if (smp_nice)
+      Print(128, "SMP terminate extra threads when idle.\n");
+    else
+      Print(128, "SMP keep extra threads spinning when idle.\n");
+  } else if (OptionMatch("smproot", *args)) {
+    if (nargs < 2) {
+      printf("usage:  smproot 0|1\n");
+      return 1;
+    }
+    smp_split_at_root = atoi(args[1]);
+    if (smp_split_at_root)
+      Print(128, "SMP search split at ply >= 1.\n");
+    else
+      Print(128, "SMP search split at ply > 1.\n");
+  } else if (OptionMatch("smpsn", *args)) {
+    if (nargs < 2) {
+      printf("usage:  smpsn <nodes>\n");
+      return 1;
+    }
+    smp_split_nodes = atoi(args[1]);
+    Print(128, "minimum nodes before a split %d.\n", smp_split_nodes);
+  }
+/*
+ ************************************************************
+ *                                                          *
+ *  "sn" command sets a specific number of nodes to search  *
+ *  before stopping.  Note:  this requires -DNODES as an    *
+ *  option when building Crafty.                            *
  *                                                          *
  ************************************************************
  */
   else if (OptionMatch("sn", *args)) {
     if (nargs < 2) {
       printf("usage:  sn <nodes>\n");
-      return (1);
+      return 1;
     }
     search_nodes = atoi(args[1]);
-    Print(128, "search nodes set to %d.\n", search_nodes);
+    Print(128, "search nodes set to %" PRIu64 ".\n", search_nodes);
     ponder = 0;
   }
 /*
  ************************************************************
  *                                                          *
- *   "speech" command turns speech on/off.                  *
+ *  "speech" command turns speech on/off.                   *
  *                                                          *
  ************************************************************
  */
   else if (OptionMatch("speech", *args)) {
     if (nargs < 2) {
       printf("usage:  speech on|off\n");
-      return (1);
+      return 1;
     }
     if (!strcmp(args[1], "on"))
       speech = 1;
@@ -3473,15 +3408,15 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "st" command sets a specific search time to control    *
- *   the tree search time.                                  *
+ *  "st" command sets a specific search time to control the *
+ *  tree search time.                                       *
  *                                                          *
  ************************************************************
  */
   else if (!strcmp("st", *args)) {
     if (nargs < 2) {
       printf("usage:  st <time>\n");
-      return (1);
+      return 1;
     }
     search_time_limit = atof(args[1]) * 100;
     Print(128, "search time set to %.2f.\n",
@@ -3490,8 +3425,8 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "surplus" command sets a specific time surplus target  *
- *   for normal tournament games.                           *
+ *  "surplus" command sets a specific time surplus target   *
+ *  for normal tournament games.                            *
  *                                                          *
  ************************************************************
  */
@@ -3503,7 +3438,7 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "swindle" command turns swindle mode off/on.           *
+ *  "swindle" command turns swindle mode off/on.            *
  *                                                          *
  ************************************************************
  */
@@ -3518,7 +3453,7 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "tags" command lists the current PGN header tags.      *
+ *  "tags" command lists the current PGN header tags.       *
  *                                                          *
  ************************************************************
  */
@@ -3542,18 +3477,18 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "test" command runs a test suite of problems and       *
- *   prints results.                                        *
+ *  "test" command runs a test suite of problems and        *
+ *  displays results.                                       *
  *                                                          *
  ************************************************************
  */
   else if (OptionMatch("test", *args)) {
     nargs = ReadParse(buffer, args, "\t ;=");
     if (thinking || pondering)
-      return (2);
+      return 2;
     if (nargs < 2) {
       printf("usage:  test <filename> [exitcnt]\n");
-      return (1);
+      return 1;
     }
     if (nargs > 2)
       early_exit = atoi(args[2]);
@@ -3565,32 +3500,31 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "time" is used to set the basic search timing          *
- *   controls.  The general form of the command is as       *
- *   follows:                                               *
+ *  "time" is used to set the basic search timing controls. *
+ *  The general form of the command is as follows:          *
  *                                                          *
- *     time nmoves/ntime/[nmoves/ntime]/[increment]         *
+ *    time nmoves/ntime/[nmoves/ntime]/[increment]          *
  *                                                          *
- *   nmoves/ntime represents a traditional first time       *
- *   control when nmoves is an integer representing the     *
- *   number of moves and ntime is the total time allowed    *
- *   for these moves.  The [optional] nmoves/ntime is a     *
- *   traditional secondary time control.  Increment is a    *
- *   feature related to ics play and emulates the fischer   *
- *   clock where "increment" is added to the time left      *
- *   after each move is made.                               *
+ *  nmoves/ntime represents a traditional first time        *
+ *  control when nmoves is an integer representing the      *
+ *  number of moves and ntime is the total time allowed for *
+ *  these moves.  The [optional] nmoves/ntime is a          *
+ *  traditional secondary time control.  Increment is a     *
+ *  feature related to ics play and emulates the fischer    *
+ *  clock where "increment" is added to the time left after *
+ *  each move is made.                                      *
  *                                                          *
- *   As an alternative, nmoves can be "sd" which represents *
- *   a "sudden death" time control of the remainder of the  *
- *   game played in ntime.  The optional secondary time     *
- *   control can be a sudden-death time control, as in the  *
- *   following example:                                     *
+ *  As an alternative, nmoves can be "sd" which represents  *
+ *  a "sudden death" time control of the remainder of the   *
+ *  game played in ntime.  The optional secondary time      *
+ *  control can be a sudden-death time control, as in the   *
+ *  following example:                                      *
  *                                                          *
- *     time 60/30/sd/30                                     *
+ *    time 60/30/sd/30                                      *
  *                                                          *
- *   This sets 60 moves in 30 minutes, then game in 30      *
- *   additional minutes.  An increment can be added if      *
- *   desired.                                               *
+ *  This sets 60 moves in 30 minutes, then game in 30       *
+ *  additional minutes.  An increment can be added if       *
+ *  desired.                                                *
  *                                                          *
  ************************************************************
  */
@@ -3602,7 +3536,7 @@ int Option(TREE * RESTRICT tree) {
             DisplayTime(tc_time_remaining[root_wtm]));
     } else {
       if (thinking || pondering)
-        return (2);
+        return 2;
       tc_moves = 60;
       tc_time = 180000;
       tc_moves_remaining[white] = 60;
@@ -3673,25 +3607,25 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "timebook" command is used to adjust Crafty's time     *
- *   usage after it leaves the opening book.  The first     *
- *   value specifies the multiplier for the time added to   *
- *   the first move out of book expressed as a percentage   *
- *   (100 is 100% for example).  The second value specifies *
- *   the "span" (number of moves) that this multiplier      *
- *   decays over.  For example, "timebook 100 10" says to   *
- *   add 100% of the normal search time for the first move  *
- *   out of book, then 90% for the next, until after 10     *
- *   non-book moves have been played, the percentage has    *
- *   dropped back to 0 where it will stay for the rest of   *
- *   the game.                                              *
+ *  "timebook" command is used to adjust Crafty's time      *
+ *  usage after it leaves the opening book.  The first      *
+ *  value specifies the multiplier for the time added to    *
+ *  the first move out of book expressed as a percentage    *
+ *  (100 is 100% for example).  The second value specifies  *
+ *  the "span" (number of moves) that this multiplier       *
+ *  decays over.  For example, "timebook 100 10" says to    *
+ *  add 100% of the normal search time for the first move   *
+ *  out of book, then 90% for the next, until after 10      *
+ *  non-book moves have been played, the percentage has     *
+ *  dropped back to 0 where it will stay for the rest of    *
+ *  the game.                                               *
  *                                                          *
  ************************************************************
  */
   else if (OptionMatch("timebook", *args)) {
     if (nargs < 3) {
       printf("usage:  timebook <percentage> <move span>\n");
-      return (1);
+      return 1;
     }
     first_nonbook_factor = atoi(args[1]);
     first_nonbook_span = atoi(args[2]);
@@ -3707,31 +3641,8 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "timeleft" command comes from the custom ICS interface *
- *   and indicates how much time is left for white and for  *
- *   black.                                                 *
- *                                                          *
- ************************************************************
- */
-  else if (OptionMatch("timeleft", *args)) {
-    if (nargs < 3) {
-      printf("usage:  timeleft <wtime> <btime>\n");
-      return (1);
-    }
-    tc_time_remaining[white] = atoi(args[1]) * 100;
-    tc_time_remaining[black] = atoi(args[2]) * 100;
-    if (log_file) {
-      fprintf(log_file, "time remaining: %s (Crafty).\n",
-          DisplayTime(tc_time_remaining[root_wtm]));
-      fprintf(log_file, "time remaining: %s (opponent).\n",
-          DisplayTime(tc_time_remaining[Flip(root_wtm)]));
-    }
-  }
-/*
- ************************************************************
- *                                                          *
- *   "trace" command sets the search trace level which will *
- *   dump the tree as it is searched.                       *
+ *  "trace" command sets the search trace level which will  *
+ *  dump the tree as it is searched.                        *
  *                                                          *
  ************************************************************
  */
@@ -3742,7 +3653,7 @@ int Option(TREE * RESTRICT tree) {
 #endif
     if (nargs < 2) {
       printf("usage:  trace <depth>\n");
-      return (1);
+      return 1;
     }
     trace_level = atoi(args[1]);
     printf("trace=%d\n", trace_level);
@@ -3750,39 +3661,14 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "tt" command is used to test time control logic.       *
- *                                                          *
- ************************************************************
- */
-  else if (OptionMatch("tt", *args)) {
-    int time_used;
-
-    do {
-      TimeSet(tree, think);
-      printf("time used? ");
-      fflush(stdout);
-      fgets(buffer, 128, stdin);
-      time_used = atoi(buffer);
-      if (time_used == 0)
-        time_used = time_limit;
-      TimeAdjust(time_used, 0);
-      TimeAdjust(time_used, 1);
-      sprintf(buffer, "clock");
-      (void) Option(tree);
-      move_number++;
-    } while (time_used >= 0);
-  }
-/*
- ************************************************************
- *                                                          *
- *   "undo" command backs up 1/2 move, which leaves the     *
- *   opposite side on move. [xboard compatibility]          *
+ *  "undo" command backs up 1/2 move, which leaves the      *
+ *  opposite side on move. [xboard compatibility]           *
  *                                                          *
  ************************************************************
  */
   else if (!strcmp("undo", *args)) {
     if (thinking || pondering)
-      return (2);
+      return 2;
     if (!game_wtm || move_number != 1) {
       game_wtm = Flip(game_wtm);
       if (Flip(game_wtm))
@@ -3794,19 +3680,19 @@ int Option(TREE * RESTRICT tree) {
 /*
  *****************************************************************
  *                                                               *
- *   "usage" command controls the time usage multiple factors    *
- *  used in the game  - percntage increase or decrease in time   *
- *  used up front.  Enter a number between 1 to 100 for the      *
- *  % decrease to increase - although other time limitations     !
- * controls may kick in.  Negatives work as well, may be used    *
- * in crafty.rc                                                  *
+ *  "usage" command controls the time usage multiplier factors   *
+ *  used in the game  - percentage increase or decrease in time  *
+ *  used up front.  Enter a number between 1 to 100 for the %    *
+ *  decrease (negative value) or to increase (positive value)    *
+ *  although other time limitation controls may kick in.  This   *
+ *  more commonly used in the .craftyrc/crafty.rc file.          *
  *                                                               *
  *****************************************************************
  */
   else if (OptionMatch("usage", *args)) {
     if (nargs < 2) {
       printf("usage:  usage <percentage>\n");
-      return (1);
+      return 1;
     }
     usage_level = atoi(args[1]);
     if (usage_level > 50)
@@ -3820,43 +3706,43 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "variant" command sets the wild variant being played   *
- *   on a chess server.  [xboard compatibility].            *
+ *  "variant" command sets the wild variant being played    *
+ *  on a chess server.  [xboard compatibility].             *
  *                                                          *
  ************************************************************
  */
   else if (OptionMatch("variant", *args)) {
     if (thinking || pondering)
-      return (2);
+      return 2;
     printf("command=[%s]\n", buffer);
-    return (-1);
+    return -1;
   }
 /*
  ************************************************************
  *                                                          *
- *   "whisper" command sets whisper mode for ICS.  =1 will  *
- *   whisper mate announcements, =2 will whisper scores and *
- *   other info, =3 will whisper scores and PV, =4 adds the *
- *   list of book moves, =5 displays the PV after each      *
- *   iteration completes, and =6 displays the PV each time  *
- *   it changes in an iteration.                            *
+ *  "whisper" command sets whisper mode for ICS.  =1 will   *
+ *  whisper mate announcements, =2 will whisper scores and  *
+ *  other info, =3 will whisper scores and PV, =4 adds the  *
+ *  list of book moves, =5 displays the PV after each       *
+ *  iteration completes, and =6 displays the PV each time   *
+ *  it changes in an iteration.                             *
  *                                                          *
  ************************************************************
  */
   else if (OptionMatch("whisper", *args)) {
     if (nargs < 2) {
       printf("usage:  whisper <level>\n");
-      return (1);
+      return 1;
     }
     kibitz = 16 + atoi(args[1]);
   }
 /*
  ************************************************************
  *                                                          *
- *   "wild" command sets up an ICS wild position (only 7 at *
- *   present, but any can be added easily, except for those *
- *   that Crafty simply can't play (two kings, invisible    *
- *   pieces, etc.)                                          *
+ *  "wild" command sets up an ICS wild position (only 7 at  *
+ *  present, but any can be added easily, except for those  *
+ *  that Crafty simply can't play (two kings, invisible     *
+ *  pieces, etc.)                                           *
  *                                                          *
  ************************************************************
  */
@@ -3865,7 +3751,7 @@ int Option(TREE * RESTRICT tree) {
 
     if (nargs < 2) {
       printf("usage:  wild <value>\n");
-      return (1);
+      return 1;
     }
     i = atoi(args[1]);
     switch (i) {
@@ -3881,13 +3767,13 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   "white" command sets white to move (wtm).              *
+ *  "white" command sets white to move (wtm).               *
  *                                                          *
  ************************************************************
  */
   else if (OptionMatch("white", *args)) {
     if (thinking || pondering)
-      return (2);
+      return 2;
     ponder_move = 0;
     last_pv.pathd = 0;
     last_pv.pathl = 0;
@@ -3931,20 +3817,20 @@ int Option(TREE * RESTRICT tree) {
 /*
  ************************************************************
  *                                                          *
- *   unknown command, it must be a move.                    *
+ *  unknown command, it must be a move.                     *
  *                                                          *
  ************************************************************
  */
   else
-    return (0);
+    return 0;
 /*
  ************************************************************
  *                                                          *
- *   command executed, return for another.                  *
+ *  command executed, return for another.                   *
  *                                                          *
  ************************************************************
  */
-  return (1);
+  return 1;
 }
 
 /*
@@ -3968,24 +3854,24 @@ int OptionMatch(char *command, char *input) {
 /*
  ************************************************************
  *                                                          *
- *   check for the obvious exact match first.               *
+ *  check for the obvious exact match first.                *
  *                                                          *
  ************************************************************
  */
   if (!strcmp(command, input))
-    return (1);
+    return 1;
 /*
  ************************************************************
  *                                                          *
- *   now use strstr() to see if "input" is in "command."    *
- *   the first requirement is that input matches command    *
- *   starting at the very left-most character;              *
+ *  now use strstr() to see if "input" is in "command." the *
+ *  first requirement is that input matches command         *
+ *  starting at the very left-most character.               *
  *                                                          *
  ************************************************************
  */
   if (strstr(command, input) == command)
-    return (1);
-  return (0);
+    return 1;
+  return 0;
 }
 void OptionPerft(TREE * RESTRICT tree, int ply, int depth, int wtm) {
   int *mv;

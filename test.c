@@ -1,6 +1,6 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 01/17/09 */
+/* last modified 02/26/14 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -26,6 +26,11 @@
  *   when it reads a record containing the string "end" it then displays the   *
  *   number correct and the number missed.                                     *
  *                                                                             *
+ *   There are two test modules here.  Test() handles the specific Crafty test *
+ *   data format (dates back to Cray Blitz days) while TestEPD() handles the   *
+ *   EPD-style test positions which is more concise.  Other than the parsing   *
+ *   differences, these are identical modules.                                 *
+ *                                                                             *
  *******************************************************************************
  */
 void Test(char *filename) {
@@ -40,10 +45,10 @@ void Test(char *filename) {
 /*
  ************************************************************
  *                                                          *
- *   Read in the position and then the solutions.  After    *
- *   executing a search to find the best move (according    *
- *   to the program, anyway) compare it against the list    *
- *   of solutions and count it right or wrong.              *
+ *  Read in the position and then the solutions.  After     *
+ *  executing a search to find the best move (according to  *
+ *  the program, anyway) compare it against the list of     *
+ *  solutions and count it right or wrong.                  *
  *                                                          *
  ************************************************************
  */
@@ -122,13 +127,13 @@ void Test(char *filename) {
           else
             Print(4095, "  ");
         } else
-          DisplayChessBoard(stdout, tree->pos);
+          DisplayChessBoard(stdout, tree->position);
       }
       Print(4095, "\n");
       InitializeHashTables();
       last_pv.pathd = 0;
       thinking = 1;
-      tree->position[1] = tree->position[0];
+      tree->status[1] = tree->status[0];
       (void) Iterate(game_wtm, think, 0);
       thinking = 0;
       nodes += tree->nodes_searched;
@@ -157,7 +162,7 @@ void Test(char *filename) {
 /*
  ************************************************************
  *                                                          *
- *   Now print the results.                                 *
+ *  Now print the results.                                  *
  *                                                          *
  ************************************************************
  */
@@ -171,10 +176,10 @@ void Test(char *filename) {
         right * 100 / (right + wrong));
     Print(4095, "percentage wrong..................%12d\n",
         wrong * 100 / (right + wrong));
-    Print(4095, "total nodes searched..............%12llu\n", nodes);
+    Print(4095, "total nodes searched..............%12" PRIu64 "\n", nodes);
     Print(4095, "average search depth..............%12.1f\n",
         avg_depth / (right + wrong));
-    Print(4095, "nodes per second..................%12d\n",
+    Print(4095, "nodes per second..................%12" PRIu64 "\n",
         nodes * 100 / Max(time, 1));
     Print(4095, "total time........................%12s\n",
         DisplayTime(time));
@@ -183,13 +188,13 @@ void Test(char *filename) {
   early_exit = 99;
 }
 
-/* last modified 01/17/09 */
+/* last modified 02/26/14 */
 /*
  *******************************************************************************
  *                                                                             *
- *   TestEPD() is used to test the program against a suite of test positions to*
- *   measure its performance on a particular machine, or to evaluate its skill *
- *   after modifying it in some way.                                           *
+ *   TestEPD() is used to test the program against a suite of test positions   *
+ *   to measure its performance on a particular machine, or to evaluate its    *
+ *   skill after modifying it in some way.                                     *
  *                                                                             *
  *   The test is initiated by using the "test <filename>" command to read in   *
  *   the suite of problems from file <filename>.  The format of this file is   *
@@ -201,8 +206,8 @@ void Test(char *filename) {
  *   have multiple moves to avoid or that are best, but both am and bm may not *
  *   appear on one position.                                                   *
  *                                                                             *
- *   The title is just a comment that is given in the program output to make it*
- *   easier to match output to specific positions.                             *
+ *   The title is just a comment that is given in the program output to make   *
+ *   it easier to match output to specific positions.                          *
  *                                                                             *
  *******************************************************************************
  */
@@ -218,10 +223,10 @@ void TestEPD(char *filename) {
 /*
  ************************************************************
  *                                                          *
- *   Read in the position and then the solutions.  After    *
- *   executing a search to find the best move (according    *
- *   to the program, anyway) compare it against the list    *
- *   of solutions and count it right or wrong.              *
+ *  Read in the position and then the solutions.  After     *
+ *  executing a search to find the best move (according to  *
+ *  the program, anyway) compare it against the list of     *
+ *  solutions and count it right or wrong.                  *
  *                                                          *
  ************************************************************
  */
@@ -304,14 +309,14 @@ void TestEPD(char *filename) {
           else
             Print(4095, "  ");
         } else
-          DisplayChessBoard(stdout, tree->pos);
+          DisplayChessBoard(stdout, tree->position);
       }
     }
     Print(4095, "\n");
     InitializeHashTables();
     last_pv.pathd = 0;
     thinking = 1;
-    tree->position[1] = tree->position[0];
+    tree->status[1] = tree->status[0];
     (void) Iterate(game_wtm, think, 0);
     thinking = 0;
     nodes += tree->nodes_searched;
@@ -338,7 +343,7 @@ void TestEPD(char *filename) {
 /*
  ************************************************************
  *                                                          *
- *   Now print the results.                                 *
+ *  Now print the results.                                  *
  *                                                          *
  ************************************************************
  */
@@ -352,10 +357,10 @@ void TestEPD(char *filename) {
         right * 100 / (right + wrong));
     Print(4095, "percentage wrong..................%12d\n",
         wrong * 100 / (right + wrong));
-    Print(4095, "total nodes searched..............%12llu\n", nodes);
+    Print(4095, "total nodes searched..............%12" PRIu64 "\n", nodes);
     Print(4095, "average search depth..............%12.1f\n",
         avg_depth / (right + wrong));
-    Print(4095, "nodes per second..................%12d\n",
+    Print(4095, "nodes per second..................%12" PRIu64 "\n",
         nodes * 100 / Max(1, time));
     Print(4095, "total time........................%12s\n",
         DisplayTime(time));

@@ -1,6 +1,6 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 01/18/09 */
+/* last modified 02/26/14 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -41,9 +41,7 @@ void EVTest(char *filename) {
 /*
  ************************************************************
  *                                                          *
- *   Read in the position and then the solutions.  Then do  *
- *   a call to Evaluate() which will normally display the   *
- *   debugging stuff that is enabled.                       *
+ *  Read in the position                                    *
  *                                                          *
  ************************************************************
  */
@@ -71,9 +69,9 @@ void EVTest(char *filename) {
 /*
  ************************************************************
  *                                                          *
- *   Now for the asymmetry tests.  We use the built-in      *
- *   commands "flip" and "flop" to create the four          *
- *   positions, and call Evaluate() for each.               *
+ *  Now for the asymmetry tests.  We use the built-in       *
+ *  commands "flip" and "flop" to create the four           *
+ *  positions, and call Evaluate() for each.                *
  *                                                          *
  ************************************************************
  */
@@ -108,10 +106,10 @@ void EVTest(char *filename) {
 /*
  ************************************************************
  *                                                          *
- *   If the evaluations (with sign corrected if piece color *
- *   was changed) are different, we display the four values *
- *   and then display the original board position so that   *
- *   we can debug the cause of the asymmetry.               *
+ *  If the evaluations (with sign corrected if piece color  *
+ *  was changed) are different, we display the four values  *
+ *  and then display the original board position so that we *
+ *  can debug the cause of the asymmetry.                   *
  *                                                          *
  ************************************************************
  */
@@ -120,7 +118,7 @@ void EVTest(char *filename) {
         strcpy(buffer, "flip");
         (void) Option(tree);
         printf("FEN = %s\n", buff);
-        DisplayChessBoard(stdout, tree->pos);
+        DisplayChessBoard(stdout, tree->position);
         if (id)
           Print(4095, "id=%s  ", args[id + 1]);
         Print(4095, "wtm=%d  score=%d  %d (flop)  %d (flip)  %d (flop)\n",

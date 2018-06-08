@@ -1,5 +1,6 @@
 /* *INDENT-OFF* */
 #if (CPUS > 1)
+#  if !defined(UNIX)
 /*
  *******************************************************************************
  *                                                                             *
@@ -7,21 +8,19 @@
  *                                                                             *
  *******************************************************************************
  */
-#  if defined(_WIN32) || defined(_WIN64)
 #    include <windows.h>
 #    define pthread_attr_t  HANDLE
 #    define pthread_t       HANDLE
 #    define thread_t        HANDLE
 extern pthread_t NumaStartThread(void *func, void *args);
 
-#    if ((defined (_M_IA64) || defined (_M_AMD64)) && !defined(NT_INTEREX))
-#      include <windows.h>
-#      pragma intrinsic (_InterlockedExchange)
+#    include <windows.h>
+#    pragma intrinsic (_InterlockedExchange)
 typedef volatile LONG lock_t[1];
 
-#      define LockInit(v)      ((v)[0] = 0)
-#      define LockFree(v)      ((v)[0] = 0)
-#      define Unlock(v)        ((v)[0] = 0)
+#    define LockInit(v)      ((v)[0] = 0)
+#    define LockFree(v)      ((v)[0] = 0)
+#    define Unlock(v)        ((v)[0] = 0)
 __forceinline void Lock(volatile LONG * hPtr) {
   int iValue;
 
@@ -32,15 +31,8 @@ __forceinline void Lock(volatile LONG * hPtr) {
     while (*hPtr);
   }
 }
-#    else                       /* NT non-Alpha/Intel, without assembler Lock() */
-#      define lock_t           volatile int
-#      define LockInit(v)      ((v) = 0)
-#      define LockFree(v)      ((v) = 0)
-#      define Lock(v)  do {                                                   \
-                         while(InterlockedExchange((LPLONG)&(v),1) != 0);     \
-                       } while (0)
-#      define Unlock(v)        ((v) = 0)
-#    endif                      /* architecture check */
+void Pause() {
+}
 #  else
 /*
  *******************************************************************************
@@ -50,15 +42,6 @@ __forceinline void Lock(volatile LONG * hPtr) {
  *                                                                             *
  *******************************************************************************
  */
-#    if defined(POWERPC)
-                        /* OS X */
-#      include <libkern/OSAtomic.h>
-#      define lock_t				OSSpinLock
-#      define LockInit(v)		((v) = 0)
-#      define LockFree(v)		((v) = 0)
-#      define Lock(v)			OSSpinLockLock(&(v))
-#      define Unlock(v)			OSSpinLockUnlock(&(v))
-#    else                       /* X86 */
 static void __inline__ LockX86(volatile int *lock) {
   int dummy;
   asm __volatile__(
@@ -76,21 +59,24 @@ static void __inline__ LockX86(volatile int *lock) {
       :"q"(lock)
       :"cc", "memory");
 }
-static void __inline__ UnlockX86(volatile int *lock) {
-  int dummy;
+static void __inline__ Pause() {
   asm __volatile__(
-      "movl    $0, (%1)"
-      :"=&q"(dummy)
-      :"q"(lock));
+      "            pause"            "\n\t");
+}
+static void __inline__ UnlockX86(volatile int *lock) {
+  asm __volatile__(
+      "movl    $0, (%0)"
+      :
+      :"q"(lock)
+      :"memory");
 }
 
-#      define LockInit(p)           (p=0)
-#      define LockFree(p)           (p=0)
-#      define Unlock(p)             (UnlockX86(&p))
-#      define Lock(p)               (LockX86(&p))
-#      define lock_t                volatile int
-#    endif
-#  endif                        /* windows or unix */
+#    define LockInit(p)           (p=0)
+#    define LockFree(p)           (p=0)
+#    define Unlock(p)             (UnlockX86(&p))
+#    define Lock(p)               (LockX86(&p))
+#    define lock_t                volatile int
+#  endif
 #else
 #  define LockInit(p)
 #  define LockFree(p)

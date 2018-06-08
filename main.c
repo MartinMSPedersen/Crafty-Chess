@@ -1,15 +1,15 @@
 #include "chess.h"
 #include "data.h"
-#if defined(UNIX) || defined(AMIGA)
+#if defined(UNIX)
 #  include <unistd.h>
 #  include <pwd.h>
 #  include <sys/types.h>
 #endif
-#if defined(NUMA) && defined(LINUX)
+#if defined(NUMA) && defined(UNIX)
 #  include <numa.h>
 #endif
 #include <signal.h>
-/* last modified 11/05/10 */
+/* last modified 02/24/14 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -18,9 +18,11 @@
  *                                                                             *
  *  Crafty is a team project consisting of the following members.  These are   *
  *  the people involved in the continuing development of this program, there   *
- *  are no particular members responsible for any specific aspect of Crafty.   *
+ *  are no particular members responsible for any specific aspect of Crafty,   *
+ *  although R. Hyatt wrote 99%+ of the existing code, excepting the Magic .   *
+ *  move stuff by Pradu Kanan, egtb.cpp written by Eugene Nalimov, and the epd *
+ *  stuff written by S. Edwards.                                               *
  *                                                                             *
- *     Michael Byrne, Pen Argyle, PA.                                          *
  *     Robert Hyatt, University of Alabama at Birmingham.                      *
  *     Tracy Riegle, Hershey, PA.                                              *
  *     Peter Skinner, Edmonton, AB  Canada.                                    *
@@ -286,9 +288,8 @@
  *    3.5    50-move rule implemented.  A count of moves since the last pawn   *
  *           move or capture is kept as part of the position[] structure.  It  *
  *           is updated by MakeMove().  When this number reaches 100 (which    *
- *           in plies is 50 moves) RepetitionCheck() will return the draw      *
- *           score immediately, just as though the position was a repetition   *
- *           draw.                                                             *
+ *           in plies is 50 moves) Repeat() will return the draw indication    *
+ *           immediately, just as though the position was a repetition draw.   *
  *                                                                             *
  *    3.6    Search extensions cleaned up to avoid excessive extensions which  *
  *           produced some wild variations, but which was also slowing things  *
@@ -725,11 +726,11 @@
  *    8.23   Cleanup/speedup in hashing.  HashProbe() and HashStore() now      *
  *           carefully cast the boolean operations to the most efficient size  *
  *           to avoid 64bit operations when only the right 32 bits are         *
- *           significant. RepetitionCheck() code completely re-written to      *
- *           maintain two repetition lists, one for each side.  Quiesce() now  *
- *           handles the repetition check a little different, being careful to *
- *           not call it when it's unimportant, but calling it when            *
- *           repetitions are possible.                                         *
+ *           significant. Repeat() code completely re-written to maintain two  *
+ *           repetition lists, one for each side.  Quiesce() now handles the   *
+ *           repetition check a little different, being careful to not call it *
+ *           when it's unimportant, but calling it when repetitions are        *
+ *           possible.                                                         *
  *                                                                             *
  *    8.24   Tweaks for king tropism to encourage pieces to collect near the   *
  *           king, or to encourage driving them away when being attacked.  A   *
@@ -893,8 +894,8 @@
  *    9.11   Bug in Search() that could result in the "draft" being recorded   *
  *           incorrectly in the hash table.  Caused by passing depth, which    *
  *           could be one or two plies more than it should be due to the last  *
- *           move extending the search.  RepetitionCheck() completely removed  *
- *           from Quiesce() since only capture moves are included, and it's    *
+ *           move extending the search.  Repeat() completely removed from      *
+ *           Quiesce() since only capture moves are included, and it's         *
  *           impossible to repeat a position once a capture has been made.     *
  *                                                                             *
  *    9.12   optimizations: history.c, other minor modifications.              *
@@ -1535,12 +1536,7 @@
  *           very often.  Due to the lack of "ordering" info in this case, it  *
  *           would often discover the second or third move in the list had not *
  *           been played very often and cull the rest of the list thinking it  *
- *           was ordered by the number of times it was played.  New channel=n  *
- *           command works with old whisper command, but takes what Crafty     *
- *           would normally whisper and directs it to channel "n" instead.     *
- *           Primarily used with custom interface when observing a game on a   *
- *           server.  This lets other observers either listen or ignore the    *
- *           analysis Crafty produces by using +chan n or -chan n.  This code  *
+ *           was ordered by the number of times it was played.  This code      *
  *           contains all of Frank's xboard patches so that analyze mode and   *
  *           so forth works cleanly.  A new book random option <5> modifies    *
  *           the probability of playing a move by letting the popularity of a  *
@@ -1725,8 +1721,8 @@
  *           the fix was somehow lost.  Fix to EvaluateDraws that mistakenly   *
  *           declared some endings drawn when there were rookpawns on both     *
  *           sides of the board, and the king could get in front of one. Minor *
- *           fix to RepetitionCheck() that was checking one too many entries.  *
- *           No harmful effect other than one extra iteration in the loop that *
+ *           fix to Repeat() that was checking one too many entries.  No       *
+ *           harmful effect other than one extra iteration in the loop that    *
  *           would make "purify/purity" fail as well as slow things down 1% or *
  *           so.                                                               *
  *                                                                             *
@@ -1914,7 +1910,7 @@
  *           corrected.  St=n command now supports fractional times to .01     *
  *           second resolution.                                                *
  *                                                                             *
- *   14.2    MATE reduced to 32767, which makes all scores now fit into 16     *
+ *   14.2    MATE reduced to 32768, which makes all scores now fit into 16     *
  *           bits.  Added code to EvaluatePawns() to detect the Stonewall      *
  *           pawn formation and not like it as black.  Also it detects a       *
  *           reversed Stonewall formation (for black) and doesn't like it as   *
@@ -2214,9 +2210,9 @@
  *   15.16   Bug in the king tropism code, particularly for white pieces that  *
  *           want to be close to the black king, fixed in this version.  New   *
  *           History() function that handles all history/killer cases, rather  *
- *           than the old 2-function approach.  Ugly RepetitionCheck() bug     *
- *           fixed in CopyToSMP().  This was not copying the complete replist  *
- *           due to a ply>>2 rather than ply>>1 counter.                       *
+ *           than the old 2-function approach.  Ugly Repeat() bug fixed in     *
+ *           CopyToChild().  This was not copying the complete replist due to  *
+ *           a ply>>2 rather than ply>>1 counter.                              *
  *                                                                             *
  *   15.17   Adjustments to "aggressiveness" to slightly tone it down.  Minor  *
  *           fix to avoid the odd case of whispering one move and playing an-  *
@@ -2379,10 +2375,9 @@
  *           Interesting tablebase bug fixed.  By probing at ply=2, the        *
  *           search could overlook a repetition/50 move draw, and turn a won   *
  *           position into a draw.  Crafty now only probes at ply > 2, to      *
- *           let the RepetitionCheck() function have a chance.  Added code by  *
- *           Dan Corbett to add environment variables for the tablebases,      *
- *           books, logfiles and the .craftyrc file paths.  The environment    *
- *           variables CRAFTY_TB_PATH, CRAFTY_BOOK_PATH, CRAFTY_LOG_PATH and   *
+ *           let the Repeat() function have a chance.  Added code by Dan       * *           Corbitt to add environment variables for the tablebases, books,   *
+ *           logfiles and the .craftyrc file paths.  The environment variables *
+ *           CRAFTY_TB_PATH, CRAFTY_BOOK_PATH, CRAFTY_LOG_PATH and             *
  *           CRAFTY_RC_PATH should point to where these files are located and  *
  *           offer an alternative to specifying them on the command line.      *
  *           Final version of the EGTB code is included in this version.  This *
@@ -2521,11 +2516,9 @@
  *           forced move, it would use the entire time alotted which was a big *
  *           waste of time when there was only one legal move to make. A very  *
  *           interesting bug was found in storing mate bounds in the hash      *
- *           table, one I had not heard of before.  I now store two MATE       *
- *           bounds, either > MATE-300, or < -MATE+300, which is conservative  *
- *           but safe.  Another change to Iterate() to make it avoid exiting   *
- *           as soon as a mate is found, so that it can find the shortest mate *
- *           possible.                                                         *
+ *           table, one I had not heard of before.  Another change to          *
+ *           Iterate() to make it avoid exiting as soon as a mate is found, so *
+ *           that it can find the shortest mate possible.                      *
  *                                                                             *
  *   16.19   Savepos now pads each rank to 8 characters so that programs that  *
  *           don't handle abbreviated FEN will be able to parse Crafty's FEN   *
@@ -2674,10 +2667,10 @@
  *           job of recognizing blocked pawns and candidate passers.  It did   *
  *           not do well in recognizing that the pawn supporting a candidate   *
  *           could not advance far enough to help make a real passed pawn.     *
- *           Minor change to RepetitionCheck() to not count two-fold repeats   *
- *           as draws in the first two plies, which prevents some odd-looking  *
- *           repeats at the expense of a little inefficiency.  Ugly repetition *
- *           bug fixed.  Rephead was off by one for whatever side Crafty was   *
+ *           Minor change to Repeat() to not count two-fold repeats as draws   *
+ *           in the first two plies, which prevents some odd-looking repeats   *
+ *           at the expense of a little inefficiency.  Ugly repetition bug     *
+ *           fixed.  Rephead was off by one for whatever side Crafty was       *
  *           playing which would screw up repetition detection in some cases.  *
  *           Minor bug in main() that would report stalemate on some mates     *
  *           when the ponder score was forgotten.                              *
@@ -2786,9 +2779,9 @@
  *                                                                             *
  *   18.4    Recapture extension was left in SearchParallel() by mistake.  This*
  *           has now been protected by a #ifdef just like it was in Search().  *
- *           Bug in RepetitionCheck() was causing problems in SMP versions.    *
- *           The entire repetition list code was modified to clean this up.    *
- *           The problem was most noticable on things like fine #70.  Bug in   *
+ *           Bug in Repeat() was causing problems in SMP versions.  The entire *
+ *           repetition list code was modified to clean this up.  The problem  *
+ *           was most noticable on things like fine #70.  Bug in               *
  *           LearnImportBook() confused the learn value sign, due to the other *
  *           changes to make +=white all the time.  opposite bishop scoring    *
  *           has been beefed up a bit to avoid these drawish endings.          *
@@ -2967,8 +2960,8 @@
  *           is also likely a "bad trade."  Adaptive hash table size code was  *
  *           added so that the hash size is set automatically based on the     *
  *           estimated NPS and time per move values for a specific "level"     *
- *           command setting.   RepetitionCheck() rewritten.  The old code had *
- *           an unexplained bug that would overlook repetitions in a parallel  *
+ *           command setting.   Repeat() rewritten.  The old code had an       *
+ *           unexplained bug that would overlook repetitions in a parallel     *
  *           search in rare cases.  The old cold was complex enough that it    *
  *           was time to rewrite it and simplify it significantly.             *
  *                                                                             *
@@ -3155,11 +3148,11 @@
  *           pawns that are better as they are advanced, the old connected     *
  *           passed pawns on the 6th rank special code has been removed.       *
  *                                                                             *
- *   19.19   RepetitionDraw() had a bug that would cause it to miss a draw     *
- *           claim on the 50th move, often making a strange (losing) move that *
- *           would not lose if the draw is was claimed, but which would cause  *
- *           a loss if the draw was not claimed because the piece might be     *
- *           instantly captured if the opponent can play a move.               *
+ *   19.19   Repeat3x() had a bug that would cause it to miss a draw claim on  *
+ *           the 50th move, often making a strange (losing) move that would    *
+ *           not lose if the draw is was claimed, but which would cause a loss *
+ *           if the draw was not claimed because the piece might be instantly  *
+ *           captured if the opponent can play a move.                         *
  *                                                                             *
  *   19.20   Bug in the EvaluateMaterial() (bad trade) code that would not     *
  *           penalize a single piece vs 3 pawns properly.  Now the penalty is  *
@@ -3970,6 +3963,54 @@
  *           cause the hashed PV to contain illegal moves.  When Crafty then   *
  *           tried to display this PV, it would promptly crash.                *
  *                                                                             *
+ *    24.0   Major changes to portability/platform specific code.  Crafty now  *
+ *           supports Unix and Windows platforms.  All the other spaghetti     *
+ *           code has been removed, with an effort to make the code readable.  *
+ *           Couple of bugs in EvaluateWinningChances() fixed, one in          *
+ *           particular that makes the krp vs kr draw detection unreachable.   *
+ *           strcpy() replaced with memmove() to fix problems with Apple OS X  *
+ *           Mavericks where strcpy() with operands that overlap now causes an *
+ *           application to abort on the spot.  Bug in Search() that caused an *
+ *           inefficiency in the parallel search.  At some point the way moves *
+ *           are counted within a ply was changed, which changed the split     *
+ *           algorithm unintentionally.  The original intent was to search     *
+ *           just one move and then allow splits.  The bug changed this to     *
+ *           search TWO moves before splitting is allowed, which slowed things *
+ *           down quite a bit.  thread[i] is now an array of structures so     *
+ *           that the thread pointers are separated from each other to fit     *
+ *           into separate cache blocks, this avoids excessive cache traffic   *
+ *           since they get changed regularly and were sitting in a single     *
+ *           cache block with 8 cpus on 64 bit architectures.  Bug in new      *
+ *           "difficulty" time usage code would let the program run up against *
+ *           "absolute_time_limit" before stopping the search, even if we      *
+ *           finished an iteration using beyond the normal target.  This       *
+ *           really burned a lot of unnecessary time.  I had previously fixed  *
+ *           the PVS window fail high (at the root) to force such a move to be *
+ *           played in the game.  One unfortunate oversight however was that   *
+ *           when splitting at the root, N different processors could fail     *
+ *           high on N different moves, and they were searching those in       *
+ *           parallel.  I've modified this so that the PVS fail high at the    *
+ *           root exits from Search() (after stopping other busy threads) and  *
+ *           then returns to Iterate() which will print the fail-high notice   *
+ *           and re-start the search with all threads searching just one fail  *
+ *           high move to get a score quicker.  Fail-high/fail-low code clean- *
+ *           up.  In particular, the "delta" value to increment beta or        *
+ *           decrement alpha is now two variables, so that an early fail-low   *
+ *           won't increment the delta value and then the subsequent (hope-    *
+ *           fully) fail-high starts off with a bad increment and jumps beta   *
+ *           too quickly.  All fail-highs at the root return to Iterate(),     *
+ *           even the PVS null-window fail-highs.  This re-starts the search   *
+ *           with all processors working on that one move to get it resolved   *
+ *           much quicker.  Other minor fixes such as when failing low on the  *
+ *           first move, we pop out of search and go back to Iterate() to      *
+ *           lower alpha and start a new search.  Unfortunately, after the     *
+ *           first move is searched, a parallel split at the root would occur, *
+ *           only to be instantly aborted so that we could back out of Search()*
+ *           and then re-start.  Wasted the split time unnecessarily although  *
+ *           it was not a huge amount of time.  Another simplification to the  *
+ *           repetition-detection code while chasing a parallel search bug     *
+ *           was missing repetitions.                                          *
+ *                                                                             *
  *******************************************************************************
  */
 int main(int argc, char **argv) {
@@ -3978,12 +4019,12 @@ int main(int argc, char **argv) {
   int draw_type;
   TREE *tree;
   FILE *personality;
+  char announce[128];
 
 #if defined(UNIX)
   char path[1024];
   struct passwd *pwd;
-#endif
-#if !defined(UNIX)
+#else
   char crafty_rc_file_spec[FILENAME_MAX];
 #endif
 /* Collect environmental variables */
@@ -4010,23 +4051,23 @@ int main(int argc, char **argv) {
 /*
  ************************************************************
  *                                                          *
- *   First, parse the command-line options and pick off the *
- *   ones that need to be handled before any initialization *
- *   is attempted (mainly path commands at present.)        *
+ *  First, parse the command-line options and pick off the  *
+ *  ones that need to be handled before any initialization  *
+ *  is attempted (mainly path commands at present.)         *
  *                                                          *
  ************************************************************
  */
-  AlignedMalloc((void **) &block[0], 2048, (size_t) sizeof(TREE));
-  block[0]->parent = 0;
-  block[0]->used = 1;
-  block[0]->stop = 0;
-  block[0]->ply = 1;
-  block[0]->nprocs = 0;
-  block[0]->thread_id = 0;
-  tree = block[0];
+  AlignedMalloc((void **) &tree, 2048, (size_t) sizeof(TREE));
+  block[0] = tree;
+  tree->parent = 0;
+  tree->used = 1;
+  tree->stop = 0;
+  tree->ply = 1;
+  tree->nprocs = 0;
+  tree->thread_id = 0;
   input_stream = stdin;
   for (i = 0; i < 512; i++)
-    args[i] = (char *) malloc(128);
+    args[i] = (char *) malloc(256);
   if (argc > 1) {
     for (i = 1; i < argc; i++) {
       if (strstr(argv[i], "path") || strstr(argv[i], "log")) {
@@ -4034,16 +4075,16 @@ int main(int argc, char **argv) {
         result = Option(tree);
         if (result == 0)
           printf("ERROR \"%s\" is unknown command-line option\n", buffer);
-        display = tree->pos;
+        display = tree->position;
       }
     }
   }
 /*
  ************************************************************
  *                                                          *
- *   Now, read the crafty.rc/.craftyrc initialization file  *
- *   and process the commands that need to be handled prior *
- *   to initializing things (path commands).                *
+ *  Now, read the crafty.rc/.craftyrc initialization file   *
+ *  and process the commands that need to be handled prior  *
+ *  to initializing things (path commands).                 *
  *                                                          *
  ************************************************************
  */
@@ -4074,16 +4115,16 @@ int main(int argc, char **argv) {
 /*
  ************************************************************
  *                                                          *
- *   If NUMA is enabled, report on the current machine      *
- *   configuration.                                         *
+ *  If NUMA is enabled, report on the current machine       *
+ *  configuration.                                          *
  *                                                          *
  ************************************************************
  */
-#if defined(NUMA) && defined(LINUX)
+#if defined(NUMA) && defined(UNIX)
   if (numa_available() >= 0) {
     unsigned long cpus[8];
 
-    numa_node_to_cpus(0, cpus);
+    numa_node_to_cpus(0, cpus, 64);
     printf("\nMachine is NUMA, %d nodes (%d cpus/node)\n\n",
         numa_max_node() + 1, PopCnt(cpus[0]));
   }
@@ -4091,7 +4132,7 @@ int main(int argc, char **argv) {
 /*
  ************************************************************
  *                                                          *
- *   Initialize chess board to starting position.           *
+ *   Initialize all data arrays and chess board.            *
  *                                                          *
  ************************************************************
  */
@@ -4099,9 +4140,9 @@ int main(int argc, char **argv) {
 /*
  ************************************************************
  *                                                          *
- *   Now, parse the command-line options and pick off the   *
- *   ones that need to be handled after initialization is   *
- *   completed.                                             *
+ *  Now, parse the command-line options and pick off the    *
+ *  ones that need to be handled after initialization is    *
+ *  completed.                                              *
  *                                                          *
  ************************************************************
  */
@@ -4109,31 +4150,27 @@ int main(int argc, char **argv) {
     for (i = 1; i < argc; i++)
       if (strcmp(argv[i], "c"))
         if (!strstr(argv[i], "path")) {
-          strcpy(buffer, argv[i]);
-          Print(128, "(info) command line option \"%s\"\n", buffer);
-          result = Option(tree);
-          if (result == 0)
-            printf("ERROR \"%s\" is unknown command-line option\n", buffer);
+          if (strlen(argv[i]) > 255)
+            Print(4095, "ERROR ignoring token %s, 255 character max\n",
+                argv[i]);
+          else {
+            strcpy(buffer, argv[i]);
+            Print(128, "(info) command line option \"%s\"\n", buffer);
+            result = Option(tree);
+            if (result == 0)
+              printf("ERROR \"%s\" is unknown command-line option\n", buffer);
+          }
         }
   }
-  display = tree->pos;
+  display = tree->position;
   initialized = 1;
   move_actually_played = 0;
 /*
  ************************************************************
  *                                                          *
- *   From this point forward, we are in a state where it is *
- *                                                          *
- *              O P P O N E N T ' S turn to move.           *
- *                                                          *
- ************************************************************
- */
-/*
- ************************************************************
- *                                                          *
- *   Next, read the crafty.rc/.craftyrc initialization file *
- *   and process the commands that need to be handled after *
- *   engine initialization has been completed.              *
+ *  Next, read the crafty.rc/.craftyrc initialization file  *
+ *  and process the commands that need to be handled after  *
+ *  engine initialization has been completed.               *
  *                                                          *
  ************************************************************
  */
@@ -4171,9 +4208,9 @@ int main(int argc, char **argv) {
 /*
  ************************************************************
  *                                                          *
- *   Check to see if we can find a "crafty.cpf" personality *
- *   file which contains the default personality settings   *
- *   to be used unless overridden by the user.              *
+ *  Check to see if we can find a "crafty.cpf" personality  *
+ *  file which contains the default personality settings to *
+ *  be used unless overridden by the user.                  *
  *                                                          *
  ************************************************************
  */
@@ -4186,50 +4223,59 @@ int main(int argc, char **argv) {
 /*
  ************************************************************
  *                                                          *
- *   This is the "main loop" that never ends unless the     *
- *   user tells Crafty to "quit".  We read commands/moves   *
- *   execute them, and when a move is entered we change     *
- *   sides and execute a search to find a reply.  We repeat *
- *   this until the game ends or the opponent gets tired    *
- *   and tells us to terminate the engine.                  *
+ *  This is the "main loop" that never ends unless the user *
+ *  tells Crafty to "quit".  We read commands/moves,        *
+ *  execute them, and when a move is entered we change      *
+ *  sides and execute a search to find a reply.  We repeat  *
+ *  this until the game ends or the opponent gets tired and *
+ *  tells us to terminate the engine.                       *
  *                                                          *
- *   Prompt user and read input string for processing.  As  *
- *   long as Option() returns a non-zero value, continue    *
- *   reading lines and calling Option().  When Option()     *
- *   fails to recogize a command, then try InputMove() to   *
- *   determine if this is a legal move.                     *
+ *  Prompt user and read input string for processing.  As   *
+ *  long as Option() returns a non-zero value, continue     *
+ *  reading lines and calling Option().  When Option()      *
+ *  fails to recogize a command, then try InputMove() to    *
+ *  determine if this is a legal move.                      *
  *                                                          *
- *   While we are waiting on a move, we call Ponder() which *
- *   will find a move that it assumes the opponent will     *
- *   make, and then it will call Iterate() to find a reply  *
- *   for that move while we are waiting to see what is      *
- *   actually played in the game.  Ponder() will return one *
- *   of the following "results" (stored in "presult"):      *
+ *  While we are waiting on a move, we call Ponder() which  *
+ *  will find a move that it assumes the opponent will      *
+ *  make, and then it will call Iterate() to find a reply   *
+ *  for that move while we are waiting to see what is       *
+ *  actually played in the game.  Ponder() will return one  *
+ *  of the following "results" (stored in "presult"):       *
  *                                                          *
- *   (0) This indicates that Ponder() did not run, either   *
- *       because pondering is disabled, or we are not in a  *
- *       state where pondering is allowed, such as using    *
- *       the xboard "force" command to set up a game that   *
- *       will be continued.                                 *
+ *  (0) This indicates that Ponder() did not run, either    *
+ *      because pondering is disabled, or we are not in a   *
+ *      state where pondering is allowed, such as using the *
+ *      xboard "force" command to set up a game that will   *
+ *      be continued.                                       *
  *                                                          *
- *   (1) This indicates that we pondered a move, the        *
- *       opponent actually played this move, and we were    *
- *       able to complete a normal search for the proper    *
- *       amount of time and have a move ready to use.       *
+ *  (1) This indicates that we pondered a move, the         *
+ *      opponent actually played this move, and we were     *
+ *      able to complete a normal search for the proper     *
+ *      amount of time and have a move ready to use.        *
  *                                                          *
- *   (2) This indicates that we pondered a move, but that   *
- *       for some reason, we did not need to continue until *
- *       time ran out.  For example, we found a forced mate *
- *       and further searching is not needed.  The search   *
- *       is not "in progress" but we still have a valid     *
- *       move to play here.                                 *
+ *  (2) This indicates that we pondered a move, but that    *
+ *      for some reason, we did not need to continue until  *
+ *      time ran out.  For example, we found a forced mate  *
+ *      and further searching is not needed.  The search is *
+ *      not "in progress" but we still have a valid move    *
+ *      to play here.                                       *
  *                                                          *
- *   (3) We pondered, but the opponent either played a      *
- *       different move, or else entered a command that     *
- *       forces us to unwind the search so that the command *
- *       can be executed.  In this case, we will re-start   *
- *       pondering, otherwise we make the correct move and  *
- *       then start a normal search.                        *
+ *  (3) We pondered, but the opponent either played a       *
+ *      different move, or else entered a command that      *
+ *      forces us to unwind the search so that the command  *
+ *      can be executed.  In this case, we will re-start    *
+ *      pondering, otherwise we make the correct move and   *
+ *      then start a normal search.                         *
+ *                                                          *
+ ************************************************************
+ */
+/*
+ ************************************************************
+ *                                                          *
+ *  From this point forward, we are in a state where it is  *
+ *                                                          *
+ *             O P P O N E N T ' S turn to move.            *
  *                                                          *
  ************************************************************
  */
@@ -4240,7 +4286,7 @@ int main(int argc, char **argv) {
         NewGame(0);
       opponent_start_time = ReadClock();
       input_status = 0;
-      display = tree->pos;
+      display = tree->position;
       move = 0;
       presult = 0;
       if (done == 0 && xboard) {
@@ -4255,7 +4301,7 @@ int main(int argc, char **argv) {
           Print(4095, "pong %d\n", pong);
           pong = 0;
         }
-        display = tree->pos;
+        display = tree->position;
         if (presult != 2 && (move_number != 1 || !game_wtm))
           presult = Ponder(game_wtm);
         if (presult == 1)
@@ -4297,8 +4343,8 @@ int main(int argc, char **argv) {
 /*
  ************************************************************
  *                                                          *
- *   We have a move.  Make the move (returned by InputMove) *
- *   and then change the side on move (wtm).                *
+ *  We have a move.  Make the move (returned by InputMove)  *
+ *  and then change the side on move (wtm).                 *
  *                                                          *
  ************************************************************
  */
@@ -4320,24 +4366,24 @@ int main(int argc, char **argv) {
 /*
  ************************************************************
  *                                                          *
- *   From this point forward, we are in a state where it is *
+ *  From this point forward, we are in a state where it is  *
  *                                                          *
- *               C R A F T Y ' S turn to move.              *
+ *              C R A F T Y ' S turn to move.               *
  *                                                          *
  ************************************************************
  */
 /*
  ************************************************************
  *                                                          *
- *   We have made the indicated move, before we do a search *
- *   we need to determine if the present position is a draw *
- *   by rule.  If so, Crafty allowed it to happen and must  *
- *   be satisfied with a draw, so we will claim it and end  *
- *   the current game.                                      *
+ *  We have made the indicated move, before we do a search  *
+ *  we need to determine if the present position is a draw  *
+ *  by rule.  If so, Crafty allowed it to happen and must   *
+ *  be satisfied with a draw, so we will claim it and end   *
+ *  the current game.                                       *
  *                                                          *
  ************************************************************
  */
-        if ((draw_type = RepetitionDraw(tree, game_wtm)) == 1) {
+        if ((draw_type = Repeat3x(tree, game_wtm)) == 1) {
           Print(128, "I claim a draw by 3-fold repetition.\n");
           value = DrawScore(game_wtm);
           if (xboard)
@@ -4355,26 +4401,28 @@ int main(int argc, char **argv) {
             Print(4095, "1/2-1/2 {Insufficient material}\n");
         }
       } else {
-        tree->position[1] = tree->position[0];
+        tree->status[1] = tree->status[0];
         presult = 0;
       }
+#if defined(DEBUG)
       ValidatePosition(tree, 0, move, "Main(1)");
+#endif
     } while (force);
 /*
  ************************************************************
  *                                                          *
- *   Now call Iterate() to compute a move for the current   *
- *   position.  (Note this is not done if Ponder() has al-  *
- *   ready computed a move.)                                *
+ *  Now call Iterate() to compute a move for the current    *
+ *  position.  (Note this is not done if Ponder() has al-   *
+ *  ready computed a move.)                                 *
  *                                                          *
  ************************************************************
  */
     crafty_is_white = game_wtm;
     if (presult == 2) {
-      if ((From(ponder_move) == From(move)) && (To(ponder_move) == To(move))
-          && (Piece(ponder_move) == Piece(move))
-          && (Captured(ponder_move) == Captured(move))
-          && (Promote(ponder_move) == Promote(move))) {
+      if (From(ponder_move) == From(move) && To(ponder_move) == To(move)
+          && Piece(ponder_move) == Piece(move)
+          && Captured(ponder_move) == Captured(move)
+          && Promote(ponder_move) == Promote(move)) {
         presult = 1;
         if (!book_move)
           predicted++;
@@ -4387,21 +4435,23 @@ int main(int argc, char **argv) {
       strcpy(kibitz_text, "n/a");
       last_pv.pathd = 0;
       last_pv.pathl = 0;
-      display = tree->pos;
+      display = tree->position;
       value = Iterate(game_wtm, think, 0);
     }
 /*
  ************************************************************
  *                                                          *
- *   We've now completed a search and need to handle a      *
- *   pending draw offer based on what the search found.     *
+ *  We've now completed a search and need to handle a       *
+ *  pending draw offer based on what the search found.      *
  *                                                          *
- *   When we get a draw offer, we make a note, but we do    *
- *   not accept it until after we have a chance to see what *
- *   happens after making the opponent's move that came     *
- *   with the draw offer.  If he played a blunder, we are   *
- *   not going to mistakenly accept a draw when we are now  *
- *   winning.                                               *
+ *  When we get a draw offer, we make a note, but we do not *
+ *  accept it until after we have a chance to see what      *
+ *  happens after making the opponent's move that came with *
+ *  the draw offer.  If he played a blunder, we are not     *
+ *  going to mistakenly accept a draw when we are now       *
+ *  winning.  We make this decision to accept or decline    *
+ *  since we have completed as search and now have a real   *
+ *  score.                                                  *
  *                                                          *
  ************************************************************
  */
@@ -4420,8 +4470,6 @@ int main(int argc, char **argv) {
           if (audible_alarm)
             printf("%c", audible_alarm);
           if (speech) {
-            char announce[128];
-
             strcpy(announce, SPEAK);
             strcat(announce, " Drawaccept");
             system(announce);
@@ -4437,28 +4485,20 @@ int main(int argc, char **argv) {
 /*
  ************************************************************
  *                                                          *
- *   We've now completed a search and need to do some basic *
- *   bookkeeping.                                           *
+ *  If the last_pv.path is null, then we were either        *
+ *  checkmated or stalemated.  We need to determine which   *
+ *  and end the game appropriately.                         *
+ *                                                          *
+ *  If we do have a PV, we will also check to see if it     *
+ *  leads to mate and make the proper announcement if so.   *
  *                                                          *
  ************************************************************
  */
     last_pv = tree->pv[0];
     last_value = value;
-    if (Abs(last_value) > (MATE - 300))
+    if (MateScore(last_value))
       last_mate_score = last_value;
     thinking = 0;
-/*
- ************************************************************
- *                                                          *
- *   If the last_pv.path is null, then we were either       *
- *   checkmated or stalemated.  We need to determine which  *
- *   and end the game appropriately.                        *
- *                                                          *
- *   If we do have a PV, we will also check to see if it    *
- *   leads to mate and make the proper announcement if so.  *
- *                                                          *
- ************************************************************
- */
     if (!last_pv.pathl) {
       if (value == -MATE + 1) {
         over = 1;
@@ -4470,8 +4510,6 @@ int main(int argc, char **argv) {
           strcpy(pgn_result, "1-0");
         }
         if (speech) {
-          char announce[128];
-
           strcpy(announce, SPEAK);
           strcat(announce, " Checkmate");
           system(announce);
@@ -4481,8 +4519,6 @@ int main(int argc, char **argv) {
         if (!xboard) {
           Print(128, "stalemate\n");
           if (speech) {
-            char announce[128];
-
             strcpy(announce, SPEAK);
             strcat(announce, " Stalemate");
             system(announce);
@@ -4491,38 +4527,37 @@ int main(int argc, char **argv) {
           Print(4095, "1/2-1/2 {stalemate}\n");
       }
     } else {
-      if ((value > MATE - 300) && (value < MATE - 2)) {
+      if (value > 32000 && value < MATE - 2) {
         Print(128, "\nmate in %d moves.\n\n", (MATE - value) / 2);
         Kibitz(1, game_wtm, 0, 0, (MATE - value) / 2, tree->nodes_searched, 0,
-            " ");
-      } else if ((-value > MATE - 300) && (-value < MATE - 1)) {
+            0, " ");
+      } else if (-value > 32000 && -value < MATE - 1) {
         Print(128, "\nmated in %d moves.\n\n", (MATE + value) / 2);
         Kibitz(1, game_wtm, 0, 0, -(MATE + value) / 2, tree->nodes_searched,
-            0, " ");
+            0, 0, " ");
       }
 /*
  ************************************************************
  *                                                          *
- *   See if we want to offer a draw based on the recent     *
- *   scores that have been returned.  See resign.c for more *
- *   details, but this is where we offer a draw, or resign, *
- *   if appropriate.  This has nothing to do with claiming  *
- *   a draw by rule, which is done later.                   *
+ *  See if we want to offer a draw based on the recent      *
+ *  scores that have been returned.  See resign.c for more  *
+ *  details, but this is where we offer a draw, or resign,  *
+ *  if appropriate.  This has nothing to do with claiming a *
+ *  draw by rule, which is done later.                      *
  *                                                          *
  ************************************************************
  */
-      tree->position[MAXPLY] = tree->position[0];
+      tree->status[MAXPLY] = tree->status[0];
       ResignOrDraw(tree, value);
 /*
  ************************************************************
  *                                                          *
- *   Now output the move chosen by the search, and the      *
- *   "result" string if this move checkmates our opponent.  *
+ *  Now output the move chosen by the search, and the       *
+ *  "result" string if this move checkmates our opponent.   *
  *                                                          *
  ************************************************************
  */
       if (speech) {
-        char announce[128];
         char *moveptr = OutputMove(tree, last_pv.path[1], 0, game_wtm);
 
         strcpy(announce, SPEAK);
@@ -4555,23 +4590,23 @@ int main(int argc, char **argv) {
       if (kibitz) {
         if (kibitz_depth)
           Kibitz(2, game_wtm, kibitz_depth, end_time - start_time, value,
-              tree->nodes_searched, tree->egtb_probes_successful,
-              kibitz_text);
+              tree->nodes_searched, idle_percent,
+              tree->egtb_probes_successful, kibitz_text);
         else
-          Kibitz(4, game_wtm, 0, 0, 0, 0, 0, kibitz_text);
+          Kibitz(4, game_wtm, 0, 0, 0, 0, 0, 0, kibitz_text);
       }
       MakeMoveRoot(tree, last_pv.path[1], game_wtm);
 /*
  ************************************************************
  *                                                          *
- *   From this point forward, we are in a state where it is *
+ *  From this point forward, we are in a state where it is  *
  *                                                          *
- *           O P P O N E N T ' S turn to move.              *
+ *          O P P O N E N T ' S turn to move.               *
  *                                                          *
- *   We have made the indicated move, we need to determine  *
- *   if the present position is a draw by rule.  If so, we  *
- *   need to send the appropriate game result to xboard     *
- *   and/or inform the operator/opponent.                   *
+ *  We have made the indicated move, we need to determine   *
+ *  if the present position is a draw by rule.  If so, we   *
+ *  need to send the appropriate game result to xboard      *
+ *  and/or inform the operator/opponent.                    *
  *                                                          *
  ************************************************************
  */
@@ -4579,13 +4614,13 @@ int main(int argc, char **argv) {
       if (game_wtm)
         move_number++;
       move_actually_played = 1;
-      if ((draw_type = RepetitionDraw(tree, game_wtm)) == 1) {
+      if ((draw_type = Repeat3x(tree, game_wtm)) == 1) {
         Print(128, "I claim a draw by 3-fold repetition after my move.\n");
         if (xboard)
           Print(4095, "1/2-1/2 {Drawn by 3-fold repetition}\n");
         value = DrawScore(game_wtm);
       }
-      if (draw_type == 2 && last_search_value < MATE - 1024) {
+      if (draw_type == 2 && last_search_value < 32000) {
         Print(128, "I claim a draw by the 50 move rule after my move.\n");
         if (xboard)
           Print(4095, "1/2-1/2 {Drawn by 50-move rule}\n");
@@ -4601,14 +4636,14 @@ int main(int argc, char **argv) {
       if (time_limit > 300)
 #endif
         if (log_file)
-          DisplayChessBoard(log_file, tree->pos);
+          DisplayChessBoard(log_file, tree->position);
 /*
  ************************************************************
  *                                                          *
- *   Save the ponder_move from the current principal        *
- *   variation, then shift it left two moves to use as the  *
- *   starting point for the next search.  Adjust the depth  *
- *   to start the next search at the right iteration.       *
+ *  Save the ponder_move from the current principal         *
+ *  variation, then shift it left two moves to use as the   *
+ *  starting point for the next search.  Adjust the depth   *
+ *  to start the next search at the right iteration.        *
  *                                                          *
  ************************************************************
  */
@@ -4643,19 +4678,20 @@ int main(int argc, char **argv) {
         sprintf(book_hint, "%s", OutputMove(tree, ponder_move, 0, game_wtm));
     } else
       moves_out_of_book++;
+#if defined(DEBUG)
     ValidatePosition(tree, 0, last_pv.path[1], "Main(2)");
+#endif
 /*
  ************************************************************
  *                                                          *
- *   Now execute LearnValue() to record the scores for the  *
- *   first N searches out of book.  see learn.c for details *
- *   on how this is used and when.                          *
+ *  Now execute LearnValue() to record the scores for the   *
+ *  first N searches out of book.  see learn.c for details  *
+ *  on how this is used and when.                           *
  *                                                          *
  ************************************************************
  */
-    if (learning && moves_out_of_book && !learn_value) {
+    if (learning && moves_out_of_book && !learn_value)
       LearnValue(last_value, last_pv.pathd + 2);
-    }
     if (learn_positions_count < 63) {
       learn_seekto[learn_positions_count] = book_learn_seekto;
       learn_key[learn_positions_count] = book_learn_key;

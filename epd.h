@@ -105,7 +105,7 @@ siT EPDIsCheckmate(void);
 siT EPDIsStalemate(void);
 siT EPDIsInsufficientMaterial(void);
 siT EPDIsFiftyMoveDraw(void);
-siT EPDIsThirdRepetition(gamptrT gamptr);
+siT EPDIsThirdRepeatIndex(gamptrT gamptr);
 siT EPDIsDraw(gamptrT gamptr);
 mptrT EPDMateInOne(void);
 void EPDExecuteUpdate(mptrT mptr);

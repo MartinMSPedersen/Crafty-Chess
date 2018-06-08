@@ -1,6 +1,6 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 01/17/09 */
+/* last modified 02/24/14 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -23,8 +23,8 @@ void ResignOrDraw(TREE * RESTRICT tree, int value) {
 /*
  ************************************************************
  *                                                          *
- *   If the game is a technical draw, where there are no    *
- *   pawns and material is balanced, then offer a draw.     *
+ *  If the game is a technical draw, where there are no     *
+ *  pawns and material is balanced, then offer a draw.      *
  *                                                          *
  ************************************************************
  */
@@ -33,17 +33,21 @@ void ResignOrDraw(TREE * RESTRICT tree, int value) {
 /*
  ************************************************************
  *                                                          *
- *   First check to see if the increment is 2 seconds or    *
- *   more.  If so, then the game is being played slowly     *
- *   enough that a draw offer or resignation is worth       *
- *   consideration.  Otherwise, if the opponent has at      *
- *   least 30 seconds left, he can probably play the draw   *
- *   or win out.                                            *
+ *  First check to see if the increment is 2 seconds or     *
+ *  more.  If so, then the game is being played slowly      *
+ *  enough that a draw offer or resignation is worth        *
+ *  consideration.  Otherwise, if the opponent has at least *
+ *  30 seconds left, he can probably play the draw or win   *
+ *  out.                                                    *
  *                                                          *
- *   If the value is below the resignation threshold, then  *
- *   Crafty should resign and get on to the next game. Note *
- *   that it is necessary to have a bad score for           *
- *   <resign_count> moves in a row before resigning.        *
+ *  If the value is below the resignation threshold, then   *
+ *  Crafty should resign and get on to the next game. Note  *
+ *  that it is necessary to have a bad score for            *
+ *  <resign_count> moves in a row before resigning.         *
+ *                                                          *
+ *  Note that we don't resign for "deep mates" since we do  *
+ *  not know if the opponent actually saw that result.  We  *
+ *  play on until it becomes obvious he "sees it."          *
  *                                                          *
  ************************************************************
  */
@@ -52,7 +56,7 @@ void ResignOrDraw(TREE * RESTRICT tree, int value) {
       if (value < -(MATE - 15)) {
         if (++resign_counter >= resign_count)
           result = 1;
-      } else if (value < -resign * 100 && value > -(MATE - 300)) {
+      } else if (value < -resign * 100 && value > -32000) {
         if (++resign_counter >= resign_count)
           result = 1;
       } else
@@ -62,13 +66,13 @@ void ResignOrDraw(TREE * RESTRICT tree, int value) {
 /*
  ************************************************************
  *                                                          *
- *   If the value is almost equal to the draw score, then   *
- *   Crafty should offer the opponent a draw.  Note that  . *
- *   it is necessary that the draw score occur on exactly   *
- *   <draw_count> moves in a row before making the offer.   *
- *   Note also that the draw offer will be repeated every   *
- *   <draw_count> moves so setting this value too low can   *
- *   make the program behave "obnoxiously."                 *
+ *  If the value is almost equal to the draw score, then    *
+ *  Crafty should offer the opponent a draw.  Note that it  *
+ *  is necessary that the draw score occur on exactly       *
+ *  <draw_count> moves in a row before making the offer.    *
+ *  Note also that the draw offer will be repeated every    *
+ *  <draw_count> moves so setting this value too low can    *
+ *  make the program behave "obnoxiously."                  *
  *                                                          *
  ************************************************************
  */
@@ -85,13 +89,13 @@ void ResignOrDraw(TREE * RESTRICT tree, int value) {
 /*
  ************************************************************
  *                                                          *
- *   Now print the draw offer or resignation if appropriate *
- *   but be sure and do it in a form that ICC/FICS will     *
- *   understand if the "xboard" flag is set.                *
+ *  Now print the draw offer or resignation if appropriate  *
+ *  but be sure and do it in a form that ICC/FICS will      *
+ *  understand if the "xboard" flag is set.                 *
  *                                                          *
- *   Note that we also use the "speak" facility to verbally *
- *   offer draws or resign if the "speech" variable has     *
- *   been set to 1 by entering "speech on"                  *
+ *  Note that we also use the "speak" facility to verbally  *
+ *  offer draws or resign if the "speech" variable has been *
+ *  set to 1 by entering "speech on".                       *
  *                                                          *
  ************************************************************
  */

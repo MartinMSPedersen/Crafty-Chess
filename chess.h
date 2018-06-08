@@ -17,14 +17,28 @@
  */
 /* *INDENT-OFF* */
 
+#if defined(AFFINITY)
+#  define _GNU_SOURCE
+#  include <sched.h>
+#endif
+#if defined(UNIX)
+#  define _GNU_SOURCE
+#  if (CPUS > 1)
+#    include <pthread.h>
+#  endif
+#  include <unistd.h>
+#  include <sys/types.h>
+#endif
 #include <stdint.h>
+#include <inttypes.h>
+#include <time.h>
 #include <stdio.h>
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
 #if !defined(TYPES_INCLUDED)
-#  if defined (_MSC_VER) && (_MSC_VER >= 1300) && \
-    (!defined(_M_IX86) || (_MSC_VER >= 1400))
+#  define TYPES_INCLUDED
+#  if !defined (UNIX)
 #    define RESTRICT __restrict
 #  else
 #    define RESTRICT
@@ -32,57 +46,20 @@
 #  if !defined(CPUS)
 #    define CPUS 1
 #  endif
-#  if defined(NT_i386)
+#  if !defined(UNIX)
 #    include <windows.h>
 #    include <process.h>
 #  endif
-#  define TYPES_INCLUDED
 #  define CDECL
 #  define STDCALL
 /* Provide reasonable defaults for UNIX systems. */
-#  define UNIX  /* system is unix-based                       */
-/* Architecture-specific definitions */
-#  if defined(AIX)
-#    define UNIX        /* system is unix-based                       */
-#  endif
-#  if defined(AMIGA)
-#    undef  UNIX        /* system is unix-based                       */
-#  endif
-#  if defined(FreeBSD)
-#    define UNIX        /* system is unix-based                       */
-#  endif
-#  if defined(HP)
-#    define UNIX        /* system is unix-based                       */
-#  endif
-#  if defined(LINUX)
-#    define UNIX        /* system is unix-based                       */
-#  endif
-#  if defined(MIPS)
-#    define UNIX        /* system is unix-based                       */
-#  endif
-#  if defined(NetBSD)
-#    define UNIX        /* system is unix-based                      */
-#  endif
-#  if defined(NEXT)
-#    define UNIX        /* system is unix-based                       */
-#  endif
-#  if defined(NT_i386)
-#    undef  UNIX        /* system is unix-based                       */
+#  if !defined(UNIX)
 #    undef  STDCALL
 #    define STDCALL __stdcall
 #    ifdef  VC_INLINE32
 #      undef  CDECL
 #      define CDECL __cdecl
 #    endif
-#  endif
-#  if defined(OS2)
-#    define UNIX        /* system is unix-based                       */
-#  endif
-#  if defined(SGI)
-#    define UNIX        /* system is unix-based                       */
-#  endif
-#  if defined(SUN)
-#    define UNIX        /* system is unix-based                       */
 #  endif
 #  if !defined(BOOKDIR)
 #    define     BOOKDIR        "."
@@ -98,7 +75,7 @@
 #  endif
 #  include "lock.h"
 #  define MAXPLY                                 129
-#  define MAX_TC_NODES                       1000000
+#  define MAX_TC_NODES                      10000000
 #  define MAX_BLOCKS_PER_CPU                      64
 #  define MAX_BLOCKS         MAX_BLOCKS_PER_CPU*CPUS
 #  define BOOK_CLUSTER_SIZE                     8000
@@ -116,19 +93,6 @@
 #  define QUEEN_VALUE                           1050
 #  define KING_VALUE                           40000
 #  define MAX_DRAFT                              256
-#  if defined(NT_i386)
-#    define BMF   "%I64u"
-#    define BMF6  "%6I64u"
-#    define BMF10 "%10I64u"
-#  else
-#    define BMF   "%llu"
-#    define BMF6  "%6llu"
-#    define BMF10 "%10llu"
-#  endif
-#  if defined(UNIX) & (CPUS > 1)
-#    include <pthread.h>
-#  endif
-#  include <time.h>
 #  if !defined(CLOCKS_PER_SEC)
 #    define CLOCKS_PER_SEC 1000000
 #  endif
@@ -158,7 +122,7 @@ typedef enum { normal_mode, tournament_mode } PLAYING_MODE;
 typedef struct {
   int8_t castle[2];
   uint8_t enpassant_target;
-  uint8_t rule_50_moves;
+  uint8_t reversible;
 } SEARCH_POSITION;
 typedef struct {
   int move1;
@@ -192,15 +156,17 @@ typedef struct {
   unsigned char defects_q[2];
   unsigned char all[2];
   unsigned char passed[2];
+  unsigned char filler[4];
 } PAWN_HASH_ENTRY;
 typedef struct {
   uint64_t entry[4];
 } PXOR;
 typedef struct {
   int path[MAXPLY];
-  unsigned char pathh;
-  unsigned char pathl;
-  unsigned char pathd;
+  int pathh;
+  int pathl;
+  int pathd;
+  int pathv;
 } PATH;
 typedef struct {
   uint64_t path_sig;
@@ -220,14 +186,13 @@ typedef struct {
 /*
    x..xx xxxx xxx1 = failed low this iteration
    x..xx xxxx xx1x = failed high this iteration
-   x..xx xxxx x1xx = don't search in parallel
-   x..xx xxxx 1xxx = do not reduce this move
-   x..xx xxx1 xxxx = move has been searched
+   x..xx xxxx x1xx = don't search in parallel or reduce
+   x..xx xxxx 1xxx = move has been searched
  */
   unsigned int status;
   int bm_age;
 } ROOT_MOVE;
-#  if defined(NT_i386)
+#  if !defined(UNIX)
 #    pragma pack(4)
 #  endif
 typedef struct {
@@ -235,7 +200,7 @@ typedef struct {
   unsigned int status_played;
   float learn;
 } BOOK_POSITION;
-#  if defined(NT_i386)
+#  if !defined(UNIX)
 #    pragma pack()
 #  endif
 typedef struct {
@@ -250,40 +215,39 @@ struct personality_term {
   int *value;
 };
 struct tree {
-  POSITION pos;
+  POSITION position;
   uint64_t save_hash_key[MAXPLY + 3];
-  uint64_t rep_list[2][128];
+  uint64_t save_pawn_hash_key[MAXPLY + 3];
+  int rep_index;
+  uint64_t rep_list[256];
   uint64_t all_pawns;
   uint64_t nodes_searched;
-  uint64_t save_pawn_hash_key[MAXPLY + 3];
   uint64_t cache_n[64];
   PAWN_HASH_ENTRY pawn_score;
-  SEARCH_POSITION position[MAXPLY + 3];
+  SEARCH_POSITION status[MAXPLY + 3];
   NEXT_MOVE next_status[MAXPLY];
   PATH pv[MAXPLY];
   int cache_n_mobility[64];
-  int rep_index[2];
   int curmv[MAXPLY];
   int hash_move[MAXPLY];
   int *last[MAXPLY];
   uint64_t fail_highs;
-  uint64_t fail_high_number;
+  uint64_t fail_high_first_move;
   unsigned int evaluations;
   unsigned int egtb_probes;
   unsigned int egtb_probes_successful;
   unsigned int extensions_done;
   unsigned int qchecks_done;
   unsigned int reductions_done;
-  unsigned int moves_pruned;
+  unsigned int moves_fpruned;
   KILLER killers[MAXPLY];
   int move_list[5120];
   int sort_value[256];
   unsigned char inchk[MAXPLY];
-  unsigned char phase[MAXPLY];
+  int phase[MAXPLY];
   int tropism[2];
   int dangerous[2];
   int score_mg, score_eg;
-  int root_move;
 #  if (CPUS > 1)
   lock_t lock;
 #  endif
@@ -295,15 +259,21 @@ struct tree {
   volatile int nprocs;
   int alpha;
   int beta;
-  int value;
-  int wtm;
+  volatile int value;
+  int side;
   int depth;
   int ply;
   int cutmove;
-  int moves_searched;
   volatile int used;
+  volatile int moves_searched;
 };
 typedef struct tree TREE;
+struct thread {
+  TREE *volatile tree;
+  volatile int idle;
+  char filler[52];
+};
+typedef struct thread THREAD;
 /*
    DO NOT modify these.  these are constants, used in multiple modules.
    modification may corrupt the search in any number of ways, all bad.
@@ -329,31 +299,28 @@ typedef struct tree TREE;
 #  define KILLER_MOVE_4             8
 #  define GENERATE_ALL_MOVES        9
 #  define REMAINING_MOVES          10
-#  if defined(VC_INLINE32)
-#    include "vcinline.h"
-#  else
-#    if !defined(INLINE64) && !defined(INLINE32)
+#if defined(UNIX) && !defined(INLINEASM)
 int CDECL PopCnt(uint64_t);
 int CDECL MSB(uint64_t);
 int CDECL LSB(uint64_t);
-#    endif
-#  endif
+#endif
 void AlignedMalloc(void **, int, size_t);
 void AlignedRemalloc(void **, int, size_t);
 void Analyze(void);
 void Annotate(void);
 void AnnotateHeaderHTML(char *, FILE *);
 void AnnotateFooterHTML(FILE *);
-void AnnotatePositionHTML(TREE * RESTRICT, int, FILE *);
+void AnnotatePositionHTML(TREE *RESTRICT, int, FILE *);
 char *AnnotateVtoNAG(int, int, int, int);
-void AnnotateHeaderTeX(char *, FILE *);
+void AnnotateHeaderTeX(FILE *);
 void AnnotateFooterTeX(FILE *);
 void AnnotatePositionTeX(TREE *, int, FILE *);
 uint64_t atoiKM(char *);
-int Attacks(TREE * RESTRICT, int, int);
-uint64_t AttacksTo(TREE * RESTRICT, int);
+int Attacks(TREE *RESTRICT, int, int);
+uint64_t AttacksFrom(TREE *RESTRICT, int, int);
+uint64_t AttacksTo(TREE *RESTRICT, int);
 void Bench(int);
-int Book(TREE * RESTRICT, int, int);
+int Book(TREE *RESTRICT, int, int);
 void BookClusterIn(FILE *, int, BOOK_POSITION *);
 void BookClusterOut(FILE *, int, BOOK_POSITION *);
 int BookIn32(unsigned char *);
@@ -363,19 +330,16 @@ int BookMask(char *);
 unsigned char *BookOut32(int);
 unsigned char *BookOut32f(float);
 unsigned char *BookOut64(uint64_t);
-int BookPonderMove(TREE * RESTRICT, int);
-void BookUp(TREE * RESTRICT, int, char **);
+int BookPonderMove(TREE *RESTRICT, int);
+void BookUp(TREE *RESTRICT, int, char **);
 void BookSort(BB_POSITION *, int, int);
-#  if defined(NT_i386)
-int _cdecl BookUpCompare(const void *, const void *);
-#  else
 int BookUpCompare(const void *, const void *);
-#  endif
 BB_POSITION BookUpNextPosition(int, int);
 int CheckInput(void);
 void ClearHashTableScores(void);
-void CopyToParent(TREE * RESTRICT, TREE * RESTRICT, int);
-TREE *CopyToChild(TREE * RESTRICT, int);
+int ComputeDifficulty(int, int);
+void CopyToParent(TREE *RESTRICT, TREE *RESTRICT, int);
+void CopyToChild(TREE *RESTRICT, int);
 void CraftyExit(int);
 void DisplayArray(int *, int);
 void DisplayArrayX2(int *, int *, int);
@@ -387,52 +351,52 @@ char *DisplayEvaluationKibitz(int, int);
 void DisplayFT(int, int, int);
 char *DisplayHHMM(unsigned int);
 char *DisplayHHMMSS(unsigned int);
-char *DisplayKM(unsigned int);
-void DisplayPV(TREE * RESTRICT, int, int, int, int, PATH *);
+char *DisplayKMB(uint64_t);
+void DisplayPV(TREE *RESTRICT, int, int, int, PATH *);
 char *DisplayTime(unsigned int);
 char *Display2Times(unsigned int);
 char *DisplayTimeKibitz(unsigned int);
-void DisplayTreeState(TREE * RESTRICT, int, int, int);
+void DisplayTreeState(TREE *RESTRICT, int, int, int);
 void DisplayChessMove(char *, int);
-int Drawn(TREE * RESTRICT, int);
+int Drawn(TREE *RESTRICT, int);
 void DisplayType3(int *, int *);
 void DisplayType4(int *, int *);
 void DisplayType5(int *, int);
 void DisplayType6(int *);
 void Edit(void);
 #  if !defined(NOEGTB)
-int EGTBProbe(TREE * RESTRICT, int, int, int *);
-void EGTBPV(TREE * RESTRICT, int);
+int EGTBProbe(TREE *RESTRICT, int, int, int *);
+void EGTBPV(TREE *RESTRICT, int);
 #  endif
-int Evaluate(TREE * RESTRICT, int, int, int, int);
-void EvaluateBishops(TREE * RESTRICT, int);
-void EvaluateDevelopment(TREE * RESTRICT, int, int);
-int EvaluateDraws(TREE * RESTRICT, int, int, int);
+int Evaluate(TREE *RESTRICT, int, int, int, int);
+void EvaluateBishops(TREE *RESTRICT, int);
+void EvaluateDevelopment(TREE *RESTRICT, int, int);
+int EvaluateDraws(TREE *RESTRICT, int, int, int);
 int EvaluateHasOpposition(int, int, int);
-void EvaluateKings(TREE * RESTRICT, int, int);
-int EvaluateKingsFile(TREE * RESTRICT, int, int);
-void EvaluateKnights(TREE * RESTRICT, int);
-void EvaluateMate(TREE * RESTRICT, int);
-void EvaluateMaterial(TREE * RESTRICT, int);
-void EvaluatePassedPawns(TREE * RESTRICT, int, int);
-void EvaluatePassedPawnRaces(TREE * RESTRICT, int);
-void EvaluatePawns(TREE * RESTRICT, int);
-void EvaluateQueens(TREE * RESTRICT, int);
-void EvaluateRooks(TREE * RESTRICT, int);
-int EvaluateWinningChances(TREE * RESTRICT, int, int);
+void EvaluateKings(TREE *RESTRICT, int, int);
+int EvaluateKingsFile(TREE *RESTRICT, int, int);
+void EvaluateKnights(TREE *RESTRICT, int);
+void EvaluateMate(TREE *RESTRICT, int);
+void EvaluateMaterial(TREE *RESTRICT, int);
+void EvaluatePassedPawns(TREE *RESTRICT, int, int);
+void EvaluatePassedPawnRaces(TREE *RESTRICT, int);
+void EvaluatePawns(TREE *RESTRICT, int);
+void EvaluateQueens(TREE *RESTRICT, int);
+void EvaluateRooks(TREE *RESTRICT, int);
+int EvaluateWinningChances(TREE *RESTRICT, int, int);
 void EVTest(char *);
-int Exclude(TREE * RESTRICT, int, int);
-int FindBlockID(TREE * RESTRICT);
-char *FormatPV(TREE * RESTRICT, int, PATH);
+int Exclude(TREE *RESTRICT, int, int);
+int FindBlockID(TREE *RESTRICT);
+char *FormatPV(TREE *RESTRICT, int, PATH);
 int FTbSetCacheSize(void *, unsigned long);
 int GameOver(int);
-int *GenerateCaptures(TREE * RESTRICT, int, int, int *);
-int *GenerateCheckEvasions(TREE * RESTRICT, int, int, int *);
-int *GenerateChecks(TREE * RESTRICT, int, int, int *);
-int *GenerateNoncaptures(TREE * RESTRICT, int, int, int *);
-int HashProbe(TREE * RESTRICT, int, int, int, int, int, int*);
-void HashStore(TREE * RESTRICT, int, int, int, int, int, int);
-void HashStorePV(TREE * RESTRICT, int, int);
+int *GenerateCaptures(TREE *RESTRICT, int, int, int *);
+int *GenerateCheckEvasions(TREE *RESTRICT, int, int, int *);
+int *GenerateChecks(TREE *RESTRICT, int, int *);
+int *GenerateNoncaptures(TREE *RESTRICT, int, int, int *);
+int HashProbe(TREE *RESTRICT, int, int, int, int, int, int*);
+void HashStore(TREE *RESTRICT, int, int, int, int, int, int);
+void HashStorePV(TREE *RESTRICT, int, int);
 int IInitializeTb(char *);
 void Initialize(void);
 void InitializeAttackBoards(void);
@@ -448,84 +412,81 @@ uint64_t InitializeMagicOccupied(int *, int, uint64_t);
 void InitializeMasks(void);
 void InitializePawnMasks(void);
 void InitializeSMP(void);
-int InputMove(TREE * RESTRICT, char *, int, int, int, int);
-int InputMoveICS(TREE * RESTRICT, char *, int, int, int, int);
+int InputMove(TREE *RESTRICT, char *, int, int, int, int);
+int InputMoveICS(TREE *RESTRICT, char *, int, int, int, int);
 uint64_t InterposeSquares(int, int, int);
 void Interrupt(int);
-int InvalidPosition(TREE * RESTRICT);
+int InvalidPosition(TREE *RESTRICT);
 int Iterate(int, int, int);
-void Kibitz(int, int, int, int, int, uint64_t, int, char *);
-void Killer(TREE * RESTRICT, int, int);
+void Kibitz(int, int, int, int, int, uint64_t, int, int, char *);
+void Killer(TREE *RESTRICT, int, int);
 int KingPawnSquare(int, int, int, int);
+int LearnAdjust(int);
 void LearnBook(void);
 int LearnFunction(int, int, int, int);
 void LearnValue(int, int);
-void MakeMove(TREE * RESTRICT, int, int, int);
-void MakeMoveRoot(TREE * RESTRICT, int, int);
+void MakeMove(TREE *RESTRICT, int, int, int);
+void MakeMoveRoot(TREE *RESTRICT, int, int);
 void NewGame(int);
-int NextEvasion(TREE * RESTRICT, int, int);
-int NextMove(TREE * RESTRICT, int, int);
-int NextRootMove(TREE * RESTRICT, TREE * RESTRICT, int);
+int NextEvasion(TREE *RESTRICT, int, int);
+int NextMove(TREE *RESTRICT, int, int);
+int NextRootMove(TREE *RESTRICT, TREE *RESTRICT, int);
 int NextRootMoveParallel(void);
-int Option(TREE * RESTRICT);
+int Option(TREE *RESTRICT);
 int OptionMatch(char *, char *);
-void OptionPerft(TREE * RESTRICT, int, int, int);
-void Output(TREE * RESTRICT, int, int);
-void SearchFH(TREE * RESTRICT, int, int);
-char *OutputMove(TREE * RESTRICT, int, int, int);
+void OptionPerft(TREE *RESTRICT, int, int, int);
+void Output(TREE *RESTRICT, int);
+char *OutputMove(TREE *RESTRICT, int, int, int);
 int ParseTime(char *);
 void Pass(void);
-int PinnedOnKing(TREE * RESTRICT, int, int);
+int PinnedOnKing(TREE *RESTRICT, int, int);
 int Ponder(int);
 void Print(int, char *, ...);
 char *PrintKM(size_t, int);
-int Quiesce(TREE * RESTRICT, int, int, int, int, int);
-int QuiesceEvasions(TREE * RESTRICT, int, int, int, int);
+int Quiesce(TREE *RESTRICT, int, int, int, int, int);
+int QuiesceEvasions(TREE *RESTRICT, int, int, int, int);
 unsigned int Random32(void);
 uint64_t Random64(void);
 int Read(int, char *);
-int ReadChessMove(TREE * RESTRICT, FILE *, int, int);
+int ReadChessMove(TREE *RESTRICT, FILE *, int, int);
 void ReadClear(void);
 unsigned int ReadClock(void);
 int ReadPGN(FILE *, int);
-int ReadNextMove(TREE * RESTRICT, char *, int, int);
+int ReadNextMove(TREE *RESTRICT, char *, int, int);
 int ReadParse(char *, char *args[], char *);
 int ReadInput(void);
-int RepetitionCheck(TREE * RESTRICT, int, int);
-int RepetitionCheckBook(TREE * RESTRICT, int, int);
-int RepetitionDraw(TREE * RESTRICT, int);
-void ResignOrDraw(TREE * RESTRICT, int);
+int Repeat(TREE *RESTRICT, int);
+int Repeat3x(TREE *RESTRICT, int);
+void ResignOrDraw(TREE *RESTRICT, int);
 void RestoreGame(void);
 void RootMoveList(int);
-int Search(TREE * RESTRICT, int, int, int, int, int, int);
-int SearchParallel(TREE * RESTRICT, int, int, int, int, int, int);
-void Trace(TREE * RESTRICT, int, int, int, int, int, const char *, int);
+int Search(TREE *RESTRICT, int, int, int, int, int, int);
+int SearchParallel(TREE *RESTRICT, int, int, int, int, int, int);
+void Trace(TREE *RESTRICT, int, int, int, int, int, const char *, int);
 void SetBoard(TREE *, int, char **, int);
 void SetChessBitBoards(TREE *);
-int SetRootAlpha(unsigned char, int, int*);
-int SetRootBeta(unsigned char, int, int*);
 void SharedFree(void *address);
 int StrCnt(char *, char);
-int Swap(TREE * RESTRICT, int, int);
-int SwapO(TREE * RESTRICT, int, int);
+int Swap(TREE *RESTRICT, int, int);
+int SwapO(TREE *RESTRICT, int, int);
 void Test(char *);
 void TestEPD(char *);
-int Thread(TREE * RESTRICT);
+int Thread(TREE *RESTRICT);
 void WaitForAllThreadsInitialized(void);
 void *STDCALL ThreadInit(void *);
-#  if defined(_WIN32) || defined(_WIN64)
+#  if !defined(UNIX)
 void ThreadMalloc(int64_t);
 #  endif
-void ThreadStop(TREE * RESTRICT);
-int ThreadWait(int64_t, TREE * RESTRICT);
+void ThreadStop(TREE *RESTRICT);
+int ThreadWait(int64_t, TREE *RESTRICT);
 void TimeAdjust(int, int);
-int TimeCheck(TREE * RESTRICT, int);
-void TimeSet(TREE * RESTRICT, int);
-void UnmakeMove(TREE * RESTRICT, int, int, int);
-int ValidMove(TREE * RESTRICT, int, int, int);
-int VerifyMove(TREE * RESTRICT, int, int, int);
-void ValidatePosition(TREE * RESTRICT, int, int, char *);
-#  if defined(_WIN32) || defined(_WIN64)
+int TimeCheck(TREE *RESTRICT, int);
+void TimeSet(int);
+void UnmakeMove(TREE *RESTRICT, int, int, int);
+int ValidMove(TREE *RESTRICT, int, int, int);
+int VerifyMove(TREE *RESTRICT, int, int, int);
+void ValidatePosition(TREE *RESTRICT, int, int, char *);
+#  if !defined(UNIX)
 extern void *WinMallocInterleaved(size_t, int);
 extern void WinFreeInterleaved(void *, size_t);
 #    define MallocInterleaved(cBytes, cThreads)\
@@ -557,32 +518,33 @@ extern void WinFreeInterleaved(void *, size_t);
   m = bit vector of to squares to unpack
   t = pre-computed from + moving piece
  */
-#  define Unpack(side, mptr, m, t)                                         \
+#  define Extract(side, mptr, m, t)                                        \
   for ( ; m ; Clear(to, m)) {                                              \
     to = Advanced(side, m);                                                \
     *mptr++ = t | (to << 6) | (Abs(PcOnSq(to)) << 15);                     \
   }
-#  define Check(side) Attacks(tree, KingSQ(side), Flip(side))
+#  define Check(side) Attacks(tree, Flip(side), KingSQ(side))
 #  define Attack(from,to) (!(intervening[from][to] & OccupiedSquares))
-#  define AttacksBishop(square, occ) *(magic_bishop_indices[square]+((((occ)&magic_bishop_mask[square])*magic_bishop[square])>>magic_bishop_shift[square]))
-#  define MobilityBishop(square, occ) *(magic_bishop_mobility_indices[square]+((((occ)&magic_bishop_mask[square])*magic_bishop[square])>>magic_bishop_shift[square]))
-#  define AttacksKnight(square) knight_attacks[square]
-#  define AttacksRook(square, occ) *(magic_rook_indices[square]+((((occ)&magic_rook_mask[square])*magic_rook[square])>>magic_rook_shift[square]))
-#  define MobilityRook(square, occ) *(magic_rook_mobility_indices[square]+((((occ)&magic_rook_mask[square])*magic_rook[square])>>magic_rook_shift[square]))
-#  define AttacksQueen(square, occ)   (AttacksBishop(square, occ)|AttacksRook(square, occ))
-#  define AttacksQueen(square, occ)   (AttacksBishop(square, occ)|AttacksRook(square, occ))
+#  define BishopAttacks(square, occ) *(magic_bishop_indices[square]+((((occ)&magic_bishop_mask[square])*magic_bishop[square])>>magic_bishop_shift[square]))
+#  define BishopMobility(square, occ) *(magic_bishop_mobility_indices[square]+((((occ)&magic_bishop_mask[square])*magic_bishop[square])>>magic_bishop_shift[square]))
+#  define KingAttacks(square) king_attacks[square]
+#  define KnightAttacks(square) knight_attacks[square]
+#  define PawnAttacks(side, square)   pawn_attacks[side][square]
+#  define Reversible(p)               (tree->status[p].reversible)
+#  define RookAttacks(square, occ) *(magic_rook_indices[square]+((((occ)&magic_rook_mask[square])*magic_rook[square])>>magic_rook_shift[square]))
+#  define RookMobility(square, occ) *(magic_rook_mobility_indices[square]+((((occ)&magic_rook_mask[square])*magic_rook[square])>>magic_rook_shift[square]))
+#  define QueenAttacks(square, occ)   (BishopAttacks(square, occ)|RookAttacks(square, occ))
 #  define Rank(x)       ((x)>>3)
 #  define File(x)       ((x)&7)
 #  define Flip(x)       ((x)^1)
-#  define PawnAttacks(side, x)   (pawn_attacks[Flip(side)][(x)] & Pawns(side))
 #  define Advanced(side, squares) ((side) ? MSB(squares) : LSB(squares))
 #  define MinMax(side, v1, v2) ((side) ? Min((v1), (v2)) : Max((v1), (v2)))
 #  define InFront(side, k, p) ((side) ? k > p : k < p)
 #  define Behind(side, k, p) ((side) ? k < p : k > p)
-#  define AttacksRank(a) (AttacksRook(a, OccupiedSquares) & rank_mask[Rank(a)])
-#  define AttacksFile(a) (AttacksRook(a, OccupiedSquares) & file_mask[File(a)])
-#  define AttacksDiaga1(a) (AttacksBishop(a, OccupiedSquares) & (plus9dir[a] | minus9dir[a]))
-#  define AttacksDiagh1(a) (AttacksBishop(a, OccupiedSquares) & (plus7dir[a] | minus7dir[a]))
+#  define RankAttacks(a) (RookAttacks(a, OccupiedSquares) & rank_mask[Rank(a)])
+#  define FileAttacks(a) (RookAttacks(a, OccupiedSquares) & file_mask[File(a)])
+#  define Diaga1Attacks(a) (BishopAttacks(a, OccupiedSquares) & (plus9dir[a] | minus9dir[a]))
+#  define Diagh1Attacks(a) (BishopAttacks(a, OccupiedSquares) & (plus7dir[a] | minus7dir[a]))
 #  define InterposeSquares(kingsq, checksq) intervening[kingsq][checksq]
 /*
    the following macros are used to extract the pieces of a move that are
@@ -597,28 +559,29 @@ extern void WinFreeInterleaved(void *, size_t);
 #  define CaptureOrPromote(a)   (((a)>>15) & 63)
 #  define SetMask(a)            (set_mask[a])
 #  define ClearMask(a)          (clear_mask[a])
-#  define Pawns(c)              (tree->pos.color[c].pieces[pawn])
-#  define Knights(c)            (tree->pos.color[c].pieces[knight])
-#  define Bishops(c)            (tree->pos.color[c].pieces[bishop])
-#  define Rooks(c)              (tree->pos.color[c].pieces[rook])
-#  define Queens(c)             (tree->pos.color[c].pieces[queen])
-#  define Kings(c)              (tree->pos.color[c].pieces[king])
-#  define KingSQ(c)             (tree->pos.kingsq[c])
-#  define Occupied(c)           (tree->pos.color[c].pieces[occupied])
-#  define Pieces(c, p)          (tree->pos.color[c].pieces[p])
-#  define TotalPieces(c, p)     (tree->pos.pieces[c][p])
+#  define Pawns(c)              (tree->position.color[c].pieces[pawn])
+#  define Knights(c)            (tree->position.color[c].pieces[knight])
+#  define Bishops(c)            (tree->position.color[c].pieces[bishop])
+#  define Rooks(c)              (tree->position.color[c].pieces[rook])
+#  define Queens(c)             (tree->position.color[c].pieces[queen])
+#  define Kings(c)              (tree->position.color[c].pieces[king])
+#  define KingSQ(c)             (tree->position.kingsq[c])
+#  define Occupied(c)           (tree->position.color[c].pieces[occupied])
+#  define Pieces(c, p)          (tree->position.color[c].pieces[p])
+#  define TotalPieces(c, p)     (tree->position.pieces[c][p])
+#  define TotalMinors(c)        (tree->position.minors[c])
+#  define TotalMajors(c)        (tree->position.majors[c])
 #  define PieceValues(c, p)     (piece_values[p][c])
-#  define TotalAllPieces        (tree->pos.total_all_pieces)
-#  define Material              (tree->pos.material_evaluation)
+#  define TotalAllPieces        (tree->position.total_all_pieces)
+#  define Material              (tree->position.material_evaluation)
 #  define MaterialSTM(side)     ((side) ? Material : -Material)
-#  define Castle(ply, c)        (tree->position[ply].castle[c])
-#  define Rule50Moves(ply)      (tree->position[ply].rule_50_moves)
-#  define Repetition(side)      (tree->rep_index[side])
-#  define HashKey               (tree->pos.hash_key)
-#  define PawnHashKey           (tree->pos.pawn_hash_key)
-#  define EnPassant(ply)        (tree->position[ply].enpassant_target)
+#  define MateScore(s)          (Abs(s) > 32000)
+#  define Castle(ply, c)        (tree->status[ply].castle[c])
+#  define HashKey               (tree->position.hash_key)
+#  define PawnHashKey           (tree->position.pawn_hash_key)
+#  define EnPassant(ply)        (tree->status[ply].enpassant_target)
 #  define EnPassantTarget(ply)  (EnPassant(ply) ? SetMask(EnPassant(ply)) : 0)
-#  define PcOnSq(sq)            (tree->pos.board[sq])
+#  define PcOnSq(sq)            (tree->position.board[sq])
 #  define OccupiedSquares       (Occupied(white) | Occupied(black))
 #  define Color(square)         (square_color[square] ? dark_squares : ~dark_squares)
 #  define SideToMove(c)         ((c) ? "White" : "Black")
@@ -636,22 +599,19 @@ extern void WinFreeInterleaved(void *, size_t);
 #  define Hash(stm,piece,square)     (HashKey^=randoms[stm][piece][square])
 #  define HashP(stm,square)          (PawnHashKey^=randoms[stm][pawn][square])
 #  define HashCastle(stm,direction)  (HashKey^=castle_random[stm][direction])
-#  define HashEP(stm)                (HashKey^=enpassant_random[stm])
+#  define HashEP(sq)                 (HashKey^=enpassant_random[sq])
 #  define SavePV(tree,ply,ph)   do {                                        \
         tree->pv[ply-1].path[ply-1]=tree->curmv[ply-1];                     \
-        tree->pv[ply-1].pathl=ply;                                          \
-        tree->pv[ply-1].pathh=ph;                                           \
+        tree->pv[ply-1].pathl=ply;                          \
+        tree->pv[ply-1].pathh=ph;                           \
         tree->pv[ply-1].pathd=iteration_depth;} while(0)
-#  if defined(INLINE64)
-#    include "inline64.h"
-#  endif
-#  if defined(INLINE32)
-#    include "inline32.h"
+#  if defined(INLINEASM)
+#    include "inline.h"
 #  endif
 #  if defined(UNIX)
 #    define SPEAK "./speak "
 #  else
 #    define SPEAK ".\\Speak.exe "
 #  endif
-#endif                          /* if defined(TYPES_INCLUDED) */
+#endif
 /* *INDENT-ON* */
