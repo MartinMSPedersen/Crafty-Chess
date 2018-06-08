@@ -2248,6 +2248,8 @@ TREE* CopyToSMP(TREE *p) {
   c->depth=p->depth;
   c->threat=p->threat;
   c->search_value=0;
+  strcpy(c->root_move_text,p->root_move_text);
+  strcpy(c->remaining_moves_text,p->remaining_moves_text);
   return(c);
 }
 

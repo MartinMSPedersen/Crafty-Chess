@@ -279,11 +279,9 @@
   extern signed char    rval_b[64];
   extern signed char    qval_w[64];
   extern signed char    qval_b[64];
-  extern signed char    kval_w[64];
   extern signed char    kval_wn[64];
   extern signed char    kval_wk[64];
   extern signed char    kval_wq[64];
-  extern signed char    kval_b[64];
   extern signed char    kval_bn[64];
   extern signed char    kval_bk[64];
   extern signed char    kval_bq[64];

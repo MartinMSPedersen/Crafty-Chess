@@ -97,9 +97,26 @@ int TimeCheck(int abort) {
       display_options&32 && time_used>burp) {
     Lock(lock_io);
 #if defined(MACOS)
-    printf("               %2i   %s\n",iteration_depth,DisplayTime(time_used));
+    if (pondering)
+      printf("               %2i   %s%7s?  ",iteration_depth,
+             DisplayTime(time_used,tree->remaining_moves_text));
+    else
+      printf("               %2i   %s%7s*  ",iteration_depth,
+             DisplayTime(time_used,tree->remaining_moves_text));
+    printf("%d. ",move_number);
+    printf("%s      \n",tree->root_move_text);
 #else
-    printf("               %2i   %s\r",iteration_depth,DisplayTime(time_used));
+    if (pondering)
+      printf("               %2i   %s%7s?  ",iteration_depth,
+             DisplayTime(time_used),tree->remaining_moves_text);
+    else
+      printf("               %2i   %s%7s*  ",iteration_depth,
+             DisplayTime(time_used),tree->remaining_moves_text);
+    if (display_options&32 && display_options&64)
+    printf("%d. ",move_number);
+    if ((display_options&32) && (display_options&64) && !root_wtm)
+      printf("... ");
+    printf("%s      \r",tree->root_move_text);
 #endif
     burp=(time_used/1500)*1500+1500;
     fflush(stdout);

@@ -76,8 +76,6 @@
   signed char    bval_b[64];
   signed char    rval_b[64];
   signed char    qval_b[64];
-  signed char    kval_w[64];
-  signed char    kval_b[64];
   signed char    kval_bn[64];
   signed char    kval_bk[64];
   signed char    kval_bq[64];
@@ -247,7 +245,7 @@
   unsigned int   max_split_blocks;
   volatile unsigned int   splitting;
 
-# define    VERSION                            "17.12"
+# define    VERSION                            "17.13"
   char      version[6] =                    {VERSION};
   PLAYING_MODE mode =                     normal_mode;
 
@@ -439,10 +437,10 @@
   int       book_accept_mask =                    ~03;
   int       book_reject_mask =                      3;
   int       book_random =                           1;
-  float     book_weight_freq =                    1.0;
+  float     book_weight_learn =                   1.0;
+  float     book_weight_freq =                    0.5;
+  float     book_weight_CAP =                     0.3;
   float     book_weight_eval =                    0.1;
-  float     book_weight_learn =                   0.3;
-  float     book_weight_CAP =                     1.0;
   int       book_search_trigger =                  20;
   int       learning =                              7;
   int       moves_out_of_book =                     0;
@@ -464,7 +462,7 @@
 
   int       draw_score[2] =                    {0, 0};
   int       abs_draw_score =                        0;
-  int       accept_draws =                          0;
+  int       accept_draws =                          1;
 
   const char xlate[15] = {'q','r','b',0,'k','n','p',0,'P','N','K',0,'B','R','Q'};
   const char empty[9]  = {0,'1','2','3','4','5','6','7','8'};
@@ -503,7 +501,7 @@
   const int passed_pawn_value[8] ={ 0, 8, 16, 24, 45, 92, 150, 0};
   const char blockading_passed_pawn_value[8] = { 0, 8, 16, 24, 32, 40, 48, 0};
 
-  const char isolated_pawn_value[9] = {0, 10, 17, 36, 48, 56, 68, 84, 100};
+  const char isolated_pawn_value[9] = {0, 10, 20, 42, 52, 62, 75, 90, 100};
   const char isolated_pawn_of_value[9] = {0, 5, 10, 15, 20, 25, 30, 35, 40};
 
   const char doubled_pawn_value[7] ={ 0,

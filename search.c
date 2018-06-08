@@ -5,7 +5,7 @@
 #include "data.h"
 #include "epdglue.h"
 
-/* last modified 10/18/99 */
+/* last modified 07/31/00 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -128,7 +128,15 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
       tree->egtb_probes_successful++;
       alpha=egtb_value;
       if (abs(alpha) > MATE-300) alpha+=(alpha > 0) ? -ply+1 : ply;
-      else if (alpha == 0) alpha=DrawScore(wtm);
+      else if (alpha == 0) {
+        alpha=DrawScore(wtm);
+        if (Material > 0) {
+          alpha+=(wtm) ? 1 : -1;
+        }
+        else if (Material < 0) {
+          alpha-=(wtm) ? 1 : -1;
+        }
+      }
       if(alpha < beta) SavePV(tree,ply,alpha,2);
       tree->pv[ply].pathl=0;
       HashStore(tree,ply,32000,wtm,EXACT,alpha,threat);

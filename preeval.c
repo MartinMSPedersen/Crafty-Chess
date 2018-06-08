@@ -4,7 +4,7 @@
 #include "data.h"
 #include "evaluate.h"
 
-/* last modified 10/20/99 */
+/* last modified 07/08/00 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -24,9 +24,8 @@ void PreEvaluate(TREE *tree, int wtm) {
   static int hashing_opening = 0;
   static int hashing_middle_game = 0;
   static int hashing_end_game = 0;
-  static int hashing_kings = 0;
   static int last_wtm = 0;
-  int hash_pawns=0, hash_kings=0;
+  int hash_pawns=0;
   int pawn_advance[8], pawn_base[8];
 /*
  ----------------------------------------------------------
@@ -97,35 +96,6 @@ void PreEvaluate(TREE *tree, int wtm) {
   pval_b[D7]-=CENTER_PAWN_UNMOVED;
   pval_b[E7]-=CENTER_PAWN_UNMOVED;
 /*
- 9---------------------------------------------------------
-|                                                          |
-|   kings.                                                 |
-|                                                          |
- ----------------------------------------------------------
-*/
-  if (((WhitePawns | BlackPawns) & mask_efgh) &&
-      ((WhitePawns | BlackPawns) & mask_abcd)) {
-    hash_kings=1;
-    for (i=0;i<64;i++) {
-      kval_w[i]=kval_wn[i];
-      kval_b[i]=kval_bn[i];
-    }
-  }
-  else if ((WhitePawns | BlackPawns) & mask_efgh) {
-    hash_kings=2;
-    for (i=0;i<64;i++) {
-      kval_w[i]=kval_wk[i];
-      kval_b[i]=kval_bk[i];
-    }
-  }
-  else if ((WhitePawns | BlackPawns) & mask_abcd) {
-    hash_kings=3;
-    for (i=0;i<64;i++) {
-      kval_w[i]=kval_wq[i];
-      kval_b[i]=kval_bq[i];
-    }
-  }
-/*
  ----------------------------------------------------------
 |                                                          |
 |   now we set the king safety values based on the values  |
@@ -164,7 +134,6 @@ void PreEvaluate(TREE *tree, int wtm) {
 */
   if (((last_wtm            != wtm) ||
        (hashing_pawns       != hash_pawns) ||
-       (hashing_kings       != hash_kings) ||
        (hashing_opening     != opening) ||
        (hashing_middle_game != middle_game) ||
        (hashing_end_game    != end_game)) && !test_mode) {
@@ -180,7 +149,6 @@ void PreEvaluate(TREE *tree, int wtm) {
     ClearHashTableScores();
   }
   hashing_pawns=hash_pawns;
-  hashing_kings=hash_kings;
   hashing_opening=opening;
   hashing_middle_game=middle_game;
   hashing_end_game=end_game;

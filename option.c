@@ -536,8 +536,14 @@ int Option(TREE *tree) {
         DisplayPieceBoards(rval_w,rval_b);
       if (OptionMatch("queen",args[1]))
         DisplayPieceBoards(qval_w,qval_b);
-      if (OptionMatch("king",args[1]))
-        DisplayPieceBoards(kval_w,kval_b);
+      if (OptionMatch("king",args[1])) {
+        printf("kings with pawns on both wings\n");
+        DisplayPieceBoards(kval_wn,kval_bn);
+        printf("kings with pawns on kingside\n");
+        DisplayPieceBoards(kval_wk,kval_bk);
+        printf("kings with pawns on queenside\n");
+        DisplayPieceBoards(kval_wq,kval_bq);
+      }
     }
     else DisplayChessBoard(stdout,display);
   }
@@ -2796,6 +2802,10 @@ int Option(TREE *tree) {
     }
     crafty_rating=atoi(args[1]);
     opponent_rating=atoi(args[2]);
+    if (crafty_rating==0 && opponent_rating==0) {
+      crafty_rating=2500;
+      opponent_rating=2300;
+    }
     if (computer_opponent) abs_draw_score=0;
     else if (crafty_rating-opponent_rating < 0) abs_draw_score=+20;
     else if (crafty_rating-opponent_rating < 100) abs_draw_score=0;
@@ -3930,8 +3940,12 @@ int OptionMatch(char *command, char *input) {
 }
 
 void OptionPerft(TREE *tree, int ply,int depth,int wtm) {
-  int *mv, r;
-  static char line[256], *p[64], move[16];
+  int *mv;
+  static char line[256], *p[64];
+#if defined(TRACE)
+  int r;
+  static char move[16];
+#endif
 
   tree->last[ply]=GenerateCaptures(tree, ply, wtm, tree->last[ply-1]);
   for (mv=tree->last[ply-1];mv<tree->last[ply];mv++) if (Captured(*mv) == king) return;

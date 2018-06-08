@@ -413,6 +413,8 @@ struct tree {
   int             thread_id;
   volatile char   stop;
   volatile char   done;
+  char            root_move_text[16];
+  char            remaining_moves_text[16];
   struct tree     *volatile siblings[CPUS], *parent;
   volatile int    nprocs;
   int             alpha;

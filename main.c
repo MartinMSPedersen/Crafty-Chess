@@ -2670,6 +2670,21 @@
 *           long as the various games have the FEN string to properly set the *
 *           initial chess board position.                                     *
 *                                                                             *
+*   17.13   endgame evaluation problem fixed.  king scoring now dynamically   *
+*           chooses the right piece/square table depending on which side of   *
+*           the board has pawns, rather than using root pre-processing which  *
+*           could make some gross errors.  glitch with majorities would make  *
+*           an "inside majority candidate" offset a real outside passed pawn  *
+*           even if the candidate would not be outside.  a suggestion by      *
+*           Blass Uri (CCC) was added.  this adds .01 to tablebase scores if  *
+*           the side on move is ahead in material, and -.01 if the side on    *
+*           move is behind in material (only for drawn positions.)  the       *
+*           intent is to favor positions where you are ahead in material      *
+*           rather than even in material, which gives 'swindle mode' a chance *
+*           to work.  bug in EvaluateDraws() would mis-categorize some B+RP   *
+*           (wrong bishop) as drawn, even if the losing king could not make   *
+*           it to the corner square in time.                                  *
+*                                                                             *
 *******************************************************************************
 */
 int main(int argc, char **argv) {
