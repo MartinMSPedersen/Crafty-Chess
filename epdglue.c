@@ -39,9 +39,8 @@ generic PC running Linux 1.2.9 and using the gcc 2.6.3 compiler.
 
 /* Crafty includes */
 
-#include "types.h"
+#include "chess.h"
 #include "data.h"
-#include "function.h"
 
 /* EPD Kit definitions (host program independent) */
 
@@ -726,7 +725,7 @@ if (position[posdex].enpassant_target != 0)
 	{
 	sq = sq_a1;
 	while ((epsq == sq_nil) && (sq <= sq_h8))
-		if (position[posdex].enpassant_target == set_mask[EGMapToHostSq(sq)])
+		if (position[posdex].enpassant_target == EGMapToHostSq(sq))
 			epsq = sq;
 		else
 			sq++;
@@ -831,7 +830,7 @@ if (cast & cf_bq)
 if (epsq == sq_nil)
 	position[0].enpassant_target = 0;
 else
-	position[0].enpassant_target = set_mask[EGMapToHostSq(epsq)];
+	position[0].enpassant_target = EGMapToHostSq(epsq);
 
 /* copy the halfmove clock */
 

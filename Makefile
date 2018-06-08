@@ -46,6 +46,7 @@
 #CFLAGS  = -O4
 #LDFLAGS =
 #opt     = -DCOMPACT_ATTACKS -DTABLEBASES
+#opt     = -DTABLEBASES
 
 # DOS
 # target  = DOS
@@ -67,15 +68,17 @@
 # HP
 #target  = HP
 #CC      = cc
-#CFLAGS  = +O3 +Onolimit -Ae +w1
-#LDFLAGS = $(CFLAGS)
-#opt     = -DTABLEBASES
+#OPT     = +O3 +Onolimit
+#CFLAGS  = +ESlit -Ae +w1
+#LDFLAGS = $(OPT) $(CFLAGS)
+#opt     = -DTABLEBASES # -DCOMPACT_ATTACKS
+ 
 
 # LINUX
 # Note: You have to uncomment exactly ONE of the `asm' lines below.
 target  = LINUX
 CC      = gcc
-CFLAGS  = -fomit-frame-pointer -mpentium -O3 -Wall -fswap-for-agi -frisc-const -fschedule-stack-reg-insns
+CFLAGS  = -mpentium -O3 -Wall -fswap-for-agi -frisc-const -fschedule-stack-reg-insns
 LDFLAGS = 
 opt     = -DCOMPACT_ATTACKS -DUSE_SPLIT_SHIFTS -DUSE_ATTACK_FUNCTIONS \
           -DTABLEBASES -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST
@@ -129,20 +132,20 @@ tbdir    = ./TB
 opts = $(opt) -D$(target) -DLOGDIR=\"$(logdir)\" \
        -DBOOKDIR=\"$(bookdir)\" -DTBDIR=\"$(tbdir)\"
 
-objects = main.o annotate.o attacks.o book.o boolean.o data.o draw.o drawn.o \
-          edit.o enprise.o epd.o epdglue.o evaluate.o history.o init.o input.o \
-          interupt.o iterate.o lookup.o make.o movgen.o next.o nexte.o \
-          option.o output.o phase.o ponder.o preeval.o quiesce.o repeat.o \
-          resign.o root.o search.o searchr.o setboard.o store.o swap.o test.o \
-          time.o unmake.o utility.o valid.o validate.o $(asm)
+objects = searchr.o search.o repeat.o next.o history.o nexte.o quiesce.o    \
+        evaluate.o movgen.o make.o unmake.o lookup.o store.o attacks.o swap.o \
+        boolean.o draw.o utility.o valid.o book.o data.o drawn.o edit.o       \
+        enprise.o epd.o epdglue.o init.o input.o interupt.o iterate.o main.o  \
+        option.o output.o phase.o ponder.o preeval.o resign.o root.o learn.o  \
+        setboard.o test.o time.o validate.o annotate.o $(asm)
 
-includes = data.h function.h types.h
+includes = data.h chess.h
 
 epdincludes = epd.h epddefs.h epdglue.h
 
 eval_users = data.o evaluate.o preeval.o 
 
-crafty:	$(objects) Makefile
+crafty:	$(objects) 
 	$(CC) $(LDFLAGS) -o crafty $(objects) -lm
 	@rm -f X86-elf.S
 	@rm -f X86-aout.S

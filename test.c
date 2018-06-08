@@ -1,8 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "types.h"
-#include "function.h"
+#include "chess.h"
 #include "data.h"
 
 /* last modified 02/27/96 */
@@ -35,9 +34,7 @@
 */
 void Test(void)
 {
-  int move, solutions[10];
-  int solution_type;
-  int i, number_of_solutions, right=0, wrong=0, correct;
+  int i, move, right=0, wrong=0, correct;
   char command[64], nextc;
   int nodes=0;
   int time=0;
@@ -135,7 +132,7 @@ void Test(void)
   Print(0,"percentage wrong..................%10d\n",wrong*100/(right+wrong));
   Print(0,"total nodes searched..............%10d\n",nodes);
   Print(0,"average search depth..............%10.1f\n",avg_depth/(right+wrong));
-  Print(0,"nodes per second..................%10d\n",nodes/time*100);
+  Print(0,"nodes per second..................%10d\n",(int) ((float) nodes/(float) time*100.0));
   input_stream=stdin;
   draw_score_is_zero=temp_draw_score_is_zero;
 }

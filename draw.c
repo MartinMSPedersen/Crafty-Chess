@@ -1,6 +1,5 @@
 #include <stdio.h>
-#include "types.h"
-#include "function.h"
+#include "chess.h"
 #include "data.h"
 
 /* last modified 09/19/96 */
@@ -55,15 +54,15 @@ int DrawScore(void)
 |                                                          |
  ----------------------------------------------------------
 */
-  if (tc_increment < 5) {
-    if ((tc_time_remaining_opponent < 60) && (tc_time_remaining < 60)) {
+  if (tc_increment < 500) {
+    if ((tc_time_remaining_opponent < 6000) && (tc_time_remaining < 6000)) {
       if (tc_time_remaining/Max(tc_time_remaining_opponent,1) > 1)
         draw_score=default_draw_score-PAWN_VALUE/2;
     }
     else {
-      if (tc_time_remaining_opponent < 60)
+      if (tc_time_remaining_opponent < 6000)
         draw_score=default_draw_score-PAWN_VALUE/2;
-      if (tc_time_remaining_opponent < 30)
+      if (tc_time_remaining_opponent < 3000)
         draw_score=default_draw_score-PAWN_VALUE;
     }
   }

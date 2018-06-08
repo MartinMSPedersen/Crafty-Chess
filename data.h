@@ -5,6 +5,9 @@
    char           version[6];
 
    PLAYING_MODE   mode;
+   int            crafty_rating;
+   int            opponent_rating;
+   int            computer_opponent;
    int            number_auto_kibitzers;
    int            number_of_computers;
    int            number_of_GMs;
@@ -24,6 +27,7 @@
    FILE           *history_file;
    FILE           *log_file;
    FILE           *auto_file;
+   FILE           *learn_file;
    int            log_id;
    char           input[200];
    char           whisper_text[500];
@@ -32,6 +36,20 @@
    int            last_mate_score;
    int            last_opponent_move;
 
+   char           pgn_event[32];
+   char           pgn_site[32];
+   char           pgn_date[32];
+   char           pgn_round[32];
+   char           pgn_site[32];
+   char           pgn_white[32];
+   char           pgn_white_elo[32];
+   char           pgn_black[32];
+   char           pgn_black_elo[32];
+   char           pgn_result[32];
+
+   int            number_of_solutions;
+   int            solutions[10];
+   int            solution_type;
    int            default_draw_score;
    int            over;
    int            ics;
@@ -94,7 +112,7 @@
    int            ponder_completed;
    int            force;
 
-   int            ponder_moves[200];
+   int            ponder_moves[220];
    int            num_ponder_moves;
 
    unsigned int   opponent_start_time, opponent_end_time;
@@ -118,12 +136,15 @@
    int            burp;
    int            noise_level;
 
+   int            book_move;
    int            last_move_in_book;
    int            book_accept_mask;
    int            book_reject_mask;
    int            book_random;
    int            book_selection_width;
    int            show_book;
+   int            book_learning;
+   int            book_learn_eval[LEARN_INTERVAL];
 
    float          increment_factor;
    int            time_divisor;
@@ -178,9 +199,9 @@
    EXTENSIONS     extended_reason[MAXPLY];
    int            current_phase[MAXPLY];
    int            move_list[10000];
-   int            sort_value[300];
-   int            root_sort_value[300];
-   int            searched_this_root_move[300];
+   int            sort_value[220];
+   int            root_sort_value[220];
+   int            searched_this_root_move[220];
    CHESS_PATH     pv[MAXPLY];
    CHESS_PATH     last_pv;
    int            last_value;
@@ -188,7 +209,6 @@
    SEARCH_POSITION position[MAXPLY+2];
    BITBOARD       save_hash_key[MAXPLY+2];
    BITBOARD       save_pawn_hash_key[MAXPLY+2];
-   BITBOARD       open_files;
 
    char           white_outpost[64];
    char           black_outpost[64];
@@ -197,7 +217,8 @@
    int            supported_passer[8];
    int            pawn_advance[8];
    int            outside_passed[128];
-   char           king_safety_x[128];
+   char           king_safety_c[128];
+   char           king_safety_o[128];
    int            pawn_rams[9];
    int            cramping_pawn_rams[9];
    int            bad_pawn_rams[9];
@@ -301,12 +322,15 @@
    BITBOARD       set_mask_rl90[65];
    BITBOARD       file_mask[8];
    BITBOARD       rank_mask[8];
+   BITBOARD       mask_not_rank8;
+   BITBOARD       mask_not_rank1;
    BITBOARD       right_side_mask[8];
    BITBOARD       left_side_mask[8];
    BITBOARD       right_side_empty_mask[8];
    BITBOARD       left_side_empty_mask[8];
    BITBOARD       right_half_mask, left_half_mask;
    BITBOARD       mask_black_half, mask_white_half;
+   BITBOARD       mask_abs7_w, mask_abs7_b;
    BITBOARD       pawns_cramp_black;
    BITBOARD       pawns_cramp_white;
    BITBOARD       mask_advance_2_w;
@@ -316,10 +340,14 @@
    BITBOARD       mask_corner_squares;
    BITBOARD       promote_mask_w;
    BITBOARD       promote_mask_b;
-   BITBOARD       mask_g2g3;
-   BITBOARD       mask_b2b3;
-   BITBOARD       mask_g6g7;
-   BITBOARD       mask_b6b7;
+   BITBOARD       mask_G2G3;
+   BITBOARD       mask_B2B3;
+   BITBOARD       mask_G6G7;
+   BITBOARD       mask_B6B7;
+   BITBOARD       mask_F3H3;
+   BITBOARD       mask_F6H6;
+   BITBOARD       mask_A3C3;
+   BITBOARD       mask_A6C6;
 
    BITBOARD       mask_kr_trapped_w[3];
    BITBOARD       mask_qr_trapped_w[3];
@@ -410,4 +438,5 @@
 
    BITBOARD       mask_wk_3rd, mask_wk_4th, mask_wq_3rd, mask_wq_4th;
    BITBOARD       mask_bk_3rd, mask_bk_4th, mask_bq_3rd, mask_bq_4th;
+   BOOK_POSITION  buffer[BOOK_CLUSTER_SIZE];
 #endif

@@ -1,10 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "types.h"
-#include "function.h"
+#include "chess.h"
 #include "data.h"
 
-/* last modified 09/20/96 */
+/* last modified 11/13/96 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -27,6 +26,7 @@ int Quiesce(int alpha, int beta, int wtm, int ply)
 |                                                          |
  ----------------------------------------------------------
 */
+  if (ply >= 63) return(beta);
   q_nodes_searched++;
   last[ply]=last[ply-1];
   initial_alpha=alpha;
@@ -66,14 +66,15 @@ int Quiesce(int alpha, int beta, int wtm, int ply)
   delta=alpha-Material-500;
   for (movep=last[ply-1],sortv=sort_value;movep<last[ply];movep++,sortv++)
     if (piece_values[Piece(*movep)] < piece_values[Captured(*movep)]) {
-      if (piece_values[Captured(*movep)] >= delta) {
+      if (piece_values[Captured(*movep)]+piece_values[Promote(*movep)] >= delta) {
         *sortv=piece_values[Captured(*movep)];
         moves++;
       }
       else *sortv=-999999;
     }
     else {
-      if (piece_values[Captured(*movep)] >= delta) {
+      if (piece_values[Captured(*movep)]+
+          piece_values[Promote(*movep)] >= delta) {
         *sortv=Swap(From(*movep),To(*movep),wtm);
         if (*sortv >= 0) moves++;
       }

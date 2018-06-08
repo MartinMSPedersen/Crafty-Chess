@@ -1,8 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "types.h"
-#include "function.h"
+#include "chess.h"
 #include "data.h"
 
 /* last modified 05/18/96 */
@@ -43,7 +42,7 @@ int Ponder(int wtm)
 */
   ponder_completed=0;
   if (!ponder_move) {
-    (void) LookUp(0,0,wtm,&dummy,dummy,dummy);
+    (void) LookUp(0,0,wtm,&dummy,dummy);
     if (hash_move[0]) ponder_move=hash_move[0];
   }
   if (!ponder_move) {

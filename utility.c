@@ -13,8 +13,7 @@
 #  include <sys/times.h>
 #  include <sys/time.h>
 #endif
-#include "types.h"
-#include "function.h"
+#include "chess.h"
 #include "data.h"
 #if defined(UNIX)
 #  include <unistd.h>
@@ -312,15 +311,10 @@ void Display64bitWord(BITBOARD word)
   };
   union doub x;
   x.d=word;
-#if defined(HAS_LONGLONG)
 #if defined(LITTLE_ENDIAN_ARCH)
-  printf("%x%x\n",x.i[1],x.i[0]);
+  printf("%08x%08x\n",x.i[1],x.i[0]);
 #else
-  printf("%llx\n",word);
-#endif
-#endif
-#if !defined(HAS_LONGLONG) && !defined(LITTLE_ENDIAN_ARCH)
-  printf("%x%x\n",x.i[0],x.i[1]);
+  printf("%08x%08x\n",x.i[0],x.i[1]);
 #endif
 }
 
@@ -736,15 +730,17 @@ BITBOARD Random64(void)
 int ReadChessMove(FILE *input, int wtm) {
 
   static char text[128];
+  char *tmove;
   int move=0, status;
 
   while (move == 0) {
     status=fscanf(input,"%s",text);
     if (status <= 0) return(-1);
-    if (((text[0]>='a') && (text[0]<='z')) ||
-          ((text[0]>='A') && (text[0]<='Z'))) {
-      if (!strcmp(text,"exit")) return(-1);
-      move=InputMove(text+strspn(text,"0123456789."),0,wtm,1,0);
+    tmove=text+strspn(text,"0123456789.");
+    if (((tmove[0]>='a') && (tmove[0]<='z')) ||
+          ((tmove[0]>='A') && (tmove[0]<='Z'))) {
+      if (!strcmp(tmove,"exit")) return(-1);
+      move=InputMove(tmove,0,wtm,1,0);
     }
   }
   return(move);

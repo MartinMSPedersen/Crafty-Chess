@@ -5,7 +5,7 @@
 
 #  define           ROOK_BISHOP_VS_ROOK_KNIGHT         (200)
 
-#  define                             PAWN_RAM          (25)
+#  define                             PAWN_RAM          (50)
 #  define                         BAD_PAWN_RAM          (50)
 #  define                        PAWN_ISOLATED         (100)
 #  define                         PAWN_DOUBLED          (50)
@@ -13,8 +13,8 @@
 #  define                         PAWN_WEAK_P1         (250)
 #  define                         PAWN_WEAK_P2         (300)
 #  define                           PAWN_LOOSE         (100)
-#  define                          PAWN_PASSED         (125)
-#  define                   PAWN_HIDDEN_PASSED         (300)
+#  define                          PAWN_PASSED         (200)
+#  define                   PAWN_HIDDEN_PASSED         (500)
 #  define                   PAWN_PASSED_ON_7TH         (400)
 #  define           PAWN_PROTECTED_PASSER_WINS         (300)
  
@@ -58,16 +58,16 @@
 #  define          PAWN_SUPPORTED_PASSED_RANK2           (0)
 #  define          PAWN_SUPPORTED_PASSED_RANK3           (0)
 #  define          PAWN_SUPPORTED_PASSED_RANK4           (0)
-#  define          PAWN_SUPPORTED_PASSED_RANK5         (100)
-#  define          PAWN_SUPPORTED_PASSED_RANK6         (300)
-#  define          PAWN_SUPPORTED_PASSED_RANK7         (500)
+#  define          PAWN_SUPPORTED_PASSED_RANK5         (200)
+#  define          PAWN_SUPPORTED_PASSED_RANK6         (600)
+#  define          PAWN_SUPPORTED_PASSED_RANK7        (1200)
 
-#  define                  KNIGHT_KING_TROPISM           (6)
-#  define                  BISHOP_KING_TROPISM           (4)
-#  define                    ROOK_KING_TROPISM          (10)
-#  define                   QUEEN_KING_TROPISM          (10)
+#  define                  KNIGHT_KING_TROPISM          (20)
+#  define                  BISHOP_KING_TROPISM          (20)
+#  define                    ROOK_KING_TROPISM          (20)
+#  define                   QUEEN_KING_TROPISM          (30)
   
-#  define                       KNIGHT_TRAPPED        (2000)
+#  define                       KNIGHT_TRAPPED        (2500)
 #  define                       KNIGHT_OUTPOST         (100)
   
 #  define                       BISHOP_TRAPPED        (1500)
@@ -81,6 +81,7 @@
 #  define             ROOK_CONNECTED_OPEN_FILE          (50)
 #  define                  ROOK_HALF_OPEN_FILE          (25)
 #  define              ROOK_BEHIND_PASSED_PAWN          (50)
+#  define                ROOK_ON_7TH_WITH_PAWN         (400)
 #  define                         ROOK_TRAPPED         (300)
 #  define               ROOK_ATTACK_WEAK_PAWNS          (25)
   
@@ -90,6 +91,7 @@
 #  define                    ACCEPTABLE_FAULTS           (5)
  
 #  define              KING_SAFETY_GOOD_BISHOP           (8)
+#  define                KING_SAFETY_MATE_G2G7          (20)
 #  define                KING_SAFETY_OPEN_FILE           (6)
 #  define                       KING_BACK_RANK          (50)
 #  define               KING_SAFETY_NOT_CORNER           (2)
@@ -101,13 +103,13 @@
 #  define                  KING_SAFETY_RP_ADV2           (5)
 #  define               KING_SAFETY_RP_TOO_FAR           (8)
 #  define               KING_SAFETY_RP_MISSING          (10)
-#  define             KING_SAFETY_RP_FILE_OPEN           (6)
+#  define             KING_SAFETY_RP_FILE_OPEN           (8)
  
-#  define                  KING_SAFETY_NP_ADV1           (5)
-#  define                  KING_SAFETY_NP_ADV2           (8)
-#  define               KING_SAFETY_NP_TOO_FAR          (11)
-#  define               KING_SAFETY_NP_MISSING          (14)
-#  define             KING_SAFETY_NP_FILE_OPEN           (6)
+#  define                  KING_SAFETY_NP_ADV1           (8)
+#  define                  KING_SAFETY_NP_ADV2          (12)
+#  define               KING_SAFETY_NP_TOO_FAR          (14)
+#  define               KING_SAFETY_NP_MISSING          (16)
+#  define             KING_SAFETY_NP_FILE_OPEN           (8)
  
 #  define                  KING_SAFETY_BP_ADV1           (2)
 #  define                  KING_SAFETY_BP_ADV2           (4)

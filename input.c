@@ -1,8 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "types.h"
-#include "function.h"
+#include "chess.h"
 #include "data.h"
 
 /* last modified 09/20/96 */
@@ -22,7 +21,7 @@
 */
 int InputMove(char *text, int ply, int wtm, int silent, int ponder_list)
 {
-  int moves[200], *mv, *mvp, *goodmove=0;
+  int moves[220], *mv, *mvp, *goodmove=0;
   BITBOARD target;
   int piece=-1, capture, promote, give_check;
   int ffile, frank, tfile, trank;
@@ -263,7 +262,7 @@ int InputMove(char *text, int ply, int wtm, int silent, int ponder_list)
 */
 int InputMoveICS(char *text, int ply, int wtm, int silent, int ponder_list)
 {
-  int moves[200], *mv, *mvp, *goodmove=0;
+  int moves[220], *mv, *mvp, *goodmove=0;
   BITBOARD target;
   int piece=-1, promote;
   int ffile, frank, tfile, trank;

@@ -2,8 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <signal.h>
-#include "types.h"
-#include "function.h"
+#include "chess.h"
 #include "data.h"
 
 /* last modified 08/15/96 */

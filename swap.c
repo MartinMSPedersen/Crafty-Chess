@@ -1,17 +1,15 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "types.h"
-#include "function.h"
+#include "chess.h"
 #include "data.h"
 
-/* last modified 08/27/96 */
+/* last modified 11/11/96 */
 /*
 ********************************************************************************
 *                                                                              *
 *   Swap() is used to analyze capture moves to see whether or not they appear  *
 *   to be profitable.  the basic algorithm is extremely fast since it uses the *
-*   from.attack[] bit-boards to determine which squares are attacking [target] *
-*   square.                                                                    *
+*   bitmaps to determine which squares are attacking the [target] square.      *
 *                                                                              *
 *   the algorithm is quite simple.  using the attack bitmaps, we enumerate all *
 *   the pieces that are attacking [target] for either side.  then we simply    *

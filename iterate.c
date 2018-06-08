@@ -1,11 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "types.h"
-#include "function.h"
+#include "chess.h"
 #include "data.h"
 
-/* last modified 09/16/96 */
+#define EARLY_EXIT 2  /* correct 2 iterations causes an exit */
+
+/* last modified 11/20/96 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -22,7 +23,7 @@ int Iterate(int wtm, int search_type)
   int i, value=0, time_used;
   int twtm, used_w, used_b;
   int cpu_start, cpu_end;
-  int material=0;
+  int correct, correct_count, material=0;
 
 /*
  ----------------------------------------------------------
@@ -31,12 +32,11 @@ int Iterate(int wtm, int search_type)
 |                                                          |
  ----------------------------------------------------------
 */
+  correct_count=0;
   burp=15*100;
   transposition_id=(++transposition_id)&3;
   time_abort=0;
   abort_search=0;
-  search_failed_high=0;
-  search_failed_low=0;
   program_start_time=GetTime(time_type);
   start_time=GetTime(time_type);
   cpu_start=GetTime(cpu);
@@ -136,6 +136,7 @@ int Iterate(int wtm, int search_type)
     iteration_depth=last_pv.path_iteration_depth+1;
   Print(2,"              depth   time   score    variation (%d)\n",
         iteration_depth);
+  book_move=0;
   if ((search_type==booking) || !Book(wtm)) {
     program_start_time=GetTime(time_type);
     start_time=GetTime(time_type);
@@ -185,17 +186,20 @@ int Iterate(int wtm, int search_type)
         nodes_between_time_checks=nodes_per_second/
                                   (Max(q_nodes_searched/nodes_searched,1)+1);
         nodes_between_time_checks=Min(nodes_between_time_checks,200000);
-        if (time_limit < 200) nodes_between_time_checks/=20;
         if (time_limit > 3000) nodes_between_time_checks*=3;
+        else if (time_limit > 200) nodes_between_time_checks=nodes_between_time_checks;
+        else if (time_limit > 50) nodes_between_time_checks/=20;
+        else nodes_between_time_checks/=100;
         nodes_between_time_checks=Max(nodes_between_time_checks,2000);
       }
       while (!time_abort && !abort_search) {
-        value=SearchRoot(root_alpha, root_beta, wtm, iteration_depth, 1);
+        value=SearchRoot(root_alpha, root_beta, wtm,
+                         iteration_depth*INCREMENT_PLY, 1);
         if (value >= root_beta) {
           search_failed_high=1;
           root_alpha=root_beta-1;
           root_value=root_alpha;
-          root_beta=100000;
+          root_beta=MATE+1;
           searched_this_root_move[0]=0;
         }
         else if (value <= root_alpha) {
@@ -203,7 +207,7 @@ int Iterate(int wtm, int search_type)
             for (mvp=last[0];mvp<last[1];mvp++)
               searched_this_root_move[mvp-last[0]]=0;
             search_failed_low=1;
-            root_alpha=-100000;
+            root_alpha=-MATE-1;
             root_value=root_alpha;
             easy_move=0;
             if (((nodes_searched+q_nodes_searched) > noise_level) && 
@@ -223,6 +227,26 @@ int Iterate(int wtm, int search_type)
 /*
  ----------------------------------------------------------
 |                                                          |
+|   if we are running a test suite, check to see if we can |
+|   exit the search.  this happens when N successive       |
+|   iterations produce the correct solution.  N is set by  |
+|   the #define EARLY_EXIT above.                          |
+|                                                          |
+ ----------------------------------------------------------
+*/
+      correct=solution_type;
+      for (i=0;i<number_of_solutions;i++) {
+        if (!solution_type) {
+          if (solutions[i] == pv[1].path[1]) correct=1;
+        }
+        else
+          if (solutions[i] == pv[1].path[1]) correct=0;
+      }
+      if (correct) correct_count++;
+      else correct_count=0;
+/*
+ ----------------------------------------------------------
+|                                                          |
 |   if the search terminated normally, then dump the PV    |
 |   and search statistics (we don't do this if the search  |
 |   aborts because the opponent doesn't make the predicted |
@@ -237,8 +261,9 @@ int Iterate(int wtm, int search_type)
         for (i=1;i<=pv[1].path_length;i++) {
           pv[i+1]=pv[i];
           if (!time_abort && !abort_search && 
-              (((nodes_searched+q_nodes_searched) > noise_level) ||
-              (value > (MATE-100)))) {
+              (nodes_searched+q_nodes_searched > noise_level ||
+               value > MATE-100 ||
+               correct_count >= EARLY_EXIT)) {
             sprintf(buffer+strlen(buffer)," %s",OutputMove(&pv[1].path[i],i,twtm));
           }
           if(!time_abort && !abort_search) StorePV(i, twtm);
@@ -256,8 +281,9 @@ int Iterate(int wtm, int search_type)
       else if(pv[1].path_hashed == 2) 
         sprintf(buffer+strlen(buffer)," <EGTB>");
       if (!time_abort && !abort_search && 
-          (((nodes_searched+q_nodes_searched) > noise_level) ||
-           (value > (MATE-100)) || (pv[1].path_hashed==2) )) {
+          (nodes_searched+q_nodes_searched > noise_level ||
+           correct_count >= EARLY_EXIT ||
+           value > MATE-100 || pv[1].path_hashed==2)) {
         Whisper(5,iteration_depth,end_time-start_time,whisper_value,
                 nodes_searched+q_nodes_searched,0,buffer);
         Print(3,"               %2i-> %s%s   ",iteration_depth,
@@ -284,6 +310,7 @@ int Iterate(int wtm, int search_type)
       if (time_abort || abort_search) break;
       end_time=GetTime(time_type)-start_time;
       if (thinking && (end_time >= time_limit)) break;
+      if (correct_count >= EARLY_EXIT) break;
     }
 /*
  ----------------------------------------------------------
@@ -338,10 +365,9 @@ int Iterate(int wtm, int search_type)
   else {
     root_value=0;
     last_search_value=0;
-    last_move_in_book=move_number;
+    book_move=1;
   }
   program_end_time=GetTime(time_type);
-  if (abs(last_search_value) > (MATE-100)) last_mate_score=last_search_value;
   pv[0]=pv[1];
   return(last_search_value);
 }

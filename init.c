@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "types.h"
-#include "function.h"
+#include "chess.h"
 #include "data.h"
 #if defined(UNIX) || defined(AMIGA)
 #  include <unistd.h>
@@ -139,11 +138,13 @@ void Initialize(int continuing)
   last[0]=move_list;
 
   sprintf(log_filename,"%s/book.bin",BOOKDIR);
-  book_file=fopen(log_filename,"rb");
+  book_file=fopen(log_filename,"rb+");
   if (!book_file) printf("unable to open book file [book.bin].\n");
   sprintf(log_filename,"%s/books.bin",BOOKDIR);
   books_file=fopen(log_filename,"rb");
   if (!books_file) printf("unable to open book file [books.bin].\n");
+  learn_file=fopen("book.lrn","a");
+  if (!learn_file) printf("unable to open book learning file [book.lrn].\n");
 
   for (log_id=1;log_id <300;log_id++) {
     sprintf(log_filename,"%s/log.%03d",LOGDIR,log_id);
@@ -558,6 +559,7 @@ void InitializeChessBoard(SEARCH_POSITION *new_pos)
   opening=1;
   middle_game=0;
   end_game=0;
+  largest_positional_score=1000;
 /*
    place pawns
 */
@@ -966,6 +968,17 @@ void InitializeMasks(void)
   mask_qr_trapped_b[0]=set_mask[A7];
   mask_qr_trapped_b[1]=Or(set_mask[A8],set_mask[A7]);
   mask_qr_trapped_b[2]=Or(Or(set_mask[A8],set_mask[B8]),set_mask[A7]);
+
+  mask_abs7_w=Xor(rank_mask[RANK7],Or(set_mask[H7],set_mask[A7]));
+  mask_abs7_b=Xor(rank_mask[RANK2],Or(set_mask[H2],set_mask[A2]));
+
+  mask_not_rank8=~rank_mask[RANK8];
+  mask_not_rank1=~rank_mask[RANK1];
+
+  mask_F3H3=Or(set_mask[F3],set_mask[H3]);
+  mask_F6H6=Or(set_mask[F6],set_mask[H6]);
+  mask_A3C3=Or(set_mask[A3],set_mask[C3]);
+  mask_A6C6=Or(set_mask[A6],set_mask[C6]);
 }
 
 void InitializePawnMasks(void)
@@ -1227,10 +1240,10 @@ void InitializePawnMasks(void)
   these masks are used to test for the presence of a pawn at g2/g3, etc.
   and are used in evaluating a bishop potentially trapped at h2, etc.
 */
-  mask_g2g3=Or(set_mask[G2],set_mask[G3]);
-  mask_b2b3=Or(set_mask[B2],set_mask[B3]);
-  mask_g6g7=Or(set_mask[G6],set_mask[G7]);
-  mask_b6b7=Or(set_mask[B6],set_mask[B7]);
+  mask_G2G3=Or(set_mask[G2],set_mask[G3]);
+  mask_B2B3=Or(set_mask[B2],set_mask[B3]);
+  mask_G6G7=Or(set_mask[G6],set_mask[G7]);
+  mask_B6B7=Or(set_mask[B6],set_mask[B7]);
 /*
   these masks are used to detect that opponent pawns are getting very
   close to the king.

@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "types.h"
-#include "function.h"
+#include "chess.h"
 #include "data.h"
 
 /* last modified 03/14/96 */
@@ -61,7 +60,7 @@ void Phase(void)
 |                                                          |
  ----------------------------------------------------------
 */
-  if (TotalWhitePieces < 17 && TotalBlackPieces < 17) {
+  if (TotalWhitePieces < 10 && TotalBlackPieces < 10) {
     opening=0;
     middle_game=0;
     end_game=1;

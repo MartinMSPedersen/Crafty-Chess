@@ -1,8 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "types.h"
-#include "function.h"
+#include "chess.h"
 #include "data.h"
 
 /* last modified 07/12/96 */
@@ -20,7 +19,7 @@
 *                                                                              *
 *   # clears the chessboard completely.                                        *
 *                                                                              *
-*   c changes (toggles) the color of pieces being placed on the          *
+*   c changes (toggles) the color of pieces being placed on the board.         *
 *                                                                              *
 *   end (or . for ICS/Xboard) terminates Edit().                               *
 *                                                                              *
@@ -34,7 +33,7 @@
 void Edit(void)
 {
   char command[80];
-  int i, tfile, trank, square, piece;
+  int athome=1, i, tfile, trank, square, piece;
   char pieces[]={'x','X','P','p','N','n','K','k','*','*',
                    'B','b','R','r','Q','q','\0'};
 /*
@@ -95,23 +94,38 @@ void Edit(void)
 |                                                          |
 |   now, if a king is on its original square, check the    |
 |   rooks to see if they are and set the castle status     |
-|   accordingly.                                           |
+|   accordingly.  note that this checks for pieces on the  |
+|   original rank, but not their original squares (ICS     |
+|   "wild" games) and doesn't set castling if true.        |
 |                                                          |
  ----------------------------------------------------------
 */
   WhiteCastle(0)=0;
   BlackCastle(0)=0;
-  if (PieceOnSquare(4) == king) {
-    if (PieceOnSquare(0) == rook)
-      WhiteCastle(0)=WhiteCastle(0)|2;
-    if (PieceOnSquare(7) == rook)
-      WhiteCastle(0)=WhiteCastle(0)|1;
+  for (i=0;i<16;i++) {
+    if (PieceOnSquare(i)==0 || PieceOnSquare(i+48)==0) athome=0;
   }
-  if (PieceOnSquare(60) == -king) {
-    if (PieceOnSquare(56) == -rook)
-      BlackCastle(0)=BlackCastle(0)|2;
-    if (PieceOnSquare(63) == -rook)
-      BlackCastle(0)=BlackCastle(0)|1;
+  if (!athome ||
+      (PieceOnSquare(A1)==rook    && PieceOnSquare(B1)==knight &&
+       PieceOnSquare(C1)==bishop  && PieceOnSquare(D1)==queen &&
+       PieceOnSquare(E1)==king    && PieceOnSquare(F1)==bishop &&
+       PieceOnSquare(G1)==knight  && PieceOnSquare(H1)==rook &&
+       PieceOnSquare(A8)==-rook   && PieceOnSquare(B8)==-knight &&
+       PieceOnSquare(C8)==-bishop && PieceOnSquare(D8)==-queen &&
+       PieceOnSquare(E8)==-king   && PieceOnSquare(F8)==-bishop &&
+       PieceOnSquare(G8)==-knight && PieceOnSquare(H8)==-rook)) {
+    if (PieceOnSquare(E1) == king) {
+      if (PieceOnSquare(A1) == rook)
+        WhiteCastle(0)=WhiteCastle(0)|2;
+      if (PieceOnSquare(H1) == rook)
+        WhiteCastle(0)=WhiteCastle(0)|1;
+    }
+    if (PieceOnSquare(E8) == -king) {
+      if (PieceOnSquare(A8) == -rook)
+        BlackCastle(0)=BlackCastle(0)|2;
+      if (PieceOnSquare(H8) == -rook)
+        BlackCastle(0)=BlackCastle(0)|1;
+    }
   }
 /*
  ----------------------------------------------------------
@@ -129,4 +143,5 @@ void Edit(void)
   repetition_head_w=repetition_list_w;
   position[0].rule_50_moves=0;
   last_move_in_book=move_number;
+  book_learning=0;
 }

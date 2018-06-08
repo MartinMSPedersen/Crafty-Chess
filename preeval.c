@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "types.h"
-#include "function.h"
+#include "chess.h"
 #include "data.h"
 #include "evaluate.h"
 
@@ -156,15 +155,15 @@ void PreEvaluate(int wtm)
       Print(4,"              clearing transposition table\n");
       for (i=0;i<hash_table_size;i++) {
         (trans_ref_ba+i)->word1=Or(And((trans_ref_ba+i)->word1,
-                        mask_clear_entry),Shiftl((BITBOARD) 131072,21));
+                        mask_clear_entry),Shiftl((BITBOARD) 262144,21));
         (trans_ref_wa+i)->word1=Or(And((trans_ref_wa+i)->word1,
-                        mask_clear_entry),Shiftl((BITBOARD) 131072,21));
+                        mask_clear_entry),Shiftl((BITBOARD) 262144,21));
       }
       for (i=0;i<2*hash_table_size;i++) {
         (trans_ref_bb+i)->word1=Or(And((trans_ref_bb+i)->word1,
-                        mask_clear_entry),Shiftl((BITBOARD) 131072,21));
+                        mask_clear_entry),Shiftl((BITBOARD) 262144,21));
         (trans_ref_wb+i)->word1=Or(And((trans_ref_wb+i)->word1,
-                        mask_clear_entry),Shiftl((BITBOARD) 131072,21));
+                        mask_clear_entry),Shiftl((BITBOARD) 262144,21));
       }
     }
 /*

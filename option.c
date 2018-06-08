@@ -2,8 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#include "types.h"
-#include "function.h"
+#include "chess.h"
 #include "data.h"
 #if defined(UNIX) || defined(AMIGA)
 #  include <unistd.h>
@@ -156,6 +155,7 @@ int Option(char *tinput)
             else Print(1,"Black(%d): ",move_number);
           Print(1,"%s\n",OutputMove(&move,0,wtm));
           MakeMoveRoot(move,wtm);
+          display=search;
         }
         else if (OptionMatch("back",tinput)) {
           nextc=getc(input_stream);
@@ -167,6 +167,7 @@ int Option(char *tinput)
           }
           sprintf(tinput,"reset=%d",move_number);
           Option(tinput);
+          display=search;
         }
         else {
           pondering=0;
@@ -504,10 +505,10 @@ int Option(char *tinput)
         if ((1<<(log_hash_table_size+1)) > new_hash_size) break;
       if (log_hash_table_size) {
         hash_table_size=1<<log_hash_table_size;
-        trans_ref_wa=malloc(16*(hash_table_size));
-        trans_ref_wb=malloc(16*2*(hash_table_size));
-        trans_ref_ba=malloc(16*(hash_table_size));
-        trans_ref_bb=malloc(16*2*(hash_table_size));
+        trans_ref_wa=malloc(16*hash_table_size);
+        trans_ref_wb=malloc(16*2*hash_table_size);
+        trans_ref_ba=malloc(16*hash_table_size);
+        trans_ref_bb=malloc(16*2*hash_table_size);
         if (!trans_ref_wa || !trans_ref_wb || !trans_ref_ba || !trans_ref_bb) {
           printf("malloc() failed, not enough memory.\n");
           free(trans_ref_wa);
@@ -589,9 +590,11 @@ int Option(char *tinput)
       }
       pawn_hash_mask=((unsigned int) 037777777777)>>(32-log_pawn_hash_table_size);
       if (pawn_hash_table_size*16 < 1<<20)
-        Print(0,"hash table memory = %dK bytes.\n",pawn_hash_table_size*16/(1<<10));
+        Print(0,"pawn hash table memory = %dK bytes.\n",
+              pawn_hash_table_size*16/(1<<10));
       else
-        Print(0,"hash table memory = %dM bytes.\n",pawn_hash_table_size*16/(1<<20));
+        Print(0,"pawn hash table memory = %dM bytes.\n",
+              pawn_hash_table_size*16/(1<<20));
       for (i=0;i<pawn_hash_table_size;i++) {
         (pawn_hash_table+i)->word1=0;
         (pawn_hash_table+i)->word2=0;
@@ -622,7 +625,7 @@ int Option(char *tinput)
         printf("the number of moves, counting each player's move as one.\n");
       }
       else if (!strcmp("annotate",title)) {
-        printf("annotate filename b|w|bw moves margin time\n");
+        printf("annotate filename b|w|bw moves margin time [x]\n");
         printf("where filename is the input file with game moves, while the\n");
         printf("output will be written to filename.can.  the input file is\n");
         printf("PGN-compatible with one addition, the ability to request that\n");
@@ -636,7 +639,9 @@ int Option(char *tinput)
         printf("annoates the given range only. margin is the difference between\n");
         printf("the search value for the move played in the game, and the best move\n");
         printf("crafty found, before a comment is generated (pawn=1.0).  time is\n");
-        printf("the time limit per move in seconds.\n");
+        printf("the time limit per move in seconds.  if the optional \"x\" is\n");
+        printf("appended, this does an extended-mode annotation, which produces\n");
+        printf("more output, at the cost of taking longer to execute\n");
       }
       else if (!strcmp("book",title)) {
         printf("you can use the following commands to customize how the\n");
@@ -646,7 +651,28 @@ int Option(char *tinput)
         printf("contains selected lines that are well-suited to Crafty's\n");
         printf("style of play.  the <flags> can further refine how this\n");
         printf("small book file is used to encourage/avoid specific lines.\n");
-        printf("book random n..............controls how random the program\n");
+        printf("book[s] create [<filename>] [maxply]...creates a new opening\n");
+        printf("   book by first removing the old book.bin.  it then will\n");
+        printf("   parse <filename> and add the moves to either book.bin (if\n");
+        printf("   the book create command was used) or to books.bin (if the\n");
+        printf("   books create command was used.)  <maxply> truncates book\n");
+        printf("   lines after that many plies (typically 60).\n");
+        printf("book learn <filname> [clear]...........imports a learn file\n");
+        printf("   and applies is to the current book.bin file.\n");
+        printf("book learning on|off...................enables/disables\n");
+        printf("   (default=on) book learning.\n");
+        printf("book mask accept <chars>...............sets the accept mask to\n");
+        printf("   the flag characters in <chars> (see flags below.)  any flags\n");
+        printf("   set in this mask will include either (a) moves with the \n");
+        printf("   flag set, or (b) moves with no flags set.\n");
+        printf("more...");
+        i=getchar();
+        printf("book mask reject <chars>...............sets the reject mask to\n");
+        printf("   the flag characters in <chars> (see flags below.)  any flags\n");
+        printf("   set in this mask will reject any moves with the flag\n");
+        printf("   set (in the opening book.)\n");
+        printf("book off...............................turns the book completely off.\n");
+        printf("book random n..........................controls how random the program\n");
         printf("   chooses its opening moves.  <0> will play the least\n");
         printf("   randomly and follow book lines that are well-suited to\n");
         printf("   Crafty's style of play.  this mode also uses an alpha/beta\n");
@@ -654,29 +680,17 @@ int Option(char *tinput)
         printf("   from the book moves with the best winning percentage.\n");
         printf("   <2> chooses from the book moves that were played the\n");
         printf("   most frequently in the GM database. <3> chooses from the\n");
+        printf("   moves with the best learned result.  <4> uses the learned\n");
+        printf("   result, but gives even bad moves a small chance to be played\n");
+        printf("   even if it was learned to be bad.  <5> chooses from the\n");
         printf("   set of book moves that produce the best static evaluation.\n");
-        printf("   <4> chooses completely randomly from the known book moves.\n");
-        printf("book width n...............specifies how many moves from the\n");
-        printf("   sorted set of book moves are to be considered.  1 produces\n");
+        printf("   <6> chooses completely randomly from the known book moves.\n");
+        printf("book width n...........................specifies how many moves from\n");
+        printf("   the sorted set of book moves are to be considered.  1 produces\n");
         printf("   the best move from the set, but provides little randomness.\n");
         printf("   99 includes all moves in the book move set.\n");
-        printf("book mask accept <chars>...sets the accept mask to the\n");
-        printf("   flag characters in <chars> (see flags below.)  any flags\n");
-        printf("   set in this mask will include either (a) moves with the \n");
-        printf("   flag set, or (b) moves with no flags set.\n");
-        printf("book mask reject <chars>...sets the reject mask to the\n");
-        printf("   flag characters in <chars> (see flags below.)  any flags\n");
-        printf("   set in this mask will reject any moves with the flag\n");
-        printf("   set (in the opening book.)\n");
-        printf("book off...................turns the book completely off.\n");
         printf("more...");
         i=getchar();
-        printf("book[s] create [<filename>] [maxply]...creates a new opening\n");
-        printf("   book by first removing the old book.bin.  it then will\n");
-        printf("   parse <filename> and add the moves to either book.bin (if\n");
-        printf("   the book create command was used) or to books.bin (if the\n");
-        printf("   books create command was used.)  <maxply> truncates book\n");
-        printf("   lines after that many plies (typically 60).\n");
         printf("flags are one (or more) members of the following set of\n");
         printf("characters:  {?? ? = ! !! 0 1 2 3 4 5 6 7 8 9 A B C D E F}\n");
         printf("normally, ?? means never play, ? means rarely play,\n");
@@ -686,8 +700,6 @@ int Option(char *tinput)
         printf("force the program to either always play the move or never\n");
         printf("play the move.  the special character * means all flags\n");
         printf("and is probably dangerous to use.\n");
-        printf("more...");
-        i=getchar();
         printf("flags are added to a move by entering the move, a / or \\\n");
         printf("followed by the flags.  / means add the flags to the move\n");
         printf("preserving other flags already there while \\ means replace\n");
@@ -729,6 +741,16 @@ int Option(char *tinput)
         printf("list is not saved in a file, so that anything added or removed\n");
         printf("will be lost when Crafty is re-started.  To solve this, these\n");
         printf("commands can be added to the .craftyrc file.\n");
+      }
+      else if (OptionMatch("pgn",title)) {
+        printf("the pgn command is used to set the various PGN headers\n");
+        printf("which are printed at the top of a PGN file produced by the\n");
+        printf("savegame command.\n");
+        printf("options are Event, Site, Round, White, WhiteElo, Black,\n");
+        printf("BlackElo, and Result.  each is followed by the appropriate\n");
+        printf("value.  most of these should likely be placed in the\n");
+        printf("crafty.rc/.craftyrc file since they will be constant for a\n");
+        printf("complete event.\n");
       }
       else if (OptionMatch("setboard",title)) {
         printf("sb is used to set up the board in any position desired.  it\n");
@@ -819,32 +841,44 @@ int Option(char *tinput)
       else printf("no help available for that command\n");
     }
     else {
-      printf("help command gives a detailed command syntax\n");
       printf("alarm on|off..............turns audible alarm on/off.\n");
       printf("analyze...................analyze a game in progress\n");
       printf("annotate..................annotate game [help].\n");
+      printf("ansi......................toggles reverse video highlighting.\n");
       printf("book......................controls book [help].\n");
       printf("black.....................sets black to move.\n");
       printf("clock.....................displays chess clock.\n");
       printf("d.........................displays chess \n");
+      printf("draw <n>..................sets default draw score.\n");
       printf("echo......................echos output to display.\n");
       printf("edit......................edit board position. [help]\n");
       printf("epdhelp...................info about EPD facility.\n");
       printf("exit......................restores STDIN to key\n");
       printf("end.......................terminates program.\n");
+      printf("force <move>..............forces specific move.\n");
+      printf("help [command]............displays help.\n");
       printf("history...................display game moves.\n");
       printf("hash n....................sets transposition table size\n");
       printf("                          (n bytes, nK bytes or nM bytes)\n");
       printf("hashp n...................sets pawn hash table size\n");
-      printf("input <filename> [title]..sets STDIN to <filename>.\n");
-      printf("                          (and positions to [title] record.)\n");
-      printf("list                      update/display GM/IM/computer lists.\n");
-      printf("log on|off................turn logging on/off.\n");
-      printf("move......................initiates search (same as go).\n");
-      printf("new.......................initialize and start new game.\n");
-      printf("noise n...................no status until n nodes searched.\n");
+      printf("info......................displays program settings.\n");
       printf("more...");
       i=getchar();
+      printf("input <filename> [title]..sets STDIN to <filename>.\n");
+      printf("                          (and positions to [title] record.)\n");
+      printf("kibitz <n>................sets kibitz mode <n> on ICS.\n");
+      printf("level <m> <t> <i>.........sets ICS time controls.\n");
+      printf("list                      update/display GM/IM/computer lists.\n");
+      printf("log on|off................turn logging on/off.\n");
+      printf("mode normal|tournament....toggles tournament mode.\n");
+      printf("move......................initiates search (same as go).\n");
+      printf("name......................sets opponent's name.\n");
+      printf("new.......................initialize and start new game.\n");
+      printf("noise n...................no status until n nodes searched.\n");
+      printf("operator <minutes>........allocates operator time.\n");
+      printf("perf......................times the move generator/make_move.\n");
+      printf("perft.....................tests the move generator/make_move.\n");
+      printf("pgn option value..........set PGN header information. [help]\n");
       printf("ponder on|off.............toggle pondering off/on.\n");
       printf("ponder move...............ponder \"move\" as predicted move.\n");
       printf("read <filename>...........read moves in [from <filename>].\n");
@@ -853,15 +887,25 @@ int Option(char *tinput)
       printf("reset n...................reset game to move n.\n");
       printf("resign <m> <n>............set resign threshold to <m> pawns.\n");
       printf("                          <n> = # of moves before resigning.\n");
-      printf("score.....................printf evaluation of position.\n");
+      printf("more...");
+      i=getchar();
+      printf("savegame <filename>.......saves game in PGN format.\n");
+      printf("savepos <filename>........saves position in FEN string.\n");
+      printf("score.....................print evaluation of position.\n");
       printf("sd n......................sets absolute search depth.\n");
+      printf("search <move>.............search specified move only.\n");
+      printf("setboard <FEN>............sets board position to FEN position. [help]\n");
+      printf("settc.....................set time controls.\n");
+      printf("show book.................toggle book statistics.\n");
       printf("st n......................sets absolute search time.\n");
-      printf("set.................sets board position. [help]\n");
       printf("test......................test a suite of problems. [help]\n");
       printf("time......................time controls. [help]\n");
       printf("trace n...................display search tree below depth n.\n");
+      printf("usage <percentage>........adjusts crafty's time usage up or down.\n");
       printf("verbose n.................set verbosity level. [help]\n");
+      printf("whisper n.................sets ICS whisper mode n.\n");
       printf("white.....................sets white to move.\n");
+      printf("xboard....................sets xboard compatibility mode.\n");
     }
   }
 /*
@@ -992,6 +1036,8 @@ int Option(char *tinput)
     tc_moves=atoi(OptionNext(1,text));
     tc_time=atoi(OptionNext(0,text))*100;
     tc_increment=atoi(OptionNext(0,text))*100;
+    tc_time_remaining=tc_time;
+    tc_time_remaining_opponent=tc_time;
     if (tc_time > 500 || tc_increment > 300) whisper=0;
     if (!tc_moves) {
       tc_sudden_death=1;
@@ -1210,12 +1256,13 @@ int Option(char *tinput)
       if (!strcmp(text,"tournament")) {
         mode=tournament_mode;
         draw_score_is_zero=1;
-        book_random=3;
         printf("use 'settc' command if a game is restarted after crafty\n");
         printf("has been terminated for any reason.\n");
       }
-      else if (!strcmp(text,"normal"))
+      else if (!strcmp(text,"normal")) {
         mode=normal_mode;
+        draw_score_is_zero=0;
+      }
       else {
         printf("usage: mode normal|tournament\n");
         mode=normal_mode;
@@ -1229,8 +1276,10 @@ int Option(char *tinput)
           mode=tournament_mode;
           draw_score_is_zero=1;
         }
-        else if (!strcmp(text,"normal"))
+        else if (!strcmp(text,"normal")) {
           mode=normal_mode;
+          draw_score_is_zero=0;
+        }
         else {
           printf("usage: mode normal|tournament\n");
           mode=normal_mode;
@@ -1275,23 +1324,24 @@ int Option(char *tinput)
 */
         if (!strcmp(auto_kibitz_list[i],opponents_name)) {
           kibitz=4;
-          inc_time_multiplier=7.5;
-          zero_inc_factor=6.8;
+          inc_time_multiplier=5.0;
+          zero_inc_factor=5;
           auto_kibitzing=1;
           break;
         }
       for (i=0;i<number_of_computers;i++)
         if (!strcmp(computer_list[i],opponents_name)) {
           draw_score_is_zero=1;
-          book_random=2;
+          book_random=3;
           book_selection_width=2;
+          computer_opponent=1;
           Print(1,"playing a computer!\n");
           break;
         }
       for (i=0;i<number_of_GMs;i++)
         if (!strcmp(GM_list[i],opponents_name)) {
           Print(1,"playing a GM!\n");
-          book_random=1;
+          book_random=3;
           book_selection_width=3;
           resign=5;
           resign_count=6;
@@ -1302,10 +1352,10 @@ int Option(char *tinput)
       for (i=0;i<number_of_IMs;i++)
         if (!strcmp(IM_list[i],opponents_name)) {
           Print(1,"playing an IM!\n");
-          book_random=1;
+          book_random=3;
           book_selection_width=4;
-          resign=6;
-          resign_count=8;
+          resign=9;
+          resign_count=10;
           draw_count=8;
           kibitz=0;
           break;
@@ -1467,6 +1517,58 @@ int Option(char *tinput)
 /*
  ----------------------------------------------------------
 |                                                          |
+|   "pgn" command sets the various PGN header files.       |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  else if (OptionMatch("pgn",input)) {
+    OptionGet(&equal,&slash,text,&more);
+    if (!strcmp(text,"Event")) {
+      while ((nextc=fgetc(input_stream)) == ' ');
+      ungetc(nextc,input_stream);
+      fgets(pgn_event,32,input_stream);
+      *strchr(pgn_event,10)=0;
+    }
+    else if (!strcmp(text,"Site")) {
+      while ((nextc=fgetc(input_stream)) == ' ');
+      ungetc(nextc,input_stream);
+      fgets(pgn_site,32,input_stream);
+      *strchr(pgn_site,10)=0;
+    }
+    else if (!strcmp(text,"Round")) {
+      while ((nextc=fgetc(input_stream)) == ' ');
+      ungetc(nextc,input_stream);
+      fgets(pgn_round,32,input_stream);
+      *strchr(pgn_round,10)=0;
+    }
+    else if (!strcmp(text,"White")) {
+      while ((nextc=fgetc(input_stream)) == ' ');
+      ungetc(nextc,input_stream);
+      fgets(pgn_white,32,input_stream);
+      *strchr(pgn_white,10)=0;
+    }
+    else if (!strcmp(text,"WhiteElo")) {
+      while ((nextc=fgetc(input_stream)) == ' ');
+      ungetc(nextc,input_stream);
+      fgets(pgn_white_elo,32,input_stream);
+      *strchr(pgn_white_elo,10)=0;
+    }
+    else if (!strcmp(text,"Black")) {
+      while ((nextc=fgetc(input_stream)) == ' ');
+      ungetc(nextc,input_stream);
+      fgets(pgn_black,32,input_stream);
+      *strchr(pgn_black,10)=0;
+    }
+    else if (!strcmp(text,"BlackElo")) {
+      while ((nextc=fgetc(input_stream)) == ' ');
+      ungetc(nextc,input_stream);
+      fgets(pgn_black_elo,32,input_stream);
+      *strchr(pgn_black_elo,10)=0;
+    }
+  }
+/*
+ ----------------------------------------------------------
+|                                                          |
 |   "ponder" command toggles pondering off/on or sets a    |
 |   move to ponder.                                        |
 |                                                          |
@@ -1505,106 +1607,20 @@ int Option(char *tinput)
 /*
  ----------------------------------------------------------
 |                                                          |
-|   "savegame" command saves the game in a file in PGN     |
-|   format.  command has an optional filename.  note that  |
-|   SR is an autoplay 232 alias that behaves slightly      |
-|   differently.                                           |
+|   "rating" is used by xboard to set crafty's rating and  |
+|   the opponent's rating, which is used by the learning   |
+|   functions.                                             |
 |                                                          |
  ----------------------------------------------------------
 */
-  else if (OptionMatch("savegame",input) ||
-           OptionMatch("SR",input)) {
-    output_file=stdout;
-    if (OptionMatch("SR",input)) nextc=' ';
-    else nextc=getc(input_stream);
-  
-    if (nextc == ' ') {
-      fscanf(input_stream,"%s",filename);
-      if (!(output_file=fopen(filename,"w"))) {
-        printf("unable to open %s for write.\n",filename);
-        return(1);
-      }
+  else if (OptionMatch("rating",input)) {
+    OptionGet(&equal,&slash,text,&more);
+    crafty_rating=atoi(OptionNext(1,text));
+    opponent_rating=atoi(OptionNext(0,text));
+    if (log_file) {
+      fprintf(log_file,"Crafty's rating: %d.\n",crafty_rating);
+      fprintf(log_file,"opponent's rating: %d.\n",opponent_rating);
     }
-    if (wtm)
-      fprintf(output_file,"[ %s vs Crafty ]\n",
-        *opponents_name ? opponents_name : "human");
-    else
-      fprintf(output_file,"[ Crafty vs %s ]\n",
-        *opponents_name ? opponents_name : "human");
-    next=text;
-    for (i=0;i<(move_number-1)*2-wtm+1;i++) {
-      fseek(history_file,i*10,SEEK_SET);
-      fscanf(history_file,"%s",input);
-      if (!(i%2)) {
-        sprintf(next,"%d. ",i/2+1);
-        next=text+strlen(text);
-      }
-      sprintf(next,"%s ",input);
-      next=text+strlen(text);
-      more=1;
-      if (next-text >= 60) {
-        fprintf(output_file,"%s\n",text);
-        more=0;
-        next=text;
-      }
-    }
-    if (more)
-      fprintf(output_file,"%s\n",text);
-    if (output_file != stdout) fclose(output_file);
-    printf("PGN save complete.\n");
-  }
-/*
- ----------------------------------------------------------
-|                                                          |
-|   "savepos" command saves the current position in a FEN  |
-|   (Forsythe notation) string that can be later used to   |
-|   recreate this exact position.                          |
-|                                                          |
- ----------------------------------------------------------
-*/
-  else if (OptionMatch("savepos",input)) {
-    char xlate[15]={'q','r','b',0,'k','n','p',0,'P','N','K',0,'B','R','Q'};
-    char empty[9]={' ','1','2','3','4','5','6','7','8'};
-    int rank, file, nempty;
-    output_file=stdout;
-    nextc=getc(input_stream);
-  
-    if (nextc == ' ') {
-      fscanf(input_stream,"%s",filename);
-      if (!(output_file=fopen(filename,"w"))) {
-        printf("unable to open %s for write.\n",filename);
-        return(1);
-      }
-    }
-    fprintf(output_file,"setboard ");
-    for (rank=RANK8;rank>=RANK1;rank--) {
-      nempty=0;
-      for (file=FILEA;file<=FILEH;file++) {
-        if (PieceOnSquare((rank<<3)+file)) {
-          if (nempty) {
-            fprintf(output_file,"%c",empty[nempty]);
-            nempty=0;
-          }
-          fprintf(output_file,"%c",xlate[PieceOnSquare((rank<<3)+file)+7]);
-        }
-        else nempty++;
-      }
-      fprintf(output_file,"/");
-    }
-    fprintf(output_file," %c ",(wtm)?'w':'b');
-    if (WhiteCastle(0) & 1) fprintf(output_file,"K");
-    if (WhiteCastle(0) & 2) fprintf(output_file,"Q");
-    if (BlackCastle(0) & 1) fprintf(output_file,"k");
-    if (BlackCastle(0) & 2) fprintf(output_file,"q");
-    if (EnPassant(0)) fprintf(output_file,"%c%c",File(EnPassant(0))+'a',
-                              Rank(EnPassant(0))+((wtm)?-1:+1)+'1');
-    fprintf(output_file,"\n");
- 
-    if (output_file != stdout) {
-      fprintf(output_file,"exit\n");
-      fclose(output_file);
-    }
-    printf("FEN save complete.\n");
   }
 /*
  ----------------------------------------------------------
@@ -1728,7 +1744,34 @@ int Option(char *tinput)
             printf("read.Black(%d): ",move_number);
         scanf_status=fscanf(input_file,"%s",text);
         if (scanf_status <= 0) break;
+        if (strchr(text,'[')) do {
+          char *bracket1, *bracket2;
+          char value[32];
+
+          fgets(text+strlen(text),80-strlen(text),input_file);
+          *strchr(text,'\n')=0;
+          bracket1=strchr(text,'\"');
+          bracket2=strchr(bracket1+1,'\"');
+          if (bracket1 == 0 || bracket2 == 0) break;
+          *bracket2=0;
+          strcpy(value,bracket1+1);
+          if (bracket2 == 0) break;
+          if (strstr(text,"Event")) strcpy(pgn_event,value);
+          else if (strstr(text,"Site")) strcpy(pgn_site,value);
+          else if (strstr(text,"Round")) strcpy(pgn_round,value);
+          else if (strstr(text,"Date")) strcpy(pgn_date,value);
+          else if (strstr(text,"WhiteElo")) strcpy(pgn_white_elo,value);
+          else if (strstr(text,"White")) strcpy(pgn_white,value);
+          else if (strstr(text,"BlackElo")) strcpy(pgn_black_elo,value);
+          else if (strstr(text,"Black")) strcpy(pgn_black,value);
+          else if (strstr(text,"Result")) strcpy(pgn_result,value);
+        } while(0);
         move=0;
+        if (strchr(text,'.')) {
+          char temp[80];
+          strcpy(temp,strchr(text,'.')+1);
+          strcpy(text,temp);
+        }
         if (((text[0]>='a') && (text[0]<='z')) ||
             ((text[0]>='A') && (text[0]<='Z'))) {
           if (!strcmp(text,"exit")) {
@@ -1786,6 +1829,119 @@ int Option(char *tinput)
       else
         Print(0,"resignations disabled.\n");
     }
+  }
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   "savegame" command saves the game in a file in PGN     |
+|   format.  command has an optional filename.  note that  |
+|   SR is an autoplay 232 alias that behaves slightly      |
+|   differently.                                           |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  else if (OptionMatch("savegame",input) ||
+           OptionMatch("SR",input)) {
+    struct tm *timestruct;
+    int secs;
+    output_file=stdout;
+    secs=time(0);
+    timestruct=localtime((time_t*) &secs);
+
+    if (OptionMatch("SR",input)) nextc=' ';
+    else nextc=getc(input_stream);
+  
+    if (nextc == ' ') {
+      fscanf(input_stream,"%s",filename);
+      if (!(output_file=fopen(filename,"w"))) {
+        printf("unable to open %s for write.\n",filename);
+        return(1);
+      }
+    }
+    fprintf(output_file,"[Event \"%s\"]\n",pgn_event);
+    fprintf(output_file,"[Site \"%s\"]\n",pgn_site);
+    fprintf(output_file,"[Date \"%4d.%02d.%02d\"]\n",timestruct->tm_year+1900,
+            timestruct->tm_mon+1,timestruct->tm_mday);
+    fprintf(output_file,"[Round \"%s\"]\n",pgn_round);
+    fprintf(output_file,"[White \"%s\"]\n",pgn_white);
+    fprintf(output_file,"[WhiteElo \"%s\"]\n",pgn_white_elo);
+    fprintf(output_file,"[Black \"%s\"]\n",pgn_black);
+    fprintf(output_file,"[BlackElo \"%s\"]\n",pgn_black_elo);
+    fprintf(output_file,"[Result \"%s\"]\n",pgn_result);
+    next=text;
+    for (i=0;i<(move_number-1)*2-wtm+1;i++) {
+      fseek(history_file,i*10,SEEK_SET);
+      fscanf(history_file,"%s",input);
+      if (!(i%2)) {
+        sprintf(next,"%d. ",i/2+1);
+        next=text+strlen(text);
+      }
+      sprintf(next,"%s ",input);
+      next=text+strlen(text);
+      more=1;
+      if (next-text >= 60) {
+        fprintf(output_file,"%s\n",text);
+        more=0;
+        next=text;
+      }
+    }
+    if (more)
+      fprintf(output_file,"%s\n",text);
+    if (output_file != stdout) fclose(output_file);
+    printf("PGN save complete.\n");
+  }
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   "savepos" command saves the current position in a FEN  |
+|   (Forsythe notation) string that can be later used to   |
+|   recreate this exact position.                          |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  else if (OptionMatch("savepos",input)) {
+    char xlate[15]={'q','r','b',0,'k','n','p',0,'P','N','K',0,'B','R','Q'};
+    char empty[9]={' ','1','2','3','4','5','6','7','8'};
+    int rank, file, nempty;
+    output_file=stdout;
+    nextc=getc(input_stream);
+  
+    if (nextc == ' ') {
+      fscanf(input_stream,"%s",filename);
+      if (!(output_file=fopen(filename,"w"))) {
+        printf("unable to open %s for write.\n",filename);
+        return(1);
+      }
+    }
+    fprintf(output_file,"setboard ");
+    for (rank=RANK8;rank>=RANK1;rank--) {
+      nempty=0;
+      for (file=FILEA;file<=FILEH;file++) {
+        if (PieceOnSquare((rank<<3)+file)) {
+          if (nempty) {
+            fprintf(output_file,"%c",empty[nempty]);
+            nempty=0;
+          }
+          fprintf(output_file,"%c",xlate[PieceOnSquare((rank<<3)+file)+7]);
+        }
+        else nempty++;
+      }
+      fprintf(output_file,"/");
+    }
+    fprintf(output_file," %c ",(wtm)?'w':'b');
+    if (WhiteCastle(0) & 1) fprintf(output_file,"K");
+    if (WhiteCastle(0) & 2) fprintf(output_file,"Q");
+    if (BlackCastle(0) & 1) fprintf(output_file,"k");
+    if (BlackCastle(0) & 2) fprintf(output_file,"q");
+    if (EnPassant(0)) fprintf(output_file,"%c%c",File(EnPassant(0))+'a',
+                              Rank(EnPassant(0))+((wtm)?-1:+1)+'1');
+    fprintf(output_file,"\n");
+ 
+    if (output_file != stdout) {
+      fprintf(output_file,"exit\n");
+      fclose(output_file);
+    }
+    printf("FEN save complete.\n");
   }
 /*
  ----------------------------------------------------------
@@ -2066,15 +2222,15 @@ int Option(char *tinput)
         }
         else if (tc_sudden_death == 1) {
           Print(0," game/%d minutes primary time control\n",
-                tc_time);
-          if (tc_increment) Print(0,"increment %d seconds.\n",tc_increment);
+                tc_time/100);
+          if (tc_increment) Print(0,"increment %d seconds.\n",tc_increment/100);
         }
         else if (tc_sudden_death == 2) {
           Print(0,"%d moves/%d minutes primary time control\n",
-                tc_moves, tc_time);
+                tc_moves, tc_time/100);
           Print(0,"game/%d minutes secondary time control\n",
-                tc_secondary_time);
-          if (tc_increment) Print(0,"increment %d seconds.\n",tc_increment);
+                tc_secondary_time/100);
+          if (tc_increment) Print(0,"increment %d seconds.\n",tc_increment/100);
         }
         tc_time*=60;
         tc_time_remaining*=60;

@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "types.h"
-#include "function.h"
+#include "chess.h"
 #include "data.h"
 
 /* last modified 08/27/96 */
@@ -19,17 +18,17 @@
 *       2      type  60  0->value is worthless; 1-> value represents a fail-   *
 *                        low bound; 2-> value represents a fail-high bound;    *
 *                        3-> value is an exact score.                          *
-*      19     value  41  unsigned integer value of this position + 131072.     *
+*      19     value  41  unsigned integer value of this position + 262144.     *
 *                        this might be a good score or search bound.           *
 *      20    pvalue  21  unsigned integer value the evaluate() procedure       *
-*                        produced for this position (0=none)+131072.           *
+*                        produced for this position (0=none)+262144.           *
 *      21      move   0  best move from the current position, according to the *
 *                        search at the time this position was stored.          *
 *                                                                              *
-*       8    unused  56  currently the final 8 bits are unused.                *
-*       8     draft  48  the depth of the search below this position, which is *
+*      16     draft  48  the depth of the search below this position, which is *
 *                        used to see if we can use this entry at the current   *
-*                        position.                                             *
+*                        position.  note that this is in units of 1/8th of a   *
+*                        ply.                                                  *
 *      48       key   0  leftmost 48 bits of the 64 bit hash key.  this is     *
 *                        used to "verify" that this entry goes with the        *
 *                        current board position.                               *
@@ -75,21 +74,21 @@ void StoreBest(int ply, int depth, int wtm, int value, int alpha)
   word1=0;
 
   if (value > alpha) {
-    if (abs(value) < MATE-100) word1=Or(word1,Shiftl((BITBOARD) (value+131072),41));
-    else if (value > 0) word1=Or(word1,Shiftl((BITBOARD) (value+ply-1+131072),41));
-    else word1=Or(word1,Shiftl((BITBOARD) (value-ply+1+131072),41));
+    if (abs(value) < MATE-100) word1=Or(word1,Shiftl((BITBOARD) (value+262144),41));
+    else if (value > 0) word1=Or(word1,Shiftl((BITBOARD) (value+ply-1+262144),41));
+    else word1=Or(word1,Shiftl((BITBOARD) (value-ply+1+262144),41));
     word1=Or(word1,Shiftl((BITBOARD) ((transposition_id<<2)+EXACT_SCORE),60));
     if (pv[ply].path_length >= ply) 
       word1=Or(word1,(BITBOARD) pv[ply].path[ply]);
   }
   else {
-    word1=Or(word1,Shiftl((BITBOARD) (value+131072),41));
+    word1=Or(word1,Shiftl((BITBOARD) (value+262144),41));
     word1=Or(word1,Shiftl((BITBOARD) ((transposition_id<<2)+LOWER_BOUND),60));
   }
 
   word2=Or(temp_hash_key,Shiftl((BITBOARD) depth,48));
 
-  draft=((int) Shiftr(htablea->word2,48)) & 0377;
+  draft=(int) Shiftr(htablea->word2,48);
   age=((unsigned int) Shiftr(htablea->word1,62))!=transposition_id;
   if (age || (depth >= draft)) {
     htablea->word1=word1;
@@ -144,7 +143,7 @@ void StorePV(int ply, int wtm)
 |                                                          |
  ----------------------------------------------------------
 */
-  htable->word1=Shiftl((BITBOARD) 131072,21);
+  htable->word1=Shiftl((BITBOARD) 262144,21);
   htable->word1=Or(htable->word1,Shiftl((BITBOARD) ((transposition_id<<2)+WORTHLESS),61));
   htable->word1=Or(htable->word1,(BITBOARD) pv[ply].path[ply]);
   htable->word2=temp_hash_key;
@@ -192,13 +191,13 @@ void StoreRefutation(int ply, int depth, int wtm, int bound)
 |                                                          |
  ----------------------------------------------------------
 */
-  word1=Shiftl((BITBOARD) (bound+131072),41);
+  word1=Shiftl((BITBOARD) (bound+262144),41);
   word1=Or(word1,Shiftl((BITBOARD) ((transposition_id<<2)+UPPER_BOUND),60));
   word1=Or(word1,(BITBOARD) current_move[ply]);
 
   word2=Or(temp_hash_key,Shiftl((BITBOARD) depth,48));
 
-  draft=((int) Shiftr(htablea->word2,48)) & 0377;
+  draft=(int) Shiftr(htablea->word2,48);
   age=((unsigned int) Shiftr(htablea->word1,62))!=transposition_id;
 
   if (age || (depth >= draft)) {

@@ -1,12 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "types.h"
-#include "function.h"
+#include "chess.h"
 #include "data.h"
 #include "epdglue.h"
 
-/* modified 09/24/96 */
+/* modified 11/26/96 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -24,7 +23,7 @@ int Search(int alpha, int beta, int wtm, int depth, int ply, int do_null)
   register int first_move=1;
   register BITBOARD save_hash_key;
   register int initial_alpha, value;
-  register int tdepth, i;
+  register int i, extensions;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -38,6 +37,7 @@ int Search(int alpha, int beta, int wtm, int depth, int ply, int do_null)
 |                                                          |
  ----------------------------------------------------------
 */
+  if (ply >= 63) return(beta);
   nodes_searched++;
   if (--next_time_check <= 0) {
     next_time_check=nodes_between_time_checks;
@@ -96,7 +96,7 @@ int Search(int alpha, int beta, int wtm, int depth, int ply, int do_null)
 |                                                          |
  ----------------------------------------------------------
 */
-  switch (LookUp(ply,depth,wtm,&alpha,alpha,beta)) {
+  switch (LookUp(ply,depth,wtm,&alpha,beta)) {
     case EXACT_SCORE:
       if(alpha >= beta) return(beta);
       else {
@@ -133,7 +133,7 @@ int Search(int alpha, int beta, int wtm, int depth, int ply, int do_null)
       if (FileDistance(wpawn,bpawn) == 1) {
         if(((Rank(wpawn)==1) && (Rank(bpawn)>2)) ||
            ((Rank(bpawn)==6) && (Rank(wpawn)<5)) || 
-           EnPassantTarget(ply)) break;
+           EnPassant(ply)) break;
       }
     }
     tb_probes++;
@@ -153,8 +153,7 @@ int Search(int alpha, int beta, int wtm, int depth, int ply, int do_null)
 /*
  ----------------------------------------------------------
 |                                                          |
-|   initialize.  set NextMove() status to 0 so it will     |
-|   know what has to be done.                              |
+|   initialize.                                            |
 |                                                          |
  ----------------------------------------------------------
 */
@@ -193,17 +192,17 @@ int Search(int alpha, int beta, int wtm, int depth, int ply, int do_null)
     current_phase[ply]=NULL_MOVE;
 #if !defined(FAST)
     if (ply <= trace_level)
-      SearchTrace(ply,depth,wtm,alpha,beta,"Search",current_phase[ply]);
+      SearchTrace(ply,depth,wtm,alpha,beta,"Search",0);
 #endif
     position[ply+1]=position[ply];
     Rule50Moves(ply+1)++;
     save_hash_key=HashKey;
-    if (EnPassantTarget(ply)) {
+    if (EnPassant(ply)) {
       HashEP(EnPassant(ply+1),HashKey);
       EnPassant(ply+1)=0;
     }
-    if ((depth-NULL_MOVE_DEPTH-1) > 0)
-      value=-Search(-beta,-alpha,ChangeSide(wtm),depth-NULL_MOVE_DEPTH-1,ply+1,NO_NULL);
+    if ((depth-NULL_MOVE_DEPTH-INCREMENT_PLY) > INCREMENT_PLY-1)
+      value=-Search(-beta,-alpha,ChangeSide(wtm),depth-NULL_MOVE_DEPTH-INCREMENT_PLY,ply+1,NO_NULL);
     else 
       value=-Quiesce(-beta,-alpha,ChangeSide(wtm),ply+1);
     HashKey=save_hash_key;
@@ -230,14 +229,14 @@ int Search(int alpha, int beta, int wtm, int depth, int ply, int do_null)
  ----------------------------------------------------------
 */
   next_status[ply].phase=FIRST_PHASE;
-  if ((ply > 2) && hash_move[ply]==0 && (depth > 2) &&
+  if ((ply > 2) && hash_move[ply]==0 && (depth > 2*INCREMENT_PLY) &&
       (((ply & 1) && alpha == root_alpha && beta == root_beta) ||
       (!(ply & 1) && alpha == -root_beta && beta == -root_alpha))) {
     current_move[ply]=0;
-    value=Search(alpha,beta,wtm,depth-2,ply,DO_NULL);
+    value=Search(alpha,beta,wtm,depth-2*INCREMENT_PLY,ply,DO_NULL);
     if (abort_search) return(0);
     if (value <= alpha) {
-      value=Search(-MATE,beta,wtm,depth-2,ply,DO_NULL);
+      value=Search(-MATE,beta,wtm,depth-2*INCREMENT_PLY,ply,DO_NULL);
       if (abort_search) return(0);
     }
     else if (value < beta) {
@@ -274,18 +273,17 @@ int Search(int alpha, int beta, int wtm, int depth, int ply, int do_null)
 |                                                          |
  ----------------------------------------------------------
 */
-    tdepth=depth;
-    if (!extended_reason[ply])
-      if (ply <= 12+iteration_depth &&
-          Captured(current_move[ply-1]) && Captured(current_move[ply]) &&
-          To(current_move[ply-1]) == To(current_move[ply]) &&
-          piece_values[Captured(current_move[ply-1])] == 
-          piece_values[Captured(current_move[ply])] &&
-          !(extended_reason[ply-1]&recapture_extension)) {
-        extended_reason[ply]|=recapture_extension;
-        recapture_extensions_done++;
-        tdepth++;
-      }
+    extensions=-INCREMENT_PLY;
+    if (Captured(current_move[ply-1]) && Captured(current_move[ply]) &&
+        To(current_move[ply-1]) == To(current_move[ply]) &&
+        (piece_values[Captured(current_move[ply-1])] == 
+         piece_values[Captured(current_move[ply])] ||
+         Promote(current_move[ply-1])) &&
+        !(extended_reason[ply-1]&recapture_extension)) {
+      extended_reason[ply]|=recapture_extension;
+      recapture_extensions_done++;
+      extensions+=RECAPTURE;
+    }
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -294,19 +292,18 @@ int Search(int alpha, int beta, int wtm, int depth, int ply, int do_null)
 |                                                          |
  ----------------------------------------------------------
 */
-    if (!extended_reason[ply])
-      if (Piece(current_move[ply]) == pawn &&
-          ply < 12+iteration_depth && end_game && !FutileAhead(wtm) &&
-          ((wtm && To(current_move[ply]) > H5 &&
-            !And(mask_pawn_passed_w[To(current_move[ply])],BlackPawns)) ||
-           (!wtm && To(current_move[ply]) < A4 &&
-            !And(mask_pawn_passed_b[To(current_move[ply])],WhitePawns)) ||
-           push_extensions[To(current_move[ply])]) &&
-           Swap(From(current_move[ply]),To(current_move[ply]),wtm) >= 0) {
-        extended_reason[ply]|=passed_pawn_extension;
-        passed_pawn_extensions_done++;
-        tdepth++;
-      }
+    if (Piece(current_move[ply]) == pawn && end_game &&
+        !FutileAhead(wtm) &&
+         ((wtm && To(current_move[ply]) > H5 &&
+          !And(mask_pawn_passed_w[To(current_move[ply])],BlackPawns)) ||
+         (!wtm && To(current_move[ply]) < A4 &&
+          !And(mask_pawn_passed_b[To(current_move[ply])],WhitePawns)) ||
+         push_extensions[To(current_move[ply])]) &&
+         Swap(From(current_move[ply]),To(current_move[ply]),wtm) >= 0) {
+      extended_reason[ply]|=passed_pawn_extension;
+      passed_pawn_extensions_done++;
+      extensions+=PASSED_PAWN_PUSH;
+    }
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -331,15 +328,28 @@ int Search(int alpha, int beta, int wtm, int depth, int ply, int do_null)
 */
       if (Check(ChangeSide(wtm))) {
         in_check[ply+1]=1;
-        if (ply+1 <= 12+iteration_depth) {
-          extended_reason[ply+1]=check_extension;
-          check_extensions_done++;
-          tdepth++;
-        }
+        extended_reason[ply+1]=check_extension;
+        check_extensions_done++;
+        extensions+=IN_CHECK;
       }
       else {
         in_check[ply+1]=0;
         extended_reason[ply+1]=no_extension;
+      }
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   now we toss in the "razoring" trick, which simply says |
+|   if we are doing fairly badly, we can reduce the depth  |
+|   an additional ply, if there was nothing at the current |
+|   ply that caused an extension.                          |
+|                                                          |
+ ----------------------------------------------------------
+*/
+      if (depth < 3*INCREMENT_PLY && !in_check[ply] &&
+          extensions == -INCREMENT_PLY) {
+        register int val=(wtm) ? Material : -Material;
+        if (val+1333 < alpha) extensions-=INCREMENT_PLY;
       }
 /*
  ----------------------------------------------------------
@@ -350,14 +360,13 @@ int Search(int alpha, int beta, int wtm, int depth, int ply, int do_null)
  ----------------------------------------------------------
 */
       if (first_move) {
-        if ((last[ply]-last[ply-1]) == 1 && extended_reason[ply] == check_extension &&
-            ply <= 12+iteration_depth && in_check[ply]) {
+        if (last[ply]-last[ply-1] == 1) {
           extended_reason[ply]|=one_reply_extension;
           one_reply_extensions_done++;
-          tdepth++;
+          extensions+=ONE_REPLY_TO_CHECK;
         }
-        if (tdepth-1 > 0)
-          value=-Search(-beta,-alpha,ChangeSide(wtm),tdepth-1,ply+1,DO_NULL);
+        if (depth+MaxExtensions(extensions) > INCREMENT_PLY-1)
+          value=-Search(-beta,-alpha,ChangeSide(wtm),depth+MaxExtensions(extensions),ply+1,DO_NULL);
         else {
           value=-Quiesce(-beta,-alpha,ChangeSide(wtm),ply+1);
         }
@@ -368,8 +377,8 @@ int Search(int alpha, int beta, int wtm, int depth, int ply, int do_null)
         first_move=0;
       }
       else {
-        if (tdepth-1 > 0)
-          value=-Search(-alpha-1,-alpha,ChangeSide(wtm),tdepth-1,ply+1,DO_NULL);
+        if (depth+MaxExtensions(extensions) > INCREMENT_PLY-1)
+          value=-Search(-alpha-1,-alpha,ChangeSide(wtm),depth+MaxExtensions(extensions),ply+1,DO_NULL);
         else {
           value=-Quiesce(-alpha-1,-alpha,ChangeSide(wtm),ply+1);
         }
@@ -378,8 +387,8 @@ int Search(int alpha, int beta, int wtm, int depth, int ply, int do_null)
           return(0);
         }
         if ((value > alpha) && (value < beta)) {
-          if (tdepth-1 > 0)
-            value=-Search(-beta,-alpha,ChangeSide(wtm),tdepth-1,ply+1,DO_NULL);
+          if (depth+MaxExtensions(extensions) > INCREMENT_PLY-1)
+            value=-Search(-beta,-alpha,ChangeSide(wtm),depth+MaxExtensions(extensions),ply+1,DO_NULL);
           else 
             value=-Quiesce(-beta,-alpha,ChangeSide(wtm),ply+1);
           if (abort_search) {
@@ -411,7 +420,7 @@ int Search(int alpha, int beta, int wtm, int depth, int ply, int do_null)
 */
   if (first_move == 1) {
     value=(Check(wtm)) ? -(MATE-ply) :
-                             ((wtm==root_wtm) ? DrawScore() : -DrawScore());
+                         ((wtm==root_wtm) ? DrawScore() : -DrawScore());
     if(value > beta) value=beta;
     else if (value < alpha) value=alpha;
     if (value >=alpha && value <beta) {

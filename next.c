@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "types.h"
-#include "function.h"
+#include "chess.h"
 #include "data.h"
 
 /* last modified 09/27/96 */
@@ -271,11 +270,20 @@ int NextMove(int depth, int ply, int wtm)
 
     for (movep=last[0];movep<last[1];movep++)
       if (!searched_this_root_move[movep-last[0]]) {
-        if (search_move)
-          if(*movep != search_move) {
-            searched_this_root_move[movep-last[0]]=1;
-            continue;
+        if (search_move) {
+          if (search_move > 0) {
+            if(*movep != search_move) {
+              searched_this_root_move[movep-last[0]]=1;
+              continue;
+            }
           }
+          else {
+            if(*movep == -search_move) {
+              searched_this_root_move[movep-last[0]]=1;
+              continue;
+            }
+          }
+        }
         current_move[1]=*movep;
         searched_this_root_move[movep-last[0]]=1;
         if ((nodes_searched > noise_level) && (verbosity_level >= 9)) {

@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "types.h"
-#include "function.h"
+#include "chess.h"
 #include "data.h"
 
 void ValidatePosition(int ply, int move, char *caller)
@@ -470,7 +469,7 @@ void ValidatePosition(int ply, int move, char *caller)
         break;
     }
   }
-  if (EnPassantTarget(ply)) HashEP(EnPassant(ply),temp);
+  if (EnPassant(ply)) HashEP(EnPassant(ply),temp);
   if (!(WhiteCastle(ply)&1)) HashCastleW(0,temp);
   if (!(WhiteCastle(ply)&2)) HashCastleW(1,temp);
   if (!(BlackCastle(ply)&1)) HashCastleB(0,temp);
@@ -484,11 +483,14 @@ void ValidatePosition(int ply, int move, char *caller)
     error=1;
   }
   if (error) {
+/*
     Print(0,"active path:\n");
     for (i=1;i<=ply;i++)
       DisplayChessMove("move=",move);
+*/
     Print(0,"current move:\n");
     DisplayChessMove("move=",move);
+    DisplayChessBoard(stdout,search);
     Print(0,"called from %s, ply=%d\n",caller,ply);
     Print(0,"node=%d\n",nodes_searched+q_nodes_searched);
     exit(1);

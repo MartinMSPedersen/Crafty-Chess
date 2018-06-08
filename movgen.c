@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "types.h"
-#include "function.h"
+#include "chess.h"
 #include "data.h"
 
 /* modified 08/22/96 */
@@ -900,7 +899,7 @@ int* GenerateCheckEvasions(int ply, int wtm, int *move)
   return(move);
 }
 
-/* modified 01/11/96 */
+/* modified 11/12/96 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -1084,7 +1083,8 @@ int* GenerateMoves(int ply, int depth, int wtm, BITBOARD target,
 */
     temp_target=Compl(Occupied);
     targets=And(temp_target,target);
-    if(generate_captures) targets=Or(targets,And(mask_120,temp_target));
+    if(generate_captures) targets=Or(targets,And(rank_mask[RANK8],temp_target));
+    else targets=And(targets,mask_not_rank8);
     padvances1=And(Shiftr(WhitePawns,8),targets);
     padvances2=And(Shiftr(And(padvances1,mask_advance_2_w),8),targets);
 /*
@@ -1305,7 +1305,8 @@ int* GenerateMoves(int ply, int depth, int wtm, BITBOARD target,
 */
     temp_target=Compl(Occupied);
     targets=And(temp_target,target);
-    if(generate_captures) targets=Or(targets,And(mask_8,temp_target));
+    if(generate_captures) targets=Or(targets,And(rank_mask[RANK1],temp_target));
+    else targets=And(targets,mask_not_rank1);
     padvances1=And(Shiftl(BlackPawns,8),targets);
     padvances2=And(Shiftl(And(padvances1,mask_advance_2_b),8),targets);
 /*

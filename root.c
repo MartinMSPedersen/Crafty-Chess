@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "types.h"
-#include "function.h"
+#include "chess.h"
 #include "data.h"
 
 /* last modified 07/14/96 */
@@ -92,7 +91,7 @@ void RootMoveList(int wtm)
 |                                                          |
  ----------------------------------------------------------
 */
-      if (Promote(*mvp) && (Promote(*mvp) != 5)) value-=500;
+      if (Promote(*mvp) && (Promote(*mvp) != queen)) value-=500;
     }
     root_sort_value[mvp-last[0]]=value;
     UnMakeMove(1, *mvp, wtm);

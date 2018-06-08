@@ -6958,7 +6958,7 @@ indexT
 EPDTBGenIndex(tbptrT classptr, posvT posv)
 {
 indexT index;
-liT factor;
+liT factor=0;
 posvT nposv;
 cT c;
 siT i;
@@ -6997,7 +6997,7 @@ indexT
 EPDTBGenInvertIndex(tbptrT classptr, posvT posv)
 {
 indexT index;
-liT factor;
+liT factor=0;
 posvT nposv;
 cT c, invc;
 siT i;

@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "types.h"
-#include "function.h"
+#include "chess.h"
 #include "data.h"
 
 /* last modified 08/27/96 */
@@ -19,24 +18,24 @@
 *       2      type  60  0->value is worthless; 1-> value represents a fail-   *
 *                        low bound; 2-> value represents a fail-high bound;    *
 *                        3-> value is an exact score.                          *
-*      19     value  40  unsigned integer value of this position + 131072.     *
+*      19     value  40  unsigned integer value of this position + 262144.     *
 *                        this might be a good score or search bound.           *
 *      20    pvalue  21  unsigned integer value the evaluate() procedure       *
-*                        produced for this position (0=none)+131072.           *
+*                        produced for this position (0=none)+262144.           *
 *      21      move   0  best move from the current position, according to the *
 *                        search at the time this position was stored.          *
 *                                                                              *
-*       8    unused  56  currently the leftmost 8 bits are unused.             *
-*       8     draft  48  the depth of the search below this position, which is *
+*      16     draft  48  the depth of the search below this position, which is *
 *                        used to see if we can use this entry at the current   *
-*                        position.                                             *
+*                        position.  note that this is in units of 1/8th of a   *
+*                        ply.                                                  *
 *      48       key   0  leftmost 48 bits of the 64 bit hash key.  this is     *
 *                        used to "verify" that this entry goes with the        *
 *                        current board position.                               *
 *                                                                              *
 ********************************************************************************
 */
-int LookUp(int ply, int depth, int wtm, int *value, int alpha, int beta)
+int LookUp(int ply, int depth, int wtm, int *alpha, int beta)
 {
   register BITBOARD temp_hash_key;
   register HASH_ENTRY *htablea, *htableb;
@@ -71,9 +70,9 @@ int LookUp(int ply, int depth, int wtm, int *value, int alpha, int beta)
   if (!Xor(And(htablea->word2,mask_80),temp_hash_key)) {
     hash_move[ply]=((int) htablea->word1) & 07777777;
     type=((int) Shiftr(htablea->word1,60)) & 03;
-    draft=((int) Shiftr(htablea->word2,48)) & 0377;
-    val=(((int) Shiftr(htablea->word1,41)) & 01777777)-131072;
-    if ((type & LOWER_BOUND) && ((depth-NULL_MOVE_DEPTH-1) <= draft) &&
+    draft=(int) Shiftr(htablea->word2,48);
+    val=(((int) Shiftr(htablea->word1,41)) & 01777777)-262144;
+    if ((type & LOWER_BOUND) && ((depth-NULL_MOVE_DEPTH-INCREMENT_PLY) <= draft) &&
           (val < beta)) avoid_null=AVOID_NULL_MOVE;
     if (depth > draft) return(avoid_null);
     switch (type) {
@@ -82,13 +81,13 @@ int LookUp(int ply, int depth, int wtm, int *value, int alpha, int beta)
           if (val > 0) val-=(ply-1);
           else val+=(ply-1);
         }
-        *value=val;
+        *alpha=val;
 #if !defined(FAST)
         transposition_hashes++;
 #endif
         return(EXACT_SCORE);
       case LOWER_BOUND:
-        if (val <= alpha) {
+        if (val <= *alpha) {
 #if !defined(FAST)
           transposition_hashes++;
 #endif
@@ -110,9 +109,9 @@ int LookUp(int ply, int depth, int wtm, int *value, int alpha, int beta)
     if (hash_move[ply]==0)
       hash_move[ply]=((int) htableb->word1) & 07777777;
     type=((int) Shiftr(htableb->word1,60)) & 03;
-    draft=((int) Shiftr(htableb->word2,48)) & 0377;
-    val=(((int) Shiftr(htableb->word1,41)) & 01777777)-131072;
-    if ((type & LOWER_BOUND) && ((depth-NULL_MOVE_DEPTH-1) <= draft) &&
+    draft=Shiftr(htableb->word2,48);
+    val=(((int) Shiftr(htableb->word1,41)) & 01777777)-262144;
+    if ((type & LOWER_BOUND) && ((depth-NULL_MOVE_DEPTH-INCREMENT_PLY) <= draft) &&
           (val < beta)) avoid_null=AVOID_NULL_MOVE;
     if (depth > draft) return(avoid_null);
     switch (type) {
@@ -121,13 +120,13 @@ int LookUp(int ply, int depth, int wtm, int *value, int alpha, int beta)
           if (val > 0) val-=(ply-1);
           else val+=(ply-1);
         }
-        *value=val;
+        *alpha=val;
 #if !defined(FAST)
         transposition_hashes++;
 #endif
         return(EXACT_SCORE);
       case LOWER_BOUND:
-        if (val <= alpha) {
+        if (val <= *alpha) {
 #if !defined(FAST)
           transposition_hashes++;
 #endif
