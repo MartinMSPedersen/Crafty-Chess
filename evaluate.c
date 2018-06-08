@@ -259,7 +259,7 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
 |                                                          |
  ----------------------------------------------------------
 */
-  score+=InverseScaleByMaterial(king_value_w[WhiteKingSQ],TotalBlackPieces);
+  score+=ScaleUp(king_value_w[WhiteKingSQ],TotalBlackPieces);
   if (WhiteKingSQ < A2) {
     if (!And(And(king_attacks[WhiteKingSQ],rank_mask[RANK2]),
              Compl(WhitePawns))) score-=KING_BACK_RANK;
@@ -296,7 +296,7 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
 |                                                          |
  ----------------------------------------------------------
 */
-  score-=InverseScaleByMaterial(king_value_b[BlackKingSQ],TotalWhitePieces);
+  score-=ScaleUp(king_value_b[BlackKingSQ],TotalWhitePieces);
   if (BlackKingSQ > H7) {
     if (!And(And(king_attacks[BlackKingSQ],rank_mask[RANK7]),
              Compl(BlackPawns))) score+=KING_BACK_RANK;
@@ -436,7 +436,7 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
 |                                                          |
  ----------------------------------------------------------
 */
-    score+=BISHOP_MOBILITY*(MobilityBishop(square)-5);
+    score+=BISHOP_MOBILITY*MobilityBishop(square);
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -486,7 +486,7 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
 |                                                          |
  ----------------------------------------------------------
 */
-    score-=BISHOP_MOBILITY*(MobilityBishop(square)-5);
+    score-=BISHOP_MOBILITY*MobilityBishop(square);
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -529,10 +529,8 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
  ----------------------------------------------------------
 */
   if (WhiteBishops) {
-    if (And(WhiteBishops,WhiteBishops-1)) {
-      score+=BISHOP_PAIR;
-      score+=InverseScaleByMaterial(BISHOP_PAIR,TotalBlackPieces);
-    }
+    if (And(WhiteBishops,WhiteBishops-1))
+      score+=ScaleUp(BISHOP_PAIR,TotalBlackPieces);
     else if (TotalBlackPieces <= EG_MAT) {
       if (And(WhiteBishops,light_squares))
         score-=PopCnt(And(WhitePawns,light_squares))*BISHOP_PLUS_PAWNS_ON_COLOR;
@@ -540,13 +538,11 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
         score-=PopCnt(And(WhitePawns,dark_squares))*BISHOP_PLUS_PAWNS_ON_COLOR;
     }
     if (And(tree->all_pawns,mask_fgh) && And(tree->all_pawns,mask_abc)) 
-        score+=InverseScaleByMaterial(BISHOP_OVER_KNIGHT_ENDGAME,TotalBlackPieces);
+        score+=ScaleUp(BISHOP_OVER_KNIGHT_ENDGAME,TotalBlackPieces);
   }
   if (BlackBishops) {
-    if (And(BlackBishops,BlackBishops-1)) {
-      score-=BISHOP_PAIR;
-      score-=InverseScaleByMaterial(BISHOP_PAIR,TotalWhitePieces);
-    }
+    if (And(BlackBishops,BlackBishops-1))
+      score-=ScaleUp(BISHOP_PAIR,TotalWhitePieces);
     else if (TotalWhitePieces <= EG_MAT) {
       if (And(BlackBishops,light_squares))
         score+=PopCnt(And(BlackPawns,light_squares))*BISHOP_PLUS_PAWNS_ON_COLOR;
@@ -554,7 +550,7 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
         score+=PopCnt(And(BlackPawns,dark_squares))*BISHOP_PLUS_PAWNS_ON_COLOR;
     }
     if (And(tree->all_pawns,mask_fgh) && And(tree->all_pawns,mask_abc)) 
-      score-=InverseScaleByMaterial(BISHOP_OVER_KNIGHT_ENDGAME,TotalWhitePieces);
+      score-=ScaleUp(BISHOP_OVER_KNIGHT_ENDGAME,TotalWhitePieces);
   }
 #ifdef DEBUGEV
   if (score != lastsc)
@@ -599,7 +595,7 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
 */
     if (!And(file_mask[file],tree->all_pawns)) {
       if (FileDistance(square,tree->b_kingsq) <=1 )
-        score+=ScaleByMaterial(tree->b_safety*2,TotalWhitePieces);
+        score+=ScaleDown(tree->b_safety*2,TotalWhitePieces);
       else score+=ROOK_OPEN_FILE;
       if (And(AttacksFile(square),WhiteRooks)) score+=ROOK_CONNECTED_OPEN_FILE;
     }
@@ -645,7 +641,7 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
 */
     if (Rank(square)==RANK7 && (BlackKingSQ>H7 ||
                                 And(BlackPawns,rank_mask[RANK7]))) {
-      score+=InverseScaleByMaterial(ROOK_ON_7TH,TotalBlackPieces);
+      score+=ScaleUp(ROOK_ON_7TH,TotalBlackPieces);
       if (tree->pawn_score.passed_w && BlackKingSQ>H7 &&
           !And(BlackPieces,mask_abs7_w)) score+=ROOK_ABSOLUTE_7TH;
       if (And(AttacksRank(square),Or(WhiteRooks,WhiteQueens)))
@@ -689,7 +685,7 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
 */
     if (!And(file_mask[file],tree->all_pawns)) {
       if (FileDistance(square,tree->w_kingsq) <= 1)
-        score-=ScaleByMaterial(tree->w_safety*2,TotalWhitePieces);
+        score-=ScaleDown(tree->w_safety*2,TotalBlackPieces);
       else score-=ROOK_OPEN_FILE;
       if (And(AttacksFile(square),BlackRooks)) score-=ROOK_CONNECTED_OPEN_FILE;
     }
@@ -735,7 +731,7 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
 */
     if (Rank(square)==RANK2 && (WhiteKingSQ<A2 ||
                                 And(WhitePawns,rank_mask[RANK2]))) {
-      score-=InverseScaleByMaterial(ROOK_ON_7TH,TotalWhitePieces);
+      score-=ScaleUp(ROOK_ON_7TH,TotalWhitePieces);
       if (tree->pawn_score.passed_b && WhiteKingSQ<A2 &&
           !And(WhitePieces,mask_abs7_b)) score-=ROOK_ABSOLUTE_7TH;
       if (And(AttacksRank(square),Or(BlackRooks,BlackQueens)))
@@ -1256,7 +1252,10 @@ int EvaluateKingSafety(TREE *tree, int ply) {
     if (WhiteCastle(ply) <= 0) {
       if (File(WhiteKingSQ) >= FILEE) {
         if (File(WhiteKingSQ) == FILEH) tree->w_kingsq=(Rank(WhiteKingSQ)<<3)+FILEG;
-        tree->w_safety+=tree->pawn_score.white_defects_k;
+        if (File(WhiteKingSQ) > FILEE)
+          tree->w_safety+=tree->pawn_score.white_defects_k;
+        else
+          tree->w_safety+=tree->pawn_score.white_defects_k>>1;
         if (!And(WhitePawns,SetMask(G2))) {
           if (And(WhitePawns,SetMask(G3)) && Distance(WhiteKingSQ,G2)==1 &&
               And(WhiteBishops,good_bishop_kw))
@@ -1271,7 +1270,10 @@ int EvaluateKingSafety(TREE *tree, int ply) {
       }
       else if (File(WhiteKingSQ) <= FILED) {
         if (File(WhiteKingSQ) == FILEA) tree->w_kingsq=(Rank(WhiteKingSQ)<<3)+FILEB;
-        tree->w_safety+=tree->pawn_score.white_defects_q;
+        if (File(WhiteKingSQ) < FILED)
+          tree->w_safety+=tree->pawn_score.white_defects_q;
+        else
+          tree->w_safety+=tree->pawn_score.white_defects_q>>1;
         if (!And(WhitePawns,SetMask(B2))) {
           if (And(WhitePawns,SetMask(B3)) && Distance(WhiteKingSQ,B2)==1 &&
               And(WhiteBishops,good_bishop_qw))
@@ -1296,7 +1298,10 @@ int EvaluateKingSafety(TREE *tree, int ply) {
     if (BlackCastle(ply) <= 0) {
       if (File(BlackKingSQ) >= FILEE) {
         if (File(BlackKingSQ) == FILEH) tree->b_kingsq=(Rank(BlackKingSQ)<<3)+FILEG;
-        tree->b_safety+=tree->pawn_score.black_defects_k;
+        if (File(BlackKingSQ) > FILEE)
+          tree->b_safety+=tree->pawn_score.black_defects_k;
+        else
+          tree->b_safety+=tree->pawn_score.black_defects_k>>1;
         if (!And(BlackPawns,SetMask(G7))) {
           if (And(BlackPawns,SetMask(G6)) && Distance(BlackKingSQ,G7)==1 &&
               And(BlackBishops,good_bishop_kb))
@@ -1310,7 +1315,11 @@ int EvaluateKingSafety(TREE *tree, int ply) {
         }
       }
       else if (File(BlackKingSQ) <= FILED) {
-        tree->b_safety+=tree->pawn_score.black_defects_q;
+        if (File(BlackKingSQ) == FILEA) tree->b_kingsq=(Rank(BlackKingSQ)<<3)+FILEB;
+        if (File(BlackKingSQ) < FILED)
+          tree->b_safety+=tree->pawn_score.black_defects_q;
+        else
+          tree->b_safety+=tree->pawn_score.black_defects_q>>1;
         if (File(BlackKingSQ) == FILEA) tree->b_kingsq=(Rank(BlackKingSQ)<<3)+FILEB;
         if (!And(BlackPawns,SetMask(B7))) {
           if (And(BlackPawns,SetMask(B6)) && Distance(BlackKingSQ,B7)==1 &&
@@ -1331,8 +1340,8 @@ int EvaluateKingSafety(TREE *tree, int ply) {
       else if (BlackCastle(ply) & 2)
         tree->b_safety+=tree->pawn_score.black_defects_q;
     }
-    tree->w_safety=Min(tree->w_safety,30);
-    tree->b_safety=Min(tree->b_safety,30);
+    tree->w_safety=Min(tree->w_safety,24);
+    tree->b_safety=Min(tree->b_safety,24);
   }
   else {
     tree->w_safety=0;
@@ -1920,6 +1929,16 @@ int EvaluatePawns(TREE *tree) {
   tree->pawn_score.black_defects_k=0;
   tree->pawn_score.black_defects_q=0;
   tree->pawn_score.outside=0;
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   if there are 8 pawns of one color, penalize crafty     |
+|   for not opening the position.                          |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  if (root_wtm && TotalWhitePawns==8) tree->pawn_score.p_score-=EIGHT_PAWNS;
+  if (!root_wtm && TotalBlackPawns==8) tree->pawn_score.p_score+=EIGHT_PAWNS;
 /*
  ----------------------------------------------------------
 |                                                          |

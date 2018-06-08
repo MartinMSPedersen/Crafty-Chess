@@ -187,6 +187,7 @@
 #  define       TBDIR     "./TB"
 #endif
 
+# define    EGTB_CACHE_DEFAULT 1024*1024
 #define     MAXPLY            65
 #define MAX_BLOCKS            64
 #define MAX_TC_NODES      300000
@@ -795,9 +796,9 @@ void           Whisper(int, int, int, int, unsigned int, int, int, int, char*);
 #define FileDistance(a,b) abs(((a)&7) - ((b)&7))
 #define RankDistance(a,b) abs(((a)>>3) - ((b)>>3))
 #define Distance(a,b) Max(FileDistance(a,b),RankDistance(a,b))
-#define KingSafety(s,p)      ((s)*(p-EG_MAT))
-#define InverseScaleByMaterial(s,m)    ((s)*(31-(m))/31)
-#define ScaleByMaterial(s,m)           ((s)*(m)/31)
+#define KingSafety(s,p)                ((s)*scale_down[p])
+#define ScaleDown(s,m)                 ((s)*scale_down[m]/12)
+#define ScaleUp(s,m)                   ((s)*scale_up[m]/12)
 
 /*  
     the following macro is used to determine if one side is in check.  it

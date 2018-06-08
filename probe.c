@@ -132,8 +132,7 @@ int EGTBProbe (TREE *tree, int ply, int wtm, int *score) {
  ----------------------------------------------------------
 */
   if (!FRegistered (iTb, side)) return(0);
-  sqEnP=EnPassantTarget(ply);
-  if (!sqEnP) sqEnP=XX;
+  sqEnP = EnPassant(ply) ? EnPassant(ply) : XX;
   ind=PfnIndCalc (iTb, side) (psqW, psqB, sqEnP, fInvert);
 #if defined(SMP)
   Lock(lock_io);

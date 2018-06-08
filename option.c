@@ -287,10 +287,15 @@ int Option(TREE *tree) {
     if (strchr(args[1],'M') || strchr(args[1],'m')) EGTB_cache_size*=1<<20;
     if (EGTB_cache) free(EGTB_cache);
     EGTB_cache=malloc(EGTB_cache_size);
+    if (!EGTB_cache) {
+      Print(2095,"ERROR:  unable to malloc specified cache size, using default\n");
+      EGTB_cache=malloc(EGTB_CACHE_DEFAULT);
+    }
     if (EGTB_cache_size < 1<<20)
       Print(4095,"EGTB cache memory = %dK bytes.\n", EGTB_cache_size/(1<<10));
     else 
       Print(4095,"EGTB cache memory = %dM bytes.\n", EGTB_cache_size/(1<<20));
+    FTbSetCacheSize(EGTB_cache,EGTB_cache_size);
   }
 /*
  ----------------------------------------------------------
@@ -614,9 +619,12 @@ int Option(TREE *tree) {
       EGTBlimit=IInitializeTb(tb_path);
       Print(128,"%d piece tablebase files found\n",EGTBlimit);
       if (EGTBlimit) {
-        EGTB_cache=malloc(EGTB_cache_size);
-        if (EGTB_cache) FTbSetCacheSize(EGTB_cache,EGTB_cache_size);
-        else Print(4095,"ERROR  EGTB cache malloc failed\n");
+        if (!EGTB_cache) EGTB_cache=malloc(EGTB_cache_size);
+        if (!EGTB_cache) {
+          Print(4095,"ERROR  EGTB cache malloc failed\n");
+          EGTB_cache=malloc(EGTB_CACHE_DEFAULT);
+        }
+        else FTbSetCacheSize(EGTB_cache,EGTB_cache_size);
         egtbsetup=1;
       }
     }
@@ -1338,6 +1346,7 @@ int Option(TREE *tree) {
       printf("bench.....................runs performance benchmark.\n");
       printf("book......................controls book [help].\n");
       printf("black.....................sets black to move.\n");
+      printf("cache=n...................sets tablebase cache size.\n");
       printf("clock.....................displays chess clock.\n");
       printf("display...................displays chess board\n");
       printf("display <n>...............sets display options [help]\n");
@@ -1345,7 +1354,7 @@ int Option(TREE *tree) {
       printf("echo......................echos output to display.\n");
       printf("edit......................edit board position. [help]\n");
       printf("epdhelp...................info about EPD facility.\n");
-      printf("egtb n....................set number of pieces for EGTB probes\n");
+      printf("egtb......................enables endgame database probes\n");
       printf("end.......................terminates program.\n");
       printf("exit......................restores STDIN to key\n");
       printf("force <move>..............forces specific move.\n");

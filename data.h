@@ -223,6 +223,8 @@
    extern int            reduced_material_passer[20];
    extern int            pawn_advance[8];
    extern int            outside_passed[128];
+   extern int            scale_down[128];
+   extern int            scale_up[128];
    extern int            pawn_value_w[64];
    extern int            pawn_value_b[64];
    extern int            knight_value_w[64];

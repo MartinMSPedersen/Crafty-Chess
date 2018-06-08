@@ -2269,6 +2269,14 @@
 *           removed.  this removed a few ugly effects of things happening     *
 *           right around the EG_MAT threshold.                                *
 *                                                                             *
+*   16.1    bug in EGTBProbe() which used the wrong variable to access the    *
+*           enpassant target square was fixed.  the cache=x command now       *
+*           checks for a failed malloc() and reverts to the default cache     *
+*           size to avoid crashes.  major eval tuning changes.  cache bug     *
+*           would do an extra malloc() and if it is done after the "egtb"     *
+*           command it would crash.  analyze mode now turns off the "swindle" *
+*           mode.                                                             *
+*                                                                             *
 *******************************************************************************
 */
 int main(int argc, char **argv)

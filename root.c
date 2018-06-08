@@ -39,7 +39,8 @@ void RootMoveList(int wtm)
  ----------------------------------------------------------
 */
   EGTB_draw=0;
-  if (EGTBlimit && TotalPieces<=5 && EGTBProbe(tree, 1, wtm, &tb_value)) {
+  if (!analyze_mode && EGTBlimit && TotalPieces<=5 &&
+      EGTBProbe(tree, 1, wtm, &tb_value)) {
     register int wpawn, bpawn;
     if (TotalWhitePawns && TotalBlackPawns) {
       wpawn=FirstOne(WhitePawns);
