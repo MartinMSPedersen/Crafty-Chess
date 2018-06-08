@@ -24,6 +24,9 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta) {
   register BITBOARD temp;
   register int square, file, score, tscore, w_tropism=0, b_tropism=0;
   register int w_spread, b_spread, trop, can_win=3;
+#if defined(DETECTDRAW)
+  int drawing=2;
+#endif
 #if defined(DEBUGEV)
   int lastsc;
 #endif
@@ -44,6 +47,11 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta) {
     if (EvaluateStalemate(tree,wtm)) can_win=0;
   }
   if (can_win == 0) return(DrawScore(wtm));
+#if defined(DETECTDRAW)
+  if (TotalWhitePawns > 2 && TotalBlackPawns > 2 && !(WhiteKnights|BlackKnights))
+    drawing=EvaluateDraws(tree,wtm);
+  if (!drawing) return(DrawScore(wtm));
+#endif
   score=EvaluateMaterial(tree);
 #ifdef DEBUGEV
   printf("score[material]=                  %4d\n",score);
@@ -97,34 +105,35 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta) {
 *   use tree->pawn_score.outside to see if one side has an outside   *
 *   passed pawn that represents a nearly won endgame advantage.      *
 *                                                                    *
+*        xxxx xxx1   (1) -> white has outside c/p                    *
+*        xxxx xx1x   (2) -> white has 2 outside c/p                  *
+*        xxxx x1xx   (4) -> black has outside c/p                    *
+*        xxxx 1xxx   (8) -> black has 2 outside c/p                  *
+*        xxx1 xxxx  (16) -> white has split passers                  *
+*                           black does not                           *
+*        xx1x xxxx  (32) -> black has split passers                  *
+*                           white does not                           *
+*                                                                    *
 **********************************************************************
 */
   if (tree->pawn_score.passed_b || tree->pawn_score.passed_w) {
     int pscore=EvaluatePassedPawns(tree);
-    if (tree->pawn_score.outside&8)
+    if (tree->pawn_score.outside&16)
+      pscore+=3*outside_passed[(int) TotalBlackPieces];
+    else if (tree->pawn_score.outside&32)
+      pscore-=3*outside_passed[(int) TotalWhitePieces];
+    if (tree->pawn_score.outside&2)
       pscore+=2*outside_passed[(int) TotalBlackPieces];
-    else if (tree->pawn_score.outside&4)
+    else if (tree->pawn_score.outside&1)
       pscore+=outside_passed[(int) TotalBlackPieces];
-    if (tree->pawn_score.outside&128)
+    if (tree->pawn_score.outside&8)
       pscore-=2*outside_passed[(int) TotalWhitePieces];
-    else if (tree->pawn_score.outside&64)
+    else if (tree->pawn_score.outside&4)
       pscore-=outside_passed[(int) TotalWhitePieces];
     if ((TotalWhitePieces==0 && tree->pawn_score.passed_b) ||
         (TotalBlackPieces==0 && tree->pawn_score.passed_w))
       pscore+=EvaluatePassedPawnRaces(tree,wtm);
     score+=pscore*passed_scale/100;
-  }
-  if (!(tree->pawn_score.outside&12)) {
-    if (tree->pawn_score.outside&2)
-      score+=2*majority[(int) TotalBlackPieces];
-    else if (tree->pawn_score.outside&1)
-      score+=majority[(int) TotalBlackPieces];
-  }
-  if (!(tree->pawn_score.outside&192)) {
-     if (tree->pawn_score.outside&32)
-       score-=2*majority[(int) TotalWhitePieces];
-     else if (tree->pawn_score.outside&16)
-       score-=majority[(int) TotalWhitePieces];
   }
   if (TotalWhitePieces+TotalBlackPieces == 0) {
     int pscore=0;
@@ -138,11 +147,11 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta) {
       if (wfile > LastOne8Bit(tree->pawn_score.allb))
         pscore+=WON_KP_ENDING;
     }
-    if (bfile > wfile+1-wtm) {
+    if (bfile > wfile+wtm) {
       if (bfile < FirstOne8Bit(tree->pawn_score.allw))
         pscore+=-WON_KP_ENDING;
     }
-    else if (bfile < wfile-1+wtm) {
+    else if (bfile < wfile-wtm) {
       if (bfile > LastOne8Bit(tree->pawn_score.allw))
         pscore+=-WON_KP_ENDING;
     }
@@ -1110,6 +1119,10 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta) {
     if (can_win&2 && score>DrawScore(1)) score=DrawScore(1);
     else if (can_win&1 && score<DrawScore(1)) score=DrawScore(1);
   }
+#if defined(DETECTDRAW)
+  if (drawing == 1) score/=4;
+  else if (drawing==3) score*=2;
+#endif
 #ifdef DEBUGEV
   if (score != lastsc)
     printf("score[draws]=                     %4d (%+d)\n",score,score-lastsc);
@@ -2212,7 +2225,7 @@ int EvaluatePawns(TREE * RESTRICT tree) {
   register int w_isolated, b_isolated;
   register int w_isolated_of, b_isolated_of;
   register int w_unblocked, b_unblocked;
-  register int wop, bop;
+  register int wop, bop, w_passers, b_passers;
   register int defenders, attackers, weakness, blocked, sq;
   register int kside_open_files, qside_open_files;
   register int kside_half_open_files_b, kside_half_open_files_w;
@@ -3153,48 +3166,38 @@ int EvaluatePawns(TREE * RESTRICT tree) {
 |  we repeat for candidate passed pawns as well.           |
 |                                                          |
 |  tree->pawn_score.outside is a bitmap with 8 bits:       |
+|         (c/p -> candidate or passer)                     |
 |                                                          |
-|        xxxx xxx1   (1) -> white has outside candidate    |
-|        xxxx xx1x   (2) -> white has 2 outside candidates |
-|        xxxx x1xx   (4) -> white has outside passer       |
-|        xxxx 1xxx   (8) -> white has 2 outside passers    |
-|        xxx1 xxxx  (16) -> black has outside candidate    |
-|        xx1x xxxx  (32) -> black has 2 outside candidates |
-|        x1xx xxxx  (64) -> black has outside passer       |
-|        1xxx xxxx (128) -> black has 2 outside passers    |
+|        xxxx xxx1   (1) -> white has outside c/p          |
+|        xxxx xx1x   (2) -> white has 2 outside c/p        |
+|        xxxx x1xx   (4) -> black has outside c/p          |
+|        xxxx 1xxx   (8) -> black has 2 outside c/p        |
+|        xxx1 xxxx  (16) -> white has split passers        |
+|                           black does not                 |
+|        xx1x xxxx  (32) -> black has split passers        |
+|                           white does not                 |
 |                                                          |
  ----------------------------------------------------------
 */
-  wop=is_outside[tree->pawn_score.passed_w][tree->pawn_score.allb];
-  bop=is_outside[tree->pawn_score.passed_b][tree->pawn_score.allw];
-  if (!wop || !bop) {
-    if (wop > 1) tree->pawn_score.outside|=8;
-    else if (wop && TotalWhitePawns>1) tree->pawn_score.outside|=4;
-    if (bop > 1) tree->pawn_score.outside|=128;
-    else if (bop && TotalBlackPawns>1) tree->pawn_score.outside|=64;
+  w_passers=tree->pawn_score.passed_w|tree->pawn_score.candidates_w;
+  b_passers=tree->pawn_score.passed_b|tree->pawn_score.candidates_b;
+  wop=is_outside[w_passers][tree->pawn_score.allb];
+  bop=is_outside[b_passers][tree->pawn_score.allw];
+  if (wop || bop) {
+    if (!wop || !bop) {
+      if (wop > 1) tree->pawn_score.outside|=2;
+      else if (wop && TotalWhitePawns>1) tree->pawn_score.outside|=1;
+      if (bop > 1) tree->pawn_score.outside|=8;
+      else if (bop && TotalBlackPawns>1) tree->pawn_score.outside|=4;
+    }
   }
-
-  wop=is_outside_c[tree->pawn_score.candidates_w][tree->pawn_score.allb];
-  bop=is_outside_c[tree->pawn_score.candidates_b][tree->pawn_score.allw];
-  if (!wop || !bop) {
-    if (wop > 1) tree->pawn_score.outside|=2;
-    else if (wop) tree->pawn_score.outside|=1;
-    if (bop > 1) tree->pawn_score.outside|=32;
-    else if (bop) tree->pawn_score.outside|=16;
-  }
-
-  if (!(tree->pawn_score.outside & 0xcc)) {
-    if (tree->pawn_score.candidates_w && !tree->pawn_score.candidates_b)
-      tree->pawn_score.outside|=1;
-    if (tree->pawn_score.candidates_b && !tree->pawn_score.candidates_w)
+  else {
+    if (file_spread[w_passers] > file_spread[b_passers])
       tree->pawn_score.outside|=16;
-    if (tree->pawn_score.protected&1 && !(tree->pawn_score.protected&2) &&
-        PopCnt8Bit((int)(tree->pawn_score.passed_b))<2)
-      tree->pawn_score.outside|=4;
-    if (tree->pawn_score.protected&2 && !(tree->pawn_score.protected&1) &&
-        PopCnt8Bit((int)(tree->pawn_score.passed_w))<2)
-      tree->pawn_score.outside|=64;
+    else if (file_spread[b_passers] > file_spread[w_passers])
+      tree->pawn_score.outside|=32;
   }
+
 /*
   if (tree->pawn_score.outside) {
     printf(">>>>>>>>>>>>>>>>>>>  outside=%x\n",tree->pawn_score.outside);
@@ -3526,3 +3529,298 @@ int EvaluateWinner(TREE * RESTRICT tree) {
       TotalWhitePieces+TotalWhitePawns==0) can_win&=1;
   return(can_win);
 }
+
+#if defined(DETECTDRAW)
+/*
+********************************************************************************
+*                                                                              *
+*   EvaluateDraws() detects completely blocked positions as draws (hopefully). *
+*                                                                              *
+********************************************************************************
+*/
+
+#define DRAW       0
+#define DRAWISH    1
+#define NORMAL     2
+#define WINNING    3
+
+int EvaluateDraws(TREE * RESTRICT tree, int wtm) {
+  register int square, fdist, rdist,open=0,rank=0;
+  int i,sq,blocked,defenders,attackers,kingpath=0,rookpath=0;
+  int noblockw[2]={0,0},noblockb[2]={0,0};
+  BITBOARD temp;
+  int white_nostop=0,black_nostop=0;
+  int wp,bp;
+  for (i=FILEA;i<=FILEH;i++) {
+    temp=file_mask[i];
+    if (WhitePawns&temp) {
+      square=LastOne(WhitePawns&temp);
+      wp=square;
+      blocked=1;
+      do {
+        for (sq=square;sq<Min(square+32,A8);sq+=8) {
+          if (SetMask(sq+8)&BlackPieces) break;
+          defenders=PopCnt(b_pawn_attacks[sq]&WhitePawns);
+          attackers=PopCnt(w_pawn_attacks[sq]&BlackPawns);
+          if (attackers > defenders) break;
+          else if (attackers) {
+            blocked=0;
+            break;
+          }
+        }
+        if (sq >= Min(square+32,A8)) blocked=0;
+      } while(0);
+      if (blocked) {
+        if (!(plus8dir[square]&BlackPieces)) {
+          if (!TotalBlackPieces) {
+            if (Rank(square) >= RANK4) blocked=0;
+          }
+        }
+      }
+      if (!blocked) {
+        if (noblockw[0]) noblockw[1]=square;
+        else noblockw[0]=square;
+      }
+    }
+    else wp=0;
+    if (BlackPawns&temp) {
+      square=FirstOne(BlackPawns&temp);
+      bp=square;
+      blocked=1;
+      do {
+        for (sq=square;sq>Max(square-32,H1);sq-=8) {
+          if (SetMask(sq-8)&WhitePieces) break;
+          attackers=PopCnt(b_pawn_attacks[sq]&WhitePawns);
+          defenders=PopCnt(w_pawn_attacks[sq]&BlackPawns);
+          if (attackers > defenders) break;
+          else if (attackers) {
+            blocked=0;
+            break;
+          }
+        }
+        if (sq <= Max(square-32,H1)) blocked=0;
+      } while(0);
+      if (blocked) {
+        if (!(minus8dir[square]&WhitePieces)) {
+          if (!TotalWhitePieces) {
+            if (Rank(square) <= RANK5) blocked=0;
+          }
+        }
+      }
+      if (!blocked) {
+        if (noblockb[0]) noblockb[1]=square;
+        else noblockb[0]=square;
+      }
+    }
+    else bp=0;
+    if (!kingpath) {
+      if (wp && wp == bp-8) {
+        if (rank) rdist=RankDistance(wp,rank);
+        else rdist=0;
+        rank=wp;
+        if (open) {
+          if (open==1 && rdist > 1) kingpath=1;
+          else if (open==2 && rdist) kingpath=1;
+        }
+        open=0;
+      }
+      else if (wp && SetMask(wp)&(BlackPieces<<8)) {
+        if (rank) rdist=RankDistance(wp,rank);
+        else rdist=0;
+        rank=wp;
+        if (open) {
+          if (open==1 && rdist > 1) kingpath=1;
+          else if (open==2 && rdist) kingpath=1;
+        }
+        open=0;
+      }
+      else if (bp && SetMask(bp)&(WhitePieces>>8)) {
+        if (rank) rdist=RankDistance(bp-8,rank);
+        else rdist=0;
+        rank=bp-8;
+        if (open) {
+          if (open==1 && rdist > 1) kingpath=1;
+          else if (open==2 && rdist) kingpath=1;
+        }
+        open=0;
+      }
+      else open++;
+      if (open > 2) kingpath=1;
+      else if (i==FILEH && open==2) kingpath=1;
+    }
+    if (kingpath) {
+      if (WhiteMajors && BlackMajors) return(NORMAL);
+      else if (WhiteMinors > 1 && BlackMinors > 1) return(NORMAL);
+    }
+    if (open) rookpath=1;
+  }
+  if (!rookpath) return(DRAW);
+  else if (WhiteMajors && BlackMajors) return(DRAWISH);
+  else if (WhiteMinors > 1 && BlackMinors > 1) return(DRAWISH);
+  else if (!kingpath && !noblockw[0] && !noblockb[0]) return(DRAW);
+  if (noblockw[1]) {
+    fdist=FileDistance(noblockw[1],noblockw[0]);
+    if (!TotalBlackPieces) {
+      if (WhiteMajors) return(WINNING);
+      else if (WhiteMinors > 1) return(NORMAL);
+      else if (fdist > 1) white_nostop++;
+      else {
+        square=noblockw[1];
+        if (Rank(square) >= RANK4) {
+          rdist=7-Rank(square);
+          fdist=FileDistance(square,BlackKingSQ);
+          if (rdist < max(fdist,7-Rank(BlackKingSQ))-(1-wtm) ||
+            (Rank(WhiteKingSQ) >= Rank(square) && kingpath))
+            white_nostop++;
+        }
+      }
+    }
+    else if (!noblockb[0]) {
+      if (WhiteMinors+PopCnt(WhiteRooks|WhiteQueens) > BlackMinors+PopCnt(BlackRooks|BlackQueens)) return(WINNING);
+      else if (WhiteMinors+PopCnt(WhiteRooks|WhiteQueens)+2 >= BlackMinors+PopCnt(BlackRooks|BlackQueens)) return(DRAWISH);
+      else return(NORMAL);
+    }
+  }
+  else if (noblockw[0]) {
+    if (!TotalBlackPieces) {
+      if (WhiteMajors) return(WINNING);
+      else if (WhiteMinors > 1) return(NORMAL);
+      square=noblockw[0];
+      if (Rank(square) >= RANK4) {
+        rdist=7-Rank(square);
+        fdist=FileDistance(square,BlackKingSQ);
+        if (rdist < max(fdist,7-Rank(BlackKingSQ))-(1-wtm) ||
+          (Rank(WhiteKingSQ) >= Rank(square) && kingpath))
+          white_nostop++;
+      }
+    }
+    else if (!noblockb[0]) {
+      if (kingpath) {
+        if (WhiteMinors+PopCnt(WhiteRooks|WhiteQueens) > BlackMinors+PopCnt(BlackRooks|BlackQueens)) return(NORMAL);
+        else if (WhiteMinors+PopCnt(WhiteRooks|WhiteQueens)+1 >= BlackMinors+PopCnt(BlackRooks|BlackQueens)) return(DRAWISH);
+        else return(WINNING);
+      }
+      else {
+        if (WhiteMinors+PopCnt(WhiteRooks|WhiteQueens) > BlackMinors+PopCnt(BlackRooks|BlackQueens)) return(DRAWISH);
+        else if (WhiteMinors+PopCnt(WhiteRooks|WhiteQueens)+1 >= BlackMinors+PopCnt(BlackRooks|BlackQueens)) return(DRAW);
+        else return(NORMAL);
+      }
+    }
+  }
+  if (noblockb[1]) {
+    fdist=FileDistance(noblockb[1],noblockb[0]);
+    if (!TotalWhitePieces) {
+      if (BlackMajors) return(WINNING);
+      else if (BlackMinors > 1) return(NORMAL);
+      else if (fdist > 1) black_nostop++;
+      else {
+        square=noblockb[1];
+        if (Rank(square) <= RANK5) {
+          fdist=FileDistance(square,WhiteKingSQ);
+          if (Rank(square) < max(fdist,Rank(WhiteKingSQ))-wtm ||
+            (Rank(BlackKingSQ) <= Rank(square) && kingpath))
+            black_nostop++;
+        }
+      }
+    }
+    else if (!noblockw[0]) {
+      if (BlackMinors+PopCnt(BlackRooks|BlackQueens) > WhiteMinors+PopCnt(WhiteRooks|WhiteQueens)) return(WINNING);
+      else if (BlackMinors+PopCnt(BlackRooks|BlackQueens)+2 >= WhiteMinors+PopCnt(WhiteRooks|WhiteQueens)) return(DRAWISH);
+      else return(NORMAL);
+    }
+  }
+  else if (noblockb[0]) {
+    if (!TotalWhitePieces) {
+      if (BlackMajors) return(WINNING);
+      else if (BlackMinors > 1) return(NORMAL);
+      square=noblockb[0];
+      if (Rank(square) <= RANK5) {
+        fdist=FileDistance(square,WhiteKingSQ);
+        if (Rank(square) < max(fdist,Rank(WhiteKingSQ))-wtm ||
+          (Rank(BlackKingSQ) <= Rank(square) && kingpath))
+          black_nostop++;
+      }
+    }
+    else if (!noblockw[0]) {
+      if (kingpath) {
+        if (BlackMinors+PopCnt(BlackRooks|BlackQueens) > WhiteMinors+PopCnt(WhiteRooks|WhiteQueens)) return(NORMAL);
+        else if (BlackMinors+PopCnt(BlackRooks|BlackQueens)+1 >= WhiteMinors+PopCnt(WhiteRooks|WhiteQueens)) return(DRAWISH);
+        else return(WINNING);
+      }
+      else {
+        if (BlackMinors+PopCnt(BlackRooks|BlackQueens) > WhiteMinors+PopCnt(WhiteRooks|WhiteQueens)) return(DRAWISH);
+        else if (BlackMinors+PopCnt(BlackRooks|BlackQueens)+1 >= WhiteMinors+PopCnt(WhiteRooks|WhiteQueens)) return(DRAW);
+        else return(NORMAL);
+      }
+    }
+  }
+  else if (!(noblockb[0] || noblockw[0])) {
+    if (!TotalWhitePieces && !TotalBlackPieces) {
+      if (!kingpath) return(DRAW);
+      else if (HasOpposition(wtm,WhiteKingSQ,BlackKingSQ) && Rank(WhiteKingSQ) >= Rank(rank)) return(NORMAL);
+      else if (HasOpposition(ChangeSide(wtm),BlackKingSQ,WhiteKingSQ) && Rank(BlackKingSQ) <= Rank(rank)) return(NORMAL);
+      else return(DRAW);
+    }
+    else if (!TotalWhitePieces) {
+      if (kingpath && BlackMinors) return(NORMAL);
+      else if (BlackMajors) return(WINNING);
+      else if (BlackMinors > 1) return(DRAWISH);
+      else return(DRAW);
+    }
+    else if (!TotalBlackPieces) {
+      if (kingpath && WhiteMinors) return(NORMAL);
+      else if (WhiteMajors) return(WINNING);
+      else if (WhiteMinors > 1) return(DRAWISH);
+      else return(DRAW);
+    }
+    else {
+      if (WhiteMinors+PopCnt(WhiteRooks|WhiteQueens) > BlackMinors+PopCnt(BlackRooks|BlackQueens)) {
+        if (kingpath) return(NORMAL);
+        else return(DRAWISH);
+      }
+      if (BlackMinors+PopCnt(BlackRooks|BlackQueens) > WhiteMinors+PopCnt(WhiteRooks|WhiteQueens)) {
+        if (kingpath) return(NORMAL);
+        else return(DRAWISH);
+      }
+    }
+  }      
+  if (!(white_nostop || black_nostop)) {
+    if (!kingpath) return(DRAW);
+    if (!TotalWhitePieces && !TotalBlackPieces) {
+      if (HasOpposition(wtm,WhiteKingSQ,BlackKingSQ) && Rank(WhiteKingSQ) >= Rank(rank)) return(NORMAL);
+      else if (HasOpposition(ChangeSide(wtm),BlackKingSQ,WhiteKingSQ) && Rank(BlackKingSQ) <= Rank(rank)) return(NORMAL);
+      else return(DRAW);
+    }
+    else if (!TotalBlackPieces) {
+      if (WhiteMajors) return(WINNING);
+      else if (!kingpath && WhiteMinors > 1) return(NORMAL);
+      else if (WhiteMinors && kingpath) {
+        if (WhiteMinors > 1) return(WINNING);
+        else return(NORMAL);
+      }
+      else return(DRAW);
+    }
+    else if (!TotalWhitePieces) {
+      if (BlackMajors) return(WINNING);
+      else if (BlackMinors > 1 && !kingpath) return(NORMAL);
+      else if (BlackMinors && kingpath) {
+        if (BlackMinors > 1) return(WINNING);
+        else return(NORMAL);
+      }
+      else return(DRAW);
+    }
+  }
+  i=white_nostop-black_nostop;
+  if (i > 0) {
+    if (WhiteMinors+PopCnt(WhiteRooks|WhiteQueens) > BlackMinors+PopCnt(BlackRooks|BlackQueens)) return(WINNING);
+    else if (WhiteMinors+PopCnt(WhiteRooks|WhiteQueens)+i > BlackMinors+PopCnt(BlackRooks|BlackQueens)) return(NORMAL);
+    else if (WhiteMinors+PopCnt(WhiteRooks|WhiteQueens)+i == BlackMinors+PopCnt(BlackRooks|BlackQueens)) return(DRAWISH);
+  }
+  else if (i < 0) {
+    if (BlackMinors+PopCnt(BlackRooks|BlackQueens) > WhiteMinors+PopCnt(WhiteRooks|WhiteQueens)) return(WINNING);
+    else if (BlackMinors+PopCnt(BlackRooks|BlackQueens)-i > WhiteMinors+PopCnt(WhiteRooks|WhiteQueens)) return(NORMAL);
+    else if (BlackMinors+PopCnt(BlackRooks|BlackQueens)-i == WhiteMinors+PopCnt(WhiteRooks|WhiteQueens)) return(DRAWISH);
+  }
+  return(NORMAL);
+}
+#endif

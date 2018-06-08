@@ -407,8 +407,8 @@ void DisplayPV(TREE *tree, int level, int wtm, int time, int value, PATH *pv) {
   }
   else if(pv->pathh == 2) 
     sprintf(buffer+strlen(buffer)," <EGTB>");
-  if (nskip>1 && max_threads>1) sprintf(buffer+strlen(buffer)," (s=%d)",nskip);
   strcpy(whisper_text,buffer);
+  if (nskip>1 && max_threads>1) sprintf(buffer+strlen(buffer)," (s=%d)",nskip);
   if (root_print_ok) {
 #if defined(SMP)
     Lock(lock_io);

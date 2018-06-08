@@ -1080,7 +1080,7 @@ void InitializeHashTables(void) {
     (pawn_hash_table+i)->white_defects_k=0;
     (pawn_hash_table+i)->white_defects_q=0;
     (pawn_hash_table+i)->passed_w=0;
-    (pawn_hash_table+i)->passed_w=0;
+    (pawn_hash_table+i)->passed_b=0;
     (pawn_hash_table+i)->outside=0;
     (pawn_hash_table+i)->candidates_w=0;
     (pawn_hash_table+i)->candidates_b=0;

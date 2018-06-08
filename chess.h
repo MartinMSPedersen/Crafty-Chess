@@ -602,6 +602,7 @@ int            EnPrise(int, int);
 int            Evaluate(TREE*RESTRICT, int, int, int, int);
 int            EvaluateDevelopmentB(TREE*RESTRICT, int);
 int            EvaluateDevelopmentW(TREE*RESTRICT, int);
+int            EvaluateDraws(TREE*RESTRICT, int);
 int            EvaluateWinner(TREE*RESTRICT);
 int            EvaluateKingSafety(TREE*RESTRICT, int);
 int            EvaluateMate(TREE*RESTRICT);

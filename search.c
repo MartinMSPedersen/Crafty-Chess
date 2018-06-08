@@ -18,12 +18,22 @@
 *                                                                              *
 ********************************************************************************
 */
+
+#if defined(FUTILITY)
+#define RAZOR_MARGIN (QUEEN_VALUE+1)
+#define EXTENDED_FUTILITY_MARGIN (ROOK_VALUE+1)
+#define FUTILITY_MARGIN (BISHOP_VALUE+1)
+#endif
+
 int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
            int ply, int do_null, int lp_recapture) {
   register int moves_searched=0;
   register int o_alpha, value=0;
   register int extensions, extended, recapture, pieces;
   int mate_threat=0;
+#if defined(FUTILITY)
+  int fprune, fscore, fmax;
+#endif
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -380,6 +390,9 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
 |                                                          |
  ----------------------------------------------------------
 */
+#if defined(FUTILITY)
+      fprune=0;
+#endif
       if (!moves_searched) {
         if (tree->in_check[ply] && tree->last[ply]-tree->last[ply-1] == 1) {
           tree->one_reply_extensions_done++;
@@ -411,8 +424,56 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
         if (extended) {
           LimitExtensions(extended,ply);
         }
+#if defined(FUTILITY)
+        else {
+          if (abs(alpha) < (MATE-500) && ply > 4) {
+            if (wtm) {
+              fscore=Material+RAZOR_MARGIN;
+              if (depth>=3*INCPLY && depth<4*INCPLY &&
+                  fscore<=alpha && TotalBlackPieces>3) extended-=60;
+              if (!tree->in_check[ply]) {
+                fscore=Material+EXTENDED_FUTILITY_MARGIN;
+                if (depth+extended>=2*INCPLY &&
+                    depth+extended<3*INCPLY && fscore <= alpha) {
+                  fprune=1;
+                  fmax=fscore;
+                }
+                fscore=Material+FUTILITY_MARGIN;
+                if (depth+extended<2*INCPLY && fscore<=alpha) {
+                  fprune=1;
+                  fmax=fscore;
+                }
+              }
+            }
+            else {
+              fscore=-Material+RAZOR_MARGIN;
+              if (depth>=3*INCPLY && depth<4*INCPLY &&
+                  fscore<=alpha && TotalWhitePieces>3) {
+                extended-=60;
+              }
+              if (!tree->in_check[ply]) {
+                fscore=-Material+EXTENDED_FUTILITY_MARGIN;
+                if (depth+extended>=2*INCPLY &&
+                    depth+extended<3*INCPLY && fscore<=alpha) {
+                  fprune=1;
+                  fmax=fscore;
+                }
+                fscore=-Material+FUTILITY_MARGIN;
+                if (depth+extended<2*INCPLY && fscore<=alpha) {
+                  fprune=1;
+                  fmax=fscore;
+                }
+              }
+            }
+          }
+        }
+#endif
         extensions=extended-INCPLY;
-        if (depth+extensions >= INCPLY)
+#if defined(FUTILITY)
+        if (depth+extensions>=INCPLY && !fprune)
+#else
+        if (depth+extensions>=INCPLY)
+#endif
           value=-Search(tree,-alpha-1,-alpha,ChangeSide(wtm),
                         depth+extensions,ply+1,DO_NULL,recapture);
         else

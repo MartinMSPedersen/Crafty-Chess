@@ -2903,6 +2903,13 @@
 *           as Q+minor+nopawns vs Q+pawns as unwinnable by the Q+minor side.  *
 *           other cases were fixed/improved as well.                          *
 *                                                                             *
+*   19.1    changes to the outside passed pawn and outside candidate pawn     *
+*           code to more correctly recognize when one side has a simple end-  *
+*           game position that is easy to win.  futility pruning and razoring *
+*           (Jeremiah Penery) was added.  to endable it, you will need to add *
+*           -DFUTILITY to the Makefile options, otherwise it is disabled by   *
+*           default.                                                          *
+*                                                                             *
 *******************************************************************************
 */
 void SigInt(int type) {

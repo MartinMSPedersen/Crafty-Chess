@@ -45,7 +45,7 @@
 #   options above.
 
 default:
-	$(MAKE) -j4  linux-icc-elf
+	$(MAKE) -j4  linux-i686-elf
 help:
 	@echo "You must specify the system which you want to compile for:"
 	@echo ""
@@ -84,15 +84,6 @@ aix:
 		CXFLAGS=$(CFLAGS) \
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS' \
 		crafty-make
-
-#Note: "-arch host" assumes you will run the binary on exactly the
-# same kind of ALPHA you compiled it on.  Omit it if you want to run
-# the same binary on several kinds of Alpha.  If you are on an early
-# EV6 that does not have the CIX instruction set extension, a compiler
-# bug (?) causes these instructions to be generated anyway.  If this
-# happens you'll see a message about "instr emulated" after starting
-# crafty; to fix it, change "-arch host" to "-arch ev56 -tune host"
-# and recompile.
 
 alpha:
 	$(MAKE) target=ALPHA \
@@ -181,7 +172,7 @@ linux:
 	$(MAKE) target=LINUX \
 		CC=gcc CXX=g++ \
 		CFLAGS='$(CFLAGS) -Wall -pipe -D_REENTRANT -O3' \
-		CXFLAGS=$(CFLAGS) \
+		CXFLAGS='$(CFLAGS) \
 			-fforce-mem -fomit-frame-pointer' \
 		LDFLAGS='$(LDFLAGS) -lpthread' \
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
@@ -218,13 +209,27 @@ linux-i686:
 linux-i686-elf:
 	$(MAKE) target=LINUX \
 		CC=gcc CXX=g++ \
-		CFLAGS='$(CFLAGS) -Wall -pipe -D_REENTRANT -march=i686 -O \
+		CFLAGS='$(CFLAGS) -Wall -pipe -D_REENTRANT -march=i686 -O3 \
 			-fforce-mem -fomit-frame-pointer \
 			-fno-gcse -mpreferred-stack-boundary=2' \
 		CXFLAGS=$(CFLAGS) \
-		LDFLAGS=$(LDFLAGS) \
+		LDFLAGS='$(LDFLAGS) -lstdc++' \
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
-		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST \
+		     -DFUTILITY -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST \
+		     -DSMP -DCPUS=4 -DCLONE -DDGT' \
+		asm=X86-elf.o \
+		crafty-make
+
+linux-i686-elf-profile:
+	$(MAKE) target=LINUX \
+		CC=gcc CXX=g++ \
+		CFLAGS='$(CFLAGS) -Wall -pipe -D_REENTRANT -march=i686 -O3 \
+			-fprofile-arcs -fforce-mem \
+			-fno-gcse -mpreferred-stack-boundary=2' \
+		CXFLAGS=$(CFLAGS) \
+		LDFLAGS='$(LDFLAGS) -fprofile-arcs -lstdc++' \
+		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
+		     -DFUTILITY -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST \
 		     -DSMP -DCPUS=4 -DCLONE -DDGT' \
 		asm=X86-elf.o \
 		crafty-make
@@ -239,7 +244,7 @@ linux-icc-elf-profile:
 			-fno-gcse -mpreferred-stack-boundary=2' \
 		LDFLAGS=$(LDFLAGS) \
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
-		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST \
+		     -DFUTILITY -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST \
 		     -DSMP -DCPUS=4 -DCLONE -DDGT' \
 		asm=X86-elf.o \
 		crafty-make
@@ -254,7 +259,7 @@ linux-icc-elf:
 			-fno-gcse -mpreferred-stack-boundary=2' \
 		LDFLAGS=$(LDFLAGS) \
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
-		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST \
+		     -DFUTILITY -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST \
 		     -DSMP -DCPUS=4 -DCLONE -DDGT' \
 		asm=X86-elf.o \
 		crafty-make
@@ -396,8 +401,8 @@ generic:
 
 profile:
 	touch *.c
-	rm -rf profdir
-	mkdir profdir
+	@rm -rf profdir
+	@mkdir profdir
 	$(MAKE) linux-icc-elf-profile
 	@echo "#!/bin/csh" > runprof
 	@echo "crafty <<EOF" >>runprof
@@ -463,7 +468,7 @@ profile:
 	@./runprof
 	@rm runprof
 	@touch *.c
-	$(MAKE)
+	$(MAKE) linux-icc-elf
 
 # Do not change anything below this line!
 
