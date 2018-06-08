@@ -728,7 +728,7 @@ void LearnImportCAP(TREE *tree, int nargs, char **args) {
     }
     *acd=0;
     nargs=ReadParse(buffer,args," 	;");
-    SetBoard(nargs,args,0);
+    SetBoard(&tree->position[0],nargs,args,0);
     move=InputMove(tree,pmp,0,wtm,1,0);
     if (!move) {
       Print(4095,"\nERROR  bad move in CAP input file\n");
@@ -908,7 +908,7 @@ void LearnImportPosition(TREE *tree, int nargs, char **args) {
     nargs=ReadParse(text,args," 	;\n");
     if (strcmp(args[0],"setboard"))
       Print(4095,"ERROR.  missing setboard command in file.\n");
-    SetBoard(nargs-1,args+1,0);
+    SetBoard(&tree->position[0],nargs-1,args+1,0);
     eof=fgets(text,80,learn_in);
     if (eof) {
       char *delim;
@@ -1176,7 +1176,7 @@ void LearnPositionLoad(void) {
   }
 }
 
-/* last modified 03/11/98 */
+/* last modified 11/27/00 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -1191,6 +1191,7 @@ void LearnPositionLoad(void) {
 void LearnResult(TREE *tree, int wtm) {
   int move, i, j;
   int secs, last_choice;
+  float tval;
   char cmd[32], buff[80], *nextc;
   struct tm *timestruct;
   int n_book_moves[512];
@@ -1277,7 +1278,9 @@ void LearnResult(TREE *tree, int wtm) {
 */
   InitializeChessBoard(&tree->position[0]);
   wtm=1;
+  tval=(wtm)?.1:-.1;
   for (i=0;i<512;i++) {
+    tval=-tval;
     strcpy(cmd,"");
     fseek(history_file,i*10,SEEK_SET);
     strcpy(cmd,"");
@@ -1286,8 +1289,9 @@ void LearnResult(TREE *tree, int wtm) {
       move=InputMove(tree,cmd,0,wtm,1,0);
       if (!move) break;
       tree->position[1]=tree->position[0];
-      if (i == last_choice) LearnBookUpdate(tree, wtm, move, -999.0);
-      MakeMoveRoot(tree, move,wtm);
+      if (i == last_choice) LearnBookUpdate(tree,wtm,move,-999.0);
+      else LearnBookUpdate(tree,wtm,move,tval);
+      MakeMoveRoot(tree,move,wtm);
     }
     wtm=ChangeSide(wtm);
   } 

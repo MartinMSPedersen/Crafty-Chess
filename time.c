@@ -60,11 +60,10 @@ void TimeAdjust(int time_used, PLAYER player) {
 *                                                                              *
 ********************************************************************************
 */
-int TimeCheck(int abort) {
+int TimeCheck(TREE *tree, int abort) {
   int time_used;
   int value, last_value;
   int i, ndone;
-  TREE * const tree=local[0];
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -186,7 +185,7 @@ int TimeCheck(int abort) {
 |                                                          |
  ----------------------------------------------------------
 */
-  if (time_used < time_limit*6 && time_used+500<tc_time_remaining) return(0);
+  if (time_used < time_limit*7 && time_used+500<tc_time_remaining) return(0);
   return(1);
 }
 
@@ -268,7 +267,7 @@ void TimeSet(int search_type) {
   if (time_limit <= 0) time_limit=5;
   absolute_time_limit=time_limit+surplus/2+((tc_time_remaining-
                       tc_operator_time*tc_moves_remaining)/4);
-  if (absolute_time_limit > 6*time_limit) absolute_time_limit=6*time_limit;
+  if (absolute_time_limit > 7*time_limit) absolute_time_limit=7*time_limit;
   if (absolute_time_limit > tc_time_remaining/2)
     absolute_time_limit=tc_time_remaining/2;
 /*

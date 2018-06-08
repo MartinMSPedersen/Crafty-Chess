@@ -72,7 +72,7 @@ void EVTest(char *filename) {
     }
     else if (!strcmp(args[0],"setboard")) {
       int s;
-      SetBoard(nargs-1,args+1,0);
+      SetBoard(&tree->position[0],nargs-1,args+1,0);
       WhiteCastle(0)=0;
       BlackCastle(0)=0;
       root_wtm=wtm;

@@ -4,7 +4,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 05/03/99 */
+/* last modified 12/14/00 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -45,7 +45,7 @@
 *                                                                              *
 ********************************************************************************
 */
-void SetBoard(int nargs, char *args[], int special) {
+void SetBoard(SEARCH_POSITION *position, int nargs, char *args[], int special) {
   int twtm, i, match, num, pos, square, tboard[64];
   int bcastle, ep, wcastle;
   char input[80];
@@ -161,9 +161,9 @@ void SetBoard(int nargs, char *args[], int special) {
     }
   }
   for (i=0;i<64;i++) PcOnSq(i)=tboard[i];
-  WhiteCastle(0)=wcastle;
-  BlackCastle(0)=bcastle;
-  EnPassant(0)=0;
+  position->w_castle=wcastle;
+  position->b_castle=bcastle;
+  position->enpassant_target=0;
   if (ep) {
     if (Rank(ep) == RANK6) {
       if (PcOnSq(ep-8) != -pawn) ep=0;
@@ -176,9 +176,9 @@ void SetBoard(int nargs, char *args[], int special) {
       printf("enpassant status is bad (must be on 3rd/6th rank only.\n");
       ep=0;
     }
-    EnPassant(0)=ep;
+    position->enpassant_target=ep;
   }
-  Rule50Moves(0)=0;
+  position->rule_50_moves=0;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -188,28 +188,30 @@ void SetBoard(int nargs, char *args[], int special) {
 |                                                          |
  ----------------------------------------------------------
 */
-  if (((WhiteCastle(0) & 2) && (PcOnSq(A1) != rook)) ||
-      ((WhiteCastle(0) & 1) && (PcOnSq(H1) != rook)) ||
-      ((BlackCastle(0) & 2) && (PcOnSq(A8) != -rook)) ||
-      ((BlackCastle(0) & 1) && (PcOnSq(H8) != -rook))) {
+  if (((position->w_castle & 2) && (PcOnSq(A1) != rook)) ||
+      ((position->w_castle & 1) && (PcOnSq(H1) != rook)) ||
+      ((position->b_castle & 2) && (PcOnSq(A8) != -rook)) ||
+      ((position->b_castle & 1) && (PcOnSq(H8) != -rook))) {
     printf("ERROR-- castling status does not match board position\n");
     InitializeChessBoard(&tree->position[0]);
   }
-  if ((twtm && EnPassant(0) && (PcOnSq(EnPassant(0)+8) != -pawn) &&
-       (PcOnSq(EnPassant(0)-7) != pawn) &&
-       (PcOnSq(EnPassant(0)-9) != pawn)) ||
-      (ChangeSide(twtm) && EnPassant(0) && (PcOnSq(EnPassant(0)-8) != pawn) &&
-       (PcOnSq(EnPassant(0)+7) != -pawn) &&
-       (PcOnSq(EnPassant(0)+9) != -pawn))) {
-    EnPassant(0)=0;
+  if ((twtm && position->enpassant_target &&
+       (PcOnSq(position->enpassant_target+8) != -pawn) &&
+       (PcOnSq(position->enpassant_target-7) != pawn) &&
+       (PcOnSq(position->enpassant_target-9) != pawn)) ||
+      (ChangeSide(twtm) && position->enpassant_target &&
+       (PcOnSq(position->enpassant_target-8) != pawn) &&
+       (PcOnSq(position->enpassant_target+7) != -pawn) &&
+       (PcOnSq(position->enpassant_target+9) != -pawn))) {
+    position->enpassant_target=0;
   }
-  SetChessBitBoards(&tree->position[0]);
+  SetChessBitBoards(position);
   if (log_file) DisplayChessBoard(log_file,tree->pos);
   tree->rephead_b=tree->replist_b;
   tree->rephead_w=tree->replist_w;
   if (twtm) *tree->rephead_w++=HashKey;
   else *tree->rephead_b++=HashKey;
-  tree->position[0].rule_50_moves=0;
+  position->rule_50_moves=0;
   if (!special) {
     last_mate_score=0;
     for (i=0;i<4096;i++) {

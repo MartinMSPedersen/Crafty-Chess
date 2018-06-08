@@ -8,7 +8,7 @@
 #  include <unistd.h>
 #endif
 
-/* last modified 10/30/99 */
+/* last modified 01/08/01 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -60,7 +60,7 @@ int Book(TREE *tree, int wtm, int root_list_done) {
   float tempr;
   int done, i, j, last_move, temp, which, minlv=999999, maxlv=-999999, cap;
   int mincap=999999, maxcap=-999999, maxp=-999999, minev=999999, maxev=-999999;
-  int im, value, np, book_ponder_move;
+  int nflagged, im, value, np, book_ponder_move;
   int cluster, scluster, test;
   BITBOARD temp_hash_key, common;
   int key, nmoves, num_selected, st;
@@ -199,7 +199,9 @@ int Book(TREE *tree, int wtm, int root_list_done) {
               break;
             }
           }
-          book_moves[nmoves++]=root_moves[im].move;
+          book_moves[nmoves]=root_moves[im].move;
+          if (BookRejectMove(tree,wtm)) book_status[nmoves]|=BAD_MOVE;
+          nmoves++;
           break;
         }
       }
@@ -355,7 +357,7 @@ int Book(TREE *tree, int wtm, int root_list_done) {
         else Print(128,"  ");
         Print(128,"   %6d",bs_played[i]);
         Print(128,"  %3d",100*bs_played[i]/Max(total_moves,1));
-        Print(128,"%s",DisplayEvaluation(evaluations[i]));
+        Print(128,"%s",DisplayEvaluation(evaluations[i],wtm));
         Print(128,"%9.2f",(float)bs_learn[i]/100.0);
         Print(128,"%9.2f",(float)bs_CAP[i]/100.0);
         Print(128," %9.1f",bs_value[i]);
@@ -514,7 +516,10 @@ int Book(TREE *tree, int wtm, int root_list_done) {
       if (i < nmoves-1) Print(128,", ");
     }
     Print(128,"}\n");
-    nmoves=Min(nmoves,book_selection_width);
+    nflagged=0;
+    for (i=0;i<nmoves;i++)
+      if (book_status[i] & 8) nflagged++;
+    nmoves=Max(Min(nmoves,book_selection_width),nflagged);
     if (show_book) {
       Print(128,"               moves considered {");
       for (i=0;i<nmoves;i++) {
@@ -567,7 +572,7 @@ int Book(TREE *tree, int wtm, int root_list_done) {
         else Print(128,"  ");
         Print(128,"   %6d",bs_played[i]);
         Print(128,"  %3d",100*bs_played[i]/Max(total_moves,1));
-        Print(128,"%s",DisplayEvaluation(evaluations[i]));
+        Print(128,"%s",DisplayEvaluation(evaluations[i],wtm));
         Print(128," %9.1f",bs_value[i]);
         Print(128," %3d",bs_percent[i]);
         if ((book_status[i]&book_accept_mask &&
@@ -1262,6 +1267,38 @@ int BookMask(char *flags) {
   return(mask);
 }
 
+
+/* last modified 01/08/01 */
+/*
+********************************************************************************
+*                                                                              *
+*   BookRejectMove() is called to test a move to see if it should be excluded  *
+*   for some reason.  One example is a kingside castling move that castles     *
+*   a stonewall attack type formation.                                         *
+*                                                                              *
+********************************************************************************
+*/
+int BookRejectMove(TREE *tree, int wtm) {
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   look for the "stonewall" formation in the pawns and    |
+|   reject this move if it castles into the attack.        |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  if (wtm) {
+    if (PopCnt(BlackPawns&stonewall_black)==2 &&
+        (WhitePawns&SetMask(E2) || WhitePawns&SetMask(E3)))
+      return(1);
+  }
+  else {
+    if (PopCnt(WhitePawns&stonewall_white)==2 &&
+        (BlackPawns&SetMask(E7) || BlackPawns&SetMask(E6)))
+      return(1);
+  }
+  return(0);
+}
 
 /* last modified 06/19/98 */
 /*

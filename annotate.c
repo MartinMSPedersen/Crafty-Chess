@@ -198,7 +198,7 @@ void Annotate() {
     }
     else fprintf(annotate_out,"{annotating for player %s}%s\n",pname,html_br);
     fprintf(annotate_out,"{using a scoring margin of %s pawns.}%s\n",
-            DisplayEvaluationWhisper(annotate_margin),html_br);
+            DisplayEvaluationWhisper(annotate_margin,wtm),html_br);
     fprintf(annotate_out,"{search time limit is %s}%s\n%s\n",
             DisplayTimeWhisper(annotate_search_time_limit),html_br,html_br);
     if (strlen(colors)) {
@@ -328,7 +328,7 @@ void Annotate() {
             if (strlen(html_br)) AnnotatePositionHTML(tree,wtm,annotate_out);
             fprintf(annotate_out,"                ({%d:%s}",
                     player_pv.pathd,
-                    DisplayEvaluationWhisper(player_score)); 
+                    DisplayEvaluationWhisper(player_score,wtm)); 
             path_len=player_pv.pathl;
             fprintf(annotate_out," %s", FormatPV(tree,wtm, player_pv));
             fprintf(annotate_out," %s)%s\n",
@@ -337,7 +337,7 @@ void Annotate() {
               if (move != temp[move_num].path[1]) {
                 fprintf(annotate_out,"                ({%d:%s}",
                         temp[move_num].pathd,
-                        DisplayEvaluationWhisper(annotate_score[move_num])); 
+                        DisplayEvaluationWhisper(annotate_score[move_num],wtm)); 
                 path_len=temp[move_num].pathl;
                 fprintf(annotate_out," %s", FormatPV(tree,wtm, temp[move_num]));
                 fprintf(annotate_out," %s)%s\n", 
@@ -385,7 +385,7 @@ void Annotate() {
             }
             fprintf(annotate_out,"                ({suggested %d:%s}",
                     tree->pv[0].pathd,
-                    DisplayEvaluationWhisper(annotate_score[0])); 
+                    DisplayEvaluationWhisper(annotate_score[0],wtm)); 
             for (i=1;i<=path_len;i++) {
               fprintf(annotate_out," %s",OutputMove(tree,tree->pv[0].path[i],i,twtm)); 
               MakeMove(tree,i,tree->pv[0].path[i],twtm);

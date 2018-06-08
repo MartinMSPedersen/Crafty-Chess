@@ -712,7 +712,7 @@ void InitializeChessBoard(SEARCH_POSITION *new_pos) {
     int nargs;
 
     nargs=ReadParse(initial_position,args," ;");
-    SetBoard(nargs,args,1);
+    SetBoard(new_pos,nargs,args,1);
   }
   else {
     for(i=0;i<64;i++) tree->pos.board[i]=none;
@@ -1317,10 +1317,12 @@ void InitializePawnMasks(void) {
   these masks are used to detect that the opponent is trying to set up
   a stonewall type pawn formation.
 */
-  stonewall_white=SetMask(D4) | SetMask(E3) | SetMask(F4);
+  stonewall_white=SetMask(D4) | SetMask(F4);
   closed_white=SetMask(E4) | SetMask(D3) | SetMask(C4);
-  stonewall_black=SetMask(D5) | SetMask(E6) | SetMask(F5);
+  e2_e3=SetMask(E2) | SetMask(E3);
+  stonewall_black=SetMask(D5) | SetMask(F5);
   closed_black=SetMask(E5) | SetMask(D6) | SetMask(C5);
+  e7_e6=SetMask(E7) | SetMask(E6);
 }
 
 void InitializePieceMasks(void) {
@@ -1535,20 +1537,20 @@ void InitializeZeroMasks(void) {
 
   for (i=0;i<256;i++) {
     for (j=0;j<256;j++) {
-      int ppsq, psql, psqr;
+      int ppsq1, ppsq2, psql, psqr;
       is_outside[i][j]=0;
       is_outside_c[i][j]=0;
-      ppsq=first_ones_8bit[i];
-      if (ppsq < 8) {
-        psql=first_ones_8bit[j&(255-(128>>ppsq))];
-        if (ppsq < psql-1) is_outside[i][j]+=1;
-        if (ppsq <= psql+1) is_outside_c[i][j]+=1;
+      ppsq1=first_ones_8bit[i];
+      if (ppsq1 < 8) {
+        psql=first_ones_8bit[j&(255-(128>>ppsq1))];
+        if (ppsq1 < psql-1) is_outside[i][j]+=1;
+        if (ppsq1 <= psql+1) is_outside_c[i][j]+=1;
       }
-      ppsq=last_ones_8bit[i];
-      if (ppsq < 8) {
-        psqr=last_ones_8bit[j&(255-(128>>ppsq))];
-        if (ppsq > psqr+1) is_outside[i][j]+=1;
-        if (ppsq >= psqr-1) is_outside_c[i][j]+=1;
+      ppsq2=last_ones_8bit[i];
+      if (ppsq2<8 && ppsq2!=ppsq1) {
+        psqr=last_ones_8bit[j&(255-(128>>ppsq2))];
+        if (ppsq2 > psqr+1) is_outside[i][j]+=1;
+        if (ppsq2 >= psqr-1) is_outside_c[i][j]+=1;
       }
     }
   }

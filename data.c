@@ -166,6 +166,8 @@
   BITBOARD       mask_black_OOO;
   BITBOARD       stonewall_white;
   BITBOARD       stonewall_black;
+  BITBOARD       e7_e6;
+  BITBOARD       e2_e3;
   BITBOARD       closed_white;
   BITBOARD       closed_black;
   BITBOARD       mask_kr_trapped_w[3];
@@ -245,7 +247,7 @@
   unsigned int   max_split_blocks;
   volatile unsigned int   splitting;
 
-# define    VERSION                            "17.14"
+# define    VERSION                             "18.0"
   char      version[6] =                    {VERSION};
   PLAYING_MODE mode =                     normal_mode;
 
@@ -279,17 +281,6 @@
   char      blocker_list[512][20] = {
                                       {"cptnbluebear"},
                                       {"kingway"}};
-
-  int       number_of_specials =                    7;
-
-  char      special_list[512][20] = {
-                                      {"bughousemansion"},
-                                      {"chixdiggit"},
-                                      {"crissaegrim"},
-                                      {"guarapuava"},
-                                      {"mercilous"},
-                                      {"nudnick"},
-                                      {"sabalero"}};
 
   int       number_auto_kibitzers =                 7;
 
@@ -355,6 +346,7 @@
   void      *EGTB_cache =                    (void*)0;
   int       EGTB_setup =                            0;
   int       xboard =                                0;
+  int       pong =                                  0;
   int       whisper =                               0;
   int       channel =                               0;
   int       early_exit =                           99;
@@ -373,7 +365,7 @@
   int       crafty_is_white =                       0;
   int       last_opponent_move =                    0;
   int       average_nps =                           0;
-  int       incheck_depth =                        45;
+  int       incheck_depth =                        60;
   int       onerep_depth =                         45;
   int       recap_depth =                          45;
   int       pushpp_depth =                         45;
@@ -476,7 +468,7 @@
   const char king_tropism_at_r[8]   = {4,3,1,0,0,0,0,0};
   const char king_tropism_q[8]      = {4,4,4,2,1,0,0,0};
   const char king_tropism_at_q[8]   = {5,5,3,0,0,0,0,0};
-  const signed char king_tropism[128] =
+  const int  king_tropism[128] =
                                 { -25, -25, -20, -20, -15, -15, -10,  -5,
                                     0,   2,   5,  10,  12,  16,  20,  25,
                                    30,  35,  40,  45,  50,  55,  60,  65,
@@ -501,8 +493,9 @@
                                      PAWN_CONNECTED_PASSED*4,
                                      0};
 
-  const int passed_pawn_value[8] ={ 0, 8, 16, 24, 45, 92, 150, 0};
-  const char blockading_passed_pawn_value[8] = { 0, 8, 16, 24, 32, 40, 48, 0};
+  const int hidden_passed_pawn_value[8] ={ 0, 0, 0, 0, 0, 32, 48, 0};
+  const int passed_pawn_value[8] ={ 0, 8, 16, 32, 60, 120, 160, 0};
+  const char blockading_passed_pawn_value[8] = { 0, 8, 12, 16, 30, 45, 60, 0};
 
   const char isolated_pawn_value[9] = {0, 10, 20, 40, 60, 80, 90, 100, 110};
   const char isolated_pawn_of_value[9] = {0, 5, 10, 15, 20, 25, 30, 35, 40};
@@ -566,15 +559,15 @@
    small pertubations in king safety can produce signficant scoring changes,
    but large pertubations won't cause Crafty to sacrifice pieces.
 */
-  const char temper[64] = 
+  const int temper[64] = 
     {   0,   4,  15,  24,  36,  42,  54,  72, /*   0-   7 */
        81,  84,  87,  90,  93,  96,  99, 102, /*   8-  15 */
       105, 108, 111, 114, 117, 120, 124, 127, /*  16-  23 */
-      127, 127, 127, 127, 127, 127, 127, 127, /*  24-  31 */
-      127, 127, 127, 127, 127, 127, 127, 127, /*  32-  39 */
-      127, 127, 127, 127, 127, 127, 127, 127, /*  47-  47 */
-      127, 127, 127, 127, 127, 127, 127, 127, /*  48-  55 */
-      127, 127, 127, 127, 127, 127, 127, 127};/*  56-  63 */
+      128, 128, 128, 128, 128, 128, 128, 128, /*  24-  31 */
+      128, 128, 128, 128, 128, 128, 128, 128, /*  32-  39 */
+      128, 128, 128, 128, 128, 128, 128, 128, /*  47-  47 */
+      128, 128, 128, 128, 128, 128, 128, 128, /*  48-  55 */
+      128, 128, 128, 128, 128, 128, 128, 128};/*  56-  63 */
 /*
    the following array cuts the king safety term down to a value that can
    be used in the king tropism calculation.  this lets the safety of a king
@@ -592,11 +585,11 @@
   const char ttemper[64] =   { 16, 16, 16, 16, 17, 17, 18, 18, /*   0-   7 */
                                19, 19, 20, 20, 21, 21, 22, 22, /*   8-  15 */
                                23, 23, 24, 24, 25, 25, 26, 26, /*  16-  23 */
-                               27, 27, 27, 27, 27, 27, 27, 27, /*  24-  31 */
-                               27, 27, 27, 27, 27, 27, 27, 27, /*  32-  39 */
-                               27, 27, 27, 27, 27, 27, 27, 27, /*  40-  47 */
-                               27, 27, 27, 27, 27, 27, 27, 27, /*  48-  55 */
-                               27, 27, 27, 27, 27, 27, 27, 27};/*  56-  63 */
+                               27, 27, 28, 28, 29, 29, 30, 30, /*  24-  31 */
+                               31, 31, 32, 32, 32, 32, 32, 32, /*  32-  39 */
+                               32, 32, 32, 32, 32, 32, 32, 32, /*  40-  47 */
+                               32, 32, 32, 32, 32, 32, 32, 32, /*  48-  55 */
+                               32, 32, 32, 32, 32, 32, 32, 32};/*  56-  63 */
 /*
    penalty for a pawn that is missing from its initial square in front
    of the castled king.  ie h3 would count as 'one missing pawn' while

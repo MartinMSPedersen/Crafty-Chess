@@ -10,7 +10,7 @@
 #endif
 #include "epdglue.h"
 
-/* last modified 10/25/99 */
+/* last modified 01/03/01 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -72,6 +72,16 @@ int Option(TREE *tree) {
       return(1);
     }
     else return(0);
+  }
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   "accepted" handles the new xboard protocol version 2   |
+|   accepted command.                                      |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  else if (OptionMatch("accepted",*args)) {
   }
 /*
  ----------------------------------------------------------
@@ -585,7 +595,7 @@ int Option(TREE *tree) {
 */
   else if (OptionMatch("draw",*args)) {
     if (nargs == 1) {
-      int drawsc=DrawScore(wtm);
+      int drawsc=abs_draw_score;
       if (move_number<40 || !accept_draws) drawsc=-300;
       if (last_search_value<=drawsc && (tc_increment!=0 ||
           tc_time_remaining_opponent>=1000)) {
@@ -940,7 +950,10 @@ int Option(TREE *tree) {
         PcOnSq(((7-rank)<<3)+file)=piece;
       }
     }
-    SetChessBitBoards(&tree->position[0]);
+    InitializeChessBoard(&tree->position[0]);
+#if defined(DEBUG)
+    ValidatePosition(tree,0,wtm,"Option().flip");
+#endif
   }
 /*
  ----------------------------------------------------------
@@ -961,7 +974,10 @@ int Option(TREE *tree) {
         PcOnSq((rank<<3)+7-file)=piece;
       }
     }
-    SetChessBitBoards(&tree->position[0]);
+    InitializeChessBoard(&tree->position[0]);
+#if defined(DEBUG)
+    ValidatePosition(tree,0,wtm,"Option().flop");
+#endif
   }
 /*
  ----------------------------------------------------------
@@ -975,11 +991,11 @@ int Option(TREE *tree) {
     int move, movenum, save_move_number;
     char text[16];
 
+    if (thinking || pondering) return (3);
     if (xboard) {
       force=1;
       return(3);
     }
-    if (thinking || pondering) return (2);
     if (nargs < 2) {
       printf("usage:  force <move>\n");
       return(1);
@@ -1032,6 +1048,7 @@ int Option(TREE *tree) {
         strcpy(pgn_black,temp);
       }
     }
+    force=0;
     return(-1);
   }
 /*
@@ -1832,9 +1849,9 @@ int Option(TREE *tree) {
 |                                                          |
 |   "list" command allows the operator to add or remove    |
 |   names from the GM_list, IM_list , computer_list,       |
-|   auto_kibitz_list or special_list.                      |
+|   or auto_kibitz_list.                                   |
 |   The  syntax is "list <list> <option> <name>.           |
-|   <list> is one of GM, IM, C, AK or S.                   |
+|   <list> is one of GM, IM, C, or AK.                     |
 |   The final parameter is a name to add  or remove.       |
 |   if the name is in the list, it is removed,             |
 |   otherwise it is added.  if no name is given, the list  |
@@ -1910,36 +1927,6 @@ int Option(TREE *tree) {
             }
           else if (!strcmp(targs[0],"clear")) {
             number_of_blockers=0;
-          }
-          else Print(4095,"error, name must be preceeded by +/- flag.\n");
-        }
-        if (!strcmp(listname,"S")) {
-          if (targs[0][0] == '-') {
-            for (i=0;i<number_of_specials;i++)
-              if (!strcmp(special_list[i],targs[0]+1)) {
-                for (j=i;j<number_of_specials;j++)
-                  strcpy(special_list[j],special_list[j+1]);
-                number_of_specials--;
-                i=0;
-                Print(4095,"%s removed from special list.\n",targs[0]+1);
-                break;
-              }
-          }
-          else if (targs[0][0] == '+') {
-            for (i=0;i<number_of_specials;i++)
-              if (!strcmp(special_list[i],targs[0]+1)) {
-                Print(4095, "Warning: %s is already in S list.\n",targs[0]+1);
-                break;
-              }
-            if (number_of_specials >= 512)
-              Print(4095,"ERROR!  special list is full at 512 entries\n");
-            else if (i==number_of_specials) {
-              strcpy(special_list[number_of_specials++],targs[0]+1);
-              Print(4095,"%s added to special list.\n",targs[0]+1);
-            }
-          }
-          else if (!strcmp(targs[0],"clear")) {
-            number_of_specials=0;
           }
           else Print(4095,"error, name must be preceeded by +/- flag.\n");
         }
@@ -2046,11 +2033,6 @@ int Option(TREE *tree) {
       Print(4095,"blocker List:\n");
       for (i=0;i<number_of_blockers;i++)
         Print(4095,"%s\n",blocker_list[i]);
-    }
-    else if (!strcmp(listname,"S")) {
-      Print(4095,"special List:\n");
-      for (i=0;i<number_of_specials;i++)
-        Print(4095,"%s\n",special_list[i]);
     }
     else if (!strcmp(listname,"IM")) {
       Print(4095,"IM List:\n");
@@ -2392,9 +2374,6 @@ int Option(TREE *tree) {
           computer_opponent=1;
           book_selection_width=2;
           usage_level=0;
-          book_weight_freq=1.0;
-          book_weight_eval=.1;
-          book_weight_learn=.2;
           break;
         }
       for (i=0;i<number_of_GMs;i++)
@@ -2402,21 +2381,10 @@ int Option(TREE *tree) {
           Print(128,"playing a GM!\n");
           book_selection_width=3;
           resign=Min(6,resign);
-          resign_count=4;;
+          resign_count=4;
           draw_count=8;
           accept_draws=1;
           kibitz=0;
-          break;
-        }
-      for (i=0;i<number_of_specials;i++)
-        if (!strcmp(special_list[i],args[1])) {
-          Print(128,"playing a special player!\n");
-          book_selection_width=4;
-          resign=Min(9,resign);
-          resign_count=5;
-          draw_count=8;
-          kibitz=0;
-          trojan_check=1;
           break;
         }
       for (i=0;i<number_of_IMs;i++)
@@ -2442,10 +2410,12 @@ int Option(TREE *tree) {
  ----------------------------------------------------------
 */
   else if (OptionMatch("new",*args) || OptionMatch("AN",*args)) {
-    new_game=1;
-    if (thinking || pondering) return(3);
-    NewGame(0);
-    return(3);
+    if (!wtm || move_number!=1) {
+      new_game=1;
+      if (thinking || pondering) return(3);
+      NewGame(0);
+      return(3);
+    }
   }
 /*
  ----------------------------------------------------------
@@ -2735,6 +2705,30 @@ int Option(TREE *tree) {
 /*
  ----------------------------------------------------------
 |                                                          |
+|   "ping" command simply echos the argument back to       |
+|   xboard to let it know all previous commands have been  |
+|   executed.                                              |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  else if (!strcmp("ping",*args)) {
+    pong=atoi(args[1]);
+  }
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   "playother" command says "position is set up, we are   |
+|   waiting on the opponent to move, ponder if you want to |
+|   do so.                                                 |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  else if (!strcmp("playother",*args)) {
+    force=0;
+  }
+/*
+ ----------------------------------------------------------
+|                                                          |
 |   "ponder" command toggles pondering off/on or sets a    |
 |   move to ponder.                                        |
 |                                                          |
@@ -2773,6 +2767,27 @@ int Option(TREE *tree) {
   }
   else if (!strcmp("nopost",*args)) {
     post=0;
+  }
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   "protover" command is sent by xboard to identify the   |
+|   xboard protocol version and discover what the engine   |
+|   can handle.                                            |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  else if (!strcmp("protover",*args)) {
+    int pversion=atoi(args[1]);
+    if (pversion==1 || pversion==2) {
+      if (pversion==2) {
+        Print(4095,"feature ping=1 setboard=1 san=1 time=1 draw=1\n");
+        Print(4095,"feature sigint=0 sigterm=0 reuse=1 analyze=1\n");
+        Print(4095,"feature myname=\"Crafty-%s\" name=1\n",version);
+        Print(4095,"feature playother=1 colors=0 variants=\"nocastle\"\n");
+      }
+    }
+    else Print(4095,"ERROR, bogus xboard protocol version received.\n");
   }
 /*
  ----------------------------------------------------------
@@ -2989,6 +3004,17 @@ int Option(TREE *tree) {
       printf("\n");
       fclose(read_input);
     }
+  }
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   "rejected" handles the new xboard protocol version 2   |
+|   accepted command.                                      |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  else if (OptionMatch("rejected",*args)) {
+    Print(4095,"ERROR.  feature %s rejected by xboard\n",args[1]);
   }
 /*
  ----------------------------------------------------------
@@ -3296,7 +3322,7 @@ int Option(TREE *tree) {
   else if (OptionMatch("setboard",*args)) {
     if (thinking || pondering) return(2);
     nargs=ReadParse(buffer,args," 	;=");
-    SetBoard(nargs-1,args+1,0);
+    SetBoard(&tree->position[0],nargs-1,args+1,0);
     move_number=1;
     if (!wtm) {
       wtm=1;
@@ -3313,7 +3339,7 @@ int Option(TREE *tree) {
   else if (StrCnt(*args,'/') > 3) {
     if (thinking || pondering) return(2);
     nargs=ReadParse(buffer,args," 	;=");
-    SetBoard(nargs,args,0);
+    SetBoard(&tree->position[0],nargs,args,0);
     move_number=1;
     if (!wtm) {
       wtm=1;
@@ -3356,21 +3382,21 @@ int Option(TREE *tree) {
     if (!tree->endgame) s6=EvaluateKingSafety(tree,0);
     Print(128,"note: scores are for the white side\n");
     Print(128,"material evaluation.................%s\n",
-      DisplayEvaluation(s1));
+      DisplayEvaluation(s1,1));
     Print(128,"development.........................%s\n",
-      DisplayEvaluation(s2));
+      DisplayEvaluation(s2,1));
     Print(128,"pawn evaluation.....................%s\n",
-      DisplayEvaluation(s3));
+      DisplayEvaluation(s3,1));
     Print(128,"passed pawn evaluation..............%s\n",
-      DisplayEvaluation(s4));
+      DisplayEvaluation(s4,1));
     Print(128,"passed pawn race evaluation.........%s\n",
-      DisplayEvaluation(s5));
+      DisplayEvaluation(s5,1));
     Print(128,"king safety evaluation..............%s\n",
-      DisplayEvaluation(s6));
+      DisplayEvaluation(s6,1));
     Print(128,"interactive piece evaluation........%s\n",
-      DisplayEvaluation(s7-s1-s2-s3-s4-s5-s6));
+      DisplayEvaluation(s7-s1-s2-s3-s4-s5-s6,1));
     Print(128,"total evaluation....................%s\n",
-      DisplayEvaluation(s7));
+      DisplayEvaluation(s7,1));
   }
 /*
  ----------------------------------------------------------
@@ -3769,10 +3795,12 @@ int Option(TREE *tree) {
 */
   else if (!strcmp("undo",*args)) {
     if (thinking || pondering) return(2);
-    wtm=ChangeSide(wtm);
-    if (ChangeSide(wtm)) move_number--;
-    sprintf(buffer,"reset %d",move_number);
-    (void) Option(tree);
+    if (!wtm || move_number!=1) {
+      wtm=ChangeSide(wtm);
+      if (ChangeSide(wtm)) move_number--;
+      sprintf(buffer,"reset %d",move_number);
+      (void) Option(tree);
+    }
   }
 /*
  ---------------------------------------------------------------

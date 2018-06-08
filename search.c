@@ -5,7 +5,7 @@
 #include "data.h"
 #include "epdglue.h"
 
-/* last modified 07/31/00 */
+/* last modified 01/03/01 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -42,7 +42,7 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
   if (--next_time_check <= 0) {
     next_time_check=nodes_between_time_checks;
     if (CheckInput()) Interrupt(ply);
-    if (TimeCheck(0)) {
+    if (TimeCheck(tree,0)) {
       time_abort++;
       abort_search=1;
       return(0);
@@ -211,7 +211,7 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
       HashEP(EnPassant(ply+1),HashKey);
       EnPassant(ply+1)=0;
     }
-    null_depth=(depth > 6*INCPLY) ? null_max : null_min;
+    null_depth=(depth>6*INCPLY && pieces>8) ? null_max : null_min;
     if (depth-null_depth >= INCPLY)
       value=-Search(tree,-beta,1-beta,ChangeSide(wtm),
                     depth-null_depth,ply+1,NO_NULL);
@@ -261,8 +261,11 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
       else
         value=Quiesce(tree,-MATE,beta,wtm,ply);
       if (abort_search || tree->stop) return(0);
-      if ((int) tree->pv[ply-1].pathl >= ply) 
-        tree->hash_move[ply]=tree->pv[ply-1].path[ply];
+      if (value < beta) {
+        if ((int) tree->pv[ply-1].pathl >= ply) 
+          tree->hash_move[ply]=tree->pv[ply-1].path[ply];
+      }
+      else tree->hash_move[ply]=tree->current_move[ply];
     }
     else if (value < beta) {
       if ((int) tree->pv[ply-1].pathl >= ply) 

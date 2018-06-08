@@ -11,7 +11,7 @@
 *                                                                              *
 ********************************************************************************
 */
-int NextRootMove(TREE *tree, int wtm) {
+int NextRootMove(TREE *tree, int wtm, char *move_text) {
   register int done, i;
 /*
  ----------------------------------------------------------
@@ -23,7 +23,7 @@ int NextRootMove(TREE *tree, int wtm) {
 |                                                          |
  ----------------------------------------------------------
 */
-  time_abort+=TimeCheck(1);
+  time_abort+=TimeCheck(tree,1);
   if (time_abort) return(NONE);
   if (!annotate_mode && !pondering && !booking &&
       n_root_moves==1 && iteration_depth>4) {
@@ -67,12 +67,11 @@ int NextRootMove(TREE *tree, int wtm) {
           printf("%d. ",move_number);
         if ((display_options&32) && (display_options&64) && !wtm)
           printf("... ");
-        strcpy(tree->root_move_text,
-               OutputMove(tree,tree->current_move[1],1,wtm));
-#if defined(MACOS)
-        printf("%s      \n",tree->root_move_text);
+        strcpy(move_text, OutputMove(tree,tree->current_move[1],1,wtm));
+#if !defined(MACOS)
+        printf("%s      \r",move_text);
 #else
-        printf("%s      \r",tree->root_move_text);
+        printf("%s      \n",move_text);
 #endif
         fflush(stdout);
         UnLock(lock_io);
@@ -82,7 +81,7 @@ int NextRootMove(TREE *tree, int wtm) {
   return(NONE);
 }
 
-/* last modified 05/10/99 */
+/* last modified 12/12/00 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -98,10 +97,11 @@ int NextRootMoveParallel(void) {
 /*
  ----------------------------------------------------------
 |                                                          |
-|   for the moves at the root of the tree, the list has    |
-|   already been generated and sorted.  on entry, test     |
-|   the searched_this_root_move[] array and then take the  |
-|   moves in the order they appear in the move list.       |
+|   first, find out how far down the list we have searched |
+|   already.  if the next move is flagged as "do not       |
+|   search in parallel" then return 1 unless the score has |
+|   dropped significantly.  if the score has dropped, then |
+|   we search serially to find a better move quickly.      |
 |                                                          |
  ----------------------------------------------------------
 */
@@ -109,7 +109,7 @@ int NextRootMoveParallel(void) {
     if (!(root_moves[which].status&128)) break;
   if (which < n_root_moves &&
       root_moves[which].status&64) return(0);
-  if (root_value>=last_search_value-33 ||
+  if (root_value>=last_root_value-33 ||
       which > n_root_moves/3) return(1);
   return(0);
 }

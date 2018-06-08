@@ -2704,6 +2704,26 @@
 *           on _both_ sides of the board is basically winning.  same goes for *
 *           candidate passers.                                                *
 *                                                                             *
+*   18.0    bug in EvaluateDraws() could incorrectly decide that if one side  *
+*           had only rook pawns in a king/pawn ending, the ending was a draw. *
+*           even if the other side had pawns all over the board.  passed pawn *
+*           scores increased a bit.  minor change to "bad trade" code to turn *
+*           off in endings.  S list removed.  the trojan horse check is now   *
+*           automatically enabled when the key position is recognized at the  *
+*           root of the tree.  it is disabled once the key position is no     *
+*           longer seen at the root.  bug in BookUp() would break if a FEN    *
+*           string was included in a game used for input.  SetBoard() was     *
+*           setting castling status incorrectly.  internal iterative          *
+*           deepening bug could (on very rare occasions) cause crafty to try  *
+*           to search an illegal move that would bomb the search.  this       *
+*           version fully supports the new xboard protocol version 2.  one    *
+*           other major change is that the eval is now consistently displayed *
+*           as +=good for white, -=good for black.  in the log file.  In the  *
+*           console output window.  and when whispering/kibitzing on a chess  *
+*           server.  this should eliminate _all_ confusion about the values   *
+*           that are displayed as there are now no exceptions to the above    *
+*           policy of any kind.                                               *
+*                                                                             *
 *******************************************************************************
 */
 int main(int argc, char **argv) {
@@ -2882,6 +2902,10 @@ int main(int argc, char **argv) {
       do {
         if (presult != 2) presult=0;
         result=0;
+        if (pong) {
+          Print(4095,"pong %d\n",pong);
+          pong=0;
+        }
         display=tree->pos;
         if (presult !=2 && (move_number!=1 || !wtm)) presult=Ponder(wtm);
         if (presult == 1) value=last_root_value;
@@ -3035,11 +3059,11 @@ int main(int argc, char **argv) {
     else {
       if ((value > MATE-300) && (value < MATE-2)) {
         Print(128,"\nmate in %d moves.\n\n",(MATE-value)/2);
-        Whisper(1,0,0,(MATE-value)/2,tree->nodes_searched,0,0," ");
+        Whisper(1,wtm,0,0,(MATE-value)/2,tree->nodes_searched,0,0," ");
       }
       else if ((-value > MATE-300) && (-value < MATE-1)) {
         Print(128,"\nmated in %d moves.\n\n",(MATE+value)/2);
-        Whisper(1,0,0,-(MATE+value)/2,tree->nodes_searched,0,0," ");
+        Whisper(1,wtm,0,0,-(MATE+value)/2,tree->nodes_searched,0,0," ");
       }
       if (wtm) {
         if (!xboard && !ics) {
@@ -3063,7 +3087,7 @@ int main(int argc, char **argv) {
         else if (xboard) {
           if (log_file) fprintf(log_file,"White(%d): %s\n",move_number,
                                 OutputMove(tree,last_pv.path[1],0,wtm));
-          printf("move %s\n",OutputMoveICS(last_pv.path[1]));
+          printf("move %s\n",OutputMove(tree,last_pv.path[1],0,wtm));
         }
         else Print(4095,"*%s\n",OutputMove(tree,last_pv.path[1],0,wtm));
       }
@@ -3088,7 +3112,7 @@ int main(int argc, char **argv) {
         else {
           if (log_file) fprintf(log_file,"Black(%d): %s\n",move_number,
                                 OutputMove(tree,last_pv.path[1],0,wtm));
-          printf("move %s\n",OutputMoveICS(last_pv.path[1]));
+          printf("move %s\n",OutputMove(tree,last_pv.path[1],0,wtm));
         }
       }
       if (value == MATE-2) {
@@ -3172,11 +3196,11 @@ int main(int argc, char **argv) {
     ValidatePosition(tree,0,last_pv.path[1],"Main(2)");
     if (kibitz || whisper) {
       if (tree->nodes_searched)
-        Whisper(2,whisper_depth,end_time-start_time,whisper_value,
+        Whisper(2,!wtm,whisper_depth,end_time-start_time,whisper_value,
                 tree->nodes_searched,cpu_percent,
                 tree->egtb_probes_successful,whisper_text);
       else
-        Whisper(4,0,0,0,0,0,0,whisper_text);
+        Whisper(4,!wtm,0,0,0,0,0,0,whisper_text);
     }
 /*
  ----------------------------------------------------------

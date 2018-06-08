@@ -4,7 +4,7 @@
 #include "evaluate.h"
 #include "data.h"
 
-/* last modified 09/18/00 */
+/* last modified 12/17/00 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -35,9 +35,7 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
 *                                                                    *
 **********************************************************************
 */
-  if ((TotalWhitePieces<5 && TotalBlackPieces<5) ||
-      (TotalWhitePieces==6 && TotalBlackPieces==6 &&
-       !WhiteBishops && !BlackBishops))
+  if (TotalWhitePieces<9 && TotalBlackPieces<9)
     drawn_ending=EvaluateDraws(tree);
   if (drawn_ending > 0) return(DrawScore(wtm));
   score=EvaluateMaterial(tree);
@@ -57,13 +55,17 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
 **********************************************************************
 */
   tree->all_pawns=BlackPawns|WhitePawns;
-  if ((TotalWhitePawns+TotalBlackPawns) == 0) {
-    score+=EvaluateMate(tree);
+  if ((TotalWhitePawns+TotalBlackPawns) == 0) do {
+    int ms=EvaluateMate(tree);
+    if (ms == 99999) break;
+    score+=ms;
 #ifdef DEBUGEV
     printf("score[mater]=                     %4d (%+d)\n",score,score-lastsc);
 #endif
+    if (score>0 && drawn_ending==-1) return(DrawScore(wtm));
+    if (score<0 && drawn_ending==-2) return(DrawScore(wtm));
     return((wtm) ? score : -score);
-  }
+  } while(0);
 #if !defined(FAST)
   tree->pawn_probes++;
 #endif
@@ -613,7 +615,7 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
           score-=PopCnt(WhitePawns&dark_squares)*BISHOP_PLUS_PAWNS_ON_COLOR;
       }
       if (tree->all_pawns&mask_fgh && tree->all_pawns&mask_abc &&
-          TotalWhitePieces==3 && TotalBlackPieces==2)
+          TotalWhitePieces<7 && !BlackBishops)
         score+=BISHOP_OVER_KNIGHT_ENDGAME;
     }
     if (!tree->endgame) {
@@ -641,7 +643,7 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
           score+=PopCnt(BlackPawns&dark_squares)*BISHOP_PLUS_PAWNS_ON_COLOR;
       }
       if (tree->all_pawns&mask_fgh && tree->all_pawns&mask_abc &&
-          TotalBlackPieces==3 && TotalWhitePieces==2)
+          TotalBlackPieces<7 && !WhiteBishops)
         score-=BISHOP_OVER_KNIGHT_ENDGAME;
     }
     if (!tree->endgame) {
@@ -1295,7 +1297,7 @@ int EvaluateDevelopmentW(TREE *tree, int ply) {
   return(score);
 }
 
-/* last modified 08/11/00 */
+/* last modified 11/27/00 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -1312,10 +1314,12 @@ int EvaluateDraws(TREE *tree) {
 |                                                          |
  ----------------------------------------------------------
 */
-  if (TotalWhitePieces > 6 || TotalBlackPieces >6) return(0);
-  if (TotalWhitePieces == 5 || TotalBlackPieces ==5) return(0);
-  if (TotalWhitePieces == 6 && WhiteBishops) return(0);
-  if (TotalBlackPieces == 6 && BlackBishops) return(0);
+  if (TotalWhitePieces > 8 || TotalBlackPieces >8) return(0);
+  if (TotalWhitePieces==6 && WhiteBishops && TotalWhitePawns) return(0);
+  if (TotalBlackPieces==6 && BlackBishops && TotalBlackPawns) return(0);
+  if (TotalWhitePieces==0 && TotalBlackPieces==0) {
+    if ((WhitePawns|BlackPawns)&not_rook_pawns) return(0);
+  }
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -1326,7 +1330,7 @@ int EvaluateDraws(TREE *tree) {
 |                                                          |
  ----------------------------------------------------------
 */
-  if (TotalBlackPieces==0 && TotalWhitePawns &&
+  if (TotalBlackPieces==0 && TotalWhitePawns && TotalWhitePieces<=3 &&
       !(WhitePawns&not_rook_pawns)) {
     if (WhiteBishops) {
       if (WhiteBishops&dark_squares) {
@@ -1343,11 +1347,19 @@ int EvaluateDraws(TREE *tree) {
     if (!(WhitePawns&file_mask[FILEA]) ||
         !(WhitePawns&file_mask[FILEH])) {
       if (WhitePawns&file_mask[FILEA]) {
-        if (Distance(BlackKingSQ,A8) < Distance(WhiteKingSQ,A8)-wtm) return(1);
+        int bkd, wkd, pd;
+        bkd=Distance(BlackKingSQ,A8);
+        wkd=Distance(WhiteKingSQ,A8);
+        pd=Distance(LastOne(WhitePawns&file_mask[FILEA]),A8);
+        if (bkd<(wkd-wtm) && bkd<=(pd-wtm)) return(1);
         return(0);
       }
       else {
-        if (Distance(BlackKingSQ,H8) < Distance(WhiteKingSQ,H8)-wtm) return(1);
+        int bkd, wkd, pd;
+        bkd=Distance(BlackKingSQ,H8);
+        wkd=Distance(WhiteKingSQ,H8);
+        pd=Distance(LastOne(WhitePawns&file_mask[FILEH]),H8);
+        if (bkd<(wkd-wtm) && bkd<=(pd-wtm)) return(1);
         return(0);
       }
     }
@@ -1362,8 +1374,8 @@ int EvaluateDraws(TREE *tree) {
 |                                                          |
  ----------------------------------------------------------
 */
-  if (TotalWhitePieces==0 && TotalBlackPawns &&
-      !(BlackPawns&not_rook_pawns)) {
+  if (TotalWhitePieces==0 && TotalBlackPawns && TotalBlackPieces<=3 &&
+      !(BlackPawns&not_rook_pawns) && !(WhitePawns&not_rook_pawns)) {
     if (BlackBishops) {
       if (BlackBishops&dark_squares) {
         if (file_mask[FILEA]&BlackPawns) return(0);
@@ -1379,11 +1391,19 @@ int EvaluateDraws(TREE *tree) {
     if (!(BlackPawns&file_mask[FILEA]) ||
         !(BlackPawns&file_mask[FILEH])) {
       if (BlackPawns&file_mask[FILEA]) {
-        if (Distance(WhiteKingSQ,A1) < Distance(BlackKingSQ,A1)+wtm) return(1);
+        int bkd, wkd, pd;
+        bkd=Distance(BlackKingSQ,A1);
+        wkd=Distance(WhiteKingSQ,A1);
+        pd=Distance(FirstOne(BlackPawns&file_mask[FILEA]),A1);
+        if (wkd<(bkd+wtm) && wkd<=(pd+wtm)) return(1);
         return(0);
       }
       else {
-        if (Distance(WhiteKingSQ,H1) < Distance(BlackKingSQ,H1)+wtm) return(1);
+        int bkd, wkd, pd;
+        bkd=Distance(BlackKingSQ,H1);
+        wkd=Distance(WhiteKingSQ,H1);
+        pd=Distance(FirstOne(BlackPawns&file_mask[FILEH]),H1);
+        if (wkd<(bkd+wtm) && wkd<=(pd+wtm)) return(1);
         return(0);
       }
     }
@@ -1395,17 +1415,30 @@ int EvaluateDraws(TREE *tree) {
 |   lack of material.  also, if one side has at least a    |
 |   B+N, then it's not a drawn position.                   |
 |                                                          |
+|   if one side has a rook, while the other side has a     |
+|   minor + pawns, then the rook can't possibly win.       |
+|                                                          |
  ----------------------------------------------------------
 */
-  if (!TotalWhitePawns && !TotalBlackPawns &&
-      (TotalWhitePieces<5 || TotalWhitePieces==6) &&
-      (TotalBlackPieces<5 || TotalBlackPieces==6)) return(1);
+  if (TotalWhitePawns && TotalBlackPawns) return(0);
+  if (TotalWhitePawns==0 && TotalWhitePieces==5 &&
+      TotalBlackPieces==3) return(-1);
+  if (TotalWhitePawns==0 && TotalWhitePieces==8 &&
+      TotalBlackPieces==5) return(-1);
+  if (TotalBlackPawns==0 && TotalBlackPieces==5 &&
+      TotalWhitePieces==3) return(-2);
+  if (TotalBlackPawns==0 && TotalBlackPieces==8 &&
+      TotalWhitePieces==5) return(-2);
+  if (TotalWhitePawns==0 && TotalWhitePieces<=6 &&
+      TotalWhitePieces-TotalBlackPieces==3) return(-1);
+  if (TotalBlackPawns==0 && TotalBlackPieces<=6 &&
+      TotalBlackPieces-TotalWhitePieces==3) return(-2);
   if (TotalWhitePawns==0 && TotalWhitePieces<4) return(-1);
   else if (TotalBlackPawns==0 && TotalBlackPieces<4) return(-2);
   return(0);
 }
 
-/* last modified 05/27/98 */
+/* last modified 12/17/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -1471,7 +1504,7 @@ int EvaluateMate(TREE *tree) {
   return(mate_score);
 }
 
-/* last modified 11/01/99 */
+/* last modified 11/27/00 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -1491,16 +1524,12 @@ int EvaluateMaterial(TREE *tree) {
 **********************************************************************
 */
   score=Material;
-  do {
 /*
 **********************************************************************
 *                                                                    *
 *   check 1.  if one side is a whole piece ahead, this is good, as a *
 *   piece for 3 pawns is generally bad, unless the pawns are so far  *
 *   advanced that the search can see them causing problems already.  *
-*   there is one exception.  in a KR[NB] vs KR ending, the side with *
-*   the extra piece is not winning, and if the other side has pawns  *
-*   he has all the chances.                                          *
 *                                                                    *
 *   check 2.  if one side has a rook more than the other side, then  *
 *   determine if the other side has two extra pieces.  this is a bad *
@@ -1512,22 +1541,13 @@ int EvaluateMaterial(TREE *tree) {
 *                                                                    *
 **********************************************************************
 */
+  do {
+    if (TotalWhitePieces<4 && TotalBlackPieces<4) break;
     if (WhiteMinors != BlackMinors) {
       if (WhiteMajors == BlackMajors) {
-        if (WhiteMinors > BlackMinors) {
-          if (WhiteMajors==1 && (WhiteMinors-BlackMinors)==1 &&
-              !TotalWhitePawns && TotalBlackPawns) {
-            score=0;
-            break;
-          }
+        if (WhiteMinors > BlackMinors)
           score+=BAD_TRADE;
-        }
         else {
-          if (BlackMajors==1 && (BlackMinors-WhiteMinors)==1 &&
-              TotalWhitePawns && !TotalBlackPawns) {
-            score=0;
-            break;
-          }
           score-=BAD_TRADE;
         }
       }
@@ -1542,12 +1562,13 @@ int EvaluateMaterial(TREE *tree) {
       break;
     }
     else if (WhiteMajors == BlackMajors) {
-      if (WhiteQueens && !BlackQueens) score+=BAD_TRADE;
-      else if (!WhiteQueens && BlackQueens) score-=BAD_TRADE;
+      if (WhiteQueens && !BlackQueens) score+=BAD_TRADE>>1;
+      else if (!WhiteQueens && BlackQueens) score-=BAD_TRADE>>1;
     }
   } while(0);
 #ifdef DEBUGM
-    printf("score[bad trade]=                 %4d\n",score);
+  printf("score[material]=                  %4d\n",Material);
+  printf("score[bad trade]=                 %4d\n",score);
 #endif
   return (score);
 }
@@ -2207,7 +2228,7 @@ int EvaluatePassedPawnRaces(TREE *tree, int wtm) {
   return(0);
 }
 
-/* last modified 03/07/00 */
+/* last modified 12/15/00 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -2578,7 +2599,7 @@ int EvaluatePawns(TREE *tree) {
          (File(square) > FILEA && SetMask(square-9)&WhitePawns &&
           !(plus8dir[square-9]&BlackPawns) &&
           (File(square) == FILEB || !(plus8dir[square-10]&BlackPawns))))) {
-      score+=passed_pawn_value[Rank(square)]>>1;
+      score+=hidden_passed_pawn_value[Rank(square)];
     }
 #ifdef DEBUGP
     if (score != lastsc)
@@ -2852,7 +2873,7 @@ int EvaluatePawns(TREE *tree) {
          (File(square) > FILEA && SetMask(square+7)&BlackPawns &&
           !(minus8dir[square+7]&WhitePawns) &&
           (File(square) == FILEB || !(minus8dir[square+6]&WhitePawns))))) {
-      score-=passed_pawn_value[(RANK8-Rank(square))]>>1;
+      score-=hidden_passed_pawn_value[(RANK8-Rank(square))];
     }
 #ifdef DEBUGP
     if (score != lastsc)
@@ -2936,10 +2957,12 @@ int EvaluatePawns(TREE *tree) {
  ----------------------------------------------------------
 */
   if (root_wtm) {
-    score-=pawn_rams[PopCnt(WhitePawns&(BlackPawns<<8))];
+    if (TotalWhitePawns > 5)
+      score-=pawn_rams[PopCnt(WhitePawns&(BlackPawns<<8))];
   }
   else {
-    score+=pawn_rams[PopCnt(WhitePawns&(BlackPawns<<8))];
+    if (TotalBlackPawns > 5)
+      score+=pawn_rams[PopCnt(WhitePawns&(BlackPawns<<8))];
   }
 #ifdef DEBUGP
   if (score != lastsc)
@@ -3110,11 +3133,13 @@ int EvaluatePawns(TREE *tree) {
  ----------------------------------------------------------
 */
   if (root_wtm) {
-    if (PopCnt(BlackPawns&stonewall_black) == 3)
+    if (PopCnt(BlackPawns&stonewall_black)==2 &&
+        WhitePawns&e2_e3)
       tree->pawn_score.white_defects_k+=KING_SAFETY_STONEWALL;
   }
   else {
-    if (PopCnt(WhitePawns&stonewall_white) == 3)
+    if (PopCnt(WhitePawns&stonewall_white) == 2 &&
+        BlackPawns&e7_e6)
       tree->pawn_score.black_defects_k+=KING_SAFETY_STONEWALL;
   }
 #if defined(DEBUGK)
@@ -3183,7 +3208,7 @@ int EvaluatePawns(TREE *tree) {
     if (tree->pawn_score.candidates_b && !tree->pawn_score.candidates_w)
       tree->pawn_score.outside|=16;
   }
-  if (!tree->pawn_score.outside) {
+  if (!(tree->pawn_score.outside&144)) {
     if (tree->pawn_score.protected&1 && !(tree->pawn_score.protected&2) &&
         pop_cnt_8bit[(int)(tree->pawn_score.passed_b)]<2)
       tree->pawn_score.outside|=4;

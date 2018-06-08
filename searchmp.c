@@ -37,7 +37,7 @@ int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
   while (1) {
     Lock(tree->parent->lock);
     if (ply == 1) {
-      tree->phase[ply]=NextRootMove((TREE*)tree->parent,wtm);
+      tree->phase[ply]=NextRootMove((TREE*)tree->parent,wtm,tree->root_move_text);
       tree->root_move=tree->parent->root_move;
     }
     else

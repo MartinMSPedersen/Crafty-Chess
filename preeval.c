@@ -4,7 +4,7 @@
 #include "data.h"
 #include "evaluate.h"
 
-/* last modified 07/08/00 */
+/* last modified 11/15/00 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -25,6 +25,7 @@ void PreEvaluate(TREE *tree, int wtm) {
   static int hashing_middle_game = 0;
   static int hashing_end_game = 0;
   static int last_wtm = 0;
+  static int last_trojan_check = 0;
   int hash_pawns=0;
   int pawn_advance[8], pawn_base[8];
 /*
@@ -126,6 +127,46 @@ void PreEvaluate(TREE *tree, int wtm) {
 /*
  ----------------------------------------------------------
 |                                                          |
+|   now check to see if the "trojan check" code should be  |
+|   turned on.  basically if the king is in the corner,    |
+|   the opponent has placed a piece on g4/g5, and both     |
+|   sides have pawns attacking that piece, and queens are  |
+|   still on the board, then it is a threat that must be   |
+|   handled.                                               |
+|                                                          |
+|   this is handled as 4 separate cases for each corner of |
+|   the board, for simplicity.                             |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  trojan_check=0;
+  if (BlackQueens && BlackRooks) {
+    if (WhiteKingSQ==G1 || WhiteKingSQ==H1) {
+      if (SetMask(G4)&BlackKnights || SetMask(G4)&BlackBishops) {
+        if (SetMask(H3)&WhitePawns && SetMask(H5)&BlackPawns) trojan_check=1;
+      }
+    }
+    if (WhiteKingSQ==B1 || WhiteKingSQ==A1) {
+      if (SetMask(B4)&BlackKnights || SetMask(B4)&BlackBishops) {
+        if (SetMask(A3)&WhitePawns && SetMask(A5)&BlackPawns) trojan_check=1;
+      }
+    }
+  }
+  if (WhiteQueens && WhiteRooks) {
+    if (BlackKingSQ==G8 || BlackKingSQ==H8) {
+      if (SetMask(G5)&WhiteKnights || SetMask(G5)&WhiteBishops) {
+        if (SetMask(H6)&BlackPawns && SetMask(H4)&WhitePawns) trojan_check=1;
+      }
+    }
+    if (BlackKingSQ==B8 || BlackKingSQ==A8) {
+      if (SetMask(B5)&WhiteKnights || SetMask(B5)&WhiteBishops) {
+        if (SetMask(A6)&BlackPawns && SetMask(A4)&BlackPawns) trojan_check=1;
+      }
+    }
+  }
+/*
+ ----------------------------------------------------------
+|                                                          |
 |   now, if any of the values above were changed, we must  |
 |   clear the appropriate hash tables so that the new      |
 |   values will be used to compute scores.                 |
@@ -133,6 +174,7 @@ void PreEvaluate(TREE *tree, int wtm) {
  ----------------------------------------------------------
 */
   if (((last_wtm            != wtm) ||
+       (last_trojan_check   != trojan_check) ||
        (hashing_pawns       != hash_pawns) ||
        (hashing_opening     != opening) ||
        (hashing_middle_game != middle_game) ||
@@ -145,6 +187,8 @@ void PreEvaluate(TREE *tree, int wtm) {
 |                                                |
  ------------------------------------------------
 */
+    if (trojan_check)
+      Print(128,"              trojan check enabled\n");
     Print(128,"              clearing hash tables\n");
     ClearHashTableScores();
   }
@@ -153,4 +197,5 @@ void PreEvaluate(TREE *tree, int wtm) {
   hashing_middle_game=middle_game;
   hashing_end_game=end_game;
   last_wtm=wtm;
+  last_trojan_check=trojan_check;
 }

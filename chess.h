@@ -205,7 +205,7 @@
 
 # define    EGTB_CACHE_DEFAULT 1024*1024
 #define     MAXPLY            65
-#define MAX_BLOCKS            64
+#define MAX_BLOCKS       16*CPUS
 #define MAX_TC_NODES      300000
 
 #if !defined(SMP) && !defined(SUN)
@@ -552,6 +552,7 @@ void           Bench(void);
 int            Book(TREE*,int,int);
 int            BookMask(char*);
 int            BookPonderMove(TREE*,int);
+int            BookRejectMove(TREE*,int);
 void           BookUp(TREE*, char*, int, char**);
 void           BookSort(BB_POSITION*, int, int);
 #if defined(NT_i386) || defined(NT_AXP)
@@ -571,8 +572,8 @@ int            DGTCheckInput(void);
 void           DGTRead(void);
 void           DisplayBitBoard(BITBOARD);
 void           DisplayChessBoard(FILE*, POSITION);
-char*          DisplayEvaluation(int);
-char*          DisplayEvaluationWhisper(int);
+char*          DisplayEvaluation(int,int);
+char*          DisplayEvaluationWhisper(int,int);
 void           DisplayFT(int, int, int);
 char*          DisplayHHMM(unsigned int);
 void           DisplayPieceBoards(signed char*, signed char*);
@@ -645,7 +646,7 @@ void           MakeMoveRoot(TREE*, int, int);
 void           NewGame(int);
 int            NextEvasion(TREE*, int, int);
 int            NextMove(TREE*, int, int);
-int            NextRootMove(TREE*, int);
+int            NextRootMove(TREE*, int, char*);
 int            NextRootMoveParallel(void);
 char*          Normal(void);
 int            Option(TREE*);
@@ -684,7 +685,7 @@ void           SearchOutput(TREE*, int, int);
 int            SearchRoot(TREE*, int, int, int, int);
 int            SearchSMP(TREE*, int, int, int, int, int, int, int);
 void           SearchTrace(TREE*, int, int, int, int, int, char*, int);
-void           SetBoard(int,char**,int);
+void           SetBoard(SEARCH_POSITION*,int,char**,int);
 void           SetChessBitBoards(SEARCH_POSITION*);
 int            StrCnt(char*, char);
 int            Swap(TREE*, int, int, int);
@@ -695,12 +696,12 @@ void* STDCALL  ThreadInit(void*);
 void           ThreadStop(TREE*);
 int            ThreadWait(int, TREE*);
 void           TimeAdjust(int,PLAYER);
-int            TimeCheck(int);
+int            TimeCheck(TREE*,int);
 void           TimeSet(int);
 void           UnMakeMove(TREE*, int, int, int);
 int            ValidMove(TREE*, int, int, int);
 void           ValidatePosition(TREE*, int, int, char*);
-void           Whisper(int, int, int, int, unsigned int, int, int, char*);
+void           Whisper(int, int, int, int, int, unsigned int, int, int, char*);
   
 #if defined(HAS_64BITS) || defined(HAS_LONGLONG)
 #  if defined(CRAY1)

@@ -1,7 +1,7 @@
 #if !defined(EVALUATE_INCLUDED)
 #  define    EVALUATE_INCLUDED
  
-#  define                            BAD_TRADE         (120)
+#  define                            BAD_TRADE         (140)
 #  define                          EIGHT_PAWNS          (12)
 #  define                        PAWNS_BLOCKED          (12)
 #  define                  CENTER_PAWN_UNMOVED          (16)
@@ -54,7 +54,7 @@
   
 #  define                       BISHOP_TRAPPED         (175)
 #  define           BISHOP_PLUS_PAWNS_ON_COLOR           (2)
-#  define           BISHOP_OVER_KNIGHT_ENDGAME          (20)
+#  define           BISHOP_OVER_KNIGHT_ENDGAME          (30)
 #  define                      BISHOP_MOBILITY           (1)
 #  define                          BISHOP_PAIR          (30)
 #  define                   BISHOP_KING_SAFETY          (20)
@@ -77,7 +77,7 @@
 #  define                KING_SAFETY_MATE_G2G7           (3)
 #  define              KING_SAFETY_MATE_THREAT         (600)
 #  define                       KING_BACK_RANK          (12)
-#  define                KING_SAFETY_STONEWALL           (5)
+#  define                KING_SAFETY_STONEWALL           (7)
 #  define                KING_SAFETY_OPEN_FILE           (4)
  
  

@@ -46,7 +46,7 @@ int SearchRoot(TREE *tree, int alpha, int beta, int wtm, int depth) {
 |                                                          |
  ----------------------------------------------------------
 */
-  while ((tree->phase[1]=NextRootMove(tree,wtm))) {
+  while ((tree->phase[1]=NextRootMove(tree,wtm,tree->root_move_text))) {
     tree->extended_reason[1]=0;
 #if defined(TRACE)
     if (1 <= trace_level)
@@ -290,8 +290,8 @@ void SearchTrace(TREE *tree, int ply, int depth, int wtm,
   for (i=1;i<ply;i++) printf("  ");
   printf("%d  %s d:%5.2f [%s,",
          ply,OutputMove(tree,tree->current_move[ply],ply,wtm),
-         (float) depth/ (float) INCPLY,DisplayEvaluation(alpha));
-  printf("%s] n:%d %s(%d)", DisplayEvaluation(beta),
+         (float) depth/ (float) INCPLY,DisplayEvaluation(alpha,1));
+  printf("%s] n:%d %s(%d)", DisplayEvaluation(beta,1),
          (tree->nodes_searched),name,phase);
   if (max_threads > 1) printf(" (t=%d) ",tree->thread_id);
   printf("\n");

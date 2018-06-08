@@ -288,35 +288,47 @@ void DisplayChessBoard(FILE *display_file, POSITION pos) {
   fprintf(display_file,"         a   b   c   d   e   f   g   h\n\n");
 }
 
-char* DisplayEvaluation(int value) {
+char* DisplayEvaluation(int value, int wtm) {
   static char out[10];
+  int tvalue;
 
+  tvalue=(wtm) ? value : -value;
   if (abs(value) < MATE-300) 
-    sprintf(out,"%7.2f",((float) value)/100.0);
+    sprintf(out,"%7.2f",((float) tvalue)/100.0);
   else if (abs(value) > MATE) {
-    if (value < 0) sprintf(out," -infnty");
+    if (tvalue < 0) sprintf(out," -infnty");
     else sprintf(out," +infnty");
   }
-  else if (value == MATE-2) sprintf(out,"   Mate");
-  else if (value == -(MATE-1)) sprintf(out,"  -Mate");
-  else if (value > 0) sprintf(out,"  Mat%.2d",(MATE-value)/2);
-  else sprintf(out," -Mat%.2d",(MATE-abs(value))/2);
+  else if (value==MATE-2 && wtm) sprintf(out,"   Mate");
+  else if (value==MATE-2 && !wtm) sprintf(out,"  -Mate");
+  else if (value==-(MATE-1) && wtm) sprintf(out,"  -Mate");
+  else if (value==-(MATE-1) && !wtm) sprintf(out,"   Mate");
+  else if (value>0 && wtm) sprintf(out,"  Mat%.2d",(MATE-value)/2);
+  else if (value>0 && !wtm) sprintf(out," -Mat%.2d",(MATE-value)/2);
+  else if (wtm) sprintf(out," -Mat%.2d",(MATE-abs(value))/2);
+  else sprintf(out,"  Mat%.2d",(MATE-abs(value))/2);
   return(out);
 }
 
-char* DisplayEvaluationWhisper(int value) {
+char* DisplayEvaluationWhisper(int value, int wtm) {
   static char out[10];
+  int tvalue;
 
-  if (abs(value) < MATE-300)
-    sprintf(out,"%+.2f",((float) value)/100.0);
+  tvalue=(wtm) ? value : -value;
+  if (abs(value) < MATE-300) 
+    sprintf(out,"%+.2f",((float) tvalue)/100.0);
   else if (abs(value) > MATE) {
-    if (value < 0) sprintf(out,"-infnty");
+    if (tvalue < 0) sprintf(out,"-infnty");
     else sprintf(out,"+infnty");
   }
-  else if (value == MATE-2) sprintf(out,"Mate");
-  else if (value == -(MATE-1)) sprintf(out,"-Mate");
-  else if (value > 0) sprintf(out,"Mat%.2d",(MATE-value)/2);
-  else sprintf(out,"-Mat%.2d",(MATE-abs(value))/2);
+  else if (value==MATE-2 && wtm) sprintf(out,"Mate");
+  else if (value==MATE-2 && !wtm) sprintf(out,"-Mate");
+  else if (value==-(MATE-1) && wtm) sprintf(out,"-Mate");
+  else if (value==-(MATE-1) && !wtm) sprintf(out,"Mate");
+  else if (value>0 && wtm) sprintf(out,"Mat%.2d",(MATE-value)/2);
+  else if (value>0 && !wtm) sprintf(out,"-Mat%.2d",(MATE-value)/2);
+  else if (wtm) sprintf(out,"-Mat%.2d",(MATE-abs(value))/2);
+  else sprintf(out,"Mat%.2d",(MATE-abs(value))/2);
   return(out);
 }
 
@@ -345,7 +357,7 @@ void DisplayPieceBoards(signed char *white, signed char *black) {
 void DisplayPV(TREE *tree, int level, int wtm, int time, int value, PATH *pv) {
   char buffer[512], *buffp, *bufftemp;
   int i, t_move_number, type, j, dummy;
-  int nskip=0;
+  int nskip=0, twtm=wtm;
   root_print_ok=root_print_ok || tree->nodes_searched>noise_level ||
                 abs(value)>MATE-300;
 /*
@@ -412,10 +424,10 @@ void DisplayPV(TREE *tree, int level, int wtm, int time, int value, PATH *pv) {
       Print(type,"         (%1d)   ",nskip);
     if (level==6)
       Print(type,"%2i   %s%s   ",iteration_depth,
-            DisplayTime(time),DisplayEvaluation(value));
+            DisplayTime(time),DisplayEvaluation(value,twtm));
     else
       Print(type,"%2i-> %s%s   ",iteration_depth,
-            DisplayTime(time),DisplayEvaluation(value));
+            DisplayTime(time),DisplayEvaluation(value,twtm));
     buffp=buffer+1;
     do {
       if ((int) strlen(buffp) > 34) 
@@ -427,7 +439,7 @@ void DisplayPV(TREE *tree, int level, int wtm, int time, int value, PATH *pv) {
       buffp=bufftemp+1;
       if (bufftemp) Print(type,"                                    ");
     } while(bufftemp);
-    Whisper(level,iteration_depth,end_time-start_time,whisper_value,
+    Whisper(level,twtm,iteration_depth,end_time-start_time,whisper_value,
             tree->nodes_searched,0,tree->egtb_probes_successful,
             whisper_text);
   }
@@ -2042,8 +2054,8 @@ void ComputeAttacksAndMobility () {
 *                                                                              *
 ********************************************************************************
 */
-void Whisper(int level,int depth,int time,int value,unsigned int nodes,
-             int cpu, int tb_hits, char *pv) {
+void Whisper(int level,int wtm, int depth,int time,int value,
+             unsigned int nodes, int cpu, int tb_hits, char *pv) {
   if (!puzzling) {
     char prefix[128];
 
@@ -2070,14 +2082,14 @@ void Whisper(int level,int depth,int time,int value,unsigned int nodes,
       if (kibitz >= 2) {
         if (ics) printf("*");
         printf("kibitz ply=%d; eval=%s; nps=%dk; time=%s; cpu=%d%%; egtb=%d\n",
-               depth,DisplayEvaluationWhisper(value),
+               depth,DisplayEvaluationWhisper(value,wtm),
                (int) ((time)?100*(BITBOARD)nodes/(BITBOARD)time:nodes)/1000,
                DisplayTimeWhisper(time),cpu,tb_hits);
       }
       else if (whisper >= 2) {
         if (ics) printf("*");
         printf("%s ply=%d; eval=%s; nps=%dk; time=%s; cpu=%d%%; egtb=%d\n",
-               prefix,depth,DisplayEvaluationWhisper(value),
+               prefix,depth,DisplayEvaluationWhisper(value,wtm),
                (int) ((time)?100*(BITBOARD)nodes/(BITBOARD)time:nodes)/1000,
                DisplayTimeWhisper(time),cpu,tb_hits);
       }
@@ -2105,12 +2117,12 @@ void Whisper(int level,int depth,int time,int value,unsigned int nodes,
       if (kibitz>=5 && nodes>5000) {
         if (ics) printf("*");
         printf("kibitz d%d-> %s %s %s\n",depth, DisplayTimeWhisper(time),
-                                       DisplayEvaluationWhisper(value),pv);
+                                       DisplayEvaluationWhisper(value,wtm),pv);
       }
       else if (whisper>=5 && nodes>5000) {
         if (ics) printf("*");
         printf("%s d%d-> %s %s %s\n",prefix,depth, DisplayTimeWhisper(time),
-                                       DisplayEvaluationWhisper(value),pv);
+                                       DisplayEvaluationWhisper(value,wtm),pv);
       }
       break;
     case 6:
@@ -2118,19 +2130,19 @@ void Whisper(int level,int depth,int time,int value,unsigned int nodes,
         if (ics) printf("*");
         if (cpu == 0)
           printf("kibitz d%d+ %s %s %s\n",depth, DisplayTimeWhisper(time),
-                                           DisplayEvaluationWhisper(value),pv);
+                                           DisplayEvaluationWhisper(value,wtm),pv);
         else
           printf("kibitz d%d+ %s >(%s) %s <re-searching>\n",depth,
-                 DisplayTimeWhisper(time),DisplayEvaluationWhisper(value),pv);
+                 DisplayTimeWhisper(time),DisplayEvaluationWhisper(value,wtm),pv);
       }
       else if (whisper>=6 && nodes>5000) {
         if (ics) printf("*");
         if (cpu == 0)
           printf("%s d%d+ %s %s %s\n",prefix,depth, DisplayTimeWhisper(time),
-                                            DisplayEvaluationWhisper(value),pv);
+                                            DisplayEvaluationWhisper(value,wtm),pv);
         else
           printf("%s d%d+ %s >(%s) %s <re-searching>\n",prefix,depth,
-                 DisplayTimeWhisper(time),DisplayEvaluationWhisper(value),pv);
+                 DisplayTimeWhisper(time),DisplayEvaluationWhisper(value,wtm),pv);
       }
       break;
     }
@@ -2177,6 +2189,7 @@ void CopyFromSMP(TREE *p, TREE *c) {
   p->recapture_extensions_done+=c->recapture_extensions_done;
   p->passed_pawn_extensions_done+=c->passed_pawn_extensions_done;
   p->one_reply_extensions_done+=c->one_reply_extensions_done;
+  strcpy(c->root_move_text,p->root_move_text);
   c->used=0;
 }
 

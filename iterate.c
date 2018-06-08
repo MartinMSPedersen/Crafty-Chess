@@ -252,7 +252,7 @@ int Iterate(int wtm, int search_type, int root_list_done) {
 #endif
         thread_start_time[0]=ReadClock(cpu);
         value=SearchRoot(tree,root_alpha, root_beta, wtm,
-                         iteration_depth*INCPLY+45);
+                         iteration_depth*INCPLY+30);
         root_print_ok=tree->nodes_searched > noise_level;
         cpu_time_used+=ReadClock(cpu)-thread_start_time[0];
         if (abort_search || time_abort) break;
@@ -278,7 +278,7 @@ int Iterate(int wtm, int search_type, int root_list_done) {
               sprintf(whisper_text+strlen(whisper_text)," ...");
             sprintf(whisper_text+strlen(whisper_text)," %s!!",
                     OutputMove(tree,tree->pv[1].path[1],1,wtm));
-            Whisper(6,iteration_depth,end_time-start_time,whisper_value,
+            Whisper(6,wtm,iteration_depth,end_time-start_time,whisper_value,
                     tree->nodes_searched,-1, tree->egtb_probes_successful,
                     whisper_text);
           }
@@ -349,12 +349,29 @@ int Iterate(int wtm, int search_type, int root_list_done) {
           }
         }
       } while(!sorted);
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   notice if there are multiple moves that are producing  |
+|   large trees.  if so, don't search those in parallel by |
+|   setting the flag to avoid this.                        |
+|                                                          |
+ ----------------------------------------------------------
+*/
       for (i=0;i<n_root_moves;i++) root_moves[i].status=0;
       if (root_moves[0].nodes > 1000)
         for (i=0;i<Min(n_root_moves,4);i++) {
           if (root_moves[i].nodes > root_moves[0].nodes/2)
             root_moves[i].status|=64;
         }
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   if requested, print the ply=1 move list along with the |
+|   node counts for the tree each move produced.           |
+|                                                          |
+ ----------------------------------------------------------
+*/
       if (display_options&256) {
         unsigned int total_nodes=0;
         Print(4095,"       move       nodes      hi/low\n");
@@ -367,15 +384,6 @@ int Iterate(int wtm, int search_type, int root_list_done) {
         }
         Print(256,"      total  %10d\n",total_nodes);
       }
-/*
- ----------------------------------------------------------
-|                                                          |
-|   notice if there are multiple moves that are producing  |
-|   large trees.  if so, don't search those in parallel by |
-|   setting the flag to avoid this.                        |
-|                                                          |
- ----------------------------------------------------------
-*/
       for (i=0;i<n_root_moves;i++) root_moves[i].nodes=0;
       if (end_time-start_time > 10)
         nodes_per_second=(BITBOARD) tree->nodes_searched*100/(BITBOARD) (end_time-start_time);
@@ -468,7 +476,7 @@ int Iterate(int wtm, int search_type, int root_list_done) {
     root_value=0;
     book_move=1;
     tree->pv[0]=tree->pv[1];
-    if (analyze_mode) Whisper(4,0,0,0,0,0,0,whisper_text);
+    if (analyze_mode) Whisper(4,wtm,0,0,0,0,0,0,whisper_text);
   }
   program_end_time=ReadClock(time_type);
   search_move=0;

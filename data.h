@@ -12,7 +12,6 @@
   extern int            number_of_computers;
   extern int            number_of_GMs;
   extern int            number_of_IMs;
-  extern int            number_of_specials;
   extern int            number_of_blockers;
   extern int            time_used;
   extern int            time_used_opponent;
@@ -26,7 +25,6 @@
   extern char           GM_list[512][20];
   extern char           IM_list[512][20];
   extern char           computer_list[512][20];
-  extern char           special_list[512][20];
   extern char           blocker_list[512][20];
   extern FILE           *input_stream;
   extern FILE           *book_file;
@@ -92,6 +90,7 @@
   extern int            auto232;
   extern int            auto232_delay;
   extern int            xboard;
+  extern int            pong;
   extern int            whisper;
   extern int            channel;
   extern char           channel_title[32];
@@ -240,6 +239,7 @@
   extern signed char    black_outpost[64];
   extern const char     square_color[64];
   extern const char     connected_passed_pawn_value[8];
+  extern const int      hidden_passed_pawn_value[8];
   extern const int      passed_pawn_value[8];
   extern const char     blockading_passed_pawn_value[8];
   extern const char     isolated_pawn_value[9];
@@ -251,7 +251,7 @@
   extern const char     reduced_material_passer[20];
   extern const char     outside_passed[128];
   extern const char     majority[128];
-  extern const char     temper[64];
+  extern const int      temper[64];
   extern int            temper_b[64], temper_w[64];
   extern const char     ttemper[64];
   extern int            king_safety_asymmetry;
@@ -269,7 +269,7 @@
   extern const char     king_tropism_at_r[8];
   extern const char     king_tropism_q[8];
   extern const char     king_tropism_at_q[8];
-  extern const signed char king_tropism[128];
+  extern const int      king_tropism[128];
   extern int            tropism[128];
 
   extern signed char    pval_w[64];
@@ -389,6 +389,8 @@
 
   extern BITBOARD       stonewall_white;
   extern BITBOARD       stonewall_black;
+  extern BITBOARD       e7_e6;
+  extern BITBOARD       e2_e3;
   extern BITBOARD       closed_white;
   extern BITBOARD       closed_black;
 
