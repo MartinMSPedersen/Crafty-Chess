@@ -236,9 +236,6 @@
   unsigned int   thread_start_time[CPUS];
 
 # if defined(SMP)
-#   if defined(CLONE)
-      int        pids[CPUS];
-#   endif
     TREE         *local[MAX_BLOCKS+1];
     TREE         *volatile thread[CPUS];
     lock_t       lock_smp, lock_io, lock_root;
@@ -253,7 +250,7 @@
   unsigned int   max_split_blocks;
   volatile unsigned int   splitting;
 
-# define    VERSION                            "18.10"
+# define    VERSION                            "18.11"
   char      version[6] =                    {VERSION};
   PLAYING_MODE mode =                     normal_mode;
 

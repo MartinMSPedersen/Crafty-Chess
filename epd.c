@@ -5171,7 +5171,7 @@ EPDScoreFile(charptrT fn, bmsptrT bmsptr)
 siT flag;
 siT skipflag;
 siT am_flag, bm_flag;
-siT solved;
+siT solved=0;
 fptrT fptr;
 epdptrT epdptr;
 eopptrT am_eopptr, bm_eopptr, acd_eopptr, acn_eopptr, acs_eopptr;

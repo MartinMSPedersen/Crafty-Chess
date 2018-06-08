@@ -38,7 +38,6 @@ int Option(TREE *tree) {
   if (!nargs) return(1);
   if (args[0][0] == '#') return(1);
   if (initialized) {
-/*
     if (EGCommandCheck(buffer)) {
       if (thinking || pondering) return (2);
       else {
@@ -46,7 +45,6 @@ int Option(TREE *tree) {
         return (1);
       }
     }
-*/
   }
 /*
  ----------------------------------------------------------

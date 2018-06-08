@@ -2797,6 +2797,19 @@
 *           far more times and were more reliable.  king safety scores ramped *
 *           up a bit and made more "responsive".                              *
 *                                                                             *
+*   18.11   minor bug in EvaluateDevelopment() found by Bruce Moreland.  the  *
+*           pawn ram code is now disabled when playing a computer, although   *
+*           the normal 'blocked pawn' code is always active.  bug in the code *
+*           that penalizes a rook with no horizontal mobility was fixed.  if  *
+*           the first rook scored had horizontal mobility, the second rook    *
+*           appeared to have this mobility as well, which was wrong.  pawn    *
+*           hash statistics were wrong on longer searches due to an int       *
+*           overflow on a multiply and divide calculation.  this has been     *
+*           re-ordered to avoid the overflow.  for unknown reasons, epd       *
+*           support was disabled.  it is now enabled as it should be.  some   *
+*           strange adjustements to root_alpha/root_beta were removed from    *
+*           searchr.c.  they were probably left-over from some sort of test.  *
+*                                                                             *
 *******************************************************************************
 */
 void SigInt(int type) {

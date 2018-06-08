@@ -109,10 +109,10 @@ __inline void Lock (volatile int *hPtr)
 #  define tfork(t,f,p)   {                                            \
                          char *m=malloc(0x100010);                    \
                          if (m <= 0) printf("malloc() failed\n");     \
-                         pids[p]=__clone(f,                           \
+                         (void) __clone((void*) f,                    \
                          m+0x100000,                                  \
                          CLONE_VM+CLONE_FILES+17,                     \
-                         p); }
+                         (void*) p); }
                            
 #else
 #  define tfork(t,f,p)          pthread_create(&t,&pthread_attr,f,(void*) p)

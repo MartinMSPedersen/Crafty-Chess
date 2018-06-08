@@ -4,7 +4,7 @@
 #include "evaluate.h"
 #include "data.h"
 
-/* last modified 03/14/01 */
+/* last modified 08/28/01 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -677,7 +677,7 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
 */
   temp=WhiteRooks;
   while(temp) {
-    register int mobility=0;
+    register int mobility;
     square=FirstOne(temp);
     file=File(square);
     score+=rval_w[square];
@@ -710,6 +710,7 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
 |                                                          |
  ----------------------------------------------------------
 */
+    mobility=0;
     if (File(square)<FILEH && PcOnSq(square+1)<=0) mobility++;
     if (File(square)>FILEA && PcOnSq(square-1)<=0) mobility++;
     if (!mobility) score-=ROOK_LIMITED;
@@ -784,7 +785,7 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
 */
   temp=BlackRooks;
   while(temp) {
-    register int mobility=0;
+    register int mobility;
     square=FirstOne(temp);
     file=File(square);
     score-=rval_b[square];
@@ -817,6 +818,7 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
 |                                                          |
  ----------------------------------------------------------
 */
+    mobility=0;
     if (File(square)<FILEH && PcOnSq(square+1)>=0) mobility++;
     if (File(square)>FILEA && PcOnSq(square-1)>=0) mobility++;
     if (!mobility) score+=ROOK_LIMITED;
@@ -2269,7 +2271,7 @@ int EvaluatePassedPawnRaces(TREE *tree, int wtm) {
   return(0);
 }
 
-/* last modified 03/22/01 */
+/* last modified 09/06/01 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -2320,18 +2322,21 @@ int EvaluatePawns(TREE *tree) {
     return(tree->pawn_score.p_score);
   }
   tree->pawn_score.key=PawnHashKey;
-  tree->pawn_score.passed_w=0;
-  tree->pawn_score.passed_b=0;
-  tree->pawn_score.protected=0;
+
+  tree->pawn_score.allw=0;
   tree->pawn_score.white_defects_k=0;
   tree->pawn_score.white_defects_q=0;
+  tree->pawn_score.candidates_w=0;
+  tree->pawn_score.passed_w=0;
+
+  tree->pawn_score.allb=0;
   tree->pawn_score.black_defects_k=0;
   tree->pawn_score.black_defects_q=0;
-  tree->pawn_score.outside=0;
-  tree->pawn_score.candidates_w=0;
   tree->pawn_score.candidates_b=0;
-  tree->pawn_score.allw=0;
-  tree->pawn_score.allb=0;
+  tree->pawn_score.passed_b=0;
+
+  tree->pawn_score.outside=0;
+  tree->pawn_score.protected=0;
   w_isolated=0;
   w_isolated_of=0;
   b_isolated=0;
@@ -3001,12 +3006,13 @@ int EvaluatePawns(TREE *tree) {
 /*
  ----------------------------------------------------------
 |                                                          |
-|   now fold in the penalty for "rams" which are pawns     |
-|   that are blocked by a pawn on the same file.           |
+|   now add in the pawn ram penalty.  the idea here is     |
+|   that rams hinder tactics by blocking the position,     |
+|   which sidesteps the computer's strong point.           |
 |                                                          |
  ----------------------------------------------------------
 */
-  if (use_asymmetry) {
+  if (use_asymmetry && !computer_opponent) {
     if (root_wtm) {
       if (TotalWhitePawns > 5)
         score-=pawn_rams[PopCnt(WhitePawns&(BlackPawns<<8))];

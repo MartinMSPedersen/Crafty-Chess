@@ -464,9 +464,6 @@
 
   extern unsigned int   thread_start_time[CPUS];
 # if defined(SMP)
-#   if defined(CLONE)
-      extern int        pids[CPUS];
-#   endif
   extern TREE           *local[MAX_BLOCKS+1];
   extern TREE           *volatile thread[CPUS];
   extern lock_t         lock_smp, lock_io, lock_root;

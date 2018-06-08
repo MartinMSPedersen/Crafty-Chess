@@ -50,6 +50,7 @@
 #    endif
 #    if defined(CLONE)
 #      include <sched.h>
+       int __clone(int*(void*), void*, int, void*);
 #    endif
 #  endif
 #endif
@@ -350,18 +351,21 @@ typedef struct {
 typedef struct {
   unsigned int key;
   short    p_score;
-  unsigned char passed_b;
+
+  unsigned char allb;
   unsigned char black_defects_k;
   unsigned char black_defects_q;
-  unsigned char passed_w;
+  unsigned char passed_b;
+  unsigned char candidates_b;
+
+  unsigned char allw;
   unsigned char white_defects_k;
   unsigned char white_defects_q;
+  unsigned char passed_w;
+  unsigned char candidates_w;
+
   unsigned char protected;
   unsigned char outside;
-  unsigned char candidates_w;
-  unsigned char candidates_b;
-  unsigned char allw;
-  unsigned char allb;
 } PAWN_HASH_ENTRY;
 
 typedef struct {

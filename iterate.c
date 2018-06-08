@@ -449,7 +449,7 @@ int Iterate(int wtm, int search_type, int root_list_done) {
       Print(8,"              time=%s  cpu=%d%%  mat=%d",
             DisplayTimeWhisper(end_time-start_time), cpu_percent, material); 
       Print(8,"  n=%u", tree->nodes_searched);
-      Print(8,"  fh=%u%%", tree->fail_high_first*100/tree->fail_high);
+      Print(8,"  fh=%u%%", (int) ((BITBOARD) tree->fail_high_first*100/(BITBOARD) tree->fail_high));
       Print(8,"  nps=%dk\n", nodes_per_second/1000);
       Print(16,"              ext-> chk=%d cap=%d pp=%d 1rep=%d mate=%d\n",
             tree->check_extensions_done, tree->recapture_extensions_done,
@@ -461,8 +461,8 @@ int Iterate(int wtm, int search_type, int root_list_done) {
             tree->egtb_probes, tree->egtb_probes_successful);
 #if !defined(FAST)
       Print(16,"              hashing-> trans/ref=%d%%  pawn=%d%%  used=%d%%\n",
-            100*tree->transposition_hits/(tree->transposition_probes+1),
-            100*tree->pawn_hits/(tree->pawn_probes+1),
+            (int) (100*(BITBOARD)tree->transposition_hits/(BITBOARD)(tree->transposition_probes+1)),
+            (int) (100*(BITBOARD)tree->pawn_hits/(BITBOARD)(tree->pawn_probes+1)),
             used*100/(3*hash_table_size+1));
 #endif
 #if defined(SMP)

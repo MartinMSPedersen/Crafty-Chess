@@ -147,8 +147,6 @@ int SearchRoot(TREE *tree, int alpha, int beta, int wtm, int depth) {
         return(value);
       }
       alpha=value;
-      beta=value+40;
-      root_beta=beta;
     }
     root_value=alpha;
     UnMakeMove(tree,1,tree->current_move[1],wtm);
