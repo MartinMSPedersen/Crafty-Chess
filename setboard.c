@@ -23,7 +23,7 @@
 *                                                                              *
 *   the following input will setup the board position that given below:        *
 *                                                                              *
-*         K2R/PPP////q/5ppp/7k/ b                                              *
+*         K2R/PPP////q/5ppp/7k/ b - -                                          *
 *                                                                              *
 *   this assumes that k represents a white king and -q represents a black      *
 *   queen.                                                                     *
@@ -140,32 +140,43 @@ void SetBoard(int nargs, char *args[], int special) {
  ----------------------------------------------------------
 */
   if (nargs>2 && strlen(args[2])) {
-    if (args[2][0]>='a' && args[2][0]<='h' &&
-        args[2][1]>'0' && args[2][1]<'9') {
-      ep=(args[2][1]-'1')*8+args[2][0]-'a';
-      pos++;
-    }
-    else for (pos=0;pos<(int) strlen(args[2]);pos++) {
-      for (match=0;(match<13) && (args[2][pos]!=status[match]);match++);
-      if (match == 0) wcastle+=1;
-      else if (match == 1) wcastle+=2;
-      else if (match == 2) bcastle+=1;
-      else if (match == 3) bcastle+=2;
-      else if (args[2][0]!='-') printf("castling status is bad.\n");
+    if (strcmp(args[2],"-")) {
+      for (pos=0;pos<(int) strlen(args[2]);pos++) {
+        for (match=0;(match<13) && (args[2][pos]!=status[match]);match++);
+        if (match == 0) wcastle+=1;
+        else if (match == 1) wcastle+=2;
+        else if (match == 2) bcastle+=1;
+        else if (match == 3) bcastle+=2;
+        else if (args[2][0]!='-') printf("castling status is bad.\n");
+      }
     }
   }
   if (nargs>3 && strlen(args[3])) {
-    if (args[3][0]>='a' && args[3][0]<='h' &&
-        args[3][1]>'0' && args[3][1]<'9') {
-      ep=(args[3][1]-'1')*8+args[3][0]-'a';
-      pos++;
+    if (strcmp(args[3],"-")) {
+      if (args[3][0]>='a' && args[3][0]<='h' &&
+          args[3][1]>'0' && args[3][1]<'9') {
+        ep=(args[3][1]-'1')*8+args[3][0]-'a';
+      }
+      else if (args[3][0]!='-') printf("enpassant status is bad.\n");
     }
-    else if (args[3][0]!='-') printf("enpassant status is bad.\n");
   }
   for (i=0;i<64;i++) PieceOnSquare(i)=tboard[i];
   WhiteCastle(0)=wcastle;
   BlackCastle(0)=bcastle;
-  EnPassant(0)=ep;
+  if (ep) {
+    if (Rank(ep) == RANK6) {
+      if (PieceOnSquare(ep-8) != -pawn) ep=0;
+    }
+    else if (Rank(ep) == RANK3) {
+      if (PieceOnSquare(ep+8) != pawn) ep=0;
+    }
+    else ep=0;
+    if (!ep) {
+      printf("enpassant status is bad (must be on 3rd/6th rank only.\n");
+      ep=0;
+    }
+    EnPassant(0)=ep;
+  }
   Rule50Moves(0)=0;
 /*
  ----------------------------------------------------------

@@ -67,7 +67,7 @@
    int            history_w[4096], history_b[4096];
    PATH           last_pv;
    int            last_value;
-   int            temper_b[32], temper_w[32];
+   int            temper_b[64], temper_w[64];
    signed char    pval_b[64];
    signed char    nval_b[64];
    signed char    bval_b[64];
@@ -246,7 +246,7 @@
   unsigned int   max_split_blocks;
   volatile unsigned int   splitting;
 
-# define    VERSION                            "16.13"
+# define    VERSION                            "16.15"
   char      version[6] =                    {VERSION};
   PLAYING_MODE mode =                     normal_mode;
 
@@ -497,7 +497,7 @@
                                      PAWN_PASSED*6,PAWN_PASSED*9,
                                      0};
 
-  const int isolated_pawn_value[9] =  {0, 12, 24, 32, 50, 80, 100, 120, 150};
+  const int isolated_pawn_value[9] =  {0, 14, 30, 50, 65, 80, 100, 120, 150};
 
   const int doubled_pawn_value[7] = { 0,
                                       0, PAWN_DOUBLED,
@@ -535,51 +535,21 @@
                                     12, 12, 12, 12, 12, 12, 12, 12,
                                     12, 12, 12, 12, 12, 12, 12, 12};
 
-  const int scale_up[128] =       { 12, 12, 12, 11, 11, 11, 10, 10,
-                                    10,  9,  9,  9,  8,  8,  8,  7,
-                                     6,  6,  6,  6,  6,  6,  6,  6,
-                                     6,  6,  6,  6,  6,  6,  6,  6,
-                                     6,  6,  6,  6,  6,  6,  6,  6,
-                                     6,  6,  6,  6,  6,  6,  6,  6,
-                                     6,  6,  6,  6,  6,  6,  6,  6,
-                                     6,  6,  6,  6,  6,  6,  6,  6,
-                                     6,  6,  6,  6,  6,  6,  6,  6,
-                                     6,  6,  6,  6,  6,  6,  6,  6,
-                                     6,  6,  6,  6,  6,  6,  6,  6,
-                                     6,  6,  6,  6,  6,  6,  6,  6,
-                                     6,  6,  6,  6,  6,  6,  6,  6,
-                                     6,  6,  6,  6,  6,  6,  6,  6,
-                                     6,  6,  6,  6,  6,  6,  6,  6,
-                                     6,  6,  6,  6,  6,  6,  6,  6};
-
-  const int scale_down[128] =     {  1,  1,  1,  1,  1,  1,  1,  1,
-                                     1,  1,  1,  1,  2,  3,  4,  5,
-                                     5,  6,  6,  7,  7,  8,  8,  8,
-                                     9,  9,  9, 10, 10, 10, 10, 10,
-                                    10, 10, 10, 10, 10, 10, 10, 10,
-                                    10, 10, 10, 10, 10, 10, 10, 10,
-                                    10, 10, 10, 10, 10, 10, 10, 10,
-                                    10, 10, 10, 10, 10, 10, 10, 10,
-                                    10, 10, 10, 10, 10, 10, 10, 10,
-                                    10, 10, 10, 10, 10, 10, 10, 10,
-                                    10, 10, 10, 10, 10, 10, 10, 10,
-                                    10, 10, 10, 10, 10, 10, 10, 10,
-                                    10, 10, 10, 10, 10, 10, 10, 10,
-                                    10, 10, 10, 10, 10, 10, 10, 10,
-                                    10, 10, 10, 10, 10, 10, 10, 10,
-                                    10, 10, 10, 10, 10, 10, 10, 10};
-
 /*
    the following values are for king safety.  The 'temper' array is used
    to scale the number of defects found into some sort of 'sane' score so that
    small pertubations in king safety can produce signficant scoring changes,
    but large pertubations won't cause Crafty to sacrifice pieces.
 */
-  const int temper[32] = 
+  const int temper[64] = 
     {   0,   5,  20,  32,  48,  56,  72,  96, /*   0-   7 */
       108, 112, 116, 120, 124, 128, 132, 136, /*   8-  15 */
       140, 144, 148, 152, 156, 160, 160, 160, /*  16-  23 */
-      160, 160, 160, 160, 160, 160, 160, 160};/*  24-  31 */
+      160, 160, 160, 160, 160, 160, 160, 160, /*  24-  31 */
+      160, 160, 160, 160, 160, 160, 160, 160, /*  32-  39 */
+      160, 160, 160, 160, 160, 160, 160, 160, /*  40-  47 */
+      160, 160, 160, 160, 160, 160, 160, 160, /*  48-  55 */
+      160, 160, 160, 160, 160, 160, 160, 160};/*  56-  63 */
 /*
    the following array cuts the king safety term down to a value that can
    be used in the king tropism calculation.  this lets the safety of a king
@@ -594,10 +564,14 @@
    numbered elements correspond to safe king positions, while higher-numbered
    elements represent disrupted kingsides.
 */
-  const int ttemper[32] =    { 16, 16, 16, 16, 17, 17, 18, 18, /*   0-   7 */
+  const int ttemper[64] =    { 16, 16, 16, 16, 17, 17, 18, 18, /*   0-   7 */
                                19, 19, 20, 20, 21, 21, 22, 22, /*   8-  15 */
                                23, 23, 24, 24, 25, 25, 26, 26, /*  16-  23 */
-                               27, 27, 27, 27, 27, 27, 27, 27};/*  24-  31 */
+                               27, 27, 27, 27, 27, 27, 27, 27, /*  24-  31 */
+                               27, 27, 27, 27, 27, 27, 27, 27, /*  32-  39 */
+                               27, 27, 27, 27, 27, 27, 27, 27, /*  40-  47 */
+                               27, 27, 27, 27, 27, 27, 27, 27, /*  48-  55 */
+                               27, 27, 27, 27, 27, 27, 27, 27};/*  56-  63 */
 /*
    penalty for a pawn that is missing from its initial square in front
    of the castled king.  ie h3 would count as 'one missing pawn' while

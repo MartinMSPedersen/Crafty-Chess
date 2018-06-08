@@ -247,7 +247,8 @@ int Book(TREE *tree, int wtm, int root_list_done) {
           !(book_status[i] & 030)) book_status[i]|=BAD_MOVE;
       if (!wtm && !(book_status[i]&040) && !bs_percent[i] &&
           !(book_status[i] & 030)) book_status[i]|=BAD_MOVE;
-      if (bs_played[i] < maxp/10 && !bs_percent[i] && book_random &&
+      if (computer_opponent &&
+          bs_played[i] < maxp/10 && !bs_percent[i] && book_random &&
           !(book_status[i] & 030)) book_status[i]|=BAD_MOVE;
       if (bs_learn[i] >= LEARN_COUNTER_GOOD &&
           !(book_status[i] & 003)) book_status[i]|=GOOD_MOVE;

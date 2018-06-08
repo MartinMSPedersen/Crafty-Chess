@@ -237,12 +237,10 @@
   extern const int      reduced_material_passer[20];
   extern const int      outside_passed[128];
   extern const int      ks_scale_down[128];
-  extern const int      scale_down[128];
-  extern const int      scale_up[128];
-  extern const int      temper[32];
-  extern int            temper_w[32];
-  extern int            temper_b[32];
-  extern const int      ttemper[32];
+  extern const int      temper[64];
+  extern int            temper_w[64];
+  extern int            temper_b[64];
+  extern const int      ttemper[64];
   extern int            king_safety_asymmetry;
   extern int            king_safety_scale;
   extern int            king_safety_tropism;

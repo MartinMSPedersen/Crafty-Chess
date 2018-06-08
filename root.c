@@ -70,16 +70,15 @@ void RootMoveList(int wtm) {
     value=-4000000;
     MakeMove(tree, 1, *mvp, wtm);
     if (!Check(wtm)) do {
-      if (EGTBlimit && EGTB_draw) {
+      tree->current_move[1]=*mvp;
+      if (TotalPieces <= EGTBlimit && EGTB_draw) {
         i=EGTBProbe(tree, 2, ChangeSide(wtm), &tb_value);
         if (tb_value != 0) break;
       }
-      tree->current_move[1]=*mvp;
-      if (mating_via_tb) {
-          i=EGTBProbe(tree, 2, ChangeSide(wtm), &tb_value);
-          if (i && ((mating_via_tb > 0 && tb_value < mating_via_tb) ||
-                    (mating_via_tb < 0 && tb_value > mating_via_tb)))
-              break;
+      if (mating_via_tb && TotalPieces <= EGTBlimit) {
+        i=EGTBProbe(tree, 2, ChangeSide(wtm), &tb_value);
+        if (i && ((mating_via_tb > 0 && tb_value < mating_via_tb) ||
+                  (mating_via_tb < 0 && tb_value > mating_via_tb))) break;
       }
       value=-Evaluate(tree,2,ChangeSide(wtm),-99999,99999);
 /*
@@ -199,11 +198,14 @@ void RootMoveList(int wtm) {
   for (i=0;i<n_root_moves;i++) {
     tree->current_move[1]=rmoves[i];
     MakeMove(tree, 1, rmoves[i], wtm);
-    temp=EGTBProbe(tree, 2, ChangeSide(wtm), &tb_value);
+    if (mating_via_tb && TotalPieces <= EGTBlimit) 
+      temp=EGTBProbe(tree, 2, ChangeSide(wtm), &tb_value);
+    else
+      temp=0;
     UnMakeMove(tree, 1, rmoves[i], wtm);
     if (temp) break;
   }
-  EGTB_search=i==n_root_moves;
+  EGTB_search=(i==n_root_moves);
 /*
  ----------------------------------------------------------
 |                                                          |

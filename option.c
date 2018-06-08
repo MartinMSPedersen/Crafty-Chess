@@ -680,7 +680,7 @@ int Option(TREE *tree) {
       }
     }
     else {
-      if (nargs==2) EGTBlimit=atoi(args[1]);
+      if (nargs==2) EGTBlimit=Min(atoi(args[1]),5);
     }
   }
 /*
@@ -760,11 +760,23 @@ int Option(TREE *tree) {
       Print(128,"\n       ");
       for (i=16;i<32;i++)
         Print(128,"%3d ", temper_w[i]);
+      Print(128,"\n       ");
+      for (i=33;i<48;i++)
+        Print(128,"%3d ", temper_w[i]);
+      Print(128,"\n       ");
+      for (i=49;i<64;i++)
+        Print(128,"%3d ", temper_w[i]);
       Print(128,"\n\nblack: ");
       for (i=0;i<16;i++)
         Print(128,"%3d ", temper_b[i]);
       Print(128,"\n       ");
       for (i=16;i<32;i++)
+        Print(128,"%3d ", temper_b[i]);
+      Print(128,"\n       ");
+      for (i=32;i<48;i++)
+        Print(128,"%3d ", temper_b[i]);
+      Print(128,"\n");
+      for (i=48;i<64;i++)
         Print(128,"%3d ", temper_b[i]);
       Print(128,"\n");
     }
@@ -1811,218 +1823,220 @@ int Option(TREE *tree) {
     nargs-=2;
     targs+=2;
     if (nargs) {
-      if (!strcmp(listname,"GM")) {
-        if (targs[0][0] == '-') {
-          for (i=0;i<number_of_GMs;i++)
-            if (!strcmp(GM_list[i],targs[0]+1)) {
-              for (j=i;j<number_of_GMs;j++)
-                strcpy(GM_list[j],GM_list[j+1]);
-              number_of_GMs--;
-              i=0;
-              Print(4095,"%s removed from GM list.\n",targs[0]+1);
-              break;
-            }
-        }
-        else if (targs[0][0] == '+') {
-          for (i=0;i<number_of_GMs;i++)
-            if (!strcmp(GM_list[i],targs[0]+1)) {
-              Print(4095, "Warning: %s is already in GM list.\n",targs[0]+1);
-              break;
-            }
-          if (number_of_GMs >= 512)
-            Print(4095,"ERROR!  GM list is full at 512 entries\n");
-          else if (i==number_of_GMs) {
-            strcpy(GM_list[number_of_GMs++],targs[0]+1);
-            Print(4095,"%s added to GM list.\n",targs[0]+1);
+      while (nargs) {
+        if (!strcmp(listname,"GM")) {
+          if (targs[0][0] == '-') {
+            for (i=0;i<number_of_GMs;i++)
+              if (!strcmp(GM_list[i],targs[0]+1)) {
+                for (j=i;j<number_of_GMs;j++)
+                  strcpy(GM_list[j],GM_list[j+1]);
+                number_of_GMs--;
+                i=0;
+                Print(4095,"%s removed from GM list.\n",targs[0]+1);
+                break;
+              }
           }
-        }
-        else if (!strcmp(targs[0],"clear")) {
-          number_of_GMs=0;
-        }
-        else printf("error, name must be preceeded by +/- flag.\n");
-      }
-      if (!strcmp(listname,"B")) {
-        if (targs[0][0] == '-') {
-          for (i=0;i<number_of_blockers;i++)
-            if (!strcmp(blocker_list[i],targs[0]+1)) {
-              for (j=i;j<number_of_blockers;j++)
-                strcpy(blocker_list[j],blocker_list[j+1]);
-              number_of_blockers--;
-              i=0;
-              Print(4095,"%s removed from blocker list.\n",targs[0]+1);
-              break;
+          else if (targs[0][0] == '+') {
+            for (i=0;i<number_of_GMs;i++)
+              if (!strcmp(GM_list[i],targs[0]+1)) {
+                Print(4095, "Warning: %s is already in GM list.\n",targs[0]+1);
+                break;
+              }
+            if (number_of_GMs >= 512)
+              Print(4095,"ERROR!  GM list is full at 512 entries\n");
+            else if (i==number_of_GMs) {
+              strcpy(GM_list[number_of_GMs++],targs[0]+1);
+              Print(4095,"%s added to GM list.\n",targs[0]+1);
             }
-        }
-        else if (targs[0][0] == '+') {
-          for (i=0;i<number_of_blockers;i++)
-            if (!strcmp(blocker_list[i],targs[0]+1)) {
-              Print(4095, "Warning: %s is already in B list.\n",targs[0]+1);
-              break;
-            }
-          if (number_of_blockers >= 512)
-            Print(4095,"ERROR!  blocker list is full at 512 entries\n");
-          else if (i==number_of_blockers) {
-            strcpy(blocker_list[number_of_blockers++],targs[0]+1);
-            Print(4095,"%s added to blocker list.\n",targs[0]+1);
           }
-        }
-        else if (!strcmp(targs[0],"clear")) {
-          number_of_blockers=0;
-        }
-        else Print(4095,"error, name must be preceeded by +/- flag.\n");
-      }
-      if (!strcmp(listname,"S")) {
-        if (targs[0][0] == '-') {
-          for (i=0;i<number_of_specials;i++)
-            if (!strcmp(special_list[i],targs[0]+1)) {
-              for (j=i;j<number_of_specials;j++)
-                strcpy(special_list[j],special_list[j+1]);
-              number_of_specials--;
-              i=0;
-              Print(4095,"%s removed from special list.\n",targs[0]+1);
-              break;
-            }
-        }
-        else if (targs[0][0] == '+') {
-          for (i=0;i<number_of_specials;i++)
-            if (!strcmp(special_list[i],targs[0]+1)) {
-              Print(4095, "Warning: %s is already in S list.\n",targs[0]+1);
-              break;
-            }
-          if (number_of_specials >= 512)
-            Print(4095,"ERROR!  special list is full at 512 entries\n");
-          else if (i==number_of_specials) {
-            strcpy(special_list[number_of_specials++],targs[0]+1);
-            Print(4095,"%s added to special list.\n",targs[0]+1);
+          else if (!strcmp(targs[0],"clear")) {
+            number_of_GMs=0;
           }
+          else printf("error, name must be preceeded by +/- flag.\n");
         }
-        else if (!strcmp(targs[0],"clear")) {
-          number_of_specials=0;
-        }
-        else Print(4095,"error, name must be preceeded by +/- flag.\n");
-      }
-      if (!strcmp(listname,"IM")) {
-        if (targs[0][0] == '-') {
-          for (i=0;i<number_of_IMs;i++)
-            if (!strcmp(IM_list[i],targs[0]+1)) {
-              for (j=i;j<number_of_IMs;j++)
-                strcpy(IM_list[j],IM_list[j+1]);
-              number_of_IMs--;
-              i=0;
-              Print(4095,"%s removed from IM list.\n",targs[0]+1);
-              break;
-            }
-        }
-        else if (targs[0][0] == '+') {
-          for (i=0;i<number_of_IMs;i++)
-            if (!strcmp(IM_list[i],targs[0]+1)) {
-              Print(4095, "Warning: %s is already in IM list.\n",targs[0]+1);
-              break;
-            }
-          if (number_of_IMs >= 512)
-            Print(4095,"ERROR!  IM list is full at 512 entries\n");
-          else if (i==number_of_IMs) {
-            strcpy(IM_list[number_of_IMs++],targs[0]+1);
-            Print(4095,"%s added to IM list.\n",targs[0]+1);
+        if (!strcmp(listname,"B")) {
+          if (targs[0][0] == '-') {
+            for (i=0;i<number_of_blockers;i++)
+              if (!strcmp(blocker_list[i],targs[0]+1)) {
+                for (j=i;j<number_of_blockers;j++)
+                  strcpy(blocker_list[j],blocker_list[j+1]);
+                number_of_blockers--;
+                i=0;
+                Print(4095,"%s removed from blocker list.\n",targs[0]+1);
+                break;
+              }
           }
-        }
-        else if (!strcmp(targs[0],"clear")) {
-          number_of_IMs=0;
-        }
-        else Print(4095,"error, name must be preceeded by +/- flag.\n");
-      }
-      if (!strcmp(listname,"C")) {
-        if (targs[0][0] == '-') {
-          for (i=0;i<number_of_computers;i++)
-            if (!strcmp(computer_list[i],targs[0]+1)) {
-              for (j=i;j<number_of_computers;j++)
-                strcpy(computer_list[j],computer_list[j+1]);
-              number_of_computers--;
-              i=0;
-              Print(4095,"%s removed from computer list.\n",targs[0]+1);
-              break;
+          else if (targs[0][0] == '+') {
+            for (i=0;i<number_of_blockers;i++)
+              if (!strcmp(blocker_list[i],targs[0]+1)) {
+                Print(4095, "Warning: %s is already in B list.\n",targs[0]+1);
+                break;
+              }
+            if (number_of_blockers >= 512)
+              Print(4095,"ERROR!  blocker list is full at 512 entries\n");
+            else if (i==number_of_blockers) {
+              strcpy(blocker_list[number_of_blockers++],targs[0]+1);
+              Print(4095,"%s added to blocker list.\n",targs[0]+1);
             }
-        }
-        else if (targs[0][0] == '+') {
-          for (i=0;i<number_of_computers;i++)
-            if (!strcmp(computer_list[i],targs[0]+1)) {
-              Print(4095, "Warning: %s is already in C list.\n",targs[0]+1);
-              break;
             }
-          if (number_of_computers >= 512)
-            Print(4095,"ERROR!  C list is full at 512 entries\n");
-          else if (i==number_of_computers) {
-            strcpy(computer_list[number_of_computers++],targs[0]+1);
-            Print(4095,"%s added to computer list.\n",targs[0]+1);
+          else if (!strcmp(targs[0],"clear")) {
+            number_of_blockers=0;
           }
+          else Print(4095,"error, name must be preceeded by +/- flag.\n");
         }
-        else if (!strcmp(targs[0],"clear")) {
-          number_of_computers=0;
-        }
-        else Print(4095,"error, name must be preceeded by +/- flag.\n");
-      }
-      if (!strcmp(listname,"AK")) {
-        if (targs[0][0] == '-') {
-          for (i=0;i<number_auto_kibitzers;i++)
-            if (!strcmp(auto_kibitz_list[i],targs[0]+1)) {
-              for (j=i;j<number_auto_kibitzers;j++)
-                strcpy(auto_kibitz_list[j],auto_kibitz_list[j+1]);
-              number_auto_kibitzers--;
-              i=0;
-              Print(4095,"%s removed from auto kibitz list.\n",targs[0]+1);
-              break;
-            }
-        }
-        else if (targs[0][0] == '+') {
-          for (i=0;i<number_auto_kibitzers;i++)
-            if (!strcmp(auto_kibitz_list[i],targs[0]+1)) {
-              Print(4095, "Warning: %s is already in AK list.\n",targs[0]+1);
-              break;
-            }
-          if (number_auto_kibitzers >= 64)
-            Print(4095,"ERROR!  AK list is full at 64 entries\n");
-          else if (i==number_auto_kibitzers) {
-            strcpy(auto_kibitz_list[number_auto_kibitzers++],targs[0]+1);
-            Print(4095,"%s added to auto kibitz list.\n",targs[0]+1);
+        if (!strcmp(listname,"S")) {
+          if (targs[0][0] == '-') {
+            for (i=0;i<number_of_specials;i++)
+              if (!strcmp(special_list[i],targs[0]+1)) {
+                for (j=i;j<number_of_specials;j++)
+                  strcpy(special_list[j],special_list[j+1]);
+                number_of_specials--;
+                i=0;
+                Print(4095,"%s removed from special list.\n",targs[0]+1);
+                break;
+              }
           }
+          else if (targs[0][0] == '+') {
+            for (i=0;i<number_of_specials;i++)
+              if (!strcmp(special_list[i],targs[0]+1)) {
+                Print(4095, "Warning: %s is already in S list.\n",targs[0]+1);
+                break;
+              }
+            if (number_of_specials >= 512)
+              Print(4095,"ERROR!  special list is full at 512 entries\n");
+            else if (i==number_of_specials) {
+              strcpy(special_list[number_of_specials++],targs[0]+1);
+              Print(4095,"%s added to special list.\n",targs[0]+1);
+            }
+          }
+          else if (!strcmp(targs[0],"clear")) {
+            number_of_specials=0;
+          }
+          else Print(4095,"error, name must be preceeded by +/- flag.\n");
         }
-        else if (!strcmp(targs[0],"clear")) {
-          number_auto_kibitzers=0;
+        if (!strcmp(listname,"IM")) {
+          if (targs[0][0] == '-') {
+            for (i=0;i<number_of_IMs;i++)
+              if (!strcmp(IM_list[i],targs[0]+1)) {
+                for (j=i;j<number_of_IMs;j++)
+                  strcpy(IM_list[j],IM_list[j+1]);
+                number_of_IMs--;
+                i=0;
+                Print(4095,"%s removed from IM list.\n",targs[0]+1);
+                break;
+              }
+          }
+          else if (targs[0][0] == '+') {
+            for (i=0;i<number_of_IMs;i++)
+              if (!strcmp(IM_list[i],targs[0]+1)) {
+                Print(4095, "Warning: %s is already in IM list.\n",targs[0]+1);
+                break;
+              }
+            if (number_of_IMs >= 512)
+              Print(4095,"ERROR!  IM list is full at 512 entries\n");
+            else if (i==number_of_IMs) {
+              strcpy(IM_list[number_of_IMs++],targs[0]+1);
+              Print(4095,"%s added to IM list.\n",targs[0]+1);
+            }
+          }
+          else if (!strcmp(targs[0],"clear")) {
+            number_of_IMs=0;
+          }
+          else Print(4095,"error, name must be preceeded by +/- flag.\n");
         }
-        else Print(4095,"error, name must be preceeded by +/- flag.\n");
+        if (!strcmp(listname,"C")) {
+          if (targs[0][0] == '-') {
+            for (i=0;i<number_of_computers;i++)
+              if (!strcmp(computer_list[i],targs[0]+1)) {
+                for (j=i;j<number_of_computers;j++)
+                  strcpy(computer_list[j],computer_list[j+1]);
+                number_of_computers--;
+                i=0;
+                Print(4095,"%s removed from computer list.\n",targs[0]+1);
+                break;
+              }
+          }
+          else if (targs[0][0] == '+') {
+            for (i=0;i<number_of_computers;i++)
+              if (!strcmp(computer_list[i],targs[0]+1)) {
+                Print(4095, "Warning: %s is already in C list.\n",targs[0]+1);
+                break;
+              }
+            if (number_of_computers >= 512)
+              Print(4095,"ERROR!  C list is full at 512 entries\n");
+            else if (i==number_of_computers) {
+              strcpy(computer_list[number_of_computers++],targs[0]+1);
+              Print(4095,"%s added to computer list.\n",targs[0]+1);
+            }
+          }
+          else if (!strcmp(targs[0],"clear")) {
+            number_of_computers=0;
+          }
+          else Print(4095,"error, name must be preceeded by +/- flag.\n");
+        }
+        if (!strcmp(listname,"AK")) {
+          if (targs[0][0] == '-') {
+            for (i=0;i<number_auto_kibitzers;i++)
+              if (!strcmp(auto_kibitz_list[i],targs[0]+1)) {
+                for (j=i;j<number_auto_kibitzers;j++)
+                  strcpy(auto_kibitz_list[j],auto_kibitz_list[j+1]);
+                number_auto_kibitzers--;
+                i=0;
+                Print(4095,"%s removed from auto kibitz list.\n",targs[0]+1);
+                break;
+              }
+          }
+          else if (targs[0][0] == '+') {
+            for (i=0;i<number_auto_kibitzers;i++)
+              if (!strcmp(auto_kibitz_list[i],targs[0]+1)) {
+                Print(4095, "Warning: %s is already in AK list.\n",targs[0]+1);
+                break;
+              }
+            if (number_auto_kibitzers >= 64)
+              Print(4095,"ERROR!  AK list is full at 64 entries\n");
+            else if (i==number_auto_kibitzers) {
+              strcpy(auto_kibitz_list[number_auto_kibitzers++],targs[0]+1);
+              Print(4095,"%s added to auto kibitz list.\n",targs[0]+1);
+            }
+          }
+          else if (!strcmp(targs[0],"clear")) {
+            number_auto_kibitzers=0;
+          }
+          else Print(4095,"error, name must be preceeded by +/- flag.\n");
+        }
+        nargs--;
+        targs++;
       }
     }
-    else {
-      if (!strcmp(listname,"GM")) {
-        Print(4095,"GM List:\n");
-        for (i=0;i<number_of_GMs;i++)
-          Print(4095,"%s\n",GM_list[i]);
-      }
-      else if (!strcmp(listname,"B")) {
-        Print(4095,"blocker List:\n");
-        for (i=0;i<number_of_blockers;i++)
-          Print(4095,"%s\n",blocker_list[i]);
-      }
-      else if (!strcmp(listname,"S")) {
-        Print(4095,"special List:\n");
-        for (i=0;i<number_of_specials;i++)
-          Print(4095,"%s\n",special_list[i]);
-      }
-      else if (!strcmp(listname,"IM")) {
-        Print(4095,"IM List:\n");
-        for (i=0;i<number_of_IMs;i++)
-          Print(4095,"%s\n",IM_list[i]);
-      }
-      else if (!strcmp(listname,"C")) {
-        Print(4095, "computer list:\n");
-        for (i=0;i<number_of_computers;i++)
-          Print(4095,"%s\n",computer_list[i]);
-      }
-      else if (!strcmp(listname,"AK")) {
-        Print(4095, "auto kibitz list:\n");
-        for (i=0;i<number_auto_kibitzers;i++)
-          Print(4095,"%s\n",auto_kibitz_list[i]);
-      }
+    else if (!strcmp(listname,"GM")) {
+      Print(4095,"GM List:\n");
+      for (i=0;i<number_of_GMs;i++)
+        Print(4095,"%s\n",GM_list[i]);
+    }
+    else if (!strcmp(listname,"B")) {
+      Print(4095,"blocker List:\n");
+      for (i=0;i<number_of_blockers;i++)
+        Print(4095,"%s\n",blocker_list[i]);
+    }
+    else if (!strcmp(listname,"S")) {
+      Print(4095,"special List:\n");
+      for (i=0;i<number_of_specials;i++)
+        Print(4095,"%s\n",special_list[i]);
+    }
+    else if (!strcmp(listname,"IM")) {
+      Print(4095,"IM List:\n");
+      for (i=0;i<number_of_IMs;i++)
+        Print(4095,"%s\n",IM_list[i]);
+    }
+    else if (!strcmp(listname,"C")) {
+      Print(4095, "computer list:\n");
+      for (i=0;i<number_of_computers;i++)
+        Print(4095,"%s\n",computer_list[i]);
+    }
+    else if (!strcmp(listname,"AK")) {
+      Print(4095, "auto kibitz list:\n");
+      for (i=0;i<number_auto_kibitzers;i++)
+        Print(4095,"%s\n",auto_kibitz_list[i]);
     }
   }
 /*

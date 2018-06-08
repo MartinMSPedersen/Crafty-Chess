@@ -671,7 +671,7 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
 */
     if (Rank(square)==RANK7 && (BlackKingSQ>H7 ||
                                 BlackPawns & rank_mask[RANK7])) {
-      score+=ScaleUp(ROOK_ON_7TH,TotalBlackPieces);
+      score+=ROOK_ON_7TH;
       if (tree->pawn_score.passed_w && BlackKingSQ>H7 &&
           !(BlackPieces & mask_abs7_w)) score+=ROOK_ABSOLUTE_7TH;
       if (AttacksRank(square) & (WhiteRooks | WhiteQueens))
@@ -752,7 +752,7 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
 */
     if (Rank(square)==RANK2 && (WhiteKingSQ<A2 ||
                                 WhitePawns & rank_mask[RANK2])) {
-      score-=ScaleUp(ROOK_ON_7TH,TotalWhitePieces);
+      score-=ROOK_ON_7TH;
       if (tree->pawn_score.passed_b && WhiteKingSQ<A2 &&
           !(WhitePieces & mask_abs7_b)) score-=ROOK_ABSOLUTE_7TH;
       if (AttacksRank(square) & (BlackRooks | BlackQueens))

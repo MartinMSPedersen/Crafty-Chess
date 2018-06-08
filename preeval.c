@@ -147,25 +147,23 @@ void PreEvaluate(TREE *tree, int wtm) {
  ----------------------------------------------------------
 */
   if (wtm) {
-    for (i=0;i<32;i++) {
+    for (i=0;i<64;i++) {
       temper_w[i]=temper[i];
       temper_b[i]=temper[i]+temper[i]*king_safety_asymmetry/100;
     }
   }
   else {
-    for (i=0;i<32;i++) {
+    for (i=0;i<64;i++) {
       temper_w[i]=temper[i]+temper[i]*king_safety_asymmetry/100;
       temper_b[i]=temper[i];
     }
   }
-  for (i=0;i<32;i++) {
+  for (i=0;i<64;i++) {
     temper_w[i]=temper_w[i]*king_safety_scale/100;
     temper_b[i]=temper_b[i]*king_safety_scale/100;
   }
   for (i=0;i<128;i++)
     tropism[i]=king_tropism[i]*king_safety_tropism/100;
-  for (i=0;i<32;i++)
-    temper_b[i]=temper_b[i]*king_safety_scale/100;
   for (i=0;i<9;i++)
     pawn_rams[i]=blocked_scale*pawn_rams_v[i]/100;
 /*

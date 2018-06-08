@@ -2401,7 +2401,13 @@
 *           bring the scores back closer to something reasonable.             *
 *                                                                             *
 *   16.8    bug in evaluate.c (improper editing) broke the scoring for white  *
-*           rooks on open files (among other things.)                         *
+*           rooks on open files (among other things.)  new twist on null-     *
+*           move search...  Crafty now uses R=3 near the root of the tree,    *
+*           and R=2 near the top.  it also uses null-move so long as there is *
+*           a single piece on the board, but when material drops to a rook or *
+*           less, null move is turned off and only used in the last 7 plies   *
+*           to push the zugzwang errors far enough off that they can be       *
+*           avoided, hopefully.                                               *
 *                                                                             *
 *   16.9    tuning to king safety.  King in center of board was way too high  *
 *           which made the bonus for castling way too big.  more fine-tuning  *
@@ -2440,6 +2446,17 @@
 *           potential draw problem.  this was supplied by Tim Hoooebeek and   *
 *           seems to work ok for those wanting to have files like kpk with-   *
 *           out the corresponding promotion files.                            *
+*                                                                             *
+*   16.14   bug in Evaluate() fixed.  king safety could produce impossibly    *
+*           large scores due to a subscript two (2) larger than expected for  *
+*           max values.  A couple of other minor tweaks to rook on 7th as     *
+*           well.  setboard now validates enpassant target square to be sure  *
+*           that an enpassant capture is physically possible, and that the    *
+*           target square is on the right rank with pawns in the right place. *
+*                                                                             *
+*   16.15   but in EGTBProbe() usage fixed.  it was possible to call this     *
+*           function before tablebases were initialized, or when there were   *
+*           more than 3 pieces on one side, which would break a subscript.    *
 *                                                                             *
 *******************************************************************************
 */
