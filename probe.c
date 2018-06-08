@@ -27,20 +27,20 @@ typedef unsigned int squaret;
 #endif
 
   typedef  int  color;
-  #define  x_colorWhite  0
-  #define  x_colorBlack  1
-  #define  x_colorNeutral  2
-  #define COLOR_DECLARED
+# define  x_colorWhite  0
+# define  x_colorBlack  1
+# define  x_colorNeutral  2
+# define COLOR_DECLARED
 
   typedef  int  piece;
-  #define  x_pieceNone    0
-  #define  x_piecePawn    1
-  #define  x_pieceKnight  2
-  #define  x_pieceBishop  3
-  #define  x_pieceRook    4
-  #define  x_pieceQueen   5
-  #define  x_pieceKing    6
-  #define PIECES_DECLARED
+# define  x_pieceNone    0
+# define  x_piecePawn    1
+# define  x_pieceKnight  2
+# define  x_pieceBishop  3
+# define  x_pieceRook    4
+# define  x_pieceQueen   5
+# define  x_pieceKing    6
+# define PIECES_DECLARED
 typedef  signed char tb_t;
 
 #define pageL       65536

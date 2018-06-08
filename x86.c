@@ -47,14 +47,6 @@
 /*
   BITBOARD AttacksDiaga1Func (DIAG_INFO *diag, POSITION *board)
 */
-/*
-  #define AttacksDiaga1Int(diagp,boardp)                \
-    (diagp)->ad_attacks [               \
-      (diagp)->ad_which_attack [            \
-    And (SplitShiftr((boardp)->occupied_rl45,   \
-             (diagp)->ad_shift),        \
-         (diagp)->ad_mask) ] ]
-*/
 
 __declspec(naked) BITBOARD __cdecl AttacksDiaga1Func (DIAG_INFO *diag, POSITION *board) {
 
@@ -81,14 +73,6 @@ __declspec(naked) BITBOARD __cdecl AttacksDiaga1Func (DIAG_INFO *diag, POSITION 
      
 /*
   BITBOARD AttacksDiagh1Func(DIAG_INFO *diag, POSITION *board)
-*/
-/*
-  #define AttacksDiagh1Int(diagp,boardp)        \
-    (diagp)->d_attacks [                \
-      (diagp)->d_which_attack [             \
-    And (SplitShiftr((boardp)->occupied_rr45,   \
-             (diagp)->d_shift),     \
-         (diagp)->d_mask) ] ]
 */
 
 __declspec(naked) BITBOARD __cdecl AttacksDiagh1Func(DIAG_INFO *diag, POSITION *board) {
@@ -117,9 +101,6 @@ __declspec(naked) BITBOARD __cdecl AttacksDiagh1Func(DIAG_INFO *diag, POSITION *
      
 /*
   BITBOARD AttacksBishopFunc(DIAG_INFO *diag, POSITION *board)
-*/
-/*
-  return Or(AttacksDiaga1Int(diag,board), AttacksDiagh1Int(diag,board));
 */
 
 __declspec(naked) BITBOARD __cdecl AttacksBishopFunc(DIAG_INFO *diag, POSITION *board) {
@@ -167,14 +148,6 @@ __declspec(naked) BITBOARD __cdecl AttacksBishopFunc(DIAG_INFO *diag, POSITION *
 /*
   unsigned MobilityDiaga1Func(DIAG_INFO *diag, POSITION *board)
 */
-/*
-  #define MobilityDiaga1Int(diagp,boardp)               \
-    (diagp)->ad_mobility [              \
-      (diagp)->ad_which_attack [            \
-    And (SplitShiftr ((boardp)->occupied_rl45,  \
-              (diagp)->ad_shift),       \
-             (diagp)->ad_mask) ] ]
-*/
 
 __declspec(naked) unsigned __cdecl MobilityDiaga1Func(DIAG_INFO *diag, POSITION *board) {
 
@@ -201,14 +174,6 @@ __declspec(naked) unsigned __cdecl MobilityDiaga1Func(DIAG_INFO *diag, POSITION 
 /*
   unsigned MobilityDiagh1Func(DIAG_INFO *diag, POSITION *board)
 */
-/*
-  #define MobilityDiagh1Int(diagp,boardp)       \
-    (diagp)->d_mobility [               \
-      (diagp)->d_which_attack [             \
-    And (SplitShiftr ((boardp)->occupied_rr45,  \
-              (diagp)->d_shift),        \
-         (diagp)->d_mask) ] ]
-*/
 
 __declspec(naked) unsigned __cdecl MobilityDiagh1Func(DIAG_INFO *diag, POSITION *board) {
 
@@ -234,18 +199,6 @@ __declspec(naked) unsigned __cdecl MobilityDiagh1Func(DIAG_INFO *diag, POSITION 
      
 /*
   BITBOARD AttacksRankFunc(int square, POSITION *board)
-*/
-/*
-  #define AttacksRankInt(a,boardp)              \
-    SplitShiftl(                \
-      at.rank_attack_bitboards[File(a)] [   \
-    at.which_attack[File(a)] [      \
-      And(SplitShiftr(          \
-        Or((boardp)->w_occupied,    \
-           (boardp)->b_occupied),   \
-        (Rank(~(a))<<3)+1),     \
-          0x3f) ] ],            \
-      Rank(~(a))<<3)
 */
 
 __declspec(naked) BITBOARD __cdecl AttacksRankFunc(int square, POSITION *board) {
@@ -288,15 +241,6 @@ __declspec(naked) BITBOARD __cdecl AttacksRankFunc(int square, POSITION *board) 
 /*
   BITBOARD AttacksFileFunc(int square, POSITION *board)
 */
-/*
-  #define AttacksFileInt(a,boardp)                      \
-    Shiftl(at.file_attack_bitboards[Rank(a)] [      \
-         at.which_attack[Rank(a)] [         \
-           And(SplitShiftr((boardp)->occupied_rl90, \
-                   (File(~(a))<<3)+1),  \
-           0x3f) ] ],               \
-       File(~(a)) )
-*/
 
 __declspec(naked) BITBOARD __cdecl AttacksFileFunc(int square, POSITION *board) {
 
@@ -333,9 +277,6 @@ __declspec(naked) BITBOARD __cdecl AttacksFileFunc(int square, POSITION *board) 
      
 /*
   BITBOARD AttacksRookFunc(int square, POSITION *board)
-*/
-/*
-  return Or(AttacksRankInt(square, board), AttacksFileInt(square, board));
 */
 
 __declspec(naked) BITBOARD __cdecl AttacksRookFunc(int square, POSITION *board) {
@@ -403,15 +344,6 @@ __declspec(naked) BITBOARD __cdecl AttacksRookFunc(int square, POSITION *board) 
 /*
   unsigned MobilityRankFunc(int square, POSITION *board)
 */
-/*
-  #define MobilityRankInt(a,boardp)                     \
-    at.length8_mobility[File(a)][           \
-      at.which_attack[File(a)] [            \
-    And(SplitShiftr(Or((boardp)->w_occupied,    \
-               (boardp)->b_occupied),   \
-            (Rank(~(a))<<3)+1),     \
-        0x3f) ] ]
-*/
 
 __declspec(naked) unsigned __cdecl MobilityRankFunc(int square, POSITION *board) {
 
@@ -442,14 +374,6 @@ __declspec(naked) unsigned __cdecl MobilityRankFunc(int square, POSITION *board)
      
 /*
   unsigned MobilityFileFunc(int square, POSITION *board)
-*/
-/*
-  #define MobilityFileInt(a,boardp)                     \
-    at.length8_mobility[Rank(a)][           \
-      at.which_attack[Rank(a)] [            \
-    And(SplitShiftr((boardp)->occupied_rl90,    \
-            (File(~(a))<<3)+1 ),        \
-        0x3f) ] ]
 */
 
 __declspec(naked) unsigned __cdecl MobilityFileFunc(int square, POSITION *board) {

@@ -87,7 +87,6 @@
 #  define              KING_SAFETY_MATE_THREAT         (600)
 #  define                       KING_BACK_RANK           (2)
 #  define                KING_SAFETY_STONEWALL           (6)
-#  define                   KING_SAFETY_CLOSED           (5)
 #  define                KING_SAFETY_OPEN_FILE           (4)
  
  

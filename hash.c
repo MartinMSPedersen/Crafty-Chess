@@ -223,8 +223,8 @@ void HashStore(TREE *tree, int ply, int depth, int wtm, int type,
  ----------------------------------------------------------
 */
   htablea=trans_ref_a+((int) word2&hash_maska);
-  draft=(int) Shiftr(htablea->word1,17) & 077777;
-  age=(unsigned int) Shiftr(htablea->word1,61);
+  draft=(int) htablea->word1>>17 & 077777;
+  age=htablea->word1>>61;
   age=age && (age!=transposition_id);
   if (age || (depth >= draft)) {
     Lock(lock_hasha);
@@ -281,16 +281,16 @@ void HashStorePV(TREE *tree, int ply, int wtm) {
 */
   if (htablea->word2 == HashKey) {
     htablea->word1&=~((BITBOARD) 07777777<<32);
-    htablea->word1|=Shiftl((BITBOARD) tree->pv[ply].path[ply],32);
+    htablea->word1|=(BITBOARD) tree->pv[ply].path[ply]<<32;
   }
   else if (htableb->word2 == HashKey) {
     htableb->word1&=~((BITBOARD) 07777777<<32);
-    htableb->word1|=Shiftl((BITBOARD) tree->pv[ply].path[ply],32);
+    htableb->word1|=(BITBOARD) tree->pv[ply].path[ply]<<32;
   }
   else {
     htableb->word1=(BITBOARD) 65536;
-    htableb->word1|=Shiftl((BITBOARD) ((transposition_id<<2)+WORTHLESS),59);
-    htableb->word1|=Shiftl((BITBOARD) tree->pv[ply].path[ply],32);
+    htableb->word1|=(BITBOARD) ((transposition_id<<2)+WORTHLESS)<<59;
+    htableb->word1|=(BITBOARD) tree->pv[ply].path[ply]<<32;
     htableb->word2=HashKey;
   }
 }

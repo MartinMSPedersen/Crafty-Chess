@@ -721,6 +721,72 @@ int Option(TREE *tree) {
 /*
  ----------------------------------------------------------
 |                                                          |
+|   "evaluation" command is used to adjust the eval terms  |
+|   to modify the way Crafty behaves.                      |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  else if (OptionMatch("evaluation",*args)) {
+    int i;
+    if (nargs < 3) {
+      printf("see 'help evaluation' for details on using this command\n");
+      return(1);
+    }
+    if (OptionMatch("asymmetry",args[1])) {
+      king_safety_asymmetry=atoi(args[2]);
+    }
+    else if (OptionMatch("bscale",args[1])) {
+      blocked_scale=atoi(args[2]);
+    }
+    else if (OptionMatch("kscale",args[1])) {
+      king_safety_scale=atoi(args[2]);
+    }
+    else if (OptionMatch("ppscale",args[1])) {
+      passed_scale=atoi(args[2]);
+    }
+    else if (OptionMatch("pscale",args[1])) {
+      pawn_scale=atoi(args[2]);
+    }
+    else if (OptionMatch("tropism",args[1])) {
+      king_safety_tropism=atoi(args[2]);
+    }
+    else printf("unknown option %s\n",args[1]);
+    PreEvaluate(tree,!wtm);
+    if (OptionMatch("kscale",args[1]) || OptionMatch("asymmetry",args[1])) {
+      Print(128,"modified king-safety values:\n");
+      Print(128,"white: ");
+      for (i=0;i<16;i++)
+        Print(128,"%3d ", temper_w[i]);
+      Print(128,"\n       ");
+      for (i=16;i<32;i++)
+        Print(128,"%3d ", temper_w[i]);
+      Print(128,"\n\nblack: ");
+      for (i=0;i<16;i++)
+        Print(128,"%3d ", temper_b[i]);
+      Print(128,"\n       ");
+      for (i=16;i<32;i++)
+        Print(128,"%3d ", temper_b[i]);
+      Print(128,"\n");
+    }
+    else if (OptionMatch("tropism",args[1])) {
+      Print(128,"modified king-tropism values:\n");
+      for (i=0;i<16;i++)
+        Print(128,"%3d ", tropism[i]);
+      Print(128,"\n");
+      for (i=16;i<32;i++)
+        Print(128,"%3d ", tropism[i]);
+      Print(128,"\n");
+    }
+    else if (OptionMatch("bscale",args[1])) {
+      Print(128,"modified blocked_pawn values:\n");
+      for (i=0;i<9;i++)
+        Print(128,"%3d ", pawn_rams[i]);
+      Print(128,"\n");
+    }
+  }
+/*
+ ----------------------------------------------------------
+|                                                          |
 |   "evtest" command runs a test suite of problems and     |
 |   prints evaluations only.                               |
 |                                                          |
@@ -1031,7 +1097,7 @@ int Option(TREE *tree) {
           }
           hash_maska=(1<<log_hash)-1;
           hash_maskb=(1<<(log_hash+1))-1;
-          ClearHashTables();
+          ClearHashTableScores();
         }
         else {
           trans_ref_a=0;
@@ -1254,11 +1320,11 @@ int Option(TREE *tree) {
         printf("on square e8\n");
         printf("\n");
       }
-      else if (OptionMatch("ksafety",args[1])) {
-        printf("ksafety asymmetry|scale <value>.  this command can be used\n");
-        printf("to adjust king safety values.\n");
+      else if (OptionMatch("evaluation",args[1])) {
+        printf("evaluation option <value>.  this command can be\n");
+        printf("used to adjust evaluation.\n");
         printf("\n");
-        printf("asymmetry adjusts the asymmetry in king safety.  A value of\n");
+        printf("asymmetry adjusts the asymmetry in king safety. A value of\n");
         printf("zero means 'no asymmetry at all'.  A value of +50 adjusts \n");
         printf("king safety scores so that the opponent king safety scores\n");
         printf("are increased by 50%% which will tend to make Crafty play\n");
@@ -1266,7 +1332,11 @@ int Option(TREE *tree) {
         printf("opponent's king safety down by 50%% which will tend to\n");
         printf("(make Crafty play much more defensively/passively.\n");
         printf("\n");
-        printf("scale is used to increase/decrease the overall king-safety\n");
+        printf("bscale adjusts the scale for blocked pawns.  The default\n");
+        printf("is 100.  Making this larger will make Crafty try to avoid\n");
+        printf("blocked pawn positions and keep the position open.\n");
+        printf("\n");
+        printf("kscale is used to increase/decrease the overall king-safety\n");
         printf("scores.  +50 will increase the values of all the king-\n");
         printf("safety scoring terms, and might tend to make crafty try\n");
         printf("some wild (and often unsound) king-side sacrifices to\n");
@@ -1274,6 +1344,14 @@ int Option(TREE *tree) {
         printf("makes king-safety less important and allows the other \n");
         printf("positional scores to influence the game more, but probably\n");
         printf("will make Crafty easier to attack\n");
+        printf("\n");
+        printf("pscale adjusts the scale for pawns.  The default\n");
+        printf("is 100.  Making this larger will increase the weight of\n");
+        printf("pawn structure.\n");
+        printf("\n");
+        printf("ppscale adjusts the scale for passed pawns.  The default\n");
+        printf("is 100.  Making this larger will increase the weight of\n");
+        printf("some passed pawn scores like outside passed pawns.\n");
         printf("\n");
         printf("tropism is used to increase/decrease the overall king\n");
         printf("tropism scores.  this attracts pieces toward the enemy\n");
@@ -1285,7 +1363,7 @@ int Option(TREE *tree) {
       else if (OptionMatch("list",args[1])) {
         printf("list is used to update the GM/IM/computer lists, which are\n");
         printf("used internally to control how crafty uses the opening book.\n");
-        printf("Syntax:  list GM|IM|C [+|-name] ...\n");
+        printf("Syntax:  list GM|IM|B|C|S [+|-name] ...\n");
         printf("   GM/IM/C selects the appropriate list.  if no name is given,\n");
         printf("the list is displayed.  if a name is given, it must be preceeded\n");
         printf("by a + (add to list) or -(remove from list).  note that this\n");
@@ -1423,6 +1501,7 @@ int Option(TREE *tree) {
       printf("egtb......................enables endgame database probes\n");
       printf("end.......................terminates program.\n");
       printf("exit......................restores STDIN to key\n");
+      printf("evaluation................adjust evaluation terms. [help]\n");
       printf("force <move>..............forces specific move.\n");
       printf("help [command]............displays help.\n");
       printf("hash n....................sets transposition table size\n");
@@ -1437,7 +1516,6 @@ int Option(TREE *tree) {
       printf("input <filename> [title]..sets STDIN to <filename>.\n");
       printf("                          (and positions to [title] record.)\n");
       printf("kibitz <n>................sets kibitz mode <n> on ICS.\n");
-      printf("ksafety...................adjust king safety values. [help]\n");
       printf("level <m> <t> <i>.........sets ICS time controls.\n");
       printf("learn <n>.................enables/disables learning.\n");
       printf("list                      update/display GM/IM/computer lists.\n");
@@ -1628,67 +1706,6 @@ int Option(TREE *tree) {
 /*
  ----------------------------------------------------------
 |                                                          |
-|   "ksafety" command is used to adjust the asymmetry and  |
-|   scale the values used in king safety.  asymmetry can   |
-|   be any value between +/-50, and adjusts the king       |
-|   safety scores up or down by that percent (+=increase   |
-|   asymmetry for crafty so that its king safety is more   |
-|   important, - makes crafty's king safety less important |
-|   than the opponents.  scale can be used to adjust all   |
-|   values up are down proportionally, where 100 is the    |
-|   default.  reducing them will make it less sensitive to |
-|   king safety for both sides.  tropism is used to scale  |
-|   king tropism up (> 100) or down (< 100) which attracts |
-|   pieces toward the enemy king.                          |
-|                                                          |
- ----------------------------------------------------------
-*/
-  else if (OptionMatch("ksafety",*args)) {
-    int i;
-    if (nargs < 3) {
-      printf("usage:  ksafety asymmetry|scale <value>\n");
-      return(1);
-    }
-    if (OptionMatch("asymmetry",args[1])) {
-      king_safety_asymmetry=atoi(args[2]);
-    }
-    else if (OptionMatch("scale",args[1])) {
-      king_safety_scale=atoi(args[2]);
-    }
-    else if (OptionMatch("tropism",args[1])) {
-      king_safety_tropism=atoi(args[2]);
-    }
-    else printf("unknown option %s\n",args[1]);
-    PreEvaluate(tree,!wtm);
-    if (OptionMatch("scale",args[1]) || OptionMatch("asymmetry",args[1])) {
-      Print(128,"modified king-safety values:\n");
-      Print(128,"white: ");
-      for (i=0;i<16;i++)
-        Print(128,"%3d ", temper_w[i]);
-      Print(128,"\n       ");
-      for (i=16;i<32;i++)
-        Print(128,"%3d ", temper_w[i]);
-      Print(128,"\n\nblack: ");
-      for (i=0;i<16;i++)
-        Print(128,"%3d ", temper_b[i]);
-      Print(128,"\n       ");
-      for (i=16;i<32;i++)
-        Print(128,"%3d ", temper_b[i]);
-      Print(128,"\n");
-    }
-    else if (OptionMatch("tropism",args[1])) {
-      Print(128,"modified king-tropism values:\n");
-      for (i=0;i<16;i++)
-        Print(128,"%3d ", tropism[i]);
-      Print(128,"\n");
-      for (i=16;i<32;i++)
-        Print(128,"%3d ", tropism[i]);
-      Print(128,"\n");
-    }
-  }
-/*
- ----------------------------------------------------------
-|                                                          |
 |   "learn" command enables/disables the learning          |
 |   algorithms used in crafty.  these are controlled by    |
 |   a single variable with multiple boolean switches in    |
@@ -1821,6 +1838,36 @@ int Option(TREE *tree) {
         }
         else printf("error, name must be preceeded by +/- flag.\n");
       }
+      if (!strcmp(listname,"B")) {
+        if (targs[0][0] == '-') {
+          for (i=0;i<number_of_blockers;i++)
+            if (!strcmp(blocker_list[i],targs[0]+1)) {
+              for (j=i;j<number_of_blockers;j++)
+                strcpy(blocker_list[j],blocker_list[j+1]);
+              number_of_blockers--;
+              i=0;
+              Print(4095,"%s removed from blocker list.\n",targs[0]+1);
+              break;
+            }
+        }
+        else if (targs[0][0] == '+') {
+          for (i=0;i<number_of_blockers;i++)
+            if (!strcmp(blocker_list[i],targs[0]+1)) {
+              Print(4095, "Warning: %s is already in B list.\n",targs[0]+1);
+              break;
+            }
+          if (number_of_blockers >= 512)
+            Print(4095,"ERROR!  blocker list is full at 512 entries\n");
+          else if (i==number_of_blockers) {
+            strcpy(blocker_list[number_of_blockers++],targs[0]+1);
+            Print(4095,"%s added to blocker list.\n",targs[0]+1);
+          }
+        }
+        else if (!strcmp(targs[0],"clear")) {
+          number_of_blockers=0;
+        }
+        else Print(4095,"error, name must be preceeded by +/- flag.\n");
+      }
       if (!strcmp(listname,"S")) {
         if (targs[0][0] == '-') {
           for (i=0;i<number_of_specials;i++)
@@ -1947,6 +1994,11 @@ int Option(TREE *tree) {
         Print(4095,"GM List:\n");
         for (i=0;i<number_of_GMs;i++)
           Print(4095,"%s\n",GM_list[i]);
+      }
+      else if (!strcmp(listname,"B")) {
+        Print(4095,"blocker List:\n");
+        for (i=0;i<number_of_blockers;i++)
+          Print(4095,"%s\n",blocker_list[i]);
       }
       else if (!strcmp(listname,"S")) {
         Print(4095,"special List:\n");
@@ -2278,6 +2330,11 @@ int Option(TREE *tree) {
       next++;
     }
     if (mode != tournament_mode) {
+      for (i=0;i<number_of_blockers;i++)
+        if (!strcmp(blocker_list[i],args[1])) {
+          blocked_scale*=1.5;
+          break;
+        }
       for (i=0;i<number_auto_kibitzers;i++)
         if (!strcmp(auto_kibitz_list[i],args[1])) {
           kibitz=4;
@@ -3182,7 +3239,6 @@ int Option(TREE *tree) {
     s1=Material;
     if (opening) s2=EvaluateDevelopment(tree,1);
     if (TotalWhitePawns+TotalBlackPawns) {
-      tree->all_pawns=Or(WhitePawns,BlackPawns);
       s3=EvaluatePawns(tree);
       s4=EvaluatePassedPawns(tree);
       s5=EvaluatePassedPawnRaces(tree,wtm);

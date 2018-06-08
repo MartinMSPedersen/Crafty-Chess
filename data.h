@@ -13,6 +13,7 @@
   extern int            number_of_GMs;
   extern int            number_of_IMs;
   extern int            number_of_specials;
+  extern int            number_of_blockers;
   extern int            time_used;
   extern int            time_used_opponent;
   extern int            cpu_time_used;
@@ -26,6 +27,7 @@
   extern char           IM_list[512][20];
   extern char           computer_list[512][20];
   extern char           special_list[512][20];
+  extern char           blocker_list[512][20];
   extern FILE           *input_stream;
   extern FILE           *book_file;
   extern FILE           *books_file;
@@ -228,7 +230,8 @@
   extern const int      passed_pawn_value[8];
   extern const int      isolated_pawn_value[9];
   extern const int      doubled_pawn_value[7];
-  extern const int      pawn_rams[9];
+  extern const int      pawn_rams_v[9];
+  extern int            pawn_rams[9];
   extern const int      supported_passer[8];
   extern const int      reduced_material_passer[20];
   extern const int      outside_passed[128];
@@ -242,6 +245,9 @@
   extern int            king_safety_asymmetry;
   extern int            king_safety_scale;
   extern int            king_safety_tropism;
+  extern int            blocked_scale;
+  extern int            pawn_scale;
+  extern int            passed_scale;
   extern const int      missing[8];
   extern const int      openf[4];
   extern const int      hopenf[4];
@@ -252,8 +258,8 @@
   extern const int      king_tropism_q[8];
   extern const int      king_tropism_at_q[8];
   extern const int      king_tropism_file_q[8];
-  extern const int      king_tropism[64];
-  extern int            tropism[64];
+  extern const int      king_tropism[128];
+  extern int            tropism[128];
 
   extern signed char    pval_w[64];
   extern signed char    pval_b[64];
@@ -371,6 +377,10 @@
   extern BITBOARD       mask_B6C6;
   extern BITBOARD       mask_F6G6;
   extern BITBOARD       mask_G6H6;
+  extern BITBOARD       mask_white_OO;
+  extern BITBOARD       mask_white_OOO;
+  extern BITBOARD       mask_black_OO;
+  extern BITBOARD       mask_black_OOO;
 
   extern BITBOARD       stonewall_white;
   extern BITBOARD       stonewall_black;

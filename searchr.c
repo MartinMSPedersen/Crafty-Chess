@@ -63,12 +63,7 @@ int SearchRoot(TREE *tree, int alpha, int beta, int wtm, int depth) {
 */
     extensions=-60;
     if (Piece(tree->current_move[1])==pawn &&
-        ((wtm && To(tree->current_move[1]) > H5 && TotalBlackPieces<16 &&
-         !And(mask_pawn_passed_w[To(tree->current_move[1])],BlackPawns)) ||
-        (!wtm && To(tree->current_move[1]) < A4 && TotalWhitePieces<16 &&
-         !And(mask_pawn_passed_b[To(tree->current_move[1])],WhitePawns)) ||
-        push_extensions[To(tree->current_move[1])]) &&
-        Swap(tree,From(tree->current_move[1]),To(tree->current_move[1]),wtm) >= 0) {
+      push_extensions[To(tree->current_move[1])]) {
       tree->extended_reason[1]|=passed_pawn_extension;
       tree->passed_pawn_extensions_done++;
       extensions+=pushpp_depth;

@@ -162,7 +162,7 @@
 *           evaluation routine.  this will evaluate positions where one       *
 *           side has passed pawns and the other side has no pieces, to see    *
 *           if the pawn can outrun the defending king and promote.  note that *
-*           this is rediculously fast because it only requires one And()      *
+*           this is rediculously fast because it only requires one AND        *
 *           to declare that a pawn can't be caught!                           *
 *                                                                             *
 *    2.0    initial version preparing for search extension additions.  this   *
@@ -2422,6 +2422,17 @@
 *           cautious about starting a king-side attack.  new "ksafe tropism"  *
 *           command allows the tropism scores (pulling pieces toward opponent *
 *           king) to be adjusted up or down (up is more aggressive).          *
+*                                                                             *
+*   16.12   evaluation adjustment options changed.  the new command to modify *
+*           this stuff is "evaluation option value".  For example, to change  *
+*           the asymmetry scoring for king safety, you now use "evaluation    *
+*           asymmetry 120".  see "help evaluation" for more details.  There   *
+*           is a new "bscale" option to adjust the scores for 'blocked' type  *
+*           positions, and I added a new "blockers_list" so that players that *
+*           continually try to lock things up to get easy draws can be better *
+*           handled automatically.  The command is "list B +name".  there are *
+*           other adjustable evaluation scaling parameters now (again, use    *
+*           "help evaluation" to see the options.)                            *
 *                                                                             *
 *******************************************************************************
 */

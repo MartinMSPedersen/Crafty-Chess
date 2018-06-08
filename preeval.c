@@ -116,22 +116,22 @@ void PreEvaluate(TREE *tree, int wtm) {
 |                                                          |
  ----------------------------------------------------------
 */
-  if (And(Or(WhitePawns,BlackPawns),mask_efgh) &&
-      And(Or(WhitePawns,BlackPawns),mask_abcd)) {
+  if (((WhitePawns | BlackPawns) & mask_efgh) &&
+      ((WhitePawns | BlackPawns) & mask_abcd)) {
     hash_kings=1;
     for (i=0;i<64;i++) {
       kval_w[i]=kval_wn[i];
       kval_b[i]=kval_bn[i];
     }
   }
-  else if (And(Or(WhitePawns,BlackPawns),mask_efgh)) {
+  else if ((WhitePawns | BlackPawns) & mask_efgh) {
     hash_kings=2;
     for (i=0;i<64;i++) {
       kval_w[i]=kval_wk[i];
       kval_b[i]=kval_bk[i];
     }
   }
-  else if (And(Or(WhitePawns,BlackPawns),mask_abcd)) {
+  else if ((WhitePawns | BlackPawns) & mask_abcd) {
     hash_kings=3;
     for (i=0;i<64;i++) {
       kval_w[i]=kval_wq[i];
@@ -162,10 +162,12 @@ void PreEvaluate(TREE *tree, int wtm) {
     temper_w[i]=temper_w[i]*king_safety_scale/100;
     temper_b[i]=temper_b[i]*king_safety_scale/100;
   }
-  for (i=0;i<32;i++) {
+  for (i=0;i<128;i++)
     tropism[i]=king_tropism[i]*king_safety_tropism/100;
+  for (i=0;i<32;i++)
     temper_b[i]=temper_b[i]*king_safety_scale/100;
-  }
+  for (i=0;i<9;i++)
+    pawn_rams[i]=blocked_scale*pawn_rams_v[i]/100;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -190,7 +192,7 @@ void PreEvaluate(TREE *tree, int wtm) {
  ------------------------------------------------
 */
     Print(128,"              clearing hash tables\n");
-    ClearHashTables();
+    ClearHashTableScores();
   }
   hashing_pawns=hash_pawns;
   hashing_kings=hash_kings;

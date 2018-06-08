@@ -82,7 +82,8 @@
    signed char    black_outpost[64];
    signed char    king_defects_b[64];
    signed char    directions[64][64];
-   int            tropism[64];
+   int            tropism[128];
+   int            pawn_rams[9];
    BITBOARD       w_pawn_attacks[64];
    BITBOARD       b_pawn_attacks[64];
    BITBOARD       knight_attacks[64];
@@ -163,6 +164,10 @@
   BITBOARD       mask_B6C6;
   BITBOARD       mask_F6G6;
   BITBOARD       mask_G6H6;
+  BITBOARD       mask_white_OO;
+  BITBOARD       mask_white_OOO;
+  BITBOARD       mask_black_OO;
+  BITBOARD       mask_black_OOO;
   BITBOARD       stonewall_white;
   BITBOARD       stonewall_black;
   BITBOARD       closed_white;
@@ -241,7 +246,7 @@
   unsigned int   max_split_blocks;
   volatile unsigned int   splitting;
 
-# define    VERSION                            "16.11"
+# define    VERSION                            "16.12"
   char      version[6] =                    {VERSION};
   PLAYING_MODE mode =                     normal_mode;
 
@@ -270,6 +275,11 @@
   char      pgn_black_elo[32] = {""};
   char      pgn_result[32] = {"*"};
 
+  int       number_of_blockers =                    1;
+
+  char      blocker_list[512][20] = {
+                                      {"kingway"}};
+
   int       number_of_specials =                    3;
 
   char      special_list[512][20] = {
@@ -293,7 +303,7 @@
   char      computer_list[512][20] = {
                                       {""}};
 
-  int       number_of_GMs =                       29;
+  int       number_of_GMs =                       30;
   char      GM_list[512][20] =       {{"anat"},
                                       {"badviking"},
                                       {"blatny"},
@@ -319,6 +329,7 @@
                                       {"rohde"},
                                       {"sagalchik"},
                                       {"shirov"},
+                                      {"sorin"},
                                       {"stefansson"},
                                       {"sweere"},
                                       {"udav"},
@@ -453,15 +464,23 @@
   const int king_tropism_at_r[8]   = {4,4,2,0,0,0,0,0};
   const int king_tropism_q[8]      = {4,4,4,2,1,0,0,0};
   const int king_tropism_at_q[8]   = {5,5,3,0,0,0,0,0};
-  const int king_tropism_file_q[8] = {0,0,0,0,3,4,5,6};
-  const int king_tropism[64] =  {  0, 1, 3, 5, 7, 9,11,13,
-                                  16,24,32,40,44,48,52,56,
-                                  60,62,65,67,70,72,75,77,
-                                  80,82,85,85,85,85,85,85,
-                                  85,85,85,85,85,85,85,85,
-                                  85,85,85,85,85,85,85,85,
-                                  85,85,85,85,85,85,85,85,
-                                  85,85,85,85,85,85,85,85};
+  const int king_tropism_file_q[8] = {8,8,8,8,6,4,2,0};
+  const int king_tropism[128] = {-40,-35,-30,-25,-20,-15,-10, -5,
+                                   0,  1,  3,  5,  7,  9, 11, 13,
+                                  16, 24, 32, 40, 44, 48, 52, 56,
+                                  60, 62, 65, 67, 70, 72, 75, 77,
+                                  80, 82, 85, 85, 85, 85, 85, 85,
+                                  85, 85, 85, 85, 85, 85, 85, 85,
+                                  85, 85, 85, 85, 85, 85, 85, 85,
+                                  85, 85, 85, 85, 85, 85, 85, 85,
+                                  85, 85, 85, 85, 85, 85, 85, 85,
+                                  85, 85, 85, 85, 85, 85, 85, 85,
+                                  85, 85, 85, 85, 85, 85, 85, 85,
+                                  85, 85, 85, 85, 85, 85, 85, 85,
+                                  85, 85, 85, 85, 85, 85, 85, 85,
+                                  85, 85, 85, 85, 85, 85, 85, 85,
+                                  85, 85, 85, 85, 85, 85, 85, 85,
+                                  85, 85, 85, 85, 85, 85, 85, 85};
 
   const int connected_passed_pawn_value[8] = { 0, 0, 0,
                                      PAWN_CONNECTED_PASSED,
@@ -483,7 +502,7 @@
                                       PAWN_DOUBLED*2, PAWN_DOUBLED*4,
                                       PAWN_DOUBLED*5,PAWN_DOUBLED*6};
 
-  const int pawn_rams[9] =          { 0, 0, 6, 15, 32, 48, 64, 84, 150};
+  const int pawn_rams_v[9] =       { 0, 0, 6, 20, 36, 60, 72, 84, 96};
 
   const int supported_passer[8] =  { 0,
                                      PAWN_SUPPORTED_PASSED_RANK2,
@@ -608,6 +627,24 @@
    the king safety scores for both sides proportionally.
 */
   int king_safety_scale =                      100;
+/*
+   this value scales blocked pawn scores up/down.  Increasing this value
+   will make Crafty try harder to not block pawn positions, which will aim
+   for more open positions.
+*/
+  int blocked_scale =                          100;
+/*
+   this value scales passed pawn scores up/down.  Increasing this value
+   will make Crafty evaluate some passed pawn scores higher, such as the
+   "outside passed pawn scoring."
+*/
+  int passed_scale =                           100;
+/*
+   this value scales pawn scores up/down.  Increasing this value will
+   make Crafty try harder to preserve its pawn structure / wreck the
+   opponent's pawn structure.
+*/
+  int pawn_scale =                             100;
 /*
    this value scales king tropism up or down.  the default is 100 which
    uses the built-in scores.  150 will increase tropism scores by 50%

@@ -40,13 +40,13 @@ void Phase(void) {
       if (move_number < 26) {
         if (root_wtm) {
           if (WhiteCastle(1)>0) break;
-          if (And(WhiteBishops,white_minor_pieces)) break;
-          if (And(WhiteKnights,white_minor_pieces)) break;
+          if (WhiteBishops & white_minor_pieces) break;
+          if (WhiteKnights & white_minor_pieces) break;
         }
         else {
           if (BlackCastle(1)>0) break;
-          if (And(BlackBishops,black_minor_pieces)) break;
-          if (And(BlackKnights,black_minor_pieces)) break;
+          if (BlackBishops & black_minor_pieces) break;
+          if (BlackKnights & black_minor_pieces) break;
         }
       }
       opening=0;

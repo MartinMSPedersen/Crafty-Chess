@@ -215,12 +215,12 @@ void LearnBook(TREE *tree, int wtm, int search_value, int search_depth, int lv,
         }
         else cluster=0;
         for (mv=tree->last[0];mv<tree->last[1];mv++) {
-          common=And(HashKey,mask_16);
+          common=HashKey & mask_16;
           MakeMove(tree, 1,*mv,wtm);
-          temp_hash_key=Xor(HashKey,wtm_random[wtm]);
-          temp_hash_key=Or(And(temp_hash_key,Compl(mask_16)),common);
+          temp_hash_key=HashKey ^ wtm_random[wtm];
+          temp_hash_key=(temp_hash_key & ~mask_16) | common;
           for (j=0;j<cluster;j++)
-            if (!Xor(temp_hash_key,book_buffer[j].position) &&
+            if (!(temp_hash_key ^ book_buffer[j].position) &&
                 book_buffer[j].learn > (float) LEARN_COUNTER_BAD/100.0) {
                 n_book_moves[i]++;
                 last_book_move=i;
@@ -368,12 +368,12 @@ void LearnBookUpdate(TREE *tree, int wtm, int move, float learn_value) {
       fseek(book_file,key,SEEK_SET);
       fread(&cluster,sizeof(int),1,book_file);
       fread(book_buffer,sizeof(BOOK_POSITION),cluster,book_file);
-      common=And(HashKey,mask_16);
+      common=HashKey & mask_16;
       MakeMove(tree, 1,move,wtm);
-      temp_hash_key=Xor(HashKey,wtm_random[wtm]);
-      temp_hash_key=Or(And(temp_hash_key,Compl(mask_16)),common);
+      temp_hash_key=HashKey ^ wtm_random[wtm];
+      temp_hash_key=(temp_hash_key & ~mask_16) | common;
       for (move_index=0;move_index<cluster;move_index++)
-        if (!Xor(temp_hash_key,book_buffer[move_index].position)) break;
+        if (!(temp_hash_key ^ book_buffer[move_index].position)) break;
       UnMakeMove(tree, 1,move,wtm);
       if (move_index >= cluster) return;
       if (book_buffer[move_index].learn == 0.0)
@@ -758,14 +758,14 @@ void LearnImportPosition(TREE *tree, int nargs, char **args) {
  ----------------------------------------------------------
 */
     if (abs(value) < MATE-300)
-      word1=Shiftl((BITBOARD) (value+65536),43);
+      word1=(BITBOARD) (value+65536)<<43;
     else if (value > 0)
-      word1=Shiftl((BITBOARD) (value+65536),43);
+      word1=(BITBOARD) (value+65536)<<43;
     else
-      word1=Shiftl((BITBOARD) (value+65536),43);
-    word1=Or(word1,Shiftl((BITBOARD) wtm,63));
-    word1=Or(word1,Shiftl((BITBOARD) move,16));
-    word1=Or(word1,(BITBOARD) depth);
+      word1=(BITBOARD) (value+65536)<<43;
+    word1=word1 | (BITBOARD) wtm<<63;
+    word1=word1 | (BITBOARD) move<<16;
+    word1=word1 | (BITBOARD) depth;
   
     word2=HashKey;
 
@@ -891,8 +891,8 @@ void LearnPosition(TREE *tree, int wtm, int last_value, int value) {
 */
   Print(4095,"learning position, wtm=%d  value=%d\n",wtm,value);
   word1=(BITBOARD) (value+65536);
-  word1=Or(word1,Shiftl((BITBOARD) (tree->pv[0].pathd*INCPLY-INCPLY),17));
-  word1=Or(word1,Shiftl((BITBOARD) tree->pv[0].path[1],32));
+  word1=word1 | (BITBOARD) (tree->pv[0].pathd*INCPLY-INCPLY)<<17;
+  word1=word1 | (BITBOARD) tree->pv[0].path[1]<<32;
   word2=(wtm) ? HashKey : ~HashKey;
   fseek(position_file,0,SEEK_SET);
   fread(&positions,sizeof(int),1,position_file);
@@ -997,7 +997,7 @@ void LearnPositionLoad(void) {
     fread(&word1,sizeof(BITBOARD),1,position_file);
     fread(&word2,sizeof(BITBOARD),1,position_file);
     htable=trans_ref_a+(((int) word2)&hash_maska);
-    htable->word1=And((BITBOARD) word1,~Shiftl((BITBOARD)1,63));
+    htable->word1=(BITBOARD) word1 & (~((BITBOARD)1<<63));
     htable->word2=word2;
   }
 }
@@ -1061,12 +1061,12 @@ void LearnResult(TREE *tree, int wtm) {
       }
       else cluster=0;
       for (mv=tree->last[0];mv<tree->last[1];mv++) {
-        common=And(HashKey,mask_16);
+        common=HashKey & mask_16;
         MakeMove(tree, 1,*mv,wtm);
-        temp_hash_key=Xor(HashKey,wtm_random[wtm]);
-        temp_hash_key=Or(And(temp_hash_key,Compl(mask_16)),common);
+        temp_hash_key=HashKey ^ wtm_random[wtm];
+        temp_hash_key=(temp_hash_key & ~mask_16) | common;
         for (j=0;j<cluster;j++)
-          if (!Xor(temp_hash_key,book_buffer[j].position) &&
+          if (!(temp_hash_key ^ book_buffer[j].position) &&
               book_buffer[j].learn > (float) LEARN_COUNTER_BAD/100.0)
             n_book_moves[i]++;
         UnMakeMove(tree, 1,*mv,wtm);

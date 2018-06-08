@@ -212,13 +212,7 @@ void Interrupt(int ply) {
             abort_search=1;
             break;
           }
-          else {
-            if (!xboard)
-              Print(4095,"Illegal move: %s\n", args[0]);
-            else if (log_file)
-              fprintf(log_file,"Illegal move: %s\n", args[0]);
-            if (log_file) DisplayChessBoard(log_file,tree->pos);
-          }
+          else Print(4095,"Illegal move: %s\n", args[0]);
         }
         else Print(4095,"unrecognized/illegal command: %s\n", args[0]);
       }

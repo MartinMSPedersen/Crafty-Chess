@@ -110,8 +110,8 @@ __inline void Lock (volatile int *hPtr)
 #endif /* NT or POSIX */
 
 #else
-  #define LockInit(p)
-  #define Lock(p)
-  #define UnLock(p)
+#  define LockInit(p)
+#  define Lock(p)
+#  define UnLock(p)
 #endif /*  SMP code */
 

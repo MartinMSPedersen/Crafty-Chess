@@ -34,7 +34,7 @@ BITBOARD AttacksFrom(TREE *tree, int square, int wtm) {
   }
 }
 
-/* last modified 05/12/99 */
+/* last modified 06/26/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -50,15 +50,15 @@ BITBOARD AttacksFrom(TREE *tree, int square, int wtm) {
 */
 BITBOARD AttacksTo(TREE *tree, int square) {
 
-  return(Or(Or(Or(Or(Or(And(w_pawn_attacks[square],BlackPawns),
-                        And(b_pawn_attacks[square],WhitePawns)),
-    And(knight_attacks[square],Or(BlackKnights,WhiteKnights))),
-    And(AttacksBishop(square),BishopsQueens)),
-    And(AttacksRook(square),RooksQueens)),
-    And(king_attacks[square],Or(BlackKing,WhiteKing))));
+  return((w_pawn_attacks[square] & BlackPawns) |
+         (b_pawn_attacks[square] & WhitePawns) |
+         (knight_attacks[square] & (BlackKnights | WhiteKnights)) |
+         (AttacksBishop(square) & BishopsQueens) |
+         (AttacksRook(square) & RooksQueens) |
+         (king_attacks[square] & (BlackKing | WhiteKing)));
 }
 
-/* last modified 05/12/99 */
+/* last modified 06/26/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -73,19 +73,19 @@ BITBOARD AttacksTo(TREE *tree, int square) {
 int Attacked(TREE *tree, int square, int wtm) {
 
   if (wtm) {
-    if (And(b_pawn_attacks[square],WhitePawns)) return(1);
-    if (And(knight_attacks[square],WhiteKnights)) return(1);
-    if (And(And(AttacksBishop(square),BishopsQueens),WhitePieces)) return(1);
-    if (And(And(AttacksRook(square),RooksQueens),WhitePieces)) return(1);
-    if (And(king_attacks[square],WhiteKing)) return(1);
+    if (b_pawn_attacks[square] & WhitePawns) return(1);
+    if (knight_attacks[square] & WhiteKnights) return(1);
+    if (AttacksBishop(square) & BishopsQueens & WhitePieces) return(1);
+    if (AttacksRook(square) & RooksQueens & WhitePieces) return(1);
+    if (king_attacks[square] & WhiteKing) return(1);
     return(0);
   }
   else {
-    if (And(w_pawn_attacks[square],BlackPawns)) return(1);
-    if (And(knight_attacks[square],BlackKnights)) return(1);
-    if (And(And(AttacksBishop(square),BishopsQueens),BlackPieces)) return(1);
-    if (And(And(AttacksRook(square),RooksQueens),BlackPieces)) return(1);
-    if (And(king_attacks[square],BlackKing)) return(1);
+    if (w_pawn_attacks[square] & BlackPawns) return(1);
+    if (knight_attacks[square] & BlackKnights) return(1);
+    if (AttacksBishop(square) & BishopsQueens & BlackPieces) return(1);
+    if (AttacksRook(square) & RooksQueens & BlackPieces) return(1);
+    if (king_attacks[square] & BlackKing) return(1);
     return(0);
   }
 }

@@ -186,17 +186,30 @@ int CheckInput(void) {
 #  endif
 #endif
 
-void ClearHashTables(void) {
+void ClearHashTableScores(void) {
   int i;
 
   if (trans_ref_a && trans_ref_b) {
     for (i=0;i<hash_table_size;i++) {
-      (trans_ref_a+i)->word1=Or(And((trans_ref_a+i)->word1,
-                                     mask_clear_entry),(BITBOARD) 65536);
+      (trans_ref_a+i)->word1=((trans_ref_a+i)->word1 &
+                              mask_clear_entry) | (BITBOARD) 65536;
     }
     for (i=0;i<2*hash_table_size;i++) {
-      (trans_ref_b+i)->word1=Or(And((trans_ref_b+i)->word1,
-                                     mask_clear_entry),(BITBOARD) 65536);
+      (trans_ref_b+i)->word1=((trans_ref_b+i)->word1 &
+                              mask_clear_entry) | (BITBOARD) 65536;
+    }
+    for (i=0;i<pawn_hash_table_size;i++) {
+      (pawn_hash_table+i)->key=0;
+      (pawn_hash_table+i)->p_score=0;
+      (pawn_hash_table+i)->black_protected=0;
+      (pawn_hash_table+i)->white_protected=0;
+      (pawn_hash_table+i)->black_defects_k=0;
+      (pawn_hash_table+i)->black_defects_q=0;
+      (pawn_hash_table+i)->white_defects_k=0;
+      (pawn_hash_table+i)->white_defects_q=0;
+      (pawn_hash_table+i)->passed_w=0;
+      (pawn_hash_table+i)->passed_w=0;
+      (pawn_hash_table+i)->outside=0;
     }
   }
 }
@@ -733,28 +746,28 @@ BITBOARD InterposeSquares(int check_direction, int king_square,
 */
   switch (check_direction) {
     case +1:
-      target=Xor(plus1dir[king_square-1],plus1dir[checking_square]);
+      target=plus1dir[king_square-1] ^ plus1dir[checking_square];
       break;
     case +7:
-      target=Xor(plus7dir[king_square-7],plus7dir[checking_square]);
+      target=plus7dir[king_square-7] ^ plus7dir[checking_square];
       break;
     case +8:
-      target=Xor(plus8dir[king_square-8],plus8dir[checking_square]);
+      target=plus8dir[king_square-8] ^ plus8dir[checking_square];
       break;
     case +9:
-      target=Xor(plus9dir[king_square-9],plus9dir[checking_square]);
+      target=plus9dir[king_square-9] ^ plus9dir[checking_square];
       break;
     case -1:
-      target=Xor(minus1dir[king_square+1],minus1dir[checking_square]);
+      target=minus1dir[king_square+1] ^ minus1dir[checking_square];
       break;
     case -7:
-      target=Xor(minus7dir[king_square+7],minus7dir[checking_square]);
+      target=minus7dir[king_square+7] ^ minus7dir[checking_square];
       break;
     case -8:
-      target=Xor(minus8dir[king_square+8],minus8dir[checking_square]);
+      target=minus8dir[king_square+8] ^ minus8dir[checking_square];
       break;
     case -9:
-      target=Xor(minus9dir[king_square+9],minus9dir[checking_square]);
+      target=minus9dir[king_square+9] ^ minus9dir[checking_square];
       break;
     default:
       target=0;
@@ -980,24 +993,20 @@ int PinnedOnKing(TREE *tree, int wtm, int square) {
 */
     switch (abs(ray)) {
     case 1: 
-      if (And(AttacksRank(square),WhiteKing) != 0)
-        return(And(And(AttacksRank(square),RooksQueens),
-                   BlackPieces) != 0);
+      if (AttacksRank(square) & WhiteKing)
+        return((AttacksRank(square) & RooksQueens & BlackPieces) != 0);
       else return(0);
     case 7: 
-      if (And(AttacksDiaga1(square),WhiteKing) != 0)
-        return(And(And(AttacksDiaga1(square),BishopsQueens),
-                   BlackPieces) != 0);
+      if (AttacksDiaga1(square) & WhiteKing)
+        return((AttacksDiaga1(square) & BishopsQueens & BlackPieces) != 0);
       else return(0);
     case 8: 
-      if (And(AttacksFile(square),WhiteKing) != 0)
-        return(And(And(AttacksFile(square),RooksQueens),
-                   BlackPieces) != 0);
+      if (AttacksFile(square) & WhiteKing)
+        return((AttacksFile(square) & RooksQueens & BlackPieces) != 0);
       else return(0);
     case 9: 
-      if (And(AttacksDiagh1(square),WhiteKing) != 0)
-        return(And(And(AttacksDiagh1(square),BishopsQueens),
-                   BlackPieces) != 0);
+      if (AttacksDiagh1(square) & WhiteKing)
+        return((AttacksDiagh1(square) & BishopsQueens & BlackPieces) != 0);
       else return(0);
     }
   }
@@ -1024,24 +1033,20 @@ int PinnedOnKing(TREE *tree, int wtm, int square) {
 */
     switch (abs(ray)) {
     case 1: 
-      if (And(AttacksRank(square),BlackKing) != 0)
-        return(And(And(AttacksRank(square),RooksQueens),
-                   WhitePieces) != 0);
+      if (AttacksRank(square) & BlackKing)
+        return((AttacksRank(square) & RooksQueens & WhitePieces) != 0);
       else return(0);
     case 7: 
-      if (And(AttacksDiaga1(square),BlackKing) != 0)
-        return(And(And(AttacksDiaga1(square),BishopsQueens),
-                   WhitePieces) != 0);
+      if (AttacksDiaga1(square) & BlackKing)
+        return((AttacksDiaga1(square) & BishopsQueens & WhitePieces) != 0);
       else return(0);
     case 8: 
-      if (And(AttacksFile(square),BlackKing) != 0)
-        return(And(And(AttacksFile(square),RooksQueens),
-                   WhitePieces) != 0);
+      if (AttacksFile(square) & BlackKing)
+        return((AttacksFile(square) & RooksQueens & WhitePieces) != 0);
       else return(0);
     case 9: 
-      if (And(AttacksDiagh1(square),BlackKing) != 0)
-        return(And(And(AttacksDiagh1(square),BishopsQueens),
-                   WhitePieces) != 0);
+      if (AttacksDiagh1(square) & BlackKing)
+        return((AttacksDiagh1(square) & BishopsQueens & WhitePieces) != 0);
       else return(0);
     }
   }
@@ -1114,7 +1119,7 @@ BITBOARD Random64(void) {
 
   r1=Random32();
   r2=Random32();
-  result=Or(r1,Shiftl((BITBOARD) r2,32));
+  result=r1 | (BITBOARD) r2<<32;
   return (result);
 }
 
@@ -1617,29 +1622,28 @@ BITBOARD AttacksFileFunc(int square, POSITION *boardp) {
 }
 
 BITBOARD AttacksRankFunc(int square, POSITION *boardp) {
-  BITBOARD tmp = Or((boardp)->w_occupied, (boardp)->b_occupied);
+  BITBOARD tmp = (boardp)->w_occupied | (boardp)->b_occupied;
 
   unsigned char tmp2 = 
     at.rank_attack_bitboards[File(square)]
       [at.which_attack[File(square)]
-        [And(SplitShiftr(tmp,(Rank(~(square))<<3)+1),0x3f) ] ];
+        [SplitShiftr(tmp,(Rank(~(square))<<3)+1) & 0x3f]];
 
   return SplitShiftl (tmp2, Rank(~(square))<<3);
 }
 
 BITBOARD AttacksBishopFunc(DIAG_INFO *diag, POSITION *boardp) {
-  return Or(AttacksDiaga1Int(diag,boardp),
-      AttacksDiagh1Int(diag,boardp));
+  return (AttacksDiaga1Int(diag,boardp) | AttacksDiagh1Int(diag,boardp));
 }
 
 BITBOARD AttacksRookFunc(int square, POSITION *boardp) {
-  BITBOARD tmp = Or((boardp)->w_occupied, (boardp)->b_occupied);
+  BITBOARD tmp = (boardp)->w_occupied | (boardp)->b_occupied;
 
   unsigned char tmp2 = 
     at.rank_attack_bitboards[File(square)][at.which_attack[File(square)]
-        [And(SplitShiftr(tmp,(Rank(~(square))<<3)+1),0x3f)]];
+        [SplitShiftr(tmp,(Rank(~(square))<<3)+1) & 0x3f]];
 
-  return Or(SplitShiftl (tmp2, Rank(~(square))<<3),
+  return (SplitShiftl(tmp2, Rank(~(square))<<3) |
       AttacksFileInt(square,boardp));
 }
 

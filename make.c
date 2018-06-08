@@ -3,7 +3,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 03/11/98 */
+/* last modified 06/26/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -57,7 +57,7 @@ MakePieceMove:
   SetRL90(to,OccupiedRL90);
   SetRL45(to,OccupiedRL45);
   SetRR45(to,OccupiedRR45);
-  bit_move=Or(SetMask(from),SetMask(to));
+  bit_move=SetMask(from) | SetMask(to);
   PieceOnSquare(from)=0;
   switch (piece) {
 /*
@@ -151,7 +151,7 @@ MakePieceMove:
         }
       }
       else 
-        if (((to-from) == 16) && And(mask_eptest[to],BlackPawns)) {
+        if (((to-from) == 16) && (mask_eptest[to] & BlackPawns)) {
           EnPassant(ply+1)=to-8;
           HashEP(to-8,HashKey);
         }
@@ -235,7 +235,7 @@ MakePieceMove:
         }
       }
       else 
-        if (((from-to) == 16) && And(mask_eptest[to],WhitePawns)) {
+        if (((from-to) == 16) && (mask_eptest[to] & WhitePawns)) {
           EnPassant(ply+1)=to+8;
           HashEP(to+8,HashKey);
         }

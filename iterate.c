@@ -33,6 +33,7 @@ int Iterate(int wtm, int search_type, int root_list_done) {
 |                                                          |
  ----------------------------------------------------------
 */
+  largest_positional_score=Max(largest_positional_score>>1,100);
   if (average_nps == 0) average_nps=150000*max_threads;
   time_abort=0;
   abort_search=0;
@@ -383,10 +384,10 @@ int Iterate(int wtm, int search_type, int root_list_done) {
     used=0;
 #if !defined(FAST)
     for (i=0;i<hash_table_size;i++) {
-      if ((int) Shiftr((trans_ref_a+i)->word1,61) == transposition_id) used++;
+      if ((trans_ref_a+i)->word1>>61 == transposition_id) used++;
     }
     for (i=0;i<hash_table_size*2;i++) {
-      if ((int) Shiftr((trans_ref_b+i)->word1,61) == transposition_id) used++;
+      if ((trans_ref_b+i)->word1>>61 == transposition_id) used++;
     }
 #endif
     end_time=ReadClock(time_type);

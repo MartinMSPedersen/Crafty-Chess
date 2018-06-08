@@ -45,7 +45,7 @@ UnMakePieceMove:
   ClearRL90(to,OccupiedRL90);
   ClearRL45(to,OccupiedRL45);
   ClearRR45(to,OccupiedRR45);
-  bit_move=Or(SetMask(from),SetMask(to));
+  bit_move=SetMask(from) | SetMask(to);
   PieceOnSquare(to)=0;
   switch (piece) {
 

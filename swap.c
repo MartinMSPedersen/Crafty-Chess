@@ -3,7 +3,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 03/07/97 */
+/* last modified 06/29/99 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -68,32 +68,32 @@ int Swap(TREE *tree, int source, int target, int wtm) {
 */
   while (attacks) {
     if (color) {
-      if (And(WhitePawns,attacks))
-        square=FirstOne(And(WhitePawns,attacks));
-      else if (And(WhiteKnights,attacks))
-        square=FirstOne(And(WhiteKnights,attacks));
-      else if (And(WhiteBishops,attacks))
-        square=FirstOne(And(WhiteBishops,attacks));
-      else if (And(WhiteRooks,attacks))
-        square=FirstOne(And(WhiteRooks,attacks));
-      else if (And(WhiteQueens,attacks))
-        square=FirstOne(And(WhiteQueens,attacks));
-      else if (And(WhiteKing,attacks))
+      if (WhitePawns & attacks)
+        square=FirstOne(WhitePawns & attacks);
+      else if (WhiteKnights & attacks)
+        square=FirstOne(WhiteKnights & attacks);
+      else if (WhiteBishops & attacks)
+        square=FirstOne(WhiteBishops & attacks);
+      else if (WhiteRooks & attacks)
+        square=FirstOne(WhiteRooks & attacks);
+      else if (WhiteQueens & attacks)
+        square=FirstOne(WhiteQueens & attacks);
+      else if (WhiteKing & attacks)
         square=WhiteKingSQ;
       else break;
     }
     else {
-      if (And(BlackPawns,attacks))
-        square=FirstOne(And(BlackPawns,attacks));
-      else if (And(BlackKnights,attacks))
-        square=FirstOne(And(BlackKnights,attacks));
-      else if (And(BlackBishops,attacks))
-        square=FirstOne(And(BlackBishops,attacks));
-      else if (And(BlackRooks,attacks))
-        square=FirstOne(And(BlackRooks,attacks));
-      else if (And(BlackQueens,attacks))
-        square=FirstOne(And(BlackQueens,attacks));
-      else if (And(BlackKing,attacks))
+      if (BlackPawns & attacks)
+        square=FirstOne(BlackPawns & attacks);
+      else if (BlackKnights & attacks)
+        square=FirstOne(BlackKnights & attacks);
+      else if (BlackBishops & attacks)
+        square=FirstOne(BlackBishops & attacks);
+      else if (BlackRooks & attacks)
+        square=FirstOne(BlackRooks & attacks);
+      else if (BlackQueens & attacks)
+        square=FirstOne(BlackQueens & attacks);
+      else if (BlackKing & attacks)
         square=BlackKingSQ;
       else break;
     }
@@ -156,29 +156,21 @@ int Swap(TREE *tree, int source, int target, int wtm) {
 BITBOARD SwapXray(TREE *tree, BITBOARD attacks, int from, int direction) {
   switch (direction) {
   case 1: 
-    return(Or(attacks,
-              And(And(AttacksRank(from),RooksQueens),plus1dir[from])));
+    return(attacks | (AttacksRank(from) & RooksQueens & plus1dir[from]));
   case 7: 
-    return(Or(attacks,
-              And(And(AttacksDiaga1(from),BishopsQueens),plus7dir[from])));
+    return(attacks | (AttacksDiaga1(from) & BishopsQueens & plus7dir[from]));
   case 8: 
-    return(Or(attacks,
-              And(And(AttacksFile(from),RooksQueens),plus8dir[from])));
+    return(attacks | (AttacksFile(from) & RooksQueens & plus8dir[from]));
   case 9: 
-    return(Or(attacks,
-              And(And(AttacksDiagh1(from),BishopsQueens),plus9dir[from])));
+    return(attacks | (AttacksDiagh1(from) & BishopsQueens & plus9dir[from]));
   case -1: 
-    return(Or(attacks,
-              And(And(AttacksRank(from),RooksQueens),minus1dir[from])));
+    return(attacks | (AttacksRank(from) & RooksQueens & minus1dir[from]));
   case -7: 
-    return(Or(attacks,
-              And(And(AttacksDiaga1(from),BishopsQueens),minus7dir[from])));
+    return(attacks | (AttacksDiaga1(from) & BishopsQueens & minus7dir[from]));
   case -8: 
-    return(Or(attacks,
-              And(And(AttacksFile(from),RooksQueens),minus8dir[from])));
+    return(attacks | (AttacksFile(from) & RooksQueens & minus8dir[from]));
   case -9: 
-    return(Or(attacks,
-              And(And(AttacksDiagh1(from),BishopsQueens),minus9dir[from])));
+    return(attacks | (AttacksDiagh1(from) & BishopsQueens & minus9dir[from]));
   }
   return(attacks);
 }

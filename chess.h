@@ -504,11 +504,11 @@ typedef struct tree TREE;
 #if !defined(CRAY1)
   BITBOARD     Mask(int);
 #  if defined(VC_INLINE_ASM)
-# include "vcinline.h"
+#    include "vcinline.h"
 #  else
-  int CDECL    PopCnt(BITBOARD);
-  int CDECL    FirstOne(BITBOARD);
-  int CDECL    LastOne(BITBOARD);
+     int CDECL PopCnt(BITBOARD);
+     int CDECL FirstOne(BITBOARD);
+     int CDECL LastOne(BITBOARD);
 #  endif
 #endif
   
@@ -533,7 +533,7 @@ void           BookSort(BB_POSITION*, int, int);
 #endif
 BB_POSITION    BookUpNextPosition(int, int);
 int            CheckInput(void);
-void           ClearHashTables(void);
+void           ClearHashTableScores(void);
 void           ComputeAttacksAndMobility(void);
 void           CopyFromSMP(TREE*, TREE*);
 TREE*          CopyToSMP(TREE*);
@@ -665,17 +665,9 @@ void           TimeSet(int);
 void           UnMakeMove(TREE*, int, int, int);
 int            ValidMove(TREE*, int, int, int);
 void           ValidatePosition(TREE*, int, int, char*);
-BITBOARD       ValidateComputeBishopAttacks(TREE*, int);
-BITBOARD       ValidateComputeRookAttacks(TREE*, int);
 void           Whisper(int, int, int, int, unsigned int, int, int, char*);
   
 #if defined(HAS_64BITS) || defined(HAS_LONGLONG)
-#  define And(a,b)    ((a) & (b))
-#  define Or(a,b)     ((a) | (b))
-#  define Xor(a,b)    ((a) ^ (b))
-#  define Compl(a)    (~(a))
-#  define Shiftl(a,b) ((a) << (b))
-#  define Shiftr(a,b) ((a) >> (b))
 #  if defined(CRAY1)
 #    define PopCnt(a)     _popcnt(a)
 #    define FirstOne(a)   _leadz(a)
@@ -729,7 +721,7 @@ void           Whisper(int, int, int, int, unsigned int, int, int, char*);
     square in case this pawn prevents the other pawn from safely queening on
     the next move.
 */
-#define Attack(square,queen,ply) !And(obstructed[square][queen],Occupied)
+#define Attack(square,queen,ply) !(obstructed[square][queen] & Occupied)
 /*  
     the following macros are used to construct the attacks from a square.
     the attacks are computed as four separate bit vectors, one for each of the
@@ -742,52 +734,23 @@ void           Whisper(int, int, int, int, unsigned int, int, int, char*);
 #  define AttacksRook(a) AttacksRookFunc(a,&tree->pos)
 #  define AttacksBishop(a) AttacksBishopFunc(&diag_info[a],&tree->pos)
 #else
-#  define AttacksRook(a)    Or(AttacksRank(a),AttacksFile(a))
-#  define AttacksBishop(a)  Or(AttacksDiaga1(a),AttacksDiagh1(a))
+#  define AttacksRook(a)    (AttacksRank(a)|AttacksFile(a))
+#  define AttacksBishop(a)  (AttacksDiaga1(a)|AttacksDiagh1(a))
 #endif
 
-#define AttacksQueen(a)   Or(AttacksBishop(a),AttacksRook(a))
+#define AttacksQueen(a)   (AttacksBishop(a)|AttacksRook(a))
 #define Rank(x)       (((x)>>3)&7)
 #define File(x)       ((x)&7)
 #define ChangeSide(x) ((x)^1)
 
 #if defined(COMPACT_ATTACKS)
-/*
-  On a 32 bit machine optimizes the right shift of a long long
-  where it is known that desired piece lies completely in one of
-  the 32 bit words.
-*/
-#  if defined(USE_SPLIT_SHIFTS)
-#    define SplitShiftr(value,shift) ((shift) >= 32 ?             \
-       Shiftr ((unsigned long) Shiftr((value), 32), (shift)-32) : \
-       Shiftr ((unsigned long) (value), (shift)))
-#  else
-#    define SplitShiftr(value,shift) Shiftr(value,shift)
-#  endif
-
 #  define AttacksDiaga1Int(diagp,boardp) \
      (diagp)->ad_attacks[(diagp)->ad_which_attack[                \
-      And (SplitShiftr((boardp)->occupied_rl45,(diagp)->ad_shift),\
-      (diagp)->ad_mask)]]
+      ((boardp)->occupied_rl45>>(diagp)->ad_shift) & (diagp)->ad_mask]]
 
 #  define AttacksDiagh1Int(diagp,boardp)                          \
      (diagp)->d_attacks[(diagp)->d_which_attack[                  \
-      And (SplitShiftr((boardp)->occupied_rr45,(diagp)->d_shift), \
-      (diagp)->d_mask)]]
-
-/*
-  On a 32 bit machine optimizes promoting a smaller value to a long
-  long where it is known that the smaller piece will be completely
-  in one of the 32 bit words.
-*/
-#  if defined(USE_SPLIT_SHIFTS)
-#    define SplitShiftl(value,shift)                              \
-       ((shift) >= 32 ? Shiftl((BITBOARD)                         \
-        Shiftl((unsigned long) (value), (shift)-32), 32) :        \
-       (BITBOARD) Shiftl((unsigned long) (value), (shift)))
-#  else
-#    define SplitShiftl(value,shift) Shiftl((BITBOARD) value,shift)
-#  endif
+      ((boardp)->occupied_rr45>>(diagp)->d_shift) & (diagp)->d_mask]]
 
 /*
   The length of the following macro is a little excessive as the
@@ -795,11 +758,10 @@ void           Whisper(int, int, int, int, unsigned int, int, int, char*);
   in a temporary variable would simplify it significantly, although
   hopefully the compiler recognizes the common subexpression.
 */
-#  define AttacksRankInt(a,boardp)                          \
-     SplitShiftl(at.rank_attack_bitboards[File(a)][         \
-     at.which_attack[File(a)][And(SplitShiftr(              \
-     Or((boardp)->w_occupied,(boardp)->b_occupied),         \
-     (Rank(~(a))<<3)+1),0x3f)]],Rank(~(a))<<3)
+#  define AttacksRankInt(a,boardp)                                \
+     (at.rank_attack_bitboards[File(a)][ at.which_attack[File(a)] \
+     [(((boardp)->w_occupied|(boardp)->b_occupied)>>              \
+     (Rank(~(a))<<3)+1)&0x3f]]<<Rank(~(a))<<3)
 
 /* 
   The final left shift in this is optimizable, but the optimization is
@@ -807,11 +769,10 @@ void           Whisper(int, int, int, int, unsigned int, int, int, char*);
   word boundary in the shift so it can be implemented as two separate
   word shifts that are joined together in a long long.
 */
-#  define AttacksFileInt(a,boardp)                          \
-     Shiftl(at.file_attack_bitboards[Rank(a)] [             \
-     at.which_attack[Rank(a)] [                             \
-     And(SplitShiftr((boardp)->occupied_rl90,               \
-     (File(~(a))<<3)+1),0x3f)]],File(~(a)) )
+#  define AttacksFileInt(a,boardp)                                \
+     (at.file_attack_bitboards[Rank(a)] [                         \
+     at.which_attack[Rank(a)] [                                   \
+     ((boardp)->occupied_rl90>>(File(~(a))<<3)+1)&0x3f]]<<File(~(a)))
 
 #  if defined(USE_ATTACK_FUNCTIONS)
     extern BITBOARD CDECL AttacksRankFunc(int, POSITION *);
@@ -833,18 +794,17 @@ void           Whisper(int, int, int, int, unsigned int, int, int, char*);
 #else
 
 #  define AttacksRank(a)                                               \
-      rook_attacks_r0[(a)][And(Shiftr(Or(tree->pos.w_occupied,         \
-                                         tree->pos.b_occupied),        \
-                                      56-((a)&56)),255)]
+      rook_attacks_r0[(a)][((tree->pos.w_occupied|tree->pos.b_occupied)>> \
+                           (56-((a)&56)))&255]
 #  define AttacksFile(a)                                               \
-      rook_attacks_rl90[(a)][And(Shiftr(tree->pos.occupied_rl90,       \
-                                        56-(((a)&7)<<3)),255)]
+      rook_attacks_rl90[(a)][(tree->pos.occupied_rl90>>
+                             (56-(((a)&7)<<3)))&255]
 #  define AttacksDiaga1(a)                                             \
-      bishop_attacks_rl45[(a)][And(Shiftr(tree->pos.occupied_rl45,     \
-                                          bishop_shift_rl45[(a)]),255)]
+      bishop_attacks_rl45[(a)][(tree->pos.occupied_rl45>>
+                                bishop_shift_rl45[(a)])&255]
 #  define AttacksDiagh1(a)                                             \
-      bishop_attacks_rr45[(a)][And(Shiftr(tree->pos.occupied_rr45,     \
-                                          bishop_shift_rr45[(a)]),255)]
+      bishop_attacks_rr45[(a)][(tree->pos.occupied_rr45>>
+                                bishop_shift_rr45[(a)])&255]
 #endif /* defined(COMPACT_ATTACKS) */
 /*  
     the following macros are used to compute the mobility for a sliding piece.
@@ -862,24 +822,21 @@ void           Whisper(int, int, int, int, unsigned int, int, int, char*);
 
 #  define MobilityDiaga1Int(diagp,boardp)                                   \
      (diagp)->ad_mobility[(diagp)->ad_which_attack[                         \
-     And (SplitShiftr ((boardp)->occupied_rl45,                             \
-     (diagp)->ad_shift),(diagp)->ad_mask)]]
+     ((boardp)->occupied_rl45>> (diagp)->ad_shift)&(diagp)->ad_mask]]
 
 #  define MobilityDiagh1Int(diagp,boardp)                                   \
      (diagp)->d_mobility[(diagp)->d_which_attack [                          \
-     And (SplitShiftr ((boardp)->occupied_rr45,                             \
-     (diagp)->d_shift),(diagp)->d_mask)]]
+     ((boardp)->occupied_rr45>> (diagp)->d_shift)&(diagp)->d_mask]]
 
 #  define MobilityRankInt(a,boardp)                                         \
      at.length8_mobility[File(a)][                                          \
      at.which_attack[File(a)][                                              \
-     And(SplitShiftr(Or((boardp)->w_occupied,                               \
-     (boardp)->b_occupied),(Rank(~(a))<<3)+1),0x3f)]]
+     ((boardp)->w_occupied|(boardp)->b_occupied>>(Rank(~(a))<<3)+1)&0x3f]]
 
 #  define MobilityFileInt(a,boardp)                                         \
      at.length8_mobility[Rank(a)][                                          \
      at.which_attack[Rank(a)] [                                             \
-     And(SplitShiftr((boardp)->occupied_rl90,(File(~(a))<<3)+1),0x3f)]]
+     ((boardp)->occupied_rl90>>(File(~(a))<<3)+1)&0x3f]]
 
 #  if defined(USE_ATTACK_FUNCTIONS)
     extern unsigned CDECL MobilityRankFunc(int, POSITION *);
@@ -901,19 +858,18 @@ void           Whisper(int, int, int, int, unsigned int, int, int, char*);
 #else
 
 #  define MobilityRank(a)                                                   \
-     rook_mobility_r0[(a)][And(Shiftr(Or(tree->pos.w_occupied,              \
-                                         tree->pos.b_occupied),             \
-                                      56-((a)&56)),255)]
+     rook_mobility_r0[(a)][tree->pos.w_occupied|tree->pos.b_occupied)>>     \
+                           (56-((a)&56))&255]
 #  define MobilityFile(a)                                                   \
-     rook_mobility_rl90[(a)][And(Shiftr(tree->pos.occupied_rl90,            \
-                                        56-(((a)&7)<<3)),255)]
+     rook_mobility_rl90[(a)][tree->pos.occupied_rl90>>
+                             (56-(((a)&7)<<3))&255]
 #  define MobilityDiaga1(a)                                                 \
-     bishop_mobility_rl45[(a)][And(Shiftr(tree->pos.occupied_rl45,          \
-                                          bishop_shift_rl45[(a)]),255)]
+     bishop_mobility_rl45[(a)][tree->pos.occupied_rl45>>                    \
+                               bishop_shift_rl45[(a)]&255]
 #  define MobilityDiagh1(a)                                                 \
-     bishop_mobility_rr45[(a)][And(Shiftr(tree->pos.occupied_rr45,          \
-                                          bishop_shift_rr45[(a)]),255)]
-#endif  /* if defined(COMPACT_ATTACKS) */
+     bishop_mobility_rr45[(a)][tree->pos.occupied_rr45>>                    \
+                               bishop_shift_rr45[(a)]&255]
+#endif
 
 /*  
     the following macros are used to extract the pieces of a move that are
@@ -981,7 +937,7 @@ void           Whisper(int, int, int, int, unsigned int, int, int, char*);
 #define PieceOnSquare(sq)     (tree->pos.board[sq])
 #define BishopsQueens         (tree->pos.bishops_queens)
 #define RooksQueens           (tree->pos.rooks_queens)
-#define Occupied              (Or(tree->pos.w_occupied,tree->pos.b_occupied))
+#define Occupied              (tree->pos.w_occupied|tree->pos.b_occupied)
 #define OccupiedRL90          (tree->pos.occupied_rl90)
 #define OccupiedRL45          (tree->pos.occupied_rl45)
 #define OccupiedRR45          (tree->pos.occupied_rr45)
@@ -994,33 +950,33 @@ void           Whisper(int, int, int, int, unsigned int, int, int, char*);
     second argument.  this is done to make the code more readable, rather
     than to make it faster.
 */
-#define ClearSet(a,b)       b=Xor(a,b)
-#define Clear(a,b)          b=And(ClearMask(a),b)
-#define ClearRL90(a,b)      b=And(ClearMaskRL90(a),b)
-#define ClearRL45(a,b)      b=And(ClearMaskRL45(a),b)
-#define ClearRR45(a,b)      b=And(ClearMaskRR45(a),b)
-#define Set(a,b)            b=Or(SetMask(a),b)
-#define SetRL90(a,b)        b=Or(SetMaskRL90(a),b)
-#define SetRL45(a,b)        b=Or(SetMaskRL45(a),b)
-#define SetRR45(a,b)        b=Or(SetMaskRR45(a),b)
+#define ClearSet(a,b)       b=((a)^(b))
+#define Clear(a,b)          b=ClearMask(a)&(b)
+#define ClearRL90(a,b)      b=ClearMaskRL90(a)&(b)
+#define ClearRL45(a,b)      b=ClearMaskRL45(a)&(b)
+#define ClearRR45(a,b)      b=ClearMaskRR45(a)&(b)
+#define Set(a,b)            b=SetMask(a)|(b)
+#define SetRL90(a,b)        b=SetMaskRL90(a)|(b)
+#define SetRL45(a,b)        b=SetMaskRL45(a)|(b)
+#define SetRR45(a,b)        b=SetMaskRR45(a)|(b)
 
 #define HashPB32(a,b)       b=b_pawn_random32[a]^(b)
 #define HashPW32(a,b)       b=w_pawn_random32[a]^(b)
-#define HashPB(a,b)         b=Xor(b_pawn_random[a],b)
-#define HashPW(a,b)         b=Xor(w_pawn_random[a],b)
-#define HashNB(a,b)         b=Xor(b_knight_random[a],b)
-#define HashNW(a,b)         b=Xor(w_knight_random[a],b)
-#define HashBB(a,b)         b=Xor(b_bishop_random[a],b)
-#define HashBW(a,b)         b=Xor(w_bishop_random[a],b)
-#define HashRB(a,b)         b=Xor(b_rook_random[a],b)
-#define HashRW(a,b)         b=Xor(w_rook_random[a],b)
-#define HashQB(a,b)         b=Xor(b_queen_random[a],b)
-#define HashQW(a,b)         b=Xor(w_queen_random[a],b)
-#define HashKB(a,b)         b=Xor(b_king_random[a],b)
-#define HashKW(a,b)         b=Xor(w_king_random[a],b)
-#define HashEP(a,b)         b=Xor(enpassant_random[a],b)
-#define HashCastleW(a,b)    b=Xor(castle_random_w[a],b);
-#define HashCastleB(a,b)    b=Xor(castle_random_b[a],b);
+#define HashPB(a,b)         b=b_pawn_random[a]^(b)
+#define HashPW(a,b)         b=w_pawn_random[a]^(b)
+#define HashNB(a,b)         b=b_knight_random[a]^(b)
+#define HashNW(a,b)         b=w_knight_random[a]^(b)
+#define HashBB(a,b)         b=b_bishop_random[a]^(b)
+#define HashBW(a,b)         b=w_bishop_random[a]^(b)
+#define HashRB(a,b)         b=b_rook_random[a]^(b)
+#define HashRW(a,b)         b=w_rook_random[a]^(b)
+#define HashQB(a,b)         b=b_queen_random[a]^(b)
+#define HashQW(a,b)         b=w_queen_random[a]^(b)
+#define HashKB(a,b)         b=b_king_random[a]^(b)
+#define HashKW(a,b)         b=w_king_random[a]^(b)
+#define HashEP(a,b)         b=enpassant_random[a]^(b)
+#define HashCastleW(a,b)    b=castle_random_w[a]^(b)
+#define HashCastleB(a,b)    b=castle_random_b[a]^(b)
 #define SavePV(tree,ply,value,ph) do {                                      \
           tree->pv[ply-1].path[ply-1]=tree->current_move[ply-1];            \
           tree->pv[ply-1].pathl=ply-1;                                \
@@ -1040,17 +996,16 @@ void           Whisper(int, int, int, int, unsigned int, int, int, char*);
   probing function for an absent TB, maybe we shall split that code.
 */
 
-#define  VInitSqCtr(rgCtr, rgSquares, piece, bitboard) {\
-  int  cPieces = 0;\
-  BITBOARD bbTemp = (bitboard);\
-  while (bbTemp) {\
-    const squaret sq = FirstOne (bbTemp);\
-    (rgSquares)[(piece)*C_PIECES+cPieces] = sq;\
-    cPieces ++;\
-    Clear (sq, bbTemp);\
-  }\
-  (rgCtr)[(piece)] = cPieces;\
+#define  VInitSqCtr(rgCtr, rgSquares, piece, bitboard) {         \
+  int  cPieces=0;                                                \
+  BITBOARD bbTemp=(bitboard);                                    \
+  while (bbTemp) {                                               \
+    const squaret sq=FirstOne (bbTemp);                          \
+    (rgSquares)[(piece)*C_PIECES+cPieces]=sq;                    \
+    cPieces++;                                                   \
+    Clear(sq, bbTemp);                                           \
+  }                                                              \
+  (rgCtr)[(piece)]=cPieces;                                      \
 }
-
 
 #endif /* if defined(TYPES_INCLUDED) */

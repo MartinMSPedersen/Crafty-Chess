@@ -24,7 +24,7 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
   register int o_alpha, value=0;
   register int extensions, pieces;
   int threat=0;
-  int full_extension=ply<=2*iteration_depth;
+  register int full_extension=ply<=2*iteration_depth;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -186,6 +186,7 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
   pieces=(wtm) ? TotalWhitePieces : TotalBlackPieces;
   if (do_null && !tree->in_check[ply] && pieces && (pieces>5 || depth<421)) {
     register BITBOARD save_hash_key;
+    int null_depth;
     tree->current_move[ply]=0;
     tree->current_phase[ply]=NULL_MOVE;
 #if defined(TRACE)
@@ -199,8 +200,9 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
       HashEP(EnPassant(ply+1),HashKey);
       EnPassant(ply+1)=0;
     }
-    value=-ABSearch(tree,-beta,-beta+1,ChangeSide(wtm),
-                    depth-NULL_MOVE_DEPTH-INCPLY,ply+1,NO_NULL);
+    null_depth=(depth > 6*INCPLY) ? 4*INCPLY : 3*INCPLY;
+    value=-ABSearch(tree,-beta,1-beta,ChangeSide(wtm),
+                    depth-null_depth,ply+1,NO_NULL);
     HashKey=save_hash_key;
     if (abort_search || tree->stop) return(0);
     if (value >= beta) {

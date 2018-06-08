@@ -35,8 +35,7 @@
 #   Sun Sparc-20.
 #   
 #   1.  opt = -DCOMPACT_ATTACKS
-#   2.  opt = -DCOMPACT_ATTACKS -DUSE_SPLIT_SHIFTS
-#   3.  opt = -DCOMPACT_ATTACKS -DUSE_SPLIT_SHIFTS -DUSE_ATTACK_FUNCTIONS
+#   2.  opt = -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS
 #   
 #   Finally, if you have a Symmetric MultiProcessor machine, you should
 #   add -DSMP to the opt definition for your make configuration, and then
@@ -46,14 +45,18 @@
 #target  = AIX
 #CC      = cc
 #CFLAGS  = -O2
+#CXX	 = $(CC)
+#CXXFLAGS= $(CFLAGS)
 #LDFLAGS =
-#opt     = -DCOMPACT_ATTACKS -DUSE_SPLIT_SHIFTS -DUSE_ATTACK_FUNCTIONS
-
+#opt     = -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS
 #opt     = -DCOMPACT_ATTACKS
+
 # ALPHA
 #target  = ALPHA
 #CC      = cc
-#CFLAGS  = -O0 -pthread -newc -tune host
+#CFLAGS  = -std -O4 -pthread -newc -tune host
+#CXX	 = cxx
+#CXXFLAGS= $(CFLAGS)
 #LDFLAGS = $(CFLAGS)
 #LIBS    = -lpthread -lexc
 ##opt    = -DSMP -DCPUS=8 -DMUTEX -DFAST -DPOSIX
@@ -64,8 +67,10 @@
 # target  = DOS
 # CC      = gcc
 # CFLAGS  = -fomit-frame-pointer -m486 -O3
+# CXX	  = $(CC)
+# CXXFLAGS= $(CFLAGS)
 # LDFLAGS =
-# opt     = -DCOMPACT_ATTACKS -DUSE_SPLIT_SHIFTS -DUSE_ATTACK_FUNCTIONS \
+# opt     = -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
 #           -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B
 # asm     = X86.o
 
@@ -73,16 +78,20 @@
 #target  = FreeBSD
 #CC      = gcc
 #CFLAGS  = -fomit-frame-pointer -m486 -O3 -Wall
+#CXX	 = $(CC)
+#CXXFLAGS= $(CFLAGS)
 #LDFLAGS = 
-#opt     = -DCOMPACT_ATTACKS -DUSE_SPLIT_SHIFTS -DUSE_ATTACK_FUNCTIONS \
+#opt     = -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
 #          -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST
 
 # FreeBSD (pgcc)
 #target  = FreeBSD
 #CC      = gcc
 #CFLAGS  = -pipe -D_REENTRANT -mpentium -O -Wall
+#CXX	 = $(CC)
+#CXXFLAGS= $(CFLAGS)
 #LDFLAGS = 
-#opt     = -DCOMPACT_ATTACKS -DUSE_SPLIT_SHIFTS -DUSE_ATTACK_FUNCTIONS \
+#opt     = -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
 #          -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST
 
 # HP
@@ -90,6 +99,8 @@
 #CC      = cc
 #OPT     = +O3 +Onolimit
 #CFLAGS  = +ESlit -Ae +w1
+#CXX	 = $(CC)
+#CXXFLAGS= $(CFLAGS)
 #LDFLAGS = $(OPT) $(CFLAGS)
 #opt     = 
  
@@ -98,8 +109,10 @@
 target  = LINUX
 CC      = gcc
 CFLAGS  = -Wall -pipe -D_REENTRANT -mpentium -O
+CXX	= $(CC)
+CXXFLAGS= -pipe -D_REENTRANT -mpentium -O 
 LDFLAGS = -lpthread
-opt     = -DCOMPACT_ATTACKS -DUSE_SPLIT_SHIFTS -DUSE_ATTACK_FUNCTIONS \
+opt     = -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
           -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST -DSMP -DCPUS=4 -DDGT
 
 # Uncomment the FIRST `asm' line for a.out systems.
@@ -113,8 +126,10 @@ asm     = X86-elf.o
 #target  = LINUX
 #CC      = gcc
 #CFLAGS  = -pipe -D_REENTRANT -O
+#CXX	 = $(CC)
+#CXXFLAGS= $(CFLAGS)
 #LDFLAGS = -lpthread
-#opt     = -DCOMPACT_ATTACKS -DUSE_SPLIT_SHIFTS -DUSE_ATTACK_FUNCTIONS \
+#opt     = -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
 #          -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST -DSMP -DCPUS=4
 
 # Uncomment the FIRST `asm' line for a.out systems.
@@ -127,6 +142,8 @@ asm     = X86-elf.o
 #target  = NEXT
 #CC      = /bin/cc
 #CFLAGS  = -O2
+#CXX	 = $(CC)
+#CXXFLAGS= $(CFLAGS)
 #LDFLAGS = $(CFLAGS)
 #opt     = -DCOMPACT_ATTACKS
 
@@ -134,8 +151,10 @@ asm     = X86-elf.o
 #  target  = OS2
 #  CC      = gcc
 #  CFLAGS  = -fomit-frame-pointer -m486 -O3 -Wall
+#  CXX     = $(CC)
+#  CXXFLAGS= $(CFLAGS)
 #  LDFLAGS = -Zexe -Zcrtdll -s
-#  opt = -DCOMPACT_ATTACKS -DUSE_SPLIT_SHIFTS -DUSE_ATTACK_FUNCTIONS \
+#  opt = -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
 #        -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST -DOS2
 #  asm     = X86.o
 
@@ -145,8 +164,10 @@ asm     = X86-elf.o
 #CC      = cc
 #AFLAGS  = -P
 #CFLAGS  = -g -32 -mips2 -cckr
+#CXX	 = $(CC)
+#CXXFLAGS= $(CFLAGS)
 #LDFLAGS = 
-#opt     = -DCOMPACT_ATTACKS -DUSE_SPLIT_SHIFTS -DUSE_ATTACK_FUNCTIONS
+#opt     = -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS
 #opt     = 
 
 # SUN
@@ -154,9 +175,11 @@ asm     = X86-elf.o
 #AS      = /usr/ccs/bin/as
 #CC      = cc
 #AFLAGS  = -P
+#CXX	 = $(CC)
+#CXXFLAGS= $(CFLAGS)
 #CFLAGS  = -fast -xO5 -xunroll=20
 #LDFLAGS = -lpthread
-#opt     = -DCOMPACT_ATTACKS -DUSE_SPLIT_SHIFTS -DUSE_ATTACK_FUNCTIONS \
+#opt     = -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
 #          -DUSE_ASSEMBLY_A -DSMP -DCPUS=4 -DMUTEX -DPOSIX
 #asm     = Sparc.o
 
@@ -188,8 +211,8 @@ dgt:    dgtdrv.o
 	@cc -O -o dgt dgtdrv.c
 
 egtb.o: egtb.cpp
-	@echo $(CC) -c $(CFLAGS) egtb.cpp
-	@$(CC) -c -pipe -D_REENTRANT -mpentium -O $(opts) egtb.cpp
+	@echo $(CXX) $(CXXFLAGS) -c egtb.cpp
+	@$(CXX) -c $(CXXFLAGS) $(opts) egtb.cpp
 clean:
 	-rm -f *.o crafty X86-elf.X X86-aout.S
 

@@ -95,16 +95,16 @@ int Book(TREE *tree, int wtm, int root_list_done) {
       fread(&scluster,sizeof(int),1,books_file);
       fread(books_buffer,sizeof(BOOK_POSITION),scluster,books_file);
       for (im=0;im<n_root_moves;im++) {
-        common=And(HashKey,mask_16);
+        common=HashKey & mask_16;
         MakeMove(tree,1,root_moves[im].move,wtm);
         if (RepetitionCheck(tree,2,ChangeSide(wtm))) {
           UnMakeMove(tree,1,root_moves[im].move,wtm);
           return(0);
         }
-        temp_hash_key=Xor(HashKey,wtm_random[wtm]);
-        temp_hash_key=Or(And(temp_hash_key,Compl(mask_16)),common);
+        temp_hash_key=HashKey ^ wtm_random[wtm];
+        temp_hash_key=(temp_hash_key & ~mask_16) | common;
         for (i=0;i<scluster;i++)
-          if (!Xor(temp_hash_key,books_buffer[i].position)) {
+          if (!(temp_hash_key ^ books_buffer[i].position)) {
             start_moves[smoves++]=books_buffer[i];
             break;
           }
@@ -144,7 +144,7 @@ int Book(TREE *tree, int wtm, int root_list_done) {
 */
     for (i=0;i<smoves;i++) {
       for (j=0;j<cluster;j++) 
-        if (!Xor(book_buffer[j].position,start_moves[i].position)) break;
+        if (!(book_buffer[j].position ^ start_moves[i].position)) break;
       if (j >= cluster) {
         book_buffer[cluster]=start_moves[i];
         book_buffer[cluster].status_played=
@@ -166,16 +166,16 @@ int Book(TREE *tree, int wtm, int root_list_done) {
     total_moves=0;
     nmoves=0;
     for (im=0;im<n_root_moves;im++) {
-      common=And(HashKey,mask_16);
+      common=HashKey & mask_16;
       MakeMove(tree,1,root_moves[im].move,wtm);
       if (RepetitionCheck(tree,2,ChangeSide(wtm))) {
         UnMakeMove(tree,1,root_moves[im].move,wtm);
         return(0);
       }
-      temp_hash_key=Xor(HashKey,wtm_random[wtm]);
-      temp_hash_key=Or(And(temp_hash_key,Compl(mask_16)),common);
+      temp_hash_key=HashKey ^ wtm_random[wtm];
+      temp_hash_key=(temp_hash_key & ~mask_16) | common;
       for (i=0;i<cluster;i++) {
-        if (!Xor(temp_hash_key,book_buffer[i].position)) {
+        if (!(temp_hash_key ^ book_buffer[i].position)) {
           book_status[nmoves]=book_buffer[i].status_played>>24;
           bs_played[nmoves]=book_buffer[i].status_played&077777777;
           bs_learn[nmoves]=(int) (book_buffer[i].learn*100.0);
@@ -190,7 +190,7 @@ int Book(TREE *tree, int wtm, int root_list_done) {
           evaluations[nmoves]-=(wtm) ? Material : -Material;
           bs_percent[nmoves]=0;
           for (j=0;j<smoves;j++) {
-            if (!Xor(book_buffer[i].position,start_moves[j].position)) {
+            if (!(book_buffer[i].position ^ start_moves[j].position)) {
               book_status[nmoves]|=start_moves[j].status_played>>24;
               bs_percent[nmoves]=start_moves[j].status_played&077777777;
               break;
@@ -927,12 +927,12 @@ void BookUp(TREE *tree, char *output_filename, int nargs, char **args) {
               ply++;
               max_search_depth=Max(max_search_depth,ply);
               total_moves++;
-              common=And(HashKey,mask_16);
+              common=HashKey & mask_16;
               MakeMove(tree,2,move,wtm);
               tree->position[2]=tree->position[3];
               if (ply <= max_ply) {
-                temp_hash_key=Xor(HashKey,wtm_random[wtm]);
-                temp_hash_key=Or(And(temp_hash_key,Compl(mask_16)),common);
+                temp_hash_key=HashKey ^ wtm_random[wtm];
+                temp_hash_key=(temp_hash_key & ~mask_16) | common;
                 memcpy(bbuffer[buffered].position,(char*)&temp_hash_key,8);
                 if (result == 0) mask_word|=0100;
                 else if (result&2) mask_word|=0200;

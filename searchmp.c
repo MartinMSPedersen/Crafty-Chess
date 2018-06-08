@@ -22,6 +22,7 @@
 int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
               int depth, int ply, int threat) {
   register int extensions, begin_root_nodes;
+  register int full_extension=ply<=2*iteration_depth;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -75,7 +76,7 @@ int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
         !(tree->extended_reason[ply-1]&recapture_extension)) {
       tree->extended_reason[ply]|=recapture_extension;
       tree->recapture_extensions_done++;
-      extensions+=(ply<=2*iteration_depth) ? recap_depth : recap_depth>>1;
+      extensions+=(full_extension) ? recap_depth : recap_depth>>1;
     }
 /*
  ----------------------------------------------------------
@@ -85,17 +86,11 @@ int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
 |                                                          |
  ----------------------------------------------------------
 */
-    if (Piece(tree->current_move[ply])==pawn && 
-         ((wtm && To(tree->current_move[ply])>H5 && TotalBlackPieces<16 &&
-          !And(mask_pawn_passed_w[To(tree->current_move[ply])],BlackPawns)) ||
-         (!wtm && To(tree->current_move[ply])<A4 && TotalWhitePieces<16 &&
-          !And(mask_pawn_passed_b[To(tree->current_move[ply])],WhitePawns)) ||
-         push_extensions[To(tree->current_move[ply])]) &&
-         Swap(tree,From(tree->current_move[ply]),To(tree->current_move[ply]),wtm) ==
-           p_values[Captured(tree->current_move[ply])+7]) {
+    if (Piece(tree->current_move[ply])==pawn &&
+      push_extensions[To(tree->current_move[ply])]) {
       tree->extended_reason[ply]|=passed_pawn_extension;
       tree->passed_pawn_extensions_done++;
-      extensions+=(ply<=2*iteration_depth) ? pushpp_depth : pushpp_depth>>1;
+      extensions+=(full_extension) ? pushpp_depth : pushpp_depth>>1;
     }
 /*
  ----------------------------------------------------------
@@ -123,7 +118,7 @@ int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
         tree->in_check[ply+1]=1;
         tree->extended_reason[ply+1]=check_extension;
         tree->check_extensions_done++;
-        extensions+=(ply<=2*iteration_depth) ? incheck_depth : incheck_depth>>1;
+        extensions+=(full_extension) ? incheck_depth : incheck_depth>>1;
       }
       else {
         tree->in_check[ply+1]=0;

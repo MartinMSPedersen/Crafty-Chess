@@ -43,8 +43,8 @@ int EnPrise(int target, int wtm) {
  ----------------------------------------------------------
 */
   temp_attacks=AttacksTo(tree,target);
-  white_attackers=And(temp_attacks,WhitePieces);
-  black_attackers=And(temp_attacks,BlackPieces);
+  white_attackers=temp_attacks & WhitePieces;
+  black_attackers=temp_attacks & BlackPieces;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -103,18 +103,18 @@ int EnPrise(int target, int wtm) {
  ----------------------------------------------------------
 */
   while (attacks) {
-    if (And(*pawns[color],attacks))
-      square=FirstOne(And(*pawns[color],attacks));
-    else if (And(*knights[color],attacks))
-      square=FirstOne(And(*knights[color],attacks));
-    else if (And(*bishops[color],attacks))
-      square=FirstOne(And(*bishops[color],attacks));
-    else if (And(*rooks[color],attacks))
-      square=FirstOne(And(*rooks[color],attacks));
-    else if (And(*queens[color],attacks))
-      square=FirstOne(And(*queens[color],attacks));
-    else if (And(*kings[color],attacks))
-      square=FirstOne(And(*kings[color],attacks));
+    if (*pawns[color] & attacks)
+      square=FirstOne(*pawns[color] & attacks);
+    else if (*knights[color] & attacks)
+      square=FirstOne(*knights[color] & attacks);
+    else if (*bishops[color] & attacks)
+      square=FirstOne(*bishops[color] & attacks);
+    else if (*rooks[color] & attacks)
+      square=FirstOne(*rooks[color] & attacks);
+    else if (*queens[color] & attacks)
+      square=FirstOne(*queens[color] & attacks);
+    else if (*kings[color] & attacks)
+      square=FirstOne(*kings[color] & attacks);
     else 
       square=-1;
 /*
