@@ -39,9 +39,9 @@ void RootMoveList(int wtm) {
  ----------------------------------------------------------
 */
   EGTB_draw=0;
-  if (swindle_mode && EGTBlimit && TotalPieces<=EGTBlimit &&
+  if (EGTBlimit && TotalPieces<=EGTBlimit &&
       EGTBProbe(tree, 1, wtm, &tb_value)) {
-    if (tb_value == DrawScore(wtm))
+    if (swindle_mode && (tb_value == DrawScore(wtm)))
       if ((wtm && Material>0) || (!wtm && Material<0)) EGTB_draw=1;
     if (tb_value > MATE-300)
         mating_via_tb=-tb_value-1;

@@ -211,7 +211,7 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
       HashEP(EnPassant(ply+1),HashKey);
       EnPassant(ply+1)=0;
     }
-    null_depth=(depth > 6*INCPLY) ? 4*INCPLY : 3*INCPLY;
+    null_depth=(depth > 6*INCPLY) ? null_max : null_min;
     if (depth-null_depth >= INCPLY)
       value=-Search(tree,-beta,1-beta,ChangeSide(wtm),
                     depth-null_depth,ply+1,NO_NULL);

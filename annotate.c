@@ -292,12 +292,16 @@ void Annotate() {
             Print(4095,"--------------------\n");
             tree->position[1]=tree->position[0];
             search_move=move;
+            root_moves[0].move=move;
+            root_moves[0].nodes=0;
+            root_moves[0].status=0;
+            n_root_moves=1;
             search_time_limit=3*annotate_search_time_limit;
             search_depth=temp[0].pathd;
             if (search_depth==temp_search_depth)
               search_time_limit=annotate_search_time_limit;
             InitializeHashTables();
-            player_score=Iterate(wtm,annotate,0);
+            player_score=Iterate(wtm,annotate,1);
             player_pv=tree->pv[0];
             search_depth=temp_search_depth;
             search_time_limit=annotate_search_time_limit;

@@ -245,7 +245,7 @@
   unsigned int   max_split_blocks;
   volatile unsigned int   splitting;
 
-# define    VERSION                            "17.13"
+# define    VERSION                            "17.14"
   char      version[6] =                    {VERSION};
   PLAYING_MODE mode =                     normal_mode;
 
@@ -291,7 +291,7 @@
                                       {"nudnick"},
                                       {"sabalero"}};
 
-  int       number_auto_kibitzers =                 6;
+  int       number_auto_kibitzers =                 7;
 
   char      auto_kibitz_list[64][20] = {
                                       {"diepx"},
@@ -299,6 +299,7 @@
                                       {"hossa"},
                                       {"lambchop"},
                                       {"moron"},
+                                      {"otter"},
                                       {"zarkovx"}};
   
 
@@ -372,12 +373,14 @@
   int       crafty_is_white =                       0;
   int       last_opponent_move =                    0;
   int       average_nps =                           0;
-  int       incheck_depth =                        60;
+  int       incheck_depth =                        45;
   int       onerep_depth =                         45;
   int       recap_depth =                          45;
-  int       pushpp_depth =                         60;
+  int       pushpp_depth =                         45;
   int       threat_depth =                         45;
   int       singular_depth =                       45;
+  int       null_min =                       3*INCPLY;  /* R=2 */
+  int       null_max =                       4*INCPLY;  /* R=3 */
   int       largest_positional_score =            100;
   int       search_depth =                          0;
   unsigned int search_nodes =                       0;
@@ -501,7 +504,7 @@
   const int passed_pawn_value[8] ={ 0, 8, 16, 24, 45, 92, 150, 0};
   const char blockading_passed_pawn_value[8] = { 0, 8, 16, 24, 32, 40, 48, 0};
 
-  const char isolated_pawn_value[9] = {0, 10, 20, 42, 52, 62, 75, 90, 100};
+  const char isolated_pawn_value[9] = {0, 10, 20, 40, 60, 80, 90, 100, 110};
   const char isolated_pawn_of_value[9] = {0, 5, 10, 15, 20, 25, 30, 35, 40};
 
   const char doubled_pawn_value[7] ={ 0,

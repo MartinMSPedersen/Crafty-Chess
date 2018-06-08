@@ -1234,7 +1234,7 @@ static void VInitEnumerations (void)
 				for (pi3 = x_pieceNone; pi3 <= pi2; pi3 = (piece) (pi3 + 1))
 					{
 					if (0 != rgcTriplePawnPresent[pi1][pi2][pi3])
-						printf ("%c%c%c - %d enumerated positions\n",
+						printf ("%c%c%c - %ld enumerated positions\n",
 								"pPNBRQ"[pi1], "pPNBRQ"[pi2], "pPNBRQ"[pi3],
 								rgcTriplePawnPresent[pi1][pi2][pi3]);
 					}
@@ -1243,7 +1243,7 @@ static void VInitEnumerations (void)
 				for (pi3 = x_pieceNone; pi3 <= pi2; pi3 = (piece) (pi3 + 1))
 					{
 					if (0 != rgcTriplePawnless[pi1][pi2][pi3])
-						printf ("pawnless %c%c%c - %d enumerated positions\n",
+						printf ("pawnless %c%c%c - %ld enumerated positions\n",
 								"pPNBRQ"[pi1], "pPNBRQ"[pi2], "pPNBRQ"[pi3],
 								rgcTriplePawnless[pi1][pi2][pi3]);
 					}

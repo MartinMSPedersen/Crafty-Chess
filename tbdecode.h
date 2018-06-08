@@ -76,7 +76,7 @@ static void _local_assert (int lineno)
 #define dprintf(x)   ((void) 0)
 #endif
 
-extern "C" int cbEGTBCompBytes = 0;
+extern "C" { int cbEGTBCompBytes = 0; }
 
 /* --------------------- Constants, types, etc. ----------------------- */
 /*                       ----------------------                         */

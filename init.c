@@ -1,3 +1,4 @@
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -276,7 +277,6 @@ void Initialize(int continuing) {
     position_lrn_file=fopen(log_filename,"r");
     if (!position_lrn_file) {
       position_lrn_file=fopen(log_filename,"a");
-      fprintf(position_lrn_file,"position\n");
     }
     else {
       fclose(position_lrn_file);
@@ -321,9 +321,9 @@ void Initialize(int continuing) {
   trans_ref_a_orig=(HASH_ENTRY *) malloc(16*hash_table_size+15);
   trans_ref_b_orig=(HASH_ENTRY *) malloc(16*2*hash_table_size+15);
   pawn_hash_table_orig=(PAWN_HASH_ENTRY *) malloc(sizeof(PAWN_HASH_ENTRY)*pawn_hash_table_size+15);
-  trans_ref_a=(HASH_ENTRY*) (((unsigned long) trans_ref_a_orig+15)&~15);
-  trans_ref_b=(HASH_ENTRY*) (((unsigned long) trans_ref_b_orig+15)&~15);
-  pawn_hash_table=(PAWN_HASH_ENTRY*) (((unsigned long) pawn_hash_table_orig+15)&~15);
+  trans_ref_a=(HASH_ENTRY*) (((ptrdiff_t) trans_ref_a_orig+15)&~15);
+  trans_ref_b=(HASH_ENTRY*) (((ptrdiff_t) trans_ref_b_orig+15)&~15);
+  pawn_hash_table=(PAWN_HASH_ENTRY*) (((ptrdiff_t) pawn_hash_table_orig+15)&~15);
   if (!trans_ref_a || !trans_ref_b) {
     printf("malloc() failed, not enough memory.\n");
     free(trans_ref_a_orig);
@@ -1530,6 +1530,7 @@ void InitializeZeroMasks(void) {
   psqr = rightmost pawn, period.
   0 -> passed pawn is not 'outside'
   1 -> passed pawn is 'outside'
+  2 -> passed pawn is 'outside' on both sides of board
 */
 
   for (i=0;i<256;i++) {
@@ -1540,14 +1541,14 @@ void InitializeZeroMasks(void) {
       ppsq=first_ones_8bit[i];
       if (ppsq < 8) {
         psql=first_ones_8bit[j&(255-(128>>ppsq))];
-        if (ppsq < psql-1) is_outside[i][j]=1;
-        if (ppsq <= psql+1) is_outside_c[i][j]=1;
+        if (ppsq < psql-1) is_outside[i][j]+=1;
+        if (ppsq <= psql+1) is_outside_c[i][j]+=1;
       }
       ppsq=last_ones_8bit[i];
       if (ppsq < 8) {
         psqr=last_ones_8bit[j&(255-(128>>ppsq))];
-        if (ppsq > psqr+1) is_outside[i][j]=1;
-        if (ppsq >= psqr-1) is_outside_c[i][j]=1;
+        if (ppsq > psqr+1) is_outside[i][j]+=1;
+        if (ppsq >= psqr-1) is_outside_c[i][j]+=1;
       }
     }
   }

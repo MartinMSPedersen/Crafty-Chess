@@ -2685,6 +2685,25 @@
 *           (wrong bishop) as drawn, even if the losing king could not make   *
 *           it to the corner square in time.                                  *
 *                                                                             *
+*   17.14   another endgame evaluation problem fixed.  the outside passed     *
+*           pawn code worked well, up until the point the pawn had to be      *
+*           given up to decoy the other side's king away from the remainder   *
+*           of the pawns.  Crafty now understands the king being closer to    *
+*           the pawns than the enemy king, and therefore transitions from     *
+*           outside passer to won king-pawn ending much cleaner.  new command *
+*           "selective" as requested by S. Lim, which allows the user to      *
+*           set the min/max null move R values (default=2/3).  they can be    *
+*           set to 0 which disables null-move totally, or they can be set     *
+*           larger than the default for testing.  minor changes to init.c     *
+*           sent by Eugene Nalimov to handle 64 bit pointer declarations for  *
+*           win64 executable compilation.  NetBSD changes included along with *
+*           a new Makefile that requires no editing to use for any known      *
+*           configuration ("make help" will explain how to use it).  this was *
+*           submitted by Johnny Lam.  serious changes to the outside passed   *
+*           pawn code.  the evaluator now understands that outside passers    *
+*           on _both_ sides of the board is basically winning.  same goes for *
+*           candidate passers.                                                *
+*                                                                             *
 *******************************************************************************
 */
 int main(int argc, char **argv) {

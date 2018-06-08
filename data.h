@@ -65,6 +65,9 @@
   extern int            singular_depth;
   extern int            threat_depth;
 
+  extern int            null_min;
+  extern int            null_max;
+
   extern int            pgn_suggested_percent;
   extern char           pgn_event[32];
   extern char           pgn_date[32];

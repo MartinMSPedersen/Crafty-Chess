@@ -367,12 +367,9 @@ int Option(TREE *tree) {
   else if (OptionMatch("computer",*args)) {
     Print(128,"playing a computer!\n");
     computer_opponent=1;
-    accept_draws=0;
-    book_selection_width=2;
+    accept_draws=1;
+    book_selection_width=1;
     usage_level=0;
-    book_weight_freq=1.0;
-    book_weight_eval=.1;
-    book_weight_learn=.2;
     books_file=(computer_bs_file) ? computer_bs_file : normal_bs_file;
   }
 /*
@@ -1587,6 +1584,7 @@ int Option(TREE *tree) {
       printf("score.....................print evaluation of position.\n");
       printf("sd n......................sets absolute search depth.\n");
       printf("search <move>.............search specified move only.\n");
+      printf("selective min max.........set null move depths.\n");
       printf("setboard <FEN>............sets board position to FEN position. [help]\n");
       printf("settc.....................set time controls.\n");
       printf("show book.................toggle book statistics.\n");
@@ -3243,6 +3241,25 @@ int Option(TREE *tree) {
     search_move=InputMove(tree,args[1],0,wtm,0,0);
     if (!search_move) search_move=InputMove(tree,args[1],0,ChangeSide(wtm),0,0);
     if (!search_move) printf("illegal move.\n");
+  }
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   "selective" command sets the mininum and maximum null- |
+|   move search depths (default=2 and 3 respectively).     |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  else if (OptionMatch("selective",*args)) {
+    if (nargs < 3) {
+      Print(4095,"usage: selective min max\n");
+    }
+    else {
+      null_min=(atoi(args[1])+1)*INCPLY;
+      null_max=(atoi(args[2])+1)*INCPLY;
+    }
+    Print(4095,"null depth set to %d/%d (min/max)\n",
+          null_min/INCPLY-1, null_max/INCPLY-1);
   }
 /*
  ----------------------------------------------------------

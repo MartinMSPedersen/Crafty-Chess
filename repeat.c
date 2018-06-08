@@ -14,7 +14,9 @@
 *                                                                              *
 *   RepetitionCheck() then scans the list to determine if this position has    *
 *   occurred before.  if so, the position will be treated as a draw by         *
-*   Search().                                                                  *
+*   Search().   note that for a repetition to happen in the first two plies    *
+*   of the tree, the position has to be repeated three times, while for plies  *
+*   beyond two, two repetitions trigger a draw score.                          *
 *                                                                              *
 *   RepetitionCheck() also handles 50-move draws.  the position[] structure    *
 *   countains the count of moves since the last capture or pawn push.  when    *
@@ -40,7 +42,9 @@ int RepetitionCheck(TREE *tree, int ply, int wtm) {
 |                                                          |
 |   insert the board into the next slot in the repetition  |
 |   list.  then scan the list.  we look for the case where |
-|   the position has been seen one time before.            |
+|   the position has been seen one time before, unless we  |
+|   are at ply 1 or 2, where we must have seen the same    |
+|   position twice prior to this.                          |
 |                                                          |
  ----------------------------------------------------------
 */

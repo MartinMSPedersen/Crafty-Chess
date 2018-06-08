@@ -27,7 +27,7 @@
 #if defined(UNIX)
 #  include <unistd.h>
 #  include <sys/types.h>
-#  if !defined(LINUX) && !defined(ALPHA) && !defined(HP) && !defined(CRAY1) && !defined(FreeBSD) && !defined(__EMX__)
+#  if !defined(LINUX) && !defined(ALPHA) && !defined(HP) && !defined(CRAY1) && !defined(FreeBSD) && !defined(NetBSD) && !defined(__EMX__)
 #    if defined(AIX)
 #      include <sys/termio.h>
 #      include <sys/select.h>

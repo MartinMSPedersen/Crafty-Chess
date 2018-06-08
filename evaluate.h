@@ -11,6 +11,7 @@
 #  define                         PAWN_WEAK_P1          (10)
 #  define                         PAWN_WEAK_P2          (15)
 #  define           PAWN_PROTECTED_PASSER_WINS          (50)
+#  define                        WON_KP_ENDING         (150)
  
 #  define                          PAWN_BASE_A           (0)
 #  define                          PAWN_BASE_B           (3)
