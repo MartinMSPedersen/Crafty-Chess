@@ -113,8 +113,6 @@
   BITBOARD       king_attacks_1[64];
   BITBOARD       king_attacks_2[64];
   BITBOARD       obstructed[64][64];
-  unsigned int   w_pawn_random32[64];
-  unsigned int   b_pawn_random32[64];
   BITBOARD       w_pawn_random[64];
   BITBOARD       b_pawn_random[64];
   BITBOARD       w_knight_random[64];
@@ -205,12 +203,12 @@
   BITBOARD       mask_clear_entry;
 
 # if (!defined(CRAY1) && !defined(USE_ASSEMBLY_B)) || defined(VC_INLINE_ASM)
-    unsigned char first_ones[65536];
-    unsigned char last_ones[65536];
+    unsigned char first_one[65536];
+    unsigned char last_one[65536];
 # endif
 
-  unsigned char  first_ones_8bit[256];
-  unsigned char  last_ones_8bit[256];
+  unsigned char  first_one_8bit[256];
+  unsigned char  last_one_8bit[256];
   unsigned char  pop_cnt_8bit[256];
   unsigned char  connected_passed[256];
   unsigned char  file_spread[256];
@@ -250,7 +248,7 @@
   unsigned int   max_split_blocks;
   volatile unsigned int   splitting;
 
-# define    VERSION                            "18.12"
+# define    VERSION                            "18.13"
   char      version[6] =                    {VERSION};
   PLAYING_MODE mode =                     normal_mode;
 
@@ -357,7 +355,8 @@
   int       mate_depth =                           45;
   int       null_min =                       3*INCPLY;  /* R=2 */
   int       null_max =                       4*INCPLY;  /* R=3 */
-  int       largest_positional_score =            100;
+  int       largest_positional_score =            300;
+  int       lazy_eval_cutoff =                    200;
   int       search_depth =                          0;
   unsigned int search_nodes =                       0;
   int       search_move =                           0;
@@ -720,8 +719,8 @@
                               -8,  2,  4,  4,  4,  4,  2, -8,
                               -8,  2,  6,  6,  6,  6,  2, -8,
                               -8,  2,  6,  6,  6,  6,  2, -8,
-                             -16,-16,  4,  4,  4,  4,-16,-16,
-                             -16,-16, -8, -8, -8, -8,-16,-16};
+                             -24,-24,  4,  4,  4,  4,-24,-24,
+                             -32,-16, -8, -8, -8, -8,-16,-32};
 
   signed char  bval_w[64] = {-16,-16, -8, -8, -8, -8,-16,-16,
                              -16,  2,  0,  0,  0,  0,  2,-16,

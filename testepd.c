@@ -4,7 +4,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 09/24/01 */
+/* last modified 11/20/01 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -31,7 +31,7 @@ void TestEPD(char *filename) {
   FILE *test_input;
   int i, move, right=0, wrong=0, correct;
   int time=0, len;
-  double nodes=0.0;
+  BITBOARD nodes=0;
   char *eof, *fen, *mvs, *title;
   float avg_depth=0.0;
   TREE * const tree=local[0];
@@ -111,7 +111,8 @@ void TestEPD(char *filename) {
     Print(4095,"\n");
     InitializeHashTables();
     last_pv.pathd=0;
-    largest_positional_score=100;
+    lazy_eval_cutoff=200;
+    largest_positional_score=300;
     thinking=1;
     tree->position[1]=tree->position[0];
     (void) Iterate(wtm,think,0);
@@ -153,7 +154,7 @@ void TestEPD(char *filename) {
     Print(4095,"number wrong......................%12d\n",wrong);
     Print(4095,"percentage right..................%12d\n",right*100/(right+wrong));
     Print(4095,"percentage wrong..................%12d\n",wrong*100/(right+wrong));
-    Print(4095,"total nodes searched..............%12.1f\n",nodes);
+    Print(4095,"total nodes searched..............%12llu\n",nodes);
     Print(4095,"average search depth..............%12.1f\n",avg_depth/(right+wrong));
     Print(4095,"nodes per second..................%12d\n",(int) ((float) nodes/(float) time*100.0));
   }

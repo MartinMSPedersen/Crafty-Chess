@@ -20,9 +20,9 @@
 */
 #if defined(SMP)
 int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
-              int depth, int ply, int mate_threat, int lp_extended,
-              int lp_recapture) {
-  register int extensions, extended, recapture, begin_root_nodes;
+              int depth, int ply, int mate_threat, int lp_recapture) {
+  register int extensions, extended, recapture;
+  BITBOARD begin_root_nodes;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -138,15 +138,14 @@ int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
  ----------------------------------------------------------
 */
       begin_root_nodes=tree->nodes_searched;
-      if (extended+lp_extended) {
-        int total=extended+lp_extended;
-        if (total > 2*INCPLY) extended=2*INCPLY-lp_extended;
+      if (extended) {
+        if (extended > INCPLY) extended=INCPLY;
         if (ply > 2*iteration_depth) extended>>=1;
       }
       extensions=extended-INCPLY;
       if (depth+extensions >= INCPLY)
         value=-Search(tree,-alpha-1,-alpha,ChangeSide(wtm),
-                      depth+extensions,ply+1,DO_NULL,extended,recapture);
+                      depth+extensions,ply+1,DO_NULL,recapture);
       else
         value=-Quiesce(tree,-alpha-1,-alpha,ChangeSide(wtm),ply+1);
       if (abort_search || tree->stop) {
@@ -156,7 +155,7 @@ int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
       if (value>alpha && value<beta) {
         if (depth+extensions >= INCPLY)
           value=-Search(tree,-beta,-alpha,ChangeSide(wtm),
-                        depth+extensions,ply+1,DO_NULL,extended,recapture);
+                        depth+extensions,ply+1,DO_NULL,recapture);
         else
           value=-Quiesce(tree,-beta,-alpha,ChangeSide(wtm),ply+1);
         if (abort_search || tree->stop) {

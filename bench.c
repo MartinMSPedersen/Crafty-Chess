@@ -4,7 +4,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 8/6/99 */
+/* last modified 11/20/01 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -20,7 +20,7 @@
 */
 
 void Bench(void) {
-  double nodes=0.0;
+  BITBOARD nodes=0;
   int old_do, old_st, old_sd, total_time_used;
   TREE * const tree=local[0];
 
@@ -52,12 +52,13 @@ void Bench(void) {
 
   InitializeHashTables();
   last_pv.pathd=0;
-  largest_positional_score=100;
+  lazy_eval_cutoff=200;
+  largest_positional_score=300;
   thinking=1;
   tree->position[1]=tree->position[0];
   (void) Iterate(wtm,think,0);
   thinking=0;
-  nodes+=(float)(tree->nodes_searched);
+  nodes+=tree->nodes_searched;
   total_time_used+=(program_end_time-program_start_time);
   printf(".");
   fflush(stdout);
@@ -70,12 +71,13 @@ void Bench(void) {
 
   InitializeHashTables();
   last_pv.pathd=0;
-  largest_positional_score=100;
+  lazy_eval_cutoff=200;
+  largest_positional_score=300;
   thinking=1;
   tree->position[1]=tree->position[0];
   (void) Iterate(wtm,think,0);
   thinking=0;
-  nodes+=(float)(tree->nodes_searched);
+  nodes+=tree->nodes_searched;
   total_time_used+=(program_end_time-program_start_time);
   printf(".");
   fflush(stdout);
@@ -87,12 +89,13 @@ void Bench(void) {
 
   InitializeHashTables();
   last_pv.pathd=0;
-  largest_positional_score=100;
+  lazy_eval_cutoff=200;
+  largest_positional_score=300;
   thinking=1;
   tree->position[1]=tree->position[0];
   (void) Iterate(wtm,think,0);
   thinking=0;
-  nodes+=(float)(tree->nodes_searched);
+  nodes+=tree->nodes_searched;
   total_time_used+=(program_end_time-program_start_time);
   printf(".");
   fflush(stdout);
@@ -104,12 +107,13 @@ void Bench(void) {
 
   InitializeHashTables();
   last_pv.pathd=0;
-  largest_positional_score=100;
+  lazy_eval_cutoff=200;
+  largest_positional_score=300;
   thinking=1;
   tree->position[1]=tree->position[0];
   (void) Iterate(wtm,think,0);
   thinking=0;
-  nodes+=(float)(tree->nodes_searched);
+  nodes+=tree->nodes_searched;
   total_time_used+=(program_end_time-program_start_time);
   printf(".");
   fflush(stdout);
@@ -121,12 +125,13 @@ void Bench(void) {
 
   InitializeHashTables();
   last_pv.pathd=0;
-  largest_positional_score=100;
+  lazy_eval_cutoff=200;
+  largest_positional_score=300;
   thinking=1;
   tree->position[1]=tree->position[0];
   (void) Iterate(wtm,think,0);
   thinking=0;
-  nodes+=(float)(tree->nodes_searched);
+  nodes+=tree->nodes_searched;
   total_time_used+=(program_end_time-program_start_time);
   printf(".");
   fflush(stdout);
@@ -139,17 +144,18 @@ void Bench(void) {
 
   InitializeHashTables();
   last_pv.pathd=0;
-  largest_positional_score=100;
+  lazy_eval_cutoff=200;
+  largest_positional_score=300;
   thinking=1;
   tree->position[1]=tree->position[0];
   (void) Iterate(wtm,think,0);
   thinking=0;
-  nodes+=(float)(tree->nodes_searched);
+  nodes+=tree->nodes_searched;
   total_time_used+=(program_end_time-program_start_time);
 
   printf("\n");
-  Print(4095,"Total nodes: %d\n", (int)nodes);
-  Print(4095,"Raw nodes per second: %d\n", (int)(nodes / (total_time_used / 100)));
+  Print(4095,"Total nodes: %lld\n", nodes);
+  Print(4095,"Raw nodes per second: %d\n", nodes / (total_time_used / 100));
   Print(4095,"Total elapsed time: %d\n", (total_time_used / 100));
   Print(4095,"SMP time-to-ply measurement: %f\n", (640.0 / (total_time_used / 100)));
   input_stream=stdin;

@@ -146,7 +146,6 @@ int Ponder(int wtm) {
  ----------------------------------------------------------
 */
   MakeMove(tree,0,ponder_move,wtm);
-  if (Rule50Moves(1) >= 90) ClearHashTableScores();
   last_opponent_move=ponder_move;
   if (ChangeSide(wtm))
     *tree->rephead_w++=HashKey;

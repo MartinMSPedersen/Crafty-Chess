@@ -25,6 +25,7 @@ void PreEvaluate(TREE *tree, int crafty_is_white) {
   static int hashing_end_game = 0;
   static int last_crafty_is_white = 0;
   static int last_trojan_check = 0;
+  static int last_clear = 0;
   int pawn_advance[8], pawn_base[8];
 /*
  ----------------------------------------------------------
@@ -173,7 +174,24 @@ void PreEvaluate(TREE *tree, int crafty_is_white) {
     if (trojan_check)
       Print(128,"              trojan check enabled\n");
     Print(128,"              clearing hash tables\n");
-    ClearHashTableScores();
+    ClearHashTableScores(1);
+    last_clear=move_number;
+  }
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   now for a kludge.  If we are beyond the halfway point  |
+|   with respect to a 50 move draw, then clear the hash    |
+|   scores every 10 moves to avoid hiding the 50 move      |
+|   result from the search due to hash hits.               |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  if (Rule50Moves(0) > 50) {
+    if (last_clear<move_number-10 || Rule50Moves(0)>90) {
+      ClearHashTableScores(0);
+      Print(128,"              clearing hash tables (50 moves fix)\n");
+    }
   }
   hashing_opening=opening;
   hashing_middle_game=middle_game;

@@ -94,7 +94,7 @@ void Interrupt(int ply) {
         end_time=ReadClock(time_type);
         time_used=(end_time-start_time);
         printf("stat01: %d ",time_used);
-        printf("%u ",tree->nodes_searched);
+        printf("%llu ",tree->nodes_searched);
         printf("%d ",iteration_depth); 
         for (i=0;i<n_root_moves;i++)
           if (!(root_moves[i].status&128)) left++;
@@ -106,7 +106,7 @@ void Interrupt(int ply) {
         end_time=ReadClock(time_type);
         time_used=(end_time-start_time);
         printf("time:%s ",DisplayTime(time_used));
-        printf("nodes:%u\n",tree->nodes_searched);
+        printf("nodes:%llu\n",tree->nodes_searched);
         DisplayTreeState(local[0],1,0,ply);
       }
     }

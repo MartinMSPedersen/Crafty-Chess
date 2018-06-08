@@ -4,9 +4,8 @@
 #include "data.h"
 
 void ValidatePosition(TREE *tree, int ply, int move, char *caller) {
-  BITBOARD temp, temp_occ, temp_occ_rl90, temp_occ_rl45;
+  BITBOARD temp, temp1, temp_occ, temp_occ_rl90, temp_occ_rl45;
   BITBOARD temp_occ_rr45, temp_occx;
-  unsigned int temp1;
   int i,square,error;
   int temp_score;
 /*
@@ -437,11 +436,11 @@ void ValidatePosition(TREE *tree, int ply, int move, char *caller) {
         break;
       case pawn:
         temp=temp ^ w_pawn_random[i];
-        temp1=temp1^w_pawn_random32[i];
+        temp1=temp1^w_pawn_random[i];
         break;
       case -pawn:
         temp=temp ^ b_pawn_random[i];
-        temp1=temp1^b_pawn_random32[i];
+        temp1=temp1^b_pawn_random[i];
         break;
       case -knight:
         temp=temp ^ b_knight_random[i];
@@ -476,13 +475,12 @@ void ValidatePosition(TREE *tree, int ply, int move, char *caller) {
     error=1;
   }
   if (error) {
-Lock(lock_io);
     Print(4095,"processor id: cpu-%d\n",tree->thread_id);
     Print(4095,"current move:\n");
     DisplayChessMove("move=",move);
     DisplayChessBoard(stdout,tree->pos);
     Print(4095,"called from %s, ply=%d\n",caller,ply);
-    Print(4095,"node=%d\n",tree->nodes_searched);
+    Print(4095,"node=%lld\n",tree->nodes_searched);
     Print(4095,"active path:\n");
     for (i=1;i<=ply;i++)
       DisplayChessMove("move=",move);

@@ -1143,7 +1143,7 @@ int Option(TREE *tree) {
           }
           hash_maska=(1<<log_hash)-1;
           hash_maskb=(1<<(log_hash+1))-1;
-          ClearHashTableScores();
+          ClearHashTableScores(1);
         }
         else {
           trans_ref_a=0;
@@ -2829,8 +2829,8 @@ int Option(TREE *tree) {
         Print(4095,"feature sigint=0 sigterm=0 reuse=1 analyze=1\n");
         Print(4095,"feature myname=\"Crafty-%s\" name=1\n",version);
         Print(4095,"feature playother=1 colors=0\n");
-        Print(4095,"variants=\"normal,nocastle\"\n");
-        Print(4095,"done=1\n");
+        Print(4095,"feature variants=\"normal,nocastle\"\n");
+        Print(4095,"feature done=1\n");
       }
     }
     else Print(4095,"ERROR, bogus xboard protocol version received.\n");

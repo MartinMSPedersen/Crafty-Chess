@@ -4,7 +4,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 12/14/00 */
+/* last modified 11/20/01 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -227,7 +227,8 @@ void SetBoard(SEARCH_POSITION *position, int nargs, char *args[], int special) {
     tree->pv[0].pathd=0;
     tree->pv[0].pathl=0;
     moves_out_of_book=0;
-    largest_positional_score=100;
+    lazy_eval_cutoff=200;
+    largest_positional_score=300;
     opening=0;
     middle_game=1;
     end_game=0;

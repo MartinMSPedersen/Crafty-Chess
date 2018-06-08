@@ -5,7 +5,7 @@
 #include "data.h"
 #include "epdglue.h"
 
-/* last modified 10/10/01 */
+/* last modified 10/23/01 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -19,7 +19,7 @@
 ********************************************************************************
 */
 int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
-           int ply, int do_null, int lp_extended, int lp_recapture) {
+           int ply, int do_null, int lp_recapture) {
   register int moves_searched=0;
   register int o_alpha, value=0;
   register int extensions, extended, recapture, pieces;
@@ -212,7 +212,7 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
     if (null_depth) {
       if (depth-null_depth >= INCPLY)
         value=-Search(tree,-beta,1-beta,ChangeSide(wtm),
-                      depth-null_depth,ply+1,NO_NULL,0,0);
+                      depth-null_depth,ply+1,NO_NULL,0);
       else
         value=-Quiesce(tree,-beta,1-beta,ChangeSide(wtm),ply+1);
       HashKey=save_hash_key;
@@ -249,13 +249,13 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
     }
     tree->current_move[ply]=0;
     if (depth-2*INCPLY >= INCPLY)
-      value=Search(tree,alpha,beta,wtm,depth-2*INCPLY,ply,DO_NULL,0,0);
+      value=Search(tree,alpha,beta,wtm,depth-2*INCPLY,ply,DO_NULL,0);
     else
       value=Quiesce(tree,alpha,beta,wtm,ply);
     if (abort_search || tree->stop) return(0);
     if (value <= alpha) {
       if (depth-2*INCPLY >= INCPLY)
-        value=Search(tree,-MATE,beta,wtm,depth-2*INCPLY,ply,DO_NULL,0,0);
+        value=Search(tree,-MATE,beta,wtm,depth-2*INCPLY,ply,DO_NULL,0);
       else
         value=Quiesce(tree,-MATE,beta,wtm,ply);
       if (abort_search || tree->stop) return(0);
@@ -388,15 +388,14 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
 |                                                          |
  ----------------------------------------------------------
 */
-        if (extended+lp_extended) {
-          int total=extended+lp_extended;
-          if (total > 2*INCPLY) extended=2*INCPLY-lp_extended;
+        if (extended) {
+          if (extended > INCPLY) extended=INCPLY;
           if (ply > 2*iteration_depth) extended>>=1;
         }
         extensions=extended-INCPLY;
         if (depth+extensions >= INCPLY)
           value=-Search(tree,-beta,-alpha,ChangeSide(wtm),
-                        depth+extensions,ply+1,DO_NULL,extended,recapture);
+                        depth+extensions,ply+1,DO_NULL,recapture);
         else
           value=-Quiesce(tree,-beta,-alpha,ChangeSide(wtm),ply+1);
         if (abort_search || tree->stop) {
@@ -405,15 +404,14 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
         }
       }
       else {
-        if (extended+lp_extended) {
-          int total=extended+lp_extended;
-          if (total > 2*INCPLY) extended=2*INCPLY-lp_extended;
+        if (extended) {
+          if (extended > INCPLY) extended=INCPLY;
           if (ply > 2*iteration_depth) extended>>=1;
         }
         extensions=extended-INCPLY;
         if (depth+extensions >= INCPLY)
           value=-Search(tree,-alpha-1,-alpha,ChangeSide(wtm),
-                        depth+extensions,ply+1,DO_NULL,extended,recapture);
+                        depth+extensions,ply+1,DO_NULL,recapture);
         else
           value=-Quiesce(tree,-alpha-1,-alpha,ChangeSide(wtm),ply+1);
         if (abort_search || tree->stop) {
@@ -423,7 +421,7 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
         if (value>alpha && value<beta) {
           if (depth+extensions >= INCPLY)
             value=-Search(tree,-beta,-alpha,ChangeSide(wtm),
-                          depth+extensions,ply+1,DO_NULL,extended,recapture);
+                          depth+extensions,ply+1,DO_NULL,recapture);
           else
             value=-Quiesce(tree,-beta,-alpha,ChangeSide(wtm),ply+1);
           if (abort_search || tree->stop) {
@@ -456,7 +454,6 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
       tree->depth=depth;
       tree->mate_threat=mate_threat;
       tree->lp_recapture=lp_recapture;
-      tree->lp_extended=lp_extended;
       if(Thread(tree)) {
         if (abort_search || tree->stop) return(0);
         if (CheckInput()) Interrupt(ply);

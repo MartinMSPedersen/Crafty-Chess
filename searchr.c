@@ -5,7 +5,7 @@
 #include "data.h"
 #include "epdglue.h"
 
-/* modified 10/10/01 */
+/* modified 10/23/01 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -21,7 +21,8 @@
 int SearchRoot(TREE *tree, int alpha, int beta, int wtm, int depth) {
   register int first_move=1;
   register int initial_alpha, value;
-  register int extensions, extended, begin_root_nodes;
+  register int extensions, extended;
+  BITBOARD begin_root_nodes;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -100,7 +101,7 @@ int SearchRoot(TREE *tree, int alpha, int beta, int wtm, int depth) {
     if (first_move) {
       if (depth+extensions >= INCPLY)
         value=-Search(tree,-beta,-alpha,ChangeSide(wtm),
-                      depth+extensions,2,DO_NULL,extended,0);
+                      depth+extensions,2,DO_NULL,0);
       else
         value=-Quiesce(tree,-beta,-alpha,ChangeSide(wtm),2);
       if (abort_search) {
@@ -112,7 +113,7 @@ int SearchRoot(TREE *tree, int alpha, int beta, int wtm, int depth) {
     else {
       if (depth+extensions >= INCPLY)
         value=-Search(tree,-alpha-1,-alpha,ChangeSide(wtm),
-                      depth+extensions,2,DO_NULL,extended,0);
+                      depth+extensions,2,DO_NULL,0);
       else
         value=-Quiesce(tree,-alpha-1,-alpha,ChangeSide(wtm),2);
       if (abort_search) {
@@ -122,7 +123,7 @@ int SearchRoot(TREE *tree, int alpha, int beta, int wtm, int depth) {
       if ((value > alpha) && (value < beta)) {
       if (depth+extensions >= INCPLY)
         value=-Search(tree,-beta,-alpha,ChangeSide(wtm),
-                      depth+extensions,2,DO_NULL,extended,0);
+                      depth+extensions,2,DO_NULL,0);
       else
         value=-Quiesce(tree,-beta,-alpha,ChangeSide(wtm),2);
         if (abort_search) {
@@ -154,7 +155,6 @@ int SearchRoot(TREE *tree, int alpha, int beta, int wtm, int depth) {
       tree->depth=depth;
       tree->mate_threat=0;
       tree->lp_recapture=0;
-      tree->lp_extended=0;
       if(Thread(tree)) {
         if (abort_search || tree->stop) return(0);
         if (CheckInput()) Interrupt(1);
@@ -284,7 +284,7 @@ void SearchTrace(TREE *tree, int ply, int depth, int wtm,
   printf("%d  %s d:%5.2f [%s,",
          ply,OutputMove(tree,tree->current_move[ply],ply,wtm),
          (float) depth/ (float) INCPLY,DisplayEvaluation(alpha,1));
-  printf("%s] n:%u %s(%d)", DisplayEvaluation(beta,1),
+  printf("%s] n:%llu %s(%d)", DisplayEvaluation(beta,1),
          (tree->nodes_searched),name,phase);
   if (max_threads > 1) printf(" (t=%d) ",tree->thread_id);
   printf("\n");

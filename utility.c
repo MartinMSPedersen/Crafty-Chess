@@ -186,7 +186,7 @@ int CheckInput(void) {
 #  endif
 #endif
 
-void ClearHashTableScores(void) {
+void ClearHashTableScores(int dopawnstoo) {
   int i;
 
   if (trans_ref_a && trans_ref_b) {
@@ -205,19 +205,21 @@ void ClearHashTableScores(void) {
                               mask_clear_entry) | (BITBOARD) 65536;
       (trans_ref_b+i)->word2^=(trans_ref_b+i)->word1;
     }
-    for (i=0;i<pawn_hash_table_size;i++) {
-      (pawn_hash_table+i)->key=0;
-      (pawn_hash_table+i)->p_score=0;
-      (pawn_hash_table+i)->protected=0;
-      (pawn_hash_table+i)->black_defects_k=0;
-      (pawn_hash_table+i)->black_defects_q=0;
-      (pawn_hash_table+i)->white_defects_k=0;
-      (pawn_hash_table+i)->white_defects_q=0;
-      (pawn_hash_table+i)->passed_w=0;
-      (pawn_hash_table+i)->passed_w=0;
-      (pawn_hash_table+i)->outside=0;
-      (pawn_hash_table+i)->candidates_w=0;
-      (pawn_hash_table+i)->candidates_b=0;
+    if (dopawnstoo) {
+      for (i=0;i<pawn_hash_table_size;i++) {
+        (pawn_hash_table+i)->key=0;
+        (pawn_hash_table+i)->p_score=0;
+        (pawn_hash_table+i)->protected=0;
+        (pawn_hash_table+i)->black_defects_k=0;
+        (pawn_hash_table+i)->black_defects_q=0;
+        (pawn_hash_table+i)->white_defects_k=0;
+        (pawn_hash_table+i)->white_defects_q=0;
+        (pawn_hash_table+i)->passed_w=0;
+        (pawn_hash_table+i)->passed_w=0;
+        (pawn_hash_table+i)->outside=0;
+        (pawn_hash_table+i)->candidates_w=0;
+        (pawn_hash_table+i)->candidates_b=0;
+      }
     }
   }
   local[0]->pawn_score.key=0;
@@ -966,7 +968,8 @@ void NewGame(int save) {
     draw_counter=0;
     usage_level=0;
     learning=save_learning;
-    largest_positional_score=100;
+    lazy_eval_cutoff=200;
+    largest_positional_score=300;
     predicted=0;
     whisper_depth=0;
     tree->nodes_searched=0;

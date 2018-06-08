@@ -2598,6 +2598,8 @@
 *   17.4    minor bug with "black" command (extra line from unknown origin)   *
 *           would make "black" command fail to do anything.  minor tweaks to  *
 *           passed pawn scoring again...  and a slight performance improve-   *
+*           ment in how EvaluateKingSafety() is called.  code for "bk"        *
+*           from xboard was somehow lost.  it now provides a book hint.       *
 *                                                                             *
 *   17.5    rewrite of outside passed pawn/pawn majority code.  it is now     *
 *           much faster by using pre-computed bitmaps to recognize the right  *
@@ -2830,6 +2832,24 @@
 *           by EvaluateWinner().  This function returns an indicator that     *
 *           specifices whether white, black, both or neither can win in the   *
 *           present position.                                                 *
+*                                                                             *
+*   18.13   Deep Blue extension limit removed and restored to one ply of      *
+*           extension per ply of search.  pruning in q-search fixed so that   *
+*           a capture will be considered if it takes the total material on    *
+*           the board down to a bishop or less for the opponent, as that can  *
+*           greatly influence the evaluation with the EvaluateWinner() code.  *
+*           as the 50 move rule draws near, the hash table scores are marked  *
+*           as invalid every 5 moves so that hashing can't hide potential     *
+*           50-move-rule draws.  lazy evaluation code modified to be more     *
+*           conservative, since in endgames the positional score can be a     *
+*           large change.  EvaluatePassedPawnRaces() fixed so that if one     *
+*           side has two pawns that are far enough apart, it will recognize   *
+*           that even though the king is "in the square" of either, it can't  *
+*           always stay in the square of one if it has to capture the other.  *
+*           pawn hash signature restored to 64 bits after testing proved that *
+*           32 was producing an unacceptable number of collisions.  search    *
+*           node counter is now 64 bits as well to avoid overflows.  but in   *
+*           the outside passed pawn code fixed (bad mask).                    *
 *                                                                             *
 *******************************************************************************
 */

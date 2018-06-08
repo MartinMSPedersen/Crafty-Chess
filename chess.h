@@ -321,7 +321,7 @@ typedef  struct {
   BITBOARD       b_rook;
   BITBOARD       b_queen;
   BITBOARD       hash_key;
-  unsigned int   pawn_hash_key;
+  BITBOARD       pawn_hash_key;
   int            material_evaluation;
   signed char    white_king;
   signed char    black_king;
@@ -343,7 +343,7 @@ typedef struct {
 } HASH_ENTRY;
 
 typedef struct {
-  unsigned int key;
+  BITBOARD key;
   short    p_score;
 
   unsigned char allb;
@@ -360,6 +360,7 @@ typedef struct {
 
   unsigned char protected;
   unsigned char outside;
+  unsigned char open_files;
 } PAWN_HASH_ENTRY;
 
 typedef struct {
@@ -416,13 +417,13 @@ struct tree {
   BITBOARD        *rephead_w;
   BITBOARD        *rephead_b;
   BITBOARD        all_pawns;
+  BITBOARD        nodes_searched;
   SEARCH_POSITION position[MAXPLY+2];
-  unsigned int    save_pawn_hash_key[MAXPLY+2];
+  BITBOARD        save_pawn_hash_key[MAXPLY+2];
   int             current_move[MAXPLY];
   int             hash_move[MAXPLY];
   int             *last[MAXPLY];
   PATH            pv[MAXPLY];
-  unsigned int    nodes_searched;
   unsigned int    fail_high;
   unsigned int    fail_high_first;
   unsigned int    evaluations;
@@ -462,7 +463,6 @@ struct tree {
   int             depth;
   int             ply;
   int             mate_threat;
-  int             lp_extended;
   int             lp_recapture;
   int             used;
 };
@@ -565,7 +565,7 @@ void           BookSort(BB_POSITION*, int, int);
 #endif
 BB_POSITION    BookUpNextPosition(int, int);
 int            CheckInput(void);
-void           ClearHashTableScores(void);
+void           ClearHashTableScores(int);
 void           ComputeAttacksAndMobility(void);
 void           CopyFromSMP(TREE*, TREE*);
 TREE*          CopyToSMP(TREE*);
@@ -683,10 +683,10 @@ void           ResignOrDraw(TREE*, int);
 void           RestoreGame(void);
 char*          Reverse(void);
 void           RootMoveList(int);
-int            Search(TREE*, int, int, int, int, int, int, int, int);
+int            Search(TREE*, int, int, int, int, int, int, int);
 void           SearchOutput(TREE*, int, int);
 int            SearchRoot(TREE*, int, int, int, int);
-int            SearchSMP(TREE*, int, int, int, int, int, int, int, int, int);
+int            SearchSMP(TREE*, int, int, int, int, int, int, int, int);
 void           SearchTrace(TREE*, int, int, int, int, int, char*, int);
 void           SetBoard(SEARCH_POSITION*,int,char**,int);
 void           SetChessBitBoards(SEARCH_POSITION*);
@@ -882,6 +882,9 @@ void           Whisper(int, int, int, int, int, unsigned int, int, int, char*);
 #define RankDistance(a,b) abs(((a)>>3) - ((b)>>3))
 #define Distance(a,b) Max(FileDistance(a,b),RankDistance(a,b))
 #define DrawScore(wtm)                 (draw_score[wtm])
+#define PopCnt8Bit(a) (pop_cnt_8bit[a])
+#define FirstOne8Bit(a) (first_one_8bit[a])
+#define LastOne8Bit(a) (last_one_8bit[a])
 
 /*  
     the following macro is used to determine if one side is in check.  it
@@ -1135,8 +1138,6 @@ void           Whisper(int, int, int, int, int, unsigned int, int, int, char*);
 #define SetRL45(a,b)        b=SetMaskRL45(a)|(b)
 #define SetRR45(a,b)        b=SetMaskRR45(a)|(b)
 
-#define HashPB32(a,b)       b=b_pawn_random32[a]^(b)
-#define HashPW32(a,b)       b=w_pawn_random32[a]^(b)
 #define HashPB(a,b)         b=b_pawn_random[a]^(b)
 #define HashPW(a,b)         b=w_pawn_random[a]^(b)
 #define HashNB(a,b)         b=b_knight_random[a]^(b)

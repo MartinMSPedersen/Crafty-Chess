@@ -4,7 +4,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 04/16/97 */
+/* last modified 11/20/01 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -137,7 +137,8 @@ void Edit(void) {
   *tree->rephead_w++=HashKey;
   tree->position[0].rule_50_moves=0;
   moves_out_of_book=0;
-  largest_positional_score=100;
+  lazy_eval_cutoff=200;
+  largest_positional_score=300;
   opening=0;
   middle_game=1;
   end_game=0;

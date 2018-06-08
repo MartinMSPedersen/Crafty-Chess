@@ -76,9 +76,9 @@ MakePieceMove:
       ClearSet(bit_move,WhitePawns);
       ClearSet(bit_move,WhitePieces);
       HashPW(from,HashKey);
-      HashPW32(from,PawnHashKey);
+      HashPW(from,PawnHashKey);
       HashPW(to,HashKey);
-      HashPW32(to,PawnHashKey);
+      HashPW(to,PawnHashKey);
       if (captured == 1) {
         if(!PcOnSq(to)) {
           ClearRL90(to-8,OccupiedRL90);
@@ -87,7 +87,7 @@ MakePieceMove:
           Clear(to-8,BlackPawns);
           Clear(to-8,BlackPieces);
           HashPB(to-8,HashKey);
-          HashPB32(to-8,PawnHashKey);
+          HashPB(to-8,PawnHashKey);
           PcOnSq(to-8)=0;
           Material+=PAWN_VALUE;
           TotalBlackPawns--;
@@ -110,7 +110,7 @@ MakePieceMove:
         Material-=PAWN_VALUE;
         Clear(to,WhitePawns);
         HashPW(to,HashKey);
-        HashPW32(to,PawnHashKey);
+        HashPW(to,PawnHashKey);
         switch (promote) {
         case knight:
           Set(to,WhiteKnights);
@@ -160,9 +160,9 @@ MakePieceMove:
       ClearSet(bit_move,BlackPawns);
       ClearSet(bit_move,BlackPieces);
       HashPB(from,HashKey);
-      HashPB32(from,PawnHashKey);
+      HashPB(from,PawnHashKey);
       HashPB(to,HashKey);
-      HashPB32(to,PawnHashKey);
+      HashPB(to,PawnHashKey);
       if (captured == 1) {
         if(!PcOnSq(to)) {
           ClearRL90(to+8,OccupiedRL90);
@@ -171,7 +171,7 @@ MakePieceMove:
           Clear(to+8,WhitePawns);
           Clear(to+8,WhitePieces);
           HashPW(to+8,HashKey);
-          HashPW32(to+8,PawnHashKey);
+          HashPW(to+8,PawnHashKey);
           PcOnSq(to+8)=0;
           Material-=PAWN_VALUE;
           TotalWhitePawns--;
@@ -194,7 +194,7 @@ MakePieceMove:
         Material+=PAWN_VALUE;
         Clear(to,BlackPawns);
         HashPB(to,HashKey);
-        HashPB32(to,PawnHashKey);
+        HashPB(to,PawnHashKey);
         switch (promote) {
         case knight:
           Set(to,BlackKnights);
@@ -457,7 +457,7 @@ MakePieceMove:
         Clear(to,BlackPawns);
         Clear(to,BlackPieces);
         HashPB(to,HashKey);
-        HashPB32(to,PawnHashKey);
+        HashPB(to,PawnHashKey);
         Material+=PAWN_VALUE;
         TotalBlackPawns--;
       }
@@ -465,7 +465,7 @@ MakePieceMove:
         Clear(to,WhitePawns);
         Clear(to,WhitePieces);
         HashPW(to,HashKey);
-        HashPW32(to,PawnHashKey);
+        HashPW(to,PawnHashKey);
         Material-=PAWN_VALUE;
         TotalWhitePawns--;
       }

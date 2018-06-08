@@ -630,7 +630,7 @@ void InitializeAttackBoards(void) {
       for (pcs=0;pcs<256;pcs++) {
         attacks=InitializeFindAttacks(7-File(square),pcs,8);
         while (attacks) {
-          sq=first_ones_8bit[attacks];
+          sq=first_one_8bit[attacks];
           rook_attacks_r0[square][pcs]=
             rook_attacks_r0[square][pcs] | SetMask((square&56)+sq);
           attacks=attacks&(~(1<<(7-sq)));
@@ -651,7 +651,7 @@ void InitializeAttackBoards(void) {
       for (pcs=0;pcs<256;pcs++) {
         attacks=InitializeFindAttacks(Rank(square),pcs,8);
         while (attacks) {
-          sq=first_ones_8bit[attacks];
+          sq=first_one_8bit[attacks];
           rook_attacks_rl90[square][pcs]=
             rook_attacks_rl90[square][pcs] | 
                SetMask(init_r90[((square&7)<<3)+sq]);
@@ -676,7 +676,7 @@ void InitializeAttackBoards(void) {
         attacks=InitializeFindAttacks(tsq,pcs,diagonal_length[rsq])<<
                           (8-diagonal_length[rsq]);
         while (attacks) {
-          sq=first_ones_8bit[attacks];
+          sq=first_one_8bit[attacks];
           bishop_attacks_rl45[square][pcs]=
             bishop_attacks_rl45[square][pcs] | 
                SetMask(init_ul45[sq+bias_rl45[rsq]]);
@@ -708,7 +708,7 @@ void InitializeAttackBoards(void) {
         attacks=InitializeFindAttacks(tsq,pcs,diagonal_length[rsq])<<
                           (8-diagonal_length[rsq]);
         while (attacks) {
-          sq=first_ones_8bit[attacks];
+          sq=first_one_8bit[attacks];
           bishop_attacks_rr45[square][pcs]=
             bishop_attacks_rr45[square][pcs] | 
                SetMask(init_ur45[sq+bias_rl45[rsq]]);
@@ -746,7 +746,8 @@ void InitializeChessBoard(SEARCH_POSITION *new_pos) {
     opening=1;
     middle_game=0;
     end_game=0;
-    largest_positional_score=100;
+    lazy_eval_cutoff=200;
+    largest_positional_score=300;
     wtm=1;
 /*
    place pawns
@@ -820,12 +821,12 @@ void SetChessBitBoards(SEARCH_POSITION *new_pos) {
     if(tree->pos.board[i]==pawn) {
       tree->pos.w_pawn=tree->pos.w_pawn | SetMask(i);
       tree->pos.hash_key=tree->pos.hash_key ^ w_pawn_random[i];
-      tree->pos.pawn_hash_key=tree->pos.pawn_hash_key^w_pawn_random32[i];
+      tree->pos.pawn_hash_key=tree->pos.pawn_hash_key^w_pawn_random[i];
     }
     if(tree->pos.board[i]==-pawn) {
       tree->pos.b_pawn=tree->pos.b_pawn | SetMask(i);
       tree->pos.hash_key=tree->pos.hash_key ^ b_pawn_random[i];
-      tree->pos.pawn_hash_key=tree->pos.pawn_hash_key^b_pawn_random32[i];
+      tree->pos.pawn_hash_key=tree->pos.pawn_hash_key^b_pawn_random[i];
     }
   }
 /*
@@ -1450,10 +1451,6 @@ void InitializeRandomHash(void) {
   for (i=0;i<2;i++) {
     wtm_random[i]=Random64();
   }
-  for (i=0;i<64;i++) {
-    w_pawn_random32[i]=Random32();
-    b_pawn_random32[i]=Random32();
-  }
 }
 
 #if defined(SMP)
@@ -1483,13 +1480,13 @@ void InitializeZeroMasks(void) {
   int i, j, dist, maxd;
 #if !defined(CRAY1) && !defined(USE_ASSEMBLY_B)
   int maskl,maskr;
-  first_ones[0]=16;
-  last_ones[0]=16;
+  first_one[0]=16;
+  last_one[0]=16;
   for (i=1;i<65536;i++){
     maskl=32768;
     for(j=0;j<16;j++){
       if ((maskl & i)){
-        first_ones[i]=j;
+        first_one[i]=j;
         break;
       }
       maskl=maskl>>1;
@@ -1497,15 +1494,15 @@ void InitializeZeroMasks(void) {
     maskr=1;
     for(j=0;j<16;j++){
       if ((maskr & i)){
-        last_ones[i]=15-j;
+        last_one[i]=15-j;
         break;
       }
       maskr=maskr<<1;
     }
   }
 #endif
-  first_ones_8bit[0]=8;
-  last_ones_8bit[0]=8;
+  first_one_8bit[0]=8;
+  last_one_8bit[0]=8;
   pop_cnt_8bit[0]=0;
   connected_passed[0]=0;
   for (i=0;i<256;i++){
@@ -1515,13 +1512,13 @@ void InitializeZeroMasks(void) {
       if (i & (1<<j)) pop_cnt_8bit[i]++;
     for (j=0;j<8;j++){
       if (i & (1<<(7-j))){
-        first_ones_8bit[i]=j;
+        first_one_8bit[i]=j;
         break;
       }
     }
     for (j=7;j>=0;j--){
       if (i & (1<<(7-j))){
-        last_ones_8bit[i]=j;
+        last_one_8bit[i]=j;
         break;
       }
     }
@@ -1566,15 +1563,15 @@ void InitializeZeroMasks(void) {
       int ppsq1, ppsq2, psql, psqr;
       is_outside[i][j]=0;
       is_outside_c[i][j]=0;
-      ppsq1=first_ones_8bit[i];
+      ppsq1=first_one_8bit[i];
       if (ppsq1 < 8) {
-        psql=first_ones_8bit[j&(255-(128>>ppsq1))];
+        psql=first_one_8bit[j&(255-(128>>ppsq1))];
         if (ppsq1 < psql-1) is_outside[i][j]+=1;
         if (ppsq1 <= psql+1) is_outside_c[i][j]+=1;
       }
-      ppsq2=last_ones_8bit[i];
+      ppsq2=last_one_8bit[i];
       if (ppsq2 < 8) {
-        psqr=last_ones_8bit[j&(255-(128>>ppsq2))];
+        psqr=last_one_8bit[j&(255-(128>>ppsq2))];
         if (ppsq2 > psqr+1) is_outside[i][j]+=1;
         if (ppsq2 >= psqr-1) is_outside_c[i][j]+=1;
       }

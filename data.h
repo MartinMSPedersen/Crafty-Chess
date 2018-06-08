@@ -111,6 +111,7 @@
   extern int            search_failed_high;
   extern int            search_failed_low;
   extern int            largest_positional_score;
+  extern int            lazy_eval_cutoff;
   extern int            root_alpha;
   extern int            root_beta;
   extern int            last_root_value;
@@ -237,6 +238,8 @@
 
   extern const char     xlate[15];
   extern const char     empty[9];
+  extern const char     maj[18];
+  extern const char     min[12];
 
   extern signed char    white_outpost[64];
   extern signed char    black_outpost[64];
@@ -337,8 +340,6 @@
   extern BITBOARD       king_attacks_2[64];
   extern BITBOARD       obstructed[64][64];
 
-  extern unsigned int   w_pawn_random32[64];
-  extern unsigned int   b_pawn_random32[64];
   extern BITBOARD       w_pawn_random[64];
   extern BITBOARD       b_pawn_random[64];
   extern BITBOARD       w_knight_random[64];
@@ -434,11 +435,11 @@
   extern BITBOARD       mask_clear_entry;
 
 # if !defined(CRAY1) && !defined(USE_ASSEMBLY_B)
-    extern unsigned char  first_ones[65536];
-    extern unsigned char  last_ones[65536];
+    extern unsigned char  first_one[65536];
+    extern unsigned char  last_one[65536];
 # endif
-  extern unsigned char  first_ones_8bit[256];
-  extern unsigned char  last_ones_8bit[256];
+  extern unsigned char  first_one_8bit[256];
+  extern unsigned char  last_one_8bit[256];
   extern unsigned char  pop_cnt_8bit[256];
   extern unsigned char  connected_passed[256];
   extern unsigned char  file_spread[256];
