@@ -3575,6 +3575,19 @@
  *   22.3    corrected a bug in analysis mode where "back n" would crash.  A   *
  *           bad array reference broke this during recent changes.             *
  *                                                                             *
+ *   22.4    corrected a bug in NextRootMove() that tries to calculate the NPS *
+ *           by adding up the node counters in each used split block.  However *
+ *           should you not use all possible threads (mt=n where n is < the    *
+ *           max CPUS value compiled in) then all split blocks will not be     *
+ *           properly initialized (not even allocated) which will cause a      *
+ *           segfault instantly.  pawn island evaluation term has also been    *
+ *           removed as cluster testing showed that setting these values to    *
+ *           zero produced a +14 Elo gain.  There might be a better value for  *
+ *           them, but the old value was too high.  Further cluster testing is *
+ *           underway to test other (but smaller than original) values to see  *
+ *           if one of them turns out to be better than zero.  So far, no, but *
+ *           the test has not completed.                                       *
+ *                                                                             *
  *******************************************************************************
  */
 int main(int argc, char **argv)

@@ -67,7 +67,7 @@ int NextRootMove(TREE * RESTRICT tree, TREE * RESTRICT mytree, int wtm)
                 wtm));
         total_nodes = block[0]->nodes_searched;
         for (i = 1; i < MAX_BLOCKS; i++)
-          if (block[i]->used)
+          if (block[i] && block[i]->used)
             total_nodes += block[i]->nodes_searched;
         nodes_per_second = total_nodes * 100 / Max(end_time - start_time, 1);
         i = strlen(mytree->root_move_text);

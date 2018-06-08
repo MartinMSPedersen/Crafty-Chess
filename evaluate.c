@@ -1682,23 +1682,6 @@ void EvaluatePawns(TREE * RESTRICT tree, int side)
 /*
  ************************************************************
  *                                                          *
- *   next, count the number of pawn islands for each side   *
- *   and add a penalty for each to avoid creating so many   *
- *   weaknesses the endgame can't be held.                  *
- *                                                          *
- ************************************************************
- */
-  score_mg -= pawn_islands[mg][islands[tree->pawn_score.all[side]]];
-  score_eg -= pawn_islands[eg][islands[tree->pawn_score.all[side]]];
-#ifdef DEBUGP
-  printf("%s pawn[islands] score_mg=%d\n", (side) ? "white" : "black",
-      score_mg);
-  printf("%s pawn[islands] score_eg=%d\n", (side) ? "white" : "black",
-      score_eg);
-#endif
-/*
- ************************************************************
- *                                                          *
  *   now evaluate king safety.                              *
  *                                                          *
  *   this uses the function EvaluateKingsFile() which       *

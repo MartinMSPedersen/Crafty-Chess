@@ -1009,30 +1009,6 @@ void InitializePawnMasks(void)
       ~(rank_mask[RANK1] | rank_mask[RANK8] | file_mask[FILEA] |
       file_mask[FILEH]);
 /*
-   this array is indexed by an 8-bit value that has a one for
-   each file with a pawn of a specific color.  it returns the
-   number of "pawn islands" based on that file status.
- */
-  for (i = 0; i < 256; i++) {
-    islands[i] = 0;
-    file = 1;
-    while (file <= 128) {
-      while (!(i & file)) {
-        file <<= 1;
-        if (file > 128)
-          break;
-      }
-      if (file <= 128) {
-        islands[i]++;
-        while (i & file) {
-          file <<= 1;
-          if (file > 128)
-            break;
-        }
-      }
-    }
-  }
-/*
  initialize masks used to evaluate pawn races.  these masks are
  used to determine if the opposing king is in a position to stop a
  passed pawn from racing down and queening.  the data is organized

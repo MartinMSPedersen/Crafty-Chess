@@ -332,7 +332,6 @@ extern unsigned char lsb[65536];
 #  endif
 extern unsigned char msb_8bit[256];
 extern unsigned char lsb_8bit[256];
-extern unsigned char islands[256];
 extern unsigned char pop_cnt_8bit[256];
 extern unsigned char connected_passed[256];
 extern unsigned char file_spread[256];
@@ -396,7 +395,6 @@ extern int pawn_can_promote;
 extern int pawn_duo[2];
 extern int pawn_weak[2];
 extern int pawn_isolated[2];
-extern int pawn_islands[2][5];
 extern int split_passed[2];
 extern int king_king_tropism;
 extern int bishop_trapped;
