@@ -68,7 +68,7 @@ int Thread(TREE *tree) {
   for (proc=0;proc<max_threads && nblocks<max_thread_group;proc++) {
     tree->siblings[proc]=0;
     if (thread[proc] == 0) {
-      block=CopyToSMP(tree);
+      block=CopyToSMP(tree,proc);
       if (!block) continue;
       nblocks++;
       tree->siblings[proc]=block;
@@ -132,7 +132,23 @@ int Thread(TREE *tree) {
   return(1);
 }
 
-/* modified 04/09/98 */
+/*
+********************************************************************************
+*                                                                              *
+*   WaitForAllThreadsInitialized() waits till all max_threads are initialized. *
+*   Otherwise we can try to use not yest initialized local[] data.             *
+*                                                                              *
+********************************************************************************
+*/
+
+static volatile int InitializedThreads = 0;
+
+void WaitForAllThreadsInitialized(void) {
+  while (InitializedThreads < max_threads)
+      ; /* Do nothing */
+}
+
+/* modified 10/21/03 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -142,13 +158,51 @@ int Thread(TREE *tree) {
 *                                                                              *
 ********************************************************************************
 */
+
 #if defined(CLONE)
 int ThreadInit(void *tid) {
 #else
 void * STDCALL ThreadInit(void *tid) {
 #endif
+  ThreadMalloc((int) tid);
+  WaitForAllThreadsInitialized();
   ThreadWait((int) tid, (TREE*) 0);
   return(0);
+}
+
+/* modified 10/21/03 */
+/*
+********************************************************************************
+*                                                                              *
+*   ThreadMalloc() is called from the ThreadInit() function.  it malloc's the  *
+*   split blocks in the local memory for the processor associated with the     *
+*   specific thread that is calling this code.                                 *
+*                                                                              *
+********************************************************************************
+*/
+#if defined (_WIN32) || defined (_WIN64)
+extern void *WinMalloc(size_t, int);
+#define MALLOC(cb, iThread) WinMalloc(cb, iThread) 
+#else
+#define MALLOC(cb, iThread) malloc(cb)
+#endif
+
+lock_t lock_thread_init;
+
+void ThreadMalloc(int tid) {
+  int i, n = (MAX_BLOCKS+1)/CPUS;
+
+  if (0 == tid)
+    LockInit(lock_thread_init);
+  for (i=16*((int) tid)+1;n;i++,n--) {
+    local[i]=(TREE*)((~(size_t)127) & (127+(size_t)MALLOC(sizeof(TREE)+127, tid)));
+    local[i]->used=0;
+    local[i]->parent=(TREE*)-1;
+    LockInit(local[i]->lock);
+  }
+  Lock(lock_thread_init);
+  InitializedThreads++;
+  Unlock(lock_thread_init);
 }
 
 /* modified 04/26/98 */
@@ -231,8 +285,8 @@ int ThreadWait(int tid, TREE *waiting) {
 |                                                          |
  ----------------------------------------------------------
 */
-    while (!thread[tid] && !quit && (!waiting || waiting->nprocs)) Pause();
-    if (quit) return(0);
+    while (!thread[tid] && !quit.quit && (!waiting || waiting->nprocs)) Pause();
+    if (quit.quit) return(0);
     Lock(lock_smp);
     if (!thread[tid]) thread[tid]=waiting;
 /*
@@ -262,7 +316,7 @@ int ThreadWait(int tid, TREE *waiting) {
     thread_start_time[tid]=ReadClock(cpu);
     Unlock(lock_smp);
     if (thread[tid] == waiting) return(0);
-    if (quit || thread[tid] == (TREE*) -1) {
+    if (quit.quit || thread[tid] == (TREE*) -1) {
       Lock(lock_io);
       Print(128,"thread %d exiting\n",tid);
       Unlock(lock_io);

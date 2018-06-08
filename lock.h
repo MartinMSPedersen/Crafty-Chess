@@ -5,7 +5,9 @@
 #  define pthread_attr_t  HANDLE
 #  define pthread_t       HANDLE
 #  define thread_t        HANDLE
-#  define tfork(t,f,p)    (pthread_t)_beginthreadex(0,0,(void *)(f),(void *)(p),0,0);
+#  define tfork(t,f,p)    WinStartThread((void *)(f),(void *)(p))
+
+extern pthread_t WinStartThread(void * func, void * args);
 
 #if (defined (_M_ALPHA) && !defined(NT_INTEREX))
    
@@ -68,9 +70,29 @@
             ;   // Do nothing
         }
     }
+
+#  else
+
+__inline void Lock (volatile int *hPtr)
+    {
+    __asm
+      {
+        mov     ecx, hPtr
+   la:  mov     eax, 1
+        xchg    eax, [ecx]
+        test    eax, eax
+        jz      end
+   lb:  mov     eax, [ecx]
+        test    eax, eax
+        jz      la
+        jmp     lb
+   end:
+      }
+    }
+
 #  endif
 
-#elif (defined (_M_IA64) && !defined(NT_INTEREX))
+#elif ((defined (_M_IA64) || defined (_M_AMD64)) && !defined(NT_INTEREX))
 
 #  include <windows.h>
 

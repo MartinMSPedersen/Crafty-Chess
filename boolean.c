@@ -99,6 +99,33 @@ int PopCnt(register BITBOARD a) {
 
 #endif
 
+#if defined (_M_AMD64)
+
+extern unsigned char _BitScanReverse64(unsigned long*, unsigned __int64);
+#pragma intrinsic (_BitScanReverse64)
+extern unsigned char _BitScanForward64(unsigned long*, unsigned __int64);
+#pragma intrinsic (_BitScanForward64)
+
+int FirstOne(BITBOARD arg1) {
+    unsigned long index;
+
+    if (_BitScanReverse64(&index, arg1))
+        return 63-index;
+    else
+        return 64;
+}
+
+int LastOne(BITBOARD arg1) {
+    unsigned long index;
+
+    if (_BitScanForward64(&index, arg1))
+        return 63-index;
+    else
+        return 64;
+}
+
+#else
+
 int FirstOne(BITBOARD arg1) {
     if (arg1>>48)
       return (first_one[arg1>>48]);
@@ -118,6 +145,7 @@ int LastOne(BITBOARD arg1) {
       return (last_one[(arg1>>32)&65535]+16);
     return (last_one[arg1>>48]);
 }
+#endif
 #endif
 #endif
 #endif

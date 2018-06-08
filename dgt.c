@@ -18,6 +18,14 @@
 ********************************************************************************
 */
 #if defined(DGT)
+
+void DGTDelayTime(int ms) {
+  int oldt, newt;
+  oldt=ReadClock(elapsed);
+  do {
+    newt=ReadClock(elapsed);
+  } while (newt-ms/10 < oldt);
+}
 void DGTInit(int nargs, char *args[]) {
 /*
  ----------------------------------------------------------
@@ -74,9 +82,9 @@ void DGTInit(int nargs, char *args[]) {
   close(tp[0]);
   close(fp[1]);
   write(to_dgt,"reset\n",6);
-  DelayTime(200);
+  DGTDelayTime(200);
   write(to_dgt,"set\n",4);
-  DelayTime(300);
+  DGTDelayTime(300);
   write(to_dgt,"update\n",7);
   DGT_active=1;
 }

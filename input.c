@@ -312,8 +312,7 @@ int InputMoveICS(TREE *tree, char *text, int ply, int wtm, int silent,
     mvp=moves+num_ponder_moves;
   }
   for (mv=&moves[0];mv<mvp;mv++) {
-    if (auto232 && Promote(*mv) && (Promote(*mv) != queen)) *mv = 0;
-    if (!auto232 && Promote(*mv) != promote) *mv=0;
+    if (Promote(*mv) != promote) *mv=0;
     if (Rank(From(*mv)) != frank) *mv=0;
     if (File(From(*mv)) != ffile) *mv=0;
     if (Rank(To(*mv)) != trank) *mv=0;

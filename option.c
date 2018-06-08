@@ -186,29 +186,6 @@ int Option(TREE *tree) {
 /*
  ----------------------------------------------------------
 |                                                          |
-|   "auto232" enables auto232 mode.  note that there is    |
-|   another alias "DR".                                    |
-|                                                          |
- ----------------------------------------------------------
-*/
-  else if (OptionMatch("auto232",*args) || OptionMatch("DR",*args)) {
-    if (auto_file) {
-      fclose(auto_file);
-      auto_file=0;
-      auto232=0;
-      printf("auto232 disabled\n");
-    }
-    else {
-      auto_file=fopen("PRN", "w");
-      auto232=1;
-      printf("auto232 enabled\n");
-      book_selection_width=3;
-      mode=tournament_mode;
-    }
-  }
-/*
- ----------------------------------------------------------
-|                                                          |
 |   "batch" command disables asynchronous I/O so that a    |
 |   stream of commands can be put into a file and they are |
 |   not executed instantly.                                |
@@ -599,22 +576,6 @@ int Option(TREE *tree) {
 /*
  ----------------------------------------------------------
 |                                                          |
-|   "delay" command sets a specific delay (in ms) for      |
-|   auto232 synchronization.                               |
-|                                                          |
- ----------------------------------------------------------
-*/
-  else if (!strcmp("delay",*args)) {
-    if (nargs < 2) {
-      printf("usage:  delay <n>\n");
-      return(1);
-    }
-    auto232_delay=atoi(args[1]);
-    Print(128,"auto232 delay value set to %d ms.\n",auto232_delay);
-  }
-/*
- ----------------------------------------------------------
-|                                                          |
 |   "depth" command sets a specific search depth to        |
 |   control the tree search depth. [xboard compatibility]. |
 |                                                          |
@@ -759,9 +720,11 @@ int Option(TREE *tree) {
  ----------------------------------------------------------
 */
   else if (OptionMatch("end",*args) || OptionMatch("quit",*args)) {
+#if defined(CLONE)
     int i;
+#endif
     abort_search=1;
-    quit=1;  
+    quit.quit=1;  
 #if defined(CLONE)
     for (i=0;i<smp_threads;i++) {
       if (pids[i]) kill(pids[i],15);
@@ -1157,18 +1120,19 @@ int Option(TREE *tree) {
       }
       if (new_hash_size > 0) {
         if (hash_table_size) {
-          free(trans_ref_orig);
+          FreeInterleaved(trans_ref_orig, cb_trans_ref);
         }
         new_hash_size/=16*3;
         for (log_hash=0;log_hash<(int) (8*sizeof(int));log_hash++)
           if ((1<<(log_hash+1)) > new_hash_size) break;
         if (log_hash) {
           hash_table_size=1<<log_hash;
-          trans_ref_orig=(HASH_ENTRY *) malloc(sizeof(HASH_ENTRY)*hash_table_size+15);
+          cb_trans_ref = sizeof(HASH_ENTRY)*hash_table_size+15;
+          trans_ref_orig=(HASH_ENTRY *) MallocInterleaved(cb_trans_ref, max_threads);
           trans_ref=(HASH_ENTRY*) (((size_t) trans_ref_orig+15)&~15);
           if (!trans_ref) {
             printf("malloc() failed, not enough memory.\n");
-            free(trans_ref_orig);
+            FreeInterleaved(trans_ref_orig, cb_trans_ref);
             hash_table_size=0;
             log_hash=0;
             trans_ref=0;
@@ -1208,7 +1172,7 @@ int Option(TREE *tree) {
         return(1);
       }
       if (pawn_hash_table) {
-        free(pawn_hash_table_orig);
+        FreeInterleaved(pawn_hash_table_orig, cb_pawn_hash_table);
         pawn_hash_table_size=0;
         log_pawn_hash=0;
         pawn_hash_table=0;
@@ -1219,11 +1183,12 @@ int Option(TREE *tree) {
            log_pawn_hash++)
         if ((1<<(log_pawn_hash+1)) > new_hash_size) break;
       pawn_hash_table_size=1<<log_pawn_hash;
-      pawn_hash_table_orig=(PAWN_HASH_ENTRY *) malloc(sizeof(PAWN_HASH_ENTRY)*pawn_hash_table_size+15);
+      cb_pawn_hash_table = sizeof(PAWN_HASH_ENTRY)*pawn_hash_table_size+15;
+      pawn_hash_table_orig=(PAWN_HASH_ENTRY *) MallocInterleaved(cb_pawn_hash_table, max_threads);
       pawn_hash_table=(PAWN_HASH_ENTRY*) (((size_t) pawn_hash_table_orig+15)&~15);
       if (!pawn_hash_table) {
         printf("malloc() failed, not enough memory.\n");
-        free(pawn_hash_table_orig);
+        FreeInterleaved(pawn_hash_table_orig, cb_pawn_hash_table);
         pawn_hash_table_size=0;
         log_pawn_hash=0;
         pawn_hash_table=0;
@@ -2530,13 +2495,11 @@ int Option(TREE *tree) {
 /*
  ----------------------------------------------------------
 |                                                          |
-|   "new" command initializes for a new game.  note that   |
-|   "AN" is an alias for this command, for auto232         |
-|   compatibility.                                         |
+|   "new" command initializes for a new game.              |
 |                                                          |
  ----------------------------------------------------------
 */
-  else if (OptionMatch("new",*args) || OptionMatch("AN",*args)) {
+  else if (OptionMatch("new",*args)) {
     new_game=1;
     if (thinking || pondering) return(3);
     NewGame(0);
@@ -2952,9 +2915,9 @@ int Option(TREE *tree) {
       crafty_rating=2500;
       opponent_rating=2300;
     }
-    if (computer_opponent) abs_draw_score=0;
+    if (computer_opponent) abs_draw_score=1;
     else if (crafty_rating-opponent_rating < 0) abs_draw_score=+20;
-    else if (crafty_rating-opponent_rating < 100) abs_draw_score=0;
+    else if (crafty_rating-opponent_rating < 100) abs_draw_score=1;
     else if (crafty_rating-opponent_rating < 300) abs_draw_score=-20;
     else if (crafty_rating-opponent_rating < 500) abs_draw_score=-30;
     else abs_draw_score=-50;
@@ -3207,14 +3170,11 @@ int Option(TREE *tree) {
  ----------------------------------------------------------
 |                                                          |
 |   "savegame" command saves the game in a file in PGN     |
-|   format.  command has an optional filename.  note that  |
-|   SR is an auto232alias that behaves slightly            |
-|   differently.                                           |
+|   format.  command has an optional filename.             |
 |                                                          |
  ----------------------------------------------------------
 */
-  else if (OptionMatch("savegame",*args) ||
-           OptionMatch("SR",*args)) {
+  else if (OptionMatch("savegame",*args)) {
     struct tm *timestruct;
     int i, secs, more, swtm;
     FILE *output_file;
@@ -3583,18 +3543,6 @@ int Option(TREE *tree) {
     search_nodes=atoi(args[1]);
     Print(128,"search nodes set to %d.\n",search_nodes);
     ponder=0;
-  }
-/*
- ----------------------------------------------------------
-|                                                          |
-|   "SP" command does nothing, except force main() to      |
-|   start a search.  [auto232 compatibility]               |
-|                                                          |
- ----------------------------------------------------------
-*/
-  else if (OptionMatch("SP",*args)) {
-    if (thinking || pondering) return(2);
-    return(-1);
   }
 /*
  ----------------------------------------------------------

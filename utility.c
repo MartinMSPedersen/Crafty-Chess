@@ -213,14 +213,6 @@ void ClearHashTableScores(int dopawnstoo) {
   local[0]->pawn_score.key=0;
 }
 
-void DelayTime(int ms) {
-  int oldt, newt;
-  oldt=ReadClock(elapsed);
-  do {
-    newt=ReadClock(elapsed);
-  } while (newt-ms/10 < oldt);
-}
-
 void DisplayBitBoard(BITBOARD board) {
   int i,j,x;
   for(i=7;i>=0;i--) {
@@ -699,17 +691,15 @@ char *FormatPV(TREE *tree, int wtm, PATH pv) {
   return (buffer);
 }
 
-#if defined(MACOS)
-unsigned int ReadClock(TIME_TYPE type) {
-        return(clock() * 100 / CLOCKS_PER_SEC);
-}
-#else
 unsigned int ReadClock(TIME_TYPE type) {
 #if defined(UNIX) || defined(AMIGA)
   struct tms t;
   struct timeval timeval;
   struct timezone timezone;
   BITBOARD cputime=0;
+#endif
+#if defined(MACOS)
+  return(clock() * 100 / CLOCKS_PER_SEC);
 #endif
 #if defined(NT_i386) || defined(NT_AXP)
   HANDLE hThread;
@@ -752,15 +742,8 @@ unsigned int ReadClock(TIME_TYPE type) {
     default:
       return( (unsigned int) GetTickCount()/10);
 #endif
-#if defined(DOS)
-    case elapsed:
-      return(time(0)*100);
-    default:
-      return(time(0)*100);
-#endif
   }
 }
-#endif
 
 #if defined(SMP)
 /*
@@ -2114,15 +2097,24 @@ void CopyFromSMP(TREE *p, TREE *c) {
 *                                                                              *
 ********************************************************************************
 */
-TREE* CopyToSMP(TREE *p) {
-  int i;
+TREE* CopyToSMP(TREE *p, int thread) {
+  int i, j, max;
   TREE *c;
-  for (i=1;i<MAX_BLOCKS+1 && local[i]->used;i++);
-  if (i > MAX_BLOCKS) {
-    Print(128, "ERROR.  no SMP block can be allocated\n");
-    return(0);
+  int first=thread*(MAX_BLOCKS/CPUS)+1;
+  int last=first+16;
+  int maxb=16*max_threads+1;
+  for (i=first;i<last && local[i]->used;i++);
+  if (i >= last) {
+    for (i=1;i<maxb && local[i]->used;i++);
+    if (i >= last) {
+      Print(128, "ERROR.  no SMP block can be allocated\n");
+      return(0);
+    }
   }
-  max_split_blocks=Max(max_split_blocks,i);
+  max=0;
+  for (j=1;j<maxb;j++)
+    if (local[j]->used) max++;
+  max_split_blocks=Max(max_split_blocks,max);
   c=local[i];
   c->used=1;
   c->stop=0;
@@ -2172,6 +2164,7 @@ TREE* CopyToSMP(TREE *p) {
   c->depth=p->depth;
   c->mate_threat=p->mate_threat;
   c->search_value=0;
+  c->next_time_check=Min(nodes_between_time_checks/Max(max_threads,1),p->next_time_check);
   strcpy(c->root_move_text,p->root_move_text);
   strcpy(c->remaining_moves_text,p->remaining_moves_text);
   return(c);
@@ -2312,3 +2305,201 @@ int StrCnt(char *string, char testchar) {
   for (i=0;i<strlen(string);i++)  if (string[i] == testchar) count++;
   return(count);
 }
+
+
+/*
+********************************************************************************
+*                                                                              *
+*   Windows NUMA support                                                       *
+*                                                                              *
+********************************************************************************
+*/
+
+#if defined(_WIN32) || defined(_WIN64)
+
+lock_t ThreadsLock;
+
+static BOOL (WINAPI *pGetNumaHighestNodeNumber) (PULONG);
+static BOOL (WINAPI *pGetNumaNodeProcessorMask) (UCHAR, PULONGLONG);
+
+static volatile BOOL fThreadsInitialized = FALSE;
+static BOOL fSystemIsNUMA = FALSE;
+static ULONGLONG ullProcessorMask[256];
+static ULONG ulNumaNodes;
+static ULONG ulNumaNode = 0;
+
+// Get NUMA-related information from Windows
+
+static void WinNumaInit (void) {
+  DWORD_PTR dwMask;
+  HMODULE hModule;
+  ULONG ulCPU, ulNode;
+  ULONGLONG ullMask;
+  DWORD dwCPU;
+
+  if (!fThreadsInitialized) {
+    Lock(ThreadsLock);
+    if (!fThreadsInitialized) {
+      printf ("\nInitializing multiple threads.\n");
+      fThreadsInitialized = TRUE;
+      hModule = GetModuleHandle("kernel32");
+      pGetNumaHighestNodeNumber = (void*) GetProcAddress(hModule, "GetNumaHighestNodeNumber");
+      pGetNumaNodeProcessorMask = (void*) GetProcAddress(hModule, "GetNumaNodeProcessorMask");
+      if (pGetNumaHighestNodeNumber && pGetNumaNodeProcessorMask &&
+          pGetNumaHighestNodeNumber(&ulNumaNodes) && (ulNumaNodes > 0)) {
+        fSystemIsNUMA = TRUE;
+        if (ulNumaNodes > 255) ulNumaNodes = 255;
+        printf ("System is NUMA. %d nodes reported by Windows\n", ulNumaNodes+1);
+        for (ulNode = 0; ulNode <= ulNumaNodes; ulNode ++) {
+          pGetNumaNodeProcessorMask((UCHAR) ulNode, &ullProcessorMask[ulNode]);
+          printf ("Node %d CPUs: ", ulNode);
+          ullMask = ullProcessorMask[ulNode];
+          if (0 == ullMask) fSystemIsNUMA = FALSE;
+          else {
+            ulCPU = 0;
+            do {
+              if (ullMask & 1) printf ("%d ", ulCPU);
+              ulCPU ++;
+              ullMask >>= 1;
+            } while (ullMask);
+          }
+          printf ("\n");
+        }
+        // Thread 0 was already started on some CPU. To simplify things further,
+        // exchange ullProcessorMask[0] and ullProcessorMask[node for that CPU],
+        // so ullProcessorMask[0] would always be node for thread 0
+        dwCPU = SetThreadIdealProcessor(GetCurrentThread(), MAXIMUM_PROCESSORS);
+        printf ("Current ideal CPU is %u\n", dwCPU);
+        SetThreadIdealProcessor(GetCurrentThread(), dwCPU);
+        if ((((DWORD) -1) != dwCPU) &&
+            (MAXIMUM_PROCESSORS != dwCPU) &&
+            !(ullProcessorMask[0] & (1ui64 << dwCPU)))
+        {
+          for (ulNode = 1; ulNode <= ulNumaNodes; ulNode ++) {
+            if (ullProcessorMask[ulNode] & (1ui64 << dwCPU)) {
+              printf ("Exchanging nodes 0 and %d\n", ulNode);
+              ullMask = ullProcessorMask[ulNode];
+              ullProcessorMask[ulNode] = ullProcessorMask[0];
+              ullProcessorMask[0] = ullMask;
+              break;
+            }
+          }
+        }
+      }
+      else printf ("System is SMP, not NUMA.\n");
+    }
+    Unlock(ThreadsLock);
+  }
+}
+
+// Start thread. For NUMA system set it affinity.
+
+pthread_t WinStartThread(void * func, void * args) {
+  HANDLE hThread;
+  ULONGLONG ullMask;
+
+  WinNumaInit();
+  if (fSystemIsNUMA) {
+    ulNumaNode ++;
+    if (ulNumaNode > ulNumaNodes) ulNumaNode = 0;
+    ullMask = ullProcessorMask[ulNumaNode];
+    printf ("Starting thread on node %d CPU mask %I64d\n", ulNumaNode, ullMask);
+    SetThreadAffinityMask(GetCurrentThread(), (DWORD_PTR) ullMask);
+    hThread = (HANDLE) _beginthreadex(0,0,func,args,CREATE_SUSPENDED,0);
+    SetThreadAffinityMask(hThread, (DWORD_PTR) ullMask);
+    ResumeThread(hThread);
+    SetThreadAffinityMask(GetCurrentThread(), ullProcessorMask[0]);
+  }
+  else hThread = (HANDLE) _beginthreadex(0,0,func,args,0,0);
+  return hThread;
+}
+
+// Allocate memory for thread #N
+
+void * WinMalloc(size_t cbBytes, int iThread) {
+  HANDLE hThread;
+  DWORD_PTR dwAffinityMask;
+  void *pBytes;
+  ULONG ulNode;
+
+  WinNumaInit();
+  if (fSystemIsNUMA) {
+    ulNode = iThread % (ulNumaNodes+1);
+    hThread = GetCurrentThread();
+    dwAffinityMask = SetThreadAffinityMask(hThread, ullProcessorMask[ulNode]);
+    pBytes = VirtualAlloc(NULL, cbBytes, MEM_COMMIT, PAGE_READWRITE);
+    memset (pBytes, 0, cbBytes);
+    SetThreadAffinityMask(hThread, dwAffinityMask);
+    return pBytes;
+  }
+  else return malloc(cbBytes);
+}
+
+// Allocate interleaved memory
+
+void * WinMallocInterleaved(size_t cbBytes, int cThreads) {
+  char *pBase;
+  char *pEnd;
+  char * pch;
+  HANDLE hThread;
+  DWORD_PTR dwAffinityMask;
+  ULONG ulNode;
+  SYSTEM_INFO sSysInfo;
+  size_t dwStep;
+  int iThread;
+  DWORD dwPageSize;   // the page size on this computer
+  LPVOID lpvResult;
+
+  WinNumaInit();
+  if (fSystemIsNUMA && (cThreads > 1)) {
+    GetSystemInfo(&sSysInfo);     // populate the system information structure
+    dwPageSize = sSysInfo.dwPageSize;
+
+    // Reserve pages in the process's virtual address space.
+    pBase = (char*) VirtualAlloc(NULL, cbBytes, MEM_RESERVE, PAGE_NOACCESS);
+    if (pBase == NULL) {
+      printf ("VirtualAlloc() reserve failed\n");
+      exit(0);
+    }
+
+    // Now walk through memory, committing each page
+    hThread = GetCurrentThread();
+    dwStep = dwPageSize * cThreads;
+    pEnd = pBase + cbBytes;
+    for (iThread = 0; iThread < cThreads; iThread++) {
+      ulNode = iThread % (ulNumaNodes+1);
+      dwAffinityMask = SetThreadAffinityMask(hThread, ullProcessorMask[ulNode]);
+      for (pch = pBase + iThread * dwPageSize;
+           pch < pEnd;
+           pch += dwStep)
+      {
+        lpvResult = VirtualAlloc(pch,             // next page to commit
+                                 dwPageSize,      // page size, in bytes
+                                 MEM_COMMIT,      // allocate a committed page
+                                 PAGE_READWRITE); // read/write access
+        if (lpvResult == NULL)
+          ExitProcess(GetLastError());
+        memset (lpvResult, 0, dwPageSize);
+      }
+      SetThreadAffinityMask(hThread, dwAffinityMask);
+    }
+  }
+  else {
+    pBase = VirtualAlloc(NULL, cbBytes, MEM_COMMIT, PAGE_READWRITE);
+    if (pBase == NULL)
+      ExitProcess(GetLastError());
+    memset (pBase, 0, cbBytes);
+  }
+  return (void *) pBase;
+}
+
+// Free interleaved memory
+
+void WinFreeInterleaved(void *pMemory, size_t cBytes)
+{
+  VirtualFree(pMemory,                      // base address of block
+              cBytes,                       // bytes of committed pages
+              MEM_DECOMMIT|MEM_RELEASE);    // decommit the pages
+}
+
+#endif

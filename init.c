@@ -135,11 +135,7 @@ void Initialize(int continuing) {
 #endif
 
 #if defined(SMP)
-  for (i=1;i<MAX_BLOCKS+1;i++) {
-    local[i]=(TREE*)((~(size_t)127) & (127+(size_t)malloc(sizeof(TREE)+127)));
-    local[i]->used=0;
-  }
-  local[0]->parent=(TREE*)-1;
+  ThreadMalloc(0);
 #endif
   
   tree=local[0];
@@ -173,19 +169,19 @@ void Initialize(int continuing) {
     book_file=fopen(log_filename,"rb");
     if (!book_file) {
 #if defined(MACOS)
-      printf("unable to open book file [:%s:book.bin].\n",book_path);
+      Print(128,"unable to open book file [:%s:book.bin].\n",book_path);
 #else
-      printf("unable to open book file [%s/book.bin].\n",book_path);
+      Print(128,"unable to open book file [%s/book.bin].\n",book_path);
 #endif
-      printf("book is disabled\n");
+      Print(128,"book is disabled\n");
     }
     else {
 #if defined(MACOS)
-      printf("unable to open book file [:%s:book.bin] for \"write\".\n",book_path);
+      Print(128,"unable to open book file [:%s:book.bin] for \"write\".\n",book_path);
 #else
-      printf("unable to open book file [%s/book.bin] for \"write\".\n",book_path);
+      Print(128,"unable to open book file [%s/book.bin] for \"write\".\n",book_path);
 #endif
-      printf("learning is disabled\n");
+      Print(128,"learning is disabled\n");
     }
   }
 #if defined(MACOS)
@@ -197,10 +193,10 @@ void Initialize(int continuing) {
   books_file=normal_bs_file;
 #if defined(MACOS)
   if (!normal_bs_file)
-    printf("unable to open book file [:%s:books.bin].\n",book_path);
+    Print(128,"unable to open book file [:%s:books.bin].\n",book_path);
 #else
   if (!normal_bs_file)
-    printf("unable to open book file [%s/books.bin].\n",book_path);
+    Print(128,"unable to open book file [%s/books.bin].\n",book_path);
 #endif
 #if defined(MACOS)
   sprintf(log_filename,":%s:bookc.bin",book_path);
@@ -210,10 +206,10 @@ void Initialize(int continuing) {
   computer_bs_file=fopen(log_filename,"rb");
 #if defined(MACOS)
   if (computer_bs_file)
-    printf("found computer opening book file [:%s:bookc.bin].\n",book_path);
+    Print(128,"found computer opening book file [:%s:bookc.bin].\n",book_path);
 #else
   if (computer_bs_file)
-    printf("found computer opening book file [%s/bookc.bin].\n",book_path);
+    Print(128,"found computer opening book file [%s/bookc.bin].\n",book_path);
 #endif
   if (book_file) {
     fseek(book_file,-sizeof(int),SEEK_END);
@@ -236,11 +232,11 @@ void Initialize(int continuing) {
   book_lrn_file=fopen(log_filename,"a");
   if (!book_lrn_file) {
 #if defined(MACOS)
-    printf("unable to open book learning file [:%s:book.lrn].\n",book_path);
+    Print(128,"unable to open book learning file [:%s:book.lrn].\n",book_path);
 #else
-    printf("unable to open book learning file [%s/book.lrn].\n",book_path);
+    Print(128,"unable to open book learning file [%s/book.lrn].\n",book_path);
 #endif
-    printf("learning disabled.\n");
+    Print(128,"learning disabled.\n");
     learning&=~(book_learning+result_learning);
   }
   if (learning&position_learning) {
@@ -267,11 +263,11 @@ void Initialize(int continuing) {
       }
       else {
 #if defined(MACOS)
-        printf("unable to open position learning file [:%s:position.bin].\n",book_path);
+        Print(128,"unable to open position learning file [:%s:position.bin].\n",book_path);
 #else
-        printf("unable to open position learning file [%s/position.bin].\n",book_path);
+        Print(128,"unable to open position learning file [%s/position.bin].\n",book_path);
 #endif
-        printf("learning disabled.\n");
+        Print(128,"learning disabled.\n");
         learning&=~position_learning;
       }
     }
@@ -330,7 +326,7 @@ void Initialize(int continuing) {
     log_file=fopen(log_filename,"r+");
     history_file=fopen(history_filename,"r+");
     if (!log_file || !history_file) {
-      printf("\nsorry.  nothing to continue.\n\n");
+      Print(128,"\nsorry.  nothing to continue.\n\n");
       sprintf(log_filename,"%s/log.%03d",log_path,1);
       sprintf(history_filename,"%s/game.%03d",log_path,1);
       log_file=fopen(log_filename,"w");
@@ -345,14 +341,16 @@ void Initialize(int continuing) {
     log_file=fopen(log_filename,"w");
     history_file=fopen(history_filename,"w+");
   }
-  trans_ref_orig=(HASH_ENTRY *) malloc(sizeof(HASH_ENTRY)*hash_table_size+15);
-  pawn_hash_table_orig=(PAWN_HASH_ENTRY *) malloc(sizeof(PAWN_HASH_ENTRY)*pawn_hash_table_size+15);
+  cb_trans_ref = sizeof(HASH_ENTRY)*hash_table_size+15;
+  trans_ref_orig=(HASH_ENTRY *) MallocInterleaved(cb_trans_ref, 1);
+  cb_pawn_hash_table = sizeof(PAWN_HASH_ENTRY)*pawn_hash_table_size+15;
+  pawn_hash_table_orig=(PAWN_HASH_ENTRY *) MallocInterleaved(cb_pawn_hash_table, 1);
   trans_ref=(HASH_ENTRY*) (((ptrdiff_t) trans_ref_orig+15)&~15);
   pawn_hash_table=(PAWN_HASH_ENTRY*) (((ptrdiff_t) pawn_hash_table_orig+15)&~15);
   if (!trans_ref) {
-    printf("malloc() failed, not enough memory.\n");
-    free(trans_ref_orig);
-    free(pawn_hash_table_orig);
+    Print(128,"malloc() failed, not enough memory.\n");
+    FreeInterleaved(trans_ref_orig, cb_trans_ref);
+    FreeInterleaved(pawn_hash_table_orig, cb_pawn_hash_table);
     hash_table_size=0;
     pawn_hash_table_size=0;
     log_hash=0;
@@ -1490,7 +1488,6 @@ void InitializeRandomHash(void) {
 ********************************************************************************
 */
 void InitializeSMP(void) {
-  int i;
 #if defined(POSIX)
   pthread_attr_init(&pthread_attr);
   pthread_attr_setdetachstate(&pthread_attr, PTHREAD_CREATE_DETACHED);
@@ -1499,14 +1496,12 @@ void InitializeSMP(void) {
   LockInit(lock_smp);
   LockInit(lock_io);
   LockInit(lock_root);
-  for (i=0;i<MAX_BLOCKS+1;i++)
-    LockInit(local[i]->lock);
 }
 #endif
 
 void InitializeZeroMasks(void) {
   int i, j, dist, maxd;
-#if !defined(CRAY1) && !defined(USE_ASSEMBLY_B)
+#if !defined(CRAY1) && !defined(_M_AMD64) && !defined(USE_ASSEMBLY_B)
   int maskl,maskr;
   first_one[0]=16;
   last_one[0]=16;

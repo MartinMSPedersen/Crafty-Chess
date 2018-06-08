@@ -10,7 +10,7 @@
 #endif
 #include <signal.h>
 
-/* last modified 09/25/02 */
+/* last modified 10/21/03 */
 /*
 *******************************************************************************
 *                                                                             *
@@ -2942,6 +2942,18 @@
 *           such as WAC and similar suites.  minor book fix for a bug that    *
 *           could cause a crash with book=off in xboard/winboard.             *
 *                                                                             *
+*   19.5    default draw score set to 1, because endgame table draws can be   *
+*           0, -.01 or +.01, which translates to -1, 0 or 1 in real scores    *
+*           inside Crafty.  +1 means a draw where white has extra material    *
+*           and that would break accepting draws with such a score.  a few    *
+*           NUMA-related changes.  one global variable was made thread-       *
+*           private to avoid cache thrashing.  split blocks are now allocated *
+*           by each individual processor to make them local to the specific   *
+*           processor so that access is much faster.  CopyToSMP() now tries   *
+*           to allocate a block for a thread based on the thread's ID so that *
+*           the split block will be in that thread's local memory.  a few     *
+*           other NUMA-related changes to help scaling on NUMA machines.      *
+*                                                                             *
 *******************************************************************************
 */
 int main(int argc, char **argv) {
@@ -2963,6 +2975,8 @@ int main(int argc, char **argv) {
 #endif
   /* Collect environmental variables */
   char *directory_spec=getenv("CRAFTY_BOOK_PATH");
+
+  quit.quit=0;
   if (directory_spec)
     strncpy (book_path, directory_spec, sizeof book_path);
   directory_spec=getenv("CRAFTY_LOG_PATH");
@@ -3162,16 +3176,6 @@ int main(int argc, char **argv) {
         if (result == 0) {
           nargs=ReadParse(buffer,args," 	;");
           move=InputMove(tree,args[0],0,wtm,0,0);
-          if (auto232 && presult!=3) {
-            const char *mv=OutputMoveICS(move);
-            DelayTime(auto232_delay);
-            if (!wtm) fprintf(auto_file,"\t");
-            fprintf(auto_file, " %c%c-%c%c", mv[0], mv[1], mv[2], mv[3]);
-            if ((mv[4] != ' ') && (mv[4] != 0))
-            fprintf(auto_file, "/%c", mv[4]);
-            fprintf(auto_file, "\n");
-            fflush(auto_file);
-          }
           result=!move;
         }
         else {
@@ -3332,15 +3336,6 @@ int main(int argc, char **argv) {
                 OutputMove(tree,last_pv.path[1],0,wtm));
           printf("%s",Normal());
           Print(128,"\n");
-          if (auto232) { 
-            const char *mv=OutputMoveICS(last_pv.path[1]);
-            DelayTime(auto232_delay);
-            fprintf(auto_file, " %c%c-%c%c", mv[0],mv[1],mv[2],mv[3]);
-            if ((mv[4]!=' ') && (mv[4]!=0))
-              fprintf(auto_file, "/%c", mv[4]);
-            fprintf(auto_file, "\n");
-            fflush(auto_file);
-          }
         }
         else if (xboard) {
           if (log_file) fprintf(log_file,"White(%d): %s\n",move_number,
@@ -3357,15 +3352,6 @@ int main(int argc, char **argv) {
           Print(128,"Black(%d): %s ",move_number,OutputMove(tree,last_pv.path[1],0,wtm));
           printf("%s",Normal());
           Print(128,"\n");
-          if (auto232) { 
-            const char *mv=OutputMoveICS(last_pv.path[1]);
-            DelayTime(auto232_delay);
-            fprintf(auto_file, "\t %c%c-%c%c", mv[0],mv[1],mv[2],mv[3]);
-            if ((mv[4]!=' ') && (mv[4]!=0))
-              fprintf(auto_file, "/%c", mv[4]);
-            fprintf(auto_file, "\n");
-            fflush(auto_file);
-          }
         }
         else {
           if (log_file) fprintf(log_file,"Black(%d): %s\n",move_number,

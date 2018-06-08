@@ -213,7 +213,7 @@ linux-i686-elf:
 			-fbranch-probabilities -fforce-mem -fomit-frame-pointer \
 			-fno-gcse -mpreferred-stack-boundary=2' \
 		CXFLAGS=$(CFLAGS) \
-		LDFLAGS='$(LDFLAGS) -lstdc++' \
+		LDFLAGS='$(LDFLAGS) -lpthread -lstdc++' \
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
 		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST \
 		     -DSMP -DCPUS=4 -DDGT -DTRACE' \
@@ -238,10 +238,10 @@ linux-icc-elf-profile:
 	$(MAKE) target=LINUX \
 		CC=icc CXX=icc \
 		CFLAGS='$(CFLAGS) -D_REENTRANT -O2 -march=pentiumiii \
-                        -mcpu=pentiumpro -prof_gen -prof_dir ./profdir \
+                        -mcpu=pentiumpro \
                         -fno-alias -tpp6' \
 		CXFLAGS='$(CFLAGS) -D_REENTRANT -O2 -march=pentiumiii \
-                        -mcpu=pentiumpro -prof_gen -prof_dir ./profdir \
+                        -mcpu=pentiumpro \
                         -tpp6' \
 		LDFLAGS='$(LDFLAGS) -lpthread' \
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
@@ -254,10 +254,10 @@ linux-icc-elf:
 	$(MAKE) target=LINUX \
 		CC=icc CXX=icc \
 		CFLAGS='$(CFLAGS) -D_REENTRANT -O2 -march=pentiumiii \
-                        -mcpu=pentiumpro -prof_use -prof_dir ./profdir \
-                        -g -fno-alias -tpp6' \
+                        -mcpu=pentiumpro \
+                        -fno-alias -tpp6' \
 		CXFLAGS='$(CFLAGS) -D_REENTRANT -O2 -march=pentiumiii \
-                        -mcpu=pentiumpro -prof_use -prof_dir ./profdir \
+                        -mcpu=pentiumpro \
                         -tpp6' \
 		LDFLAGS='$(LDFLAGS) -lpthread' \
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
@@ -273,7 +273,7 @@ icc-elf:
                         -mcpu=pentium4 -fno-alias -tpp7' \
 		CXFLAGS='$(CFLAGS) -D_REENTRANT -O2 -march=pentium4 \
                         -mcpu=pentium4 -tpp7' \
-		LDFLAGS=$(LDFLAGS) \
+		LDFLAGS='$(LDFLAGS) -lpthread' \
 		opt='$(opt) -DCOMPACT_ATTACKS -DUSE_ATTACK_FUNCTIONS \
 		     -DUSE_ASSEMBLY_A -DUSE_ASSEMBLY_B -DFAST \
 		     -DSMP -DCPUS=4 -DDGT' \
@@ -491,6 +491,7 @@ profile:
 	@echo "#!/bin/csh" > runprof
 	@echo "crafty <<EOF" >>runprof
 	@echo "st=10" >>runprof
+	@echo "ponder=off" >>runprof
 	@echo "mt=4" >>runprof
 	@echo "setboard 2r2rk1/1bqnbpp1/1p1ppn1p/pP6/N1P1P3/P2B1N1P/1B2QPP1/R2R2K1 b" >>runprof
 	@echo "move" >>runprof

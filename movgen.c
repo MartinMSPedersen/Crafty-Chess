@@ -1058,7 +1058,15 @@ int* GenerateNonCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move) {
       }
       Clear(to,padvances1);
     }
-
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   generate the rest of the capture/promotions here since |
+|   GenerateCaptures() only generates captures that are    |
+|   promotions to a queen.                                 |
+|                                                          |
+ ----------------------------------------------------------
+*/
     target=BlackPieces & rank_mask[RANK8];
     pcapturesl=(WhitePawns & mask_left_edge)>>7 & target;
     pcapturesr=(WhitePawns & mask_right_edge)>>9 & target;
@@ -1247,6 +1255,15 @@ int* GenerateNonCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move) {
       }
       Clear(to,padvances1);
     }
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   generate the rest of the capture/promotions here since |
+|   GenerateCaptures() only generates captures that are    |
+|   promotions to a queen.                                 |
+|                                                          |
+ ----------------------------------------------------------
+*/
     target=WhitePieces & rank_mask[RANK1];
     pcapturesl=(BlackPawns & mask_left_edge)<<9 & target;
     pcapturesr=(BlackPawns & mask_right_edge)<<7 & target;

@@ -18,7 +18,6 @@
   extern int            time_used;
   extern int            time_used_opponent;
   extern int            cpu_time_used;
-  extern int            next_time_check;
   extern BITBOARD       total_moves;
   extern int            initialized;
   extern int            early_exit;
@@ -97,8 +96,6 @@
   extern int            adaptive_hashp_max;
   extern int            over;
   extern int            ics;
-  extern int            auto232;
-  extern int            auto232_delay;
   extern int            xboard;
   extern int            pong;
   extern int            channel;
@@ -165,7 +162,6 @@
   extern int            burp;
 
   extern int            time_abort;
-  extern volatile int   quit;
   extern signed char    pondering;   /* thinking on opponent's time     */
   extern signed char    thinking;    /* searching on its time           */
   extern signed char    puzzling;    /* puzzling about a move to ponder */
@@ -231,11 +227,18 @@
   extern int            hash_table_size;
   extern int            pawn_hash_table_size;
   extern int            hash_mask;
+  extern struct {
+                 char pad1[128];
+                 volatile int quit;
+                 char pad2[128];
+  } quit;
   extern unsigned int   pawn_hash_mask;
   extern HASH_ENTRY      *trans_ref;
   extern PAWN_HASH_ENTRY *pawn_hash_table;
   extern HASH_ENTRY      *trans_ref_orig;
+  extern size_t          cb_trans_ref;
   extern PAWN_HASH_ENTRY *pawn_hash_table_orig;
+  extern size_t          cb_pawn_hash_table;
 
   extern int            history_w[4096], history_b[4096];
 
@@ -441,7 +444,7 @@
 # endif
   extern BITBOARD       mask_clear_entry;
 
-# if !defined(CRAY1) && !defined(USE_ASSEMBLY_B)
+# if !defined(CRAY1) && !defined(_M_AMD64) && !defined(USE_ASSEMBLY_B)
     extern unsigned char  first_one[65536];
     extern unsigned char  last_one[65536];
 # endif
@@ -480,7 +483,7 @@
   extern lock_t         lock_smp, lock_io, lock_root;
   extern volatile int   smp_idle;
   extern volatile int   smp_threads;
-# if !defined(CLONE)
+# if !defined(POSIX)
   extern pthread_attr_t pthread_attr;
 # endif
 # else

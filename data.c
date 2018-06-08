@@ -20,9 +20,6 @@
   BITBOARD       total_moves;
   int            last_mate_score;
   int            time_abort;
-  volatile int   quit=0;
-  int            auto232;
-  int            auto232_delay;
   signed char    abort_search;
   char           log_filename[64];
   char           history_filename[64];
@@ -48,11 +45,15 @@
   int            easy_move;
   int            absolute_time_limit;
   int            search_time_limit;
-  int            next_time_check;
   int            burp;
   int            ponder_move;
   int            ponder_moves[220];
   int            num_ponder_moves;
+  struct {
+                 char pad1[128];
+                 volatile int   quit;
+                 char pad2[128];
+  } quit;
   unsigned int   opponent_start_time, opponent_end_time;
   unsigned int   program_start_time, program_end_time;
   unsigned int   start_time, end_time;
@@ -65,7 +66,9 @@
   HASH_ENTRY      *trans_ref;
   PAWN_HASH_ENTRY *pawn_hash_table;
   HASH_ENTRY      *trans_ref_orig;
+  size_t          cb_trans_ref;
   PAWN_HASH_ENTRY *pawn_hash_table_orig;
+  size_t          cb_pawn_hash_table;
   int            history_w[4096], history_b[4096];
   PATH           last_pv;
   int            last_value;
@@ -202,7 +205,7 @@
 
   BITBOARD       mask_clear_entry;
 
-# if (!defined(CRAY1) && !defined(USE_ASSEMBLY_B)) || defined(VC_INLINE_ASM)
+# if (!defined(CRAY1) && !defined(_M_AMD64) && !defined(USE_ASSEMBLY_B)) || defined(VC_INLINE_ASM)
     unsigned char first_one[65536];
     unsigned char last_one[65536];
 # endif
@@ -238,7 +241,7 @@
     TREE         *local[MAX_BLOCKS+1];
     TREE         *volatile thread[CPUS];
     lock_t       lock_smp, lock_io, lock_root;
-#   if !defined(CLONE)
+#   if defined(POSIX)
       pthread_attr_t pthread_attr;
 #   endif
 # else
@@ -249,7 +252,7 @@
   unsigned int   max_split_blocks;
   volatile unsigned int   splitting;
 
-# define    VERSION                             "19.4"
+# define    VERSION                             "19.5"
   char      version[6] =                    {VERSION};
   PLAYING_MODE mode =                     normal_mode;
 
@@ -452,7 +455,7 @@
   int       log_pawn_hash =                        15;
 
   int       draw_score[2] =                    {0, 0};
-  int       abs_draw_score =                        0;
+  int       abs_draw_score =                        1;
   int       accept_draws =                          1;
 
 #if !defined(COMPACT_ATTACKS)

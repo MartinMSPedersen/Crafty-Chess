@@ -28,7 +28,7 @@ int Quiesce(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply) {
 */
   if (ply >= MAXPLY-1) return(beta);
   tree->nodes_searched++;
-  next_time_check--;
+  tree->next_time_check--;
   tree->last[ply]=tree->last[ply-1];
   o_alpha=alpha;
 /*

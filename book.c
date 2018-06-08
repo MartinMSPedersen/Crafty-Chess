@@ -641,7 +641,7 @@ int Book(TREE *tree, int wtm, int root_list_done) {
 |                                                          |
  ----------------------------------------------------------
 */
-    else if (mode==tournament_mode && puzzling && !auto232) {
+    else if (mode==tournament_mode && puzzling) {
       RootMoveList(wtm);
       for (i=0;i<n_root_moves;i++)
         for (j=0;j<nmoves;j++)

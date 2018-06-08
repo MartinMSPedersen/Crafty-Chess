@@ -157,16 +157,6 @@ void Interrupt(int ply) {
           nargs=ReadParse(buffer,args," 	;");
           temp=InputMove(tree,args[0],0,Flip(root_wtm),1,1);
           if (temp) {
-            if (auto232) {
-              const char *mv=OutputMoveICS(temp);
-              DelayTime(auto232_delay);
-              if (!wtm) fprintf(auto_file,"\t");
-              fprintf(auto_file, " %c%c-%c%c", mv[0], mv[1], mv[2], mv[3]);
-              if ((mv[4] != ' ') && (mv[4] != 0))
-                fprintf(auto_file, "/%c", mv[4]);
-              fprintf(auto_file, "\n");
-              fflush(auto_file);
-            }
             if ((From(temp) == From(ponder_move)) &&
                 (To(temp) == To(ponder_move)) &&
                 (Piece(temp) == Piece(ponder_move)) &&

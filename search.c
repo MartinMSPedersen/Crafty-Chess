@@ -5,7 +5,7 @@
 #include "data.h"
 #include "epdglue.h"
 
-/* last modified 09/11/02 */
+/* last modified 10/21/03 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -47,13 +47,15 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
  ----------------------------------------------------------
 */
   tree->nodes_searched++;
-  if (--next_time_check <= 0) {
-    next_time_check=nodes_between_time_checks;
-    if (tree->thread_id==0 && CheckInput()) Interrupt(ply);
-    if (TimeCheck(tree,0)) {
-      time_abort++;
-      abort_search=1;
-      return(0);
+  if (tree->thread_id == 0) {
+    if (--tree->next_time_check <= 0) {
+      tree->next_time_check=nodes_between_time_checks/Max(1,max_threads);
+      if (CheckInput()) Interrupt(ply);
+      if (TimeCheck(tree,0)) {
+        time_abort++;
+        abort_search=1;
+        return(0);
+      }
     }
   }
   if (ply >= MAXPLY-1) return(beta);

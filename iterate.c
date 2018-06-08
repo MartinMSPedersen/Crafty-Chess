@@ -85,7 +85,7 @@ int Iterate(int wtm, int search_type, int root_list_done) {
     start_time=ReadClock(time_type);
     cpu_percent=0;
     elapsed_start=ReadClock(elapsed);
-    next_time_check=nodes_between_time_checks;
+    tree->next_time_check=nodes_between_time_checks/Max(max_threads,1);
     tree->evaluations=0;
 #if !defined(FAST)
     tree->transposition_hits=0;
@@ -200,6 +200,7 @@ int Iterate(int wtm, int search_type, int root_list_done) {
         smp_threads++;
       }
     }
+    WaitForAllThreadsInitialized();
 #endif
     root_print_ok=0;
     for (;iteration_depth<=MAXPLY-5;iteration_depth++) {
@@ -239,12 +240,13 @@ int Iterate(int wtm, int search_type, int root_list_done) {
         nodes_between_time_checks=Min(nodes_between_time_checks,MAX_TC_NODES);
         nodes_between_time_checks=Max(nodes_between_time_checks,5000);
         if (!analyze_mode) {
-          if (time_limit>300 && !auto232);
-          else if (time_limit>100 || auto232) nodes_between_time_checks/=10;
+          if (time_limit > 300);
+          else if (time_limit > 100) nodes_between_time_checks/=10;
           else if (time_limit > 50) nodes_between_time_checks/=20;
           else nodes_between_time_checks/=100;
         } else nodes_between_time_checks=5000;
       }
+
       while (1) {
 #if defined(SMP)
         thread[0]=local[0];

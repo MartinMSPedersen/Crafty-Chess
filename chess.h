@@ -31,7 +31,7 @@
 */
 #if !defined(TYPES_INCLUDED)
 
-#if defined (_MSC_VER) && (_MSC_VER >= 1300)
+#if defined (_MSC_VER) && (_MSC_VER >= 1300) && (!defined(_M_IX86) || (_MSC_VER >= 1400))
 #  define RESTRICT __restrict
 #else
 #  define RESTRICT
@@ -207,7 +207,7 @@
 #define     EGTB_CACHE_DEFAULT 1024*1024
 #define     MAXPLY             65
 #define     MAX_BLOCKS         16*CPUS
-#define     MAX_TC_NODES       300000
+#define     MAX_TC_NODES       30000
 
 #if !defined(SMP) && !defined(SUN)
 #  define lock_t volatile int
@@ -419,19 +419,20 @@ typedef struct {
 
 struct tree {
   POSITION        pos;
-  PAWN_HASH_ENTRY pawn_score;
-  NEXT_MOVE       next_status[MAXPLY];
   BITBOARD        save_hash_key[MAXPLY+2];
   BITBOARD        rep_list[256];
-  int             rep_game;
   BITBOARD        all_pawns;
   BITBOARD        nodes_searched;
-  SEARCH_POSITION position[MAXPLY+2];
   BITBOARD        save_pawn_hash_key[MAXPLY+2];
+  PAWN_HASH_ENTRY pawn_score;
+  SEARCH_POSITION position[MAXPLY+2];
+  NEXT_MOVE       next_status[MAXPLY];
+  PATH            pv[MAXPLY];
+  int             rep_game;
   int             current_move[MAXPLY];
   int             hash_move[MAXPLY];
   int             *last[MAXPLY];
-  PATH            pv[MAXPLY];
+  int             next_time_check;
   unsigned int    fail_high;
   unsigned int    fail_high_first;
   unsigned int    evaluations;
@@ -578,8 +579,7 @@ int            CheckInput(void);
 void           ClearHashTableScores(int);
 void           ComputeAttacksAndMobility(void);
 void           CopyFromSMP(TREE*, TREE*);
-TREE*          CopyToSMP(TREE*);
-void           DelayTime(int);
+TREE*          CopyToSMP(TREE*,int);
 void           DGTInit(int,char**);
 int            DGTCheckInput(void);
 void           DGTRead(void);
@@ -709,11 +709,13 @@ BITBOARD       SwapXray(TREE*RESTRICT, BITBOARD, int, int);
 void           Test(char *);
 void           TestEPD(char *);
 int            Thread(TREE*);
+void           WaitForAllThreadsInitialized(void);
 #if defined(CLONE)
 int            ThreadInit(void*);
 #else
 void* STDCALL  ThreadInit(void*);
 #endif
+void           ThreadMalloc(int);
 void           ThreadStop(TREE*);
 int            ThreadWait(int, TREE*);
 int            Threat(TREE*, int, int, int, int, int, int);
@@ -724,6 +726,23 @@ void           UnmakeMove(TREE*RESTRICT, int, int, int);
 int            ValidMove(TREE*, int, int, int);
 void           ValidatePosition(TREE*, int, int, char*);
 void           Kibitz(int, int, int, int, int, BITBOARD , int, int, char*);
+
+#if defined(_WIN32) || defined(_WIN64)
+
+extern void *WinMallocInterleaved(size_t, int);
+extern void WinFreeInterleaved(void *, size_t);
+
+#define MallocInterleaved(cBytes, cThreads)\
+    WinMallocInterleaved(cBytes, cThreads)
+#define FreeInterleaved(pMemory, cBytes)\
+    WinFreeInterleaved(pMemory, cBytes)
+
+#else
+
+#define MallocInterleaved(cBytes, cThreads) malloc(cBytes)
+#define FreeInterleaved(pMemory, cBytes)    free(pMemory)
+
+#endif
   
 #if defined(HAS_64BITS) || defined(HAS_LONGLONG)
 #  if defined(CRAY1)
