@@ -31,7 +31,7 @@ uint64_t AttacksTo(TREE * RESTRICT tree, int square) {
   return (attacks);
 }
 
-/* last modified 12/02/10 */
+/* last modified 10/22/13 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -43,12 +43,6 @@ uint64_t AttacksTo(TREE * RESTRICT tree, int square) {
  *******************************************************************************
  */
 int Attacks(TREE * RESTRICT tree, int square, int side) {
-  if (pawn_attacks[Flip(side)][square] & Pawns(side))
-    return (1);
-  if (knight_attacks[square] & Knights(side))
-    return (1);
-  if (king_attacks[square] & Kings(side))
-    return (1);
   if ((rook_attacks[square] & (Rooks(side) | Queens(side)))
       && (AttacksRook(square,
               OccupiedSquares) & (Rooks(side) | Queens(side))))
@@ -56,6 +50,12 @@ int Attacks(TREE * RESTRICT tree, int square, int side) {
   if ((bishop_attacks[square] & (Bishops(side) | Queens(side)))
       && (AttacksBishop(square,
               OccupiedSquares) & (Bishops(side) | Queens(side))))
+    return (1);
+  if (knight_attacks[square] & Knights(side))
+    return (1);
+  if (pawn_attacks[Flip(side)][square] & Pawns(side))
+    return (1);
+  if (king_attacks[square] & Kings(side))
     return (1);
   return (0);
 }

@@ -133,7 +133,7 @@ linux:
 			-fno-gcse -mpreferred-stack-boundary=8' \
 		CXFLAGS=$(CFLAGS) \
 		LDFLAGS='$(LDFLAGS) -g -lpthread -lstdc++' \
-		opt='$(opt) -DTRACE -DINLINE64 -DCPUS=8' \
+		opt='$(opt) -DDEBUG -DTRACE -DINLINE64 -DCPUS=8' \
 		crafty-make
 
 linux-profile:

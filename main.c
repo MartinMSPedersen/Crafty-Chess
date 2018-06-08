@@ -3960,6 +3960,16 @@
  *           100% on a fail low, which makes sense anyway if it was supposed   *
  *           to be "easy" but the score is mysteriously dropping anyway.       *
  *                                                                             *
+ *    23.8   MAXPLY changed to 128, which increases the max length of the PV's *
+ *           that can be displayed.  The hash path stuff works so well that it *
+ *           often STILL has PVs with <HT> on the end, after 64 moves are      *
+ *           displayed.  While this can still probably be reached, it should   *
+ *           be much less frequent.  This does mean the search can go for 128  *
+ *           iterations, rather than the old 64 limit, of course.  Bug in      *
+ *           Search() that failed to update the PV on an EGTB hit, which would *
+ *           cause the hashed PV to contain illegal moves.  When Crafty then   *
+ *           tried to display this PV, it would promptly crash.                *
+ *                                                                             *
  *******************************************************************************
  */
 int main(int argc, char **argv) {

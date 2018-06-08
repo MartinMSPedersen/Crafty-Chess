@@ -97,7 +97,7 @@
 #    define       RCDIR        "."
 #  endif
 #  include "lock.h"
-#  define MAXPLY                                  65
+#  define MAXPLY                                 129
 #  define MAX_TC_NODES                       1000000
 #  define MAX_BLOCKS_PER_CPU                      64
 #  define MAX_BLOCKS         MAX_BLOCKS_PER_CPU*CPUS
@@ -156,9 +156,9 @@ typedef enum { empty_v = 0, pawn_v = 1, knight_v = 3,
 typedef enum { think = 1, puzzle = 2, book = 3, annotate = 4 } SEARCH_TYPE;
 typedef enum { normal_mode, tournament_mode } PLAYING_MODE;
 typedef struct {
-  unsigned char enpassant_target;
   int8_t castle[2];
-  unsigned char rule_50_moves;
+  uint8_t enpassant_target;
+  uint8_t rule_50_moves;
 } SEARCH_POSITION;
 typedef struct {
   int move1;
@@ -205,7 +205,7 @@ typedef struct {
 typedef struct {
   uint64_t path_sig;
   int hash_pathl;
-  int  hash_path_age;
+  int hash_path_age;
   int hash_path_moves[MAXPLY];
 } HPATH_ENTRY;
 typedef struct {
@@ -251,14 +251,14 @@ struct personality_term {
 };
 struct tree {
   POSITION pos;
-  uint64_t save_hash_key[MAXPLY + 2];
+  uint64_t save_hash_key[MAXPLY + 3];
   uint64_t rep_list[2][128];
   uint64_t all_pawns;
   uint64_t nodes_searched;
-  uint64_t save_pawn_hash_key[MAXPLY + 2];
+  uint64_t save_pawn_hash_key[MAXPLY + 3];
   uint64_t cache_n[64];
   PAWN_HASH_ENTRY pawn_score;
-  SEARCH_POSITION position[MAXPLY + 2];
+  SEARCH_POSITION position[MAXPLY + 3];
   NEXT_MOVE next_status[MAXPLY];
   PATH pv[MAXPLY];
   int cache_n_mobility[64];
@@ -639,7 +639,7 @@ extern void WinFreeInterleaved(void *, size_t);
 #  define HashEP(stm)                (HashKey^=enpassant_random[stm])
 #  define SavePV(tree,ply,ph)   do {                                        \
         tree->pv[ply-1].path[ply-1]=tree->curmv[ply-1];                     \
-        tree->pv[ply-1].pathl=ply;                                        \
+        tree->pv[ply-1].pathl=ply;                                          \
         tree->pv[ply-1].pathh=ph;                                           \
         tree->pv[ply-1].pathd=iteration_depth;} while(0)
 #  if defined(INLINE64)

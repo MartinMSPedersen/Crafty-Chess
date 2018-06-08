@@ -766,8 +766,8 @@ void DisplayPV(TREE * RESTRICT tree, int level, int wtm, int time, int value,
           DisplayEvaluation(value, twtm));
     buffp = buffer + 1;
     do {
-      if ((int) strlen(buffp) > line_length - 46)
-        bufftemp = strchr(buffp + line_length - 46, ' ');
+      if ((int) strlen(buffp) > line_length - 42)
+        bufftemp = strchr(buffp + line_length - 42, ' ');
       else
         bufftemp = 0;
       if (bufftemp)

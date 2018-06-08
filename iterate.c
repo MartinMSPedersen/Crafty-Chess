@@ -6,7 +6,7 @@
 #  include <unistd.h>
 #  include <sys/types.h>
 #endif
-/* last modified 10/14/13 */
+/* last modified 11/11/13 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -262,6 +262,7 @@ int Iterate(int wtm, int search_type, int root_list_done) {
           tree->inchk[1] = Check(wtm);
           value =
               Search(tree, root_alpha, root_beta, wtm, iteration_depth, 1, 0);
+          end_time = ReadClock();
           root_print_ok = tree->nodes_searched > noise_level;
           if (abort_search)
             break;
@@ -383,7 +384,6 @@ int Iterate(int wtm, int search_type, int root_list_done) {
  ************************************************************
  */
         twtm = wtm;
-        end_time = ReadClock();
 /*
  ************************************************************
  *                                                          *
@@ -511,7 +511,7 @@ int Iterate(int wtm, int search_type, int root_list_done) {
         if (correct_count >= early_exit)
           break;
 #if !defined(NOEGTB)
-        if (iteration_depth > 3 && TotalAllPieces <= EGTBlimit && EGTB_use &&
+        if (iteration_depth > 10 && TotalAllPieces <= EGTBlimit && EGTB_use &&
             !EGTB_search && EGTBProbe(tree, 1, wtm, &i))
           break;
 #endif

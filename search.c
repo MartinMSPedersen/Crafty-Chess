@@ -1,6 +1,6 @@
 #include "chess.h"
 #include "data.h"
-/* last modified 09/25/13 */
+/* last modified 11/11/13 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -159,7 +159,6 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
         }
         if (alpha < beta)
           SavePV(tree, ply, 2);
-        HashStore(tree, ply, MAX_DRAFT, wtm, EXACT, alpha, 0);
         return (alpha);
       }
     }

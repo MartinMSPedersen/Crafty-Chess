@@ -158,7 +158,7 @@ void MakeMove(TREE * RESTRICT tree, int ply, int move, int wtm) {
         if (Castle(ply + 1, wtm) & 1)
           HashCastle(0, wtm);
         if (Abs(to - from) == 2) {
-          Castle(ply + 1, wtm) = -ply;
+          Castle(ply + 1, wtm) = -1;
           piece = rook;
           if (to == rook_G[wtm]) {
             from = rook_H[wtm];
