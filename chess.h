@@ -348,12 +348,18 @@ typedef struct {
   unsigned char status;
 } ROOT_MOVE;
 
+#if (defined(NT_i386) || defined(NT_AXP))
+#pragma pack(1)
+#endif
 typedef struct {
   BITBOARD position;
   unsigned int status_played;
   float learn;
   int CAP_score;
 } BOOK_POSITION;
+#if (defined(NT_i386) || defined(NT_AXP))
+#pragma pack()
+#endif
 
 typedef struct {
   unsigned char position[8];

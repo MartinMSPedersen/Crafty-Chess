@@ -67,6 +67,16 @@ int SearchSMP(TREE *tree, int alpha, int beta, int value, int wtm,
       extensions+=threat_depth;
       tree->threat_extensions_done++;
     }
+/*
+ ----------------------------------------------------------
+|                                                          |
+|   if two successive moves are capture / re-capture so    |
+|   that the material score is restored, extend the search |
+|   by one ply on the re-capture since it is pretty much   |
+|   forced and easy to analyze.                            |
+|                                                          |
+ ----------------------------------------------------------
+*/
     if (ply>1 && Captured(tree->current_move[ply]) &&
         Captured(tree->current_move[ply-1]) &&
         To(tree->current_move[ply-1]) == To(tree->current_move[ply]) &&

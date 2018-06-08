@@ -866,7 +866,10 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
     if (TotalWhitePawns > 4) {
       int offside=(File(square)<FILEC && File(tree->b_kingsq)>FILEE) ||
                   (File(square)>FILEF && File(tree->b_kingsq)<FILED);
-      if (offside) w_tropism-=QUEEN_OFFSIDE_TROPISM;
+      if (offside) {
+        w_tropism-=QUEEN_OFFSIDE_TROPISM;
+        w_tropism=Max(w_tropism,-8);
+      }
     }
     Clear(square,temp);
   }
@@ -938,7 +941,10 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
     if (TotalBlackPawns > 4) {
       int offside=(File(square)<FILEC && File(tree->w_kingsq)>FILEE) ||
                   (File(square)>FILEF && File(tree->w_kingsq)<FILED);
-      if (offside) b_tropism-=QUEEN_OFFSIDE_TROPISM;
+      if (offside) {
+        b_tropism-=QUEEN_OFFSIDE_TROPISM;
+        b_tropism=Max(b_tropism,-8);
+      }
      }
     Clear(square,temp);
   }
@@ -993,8 +999,9 @@ int Evaluate(TREE *tree, int ply, int wtm, int alpha, int beta) {
          !(BlackBishops&(BlackBishops-1)))) {
       if (square_color[FirstOne(BlackBishops)] != 
           square_color[FirstOne(WhiteBishops)]) {
-        if (TotalWhitePieces==3 && TotalBlackPieces==3) score=score>>1;
-        else if (TotalWhitePieces == TotalBlackPieces)
+        if (TotalWhitePieces==3 && TotalBlackPieces==3)
+          score=((score-Material)>>2)+Material;
+        else if (TotalWhitePieces==TotalBlackPieces)
           score=((score-Material)>>1)+Material;
       }
     }
@@ -1225,6 +1232,15 @@ int EvaluateDevelopmentW(TREE *tree, int ply) {
   return(score);
 }
 
+/* last modified 11/09/99 */
+/*
+********************************************************************************
+*                                                                              *
+*   EvaluateDraws() is used to determine if one side (or both) are in a        *
+*   position where winning is impossible.                                      *
+*                                                                              *
+********************************************************************************
+*/
 int EvaluateDraws(TREE *tree) {
   register int square;
 /*
@@ -1250,7 +1266,7 @@ int EvaluateDraws(TREE *tree) {
 */
   if (TotalBlackPieces==0 && TotalWhitePawns &&
       !(WhitePawns&not_rook_pawns)) {
-    if (TotalWhitePieces==3) {
+    if (WhiteBishops) {
       if (WhiteBishops&dark_squares) {
         if (file_mask[FILEH]&WhitePawns) return(0);
       }
@@ -1282,7 +1298,7 @@ int EvaluateDraws(TREE *tree) {
 */
   if (TotalWhitePieces==0 && TotalBlackPawns &&
       !(BlackPawns&not_rook_pawns)) {
-    if (TotalBlackPieces==3) {
+    if (BlackBishops) {
       if (BlackBishops&dark_squares) {
         if (file_mask[FILEA]&BlackPawns) return(0);
       }
@@ -2138,6 +2154,7 @@ int EvaluatePawns(TREE *tree) {
   register BITBOARD pawns;
   register BITBOARD temp, left, right;
   register BITBOARD wp_moves, bp_moves;
+  register int score=0;
   register int pns, square, file;
   register int w_isolated, b_isolated;
   register int w_isolated_of, b_isolated_of;
@@ -2172,7 +2189,6 @@ int EvaluatePawns(TREE *tree) {
     return(tree->pawn_score.p_score);
   }
   tree->pawn_score.key=PawnHashKey;
-  tree->pawn_score.p_score=0;
   tree->pawn_score.passed_w=0;
   tree->pawn_score.passed_b=0;
   tree->pawn_score.protected=0;
@@ -2208,10 +2224,10 @@ int EvaluatePawns(TREE *tree) {
  ----------------------------------------------------------
 */
   if (root_wtm) {
-    if (TotalWhitePawns == 8) tree->pawn_score.p_score-=EIGHT_PAWNS;
+    if (TotalWhitePawns == 8) score-=EIGHT_PAWNS;
   }
   else {
-    if (TotalBlackPawns == 8) tree->pawn_score.p_score+=EIGHT_PAWNS;
+    if (TotalBlackPawns == 8) score+=EIGHT_PAWNS;
   }
 /*
  ----------------------------------------------------------
@@ -2267,12 +2283,11 @@ int EvaluatePawns(TREE *tree) {
 |                                                          |
  ----------------------------------------------------------
 */
-    tree->pawn_score.p_score+=pval_w[square];
+    score+=pval_w[square];
 #ifdef DEBUGP
-    if (tree->pawn_score.p_score != lastsc)
-      printf("white pawn[static] file=%d,   score=%d\n",
-             file,tree->pawn_score.p_score);
-    lastsc=tree->pawn_score.p_score;
+    if (score != lastsc)
+      printf("white pawn[static] file=%d,   score=%d\n", file,score);
+    lastsc=score;
 #endif
 /*
  ----------------------------------------------------------
@@ -2307,12 +2322,11 @@ int EvaluatePawns(TREE *tree) {
  ----------------------------------------------------------
 */
       if (mask_pawn_duo[square]&WhitePawns)
-        tree->pawn_score.p_score+=PAWN_DUO;
+        score+=PAWN_DUO;
 #ifdef DEBUGP
-      if (tree->pawn_score.p_score != lastsc)
-        printf("white pawn[duo] file=%d,      score=%d\n",
-               file,tree->pawn_score.p_score);
-      lastsc=tree->pawn_score.p_score;
+      if (score != lastsc)
+        printf("white pawn[duo] file=%d,      score=%d\n", file,score);
+      lastsc=score;
 #endif
 /*
  ----------------------------------------------------------
@@ -2373,15 +2387,14 @@ int EvaluatePawns(TREE *tree) {
       }
 
       if (weakness > 0) {
-        if (weakness == 3) tree->pawn_score.p_score-=PAWN_WEAK_P2;
-        else if (weakness) tree->pawn_score.p_score-=PAWN_WEAK_P1;
+        if (weakness == 3) score-=PAWN_WEAK_P2;
+        else if (weakness) score-=PAWN_WEAK_P1;
       }
     } while(0);
 #ifdef DEBUGP
-    if (tree->pawn_score.p_score != lastsc)
-      printf("white pawn[weak] file=%d,     score=%d\n",
-             file,tree->pawn_score.p_score);
-    lastsc=tree->pawn_score.p_score;
+    if (score != lastsc)
+      printf("white pawn[weak] file=%d,     score=%d\n", file,score);
+    lastsc=score;
 #endif
 /*
  ----------------------------------------------------------
@@ -2392,13 +2405,12 @@ int EvaluatePawns(TREE *tree) {
  ----------------------------------------------------------
 */
     if ((pns=PopCnt(file_mask[file]&WhitePawns)) > 1) {
-      tree->pawn_score.p_score-=doubled_pawn_value[pns];
+      score-=doubled_pawn_value[pns];
     }
 #ifdef DEBUGP
-    if (tree->pawn_score.p_score != lastsc)
-      printf("white pawn[doubled] file=%d,  score=%d\n",
-             file,tree->pawn_score.p_score);
-    lastsc=tree->pawn_score.p_score;
+    if (score != lastsc)
+      printf("white pawn[doubled] file=%d,  score=%d\n", file,score);
+    lastsc=score;
 #endif
 /*
  ----------------------------------------------------------
@@ -2408,9 +2420,9 @@ int EvaluatePawns(TREE *tree) {
  ----------------------------------------------------------
 */
     if (!(mask_pawn_passed_w[square]&BlackPawns)) {
-      tree->pawn_score.p_score+=passed_pawn_value[Rank(square)];
+      score+=passed_pawn_value[Rank(square)];
       if (minus8dir[square]&WhitePawns)
-        tree->pawn_score.p_score-=passed_pawn_value[Rank(square)]>>1;
+        score-=passed_pawn_value[Rank(square)]>>1;
       if (mask_pawn_protected_w[square]&WhitePawns)
         tree->pawn_score.protected|=1;
       tree->pawn_score.passed_w|=128>>file;
@@ -2494,13 +2506,12 @@ int EvaluatePawns(TREE *tree) {
          (File(square) > FILEA && SetMask(square-9)&WhitePawns &&
           !(plus8dir[square-9]&BlackPawns) &&
           (File(square) == FILEB || !(plus8dir[square-10]&BlackPawns))))) {
-      tree->pawn_score.p_score+=passed_pawn_value[Rank(square)]>>1;
+      score+=passed_pawn_value[Rank(square)]>>1;
     }
 #ifdef DEBUGP
-    if (tree->pawn_score.p_score != lastsc)
-      printf("white pawn[hidden] file=%d,   score=%d\n",
-             file,tree->pawn_score.p_score);
-    lastsc=tree->pawn_score.p_score;
+    if (score != lastsc)
+      printf("white pawn[hidden] file=%d,   score=%d\n", file,score);
+    lastsc=score;
 #endif
 /*
  ----------------------------------------------------------
@@ -2548,12 +2559,11 @@ int EvaluatePawns(TREE *tree) {
 |                                                          |
  ----------------------------------------------------------
 */
-    tree->pawn_score.p_score-=pval_b[square];
+    score-=pval_b[square];
 #ifdef DEBUGP
-    if (tree->pawn_score.p_score != lastsc)
-      printf("black pawn[static] file=%d,   score=%d\n",
-             file,tree->pawn_score.p_score);
-    lastsc=tree->pawn_score.p_score;
+    if (score != lastsc)
+      printf("black pawn[static] file=%d,   score=%d\n", file,score);
+    lastsc=score;
 #endif
 /*
  ----------------------------------------------------------
@@ -2584,12 +2594,11 @@ int EvaluatePawns(TREE *tree) {
  ----------------------------------------------------------
 */
       if (mask_pawn_duo[square]&BlackPawns)
-        tree->pawn_score.p_score-=PAWN_DUO;
+        score-=PAWN_DUO;
 #ifdef DEBUGP
-      if (tree->pawn_score.p_score != lastsc)
-        printf("black pawn[duo] file=%d,      score=%d\n",
-               file,tree->pawn_score.p_score);
-      lastsc=tree->pawn_score.p_score;
+      if (score != lastsc)
+        printf("black pawn[duo] file=%d,      score=%d\n", file,score);
+      lastsc=score;
 #endif
 /*
  ----------------------------------------------------------
@@ -2650,16 +2659,15 @@ int EvaluatePawns(TREE *tree) {
       }
 
       if (weakness > 0) {
-        if (weakness == 3) tree->pawn_score.p_score+=PAWN_WEAK_P2;
-        else if (weakness) tree->pawn_score.p_score+=PAWN_WEAK_P1;
-        else tree->pawn_score.p_score+=PAWN_WEAK_P2;
+        if (weakness == 3) score+=PAWN_WEAK_P2;
+        else if (weakness) score+=PAWN_WEAK_P1;
+        else score+=PAWN_WEAK_P2;
       }
     } while(0);
 #ifdef DEBUGP
-    if (tree->pawn_score.p_score != lastsc)
-      printf("black pawn[weak] file=%d,     score=%d\n",
-             file,tree->pawn_score.p_score);
-    lastsc=tree->pawn_score.p_score;
+    if (score != lastsc)
+      printf("black pawn[weak] file=%d,     score=%d\n", file,score);
+    lastsc=score;
 #endif
 /*
  ----------------------------------------------------------
@@ -2670,13 +2678,12 @@ int EvaluatePawns(TREE *tree) {
  ----------------------------------------------------------
 */
     if ((pns=PopCnt(file_mask[file]&BlackPawns)) > 1) {
-      tree->pawn_score.p_score+=doubled_pawn_value[pns];
+      score+=doubled_pawn_value[pns];
     }
 #ifdef DEBUGP
-    if (tree->pawn_score.p_score != lastsc)
-      printf("black pawn[doubled] file=%d,  score=%d\n",
-             file,tree->pawn_score.p_score);
-    lastsc=tree->pawn_score.p_score;
+    if (score != lastsc)
+      printf("black pawn[doubled] file=%d,  score=%d\n", file,score);
+    lastsc=score;
 #endif
 /*
  ----------------------------------------------------------
@@ -2686,9 +2693,9 @@ int EvaluatePawns(TREE *tree) {
  ----------------------------------------------------------
 */
     if (!(mask_pawn_passed_b[square]&WhitePawns)) {
-      tree->pawn_score.p_score-=passed_pawn_value[(RANK8-Rank(square))];
+      score-=passed_pawn_value[(RANK8-Rank(square))];
       if (plus8dir[square]&BlackPawns)
-        tree->pawn_score.p_score+=passed_pawn_value[RANK8-Rank(square)]>>1;
+        score+=passed_pawn_value[RANK8-Rank(square)]>>1;
       if (mask_pawn_protected_b[square]&BlackPawns)
         tree->pawn_score.protected|=2;
       tree->pawn_score.passed_b|=128>>file;
@@ -2772,13 +2779,12 @@ int EvaluatePawns(TREE *tree) {
          (File(square) > FILEA && SetMask(square+7)&BlackPawns &&
           !(minus8dir[square+7]&WhitePawns) &&
           (File(square) == FILEB || !(minus8dir[square+6]&WhitePawns))))) {
-      tree->pawn_score.p_score-=passed_pawn_value[(RANK8-Rank(square))]>>1;
+      score-=passed_pawn_value[(RANK8-Rank(square))]>>1;
     }
 #ifdef DEBUGP
-    if (tree->pawn_score.p_score != lastsc)
-      printf("black pawn[hidden] file=%d,   score=%d\n",
-             file,tree->pawn_score.p_score);
-    lastsc=tree->pawn_score.p_score;
+    if (score != lastsc)
+      printf("black pawn[hidden] file=%d,   score=%d\n", file,score);
+    lastsc=score;
 #endif
 /*
  ----------------------------------------------------------
@@ -2817,14 +2823,14 @@ int EvaluatePawns(TREE *tree) {
 |                                                          |
  ----------------------------------------------------------
 */
-  tree->pawn_score.p_score-=isolated_pawn_value[w_isolated];
-  tree->pawn_score.p_score-=isolated_pawn_of_value[w_isolated_of];
-  tree->pawn_score.p_score+=isolated_pawn_value[b_isolated];
-  tree->pawn_score.p_score+=isolated_pawn_of_value[b_isolated_of];
+  score-=isolated_pawn_value[w_isolated];
+  score-=isolated_pawn_of_value[w_isolated_of];
+  score+=isolated_pawn_value[b_isolated];
+  score+=isolated_pawn_of_value[b_isolated_of];
 #ifdef DEBUGP
-  if (tree->pawn_score.p_score != lastsc)
-    printf("pawn[isolated]          score=%d\n",tree->pawn_score.p_score);
-  lastsc=tree->pawn_score.p_score;
+  if (score != lastsc)
+    printf("pawn[isolated]          score=%d\n", score);
+  lastsc=score;
 #endif
 /*
  ----------------------------------------------------------
@@ -2839,14 +2845,14 @@ int EvaluatePawns(TREE *tree) {
 */
   if (TotalWhitePawns>4 && TotalBlackPawns>4) {
     if (w_unblocked <= 2)
-      tree->pawn_score.p_score-=PAWNS_BLOCKED*(3-w_unblocked)*blocked_scale/100;
+      score-=PAWNS_BLOCKED*(3-w_unblocked)*blocked_scale/100;
     if (b_unblocked <= 2)
-      tree->pawn_score.p_score+=PAWNS_BLOCKED*(3-b_unblocked)*blocked_scale/100;
+      score+=PAWNS_BLOCKED*(3-b_unblocked)*blocked_scale/100;
   }
 #ifdef DEBUGP
-  if (tree->pawn_score.p_score != lastsc)
-    printf("pawn[unblocked]         score=%d\n",tree->pawn_score.p_score);
-  lastsc=tree->pawn_score.p_score;
+  if (score != lastsc)
+    printf("pawn[unblocked]         score=%d\n", score);
+  lastsc=score;
 #endif
 /*
  ----------------------------------------------------------
@@ -2857,17 +2863,15 @@ int EvaluatePawns(TREE *tree) {
  ----------------------------------------------------------
 */
   if (root_wtm) {
-    tree->pawn_score.p_score-=
-      pawn_rams[PopCnt(WhitePawns&(BlackPawns<<8))];
+    score-=pawn_rams[PopCnt(WhitePawns&(BlackPawns<<8))];
   }
   else {
-    tree->pawn_score.p_score+=
-      pawn_rams[PopCnt(WhitePawns&(BlackPawns<<8))];
+    score+=pawn_rams[PopCnt(WhitePawns&(BlackPawns<<8))];
   }
 #ifdef DEBUGP
-  if (tree->pawn_score.p_score != lastsc)
-    printf("pawn[rams]              score=%d\n",tree->pawn_score.p_score);
-  lastsc=tree->pawn_score.p_score;
+  if (score != lastsc)
+    printf("pawn[rams]              score=%d\n",score);
+  lastsc=score;
 #endif
 /*
  ----------------------------------------------------------
@@ -3193,7 +3197,8 @@ int EvaluatePawns(TREE *tree) {
 |                                                          |
  ----------------------------------------------------------
 */
-  tree->pawn_score.p_score=tree->pawn_score.p_score*pawn_scale/100;
+  score=score*pawn_scale/100;
+  tree->pawn_score.p_score=score;
   *ptable=tree->pawn_score;
-  return(tree->pawn_score.p_score);
+  return(score);
 }

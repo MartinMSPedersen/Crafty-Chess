@@ -541,7 +541,7 @@ void Display2BitBoards(BITBOARD board1, BITBOARD board2) {
 void EGTBPV(TREE *tree, int wtm) {
   int moves[1024], current[256];
   BITBOARD hk[1024], phk[1024];
-  char buffer[1024], *next;
+  char buffer[16384], *next;
   BITBOARD pos[1024];
   int value;
   register int ply, i, j, nmoves, *last, t_move_number;

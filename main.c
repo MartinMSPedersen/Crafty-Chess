@@ -2579,6 +2579,11 @@
 *           into the game, then let crafty know that the current position is  *
 *           either lost or won (with a specific score).                       *
 *                                                                             *
+*   17.1    book structure fixed, since compilers can't quite agree on how    *
+*           structures ought to be aligned, for reasons not clear to me.  a   *
+*           serious eval bug that could produce gross scores when one side    *
+*           had two queens was fixed.                                         *
+*                                                                             *
 *******************************************************************************
 */
 int main(int argc, char **argv) {

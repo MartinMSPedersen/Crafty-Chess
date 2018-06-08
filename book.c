@@ -234,9 +234,11 @@ int Book(TREE *tree, int wtm, int root_list_done) {
       if (minlv < maxlv)
         bs_value[i]+=(bs_learn[i]-minlv)/
                      (float) (Max(maxlv-minlv,50))*1000.0*book_weight_learn;
-      if (bs_CAP[i] != -2*MATE) cap=bs_CAP[i];
-      bs_value[i]+=(cap-mincap)/
+      if (bs_CAP[i]!=-2*MATE) {
+        cap=bs_CAP[i];
+        bs_value[i]+=(cap-mincap)/
                      (float) (Max(maxcap-mincap,50))*1000.0*book_weight_CAP;
+      }
       if (minev < maxev)
         bs_value[i]+=(evaluations[i]-minev)/(float)(Max(maxev-minev,50))*
                      1000.0*book_weight_eval;
@@ -904,10 +906,12 @@ void BookUp(TREE *tree, char *output_filename, int nargs, char **args) {
     else if (!strcmp(args[1],"accept")) {
       book_accept_mask=BookMask(args[2]);
       book_reject_mask=book_reject_mask & ~book_accept_mask;
+      return;
     }
     else if (!strcmp(args[1],"reject")) {
       book_reject_mask=BookMask(args[2]);
       book_accept_mask=book_accept_mask & ~book_reject_mask;
+      return;
     }
   }
   else if (!strcmp(args[0],"random")) {

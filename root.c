@@ -73,7 +73,7 @@ void RootMoveList(int wtm) {
       tree->current_move[1]=*mvp;
       if (TotalPieces<=EGTBlimit && EGTB_draw) {
         i=EGTBProbe(tree, 2, ChangeSide(wtm), &tb_value);
-        if (tb_value != DrawScore(0)) break;
+        if (i && tb_value != DrawScore(0)) break;
       }
       if (mating_via_tb && TotalPieces<=EGTBlimit) {
         i=EGTBProbe(tree, 2, ChangeSide(wtm), &tb_value);

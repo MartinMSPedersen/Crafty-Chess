@@ -138,7 +138,7 @@
   extern char           book_hint[512];
   extern int            post;
   extern int            search_depth;
-  extern int            search_nodes;
+  extern unsigned int   search_nodes;
   extern int            search_move;
   extern int            easy_move;
   extern TIME_TYPE      time_type;
