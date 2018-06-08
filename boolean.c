@@ -16,7 +16,7 @@ BITBOARD Mask(int arg1)
     return (i << (64 - arg1));
 }
 
-#if (!defined(INLINE_ASM) && !defined(ALPHA)) || (defined(ALPHA) && !defined(PopCnt))
+#if defined(ALPHA) && !defined(PopCnt)
 
 #  if defined (_M_IA64)
 

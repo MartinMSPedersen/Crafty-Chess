@@ -6,8 +6,8 @@
 #include "epdglue.h"
 
 #if defined(FUTILITY)
-#  define RAZOR_MARGIN (QUEEN_VALUE+1)
-#  define F_MARGIN (BISHOP_VALUE+1)
+#  define RAZOR_MARGIN (queen_value+1)
+#  define F_MARGIN (bishop_value+1)
 #endif
 
 /* last modified 01/22/04 */

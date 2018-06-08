@@ -257,6 +257,7 @@ void ThreadStop(TREE * RESTRICT tree)
  */
 int ThreadWait(int tid, TREE * RESTRICT waiting)
 {
+  int value;
 /*
  ************************************************************
  *                                                          *
@@ -345,7 +346,7 @@ int ThreadWait(int tid, TREE * RESTRICT waiting)
  *                                                          *
  ************************************************************
  */
-    SearchSMP(thread[tid], thread[tid]->alpha, thread[tid]->beta,
+    value = SearchSMP(thread[tid], thread[tid]->alpha, thread[tid]->beta,
         thread[tid]->value, thread[tid]->wtm, thread[tid]->depth,
         thread[tid]->ply, thread[tid]->mate_threat, thread[tid]->lp_recapture);
     Lock(lock_smp);
@@ -356,7 +357,7 @@ int ThreadWait(int tid, TREE * RESTRICT waiting)
         FindBlockID(thread[tid]), thread[tid]->ply);
     Unlock(lock_io);
 #  endif
-    CopyFromSMP((TREE *) thread[tid]->parent, thread[tid]);
+    CopyFromSMP((TREE *) thread[tid]->parent, thread[tid], value);
     thread[tid]->parent->nprocs--;
 #  if defined(DEBUGSMP)
     Lock(lock_io);

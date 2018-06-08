@@ -3044,6 +3044,41 @@
  *           approximately 20-25% faster is included in this version (code by  *
  *           Eugene Nalimov of course).                                        *
  *                                                                             *
+ *   19.14   new "eval" command (eval list and eval help to start) allow a     *
+ *           user to modify all internal evaluation values via commands that   *
+ *           may be entered directly or via the .craftyrc/crafty.rc init file. *
+ *           this was mainly done for the automated evaluation tuning project  *
+ *           I am working on with Anthony Cozzie, but it will be useful for    *
+ *           merging Mike Byrne's "personality" stuff as well.  new command    *
+ *           "personality load/save <filename>" which saves eval and search    *
+ *           parameters to create new personalities that can be loaded at any  *
+ *           time.  "crafty.cpf" is the "default" personality file that is     *
+ *           used at start-up if it exists.  evaluation tuning changes based   *
+ *           on some results from the new annealing code, although all of the  *
+ *           annealed values are not yet fully understood nor utilized yet.    *
+ *           LearnBook() is now used to learn good and bad game results.  IE   *
+ *           if crafty wins with a particular opening, it will remember it as  *
+ *           good and try it again, in addition to the previous method that    *
+ *           would remember bad openings and avoid them.  it also now handles  *
+ *           draws as well which can make slightly bad openings appear better. *
+ *           minor change to SMP code to eliminate the possibility of a shared *
+ *           variable getting overwritten unintentionally.  several changes to *
+ *           evaluation weights and evaluation code as testing for the WCCC    *
+ *           continues.  new "help" command uses a file "crafty.hlp" which now *
+ *           contains all the help information.  this makes the help info      *
+ *           easier to maintain and gets rid of a bunch of printf()s in the    *
+ *           Option() source (option.c).  rewrite of the "list" code.  Crafty  *
+ *           now supports six lists, AK (auto-kibitz), B (blocker), C (comp),  *
+ *           GM, IM and SP (special player).  The SP list has two extra items  *
+ *           that can be specified to go with a player's name, namely a book   *
+ *           filename (to replace the normal books.bin, but not book.bin) and  *
+ *           a personality file that will be loaded each time this particular  *
+ *           named opponent plays.  the format is available in the new help    *
+ *           facility.  bug fix for outside passed pawn code that would cause  *
+ *           an outside passer to appear to be a winning advantage even if the *
+ *           opponent has a protected passer, which easily negates the outside *
+ *           passer's threat.                                                  *
+ *                                                                             *
  *******************************************************************************
  */
 int main(int argc, char **argv)
@@ -3051,6 +3086,7 @@ int main(int argc, char **argv)
   int move, presult, readstat;
   int value = 0, i, cont = 0, result;
   TREE *tree;
+  FILE *personality;
 
 #if defined(NT_i386)
   extern void _cdecl SignalInterrupt(int);
@@ -3105,7 +3141,7 @@ int main(int argc, char **argv)
   local[0]->thread_id = 0;
   tree = local[0];
   input_stream = stdin;
-  for (i = 0; i < 32; i++)
+  for (i = 0; i < 256; i++)
     args[i] = (char *) malloc(128);
   if (argc > 1) {
     for (i = 1; i < argc; i++) {
@@ -3155,7 +3191,7 @@ int main(int argc, char **argv)
   if (argc > 1) {
     for (i = 1; i < argc; i++)
       if (strcmp(argv[i], "c"))
-        if ((argv[i][0] < '0' || argv[i][0] > '9') && !strstr(argv[i], "path")) {
+        if (!strstr(argv[i], "path")) {
           strcpy(buffer, argv[i]);
           result = Option(tree);
           if (result == 0)
@@ -3221,6 +3257,21 @@ int main(int argc, char **argv)
     printf("*whisper Hello from Crafty v%s!\n", version);
 #endif
   NewGame(1);
+/*
+ ************************************************************
+ *                                                          *
+ *   check to see if we can find a "crafty.cpf" personality *
+ *   file which contains the default personality settings   *
+ *   to be used unless overridden by the user.              *
+ *                                                          *
+ ************************************************************
+ */
+  if ((personality = fopen("crafty.cpf", "r"))) {
+    fclose(personality);
+    Print(4095, "using default personality file \"crafty.cpf\"\n");
+    sprintf(buffer, "personality load crafty.cpf");
+    (void) Option(tree);
+  }
 /*
  ************************************************************
  *                                                          *
@@ -3644,17 +3695,19 @@ int main(int argc, char **argv)
  ************************************************************
  *                                                          *
  *   now execute LearnBook() to determine if the book line  *
- *   was bad or good.  then follow up with LearnResult() if *
- *   Crafty was checkmated.                                 *
+ *   was bad or good.  then follow up with another call to  *
+ *   LearnBook() if the score indicates checkmate.          *
  *                                                          *
  ************************************************************
  */
     if (moves_out_of_book) {
       LearnBook(tree, wtm, last_value, last_pv.pathd + 2, 0, 0);
     }
-    if (value <= -MATE + 10) {
-      int val = (crafty_is_white) ? -300 : 300;
+    if (abs(value) > MATE - 200) {
+      int val = (crafty_is_white) ? 300 : -300;
 
+      if (value < 0)
+        val = -val;
       LearnBook(tree, wtm, val, 0, 1, 2);
     }
     for (i = 0; i < 4096; i++) {

@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "chess.h"
-#include "evaluate.h"
 FILE     *input_stream;
 FILE     *book_file;
 FILE     *books_file;
@@ -26,7 +25,7 @@ int       number_of_solutions;
 int       solutions[10];
 int       solution_type;
 char      cmd_buffer[4096];
-char     *args[32];
+char     *args[256];
 char      buffer[512];
 int       nargs;
 int       iteration_depth;
@@ -67,19 +66,19 @@ size_t    cb_pawn_hash_table;
 PATH      last_pv;
 int       last_value;
 int       temper_b[64], temper_w[64];
-signed char pval_b[64];
-signed char nval_b[64];
-signed char bval_b[64];
-signed char rval_b[64];
-signed char qval_b[64];
-signed char kval_bn[64];
-signed char kval_bk[64];
-signed char kval_bq[64];
-signed char black_outpost[64];
-signed char king_defects_b[64];
+int pval_b[64];
+int nval_b[64];
+int bval_b[64];
+int rval_b[64];
+int qval_b[64];
+int kval_bn[64];
+int kval_bk[64];
+int kval_bq[64];
+int black_outpost[64];
+int king_defects_b[64];
 signed char directions[64][64];
 int       tropism[128];
-char      pawn_rams[9];
+int       pawn_rams[9];
 BITBOARD  w_pawn_attacks[64];
 BITBOARD  b_pawn_attacks[64];
 BITBOARD  knight_attacks[64];
@@ -156,8 +155,6 @@ BITBOARD  stonewall_white;
 BITBOARD  stonewall_black;
 BITBOARD  e7_e6;
 BITBOARD  e2_e3;
-BITBOARD  closed_white;
-BITBOARD  closed_black;
 BITBOARD  mask_kr_trapped_w[3];
 BITBOARD  mask_qr_trapped_w[3];
 BITBOARD  mask_kr_trapped_b[3];
@@ -213,7 +210,6 @@ BITBOARD  white_pawn_race_wtm[64];
 BITBOARD  white_pawn_race_btm[64];
 BITBOARD  black_pawn_race_wtm[64];
 BITBOARD  black_pawn_race_btm[64];
-BITBOARD  mask_wk_4th, mask_wq_4th, mask_bk_4th, mask_bq_4th;
 BOOK_POSITION book_buffer[BOOK_CLUSTER_SIZE];
 BOOK_POSITION books_buffer[BOOK_CLUSTER_SIZE];
 unsigned int thread_start_time[CPUS];
@@ -232,7 +228,7 @@ unsigned int parallel_splits;
 unsigned int parallel_stops;
 unsigned int max_split_blocks;
 volatile unsigned int splitting;
-# define    VERSION                             "19.13"
+# define    VERSION                             "19.14"
 char      version[6] = { VERSION };
 PLAYING_MODE mode = normal_mode;
 #if defined(SMP)
@@ -258,51 +254,14 @@ char      pgn_white_elo[32] = { "" };
 char      pgn_black[64] = { "Crafty " VERSION };
 char      pgn_black_elo[32] = { "" };
 char      pgn_result[32] = { "*" };
-int       number_to_play = 0;
-char      toplay_list[512][20] = {
-  {""}
-};
-int       number_of_blockers = 0;
-char      blocker_list[512][20] = {
-  {""}
-};
-int       number_auto_kibitzers = 7;
-char      auto_kibitz_list[64][20] = {
-  {"diepx"},
-  {"ferret"},
-  {"hossa"},
-  {"lambchop"},
-  {"moron"},
-  {"otter"},
-  {"zarkovx"}
-};
-int       number_of_computers = 0;
-char      computer_list[512][20] = {
-  {""}
-};
-int       number_of_GMs = 9;
-char      GM_list[512][20] = {
-  {"astr"},
-  {"dreev"},
-  {"garompon"},
-  {"jean-reno"},
-  {"lorenzo"},
-  {"mecking"},
-  {"nikephoros"},
-  {"ruslam"},
-  {"sweere"}
-};
-int       number_of_IMs = 0;
-char      IM_list[512][20] = {
-  {""}
-};
-int       number_of_special_openings = 0;
-char      opening_list[16][20] = {
-  {""}
-};
-char      opening_filenames[16][64] = {
-  {""}
-};
+char      *B_list[128];
+char      *AK_list[128];
+char      *C_list[128];
+char      *GM_list[128];
+char      *IM_list[128];
+char      *SP_list[128];
+char      *SP_opening_filename[128];
+char      *SP_personality_filename[128];
 int       ics = 0;
 int       output_format = 0;
 int       EGTBlimit = 0;
@@ -319,6 +278,7 @@ int       early_exit = 99;
 int       new_game = 0;
 char      channel_title[32] = { "" };
 char      book_path[128] = { BOOKDIR };
+char      personality_path[128] = { PERSDIR };
 char      log_path[128] = { LOGDIR };
 char      tb_path[128] = { TBDIR };
 char      rc_path[128] = { RCDIR };
@@ -391,6 +351,7 @@ char      initial_position[80] = { "" };
 char      hint[512] = { "" };
 char      book_hint[512] = { "" };
 int       over = 0;
+int       silent = 0;
 int       trojan_check = 0;
 int       computer_opponent = 0;
 int       use_asymmetry = 1;
@@ -450,13 +411,13 @@ unsigned char bishop_shift_rr45[64] = {
 const char xlate[15] =
     { 'q', 'r', 'b', 0, 'k', 'n', 'p', 0, 'P', 'N', 'K', 0, 'B', 'R', 'Q' };
 const char empty[9] = { 0, '1', '2', '3', '4', '5', '6', '7', '8' };
-const char king_tropism_n[8] = { 3, 3, 3, 2, 1, 0, 0, 0 };
-const char king_tropism_b[8] = { 3, 3, 3, 2, 1, 0, 0, 0 };
-const char king_tropism_r[8] = { 3, 3, 3, 2, 1, 0, 0, 0 };
-const char king_tropism_at_r[8] = { 4, 3, 1, 0, 0, 0, 0, 0 };
-const char king_tropism_q[8] = { 4, 4, 4, 2, 1, 0, 0, 0 };
-const char king_tropism_at_q[8] = { 5, 5, 3, 0, 0, 0, 0, 0 };
-const int king_tropism[128] = {
+int king_tropism_n[8] = { 3, 3, 3, 2, 1, 0, 0, 0 };
+int king_tropism_b[8] = { 3, 3, 3, 2, 1, 0, 0, 0 };
+int king_tropism_r[8] = { 3, 3, 3, 2, 1, 0, 0, 0 };
+int king_tropism_at_r[8] = { 4, 3, 1, 0, 0, 0, 0, 0 };
+int king_tropism_q[8] = { 4, 4, 4, 2, 1, 0, 0, 0 };
+int king_tropism_at_q[8] = { 5, 5, 3, 0, 0, 0, 0, 0 };
+int king_tropism[128] = {
   -25, -25, -20, -20, -15, -15, -10,  -5,
     0,   2,   5,  12,  15,  20,  30,  40,
    50,  60,  70,  80,  90, 100, 110, 120,
@@ -474,18 +435,18 @@ const int king_tropism[128] = {
   180, 180, 180, 180, 180, 180, 180, 180,
   180, 180, 180, 180, 180, 180, 180, 180
 };
-const char connected_passed_pawn_value[8] = { 0, 0, 8, 12, 24, 48, 100, 0 };
-const int hidden_passed_pawn_value[8] = { 0, 0, 0, 0, 0, 16, 24, 0 };
-const int passed_pawn_value[8] = { 0, 24, 32, 48, 60, 120, 160, 0 };
-const char blockading_passed_pawn_value[8] = { 0, 8, 12, 16, 30, 45, 60, 0 };
-const char isolated_pawn_value[9] = { 0, 12, 24, 56, 66, 80, 90, 100, 110 };
-const char isolated_pawn_of_value[9] = { 0, 5, 10, 15, 20, 25, 30, 35, 40 };
-const char doubled_pawn_value[7] = { 0, 0, 5, 10, 20, 25, 30 };
-const char pawn_rams_v[9] = { 0, 0, 6, 24, 40, 64, 80, 94, 96 };
-const char supported_passer[8] = { 0, 0, 0, 0, 12, 60, 100, 0 };
-const char outside_passed[128] = {
-  96, 48, 48, 48, 45, 42, 40, 40,
-  36, 36, 32, 32, 28, 28, 24, 24,
+int connected_passed_pawn_value[8] = { 0, -6, -6, 0, 10, 48, 72, 0 };
+int hidden_passed_pawn_value[8] = { 0, 0, 0, 0, 0, 16, 24, 0 };
+int passed_pawn_value[8] = { 0, 4, 8, 16, 32, 64, 96, 0 };
+int blockading_passed_pawn_value[8] = { 0, 8, 12, 16, 30, 48, 64, 0 };
+int isolated_pawn_value[9] = { 0, 12, 24, 30, 38, 52, 80, 80, 80 };
+int isolated_pawn_of_value[9] = { 0, 7, 20, 30, 40, 50, 60, 60, 60 };
+int doubled_pawn_value[9] = { 0, 0, 8, 20, 40, 40, 40, 40, 40};
+int pawn_rams_v[9] = { 0, 0, 6, 24, 40, 64, 80, 94, 96 };
+int supported_passer[8] = { 0, 0, 0, 0, 12, 60, 100, 0 };
+int outside_passed[128] = {
+  72, 40, 40, 40, 36, 36, 32, 32,
+  30, 30, 28, 28, 26, 26, 24, 24,
   20, 20, 16, 16, 12, 12, 12, 12,
   12, 12, 12, 12, 12, 12, 12, 12,
   12, 12, 12, 12, 12, 12, 12, 12,
@@ -501,9 +462,9 @@ const char outside_passed[128] = {
   12, 12, 12, 12, 12, 12, 12, 12,
   12, 12, 12, 12, 12, 12, 12, 12
 };
-const char majority[128] = {
-  72, 36, 36, 36, 34, 31, 30, 30,
-  27, 27, 24, 24, 21, 21, 18, 18,
+int majority[128] = {
+  60, 32, 32, 32, 30, 30, 28, 28,
+  26, 26, 24, 24, 21, 21, 18, 18,
   15, 15, 12, 12, 10, 10, 10, 10,
   10, 10, 10, 10, 10, 10, 10, 10,
   10, 10, 10, 10, 10, 10, 10, 10,
@@ -525,7 +486,7 @@ const char majority[128] = {
  small pertubations in king safety can produce signficant scoring changes,
  but large pertubations won't cause Crafty to sacrifice pieces.
  */
-const int temper[64] = {
+int temper[64] = {
    0,    4,  15,  24,  36,  42,  54,  72,       /*   0-   7 */
    81,  90,  99, 108, 117, 126, 135, 144,       /*   8-  15 */
   148, 152, 156, 160, 164, 168, 172, 175,       /*  16-  23 */
@@ -549,7 +510,7 @@ const int temper[64] = {
  numbered elements correspond to safe king positions, while higher-numbered
  elements represent disrupted kingsides.
  */
-const char ttemper[64] = {
+int ttemper[64] = {
   16, 16, 16, 16, 17, 17, 18, 18,       /*   0-   7 */
   19, 19, 20, 20, 21, 21, 22, 22,       /*   8-  15 */
   23, 23, 24, 24, 25, 25, 26, 26,       /*  16-  23 */
@@ -562,12 +523,12 @@ const char ttemper[64] = {
 /*
  penalty for a fully open file in front of the castled king.
  */
-const char openf[4] = { 0, 8, 13, 16 };
+int openf[4] = { 0, 6, 8, 16 };
 /*
  penalty for a half-open (one side's pawn is missing) file in front of
  the castled king.
  */
-const char hopenf[4] = { 0, 3, 7, 9 };
+int hopenf[4] = { 0, 1, 8, 8 };
 /*
  this value controls king safety asymmetry.  0 is fully symmetrical.
  this works by modifying the king safety scores for the opponent by
@@ -614,7 +575,7 @@ int       king_safety_tropism = 100;
  (say f3 or e4 or anywhere near the center) with heavy pieces still on
  the board.
  */
-signed char king_defects_w[64] = {
+int king_defects_w[64] = {
   1, 0, 2, 3, 3, 2, 0, 1,
   1, 1, 2, 3, 3, 2, 1, 1,
   3, 3, 3, 3, 3, 3, 3, 3,
@@ -664,14 +625,14 @@ const char mate[64] = {
    96, 80, 70, 60, 60, 70, 80,  96,
   100, 96, 93, 90, 90, 93, 96, 100
 };
-signed char white_outpost[64] = {
+int white_outpost[64] = {
   0, 0,  0,  0,  0,  0, 0, 0,
   0, 0,  0,  0,  0,  0, 0, 0,
   0, 0,  0,  0,  0,  0, 0, 0,
-  0, 0,  0,  6,  6,  0, 0, 0,
-  0, 0, 12, 15, 15, 12, 0, 0,
-  0, 0, 12, 18, 18, 12, 0, 0,
-  0, 0,  6, 12, 12,  6, 0, 0,
+  0, 0,  0, 12, 12,  0, 0, 0,
+  0, 0, 24, 30, 30, 24, 0, 0,
+  0, 0, 24, 30, 30, 24, 0, 0,
+  0, 0, 12, 20, 20, 12, 0, 0,
   0, 0,  0,  0,  0,  0, 0, 0
 };
 const char push_extensions[64] = {
@@ -684,17 +645,17 @@ const char push_extensions[64] = {
   1, 1, 1, 1, 1, 1, 1, 1,
   0, 0, 0, 0, 0, 0, 0, 0
 };
-signed char pval_w[64] = {
-  0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 3, 3, 0, 0, 0,
-  0, 0, 2, 3, 3, 0, 0, 0,
-  0, 0, 2, 2, 2, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0
+int pval_w[64] = {
+ 0,  0,  0,  0,  0,  0,  0,  0,
+-8, -5, -2,-15,-15, -2, -5, -8,
+-5, -2,  1,  4,  4,  1, -2, -5,
+-2,  1,  4,  7,  8,  4,  1, -2,
+ 1,  4,  7, 10, 10,  7,  4,  1,
+14, 17, 20, 23, 23, 20, 17, 14,
+17, 20, 23, 26, 26, 23, 20, 17,
+ 0,  0,  0,  0,  0,  0,  0,  0
 };
-signed char nval_w[64] = {
+int nval_w[64] = {
    -8, -8, -8, -8, -8, -8, -8, -8,
    -8, -8,  0,  0,  0,  0, -8, -8,
    -8,  2,  2,  2,  2,  2,  2, -8,
@@ -704,7 +665,7 @@ signed char nval_w[64] = {
   -24,-24,  4,  4,  4,  4,-24,-24,
   -32,-16, -8, -8, -8, -8,-16,-32
 };
-signed char bval_w[64] = {
+int bval_w[64] = {
   -16, -16, -8, -8, -8, -8,-16,-16,
   -16,   2,  0,  0,  0,  0,  2,-16,
    -4,   2,  2,  2,  2,  2,  2, -4,
@@ -714,17 +675,17 @@ signed char bval_w[64] = {
   -16,   2,  4,  4,  4,  4,  2,-16,
   -16, -16,  0,  0,  0,  0,-16,-16
 };
-signed char rval_w[64] = {
-  0, 0, 4, 6, 6, 4, 0, 0,
-  0, 0, 4, 6, 6, 4, 0, 0,
-  0, 0, 4, 6, 6, 4, 0, 0,
-  0, 0, 4, 6, 6, 4, 0, 0,
-  0, 0, 4, 6, 6, 4, 0, 0,
-  0, 0, 4, 6, 6, 4, 0, 0,
-  0, 0, 4, 6, 6, 4, 0, 0,
-  0, 0, 4, 6, 6, 4, 0, 0
+int rval_w[64] = {
+ -3,-3, 1, 3, 3, 1,-3,-3,
+ -3,-3, 1, 3, 3, 1,-3,-3,
+ -3,-3, 1, 3, 3, 1,-3,-3,
+ -3,-3, 1, 3, 3, 1,-3,-3,
+ -3,-3, 1, 3, 3, 1,-3,-3,
+ -3,-3, 1, 3, 3, 1,-3,-3,
+ -3,-3, 1, 3, 3, 1,-3,-3,
+ -3,-3, 1, 3, 3, 1,-3,-3
 };
-signed char qval_w[64] = {
+int qval_w[64] = {
   -10,  -8,  0,  0,  0, 0,  -8, -10,
   -10,   2,  8,  8,  8, 8,   2, -10,
   -10, -10,  4, 10, 10, 4, -10, -10,
@@ -734,7 +695,7 @@ signed char qval_w[64] = {
   -15,   0,  4,  5,  5,  4,  0, -15,
     0,   0,  0,  0,  0,  0,  0, 0
 };
-signed char kval_wn[64] = {
+int kval_wn[64] = {
   -50, -40, -30, -20, -20, -30, -40, -50,
   -30, -20, -10,   0,   0, -10, -20, -30,
   -30, -10,   0,  10,  10,   0, -10, -30,
@@ -744,7 +705,7 @@ signed char kval_wn[64] = {
   -30, -30,   0,   0,   0,   0, -30, -30,
   -50, -30, -30, -30, -30, -30, -30, -50
 };
-signed char kval_wk[64] = {
+int kval_wk[64] = {
   -90, -70, -50, -40, -30, -20, -20, -30,
   -70, -50, -30, -20, -10, -10, -10, -10,
   -70, -50, -30, -10,  20,  20,  20,   0,
@@ -754,7 +715,7 @@ signed char kval_wk[64] = {
   -70, -50, -30, -30,   0,   0,   0, -10,
   -90, -70, -50, -30, -30, -30, -30, -30
 };
-signed char kval_wq[64] = {
+int kval_wq[64] = {
   -30, -20, -20, -30, -40, -50, -70, -90,
   -10, -10, -10, -10, -20, -30, -50, -70,
     0,  20,  20,  20, -10, -30, -50, -70,
@@ -766,7 +727,7 @@ signed char kval_wq[64] = {
 };
 /*  score for bishop pair varies depending on how many pawns are
    on the board (0-8)                                           */
-signed char bishop_pair[9] = { 20, 20, 20, 20, 20, 20, 20, 15, 8 };
+int bishop_pair[9] = { 10, 10, 10, 10, 10, 10, 10, 5, -2 };
 /* note that black piece/square values are copied from white, but
    reflected */
 const int p_values[15] = { QUEEN_VALUE, ROOK_VALUE, BISHOP_VALUE, 0,
@@ -774,3 +735,213 @@ const int p_values[15] = { QUEEN_VALUE, ROOK_VALUE, BISHOP_VALUE, 0,
   0, PAWN_VALUE, KNIGHT_VALUE, KING_VALUE,
   0, BISHOP_VALUE, ROOK_VALUE, QUEEN_VALUE
 };
+int pawn_value = PAWN_VALUE;
+int knight_value = KNIGHT_VALUE;
+int bishop_value = BISHOP_VALUE;
+int rook_value = ROOK_VALUE;
+int queen_value = QUEEN_VALUE;
+int king_value = KING_VALUE;
+int pawn_can_promote = 525;
+int bad_trade = 120;
+int eight_pawns = 10;
+int pawns_blocked = 12;
+int center_pawn_unmoved = 16;
+int pawn_duo = 2;
+int pawn_weak_p1 = 12;
+int pawn_weak_p2 = 20;
+int pawn_protected_passer_wins = 50;
+int won_kp_ending = 150;
+int split_passed = 50;
+int pawn_base[8] = {0, 3, 6, 9, 9, 6, 3, 0};
+int pawn_advance[8] = {3, 3, 3, 3, 3, 3, 3, 3};
+int pawn_connected_passed_6th = 100;
+int king_king_tropism = 15;
+int bishop_trapped = 175;
+int bishop_plus_pawns_on_color = 4;
+int bishop_over_knight_endgame = 30;
+int bishop_mobility = 3;
+int bishop_king_safety = 10;
+int rook_on_7th = 30;
+int rook_absolute_7th = 20;
+int rook_connected_7th_rank = 16;
+int rook_open_file = 24;
+int rook_half_open_file = 5;
+int rook_connected_open_file = 10;
+int rook_behind_passed_pawn = 30;
+int rook_trapped = 30;
+int rook_limited = 20;
+int queen_rook_on_7th_rank = 10;
+int queen_king_safety = 6;
+int queen_vs_2_rooks = 50;
+int queen_is_strong = 30;
+int queen_offside_tropism = 8;
+int king_safety_mate_g2g7 = 3;
+int king_safety_mate_threat = 600;
+int king_safety_stonewall = 7;
+int king_safety_open_file = 4;
+int castle_opposite = 3;
+int development_thematic = 6;
+int development_unmoved = 7;
+int blocked_center_pawn = 12;
+int development_losing_castle = 20;
+int development_not_castled = 10;
+int development_queen_early = 20;
+int development_castle_bonus = 20;
+int *evalterm_value[256] =
+    { NULL,                        &pawn_value,
+      &knight_value,               &bishop_value,
+      &rook_value,                 &queen_value,
+      NULL,                        NULL,
+      NULL,                        NULL,
+      NULL,                        &blocked_scale,
+      &king_safety_asymmetry,      &king_safety_scale,
+      &king_safety_tropism,        &passed_scale,
+      &pawn_scale,                 &bad_trade,
+      NULL,                        NULL,
+      NULL,                        &eight_pawns,
+      &pawns_blocked,              &center_pawn_unmoved,
+      &pawn_duo,                   &pawn_protected_passer_wins,
+      &pawn_weak_p1,               &pawn_weak_p2,
+      &pawn_can_promote,           &won_kp_ending,
+      &split_passed,               &pawn_connected_passed_6th,
+      pval_w,                      connected_passed_pawn_value,
+      hidden_passed_pawn_value,    passed_pawn_value,
+      blockading_passed_pawn_value,isolated_pawn_value,
+      isolated_pawn_of_value,      doubled_pawn_value,
+      pawn_rams_v,                 supported_passer,
+      outside_passed,              majority,
+      NULL,                        NULL,
+      NULL,                        NULL,
+      NULL,                        NULL,
+      NULL,                        king_tropism_n,
+      nval_w,                      white_outpost,
+      NULL,                        NULL,
+      NULL,                        NULL,
+      NULL,                        NULL,
+      NULL,                        &bishop_king_safety,
+      &bishop_mobility,            &bishop_over_knight_endgame,
+      &bishop_plus_pawns_on_color, &bishop_trapped,
+      bishop_pair,                 king_tropism_b,
+      bval_w,                      NULL,
+      NULL,                        &rook_on_7th,
+      &rook_absolute_7th,          &rook_connected_7th_rank,
+      &rook_half_open_file,        &rook_open_file,
+      &rook_connected_open_file,   &rook_behind_passed_pawn,
+      &rook_trapped,               &rook_limited,
+      king_tropism_r,              king_tropism_at_r,
+      rval_w,                      NULL,
+      NULL,                        NULL,
+      NULL,                        NULL,
+      NULL,                        NULL,
+      NULL,                        &queen_rook_on_7th_rank,
+      &queen_king_safety,          &queen_vs_2_rooks,
+      &queen_is_strong,            &queen_offside_tropism,
+      king_tropism_q,              king_tropism_at_q,
+      qval_w,                      NULL,
+      NULL,                        &king_king_tropism,
+      &king_safety_mate_g2g7,      &king_safety_mate_threat,
+      &king_safety_stonewall,      &king_safety_open_file,
+      &castle_opposite,            king_tropism,
+      king_defects_w,              kval_wn,
+      kval_wk,                     kval_wq,
+      hopenf,                      openf,
+      temper,                      ttemper,
+      NULL,                        NULL,
+      NULL,                        NULL,
+      NULL,                        &development_thematic,
+      &development_unmoved,        &blocked_center_pawn,
+      &development_losing_castle,  &development_not_castled,
+      &development_queen_early,    &development_castle_bonus,
+      };
+char *evalterm_description[256] =
+    { "piece values--------------------", "pawn value                      ",
+      "knight value                    ", "bishop value                    ",
+      "rook value                      ", "queen value                     ",
+      NULL,                               NULL,
+      NULL,                               NULL,
+      "evaluation scale factors--------", "blocked pawn scale factor       ",
+      "king safety asymmetry           ", "king safety scale factor        ",
+      "king safety tropism scale factor", "passed pawn scoring scale factor",
+      "pawn scoring scale factor       ", "bad trade bonus/penalty         ",
+      NULL,                               NULL,
+      "pawn evaluation-----------------", "eight pawns penalty             ",
+      "center pawn blocked             ", "center pawn unmoved             ",
+      "pawn duo                        ", "protected passed pawn wins      ",
+      "pawn weak (one pawn blocking)   ", "pawn weak (two pawns blocking)  ",
+      "pawn can promote                ", "won kp ending                   ",
+      "split passed pawn bonus         ", "pawn connected passers on 6th   ",
+      "pawn piece/square table         ", "connected passed pawn [rank]    ",
+      "hidden passed pawn [rank]       ", "passed pawn [rank]              ",
+      "blockading a passed pawn [rank] ", "isolated pawn [n]               ",
+      "isolated pawn on open file [n]  ", "doubled pawn [n]                ",
+      "pawn ram [n]                    ", "supported passed pawn [rank]    ",
+      "outside passed pawn [matrl]     ", "pawn majority [matrl]           ",
+      NULL,                               NULL,
+      NULL,                               NULL,
+      NULL,                               NULL,
+      "knight scoring------------------", "king tropism [distance]         ",
+      "knight piece/square table       ", "outpost [square]                ",
+      NULL,                               NULL,
+      NULL,                               NULL,
+      NULL,                               NULL,
+      "bishop scoring------------------", "fianchettoed bishop value       ",
+      "bishop mobility                 ", "bishop over knight endgame      ",
+      "bishop plus pawns on color      ", "bishop trapped                  ",
+      "bishop pair [npawns]            ", "king tropism [distance]         ",
+      "bishop piece/square table       ", NULL,
+      "rook scoring--------------------", "rook on 7th                     ",
+      "rook absolute 7th               ", "rook connected 7th rank         ",
+      "rook half open file             ", "rook open file                  ",
+      "rook connected open file        ", "rook behind passed pawn         ",
+      "rook trapped                    ", "rook limited mobility           ",
+      "king tropism [distance]         ", "king file tropism [distance]    ",
+      "rook piece/square table         ", NULL,
+      NULL,                               NULL,
+      NULL,                               NULL,
+      NULL,                               NULL,
+      "queen scoring-------------------", "queen rook on 7th rank          ",
+      "queen king tropism              ", "queen vs 2 rooks                ",
+      "queen is strong                 ", "queen offside tropism           ",
+      "king tropism [distance]         ", "king file tropism [distance]    ",
+      "queen piece/square table        ", NULL,
+      "king scoring--------------------", "king king tropism (endgame)     ",
+      "king safety mate g2g7           ", "king safety trojan horse threat ",
+      "king safety stonewall threat    ", "king safety open file           ",
+      "king safety castle opposite     ", "king tropism [defects]          ",
+      "king defects (white - mirror B) ", "king piece/square normal        ",
+      "king piece/square kside pawns   ", "king piece/square qside pawns   ",
+      "king safety half-open file def  ", "king safety open file defects   ",
+      "king safety indirect temper     ", "king safety tropism temper      ",
+      NULL,                               NULL,
+      NULL,                               NULL,
+      "development scoring-------------", "development thematic            ",
+      "development unmoved             ", "development blocked center pawn ",
+      "development losing castle       ", "development not castled         ",
+      "development moved queen early   ", "development castle bonus        ",
+      };
+int evalterm_size[256] = {
+  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 
+  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 
+  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 
+  0,  0,-64,  8,  8,  8,  8,  9,  9,  7,
+  9,  8,128,128,  0,  0,  0,  0,  0,  0,
+  0,  8,-64,-64,  0,  0,  0,  0,  0,  0, 
+  0,  0,  0,  0,  0,  0,  9,  8,-64,  0,
+  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 
+  8,  8,-64,  0,  0,  0,  0,  0,  0,  0, 
+  0,  0,  0,  0,  0,  0,  8,  8,-64,  0, 
+  0,  0,  0,  0,  0,  0,  0,128,-64,-64, 
+-64,-64,  4,  4, 64, 64,  0,  0,  0,  0, 
+  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 
+  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 
+  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 
+  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 
+  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 
+  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 
+  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 
+  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 
+  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 
+  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 
+  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 
+  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 
+  0,  0,  0,  0,  0,  0};

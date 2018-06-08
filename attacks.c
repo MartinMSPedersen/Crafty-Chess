@@ -15,7 +15,7 @@
  *   determine if it is a sliding piece that moves in the right direction.  to *
  *   finish up, we simply need to Or() all these attackers together.           *
  *                                                                             *
- ********************************************************************************
+ *******************************************************************************
  */
 BITBOARD AttacksTo(TREE * RESTRICT tree, int square)
 {

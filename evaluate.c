@@ -1,10 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "chess.h"
-#include "evaluate.h"
 #include "data.h"
 
-/* last modified 01/20/04 */
+/* last modified 06/27/04 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -116,7 +115,9 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta)
  *   other side has no pieces, call EvaluatePassedPawnRaces() to see  *
  *   if the passed pawn can be stopped from promoting.  finally, we   *
  *   use tree->pawn_score.outside to see if one side has an outside   *
- *   passed pawn that represents a nearly won endgame advantage.      *
+ *   passed pawn that represents a nearly won endgame advantage. note *
+ *   that a protected passed pawn for the opponent negates this       *
+ *   scoring term completely.                                         *
  *                                                                    *
  *        xxxx xxx1   (1) -> white has outside c/p                    *
  *        xxxx xx1x   (2) -> white has 2 outside c/p                  *
@@ -136,13 +137,16 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta)
   if (tree->pawn_score.outside) {
     int pscore = 0;
 
+
     if (tree->pawn_score.outside & 2)
       pscore += 2 * outside_passed[(int) TotalBlackPieces];
-    else if (tree->pawn_score.outside & 1)
+    else if ((tree->pawn_score.outside & 1) &&
+             !(tree->pawn_score.protected & 2))
       pscore += outside_passed[(int) TotalBlackPieces];
     if (tree->pawn_score.outside & 8)
       pscore -= 2 * outside_passed[(int) TotalWhitePieces];
-    else if (tree->pawn_score.outside & 4)
+    else if ((tree->pawn_score.outside & 4) &&
+             !(tree->pawn_score.protected & 1))
       pscore -= outside_passed[(int) TotalWhitePieces];
     score += pscore * passed_scale / 100;
   }
@@ -151,19 +155,23 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta)
     int wfile = File(WhiteKingSQ);
     int bfile = File(BlackKingSQ);
 
-    if (wfile + wtm > bfile + 1) {
-      if (wfile < FirstOne8Bit(tree->pawn_score.allb))
-        pscore += WON_KP_ENDING;
-    } else if (wfile - wtm < bfile - 1) {
-      if (wfile > LastOne8Bit(tree->pawn_score.allb))
-        pscore += WON_KP_ENDING;
+    if (!(tree->pawn_score.protected & 2)) {
+      if (wfile + wtm > bfile + 1) {
+        if (wfile < FirstOne8Bit(tree->pawn_score.allb))
+          pscore += won_kp_ending;
+      } else if (wfile - wtm < bfile - 1) {
+        if (wfile > LastOne8Bit(tree->pawn_score.allb))
+          pscore += won_kp_ending;
+      }
     }
-    if (bfile > wfile + wtm) {
-      if (bfile < FirstOne8Bit(tree->pawn_score.allw))
-        pscore += -WON_KP_ENDING;
-    } else if (bfile < wfile - wtm) {
-      if (bfile > LastOne8Bit(tree->pawn_score.allw))
-        pscore += -WON_KP_ENDING;
+    if (!(tree->pawn_score.protected & 1)) {
+      if (bfile > wfile + wtm) {
+        if (bfile < FirstOne8Bit(tree->pawn_score.allw))
+          pscore += -won_kp_ending;
+      } else if (bfile < wfile - wtm) {
+        if (bfile > LastOne8Bit(tree->pawn_score.allw))
+          pscore += -won_kp_ending;
+      }
     }
     score += pscore * passed_scale / 100;
   } else {
@@ -174,14 +182,14 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta)
           file_spread[tree->pawn_score.passed_w | tree->pawn_score.
           candidates_w];
       if (w_spread > 1)
-        pscore += (w_spread - 1) * SPLIT_PASSED;
+        pscore += (w_spread - 1) * split_passed;
     }
     if (!TotalWhitePieces) {
       b_spread =
           file_spread[tree->pawn_score.passed_b | tree->pawn_score.
           candidates_b];
       if (b_spread > 1)
-        pscore -= (b_spread - 1) * SPLIT_PASSED;
+        pscore -= (b_spread - 1) * split_passed;
     }
     score += pscore * passed_scale / 100;
   }
@@ -207,25 +215,25 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta)
   if (WhiteBishops) {
     if (WhiteBishops & mask_WBT) {
       if (WhiteBishops & SetMask(A7) && SetMask(B6) & BlackPawns)
-        score -= BISHOP_TRAPPED;
+        score -= bishop_trapped;
       else if (WhiteBishops & SetMask(B8) && SetMask(C7) & BlackPawns)
-        score -= BISHOP_TRAPPED;
+        score -= bishop_trapped;
       else if (WhiteBishops & SetMask(H7) && SetMask(G6) & BlackPawns)
-        score -= BISHOP_TRAPPED;
+        score -= bishop_trapped;
       else if (WhiteBishops & SetMask(G8) && SetMask(F7) & BlackPawns)
-        score -= BISHOP_TRAPPED;
+        score -= bishop_trapped;
     }
   }
   if (BlackBishops) {
     if (BlackBishops & mask_BBT) {
       if (BlackBishops & SetMask(A2) && SetMask(B3) & WhitePawns)
-        score += BISHOP_TRAPPED;
+        score += bishop_trapped;
       else if (BlackBishops & SetMask(B1) && SetMask(C2) & WhitePawns)
-        score += BISHOP_TRAPPED;
+        score += bishop_trapped;
       else if (BlackBishops & SetMask(H2) && SetMask(G3) & WhitePawns)
-        score += BISHOP_TRAPPED;
+        score += bishop_trapped;
       else if (BlackBishops & SetMask(G1) && SetMask(F2) & WhitePawns)
-        score += BISHOP_TRAPPED;
+        score += bishop_trapped;
     }
   }
 /*
@@ -316,7 +324,7 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta)
       score += kval_wn[WhiteKingSQ];
     else if (tree->all_pawns & mask_efgh)
       score += kval_wk[WhiteKingSQ];
-    else if (tree->all_pawns & mask_abcd)
+    else if (tree->all_pawns)
       score += kval_wq[WhiteKingSQ];
   }
 /*
@@ -331,10 +339,10 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta)
   if (WhiteKingSQ < A2) {
     if (WhiteKingSQ > E1) {
       if (WhiteRooks & mask_kr_trapped_w[FILEH - WhiteKingSQ])
-        score -= ROOK_TRAPPED;
+        score -= rook_trapped;
     } else if (WhiteKingSQ < D1) {
       if (WhiteRooks & mask_qr_trapped_w[WhiteKingSQ])
-        score -= ROOK_TRAPPED;
+        score -= rook_trapped;
     }
   }
 #ifdef DEBUGEV
@@ -361,7 +369,7 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta)
       score -= kval_bn[BlackKingSQ];
     else if (tree->all_pawns & mask_efgh)
       score -= kval_bk[BlackKingSQ];
-    else if (tree->all_pawns & mask_abcd)
+    else if (tree->all_pawns)
       score -= kval_bq[BlackKingSQ];
   }
 /*
@@ -376,10 +384,10 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta)
   if (BlackKingSQ > H7) {
     if (BlackKingSQ > E8) {
       if (BlackRooks & mask_kr_trapped_b[FILEH - File(BlackKingSQ)])
-        score += ROOK_TRAPPED;
+        score += rook_trapped;
     } else if (BlackKingSQ < D8) {
       if (BlackRooks & mask_qr_trapped_b[File(BlackKingSQ)])
-        score += ROOK_TRAPPED;
+        score += rook_trapped;
     }
   }
 #ifdef DEBUGEV
@@ -413,31 +421,10 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta)
   temp = WhiteKnights;
   while (temp) {
     square = FirstOne(temp);
-    if (white_outpost[square] && !(mask_no_pattacks_b[square] & BlackPawns)) {
-      int defenders, safe = 0;
-
+    if (white_outpost[square] && !(mask_no_pattacks_b[square] & BlackPawns))
       score += white_outpost[square];
-      if (b_pawn_attacks[square] & WhitePawns) {
-        defenders = PopCnt(b_pawn_attacks[square] & WhitePawns);
-        if (defenders && !BlackKnights) {
-          if (light_squares & SetMask(square)) {
-            if (!(light_squares & BlackBishops))
-              safe = 1;
-          } else {
-            if (!(dark_squares & BlackBishops))
-              safe = 1;
-          }
-        }
-        if (safe || defenders == 2)
-          score += white_outpost[square];
-        else if (defenders == 1)
-          score += white_outpost[square] >> 1;
-      }
-      if ((square == D6 || square == E6) && PcOnSq(square + 8) == -pawn)
-        score += BLOCKED_CENTER_PAWN;
-      if ((square == D3 || square == E3) && PcOnSq(square - 8) == pawn)
-        score -= BLOCKED_CENTER_PAWN;
-    }
+    if ((square == D6 || square == E6) && PcOnSq(square + 8) == -pawn)
+      score += blocked_center_pawn;
 /*
  ************************************************************
  *                                                          *
@@ -480,31 +467,10 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta)
   temp = BlackKnights;
   while (temp) {
     square = FirstOne(temp);
-    if (black_outpost[square] && !(mask_no_pattacks_w[square] & WhitePawns)) {
-      int defenders, safe = 0;
-
+    if (black_outpost[square] && !(mask_no_pattacks_w[square] & WhitePawns))
       score -= black_outpost[square];
-      if (w_pawn_attacks[square] & BlackPawns) {
-        defenders = PopCnt(w_pawn_attacks[square] & BlackPawns);
-        if (defenders && !WhiteKnights) {
-          if (light_squares & SetMask(square)) {
-            if (!(light_squares & WhiteBishops))
-              safe = 1;
-          } else {
-            if (!(dark_squares & WhiteBishops))
-              safe = 1;
-          }
-        }
-        if (safe || defenders == 2)
-          score -= black_outpost[square];
-        else if (defenders == 1)
-          score -= black_outpost[square] >> 1;
-      }
-      if ((square == D3 || square == E3) && PcOnSq(square - 8) == pawn)
-        score -= BLOCKED_CENTER_PAWN;
-      if ((square == D6 || square == E6) && PcOnSq(square + 8) == -pawn)
-        score += BLOCKED_CENTER_PAWN;
-    }
+    if ((square == D3 || square == E3) && PcOnSq(square - 8) == pawn)
+      score -= blocked_center_pawn;
 /*
  ************************************************************
  *                                                          *
@@ -562,7 +528,7 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta)
  *                                                          *
  ************************************************************
  */
-    score += BISHOP_MOBILITY * MobilityBishop(square);
+    score += bishop_mobility * MobilityBishop(square);
 /*
  ************************************************************
  *                                                          *
@@ -573,9 +539,7 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta)
  */
     if (white_outpost[square] && !(mask_no_pattacks_b[square] & BlackPawns)) {
       if ((square == D6 || square == E6) && PcOnSq(square + 8) == -pawn)
-        score += BLOCKED_CENTER_PAWN;
-      if ((square == D3 || square == E3) && PcOnSq(square - 8) == pawn)
-        score -= BLOCKED_CENTER_PAWN;
+        score += blocked_center_pawn;
     }
 /*
  ************************************************************
@@ -614,7 +578,7 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta)
  *                                                          *
  ************************************************************
  */
-    score -= BISHOP_MOBILITY * MobilityBishop(square);
+    score -= bishop_mobility * MobilityBishop(square);
 /*
  ************************************************************
  *                                                          *
@@ -623,11 +587,9 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta)
  *                                                          *
  ************************************************************
  */
-    if (black_outpost[square] && !(mask_no_pattacks_b[square] & WhitePawns)) {
+    if (black_outpost[square] && !(mask_no_pattacks_w[square] & WhitePawns)) {
       if ((square == D3 || square == E3) && PcOnSq(square - 8) == pawn)
-        score -= BLOCKED_CENTER_PAWN;
-      if ((square == D6 || square == E6) && PcOnSq(square + 8) == -pawn)
-        score += BLOCKED_CENTER_PAWN;
+        score -= blocked_center_pawn;
     }
 /*
  ************************************************************
@@ -667,22 +629,22 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta)
     else {
       if (WhiteBishops & light_squares)
         score -=
-            PopCnt(WhitePawns & light_squares) * BISHOP_PLUS_PAWNS_ON_COLOR;
+            PopCnt(WhitePawns & light_squares) * bishop_plus_pawns_on_color;
       else
-        score -= PopCnt(WhitePawns & dark_squares) * BISHOP_PLUS_PAWNS_ON_COLOR;
+        score -= PopCnt(WhitePawns & dark_squares) * bishop_plus_pawns_on_color;
       if (TotalWhitePieces < 7 && !BlackBishops && tree->all_pawns & mask_fgh &&
           tree->all_pawns & mask_abc)
-        score += BISHOP_OVER_KNIGHT_ENDGAME;
+        score += bishop_over_knight_endgame;
     }
     if (!tree->endgame) {
       if (File(tree->w_kingsq) > FILEE) {
         if (!(WhitePawns & SetMask(G2)) && (WhitePawns & SetMask(G3)) &&
             Distance(tree->w_kingsq, G2) == 1 && WhiteBishops & good_bishop_kw)
-          score += BISHOP_KING_SAFETY;
+          score += bishop_king_safety;
       } else if (File(tree->w_kingsq) < FILED) {
         if (!(WhitePawns & SetMask(B2)) && (WhitePawns & SetMask(B3)) &&
             Distance(tree->w_kingsq, B2) == 1 && WhiteBishops & good_bishop_qw)
-          score += BISHOP_KING_SAFETY;
+          score += bishop_king_safety;
       }
     }
   }
@@ -692,22 +654,22 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta)
     } else {
       if (BlackBishops & light_squares)
         score +=
-            PopCnt(BlackPawns & light_squares) * BISHOP_PLUS_PAWNS_ON_COLOR;
+            PopCnt(BlackPawns & light_squares) * bishop_plus_pawns_on_color;
       else
-        score += PopCnt(BlackPawns & dark_squares) * BISHOP_PLUS_PAWNS_ON_COLOR;
+        score += PopCnt(BlackPawns & dark_squares) * bishop_plus_pawns_on_color;
       if (TotalBlackPieces < 7 && !WhiteBishops && tree->all_pawns & mask_fgh &&
           tree->all_pawns & mask_abc)
-        score -= BISHOP_OVER_KNIGHT_ENDGAME;
+        score -= bishop_over_knight_endgame;
     }
     if (!tree->endgame) {
       if (File(tree->b_kingsq) > FILEE) {
         if (!(BlackPawns & SetMask(G7)) && (BlackPawns & SetMask(G6)) &&
             Distance(tree->b_kingsq, G7) == 1 && BlackBishops & good_bishop_kb)
-          score -= BISHOP_KING_SAFETY;
+          score -= bishop_king_safety;
       } else if (File(tree->b_kingsq) < FILED) {
         if (!(BlackPawns & SetMask(B7)) && (BlackPawns & SetMask(B6)) &&
             Distance(tree->b_kingsq, B7) == 1 && BlackBishops & good_bishop_qb)
-          score -= BISHOP_KING_SAFETY;
+          score -= bishop_king_safety;
       }
     }
   }
@@ -750,17 +712,17 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta)
  */
     trop = 7;
     if (!(file_mask[file] & tree->all_pawns)) {
-      score += ROOK_OPEN_FILE;
+      score += rook_open_file;
       trop = FileDistance(square, tree->b_kingsq);
     } else {
       if (tree->pawn_score.open_files) {
         unsigned char rankmvs = AttacksRank(square) >> (56 - (square & 0x38));
 
         if (!(rankmvs & tree->pawn_score.open_files))
-          score -= ROOK_OPEN_FILE >> 1;
+          score -= rook_open_file >> 1;
       }
       if (!(file_mask[file] & WhitePawns)) {
-        score += ROOK_HALF_OPEN_FILE;
+        score += rook_half_open_file;
         trop = FileDistance(square, tree->b_kingsq);
       } else if (!(plus8dir[square] & WhitePawns)) {
         trop = FileDistance(square, tree->b_kingsq);
@@ -780,7 +742,7 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta)
     if (File(square) > FILEA && PcOnSq(square - 1) <= 0)
       mobility++;
     if (!mobility)
-      score -= ROOK_LIMITED;
+      score -= rook_limited;
 /*
  ************************************************************
  *                                                          *
@@ -794,16 +756,16 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta)
 
       if (square < pawnsq) {
         if (!(BlackPieces & SetMask(pawnsq + 8)))
-          score += ROOK_BEHIND_PASSED_PAWN;
+          score += rook_behind_passed_pawn;
         else
-          score += ROOK_BEHIND_PASSED_PAWN >> 1;
+          score += rook_behind_passed_pawn >> 1;
       }
     }
     if (128 >> file & tree->pawn_score.passed_b) {
       register const int pawnsq = FirstOne(BlackPawns & file_mask[file]);
 
       if (pawnsq < square)
-        score += ROOK_BEHIND_PASSED_PAWN;
+        score += rook_behind_passed_pawn;
     }
 /*
  ************************************************************
@@ -818,12 +780,12 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta)
  */
     if (Rank(square) == RANK7 && (BlackKingSQ > H7 ||
             BlackPawns & rank_mask[RANK7])) {
-      score += ROOK_ON_7TH;
+      score += rook_on_7th;
       if (tree->pawn_score.passed_w && BlackKingSQ > H7 &&
           !(BlackPieces & mask_abs7_w))
-        score += ROOK_ABSOLUTE_7TH;
+        score += rook_absolute_7th;
       if (AttacksRank(square) & (WhiteRooks | WhiteQueens))
-        score += ROOK_CONNECTED_7TH_RANK;
+        score += rook_connected_7th_rank;
     }
 /*
  ************************************************************
@@ -868,17 +830,17 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta)
  */
     trop = 7;
     if (!(file_mask[file] & tree->all_pawns)) {
-      score -= ROOK_OPEN_FILE;
+      score -= rook_open_file;
       trop = FileDistance(square, tree->w_kingsq);
     } else {
       if (tree->pawn_score.open_files) {
         unsigned char rankmvs = AttacksRank(square) >> (56 - (square & 0x38));
 
         if (!(rankmvs & tree->pawn_score.open_files))
-          score += ROOK_OPEN_FILE >> 1;
+          score += rook_open_file >> 1;
       }
       if (!(file_mask[file] & BlackPawns)) {
-        score -= ROOK_HALF_OPEN_FILE;
+        score -= rook_half_open_file;
         trop = FileDistance(square, tree->w_kingsq);
       } else if (!(minus8dir[square] & BlackPawns)) {
         trop = FileDistance(square, tree->w_kingsq);
@@ -898,7 +860,7 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta)
     if (File(square) > FILEA && PcOnSq(square - 1) >= 0)
       mobility++;
     if (!mobility)
-      score += ROOK_LIMITED;
+      score += rook_limited;
 /*
  ************************************************************
  *                                                          *
@@ -912,16 +874,16 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta)
 
       if (square > pawnsq) {
         if (!(WhitePieces & SetMask(pawnsq - 8)))
-          score -= ROOK_BEHIND_PASSED_PAWN;
+          score -= rook_behind_passed_pawn;
         else
-          score -= ROOK_BEHIND_PASSED_PAWN >> 1;
+          score -= rook_behind_passed_pawn >> 1;
       }
     }
     if (128 >> file & tree->pawn_score.passed_w) {
       register const int pawnsq = LastOne(WhitePawns & file_mask[file]);
 
       if (pawnsq > square)
-        score -= ROOK_BEHIND_PASSED_PAWN;
+        score -= rook_behind_passed_pawn;
     }
 /*
  ************************************************************
@@ -936,12 +898,12 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta)
  */
     if (Rank(square) == RANK2 && (WhiteKingSQ < A2 ||
             WhitePawns & rank_mask[RANK2])) {
-      score -= ROOK_ON_7TH;
+      score -= rook_on_7th;
       if (tree->pawn_score.passed_b && WhiteKingSQ < A2 &&
           !(WhitePieces & mask_abs7_b))
-        score -= ROOK_ABSOLUTE_7TH;
+        score -= rook_absolute_7th;
       if (AttacksRank(square) & (BlackRooks | BlackQueens))
-        score -= ROOK_CONNECTED_7TH_RANK;
+        score -= rook_connected_7th_rank;
     }
 /*
  ************************************************************
@@ -999,7 +961,7 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta)
     if (Rank(square) == RANK7 && (BlackPawns & rank_mask[RANK7] ||
             (BlackKingSQ > H7))) {
       if (AttacksRank(square) & WhiteRooks)
-        score += QUEEN_ROOK_ON_7TH_RANK;
+        score += queen_rook_on_7th_rank;
     }
 /*
  ************************************************************
@@ -1023,7 +985,7 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta)
  ************************************************************
  */
     if (tree->b_safety > tree->w_safety + 4)
-      score += QUEEN_IS_STRONG;
+      score += queen_is_strong;
 /*
  ************************************************************
  *                                                          *
@@ -1037,7 +999,7 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta)
           || (File(square) > FILEF && File(tree->b_kingsq) < FILED);
 
       if (offside) {
-        w_tropism -= QUEEN_OFFSIDE_TROPISM;
+        w_tropism -= queen_offside_tropism;
         w_tropism = Max(w_tropism, -8);
       }
     }
@@ -1079,7 +1041,7 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta)
     if (Rank(square) == RANK2 && (WhitePawns & rank_mask[RANK2] ||
             (WhiteKingSQ < A2))) {
       if (AttacksRank(square) & BlackRooks)
-        score -= QUEEN_ROOK_ON_7TH_RANK;
+        score -= queen_rook_on_7th_rank;
     }
 /*
  ************************************************************
@@ -1103,7 +1065,7 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta)
  ************************************************************
  */
     if (tree->w_safety > tree->b_safety + 4)
-      score -= QUEEN_IS_STRONG;
+      score -= queen_is_strong;
 /*
  ************************************************************
  *                                                          *
@@ -1117,7 +1079,7 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta)
           || (File(square) > FILEF && File(tree->w_kingsq) < FILED);
 
       if (offside) {
-        b_tropism -= QUEEN_OFFSIDE_TROPISM;
+        b_tropism -= queen_offside_tropism;
         b_tropism = Max(b_tropism, -8);
       }
     }
@@ -1169,29 +1131,30 @@ int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta)
  *   one side is winning, but that side doesn't have enough *
  *   material to win, the score is set to DRAW.             *
  *                                                          *
+ *   if this is a pure BOC ending, it is very drawish un-   *
+ *   less one side has at least 4 pawns.  more pawns makes  *
+ *   it harder for a bishop and king to stop them all from  *
+ *   advancing.                                             *
+ *                                                          *
  ************************************************************
  */
   if (TotalWhitePieces <= 11 && TotalBlackPieces <= 11) {
-    if (WhiteBishops && BlackBishops && (!(WhiteBishops & (WhiteBishops - 1)) &&
-            !(BlackBishops & (BlackBishops - 1)))) {
+    if (PopCnt(WhiteBishops) == 1 && PopCnt(BlackBishops) == 1) {
       if (square_color[FirstOne(BlackBishops)] !=
           square_color[FirstOne(WhiteBishops)]) {
-        if (abs(Material) > 2 * PAWN_VALUE) {
-          if (TotalWhitePieces == 3 && TotalBlackPieces == 3)
-            score = score >> 1;
-          else if (TotalWhitePieces == TotalBlackPieces)
-            score = ((score - Material) >> 1) + Material;
-        } else {
-          if (TotalWhitePieces == 3 && TotalBlackPieces == 3)
-            score = score >> 2;
-        }
+        if (TotalWhitePieces == 3 && TotalBlackPieces == 3 &&
+            ((TotalWhitePawns < 4 && TotalBlackPawns < 4) ||
+             abs(TotalWhitePawns-TotalBlackPawns) < 2))
+          score = score >> 1;
+        else if (TotalWhitePieces == TotalBlackPieces)
+          score = ((score - Material) >> 1) + Material;
       }
     }
   }
   if (can_win != 3) {
-    if (can_win & 2 && score > DrawScore(1))
+    if (can_win != 1 && score > DrawScore(1))
       score = DrawScore(1);
-    else if (can_win & 1 && score < DrawScore(1))
+    else if (can_win != 2 && score < DrawScore(1))
       score = DrawScore(1);
   }
 /*
@@ -1264,11 +1227,11 @@ int EvaluateDevelopmentB(TREE * RESTRICT tree, int ply)
  */
   if (!(SetMask(E5) & BlackPawns) && SetMask(D5) & BlackPawns) {
     if (SetMask(C7) & BlackPawns && SetMask(C6) & (BlackKnights | BlackBishops))
-      score += DEVELOPMENT_THEMATIC;
+      score += development_thematic;
   }
   if (Occupied & ((BlackPawns & rank_mask[RANK7]) << 8) & (file_mask[FILED] |
           file_mask[FILEE]))
-    score += BLOCKED_CENTER_PAWN;
+    score += blocked_center_pawn;
 #ifdef DEBUGDV
   printf("developmentB.1 score=%d\n", score);
 #endif
@@ -1281,7 +1244,7 @@ int EvaluateDevelopmentB(TREE * RESTRICT tree, int ply)
  ************************************************************
  */
   if (BlackCastle(ply) > 0 && !(BlackQueens & SetMask(D8)))
-    score += DEVELOPMENT_QUEEN_EARLY;
+    score += development_queen_early;
 #ifdef DEBUGDV
   printf("developmentB.2 score=%d\n", score);
 #endif
@@ -1334,15 +1297,15 @@ int EvaluateDevelopmentB(TREE * RESTRICT tree, int ply)
 
       wq = (WhiteQueens) ? 2 : 1;
       score +=
-          (Flip(root_wtm)) ? 2 * wq * DEVELOPMENT_LOSING_CASTLE : wq *
-          DEVELOPMENT_LOSING_CASTLE;
+          (Flip(root_wtm)) ? 2 * wq * development_losing_castle : wq *
+          development_losing_castle;
     } else if (BlackCastle(ply) < 0) {
       int cmove = ((-BlackCastle(ply)) >> 2) + 1;
 
-      score -= DEVELOPMENT_CASTLE_BONUS / cmove;
+      score -= development_castle_bonus / cmove;
     }
     if (BlackCastle(ply) > 0)
-      score += DEVELOPMENT_NOT_CASTLED;
+      score += development_not_castled;
   }
 #ifdef DEBUGDV
   printf("developmentB.3 score=%d\n", score);
@@ -1377,11 +1340,11 @@ int EvaluateDevelopmentW(TREE * RESTRICT tree, int ply)
  */
   if (!(SetMask(E4) & WhitePawns) && SetMask(D4) & WhitePawns) {
     if (SetMask(C2) & WhitePawns && SetMask(C3) & (WhiteKnights | WhiteBishops))
-      score -= DEVELOPMENT_THEMATIC;
+      score -= development_thematic;
   }
   if (Occupied & ((WhitePawns & rank_mask[RANK2]) >> 8) & (file_mask[FILED] |
           file_mask[FILEE]))
-    score -= BLOCKED_CENTER_PAWN;
+    score -= blocked_center_pawn;
 #ifdef DEBUGDV
   printf("developmentW.1 score=%d\n", score);
 #endif
@@ -1394,7 +1357,7 @@ int EvaluateDevelopmentW(TREE * RESTRICT tree, int ply)
  ************************************************************
  */
   if (WhiteCastle(ply) > 0 && !(WhiteQueens & SetMask(D1)))
-    score -= DEVELOPMENT_QUEEN_EARLY;
+    score -= development_queen_early;
 #ifdef DEBUGDV
   printf("developmentW.2 score=%d\n", score);
 #endif
@@ -1447,15 +1410,15 @@ int EvaluateDevelopmentW(TREE * RESTRICT tree, int ply)
     if (WhiteCastle(ply) == 0) {
       bq = (BlackQueens) ? 2 : 1;
       score -=
-          (root_wtm) ? 2 * bq * DEVELOPMENT_LOSING_CASTLE : bq *
-          DEVELOPMENT_LOSING_CASTLE;
+          (root_wtm) ? 2 * bq * development_losing_castle : bq *
+          development_losing_castle;
     } else if (WhiteCastle(ply) < 0) {
       int cmove = ((-WhiteCastle(ply)) >> 2) + 1;
 
-      score += DEVELOPMENT_CASTLE_BONUS / cmove;
+      score += development_castle_bonus / cmove;
     }
     if (WhiteCastle(ply) > 0)
-      score -= DEVELOPMENT_NOT_CASTLED;
+      score -= development_not_castled;
   }
 #ifdef DEBUGDV
   printf("developmentW.3 score=%d\n", score);
@@ -1514,7 +1477,7 @@ int EvaluateMate(TREE * RESTRICT tree)
     if (Material > 0) {
       mate_score = mate[BlackKingSQ];
       mate_score -=
-          (Distance(WhiteKingSQ, BlackKingSQ) - 3) * KING_KING_TROPISM;
+          (Distance(WhiteKingSQ, BlackKingSQ) - 3) * king_king_tropism;
     }
 /*
  ************************************************************
@@ -1527,7 +1490,7 @@ int EvaluateMate(TREE * RESTRICT tree)
     else if (Material < 0) {
       mate_score = -mate[WhiteKingSQ];
       mate_score +=
-          (Distance(WhiteKingSQ, BlackKingSQ) - 3) * KING_KING_TROPISM;
+          (Distance(WhiteKingSQ, BlackKingSQ) - 3) * king_king_tropism;
     }
   }
   return (mate_score);
@@ -1577,35 +1540,35 @@ int EvaluateMaterial(TREE * RESTRICT tree)
     if (WhiteMinors != BlackMinors) {
       if (WhiteMajors == BlackMajors) {
         if (WhiteMinors > BlackMinors)
-          score += BAD_TRADE;
+          score += bad_trade;
         else
-          score -= BAD_TRADE;
+          score -= bad_trade;
       } else if (BlackMajors - 1 == WhiteMajors) {
         if (WhiteMinors > BlackMinors + 1)
-          score += BAD_TRADE;
+          score += bad_trade;
         else if (WhiteMinors > BlackMinors)
-          score -= BAD_TRADE >> 2;
+          score -= bad_trade >> 2;
       } else if (WhiteMajors - 1 == BlackMajors) {
         if (BlackMinors > WhiteMinors + 1)
-          score -= BAD_TRADE;
+          score -= bad_trade;
         else if (BlackMinors > WhiteMinors)
-          score += BAD_TRADE >> 2;
+          score += bad_trade >> 2;
       } else if (abs(WhiteMajors - BlackMajors) == 2) {
         if (WhiteMinors > BlackMinors + 2)
-          score += BAD_TRADE;
+          score += bad_trade;
         else if (BlackMinors > WhiteMinors + 2)
-          score -= BAD_TRADE;
+          score -= bad_trade;
       }
     } else if (WhiteMajors == BlackMajors) {
       if (WhiteQueens && !BlackQueens)
-        score += BAD_TRADE >> 1;
+        score += bad_trade >> 1;
       else if (!WhiteQueens && BlackQueens)
-        score -= BAD_TRADE >> 1;
+        score -= bad_trade >> 1;
     } else {
       if (WhiteMajors > BlackMajors)
-        score += BAD_TRADE;
+        score += bad_trade;
       else
-        score -= BAD_TRADE;
+        score -= bad_trade;
     }
   }
 #ifdef DEBUGM
@@ -1641,13 +1604,13 @@ int EvaluateKingSafety(TREE * RESTRICT tree, int ply)
     if (root_wtm && File(WhiteKingSQ) >= FILEE) {
       if (!(tree->all_pawns & file_mask[FILEH])) {
         if (BlackRooks && BlackQueens)
-          score -= KING_SAFETY_MATE_THREAT;
+          score -= king_safety_mate_threat;
       }
     }
     if (Flip(root_wtm) && File(BlackKingSQ) >= FILEE) {
       if (!(tree->all_pawns & file_mask[FILEH])) {
         if (WhiteRooks && WhiteQueens)
-          score += KING_SAFETY_MATE_THREAT;
+          score += king_safety_mate_threat;
       }
     }
   }
@@ -1668,19 +1631,19 @@ int EvaluateKingSafety(TREE * RESTRICT tree, int ply)
       tree->w_safety += tree->pawn_score.white_defects_k;
       if (root_wtm && use_asymmetry) {
         if (File(BlackKingSQ) <= FILED)
-          tree->w_safety += CASTLE_OPPOSITE;
+          tree->w_safety += castle_opposite;
       }
       if (!(WhitePawns & SetMask(G2))) {
         if (SetMask(F3) & (BlackPawns | BlackBishops) && BlackQueens)
-          tree->w_safety += KING_SAFETY_MATE_G2G7;
+          tree->w_safety += king_safety_mate_g2g7;
       }
       if (File(WhiteKingSQ) == FILEE) {
         if (!(tree->all_pawns & file_mask[FILED]))
-          tree->w_safety += KING_SAFETY_OPEN_FILE >> 1;
+          tree->w_safety += king_safety_open_file >> 1;
         if (!(tree->all_pawns & file_mask[FILEE]))
-          tree->w_safety += KING_SAFETY_OPEN_FILE;
+          tree->w_safety += king_safety_open_file;
         if (!(tree->all_pawns & file_mask[FILEF]))
-          tree->w_safety += KING_SAFETY_OPEN_FILE >> 1;
+          tree->w_safety += king_safety_open_file >> 1;
       }
     } else if (File(WhiteKingSQ) <= FILED) {
       if (File(WhiteKingSQ) == FILEA)
@@ -1688,19 +1651,19 @@ int EvaluateKingSafety(TREE * RESTRICT tree, int ply)
       tree->w_safety += tree->pawn_score.white_defects_q;
       if (root_wtm && use_asymmetry) {
         if (File(BlackKingSQ) >= FILEE)
-          tree->w_safety += CASTLE_OPPOSITE;
+          tree->w_safety += castle_opposite;
       }
       if (!(WhitePawns & SetMask(B2))) {
         if (SetMask(C3) & (BlackPawns | BlackBishops) && BlackQueens)
-          tree->w_safety += KING_SAFETY_MATE_G2G7;
+          tree->w_safety += king_safety_mate_g2g7;
       }
       if (File(WhiteKingSQ) == FILED) {
         if (!(tree->all_pawns & file_mask[FILEC]))
-          tree->w_safety += KING_SAFETY_OPEN_FILE >> 1;
+          tree->w_safety += king_safety_open_file >> 1;
         if (!(tree->all_pawns & file_mask[FILED]))
-          tree->w_safety += KING_SAFETY_OPEN_FILE;
+          tree->w_safety += king_safety_open_file;
         if (!(tree->all_pawns & file_mask[FILEE]))
-          tree->w_safety += KING_SAFETY_OPEN_FILE >> 1;
+          tree->w_safety += king_safety_open_file >> 1;
       }
     }
   } else {
@@ -1711,11 +1674,11 @@ int EvaluateKingSafety(TREE * RESTRICT tree, int ply)
         tree->w_safety += tree->pawn_score.white_defects_q >> 1;
     }
     if (!(tree->all_pawns & file_mask[FILED]))
-      tree->w_safety += KING_SAFETY_OPEN_FILE >> 1;
+      tree->w_safety += king_safety_open_file >> 1;
     if (!(tree->all_pawns & file_mask[FILEE]))
-      tree->w_safety += KING_SAFETY_OPEN_FILE;
+      tree->w_safety += king_safety_open_file;
     if (!(tree->all_pawns & file_mask[FILEF]))
-      tree->w_safety += KING_SAFETY_OPEN_FILE >> 1;
+      tree->w_safety += king_safety_open_file >> 1;
   }
 
   tree->b_safety = king_defects_b[BlackKingSQ];
@@ -1726,19 +1689,19 @@ int EvaluateKingSafety(TREE * RESTRICT tree, int ply)
       tree->b_safety += tree->pawn_score.black_defects_k;
       if (Flip(root_wtm) && use_asymmetry) {
         if (File(WhiteKingSQ) <= FILED)
-          tree->b_safety += CASTLE_OPPOSITE;
+          tree->b_safety += castle_opposite;
       }
       if (!(BlackPawns & SetMask(G7))) {
         if (SetMask(F6) & (WhitePawns | WhiteBishops) && WhiteQueens)
-          tree->b_safety += KING_SAFETY_MATE_G2G7;
+          tree->b_safety += king_safety_mate_g2g7;
       }
       if (File(BlackKingSQ) == FILEE) {
         if (!(tree->all_pawns & file_mask[FILED]))
-          tree->b_safety += KING_SAFETY_OPEN_FILE >> 1;
+          tree->b_safety += king_safety_open_file >> 1;
         if (!(tree->all_pawns & file_mask[FILEE]))
-          tree->b_safety += KING_SAFETY_OPEN_FILE;
+          tree->b_safety += king_safety_open_file;
         if (!(tree->all_pawns & file_mask[FILEF]))
-          tree->b_safety += KING_SAFETY_OPEN_FILE >> 1;
+          tree->b_safety += king_safety_open_file >> 1;
       }
     } else if (File(BlackKingSQ) <= FILED) {
       if (File(BlackKingSQ) == FILEA)
@@ -1746,19 +1709,19 @@ int EvaluateKingSafety(TREE * RESTRICT tree, int ply)
       tree->b_safety += tree->pawn_score.black_defects_q;
       if (Flip(root_wtm) && use_asymmetry) {
         if (File(WhiteKingSQ) >= FILEE)
-          tree->b_safety += CASTLE_OPPOSITE;
+          tree->b_safety += castle_opposite;
       }
       if (!(BlackPawns & SetMask(B7))) {
         if (SetMask(C6) & (WhitePawns | WhiteBishops) && WhiteQueens)
-          tree->b_safety += KING_SAFETY_MATE_G2G7;
+          tree->b_safety += king_safety_mate_g2g7;
       }
       if (File(BlackKingSQ) == FILED) {
         if (!(tree->all_pawns & file_mask[FILEC]))
-          tree->b_safety += KING_SAFETY_OPEN_FILE >> 1;
+          tree->b_safety += king_safety_open_file >> 1;
         if (!(tree->all_pawns & file_mask[FILED]))
-          tree->b_safety += KING_SAFETY_OPEN_FILE;
+          tree->b_safety += king_safety_open_file;
         if (!(tree->all_pawns & file_mask[FILEE]))
-          tree->b_safety += KING_SAFETY_OPEN_FILE >> 1;
+          tree->b_safety += king_safety_open_file >> 1;
       }
     }
   } else {
@@ -1769,11 +1732,11 @@ int EvaluateKingSafety(TREE * RESTRICT tree, int ply)
         tree->b_safety += tree->pawn_score.black_defects_q >> 1;
     }
     if (!(tree->all_pawns & file_mask[FILED]))
-      tree->b_safety += KING_SAFETY_OPEN_FILE >> 1;
+      tree->b_safety += king_safety_open_file >> 1;
     if (!(tree->all_pawns & file_mask[FILEE]))
-      tree->b_safety += KING_SAFETY_OPEN_FILE;
+      tree->b_safety += king_safety_open_file;
     if (!(tree->all_pawns & file_mask[FILEF]))
-      tree->b_safety += KING_SAFETY_OPEN_FILE >> 1;
+      tree->b_safety += king_safety_open_file >> 1;
   }
   if (!WhiteQueens)
     tree->b_safety >>= 1;
@@ -1855,15 +1818,15 @@ int EvaluatePassedPawns(TREE * RESTRICT tree)
         continue;
       if (TotalWhitePieces < queen_v && !(SetMask(square1 - 8) & WhitePieces) &&
           !(SetMask(square2 - 8) & WhitePieces)) {
-        score -= PAWN_CONNECTED_PASSED_6TH;
+        score -= pawn_connected_passed_6th;
         if (wtm) {
           if (!(WhiteKing & black_pawn_race_wtm[square1]) &&
               !(WhiteKing & black_pawn_race_wtm[square2]))
-            score -= PAWN_CONNECTED_PASSED_6TH;
+            score -= pawn_connected_passed_6th;
         } else {
           if (!(WhiteKing & black_pawn_race_btm[square1]) &&
               !(WhiteKing & black_pawn_race_btm[square2]))
-            score -= PAWN_CONNECTED_PASSED_6TH;
+            score -= pawn_connected_passed_6th;
         }
       }
     }
@@ -1924,15 +1887,15 @@ int EvaluatePassedPawns(TREE * RESTRICT tree)
         continue;
       if (TotalBlackPieces < queen_v && !(SetMask(square1 + 8) & BlackPieces) &&
           !(SetMask(square2 + 8) & BlackPieces)) {
-        score += PAWN_CONNECTED_PASSED_6TH;
+        score += pawn_connected_passed_6th;
         if (wtm) {
           if (!(BlackKing & white_pawn_race_wtm[square1]) &&
               !(BlackKing & white_pawn_race_wtm[square2]))
-            score += PAWN_CONNECTED_PASSED_6TH;
+            score += pawn_connected_passed_6th;
         } else {
           if (!(BlackKing & white_pawn_race_btm[square1]) &&
               !(BlackKing & white_pawn_race_btm[square2]))
-            score += PAWN_CONNECTED_PASSED_6TH;
+            score += pawn_connected_passed_6th;
         }
       }
     }
@@ -2027,12 +1990,12 @@ int EvaluatePassedPawnRaces(TREE * RESTRICT tree, int wtm)
       if (File(pawnsq) == FILEA) {
         if ((File(WhiteKingSQ) == FILEB) &&
             (Distance(WhiteKingSQ, A8) < Distance(BlackKingSQ, A8)))
-          return (PAWN_CAN_PROMOTE);
+          return (pawn_can_promote);
         break;
       } else if (File(pawnsq) == FILEH) {
         if ((File(WhiteKingSQ) == FILEG) &&
             (Distance(WhiteKingSQ, H8) < Distance(BlackKingSQ, H8)))
-          return (PAWN_CAN_PROMOTE);
+          return (pawn_can_promote);
         break;
       }
 /*
@@ -2047,9 +2010,9 @@ int EvaluatePassedPawnRaces(TREE * RESTRICT tree, int wtm)
  */
       if (Distance(WhiteKingSQ, pawnsq) < Distance(BlackKingSQ, pawnsq)) {
         if (Rank(WhiteKingSQ) > Rank(pawnsq) + 1)
-          return (PAWN_CAN_PROMOTE);
+          return (pawn_can_promote);
         if (Rank(WhiteKingSQ) == RANK6)
-          return (PAWN_CAN_PROMOTE);
+          return (pawn_can_promote);
       }
 /*
  **************************************************
@@ -2062,7 +2025,7 @@ int EvaluatePassedPawnRaces(TREE * RESTRICT tree, int wtm)
  */
       if ((Rank(WhiteKingSQ) == Rank(pawnsq) + 1) &&
           HasOpposition(wtm, WhiteKingSQ, BlackKingSQ))
-        return (PAWN_CAN_PROMOTE);
+        return (pawn_can_promote);
     } while (0);
 /*
  ************************************************************
@@ -2099,12 +2062,12 @@ int EvaluatePassedPawnRaces(TREE * RESTRICT tree, int wtm)
       if (File(pawnsq) == FILEA) {
         if ((File(BlackKingSQ) == FILEB) &&
             (Distance(BlackKingSQ, A1) < Distance(WhiteKingSQ, A1)))
-          return (-(PAWN_CAN_PROMOTE));
+          return (-(pawn_can_promote));
         break;
       } else if (File(pawnsq) == FILEH) {
         if ((File(BlackKingSQ) == FILEG) &&
             (Distance(BlackKingSQ, H1) < Distance(WhiteKingSQ, H1)))
-          return (-(PAWN_CAN_PROMOTE));
+          return (-(pawn_can_promote));
         break;
       }
 /*
@@ -2119,9 +2082,9 @@ int EvaluatePassedPawnRaces(TREE * RESTRICT tree, int wtm)
  */
       if (Distance(BlackKingSQ, pawnsq) < Distance(WhiteKingSQ, pawnsq)) {
         if (Rank(BlackKingSQ) < Rank(pawnsq) - 1)
-          return (-(PAWN_CAN_PROMOTE));
+          return (-(pawn_can_promote));
         if (Rank(BlackKingSQ) == RANK3)
-          return (-(PAWN_CAN_PROMOTE));
+          return (-(pawn_can_promote));
       }
 /*
  **************************************************
@@ -2134,7 +2097,7 @@ int EvaluatePassedPawnRaces(TREE * RESTRICT tree, int wtm)
  */
       if ((Rank(BlackKingSQ) == Rank(pawnsq) - 1) &&
           HasOpposition(Flip(wtm), BlackKingSQ, WhiteKingSQ))
-        return (-(PAWN_CAN_PROMOTE));
+        return (-(pawn_can_promote));
     } while (0);
 /*
  ************************************************************
@@ -2145,7 +2108,7 @@ int EvaluatePassedPawnRaces(TREE * RESTRICT tree, int wtm)
  *                                                          *
  ************************************************************
  */
-  realb=0;
+  realb = 0;
   if (!TotalWhitePieces && tree->pawn_score.passed_b) {
     passed = tree->pawn_score.passed_b;
     while ((file = FirstOne8Bit(passed)) != 8) {
@@ -2165,7 +2128,7 @@ int EvaluatePassedPawnRaces(TREE * RESTRICT tree, int wtm)
           black_queener = queen_distance;
           black_square = file;
           black_pawn = square;
-          realb=1;
+          realb = 1;
         }
       }
     }
@@ -2213,7 +2176,7 @@ int EvaluatePassedPawnRaces(TREE * RESTRICT tree, int wtm)
  *                                                          *
  ************************************************************
  */
-  realw=0;
+  realw = 0;
   if (!TotalBlackPieces && tree->pawn_score.passed_w) {
     passed = tree->pawn_score.passed_w;
     while ((file = FirstOne8Bit(passed)) != 8) {
@@ -2233,7 +2196,7 @@ int EvaluatePassedPawnRaces(TREE * RESTRICT tree, int wtm)
           white_queener = queen_distance;
           white_square = file + A8;
           white_pawn = square;
-          realw=1;
+          realw = 1;
         }
       }
     }
@@ -2294,15 +2257,15 @@ int EvaluatePassedPawnRaces(TREE * RESTRICT tree, int wtm)
  ************************************************************
  */
     if ((white_queener < 8) && (black_queener == 8))
-      return (PAWN_CAN_PROMOTE + (5 - white_queener) * PAWN_VALUE / 10);
+      return (pawn_can_promote + (5 - white_queener) * pawn_value / 10);
     else if ((black_queener < 8) && (white_queener == 8))
-      return (-(PAWN_CAN_PROMOTE + (5 - black_queener) * PAWN_VALUE / 10));
+      return (-(pawn_can_promote + (5 - black_queener) * pawn_value / 10));
     if (Flip(wtm))
       black_queener--;
     if (white_queener < black_queener)
-      return (PAWN_CAN_PROMOTE + (5 - white_queener) * PAWN_VALUE / 10);
+      return (pawn_can_promote + (5 - white_queener) * pawn_value / 10);
     else if (black_queener < white_queener - 1)
-      return (-(PAWN_CAN_PROMOTE + (5 - black_queener) * PAWN_VALUE / 10));
+      return (-(pawn_can_promote + (5 - black_queener) * pawn_value / 10));
     if ((white_queener == 8) || (black_queener == 8))
       break;
 /*
@@ -2326,13 +2289,13 @@ int EvaluatePassedPawnRaces(TREE * RESTRICT tree, int wtm)
       if (Attack(BlackKingSQ, white_square)) {
         WhitePieces = tempw;
         BlackPieces = tempb;
-        return (PAWN_CAN_PROMOTE + (5 - white_queener) * PAWN_VALUE / 10);
+        return (pawn_can_promote + (5 - white_queener) * pawn_value / 10);
       }
       if (Attack(black_square, white_square) &&
           !(king_attacks[black_square] & BlackKing)) {
         WhitePieces = tempw;
         BlackPieces = tempb;
-        return (PAWN_CAN_PROMOTE + (5 - white_queener) * PAWN_VALUE / 10);
+        return (pawn_can_promote + (5 - white_queener) * pawn_value / 10);
       }
       WhitePieces = tempw;
       BlackPieces = tempb;
@@ -2358,13 +2321,13 @@ int EvaluatePassedPawnRaces(TREE * RESTRICT tree, int wtm)
       if (Attack(WhiteKingSQ, black_square)) {
         WhitePieces = tempw;
         BlackPieces = tempb;
-        return (-(PAWN_CAN_PROMOTE + (5 - black_queener) * PAWN_VALUE / 10));
+        return (-(pawn_can_promote + (5 - black_queener) * pawn_value / 10));
       }
       if (Attack(white_square, black_square) &&
           !(king_attacks[white_square] & WhiteKing)) {
         WhitePieces = tempw;
         BlackPieces = tempb;
-        return (-(PAWN_CAN_PROMOTE + (5 - black_queener) * PAWN_VALUE / 10));
+        return (-(pawn_can_promote + (5 - black_queener) * pawn_value / 10));
       }
       WhitePieces = tempw;
       BlackPieces = tempb;
@@ -2469,10 +2432,10 @@ int EvaluatePawns(TREE * RESTRICT tree)
   if (use_asymmetry) {
     if (root_wtm) {
       if (TotalWhitePawns == 8)
-        score -= EIGHT_PAWNS;
+        score -= eight_pawns;
     } else {
       if (TotalBlackPawns == 8)
-        score += EIGHT_PAWNS;
+        score += eight_pawns;
     }
   }
 /*
@@ -2671,9 +2634,9 @@ int EvaluatePawns(TREE * RESTRICT tree)
         }
         if (weakness > 0) {
           if (weakness == 3)
-            score -= PAWN_WEAK_P2;
+            score -= pawn_weak_p2;
           else if (weakness)
-            score -= PAWN_WEAK_P1;
+            score -= pawn_weak_p1;
         }
       } while (0);
 #ifdef DEBUGP
@@ -2706,7 +2669,7 @@ int EvaluatePawns(TREE * RESTRICT tree)
  ************************************************************
  */
       if (mask_pawn_duo[square] & WhitePawns)
-        score += PAWN_DUO;
+        score += pawn_duo;
 #ifdef DEBUGP
       if (score != lastsc)
         printf("white pawn[duo] file=%d,      score=%d\n", file, score);
@@ -2977,9 +2940,9 @@ int EvaluatePawns(TREE * RESTRICT tree)
 
         if (weakness > 0) {
           if (weakness == 3)
-            score += PAWN_WEAK_P2;
+            score += pawn_weak_p2;
           else if (weakness)
-            score += PAWN_WEAK_P1;
+            score += pawn_weak_p1;
         }
       } while (0);
 #ifdef DEBUGP
@@ -3012,7 +2975,7 @@ int EvaluatePawns(TREE * RESTRICT tree)
  ************************************************************
  */
       if (mask_pawn_duo[square] & BlackPawns)
-        score -= PAWN_DUO;
+        score -= pawn_duo;
 #ifdef DEBUGP
       if (score != lastsc)
         printf("black pawn[duo] file=%d,      score=%d\n", file, score);
@@ -3160,9 +3123,9 @@ int EvaluatePawns(TREE * RESTRICT tree)
  */
   if (TotalWhitePawns > 4 && TotalBlackPawns > 4) {
     if (w_unblocked <= 2)
-      score -= PAWNS_BLOCKED * (3 - w_unblocked) * blocked_scale / 100;
+      score -= pawns_blocked * (3 - w_unblocked) * blocked_scale / 100;
     if (b_unblocked <= 2)
-      score += PAWNS_BLOCKED * (3 - b_unblocked) * blocked_scale / 100;
+      score += pawns_blocked * (3 - b_unblocked) * blocked_scale / 100;
   }
 #ifdef DEBUGP
   if (score != lastsc)
@@ -3372,10 +3335,10 @@ int EvaluatePawns(TREE * RESTRICT tree)
   if (use_asymmetry) {
     if (root_wtm) {
       if (PopCnt(BlackPawns & stonewall_black) == 2 && WhitePawns & e2_e3)
-        tree->pawn_score.white_defects_k += KING_SAFETY_STONEWALL;
+        tree->pawn_score.white_defects_k += king_safety_stonewall;
     } else {
       if (PopCnt(WhitePawns & stonewall_white) == 2 && BlackPawns & e7_e6)
-        tree->pawn_score.black_defects_k += KING_SAFETY_STONEWALL;
+        tree->pawn_score.black_defects_k += king_safety_stonewall;
     }
   }
 #if defined(DEBUGK)

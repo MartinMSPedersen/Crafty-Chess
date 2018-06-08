@@ -92,10 +92,10 @@ int Quiesce(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply)
         }
       }
     } else {
-      int val = ((wtm) ? TotalBlackPieces : TotalWhitePieces) * PAWN_VALUE;
+      int val = ((wtm) ? TotalBlackPieces : TotalWhitePieces) * pawn_value;
 
       if (p_values[Captured(*movep) + 7] + p_values[Promote(*movep) + 7] >=
-          delta || val - p_values[Captured(*movep) + 7] <= BISHOP_VALUE) {
+          delta || val - p_values[Captured(*movep) + 7] <= bishop_value) {
         if (Captured(*movep) == king)
           return (beta);
         if (p_values[Piece(*movep) + 7] < p_values[Captured(*movep) + 7] ||

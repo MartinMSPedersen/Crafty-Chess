@@ -1,5 +1,7 @@
 /*>>> epd.c: Extended Position Description routines */
 
+#if defined(EPD)
+
 /* Revised: 1996.06.23 */
 
 /*
@@ -5624,5 +5626,7 @@ nonstatic void EPDTerm(void)
 
   return;
 }
+
+#endif
 
 /*<<< epd.c: EOF */

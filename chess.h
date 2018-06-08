@@ -30,7 +30,8 @@
  *******************************************************************************
  */
 #if !defined(TYPES_INCLUDED)
-#if defined (_MSC_VER) && (_MSC_VER >= 1300) && (!defined(_M_IX86) || (_MSC_VER >= 1400))
+#if defined (_MSC_VER) && (_MSC_VER >= 1300) && \
+    (!defined(_M_IX86) || (_MSC_VER >= 1400))
 #  define RESTRICT __restrict
 #else
 #  define RESTRICT
@@ -133,6 +134,9 @@
 #endif
 #if !defined(BOOKDIR)
 #  define     BOOKDIR        "."
+#endif
+#if !defined(PERSDIR)
+#  define     PERSDIR        "."
 #endif
 #if !defined(LOGDIR)
 #  define      LOGDIR        "."
@@ -462,11 +466,12 @@ BB_POSITION BookUpNextPosition(int, int);
 int       CheckInput(void);
 void      ClearHashTableScores(int);
 void      ComputeAttacksAndMobility(void);
-void      CopyFromSMP(TREE * RESTRICT, TREE * RESTRICT);
+void      CopyFromSMP(TREE * RESTRICT, TREE * RESTRICT, int);
 TREE     *CopyToSMP(TREE * RESTRICT, int);
 void      DGTInit(int, char **);
 int       DGTCheckInput(void);
 void      DGTRead(void);
+void      DisplayArray(int*, int);
 void      DisplayBitBoard(BITBOARD);
 void      Display64BitWord(BITBOARD);
 void      DisplayChessBoard(FILE *, POSITION);
@@ -474,7 +479,7 @@ char     *DisplayEvaluation(int, int);
 char     *DisplayEvaluationKibitz(int, int);
 void      DisplayFT(int, int, int);
 char     *DisplayHHMM(unsigned int);
-void      DisplayPieceBoards(signed char *, signed char *);
+void      DisplayPieceBoards(int *, int *);
 void      DisplayPV(TREE * RESTRICT, int, int, int, int, PATH *);
 char     *DisplaySQ(unsigned int);
 char     *DisplayTime(unsigned int);
@@ -515,6 +520,7 @@ int       IInitializeTb(char *);
 void      Initialize(int);
 void      InitializeAttackBoards(void);
 void      InitializeChessBoard(SEARCH_POSITION *);
+void      InitializeEvaluation(void);
 int       InitializeFindAttacks(int, int, int);
 void      InitializeHashTables(void);
 void      InitializeHistoryKillers(void);
@@ -783,7 +789,7 @@ extern void WinFreeInterleaved(void *, size_t);
       extended=Min(extended,INCPLY);                                         \
       if (ply > 2*iteration_depth) {                                         \
         if (ply <= 4*iteration_depth)                                        \
-	  extended=extended*(4*iteration_depth-ply)/(2*iteration_depth);     \
+          extended=extended*(4*iteration_depth-ply)/(2*iteration_depth);     \
         else                                                                 \
           extended=0;                                                        \
       }
@@ -791,7 +797,7 @@ extern void WinFreeInterleaved(void *, size_t);
    the following macro is used to determine if one side is in check.  it
    simply returns the result of Attacked().
  */
-#define Check(wtm)                                                     \
+#define Check(wtm)                                                           \
   Attacked(tree, (wtm)?WhiteKingSQ:BlackKingSQ,Flip(wtm))
 /*  
    Attack() is used to determine if a sliding piece on 'from' can reach

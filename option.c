@@ -11,7 +11,7 @@
 #endif
 #include "epdglue.h"
 
-/* last modified 02/10/03 */
+/* last modified 06/08/04 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -441,8 +441,7 @@ int Option(TREE * RESTRICT tree)
     if (tc_time_remaining <= tc_operator_time) {
       Print(4095, "ERROR:  remaining time less than operator time\n");
       Print(4095, "ERROR:  resetting operator time to 0:00.\n");
-      Print(4095,
-          "ERROR:  use \"operator n\" command to correct after time control\n");
+      Print(4095, "ERROR:  use \"operator n\" command to correct.\n");
       tc_operator_time = 0;
     }
 
@@ -598,31 +597,7 @@ int Option(TREE * RESTRICT tree)
           break;
         return (1);
       } while (0);
-    if (nargs > 1) {
-      if (thinking || pondering)
-        return (2);
-      tree->position[1] = tree->position[0];
-      root_wtm = Flip(wtm);
-      PreEvaluate(tree, root_wtm);
-      if (OptionMatch("pawn", args[1]))
-        DisplayPieceBoards(pval_w, pval_b);
-      if (OptionMatch("knight", args[1]))
-        DisplayPieceBoards(nval_w, nval_b);
-      if (OptionMatch("bishop", args[1]))
-        DisplayPieceBoards(bval_w, bval_b);
-      if (OptionMatch("rook", args[1]))
-        DisplayPieceBoards(rval_w, rval_b);
-      if (OptionMatch("queen", args[1]))
-        DisplayPieceBoards(qval_w, qval_b);
-      if (OptionMatch("king", args[1])) {
-        printf("kings with pawns on both wings\n");
-        DisplayPieceBoards(kval_wn, kval_bn);
-        printf("kings with pawns on kingside\n");
-        DisplayPieceBoards(kval_wk, kval_bk);
-        printf("kings with pawns on queenside\n");
-        DisplayPieceBoards(kval_wq, kval_bq);
-      }
-    } else
+    else
       DisplayChessBoard(stdout, display);
   }
 /*
@@ -818,69 +793,132 @@ int Option(TREE * RESTRICT tree)
  ************************************************************
  */
   else if (OptionMatch("evaluation", *args)) {
-    int i;
+    int i, j, k, param, index, value;
 
-    if (nargs < 3) {
-      printf("see 'help evaluation' for details on using this command\n");
+/*
+ **************************************************
+ *                                                *
+ *   handle "eval list" and dump everything that  *
+ *   can be modified.                             *
+ *                                                *
+ **************************************************
+ */
+    if (nargs == 2 && !strcmp(args[1], "list")) {
+      for (i = 0; i < 256; i++) {
+        if (!evalterm_description[i])
+          continue;
+        if (evalterm_value[i]) {
+          if (evalterm_size[i] == 0)
+            printf("%3d  %s %7d\n", i, evalterm_description[i],
+                *evalterm_value[i]);
+          else {
+            printf("%3d  %s\n", i, evalterm_description[i]);
+            DisplayArray(evalterm_value[i], evalterm_size[i]);
+          }
+        } else
+          printf("------------%s\n", evalterm_description[i]);
+      }
+      printf("\n");
       return (1);
     }
-    if (OptionMatch("asymmetry", args[1])) {
-      king_safety_asymmetry = atoi(args[2]);
-    } else if (OptionMatch("bscale", args[1])) {
-      blocked_scale = atoi(args[2]);
-    } else if (OptionMatch("kscale", args[1])) {
-      king_safety_scale = atoi(args[2]);
-    } else if (OptionMatch("ppscale", args[1])) {
-      passed_scale = atoi(args[2]);
-    } else if (OptionMatch("pscale", args[1])) {
-      pawn_scale = atoi(args[2]);
-    } else if (OptionMatch("tropism", args[1])) {
-      king_safety_tropism = atoi(args[2]);
-    } else
-      printf("unknown option %s\n", args[1]);
-    root_wtm = Flip(wtm);
-    PreEvaluate(tree, root_wtm);
-    if (OptionMatch("kscale", args[1]) || OptionMatch("asymmetry", args[1])) {
-      Print(128, "modified king-safety values:\n");
-      Print(128, "white: ");
-      for (i = 0; i < 16; i++)
-        Print(128, "%3d ", temper_w[i]);
-      Print(128, "\n       ");
-      for (i = 16; i < 32; i++)
-        Print(128, "%3d ", temper_w[i]);
-      Print(128, "\n       ");
-      for (i = 32; i < 48; i++)
-        Print(128, "%3d ", temper_w[i]);
-      Print(128, "\n       ");
-      for (i = 48; i < 64; i++)
-        Print(128, "%3d ", temper_w[i]);
-      Print(128, "\n\nblack: ");
-      for (i = 0; i < 16; i++)
-        Print(128, "%3d ", temper_b[i]);
-      Print(128, "\n       ");
-      for (i = 16; i < 32; i++)
-        Print(128, "%3d ", temper_b[i]);
-      Print(128, "\n       ");
-      for (i = 32; i < 48; i++)
-        Print(128, "%3d ", temper_b[i]);
-      Print(128, "\n       ");
-      for (i = 48; i < 64; i++)
-        Print(128, "%3d ", temper_b[i]);
-      Print(128, "\n");
-    } else if (OptionMatch("tropism", args[1])) {
-      Print(128, "modified king-tropism values:\n");
-      for (i = 0; i < 16; i++)
-        Print(128, "%3d ", tropism[i]);
-      Print(128, "\n");
-      for (i = 16; i < 32; i++)
-        Print(128, "%3d ", tropism[i]);
-      Print(128, "\n");
-    } else if (OptionMatch("bscale", args[1])) {
-      Print(128, "modified blocked_pawn values:\n");
-      for (i = 0; i < 9; i++)
-        Print(128, "%3d ", pawn_rams[i]);
-      Print(128, "\n");
+/*
+ **************************************************
+ *                                                *
+ *   handle "eval save" and dump everything that  *
+ *   can be modified to a file                    *
+ *                                                *
+ **************************************************
+ */
+    if (nargs == 3 && !strcmp(args[1], "save")) {
+      char filename[256];
+      FILE *file;
+
+      strcpy(filename, args[2]);
+      strcat(filename, ".cpf");
+      file = fopen(filename, "w");
+      if (!file) {
+        printf("ERROR.  Unable to open %s for writing\n", args[2]);
+        return (1);
+      }
+      printf("saving to file \"%s\"\n", filename);
+      for (i = 0; i < 256; i++) {
+        if (!evalterm_description[i])
+          continue;
+        if (evalterm_value[i]) {
+          if (evalterm_size[i] == 0)
+            fprintf(file, "evaluation %3d %7d\n", i, *evalterm_value[i]);
+          else if (evalterm_size[i] > 0) {
+            fprintf(file, "evaluation %3d ", i);
+            for (j = 0; j < evalterm_size[i]; j++)
+              fprintf(file, "%d ", evalterm_value[i][j]);
+            fprintf(file, "\n");
+          } else {
+            fprintf(file, "evaluation %3d ", i);
+            for (j = 0; j < 8; j++)
+              for (k = 0; k < 8; k++)
+                fprintf(file, "%d ", evalterm_value[i][(7 - j) * 8 + k]);
+            fprintf(file, "\n");
+          }
+        }
+      }
+      fprintf(file, "exit");
+      fclose(file);
+      return (1);
     }
+/*
+ **************************************************
+ *                                                *
+ *   handle "eval index val" command that changes *
+ *   only those terms that are scalars.           *
+ *                                                *
+ **************************************************
+ */
+    param = atoi(args[1]);
+    value = atoi(args[2]);
+    if (evalterm_size[param] == 0) {
+      if (nargs > 3) {
+        printf("this eval term requires exactly 1 value.\n");
+        return (1);
+      }
+      if (!silent)
+        Print(128, "%s old:%d  new:%d\n", evalterm_description[param],
+            *evalterm_value[param], value);
+      *evalterm_value[param] = value;
+    }
+/*
+ **************************************************
+ *                                                *
+ *   handle "eval index v1 v2 .. vn" command that *
+ *   changes eval terms that are vectors.         *
+ *                                                *
+ **************************************************
+ */
+    else {
+      index = nargs - 2;
+      if (index != abs(evalterm_size[param])) {
+        printf("this eval term (%s [%d]) requires exactly %d values.\n",
+            evalterm_description[param], param, abs(evalterm_size[param]));
+        return (1);
+      }
+      if (!silent)
+        printf("%2d  %s\n", param, evalterm_description[param]);
+      if (!silent) {
+        printf("old:\n");
+        DisplayArray(evalterm_value[param], evalterm_size[param]);
+      }
+      if (evalterm_size[param] > 0)
+        for (i = 0; i < index; i++) {
+          evalterm_value[param][i] = atoi(args[i + 2]);
+      } else
+        for (i = 0; i < 8; i++)
+          for (j = 0; j < 8; j++)
+            evalterm_value[param][(7 - i) * 8 + j] = atoi(args[i * 8 + j + 2]);
+      if (!silent) {
+        printf("new:\n");
+        DisplayArray(evalterm_value[param], evalterm_size[param]);
+      }
+    }
+    InitializeEvaluation();
   }
 /*
  ************************************************************
@@ -973,16 +1011,18 @@ int Option(TREE * RESTRICT tree)
       if (mate_depth > INCPLY)
         mate_depth = INCPLY;
     }
-    Print(1, "one-reply extension..................%4.2f\n",
-        (float) onerep_depth / INCPLY);
-    Print(1, "in-check extension...................%4.2f\n",
-        (float) incheck_depth / INCPLY);
-    Print(1, "recapture extension..................%4.2f\n",
-        (float) recap_depth / INCPLY);
-    Print(1, "pushpp extension.....................%4.2f\n",
-        (float) pushpp_depth / INCPLY);
-    Print(1, "mate thrt extension..................%4.2f\n",
-        (float) mate_depth / INCPLY);
+    if (!silent) {
+      Print(1, "one-reply extension..................%4.2f\n",
+          (float) onerep_depth / INCPLY);
+      Print(1, "in-check extension...................%4.2f\n",
+          (float) incheck_depth / INCPLY);
+      Print(1, "recapture extension..................%4.2f\n",
+          (float) recap_depth / INCPLY);
+      Print(1, "pushpp extension.....................%4.2f\n",
+          (float) pushpp_depth / INCPLY);
+      Print(1, "mate thrt extension..................%4.2f\n",
+          (float) mate_depth / INCPLY);
+    }
   }
 /*
  ************************************************************
@@ -1320,450 +1360,47 @@ int Option(TREE * RESTRICT tree)
  ************************************************************
  */
   else if (OptionMatch("help", *args)) {
-    if (nargs > 1) {
-      if (!strcmp("analyze", args[1])) {
-        printf("analyze\n");
-        printf("the analyze command puts Crafty into a mode where it will\n");
-        printf("search forever in the current position.  when a move is\n");
-        printf("entered, crafty will make that move, switch sides, and\n");
-        printf("again compute, printing analysis as it searches.  you can\n");
-        printf("back up a move by entering \"back\" or you can back up\n");
-        printf("several moves by entering \"back <n>\".  note that <n> is\n");
-        printf("the number of moves, counting each player's move as one.\n");
-      } else if (!strcmp("annotate", args[1])) {
-        printf("annotate[h|t] filename side moves margin time [n]\n");
-        printf("where filename is the input file with game moves, while the\n");
-        printf("output will be written to filename.can.  the input file is\n");
-        printf
-            ("PGN-compatible with one addition, the ability to request that\n");
-        printf
-            ("alternative moves also be analyzed at any point.  to do this\n");
-        printf
-            ("at the point where you have alternative moves, simply include\n");
-        printf("them in braces {move1, move2}, and Crafty will then search\n");
-        printf
-            ("them also. side can be b/w/bw to indicate whether to annotate\n");
-        printf("only the white side (w), the black side (b) or both (bw).\n");
-        printf("side can also be the players name, where Crafty will then\n");
-        printf("use the players name and the PGN tags to discover which\n");
-        printf("you want the annotation done for.  moves indicates\n");
-        printf("which moves to annotate.  a single value says start at the\n");
-        printf
-            ("indicated move and go through the entire game.  a range (20-30)\n");
-        printf
-            ("annoates the given range only. margin is the difference between\n");
-        printf
-            ("the search value for the move played in the game, and the best move\n");
-        printf
-            ("crafty found, before a comment is generated (pawn=1.0).  time is\n");
-        printf
-            ("the time limit per move in seconds.  if the optional \"n\" is\n");
-        printf
-            ("appended, this produces N best moves/scores/PV's, rather than\n");
-        printf
-            ("just the very best move.  it won't display any move that is worse\n");
-        printf
-            ("than the actual game move played, but you can use -N to force\n");
-        printf("Crafty to produce N PV's regardless of how bad they get.\n");
-        printf("using 'annotateh' produces an HTML file with bitmapped\n");
-        printf("board displays where analysis was displayed.\n");
-        printf("\n");
-        printf("adding an h or t to the command will cause the output to be\n");
-        printf("written in either html (.html) or LaTex (.tex) format.\n");
-      } else if (!strcmp("book", args[1])) {
-        printf("you can use the following commands to customize how the\n");
-        printf("program uses the opening book(book.bin and books.bin).\n");
-        printf("typically, book.bin contains a large opening database made\n");
-        printf("from GM games.  books.bin is a short, customized book that\n");
-        printf("contains selected lines that are well-suited to Crafty's\n");
-        printf("style of play.  the <flags> can further refine how this\n");
-        printf("small book file is used to encourage/avoid specific lines.\n");
-        printf("\n");
-        printf
-            ("<binfile> create [<filename>] [maxply] [mp] [wpc]...creates a\n");
-        printf("   new book by first removing the old binary file.  it then\n");
-        printf("   will parse <filename> and add the moves to the binary\n");
-        printf("   book filename given as <binfile>.\n");
-        printf("   <maxply> is the max length of book moves stored from any\n");
-        printf("   single pgn game in the input file.\n");
-        printf("   <mp> means a particular move must appear in at least\n");
-        printf("   that many games to be stored in the book file.\n");
-        printf("   <wpc> is the winning percentage.  50 means exclude any\n");
-        printf
-            ("   book move that doesn't have at least 50%% as many wins as\n");
-        printf("   losses.\n");
-        printf("more...");
-        fflush(stdout);
-        (void) Read(1, buffer);
-        printf
-            ("book mask accept <chars>...............sets the accept mask to\n");
-        printf
-            ("   the flag characters in <chars> (see flags below.)  any flags\n");
-        printf("   set in this mask will include either (a) moves with the \n");
-        printf("   flag set, or (b) moves with no flags set.\n");
-        printf
-            ("book mask reject <chars>...............sets the reject mask to\n");
-        printf
-            ("   the flag characters in <chars> (see flags below.)  any flags\n");
-        printf("   set in this mask will reject any moves with the flag\n");
-        printf("   set (in the opening book.)\n");
-        printf
-            ("book off...............................turns the book completely off.\n");
-        printf
-            ("book random 0|1........................disables/enables randomness.\n");
-        printf
-            ("bookw weight <v>.......................sets weight for book ordering.\n");
-        printf("   (weights are freq (frequency), eval (evaluation)\n");
-        printf("   and learn (learned scores).\n");
-        printf
-            ("book width n...........................specifies how many moves from\n");
-        printf
-            ("   the sorted set of book moves are to be considered.  1 produces\n");
-        printf
-            ("   the best move from the set, but provides little randomness.\n");
-        printf("   99 includes all moves in the book move set.\n");
-        printf("more...");
-        fflush(stdout);
-        (void) Read(1, buffer);
-        printf("flags are one (or more) members of the following set of\n");
-        printf("characters:  {?? ? = ! !! 0 1 2 3 4 5 6 7 8 9 A B C D E F}\n");
-        printf("normally, ?? means never play, ? means rarely play,\n");
-        printf("= means drawish opening, ! means good move, !! means always\n");
-        printf("play, and 0-F are user flags that a user can add to any\n");
-        printf("move in the book, and by setting the right mask (above) can\n");
-        printf("force the program to either always play the move or never\n");
-        printf("play the move.  the special character * means all flags\n");
-        printf("and is probably dangerous to use.\n");
-        printf("flags are added to a move by entering the move, a / or \\\n");
-        printf("followed by the flags.  / means add the flags to the move\n");
-        printf("preserving other flags already there while \\ means replace\n");
-        printf("any flags with those following the \\.\n");
-        printf("the format of the book text (raw data) is as follows:\n");
-        printf("[title information] (required)\n");
-        printf("e4 e5 ... (a sequence of moves)\n");
-        printf("[title information for next line] (required)\n");
-        printf("e4 e6 ...\n");
-        printf("end (optional)\n");
-        printf("\n");
-      } else if (!strcmp("display", args[1])) {
-        printf("display changes   -> display variation when it changes.\n");
-        printf("display extstats  -> display search extension statistics.\n");
-        printf("display general   -> display general info messages.\n");
-        printf("display hashstats -> display search hashing statistics.\n");
-        printf("display movenum   -> display move numbers in PV.\n");
-        printf("display moves     -> display moves as they are searched.\n");
-        printf("display nodes     -> display nodes for each move searched.\n");
-        printf("display ply1      -> display ply-1 move list/sorting info.\n");
-        printf("display stats     -> display basic search statistics.\n");
-        printf("display time      -> display time for moves.\n");
-        printf("display variation -> display variation at end of iteration.\n");
-      } else if (OptionMatch("edit", args[1])) {
-        printf("edit is used to set up or modify a board position.  it \n");
-        printf("recognizes 4 \"commands\" that it uses to alter/set up the\n");
-        printf("board position (with appropriate aliases to interface with\n");
-        printf("x\n");
-        printf("\n");
-        printf("# command causes edit to clear the chess board\n");
-        printf("c command causes edit to toggle piece color.\n");
-        printf("white command causes edit to place white pieces on the\n");
-        printf("board; black command causes edit to place black pieces on\n");
-        printf("the \n");
-        printf("end (\".\" for xboard) causes edit to exit.\n");
-        printf("\n");
-        printf("three strings of the form [piece][file][rank] will\n");
-        printf("place a [piece] on square [file][rank].  the color is set\n");
-        printf("by the previous white/black command.  ex:  Ke8 puts a king\n");
-        printf("on square e8\n");
-        printf("\n");
-      } else if (OptionMatch("evaluation", args[1])) {
-        printf("evaluation option <value>.  this command can be\n");
-        printf("used to adjust evaluation.\n");
-        printf("\n");
-        printf("asymmetry adjusts the asymmetry in king safety. A value of\n");
-        printf("zero means 'no asymmetry at all'.  A value of +50 adjusts \n");
-        printf("king safety scores so that the opponent king safety scores\n");
-        printf("are increased by 50%% which will tend to make Crafty play\n");
-        printf("much more aggressively. a value of -50 will adjust the\n");
-        printf("opponent's king safety down by 50%% which will tend to\n");
-        printf("(make Crafty play much more defensively/passively.\n");
-        printf("\n");
-        printf("bscale adjusts the scale for blocked pawns.  The default\n");
-        printf("is 100.  Making this larger will make Crafty try to avoid\n");
-        printf("blocked pawn positions and keep the position open.\n");
-        printf("\n");
-        printf("kscale is used to increase/decrease the overall king-safety\n");
-        printf("scores.  +50 will increase the values of all the king-\n");
-        printf("safety scoring terms, and might tend to make crafty try\n");
-        printf("some wild (and often unsound) king-side sacrifices to\n");
-        printf("expose the opponent's king.  scaling king safety down (-50)\n");
-        printf("makes king-safety less important and allows the other \n");
-        printf("positional scores to influence the game more, but probably\n");
-        printf("will make Crafty easier to attack\n");
-        printf("\n");
-        printf("pscale adjusts the scale for pawns.  The default\n");
-        printf("is 100.  Making this larger will increase the weight of\n");
-        printf("pawn structure.\n");
-        printf("\n");
-        printf("ppscale adjusts the scale for passed pawns.  The default\n");
-        printf("is 100.  Making this larger will increase the weight of\n");
-        printf("some passed pawn scores like outside passed pawns.\n");
-        printf("\n");
-        printf("tropism is used to increase/decrease the overall king\n");
-        printf("tropism scores.  this attracts pieces toward the enemy\n");
-        printf("king.  100 is again the default (same as scale) while\n");
-        printf("larger numbers will exaggerate aggressiveness at the\n");
-        printf("expense of positional quality.\n");
-        printf("\n");
-      } else if (OptionMatch("list", args[1])) {
-        printf
-            ("list is used to update the various internal lists, which are\n");
-        printf
-            ("used to control how crafty uses the opening book, or reacts to .\n");
-        printf("particular strategies such as trying to block the position.\n");
-        printf("Syntax:  list GM|IM|B|C [+|-name] ...\n");
-        printf
-            ("   GM/IM/C/SO/B/P selects the appropriate list.  if no name is given,\n");
-        printf
-            ("the list is displayed.  if a name is given, it must be preceeded\n");
-        printf
-            ("by a + (add to list) or -(remove from list).  note that this\n");
-        printf
-            ("list is not saved in a file, so that anything added or removed\n");
-        printf
-            ("will be lost when Crafty is re-started.  To solve this, these\n");
-        printf("commands can be added to the .craftyrc file.\n");
-        printf("the lists include the following:\n");
-        printf
-            ("GM/IM/C.  this allows Crafty to realize it is playing a particular level\n");
-        printf("    of player just based on the name of the opponent.\n");
-        printf
-            ("B.  this allows Crafty to realize it is playing a particular\n");
-        printf
-            ("    player that likes to lock things up and play only for a draw.  Crafty will\n");
-        printf
-            ("    try much harder to prevent this for players in this list.\n");
-        printf
-            ("SO. this allows Crafty to realize it is playing a particular\n");
-        printf
-            ("    player that wants to play a particular opening.  this list requires a second\n");
-        printf
-            ("    argument (filename) that is a particular small start book to be used only when\n");
-        printf
-            ("    playing this particular opponent.  you build the book using the bookc/books create\n");
-        printf
-            ("    command, but then you must rename the bookc.bin/books.bin (whichever you build) to\n");
-        printf
-            ("    another filename.  then you could use 'list +qpplayer qpbook.bin' and it will use\n");
-        printf
-            ("    that book to guide the opening for that specific player.\n");
-        printf("P.  this is the 'play only' list, and is mainly used during\n");
-        printf
-            ("    player that wants to play a particular opening.  this list requires a second\n");
-        printf
-            ("    an online tournament.  if this list is non-empty, crafty will abort\n");
-        printf("    the game if a player not in the list matches it.\n");
-      } else if (OptionMatch("pgn", args[1])) {
-        printf("the pgn command is used to set the various PGN headers\n");
-        printf("which are printed at the top of a PGN file produced by the\n");
-        printf("savegame command.\n");
-        printf("options are Event, Site, Round, White, WhiteElo, Black,\n");
-        printf("BlackElo, and Result.  each is followed by the appropriate\n");
-        printf("value.  most of these should likely be placed in the\n");
-        printf("crafty.rc/.craftyrc file since they will be constant for a\n");
-        printf("complete event.\n");
-      } else if (OptionMatch("setboard", args[1])) {
-        printf("sb is used to set up the board in any position desired.  it\n");
-        printf("uses a forsythe-like string of characters to describe the\n");
-        printf("board position.\n");
-        printf("the standard piece codes p,n,b,r,q,k are used to denote the\n");
-        printf("piece on a square, upper/lower case is used to indicate the\n");
-        printf("color (WHITE/black) of the piece.\n");
-        printf("\n");
-        printf("the pieces are entered with the ranks on the black side of\n");
-        printf("the board entered first, and the ranks on the white side\n");
-        printf("entered last (ie rank 8 through rank 1).  empty squares, \n");
-        printf("a number between 1 and 8 to indicate how many adjacent\n");
-        printf("squares are empty.  use a / to terminate each rank after\n");
-        printf("all pieces for that rank have been entered.\n");
-        printf("\n");
-        printf("more...");
-        fflush(stdout);
-        (void) Read(1, buffer);
-        printf("the following input will setup the board position that\n");
-        printf("is given below:\n");
-        printf("\n");
-        printf("                  K2R/PPP////q/5ppp/7k/ b\n");
-        printf("\n");
-        printf("this assumes that k represents a white king and -q\n");
-        printf("represents a black queen.\n");
-        printf("\n");
-        printf("                   k  *  *  r  *  *  *  *\n");
-        printf("                   p  p  p  *  *  *  *  *\n");
-        printf("                   *  *  *  *  *  *  *  *\n");
-        printf("                   *  *  *  *  *  *  *  *\n");
-        printf("                   *  *  *  *  *  *  *  *\n");
-        printf("                  -q  *  *  *  *  *  *  *\n");
-        printf("                   *  *  *  *  * -p -p -p\n");
-        printf("                   *  *  *  *  *  *  * -k\n");
-        printf("\n");
-        printf("the character after the final / should be either b or w to\n");
-        printf("indicate the side to move.  after this side-to-move field\n");
-        printf("any of the following characters can appear to indicate the\n");
-        printf("following:  KQ: white can castle kingside/queenside/both;\n");
-        printf("kq: same for black;  a1-h8: indicates the square occupied\n");
-        printf("by a pawn that can be captured en passant.\n");
-      } else if (!strcmp("test", args[1])) {
-        printf("test <filename> [N]\n");
-        printf("test is used to run a suite of \"crafty format\"\n");
-        printf("test positions in a batch run.  <filename> is the\n");
-        printf("name of the file in crafty test format.  [N] is an\n");
-        printf("optional paremeter that is used to shorten the test\n");
-        printf("time.  If crafty likes the solution move for [N]\n");
-        printf("consecutive iterations, it will stop searching that\n");
-        printf("position and consider it correct.  This makes a Win At\n");
-        printf("Chess 60 second run take under 1/2 hour, for example.\n");
-        printf("the \"crafty format\" requires three lines per position.\n");
-        printf("The first line must be a \"title\" line and is used to\n");
-        printf("identify each position.  The second line is a \"setboard\"\n");
-        printf("command to set the position.  The third line is a line that\n");
-        printf("begins with \"solution\", and then is followed by one or\n");
-        printf("more solution moves.  If a position is correct only if a\n");
-        printf("particular move or moves is *not* played, enter the move\n");
-        printf("followed by a \"?\?, as in Nf3?, which means that this\n");
-        printf("position will be counted as correct only if Nf3 is not\n");
-        printf("played.\n");
-      } else if (!strcmp("time", args[1])) {
-        printf("time controls whether the program uses cpu time or\n");
-        printf("wall-clock time for timing.  for tournament play,\n");
-        printf("it is safer to use wall-clock timing, for testing it\n");
-        printf("may be more consistent to use cpu timing if the\n");
-        printf("machine is used for other things concurrently with the\n");
-        printf("tests being run.\n");
-        printf("\n");
-        printf("time is also used to set the basic search timing\n");
-        printf("controls.  the general form of the command is as\n");
-        printf("follows:\n");
-        printf("\n");
-        printf("      time nmoves/ntime/[nmoves/ntime]/[increment]\n");
-        printf("\n");
-        printf("nmoves/ntime represents a traditional first time\n");
-        printf("control when nmoves is an integer representing the\n");
-        printf("number of moves and ntime is the total time allowed\n");
-        printf("for these moves.  the [optional] nmoves/ntime is a\n");
-        printf("traditional secondary time control.  increment is a\n");
-        printf("feature related to ics play and emulates the fischer\n");
-        printf("clock where <increment> is added to the time left\n");
-        printf("after each move is made.\n");
-        printf("\n");
-        printf("as an alternative, nmoves can be \"sd\" which represents\n");
-        printf("a sudden death time control of the remainder of the\n");
-        printf("game played in ntime.  the optional secondary time\n");
-        printf("control can be a sudden-death time control, as in the\n");
-        printf("following example:\n");
-        printf("\n");
-        printf("        time 60/30/sd/30\n");
-        printf("\n");
-        printf("this sets 60 moves in 30 minutes, then game in 30\n");
-        printf("additional minutes.  an increment can be added if\n");
-        printf("desired.\n");
-      } else
-        printf("no help available for that command\n");
-    } else {
-      printf("!command..................passes command to a shell.\n");
-      printf("adaptive NPS a b c d......enables adaptive hash mode.\n");
-      printf("alarm on|off..............turns audible alarm on/off.\n");
-      printf("analyze...................analyze a game in progress.\n");
-      printf("annotate..................annotate game [help].\n");
-      printf("ansi......................toggles reverse video highlighting.\n");
-      printf("bench.....................runs performance benchmark.\n");
-      printf("book......................controls book [help].\n");
-      printf("black.....................sets black to move.\n");
-      printf("cache=n...................sets tablebase cache size.\n");
-      printf("clock.....................displays chess clock.\n");
-      printf("display...................displays chess board.\n");
-      printf("display <n>...............sets display options [help].\n");
-      printf("draw accept|decline.......decline always declines.\n");
-      printf("draw offer|nooffer........nooffer never offers a draw.\n");
-      printf("drawscore n...............sets default draw score.\n");
-      printf("echo......................echos output to display.\n");
-      printf("edit......................edit board position. [help]\n");
-      printf("epdhelp...................info about EPD facility.\n");
-      printf("egtb......................enables endgame database probes.\n");
-      printf("end.......................terminates program.\n");
-      printf("exit......................restores STDIN to key.\n");
-      printf("evaluation................adjust evaluation terms. [help]\n");
-      printf("force <move>..............forces specific move.\n");
-      printf("help [command]............displays help.\n");
-      printf("hash n....................sets transposition table size.\n");
-      printf("                          (n bytes, nK bytes or nM bytes).\n");
-      printf("hashp n...................sets pawn hash table size.\n");
-      printf("history...................display game moves.\n");
-      printf("import <filename>.........imports learning data (.lrn files).\n");
-      printf("info......................displays program settings.\n");
-      printf("more...");
-      fflush(stdout);
-      (void) Read(1, buffer);
-      printf("input <filename> [title]..sets STDIN to <filename>.\n");
-      printf("                          (and positions to [title] record.)\n");
-      printf("kibitz <n>................sets kibitz mode <n> on ICS.\n");
-      printf("level <m> <t> <i>.........sets ICS time controls.\n");
-      printf("learn <n>.................enables/disables learning.\n");
-      printf
-          ("list                      update/display GM/IM/computer lists.\n");
-      printf("load <file> <title>       load a position from problem file.\n");
-      printf("log on|off................turn logging on/off.\n");
-      printf("mode normal|tournament....toggles tournament mode.\n");
-      printf("move......................initiates search (same as go).\n");
-#if defined(SMP)
-      printf("mt n......................sets max parallel threads to use.\n");
-      printf("mtmin n...................don't thread last n plies.\n");
-      printf("mtmax n...................keep threads within n plies.\n");
-#endif
-      printf("name......................sets opponent's name.\n");
-      printf("new.......................initialize and start new game.\n");
-      printf("noise n...................no status until n nodes searched.\n");
-      printf("operator <minutes>........allocates operator time.\n");
-      printf("perf......................times the move generator/make_move.\n");
-      printf("perft.....................tests the move generator/make_move.\n");
-      printf("pgn option value..........set PGN header information. [help]\n");
-      printf("ponder on|off.............toggle pondering off/on.\n");
-      printf("ponder move...............ponder \"move\" as predicted move.\n");
-      printf("read <filename>...........read moves in [from <filename>].\n");
-      printf("reada <filename>..........read moves in [from <filename>].\n");
-      printf("                          (appends to current game history.)\n");
-      printf("reset n...................reset game to move n.\n");
-      printf("resign <m> <n>............set resign threshold to <m> pawns.\n");
-      printf("                          <n> = # of moves before resigning.\n");
-      printf("more...");
-      fflush(stdout);
-      (void) Read(1, buffer);
-      printf("savegame <filename>.......saves game in PGN format.\n");
-      printf("savepos <filename>........saves position in FEN string.\n");
-      printf("score.....................print evaluation of position.\n");
-      printf("sd n......................sets absolute search depth.\n");
-      printf("search <move>.............search specified move only.\n");
-      printf("selective min max.........set null move depths.\n");
-      printf
-          ("setboard <FEN>............sets board position to FEN position. [help]\n");
-      printf("settc.....................set time controls.\n");
-      printf("show book.................toggle book statistics.\n");
-      printf("sn n......................sets absolute search node limit.\n");
-      printf("speech on|off..............enables (disables) audio output.\n");
-      printf("st n......................sets absolute search time.\n");
-      printf
-          ("store <val>...............stores position/score (position.bin).\n");
-      printf("swindle on|off............enables/disables swindle mode.\n");
-      printf("test <file> [N]...........test a suite of problems. [help]\n");
-      printf("tags......................list PGN header tags.\n");
-      printf("time......................time controls. [help]\n");
-      printf("trace n...................display search tree below depth n.\n");
-      printf
-          ("usage <percentage>........adjusts crafty's time usage up or down.\n");
-      printf("whisper n.................sets ICS whisper mode n.\n");
-      printf("wild n....................sets ICS wild position (7 for now).\n");
-      printf("white.....................sets white to move.\n");
-      printf("xboard....................sets xboard compatibility mode.\n");
+    FILE *helpfile;
+    char *readstat = (char *) -1;
+    int lines = 0;
+
+    helpfile = fopen("crafty.hlp", "r");
+    if (!helpfile) {
+      printf("ERROR.  Unable to open \"crafty.hlp\" -- help unavailable\n");
+      return (1);
     }
+    if (nargs > 1) {
+      while (1) {
+        readstat = fgets(buffer, 128, helpfile);
+        if (!readstat) {
+          printf("Sorry, no help available for \"%s\"\n", args[1]);
+          fclose(helpfile);
+          return (1);
+        }
+        if (buffer[0] == '<') {
+          if (strstr(buffer, args[1]))
+            break;
+        }
+      }
+    }
+    while (1) {
+      readstat = fgets(buffer, 128, helpfile);
+      if (!readstat)
+        break;
+      if (strchr(buffer, '\n'))
+        *strchr(buffer, '\n') = 0;
+      if (!strcmp(buffer, "<end>"))
+        break;
+      printf("%s\n", buffer);
+      lines++;
+      if (lines > 22) {
+        lines = 0;
+        printf("<return> for more...");
+        fflush(stdout);
+        (void) Read(1, buffer);
+      }
+    }
+    fclose(helpfile);
   }
 /*
  ************************************************************
@@ -2026,264 +1663,173 @@ int Option(TREE * RESTRICT tree)
  ************************************************************
  *                                                          *
  *   "list" command allows the operator to add or remove    *
- *   names from the GM_list, IM_list , computer_list,       *
- *   or auto_kibitz_list.                                   *
- *   The  syntax is "list <list> <option> <name>.           *
- *   <list> is one of GM, IM, C, or AK.                     *
- *   The final parameter is a name to add  or remove.       *
- *   if the name is in the list, it is removed,             *
- *   otherwise it is added.  if no name is given, the list  *
- *   is displayed.                                          *
+ *   names from the various lists crafty uses to recognize  *
+ *   and adapt to particular opponents.                     *
+ *                                                          *
+ *   list <listname> <player>                               *
+ *                                                          *
+ *   <listname> is one of AK, B, C, GM, IM, SP.             *
+ *                                                          *
+ *   The final parameter is a name to add  or remove.  if   *
+ *   you prepend a + to the name, that asks that the name   *
+ *   be added to the list.  if you prepend a - to the name, *
+ *   that asks that the name be removed from the list.      *
+ *   if no name is given, the list is displayed.            *
+ *                                                          *
+ *   AK is the "auto-kibitz" list.  Crafty will kibitz info *
+ *   on a chess server when playing any opponent in this    *
+ *   list.  this should only have computer names as humans  *
+ *   don't approve of kibitzes while they are playing.      *
+ *                                                          *
+ *   B identifies "blocker" players, those that try to      *
+ *   block the position and go for easy draws.  this makes  *
+ *   Crafty try much harder to prevent this from happening, *
+ *   even at the expense of positional compensation.        *
+ *                                                          *
+ *   C identifies a computer opponent name, although on a   *
+ *   chess server this is handled by xboard/winboard.       *
+ *                                                          *
+ *   GM and IM identify titled players.  this affects how   *
+ *   and when Crafty resigns or offers/accepts draws.  For  *
+ *   GM players it will do so fairly early after the right  *
+ *   circumstances have been seen, for IM it delays a bit   *
+ *   longer as they are more prone to making a small error  *
+ *   that avoids the loss or draw.                          *
+ *                                                          *
+ *   SP is the "special player" option.  this is an         *
+ *   extended version of the "list" command that allows you *
+ *   to specify a special "start book" for a particular     *
+ *   opponent to make crafty play specific openings against *
+ *   that opponent, as well as allowing you to specify a    *
+ *   personality file to use against that specific opponent *
+ *   when he is identified by the correct "name" command.   *
+ *                                                          *
+ *   For the SP list, the command is extended to use        *
+ *                                                          *
+ *   "list SP +player book=filename  personality=filename"  *
+ *                                                          *
+ *   For the SP list, the files specified must exist in the *
+ *   current directory unless the bookpath and perspath     *
+ *   commands direct Crafty to look elsewhere.              *
  *                                                          *
  ************************************************************
  */
   else if (OptionMatch("list", *args)) {
-    int i, j;
-    char listname[8];
+    int i, list, lastent = -1;
     char **targs;
+    char listname[6][3] = { "AK", "B", "C", "GM", "IM", "SP" };
+    char **listaddr[6] = { AK_list, B_list, C_list, GM_list,
+      IM_list, SP_list
+    };
 
     targs = args;
-    strcpy(listname, args[1]);
+    for (list = 0; list < 7; list++) {
+      if (!strcmp(listname[list], args[1]))
+        break;
+    }
+    if (list > 5) {
+      printf("usage:  list AK|B|C|GM|IM|P|SP +name1 -name2 etc\n");
+    }
     nargs -= 2;
     targs += 2;
     if (nargs) {
       while (nargs) {
-        if (!strcmp(listname, "GM")) {
-          if (targs[0][0] == '-') {
-            for (i = 0; i < number_of_GMs; i++)
-              if (!strcmp(GM_list[i], targs[0] + 1)) {
-                for (j = i; j < number_of_GMs; j++)
-                  strcpy(GM_list[j], GM_list[j + 1]);
-                number_of_GMs--;
-                i = 0;
-                Print(128, "%s removed from GM list.\n", targs[0] + 1);
+        if (targs[0][0] == '-') {
+          for (i = 0; i < 128; i++)
+            if (listaddr[list][i]) {
+              if (!strcmp(listaddr[list][i], targs[0] + 1)) {
+                free(listaddr[list][i]);
+                listaddr[list][i] = NULL;
+                Print(128, "%s removed from %s list.\n", targs[0] + 1,
+                    listname[list]);
                 break;
               }
-          } else if (targs[0][0] == '+') {
-            for (i = 0; i < number_of_GMs; i++)
-              if (!strcmp(GM_list[i], targs[0] + 1)) {
-                Print(128, "Warning: %s is already in GM list.\n",
-                    targs[0] + 1);
-                break;
-              }
-            if (number_of_GMs >= 512)
-              Print(128, "ERROR!  GM list is full at 512 entries\n");
-            else if (i == number_of_GMs) {
-              strcpy(GM_list[number_of_GMs++], targs[0] + 1);
-              Print(128, "%s added to GM list.\n", targs[0] + 1);
             }
-          } else if (!strcmp(targs[0], "clear")) {
-            number_of_GMs = 0;
-          } else
-            printf("error, name must be preceeded by +/- flag.\n");
-        }
-        if (!strcmp(listname, "B")) {
-          if (targs[0][0] == '-') {
-            for (i = 0; i < number_of_blockers; i++)
-              if (!strcmp(blocker_list[i], targs[0] + 1)) {
-                for (j = i; j < number_of_blockers; j++)
-                  strcpy(blocker_list[j], blocker_list[j + 1]);
-                number_of_blockers--;
-                i = 0;
-                Print(128, "%s removed from blocker list.\n", targs[0] + 1);
+        } else if (targs[0][0] == '+') {
+          for (i = 0; i < 128; i++)
+            if (listaddr[list][i]) {
+              if (!strcmp(listaddr[list][i], targs[0] + 1)) {
+                Print(128, "Warning: %s is already in %s list.\n", targs[0] + 1,
+                    listname[list]);
                 break;
               }
-          } else if (targs[0][0] == '+') {
-            for (i = 0; i < number_of_blockers; i++)
-              if (!strcmp(blocker_list[i], targs[0] + 1)) {
-                Print(128, "Warning: %s is already in B list.\n", targs[0] + 1);
-                break;
-              }
-            if (number_of_blockers >= 512)
-              Print(4095, "ERROR!  blocker list is full at 512 entries\n");
-            else if (i == number_of_blockers) {
-              strcpy(blocker_list[number_of_blockers++], targs[0] + 1);
-              Print(128, "%s added to blocker list.\n", targs[0] + 1);
             }
-          } else if (!strcmp(targs[0], "clear")) {
-            number_of_blockers = 0;
-          } else
-            Print(4095, "error, name must be preceeded by +/- flag.\n");
-        }
-        if (!strcmp(listname, "IM")) {
-          if (targs[0][0] == '-') {
-            for (i = 0; i < number_of_IMs; i++)
-              if (!strcmp(IM_list[i], targs[0] + 1)) {
-                for (j = i; j < number_of_IMs; j++)
-                  strcpy(IM_list[j], IM_list[j + 1]);
-                number_of_IMs--;
-                i = 0;
-                Print(128, "%s removed from IM list.\n", targs[0] + 1);
-                break;
-              }
-          } else if (targs[0][0] == '+') {
-            for (i = 0; i < number_of_IMs; i++)
-              if (!strcmp(IM_list[i], targs[0] + 1)) {
-                Print(128, "Warning: %s is already in IM list.\n",
-                    targs[0] + 1);
-                break;
-              }
-            if (number_of_IMs >= 512)
-              Print(4095, "ERROR!  IM list is full at 512 entries\n");
-            else if (i == number_of_IMs) {
-              strcpy(IM_list[number_of_IMs++], targs[0] + 1);
-              Print(128, "%s added to IM list.\n", targs[0] + 1);
-            }
-          } else if (!strcmp(targs[0], "clear")) {
-            number_of_IMs = 0;
-          } else
-            Print(4095, "error, name must be preceeded by +/- flag.\n");
-        }
-        if (!strcmp(listname, "P")) {
-          if (targs[0][0] == '-') {
-            for (i = 0; i < number_to_play; i++)
-              if (!strcmp(toplay_list[i], targs[0] + 1)) {
-                for (j = i; j < number_to_play; j++)
-                  strcpy(toplay_list[j], toplay_list[j + 1]);
-                number_to_play--;
-                i = 0;
-                Print(128, "%s removed from to play list.\n", targs[0] + 1);
-                break;
-              }
-          } else if (targs[0][0] == '+') {
-            for (i = 0; i < number_to_play; i++)
-              if (!strcmp(toplay_list[i], targs[0] + 1)) {
-                Print(128, "Warning: %s is already in P list.\n", targs[0] + 1);
-                break;
-              }
-            if (number_to_play >= 512)
-              Print(4095, "ERROR!  play list is full at 512 entries\n");
-            else if (i == number_to_play) {
-              strcpy(toplay_list[number_to_play++], targs[0] + 1);
-              Print(128, "%s added to play list.\n", targs[0] + 1);
-            }
-          } else if (!strcmp(targs[0], "clear")) {
-            number_to_play = 0;
-          } else
-            Print(4095, "error, name must be preceeded by +/- flag.\n");
-        }
-        if (!strcmp(listname, "SO")) {
-          if (targs[0][0] == '-') {
-            for (i = 0; i < number_of_special_openings; i++)
-              if (!strcmp(opening_list[i], targs[0] + 1)) {
-                for (j = i; j < number_of_special_openings; j++)
-                  strcpy(opening_list[j], opening_list[j + 1]);
-                number_of_special_openings--;
-                i = 0;
-                Print(128, "%s removed from to special opening list.\n",
-                    targs[0] + 1);
-                break;
-              }
-          } else if (targs[0][0] == '+') {
-            for (i = 0; i < number_of_special_openings; i++)
-              if (!strcmp(opening_list[i], targs[0] + 1)) {
-                Print(128, "Warning: %s is already in SO list.\n",
-                    targs[0] + 1);
-                break;
-              }
-            if (number_of_special_openings >= 16)
-              Print(4095,
-                  "ERROR!  special opening list is full at 16 entries\n");
-            else if (i == number_of_special_openings) {
-              strcpy(opening_list[number_of_special_openings], targs[0] + 1);
-              strcpy(opening_filenames[number_of_special_openings++], targs[1]);
-              Print(128, "%s added to special opening list.\n", targs[0] + 1);
-              nargs--;
-              targs++;
-            }
-          } else if (!strcmp(targs[0], "clear")) {
-            number_of_special_openings = 0;
-          } else
-            Print(4095, "error, name must be preceeded by +/- flag.\n");
-        }
-        if (!strcmp(listname, "C")) {
-          if (targs[0][0] == '-') {
-            for (i = 0; i < number_of_computers; i++)
-              if (!strcmp(computer_list[i], targs[0] + 1)) {
-                for (j = i; j < number_of_computers; j++)
-                  strcpy(computer_list[j], computer_list[j + 1]);
-                number_of_computers--;
-                i = 0;
-                Print(128, "%s removed from computer list.\n", targs[0] + 1);
-                break;
-              }
-          } else if (targs[0][0] == '+') {
-            for (i = 0; i < number_of_computers; i++)
-              if (!strcmp(computer_list[i], targs[0] + 1)) {
-                Print(128, "Warning: %s is already in C list.\n", targs[0] + 1);
-                break;
-              }
-            if (number_of_computers >= 512)
-              Print(4095, "ERROR!  C list is full at 512 entries\n");
-            else if (i == number_of_computers) {
-              strcpy(computer_list[number_of_computers++], targs[0] + 1);
-              Print(128, "%s added to computer list.\n", targs[0] + 1);
-            }
-          } else if (!strcmp(targs[0], "clear")) {
-            number_of_computers = 0;
-          } else
-            Print(4095, "error, name must be preceeded by +/- flag.\n");
-        }
-        if (!strcmp(listname, "AK")) {
-          if (targs[0][0] == '-') {
-            for (i = 0; i < number_auto_kibitzers; i++)
-              if (!strcmp(auto_kibitz_list[i], targs[0] + 1)) {
-                for (j = i; j < number_auto_kibitzers; j++)
-                  strcpy(auto_kibitz_list[j], auto_kibitz_list[j + 1]);
-                number_auto_kibitzers--;
-                i = 0;
-                Print(128, "%s removed from auto kibitz list.\n", targs[0] + 1);
-                break;
-              }
-          } else if (targs[0][0] == '+') {
-            for (i = 0; i < number_auto_kibitzers; i++)
-              if (!strcmp(auto_kibitz_list[i], targs[0] + 1)) {
-                Print(128, "Warning: %s is already in AK list.\n",
-                    targs[0] + 1);
-                break;
-              }
-            if (number_auto_kibitzers >= 64)
-              Print(4095, "ERROR!  AK list is full at 64 entries\n");
-            else if (i == number_auto_kibitzers) {
-              strcpy(auto_kibitz_list[number_auto_kibitzers++], targs[0] + 1);
-              Print(128, "%s added to auto kibitz list.\n", targs[0] + 1);
-            }
-          } else if (!strcmp(targs[0], "clear")) {
-            number_auto_kibitzers = 0;
-          } else
-            Print(4095, "error, name must be preceeded by +/- flag.\n");
-        }
+          for (i = 0; i < 128; i++)
+            if (listaddr[list][i] == NULL)
+              break;
+          if (i >= 128)
+            Print(128, "ERROR!  %s list is full at 128 entries\n",
+                listname[list]);
+          else {
+            listaddr[list][i] = malloc(sizeof(targs[0] + 1) + 1);
+            strcpy(listaddr[list][i], targs[0] + 1);
+            Print(128, "%s added to %s list.\n", targs[0] + 1, listname[list]);
+            if (list == 5)
+              lastent = i;
+          }
+        } else if (!strcmp(targs[0], "clear")) {
+          for (i = 0; i < 128; i++) {
+            free(listaddr[list][i]);
+            listaddr[list][i] = NULL;
+          }
+        } else if (!strcmp(targs[0], "book") && lastent != -1) {
+          char filename[256];
+          FILE *file;
+
+          strcpy(filename, book_path);
+          strcat(filename, "/");
+          strcat(filename, targs[1]);
+          if (!strstr(args[2], ".bin"))
+            strcat(filename, ".bin");
+          file = fopen(filename, "r");
+          if (!file) {
+            Print(4095, "ERROR  book file %s can not be opened\n", filename);
+            break;
+          }
+          fclose(file);
+          SP_opening_filename[lastent] = malloc(sizeof(filename) + 1);
+          strcpy(SP_opening_filename[lastent], filename);
+          nargs--;
+          targs++;
+        } else if (!strcmp(targs[0], "personality") && lastent != -1) {
+          char filename[256];
+          FILE *file;
+
+          strcpy(filename, personality_path);
+          strcat(filename, "/");
+          strcat(filename, targs[1]);
+          if (!strstr(args[2], ".cpf"))
+            strcat(filename, ".cpf");
+          file = fopen(filename, "r");
+          if (!file) {
+            Print(4095, "ERROR  personality file %s can not be opened\n",
+                filename);
+            break;
+          }
+          fclose(file);
+          SP_personality_filename[lastent] = malloc(sizeof(filename) + 1);
+          strcpy(SP_personality_filename[lastent], filename);
+          nargs--;
+          targs++;
+        } else
+          printf("error, name must be preceeded by +/- flag.\n");
         nargs--;
         targs++;
       }
-    } else if (!strcmp(listname, "GM")) {
-      Print(128, "GM List:\n");
-      for (i = 0; i < number_of_GMs; i++)
-        Print(128, "%s\n", GM_list[i]);
-    } else if (!strcmp(listname, "B")) {
-      Print(128, "blocker List:\n");
-      for (i = 0; i < number_of_blockers; i++)
-        Print(128, "%s\n", blocker_list[i]);
-    } else if (!strcmp(listname, "IM")) {
-      Print(128, "IM List:\n");
-      for (i = 0; i < number_of_IMs; i++)
-        Print(128, "%s\n", IM_list[i]);
-    } else if (!strcmp(listname, "C")) {
-      Print(128, "computer list:\n");
-      for (i = 0; i < number_of_computers; i++)
-        Print(128, "%s\n", computer_list[i]);
-    } else if (!strcmp(listname, "AK")) {
-      Print(128, "auto kibitz list:\n");
-      for (i = 0; i < number_auto_kibitzers; i++)
-        Print(128, "%s\n", auto_kibitz_list[i]);
-    } else if (!strcmp(listname, "SO")) {
-      Print(128, "special opening list:\n");
-      for (i = 0; i < number_of_special_openings; i++)
-        Print(128, "%s -> %s\n", opening_list[i], opening_filenames[i]);
-    } else if (!strcmp(listname, "P")) {
-      Print(128, "to play list:\n");
-      for (i = 0; i < number_to_play; i++)
-        Print(128, "%s\n", toplay_list[i]);
+    } else {
+      Print(128, "%s List:\n", listname[list]);
+      for (i = 0; i < 128; i++) {
+        if (listaddr[list][i]) {
+          Print(128, "%s", listaddr[list][i]);
+          if (list == 5) {
+            if (SP_opening_filename[i])
+              Print(128, "  book=%s", SP_opening_filename[i]);
+            if (SP_personality_filename[i])
+              Print(128, "  personality=%s", SP_personality_filename[i]);
+          }
+          Print(128, "\n");
+        }
+      }
     }
   }
 /*
@@ -2592,8 +2138,9 @@ int Option(TREE * RESTRICT tree)
  *   list of known computers and adjusts its opening book   *
  *   to play less "risky" if it matches.  if the opponent   *
  *   is in the GM list, it tunes the resignation controls   *
- *   to resign earlier.  ditto for IM, although the resign  *
- *   threshold is not tightened so much.                    *
+ *   to resign earlier.  ditto for other lists that are     *
+ *   used to recognize specific opponents and adjust things *
+ *   accordingly.                                           *
  *                                                          *
  ************************************************************
  */
@@ -2619,26 +2166,26 @@ int Option(TREE * RESTRICT tree)
       next++;
     }
     if (mode != tournament_mode) {
-      for (i = 0; i < number_of_blockers; i++)
-        if (!strcmp(blocker_list[i], args[1])) {
+      for (i = 0; i < 128; i++)
+        if (B_list[i] && !strcmp(B_list[i], args[1])) {
           blocked_scale *= 1.5;
           break;
         }
-      for (i = 0; i < number_auto_kibitzers; i++)
-        if (!strcmp(auto_kibitz_list[i], args[1])) {
+      for (i = 0; i < 128; i++)
+        if (AK_list[i] && !strcmp(AK_list[i], args[1])) {
           kibitz = 4;
           break;
         }
-      for (i = 0; i < number_of_computers; i++)
-        if (!strcmp(computer_list[i], args[1])) {
+      for (i = 0; i < 128; i++)
+        if (C_list[i] && !strcmp(C_list[i], args[1])) {
           Print(128, "playing a computer!\n");
           computer_opponent = 1;
           book_selection_width = 1;
           usage_level = 0;
           break;
         }
-      for (i = 0; i < number_of_GMs; i++)
-        if (!strcmp(GM_list[i], args[1])) {
+      for (i = 0; i < 128; i++)
+        if (GM_list[i] && !strcmp(GM_list[i], args[1])) {
           Print(128, "playing a GM!\n");
           book_selection_width = 3;
           resign = Min(6, resign);
@@ -2648,8 +2195,8 @@ int Option(TREE * RESTRICT tree)
           kibitz = 0;
           break;
         }
-      for (i = 0; i < number_of_IMs; i++)
-        if (!strcmp(IM_list[i], args[1])) {
+      for (i = 0; i < 128; i++)
+        if (IM_list[i] && !strcmp(IM_list[i], args[1])) {
           Print(128, "playing an IM!\n");
           book_selection_width = 4;
           resign = Min(9, resign);
@@ -2659,26 +2206,26 @@ int Option(TREE * RESTRICT tree)
           kibitz = 0;
           break;
         }
-      for (i = 0; i < number_of_special_openings; i++)
-        if (!strcmp(opening_list[i], args[1])) {
+      for (i = 0; i < 128; i++)
+        if (SP_list[i] && !strcmp(SP_list[i], args[1])) {
           FILE *normal_bs_file = books_file;
 
-          Print(128, "playing a special opening player!\n");
-          books_file = fopen(opening_filenames[i], "rb");
-          if (!books_file) {
-            Print(4095, "Error!  unable to open %s for player %s.\n",
-                opening_filenames[i], opening_list[i]);
-            books_file = normal_bs_file;
+          Print(128, "playing a special player!\n");
+          if (SP_opening_filename[i]) {
+            books_file = fopen(SP_opening_filename[i], "rb");
+            if (!books_file) {
+              Print(4095, "Error!  unable to open %s for player %s.\n",
+                  SP_opening_filename[i], SP_list[i]);
+              books_file = normal_bs_file;
+            }
+          }
+          if (SP_personality_filename[i]) {
+            sprintf(buffer, "personality load %s\n",
+                SP_personality_filename[i]);
+            (void) Option(tree);
           }
           break;
         }
-    }
-    if (number_to_play) {
-      for (i = 0; i < number_to_play; i++)
-        if (!strcmp(toplay_list[i], args[1]))
-          break;
-      if (i == number_to_play)
-        printf("tellics abort\n");
     }
 #if defined(SMP)
     printf("tellicsnoalias kibitz Hello from Crafty v%s! (%d cpus)\n", version,
@@ -2792,25 +2339,27 @@ int Option(TREE * RESTRICT tree)
 /*
  ************************************************************
  *                                                          *
- *   "bookpath", "logpath" and "tbpath" commands set the    *
- *   default paths to find or create these files.           *
+ *   "bookpath", "perspath", "logpath" and "tbpath" set the *
+ *   default paths to locate or save these files.           *
  *                                                          *
  ************************************************************
  */
-  else if (OptionMatch("logpath", *args) || OptionMatch("bookpath", *args) ||
-      OptionMatch("tbpath", *args)) {
+  else if (OptionMatch("logpath", *args) || OptionMatch("perspath", *args)
+      || OptionMatch("bookpath", *args) || OptionMatch("tbpath", *args)) {
     if (OptionMatch("logpath", *args) || OptionMatch("bookpath", *args)) {
       if (log_file)
         Print(4095, "ERROR -- this must be used on command line only\n");
     }
     nargs = ReadParse(buffer, args, " 	=");
     if (nargs < 2) {
-      printf("usage:  bookpath|logpath|tbpath <path>\n");
+      printf("usage:  bookpath|perspath|logpath|tbpath <path>\n");
       return (1);
     }
     if (!strchr(args[1], '(')) {
       if (strstr(args[0], "bookpath"))
         strcpy(book_path, args[1]);
+      else if (strstr(args[0], "perspath"))
+        strcpy(personality_path, args[1]);
       else if (strstr(args[0], "logpath"))
         strcpy(log_path, args[1]);
       else if (strstr(args[0], "tbpath")) {
@@ -2944,6 +2493,109 @@ int Option(TREE * RESTRICT tree)
     time_used =
         ((float) clock_after - (float) clock_before) / (float) CLOCKS_PER_SEC;
     printf("total moves=" BMF "  time=%.2f\n", total_moves, time_used);
+  }
+/*
+ ************************************************************
+ *                                                          *
+ *   "personality" command is used to save or load a .cpf   *
+ *   (crafty personality file).  the save option writes all *
+ *   current evaluation paramenters, search extension       *
+ *   paramenters, selective search parameters, etc., into a *
+ *   file that can later be restored.  if you write to a    *
+ *   file named "crafty.cpf" that will be the default       *
+ *   settings everytime you start Crafty.                   *
+ *                                                          *
+ ************************************************************
+ */
+  else if (OptionMatch("personality", *args)) {
+    int i, j, k;
+
+    nargs = ReadParse(buffer, args, " 	;=");
+    if (!strcmp(args[1], "save")) {
+      char filename[256];
+      FILE *file;
+
+      if (strchr(args[2], '/') == NULL) {
+        strcpy(filename, personality_path);
+        strcat(filename, "/");
+        strcat(filename, args[2]);
+      } else
+        strcpy(filename, args[2]);
+      if (!strstr(args[2], ".cpf"))
+        strcat(filename, ".cpf");
+      file = fopen(filename, "w");
+      if (!file) {
+        printf("ERROR.  Unable to open personality file %s for writing\n",
+            args[2]);
+        return (1);
+      }
+      printf("saving personality to file \"%s\"\n", filename);
+      fprintf(file, "# Crafty v%s personality file\n", version);
+      fprintf(file, "extension/onerep      %4.2f\n",
+          (float) onerep_depth / INCPLY);
+      fprintf(file, "extension/check       %4.2f\n",
+          (float) incheck_depth / INCPLY);
+      fprintf(file, "extension/recapture   %4.2f\n",
+          (float) recap_depth / INCPLY);
+      fprintf(file, "extension/pushpp      %4.2f\n",
+          (float) pushpp_depth / INCPLY);
+      fprintf(file, "extension/mate        %4.2f\n",
+          (float) mate_depth / INCPLY);
+      fprintf(file, "selective             %d %d\n", null_min / INCPLY - 1,
+          null_max / INCPLY - 1);
+      for (i = 0; i < 256; i++) {
+        if (!evalterm_description[i])
+          continue;
+        if (evalterm_value[i]) {
+          if (evalterm_size[i] == 0)
+            fprintf(file, "evaluation %3d %7d\n", i, *evalterm_value[i]);
+          else if (evalterm_size[i] > 0) {
+            fprintf(file, "evaluation %3d ", i);
+            for (j = 0; j < evalterm_size[i]; j++)
+              fprintf(file, "%d ", evalterm_value[i][j]);
+            fprintf(file, "\n");
+          } else {
+            fprintf(file, "evaluation %3d ", i);
+            for (j = 0; j < 8; j++)
+              for (k = 0; k < 8; k++)
+                fprintf(file, "%d ", evalterm_value[i][(7 - j) * 8 + k]);
+            fprintf(file, "\n");
+          }
+        }
+      }
+      fclose(file);
+      return (1);
+    }
+    if (!strcmp(args[1], "load")) {
+      FILE *file;
+      char filename[256];
+      char *readstat;
+
+      if (strchr(args[2], '/') == NULL) {
+        strcpy(filename, personality_path);
+        strcat(filename, "/");
+        strcat(filename, args[2]);
+      } else
+        strcpy(filename, args[2]);
+      Print(128, "Loading personality file %s\n", filename);
+      if ((file = fopen(filename, "rw"))) {
+        silent = 1;
+        while ((readstat = fgets(buffer, 512, file))) {
+          char *delim;
+
+          delim = strchr(buffer, '\n');
+          if (delim)
+            *delim = 0;
+          delim = strchr(buffer, '\r');
+          if (delim)
+            *delim = ' ';
+          (void) Option(tree);
+        }
+        silent = 0;;
+        fclose(file);
+      }
+      return (1);
+    }
   }
 /*
  ************************************************************
@@ -3376,12 +3028,17 @@ int Option(TREE * RESTRICT tree)
         strcpy(pgn_result, "1-0");
         if (!crafty_is_white)
           LearnBook(tree, wtm, 300, 0, 1, 2);
+        else
+          LearnBook(tree, wtm, -300, 0, 1, 2);
       } else if (!strcmp(args[1], "0-1")) {
         strcpy(pgn_result, "0-1");
         if (crafty_is_white)
           LearnBook(tree, wtm, -300, 0, 1, 2);
+        else
+          LearnBook(tree, wtm, 300, 0, 1, 2);
       } else if (!strcmp(args[1], "1/2-1/2")) {
         strcpy(pgn_result, "1/2-1/2");
+        LearnBook(tree, wtm, 0, 0, 1, 2);
       }
       return (1);
     }
@@ -3610,11 +3267,13 @@ int Option(TREE * RESTRICT tree)
       if (null_max == INCPLY)
         null_max = 0;
     }
-    if (null_min + null_max)
-      Print(128, "null depth set to %d/%d (min/max)\n", null_min / INCPLY - 1,
-          null_max / INCPLY - 1);
-    else
-      Print(128, "null move disabled.\n");
+    if (!silent) {
+      if (null_min + null_max)
+        Print(128, "null depth set to %d/%d (min/max)\n", null_min / INCPLY - 1,
+            null_max / INCPLY - 1);
+      else
+        Print(128, "null move disabled.\n");
+    }
   }
 /*
  ************************************************************
@@ -3699,7 +3358,8 @@ int Option(TREE * RESTRICT tree)
     root_wtm = Flip(wtm);
     tree->position[1] = tree->position[0];
     PreEvaluate(tree, root_wtm);
-    s7 = Evaluate(tree, 1, 1, -99999, 99999);
+    s7 = Evaluate(tree, 1, wtm, -99999, 99999);
+    if (!wtm) s7 = -s7;
     s1 = EvaluateMaterial(tree);
     if (opening) {
       s2 = EvaluateDevelopmentB(tree, 1);
@@ -3711,7 +3371,7 @@ int Option(TREE * RESTRICT tree)
       s5 = EvaluatePassedPawnRaces(tree, wtm);
     }
     if (!tree->endgame)
-      s6 = EvaluateKingSafety(tree, 0);
+      s6 = EvaluateKingSafety(tree, 1);
     Print(128, "note: scores are for the white side\n");
     Print(128, "material evaluation.................%s\n", DisplayEvaluation(s1,
             1));

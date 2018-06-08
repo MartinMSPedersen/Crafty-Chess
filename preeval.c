@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include "chess.h"
 #include "data.h"
-#include "evaluate.h"
 
 /* last modified 01/20/04 */
 /*
@@ -20,14 +19,13 @@
  */
 void PreEvaluate(TREE * RESTRICT tree, int crafty_is_white)
 {
-  int i, j;
+  int i;
   static int hashing_opening = 0;
   static int hashing_middle_game = 0;
   static int hashing_end_game = 0;
   static int last_crafty_is_white = 0;
   static int last_trojan_check = 0;
   static int last_clear = 0;
-  int pawn_advance[8], pawn_base[8];
 
 /*
  ************************************************************
@@ -39,50 +37,6 @@ void PreEvaluate(TREE * RESTRICT tree, int crafty_is_white)
  ************************************************************
  */
   Phase();
-/*
- ************************************************************
- *                                                          *
- *   pawn advances.                                         *
- *                                                          *
- ************************************************************
- */
-  pawn_advance[0] = PAWN_ADVANCE_A;
-  pawn_advance[1] = PAWN_ADVANCE_B;
-  pawn_advance[2] = PAWN_ADVANCE_C;
-  pawn_advance[3] = PAWN_ADVANCE_D;
-  pawn_advance[4] = PAWN_ADVANCE_E;
-  pawn_advance[5] = PAWN_ADVANCE_F;
-  pawn_advance[6] = PAWN_ADVANCE_G;
-  pawn_advance[7] = PAWN_ADVANCE_H;
-  pawn_base[0] = PAWN_BASE_A;
-  pawn_base[1] = PAWN_BASE_B;
-  pawn_base[2] = PAWN_BASE_C;
-  pawn_base[3] = PAWN_BASE_D;
-  pawn_base[4] = PAWN_BASE_E;
-  pawn_base[5] = PAWN_BASE_F;
-  pawn_base[6] = PAWN_BASE_G;
-  pawn_base[7] = PAWN_BASE_H;
-/*
- ************************************************************
- *                                                          *
- *   pawns.                                                 *
- *                                                          *
- ************************************************************
- */
-  for (i = 1; i < 7; i++)
-    for (j = 0; j < 8; j++)
-      pval_w[i * 8 + j] = pawn_base[j] + pawn_advance[j] * (i - 1);
-  for (j = A6; j < A8; j++)
-    pval_w[j] += PAWN_JAM;
-  pval_w[D2] -= CENTER_PAWN_UNMOVED;
-  pval_w[E2] -= CENTER_PAWN_UNMOVED;
-  for (i = 6; i > 0; i--)
-    for (j = 0; j < 8; j++)
-      pval_b[i * 8 + j] = pawn_base[j] + pawn_advance[j] * (6 - i);
-  for (j = A2; j < A4; j++)
-    pval_b[j] += PAWN_JAM;
-  pval_b[D7] -= CENTER_PAWN_UNMOVED;
-  pval_b[E7] -= CENTER_PAWN_UNMOVED;
 /*
  ************************************************************
  *                                                          *
@@ -175,24 +129,24 @@ void PreEvaluate(TREE * RESTRICT tree, int crafty_is_white)
           (hashing_end_game != end_game))
       && !test_mode) {
 /*
- **********************************************
+ **************************************************
  *                                                *
  *   if anything changed, the transposition table *
  *   must be cleared of positional evaluations.   *
  *                                                *
- **********************************************
+ **************************************************
  */
     if (trojan_check)
       Print(128, "              trojan check enabled\n");
     Print(128, "              clearing hash tables\n");
     ClearHashTableScores(1);
 /*
- ***********************************************
+ ***************************************************
  *                                                 *
  *   now install the learned position information  *
  *   in the hash table.                            *
  *                                                 *
- ***********************************************
+ ***************************************************
  */
     LearnPositionLoad();
     last_clear = move_number;

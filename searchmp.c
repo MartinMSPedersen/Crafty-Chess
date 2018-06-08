@@ -5,8 +5,8 @@
 #include "data.h"
 #include "epdglue.h"
 #if defined(FUTILITY)
-#  define RAZOR_MARGIN (QUEEN_VALUE+1)
-#  define F_MARGIN (BISHOP_VALUE+1)
+#  define RAZOR_MARGIN (queen_value+1)
+#  define F_MARGIN (bishop_value+1)
 #endif
 
 /* modified 01/07/04 */
@@ -214,6 +214,7 @@ int SearchSMP(TREE * RESTRICT tree, int alpha, int beta, int value, int wtm,
         root_moves[tree->root_move].nodes =
             tree->nodes_searched - begin_root_nodes;
       if (value > alpha) {
+        alpha = value;
         if (ply == 1) {
           Lock(lock_root);
           if (value > root_value) {
@@ -227,7 +228,6 @@ int SearchSMP(TREE * RESTRICT tree, int alpha, int beta, int value, int wtm,
 
           parallel_stops++;
           UnmakeMove(tree, ply, tree->current_move[ply], wtm);
-          tree->search_value = value;
           Lock(lock_smp);
           Lock(tree->parent->lock);
           if (!tree->stop) {
@@ -239,14 +239,12 @@ int SearchSMP(TREE * RESTRICT tree, int alpha, int beta, int value, int wtm,
           Unlock(lock_smp);
           break;
         }
-        alpha = value;
       }
     }
     UnmakeMove(tree, ply, tree->current_move[ply], wtm);
-    tree->search_value = alpha;
   }
   if (tree->stop && ply == 1)
     root_moves[tree->root_move].status &= 255 - 128;
-  return (0);
+  return (alpha);
 }
 #endif

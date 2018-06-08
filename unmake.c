@@ -71,7 +71,7 @@ UnmakePieceMove:
           Set(to - 8, BlackPawns);
           Set(to - 8, BlackPieces);
           PcOnSq(to - 8) = -pawn;
-          Material -= PAWN_VALUE;
+          Material -= pawn_value;
           TotalBlackPawns++;
           captured = 0;
         }
@@ -87,7 +87,7 @@ UnmakePieceMove:
  */
       if (promote) {
         TotalWhitePawns++;
-        Material += PAWN_VALUE;
+        Material += pawn_value;
         Clear(to, WhitePawns);
         Clear(to, WhitePieces);
         switch (promote) {
@@ -95,21 +95,21 @@ UnmakePieceMove:
           Clear(to, WhiteKnights);
           TotalWhitePieces -= knight_v;
           WhiteMinors--;
-          Material -= KNIGHT_VALUE;
+          Material -= knight_value;
           break;
         case bishop:
           Clear(to, WhiteBishops);
           Clear(to, BishopsQueens);
           TotalWhitePieces -= bishop_v;
           WhiteMinors--;
-          Material -= BISHOP_VALUE;
+          Material -= bishop_value;
           break;
         case rook:
           Clear(to, WhiteRooks);
           Clear(to, RooksQueens);
           TotalWhitePieces -= rook_v;
           WhiteMajors--;
-          Material -= ROOK_VALUE;
+          Material -= rook_value;
           break;
         case queen:
           Clear(to, WhiteQueens);
@@ -117,7 +117,7 @@ UnmakePieceMove:
           Clear(to, RooksQueens);
           TotalWhitePieces -= queen_v;
           WhiteMajors -= 2;
-          Material -= QUEEN_VALUE;
+          Material -= queen_value;
           break;
         }
       }
@@ -134,7 +134,7 @@ UnmakePieceMove:
           Set(to + 8, WhitePawns);
           Set(to + 8, WhitePieces);
           PcOnSq(to + 8) = pawn;
-          Material += PAWN_VALUE;
+          Material += pawn_value;
           TotalWhitePawns++;
           captured = 0;
         }
@@ -150,7 +150,7 @@ UnmakePieceMove:
  */
       if (promote) {
         TotalBlackPawns++;
-        Material -= PAWN_VALUE;
+        Material -= pawn_value;
         Clear(to, BlackPawns);
         Clear(to, BlackPieces);
         switch (promote) {
@@ -158,21 +158,21 @@ UnmakePieceMove:
           Clear(to, BlackKnights);
           TotalBlackPieces -= knight_v;
           BlackMinors--;
-          Material += KNIGHT_VALUE;
+          Material += knight_value;
           break;
         case bishop:
           Clear(to, BlackBishops);
           Clear(to, BishopsQueens);
           TotalBlackPieces -= bishop_v;
           BlackMinors--;
-          Material += BISHOP_VALUE;
+          Material += bishop_value;
           break;
         case rook:
           Clear(to, BlackRooks);
           Clear(to, RooksQueens);
           TotalBlackPieces -= rook_v;
           BlackMajors--;
-          Material += ROOK_VALUE;
+          Material += rook_value;
           break;
         case queen:
           Clear(to, BlackQueens);
@@ -180,7 +180,7 @@ UnmakePieceMove:
           Clear(to, RooksQueens);
           TotalBlackPieces -= queen_v;
           BlackMajors -= 2;
-          Material += QUEEN_VALUE;
+          Material += queen_value;
           break;
         }
       }
@@ -332,13 +332,13 @@ UnmakePieceMove:
         Set(to, BlackPawns);
         Set(to, BlackPieces);
         PcOnSq(to) = -pawn;
-        Material -= PAWN_VALUE;
+        Material -= pawn_value;
         TotalBlackPawns++;
       } else {
         Set(to, WhitePawns);
         Set(to, WhitePieces);
         PcOnSq(to) = pawn;
-        Material += PAWN_VALUE;
+        Material += pawn_value;
         TotalWhitePawns++;
       }
       break;
@@ -356,14 +356,14 @@ UnmakePieceMove:
         PcOnSq(to) = -knight;
         TotalBlackPieces += knight_v;
         BlackMinors++;
-        Material -= KNIGHT_VALUE;
+        Material -= knight_value;
       } else {
         Set(to, WhiteKnights);
         Set(to, WhitePieces);
         PcOnSq(to) = knight;
         TotalWhitePieces += knight_v;
         WhiteMinors++;
-        Material += KNIGHT_VALUE;
+        Material += knight_value;
       }
       break;
 /*
@@ -381,14 +381,14 @@ UnmakePieceMove:
         PcOnSq(to) = -bishop;
         TotalBlackPieces += bishop_v;
         BlackMinors++;
-        Material -= BISHOP_VALUE;
+        Material -= bishop_value;
       } else {
         Set(to, WhiteBishops);
         Set(to, WhitePieces);
         PcOnSq(to) = bishop;
         TotalWhitePieces += bishop_v;
         WhiteMinors++;
-        Material += BISHOP_VALUE;
+        Material += bishop_value;
       }
       break;
 /*
@@ -406,14 +406,14 @@ UnmakePieceMove:
         PcOnSq(to) = -rook;
         TotalBlackPieces += rook_v;
         BlackMajors++;
-        Material -= ROOK_VALUE;
+        Material -= rook_value;
       } else {
         Set(to, WhiteRooks);
         Set(to, WhitePieces);
         PcOnSq(to) = rook;
         TotalWhitePieces += rook_v;
         WhiteMajors++;
-        Material += ROOK_VALUE;
+        Material += rook_value;
       }
       break;
 /*
@@ -432,14 +432,14 @@ UnmakePieceMove:
         PcOnSq(to) = -queen;
         TotalBlackPieces += queen_v;
         BlackMajors += 2;
-        Material -= QUEEN_VALUE;
+        Material -= queen_value;
       } else {
         Set(to, WhiteQueens);
         Set(to, WhitePieces);
         PcOnSq(to) = queen;
         TotalWhitePieces += queen_v;
         WhiteMajors += 2;
-        Material += QUEEN_VALUE;
+        Material += queen_value;
       }
       break;
 /*

@@ -101,7 +101,7 @@ void Initialize(int continuing)
  *                                                          *
  ************************************************************
  */
-  int i, j, major, minor;
+  int i, major, minor;
   TREE *tree;
 
 #if defined(UNIX)
@@ -125,7 +125,7 @@ void Initialize(int continuing)
   InitializePieceMasks();
   InitializeChessBoard(&tree->position[0]);
 #if defined(NT_i386)
-  _fmode = _O_BINARY;   /* set global file mode to binary to avoid text translation */
+  _fmode = _O_BINARY;   /* set file mode binary to avoid text translation */
 #endif
 
 #if defined(EPD)
@@ -291,19 +291,7 @@ void Initialize(int continuing)
   hash_mask = (1 << log_hash) - 1;
   pawn_hash_mask = (1 << (log_pawn_hash)) - 1;
 
-  for (i = 0; i < 8; i++)
-    for (j = 0; j < 8; j++) {
-      pval_b[i * 8 + j] = pval_w[(7 - i) * 8 + j];
-      nval_b[i * 8 + j] = nval_w[(7 - i) * 8 + j];
-      bval_b[i * 8 + j] = bval_w[(7 - i) * 8 + j];
-      rval_b[i * 8 + j] = rval_w[(7 - i) * 8 + j];
-      qval_b[i * 8 + j] = qval_w[(7 - i) * 8 + j];
-      kval_bn[i * 8 + j] = kval_wn[(7 - i) * 8 + j];
-      kval_bk[i * 8 + j] = kval_wk[(7 - i) * 8 + j];
-      kval_bq[i * 8 + j] = kval_wq[(7 - i) * 8 + j];
-      black_outpost[i * 8 + j] = white_outpost[(7 - i) * 8 + j];
-      king_defects_b[i * 8 + j] = king_defects_w[(7 - i) * 8 + j];
-    }
+  InitializeEvaluation();
 }
 
 void InitializeAttackBoards(void)
@@ -641,7 +629,7 @@ void InitializeChessBoard(SEARCH_POSITION * new_pos)
 
   if (strlen(initial_position)) {
     static char a1[80], a2[16], a3[16], a4[16], a5[16];
-    static char *args[16] =
+    static char *args[256] =
         { a1, a2, a3, a4, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5 };
     int nargs;
 
@@ -865,50 +853,50 @@ void SetChessBitBoards(SEARCH_POSITION * new_pos)
   for (i = 0; i < 64; i++) {
     switch (tree->pos.board[i]) {
     case pawn:
-      tree->pos.material_evaluation += PAWN_VALUE;
+      tree->pos.material_evaluation += pawn_value;
       tree->pos.white_pawns += pawn_v;
       break;
     case knight:
-      tree->pos.material_evaluation += KNIGHT_VALUE;
+      tree->pos.material_evaluation += knight_value;
       tree->pos.white_pieces += knight_v;
       tree->pos.white_minors++;
       break;
     case bishop:
-      tree->pos.material_evaluation += BISHOP_VALUE;
+      tree->pos.material_evaluation += bishop_value;
       tree->pos.white_pieces += bishop_v;
       tree->pos.white_minors++;
       break;
     case rook:
-      tree->pos.material_evaluation += ROOK_VALUE;
+      tree->pos.material_evaluation += rook_value;
       tree->pos.white_pieces += rook_v;
       tree->pos.white_majors++;
       break;
     case queen:
-      tree->pos.material_evaluation += QUEEN_VALUE;
+      tree->pos.material_evaluation += queen_value;
       tree->pos.white_pieces += queen_v;
       tree->pos.white_majors += 2;
       break;
     case -pawn:
-      tree->pos.material_evaluation -= PAWN_VALUE;
+      tree->pos.material_evaluation -= pawn_value;
       tree->pos.black_pawns += pawn_v;
       break;
     case -knight:
-      tree->pos.material_evaluation -= KNIGHT_VALUE;
+      tree->pos.material_evaluation -= knight_value;
       tree->pos.black_pieces += knight_v;
       tree->pos.black_minors++;
       break;
     case -bishop:
-      tree->pos.material_evaluation -= BISHOP_VALUE;
+      tree->pos.material_evaluation -= bishop_value;
       tree->pos.black_pieces += bishop_v;
       tree->pos.black_minors++;
       break;
     case -rook:
-      tree->pos.material_evaluation -= ROOK_VALUE;
+      tree->pos.material_evaluation -= rook_value;
       tree->pos.black_pieces += rook_v;
       tree->pos.black_majors++;
       break;
     case -queen:
-      tree->pos.material_evaluation -= QUEEN_VALUE;
+      tree->pos.material_evaluation -= queen_value;
       tree->pos.black_pieces += queen_v;
       tree->pos.black_majors += 2;
       break;
@@ -919,6 +907,25 @@ void SetChessBitBoards(SEARCH_POSITION * new_pos)
   TotalPieces = PopCnt(Occupied);
   if (new_pos == &tree->position[0])
     tree->rep_game = -1;
+}
+
+void InitializeEvaluation(void)
+{
+  int i, j;
+
+  for (i = 0; i < 8; i++)
+    for (j = 0; j < 8; j++) {
+      pval_b[i * 8 + j] = pval_w[(7 - i) * 8 + j];
+      nval_b[i * 8 + j] = nval_w[(7 - i) * 8 + j];
+      bval_b[i * 8 + j] = bval_w[(7 - i) * 8 + j];
+      rval_b[i * 8 + j] = rval_w[(7 - i) * 8 + j];
+      qval_b[i * 8 + j] = qval_w[(7 - i) * 8 + j];
+      kval_bn[i * 8 + j] = kval_wn[(7 - i) * 8 + j];
+      kval_bk[i * 8 + j] = kval_wk[(7 - i) * 8 + j];
+      kval_bq[i * 8 + j] = kval_wq[(7 - i) * 8 + j];
+      black_outpost[i * 8 + j] = white_outpost[(7 - i) * 8 + j];
+      king_defects_b[i * 8 + j] = king_defects_w[(7 - i) * 8 + j];
+    }
 }
 
 /*
@@ -1313,28 +1320,18 @@ void InitializePawnMasks(void)
    these masks have 1's on the squares where it is useful to have a bishop
    when the b or g pawn is missing or pushed one square.
  */
-  good_bishop_kw = SetMask(F1) | SetMask(H1) | SetMask(G2);
-  good_bishop_qw = SetMask(A1) | SetMask(C1) | SetMask(B2);
+  good_bishop_kw = SetMask(G2) | SetMask(F1) | SetMask(H1);
+  good_bishop_qw = SetMask(B2) | SetMask(A1) | SetMask(C1);
   good_bishop_kb = SetMask(G7) | SetMask(F8) | SetMask(H8);
   good_bishop_qb = SetMask(B7) | SetMask(A8) | SetMask(C8);
-/*
- these masks are used to detect that opponent pawns are getting very
- close to the king.
- */
-  mask_wq_4th = SetMask(A4) | SetMask(B4) | SetMask(C4);
-  mask_wk_4th = SetMask(F4) | SetMask(G4) | SetMask(H4);
-  mask_bq_4th = SetMask(A5) | SetMask(B5) | SetMask(C5);
-  mask_bk_4th = SetMask(F5) | SetMask(G5) | SetMask(H5);
 
 /*
  these masks are used to detect that the opponent is trying to set up
  a stonewall type pawn formation.
  */
   stonewall_white = SetMask(D4) | SetMask(F4);
-  closed_white = SetMask(E4) | SetMask(D3) | SetMask(C4);
   e2_e3 = SetMask(E2) | SetMask(E3);
   stonewall_black = SetMask(D5) | SetMask(F5);
-  closed_black = SetMask(E5) | SetMask(D6) | SetMask(C5);
   e7_e6 = SetMask(E7) | SetMask(E6);
 }
 

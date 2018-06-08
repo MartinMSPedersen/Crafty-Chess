@@ -92,16 +92,16 @@ void ValidatePosition(TREE * RESTRICT tree, int ply, int move, char *caller)
 /*
  test material_evaluation
  */
-  temp_score = PopCnt(WhitePawns) * PAWN_VALUE;
-  temp_score -= PopCnt(BlackPawns) * PAWN_VALUE;
-  temp_score += PopCnt(WhiteKnights) * KNIGHT_VALUE;
-  temp_score -= PopCnt(BlackKnights) * KNIGHT_VALUE;
-  temp_score += PopCnt(WhiteBishops) * BISHOP_VALUE;
-  temp_score -= PopCnt(BlackBishops) * BISHOP_VALUE;
-  temp_score += PopCnt(WhiteRooks) * ROOK_VALUE;
-  temp_score -= PopCnt(BlackRooks) * ROOK_VALUE;
-  temp_score += PopCnt(WhiteQueens) * QUEEN_VALUE;
-  temp_score -= PopCnt(BlackQueens) * QUEEN_VALUE;
+  temp_score = PopCnt(WhitePawns) * pawn_value;
+  temp_score -= PopCnt(BlackPawns) * pawn_value;
+  temp_score += PopCnt(WhiteKnights) * knight_value;
+  temp_score -= PopCnt(BlackKnights) * knight_value;
+  temp_score += PopCnt(WhiteBishops) * bishop_value;
+  temp_score -= PopCnt(BlackBishops) * bishop_value;
+  temp_score += PopCnt(WhiteRooks) * rook_value;
+  temp_score -= PopCnt(BlackRooks) * rook_value;
+  temp_score += PopCnt(WhiteQueens) * queen_value;
+  temp_score -= PopCnt(BlackQueens) * queen_value;
   if (temp_score != Material) {
     Print(128, "ERROR  material_evaluation is wrong, good=%d, bad=%d\n",
         temp_score, Material);

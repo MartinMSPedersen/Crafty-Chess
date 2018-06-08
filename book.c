@@ -381,7 +381,8 @@ int Book(TREE * RESTRICT tree, int wtm, int root_list_done)
     if (show_book) {
       Print(128, "  after screening, the following moves can be played\n");
       Print(128,
-          "  move     played    %%  score    learn     CAP     sortv   P%%  P\n");
+          "  move     played    %%  score    learn     "
+          "CAP     sortv   P%%  P\n");
       for (i = 0; i < nmoves; i++) {
         Print(128, "%6s", OutputMove(tree, book_moves[i], 1, wtm));
         st = book_status[i];

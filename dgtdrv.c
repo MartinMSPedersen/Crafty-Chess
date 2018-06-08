@@ -20,7 +20,7 @@
 #define DGT_SEND_TRADEMARK   0x47       /* send trademark notice */
 #define DGT_SEND_EE_MOVES    0x49       /* send EE prom contents */
 #define DGT_SEND_VERSION     0x4d       /* send version identification */
-#define DGT_SEND_UPDATE_NICE 0x4b       /* update board & time when it changes */
+#define DGT_SEND_UPDATE_NICE 0x4b       /* update board & time as it changes */
 
 /* command codes from board to pc: */
 #define DGT_NONE            0x00
@@ -71,7 +71,7 @@ int board[64], current_board[64];
  *   main() sets things up by initializing the DGT board and then goes into an *
  *   infinite loop processing input from stdin/dgt board.                      *
  *                                                                             *
- ********************************************************************************
+ *******************************************************************************
  */
 int main(int argc, char *argv[])
 {

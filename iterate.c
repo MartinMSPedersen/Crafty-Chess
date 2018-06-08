@@ -424,8 +424,9 @@ int Iterate(int wtm, int search_type, int root_list_done)
           for (i = 0; i < n_root_moves; i++) {
             total_nodes += root_moves[i].nodes;
             Print(128, " %10s  " BMF10 "       %d   %d\n", OutputMove(tree,
-                    root_moves[i].move, 1, wtm), root_moves[i].nodes,
-                (root_moves[i].status & 0x38) > 0, (root_moves[i].status & 7) > 0);
+                root_moves[i].move, 1, wtm), root_moves[i].nodes,
+                (root_moves[i].status & 0x38) > 0,
+                (root_moves[i].status & 7) > 0);
           }
           Print(256, "      total  " BMF10 "\n", total_nodes);
         }
@@ -504,7 +505,7 @@ int Iterate(int wtm, int search_type, int root_list_done)
       if ((!abort_search || time_abort) && !puzzling) {
         tree->fail_high++;
         tree->fail_high_first++;
-        material = Material / PAWN_VALUE;
+        material = Material / pawn_value;
         Print(8, "              time=%s  cpu=%d%%  mat=%d",
             DisplayTimeKibitz(end_time - start_time), cpu_percent, material);
         Print(8, "  n=" BMF, tree->nodes_searched);
@@ -519,13 +520,15 @@ int Iterate(int wtm, int search_type, int root_list_done)
             tree->check_extensions_done, tree->recapture_extensions_done,
             tree->passed_pawn_extensions_done, tree->one_reply_extensions_done,
             tree->mate_extensions_done);
-        Print(16, "              predicted=%d  nodes=" BMF "  evals=%u  50move=%d\n",
+        Print(16, "              predicted=%d  nodes=" BMF
+              "  evals=%u  50move=%d\n",
             predicted, tree->nodes_searched, tree->evaluations,Rule50Moves(0));
         Print(16, "              endgame tablebase-> probes=%d  hits=%d\n",
             tree->egtb_probes, tree->egtb_probes_successful);
 #if !defined(FAST)
         Print(16,
-            "              hashing-> %d%%(raw) %d%%(depth)  %d%%(sat)  %d%%(pawn)\n",
+            "              hashing-> %d%%(raw) %d%%(depth) "
+            " %d%%(sat)  %d%%(pawn)\n",
             (int) (100 * (BITBOARD) tree->transposition_hits /
                 (BITBOARD) (tree->transposition_probes + 1)),
             (int) (100 * (BITBOARD) tree->transposition_good_hits /

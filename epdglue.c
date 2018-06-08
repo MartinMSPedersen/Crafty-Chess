@@ -1,4 +1,5 @@
 /*>>> epdglue.c: glue to connect Crafty to the EPD Kit routines */
+#if defined(EPD)
 
 /* Revised: 1996.04.21 */
 
@@ -3186,5 +3187,7 @@ nonstatic void EGTerm(void)
 
   return;
 }
+
+#endif
 
 /*<<< epdglue.c: EOF */

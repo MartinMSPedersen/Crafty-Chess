@@ -28,7 +28,8 @@
 #if defined(UNIX)
 #  include <unistd.h>
 #  include <sys/types.h>
-#  if !defined(LINUX) && !defined(ALPHA) && !defined(HP) && !defined(CRAY1) && !defined(FreeBSD) && !defined(NetBSD) && !defined(__EMX__)
+#  if !defined(LINUX) && !defined(ALPHA) && !defined(HP) && !defined(CRAY1) && \
+   !defined(FreeBSD) && !defined(NetBSD) && !defined(__EMX__)
 #    if defined(AIX)
 #      include <sys/termio.h>
 #      include <sys/select.h>
@@ -266,6 +267,47 @@ void ClearHashTableScores(int dopawnstoo)
   local[0]->pawn_score.key = 0;
 }
 
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   DisplayArray() prints array data either 8 or 16 values per line, and also *
+ *   reverses the output for arrays that overlay the chess board so that the   *
+ *   'white side" is at the bottom rather than the top.  this is mainly used   *
+ *   from inside Option() to display the many evaluation terms.                *
+ *                                                                             *
+ *******************************************************************************
+ */
+void DisplayArray(int *array, int size)
+{
+  int i, j, len = 16;
+
+  if (abs(size) % 10 == 0)
+    len = 10;
+  else if (abs(size) % 8 == 0)
+    len = 8;
+  if (size > 0 && size % 16 == 0 && len == 8)
+    len = 16;
+  if (size > 0) {
+    for (i = 0; i < size; i++) {
+      printf("%3d ", array[i]);
+      if ((i + 1) % len == 0)
+        printf("\n");
+    }
+    if (i % len != 0)
+      printf("\n");
+  }
+  if (size < 0) {
+    for (i = 0; i < 8; i++) {
+      for (j = 0; j < 8; j++) {
+        printf("%3d ", array[(7 - i) * 8 + j]);
+      }
+      printf(" | %d\n", 8 - i);
+    }
+    printf("---------------------------------\n");
+    printf("  a   b   c   d   e   f   g   h\n");
+  }
+}
+
 void DisplayBitBoard(BITBOARD board)
 {
   int i, j, x;
@@ -399,7 +441,7 @@ char *DisplayEvaluationKibitz(int value, int wtm)
   return (out);
 }
 
-void DisplayPieceBoards(signed char *white, signed char *black)
+void DisplayPieceBoards(int *white, int *black)
 {
   int i, j;
 
@@ -1180,9 +1222,8 @@ void Pass(void)
 /* Was previous move a pass? */
   if (halfmoves_done > 0) {
     fseek(history_file, (halfmoves_done - 1) * 10, SEEK_SET);
-    if (fscanf(history_file, "%s", buffer) == 0 || strcmp(buffer, "pass") == 0) {
+    if (fscanf(history_file, "%s", buffer) == 0 || strcmp(buffer, "pass") == 0)
       prev_pass = 1;
-    }
   }
   if (prev_pass) {
     if (wtm)
@@ -1344,12 +1385,10 @@ char *PrintKM(int val, int realK)
 }
 
 /*
-
- A 32 bit random number generator. An implementation in C of the algorithm given by
- Knuth, the art of computer programming, vol. 2, pp. 26-27. We use e=32, so 
- we have to evaluate y(n) = y(n - 24) + y(n - 55) mod 2^32, which is implicitly
- done by unsigned arithmetic.
-
+ A 32 bit random number generator. An implementation in C of the algorithm
+ given by Knuth, the art of computer programming, vol. 2, pp. 26-27. We use
+ e=32, so we have to evaluate y(n) = y(n - 24) + y(n - 55) mod 2^32, which
+ is implicitly done by unsigned arithmetic.
  */
 
 unsigned int Random32(void)
@@ -1520,13 +1559,13 @@ int ReadParse(char *buffer, char *args[], char *delims)
   int nargs;
 
   strcpy(tbuffer, buffer);
-  for (nargs = 0; nargs < 16; nargs++)
+  for (nargs = 0; nargs < 256; nargs++)
     *(args[nargs]) = 0;
   next = strtok(tbuffer, delims);
   if (!next)
     return (0);
   strcpy(args[0], next);
-  for (nargs = 1; nargs < 32; nargs++) {
+  for (nargs = 1; nargs < 256; nargs++) {
     next = strtok(0, delims);
     if (!next)
       break;
@@ -1952,13 +1991,13 @@ char *Reverse(void)
  *                                                                             *
  *******************************************************************************
  */
-void CopyFromSMP(TREE * RESTRICT p, TREE * RESTRICT c)
+void CopyFromSMP(TREE * RESTRICT p, TREE * RESTRICT c, int value)
 {
   int i;
 
-  if (c->nodes_searched && !c->stop && c->search_value > p->search_value) {
+  if (c->nodes_searched && !c->stop && value > p->search_value) {
     p->pv[p->ply] = c->pv[p->ply];
-    p->search_value = c->search_value;
+    p->search_value = value;
     for (i = 1; i < MAXPLY; i++)
       p->killers[i] = c->killers[i];
     memcpy(p->history_w, c->history_w, 2 * sizeof(p->history_w));
@@ -2314,9 +2353,9 @@ static void WinNumaInit(void)
         printf("Current ideal CPU is %u\n", dwCPU);
         pSetThreadIdealProcessor(GetCurrentThread(), dwCPU);
         if ((((DWORD) - 1) != dwCPU) && (MAXIMUM_PROCESSORS != dwCPU) &&
-            !(ullProcessorMask[0] & (1ui64 << dwCPU))) {
+            !(ullProcessorMask[0] & (1u i64 << dwCPU))) {
           for (ulNode = 1; ulNode <= ulNumaNodes; ulNode++) {
-            if (ullProcessorMask[ulNode] & (1ui64 << dwCPU)) {
+            if (ullProcessorMask[ulNode] & (1u i64 << dwCPU)) {
               printf("Exchanging nodes 0 and %d\n", ulNode);
               ullMask = ullProcessorMask[ulNode];
               ullProcessorMask[ulNode] = ullProcessorMask[0];
@@ -2522,9 +2561,9 @@ void NumaInit(void)
         printf("Current ideal CPU is %u\n", dwCPU);
         pSetThreadIdealProcessor(GetCurrentThread(), dwCPU);
         if ((((DWORD) - 1) != dwCPU) && (MAXIMUM_PROCESSORS != dwCPU) &&
-            !(ullProcessorMask[0] & (1ui64 << dwCPU))) {
+            !(ullProcessorMask[0] & (1u i64 << dwCPU))) {
           for (ulNode = 1; ulNode <= ulNumaNodes; ulNode++) {
-            if (ullProcessorMask[ulNode] & (1ui64 << dwCPU)) {
+            if (ullProcessorMask[ulNode] & (1u i64 << dwCPU)) {
               printf("Exchanging nodes 0 and %d\n", ulNode);
               ullMask = ullProcessorMask[ulNode];
               ullProcessorMask[ulNode] = ullProcessorMask[0];

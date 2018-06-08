@@ -94,14 +94,7 @@ typedef int piece;
 #  error Cannot use CPUS > 1 without SMP defined
 #endif
 
-#if defined (SMP)
-#  define UnLock(x) Unlock(x)
 static	lock_t	lockLRU;
-#else
-#  define LockInit(x)
-#  define Lock(x)
-#  define UnLock(x)
-#endif
 
 // Declarations
 
@@ -5414,7 +5407,7 @@ static INLINE void VTbCloseFile
 		        fclose (rgtbdDesc[iTb].m_rgfpFiles[side][iExtent]);
 		        rgtbdDesc[iTb].m_rgfpFiles[side][iExtent] = NULL;
                 }
-		    UnLock (rgtbdDesc[iTb].m_rglockFiles[side]);
+		    Unlock (rgtbdDesc[iTb].m_rglockFiles[side]);
 		    }
         }
 	}
@@ -5781,7 +5774,7 @@ static int TB_FASTCALL TbtProbeTable
 				ptbcHead->m_ptbcPrev = ptbc;
 				ptbcHead = ptbc;
 				}
-			UnLock (lockLRU);
+			Unlock (lockLRU);
 			// Move cache entry to the head of the cache bucket LRU list
 			if (ptbc != ptbcTbFirst)
 				{
@@ -5798,7 +5791,7 @@ static int TB_FASTCALL TbtProbeTable
 			int	tb;
 
 			tb = (tb_t) (ptbc->m_pbData[(ULONG)indInChunk]);
-			UnLock (ptbd->m_prgtbcbBuckets[side][iDirectory].m_lock);
+			Unlock (ptbd->m_prgtbcbBuckets[side][iDirectory].m_lock);
 			return tb;
 			}
 		}
@@ -5810,7 +5803,7 @@ static int TB_FASTCALL TbtProbeTable
 	// the end of general LRU list and will be reused.
 
 	// Unlock cache bucket, so other threads can continue execution
-	UnLock (ptbd->m_prgtbcbBuckets[side][iDirectory].m_lock);
+	Unlock (ptbd->m_prgtbcbBuckets[side][iDirectory].m_lock);
 	// First, find cache entry we can use
 	Lock (lockLRU);
 	// Get it either from a free list, or reuse last element of the LRU list
@@ -5818,7 +5811,7 @@ static int TB_FASTCALL TbtProbeTable
 		{
 		ptbc = ptbcFree;
 		ptbcFree = ptbc->m_ptbcNext;
-		UnLock (lockLRU);
+		Unlock (lockLRU);
 		}
 	else
 		{
@@ -5839,7 +5832,7 @@ static int TB_FASTCALL TbtProbeTable
 			// To avoid deadlocks, have to first acquire cache buckets lock,
 			// and only then general LRU lock. So, free general LRU lock and
 			// acquire 2 locks in a proper order.
-			UnLock (lockLRU);
+			Unlock (lockLRU);
 			Lock (rgtbdDesc[iTailTb].m_prgtbcbBuckets[colorTail][iTailDirectory].m_lock);
 			Lock (lockLRU);
 			// Have structures been modified while we re-acquired locks? 
@@ -5852,7 +5845,7 @@ static int TB_FASTCALL TbtProbeTable
 				TB_DIRECTORY_ENTRY (ptbc->m_indChunk) == iTailDirectory)
 				break;
 			// Sorry - try once again...
-			UnLock (rgtbdDesc[iTailTb].m_prgtbcbBuckets[colorTail][iTailDirectory].m_lock);
+			Unlock (rgtbdDesc[iTailTb].m_prgtbcbBuckets[colorTail][iTailDirectory].m_lock);
 			}
 #else
 		ptbc = ptbcTail;
@@ -5867,7 +5860,7 @@ static int TB_FASTCALL TbtProbeTable
 			ptbcHead = NULL;
 		else
 			ptbcTail->m_ptbcNext = NULL;
-		UnLock (lockLRU);
+		Unlock (lockLRU);
 		
 		// Remove it from cache bucket list
 		if (NULL != ptbc->m_ptbcTbNext)
@@ -5876,7 +5869,7 @@ static int TB_FASTCALL TbtProbeTable
 			rgtbdDesc[iTailTb].m_prgtbcbBuckets[colorTail][iTailDirectory].m_ptbcFirst = ptbc->m_ptbcTbNext;
 		else
 			ptbc->m_ptbcTbPrev->m_ptbcTbNext = ptbc->m_ptbcTbNext;
-		UnLock (rgtbdDesc[iTailTb].m_prgtbcbBuckets[colorTail][iTailDirectory].m_lock);
+		Unlock (rgtbdDesc[iTailTb].m_prgtbcbBuckets[colorTail][iTailDirectory].m_lock);
 		}
 
 	// Ok, now we have "orphan" cache entry - it's excluded from all lists,
@@ -5913,7 +5906,7 @@ static int TB_FASTCALL TbtProbeTable
 		    if (NULL == fp)
 			    {
 			    // Failed. Close all the opened files and retry
-			    UnLock (ptbd->m_rglockFiles[side]);
+			    Unlock (ptbd->m_rglockFiles[side]);
 			    VTbCloseFiles ();
 			    Lock (ptbd->m_rglockFiles[side]);
 			    // Theoretically, it's possible that other threads opened a lot of
@@ -6010,7 +6003,7 @@ static int TB_FASTCALL TbtProbeTable
 				goto ERROR_LABEL;
                 }
 			}
-		UnLock (ptbd->m_rglockFiles[side]);
+		Unlock (ptbd->m_rglockFiles[side]);
 		}
 	else
 		{
@@ -6029,7 +6022,7 @@ static int TB_FASTCALL TbtProbeTable
 			pBlock ++;
 		block = *pBlock;
 		*pBlock = NULL;
-		UnLock (lockDecode);
+		Unlock (lockDecode);
 #else
 		block = rgpdbDecodeBlocks[0];
 #endif
@@ -6039,7 +6032,7 @@ static int TB_FASTCALL TbtProbeTable
 					0 != comp_read_block (block, info, fp, iPhysicalChunk);
 		
 		// Release lock on file, so other threads can proceed with that file
-		UnLock (ptbd->m_rglockFiles[side]);
+		Unlock (ptbd->m_rglockFiles[side]);
 
 		// Decompress chunk
 		if (!fWasError)
@@ -6049,7 +6042,7 @@ static int TB_FASTCALL TbtProbeTable
 #if defined (SMP)
 		Lock (lockDecode);
 		*pBlock = block;
-		UnLock (lockDecode);
+		Unlock (lockDecode);
 #endif
 
 		// Read Ok?
@@ -6089,20 +6082,20 @@ static int TB_FASTCALL TbtProbeTable
 
 	tb = (tb_t) (ptbc->m_pbData[indInChunk]);
 	// Release locks
-	UnLock (ptbd->m_prgtbcbBuckets[side][iDirectory].m_lock);
-	UnLock (lockLRU);
+	Unlock (ptbd->m_prgtbcbBuckets[side][iDirectory].m_lock);
+	Unlock (lockLRU);
 	return tb;
 
 	// I/O error. Here I don't want to halt the program, because that can
 	// happen in the middle of the important game. Just return failure.
 ERROR_LABEL:
-	UnLock (ptbd->m_rglockFiles[side]);
+	Unlock (ptbd->m_rglockFiles[side]);
 ERROR_LABEL_2:
 	Lock (lockLRU);
 	ptbd->m_rgpchFileName[side][iExtent] = NULL;
 	ptbc->m_ptbcNext = ptbcFree;
 	ptbcFree = ptbc;
-	UnLock (lockLRU);
+	Unlock (lockLRU);
 	return L_bev_broken;
 	}
 
