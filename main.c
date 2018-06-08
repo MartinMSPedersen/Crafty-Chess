@@ -3316,7 +3316,18 @@
  *           been moved, Crafty had not castled, and it pushed the kingside    *
  *           pawns making it unsafe to castle there, leaving the center as the *
  *           best place, yet had it not pushed the kingside pawns, castling    *
- *           would have been a better alternative.                             *
+ *           would have been a better alternative.   two new 16 word vectors,  *
+ *           safety_vector[]/tropism_vectorp[] are used to set the edge values *
+ *           for the king_safetyp[][] array.  interior values are filled in    *
+ *           based on these two vectors, making it much easier to tweak the    *
+ *           king safety scores without pulling your hair out.                 *
+ *                                                                             *
+ *   20.8    when queens come off, the previous version cut the tropism scores *
+ *           and pawn shelter scores by 1/2 each, which had the effect of      *
+ *           dropping the overall score by 75% (the score is a geometric       *
+ *           computation).  The safety/tropism values are now dropped, but by  *
+ *           a smaller amount, since bishops + rooks + knights are still a     *
+ *           dangerous threat.                                                 *
  *                                                                             *
  *******************************************************************************
  */
@@ -3879,12 +3890,8 @@ int main(int argc, char **argv)
       last_search_value = value;
       MakeMoveRoot(tree, last_pv.path[1], wtm);
       move_actually_played = 1;
-/*
       if (log_file && shared->time_limit > 300)
-*/
         DisplayChessBoard(log_file, tree->pos);
-      strcpy(buffer, "score");
-      Option(tree);
 /*
  ************************************************************
  *                                                          *

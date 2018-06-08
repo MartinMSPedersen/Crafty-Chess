@@ -162,7 +162,7 @@ BITBOARD black_pawn_race_btm[64];
 BOOK_POSITION book_buffer[BOOK_CLUSTER_SIZE];
 BOOK_POSITION book_buffer_char[BOOK_CLUSTER_SIZE];
 
-#define    VERSION                             "20.7"
+#define    VERSION                             "20.8"
 char version[6] = { VERSION };
 PLAYING_MODE mode = normal_mode;
 int batch_mode = 0;             /* no asynch reads */
@@ -469,11 +469,8 @@ int kval_wq[64] = {
   -20, -20, -20, -20, -20, -20, -40, -60
 };
 int safety_vector[16] = {
-   6,  12,  20,  30,  42,  56,  72,  90,
- 110, 132, 156, 182, 210, 240, 272, 300};
-int tropism_vector[16] = {
-   6,  12,  20,  30,  42,  56,  72,  90,
- 110, 132, 156, 182, 210, 240, 272, 300};
+   0,  10,  30,  48,  60,  90, 120, 140,
+ 160, 170, 180, 200, 225, 250, 275, 300};
 
 /* note that black piece/square values are copied from white, but
    reflected */
@@ -538,6 +535,11 @@ int rook_trapped = 40;
 int queen_rook_on_7th_rank = 50;
 int queen_vs_2_rooks = 100;
 int queen_offside = 30;
+/* when queens are removed, the safety and tropism scores are reduced by
+   indexing into the following two vectors "safety = vector[safety]"
+*/
+int queen_scale_safety[16] = { 0, 0, 1, 2, 3, 3, 4, 4, 5, 6, 6, 7, 8, 9, 10, 10};
+int queen_scale_tropism[16] = { 0, 0, 1, 2, 3, 3, 4, 4, 5, 6, 6, 7, 8, 9, 10, 10};
 int open_file = 6;
 int half_open_file = 4;
 int king_safety_mate_threat = 600;
@@ -656,8 +658,8 @@ struct eval_term eval_packet[256] = {
   {"king tropism [distance]         ", 8, king_tropism_q},
   {"king file tropism [distance]    ", 8, king_tropism_at_q},
   {"queen piece/square table        ", -64, qval},
-  {NULL, 0, NULL},
-  {NULL, 0, NULL},
+  {"queen pawn safety scale vector  ", 16, queen_scale_safety},
+  {"queen tropism scale vector      ", 16, queen_scale_tropism},
   {NULL, 0, NULL},
   {"king scoring--------------------", 0, NULL},        /* 100 */
   {"king king tropism (endgame)     ", 0, &king_king_tropism},
@@ -668,7 +670,7 @@ struct eval_term eval_packet[256] = {
   {"king safety open file defects   ", 0, &open_file},
   {"king safety half-open file def  ", 0, &half_open_file},
   {"king safety pawn-shield vector  ", 16, safety_vector},
-  {"king safety tropism vector      ", 16, tropism_vector},
+  {NULL, 0, NULL},
   {NULL, 0, NULL},
   {NULL, 0, NULL},
   {NULL, 0, NULL},

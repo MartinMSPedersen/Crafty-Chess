@@ -685,8 +685,8 @@ int EvaluateKings(TREE * RESTRICT tree, int wtm, int ply)
       tree->w_safety = Max(tree->w_safety, 3);
     }
     if (!BlackQueens) {
-      tree->w_safety /= 2;
-      tree->b_tropism /= 2;
+      tree->w_safety = queen_scale_safety[tree->w_safety];
+      tree->b_tropism = queen_scale_tropism[tree->b_tropism];
     }
 /*
  ************************************************************
@@ -696,11 +696,7 @@ int EvaluateKings(TREE * RESTRICT tree, int wtm, int ply)
  *                                                          *
  ************************************************************
  */
-if (tree->w_safety > 15) {
-  printf("ERROR, w_safety = %d\n", tree->w_safety);
-  exit(1);
-}
-    score -= king_safety[Min(tree->w_safety, 15)][Min(tree->b_tropism, 15)];
+    score -= king_safety[tree->w_safety][Min(tree->b_tropism, 15)];
   }
 #ifdef DEBUGEV
   printf("score[safety(white)]=             %4d\n", tree->w_safety);
@@ -802,8 +798,8 @@ if (tree->w_safety > 15) {
       tree->b_safety = Max(tree->b_safety, 3);
     }
     if (!WhiteQueens) {
-      tree->b_safety /= 2;
-      tree->w_tropism /= 2;
+      tree->b_safety = queen_scale_safety[tree->b_safety];
+      tree->w_tropism = queen_scale_tropism[tree->w_tropism];
     }
 /*
  ************************************************************
@@ -813,10 +809,6 @@ if (tree->w_safety > 15) {
  *                                                          *
  ************************************************************
  */
-if (tree->b_safety > 15) {
-  printf("ERROR, b_safety = %d\n", tree->b_safety);
-  exit(1);
-}
     score += king_safety[tree->b_safety][Min(tree->w_tropism, 15)];
   }
 #ifdef DEBUGEV
@@ -961,7 +953,7 @@ int EvaluateKingsFileW(TREE * RESTRICT tree, int whichfile)
  */
 int EvaluateKnights(TREE * RESTRICT tree)
 {
-  register BITBOARD temp, temp2;
+  register BITBOARD temp;
   register int square, score = 0;
 
 /*

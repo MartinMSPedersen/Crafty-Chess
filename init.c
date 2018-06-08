@@ -1083,7 +1083,7 @@ void InitializeKingSafety()
   for (safety = 0; safety < 16; safety++) {
     for (tropism = 0; tropism < 16; tropism++) {
       int x = Min(15, sqrtf(safety*safety + tropism*tropism) + .5);
-      king_safety[safety][tropism] = (safety_vector[x] + tropism_vector[x]) / 2;
+      king_safety[safety][tropism] = safety_vector[x];
     }
   }
 /*
