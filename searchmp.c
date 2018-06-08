@@ -9,7 +9,7 @@
 #  define F_MARGIN (bishop_value+1)
 #endif
 
-/* modified 01/07/04 */
+/* modified 08/07/05 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -129,19 +129,6 @@ int SearchSMP(TREE * RESTRICT tree, int alpha, int beta, int value, int wtm,
 /*
  ************************************************************
  *                                                          *
- *   if we push a passed pawn, we need to look deeper to    *
- *   see if it is a legitimate threat.                      *
- *                                                          *
- ************************************************************
- */
-      if (Piece(tree->current_move[ply]) == pawn &&
-          push_extensions[To(tree->current_move[ply])]) {
-        tree->passed_pawn_extensions_done++;
-        extended += pushpp_depth;
-      }
-/*
- ************************************************************
- *                                                          *
  *   now it is time to call Search()/Quiesce to find out if *
  *   this move is reasonable or not.                        *
  *                                                          *
@@ -184,7 +171,7 @@ int SearchSMP(TREE * RESTRICT tree, int alpha, int beta, int value, int wtm,
             ply + 1, DO_NULL, recapture);
       else
         value = -Quiesce(tree, -alpha - 1, -alpha, Flip(wtm), ply + 1);
-      if (abort_search || tree->stop) {
+      if (shared->abort_search || tree->stop) {
         UnmakeMove(tree, ply, tree->current_move[ply], wtm);
         break;
       }
@@ -195,7 +182,7 @@ int SearchSMP(TREE * RESTRICT tree, int alpha, int beta, int value, int wtm,
               ply + 1, DO_NULL, recapture);
         else
           value = -Quiesce(tree, -beta, -alpha, Flip(wtm), ply + 1);
-        if (abort_search || tree->stop) {
+        if (shared->abort_search || tree->stop) {
           UnmakeMove(tree, ply, tree->current_move[ply], wtm);
           break;
         }
@@ -211,32 +198,32 @@ int SearchSMP(TREE * RESTRICT tree, int alpha, int beta, int value, int wtm,
  ************************************************************
  */
       if (ply == 1)
-        root_moves[tree->root_move].nodes =
+        shared->root_moves[tree->root_move].nodes =
             tree->nodes_searched - begin_root_nodes;
       if (value > alpha) {
         alpha = value;
         if (ply == 1) {
-          Lock(lock_root);
-          if (value > root_value) {
+          Lock(shared->lock_root);
+          if (value > shared->root_value) {
             SearchOutput(tree, value, beta);
-            root_value = value;
+            shared->root_value = value;
           }
-          Unlock(lock_root);
+          Unlock(shared->lock_root);
         }
         if (value >= beta) {
           register int proc;
 
-          parallel_stops++;
+          shared->parallel_stops++;
           UnmakeMove(tree, ply, tree->current_move[ply], wtm);
-          Lock(lock_smp);
+          Lock(shared->lock_smp);
           Lock(tree->parent->lock);
           if (!tree->stop) {
-            for (proc = 0; proc < max_threads; proc++)
+            for (proc = 0; proc < shared->max_threads; proc++)
               if (tree->parent->siblings[proc] && proc != tree->thread_id)
                 ThreadStop(tree->parent->siblings[proc]);
           }
           Unlock(tree->parent->lock);
-          Unlock(lock_smp);
+          Unlock(shared->lock_smp);
           break;
         }
       }
@@ -244,7 +231,7 @@ int SearchSMP(TREE * RESTRICT tree, int alpha, int beta, int value, int wtm,
     UnmakeMove(tree, ply, tree->current_move[ply], wtm);
   }
   if (tree->stop && ply == 1)
-    root_moves[tree->root_move].status &= 255 - 128;
+    shared->root_moves[tree->root_move].status &= 255 - 128;
   return (alpha);
 }
 #endif

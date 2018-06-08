@@ -4,7 +4,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 02/09/04 */
+/* last modified 08/07/05 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -90,7 +90,7 @@ void Annotate()
   int searches_done, read_status;
   PATH temp[100], player_pv;
   int temp_search_depth;
-  TREE *const tree = local[0];
+  TREE *const tree = shared->local[0];
   char html_br[5] = { "" };
   int save_swindle_mode, save_asymmetry;
   int html_mode = 0;
@@ -192,7 +192,7 @@ void Annotate()
     InitializeChessBoard(&tree->position[0]);
     tree->position[1] = tree->position[0];
     wtm = 1;
-    move_number = 1;
+    shared->move_number = 1;
 /*
  ************************************************************
  *                                                          *
@@ -271,27 +271,28 @@ void Annotate()
       if (move <= 0)
         break;
       strcpy(text, OutputMove(tree, move, 0, wtm));
-      fseek(history_file, ((move_number - 1) * 2 + 1 - wtm) * 10, SEEK_SET);
+      fseek(history_file, ((shared->move_number - 1) * 2 + 1 - wtm) * 10,
+          SEEK_SET);
       fprintf(history_file, "%9s\n", text);
       if (wtm)
-        Print(4095, "White(%d): %s\n", move_number, text);
+        Print(4095, "White(%d): %s\n", shared->move_number, text);
       else
-        Print(4095, "Black(%d): %s\n", move_number, text);
+        Print(4095, "Black(%d): %s\n", shared->move_number, text);
       if (analysis_printed)
-        fprintf(annotate_out, "%3d.%s%8s\n", move_number,
+        fprintf(annotate_out, "%3d.%s%8s\n", shared->move_number,
             (wtm ? "" : "     ..."), text);
       else {
         if (wtm)
-          fprintf(annotate_out, "%3d.%8s", move_number, text);
+          fprintf(annotate_out, "%3d.%8s", shared->move_number, text);
         else
           fprintf(annotate_out, "%8s\n", text);
       }
       analysis_printed = 0;
-      if (move_number >= line1 && move_number <= line2) {
+      if (shared->move_number >= line1 && shared->move_number <= line2) {
         if (annotate_wtm == 2 || annotate_wtm == wtm) {
           last_pv.pathd = 0;
           last_pv.pathl = 0;
-          thinking = 1;
+          shared->thinking = 1;
           RootMoveList(wtm);
 /*
  ************************************************************
@@ -303,14 +304,14 @@ void Annotate()
  *                                                          *
  ************************************************************
  */
-          search_time_limit = annotate_search_time_limit;
+          shared->search_time_limit = annotate_search_time_limit;
           search_depth = temp_search_depth;
           player_score = -999999;
           search_player = 1;
           for (searches_done = 0; searches_done < abs(best_moves);
               searches_done++) {
             if (searches_done > 0) {
-              search_time_limit = 3 * annotate_search_time_limit;
+              shared->search_time_limit = 3 * annotate_search_time_limit;
               search_depth = temp[0].pathd;
             }
             Print(4095, "\n              Searching all legal moves.");
@@ -324,19 +325,20 @@ void Annotate()
               search_player = 0;
             }
             temp[searches_done] = tree->pv[0];
-            for (i = 0; i < n_root_moves; i++) {
-              if (root_moves[i].move == tree->pv[0].path[1]) {
-                for (; i < n_root_moves; i++)
-                  root_moves[i] = root_moves[i + 1];
-                n_root_moves--;
+            for (i = 0; i < shared->n_root_moves; i++) {
+              if (shared->root_moves[i].move == tree->pv[0].path[1]) {
+                for (; i < shared->n_root_moves; i++)
+                  shared->root_moves[i] = shared->root_moves[i + 1];
+                shared->n_root_moves--;
                 break;
               }
             }
-            if (n_root_moves == 0 || (annotate_margin >= 0 &&
+            if (shared->n_root_moves == 0 || (annotate_margin >= 0 &&
                     player_score + annotate_margin >
                     annotate_score[searches_done]
                     && best_moves > 0)) {
-              if (n_root_moves == 0) searches_done++;
+              if (shared->n_root_moves == 0)
+                searches_done++;
               break;
             }
           }
@@ -346,19 +348,19 @@ void Annotate()
             Print(4095, "--------------------\n");
             tree->position[1] = tree->position[0];
             search_move = move;
-            root_moves[0].move = move;
-            root_moves[0].nodes = 0;
-            root_moves[0].status = 0;
-            n_root_moves = 1;
-            search_time_limit = 3 * annotate_search_time_limit;
+            shared->root_moves[0].move = move;
+            shared->root_moves[0].nodes = 0;
+            shared->root_moves[0].status = 0;
+            shared->n_root_moves = 1;
+            shared->search_time_limit = 3 * annotate_search_time_limit;
             search_depth = temp[0].pathd;
             if (search_depth == temp_search_depth)
-              search_time_limit = annotate_search_time_limit;
+              shared->search_time_limit = annotate_search_time_limit;
             InitializeHashTables();
             player_score = Iterate(wtm, annotate, 1);
             player_pv = tree->pv[0];
             search_depth = temp_search_depth;
-            search_time_limit = annotate_search_time_limit;
+            shared->search_time_limit = annotate_search_time_limit;
             search_move = 0;
           }
 /*
@@ -370,7 +372,7 @@ void Annotate()
  *                                                          *
  ************************************************************
  */
-          thinking = 0;
+          shared->thinking = 0;
           if (player_pv.pathd > 1 && player_pv.pathl >= 1 &&
               player_score + annotate_margin < annotate_score[0] &&
               (temp[0].path[1] != player_pv.path[1] || annotate_margin < 0.0 ||
@@ -440,19 +442,19 @@ void Annotate()
       while (read_status == 2) {
         suggested = InputMove(tree, buffer, 0, wtm, 1, 0);
         if (suggested > 0) {
-          thinking = 1;
+          shared->thinking = 1;
           Print(4095, "\n              Searching only the move suggested.");
           Print(4095, "--------------------\n");
           tree->position[1] = tree->position[0];
           search_move = suggested;
-          search_time_limit = 3 * annotate_search_time_limit;
+          shared->search_time_limit = 3 * annotate_search_time_limit;
           search_depth = temp[0].pathd;
           InitializeHashTables();
           annotate_score[0] = Iterate(wtm, annotate, 0);
           search_depth = temp_search_depth;
-          search_time_limit = annotate_search_time_limit;
+          shared->search_time_limit = annotate_search_time_limit;
           search_move = 0;
-          thinking = 0;
+          shared->thinking = 0;
           twtm = wtm;
           path_len = tree->pv[0].pathl;
           if (tree->pv[0].pathd > 1 && path_len >= 1) {
@@ -486,7 +488,7 @@ void Annotate()
       MakeMoveRoot(tree, move, wtm);
       wtm = Flip(wtm);
       if (wtm)
-        move_number++;
+        shared->move_number++;
       if (read_status != 0)
         break;
       if (line2 < -1)
@@ -523,7 +525,7 @@ void Annotate()
     fclose(annotate_out);
   if (annotate_in)
     fclose(annotate_in);
-  search_time_limit = 0;
+  shared->search_time_limit = 0;
   annotate_mode = 0;
   swindle_mode = save_swindle_mode;
   king_safety_asymmetry = save_asymmetry;

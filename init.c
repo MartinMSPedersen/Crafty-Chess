@@ -101,18 +101,15 @@ void Initialize(int continuing)
  *                                                          *
  ************************************************************
  */
-  int i, major, minor;
+  int i, j, major, minor;
   TREE *tree;
+  void *mem;
 
 #if defined(UNIX)
   struct stat *fileinfo = malloc(sizeof(struct stat));
 #endif
 
-#if defined(SMP)
-  ThreadMalloc(0);
-#endif
-
-  tree = local[0];
+  tree = shared->local[0];
   i = 0;
   InitializeZeroMasks();
 #if defined(SMP)
@@ -204,7 +201,8 @@ void Initialize(int continuing)
     position_lrn_file = fopen(log_filename, "r");
     if (!position_lrn_file) {
       position_lrn_file = fopen(log_filename, "a");
-      if (position_lrn_file) fprintf(position_lrn_file, "position\n");
+      if (position_lrn_file)
+        fprintf(position_lrn_file, "position\n");
       else {
         Print(128, "unable to open position learning file [%s/position.bin].\n",
             book_path);
@@ -269,17 +267,13 @@ void Initialize(int continuing)
     history_file = fopen(history_filename, "w+");
   }
   cb_trans_ref = sizeof(HASH_ENTRY) * hash_table_size + 15;
-  trans_ref_orig = (HASH_ENTRY *) MallocInterleaved(cb_trans_ref, 1);
+  trans_ref = (HASH_ENTRY *) SharedMalloc(cb_trans_ref, 0);
   cb_pawn_hash_table = sizeof(PAWN_HASH_ENTRY) * pawn_hash_table_size + 15;
-  pawn_hash_table_orig =
-      (PAWN_HASH_ENTRY *) MallocInterleaved(cb_pawn_hash_table, 1);
-  trans_ref = (HASH_ENTRY *) (((ptrdiff_t) trans_ref_orig + 15) & ~15);
-  pawn_hash_table =
-      (PAWN_HASH_ENTRY *) (((ptrdiff_t) pawn_hash_table_orig + 15) & ~15);
+  pawn_hash_table = (PAWN_HASH_ENTRY *) SharedMalloc(cb_pawn_hash_table, 0);
   if (!trans_ref) {
     Print(128, "malloc() failed, not enough memory.\n");
-    FreeInterleaved(trans_ref_orig, cb_trans_ref);
-    FreeInterleaved(pawn_hash_table_orig, cb_pawn_hash_table);
+    SharedFree(trans_ref);
+    SharedFree(pawn_hash_table);
     hash_table_size = 0;
     pawn_hash_table_size = 0;
     log_hash = 0;
@@ -287,6 +281,41 @@ void Initialize(int continuing)
     trans_ref = 0;
     pawn_hash_table = 0;
   }
+/*
+ ************************************************************
+ *                                                          *
+ *   now for some NUMA work.  we need to allocate the       *
+ *   local memory for each processor, but we can't touch it *
+ *   here or it will be faulted in and be allocated on the  *
+ *   curret CPU, which is not where it should be located    *
+ *   for optimal NUMA performance.  ThreadInit() will do    *
+ *   the actual initialization after each new process is    *
+ *   created, so that the pages of local memory will be     *
+ *   faulted in on the correct processor and use local      *
+ *   node memory for optimal performance.                   *
+ *                                                          *
+ ************************************************************
+ */
+#if defined(SMP)
+# if defined(_WIN32) || defined(_WIN64)
+  ThreadMalloc((int) 0);
+# else
+  for (i = 0; i < CPUS; i++) {
+    mem = SharedMalloc(MAX_BLOCKS_PER_CPU * ((sizeof(TREE) + 2047)) & ~2047, 0);
+    for (j = 0; j < MAX_BLOCKS_PER_CPU; j++) {
+      shared->local[i * MAX_BLOCKS_PER_CPU + j + 1] =
+          (TREE *) ((long) mem + j * ((sizeof(TREE) + 2047) & ~2047));
+    }
+  }
+  for (i = 0; i < MAX_BLOCKS_PER_CPU; i++) {
+    memset((void *) shared->local[i + 1], 0, sizeof(TREE));
+    shared->local[i + 1]->used = 0;
+    shared->local[i + 1]->parent = (TREE *) - 1;
+    LockInit(shared->local[i + 1]->lock);
+  }
+# endif
+  shared->initialized_threads++;
+#endif
   InitializeHashTables();
   hash_mask = (1 << log_hash) - 1;
   pawn_hash_mask = (1 << (log_pawn_hash)) - 1;
@@ -411,15 +440,9 @@ void InitializeAttackBoards(void)
  */
   for (i = 0; i < 64; i++) {
     king_attacks[i] = 0;
-    king_attacks_1[i] = 0;
-    king_attacks_2[i] = 0;
     for (j = 0; j < 64; j++) {
       if (Distance(i, j) == 1)
         king_attacks[i] = king_attacks[i] | SetMask(j);
-      if (Distance(i, j) <= 1)
-        king_attacks_1[i] = king_attacks_1[i] | SetMask(j);
-      if (Distance(i, j) <= 2)
-        king_attacks_2[i] = king_attacks_2[i] | SetMask(j);
     }
   }
 /*
@@ -586,7 +609,7 @@ void InitializeAttackBoards(void)
       }
       for (pcs = 0; pcs < 64; pcs++) {
         bishop_mobility_rl45[square][pcs] =
-            PopCnt(bishop_attacks_rl45[square][pcs])-3;
+            PopCnt(bishop_attacks_rl45[square][pcs]) - 3;
       }
     }
 /*
@@ -616,7 +639,7 @@ void InitializeAttackBoards(void)
       }
       for (pcs = 0; pcs < 64; pcs++) {
         bishop_mobility_rr45[square][pcs] =
-            PopCnt(bishop_attacks_rr45[square][pcs])-3;
+            PopCnt(bishop_attacks_rr45[square][pcs]) - 3;
       }
     }
   }
@@ -625,7 +648,7 @@ void InitializeAttackBoards(void)
 void InitializeChessBoard(SEARCH_POSITION * new_pos)
 {
   int i;
-  TREE *const tree = local[0];
+  TREE *const tree = shared->local[0];
 
   if (strlen(initial_position)) {
     static char a1[80], a2[16], a3[16], a4[16], a5[16];
@@ -645,7 +668,8 @@ void InitializeChessBoard(SEARCH_POSITION * new_pos)
           a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5,
           a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5,
           a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5,
-          a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5};
+          a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5, a5
+        };
     int nargs;
 
     nargs = ReadParse(initial_position, args, " ;");
@@ -654,8 +678,8 @@ void InitializeChessBoard(SEARCH_POSITION * new_pos)
     for (i = 0; i < 64; i++)
       tree->pos.board[i] = none;
     new_pos->rule_50_moves = 0;
-    lazy_eval_cutoff = 200;
-    largest_positional_score = 300;
+    shared->lazy_eval_cutoff = 200;
+    shared->largest_positional_score = 300;
     wtm = 1;
 /*
  place pawns
@@ -718,7 +742,7 @@ void InitializeChessBoard(SEARCH_POSITION * new_pos)
 void SetChessBitBoards(SEARCH_POSITION * new_pos)
 {
   int i;
-  TREE *const tree = local[0];
+  TREE *const tree = shared->local[0];
 
   tree->pos.hash_key = 0;
   tree->pos.pawn_hash_key = 0;
@@ -993,7 +1017,7 @@ void InitializeHashTables(void)
 {
   int i;
 
-  transposition_id = 0;
+  shared->transposition_id = 0;
   if (!trans_ref)
     return;
   for (i = 0; i < hash_table_size; i++) {
@@ -1027,12 +1051,12 @@ void InitializeHistoryKillers(void)
   int i;
 
   for (i = 0; i < 4096; i++) {
-    local[0]->history_w[i] = 0;
-    local[0]->history_b[i] = 0;
+    shared->local[0]->history_w[i] = 0;
+    shared->local[0]->history_b[i] = 0;
   }
   for (i = 0; i < MAXPLY; i++) {
-    local[0]->killers[i].move1 = 0;
-    local[0]->killers[i].move2 = 0;
+    shared->local[0]->killers[i].move1 = 0;
+    shared->local[0]->killers[i].move2 = 0;
   }
 }
 
@@ -1449,14 +1473,10 @@ void InitializeRandomHash(void)
  */
 void InitializeSMP(void)
 {
-  LockInit(lock_smp);
-  LockInit(lock_io);
-  LockInit(lock_root);
-  LockInit(local[0]->lock);
-#  if defined(POSIX)
-  pthread_attr_init(&pthread_attr);
-  pthread_attr_setscope(&pthread_attr, PTHREAD_SCOPE_SYSTEM);
-#  endif
+  LockInit(shared->lock_smp);
+  LockInit(shared->lock_io);
+  LockInit(shared->lock_root);
+  LockInit(shared->local[0]->lock);
 }
 #endif
 
@@ -1464,7 +1484,7 @@ void InitializeZeroMasks(void)
 {
   int i, j, dist, maxd;
 
-#if !defined(CRAY1) && !defined(_M_AMD64) && !defined(INLINE_ASM)
+#if !defined(CRAY1) && !defined(_M_AMD64) && !defined (_M_IA64) && !defined(INLINE_ASM)
   int maskl, maskr;
 
   first_one[0] = 16;

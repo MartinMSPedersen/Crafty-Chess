@@ -2,9 +2,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
-#if defined(SMP) && defined(MUTEX)
-#include <pthread.h>
-#endif
 #if defined(_WIN32)
 #include <windows.h>
 #endif
@@ -4785,13 +4782,13 @@ CTbDesc rgtbdDesc[cTb] =
 
     TB (kppkpp, true,  true,  false, (T33<P, P, P, P>::IndCalcW), (T33<P, P, P, P>::IndCalcBF),  1917741812,  1917741812)
     TB (knpkpp, false, true,  true,  (T33<N, P, P, P>::IndCalcW), (T33<N, P, P, P>::IndCalcB),   5088408829,  4966717366)
-    TB (knpknp, true,  true,  true,  (T33<N, P, N, P>::IndCalcW), (T33<N, P, N, P>::IndCalcBF), 12972508017, 12972508017)
+    TB (knpknp, true,  false, true,  (T33<N, P, N, P>::IndCalcW), (T33<N, P, N, P>::IndCalcBF), 12972508017, 12972508017)
     TB (knnkpp, false, true,  false, (T33<N, N, P, P>::IndCalcW), (T33<N, N, P, P>::IndCalcB),   3242803728,  3197807670)
     TB (knnknp, false, true,  true,  (T33<N, N, N, P>::IndCalcW), (T33<N, N, N, P>::IndCalcB),   8141507232,  8227988370)
     TB (kbpkpp, false, true,  true,  (T33<B, P, P, P>::IndCalcW), (T33<B, P, P, P>::IndCalcB),   5272919368,  4966717366)
     TB (kbpknp, false, true,  true,  (T33<B, P, N, P>::IndCalcW), (T33<B, P, N, P>::IndCalcB),  13442882944, 12972508017)
     TB (kbpknn, false, true,  true,  (T33<B, P, N, N>::IndCalcW), (T33<B, P, N, N>::IndCalcB),   8526316560,  8141507232)
-    TB (kbpkbp, true,  true,  true,  (T33<B, P, B, P>::IndCalcW), (T33<B, P, B, P>::IndCalcBF), 13442882944, 13442882944)
+    TB (kbpkbp, true,  false, true,  (T33<B, P, B, P>::IndCalcW), (T33<B, P, B, P>::IndCalcBF), 13442882944, 13442882944)
     TB (kbnkpp, false, true,  true,  (T33<B, N, P, P>::IndCalcW), (T33<B, N, P, P>::IndCalcB),   6838255224,  6395615340)
     TB (kbnknp, false, true,  true,  (T33<B, N, N, P>::IndCalcW), (T33<B, N, N, P>::IndCalcB),  17168385456, 16455976740)
     TB (kbnkbp, false, false, true,  (T33<B, N, B, P>::IndCalcW), (T33<B, N, B, P>::IndCalcB),  17168385456, 17052633120)
@@ -4811,7 +4808,7 @@ CTbDesc rgtbdDesc[cTb] =
     TB (krnkrp, false, false, true,  (T33<R, N, R, P>::IndCalcW), (T33<R, N, R, P>::IndCalcB),  17032882752, 16919868906)
     TB (krbkpp, false, true,  true,  (T33<R, B, P, P>::IndCalcW), (T33<R, B, P, P>::IndCalcB),   7031275200,  6395615340)
     TB (krbknp, false, true,  true,  (T33<R, B, N, P>::IndCalcW), (T33<R, B, N, P>::IndCalcB),  17652988800, 16455976740)
-    TB (krbkbp, false, true,  true,  (T33<R, B, B, P>::IndCalcW), (T33<R, B, B, P>::IndCalcB),  17652988800, 17052633120)
+    TB (krbkbp, false, false, true,  (T33<R, B, B, P>::IndCalcW), (T33<R, B, B, P>::IndCalcB),  17652988800, 17052633120)
     TB (krbkrp, false, false, true,  (T33<R, B, R, P>::IndCalcW), (T33<R, B, R, P>::IndCalcB),  17652988800, 16919868906)
     TB (krrkpp, false, true,  false, (T33<R, R, P, P>::IndCalcW), (T33<R, R, P, P>::IndCalcB),   3428678952,  3197807670)
     TB (krrknp, false, true,  true,  (T33<R, R, N, P>::IndCalcW), (T33<R, R, N, P>::IndCalcB),   8608504032,  8227988370)
@@ -4820,10 +4817,10 @@ CTbDesc rgtbdDesc[cTb] =
     TB (kqpkpp, false, true,  true,  (T33<Q, P, P, P>::IndCalcW), (T33<Q, P, P, P>::IndCalcB),   4962533664,  4966717366)
     TB (kqpknp, false, false, true,  (T33<Q, P, N, P>::IndCalcW), (T33<Q, P, N, P>::IndCalcB),  12651597608, 12972508017)
     TB (kqpknn, false, false, true,  (T33<Q, P, N, N>::IndCalcW), (T33<Q, P, N, N>::IndCalcB),   8024443680,  8141507232)
-    TB (kqpkbp, false, true,  true,  (T33<Q, P, B, P>::IndCalcW), (T33<Q, P, B, P>::IndCalcB),  12651597608, 13442882944)
+    TB (kqpkbp, false, false, true,  (T33<Q, P, B, P>::IndCalcW), (T33<Q, P, B, P>::IndCalcB),  12651597608, 13442882944)
     TB (kqpkbn, false, false, true,  (T33<Q, P, B, N>::IndCalcW), (T33<Q, P, B, N>::IndCalcB),  16048887360, 17168385456)
     TB (kqpkbb, false, false, true,  (T33<Q, P, B, B>::IndCalcW), (T33<Q, P, B, B>::IndCalcB),   8024443680,  8745187680)
-    TB (kqpkrp, false, true,  true,  (T33<Q, P, R, P>::IndCalcW), (T33<Q, P, R, P>::IndCalcB),  12651597608, 13338233184)
+    TB (kqpkrp, false, false, true,  (T33<Q, P, R, P>::IndCalcW), (T33<Q, P, R, P>::IndCalcB),  12651597608, 13338233184)
     TB (kqpkrn, false, false, true,  (T33<Q, P, R, N>::IndCalcW), (T33<Q, P, R, N>::IndCalcB),  16048887360, 17032882752)
     TB (kqpkrb, false, true,  true,  (T33<Q, P, R, B>::IndCalcW), (T33<Q, P, R, B>::IndCalcB),  16048887360, 17652988800)
     TB (kqpkrr, false, true,  true,  (T33<Q, P, R, R>::IndCalcW), (T33<Q, P, R, R>::IndCalcB),   8024443680,  8608504032)
@@ -4831,14 +4828,14 @@ CTbDesc rgtbdDesc[cTb] =
     TB (kqnkpp, false, true,  true,  (T33<Q, N, P, P>::IndCalcW), (T33<Q, N, P, P>::IndCalcB),   6436756032,  6395615340)
     TB (kqnknp, false, false, true,  (T33<Q, N, N, P>::IndCalcW), (T33<Q, N, N, P>::IndCalcB),  16160366208, 16455976740)
     TB (kqnkbp, false, false, true,  (T33<Q, N, B, P>::IndCalcW), (T33<Q, N, B, P>::IndCalcB),  16160366208, 17052633120)
-    TB (kqnkrp, false, true,  true,  (T33<Q, N, R, P>::IndCalcW), (T33<Q, N, R, P>::IndCalcB),  16160366208, 16919868906)
+    TB (kqnkrp, false, false, true,  (T33<Q, N, R, P>::IndCalcW), (T33<Q, N, R, P>::IndCalcB),  16160366208, 16919868906)
     TB (kqnkqp, false, true,  true,  (T33<Q, N, Q, P>::IndCalcW), (T33<Q, N, Q, P>::IndCalcB),  16160366208, 16048887306)
     TB (kqbkpp, false, false, true,  (T33<Q, B, P, P>::IndCalcW), (T33<Q, B, P, P>::IndCalcB),   6669728640,  6395615340)
     TB (kqbknp, false, false, true,  (T33<Q, B, N, P>::IndCalcW), (T33<Q, B, N, P>::IndCalcB),  16745276160, 16455976740)
     TB (kqbkbp, false, false, true,  (T33<Q, B, B, P>::IndCalcW), (T33<Q, B, B, P>::IndCalcB),  16745276160, 17052633120)
     TB (kqbkrp, false, false, true,  (T33<Q, B, R, P>::IndCalcW), (T33<Q, B, R, P>::IndCalcB),  16745276160, 16919868906)
     TB (kqbkqp, false, true,  true,  (T33<Q, B, Q, P>::IndCalcW), (T33<Q, B, Q, P>::IndCalcB),  16745276160, 16048887306)
-    TB (kqrkpp, false, true,  true,  (T33<Q, R, P, P>::IndCalcW), (T33<Q, R, P, P>::IndCalcB),   6616853640,  6395615340)
+    TB (kqrkpp, false, false, true,  (T33<Q, R, P, P>::IndCalcW), (T33<Q, R, P, P>::IndCalcB),   6616853640,  6395615340)
     TB (kqrknp, false, false, true,  (T33<Q, R, N, P>::IndCalcW), (T33<Q, R, N, P>::IndCalcB),  16612871664, 16455976740)
     TB (kqrkbp, false, false, true,  (T33<Q, R, B, P>::IndCalcW), (T33<Q, R, B, P>::IndCalcB),  16612871664, 17052633120)
     TB (kqrkrp, false, false, true,  (T33<Q, R, R, P>::IndCalcW), (T33<Q, R, R, P>::IndCalcB),  16612871664, 16919868906)
@@ -6439,7 +6436,11 @@ static int FCheckExtentExistance
             //printf (">>> Opening %s\n", rgchTbName);
             cOpenFilesSuceed += (NULL != fp);
             }
+#if defined (T41_INCLUDE)
+        if ((NULL == fp) && (iTb <= tbid_kqqqk))
+#else
         if ((NULL == fp) && (iTb <= tbid_kqqkq))
+#endif
             {
             // Check for kxykznb?.emd (8+3 format)
             int cch;

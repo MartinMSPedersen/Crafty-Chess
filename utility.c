@@ -9,9 +9,6 @@
 #if !defined(AMIGA)
 #  include <limits.h>
 #endif
-#if defined(SMP) && defined(NUMA)
-#  include <numa.h>
-#endif
 #if defined(OS2)
 #  include <sys/select.h>
 #endif
@@ -52,6 +49,10 @@
 #if defined(UNIX)
 #  if !defined(CLK_TCK)
 static clock_t clk_tck = 0;
+#  endif
+#  if defined(SMP)
+#    include <sys/ipc.h>
+#    include <sys/shm.h>
 #  endif
 #endif
 
@@ -264,7 +265,7 @@ void ClearHashTableScores(int dopawnstoo)
       }
     }
   }
-  local[0]->pawn_score.key = 0;
+  shared->local[0]->pawn_score.key = 0;
 }
 
 /*
@@ -293,7 +294,8 @@ void DisplayArray(int *array, int size)
       printf("%3d ", array[i]);
       if ((i + 1) % len == 0) {
         printf("\n");
-        if (i < size - 1) printf("    ");
+        if (i < size - 1)
+          printf("    ");
       }
     }
     if (i % len != 0)
@@ -461,7 +463,7 @@ void DisplayPieceBoards(int *white, int *black)
   }
 }
 
-/* last modified 01/11/99 */
+/* last modified 08/07/05 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -478,7 +480,8 @@ void DisplayPV(TREE * RESTRICT tree, int level, int wtm, int time, int value,
   int i, t_move_number, type, j, dummy;
   int nskip = 0, twtm = wtm;
 
-  root_print_ok = root_print_ok || tree->nodes_searched > noise_level;
+  shared->root_print_ok = shared->root_print_ok ||
+      tree->nodes_searched > shared->noise_level;
 /*
  ************************************************************
  *                                                          *
@@ -487,23 +490,24 @@ void DisplayPV(TREE * RESTRICT tree, int level, int wtm, int time, int value,
  ************************************************************
  */
 #if defined(SMP)
-  for (i = 0; i < n_root_moves; i++)
-    if (!(root_moves[i].status & 128) && root_moves[i].status & 64)
+  for (i = 0; i < shared->n_root_moves; i++)
+    if (!(shared->root_moves[i].status & 128) &&
+        shared->root_moves[i].status & 64)
       nskip++;
 #endif
   if (level == 5)
     type = 4;
   else
     type = 2;
-  t_move_number = move_number;
-  if (display_options & 64)
-    sprintf(buffer, " %d.", move_number);
+  t_move_number = shared->move_number;
+  if (shared->display_options & 64)
+    sprintf(buffer, " %d.", shared->move_number);
   else
     buffer[0] = 0;
-  if ((display_options & 64) && !wtm)
+  if ((shared->display_options & 64) && !wtm)
     sprintf(buffer + strlen(buffer), " ...");
   for (i = 1; i <= (int) pv->pathl; i++) {
-    if ((display_options & 64) && i > 1 && wtm)
+    if ((shared->display_options & 64) && i > 1 && wtm)
       sprintf(buffer + strlen(buffer), " %d.", t_move_number);
     sprintf(buffer + strlen(buffer), " %s", OutputMove(tree, pv->path[i], i,
             wtm));
@@ -533,7 +537,7 @@ void DisplayPV(TREE * RESTRICT tree, int level, int wtm, int time, int value,
         if (j < i)
           break;
         pv->pathl++;
-        if ((display_options & 64) && wtm)
+        if ((shared->display_options & 64) && wtm)
           sprintf(buffer + strlen(buffer), " %d.", t_move_number);
         sprintf(buffer + strlen(buffer), " %s", OutputMove(tree, pv->path[i], i,
                 wtm));
@@ -547,19 +551,19 @@ void DisplayPV(TREE * RESTRICT tree, int level, int wtm, int time, int value,
     sprintf(buffer + strlen(buffer), " <HT>");
   } else if (pv->pathh == 2)
     sprintf(buffer + strlen(buffer), " <EGTB>");
-  strcpy(kibitz_text, buffer);
-  if (nskip > 1 && max_threads > 1)
+  strcpy(shared->kibitz_text, buffer);
+  if (nskip > 1 && shared->max_threads > 1)
     sprintf(buffer + strlen(buffer), " (s=%d)", nskip);
-  if (root_print_ok) {
+  if (shared->root_print_ok) {
 #if defined(SMP)
-    Lock(lock_io);
+    Lock(shared->lock_io);
 #endif
     Print(type, "               ");
     if (level == 6)
-      Print(type, "%2i   %s%s   ", iteration_depth, DisplayTime(time),
+      Print(type, "%2i   %s%s   ", shared->iteration_depth, DisplayTime(time),
           DisplayEvaluation(value, twtm));
     else
-      Print(type, "%2i-> %s%s   ", iteration_depth, DisplayTime(time),
+      Print(type, "%2i-> %s%s   ", shared->iteration_depth, DisplayTime(time),
           DisplayEvaluation(value, twtm));
     buffp = buffer + 1;
     do {
@@ -574,10 +578,11 @@ void DisplayPV(TREE * RESTRICT tree, int level, int wtm, int time, int value,
       if (bufftemp)
         Print(type, "                                    ");
     } while (bufftemp);
-    Kibitz(level, twtm, iteration_depth, end_time - start_time, value,
-        tree->nodes_searched, 0, tree->egtb_probes_successful, kibitz_text);
+    Kibitz(level, twtm, shared->iteration_depth,
+        shared->end_time - shared->start_time, value, tree->nodes_searched,
+        tree->egtb_probes_successful, shared->kibitz_text);
 #if defined(SMP)
-    Unlock(lock_io);
+    Unlock(shared->lock_io);
 #endif
   }
   for (i = pv->pathl; i > 0; i--) {
@@ -639,10 +644,10 @@ void DisplayTreeState(TREE * RESTRICT tree, int sply, int spos, int maxply)
   buf[0] = 0;
   if (sply == 1) {
     left = 0;
-    for (i = 0; i < n_root_moves; i++)
-      if (!(root_moves[i].status & 128))
+    for (i = 0; i < shared->n_root_moves; i++)
+      if (!(shared->root_moves[i].status & 128))
         left++;
-    sprintf(buf, "%d:%d/%d  ", 1, left, n_root_moves);
+    sprintf(buf, "%d:%d/%d  ", 1, left, shared->n_root_moves);
   } else {
     for (i = 0; i < spos - 6; i++)
       sprintf(buf + strlen(buf), " ");
@@ -666,7 +671,7 @@ void DisplayTreeState(TREE * RESTRICT tree, int sply, int spos, int maxply)
   }
   printf("%s\n", buf);
   if (sply == 1 && tree->nprocs) {
-    for (i = 0; i < max_threads; i++)
+    for (i = 0; i < shared->max_threads; i++)
       if (tree->siblings[i])
         DisplayTreeState(tree->siblings[i], tree->ply + 1, parallel, maxply);
   }
@@ -703,7 +708,7 @@ void Display2BitBoards(BITBOARD board1, BITBOARD board2)
 }
 
 #if !defined(NOEGTB)
-/* last modified 12/27/99 */
+/* last modified 08/07/05 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -738,12 +743,12 @@ void EGTBPV(TREE * RESTRICT tree, int wtm)
     return;
   if (!EGTBProbe(tree, 1, wtm, &value))
     return;
-  t_move_number = move_number;
-  if (display_options & 64)
-    sprintf(buffer, "%d.", move_number);
+  t_move_number = shared->move_number;
+  if (shared->display_options & 64)
+    sprintf(buffer, "%d.", shared->move_number);
   else
     buffer[0] = 0;
-  if ((display_options & 64) && !wtm)
+  if ((shared->display_options & 64) && !wtm)
     sprintf(buffer + strlen(buffer), " ...");
 /*
  ************************************************************
@@ -785,7 +790,7 @@ void EGTBPV(TREE * RESTRICT tree, int wtm)
     }
     if (best > -MATE - 1) {
       moves[ply] = bestmv;
-      if ((display_options & 64) && ply > 1 && wtm)
+      if ((shared->display_options & 64) && ply > 1 && wtm)
         sprintf(buffer + strlen(buffer), " %d.", t_move_number);
       sprintf(buffer + strlen(buffer), " %s", OutputMove(tree, bestmv, 1, wtm));
       if (!strchr(buffer, '#') && legal > 1 && optimal_mv)
@@ -842,7 +847,7 @@ void DisplayChessMove(char *title, int move)
       Piece(move), From(move), To(move), Captured(move), Promote(move));
 }
 
-/* last modified 02/17/98 */
+/* last modified 08/07/05 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -863,15 +868,15 @@ char *FormatPV(TREE * RESTRICT tree, int wtm, PATH pv)
  *                                                          *
  ************************************************************
  */
-  t_move_number = move_number;
-  if (display_options & 64)
-    sprintf(buffer, " %d.", move_number);
+  t_move_number = shared->move_number;
+  if (shared->display_options & 64)
+    sprintf(buffer, " %d.", shared->move_number);
   else
     buffer[0] = 0;
-  if ((display_options & 64) && !wtm)
+  if ((shared->display_options & 64) && !wtm)
     sprintf(buffer + strlen(buffer), " ...");
   for (i = 1; i <= (int) pv.pathl; i++) {
-    if ((display_options & 64) && i > 1 && wtm)
+    if ((shared->display_options & 64) && i > 1 && wtm)
       sprintf(buffer + strlen(buffer), " %d.", t_move_number);
     sprintf(buffer + strlen(buffer), " %s", OutputMove(tree, pv.path[i], i,
             wtm));
@@ -887,56 +892,25 @@ char *FormatPV(TREE * RESTRICT tree, int wtm, PATH pv)
   return (buffer);
 }
 
-unsigned int ReadClock(TIME_TYPE type)
+unsigned int ReadClock(void)
 {
 #if defined(UNIX) || defined(AMIGA)
-  struct tms t;
   struct timeval timeval;
   struct timezone timezone;
-  BITBOARD cputime = 0;
 #endif
 #if defined(NT_i386)
   HANDLE hThread;
   FILETIME ftCreate, ftExit, ftKernel, ftUser;
-  unsigned int cputime;
   BITBOARD tUser64;
 #endif
 
-  switch (type) {
 #if defined(UNIX) || defined(AMIGA)
-  case cpu:
-    (void) times(&t);
-    cputime = t.tms_utime + t.tms_stime + t.tms_cutime + t.tms_cstime;
-#  if defined(CLK_TCK)
-    cputime = cputime * 100 / CLK_TCK;
-    return ((unsigned int) cputime);
-#  else
-    if (!clk_tck)
-      clk_tck = sysconf(_SC_CLK_TCK);
-    cputime = cputime * 100 / clk_tck;
-    return ((unsigned int) cputime);
-#  endif
-  case elapsed:
-    gettimeofday(&timeval, &timezone);
-    return (timeval.tv_sec * 100 + (timeval.tv_usec / 10000));
-  default:
-    gettimeofday(&timeval, &timezone);
-    return (timeval.tv_sec * 100 + (timeval.tv_usec / 10000));
+  gettimeofday(&timeval, &timezone);
+  return (timeval.tv_sec * 100 + (timeval.tv_usec / 10000));
 #endif
 #if defined(NT_i386)
-  case cpu:
-    hThread = GetCurrentThread();
-    if (GetThreadTimes(hThread, &ftCreate, &ftExit, &ftKernel, &ftUser)) {
-      tUser64 = *(BITBOARD *) & ftUser;
-      cputime = (unsigned int) (tUser64 / 100000);
-    }
-    return (cputime);
-  case elapsed:
-    return ((unsigned int) GetTickCount() / 10);
-  default:
-    return ((unsigned int) GetTickCount() / 10);
+  return ((unsigned int) GetTickCount() / 10);
 #endif
-  }
 }
 
 #if defined(SMP)
@@ -953,7 +927,7 @@ int FindBlockID(TREE * RESTRICT block)
   int i;
 
   for (i = 0; i < MAX_BLOCKS + 1; i++)
-    if (block == local[i])
+    if (block == shared->local[i])
       return (i);
   return (-1);
 }
@@ -1049,6 +1023,94 @@ BITBOARD InterposeSquares(int check_direction, int king_square,
   return (target);
 }
 
+/* last modified 06/13/05 */
+/*
+ *******************************************************************************
+ *                                                                             *
+ *   InvalidPosition() is used to determine if the position just entered via a *
+ *   FEN-string or the "edit" command is legal.  This includes the expected    *
+ *   tests for too many pawns or pieces for one side, pawns on impossible      *
+ *   squares, and the like.                                                    *
+ *                                                                             *
+ *******************************************************************************
+ */
+int InvalidPosition(TREE * RESTRICT tree)
+{
+  int error = 0;
+  int wp, wn, wb, wr, wq, bp, bn, bb, br, bq;
+  wp = PopCnt(WhitePawns);
+  wn = PopCnt(WhiteKnights);
+  wb = PopCnt(WhiteBishops);
+  wr = PopCnt(WhiteRooks);
+  wq = PopCnt(WhiteQueens);
+  bp = PopCnt(BlackPawns);
+  bn = PopCnt(BlackKnights);
+  bb = PopCnt(BlackBishops);
+  br = PopCnt(BlackRooks);
+  bq = PopCnt(BlackQueens);
+  if (wp > 8) {
+    Print(4095, "illegal position, too many white pawns\n");
+    error = 1;
+  }
+  if (wp + wn > 10) {
+    Print(4095, "illegal position, too many white knights\n");
+    error = 1;
+  }
+  if (wp + wb > 10) {
+    Print(4095, "illegal position, too many white bishops\n");
+    error = 1;
+  }
+  if (wp + wr > 10) {
+    Print(4095, "illegal position, too many white rooks\n");
+    error = 1;
+  }
+  if (wp + wq > 10) {
+    Print(4095, "illegal position, too many white queens\n");
+    error = 1;
+  }
+  if (wp + wn + wb + wr + wq > 15) {
+    Print(4095, "illegal position, too many white pieces\n");
+    error = 1;
+  }
+  if (WhitePawns & (rank_mask[RANK1] | rank_mask[RANK8])) {
+    Print(4095, "illegal position, white pawns on first/eighth rank(s)\n");
+    error = 1;
+  }
+  if (bp > 8) {
+    Print(4095, "illegal position, too many black pawns\n");
+    error = 1;
+  }
+  if (bp + bn > 10) {
+    Print(4095, "illegal position, too many black knights\n");
+    error = 1;
+  }
+  if (bp + bb > 10) {
+    Print(4095, "illegal position, too many black bishops\n");
+    error = 1;
+  }
+  if (bp + br > 10) {
+    Print(4095, "illegal position, too many black rooks\n");
+    error = 1;
+  }
+  if (bp + bq > 10) {
+    Print(4095, "illegal position, too many black queens\n");
+    error = 1;
+  }
+  if (bp + bn + bb + br + bq > 15) {
+    Print(4095, "illegal position, too many black pieces\n");
+    error = 1;
+  }
+  if (BlackPawns & (rank_mask[RANK1] | rank_mask[RANK8])) {
+    Print(4095, "illegal position, black pawns on first/eighth rank(s)\n");
+    error = 1;
+  }
+  if (Check(!wtm)) {
+    Print(4095, "ERROR side not on move is in check!\n");
+    error = 1;
+  }
+  return (error);
+}
+
 int KingPawnSquare(int pawn, int king, int queen, int ptm)
 {
   register int pdist, kdist;
@@ -1066,7 +1128,7 @@ int KingPawnSquare(int pawn, int king, int queen, int ptm)
     return (1);
 }
 
-/* last modified 03/13/01 */
+/* last modified 08/07/05 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -1083,7 +1145,7 @@ void NewGame(int save)
   static int save_resign = 0, save_resign_count = 0, save_draw_count = 0;
   static int save_learning = 0;
   static int save_accept_draws = 0;
-  TREE *const tree = local[0];
+  TREE *const tree = shared->local[0];
 
   new_game = 0;
   if (save) {
@@ -1097,15 +1159,16 @@ void NewGame(int save)
     save_accept_draws = accept_draws;
   } else {
     if (learning & book_learning && moves_out_of_book) {
-      int val = (crafty_is_white) ? last_search_value : -last_search_value;
+      int val =
+          (shared->crafty_is_white) ? last_search_value : -last_search_value;
 
-      LearnBook(tree, crafty_is_white, val, 0, 0, 1);
+      LearnBook(tree, shared->crafty_is_white, val, 0, 0, 1);
     }
     if (ics)
       printf("*whisper Hello from Crafty v%s !\n", version);
     if (xboard) {
       printf("tellicsnoalias set 1 Crafty v%s (%d cpus)\n", version, Max(1,
-              max_threads));
+              shared->max_threads));
     }
     over = 0;
     moves_out_of_book = 0;
@@ -1117,16 +1180,16 @@ void NewGame(int save)
     InitializeChessBoard(&tree->position[0]);
     InitializeHashTables();
     force = 0;
-    trojan_check = 0;
-    computer_opponent = 0;
+    shared->trojan_check = 0;
+    shared->computer_opponent = 0;
     books_file = normal_bs_file;
-    draw_score[0] = 0;
-    draw_score[1] = 0;
+    shared->draw_score[0] = 0;
+    shared->draw_score[1] = 0;
     wtm = 1;
-    move_number = 1;
-    tc_time_remaining = tc_time;
-    tc_time_remaining_opponent = tc_time;
-    tc_moves_remaining = tc_moves;
+    shared->move_number = 1;
+    shared->tc_time_remaining = shared->tc_time;
+    shared->tc_time_remaining_opponent = shared->tc_time;
+    shared->tc_moves_remaining = shared->tc_moves;
     if (move_actually_played) {
       if (log_file)
         fclose(log_file);
@@ -1153,15 +1216,14 @@ void NewGame(int save)
     draw_counter = 0;
     usage_level = 0;
     learning = save_learning;
-    lazy_eval_cutoff = 200;
-    largest_positional_score = 300;
+    shared->lazy_eval_cutoff = 200;
+    shared->largest_positional_score = 300;
     predicted = 0;
-    kibitz_depth = 0;
+    shared->kibitz_depth = 0;
     tree->nodes_searched = 0;
     tree->fail_high = 0;
     tree->fail_high_first = 0;
-    cpu_percent = 0;
-    kibitz_text[0] = 0;
+    shared->kibitz_text[0] = 0;
   }
 }
 
@@ -1222,7 +1284,7 @@ int ParseTime(char *string)
 void Pass(void)
 {
   char buffer[128];
-  const int halfmoves_done = 2 * (move_number - 1) + (1 - wtm);
+  const int halfmoves_done = 2 * (shared->move_number - 1) + (1 - wtm);
   int prev_pass = 0;
 
 /* Was previous move a pass? */
@@ -1233,12 +1295,12 @@ void Pass(void)
   }
   if (prev_pass) {
     if (wtm)
-      move_number--;
+      shared->move_number--;
   } else {
     fseek(history_file, halfmoves_done * 10, SEEK_SET);
     fprintf(history_file, "%9s\n", "pass");
     if (!wtm)
-      move_number++;
+      shared->move_number++;
   }
   wtm = Flip(wtm);
 }
@@ -1354,10 +1416,10 @@ void Print(int vb, char *fmt, ...)
   va_list ap;
 
   va_start(ap, fmt);
-  if (vb & display_options)
+  if (vb & shared->display_options)
     vprintf(fmt, ap);
   fflush(stdout);
-  if (time_limit > 99 || tc_time_remaining > 6000 || vb == 4095) {
+  if (shared->time_limit > 99 || shared->tc_time_remaining > 6000 || vb == 4095) {
     va_start(ap, fmt);
     if (log_file)
       vfprintf(log_file, fmt, ap);
@@ -1367,25 +1429,25 @@ void Print(int vb, char *fmt, ...)
   va_end(ap);
 }
 
-char *PrintKM(int val, int realK)
+char *PrintKM(size_t val, int realK)
 {
-  static char buf[16];
+  static char buf[32];
 
   if (realK) {
     if (val >= 1 << 20 && !(val & ((1 << 20) - 1)))
-      sprintf(buf, "%4dM", val / (1 << 20));
+      sprintf(buf, "%4dM", (int) (val / (1 << 20)));
     else if (val >= 1 << 10)
-      sprintf(buf, "%4dK", val / (1 << 10));
+      sprintf(buf, "%4dK", (int) (val / (1 << 10)));
     else
-      sprintf(buf, "%5d", val);
+      sprintf(buf, "%5d", (int) val);
     return (buf);
   } else {
     if (val >= 1000000 && !(val % 1000000))
-      sprintf(buf, "%4dM", val / 1000000);
+      sprintf(buf, "%4dM", (int) (val / 1000000));
     else if (val >= 1000)
-      sprintf(buf, "%4dK", val / 1000);
+      sprintf(buf, "%4dK", (int) (val / 1000));
     else
-      sprintf(buf, "%5d", val);
+      sprintf(buf, "%5d", (int) val);
     return (buf);
   }
 }
@@ -1680,7 +1742,7 @@ int ReadNextMove(TREE * RESTRICT tree, char *text, int ply, int wtm)
   return (move);
 }
 
-/* last modified 06/15/98 */
+/* last modified 08/07/05 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -1772,7 +1834,7 @@ int ReadPGN(FILE * input, int option)
             strcpy(pgn_result, value);
           else if (strstr(input_buffer, "FEN")) {
             sprintf(buffer, "setboard %s", value);
-            (void) Option(local[0]);
+            (void) Option(shared->local[0]);
             continue;
           }
           return (1);
@@ -1931,7 +1993,7 @@ int ReadPGN(FILE * input, int option)
   }
 }
 
-/* last modified 06/10/98 */
+/* last modified 08/07/05 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -1947,15 +2009,15 @@ void RestoreGame(void)
   char cmd[16];
 
   wtm = 1;
-  InitializeChessBoard(&local[0]->position[0]);
+  InitializeChessBoard(&shared->local[0]->position[0]);
   for (i = 0; i < 500; i++) {
     fseek(history_file, i * 10, SEEK_SET);
     strcpy(cmd, "");
     fscanf(history_file, "%s", cmd);
     if (strcmp(cmd, "pass")) {
-      move = InputMove(local[0], cmd, 0, wtm, 1, 0);
+      move = InputMove(shared->local[0], cmd, 0, wtm, 1, 0);
       if (move)
-        MakeMoveRoot(local[0], move, wtm);
+        MakeMoveRoot(shared->local[0], move, wtm);
       else
         break;
     }
@@ -2023,7 +2085,6 @@ void CopyFromSMP(TREE * RESTRICT p, TREE * RESTRICT c, int value)
   p->egtb_probes_successful += c->egtb_probes_successful;
   p->check_extensions_done += c->check_extensions_done;
   p->recapture_extensions_done += c->recapture_extensions_done;
-  p->passed_pawn_extensions_done += c->passed_pawn_extensions_done;
   p->one_reply_extensions_done += c->one_reply_extensions_done;
   p->mate_extensions_done += c->mate_extensions_done;
   strcpy(c->root_move_text, p->root_move_text);
@@ -2045,11 +2106,11 @@ TREE *CopyToSMP(TREE * RESTRICT p, int thread)
   TREE *c;
   int first = thread * MAX_BLOCKS_PER_CPU + 1;
   int last = first + MAX_BLOCKS_PER_CPU;
-  int maxb = max_threads * MAX_BLOCKS_PER_CPU + 1;
+  int maxb = shared->max_threads * MAX_BLOCKS_PER_CPU + 1;
 
-  for (i = first; i < last && local[i]->used; i++);
+  for (i = first; i < last && shared->local[i]->used; i++);
   if (i >= last) {
-    for (i = 1; i < maxb && local[i]->used; i++);
+    for (i = 1; i < maxb && shared->local[i]->used; i++);
     if (i >= last) {
       Print(128, "ERROR.  no SMP block can be allocated\n");
       return (0);
@@ -2057,13 +2118,13 @@ TREE *CopyToSMP(TREE * RESTRICT p, int thread)
   }
   max = 0;
   for (j = 1; j < maxb; j++)
-    if (local[j]->used)
+    if (shared->local[j]->used)
       max++;
-  max_split_blocks = Max(max_split_blocks, max);
-  c = local[i];
+  shared->max_split_blocks = Max(shared->max_split_blocks, max);
+  c = shared->local[i];
   c->used = 1;
   c->stop = 0;
-  for (i = 0; i < max_threads; i++)
+  for (i = 0; i < shared->max_threads; i++)
     c->siblings[i] = 0;
   c->pos = p->pos;
   c->pv[p->ply - 1] = p->pv[p->ply - 1];
@@ -2102,7 +2163,6 @@ TREE *CopyToSMP(TREE * RESTRICT p, int thread)
   c->check_extensions_done = 0;
   c->mate_extensions_done = 0;
   c->recapture_extensions_done = 0;
-  c->passed_pawn_extensions_done = 0;
   c->one_reply_extensions_done = 0;
   c->alpha = p->alpha;
   c->beta = p->beta;
@@ -2113,7 +2173,8 @@ TREE *CopyToSMP(TREE * RESTRICT p, int thread)
   c->mate_threat = p->mate_threat;
   c->search_value = 0;
   c->next_time_check =
-      Min(nodes_between_time_checks / Max(max_threads, 1), p->next_time_check);
+      Min(shared->nodes_between_time_checks / Max(shared->max_threads, 1),
+      p->next_time_check);
   strcpy(c->root_move_text, p->root_move_text);
   strcpy(c->remaining_moves_text, p->remaining_moves_text);
   return (c);
@@ -2134,7 +2195,7 @@ TREE *CopyToSMP(TREE * RESTRICT p, int thread)
  *******************************************************************************
  */
 void Kibitz(int level, int wtm, int depth, int time, int value, BITBOARD nodes,
-    int cpu, int tb_hits, char *pv)
+    int tb_hits, char *pv)
 {
 
   int nps;
@@ -2145,7 +2206,7 @@ void Kibitz(int level, int wtm, int depth, int time, int value, BITBOARD nodes,
     sprintf(snps, "%dK", nps / 1000);
   else
     sprintf(snps, "%.2fM", (float) nps / 1000000.0);
-  if (!puzzling) {
+  if (!shared->puzzling) {
     char prefix[128];
 
     if (strlen(channel_title) && channel)
@@ -2175,9 +2236,9 @@ void Kibitz(int level, int wtm, int depth, int time, int value, BITBOARD nodes,
       if ((kibitz & 15) >= 2) {
         if (ics)
           printf("*");
-        printf("%s ply=%d; eval=%s; nps=%s; time=%s; cpu=%d%%; egtb=%d\n",
-            prefix, depth, DisplayEvaluationKibitz(value, wtm), snps,
-            DisplayTimeKibitz(time), cpu, tb_hits);
+        printf("%s ply=%d; eval=%s; nps=%s; time=%s; egtb=%d\n", prefix, depth,
+            DisplayEvaluationKibitz(value, wtm), snps, DisplayTimeKibitz(time),
+            tb_hits);
       }
     case 3:
       if ((kibitz & 15) >= 3 && (nodes > 5000 || level == 2)) {
@@ -2208,18 +2269,14 @@ void Kibitz(int level, int wtm, int depth, int time, int value, BITBOARD nodes,
       if ((kibitz & 15) >= 6 && nodes > 5000) {
         if (ics)
           printf("*");
-        if (cpu == 0)
-          printf("%s d%d+ %s/s %s %s %s\n", prefix, depth, snps,
-              DisplayTimeKibitz(time), DisplayEvaluationKibitz(value, wtm), pv);
+        if (wtm)
+          printf("%s d%d+ %s/s %s >(%s) %s <re-searching>\n", prefix, depth,
+              snps, DisplayTimeKibitz(time), DisplayEvaluationKibitz(value,
+                  wtm), pv);
         else
-          if (wtm)
-            printf("%s d%d+ %s/s %s >(%s) %s <re-searching>\n", prefix, depth,
-                snps, DisplayTimeKibitz(time), DisplayEvaluationKibitz(value,
-                    wtm), pv);
-          else
-            printf("%s d%d+ %s/s %s <(%s) %s <re-searching>\n", prefix, depth,
-                snps, DisplayTimeKibitz(time), DisplayEvaluationKibitz(value,
-                    wtm), pv);
+          printf("%s d%d+ %s/s %s <(%s) %s <re-searching>\n", prefix, depth,
+              snps, DisplayTimeKibitz(time), DisplayEvaluationKibitz(value,
+                  wtm), pv);
       }
       break;
     }
@@ -2420,11 +2477,17 @@ void *WinMalloc(size_t cbBytes, int iThread)
     hThread = GetCurrentThread();
     dwAffinityMask = SetThreadAffinityMask(hThread, ullProcessorMask[ulNode]);
     pBytes = VirtualAlloc(NULL, cbBytes, MEM_COMMIT, PAGE_READWRITE);
+    if (pBytes == NULL)
+      ExitProcess(GetLastError());
     memset(pBytes, 0, cbBytes);
     SetThreadAffinityMask(hThread, dwAffinityMask);
-    return pBytes;
-  } else
-    return malloc(cbBytes);
+  } else {
+    pBytes = VirtualAlloc(NULL, cbBytes, MEM_COMMIT, PAGE_READWRITE);
+    if (pBytes == NULL)
+      ExitProcess(GetLastError());
+    memset(pBytes, 0, cbBytes);
+  }
+  return pBytes;
 }
 
 // Allocate interleaved memory
@@ -2490,212 +2553,38 @@ void WinFreeInterleaved(void *pMemory, size_t cBytes)
 
 #endif
 
-/*
- *******************************************************************************
- *                                                                             *
- *   Linux NUMA support                                                        *
- *                                                                             *
- *******************************************************************************
- */
-
-#if defined(LINUX) && defined(NUMA)
-
-/*
- *******************************************************************************
- *                                                                             *
- *   First, discover if we are on a NUMA box.  If not, the normal SMP stuff is *
- *   primed and ready to go.  If we are on a NUMA machine, we need to know (a) *
- *   how many processors (nodes in the case of AMD/Intel) we have on the       *
- *   machine and (b) how many processors (threads) the user intends to run.    *
- *   It becomes important for the "smpmt=n" command to be either on the        *
- *   command-line or in the crafty.rc/.craftyrc files, otherwise we might not  *
- *   get things initialized optimally in a NUMA environment.                   *
- *                                                                             *
- *******************************************************************************
- */
-
-void NumaInit(void)
+void *SharedMalloc(size_t size, int tid)
 {
-  int numa_machine, maxNumaNodes;
+#if defined(UNIX)
+#  if defined(SMP)
+    int shmid;
+    void *shared;
 
-  if (!fThreadsInitialized) {
-    Lock(ThreadsLock);
-    if (!fThreadsInitialized) {
-      printf("\nInitializing multiple threads.\n");
-      fThreadsInitialized = TRUE;
-      numa_machine = numa_available();
-      if (numa_machine >= 0) {
-        maxNumaNodes = numa_max_node();
-        printf("System is NUMA. %d nodes reported by Linux\n",
-            maxNumaNodes + 1);
-      } else {
-        Print(4095, "system is not NUMA, skipping NUMA initialization\n");
-        return;
-      }
-
-      pGetNumaHighestNodeNumber =
-          (void *) GetProcAddress(hModule, "GetNumaHighestNodeNumber");
-      pGetNumaNodeProcessorMask =
-          (void *) GetProcAddress(hModule, "GetNumaNodeProcessorMask");
-      pSetThreadIdealProcessor =
-          (void *) GetProcAddress(hModule, "SetThreadIdealProcessor");
-      if (pGetNumaHighestNodeNumber && pGetNumaNodeProcessorMask &&
-          pGetNumaHighestNodeNumber(&ulNumaNodes) && (ulNumaNodes > 0)) {
-        fSystemIsNUMA = TRUE;
-        if (ulNumaNodes > 255)
-          ulNumaNodes = 255;
-        printf("System is NUMA. %d nodes reported by Windows\n",
-            ulNumaNodes + 1);
-        for (ulNode = 0; ulNode <= ulNumaNodes; ulNode++) {
-          pGetNumaNodeProcessorMask((UCHAR) ulNode, &ullProcessorMask[ulNode]);
-          printf("Node %d CPUs: ", ulNode);
-          ullMask = ullProcessorMask[ulNode];
-          if (0 == ullMask)
-            fSystemIsNUMA = FALSE;
-          else {
-            ulCPU = 0;
-            do {
-              if (ullMask & 1)
-                printf("%d ", ulCPU);
-              ulCPU++;
-              ullMask >>= 1;
-            } while (ullMask);
-          }
-          printf("\n");
-        }
-// Thread 0 was already started on some CPU. To simplify things further,
-// exchange ullProcessorMask[0] and ullProcessorMask[node for that CPU],
-// so ullProcessorMask[0] would always be node for thread 0
-        dwCPU =
-            pSetThreadIdealProcessor(GetCurrentThread(), MAXIMUM_PROCESSORS);
-        printf("Current ideal CPU is %u\n", dwCPU);
-        pSetThreadIdealProcessor(GetCurrentThread(), dwCPU);
-        if ((((DWORD) - 1) != dwCPU) && (MAXIMUM_PROCESSORS != dwCPU) &&
-            !(ullProcessorMask[0] & (1ui64 << dwCPU))) {
-          for (ulNode = 1; ulNode <= ulNumaNodes; ulNode++) {
-            if (ullProcessorMask[ulNode] & (1ui64 << dwCPU)) {
-              printf("Exchanging nodes 0 and %d\n", ulNode);
-              ullMask = ullProcessorMask[ulNode];
-              ullProcessorMask[ulNode] = ullProcessorMask[0];
-              ullProcessorMask[0] = ullMask;
-              break;
-            }
-          }
-        }
-      } else
-        printf("System is SMP, not NUMA.\n");
-    }
-    Unlock(ThreadsLock);
-  }
-}
-
-// Start thread. For NUMA system set it affinity.
-
-pthread_t NumaStartThread(void *func, void *args)
-{
-  HANDLE hThread;
-  ULONGLONG ullMask;
-
-  WinNumaInit();
-  if (fSystemIsNUMA) {
-    ulNumaNode++;
-    if (ulNumaNode > ulNumaNodes)
-      ulNumaNode = 0;
-    ullMask = ullProcessorMask[ulNumaNode];
-    printf("Starting thread on node %d CPU mask %I64d\n", ulNumaNode, ullMask);
-    SetThreadAffinityMask(GetCurrentThread(), (DWORD_PTR) ullMask);
-    hThread = (HANDLE) _beginthreadex(0, 0, func, args, CREATE_SUSPENDED, 0);
-    SetThreadAffinityMask(hThread, (DWORD_PTR) ullMask);
-    ResumeThread(hThread);
-    SetThreadAffinityMask(GetCurrentThread(), ullProcessorMask[0]);
-  } else
-    hThread = (HANDLE) _beginthreadex(0, 0, func, args, 0, 0);
-  return hThread;
-}
-
-// Allocate memory for thread #N
-
-void *WinMalloc(size_t cbBytes, int iThread)
-{
-  HANDLE hThread;
-  DWORD_PTR dwAffinityMask;
-  void *pBytes;
-  ULONG ulNode;
-
-  WinNumaInit();
-  if (fSystemIsNUMA) {
-    ulNode = iThread % (ulNumaNodes + 1);
-    hThread = GetCurrentThread();
-    dwAffinityMask = SetThreadAffinityMask(hThread, ullProcessorMask[ulNode]);
-    pBytes = VirtualAlloc(NULL, cbBytes, MEM_COMMIT, PAGE_READWRITE);
-    memset(pBytes, 0, cbBytes);
-    SetThreadAffinityMask(hThread, dwAffinityMask);
-    return pBytes;
-  } else
-    return malloc(cbBytes);
-}
-
-// Allocate interleaved memory
-
-void *WinMallocInterleaved(size_t cbBytes, int cThreads)
-{
-  char *pBase;
-  char *pEnd;
-  char *pch;
-  HANDLE hThread;
-  DWORD_PTR dwAffinityMask;
-  ULONG ulNode;
-  SYSTEM_INFO sSysInfo;
-  size_t dwStep;
-  int iThread;
-  DWORD dwPageSize;             // the page size on this computer
-  LPVOID lpvResult;
-
-  WinNumaInit();
-  if (fSystemIsNUMA && (cThreads > 1)) {
-    GetSystemInfo(&sSysInfo);   // populate the system information structure
-    dwPageSize = sSysInfo.dwPageSize;
-
-// Reserve pages in the process's virtual address space.
-    pBase = (char *) VirtualAlloc(NULL, cbBytes, MEM_RESERVE, PAGE_NOACCESS);
-    if (pBase == NULL) {
-      printf("VirtualAlloc() reserve failed\n");
-      exit(0);
-    }
-// Now walk through memory, committing each page
-    hThread = GetCurrentThread();
-    dwStep = dwPageSize * cThreads;
-    pEnd = pBase + cbBytes;
-    for (iThread = 0; iThread < cThreads; iThread++) {
-      ulNode = iThread % (ulNumaNodes + 1);
-      dwAffinityMask = SetThreadAffinityMask(hThread, ullProcessorMask[ulNode]);
-      for (pch = pBase + iThread * dwPageSize; pch < pEnd; pch += dwStep) {
-        lpvResult = VirtualAlloc(pch,   // next page to commit
-            dwPageSize, // page size, in bytes
-            MEM_COMMIT, // allocate a committed page
-            PAGE_READWRITE);    // read/write access
-        if (lpvResult == NULL)
-          ExitProcess(GetLastError());
-        memset(lpvResult, 0, dwPageSize);
-      }
-      SetThreadAffinityMask(hThread, dwAffinityMask);
-    }
-  } else {
-    pBase = VirtualAlloc(NULL, cbBytes, MEM_COMMIT, PAGE_READWRITE);
-    if (pBase == NULL)
-      ExitProcess(GetLastError());
-    memset(pBase, 0, cbBytes);
-  }
-  return (void *) pBase;
-}
-
-// Free interleaved memory
-
-void WinFreeInterleaved(void *pMemory, size_t cBytes)
-{
-  VirtualFree(pMemory,  // base address of block
-      cBytes,   // bytes of committed pages
-      MEM_DECOMMIT | MEM_RELEASE);      // decommit the pages
-}
-
+  shmid = shmget(IPC_PRIVATE, size, (IPC_CREAT | 0600));
+  shared = shmat(shmid, 0, 0);
+  shmctl(shmid, IPC_RMID, 0);
+    return (shared);
+#  else
+    return (malloc(size));
+#  endif
+#else
+# if !defined(SMP)
+    return (malloc(size));
+# else
+    return WinMalloc(size, tid);
+# endif
 #endif
+}
+
+void SharedFree(void *address)
+{
+#if defined(SMP)
+# if defined(UNIX)
+  shmdt(address);
+# else
+  VirtualFree(address, 0, MEM_RELEASE);
+# endif
+#else
+  free(address);
+#endif
+}

@@ -486,6 +486,8 @@ void ValidatePosition(TREE * RESTRICT tree, int ply, int move, char *caller)
     Print(4095, "active path:\n");
     for (i = 1; i <= ply; i++)
       DisplayChessMove("move=", move);
+    i = 99999999;
+    tree->move_list[i] = 0;
     exit(1);
   }
 }

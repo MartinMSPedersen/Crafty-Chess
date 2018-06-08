@@ -4,7 +4,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 09/10/02 */
+/* last modified 08/07/05 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -30,7 +30,7 @@ void EVTest(char *filename)
 {
   FILE *test_input;
   char *eof;
-  TREE *const tree = local[0];
+  TREE *const tree = shared->local[0];
 
 /*
  ************************************************************
@@ -65,20 +65,21 @@ void EVTest(char *filename)
     else {
       int s, id;
 
-      for (id=2;id < nargs; id++)
-        if (!strcmp(args[id],"id")) break;
-      if (id >= nargs) id=0;
+      for (id = 2; id < nargs; id++)
+        if (!strcmp(args[id], "id"))
+          break;
+      if (id >= nargs)
+        id = 0;
       SetBoard(&tree->position[0], nargs, args, 0);
       WhiteCastle(0) = 0;
       BlackCastle(0) = 0;
-      root_wtm = wtm;
+      shared->root_wtm = wtm;
       PreEvaluate(tree, wtm);
       tree->pawn_score.key = 0;
-/*
       DisplayChessBoard(stdout, tree->pos);
-*/
       s = Evaluate(tree, 0, 1, -999999, 999999);
-      if (id) Print(4095, "id=%s  ",args[id+1]);
+      if (id)
+        Print(4095, "id=%s  ", args[id + 1]);
       Print(4095, "score=%d\n", s);
     }
   }

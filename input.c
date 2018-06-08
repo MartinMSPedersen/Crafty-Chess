@@ -4,7 +4,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 03/11/98 */
+/* last modified 04/07/05 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -33,7 +33,7 @@ int InputMove(TREE * RESTRICT tree, char *text, int ply, int wtm, int silent,
     'B', 'B', 'R', 'r', 'Q', 'q', '\0'
   };
   static const char pro_pieces[17] =
-      { ' ', ' ', 'P', 'p', 'N', 'n', 'K', 'k', ' ', ' ',
+      { ' ', ' ', ' ', ' ', 'N', 'n', ' ', ' ', ' ', ' ',
     'B', 'b', 'R', 'r', 'Q', 'q', '\0'
   };
 
@@ -41,8 +41,10 @@ int InputMove(TREE * RESTRICT tree, char *text, int ply, int wtm, int silent,
  first strip off things like !!/??/!? and so forth, to avoid
  confusing the parsing.
  */
-  if ((tc=strchr(text,'!'))) *tc=0;
-  if ((tc=strchr(text,'?'))) *tc=0;
+  if ((tc = strchr(text, '!')))
+    *tc = 0;
+  if ((tc = strchr(text, '?')))
+    *tc = 0;
 /*
  check for fully-qualified input (f1e1) and handle if needed.
  */
@@ -127,6 +129,19 @@ int InputMove(TREE * RESTRICT tree, char *text, int ply, int wtm, int silent,
       goodchar++;
       promote = (strchr(pro_pieces, *goodchar) - pro_pieces) >> 1;
       *strchr(movetext, '=') = 0;
+    }
+/*
+ now, for a kludge.  ChessBase can't follow the PGN standard and likes to  
+ export pawn promotions as axb8Q, omitting the required '=' character.  this
+ fix handles that particular ChessBase error.
+ */
+    else {
+      char *prom = strchr(pro_pieces, movetext[strlen(movetext) - 1]);
+
+      if (prom) {
+        promote = (prom - pro_pieces) >> 1;
+        movetext[strlen(movetext) - 1] = 0;
+      }
     }
 /*
  the next thing to do is extract the last rank/file designators since

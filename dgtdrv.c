@@ -193,8 +193,8 @@ void CMDRead(int tty)
   int bytes;
 
   bytes = read(fileno(stdin), buffer, 128);
-buffer[bytes]=0;
-printf("buffer=%s\n",buffer);
+  buffer[bytes] = 0;
+  printf("buffer=%s\n", buffer);
   buffer[bytes] = 0;
   cmd = buffer;
   while (cmd < buffer + bytes) {
@@ -279,8 +279,8 @@ int DGTRead(int tty)
   for (i = 0; i < 512; i++)
     buffer[i] = 0;
   bytes = read(tty, buffer, 1);
-buffer[1]=0;
-printf("read %s\n",buffer);
+  buffer[1] = 0;
+  printf("read %s\n", buffer);
   if (!(buffer[0] & 128)) {
     printf("info skipping non-command character %x\n", buffer[0]);
     fflush(stdout);

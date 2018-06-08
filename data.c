@@ -1,7 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "chess.h"
+SHARED   *shared;
 FILE     *input_stream;
+FILE     *dbout;
 FILE     *book_file;
 FILE     *books_file;
 FILE     *normal_bs_file;
@@ -12,13 +14,9 @@ FILE     *auto_file;
 FILE     *book_lrn_file;
 FILE     *position_file;
 FILE     *position_lrn_file;
-char      kibitz_text[512];
-int       kibitz_depth;
 int       done = 0;
 BITBOARD  total_moves;
 int       last_mate_score;
-int       time_abort;
-signed char abort_search;
 char      log_filename[64];
 char      history_filename[64];
 int       number_of_solutions;
@@ -28,30 +26,11 @@ char      cmd_buffer[4096];
 char     *args[256];
 char      buffer[512];
 int       nargs;
-int       iteration_depth;
-int       root_alpha;
-int       root_beta;
-int       last_root_value;
 int       ponder_value;
-int       root_value;
-int       root_wtm;
-int       root_print_ok;
 int       move_actually_played;
-ROOT_MOVE root_moves[256];
-int       n_root_moves;
-int       cpu_percent;
-int       easy_move;
-int       absolute_time_limit;
-int       search_time_limit;
-int       burp;
 int       ponder_move;
 int       ponder_moves[220];
 int       num_ponder_moves;
-volatile int quit;
-unsigned int opponent_start_time, opponent_end_time;
-unsigned int program_start_time, program_end_time;
-unsigned int start_time, end_time;
-unsigned int elapsed_start, elapsed_end;
 int       book_move;
 int       book_learn_eval[LEARN_INTERVAL];
 int       book_learn_depth[LEARN_INTERVAL];
@@ -59,9 +38,7 @@ int       hash_mask;
 unsigned int pawn_hash_mask;
 HASH_ENTRY *trans_ref;
 PAWN_HASH_ENTRY *pawn_hash_table;
-HASH_ENTRY *trans_ref_orig;
 size_t    cb_trans_ref;
-PAWN_HASH_ENTRY *pawn_hash_table_orig;
 size_t    cb_pawn_hash_table;
 PATH      last_pv;
 int       last_value;
@@ -95,8 +72,6 @@ BITBOARD  rook_attacks[64];
 POSITION  display;
 BITBOARD  queen_attacks[64];
 BITBOARD  king_attacks[64];
-BITBOARD  king_attacks_1[64];
-BITBOARD  king_attacks_2[64];
 BITBOARD  obstructed[64][64];
 BITBOARD  w_pawn_random[64];
 BITBOARD  b_pawn_random[64];
@@ -181,7 +156,7 @@ BITBOARD  mask_112;
 BITBOARD  mask_120;
 # endif
 BITBOARD  mask_clear_entry;
-# if (!defined(_M_AMD64) && !defined(INLINE_ASM)) || defined(VC_INLINE_ASM)
+# if (!defined(_M_AMD64) && !defined (_M_IA64) && !defined(INLINE_ASM)) || defined(VC_INLINE_ASM)
 unsigned char first_one[65536];
 unsigned char last_one[65536];
 # endif
@@ -208,31 +183,9 @@ BITBOARD  black_pawn_race_wtm[64];
 BITBOARD  black_pawn_race_btm[64];
 BOOK_POSITION book_buffer[BOOK_CLUSTER_SIZE];
 BOOK_POSITION books_buffer[BOOK_CLUSTER_SIZE];
-unsigned int thread_start_time[CPUS];
-unsigned int pids[CPUS];
-# if defined(SMP)
-TREE     *local[MAX_BLOCKS + 1];
-TREE     *volatile thread[CPUS];
-lock_t    lock_smp, lock_io, lock_root;
-#   if defined(POSIX)
-pthread_attr_t pthread_attr;
-#   endif
-# else
-TREE     *local[1];
-#  endif
-unsigned int parallel_splits;
-unsigned int parallel_stops;
-unsigned int max_split_blocks;
-volatile unsigned int splitting;
-# define    VERSION                             "19.19"
+# define    VERSION                             "19.20"
 char      version[6] = { VERSION };
 PLAYING_MODE mode = normal_mode;
-#if defined(SMP)
-volatile int smp_idle = 0;
-volatile int smp_threads = 0;
-volatile int initialized_threads = 0;
-
-#endif
 int       batch_mode = 0;       /* no asynch reads */
 int       swindle_mode = 1;     /* try to swindle */
 int       call_flag = 0;
@@ -243,15 +196,15 @@ int       DGT_active = 0;
 int       to_dgt = 0;
 int       from_dgt = 0;
 int       pgn_suggested_percent = 0;
-char      pgn_event[32] = { "?" };
-char      pgn_site[32] = { "?" };
-char      pgn_date[32] = { "????.??.??" };
-char      pgn_round[32] = { "?" };
-char      pgn_white[64] = { "unknown" };
-char      pgn_white_elo[32] = { "" };
-char      pgn_black[64] = { "Crafty " VERSION };
-char      pgn_black_elo[32] = { "" };
-char      pgn_result[32] = { "*" };
+char      pgn_event[128] = { "?" };
+char      pgn_site[128] = { "?" };
+char      pgn_date[128] = { "????.??.??" };
+char      pgn_round[128] = { "?" };
+char      pgn_white[128] = { "unknown" };
+char      pgn_white_elo[128] = { "" };
+char      pgn_black[128] = { "Crafty " VERSION };
+char      pgn_black_elo[128] = { "" };
+char      pgn_result[128] = { "*" };
 char      *B_list[128];
 char      *AK_list[128];
 char      *C_list[128];
@@ -286,62 +239,36 @@ int       initialized = 0;
 int       kibitz = 0;
 int       post = 0;
 int       log_id = 1;
-int       move_number = 1;
 int       wtm = 1;
-int       crafty_is_white = 0;
 int       last_opponent_move = 0;
-int       average_nps = 0;
-int       incheck_depth = INCPLY;
-int       onerep_depth = 3 * INCPLY / 4;
-int       recap_depth = 3 * INCPLY / 4;
-int       pushpp_depth = 3 * INCPLY / 4;
-int       mate_depth = 3 * INCPLY / 4;
+int       incheck_depth = 60;
+int       onerep_depth = 45;
+int       recap_depth = 45;
+int       mate_depth = 30;
 int       null_min = 3 * INCPLY;        /* R=2 */
 int       null_max = 4 * INCPLY;        /* R=3 */
-int       largest_positional_score = 300;
-int       lazy_eval_cutoff = 200;
 int       search_depth = 0;
 unsigned int search_nodes = 0;
 int       search_move = 0;
-TIME_TYPE time_type = elapsed;
-int       nodes_between_time_checks = 10000;
-int       nodes_per_second = 10000;
 int       predicted = 0;
 int       time_used = 0;
 int       time_used_opponent = 0;
-int       cpu_time_used = 0;
-signed char transposition_id = 0;
-signed char thinking = 0;
-signed char pondering = 0;
-signed char puzzling = 0;
-signed char booking = 0;
 int       analyze_mode = 0;
 int       annotate_mode = 0;
 int       test_mode = 0;
 int       input_status = 0;
-signed char resign = 9;
-signed char resign_counter = 0;
-signed char resign_count = 5;
-signed char draw_counter = 0;
-signed char draw_count = 5;
-signed char draw_offer_pending = 0;
+int       resign = 9;
+int       resign_counter = 0;
+int       resign_count = 5;
+int       draw_counter = 0;
+int       draw_count = 5;
+int       draw_offer_pending = 0;
 int       offer_draws = 1;
 int       adaptive_hash = 0;
 size_t    adaptive_hash_min = 0;
 size_t    adaptive_hash_max = 0;
 size_t    adaptive_hashp_min = 0;
 size_t    adaptive_hashp_max = 0;
-int       tc_moves = 60;
-int       tc_time = 180000;
-int       tc_time_remaining = 180000;
-int       tc_time_remaining_opponent = 180000;
-int       tc_moves_remaining = 60;
-int       tc_secondary_moves = 30;
-int       tc_secondary_time = 90000;
-int       tc_increment = 0;
-int       tc_sudden_death = 0;
-int       tc_operator_time = 0;
-int       tc_safety_margin = 0;
 int       time_limit = 100;
 int       force = 0;
 char      initial_position[80] = { "" };
@@ -349,9 +276,6 @@ char      hint[512] = { "" };
 char      book_hint[512] = { "" };
 int       over = 0;
 int       silent = 0;
-int       trojan_check = 0;
-int       computer_opponent = 0;
-int       use_asymmetry = 1;
 int       usage_level = 0;
 char      audible_alarm = 0x07;
 char      speech = 0;
@@ -372,17 +296,10 @@ int       show_book = 0;
 int       book_selection_width = 5;
 int       ponder = 1;
 int       trace_level = 0;
-int       display_options = 4095 - 256 - 512;
-int       max_threads = 0;
-int       min_thread_depth = 3 * INCPLY;
-int       max_thread_group = CPUS;
-int       split_at_root = 1;
-unsigned int noise_level = 100000;
 size_t    hash_table_size = 65536;
 int       log_hash = 16;
 size_t    pawn_hash_table_size = 32768;
 int       log_pawn_hash = 15;
-int       draw_score[2] = { 0, 0 };
 int       abs_draw_score = 1;
 int       accept_draws = 1;
 unsigned char bishop_shift_rl45[64] = {
@@ -432,15 +349,16 @@ int king_tropism[128] = {
   180, 180, 180, 180, 180, 180, 180, 180,
   180, 180, 180, 180, 180, 180, 180, 180
 };
-int connected_passed_pawn_value[8] = { 0, -6, -6, 0, 80, 200, 300, 0 };
-int hidden_passed_pawn_value[8] = { 0, 0, 0, 0, 0, 16, 24, 0 };
-int passed_pawn_value[8] = { 0, 12, 20, 32, 48, 96, 128, 0 };
-int blockading_passed_pawn_value[8] = { 0, 8, 12, 16, 30, 48, 64, 0 };
-int isolated_pawn_value[9] = { 0, 8, 12, 24, 36, 48, 60, 60, 60 };
-int isolated_pawn_of_value[9] = { 0, 4, 10, 16, 16, 16, 16, 16, 16 };
-int doubled_pawn_value[9] = { 0, 0, 8, 20, 40, 40, 40, 40, 40};
-int pawn_rams_v[9] = { 0, 0, 6, 24, 40, 64, 80, 94, 96 };
-int supported_passer[8] = { 0, 0, 0, 0, 12, 60, 100, 0 };
+int connected_passed_pawn_value[8] = { 0, -6, -6, 0, 100, 200, 300, 0 };
+int hidden_passed_pawn_value[8] = { 0, 0, 0, 0, 20, 40, 0, 0 };
+int passed_pawn_value[8] = { 0, 12, 20, 32, 48, 96, 150, 0 };
+int blockading_passed_pawn_value[8] = { 0, 4, 7, 10, 16, 32, 50, 0 };
+int isolated_pawn_value[9] = { 0, 8, 20, 40, 60, 70, 80, 80, 80 };
+int isolated_pawn_of_value[9] = { 0, 4, 10, 16, 24, 24, 24, 24, 24 };
+int doubled_pawn_value[9] = { 0, 0, 4, 7, 10, 10, 10, 10, 10};
+int pawn_rams_v[9] = { 0, 0, 4, 8, 16, 24, 32, 40, 48 };
+int pawn_space[8] = {0, 0, 0, 0, 1, 2, 2, 2};
+int supported_passer[8] = { 0, 0, 0, 10, 40, 60, 100, 0 };
 int outside_passed[128] = {
   72, 64, 64, 64, 56, 56, 52, 52,
   48, 48, 44, 44, 42, 42, 40, 40,
@@ -632,28 +550,18 @@ int white_outpost[64] = {
   0, 0, 12, 20, 20, 12, 0, 0,
   0, 0,  0,  0,  0,  0, 0, 0
 };
-const char push_extensions[64] = {
-  0, 0, 0, 0, 0, 0, 0, 0,
-  1, 1, 1, 1, 1, 1, 1, 1,
-  0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0,
-  1, 1, 1, 1, 1, 1, 1, 1,
-  0, 0, 0, 0, 0, 0, 0, 0
-};
 int pval_w[64] = {
  0,  0,  0,  0,  0,  0,  0,  0,
- 0,  0,  0, -4, -4,  0,  0,  0,
- 0,  0,  0,  0,  0,  0,  0,  0,
- 0,  0,  0,  6,  6,  0,  0,  0,
- 2,  2,  2,  8,  8,  2,  2,  2,
- 4,  4,  4, 10, 10,  4,  4,  4,
-10, 10, 10, 12, 12, 10, 10, 10,
+ 0,  0,  0, -8, -8,  0,  0,  0,
+ 6,  6,  6,  6,  6,  6,  6,  6,
+12, 12, 12, 12, 12, 12, 12, 12,
+18, 18, 18, 18, 18, 18, 18, 18,
+24, 24, 24, 24, 24, 24, 24, 24,
+30, 30, 30, 30, 30, 30, 30, 30,
  0,  0,  0,  0,  0,  0,  0,  0
 };
 int nval_w[64] = {
-   -8, -8, -8, -8, -8, -8, -8, -8,
+  -32, -8, -8, -8, -8, -8, -8,-32,
    -8, -8,  0,  0,  0,  0, -8, -8,
    -8,  2,  2,  2,  2,  2,  2, -8,
    -8,  2,  4,  4,  4,  4,  2, -8,
@@ -728,9 +636,8 @@ int bishop_pair[9] = { 30, 30, 30, 30, 30, 30, 30, 12, 0 };
 /* note that black piece/square values are copied from white, but
    reflected */
 const int p_values[15] = { QUEEN_VALUE, ROOK_VALUE, BISHOP_VALUE, 0,
-  KING_VALUE, KNIGHT_VALUE, PAWN_VALUE,
-  0, PAWN_VALUE, KNIGHT_VALUE, KING_VALUE,
-  0, BISHOP_VALUE, ROOK_VALUE, QUEEN_VALUE
+  KING_VALUE, KNIGHT_VALUE, PAWN_VALUE, 0, PAWN_VALUE, KNIGHT_VALUE,
+  KING_VALUE, 0, BISHOP_VALUE, ROOK_VALUE, QUEEN_VALUE
 };
 int pawn_value = PAWN_VALUE;
 int knight_value = KNIGHT_VALUE;
@@ -741,7 +648,7 @@ int king_value = KING_VALUE;
 int pawn_can_promote = 525;
 int bad_trade = 120;
 int eight_pawns = 10;
-int pawns_blocked = 6;
+int pawns_blocked = 4;
 int center_pawn_unmoved = 16;
 int pawn_duo = 2;
 int pawn_weak_p1 = 12;
@@ -753,7 +660,7 @@ int pawn_base[8] = {0, 3, 6, 9, 9, 6, 3, 0};
 int pawn_advance[8] = {3, 3, 3, 3, 3, 3, 3, 3};
 int king_king_tropism = 15;
 int bishop_trapped = 175;
-int bishop_plus_pawns_on_color = 4;
+int bishop_plus_pawns_on_color = 2;
 int bishop_over_knight_endgame = 30;
 int bishop_mobility = 3;
 int bishop_king_safety = 10;
@@ -803,7 +710,7 @@ int *evalterm_value[256] =
       isolated_pawn_value,         isolated_pawn_of_value,
       doubled_pawn_value,          pawn_rams_v,
       supported_passer,            outside_passed,
-      majority,                    NULL,
+      majority,                    pawn_space,
       NULL,                        NULL,
       NULL,                        NULL,
       NULL,                        NULL,
@@ -869,7 +776,7 @@ char *evalterm_description[256] =
       "isolated pawn [n]               ", "isolated pawn on open file [n]  ",
       "doubled pawn [n]                ", "pawn ram [n]                    ",
       "supported passed pawn [rank]    ", "outside passed pawn [matrl]     ",
-      "pawn majority [matrl]           ", NULL,
+      "pawn majority [matrl]           ", "pawn space [rank]               ",
       NULL,                               NULL,
       NULL,                               NULL,
       NULL,                               NULL,
@@ -917,8 +824,8 @@ int evalterm_size[256] = {
   0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 
   0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 
   0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 
-  0,  0,-64,  8,  8,  8,  8,  9,  9,  7,
-  9,  8,128,128,  0,  0,  0,  0,  0,  0,
+  0,-64,  8,  8,  8,  8,  9,  9,  9,  9,
+  8,128,128,  8,  0,  0,  0,  0,  0,  0,
   0,  8,-64,-64,  0,  0,  0,  0,  0,  0, 
   0,  0,  0,  0,  0,  0,  9,  8,-64,  0,
   0,  0,  0,  0,  0,  0,  0,  8,  8,  8, 

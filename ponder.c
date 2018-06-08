@@ -4,7 +4,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 10/18/99 */
+/* last modified 08/07/05 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -28,7 +28,7 @@ int Ponder(int wtm)
 {
   int dalpha = -999999, dbeta = 999999, dthreat = 0, i, *n_ponder_moves, *mv;
   int save_move_number, tlom;
-  TREE *const tree = local[0];
+  TREE *const tree = shared->local[0];
 
 /*
  ************************************************************
@@ -43,7 +43,7 @@ int Ponder(int wtm)
  */
   if (!ponder || force || over || CheckInput())
     return (0);
-  save_move_number = move_number;
+  save_move_number = shared->move_number;
 /*
  ************************************************************
  *                                                          *
@@ -79,9 +79,9 @@ int Ponder(int wtm)
   }
   if (!ponder_move) {
     TimeSet(puzzle);
-    if (time_limit < 20)
+    if (shared->time_limit < 20)
       return (0);
-    puzzling = 1;
+    shared->puzzling = 1;
     tree->position[1] = tree->position[0];
     Print(128, "              puzzling over a move to ponder.\n");
     last_pv.pathl = 0;
@@ -95,7 +95,7 @@ int Ponder(int wtm)
       tree->killers[i].move1 = 0;
       tree->killers[i].move2 = 0;
     }
-    puzzling = 0;
+    shared->puzzling = 0;
     if (tree->pv[0].pathl)
       ponder_move = tree->pv[0].path[1];
     if (!ponder_move)
@@ -119,11 +119,11 @@ int Ponder(int wtm)
  ************************************************************
  */
   if (wtm)
-    Print(128, "White(%d): %s [pondering]\n", move_number, OutputMove(tree,
-            ponder_move, 0, wtm));
+    Print(128, "White(%d): %s [pondering]\n", shared->move_number,
+        OutputMove(tree, ponder_move, 0, wtm));
   else
-    Print(128, "Black(%d): %s [pondering]\n", move_number, OutputMove(tree,
-            ponder_move, 0, wtm));
+    Print(128, "Black(%d): %s [pondering]\n", shared->move_number,
+        OutputMove(tree, ponder_move, 0, wtm));
   sprintf(hint, "%s", OutputMove(tree, ponder_move, 0, wtm));
   if (post)
     printf("Hint: %s\n", hint);
@@ -160,15 +160,15 @@ int Ponder(int wtm)
   last_opponent_move = ponder_move;
   tree->rep_list[++tree->rep_game] = HashKey;
   if (kibitz)
-    strcpy(kibitz_text, "n/a");
-  thinking = 0;
-  pondering = 1;
+    strcpy(shared->kibitz_text, "n/a");
+  shared->thinking = 0;
+  shared->pondering = 1;
   if (!wtm)
-    move_number++;
+    shared->move_number++;
   ponder_value = Iterate(Flip(wtm), think, 0);
-  move_number = save_move_number;
-  pondering = 0;
-  thinking = 0;
+  shared->move_number = save_move_number;
+  shared->pondering = 0;
+  shared->thinking = 0;
   tree->rep_game--;
   last_opponent_move = tlom;
   UnmakeMove(tree, 0, ponder_move, wtm);

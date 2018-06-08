@@ -4,7 +4,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 11/20/01 */
+/* last modified 08/07/05 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -32,12 +32,12 @@
  */
 void Edit(void)
 {
-  int athome = 1, i, piece, readstat, square, tfile, trank, wtm = 1;
+  int athome = 1, i, piece, readstat, square, tfile, trank, wtm = 1, error = 0;
   static const char pieces[] =
       { 'x', 'X', 'P', 'p', 'N', 'n', 'K', 'k', '*', '*',
     'B', 'b', 'R', 'r', 'Q', 'q', '\0'
   };
-  TREE *const tree = local[0];
+  TREE *const tree = shared->local[0];
 
 /*
  ************************************************************
@@ -149,14 +149,20 @@ void Edit(void)
  ************************************************************
  */
   SetChessBitBoards(&tree->position[0]);
-  if (log_file)
-    DisplayChessBoard(log_file, tree->pos);
-  wtm = 1;
-  move_number = 1;
-  tree->rep_game = 0;
-  tree->rep_list[tree->rep_game] = HashKey;
-  tree->position[0].rule_50_moves = 0;
-  moves_out_of_book = 0;
-  lazy_eval_cutoff = 200;
-  largest_positional_score = 300;
+  error += InvalidPosition(tree);
+  if (!error) {
+    if (log_file)
+      DisplayChessBoard(log_file, tree->pos);
+    wtm = 1;
+    shared->move_number = 1;
+    tree->rep_game = 0;
+    tree->rep_list[tree->rep_game] = HashKey;
+    tree->position[0].rule_50_moves = 0;
+    moves_out_of_book = 0;
+    shared->lazy_eval_cutoff = 200;
+    shared->largest_positional_score = 300;
+  } else {
+    InitializeChessBoard(&tree->position[0]);
+    Print(4095, "Illegal position, using normal initial chess position\n");
+  }
 }

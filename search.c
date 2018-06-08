@@ -10,7 +10,7 @@
 #  define F_MARGIN (bishop_value+1)
 #endif
 
-/* last modified 01/22/04 */
+/* last modified 08/07/05 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -51,12 +51,13 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
   tree->nodes_searched++;
   if (tree->thread_id == 0) {
     if (--tree->next_time_check <= 0) {
-      tree->next_time_check = nodes_between_time_checks / Max(1, max_threads);
+      tree->next_time_check =
+          shared->nodes_between_time_checks / Max(1, shared->max_threads);
       if (CheckInput())
         Interrupt(ply);
       if (TimeCheck(tree, 0)) {
-        time_abort++;
-        abort_search = 1;
+        shared->time_abort++;
+        shared->abort_search = 1;
         return (0);
       }
     }
@@ -142,7 +143,7 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
  ************************************************************
  */
 #if !defined(NOEGTB)
-  if (ply <= iteration_depth && TotalPieces <= EGTB_use &&
+  if (ply <= shared->iteration_depth && TotalPieces <= EGTB_use &&
       WhiteCastle(ply) + BlackCastle(ply) == 0 &&
       (CaptureOrPromote(tree->current_move[ply - 1]) || ply < 3)) {
     int egtb_value;
@@ -218,8 +219,8 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
  ************************************************************
  */
   pieces = (wtm) ? TotalWhitePieces : TotalBlackPieces;
-  if (do_null && !tree->in_check[ply] && pieces &&
-      (pieces > 9 || depth < 7 * INCPLY)) {
+  if (do_null && !tree->in_check[ply] && pieces && (pieces > 9 ||
+          depth < 7 * INCPLY)) {
     register BITBOARD save_hash_key;
     int null_depth;
 
@@ -245,7 +246,7 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
       else
         value = -Quiesce(tree, -beta, 1 - beta, Flip(wtm), ply + 1);
       HashKey = save_hash_key;
-      if (abort_search || tree->stop)
+      if (shared->abort_search || tree->stop)
         return (0);
       if (value >= beta) {
         HashStore(tree, ply, depth, wtm, LOWER, value, mate_threat);
@@ -274,10 +275,10 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
   if (tree->hash_move[ply] == 0 && do_null && depth >= 3 * INCPLY)
     do {
       if (ply & 1) {
-        if (alpha != root_alpha || beta != root_beta)
+        if (alpha != shared->root_alpha || beta != shared->root_beta)
           break;
       } else {
-        if (alpha != -root_beta || beta != -root_alpha)
+        if (alpha != -shared->root_beta || beta != -shared->root_alpha)
           break;
       }
       tree->current_move[ply] = 0;
@@ -286,7 +287,7 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
             Search(tree, alpha, beta, wtm, depth - 2 * INCPLY, ply, DO_NULL, 0);
       else
         value = Quiesce(tree, alpha, beta, wtm, ply);
-      if (abort_search || tree->stop)
+      if (shared->abort_search || tree->stop)
         return (0);
       if (value <= alpha) {
         if (depth - 2 * INCPLY >= INCPLY)
@@ -295,7 +296,7 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
               0);
         else
           value = Quiesce(tree, -MATE, beta, wtm, ply);
-        if (abort_search || tree->stop)
+        if (shared->abort_search || tree->stop)
           return (0);
         if (value < beta) {
           if ((int) tree->pv[ply - 1].pathl >= ply)
@@ -395,19 +396,6 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
 /*
  ************************************************************
  *                                                          *
- *   if we push a passed pawn, we need to look deeper to    *
- *   see if it is a legitimate threat.                      *
- *                                                          *
- ************************************************************
- */
-      if (Piece(tree->current_move[ply]) == pawn &&
-          push_extensions[To(tree->current_move[ply])]) {
-        tree->passed_pawn_extensions_done++;
-        extended += pushpp_depth;
-      }
-/*
- ************************************************************
- *                                                          *
  *   if there's only one legal move, extend the search one  *
  *   additional ply since this node is very easy to search. *
  *                                                          *
@@ -439,7 +427,7 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
               ply + 1, DO_NULL, recapture);
         else
           value = -Quiesce(tree, -beta, -alpha, Flip(wtm), ply + 1);
-        if (abort_search || tree->stop) {
+        if (shared->abort_search || tree->stop) {
           UnmakeMove(tree, ply, tree->current_move[ply], wtm);
           return (0);
         }
@@ -478,7 +466,7 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
               ply + 1, DO_NULL, recapture);
         else
           value = -Quiesce(tree, -alpha - 1, -alpha, Flip(wtm), ply + 1);
-        if (abort_search || tree->stop) {
+        if (shared->abort_search || tree->stop) {
           UnmakeMove(tree, ply, tree->current_move[ply], wtm);
           return (0);
         }
@@ -489,7 +477,7 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
                 ply + 1, DO_NULL, recapture);
           else
             value = -Quiesce(tree, -beta, -alpha, Flip(wtm), ply + 1);
-          if (abort_search || tree->stop) {
+          if (shared->abort_search || tree->stop) {
             UnmakeMove(tree, ply, tree->current_move[ply], wtm);
             return (0);
           }
@@ -512,7 +500,7 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
       tree->nodes_searched++;
     UnmakeMove(tree, ply, tree->current_move[ply], wtm);
 #if defined(SMP)
-    if (smp_idle && moves_searched && min_thread_depth <= depth) {
+    if (shared->smp_idle && moves_searched && shared->min_thread_depth <= depth) {
       tree->alpha = alpha;
       tree->beta = beta;
       tree->value = alpha;
@@ -522,7 +510,7 @@ int Search(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth,
       tree->mate_threat = mate_threat;
       tree->lp_recapture = lp_recapture;
       if (Thread(tree)) {
-        if (abort_search || tree->stop)
+        if (shared->abort_search || tree->stop)
           return (0);
         if (tree->thread_id == 0 && CheckInput())
           Interrupt(ply);

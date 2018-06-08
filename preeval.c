@@ -3,17 +3,15 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 01/20/04 */
+/* last modified 08/07/05 */
 /*
  *******************************************************************************
  *                                                                             *
- *   PreEvaluate() is used to set the piece/square tables.  these tables       *
- *   contain evaluation parameters that are not dynamic in nature and don't    *
- *   change during the course of a single iteration.                           *
- *                                                                             *
- *   there is one piece/square table for each type of piece on the board, one  *
- *   for each side so that opposite sides evaluate things from their per-      *
- *   spective.                                                                 *
+ *   PreEvaluate() is used to set some scoring information that can be user-   *
+ *   modified by changing the asymmetry and scaling parameters.  all we need   *
+ *   to do is perform the scaling of the values, based on user parameters and  *
+ *   then return.  this code also recognizes a potential "trojan horse" attack *
+ *   and turns on the flag that forces Evaluate() to handle this.              *
  *                                                                             *
  *******************************************************************************
  */
@@ -64,24 +62,20 @@ void PreEvaluate(TREE * RESTRICT tree, int crafty_is_white)
  *   this is handled as 4 separate cases for each corner of *
  *   the board, for simplicity.                             *
  *                                                          *
- *   Note:  this is disabled if the time limit is greater   *
- *   than 30 seconds, since Crafty should be able to see    *
- *   the trouble with that much time.                       *
- *                                                          *
  ************************************************************
  */
-  trojan_check = 0;
+  shared->trojan_check = 0;
   if (BlackQueens && BlackRooks) {
     if (WhiteKingSQ == G1 || WhiteKingSQ == H1) {
       if (SetMask(G4) & BlackKnights || SetMask(G4) & BlackBishops) {
         if (SetMask(H3) & WhitePawns && SetMask(H5) & BlackPawns)
-          trojan_check = 1;
+          shared->trojan_check = 1;
       }
     }
     if (WhiteKingSQ == B1 || WhiteKingSQ == A1) {
       if (SetMask(B4) & BlackKnights || SetMask(B4) & BlackBishops) {
         if (SetMask(A3) & WhitePawns && SetMask(A5) & BlackPawns)
-          trojan_check = 1;
+          shared->trojan_check = 1;
       }
     }
   }
@@ -89,13 +83,13 @@ void PreEvaluate(TREE * RESTRICT tree, int crafty_is_white)
     if (BlackKingSQ == G8 || BlackKingSQ == H8) {
       if (SetMask(G5) & WhiteKnights || SetMask(G5) & WhiteBishops) {
         if (SetMask(H6) & BlackPawns && SetMask(H4) & WhitePawns)
-          trojan_check = 1;
+          shared->trojan_check = 1;
       }
     }
     if (BlackKingSQ == B8 || BlackKingSQ == A8) {
       if (SetMask(B5) & WhiteKnights || SetMask(B5) & WhiteBishops) {
         if (SetMask(A6) & BlackPawns && SetMask(A4) & BlackPawns)
-          trojan_check = 1;
+          shared->trojan_check = 1;
       }
     }
   }
@@ -109,8 +103,7 @@ void PreEvaluate(TREE * RESTRICT tree, int crafty_is_white)
  ************************************************************
  */
   if (((last_crafty_is_white != crafty_is_white) ||
-       (last_trojan_check != trojan_check)) &&
-      !test_mode) {
+          (last_trojan_check != shared->trojan_check)) && !test_mode) {
 /*
  **************************************************
  *                                                *
@@ -119,7 +112,7 @@ void PreEvaluate(TREE * RESTRICT tree, int crafty_is_white)
  *                                                *
  **************************************************
  */
-    if (trojan_check)
+    if (shared->trojan_check)
       Print(128, "              trojan check enabled\n");
     Print(128, "              clearing hash tables\n");
     ClearHashTableScores(1);
@@ -132,7 +125,7 @@ void PreEvaluate(TREE * RESTRICT tree, int crafty_is_white)
  ***************************************************
  */
     LearnPositionLoad();
-    last_clear = move_number;
+    last_clear = shared->move_number;
   }
 /*
  ************************************************************
@@ -145,12 +138,12 @@ void PreEvaluate(TREE * RESTRICT tree, int crafty_is_white)
  ************************************************************
  */
   if (Rule50Moves(0) > 50) {
-    if (last_clear < move_number - 10 || Rule50Moves(0) > 80) {
+    if (last_clear < shared->move_number - 10 || Rule50Moves(0) > 80) {
       ClearHashTableScores(0);
       LearnPositionLoad();
       Print(128, "              clearing hash tables (50 moves fix)\n");
     }
   }
   last_crafty_is_white = crafty_is_white;
-  last_trojan_check = trojan_check;
+  last_trojan_check = shared->trojan_check;
 }

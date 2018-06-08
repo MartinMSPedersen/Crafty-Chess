@@ -3,7 +3,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 09/23/04 */
+/* last modified 08/07/05 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -211,7 +211,7 @@ int HashProbe(TREE * RESTRICT tree, int ply, int depth, int wtm, int *alpha,
   return (avoid_null);
 }
 
-/* last modified 01/18/03 */
+/* last modified 08/07/05 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -258,7 +258,7 @@ void HashStore(TREE * RESTRICT tree, int ply, int depth, int wtm, int type,
  *                                                          *
  ************************************************************
  */
-  word1l = ((((transposition_id << 2) + type) << 1) + threat) << 26;
+  word1l = ((((shared->transposition_id << 2) + type) << 1) + threat) << 26;
   if (value > MATE - 300)
     value = value + ply - 1;
   else if (value < -MATE + 300)
@@ -287,7 +287,7 @@ void HashStore(TREE * RESTRICT tree, int ply, int depth, int wtm, int type,
   htable = trans_ref + ((int) word2 & hash_mask);
   draft = (int) htable->prefer.word1 >> 17 & 077777;
   age = htable->prefer.word1 >> 61;
-  age = age && (age != transposition_id);
+  age = age && (age != shared->transposition_id);
   if (age || (depth >= draft)) {
     if ((word1 ^ word2) != htable->prefer.word2) {
       hwhich =
@@ -304,7 +304,7 @@ void HashStore(TREE * RESTRICT tree, int ply, int depth, int wtm, int type,
   }
 }
 
-/* last modified 12/16/02 */
+/* last modified 08/07/05 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -355,7 +355,7 @@ void HashStorePV(TREE * RESTRICT tree, int ply, int wtm)
   } else {
     htable->always[hwhich].word1 = (BITBOARD) 65536;
     htable->always[hwhich].word1 |=
-        ((BITBOARD) ((transposition_id << 2) + WORTHLESS)) << 59;
+        ((BITBOARD) ((shared->transposition_id << 2) + WORTHLESS)) << 59;
     htable->always[hwhich].word1 |= (BITBOARD) tree->pv[ply].path[ply] << 32;
     htable->always[hwhich].word2 = temp_hashkey ^ htable->always[hwhich].word1;
   }

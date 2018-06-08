@@ -4,7 +4,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 01/22/04 */
+/* last modified 08/07/05 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -52,7 +52,7 @@ int Quiesce(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply)
     alpha = value;
     tree->pv[ply].pathl = ply - 1;
     tree->pv[ply].pathh = 0;
-    tree->pv[ply].pathd = iteration_depth;
+    tree->pv[ply].pathd = shared->iteration_depth;
   }
 /*
  ************************************************************
@@ -67,7 +67,8 @@ int Quiesce(TREE * RESTRICT tree, int alpha, int beta, int wtm, int ply)
  ************************************************************
  */
   tree->last[ply] = GenerateCaptures(tree, ply, wtm, tree->last[ply - 1]);
-  delta = alpha - largest_positional_score - (wtm ? Material : -Material);
+  delta =
+      alpha - shared->largest_positional_score - (wtm ? Material : -Material);
   goodmv = tree->last[ply - 1];
   sortv = tree->sort_value;
   for (movep = tree->last[ply - 1]; movep < tree->last[ply]; movep++) {

@@ -16,7 +16,7 @@ BITBOARD Mask(int arg1)
     return (i << (64 - arg1));
 }
 
-#if (!defined(INLINE_ASM) && !defined(ALPHA) && !defined(INLINE_AMD)) || (defined(ALPHA) && !defined(PopCnt))
+#if (!defined(INLINE_ASM) && !defined(VC_INLINE_ASM) && !defined(ALPHA) && !defined(INLINE_AMD)) || (defined(ALPHA) && !defined(PopCnt))
 
 #  if defined (_M_IA64)
 
@@ -56,7 +56,7 @@ int PopCnt(register BITBOARD a)
 
 #  else
 
-#    if !defined(INLINE_ASM)
+#    if !defined(INLINE_ASM) && !defined(VC_INLINE_ASM)
 int PopCnt(register BITBOARD a)
 {
   register int c = 0;
@@ -71,7 +71,7 @@ int PopCnt(register BITBOARD a)
 
 #  endif
 
-#  if defined (_M_AMD64)
+#  if defined (_M_AMD64) || defined (_M_IA64)
 
 extern unsigned char _BitScanReverse64(unsigned long *, unsigned __int64);
 
@@ -102,7 +102,7 @@ int LastOne(BITBOARD arg1)
 
 #  else
 
-#    if !defined(INLINE_ASM)
+#    if !defined(INLINE_ASM) && !defined(VC_INLINE_ASM)
 int FirstOne(BITBOARD arg1)
 {
   if (arg1 >> 48)

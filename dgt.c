@@ -23,9 +23,9 @@ void DGTDelayTime(int ms)
 {
   int oldt, newt;
 
-  oldt = ReadClock(elapsed);
+  oldt = ReadClock();
   do {
-    newt = ReadClock(elapsed);
+    newt = ReadClock();
   } while (newt - ms / 10 < oldt);
 }
 void DGTInit(int nargs, char *args[])

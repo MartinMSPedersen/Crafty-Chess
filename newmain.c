@@ -8,7 +8,7 @@
 #  include <pwd.h>
 #  include <sys/types.h>
 #endif
-#if defined(NUMA) && defined(LINUX)
+#if defined(LIBNUMA)
 #  include <numa.h>
 #endif
 #include <signal.h>
@@ -3166,15 +3166,7 @@
  *           implementations.  new NUMA changes to make sure that the local    *
  *           thread "blocks" are actually allocated on the NUMA node where     *
  *           the process actually runs, rather than on a remote node that      *
- *           will cause extra memory latency for often-used memory data.  bug  *
- *           in EvaluatePawns() caused the outside passer / outside            *
- *           candidate bonus to be triggered when the opponent has a simple    *
- *           protected passed pawn.  since the decoy value is nil with a       *
- *           protected passer (we can't take the supporing pawn or the passer  *
- *           will run) the outside candidate or passer doesn't help.  bug in   *
- *           king safety caused pieces to be attracted to the opponent's king, *
- *           even in simple endgames, inflating/deflating the score for a      *
- *           feature that was pointless.                                       *
+ *           will cause extra memory latency for often-used memory data.       *
  *                                                                             *
  *******************************************************************************
  */
@@ -3201,39 +3193,37 @@ int main(int argc, char **argv)
 /* Collect environmental variables */
   char *directory_spec = getenv("CRAFTY_BOOK_PATH");
 
-#if defined(NUMA) && defined(LINUX)
+#if defined(LIBNUMA)
   if (numa_available() >= 0) {
-    unsigned long cpus[8];
+    unsigned long cpus[16];
 
     numa_node_to_cpus(0, cpus, 64);
-    printf("\nMachine is NUMA, %d nodes (%d cpus/node)\n\n",
-        numa_max_node() + 1, PopCnt(cpus[0]));
+    printf("\nMachine is NUMA architecture, %d nodes (%d cpus/node)\n\n", numa_max_node() + 1, PopCnt(cpus[0]));
   }
 #endif
-
   shared = SharedMalloc(sizeof(SHARED), 0);
-  shared->smp_idle = 0;
-  shared->smp_threads = 0;
-  shared->initialized_threads = 0;
-  shared->crafty_is_white = 0;
-  shared->average_nps = 0;
-  shared->nodes_between_time_checks = 1000000;
-  shared->nodes_per_second = 1000000;
-  shared->transposition_id = 0;
-  shared->thinking = 0;
-  shared->pondering = 0;
-  shared->puzzling = 0;
-  shared->booking = 0;
-  shared->trojan_check = 0;
-  shared->computer_opponent = 0;
-  shared->use_asymmetry = 1;
-  shared->max_threads = 0;
-  shared->min_thread_depth = 3 * INCPLY;
-  shared->max_thread_group = 4;
-  shared->split_at_root = 1;
-  shared->noise_level = 1000000;
+  shared->smp_idle=0;
+  shared->smp_threads=0;
+  shared->initialized_threads=0;
+  shared->crafty_is_white=0;
+  shared->average_nps=0;
+  shared->nodes_between_time_checks=1000000;
+  shared->nodes_per_second=1000000;
+  shared->transposition_id=0;
+  shared->thinking=0;
+  shared->pondering=0;
+  shared->puzzling=0;
+  shared->booking=0;
+  shared->trojan_check=0;
+  shared->computer_opponent=0;
+  shared->use_asymmetry=1;
+  shared->max_threads=0;
+  shared->min_thread_depth=3*INCPLY;
+  shared->max_thread_group=4;
+  shared->split_at_root=1;
+  shared->noise_level=1000000;
   shared->quit = 0;
-  shared->display_options = 4095 - 256 - 512;
+  shared->display_options=4095-256-512;
   shared->tc_moves = 60;
   shared->tc_time = 180000;
   shared->tc_time_remaining = 180000;
@@ -3276,8 +3266,7 @@ int main(int argc, char **argv)
  ************************************************************
  */
   shared->local[0] =
-      (TREE *) ((~(size_t) 127) & (127 + (size_t) SharedMalloc(sizeof(TREE) +
-              127, 0)));
+      (TREE *) ((~(size_t) 127) & (127 + (size_t) SharedMalloc(sizeof(TREE) + 127, 0)));
   shared->local[0]->used = 1;
   shared->local[0]->stop = 0;
   shared->local[0]->ply = 1;
@@ -3391,8 +3380,7 @@ int main(int argc, char **argv)
     signal(SIGINT, SIG_IGN);
 #endif
 #if defined(SMP)
-  Print(128, "\nCrafty v%s (%d cpus)\n\n", version, Max(shared->max_threads,
-          1));
+  Print(128, "\nCrafty v%s (%d cpus)\n\n", version, Max(shared->max_threads, 1));
   if (ics)
     printf("*whisper Hello from Crafty v%s! (%d cpus)\n", version,
         Max(shared->max_threads, 1));
@@ -3485,8 +3473,6 @@ int main(int argc, char **argv)
           nargs = ReadParse(buffer, args, " 	;");
           move = InputMove(tree, args[0], 0, wtm, 0, 0);
           result = !move;
-          if (move)
-            last_pv.path[1] = 0;
         } else {
           input_status = 0;
           if (result == 3)
@@ -3504,8 +3490,7 @@ int main(int argc, char **argv)
  ************************************************************
  */
       if (result == 0) {
-        fseek(history_file, ((shared->move_number - 1) * 2 + 1 - wtm) * 10,
-            SEEK_SET);
+        fseek(history_file, ((shared->move_number - 1) * 2 + 1 - wtm) * 10, SEEK_SET);
         fprintf(history_file, "%9s\n", OutputMove(tree, move, 0, wtm));
         MakeMoveRoot(tree, move, wtm);
         move_actually_played = 1;
@@ -3533,8 +3518,7 @@ int main(int argc, char **argv)
         wtm = Flip(wtm);
         if (wtm)
           shared->move_number++;
-        time_used_opponent =
-            shared->opponent_end_time - shared->opponent_start_time;
+        time_used_opponent = shared->opponent_end_time - shared->opponent_start_time;
         if (!force)
           Print(1, "              time used: %s\n",
               DisplayTime(time_used_opponent));
@@ -3555,10 +3539,6 @@ int main(int argc, char **argv)
  ************************************************************
  */
     shared->crafty_is_white = wtm;
-    shared->root_wtm = wtm;
-    DisplayChessBoard(log_file, tree->pos);
-    strcpy(buffer, "score");
-    Option(tree);
     if (presult == 2) {
       if ((From(ponder_move) == From(move)) && (To(ponder_move) == To(move)) &&
           (Piece(ponder_move) == Piece(move)) &&
@@ -3686,14 +3666,14 @@ int main(int argc, char **argv)
       tree->position[MAXPLY] = tree->position[0];
       MakeMove(tree, MAXPLY, last_pv.path[1], wtm);
       tree->rep_list[++tree->rep_game] = HashKey;
-      if (RepetitionDraw(tree, MAXPLY + 1) == 1) {
+      if (RepetitionDraw(tree,MAXPLY+1) == 1) {
         Print(128, "%sI claim a draw by 3-fold repetition after my move.%s\n",
             Reverse(), Normal());
         if (xboard)
           Print(4095, "1/2-1/2 {Drawn by 3-fold repetition}\n");
         value = DrawScore(wtm);
       }
-      if (RepetitionDraw(tree, MAXPLY + 1) == 2) {
+      if (RepetitionDraw(tree,MAXPLY+1) == 2) {
         Print(128, "%sI claim a draw by the 50 move rule after my move.%s\n",
             Reverse(), Normal());
         if (xboard)
@@ -3738,8 +3718,8 @@ int main(int argc, char **argv)
           Print(128, "\n");
         } else if (xboard) {
           if (log_file)
-            fprintf(log_file, "White(%d): %s\n", shared->move_number,
-                OutputMove(tree, last_pv.path[1], 0, wtm));
+            fprintf(log_file, "White(%d): %s\n", shared->move_number, OutputMove(tree,
+                    last_pv.path[1], 0, wtm));
           printf("move %s\n", OutputMove(tree, last_pv.path[1], 0, wtm));
         } else
           Print(128, "*%s\n", OutputMove(tree, last_pv.path[1], 0, wtm));
@@ -3763,8 +3743,8 @@ int main(int argc, char **argv)
           Print(128, "\n");
         } else if (xboard) {
           if (log_file)
-            fprintf(log_file, "Black(%d): %s\n", shared->move_number,
-                OutputMove(tree, last_pv.path[1], 0, wtm));
+            fprintf(log_file, "Black(%d): %s\n", shared->move_number, OutputMove(tree,
+                    last_pv.path[1], 0, wtm));
           printf("move %s\n", OutputMove(tree, last_pv.path[1], 0, wtm));
         } else
           Print(128, "*%s\n", OutputMove(tree, last_pv.path[1], 0, wtm));
@@ -3781,8 +3761,7 @@ int main(int argc, char **argv)
       time_used = shared->program_end_time - shared->program_start_time;
       Print(1, "              time used: %s\n", DisplayTime(time_used));
       TimeAdjust(time_used, crafty);
-      fseek(history_file, ((shared->move_number - 1) * 2 + 1 - wtm) * 10,
-          SEEK_SET);
+      fseek(history_file, ((shared->move_number - 1) * 2 + 1 - wtm) * 10, SEEK_SET);
       fprintf(history_file, "%9s\n", OutputMove(tree, last_pv.path[1], 0, wtm));
 /*
  ************************************************************
@@ -3837,9 +3816,9 @@ int main(int argc, char **argv)
     ValidatePosition(tree, 0, last_pv.path[1], "Main(2)");
     if (kibitz) {
       if (shared->kibitz_depth)
-        Kibitz(2, !wtm, shared->kibitz_depth,
-            shared->end_time - shared->start_time, value, tree->nodes_searched,
-            tree->egtb_probes_successful, shared->kibitz_text);
+        Kibitz(2, !wtm, shared->kibitz_depth, shared->end_time - shared->start_time, value,
+            tree->nodes_searched, tree->egtb_probes_successful,
+            shared->kibitz_text);
       else
         Kibitz(4, !wtm, 0, 0, 0, 0, 0, shared->kibitz_text);
     }

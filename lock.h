@@ -15,7 +15,6 @@
 #  define pthread_attr_t  HANDLE
 #  define pthread_t       HANDLE
 #  define thread_t        HANDLE
-#  define tfork(t,f,p)    NumaStartThread((void *)(f),(void *)(p))
 
 extern pthread_t NumaStartThread(void *func, void *args);
 
@@ -59,26 +58,13 @@ __forceinline void Lock(volatile LONG * hPtr)
 /*
  *******************************************************************************
  *                                                                             *
- *  this is a Unix-based operating system.                                     *
- *                                                                             *
- *  MUTEX forces us ot use the normal POSIX-threads MUTEX calls, which block   *
- *  when a resource is unavailable.  This is not great for performance.  If    *
- *  MUTEX is not defined, then we use inline assembly code for Lock/Unlock     *
- *  as needed.                                                                 *
- *                                                                             *
+ *  this is a Unix-based operating system.  define the spinlock code as needed *
+ *  for SMP synchronization.                                                   *
  *                                                                             *
  *******************************************************************************
  */
 
-#if defined(MUTEX)
-
-#  define Lock(v)          pthread_mutex_lock(&v)
-#  define LockInit(v)      pthread_mutex_init(&v,0)
-#  define LockFree(v)      pthread_mutex_destroy(&v)
-#  define Unlock(v)        pthread_mutex_unlock(&v)
-#  define lock_t           pthread_mutex_t
-
-#elif defined(ALPHA)
+#if defined(ALPHA)
 
 #  include <machine/builtins.h>
 
@@ -124,9 +110,7 @@ static void __inline__ UnlockX86(volatile int *lock)
 #  define Lock(p)               (LockX86(&p))
 #  define lock_t                volatile int
 
-#endif                          /* MUTEX */
-
-#define tfork(t,f,p)   pthread_create(&t,&pthread_attr,f,(void*) p)
+#endif
 
 #endif                          /* windows or unix */
 

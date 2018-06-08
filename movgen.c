@@ -159,8 +159,10 @@ int *GenerateCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
 
         *move++ = (to - 7) | (to << 6) | (pawn << 12) | (cap << 15);
       } else
-        *move++ = (to - 7) | (to << 6) | (pawn << 12) |
-          ((-PcOnSq(to)) << 15) | (queen << 18);
+        *move++ =
+            (to -
+            7) | (to << 6) | (pawn << 12) | ((-PcOnSq(to)) << 15) | (queen <<
+            18);
       Clear(to, pcapturesl);
     }
 
@@ -172,8 +174,10 @@ int *GenerateCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
 
         *move++ = (to - 9) | (to << 6) | (pawn << 12) | (cap << 15);
       } else
-        *move++ = (to - 9) | (to << 6) | (pawn << 12) |
-          ((-PcOnSq(to)) << 15) | (queen << 18);
+        *move++ =
+            (to -
+            9) | (to << 6) | (pawn << 12) | ((-PcOnSq(to)) << 15) | (queen <<
+            18);
       Clear(to, pcapturesr);
     }
   }
@@ -314,8 +318,9 @@ int *GenerateCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
 
         *move++ = (to + 9) | (to << 6) | (pawn << 12) | (cap << 15);
       } else
-        *move++ = (to + 9) | (to << 6) | (pawn << 12) |
-          (PcOnSq(to) << 15) | (queen << 18);
+        *move++ =
+            (to +
+            9) | (to << 6) | (pawn << 12) | (PcOnSq(to) << 15) | (queen << 18);
       Clear(to, pcapturesl);
     }
 
@@ -327,8 +332,9 @@ int *GenerateCaptures(TREE * RESTRICT tree, int ply, int wtm, int *move)
 
         *move++ = (to + 7) | (to << 6) | (pawn << 12) | (cap << 15);
       } else
-        *move++ = (to + 7) | (to << 6) | (pawn << 12) |
-          (PcOnSq(to) << 15) | (queen << 18);
+        *move++ =
+            (to +
+            7) | (to << 6) | (pawn << 12) | (PcOnSq(to) << 15) | (queen << 18);
       Clear(to, pcapturesr);
     }
   }

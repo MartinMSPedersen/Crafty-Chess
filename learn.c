@@ -9,7 +9,7 @@
 #  include <unistd.h>
 #endif
 
-/* last modified 02/25/01 */
+/* last modified 08/07/05 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -188,7 +188,7 @@ void LearnBook(TREE * RESTRICT tree, int wtm, int search_value,
       learn_value =
           LearnFunction(learn_value, search_depth,
           crafty_rating - opponent_rating, learn_value < 0);
-      learn_value *= (crafty_is_white) ? 1 : -1;
+      learn_value *= (shared->crafty_is_white) ? 1 : -1;
     } else
       learn_value = search_value;
 /*
@@ -356,7 +356,7 @@ void LearnBook(TREE * RESTRICT tree, int wtm, int search_value,
   }
 }
 
-/* last modified 03/11/98 */
+/* last modified 08/07/05 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -401,7 +401,7 @@ void LearnBookUpdate(TREE * RESTRICT tree, int wtm, int move, float learn_value)
       UnmakeMove(tree, 1, move, wtm);
       if (move_index >= cluster)
         return;
-      if (book_buffer[move_index].learn == 0.0)
+      if (fabs(book_buffer[move_index].learn) < 0.0001)
         book_buffer[move_index].learn = learn_value;
       else
         book_buffer[move_index].learn =
@@ -413,7 +413,7 @@ void LearnBookUpdate(TREE * RESTRICT tree, int wtm, int move, float learn_value)
   }
 }
 
-/* last modified 03/11/98 */
+/* last modified 08/07/05 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -448,7 +448,7 @@ int LearnFunction(int sv, int search_depth, int rating_difference,
   return ((int) (sv * multiplier));
 }
 
-/* last modified 10/03/99 */
+/* last modified 08/07/05 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -491,7 +491,7 @@ void LearnImport(TREE * RESTRICT tree, int nargs, char **args)
  *                                                          *
  ************************************************************
  */
-  display_options &= 4095 - 128;
+  shared->display_options &= 4095 - 128;
   if (!strcmp(*args, "book.lrn") || !strcmp(*args, "position.lrn")) {
     Print(4095, "ERROR  you must not import either book.lrn or position.lrn\n");
     Print(4095, "       if you really want to do this, first rename them to\n");
@@ -516,7 +516,7 @@ void LearnImport(TREE * RESTRICT tree, int nargs, char **args)
   InitializeChessBoard(&tree->position[0]);
 }
 
-/* last modified 03/11/98 */
+/* last modified 08/07/05 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -579,7 +579,7 @@ void LearnImportBook(TREE * RESTRICT tree, int nargs, char **args)
       printf(" (%d)\n", added_lines + 1);
     InitializeChessBoard(&tree->position[0]);
     wtm = 0;
-    move_number = 0;
+    shared->move_number = 0;
     for (i = 0; i < 100; i++) {
       fseek(history_file, i * 10, SEEK_SET);
       fprintf(history_file, "         \n");
@@ -621,7 +621,7 @@ void LearnImportBook(TREE * RESTRICT tree, int nargs, char **args)
     do {
       wtm = Flip(wtm);
       if (wtm)
-        move_number++;
+        shared->move_number++;
       do {
         nextc = fgetc(learn_in);
       } while (nextc == ' ' || nextc == '\n');
@@ -632,7 +632,8 @@ void LearnImportBook(TREE * RESTRICT tree, int nargs, char **args)
       if (move < 0)
         break;
       strcpy(text, OutputMove(tree, move, 0, wtm));
-      fseek(history_file, ((move_number - 1) * 2 + 1 - wtm) * 10, SEEK_SET);
+      fseek(history_file, ((shared->move_number - 1) * 2 + 1 - wtm) * 10,
+          SEEK_SET);
       fprintf(history_file, "%9s\n", text);
       moves_out_of_book = 0;
       MakeMoveRoot(tree, move, wtm);
@@ -641,7 +642,7 @@ void LearnImportBook(TREE * RESTRICT tree, int nargs, char **args)
       break;
     fscanf(learn_in, "%d %d %d}\n", &learn_value, &depth, &rating_difference);
     moves_out_of_book = LEARN_INTERVAL + 1;
-    move_number += LEARN_INTERVAL + 1 - wtm;
+    shared->move_number += LEARN_INTERVAL + 1 - wtm;
     for (i = 0; i < LEARN_INTERVAL; i++)
       book_learn_eval[i] = learn_value;
     crafty_rating = rating_difference;
@@ -650,11 +651,11 @@ void LearnImportBook(TREE * RESTRICT tree, int nargs, char **args)
     LearnBook(tree, wtm, learn_value, depth, 1, 1);
     added_lines++;
   }
-  move_number = 1;
+  shared->move_number = 1;
   Print(4095, "\nadded %d learned book lines to book.bin\n", added_lines);
 }
 
-/* last modified 02/06/01 */
+/* last modified 08/07/05 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -843,7 +844,7 @@ void LearnImportCAP(TREE * RESTRICT tree, int nargs, char **args)
   Print(128, "processed %d book CAP scores.\n", CAP_found - 1);
 }
 
-/* last modified 03/11/98 */
+/* last modified 08/07/05 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -1070,7 +1071,7 @@ void LearnImportPosition(TREE * RESTRICT tree, int nargs, char **args)
   fflush(position_lrn_file);
 }
 
-/* last modified 01/26/04 */
+/* last modified 08/07/05 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -1209,7 +1210,7 @@ void LearnPosition(TREE * RESTRICT tree, int wtm, int last_value, int value)
   fflush(position_lrn_file);
 }
 
-/* last modified 10/25/99 */
+/* last modified 08/07/05 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -1235,7 +1236,7 @@ void LearnPositionLoad(void)
     return;
   if (!position_file)
     return;
-  if (time_limit < 100)
+  if (shared->time_limit < 100)
     return;
 /*
  ************************************************************

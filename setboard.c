@@ -4,7 +4,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 12/26/03 */
+/* last modified 08/07/05 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -48,7 +48,7 @@
 void SetBoard(SEARCH_POSITION * position, int nargs, char *args[], int special)
 {
   int twtm, i, match, num, pos, square, tboard[64];
-  int bcastle, ep, wcastle;
+  int bcastle, ep, wcastle, error = 0;
   char input[80];
   static const char bdinfo[] =
       { 'q', 'r', 'b', '*', 'k', 'n', 'p', '*', 'P', 'N',
@@ -61,7 +61,7 @@ void SetBoard(SEARCH_POSITION * position, int nargs, char *args[], int special)
   };
   int whichsq;
   static const int firstsq[8] = { 56, 48, 40, 32, 24, 16, 8, 0 };
-  TREE *const tree = local[0];
+  TREE *const tree = shared->local[0];
 
   if (special)
     strcpy(input, initial_position);
@@ -141,8 +141,10 @@ void SetBoard(SEARCH_POSITION * position, int nargs, char *args[], int special)
     twtm = 1;
   else if (args[1][0] == 'b')
     twtm = 0;
-  else
+  else {
     printf("side to move is bad\n");
+    error = 1;
+  }
 /*
  ************************************************************
  *                                                          *
@@ -163,8 +165,10 @@ void SetBoard(SEARCH_POSITION * position, int nargs, char *args[], int special)
           bcastle += 1;
         else if (match == 3)
           bcastle += 2;
-        else if (args[2][0] != '-')
+        else if (args[2][0] != '-') {
           printf("castling status is bad.\n");
+          error = 1;
+        }
       }
     }
   }
@@ -173,8 +177,10 @@ void SetBoard(SEARCH_POSITION * position, int nargs, char *args[], int special)
       if (args[3][0] >= 'a' && args[3][0] <= 'h' && args[3][1] > '0' &&
           args[3][1] < '9') {
         ep = (args[3][1] - '1') * 8 + args[3][0] - 'a';
-      } else if (args[3][0] != '-')
+      } else if (args[3][0] != '-') {
         printf("enpassant status is bad.\n");
+        error = 1;
+      }
     }
   }
   for (i = 0; i < 64; i++)
@@ -194,6 +200,7 @@ void SetBoard(SEARCH_POSITION * position, int nargs, char *args[], int special)
     if (!ep) {
       printf("enpassant status is bad (must be on 3rd/6th rank only.\n");
       ep = 0;
+      error = 1;
     }
     position->enpassant_target = ep;
   }
@@ -212,8 +219,15 @@ void SetBoard(SEARCH_POSITION * position, int nargs, char *args[], int special)
       ((position->b_castle & 2) && (PcOnSq(A8) != -rook)) ||
       ((position->b_castle & 1) && (PcOnSq(H8) != -rook))) {
     printf("ERROR-- castling status does not match board position\n");
-    InitializeChessBoard(&tree->position[0]);
+    error = 1;
   }
+/*
+ ************************************************************
+ *                                                          *
+ *   now set the bitboards so that error tests can be done. *
+ *                                                          *
+ ************************************************************
+ */
   if ((twtm && position->enpassant_target &&
           (PcOnSq(position->enpassant_target + 8) != -pawn) &&
           (PcOnSq(position->enpassant_target - 7) != pawn) &&
@@ -225,32 +239,44 @@ void SetBoard(SEARCH_POSITION * position, int nargs, char *args[], int special)
     position->enpassant_target = 0;
   }
   SetChessBitBoards(position);
-  if (log_file)
-    DisplayChessBoard(log_file, tree->pos);
-  tree->rep_game = 0;
-  tree->rep_list[tree->rep_game] = HashKey;
-  position->rule_50_moves = 0;
-  if (!special) {
-    last_mate_score = 0;
-    for (i = 0; i < 4096; i++) {
-      tree->history_w[i] = 0;
-      tree->history_b[i] = 0;
+/*
+ ************************************************************
+ *                                                          *
+ *   now check the position for a sane position, which      *
+ *   means no more than 8 pawns, no more than 10 knights,   *
+ *   bishops or rooks, no more than 9 queens, no pawns on   *
+ *   1st or 8th rank, etc.                                  *
+ *                                                          *
+ ************************************************************
+ */
+  wtm = twtm;
+  error += InvalidPosition(tree);
+  if (!error) {
+    if (log_file)
+      DisplayChessBoard(log_file, tree->pos);
+    tree->rep_game = 0;
+    tree->rep_list[tree->rep_game] = HashKey;
+    position->rule_50_moves = 0;
+    if (!special) {
+      last_mate_score = 0;
+      for (i = 0; i < 4096; i++) {
+        tree->history_w[i] = 0;
+        tree->history_b[i] = 0;
+      }
+      for (i = 0; i < MAXPLY; i++) {
+        tree->killers[i].move1 = 0;
+        tree->killers[i].move2 = 0;
+      }
+      last_pv.pathd = 0;
+      last_pv.pathl = 0;
+      tree->pv[0].pathd = 0;
+      tree->pv[0].pathl = 0;
+      moves_out_of_book = 0;
+      shared->lazy_eval_cutoff = 200;
+      shared->largest_positional_score = 300;
     }
-    for (i = 0; i < MAXPLY; i++) {
-      tree->killers[i].move1 = 0;
-      tree->killers[i].move2 = 0;
-    }
-    last_pv.pathd = 0;
-    last_pv.pathl = 0;
-    tree->pv[0].pathd = 0;
-    tree->pv[0].pathl = 0;
-    moves_out_of_book = 0;
-    lazy_eval_cutoff = 200;
-    largest_positional_score = 300;
-    wtm = twtm;
-  }
-  if (Check(!wtm)) {
-    Print(4095, "ERROR side not on move is in check!\n");
+  } else {
     InitializeChessBoard(&tree->position[0]);
+    Print(4095, "Illegal position, using normal initial chess position\n");
   }
 }

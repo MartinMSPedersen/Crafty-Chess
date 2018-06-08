@@ -29,71 +29,71 @@
 
 /* system includes */
 
-#include <stdio.h>
-#include <stdlib.h>
-#if !defined(NT_i386)
+#  include <stdio.h>
+#  include <stdlib.h>
+#  if !defined(NT_i386)
 #  include <unistd.h>
-#endif
-#include <string.h>
-#include <ctype.h>
-#include <time.h>
-#if defined(NT_i386)
+#  endif
+#  include <string.h>
+#  include <ctype.h>
+#  include <time.h>
+#  if defined(NT_i386)
 #  include <process.h>
-#endif
+#  endif
 /* Crafty includes */
 
-#include "chess.h"
-#include "data.h"
+#  include "chess.h"
+#  include "data.h"
 
 /* EPD Kit definitions (host program independent) */
 
-#include "epddefs.h"
+#  include "epddefs.h"
 
 /* EPD Kit routine prototypes (host program independent) */
 
-#include "epd.h"
+#  include "epd.h"
 
 /* prototypes for this file (host program dependent) */
 
-#include "epdglue.h"
+#  include "epdglue.h"
 
 /* EPD glue command type */
 
 typedef siT egcommT, *egcommptrT;
 
-#define egcommL 26
-#define egcomm_nil (-1)
+#  define egcommL 26
+#  define egcomm_nil (-1)
 
-#define egcomm_epdapgn  0       /* append a PGN game to a file */
-#define egcomm_epdbfix  1       /* fix file for Bookup import */
-#define egcomm_epdcert  2       /* display certain evaluation (if possible) */
-#define egcomm_epdcics  3       /* slave to an Internet Chess Server */
-#define egcomm_epdcomm  4       /* slave to the Duplex referee program */
-#define egcomm_epddpgn  5       /* display the current game in PGN */
-#define egcomm_epddsml  6       /* display SAN move list */
-#define egcomm_epddstr  7       /* display PGN Seven Tag Roster */
-#define egcomm_epddtpv  8       /* display PGN tag pair value */
-#define egcomm_epdenum  9       /* enumerate EPD file */
-#define egcomm_epdhelp 10       /* display EPD help */
-#define egcomm_epdlink 11       /* slave to the Argus referee program */
-#define egcomm_epdlpgn 12       /* load a PGN game from a file */
-#define egcomm_epdlrec 13       /* load an EPD record form a file */
-#define egcomm_epdmore 14       /* more help */
-#define egcomm_epdnoop 15       /* no operation */
-#define egcomm_epdpfdn 16       /* process file: data normalization */
-#define egcomm_epdpfdr 17       /* process file: data repair */
-#define egcomm_epdpfga 18       /* process file: general analysis */
-#define egcomm_epdpflc 19       /* process file: locate cooks */
-#define egcomm_epdpfop 20       /* process file: operation purge */
-#define egcomm_epdscor 21       /* score EPD benchmark result file */
-#define egcomm_epdshow 22       /* show EPD four fields for current position */
-#define egcomm_epdspgn 23       /* save a PGN game to a file */
-#define egcomm_epdstpv 24       /* set PGN tag pair value */
-#define egcomm_epdtest 25       /* developer testing */
+#  define egcomm_epdapgn  0     /* append a PGN game to a file */
+#  define egcomm_epdbfix  1     /* fix file for Bookup import */
+#  define egcomm_epdcert  2     /* display certain evaluation (if possible) */
+#  define egcomm_epdcics  3     /* slave to an Internet Chess Server */
+#  define egcomm_epdcomm  4     /* slave to the Duplex referee program */
+#  define egcomm_epddpgn  5     /* display the current game in PGN */
+#  define egcomm_epddsml  6     /* display SAN move list */
+#  define egcomm_epddstr  7     /* display PGN Seven Tag Roster */
+#  define egcomm_epddtpv  8     /* display PGN tag pair value */
+#  define egcomm_epdenum  9     /* enumerate EPD file */
+#  define egcomm_epdhelp 10     /* display EPD help */
+#  define egcomm_epdlink 11     /* slave to the Argus referee program */
+#  define egcomm_epdlpgn 12     /* load a PGN game from a file */
+#  define egcomm_epdlrec 13     /* load an EPD record form a file */
+#  define egcomm_epdmore 14     /* more help */
+#  define egcomm_epdnoop 15     /* no operation */
+#  define egcomm_epdpfdn 16     /* process file: data normalization */
+#  define egcomm_epdpfdr 17     /* process file: data repair */
+#  define egcomm_epdpfga 18     /* process file: general analysis */
+#  define egcomm_epdpflc 19     /* process file: locate cooks */
+#  define egcomm_epdpfop 20     /* process file: operation purge */
+#  define egcomm_epdscor 21     /* score EPD benchmark result file */
+#  define egcomm_epdshow 22     /* show EPD four fields for current position */
+#  define egcomm_epdspgn 23     /* save a PGN game to a file */
+#  define egcomm_epdstpv 24     /* set PGN tag pair value */
+#  define egcomm_epdtest 25     /* developer testing */
 
 /* output text buffer */
 
-#define tbufL 256
+#  define tbufL 256
 static char tbufv[tbufL];
 
 /* EPD glue command strings */
@@ -640,7 +640,7 @@ void EGGetIndexedHostPosition(TREE * RESTRICT tree, siT posdex, int active)
 
 /* read from the host fullmove number */
 
-  fmvn = move_number;
+  fmvn = shared->move_number;
 
 /* set the EPD current position */
 
@@ -663,7 +663,7 @@ void EGGetHostPosition(void)
 
 /* transfer from ply zero host position */
 
-  EGGetIndexedHostPosition(local[0], 0, wtm);
+  EGGetIndexedHostPosition(shared->local[0], 0, wtm);
 
   return;
 }
@@ -680,7 +680,7 @@ void EGPutHostPosition(void)
   siT hmvc;
   siT fmvn;
   siT index;
-  TREE *tree = local[0];
+  TREE *tree = shared->local[0];
 
 /* this is an internal EPD glue routine */
 
@@ -740,7 +740,7 @@ void EGPutHostPosition(void)
 
 /* copy the fullmove number */
 
-  move_number = fmvn;
+  shared->move_number = fmvn;
 
 /* set secondary host data items */
 
@@ -753,7 +753,7 @@ void EGPutHostPosition(void)
 /* clear the host history */
 
   for (index = 0; index < (sqL * sqL); index++)
-    local[0]->history_w[index] = local[0]->history_b[index] = 0;
+    shared->local[0]->history_w[index] = shared->local[0]->history_b[index] = 0;
 
 /* clear the host killer information */
 
@@ -896,46 +896,22 @@ int EGIterate(siT wtm_flag, siT think_flag)
   mptrT mptr;
   mT m;
   epdptrT epdptr;
-  TREE *tree = local[0];
-
-/* if there is only one move, then select it without search */
+  TREE *tree = shared->local[0];
 
   EPDGenMoves();
-  if (EPDFetchMoveCount() == 1) {
-/* only one move, bypass Iterate() */
-
-    mptr = EPDFetchMove(0);
-    m = *mptr;
-    move = EGMapToHostMove(m);
-
-/* set Iterate() score result */
-
-    if (m.m_flag & mf_chmt)
-      value = EGMapToHostScore(synth_mate(1));
-    else
-      value = EGMapToHostScore(cpev_draw);
-
-/* set Iterate() result variables */
-
-    tree->pv[0].pathh = 0;
-    tree->pv[0].pathl = 1;
-    tree->pv[0].pathd = 1;
-    tree->pv[0].path[1] = move;
-  } else {
 /* save current kit position */
 
-    epdptr = EPDGetCurrentPosition();
+  epdptr = EPDGetCurrentPosition();
 
 /* more than one move, execute regular search */
 
-    value = Iterate(wtm_flag, think_flag, 0);
+  value = Iterate(wtm_flag, think_flag, 0);
 
 /* restore kit position */
 
-    EPDRealize(epdptr);
-    EPDReleaseEPD(epdptr);
-    EPDGenMoves();
-  };
+  EPDRealize(epdptr);
+  EPDReleaseEPD(epdptr);
+  EPDGenMoves();
 
   last_pv = tree->pv[0];
   last_value = value;
@@ -955,7 +931,7 @@ static epdptrT EGCommHandler(epdptrT epdptr0, siptrT flagptr)
   sanT san;
   int move;
   char tv[tL];
-  TREE *tree = local[0];
+  TREE *tree = shared->local[0];
 
 /* set flag: no errors (so far) */
 
@@ -1035,12 +1011,13 @@ static epdptrT EGCommHandler(epdptrT epdptr0, siptrT flagptr)
 
     eopptr = EPDLocateEOPCode(epdptr0, epdso_sm);
     move = InputMove(tree, eopptr->eop_headeov->eov_str, 0, wtm, 0, 0);
-    fseek(history_file, ((((move_number - 1) * 2) + 1 - wtm) * 10), SEEK_SET);
+    fseek(history_file, ((((shared->move_number - 1) * 2) + 1 - wtm) * 10),
+        SEEK_SET);
     fprintf(history_file, "%9s\n", eopptr->eop_headeov->eov_str);
     MakeMoveRoot(tree, move, wtm);
     wtm = Flip(wtm);
     if (wtm)
-      move_number++;
+      shared->move_number++;
 
 /* execute the move in the EPD Kit */
 
@@ -1090,12 +1067,13 @@ static epdptrT EGCommHandler(epdptrT epdptr0, siptrT flagptr)
     eopptr = EPDLocateEOPCode(epdptr0, epdso_sm);
     if (eopptr != NULL) {
       move = InputMove(tree, eopptr->eop_headeov->eov_str, 0, wtm, 0, 0);
-      fseek(history_file, ((((move_number - 1) * 2) + 1 - wtm) * 10), SEEK_SET);
+      fseek(history_file, ((((shared->move_number - 1) * 2) + 1 - wtm) * 10),
+          SEEK_SET);
       fprintf(history_file, "%9s\n", eopptr->eop_headeov->eov_str);
       MakeMoveRoot(tree, move, wtm);
       wtm = Flip(wtm);
       if (wtm)
-        move_number++;
+        shared->move_number++;
 
 /* execute the move in the EPD Kit */
 
@@ -1114,7 +1092,7 @@ static epdptrT EGCommHandler(epdptrT epdptr0, siptrT flagptr)
 /* at least one move exists, set up for search */
 
       ponder_move = 0;
-      thinking = 1;
+      shared->thinking = 1;
       last_pv.pathd = 0;
       last_pv.pathl = 0;
       tree->position[1] = tree->position[0];
@@ -1136,7 +1114,8 @@ static epdptrT EGCommHandler(epdptrT epdptr0, siptrT flagptr)
 
 /* output to temporary history file */
 
-      fseek(history_file, ((((move_number - 1) * 2) + 1 - wtm) * 10), SEEK_SET);
+      fseek(history_file, ((((shared->move_number - 1) * 2) + 1 - wtm) * 10),
+          SEEK_SET);
       fprintf(history_file, "%9s\n", san);
 
 /* update host position */
@@ -1144,7 +1123,7 @@ static epdptrT EGCommHandler(epdptrT epdptr0, siptrT flagptr)
       MakeMoveRoot(tree, move, wtm);
       wtm = Flip(wtm);
       if (wtm)
-        move_number++;
+        shared->move_number++;
 
 /* create reply EPD structure */
 
@@ -1194,7 +1173,7 @@ static epdptrT EGCommHandler(epdptrT epdptr0, siptrT flagptr)
     InitializeHashTables();
 
     wtm = 1;
-    move_number = 1;
+    shared->move_number = 1;
 
 /* open the temporary history file */
 
@@ -2240,7 +2219,7 @@ static siT EGProcessPFGA(void)
   eopptrT eopptr;
   epdptrT epdptr;
   char ev[epdL];
-  TREE *tree = local[0];
+  TREE *tree = shared->local[0];
 
 /* this is an internal EPD glue routine */
 
@@ -2339,7 +2318,7 @@ static siT EGProcessPFGA(void)
 /* set host search parameters */
 
           tree->position[1] = tree->position[0];
-          iteration_depth = 0;
+          shared->iteration_depth = 0;
           ponder = 0;
 
 /* get the starting time */
@@ -2356,7 +2335,7 @@ static siT EGProcessPFGA(void)
 
 /* extract analysis count: depth */
 
-          host_acd = iteration_depth;
+          host_acd = shared->iteration_depth;
           if (host_acd == 0)
             host_acd = 1;
 

@@ -5,7 +5,7 @@
 #include "data.h"
 #include "epdglue.h"
 
-/* modified 04/28/98 */
+/* modified 08/07/05 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -34,22 +34,22 @@ int Thread(TREE * RESTRICT tree)
  *                                                          *
  ************************************************************
  */
-  Lock(lock_smp);
-  for (proc = 0; proc < max_threads && thread[proc]; proc++);
-  if (proc == max_threads || tree->stop) {
-    Unlock(lock_smp);
+  Lock(shared->lock_smp);
+  for (proc = 0; proc < shared->max_threads && shared->thread[proc]; proc++);
+  if (proc == shared->max_threads || tree->stop) {
+    Unlock(shared->lock_smp);
     return (0);
   }
 #  if defined(DEBUGSMP)
-  Lock(lock_io);
+  Lock(shared->lock_io);
   Print(128, "thread %d  block %d  ply %d  parallel split\n", tree->thread_id,
       FindBlockID(tree), tree->ply);
   Print(128, "thread %d  threads(s) idle:", tree->thread_id);
-  for (proc = 0; proc < max_threads; proc++)
-    if (!thread[proc])
+  for (proc = 0; proc < shared->max_threads; proc++)
+    if (!shared->thread[proc])
       Print(128, " %d", proc);
   Print(128, "\n");
-  Unlock(lock_io);
+  Unlock(shared->lock_io);
 #  endif
 /*
  ************************************************************
@@ -64,13 +64,15 @@ int Thread(TREE * RESTRICT tree)
  *                                                          *
  ************************************************************
  */
-  splitting = 1;
-  parallel_splits++;
-  thread[tree->thread_id] = 0;
+  shared->splitting = 1;
+  shared->parallel_splits++;
+  shared->thread[tree->thread_id] = 0;
   tree->nprocs = 0;
-  for (proc = 0; proc < max_threads && nblocks < max_thread_group; proc++) {
+  for (proc = 0;
+      proc < shared->max_threads && nblocks < shared->max_thread_group;
+      proc++) {
     tree->siblings[proc] = 0;
-    if (thread[proc] == 0) {
+    if (shared->thread[proc] == 0) {
       block = CopyToSMP(tree, proc);
       if (!block)
         continue;
@@ -88,9 +90,9 @@ int Thread(TREE * RESTRICT tree)
   }
   tree->search_value = tree->value;
   if (!nblocks) {
-    Unlock(lock_smp);
-    thread[tree->thread_id] = tree;
-    splitting = 0;
+    Unlock(shared->lock_smp);
+    shared->thread[tree->thread_id] = tree;
+    shared->splitting = 0;
     return (0);
   }
 /*
@@ -102,10 +104,10 @@ int Thread(TREE * RESTRICT tree)
  *                                                          *
  ************************************************************
  */
-  for (proc = 0; proc < max_threads; proc++)
+  for (proc = 0; proc < shared->max_threads; proc++)
     if (tree->siblings[proc])
-      thread[proc] = tree->siblings[proc];
-  splitting = 0;
+      shared->thread[proc] = tree->siblings[proc];
+  shared->splitting = 0;
 /*
  ************************************************************
  *                                                          *
@@ -127,7 +129,7 @@ int Thread(TREE * RESTRICT tree)
  *                                                          *
  ************************************************************
  */
-  Unlock(lock_smp);
+  Unlock(shared->lock_smp);
   ThreadWait(tree->thread_id, tree);
 #  if defined(DEBUGSMP)
   Print(128, "thread %d  block %d  ply %d  parallel join\n", tree->thread_id,
@@ -147,28 +149,47 @@ int Thread(TREE * RESTRICT tree)
 
 void WaitForAllThreadsInitialized(void)
 {
-  while (initialized_threads < max_threads);     /* Do nothing */
+  while (shared->initialized_threads < shared->max_threads);     /* Do nothing */
 }
 
-/* modified 10/21/03 */
+/* modified 08/07/05 */
 /*
  *******************************************************************************
  *                                                                             *
- *   ThreadInit() is called from the pthread_create() function.  it then calls *
- *   ThreadWait() with the appropriate arguments to park the new threads until *
- *   work is available.                                                        *
+ *   ThreadInit() is called after a process is created.  its main task is to   *
+ *   initialize the process local memory so that it will fault in and be       *
+ *   allocated on the local node rather than the node where the original       *
+ *   (first) process was running.  all threads will hang here via a custom     *
+ *   WaitForALlThreadsInitialized() procedure so that all the local thread     *
+ *   blocks are usable before the search actually begins.                      *
  *                                                                             *
  *******************************************************************************
  */
 
 void *STDCALL ThreadInit(void *tid)
 {
+  int i, j;
+
+#  if defined(_WIN32) || defined(_WIN64)
   ThreadMalloc((int) tid);
+#  endif
+  j = (int) tid;
+  for (i = 0; i < MAX_BLOCKS_PER_CPU; i++) {
+    memset((void *) shared->local[j * MAX_BLOCKS_PER_CPU + i + 1], 0,
+        sizeof(TREE));
+    shared->local[j * MAX_BLOCKS_PER_CPU + i + 1]->used = 0;
+    shared->local[j * MAX_BLOCKS_PER_CPU + i + 1]->parent = (TREE *) - 1;
+    LockInit(shared->local[j * MAX_BLOCKS_PER_CPU + i + 1]->lock);
+  }
+  Lock(shared->lock_smp);
+  shared->initialized_threads++;
+  Unlock(shared->lock_smp);
   WaitForAllThreadsInitialized();
   ThreadWait((int) tid, (TREE *) 0);
   return (0);
 }
 
+#  if defined (_WIN32) || defined (_WIN64)
 /* modified 10/21/03 */
 /*
  *******************************************************************************
@@ -179,36 +200,24 @@ void *STDCALL ThreadInit(void *tid)
  *                                                                             *
  *******************************************************************************
  */
-#  if defined (_WIN32) || defined (_WIN64)
 extern void *WinMalloc(size_t, int);
-
-#    define MALLOC(cb, iThread) WinMalloc(cb, iThread)
-#  else
-#    define MALLOC(cb, iThread) malloc(cb)
-#  endif
-
-lock_t lock_thread_init;
 
 void ThreadMalloc(int tid)
 {
   int i, n = MAX_BLOCKS_PER_CPU;
 
-  if (0 == tid)
-    LockInit(lock_thread_init);
   for (i = MAX_BLOCKS_PER_CPU * ((int) tid) + 1; n; i++, n--) {
-    local[i] =
-        (TREE *) ((~(size_t) 127) & (127 + (size_t) MALLOC(sizeof(TREE) + 127,
-                tid)));
-    local[i]->used = 0;
-    local[i]->parent = (TREE *) - 1;
-    LockInit(local[i]->lock);
+    shared->local[i] =
+        (TREE *) ((~(size_t) 127) & (127 + (size_t) WinMalloc(sizeof(TREE) +
+                127, tid)));
+    shared->local[i]->used = 0;
+    shared->local[i]->parent = (TREE *) - 1;
+    LockInit(shared->local[i]->lock);
   }
-  Lock(lock_thread_init);
-  initialized_threads++;
-  Unlock(lock_thread_init);
 }
+#  endif
 
-/* modified 04/26/98 */
+/* modified 08/07/05 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -228,19 +237,19 @@ void ThreadStop(TREE * RESTRICT tree)
 
   Lock(tree->lock);
   tree->stop = 1;
-  for (proc = 0; proc < max_threads; proc++)
+  for (proc = 0; proc < shared->max_threads; proc++)
     if (tree->siblings[proc])
       ThreadStop(tree->siblings[proc]);
   Unlock(tree->lock);
 #  if defined(DEBUGSMP)
-  Lock(lock_io);
+  Lock(shared->lock_io);
   Print(128, "thread %d (block %d) being stopped by beta cutoff.\n",
       tree->thread_id, FindBlockID(tree));
-  Unlock(lock_io);
+  Unlock(shared->lock_io);
 #  endif
 }
 
-/* modified 04/09/98 */
+/* modified 08/07/05 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -269,19 +278,18 @@ int ThreadWait(int tid, TREE * RESTRICT waiting)
  ************************************************************
  */
   while (1) {
-    Lock(lock_smp);
-    cpu_time_used += ReadClock(cpu) - thread_start_time[tid];
-    smp_idle++;
-    Unlock(lock_smp);
+    Lock(shared->lock_smp);
+    shared->smp_idle++;
+    Unlock(shared->lock_smp);
 #  if defined(DEBUGSMP)
-    Lock(lock_io);
-    Print(128, "thread %d now idle (%d procs, %d idle).\n", tid, max_threads,
-        smp_idle);
+    Lock(shared->lock_io);
+    Print(128, "thread %d now idle (%d procs, %d idle).\n", tid,
+        shared->max_threads, shared->smp_idle);
     if (FindBlockID(waiting) >= 0)
       Print(128,
           "thread %d  waiting on block %d, still %d threads busy there\n", tid,
           FindBlockID(waiting), waiting->nprocs);
-    Unlock(lock_io);
+    Unlock(shared->lock_io);
 #  endif
 /*
  ************************************************************
@@ -294,13 +302,14 @@ int ThreadWait(int tid, TREE * RESTRICT waiting)
  *                                                          *
  ************************************************************
  */
-    while (!thread[tid] && !quit && (!waiting || waiting->nprocs))
+    while (!shared->thread[tid] && !shared->quit && (!waiting ||
+            waiting->nprocs))
       Pause();
-    if (quit)
+    if (shared->quit)
       return (0);
-    Lock(lock_smp);
-    if (!thread[tid])
-      thread[tid] = waiting;
+    Lock(shared->lock_smp);
+    if (!shared->thread[tid])
+      shared->thread[tid] = waiting;
 /*
  ************************************************************
  *                                                          *
@@ -310,12 +319,12 @@ int ThreadWait(int tid, TREE * RESTRICT waiting)
  ************************************************************
  */
 #  if defined(DEBUGSMP)
-    Lock(lock_io);
+    Lock(shared->lock_io);
     Print(128, "thread %d now has work at block %d.\n", tid,
-        FindBlockID(thread[tid]));
-    Unlock(lock_io);
+        FindBlockID(shared->thread[tid]));
+    Unlock(shared->lock_io);
 #  endif
-    smp_idle--;
+    shared->smp_idle--;
 /*
  ************************************************************
  *                                                          *
@@ -325,14 +334,13 @@ int ThreadWait(int tid, TREE * RESTRICT waiting)
  *                                                          *
  ************************************************************
  */
-    thread_start_time[tid] = ReadClock(cpu);
-    Unlock(lock_smp);
-    if (thread[tid] == waiting)
+    Unlock(shared->lock_smp);
+    if (shared->thread[tid] == waiting)
       return (0);
-    if (quit || thread[tid] == (TREE *) - 1) {
-      Lock(lock_io);
+    if (shared->quit || shared->thread[tid] == (TREE *) - 1) {
+      Lock(shared->lock_io);
       Print(128, "thread %d exiting\n", tid);
-      Unlock(lock_io);
+      Unlock(shared->lock_io);
       return (0);
     }
 /*
@@ -344,36 +352,42 @@ int ThreadWait(int tid, TREE * RESTRICT waiting)
  *                                                          *
  ************************************************************
  */
-    value = SearchSMP(thread[tid], thread[tid]->alpha, thread[tid]->beta,
-        thread[tid]->value, thread[tid]->wtm, thread[tid]->depth,
-        thread[tid]->ply, thread[tid]->mate_threat, thread[tid]->lp_recapture);
-    Lock(lock_smp);
-    Lock(thread[tid]->parent->lock);
+    value =
+        SearchSMP(shared->thread[tid], shared->thread[tid]->alpha,
+        shared->thread[tid]->beta, shared->thread[tid]->value,
+        shared->thread[tid]->wtm, shared->thread[tid]->depth,
+        shared->thread[tid]->ply, shared->thread[tid]->mate_threat,
+        shared->thread[tid]->lp_recapture);
+    Lock(shared->lock_smp);
+    Lock(shared->thread[tid]->parent->lock);
 #  if defined(DEBUGSMP)
-    Lock(lock_io);
+    Lock(shared->lock_io);
     Print(128, "thread %d  block %d marked free at ply %d\n", tid,
-        FindBlockID(thread[tid]), thread[tid]->ply);
-    Unlock(lock_io);
+        FindBlockID(shared->thread[tid]), shared->thread[tid]->ply);
+    Unlock(shared->lock_io);
 #  endif
-    CopyFromSMP((TREE *) thread[tid]->parent, thread[tid], value);
-    thread[tid]->parent->nprocs--;
+    CopyFromSMP((TREE *) shared->thread[tid]->parent, shared->thread[tid],
+        value);
+    shared->thread[tid]->parent->nprocs--;
 #  if defined(DEBUGSMP)
-    Lock(lock_io);
+    Lock(shared->lock_io);
     Print(128, "thread %d decremented block %d  nprocs=%d\n", tid,
-        FindBlockID(thread[tid]->parent), thread[tid]->parent->nprocs);
-    Unlock(lock_io);
+        FindBlockID(shared->thread[tid]->parent),
+        shared->thread[tid]->parent->nprocs);
+    Unlock(shared->lock_io);
 #  endif
-    thread[tid]->parent->siblings[tid] = 0;
-    Unlock(thread[tid]->parent->lock);
+    shared->thread[tid]->parent->siblings[tid] = 0;
+    Unlock(shared->thread[tid]->parent->lock);
 #  if defined(DEBUGSMP)
-    Lock(lock_io);
+    Lock(shared->lock_io);
     Print(128, "thread %d  block %d  parent %d  nprocs %d exit at ply %d\n",
-        tid, FindBlockID(thread[tid]), FindBlockID(thread[tid]->parent),
-        thread[tid]->parent->nprocs, thread[tid]->ply);
-    Unlock(lock_io);
+        tid, FindBlockID(shared->thread[tid]),
+        FindBlockID(shared->thread[tid]->parent),
+        shared->thread[tid]->parent->nprocs, shared->thread[tid]->ply);
+    Unlock(shared->lock_io);
 #  endif
-    thread[tid] = 0;
-    Unlock(lock_smp);
+    shared->thread[tid] = 0;
+    Unlock(shared->lock_smp);
   }
 }
 #endif

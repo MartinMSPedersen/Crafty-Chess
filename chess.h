@@ -43,8 +43,6 @@
 #  if defined(NT_i386)
 #    include <windows.h>
 #    include <process.h>
-#  elif defined(POSIX)
-#    include <pthread.h>
 #  endif
 #endif
 #define TYPES_INCLUDED
@@ -158,7 +156,7 @@
 #  define lock_t volatile int
 #endif
 #include "lock.h"
-#define      BOOK_CLUSTER_SIZE           2000
+#define      BOOK_CLUSTER_SIZE           8000
 #define            MERGE_BLOCK           1000
 #define             SORT_BLOCK        4000000
 #define         LEARN_INTERVAL             10
@@ -220,7 +218,6 @@ typedef enum { no_extension = 0, check_extension = 1, recapture_extension = 2,
   passed_pawn_extension = 4, one_reply_extension = 8,
   mate_extension = 16
 } EXTENSIONS;
-typedef enum { cpu, elapsed, microseconds } TIME_TYPE;
 typedef enum { think = 1, puzzle = 2, book = 3, annotate = 4 } SEARCH_TYPE;
 typedef enum { normal_mode, tournament_mode } PLAYING_MODE;
 typedef enum { crafty, opponent } PLAYER;
@@ -372,7 +369,6 @@ struct tree {
   unsigned int egtb_probes_successful;
   unsigned int check_extensions_done;
   unsigned int recapture_extensions_done;
-  unsigned int passed_pawn_extensions_done;
   unsigned int one_reply_extensions_done;
   unsigned int mate_extensions_done;
   KILLER    killers[MAXPLY];
@@ -403,7 +399,81 @@ struct tree {
   int       lp_recapture;
   volatile int used;
 };
+
 typedef struct tree TREE;
+
+typedef struct {
+int       time_abort;
+int       abort_search;
+int       iteration_depth;
+int       root_alpha;
+int       root_beta;
+int       root_value;
+int       root_wtm;
+int       last_root_value;
+ROOT_MOVE root_moves[256];
+int       n_root_moves;
+int       easy_move;
+int       time_limit;
+int       absolute_time_limit;
+int       search_time_limit;
+int       burp;
+volatile int quit;
+unsigned int opponent_start_time, opponent_end_time;
+unsigned int program_start_time, program_end_time;
+unsigned int start_time, end_time;
+unsigned int elapsed_start, elapsed_end;
+# if defined(SMP)
+TREE     *local[MAX_BLOCKS + 1];
+TREE     *volatile thread[CPUS];
+lock_t    lock_smp, lock_io, lock_root;
+# else
+TREE     *local[1];
+#  endif
+unsigned int parallel_splits;
+unsigned int parallel_stops;
+unsigned int max_split_blocks;
+volatile unsigned int splitting;
+volatile int smp_idle;
+volatile int smp_threads;
+volatile int initialized_threads;
+int       crafty_is_white;
+int       average_nps;
+int       largest_positional_score;
+int       lazy_eval_cutoff;
+int       nodes_between_time_checks;
+int       nodes_per_second;
+int       transposition_id;
+int       thinking;
+int       pondering;
+int       puzzling;
+int       booking;
+int       trojan_check;
+int       computer_opponent;
+int       use_asymmetry;
+int       display_options;
+int       max_threads;
+int       min_thread_depth;
+int       max_thread_group;
+int       split_at_root;
+unsigned int noise_level;
+int       tc_moves;
+int       tc_time;
+int       tc_time_remaining;
+int       tc_time_remaining_opponent;
+int       tc_moves_remaining;
+int       tc_secondary_moves;
+int       tc_secondary_time;
+int       tc_increment;
+int       tc_sudden_death;
+int       tc_operator_time;
+int       tc_safety_margin;
+int       draw_score[2];
+char      kibitz_text[512];
+int       kibitz_depth;
+int       move_number;
+int       root_print_ok;
+} SHARED;
 /*  
    DO NOT modify these.  these are constants, used in multiple modules.
    modification may corrupt the search in any number of ways, all bad.
@@ -435,9 +505,11 @@ BITBOARD  Mask(int);
 #  include "vcinline.h"
 #else
 #  if !defined(INLINE_AMD)
+/*
 int CDECL PopCnt(BITBOARD);
 int CDECL FirstOne(BITBOARD);
 int CDECL LastOne(BITBOARD);
+*/
 #  endif
 #endif
 void      Analyze(void);
@@ -537,6 +609,7 @@ int       InputMove(TREE * RESTRICT, char *, int, int, int, int);
 int       InputMoveICS(TREE * RESTRICT, char *, int, int, int, int);
 BITBOARD  InterposeSquares(int, int, int);
 void      Interrupt(int);
+int       InvalidPosition(TREE * RESTRICT);
 int       Iterate(int, int, int);
 int       KingPawnSquare(int, int, int, int);
 void      LearnBook(TREE * RESTRICT, int, int, int, int, int);
@@ -569,14 +642,14 @@ int       PinnedOnKing(TREE * RESTRICT, int, int);
 int       Ponder(int);
 void      PreEvaluate(TREE * RESTRICT, int);
 void      Print(int, char *, ...);
-char     *PrintKM(int, int);
+char     *PrintKM(size_t, int);
 int       Quiesce(TREE * RESTRICT, int, int, int, int);
 unsigned int Random32(void);
 BITBOARD  Random64(void);
 int       Read(int, char *);
 int       ReadChessMove(TREE * RESTRICT, FILE *, int, int);
 void      ReadClear(void);
-unsigned int ReadClock(TIME_TYPE);
+unsigned int ReadClock(void);
 int       ReadPGN(FILE *, int);
 int       ReadNextMove(TREE * RESTRICT, char *, int, int);
 int       ReadParse(char *, char *args[], char *);
@@ -592,7 +665,7 @@ int       Search(TREE * RESTRICT, int, int, int, int, int, int, int);
 void      SearchOutput(TREE * RESTRICT, int, int);
 int       SearchRoot(TREE * RESTRICT, int, int, int, int);
 int       SearchSMP(TREE * RESTRICT, int, int, int, int, int, int, int, int);
-void      SearchTrace(TREE *, int, int, int, int, int, char *, int);
+void      SearchTrace(TREE * RESTRICT, int, int, int, int, int, char *, int);
 void      SetBoard(SEARCH_POSITION *, int, char **, int);
 void      SetChessBitBoards(SEARCH_POSITION *);
 int       SetRootAlpha(unsigned char, int);
@@ -600,6 +673,8 @@ int       SetRootBeta(unsigned char, int);
 #if defined(SINGULAR)
 int       Singular(TREE*, int, int, int, int);
 #endif
+void     *SharedMalloc(size_t, int);
+void      SharedFree(void *address);
 int       StrCnt(char *, char);
 int       Swap(TREE * RESTRICT, int, int, int);
 BITBOARD  SwapXray(TREE * RESTRICT, BITBOARD, int, int);
@@ -608,7 +683,9 @@ void      TestEPD(char *);
 int       Thread(TREE * RESTRICT);
 void      WaitForAllThreadsInitialized(void);
 void     *STDCALL ThreadInit(void *);
+#if (defined(_WIN32) || defined(_WIN64)) && defined(SMP)
 void      ThreadMalloc(int);
+#endif
 void      ThreadStop(TREE * RESTRICT);
 int       ThreadWait(int, TREE * RESTRICT);
 int       Threat(TREE * RESTRICT, int, int, int, int, int, int);
@@ -618,7 +695,7 @@ void      TimeSet(int);
 void      UnmakeMove(TREE * RESTRICT, int, int, int);
 int       ValidMove(TREE * RESTRICT, int, int, int);
 void      ValidatePosition(TREE * RESTRICT, int, int, char *);
-void      Kibitz(int, int, int, int, int, BITBOARD, int, int, char *);
+void      Kibitz(int, int, int, int, int, BITBOARD, int, char *);
 
 #if (defined(_WIN32) || defined(_WIN64)) && defined(SMP)
 extern void *WinMallocInterleaved(size_t, int);
@@ -629,8 +706,13 @@ extern void WinFreeInterleaved(void *, size_t);
 #define FreeInterleaved(pMemory, cBytes)\
     WinFreeInterleaved(pMemory, cBytes)
 #else
-#define MallocInterleaved(cBytes, cThreads) malloc(cBytes)
-#define FreeInterleaved(pMemory, cBytes)    free(pMemory)
+#  if defined(NUMA)
+#    define MallocInterleaved(cBytes, cThreads) numa_alloc_interleaved(cBytes)
+#    define FreeInterleaved(pMemory, cBytes)    numa_free(pMemory, 1)
+#  else
+#    define MallocInterleaved(cBytes, cThreads) malloc(cBytes)
+#    define FreeInterleaved(pMemory, cBytes)    free(pMemory)
+#  endif
 #endif
 #if defined(HAS_64BITS) || defined(HAS_LONGLONG)
 #  if defined(ALPHA)
@@ -779,7 +861,7 @@ extern void WinFreeInterleaved(void *, size_t);
 #define FileDistance(a,b) abs(File(a) - File(b))
 #define RankDistance(a,b) abs(Rank(a) - Rank(b))
 #define Distance(a,b) Max(FileDistance(a,b),RankDistance(a,b))
-#define DrawScore(wtm)                 (draw_score[wtm])
+#define DrawScore(wtm)                 (shared->draw_score[wtm])
 #define PopCnt8Bit(a) (pop_cnt_8bit[a])
 #define FirstOne8Bit(a) (first_one_8bit[a])
 #define LastOne8Bit(a) (last_one_8bit[a])
@@ -789,9 +871,9 @@ extern void WinFreeInterleaved(void *, size_t);
  */
 #define LimitExtensions(extended,ply)                                        \
       extended=Min(extended,INCPLY);                                         \
-      if (ply > 2*iteration_depth) {                                         \
-        if (ply <= 4*iteration_depth)                                        \
-          extended=extended*(4*iteration_depth-ply)/(2*iteration_depth);     \
+      if (ply > 2*shared->iteration_depth) {                                         \
+        if (ply <= 4*shared->iteration_depth)                                        \
+          extended=extended*(4*shared->iteration_depth-ply)/(2*shared->iteration_depth);     \
         else                                                                 \
           extended=0;                                                        \
       }
@@ -952,7 +1034,7 @@ extern void WinFreeInterleaved(void *, size_t);
           tree->pv[ply-1].path[ply-1]=tree->current_move[ply-1];            \
           tree->pv[ply-1].pathl=ply-1;                                      \
           tree->pv[ply-1].pathh=ph;                                         \
-          tree->pv[ply-1].pathd=iteration_depth;} while(0)
+          tree->pv[ply-1].pathd=shared->iteration_depth;} while(0)
 /*
    Service macro - initialize squares of the particular piece as well as
    counter for that piece. Note: dual initialization saves some time when

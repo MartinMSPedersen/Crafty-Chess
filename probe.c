@@ -1,7 +1,7 @@
 #if !defined(NOEGTB)
-#include <stdio.h>
-#include "chess.h"
-#include "data.h"
+#  include <stdio.h>
+#  include "chess.h"
+#  include "data.h"
 
 /* last modified 11/03/98 */
 /*
@@ -13,55 +13,56 @@
  *******************************************************************************
  */
 
-#define  T_INDEX64
-#define  XX  127
-#define  C_PIECES  3    /* Maximum # of pieces of one color OTB */
+#  define  T_INDEX64
+#  define  XX  127
+#  define  C_PIECES  3  /* Maximum # of pieces of one color OTB */
 
-#if defined (T_INDEX64) && defined (_MSC_VER)
+#  if defined (T_INDEX64) && defined (_MSC_VER)
 typedef unsigned __int64 INDEX;
-#elif defined (T_INDEX64)
+#  elif defined (T_INDEX64)
 typedef unsigned long long INDEX;
-#else
+#  else
 typedef unsigned long INDEX;
-#endif
+#  endif
 
 typedef unsigned int squaret;
 
 /* Those declarations necessary because Crafty is C, not C++ program */
 
-#if defined (_MSC_VER)
+#  if defined (_MSC_VER)
 #  define  TB_FASTCALL  __fastcall
-#else
+#  else
 #  define  TB_FASTCALL
-#endif
+#  endif
 
 typedef int color;
 
-#define  x_colorWhite  0
-#define  x_colorBlack  1
-#define  x_colorNeutral  2
-#define COLOR_DECLARED
+#  define  x_colorWhite  0
+#  define  x_colorBlack  1
+#  define  x_colorNeutral  2
+#  define COLOR_DECLARED
 
 typedef int piece;
 
-#define  x_pieceNone    0
-#define  x_piecePawn    1
-#define  x_pieceKnight  2
-#define  x_pieceBishop  3
-#define  x_pieceRook    4
-#define  x_pieceQueen   5
-#define  x_pieceKing    6
-#define PIECES_DECLARED
+#  define  x_pieceNone    0
+#  define  x_piecePawn    1
+#  define  x_pieceKnight  2
+#  define  x_pieceBishop  3
+#  define  x_pieceRook    4
+#  define  x_pieceQueen   5
+#  define  x_pieceKing    6
+#  define PIECES_DECLARED
 typedef signed char tb_t;
 
-#define pageL       65536
-#define tbbe_ssL    ((pageL-4)/2)
-#define bev_broken  (tbbe_ssL+1)        /* illegal or busted */
-#define bev_mi1     tbbe_ssL    /* mate in 1 move */
-#define bev_mimin   1   /* mate in max moves */
-#define bev_draw    0   /* draw */
-#define bev_limax   (-1)        /* mated in max moves */
-#define bev_li0     (-tbbe_ssL) /* mated in 0 moves */
+#  define pageL       65536
+#  define tbbe_ssL    ((pageL-4)/2)
+#  define bev_broken  (tbbe_ssL+1)      /* illegal or busted */
+#  define bev_mi1     tbbe_ssL  /* mate in 1 move */
+#  define bev_mimin   1 /* mate in max moves */
+#  define bev_draw    0 /* draw */
+#  define bev_limax   (-1)      /* mated in max moves */
+#  define bev_li0     (-tbbe_ssL)
+                                /* mated in 0 moves */
 
 typedef INDEX(TB_FASTCALL * PfnCalcIndex)
  (squaret *, squaret *, squaret, int fInverse);
@@ -71,8 +72,8 @@ extern int FRegisteredFun(int, color);
 extern PfnCalcIndex PfnIndCalcFun(int, color);
 extern int TB_FASTCALL L_TbtProbeTable(int, color, INDEX);
 
-#define PfnIndCalc PfnIndCalcFun
-#define FRegistered FRegisteredFun
+#  define PfnIndCalc PfnIndCalcFun
+#  define FRegistered FRegisteredFun
 
 int EGTBProbe(TREE * RESTRICT tree, int ply, int wtm, int *score)
 {

@@ -26,55 +26,55 @@
 
 /* system includes */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <ctype.h>
-#include <string.h>
-#include <time.h>
+#  include <stdlib.h>
+#  include <stdio.h>
+#  include <ctype.h>
+#  include <string.h>
+#  include <time.h>
 
 /* EPD definitions (host independent) */
 
-#include "epddefs.h"
+#  include "epddefs.h"
 
 /* EPD routine prototypes (host independent) */
 
-#include "epd.h"
-#include "chess.h"
-#include "data.h"
+#  include "epd.h"
+#  include "chess.h"
+#  include "data.h"
 
 /* ASCII character constants */
 
-#define ascii_nul ((char) 0x00)
-#define ascii_sp  ((char) 0x20)
+#  define ascii_nul ((char) 0x00)
+#  define ascii_sp  ((char) 0x20)
 
 /* tree limit; adjust according to memory availability */
 
-#define treeL 16384
+#  define treeL 16384
 
 /* tree overrun safety margin */
 
-#define treemarginL 256
+#  define treemarginL 256
 
 /* played moves history limit; adjust according to memory availability */
 
-#define pmhL 512
+#  define pmhL 512
 
 /* data flows (input and output) */
 
-#define flowL 2
+#  define flowL 2
 
 /* character case mapping */
 
-#define map_lower(ch) (isupper((ch)) ? tolower((ch)) : (ch))
-#define map_upper(ch) (islower((ch)) ? toupper((ch)) : (ch))
+#  define map_lower(ch) (isupper((ch)) ? tolower((ch)) : (ch))
+#  define map_upper(ch) (islower((ch)) ? toupper((ch)) : (ch))
 
 /* identifier character check */
 
-#define IdentChar(ch) (isalpha((ch)) || isdigit((ch)) || ((ch) == '_'))
+#  define IdentChar(ch) (isalpha((ch)) || isdigit((ch)) || ((ch) == '_'))
 
 /* vacancy check */
 
-#define Vacant(sq) (EPDboard.rbv[(sq)] == cp_v0)
+#  define Vacant(sq) (EPDboard.rbv[(sq)] == cp_v0)
 
 /* token record type (for token chain) */
 

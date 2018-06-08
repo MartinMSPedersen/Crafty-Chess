@@ -4,7 +4,7 @@
 #include "chess.h"
 #include "data.h"
 
-/* last modified 11/20/01 */
+/* last modified 08/07/05 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -23,15 +23,15 @@ void Bench(void)
 {
   BITBOARD nodes = 0;
   int old_do, old_st, old_sd, total_time_used;
-  TREE *const tree = local[0];
+  TREE *const tree = shared->local[0];
 
   test_mode = 1;
   total_time_used = 0;
-  old_st = search_time_limit;   /* save old time limit and display settings */
+  old_st = shared->search_time_limit;   /* save old time limit and display settings */
   old_sd = search_depth;
-  old_do = display_options;
-  search_time_limit = 90000;    /* maximum of 15 minutes per position */
-  display_options = 1;  /* turn off display while running benchmark */
+  old_do = shared->display_options;
+  shared->search_time_limit = 90000;    /* maximum of 15 minutes per position */
+  shared->display_options = 1;  /* turn off display while running benchmark */
 
   if (book_file) {
     fclose(book_file);
@@ -53,14 +53,14 @@ void Bench(void)
 
   InitializeHashTables();
   last_pv.pathd = 0;
-  lazy_eval_cutoff = 200;
-  largest_positional_score = 300;
-  thinking = 1;
+  shared->lazy_eval_cutoff = 200;
+  shared->largest_positional_score = 300;
+  shared->thinking = 1;
   tree->position[1] = tree->position[0];
   (void) Iterate(wtm, think, 0);
-  thinking = 0;
+  shared->thinking = 0;
   nodes += tree->nodes_searched;
-  total_time_used += (program_end_time - program_start_time);
+  total_time_used += (shared->program_end_time - shared->program_start_time);
   printf(".");
   fflush(stdout);
 
@@ -72,14 +72,14 @@ void Bench(void)
 
   InitializeHashTables();
   last_pv.pathd = 0;
-  lazy_eval_cutoff = 200;
-  largest_positional_score = 300;
-  thinking = 1;
+  shared->lazy_eval_cutoff = 200;
+  shared->largest_positional_score = 300;
+  shared->thinking = 1;
   tree->position[1] = tree->position[0];
   (void) Iterate(wtm, think, 0);
-  thinking = 0;
+  shared->thinking = 0;
   nodes += tree->nodes_searched;
-  total_time_used += (program_end_time - program_start_time);
+  total_time_used += (shared->program_end_time - shared->program_start_time);
   printf(".");
   fflush(stdout);
 
@@ -90,14 +90,14 @@ void Bench(void)
 
   InitializeHashTables();
   last_pv.pathd = 0;
-  lazy_eval_cutoff = 200;
-  largest_positional_score = 300;
-  thinking = 1;
+  shared->lazy_eval_cutoff = 200;
+  shared->largest_positional_score = 300;
+  shared->thinking = 1;
   tree->position[1] = tree->position[0];
   (void) Iterate(wtm, think, 0);
-  thinking = 0;
+  shared->thinking = 0;
   nodes += tree->nodes_searched;
-  total_time_used += (program_end_time - program_start_time);
+  total_time_used += (shared->program_end_time - shared->program_start_time);
   printf(".");
   fflush(stdout);
 
@@ -108,14 +108,14 @@ void Bench(void)
 
   InitializeHashTables();
   last_pv.pathd = 0;
-  lazy_eval_cutoff = 200;
-  largest_positional_score = 300;
-  thinking = 1;
+  shared->lazy_eval_cutoff = 200;
+  shared->largest_positional_score = 300;
+  shared->thinking = 1;
   tree->position[1] = tree->position[0];
   (void) Iterate(wtm, think, 0);
-  thinking = 0;
+  shared->thinking = 0;
   nodes += tree->nodes_searched;
-  total_time_used += (program_end_time - program_start_time);
+  total_time_used += (shared->program_end_time - shared->program_start_time);
   printf(".");
   fflush(stdout);
 
@@ -126,14 +126,14 @@ void Bench(void)
 
   InitializeHashTables();
   last_pv.pathd = 0;
-  lazy_eval_cutoff = 200;
-  largest_positional_score = 300;
-  thinking = 1;
+  shared->lazy_eval_cutoff = 200;
+  shared->largest_positional_score = 300;
+  shared->thinking = 1;
   tree->position[1] = tree->position[0];
   (void) Iterate(wtm, think, 0);
-  thinking = 0;
+  shared->thinking = 0;
   nodes += tree->nodes_searched;
-  total_time_used += (program_end_time - program_start_time);
+  total_time_used += (shared->program_end_time - shared->program_start_time);
   printf(".");
   fflush(stdout);
 
@@ -145,14 +145,14 @@ void Bench(void)
 
   InitializeHashTables();
   last_pv.pathd = 0;
-  lazy_eval_cutoff = 200;
-  largest_positional_score = 300;
-  thinking = 1;
+  shared->lazy_eval_cutoff = 200;
+  shared->largest_positional_score = 300;
+  shared->thinking = 1;
   tree->position[1] = tree->position[0];
   (void) Iterate(wtm, think, 0);
-  thinking = 0;
+  shared->thinking = 0;
   nodes += tree->nodes_searched;
-  total_time_used += (program_end_time - program_start_time);
+  total_time_used += (shared->program_end_time - shared->program_start_time);
 
   printf("\n");
   Print(4095, "Total nodes: " BMF "\n", nodes);
@@ -164,8 +164,8 @@ void Bench(void)
   early_exit = 99;
   test_mode = 0;
 
-  display_options = old_do;     /* reset old values and restart game */
-  search_time_limit = old_st;
+  shared->display_options = old_do;     /* reset old values and restart game */
+  shared->search_time_limit = old_st;
   search_depth = old_sd;
   NewGame(0);
 }

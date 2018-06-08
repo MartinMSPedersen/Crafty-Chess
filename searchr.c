@@ -5,7 +5,7 @@
 #include "data.h"
 #include "epdglue.h"
 
-/* modified 10/23/01 */
+/* modified 08/07/05 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -80,19 +80,6 @@ int SearchRoot(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth)
 /*
  ************************************************************
  *                                                          *
- *   if we push a passed pawn, we need to look deeper to    *
- *   see if it is a legitimate threat.                      *
- *                                                          *
- ************************************************************
- */
-    if (Piece(tree->current_move[1]) == pawn &&
-        push_extensions[To(tree->current_move[1])]) {
-      tree->passed_pawn_extensions_done++;
-      extended += pushpp_depth;
-    }
-/*
- ************************************************************
- *                                                          *
  *   now call Search to produce a value for this move.      *
  *                                                          *
  ************************************************************
@@ -107,7 +94,7 @@ int SearchRoot(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth)
             DO_NULL, 0);
       else
         value = -Quiesce(tree, -beta, -alpha, Flip(wtm), 2);
-      if (abort_search) {
+      if (shared->abort_search) {
         UnmakeMove(tree, 1, tree->current_move[1], wtm);
         return (alpha);
       }
@@ -119,7 +106,7 @@ int SearchRoot(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth)
             DO_NULL, 0);
       else
         value = -Quiesce(tree, -alpha - 1, -alpha, Flip(wtm), 2);
-      if (abort_search) {
+      if (shared->abort_search) {
         UnmakeMove(tree, 1, tree->current_move[1], wtm);
         return (alpha);
       }
@@ -130,16 +117,17 @@ int SearchRoot(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth)
               DO_NULL, 0);
         else
           value = -Quiesce(tree, -beta, -alpha, Flip(wtm), 2);
-        if (abort_search) {
+        if (shared->abort_search) {
           UnmakeMove(tree, 1, tree->current_move[1], wtm);
           return (alpha);
         }
       }
     }
-    root_moves[tree->root_move].nodes = tree->nodes_searched - begin_root_nodes;
+    shared->root_moves[tree->root_move].nodes =
+        tree->nodes_searched - begin_root_nodes;
     if (value > alpha) {
       SearchOutput(tree, value, beta);
-      root_value = alpha;
+      shared->root_value = alpha;
       if (value >= beta) {
         History(tree, 1, depth, wtm, tree->current_move[1]);
         UnmakeMove(tree, 1, tree->current_move[1], wtm);
@@ -147,10 +135,10 @@ int SearchRoot(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth)
       }
       alpha = value;
     }
-    root_value = alpha;
+    shared->root_value = alpha;
     UnmakeMove(tree, 1, tree->current_move[1], wtm);
 #if defined(SMP)
-    if (split_at_root && smp_idle && NextRootMoveParallel()) {
+    if (shared->split_at_root && shared->smp_idle && NextRootMoveParallel()) {
       tree->alpha = alpha;
       tree->beta = beta;
       tree->value = alpha;
@@ -160,7 +148,7 @@ int SearchRoot(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth)
       tree->mate_threat = 0;
       tree->lp_recapture = 0;
       if (Thread(tree)) {
-        if (abort_search || tree->stop)
+        if (shared->abort_search || tree->stop)
           return (0);
         if (tree->thread_id == 0 && CheckInput())
           Interrupt(1);
@@ -187,14 +175,14 @@ int SearchRoot(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth)
  *                                                          *
  ************************************************************
  */
-  if (abort_search || time_abort)
+  if (shared->abort_search || shared->time_abort)
     return (0);
   if (first_move == 1) {
     value = (Check(wtm)) ? -(MATE - 1) : DrawScore(wtm);
     if (value >= alpha && value < beta) {
       tree->pv[0].pathl = 0;
       tree->pv[0].pathh = 0;
-      tree->pv[0].pathd = iteration_depth;
+      tree->pv[0].pathd = shared->iteration_depth;
       SearchOutput(tree, value, beta);
 #if defined(TRACE)
       if (1 <= trace_level)
@@ -208,7 +196,7 @@ int SearchRoot(TREE * RESTRICT tree, int alpha, int beta, int wtm, int depth)
   }
 }
 
-/* modified 03/11/98 */
+/* modified 08/07/05 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -236,21 +224,22 @@ void SearchOutput(TREE * RESTRICT tree, int value, int bound)
  *                                                          *
  ************************************************************
  */
-  root_print_ok = root_print_ok || tree->nodes_searched > noise_level;
-  wtm = root_wtm;
-  if (!abort_search) {
-    kibitz_depth = iteration_depth;
-    for (i = 0; i < n_root_moves; i++)
-      if (tree->current_move[1] == root_moves[i].move)
+  shared->root_print_ok = shared->root_print_ok ||
+      tree->nodes_searched > shared->noise_level;
+  wtm = shared->root_wtm;
+  if (!shared->abort_search) {
+    shared->kibitz_depth = shared->iteration_depth;
+    for (i = 0; i < shared->n_root_moves; i++)
+      if (tree->current_move[1] == shared->root_moves[i].move)
         break;
-    if (i && i < n_root_moves) {
-      temp_rm = root_moves[i];
+    if (i && i < shared->n_root_moves) {
+      temp_rm = shared->root_moves[i];
       for (; i > 0; i--)
-        root_moves[i] = root_moves[i - 1];
-      root_moves[0] = temp_rm;
-      easy_move = 0;
+        shared->root_moves[i] = shared->root_moves[i - 1];
+      shared->root_moves[0] = temp_rm;
+      shared->easy_move = 0;
     }
-    end_time = ReadClock(time_type);
+    shared->end_time = ReadClock();
 /*
  ************************************************************
  *                                                          *
@@ -260,23 +249,24 @@ void SearchOutput(TREE * RESTRICT tree, int value, int bound)
  ************************************************************
  */
     if (value < bound) {
-      UnmakeMove(tree, 1, tree->pv[1].path[1], root_wtm);
-      DisplayPV(tree, 6, wtm, end_time - start_time, value, &tree->pv[1]);
-      MakeMove(tree, 1, tree->pv[1].path[1], root_wtm);
+      UnmakeMove(tree, 1, tree->pv[1].path[1], shared->root_wtm);
+      DisplayPV(tree, 6, wtm, shared->end_time - shared->start_time, value,
+          &tree->pv[1]);
+      MakeMove(tree, 1, tree->pv[1].path[1], shared->root_wtm);
     } else {
       if (tree->current_move[1] != tree->pv[1].path[1]) {
         tree->pv[1].path[1] = tree->current_move[1];
         tree->pv[1].pathl = 1;
         tree->pv[1].pathh = 0;
-        tree->pv[1].pathd = iteration_depth;
+        tree->pv[1].pathd = shared->iteration_depth;
       }
     }
     tree->pv[0] = tree->pv[1];
-    local[0]->pv[0] = tree->pv[1];
+    shared->local[0]->pv[0] = tree->pv[1];
   }
 }
 
-/* modified 03/11/98 */
+/* modified 08/07/05 */
 /*
  *******************************************************************************
  *                                                                             *
@@ -290,7 +280,7 @@ void SearchTrace(TREE * RESTRICT tree, int ply, int depth, int wtm, int alpha,
 {
   int i;
 
-  Lock(lock_io);
+  Lock(shared->lock_io);
   for (i = 1; i < ply; i++)
     printf("  ");
   printf("%d  %s d:%5.2f [%s,", ply, OutputMove(tree, tree->current_move[ply],
@@ -298,8 +288,8 @@ void SearchTrace(TREE * RESTRICT tree, int ply, int depth, int wtm, int alpha,
           1));
   printf("%s] n:" BMF " %s(%d)", DisplayEvaluation(beta, 1),
       (tree->nodes_searched), name, phase);
-  if (max_threads > 1)
+  if (shared->max_threads > 1)
     printf(" (t=%d) ", tree->thread_id);
   printf("\n");
-  Unlock(lock_io);
+  Unlock(shared->lock_io);
 }
