@@ -5,7 +5,7 @@
 #include "data.h"
 #include "epdglue.h"
 
-/* last modified 07/08/98 */
+/* last modified 12/07/98 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -22,6 +22,7 @@ int Iterate(int wtm, int search_type, int root_list_done)
   int i, value=0, time_used;
   int twtm, used_w, used_b;
   int correct, correct_count, material=0, sorted, temp;
+  static int average_nps=0;
   TREE *tree=local[0];
 
 /*
@@ -82,8 +83,8 @@ int Iterate(int wtm, int search_type, int root_list_done)
     tree->pawn_probes=0;
     tree->pawn_hits=0;
 #endif
-    tree->tb_probes=0;
-    tree->tb_probes_successful=0;
+    tree->egtb_probes=0;
+    tree->egtb_probes_successful=0;
     tree->check_extensions_done=0;
     tree->recapture_extensions_done=0;
     tree->passed_pawn_extensions_done=0;
@@ -247,6 +248,20 @@ int Iterate(int wtm, int search_type, int root_list_done)
           else if (time_limit > 50) nodes_between_time_checks/=20;
           else nodes_between_time_checks/=100;
         } else nodes_between_time_checks=5000;
+        if (iteration_depth>6 && tree->egtb_probes) {
+          if (EGTB_maxdepth>16 && nodes_per_second<average_nps/10) {
+            EGTB_maxdepth=Max(EGTB_maxdepth>>1,8);
+            Print(128,"decreased probe depth to %d\n",EGTB_maxdepth);
+          }
+          else if (EGTB_maxdepth>8 && nodes_per_second<average_nps/3) {
+            EGTB_maxdepth=Max(EGTB_maxdepth-1,8);
+            Print(128,"decreased probe depth to %d\n",EGTB_maxdepth);
+          }
+          else if (EGTB_maxdepth < 32) {
+            EGTB_maxdepth=Min(EGTB_maxdepth+1,32);
+            Print(128,"increasing probe depth to %d\n",EGTB_maxdepth);
+          }
+        }
       }
       while (!time_abort && !abort_search) {
 #if defined(SMP)
@@ -383,7 +398,11 @@ int Iterate(int wtm, int search_type, int root_list_done)
       cpu_percent=100*cpu_time_used/elapsed_end;
     else cpu_percent=100;
     if (elapsed_end > 10)
-      nodes_per_second=(BITBOARD) tree->nodes_searched*100/(BITBOARD) elapsed_end;
+      nodes_per_second=(BITBOARD)tree->nodes_searched*100/(BITBOARD) elapsed_end;
+    if (!tree->egtb_probes) {
+      if (average_nps) average_nps=(9*average_nps+nodes_per_second)/10;
+      else average_nps=nodes_per_second;
+    }
     tree->evaluations=(tree->evaluations) ? tree->evaluations : 1;
     if ((!abort_search || time_abort) && !puzzling) {
       tree->fail_high++;
@@ -400,8 +419,8 @@ int Iterate(int wtm, int search_type, int root_list_done)
             tree->passed_pawn_extensions_done, tree->one_reply_extensions_done);
       Print(16,"              predicted=%d  nodes=%u  evals=%u\n", 
              predicted, tree->nodes_searched, tree->evaluations);
-      Print(16,"              endgame tablebase-> probes done=%d  successful=%d\n",
-            tree->tb_probes, tree->tb_probes_successful);
+      Print(16,"              endgame tablebase-> probes done=%d  successful=%d  maxd=%d\n",
+            tree->egtb_probes, tree->egtb_probes_successful, EGTB_maxdepth);
 #if !defined(FAST)
       Print(16,"              hashing-> trans/ref=%d%%  pawn=%d%%  used=w%d%% b%d%%\n",
             100*tree->transposition_hits/(tree->transposition_probes+1),

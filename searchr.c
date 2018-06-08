@@ -255,7 +255,7 @@ void SearchOutput(TREE *tree, int value, int bound)
         MakeMove(tree,1,tree->current_move[1],wtm);
         Whisper(6,iteration_depth,end_time-start_time,whisper_value,
                 tree->nodes_searched,-1,predicted, 
-                tree->tb_probes_successful, whisper_text);
+                tree->egtb_probes_successful, whisper_text);
       }
       if (tree->current_move[1] != tree->pv[1].path[1]) {
         tree->pv[1].path[1]=tree->current_move[1];
@@ -281,9 +281,7 @@ void SearchTrace(TREE *tree, int ply, int depth, int wtm,
                  int alpha, int beta, char* name, int phase)
 {
   int i;
-#if defined(SMP)
   Lock(lock_io);
-#endif
   for (i=1;i<ply;i++) printf("  ");
   printf("%d  %s d:%5.2f [%s,",ply,OutputMove(tree,tree->current_move[ply],ply,wtm),
          (float) depth/ (float) INCREMENT_PLY,DisplayEvaluation(alpha));
@@ -291,7 +289,5 @@ void SearchTrace(TREE *tree, int ply, int depth, int wtm,
          (tree->nodes_searched),name,phase);
   if (max_threads > 1) printf(" (t=%d) ",tree->thread_id);
   printf("\n");
-#if defined(SMP)
   UnLock(lock_io);
-#endif
 }

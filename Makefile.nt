@@ -12,9 +12,6 @@
 #
 # The default target produces a file called "wcrafty1600.exe".
 #
-# Since SMP is not yet supported/tested for module egtb.cpp, egtb.cpp
-# will be compiled separately.
-#
 # The fast calling convention /Gr should only be used for VC++ 5.0. It
 # does not work in VC++ 6.0.
 
@@ -100,8 +97,8 @@ $(cobjs) : $(includes)
 .c.obj   :
 	   $(CC) $(BFLAGS) $(CFLAGS) $(ALLOPTS) /c $*.c
 
-egtb.obj : egtb.cpp
-	   $(CC) /c /O $(OPTMT) /D$(TARGET) egtb.cpp
+.cpp.obj :
+	   $(CC) $(BFLAGS) $(CFLAGS) $(ALLOPTS) /c $*.cpp
 
 clean:
 	   del -q $(cobjs)

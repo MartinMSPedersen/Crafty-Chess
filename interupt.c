@@ -182,7 +182,7 @@ void Interrupt(int ply)
           if (temp) {
             if (auto232) {
               char *mv=OutputMoveICS(tree,temp);
-              Delay232(auto232_delay);
+              Delay(auto232_delay);
               if (!wtm) fprintf(auto_file,"\t");
               fprintf(auto_file, " %c%c-%c%c", mv[0], mv[1], mv[2], mv[3]);
               if ((mv[4] != ' ') && (mv[4] != 0))

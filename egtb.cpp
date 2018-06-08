@@ -36,10 +36,15 @@ typedef  int  piece;
 #define  SqFindSecond(psq, pi) (psq[C_PIECES*(pi-1)+1])
 #define  SqFindThird(psq, pi)  (psq[C_PIECES*(pi-1)+2])
 
+#include "lock.h"
+
 /*
   All defined, now include probing code
 */
 
+#include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
 #if !defined (DEBUG) && !defined(EBUG)
 #define	NDEBUG
 #endif
@@ -47,10 +52,8 @@ typedef  int  piece;
 
 // SMP stuff
 
-#if ! defined (SMP)
-#define	LockInit(x)
-#define Lock(x)
-#define UnLock(x)
+#if defined (SMP)
+static	lock_t	lock_egtb;
 #endif
 
 // Declarations
@@ -88,7 +91,7 @@ typedef	int	piece;
 #if defined (_MSC_VER)
 
 #undef	TB_CDECL
-#define	TB_CDECL		__cdecl
+#define	TB_CDECL	__cdecl
 #define	TB_FASTCALL	__fastcall
 #if _MSC_VER >= 1200
 #define	INLINE		__forceinline
@@ -125,8 +128,43 @@ typedef	int	piece;
 #define bev_limax   (-1)            /* mated in 125 moves */
 #define bev_li0     (-tbbe_ssL)     /* mated in 0 moves */
 
-#define bev_trans   (-tbbe_ssL - 1) /* transition */
-#define bev_unknown (-tbbe_ssL - 2) /* unknown */
+#define	bev_limaxx	(-tbbe_ssL - 1)	/* mated in 126 moves */
+#define	bev_miminx	(-tbbe_ssL - 2)	/* mate in 127 moves */
+
+// Some constants for 16-bit tables
+
+#define L_pageL 65536
+
+/* tablebase short entry semispan length */
+
+#define L_tbbe_ssL ((L_pageL - 4) / 2)
+
+/* tablebase signed short entry values */
+
+#define L_bev_broken  (L_tbbe_ssL + 1)		/* illegal or busted */
+
+#define L_bev_mi1     L_tbbe_ssL			/* mate in 1 move */
+#define L_bev_mimin   1						/* mate in 32766 moves */
+
+#define L_bev_draw    0						/* draw */
+
+#define L_bev_limax   (-1)					/* mated in 32765 moves */
+#define L_bev_li0     (-L_tbbe_ssL)			/* mated in 0 moves */
+
+#define	L_bev_limaxx	(-L_tbbe_ssL - 1)	/* mated in 32766 moves */
+#define	L_bev_miminx	(-L_tbbe_ssL - 2)	/* mate in 32767 moves */
+
+// Convertion from 8-bit to 16-bit score
+// UNDONE: Maybe implement via lookup table?
+
+#define	S_to_L(tbt)\
+	(\
+	 (0 == tbt) ? 0:\
+	 (tbt > 0) ? (bev_broken != tbt ? tbt + 32640 : L_bev_broken):\
+	 (tbt >= bev_li0) ? tbt - 32640:\
+	 (bev_limaxx == tbt) ? -32640:\
+	 /*bev_miminx == tbt*/  32640\
+	)
 
 // Constants
 
@@ -1321,6 +1359,8 @@ public:
 		}
 	};
 
+#if defined (T41_INCLUDE)
+
 // Return enumeration of 2 kings and 3 pieces
 
 template <int piw1, int piw2, int piw3, bool fPawns, bool fInvert> class TEnumerate3
@@ -1431,7 +1471,7 @@ public:
 				ind1 -= (sqw1 > sqwk);
 				}
 			// Add enumerated squares to the # of the preceeding positions
-			return	(ind3*(ind3-1)/2)*cInd1 + ind1 +
+			return	(ind3*(ind3-1)/2 + ind2)*cInd1 + ind1 +
 					(fPawns ? rgprgulTriplePawnPresent[piw1][piw2][piw3][ulKings] :
 							  rgprgulTriplePawnless[piw1][piw2][piw3][ulKings]);
 			}
@@ -1463,6 +1503,8 @@ public:
 			}
 		}
 	};
+
+#endif
 
 // Enumerate en passant captures
 
@@ -1514,19 +1556,19 @@ static INLINE INDEX TB_FASTCALL IndEnPassant21W
 	{
 	assert (sqb+8 == sqEnP);
 	SORT (sqw1, sqw2);
-	if (sqw1+7 == sqEnP)
+	if (sqw1+7 == sqEnP && 0 != TbColumn(sqw1))
 		// Capture to the left
 		return (sqw1&7)-1+(EXCLUDE3(sqw2,sqb,sqEnP,sqEnP+8)-i8-1)*i14;
-	else if (sqw1+9 == sqEnP)
+	else if (sqw1+9 == sqEnP && 7 != TbColumn(sqw1))
 		// Capture to the right
 		return (sqw1&7)+7+(EXCLUDE3(sqw2,sqb,sqEnP,sqEnP+8)-i8-1)*i14;
-	else if (sqw2+7 == sqEnP)
+	else if (sqw2+7 == sqEnP && 0 != TbColumn(sqw2))
 		// Capture to the left
 		return (sqw2&7)-1+(EXCLUDE3(sqw1,sqb,sqEnP,sqEnP+8)-i8)*i14;
 	else
 		{
 		// Capture to the right
-		assert (sqw2+9 == sqEnP);
+		assert (sqw2+9 == sqEnP && 7 != TbColumn(sqw2));
 		return (sqw2&7)+7+(EXCLUDE3(sqw1,sqb,sqEnP,sqEnP+8)-i8)*i14;
 		}
 	}
@@ -1540,7 +1582,7 @@ static INLINE INDEX TB_FASTCALL IndEnPassant21B
 	)
 	{
 	assert (sqw1 < sqw2);	// Must be already sorted
-	if (sqb-9 == sqEnP)
+	if (sqb-9 == sqEnP && 0 != TbColumn(sqb))
 		// Capture to the left
 		if (sqw1-8 == sqEnP)
 			return (sqb&7)-1+(EXCLUDE3(sqw2,sqb,sqEnP,sqEnP-8)-i8-1)*i14;
@@ -1552,7 +1594,7 @@ static INLINE INDEX TB_FASTCALL IndEnPassant21B
 	else
 		{
 		// Capture to the right
-		assert (sqb-7 == sqEnP);
+		assert (sqb-7 == sqEnP && 7 != TbColumn(sqb));
 		if (sqw1-8 == sqEnP)
 			return (sqb&7)+7+(EXCLUDE3(sqw2,sqb,sqEnP,sqEnP-8)-i8-1)*i14;
 		else
@@ -2029,11 +2071,14 @@ public:
 								EXCLUDE4(sqw1,sqwk,sqbk,sqw2,sqb1)*i47 +	// 60
 								EXCLUDE1(sqw2,sqb1)-i8;						// 47
 					else
+						{
 						// En passant capture
-						return	rgcSinglePawnPresent[x_piecePawn]*(i58*i47) +
+						sqEnP ^= sqMask;
+						return	rgcSinglePawnPresent[x_piecePawn]*(i60*i47) +
 								IndHalfKings(sqbk,sqwk)*(i58*i14) +
 								EXCLUDE6(sqw1,sqwk,sqbk,sqw2,sqb1,sqEnP,sqEnP-8)*i14 +	// 58
-								IndEnPassant11B (sqw2, sqb1, sqEnP ^ sqMask);
+								IndEnPassant11B (sqw2, sqb1, sqEnP);
+						}
 					}
 				else
 					{
@@ -3063,12 +3108,16 @@ CTbDesc	rgtbdDesc[cTb] =
 	TB (kqrk, (T31<Q, R>::IndCalcW), (T31<Q, R>::IndCalcB), 1500276, 1747284)
 	TB (kqqk, (T31<Q, Q>::IndCalcW), (T31<Q, Q>::IndCalcB),  698739,  873642)
 
-	TB (kppkp, (T32<P, P, P>::IndCalcW), (T32<P, P, P>::IndCalcB),  84219376,  89391280)
+#if !defined (KPPKP_16BIT)
+	TB (kppkp, (T32<P, P, P>::IndCalcW), (T32<P, P, P>::IndCalcB),  84219361,  89391280)
+#else
+	TB (kppkp, (T32<P, P, P>::IndCalcW), (T32<P, P, P>::IndCalcB), 2*84219361, 2*89391280)
+#endif
 	TB (kppkn, (T32<P, P, N>::IndCalcW), (T32<P, P, N>::IndCalcB), 108400260, 115899744)
 	TB (kppkb, (T32<P, P, B>::IndCalcW), (T32<P, P, B>::IndCalcB), 108400260, 120132000)
 	TB (kppkr, (T32<P, P, R>::IndCalcW), (T32<P, P, R>::IndCalcB), 108400260, 119209296)
 	TB (kppkq, (T32<P, P, Q>::IndCalcW), (T32<P, P, Q>::IndCalcB), 108400260, 113036880)
-	TB (knpkp, (T32<N, P, P>::IndCalcW), (T32<N, P, P>::IndCalcB), 219921779, 230292480)
+	TB (knpkp, (T32<N, P, P>::IndCalcW), (T32<N, P, P>::IndCalcB), 219921779, 231758952)
 	TB (knpkn, (T32<N, P, N>::IndCalcW), (T32<N, P, N>::IndCalcB), 278914860, 295914240)
 	TB (knpkb, (T32<N, P, B>::IndCalcW), (T32<N, P, B>::IndCalcB), 278914860, 306720000)
 	TB (knpkr, (T32<N, P, R>::IndCalcW), (T32<N, P, R>::IndCalcB), 278914860, 304369920)
@@ -3078,7 +3127,7 @@ CTbDesc	rgtbdDesc[cTb] =
 	TB (knnkb, (T32<N, N, B>::IndCalcW), (T32<N, N, B>::IndCalcB),  44118240,  49854690)
 	TB (knnkr, (T32<N, N, R>::IndCalcW), (T32<N, N, R>::IndCalcB),  44118240,  49475880)
 	TB (knnkq, (T32<N, N, Q>::IndCalcW), (T32<N, N, Q>::IndCalcB),  44118240,  46912050)
-	TB (kbpkp, (T32<B, P, P>::IndCalcW), (T32<B, P, P>::IndCalcB), 227896016, 230292480)
+	TB (kbpkp, (T32<B, P, P>::IndCalcW), (T32<B, P, P>::IndCalcB), 227896016, 231758952)
 	TB (kbpkn, (T32<B, P, N>::IndCalcW), (T32<B, P, N>::IndCalcB), 289027680, 295914240)
 	TB (kbpkb, (T32<B, P, B>::IndCalcW), (T32<B, P, B>::IndCalcB), 289027680, 306720000)
 	TB (kbpkr, (T32<B, P, R>::IndCalcW), (T32<B, P, R>::IndCalcB), 289027680, 304369920)
@@ -3093,7 +3142,7 @@ CTbDesc	rgtbdDesc[cTb] =
 	TB (kbbkb, (T32<B, B, B>::IndCalcW), (T32<B, B, B>::IndCalcB),  47393100,  49854690)
 	TB (kbbkr, (T32<B, B, R>::IndCalcW), (T32<B, B, R>::IndCalcB),  47393100,  49475880)
 	TB (kbbkq, (T32<B, B, Q>::IndCalcW), (T32<B, B, Q>::IndCalcB),  47393100,  46912050)
-	TB (krpkp, (T32<R, P, P>::IndCalcW), (T32<R, P, P>::IndCalcB), 226121876, 230292480)
+	TB (krpkp, (T32<R, P, P>::IndCalcW), (T32<R, P, P>::IndCalcB), 226121876, 231758952)
 	TB (krpkn, (T32<R, P, N>::IndCalcW), (T32<R, P, N>::IndCalcB), 286777440, 295914240)
 	TB (krpkb, (T32<R, P, B>::IndCalcW), (T32<R, P, B>::IndCalcB), 286777440, 306720000)
 	TB (krpkr, (T32<R, P, R>::IndCalcW), (T32<R, P, R>::IndCalcB), 286777440, 304369920)
@@ -3103,7 +3152,7 @@ CTbDesc	rgtbdDesc[cTb] =
 	TB (krnkb, (T32<R, N, B>::IndCalcW), (T32<R, N, B>::IndCalcB),  92308740,  99709380)
 	TB (krnkr, (T32<R, N, R>::IndCalcW), (T32<R, N, R>::IndCalcB),  92308740,  98951760)
 	TB (krnkq, (T32<R, N, Q>::IndCalcW), (T32<R, N, Q>::IndCalcB),  92308740,  93824100)
-	TB (krbkp, (T32<R, B, P>::IndCalcW), (T32<R, B, P>::IndCalcB), 299203200, 299203200)
+	TB (krbkp, (T32<R, B, P>::IndCalcW), (T32<R, B, P>::IndCalcB), 299203200, 298890240)
 	TB (krbkn, (T32<R, B, N>::IndCalcW), (T32<R, B, N>::IndCalcB),  95673600,  96192120)
 	TB (krbkb, (T32<R, B, B>::IndCalcW), (T32<R, B, B>::IndCalcB),  95673600,  99709380)
 	TB (krbkr, (T32<R, B, R>::IndCalcW), (T32<R, B, R>::IndCalcB),  95673600,  98951760)
@@ -3113,7 +3162,7 @@ CTbDesc	rgtbdDesc[cTb] =
 	TB (krrkb, (T32<R, R, B>::IndCalcW), (T32<R, R, B>::IndCalcB),  46658340,  49854690)
 	TB (krrkr, (T32<R, R, R>::IndCalcW), (T32<R, R, R>::IndCalcB),  46658340,  49475880)
 	TB (krrkq, (T32<R, R, Q>::IndCalcW), (T32<R, R, Q>::IndCalcB),  46658340,  46912050)
-	TB (kqpkp, (T32<Q, P, P>::IndCalcW), (T32<Q, P, P>::IndCalcB), 214481388, 230292480)
+	TB (kqpkp, (T32<Q, P, P>::IndCalcW), (T32<Q, P, P>::IndCalcB), 214481388, 231758952)
 	TB (kqpkn, (T32<Q, P, N>::IndCalcW), (T32<Q, P, N>::IndCalcB), 272015040, 295914240)
 	TB (kqpkb, (T32<Q, P, B>::IndCalcW), (T32<Q, P, B>::IndCalcB), 272015040, 306720000)
 	TB (kqpkr, (T32<Q, P, R>::IndCalcW), (T32<Q, P, R>::IndCalcB), 272015040, 304369920)
@@ -3141,39 +3190,39 @@ CTbDesc	rgtbdDesc[cTb] =
 
 #if defined (T41_INCLUDE)
 	TB (kpppk, (T41<P, P, P>::IndCalcW), (T41<P, P, P>::IndCalcB),  26061704,  28388716)
-	TB (knppk, (T41<N, P, P>::IndCalcW), (T41<N, P, P>::IndCalcB), 102895951, 114742380)
-	TB (knnpk, (T41<N, N, P>::IndCalcW), (T41<N, N, P>::IndCalcB), 130135548, 153741961)
+	TB (knppk, (T41<N, P, P>::IndCalcW), (T41<N, P, P>::IndCalcB), 102898651, 114742320)
+	TB (knnpk, (T41<N, N, P>::IndCalcW), (T41<N, N, P>::IndCalcB), 130135501, 153741960)
 	TB (knnnk, (T41<N, N, N>::IndCalcW), (T41<N, N, N>::IndCalcB),  13486227,  17472840)
-	TB (kbppk, (T41<B, P, P>::IndCalcW), (T41<B, P, P>::IndCalcB), 106599411, 114742380)
+	TB (kbppk, (T41<B, P, P>::IndCalcW), (T41<B, P, P>::IndCalcB), 106602156, 114742320)
 	TB (kbnpk, (T41<B, N, P>::IndCalcW), (T41<B, N, P>::IndCalcB), 274352939, 307483920)
-	TB (kbnnk, (T41<B, N, N>::IndCalcW), (T41<B, N, N>::IndCalcB),  43402757,  52418521)
-	TB (kbbpk, (T41<B, B, P>::IndCalcW), (T41<B, B, P>::IndCalcB), 139715087, 153741961)
-	TB (kbbnk, (T41<B, B, N>::IndCalcW), (T41<B, B, N>::IndCalcB),  44983679,  52418582)
+	TB (kbnnk, (T41<B, N, N>::IndCalcW), (T41<B, N, N>::IndCalcB),  43406294, 52418520)
+	TB (kbbpk, (T41<B, B, P>::IndCalcW), (T41<B, B, P>::IndCalcB), 139715040, 153741960)
+	TB (kbbnk, (T41<B, B, N>::IndCalcW), (T41<B, B, N>::IndCalcB),  44983618,  52418520)
 	TB (kbbbk, (T41<B, B, B>::IndCalcW), (T41<B, B, B>::IndCalcB),  15010230,  17472840)
-	TB (krppk, (T41<R, P, P>::IndCalcW), (T41<R, P, P>::IndCalcB), 105755966, 114742380)
+	TB (krppk, (T41<R, P, P>::IndCalcW), (T41<R, P, P>::IndCalcB), 105758666, 114742320)
 	TB (krnpk, (T41<R, N, P>::IndCalcW), (T41<R, N, P>::IndCalcB), 272153675, 307483920)
-	TB (krnnk, (T41<R, N, N>::IndCalcW), (T41<R, N, N>::IndCalcB),  43052719,  52418521)
+	TB (krnnk, (T41<R, N, N>::IndCalcW), (T41<R, N, N>::IndCalcB),  43056198,  52418520)
 	TB (krbpk, (T41<R, B, P>::IndCalcW), (T41<R, B, P>::IndCalcB), 281991360, 307483920)
 	TB (krbnk, (T41<R, B, N>::IndCalcW), (T41<R, B, N>::IndCalcB),  90787358, 104837040)
-	TB (krbbk, (T41<R, B, B>::IndCalcW), (T41<R, B, B>::IndCalcB),  46238550,  52418521)
-	TB (krrpk, (T41<R, R, P>::IndCalcW), (T41<R, R, P>::IndCalcB), 137491244, 153741961)
-	TB (krrnk, (T41<R, R, N>::IndCalcW), (T41<R, R, N>::IndCalcB),  44265321,  52418582)
-	TB (krrbk, (T41<R, R, B>::IndCalcW), (T41<R, R, B>::IndCalcB),  45873781,  52418582)
+	TB (krbbk, (T41<R, B, B>::IndCalcW), (T41<R, B, B>::IndCalcB),  46242089,  52418520)
+	TB (krrpk, (T41<R, R, P>::IndCalcW), (T41<R, R, P>::IndCalcB), 137491197, 153741960)
+	TB (krrnk, (T41<R, R, N>::IndCalcW), (T41<R, R, N>::IndCalcB),  44265261,  52418520)
+	TB (krrbk, (T41<R, R, B>::IndCalcW), (T41<R, R, B>::IndCalcB),  45873720,  52418520)
 	TB (krrrk, (T41<R, R, R>::IndCalcW), (T41<R, R, R>::IndCalcB),  14644690,  17472840)
-	TB (kqppk, (T41<Q, P, P>::IndCalcW), (T41<Q, P, P>::IndCalcB), 100344565, 114742380)
+	TB (kqppk, (T41<Q, P, P>::IndCalcW), (T41<Q, P, P>::IndCalcB), 100347220, 114742320)
 	TB (kqnpk, (T41<Q, N, P>::IndCalcW), (T41<Q, N, P>::IndCalcB), 258294639, 307483920)
-	TB (kqnnk, (T41<Q, N, N>::IndCalcW), (T41<Q, N, N>::IndCalcB),  40870225,  52418521)
+	TB (kqnnk, (T41<Q, N, N>::IndCalcW), (T41<Q, N, N>::IndCalcB),  40873646,  52418520)
 	TB (kqbpk, (T41<Q, B, P>::IndCalcW), (T41<Q, B, P>::IndCalcB), 267576632, 307483920)
 	TB (kqbnk, (T41<Q, B, N>::IndCalcW), (T41<Q, B, N>::IndCalcB),  86166717, 104837040)
-	TB (kqbbk, (T41<Q, B, B>::IndCalcW), (T41<Q, B, B>::IndCalcB),  43876199,  52418521)
+	TB (kqbbk, (T41<Q, B, B>::IndCalcW), (T41<Q, B, B>::IndCalcB),  43879679,  52418520)
 	TB (kqrpk, (T41<Q, R, P>::IndCalcW), (T41<Q, R, P>::IndCalcB), 265421907, 307483920)
 	TB (kqrnk, (T41<Q, R, N>::IndCalcW), (T41<Q, R, N>::IndCalcB),  85470603, 104837040)
 	TB (kqrbk, (T41<Q, R, B>::IndCalcW), (T41<Q, R, B>::IndCalcB),  88557959, 104837040)
-	TB (kqrrk, (T41<Q, R, R>::IndCalcW), (T41<Q, R, R>::IndCalcB),  43154623,  52418521)
-	TB (kqqpk, (T41<Q, Q, P>::IndCalcW), (T41<Q, Q, P>::IndCalcB), 123688906, 153741961)
-	TB (kqqnk, (T41<Q, Q, N>::IndCalcW), (T41<Q, Q, N>::IndCalcB),  39840847,  52418582)
-	TB (kqqbk, (T41<Q, Q, B>::IndCalcW), (T41<Q, Q, B>::IndCalcB),  41271034,  52418582)
-	TB (kqqrk, (T41<Q, Q, R>::IndCalcW), (T41<Q, Q, R>::IndCalcB),  40916880,  52418582)
+	TB (kqrrk, (T41<Q, R, R>::IndCalcW), (T41<Q, R, R>::IndCalcB),  43157690,  52418520)
+	TB (kqqpk, (T41<Q, Q, P>::IndCalcW), (T41<Q, Q, P>::IndCalcB), 123688859, 153741960)
+	TB (kqqnk, (T41<Q, Q, N>::IndCalcW), (T41<Q, Q, N>::IndCalcB),  39840787,  52418520)
+	TB (kqqbk, (T41<Q, Q, B>::IndCalcW), (T41<Q, Q, B>::IndCalcB),  41270973,  52418520)
+	TB (kqqrk, (T41<Q, Q, R>::IndCalcW), (T41<Q, Q, R>::IndCalcB),  40916820,  52418520)
 	TB (kqqqk, (T41<Q, Q, Q>::IndCalcW), (T41<Q, Q, Q>::IndCalcB),  12479974,  17472840)
 #endif
 	};
@@ -3506,7 +3555,7 @@ static void	VUnmapFile
 //	TB caching
 
 #if !defined (TB_CB_CACHE_CHUNK)
-#define	TB_CB_CACHE_CHUNK		8192 /* Must be power of 2 */
+#define	TB_CB_CACHE_CHUNK			8192 /* Must be power of 2 */
 #define	LOG2_TB_CB_CACHE_CHUNK		13
 #endif
 
@@ -3780,7 +3829,7 @@ int FUnMapTableFromMemory
 
 // Probe TB
 
-extern "C" tb_t TB_FASTCALL TbtProbeTable
+static int	TB_FASTCALL TbtProbeTable
 	(
 	int		iTb,
 	color	side,
@@ -3806,7 +3855,7 @@ extern "C" tb_t TB_FASTCALL TbtProbeTable
 
 	// Cache initialized? TB registered?
 	if (0 == ctbcTbCache || NULL == ptbd->m_prgtbcbBuckets[side])
-		return bev_unknown;
+		return bev_broken;
 
 	// Calculate cache bucket
 	iDirectory = TB_DIRECTORY_ENTRY (indOffset);
@@ -3821,7 +3870,7 @@ extern "C" tb_t TB_FASTCALL TbtProbeTable
 		if ((indOffset >= ptbc->m_indStart) && (indOffset < ptbc->m_indStart + TB_CB_CACHE_CHUNK))
 			{
 			// Found - move cache entry to the head of the general LRU list
-			Lock (lockLRU);
+			Lock (lock_egtb);
 			if (ptbc != ptbcHead)
 				{
 				// Remove it from its current position
@@ -3836,7 +3885,7 @@ extern "C" tb_t TB_FASTCALL TbtProbeTable
 				ptbcHead->m_ptbcPrev = ptbc;
 				ptbcHead = ptbc;
 				}
-			UnLock (lockLRU);
+			UnLock (lock_egtb);
 			// Move cache entry to the head of the cache bucket LRU list
 			if (ptbc != ptbcTbFirst)
 				{
@@ -3850,11 +3899,10 @@ extern "C" tb_t TB_FASTCALL TbtProbeTable
 				ptbcTbFirst->m_ptbcTbPrev = ptbc;
 				ptbd->m_prgtbcbBuckets[side][iDirectory].m_ptbcFirst = ptbc;
 				}
-			tb_t	tb;
+			int	tb;
 
 			tb = (tb_t) (ptbc->m_pbData[(ULONG)(indOffset-ptbc->m_indStart)]);
 			UnLock (ptbd->m_prgtbcbBuckets[side][iDirectory].m_lock);
-			assert (bev_broken != tb);
 			return tb;
 			}
 		}
@@ -3868,13 +3916,13 @@ extern "C" tb_t TB_FASTCALL TbtProbeTable
 	// Unlock cache bucket, so other threads can continue execution
 	UnLock (ptbd->m_prgtbcbBuckets[side][iDirectory].m_lock);
 	// First, find cache entry we can use
-	Lock (lockLRU);
+	Lock (lock_egtb);
 	// Get it either from a free list, or reuse last element of the LRU list
 	if (NULL != ptbcFree)
 		{
 		ptbc = ptbcFree;
 		ptbcFree = ptbc->m_ptbcNext;
-		UnLock (lockLRU);
+		UnLock (lock_egtb);
 		}
 	else
 		{
@@ -3895,9 +3943,9 @@ extern "C" tb_t TB_FASTCALL TbtProbeTable
 			// To avoid deadlocks, have to first acquire cache bucket's lock,
 			// and only then general LRU lock. So, free general LRU lock and
 			// acquire 2 locks in a proper order.
-			UnLock (lockLRU);
+			UnLock (lock_egtb);
 			Lock (rgtbdDesc[iTailTb].m_prgtbcbBuckets[colorTail][iTailDirectory].m_lock);
-			Lock (lockLRU);
+			Lock (lock_egtb);
 			// Have structures been modified while we re-acquired locks? 
 			// (to be more precise, it's Ok, if structures were modified,
 			// but cache entry again become the last element of the list,
@@ -3923,7 +3971,7 @@ extern "C" tb_t TB_FASTCALL TbtProbeTable
 			ptbcHead = NULL;
 		else
 			ptbcTail->m_ptbcNext = NULL;
-		UnLock (lockLRU);
+		UnLock (lock_egtb);
 		
 		// Remove it from cache bucket list
 		if (NULL != ptbc->m_ptbcTbNext)
@@ -3988,7 +4036,7 @@ extern "C" tb_t TB_FASTCALL TbtProbeTable
 
 	// Read - now acquire locks and insert cache entry in both lists
 	Lock (ptbd->m_prgtbcbBuckets[side][iDirectory].m_lock);
-	Lock (lockLRU);
+	Lock (lock_egtb);
 
 	// Insert cache entry into general LRU list
 	ptbc->m_ptbcPrev = NULL;
@@ -4007,25 +4055,66 @@ extern "C" tb_t TB_FASTCALL TbtProbeTable
 	ptbd->m_prgtbcbBuckets[side][iDirectory].m_ptbcFirst = ptbc;
 
 	// All done
-	tb_t tb;
+	int tb;
 
 	tb = (tb_t) (ptbc->m_pbData[(ULONG)(indOffset-ptbc->m_indStart)]);
 	// Release locks
 	UnLock (ptbd->m_prgtbcbBuckets[side][iDirectory].m_lock);
-	UnLock (lockLRU);
-	assert (bev_broken != tb);
+	UnLock (lock_egtb);
 	return tb;
 
 	// I/O error. Here I don't want to halt the program, because that can
 	// happen in the middle of the important game. Just return failure.
 ERROR_LABEL:
 	UnLock (ptbd->m_rglockFiles[side]);
-	Lock (lockLRU);
+	Lock (lock_egtb);
 	ptbd->m_rgpchFileName[side] = NULL;
 	ptbc->m_ptbcNext = ptbcFree;
 	ptbcFree = ptbc;
-	UnLock (lockLRU);
-	return bev_unknown;
+	UnLock (lock_egtb);
+	return bev_broken;
+	}
+
+// 16-bit version (recommended)
+
+extern "C" int TB_FASTCALL L_TbtProbeTable
+	(
+	int		iTb,
+	color	side,
+	INDEX	indOffset
+	)
+	{
+	int	tbtScore;
+
+#if !defined (KPPKP_16BIT)
+	if (tbid_kppkp == iTb && x_colorBlack == side &&
+		(indOffset == 0x0362BC7C || indOffset == 0x0362DE44 || indOffset == 0x03637648 ||
+		 indOffset == 0x03639810 || indOffset == 0x038D4F29 || indOffset == 0x040A2CAB ||
+		 indOffset == 0x043C778C))
+		return -32639;
+	tbtScore = TbtProbeTable (iTb, side, indOffset);
+	tbtScore = S_to_L (tbtScore);
+#else
+	if (tbid_kppkp != iTb)
+		{
+		// All tables but kppkp are 8-bit tables
+		tbtScore = TbtProbeTable (iTb, side, indOffset);
+		tbtScore = S_to_L (tbtScore);
+		}
+	else
+		{
+		// Special handling of kppkp - it's 16-bit table
+		// Inefficient, but very simple, code
+		int	iLo;
+		int	iHi;
+		
+		indOffset *= 2;
+		iLo = TbtProbeTable (iTb, side, indOffset);
+		iHi = TbtProbeTable (iTb, side, indOffset+1);
+		tbtScore = (bev_broken == iHi) ? L_bev_broken : (iHi << 8) + (iLo & 0xFF);
+		}
+#endif
+	return tbtScore;
 	}
 
 //-----------------------------------------------------------------------------
@@ -4045,7 +4134,6 @@ int FCheckExistance
 	char			rgchTbName[256];
 	CTbCacheBucket	*prgtbcbBuckets;
 	INDEX			cb;
-fflush(stdout);
 
 	if (FRegistered (iTb, side) || NULL != rgtbdDesc[iTb].m_rgpbRead[side])
 		return true;
@@ -4066,7 +4154,7 @@ fflush(stdout);
 	// For case-sensitive systems, have to try once more
 	if (NULL == fp)
 		{
-		for (int i = strchr(rgchTbName,'.')-rgchTbName-1; isalpha(rgchTbName[i]) && i>=0; i--)
+		for (int i = strchr(rgchTbName,'.')-rgchTbName-1; i>=0 && isalpha(rgchTbName[i]); i--)
 			rgchTbName[i] = toupper (rgchTbName[i]);
 		fp = fopen (rgchTbName, "rb");
 		}
@@ -4121,7 +4209,7 @@ extern "C" int IInitializeTb
 	VTbCloseFiles ();
 #if defined (SMP)
 	// Init all locks
-	LockInit (lockLRU);
+	LockInit (lock_egtb);
 	for (iTb = 1; iTb < cTb; iTb ++)
 		{
 		LockInit (rgtbdDesc[iTb].m_rglockFiles[x_colorWhite]);
@@ -4156,8 +4244,14 @@ extern "C" int IInitializeTb
 	iMaxTb = 0;
 	for (;;)
 		{
-		for (i = 0; pszPath[i] != '\0' && pszPath[i] != ',' && pszPath[i] != ';' && pszPath[i] != ':'; i ++)
+		for (i = 0; pszPath[i] != '\0' && pszPath[i] != ',' && pszPath[i] != ';'
+#if !defined (_WIN32)
+			 && pszPath[i] != ':'
+#endif
+			 ; i ++)
+			{
 			szTemp[i] = pszPath[i];
+			}
 		szTemp[i] = '\0';
 		for (iTb = 1; iTb < cTb; iTb ++)
 			{

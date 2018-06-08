@@ -155,7 +155,7 @@ objects = searchr.o search.o thread.o searchmp.o repeat.o next.o nexte.o      \
         data.o drawn.o edit.o enprise.o epd.o epdglue.o init.o input.o        \
         interupt.o iterate.o main.o option.o output.o phase.o ponder.o        \
         preeval.o resign.o root.o learn.o setboard.o test.o time.o validate.o \
-        annotate.o analyze.o evtest.o bench.o egtb.o probe.o $(asm)
+        annotate.o analyze.o evtest.o bench.o egtb.o probe.o dgt.o $(asm)
 
 includes = data.h chess.h
 
@@ -169,8 +169,11 @@ crafty:	$(objects)
 	@rm -f X86-elf.S
 	@rm -f X86-aout.S
 
+dgt:    dgtdrv.o
+	@cc -O -o dgt dgtdrv.c
+
 egtb.o: egtb.cpp
-	cc -c -O egtb.cpp
+	cc -c -O -DSMP egtb.cpp
 clean:
 	-rm -f *.o crafty X86-elf.X X86-aout.S
 

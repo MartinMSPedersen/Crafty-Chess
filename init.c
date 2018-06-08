@@ -1031,10 +1031,6 @@ void InitializeHashTables(void)
     (pawn_hash_table+i)->p_score=0;
     (pawn_hash_table+i)->black_protected=0;
     (pawn_hash_table+i)->white_protected=0;
-    (pawn_hash_table+i)->black_pof=0;
-    (pawn_hash_table+i)->white_pof=0;
-    (pawn_hash_table+i)->weak_b=0;
-    (pawn_hash_table+i)->weak_w=0;
     (pawn_hash_table+i)->black_defects_k=0;
     (pawn_hash_table+i)->black_defects_q=0;
     (pawn_hash_table+i)->white_defects_k=0;

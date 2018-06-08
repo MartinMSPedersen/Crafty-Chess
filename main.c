@@ -22,7 +22,8 @@
 *  program may be freely distributed, used, and modified, so long as such use *
 *  does not in any way result in the sale of all or any part of the source,   *
 *  the executables, or other distributed materials that are a part of this    *
-*  package.                                                                   *
+*  package.  any changes made to this program must also be made public in     *
+*  the spirit that the original source is distributed.                        *
 *                                                                             *
 *  Crafty is the "son" (direct descendent) of Cray Blitz.  it is designed     *
 *  totally around the bit-board data structure for reasons of speed of ex-    *
@@ -2277,6 +2278,13 @@
 *           command it would crash.  analyze mode now turns off the "swindle" *
 *           mode.                                                             *
 *                                                                             *
+*   16.2    more evaluation changes, specifically to bring king safety down   *
+*           to reasonable levels.  support for the DGT electronic chess board *
+*           is now included (but only works in text mode, not in conjunction  *
+*           with xboard/winboard yet.  fix to HashStore() that corrected a    *
+*           problem with moving an entry from tablea to tableb, but to the    *
+*           wrong address 50% of the time (thanks to J. Wesley Cleveland).    *
+*                                                                             *
 *******************************************************************************
 */
 int main(int argc, char **argv)
@@ -2465,7 +2473,7 @@ int main(int argc, char **argv)
           move=InputMove(tree,args[0],0,wtm,0,0);
           if (auto232 && presult!=3) {
             char *mv=OutputMoveICS(tree,move);
-            Delay232(auto232_delay);
+            Delay(auto232_delay);
             if (!wtm) fprintf(auto_file,"\t");
             fprintf(auto_file, " %c%c-%c%c", mv[0], mv[1], mv[2], mv[3]);
             if ((mv[4] != ' ') && (mv[4] != 0))
@@ -2605,7 +2613,7 @@ int main(int argc, char **argv)
           Print(4095,"\n");
           if (auto232) { 
             char *mv=OutputMoveICS(tree,last_pv.path[1]);
-            Delay232(auto232_delay);
+            Delay(auto232_delay);
             fprintf(auto_file, " %c%c-%c%c", mv[0],mv[1],mv[2],mv[3]);
             if ((mv[4]!=' ') && (mv[4]!=0))
               fprintf(auto_file, "/%c", mv[4]);
@@ -2630,7 +2638,7 @@ int main(int argc, char **argv)
           Print(4095,"\n");
           if (auto232) { 
             char *mv=OutputMoveICS(tree,last_pv.path[1]);
-            Delay232(auto232_delay);
+            Delay(auto232_delay);
             fprintf(auto_file, "\t %c%c-%c%c", mv[0],mv[1],mv[2],mv[3]);
             if ((mv[4]!=' ') && (mv[4]!=0))
               fprintf(auto_file, "/%c", mv[4]);
@@ -2725,7 +2733,7 @@ int main(int argc, char **argv)
       if (tree->nodes_searched)
         Whisper(2,whisper_depth,end_time-start_time,whisper_value,
                 tree->nodes_searched,cpu_percent,predicted,
-                tree->tb_probes_successful,whisper_text);
+                tree->egtb_probes_successful,whisper_text);
       else
         Whisper(4,0,0,0,0,0,0,0,whisper_text);
     }

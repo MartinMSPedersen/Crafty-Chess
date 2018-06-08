@@ -68,61 +68,30 @@ _PopCnt:
 _FirstOne:
         cmpl    $1, 8(%esp)
         sbbl    %eax, %eax
-        movl    $65535, %ecx
         movl    8(%esp,%eax,4), %edx
+        bsr     %edx, %ecx
+        jz      l2
         andl    $32, %eax
-        cmpl    %edx, %ecx
-        sbbl    %ecx, %ecx
-        andl    $16, %ecx
-        shrl    %cl, %edx
+        subl    $31, %ecx
         subl    %ecx, %eax
-        movl    $255, %ecx
-        cmpl    %edx, %ecx
-        sbbl    %ecx, %ecx
-        andl    $8, %ecx
-        shrl    %cl, %edx
-        subl    %ecx, %eax
-        addl    $24, %eax
-        movzbl  _first_ones_8bit(%edx), %ecx
-        addl    %ecx, %eax
+        ret
+l2:     movl    $64, %eax
         ret
 
-/*----------------------------------------------------------------------------*/
-
-        .align  alignment, 0x90
         .globl  _LastOne
+
 _LastOne:
-        cmpl    $1, 4(%esp)
-        sbbl    %ecx, %ecx
-        movl    %ecx, %eax
-        negl    %ecx
-        notl    %eax
-        andl    $32, %eax
-        movl    4(%esp,%ecx,4), %edx
-        pushl   %esi
-        movl    %edx, %esi
-        andl    $0x0000ffff, %esi
-        cmpl    $1, %esi
-        sbbl    %ecx, %ecx
-        andl    $16, %ecx
-        shrl    %cl, %edx
-        subl    %ecx, %eax
-        movl    %edx, %esi
-        andl    $0x000000ff, %esi
-        cmpl    $1, %esi
-        sbbl    %ecx, %ecx
-        andl    $8, %ecx
-        shrl    %cl, %edx
-        subl    %ecx, %eax
-        andl    $0x000000ff, %edx
-        addl    $24, %eax
-        cmpl    $1, %edx
-        sbbl    %ecx, %ecx
-        popl    %esi
-        movzbl  _last_ones_8bit(%edx), %edx
-        andl    $56, %ecx
-        addl    %edx, %eax
-        addl    %ecx, %eax
+        bsf     4(%esp),%edx
+        jz      l3
+        movl    $63, %eax
+        subl    %edx, %eax
+        ret
+l3:     bsf     8(%esp), %edx
+        jz      l4
+        movl    $31, %eax
+        subl    %edx, %eax
+        ret
+l4:     mov     $64, %eax
         ret
 
 /*----------------------------------------------------------------------------*/

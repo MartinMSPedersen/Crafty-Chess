@@ -172,25 +172,22 @@ int CheckInput(void) {
   if (!xboard && !ics && !isatty(fileno(stdin))) return(0);
   if (batch_mode) return(0);
   if (strchr(cmd_buffer,'\n')) return(1);
-  FD_ZERO (&readfds);
-  FD_SET (fileno(stdin), &readfds);
+  FD_ZERO(&readfds);
+  FD_SET(fileno(stdin), &readfds);
+#if defined(DGT)
+  if (DGT_active) FD_SET(from_dgt, &readfds);
+#endif
   tv.tv_sec=0;
   tv.tv_usec=0;
   select(16, &readfds, 0, 0, &tv);
   data=FD_ISSET(fileno(stdin), &readfds);
+#if defined(DGT)
+  if (DGT_active) data|=FD_ISSET(from_dgt, &readfds);
+#endif
   return(data);
 }
 #  endif
 #endif
-
-void Delay232(int ms)
-{
-  int old,new;
-  old=ReadClock(elapsed);
-  do {
-    new=ReadClock(elapsed);
-  } while (new-ms/10 < old);
-}
 
 void ClearHashTables(void)
 {
@@ -210,6 +207,15 @@ void ClearHashTables(void)
                       mask_clear_entry),Shiftl((BITBOARD) 65536,21));
     }
   }
+}
+
+void Delay(int ms)
+{
+  int old,new;
+  old=ReadClock(elapsed);
+  do {
+    new=ReadClock(elapsed);
+  } while (new-ms/10 < old);
 }
 
 void DisplayBitBoard(BITBOARD board)
@@ -294,8 +300,7 @@ void DisplayChessBoard(FILE *display_file, POSITION pos)
   fprintf(display_file,"         a   b   c   d   e   f   g   h\n\n");
 }
 
-char* DisplayEvaluation(int value)
-{
+char* DisplayEvaluation(int value) {
   static char out[10];
 
   if (value == DrawScore(root_wtm)) sprintf(out,"   draw");
@@ -429,7 +434,7 @@ void DisplayPV(TREE *tree, int level, int wtm, int time, int value, PATH *pv) {
       if (bufftemp) Print(type,"                                    ");
     } while(bufftemp);
     Whisper(level,iteration_depth,end_time-start_time,whisper_value,
-            tree->nodes_searched,0,predicted,tree->tb_probes_successful,
+            tree->nodes_searched,0,predicted,tree->egtb_probes_successful,
             whisper_text);
   }
   for (i=pv->path_length;i>0;i--) {
@@ -1142,6 +1147,9 @@ int Read(int wait, char *buffer) {
   char *eol, *ret, readdata;
 
   *buffer=0;
+#if defined(DGT)
+  if (DGT_active && DGTCheckInput()) DGTRead();
+#endif
 /*
    case 1:  we have a complete command line, with terminating
    N/L character in the buffer.  we can simply extract it from
@@ -1170,8 +1178,29 @@ int Read(int wait, char *buffer) {
    a N/L character in the buffer.  Then we parse and return.
 */
   else while (!strchr(cmd_buffer,'\n')) {
-    readdata=ReadInput();
-    if (!readdata) return(-1);
+#if defined(DGT)
+    if (DGT_active) {
+      fd_set readfds;
+      struct timeval tv;
+      int data, result;
+    
+      FD_ZERO (&readfds);
+      FD_SET (from_dgt, &readfds);
+      FD_SET (fileno(stdin), &readfds);
+      tv.tv_sec=999999;
+      tv.tv_usec=0;
+      result=select(32, &readfds, 0, 0, &tv);
+      data=FD_ISSET(from_dgt, &readfds);
+      if (FD_ISSET(from_dgt, &readfds)) DGTRead();
+      if (FD_ISSET(fileno(stdin), &readfds)) readdata=ReadInput();
+    }
+    else {
+#endif
+      readdata=ReadInput();
+      if (!readdata) return(-1);
+#if defined(DGT)
+    }
+#endif
   }
 
   eol=strchr(cmd_buffer,'\n');
@@ -1993,26 +2022,26 @@ void Whisper(int level,int depth,int time,int value,unsigned int nodes,
     case 2:
       if (kibitz >= 2) {
         if (ics) printf("*");
-        printf("kibitz d%d; %s; nps %d; time %s; cpu %d%%; p:%d; egtb:%d\n",
+        printf("kibitz ply=%d; eval=%s; nps=%dK; time=%s; cpu=%d%%; p=%d; egtb=%d\n",
                depth,DisplayEvaluationWhisper(value),
-               (int) ((time)?100*(BITBOARD)nodes/(BITBOARD)time:nodes),
+               (int) ((time)?100*(BITBOARD)nodes/(BITBOARD)time:nodes)/1000,
                DisplayTimeWhisper(time),cpu,predicted,tb_hits);
       }
       else if (whisper >= 2) {
         if (ics) printf("*");
-        printf("%s d%d; %s; nps %d; time %s; cpu %d%%; p:%d; egtb:%d\n",
+        printf("%s ply=%d; eval=%s; nps=%dK; time=%s; cpu=%d%%; p=%d; egtb=%d\n",
                prefix,depth,DisplayEvaluationWhisper(value),
-               (int) ((time)?100*(BITBOARD)nodes/(BITBOARD)time:nodes),
+               (int) ((time)?100*(BITBOARD)nodes/(BITBOARD)time:nodes)/1000,
                DisplayTimeWhisper(time),cpu,predicted,tb_hits);
       }
     case 3:
       if ((kibitz >= 3) && (nodes>5000 || level==2)) {
         if (ics) printf("*");
-        printf("kibitz pv:%s\n",pv);
+        printf("kibitz %s\n",pv);
       }
       else if ((whisper >= 3) && (nodes>5000 || level==2)) {
         if (ics) printf("*");
-        printf("%s pv:%s\n",prefix,pv);
+        printf("%s %s\n",prefix,pv);
       }
       break;
     case 4:
@@ -2097,8 +2126,8 @@ void CopyFromSMP(TREE *p, TREE *c) {
   p->transposition_hits+=c->transposition_hits;
   p->pawn_probes+=c->pawn_probes;
   p->pawn_hits+=c->pawn_hits;
-  p->tb_probes+=c->tb_probes;
-  p->tb_probes_successful+=c->tb_probes_successful;
+  p->egtb_probes+=c->egtb_probes;
+  p->egtb_probes_successful+=c->egtb_probes_successful;
   p->check_extensions_done+=c->check_extensions_done;
   p->recapture_extensions_done+=c->recapture_extensions_done;
   p->passed_pawn_extensions_done+=c->passed_pawn_extensions_done;
@@ -2162,8 +2191,8 @@ TREE* CopyToSMP(TREE *p) {
   c->transposition_hits=0;
   c->pawn_probes=0;
   c->pawn_hits=0;
-  c->tb_probes=0;
-  c->tb_probes_successful=0;
+  c->egtb_probes=0;
+  c->egtb_probes_successful=0;
   c->check_extensions_done=0;
   c->recapture_extensions_done=0;
   c->passed_pawn_extensions_done=0;

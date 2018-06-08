@@ -102,10 +102,23 @@ void Analyze() {
           (void) Option(tree);
           display=tree->pos;
         }
+        else if (Option(tree));
         else {
-          pondering=0;
-          if (Option(tree) == 0) printf("illegal move.\n");
-          pondering=1;
+          if (!DGT_active) {
+            pondering=0;
+            if (Option(tree) == 0) printf("illegal move.\n");
+            pondering=1;
+          }
+          else {
+            wtm=ChangeSide(wtm);
+            if (ChangeSide(wtm)) move_number--;
+            if (move_number == 0) {
+              move_number=1;
+              wtm=1;
+            }
+            sprintf(buffer,"reset %d",move_number);
+            (void) Option(tree);
+          }
           display=tree->pos;
         }
       } while (!move);

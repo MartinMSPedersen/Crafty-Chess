@@ -120,12 +120,12 @@ int Search(TREE *tree, int alpha, int beta, int wtm, int depth,
 |                                                          |
  ----------------------------------------------------------
 */
-  if (TotalPieces<=EGTB_use && TotalWhitePawns+TotalBlackPawns < 3) {
-    int tb_value;
-    tree->tb_probes++;
-    if (EGTBProbe(tree, ply, wtm, &tb_value)) {
-      tree->tb_probes_successful++;
-      alpha=tb_value;
+  if (TotalPieces<=EGTB_use && ply <= EGTB_maxdepth) {
+    int egtb_value;
+    tree->egtb_probes++;
+    if (EGTBProbe(tree, ply, wtm, &egtb_value)) {
+      tree->egtb_probes_successful++;
+      alpha=egtb_value;
       if (abs(alpha) > MATE-300) alpha+=(alpha > 0) ? -(ply-1) : +(ply);
       else if (alpha == 0) alpha=DrawScore(root_wtm==wtm);
       if(alpha < beta) SavePV(tree,ply,alpha,2);

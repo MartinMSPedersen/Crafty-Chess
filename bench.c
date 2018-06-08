@@ -137,7 +137,7 @@ void Bench(void) {
   Print(4095,"Nodes per second: %d\n",
         (int) ((float) nodes/(float) (search_time_limit * 6 / 100)));
   Print(4095,"NPS relative to Pentium Pro/200: %.2f\n",
-        (nodes / (search_time_limit * 6 / 100) / 85000));
+        (nodes / (search_time_limit * 6 / 100) / 87000));
   input_stream=stdin;
   early_exit=99;
   test_mode=0;

@@ -62,14 +62,10 @@ int HashProbe(TREE *tree, int ply, int depth, int wtm, int *alpha,
  ----------------------------------------------------------
 */
   htable=((wtm)?trans_ref_wa:trans_ref_ba)+(((int) HashKey) & hash_maska);
-# if defined(SMP)
   Lock(lock_hasha);
-#endif
   word1=htable->word1;
   word2=htable->word2;
-# if defined(SMP)
   UnLock(lock_hasha);
-#endif
   if (!Xor(And(word2,mask_80),temp_hash_key)) do {
 #if !defined(FAST)
     tree->transposition_hits++;
@@ -108,14 +104,10 @@ int HashProbe(TREE *tree, int ply, int depth, int wtm, int *alpha,
   } while(0);
 
   htable=((wtm)?trans_ref_wb:trans_ref_bb)+(((int) HashKey) & hash_maskb);
-# if defined(SMP)
   Lock(lock_hashb);
-#endif
   word1=htable->word1;
   word2=htable->word2;
-# if defined(SMP)
   UnLock(lock_hashb);
-#endif
   if (!Xor(And(word2,mask_80),temp_hash_key)) {
 #if !defined(FAST)
     tree->transposition_hits++;
@@ -156,7 +148,7 @@ int HashProbe(TREE *tree, int ply, int depth, int wtm, int *alpha,
   return(avoid_null);
 }
 
-/* last modified 09/30/98 */
+/* last modified 12/17/98 */
 /*
 ********************************************************************************
 *                                                                              *
@@ -191,7 +183,7 @@ void HashStore(TREE *tree, int ply, int depth, int wtm, int type,
                int value, int threat) {
   register HASH_ENTRY *htablea, *htableb;
   register BITBOARD word1, word2;
-  register int draft, age;
+  register int draft, age, temp_addr;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -232,42 +224,28 @@ void HashStore(TREE *tree, int ply, int depth, int wtm, int type,
 |                                                          |
  ----------------------------------------------------------
 */
-  if (wtm) {
-    htablea=trans_ref_wa+(((int) HashKey) & hash_maska);
-    htableb=trans_ref_wb+(((int) HashKey) & hash_maskb);
-  }
-  else {
-    htablea=trans_ref_ba+(((int) HashKey) & hash_maska);
-    htableb=trans_ref_bb+(((int) HashKey) & hash_maskb);
-  }
+  htablea=((wtm) ? trans_ref_wa:trans_ref_ba)+(((int) HashKey) & hash_maska);
   draft=(int) Shiftr(htablea->word2,48);
   age=(unsigned int) Shiftr(htablea->word1,61);
   age=age && (age!=transposition_id);
   if (age || (depth >= draft)) {
-# if defined(SMP)
     Lock(lock_hasha);
     Lock(lock_hashb);
-#endif
+    temp_addr=(((int)htablea->word2)<<16)+(((int) HashKey) & 0177777);
+    htableb=((wtm) ? trans_ref_wb:trans_ref_bb)+(temp_addr & hash_maskb);
     htableb->word1=htablea->word1;
     htableb->word2=htablea->word2;
-# if defined(SMP)
     UnLock(lock_hashb);
-#endif
     htablea->word1=word1;
     htablea->word2=word2;
-# if defined(SMP)
     UnLock(lock_hasha);
-#endif
   }
   else {
-# if defined(SMP)
+    htableb=((wtm) ? trans_ref_wb:trans_ref_bb)+(((int) HashKey) & hash_maskb);
     Lock(lock_hashb);
-#endif
     htableb->word1=word1;
     htableb->word2=word2;
-# if defined(SMP)
     UnLock(lock_hashb);
-#endif
   }
 }
 

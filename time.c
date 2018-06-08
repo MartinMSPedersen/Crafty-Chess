@@ -96,9 +96,7 @@ int TimeCheck(int abort)
 */
   time_used=(ReadClock(time_type)-start_time);
   if (tree->nodes_searched>noise_level && (display_options&32) && time_used>burp) {
-#if defined(SMP)
     Lock(lock_io);
-#endif
 #if defined(MACOS)
     printf("               %2i   %s\n",iteration_depth,DisplayTime(time_used));
 #else
@@ -106,9 +104,7 @@ int TimeCheck(int abort)
 #endif
     burp=(time_used/1500)*1500+1500;
     fflush(stdout);
-#if defined(SMP)
     UnLock(lock_io);
-#endif
   }
   if (pondering || analyze_mode) return(0);
   if (time_used > absolute_time_limit) return(1);

@@ -61,9 +61,7 @@ int NextRootMove(TREE *tree, int wtm)
       root_move=movep-tree->last[0];
       tree->searched_this_root_move[root_move]=1;
       if ((tree->nodes_searched > noise_level) && (display_options&32)) {
-#if defined(SMP)
         Lock(lock_io);
-#endif
         sprintf(remaining_moves,"%d/%d",movep-tree->last[0]+1,tree->last[1]-tree->last[0]);
         end_time=ReadClock(time_type);
         printf("               %2i   %s%7s   ",iteration_depth,
@@ -78,9 +76,7 @@ int NextRootMove(TREE *tree, int wtm)
         printf("%s      \r",OutputMove(tree,tree->current_move[1],1,wtm));
 #endif
         fflush(stdout);
-#if defined(SMP)
         UnLock(lock_io);
-#endif
       }
       return(ROOT_MOVES);
     }

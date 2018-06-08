@@ -33,7 +33,7 @@ int Option(TREE *tree) {
  ----------------------------------------------------------
 */
   nargs=ReadParse(buffer,args," 	;=/");
-  if (!nargs) return(1);
+  if (!nargs) return(0);
   if (initialized) {
     if (EGCommandCheck(buffer)) {
       if (thinking || pondering) return (2);
@@ -269,7 +269,14 @@ int Option(TREE *tree) {
     }
     tchannel=atoi(args[1]);
     if (tchannel) channel=tchannel;
-    if (nargs > 1) strcpy(channel_title,args[2]);
+    if (nargs > 1) {
+      char *from=args[2];
+      char *to=channel_title;
+      while (*from) {
+        if (*from != '*') *to++=*from;
+        from++;
+      }
+    }
   }
 /*
  ----------------------------------------------------------
@@ -343,6 +350,22 @@ int Option(TREE *tree) {
 /*
  ----------------------------------------------------------
 |                                                          |
+|   "dgt" command activates the DGT board interface.       |
+|                                                          |
+ ----------------------------------------------------------
+*/
+#if defined(DGT)
+  else if (!strcmp("dgt",*args)) {
+    nargs=ReadParse(buffer,args," 	;");
+    if (to_dgt == 0) DGTInit(nargs,args);
+    else {
+      write(to_dgt,args[1],strlen(args[1]));
+    }
+  }
+#endif
+/*
+ ----------------------------------------------------------
+|                                                          |
 |   "display" command displays the chess board.            |
 |                                                          |
 |   "display" command sets specific display options which  |
@@ -362,7 +385,6 @@ int Option(TREE *tree) {
  ----------------------------------------------------------
 */
   else if (OptionMatch("display",*args)) {
-    int i;
     if (nargs > 1) do {
       if (OptionMatch("time",args[1])) {
         display_options|=1;
@@ -453,16 +475,8 @@ int Option(TREE *tree) {
       if (thinking || pondering) return (2);
       tree->position[1]=tree->position[0];
       PreEvaluate(tree,wtm);
-      if (OptionMatch("pawn",args[1])) {
+      if (OptionMatch("pawn",args[1]))
         DisplayPieceBoards(pawn_value_w,pawn_value_b);
-        i=Evaluate(tree,1,1,-99999,99999);
-        printf(" -----------------weak-----------------");
-        printf("      -----------------weak-----------------\n");
-        for (i=128;i;i=(i>>1)) printf("%4d ",(i&tree->pawn_score.weak_w)!=0);
-        printf("    ");
-        for (i=128;i;i=(i>>1)) printf("%4d ",(i&tree->pawn_score.weak_b)!=0);
-        printf("\n");
-      }
       if (OptionMatch("knight",args[1]))
         DisplayPieceBoards(knight_value_w,knight_value_b);
       if (OptionMatch("bishop",args[1]))
@@ -613,8 +627,8 @@ int Option(TREE *tree) {
  ----------------------------------------------------------
 */
   else if (OptionMatch("egtb",*args)) {
-    Print(128,"EGTB access enabled\n");
     if (!egtbsetup) {
+      Print(128,"EGTB access enabled\n");
       Print(128,"using tbpath=%s\n",tb_path);
       EGTBlimit=IInitializeTb(tb_path);
       Print(128,"%d piece tablebase files found\n",EGTBlimit);
@@ -649,6 +663,9 @@ int Option(TREE *tree) {
     if (history_file) fclose(history_file);
     if (log_file) fclose(log_file);
     EGTerm();
+#if defined(DGT)
+    if (DGT_active) write(to_dgt,"exit\n",5);
+#endif
     exit(0);
   }
 /*
@@ -1059,10 +1076,6 @@ int Option(TREE *tree) {
           (pawn_hash_table+i)->p_score=0;
           (pawn_hash_table+i)->black_protected=0;
           (pawn_hash_table+i)->white_protected=0;
-          (pawn_hash_table+i)->black_pof=0;
-          (pawn_hash_table+i)->white_pof=0;
-          (pawn_hash_table+i)->weak_b=0;
-          (pawn_hash_table+i)->weak_w=0;
           (pawn_hash_table+i)->black_defects_k=0;
           (pawn_hash_table+i)->black_defects_q=0;
           (pawn_hash_table+i)->white_defects_k=0;
@@ -2123,6 +2136,7 @@ int Option(TREE *tree) {
       *next=tolower(*next);
       next++;
     }
+#include "test.inc"
     if (mode != tournament_mode) {
       for (i=0;i<number_auto_kibitzers;i++)
         if (!strcmp(auto_kibitz_list[i],args[1])) {
@@ -2286,30 +2300,57 @@ int Option(TREE *tree) {
   else if (OptionMatch("logpath",*args) ||
            OptionMatch("bookpath",*args) ||
            OptionMatch("tbpath",*args)) {
-    if (log_file)
-      Print(4095,"ERROR -- this must be used on command line only\n");
-    else {
-      nargs=ReadParse(buffer,args," 	=");
-      if (nargs < 2) {
-        printf("usage:  bookpath|logpath|tbpath <path>\n");
-        return(1);
-      }
-      if (!strchr(args[1],'(')) {
-        if (strstr(args[0],"bookpath")) strcpy(book_path,args[1]);
-        else if (strstr(args[0],"logpath")) strcpy(log_path,args[1]);
-        else if (strstr(args[0],"tbpath")) strcpy(tb_path,args[1]);
-      }
-      else {
-        if (strchr(args[1],')')) {
-          *strchr(args[1],')')=0;
-          if (strstr(args[0],"bookpath")) strcpy(book_path,args[1]+1);
-          else if (strstr(args[0],"logpath")) strcpy(log_path,args[1]+1);
-          else if (strstr(args[0],"tbpath")) strcpy(tb_path,args[1]+1);
+    
+    if (OptionMatch("logpath",*args) ||
+        OptionMatch("bookpath",*args)) {
+      if (log_file)
+        Print(4095,"ERROR -- this must be used on command line only\n");
+    }
+    nargs=ReadParse(buffer,args," 	=");
+    if (nargs < 2) {
+      printf("usage:  bookpath|logpath|tbpath <path>\n");
+      return(1);
+    }
+    if (!strchr(args[1],'(')) {
+      if (strstr(args[0],"bookpath")) strcpy(book_path,args[1]);
+      else if (strstr(args[0],"logpath")) strcpy(log_path,args[1]);
+      else if (strstr(args[0],"tbpath")) {
+        strcpy(tb_path,args[1]);
+        EGTBlimit=IInitializeTb(tb_path);
+        Print(128,"%d piece tablebase files found\n",EGTBlimit);
+        if (EGTBlimit) {
+          if (!EGTB_cache) EGTB_cache=malloc(EGTB_cache_size);
+          if (!EGTB_cache) {
+            Print(4095,"ERROR  EGTB cache malloc failed\n");
+            EGTB_cache=malloc(EGTB_CACHE_DEFAULT);
+          }
+          else FTbSetCacheSize(EGTB_cache,EGTB_cache_size);
+          egtbsetup=1;
         }
-        else Print(4095,"ERROR multiple paths must be enclosed in ( and )\n");
       }
     }
-printf("tbpath=%s\n",tb_path);
+    else {
+      if (strchr(args[1],')')) {
+        *strchr(args[1],')')=0;
+        if (strstr(args[0],"bookpath")) strcpy(book_path,args[1]+1);
+        else if (strstr(args[0],"logpath")) strcpy(log_path,args[1]+1);
+        else if (strstr(args[0],"tbpath")) {
+          strcpy(tb_path,args[1]+1);
+          EGTBlimit=IInitializeTb(tb_path);
+          Print(128,"%d piece tablebase files found\n",EGTBlimit);
+          if (EGTBlimit) {
+            if (!EGTB_cache) EGTB_cache=malloc(EGTB_cache_size);
+            if (!EGTB_cache) {
+              Print(4095,"ERROR  EGTB cache malloc failed\n");
+              EGTB_cache=malloc(EGTB_CACHE_DEFAULT);
+            }
+            else FTbSetCacheSize(EGTB_cache,EGTB_cache_size);
+            egtbsetup=1;
+          }
+        }
+      }
+      else Print(4095,"ERROR multiple paths must be enclosed in ( and )\n");
+    }
   }
 /*
  ----------------------------------------------------------
@@ -2507,6 +2548,15 @@ printf("tbpath=%s\n",tb_path);
       fprintf(log_file,"Crafty's rating: %d.\n",crafty_rating);
       fprintf(log_file,"opponent's rating: %d.\n",opponent_rating);
     }
+  }
+/*
+ ----------------------------------------------------------
+|                                                          |
+|  "remark" indicates the line is a comment.               |
+|                                                          |
+ ----------------------------------------------------------
+*/
+  else if (OptionMatch("remark",*args)) {
   }
 /*
  ----------------------------------------------------------

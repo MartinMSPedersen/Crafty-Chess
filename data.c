@@ -269,7 +269,8 @@
 #  if defined(SMP)
    TREE           *local[MAX_BLOCKS+1];
    TREE           *volatile thread[CPUS];
-   lock_t         lock_hasha, lock_hashb, lock_pawn_hash, lock_smp, lock_io;
+   lock_t         lock_hasha, lock_hashb, lock_pawn_hash;
+   lock_t         lock_smp, lock_io;
    pthread_attr_t pthread_attr;
 #  else
    TREE           *local[1];
@@ -279,7 +280,7 @@
    unsigned int   max_split_blocks;
    volatile unsigned int   splitting;
 
-# define    VERSION                             "16.1"
+# define    VERSION                             "16.2"
   char      version[6] =                    {VERSION};
   PLAYING_MODE mode =                     normal_mode;
 
@@ -293,6 +294,9 @@
   int       crafty_rating =                      2500;
   int       opponent_rating =                    2500;
   int       last_search_value =                     0;
+  int       DGT_active =                            0;
+  int       to_dgt =                                0;
+  int       from_dgt =                              0;
   int       pgn_suggested_percent =                 0;
   char      pgn_event[32] = {"?"};
   char      pgn_site[32] = {"?"};
@@ -479,6 +483,7 @@
   int       EGTB_draw =                             0;
   int       EGTB_cache_size =      EGTB_CACHE_DEFAULT;
   void      *EGTB_cache =                    (void*)0;
+  int       EGTB_maxdepth =                        32;
   int       xboard =                                0;
   int       whisper =                               0;
   int       channel =                               0;
@@ -592,10 +597,10 @@
                                      0};
 
   int       isolated_pawn_value[9] = { 0,
-                                       -PAWN_ISOLATED,   -PAWN_ISOLATED*2,
-                                       -PAWN_ISOLATED*4, -PAWN_ISOLATED*7,
-                                       -PAWN_ISOLATED*10,-PAWN_ISOLATED*15,
-                                       -PAWN_ISOLATED*20,-PAWN_ISOLATED*25};
+                                       PAWN_ISOLATED,   PAWN_ISOLATED*2,
+                                       PAWN_ISOLATED*4, PAWN_ISOLATED*6,
+                                       PAWN_ISOLATED*9,PAWN_ISOLATED*12,
+                                       PAWN_ISOLATED*15,PAWN_ISOLATED*20};
 
   int       supported_passer[8] =  { 0,
                                      PAWN_SUPPORTED_PASSED_RANK2,
@@ -644,21 +649,21 @@
                                      6,  6,  6,  6,  6,  6,  6,  6};
 
   int       scale_down[128] =     {  1,  1,  1,  1,  1,  1,  1,  1,
-                                     1,  1,  1,  1,  1,  1,  2,  3,
-                                     4,  5,  6,  7,  8,  9, 10, 11,
-                                    12, 12, 12, 12, 12, 12, 12, 12,
-                                    12, 12, 12, 12, 12, 12, 12, 12,
-                                    12, 12, 12, 12, 12, 12, 12, 12,
-                                    12, 12, 12, 12, 12, 12, 12, 12,
-                                    12, 12, 12, 12, 12, 12, 12, 12,
-                                    12, 12, 12, 12, 12, 12, 12, 12,
-                                    12, 12, 12, 12, 12, 12, 12, 12,
-                                    12, 12, 12, 12, 12, 12, 12, 12,
-                                    12, 12, 12, 12, 12, 12, 12, 12,
-                                    12, 12, 12, 12, 12, 12, 12, 12,
-                                    12, 12, 12, 12, 12, 12, 12, 12,
-                                    12, 12, 12, 12, 12, 12, 12, 12,
-                                    12, 12, 12, 12, 12, 12, 12, 12};
+                                     1,  1,  1,  1,  1,  1,  2,  2,
+                                     3,  3,  4,  4,  5,  5,  6,  6,
+                                     7,  7,  8,  8,  8,  9,  9,  9,
+                                    10, 10, 10, 10, 10, 10, 10, 10,
+                                    10, 10, 10, 10, 10, 10, 10, 10,
+                                    10, 10, 10, 10, 10, 10, 10, 10,
+                                    10, 10, 10, 10, 10, 10, 10, 10,
+                                    10, 10, 10, 10, 10, 10, 10, 10,
+                                    10, 10, 10, 10, 10, 10, 10, 10,
+                                    10, 10, 10, 10, 10, 10, 10, 10,
+                                    10, 10, 10, 10, 10, 10, 10, 10,
+                                    10, 10, 10, 10, 10, 10, 10, 10,
+                                    10, 10, 10, 10, 10, 10, 10, 10,
+                                    10, 10, 10, 10, 10, 10, 10, 10,
+                                    10, 10, 10, 10, 10, 10, 10, 10};
 
   char      square_color[64]  = { 1, 0, 1, 0, 1, 0, 1, 0,
                                   0, 1, 0, 1, 0, 1, 0, 1,

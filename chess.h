@@ -195,117 +195,7 @@
 #if !defined(SMP)
 #  define lock_t int
 #endif
-
-#if defined(SMP)
-
-#if (defined(NT_i386) || defined(NT_AXP))
-
-#  define pthread_attr_t  HANDLE
-#  define pthread_t       HANDLE
-#  define thread_t        HANDLE
-#  define tfork(t,f,p)    do {                                             \
-                            (pthread_t)_beginthreadex(0,0,(void *)(f),(void *)(p),0,0);  \
-                          } while (0)
-
-#if (defined (_M_ALPHA) && !defined(NT_INTEREX))
-   
-#  ifdef __cplusplus
-      extern "C" __int64 __asm (char *, ...);
-#     pragma intrinsic (__asm)
-#  endif
-
-  typedef volatile int lock_t[1];
-
-#  define LockInit(v)      ((v)[0] = 0)
-#  define UnLock(v)        ((v)[0] = 0)
-
-   __inline void Lock (volatile int *hPtr) {
-   __asm ("lp: ldl_l v0,(a0);"
-          "    xor v0,1,v0;"
-          "    beq v0,lp;"
-          "    stl_c v0,(a0);"
-          "    beq v0,lp;"
-          "    mb;",
-                  hPtr);
-   }
-
-#elif (defined (_M_IX86) && !defined(NT_INTEREX))
-
-   typedef volatile int lock_t[1];
-
-#  define LockInit(v)      ((v)[0] = 0)
-#  define UnLock(v)        ((v)[0] = 0)
-
-
-__inline void Lock (volatile int *hPtr)
-    {
-    __asm
-      {
-        mov     ecx, hPtr
-   la:  mov     eax, 1
-        xchg    eax, [ecx]
-        test    eax, eax
-        jz      end
-   lb:  mov     eax, [ecx]
-        test    eax, eax
-        jz      la
-        jmp     lb
-   end:
-      }
-    }
-
-
-#else /* NT non-Alpha/Intel, without assembler Lock() */
-
-#  define lock_t           volatile int
-#  define LockInit(v)      ((v) = 0)
-#  define Lock(v)          do {                                         \
-                             while(InterlockedExchange((LPLONG)&(v),1) != 0);  
-\
-                           } while (0)
-#  define UnLock(v)        ((v) = 0)
-
-#endif /* architecture check */
-
-#else  /* not NT, assume SMP using POSIX threads (LINUX, etc)  */
-
-#if defined(MUTEX)
-
-#  define Lock(v)          pthread_mutex_lock(&v)
-#  define LockInit(v)      pthread_mutex_init(&v,0)
-#  define UnLock(v)        pthread_mutex_unlock(&v)
-#  define lock_t           pthread_mutex_t
-
-#elif defined(ALPHA)
-
-#  include <machine/builtins.h>
-
-#  define lock_t           volatile long
-#  define LockInit(v)      ((v) = 0)
-#  define Lock(v)          __LOCK_LONG(&(v))
-#  define UnLock(v)        __UNLOCK_LONG(&(v))
-
-#else /* POSIX, but not using MUTEXes */
-
-#  define exchange(adr,reg)                                  \
-     ({ volatile int _ret;                                   \
-     asm volatile ("xchgw %0,%1"                             \
-     : "=q" (_ret), "=m" (*(adr))    /* Output %0,%1 */      \
-     : "m"  (*(adr)), "0"  (reg));   /* Input (%2),%0 */     \
-     _ret;                                                   \
-     })
-#  define LockInit(p)           (p=0)
-#  define UnLock(p)             (exchange(&p,0))
-#  define Lock(p)               while(exchange(&p,1)) while(p)
-#  define lock_t                volatile int
-
-#endif /* MUTEX */
-
-#  define tfork(t,f,p)          pthread_create(&t,&pthread_attr,f,(void*) p)
-
-#endif /* NT or POSIX */
-
-#endif /*  SMP code */
+#include "lock.h"
 
 #define      BOOK_CLUSTER_SIZE            600
 #define            MERGE_BLOCK           1000
@@ -315,7 +205,6 @@ __inline void Lock (volatile int *hPtr)
 #define        LEARN_WINDOW_UB            +40
 #define      LEARN_COUNTER_BAD            -80
 #define     LEARN_COUNTER_GOOD           +100
-
 
 /*
   fractional ply extensions.  these should be in units based on the
@@ -435,14 +324,10 @@ typedef struct {
   unsigned int key;
   short    p_score;
   unsigned char black_protected;
-  unsigned char black_pof;
-  unsigned char weak_b;
   unsigned char passed_b;
   unsigned char black_defects_k;
   unsigned char black_defects_q;
   unsigned char white_protected;
-  unsigned char white_pof;
-  unsigned char weak_w;
   unsigned char passed_w;
   unsigned char white_defects_k;
   unsigned char white_defects_q;
@@ -498,8 +383,8 @@ struct tree {
   unsigned int    transposition_hits;
   unsigned int    pawn_probes;
   unsigned int    pawn_hits;
-  unsigned int    tb_probes;
-  unsigned int    tb_probes_successful;
+  unsigned int    egtb_probes;
+  unsigned int    egtb_probes_successful;
   unsigned int    check_extensions_done;
   unsigned int    recapture_extensions_done;
   unsigned int    passed_pawn_extensions_done;
@@ -624,7 +509,10 @@ void           ClearHashTables(void);
 void           ComputeAttacksAndMobility(void);
 void           CopyFromSMP(TREE*, TREE*);
 TREE*          CopyToSMP(TREE*);
-void           Delay232(int);
+void           Delay(int);
+void           DGTInit(int,char**);
+int            DGTCheckInput(void);
+void           DGTRead(void);
 void           DisplayBitBoard(BITBOARD);
 void           DisplayChessBoard(FILE*, POSITION);
 char*          DisplayEvaluation(int);

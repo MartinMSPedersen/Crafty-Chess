@@ -42,6 +42,10 @@
    extern int            EGTB_use;
    extern void           *EGTB_cache;
    extern int            EGTB_cache_size;
+   extern int            EGTB_maxdepth;
+   extern int            DGT_active;
+   extern int            to_dgt;
+   extern int            from_dgt;
    extern char           whisper_text[512];
    extern int            whisper_value;
    extern int            whisper_depth;
@@ -445,7 +449,8 @@
 #  if defined(SMP)
    extern TREE           *local[MAX_BLOCKS+1];
    extern TREE           *volatile thread[CPUS];
-   extern lock_t         lock_hasha, lock_hashb, lock_pawn_hash, lock_smp, lock_io;
+   extern lock_t         lock_hasha, lock_hashb, lock_pawn_hash;
+   extern lock_t         lock_smp, lock_io;
    extern volatile int   smp_idle;
    extern volatile int   smp_threads;
    extern pthread_attr_t pthread_attr;

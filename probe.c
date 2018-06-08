@@ -43,15 +43,14 @@ typedef unsigned int square;
   #define PIECES_DECLARED
 typedef  signed char tb_t;
 
-#define pageL       256
+#define pageL       65536
 #define tbbe_ssL    ((pageL-4)/2)
-#define bev_broken  (tbbe_ssL+1)    /* illegal or busted */
-#define bev_mi1     tbbe_ssL        /* mate in 1 move */
-#define bev_mimin   1               /* mate in 126 moves */
+#define bev_broken  (tbbe_ssL+1)  /* illegal or busted */
+#define bev_mi1     tbbe_ssL      /* mate in 1 move */
+#define bev_mimin   1               /* mate in max moves */
 #define bev_draw    0               /* draw */
-#define bev_limax   (-1)            /* mated in 125 moves */
-#define bev_li0     (-tbbe_ssL)     /* mated in 0 moves */
-#define bev_unknown (-tbbe_ssL-2)   /* unknown */
+#define bev_limax   (-1)            /* mated in max moves */
+#define bev_li0     (-tbbe_ssL)   /* mated in 0 moves */
 
 typedef INDEX (TB_FASTCALL * PfnCalcIndex)
     (square*, square*, square, int fInverse);
@@ -59,7 +58,7 @@ typedef INDEX (TB_FASTCALL * PfnCalcIndex)
 extern int IDescFindFromCounters (int*);
 extern int FRegisteredFun (int, color);
 extern PfnCalcIndex PfnIndCalcFun (int, color);
-extern tb_t TB_FASTCALL TbtProbeTable (int, color, INDEX);
+extern int TB_FASTCALL L_TbtProbeTable (int, color, INDEX);
 
 #define PfnIndCalc PfnIndCalcFun
 #define FRegistered FRegisteredFun
@@ -70,7 +69,7 @@ int EGTBProbe (TREE *tree, int ply, int wtm, int *score) {
   square    rgsqWhite[C_PIECES*5+1], rgsqBlack[C_PIECES*5+1];
   square    *psqW, *psqB, sqEnP;
   INDEX     ind;
-  tb_t      tbValue;
+  int       tbValue;
 /*
  ----------------------------------------------------------
 |                                                          |
@@ -134,13 +133,7 @@ int EGTBProbe (TREE *tree, int ply, int wtm, int *score) {
   if (!FRegistered (iTb, side)) return(0);
   sqEnP = EnPassant(ply) ? EnPassant(ply) : XX;
   ind=PfnIndCalc (iTb, side) (psqW, psqB, sqEnP, fInvert);
-#if defined(SMP)
-  Lock(lock_io);
-#endif
-  tbValue=TbtProbeTable (iTb, side, ind);
-#if defined(SMP)
-  UnLock(lock_io);
-#endif
+  tbValue=L_TbtProbeTable(iTb, side, ind);
   if (bev_broken == tbValue) return(0);
 /*
  ----------------------------------------------------------
