@@ -565,6 +565,27 @@ int SearchControl(TREE * RESTRICT tree, int wtm, int ply, int depth,
     adjustment += incheck_depth;
   } else
     tree->in_check[ply + 1] = 0;
+
+
+    if(wtm){
+    if (Piece(tree->current_move[ply])==pawn &&
+    w_push_extensions[To(tree->current_move[ply])] &&
+    TotalWhitePieces < (WhiteQueens ? 15 : 12) && TotalWhitePawns < 6 )
+    {tree->passed_pawn_extensions_done++;
+    adjustment +=  pushpp_depth;
+    }
+    }
+    else
+    {if (Piece(tree->current_move[ply])==pawn &&
+    b_push_extensions[To(tree->current_move[ply])] &&
+    TotalBlackPieces < (BlackQueens ? 15 : 12) && TotalBlackPawns < 6 )
+    {tree->passed_pawn_extensions_done++;
+    adjustment += pushpp_depth;
+    }
+    }
+
+
+
 /*
  ************************************************************
  *                                                          *

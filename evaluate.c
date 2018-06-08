@@ -19,8 +19,9 @@
  *******************************************************************************
  */
 
-static int dented_armor=4, gen_trop=2, gen_trop_mid=7, max_pair_b=70, pair_b_min=8;
-static int lower_b1=16, lower_b2=32, lower_r=23, lower_r_percent=8;
+//static int dented_armor=4, gen_trop=2, gen_trop_mid=7, max_pair_b=70, pair_b_min=8;
+static int dented_armor=6, gen_trop=2, gen_trop_mid=7, max_pair_b=70, pair_b_min=8;
+static int lower_b1=16, lower_b2=32, lower_r=15, lower_r_percent=6;
 static int not_enough_pawns[9] = {18,12,6,0,0,0,0,0,0};
 
 int Evaluate(TREE * RESTRICT tree, int ply, int wtm, int alpha, int beta)
@@ -224,7 +225,7 @@ int SlideWR(TREE * RESTRICT tree, int square, int dir, int num, int *trop, BITBO
       else if (pc == rook || pc == queen) score += supports_slider;
       else break;
     }
-    
+
     score += sqrvalR[square];
   } // While
 
@@ -251,7 +252,7 @@ int SlideBR(TREE * RESTRICT tree, int square, int dir, int num, int *trop, BITBO
       else if (pc == -rook || pc == -queen) score += supports_slider;
       else break;
     }
-    
+
     score += sqrvalR[square];
   } // While
 
@@ -278,7 +279,7 @@ int SlideWB(TREE * RESTRICT tree, int square, int dir, int num, int *trop, BITBO
       else if (pc == queen) score += supports_slider;
       else break;
     }
-    
+
     score += sqrvalB[square];
   } // While
 
@@ -306,7 +307,7 @@ int SlideBB(TREE * RESTRICT tree, int square, int dir, int num, int *trop, BITBO
       else if (pc == -queen) score += supports_slider;
       else break;
     }
-    
+
     score += sqrvalB[square];
   } // While
 
@@ -377,6 +378,7 @@ int RookSlideB(TREE * RESTRICT tree, int square, int *trop)
 int EvaluateAll(TREE * RESTRICT tree)
 {
   register int score = 0;
+  register int diff=0;
 
 /*
  ************************************************************
@@ -420,13 +422,17 @@ int EvaluateAll(TREE * RESTRICT tree)
   // If a side is winning (material wise) by one minor,
   // penalize that side if it trades off its pawns down
   // to drawish material.
-  register int diff = TotalWhitePieces - TotalBlackPieces;
+  diff = TotalWhitePieces - TotalBlackPieces;
   if (diff)
   {
     if (diff == 3 || diff == 2)
+    {
       score -= not_enough_pawns[ TotalWhitePawns ];
-    if (diff == -3 || diff == -2)
+    }
+    else if (diff == -3 || diff == -2)
+    {
       score += not_enough_pawns[ TotalBlackPawns ];
+    }
   }
 
 /*
@@ -1419,18 +1425,23 @@ int EvaluateMaterial(TREE * RESTRICT tree)
  **********************************************************************
  *                                                                    *
  *   test 1.  if Majors or Minors are not balanced, then if one side  *
+ *   is only an exchange up or down, we do not give any sort of bad   *
+ *   trade penalty/bonus.                                             *
+ *                                                                    *
+ *   test 2.  if Majors or Minors are not balanced, then if one side  *
  *   has more piece material points than the other (using normal      *
  *   piece values of 3, 3, 5, 9 for N, B, R and Q) then the side that *
  *   is behind in piece material gets a penalty.                      *
  *                                                                    *
  **********************************************************************
  */
-  if (Majors != 0 || Minors != 0) {
-    if (TotalWhitePieces > TotalBlackPieces)
-      score += bad_trade;
-    else if (TotalBlackPieces > TotalWhitePieces)
-      score -= bad_trade;
-  }
+  if (Majors != 0 || Minors != 0)
+    if (Abs(TotalWhitePieces - TotalBlackPieces) != 2) {
+      if (TotalWhitePieces > TotalBlackPieces)
+        score += bad_trade;
+      else if (TotalBlackPieces > TotalWhitePieces)
+        score -= bad_trade;
+    }
 #ifdef DEBUGM
   printf("Majors=%d  Minors=%d  TotalWhitePieces=%d  TotalBlackPieces=%d\n",
       Majors, Minors, TotalWhitePieces, TotalBlackPieces);
@@ -3099,7 +3110,7 @@ int EvaluateRooks(TREE * RESTRICT tree)
 
 //TLRR
     trop = 0;
-    score += (RookSlideW(tree, square, &trop) * lower_r_percent / 10) - lower_r;
+    score += (RookSlideW(tree, square, &trop) * lower_r_percent / 100) - lower_r;
 
 //    score += RookSlideW(tree, square) - 24;
 /*
@@ -3237,7 +3248,7 @@ int EvaluateRooks(TREE * RESTRICT tree)
 
 //TLRR
     trop = 0;
-    score -= (RookSlideB(tree, square, &trop) * lower_r_percent / 10) - lower_r;
+    score -= (RookSlideB(tree, square, &trop) * lower_r_percent / 100) - lower_r;
 
 //    score -= RookSlideB(tree, square) - 24;
 /*

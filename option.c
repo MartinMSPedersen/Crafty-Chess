@@ -2328,25 +2328,8 @@ int Option(TREE * RESTRICT tree)
       else if (strstr(args[0], "logpath"))
         strcpy(log_path, args[1]);
 #if !defined(NOEGTB)
-      else if (strstr(args[0], "tbpath")) {
+      else if (strstr(args[0], "tbpath"))
         strcpy(tb_path, args[1]);
-        EGTBlimit = IInitializeTb(tb_path);
-        Print(128, "%d piece tablebase files found\n", EGTBlimit);
-        if (0 != cbEGTBCompBytes)
-          Print(128,
-              "%dkb of RAM used for TB indices and decompression tables\n",
-              (cbEGTBCompBytes + 1023) / 1024);
-        if (EGTBlimit) {
-          if (!EGTB_cache)
-            EGTB_cache = malloc(EGTB_cache_size);
-          if (!EGTB_cache) {
-            Print(4095, "ERROR  EGTB cache malloc failed\n");
-            EGTB_cache = malloc(EGTB_CACHE_DEFAULT);
-          } else
-            FTbSetCacheSize(EGTB_cache, EGTB_cache_size);
-          EGTB_setup = 1;
-        }
-      }
 #endif
     } else {
       if (strchr(args[1], ')')) {
@@ -2356,25 +2339,8 @@ int Option(TREE * RESTRICT tree)
         else if (strstr(args[0], "logpath"))
           strcpy(log_path, args[1] + 1);
 #if !defined(NOEGTB)
-        else if (strstr(args[0], "tbpath")) {
+        else if (strstr(args[0], "tbpath"))
           strcpy(tb_path, args[1] + 1);
-          EGTBlimit = IInitializeTb(tb_path);
-          Print(128, "%d piece tablebase files found\n", EGTBlimit);
-          if (0 != cbEGTBCompBytes)
-            Print(128,
-                "%dkb of RAM used for TB indices and decompression tables\n",
-                (cbEGTBCompBytes + 1023) / 1024);
-          if (EGTBlimit) {
-            if (!EGTB_cache)
-              EGTB_cache = malloc(EGTB_cache_size);
-            if (!EGTB_cache) {
-              Print(4095, "ERROR  EGTB cache malloc failed\n");
-              EGTB_cache = malloc(EGTB_CACHE_DEFAULT);
-            } else
-              FTbSetCacheSize(EGTB_cache, EGTB_cache_size);
-            EGTB_setup = 1;
-          }
-        }
 #endif
       } else
         Print(4095, "ERROR multiple paths must be enclosed in ( and )\n");

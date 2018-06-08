@@ -71,12 +71,8 @@ int Swap(TREE * RESTRICT tree, int source, int target, int wtm)
  *                                                          *
  *   now pick out the least valuable piece for the correct  *
  *   side that is bearing on <target>.  as we find one, we  *
- *   remove it from the board and determine if there is a   *
- *   piece behind it by using the magic move generator.  to *
- *   avoid adding pieces back in that we have already used, *
- *   we eliminate any that are not in the temporary         *
- *   occupied bitmap since we remove them from this set as  *
- *   we use them.                                           *
+ *   call SwapXray() to add the piece behind this piece     *
+ *   that is indirectly bearing on <target> (if any).       *
  *                                                          *
  ************************************************************
  */

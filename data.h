@@ -52,6 +52,8 @@ extern int last_opponent_move;
 extern int incheck_depth;
 extern int onerep_depth;
 extern int mate_depth;
+extern int pushpp_depth;
+
 extern int null_min;
 extern int null_max;
 extern int reduce_min_depth;
@@ -375,4 +377,7 @@ extern int blocked_center_pawn;
 extern int development_losing_castle;
 extern int development_not_castled;
 extern struct eval_term eval_packet[256];
+signed char w_push_extensions[64];
+signed char b_push_extensions[64];
+
 #endif

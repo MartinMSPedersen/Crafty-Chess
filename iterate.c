@@ -112,6 +112,7 @@ int Iterate(int wtm, int search_type, int root_list_done)
       tree->check_extensions_done = 0;
       tree->mate_extensions_done = 0;
       tree->one_reply_extensions_done = 0;
+      tree->passed_pawn_extensions_done = 0;
       tree->reductions_attempted = 0;
       tree->reductions_done = 0;
       shared->root_wtm = wtm;
@@ -555,7 +556,9 @@ int Iterate(int wtm, int search_type, int root_list_done)
             DisplayKM(tree->check_extensions_done));
         Print(16, "1rep=%s ", DisplayKM(tree->one_reply_extensions_done));
         Print(16, "mate=%s ", DisplayKM(tree->mate_extensions_done));
-        Print(16, "reductions=%s", DisplayKM(tree->reductions_attempted));
+        Print(16, "pp=%s ", DisplayKM(tree->passed_pawn_extensions_done));
+        Print(16, "reduct=%s", DisplayKM(tree->reductions_attempted));
+
         Print(16, "/%s\n", DisplayKM(tree->reductions_done));
         Print(16, "              predicted=%d  evals=%s  50move=%d", predicted,
             DisplayKM(tree->evaluations), Rule50Moves(0));

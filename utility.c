@@ -1733,8 +1733,7 @@ int Read(int wait, char *buffer)
     }
 
   eol = strchr(cmd_buffer, '\n');
-  if (eol)
-    *eol = 0;
+  *eol = 0;
   ret = strchr(cmd_buffer, '\r');
   if (ret)
     *ret = ' ';
@@ -2226,6 +2225,7 @@ void CopyFromSMP(TREE * RESTRICT p, TREE * RESTRICT c, int value)
   p->check_extensions_done += c->check_extensions_done;
   p->one_reply_extensions_done += c->one_reply_extensions_done;
   p->mate_extensions_done += c->mate_extensions_done;
+  p->passed_pawn_extensions_done += c->passed_pawn_extensions_done;
   p->reductions_attempted += c->reductions_attempted;
   p->reductions_done += c->reductions_done;
   strcpy(c->root_move_text, p->root_move_text);
@@ -2306,6 +2306,7 @@ TREE *CopyToSMP(TREE * RESTRICT p, int thread)
   c->check_extensions_done = 0;
   c->mate_extensions_done = 0;
   c->one_reply_extensions_done = 0;
+  c->passed_pawn_extensions_done = 0;
   c->reductions_attempted = 0;
   c->reductions_done = 0;
   c->alpha = p->alpha;

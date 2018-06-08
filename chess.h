@@ -361,6 +361,8 @@ struct tree {
   unsigned int check_extensions_done;
   unsigned int one_reply_extensions_done;
   unsigned int mate_extensions_done;
+  unsigned int passed_pawn_extensions_done;
+
   unsigned int reductions_attempted;
   unsigned int reductions_done;
   KILLER    killers[MAXPLY];
@@ -787,7 +789,7 @@ extern void WinFreeInterleaved(void *, size_t);
 # endif
 /* the following macros scale parts of the evaluation depending on the
    amount of material remaining on the board, to make endgame stuff more
-   important as material comes off, and to make non-endgame stuff like 
+   important as material comes off, and to make non-endgame stuff like
    king-safety more important until material does come off.
  */
 #define ScaleMG(s)                                                            \

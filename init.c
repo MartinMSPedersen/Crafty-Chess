@@ -1314,7 +1314,7 @@ void InitializePawnMasks(void)
       file_mask[FILEH]);
 /*
    this array is indexed by an 8-bit value that has a one for
-   each file with a pawn of a specific color.  it returns the 
+   each file with a pawn of a specific color.  it returns the
    number of "pawn islands" based on that file status.
  */
   for (i = 0; i < 256; i++) {

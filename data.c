@@ -152,7 +152,7 @@ BITBOARD black_pawn_race_btm[64];
 BOOK_POSITION book_buffer[BOOK_CLUSTER_SIZE];
 BOOK_POSITION book_buffer_char[BOOK_CLUSTER_SIZE];
 
-#define    VERSION                             "21.3"
+#define    VERSION                             "21.4"
 char version[8] = { VERSION };
 PLAYING_MODE mode = normal_mode;
 int batch_mode = 0;             /* no asynch reads */
@@ -215,6 +215,7 @@ int last_opponent_move = 0;
 int incheck_depth = 4;
 int onerep_depth = 3;
 int mate_depth = 3;
+int pushpp_depth = 3;
 int null_min = 3 * PLY;         /* R=2 */
 int null_max = 4 * PLY;         /* R=3 */
 int reduce_min_depth = PLY;     /* leave 1 good ply after reductions */
@@ -529,6 +530,29 @@ int sqrvalR[64] = {
     1,   2,   3,   4,   4,   3,   2,   1
 };
 */
+/*
+int sqrvalR[64] = {
+    14,   20,   31,   37,   37,   31,   20,   14,
+    14,   20,   31,   37,   37,   31,   20,   14,
+    14,   20,   31,   37,   37,   31,   20,   14,
+    14,   20,   31,   37,   37,   31,   20,   14,
+    14,   20,   31,   37,   37,   31,   20,   14,
+    14,   20,   31,   37,   37,   31,   20,   14,
+    14,   20,   31,   37,   37,   31,   20,   14,
+    14,   20,   31,   37,   37,   31,   20,   14
+};
+*/
+int sqrvalR[64] = {
+    10,   20,   30,   40,   40,   30,   20,   10,
+    10,   20,   30,   40,   40,   30,   20,   10,
+    10,   20,   30,   40,   40,   30,   20,   10,
+    10,   20,   30,   40,   40,   30,   20,   10,
+    10,   20,   30,   40,   40,   30,   20,   10,
+    10,   20,   30,   40,   40,   30,   20,   10,
+    10,   20,   30,   40,   40,   30,   20,   10,
+    10,   20,   30,   40,   40,   30,   20,   10
+};
+/*
 int sqrvalR[64] = {
     2,   2,   3,   4,   4,   3,   2,   2,
     2,   2,   3,   4,   4,   3,   2,   2,
@@ -539,6 +563,7 @@ int sqrvalR[64] = {
     2,   2,   3,   4,   4,   3,   2,   2,
     2,   2,   3,   4,   4,   3,   2,   2
 };
+*/
 int white_outpost[64] = {
   0, 0,  0,  0,  0,  0, 0, 0,
   0, 0,  0,  0,  0,  0, 0, 0,
@@ -630,6 +655,24 @@ int tropism_vector[16] = {
    0,  1,  2,  3,   4,   5,  11,  20,
   32, 47, 65, 86, 110, 137, 167, 200
 };
+signed char    w_push_extensions[64] =     {0, 0, 0, 0, 0, 0, 0, 0,
+                                            0, 0, 0, 0, 0, 0, 0, 0,
+                                            0, 0, 0, 0, 0, 0, 0, 0,
+                                            0, 0, 0, 0, 0, 0, 0, 0,
+                                            0, 0, 0, 0, 0, 0, 0, 0,
+                                            1, 1, 1, 1, 1, 1, 1, 1,
+                                            1, 1, 1, 1, 1, 1, 1, 1,
+                                            0, 0, 0, 0, 0, 0, 0, 0};
+
+signed char    b_push_extensions[64] =    { 0, 0, 0, 0, 0, 0, 0, 0,
+                                            1, 1, 1, 1, 1, 1, 1, 1,
+                                            1, 1, 1, 1, 1, 1, 1, 1,
+                                            0, 0, 0, 0, 0, 0, 0, 0,
+                                            0, 0, 0, 0, 0, 0, 0, 0,
+                                            0, 0, 0, 0, 0, 0, 0, 0,
+                                            0, 0, 0, 0, 0, 0, 0, 0,
+                                            0, 0, 0, 0, 0, 0, 0, 0 };
+
 
 /* note that black piece/square values are copied from white, but
    reflected */
